@@ -44,10 +44,9 @@
         const symbols: Record<string, string> = {
             'EUR': '€',
             'USD': '$',
-            'JPY': '¥'
         };
-        const symbol = symbols[currency.toUpperCase()] || '€';
-        return currency.toUpperCase() === 'JPY' ? `${symbol}${amount}` : `${symbol}${amount}`;
+        const symbol = symbols[currency.toUpperCase()] || currency.toUpperCase();
+        return `${symbol}${amount}`;
     }
 
     // Navigate to payment form for a specific tier
@@ -151,7 +150,7 @@
     {#each supportTiers as tier}
         <SettingsItem
             type="submenu"
-            icon="subsetting_icon subsetting_icon_heart"
+            icon="subsetting_icon heart"
             title={formatCurrency(tier.amount, currency)}
             onClick={() => selectSupportTier(tier)}
         />
@@ -215,7 +214,7 @@
         {#if paymentStarted}
             <div class="payment-component-container">
                 <Payment
-                    purchasePrice={currency.toUpperCase() === 'JPY' ? selectedTier.amount : selectedTier.amount * 100}
+                    purchasePrice={selectedTier.amount * 100}
                     currency={currency}
                     credits_amount={0}
                     requireConsent={false}

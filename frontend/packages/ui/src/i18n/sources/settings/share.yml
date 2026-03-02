@@ -23,6 +23,7 @@ share:
   th: แชร์
   cs: Sdílet
   sv: Dela
+  he: שיתוף
   verified_by_human: []
 
 share_public:
@@ -47,6 +48,7 @@ share_public:
   th: แชร์สาธารณะ
   cs: Sdílet veřejně
   sv: Dela offentligt
+  he: שתף באופן ציבורי
   verified_by_human: []
 
 share_description:
@@ -71,6 +73,7 @@ share_description:
   th: สร้างลิงก์ที่สามารถแชร์ได้ไปยังแชทนี้ ใครก็ตามที่มีลิงก์สามารถดูการสนทนาได้
   cs: Vytvořte sdílený odkaz na tento chat. Kdokoli s odkazem si může prohlédnout konverzaci.
   sv: Skapa en delbar länk till denna chatt. Alla med länken kan se konversationen.
+  he: "צור קישור שניתן לשתף לצ'אט זה. כל מי שיש לו את הקישור יוכל לצפות בשיחה."
   verified_by_human: []
 
 share_embed_description:
@@ -95,6 +98,7 @@ share_embed_description:
   th: สร้างลิงก์ที่สามารถแชร์ได้ไปยัง embed นี้ ใครก็ตามที่มีลิงก์สามารถดูเนื้อหาได้
   cs: Vytvořte sdílený odkaz na tento embed. Kdokoli s odkazem si může prohlédnout obsah.
   sv: Skapa en delbar länk till denna embed. Alla med länken kan se innehållet.
+  he: צור קישור שניתן לשתף להטמעה זו. כל מי שיש לו את הקישור יוכל לצפות בתוכן.
   verified_by_human: []
 
 password_protection:
@@ -119,6 +123,7 @@ password_protection:
   th: การป้องกันด้วยรหัสผ่าน
   cs: Ochrana heslem
   sv: Lösenordsskydd
+  he: הגנה באמצעות סיסמה
   verified_by_human: []
 
 password_placeholder:
@@ -143,6 +148,7 @@ password_placeholder:
   th: ป้อนรหัสผ่าน (สูงสุด 10 ตัวอักษร)
   cs: Zadejte heslo (max. 10 znaků)
   sv: Ange lösenord (max 10 tecken)
+  he: הזן סיסמה (עד 10 תווים)
   verified_by_human: []
 
 time_limit:
@@ -167,6 +173,7 @@ time_limit:
   th: จำกัดเวลา
   cs: Časový limit
   sv: Tidsgräns
+  he: הגבלת זמן
   verified_by_human: []
 
 no_expiration:
@@ -191,6 +198,7 @@ no_expiration:
   th: ไม่มีวันหมดอายุ
   cs: Bez expirace
   sv: Ingen utgång
+  he: ללא תפוגה
   verified_by_human: []
 
 one_minute:
@@ -215,6 +223,7 @@ one_minute:
   th: 1 นาที
   cs: 1 minuta
   sv: 1 minut
+  he: דקה אחת
   verified_by_human: []
 
 one_hour:
@@ -239,6 +248,7 @@ one_hour:
   th: 1 ชั่วโมง
   cs: 1 hodina
   sv: 1 timme
+  he: שעה אחת
   verified_by_human: []
 
 twenty_four_hours:
@@ -263,6 +273,7 @@ twenty_four_hours:
   th: 24 ชั่วโมง
   cs: 24 hodin
   sv: 24 timmar
+  he: 24 שעות
   verified_by_human: []
 
 seven_days:
@@ -287,6 +298,7 @@ seven_days:
   th: 7 วัน
   cs: 7 dní
   sv: 7 dagar
+  he: 7 ימים
   verified_by_human: []
 
 fourteen_days:
@@ -311,6 +323,7 @@ fourteen_days:
   th: 14 วัน
   cs: 14 dní
   sv: 14 dagar
+  he: 14 ימים
   verified_by_human: []
 
 thirty_days:
@@ -335,6 +348,7 @@ thirty_days:
   th: 30 วัน
   cs: 30 dní
   sv: 30 dagar
+  he: 30 ימים
   verified_by_human: []
 
 ninety_days:
@@ -359,6 +373,7 @@ ninety_days:
   th: 90 วัน
   cs: 90 dní
   sv: 90 dagar
+  he: 90 ימים
   verified_by_human: []
 
 share_chat:
@@ -383,6 +398,7 @@ share_chat:
   th: แชร์แชท
   cs: Sdílet chat
   sv: Dela chatt
+  he: "שתף צ'אט"
   verified_by_human: []
 
 share_embed:
@@ -407,6 +423,7 @@ share_embed:
   th: แชร์ embed
   cs: Sdílet embed
   sv: Dela embed
+  he: שתף הטמעה
   verified_by_human: []
 
 expire_time_info:
@@ -431,6 +448,7 @@ expire_time_info:
   th: เวลาหมดอายุใช้กับ URL การแชร์เท่านั้น เมื่อมีคนเข้าถึงแชทโดยใช้ลิงก์แล้ว พวกเขาสามารถดูต่อได้จนกว่าคุณจะหยุดแชร์
   cs: Doba platnosti se vztahuje pouze na URL pro sdílení. Jakmile někdo přistupuje k chatu pomocí odkazu, může ho nadále zobrazovat, dokud nesdílíte.
   sv: Utgångstiden gäller endast för delnings-URL:en. När någon har öppnat chatten med länken kan de fortsätta visa den tills du slutar dela den.
+  he: "זמן התפוגה חל רק על כתובת ה-URL של השיתוף. ברגע שמישהו ניגש לצ'אט באמצעות הקישור, הוא יוכל להמשיך לצפות בו עד שתבטל את השיתוף."
   verified_by_human: []
 
 expire_time_info_embed:
@@ -455,6 +473,7 @@ expire_time_info_embed:
   th: เวลาหมดอายุใช้กับ URL การแชร์เท่านั้น เมื่อมีคนเข้าถึง embed โดยใช้ลิงก์แล้ว พวกเขาสามารถดูต่อได้จนกว่าคุณจะหยุดแชร์
   cs: Doba platnosti se vztahuje pouze na URL pro sdílení. Jakmile někdo přistupuje k embedu pomocí odkazu, může ho nadále zobrazovat, dokud nesdílíte.
   sv: Utgångstiden gäller endast för delnings-URL:en. När någon har öppnat embeden med länken kan de fortsätta visa den tills du slutar dela den.
+  he: זמן התפוגה חל רק על כתובת ה-URL של השיתוף. ברגע שמישהו ניגש להטמעה באמצעות הקישור, הוא יוכל להמשיך לצפות בה עד שתבטל את השיתוף.
   verified_by_human: []
 
 change_settings:
@@ -479,6 +498,7 @@ change_settings:
   th: เปลี่ยนการตั้งค่า
   cs: Změnit nastavení
   sv: Ändra inställningar
+  he: שינוי הגדרות
   verified_by_human: []
 
 # SettingsShared component translations
@@ -504,6 +524,7 @@ not_authenticated:
   th: กรุณาเข้าสู่ระบบเพื่อดูแชทที่แชร์
   cs: Přihlaste se prosím, abyste viděli sdílené chaty
   sv: Logga in för att se delade chattar
+  he: "יש להתחבר כדי לצפות בצ'אטים משותפים"
   verified_by_human: []
 
 loading:
@@ -528,6 +549,7 @@ loading:
   th: กำลังโหลดแชทที่แชร์...
   cs: Načítání sdílených chatů...
   sv: Laddar delade chattar...
+  he: "טוען צ'אטים משותפים..."
   verified_by_human: []
 
 shared_section:
@@ -552,6 +574,7 @@ shared_section:
   th: แชร์แล้ว
   cs: Sdíleno
   sv: Delat
+  he: שותפו על ידי
   verified_by_human: []
 
 shared_with_me_section:
@@ -576,6 +599,7 @@ shared_with_me_section:
   th: แชร์กับฉัน
   cs: Sdíleno se mnou
   sv: Delat med mig
+  he: שותפו איתי
   verified_by_human: []
 
 no_shared_chats:
@@ -600,6 +624,7 @@ no_shared_chats:
   th: ยังไม่มีแชทที่แชร์
   cs: Zatím žádné sdílené chaty
   sv: Inga delade chattar ännu
+  he: "אין עדיין צ'אטים משותפים"
   verified_by_human: []
 
 no_shared_with_me_chats:
@@ -624,6 +649,7 @@ no_shared_with_me_chats:
   th: ยังไม่มีใครแชร์แชทกับคุณ
   cs: Zatím žádné chaty s vámi nesdíleny
   sv: Inga chattar delade med dig ännu
+  he: "אין עדיין צ'אטים ששותפו איתך"
   verified_by_human: []
 
 untitled_chat:
@@ -648,6 +674,7 @@ untitled_chat:
   th: แชทไม่มีชื่อ
   cs: Chat bez názvu
   sv: Chatt utan titel
+  he: "צ'אט ללא כותרת"
   verified_by_human: []
 
 unshare:
@@ -672,6 +699,7 @@ unshare:
   th: หยุดแชร์
   cs: Přestat sdílet
   sv: Sluta dela
+  he: ביטול שיתוף
   verified_by_human: []
 
 click_to_copy:
@@ -696,6 +724,7 @@ click_to_copy:
   th: คลิกเพื่อคัดลอกลิงก์
   cs: Klikněte pro zkopírování odkazu
   sv: Klicka för att kopiera länken
+  he: לחץ להעתקת הקישור
   verified_by_human: []
 
 link_copied:
@@ -720,6 +749,7 @@ link_copied:
   th: คัดลอกลิงก์ไปยังคลิปบอร์ดแล้ว!
   cs: Odkaz zkopírován do schránky!
   sv: Länken kopierad till urklipp!
+  he: "הקישור הועתק ללוח!"
   verified_by_human: []
 
 qr_code:
@@ -744,6 +774,7 @@ qr_code:
   th: คิวอาร์โค้ด
   cs: QR kód
   sv: QR-kod
+  he: קוד QR
   verified_by_human: []
 
 scan_qr_code:
@@ -768,6 +799,7 @@ scan_qr_code:
   th: สแกนเพื่อเปิดแชทที่แชร์
   cs: Naskenujte pro otevření sdíleného chatu
   sv: Skanna för att öppna delad chatt
+  he: "סרוק כדי לפתוח את הצ'אט המשותף"
   verified_by_human: []
 
 no_chat_selected:
@@ -792,6 +824,7 @@ no_chat_selected:
   th: กรุณาเลือกแชทเพื่อแชร์
   cs: Vyberte prosím chat ke sdílení
   sv: Välj en chatt att dela
+  he: "יש לבחור צ'אט לשיתוף"
   verified_by_human: []
 
 share_options:
@@ -816,6 +849,7 @@ share_options:
   th: ตัวเลือกการแชร์
   cs: Možnosti sdílení
   sv: Delningsalternativ
+  he: אפשרויות שיתוף
   verified_by_human: []
 
 link_will_expire_in:
@@ -840,6 +874,7 @@ link_will_expire_in:
   th: ลิงก์หมดอายุใน
   cs: Odkaz vyprší za
   sv: Länken upphör om
+  he: הקישור יפוג בעוד
   verified_by_human: []
 
 password_required_info:
@@ -864,6 +899,7 @@ password_required_info:
   th: ผู้รับจะต้องใช้รหัสผ่านนี้เพื่อดูแชท
   cs: Příjemce bude potřebovat toto heslo k zobrazení chatu
   sv: Mottagaren behöver detta lösenord för att visa chatten
+  he: "הנמען יזדקק לסיסמה זו כדי לצפות בצ'אט"
   verified_by_human: []
 
 password_required_info_embed:
@@ -888,6 +924,7 @@ password_required_info_embed:
   th: ผู้รับจะต้องใช้รหัสผ่านนี้เพื่อดู embed
   cs: Příjemce bude potřebovat toto heslo k zobrazení embedu
   sv: Mottagaren behöver detta lösenord för att visa embeden
+  he: הנמען יזדקק לסיסמה זו כדי לצפות בהטמעה
   verified_by_human: []
 
 encryption_info:
@@ -912,6 +949,7 @@ encryption_info:
   th: แชทยังคงเข้ารหัสแบบ end-to-end คีย์เข้ารหัสรวมอยู่ในลิงก์
   cs: Chat zůstává end-to-end šifrovaný. Šifrovací klíč je součástí odkazu.
   sv: Chatten förblir end-to-end-krypterad. Krypteringsnyckeln ingår i länken.
+  he: "הצ'אט נשאר מוצפן מקצה לקצה. מפתח ההצפנה כלול בקישור."
   verified_by_human: []
 
 encryption_info_embed:
@@ -936,6 +974,7 @@ encryption_info_embed:
   th: embed ยังคงเข้ารหัสแบบ end-to-end คีย์เข้ารหัสรวมอยู่ในลิงก์
   cs: Embed zůstává end-to-end šifrovaný. Šifrovací klíč je součástí odkazu.
   sv: Embeden förblir end-to-end-krypterad. Krypteringsnyckeln ingår i länken.
+  he: ההטמעה נשארת מוצפנת מקצה לקצה. מפתח ההצפנה כלול בקישור.
   verified_by_human: []
 
 share_with_community:
@@ -960,6 +999,7 @@ share_with_community:
   th: แชร์กับชุมชน
   cs: Sdílet s komunitou
   sv: Dela med gemenskapen
+  he: שתף עם הקהילה
   verified_by_human: []
 
 share_with_community_info:
@@ -984,17 +1024,58 @@ share_with_community_info:
   th: 'หากคุณเลือก "แชร์กับชุมชน" แชทของคุณอาจถูกเลือกให้แสดงแก่ผู้ใช้อื่นบนแพลตฟอร์ม รวมถึงบนโซเชียลมีเดียและในกิจกรรม'
   cs: 'Pokud vyberete "Sdílet s komunitou", váš chat může být také vybrán k zobrazení jiným uživatelům na platformě, stejně jako na sociálních médiích a na akcích.'
   sv: 'Om du väljer "Dela med gemenskapen", kan din chatt också väljas för att visas för andra användare på plattformen, samt på sociala medier och vid evenemang.'
+  he: "אם תבחר ב\"שתף עם הקהילה\", הצ'אט שלך עשוי להיבחר להצגה למשתמשים אחרים בפלטפורמה, וכן ברשתות חברתיות ובאירועים."
   verified_by_human: []
 
 include_sensitive_data:
   context: Toggle label for including sensitive personal data (emails, phones, etc.) in shared content
   en: Include sensitive data
   de: Sensible Daten einschließen
+  zh: 包含敏感数据
+  es: Incluir datos sensibles
+  fr: Inclure les données sensibles
+  pt: Incluir dados sensíveis
+  ru: Включить конфиденциальные данные
+  ja: 機密データを含める
+  ko: 민감한 데이터 포함
+  it: Includi dati sensibili
+  tr: Hassas verileri dahil et
+  vi: Bao gồm dữ liệu nhạy cảm
+  id: Sertakan data sensitif
+  pl: Uwzględnij dane wrażliwe
+  nl: Gevoelige gegevens opnemen
+  ar: تضمين البيانات الحساسة
+  hi: संवेदनशील डेटा शामिल करें
+  th: รวมข้อมูลที่ละเอียดอ่อน
+  cs: Zahrnout citlivá data
+  sv: Inkludera känsliga uppgifter
+  he: כלול נתונים רגישים
+  verified_by_human: []
 
 include_sensitive_data_warning:
   context: Warning shown when user enables the include sensitive data toggle, explaining that personal info will be visible to recipients
   en: "Your personal information (emails, phone numbers, etc.) will be included in the shared content. Only enable this if you trust all recipients."
   de: "Ihre persönlichen Daten (E-Mails, Telefonnummern usw.) werden in den geteilten Inhalten enthalten sein. Aktivieren Sie dies nur, wenn Sie allen Empfängern vertrauen."
+  zh: "你的个人信息（电子邮件、电话号码等）将包含在共享内容中。仅在信任所有接收者时才启用此选项。"
+  es: "Tu información personal (correos electrónicos, números de teléfono, etc.) se incluirá en el contenido compartido. Solo activa esto si confías en todos los destinatarios."
+  fr: "Vos informations personnelles (e-mails, numéros de téléphone, etc.) seront incluses dans le contenu partagé. N'activez cette option que si vous faites confiance à tous les destinataires."
+  pt: "Suas informações pessoais (e-mails, números de telefone, etc.) serão incluídas no conteúdo compartilhado. Ative isso apenas se você confia em todos os destinatários."
+  ru: "Ваша личная информация (электронная почта, номера телефонов и т.д.) будет включена в общий контент. Включайте это только если вы доверяете всем получателям."
+  ja: "あなたの個人情報（メールアドレス、電話番号など）が共有コンテンツに含まれます。すべての受信者を信頼できる場合にのみ有効にしてください。"
+  ko: "개인 정보(이메일, 전화번호 등)가 공유 콘텐츠에 포함됩니다. 모든 수신자를 신뢰하는 경우에만 활성화하세요."
+  it: "Le tue informazioni personali (email, numeri di telefono, ecc.) saranno incluse nel contenuto condiviso. Attiva questa opzione solo se ti fidi di tutti i destinatari."
+  tr: "Kişisel bilgileriniz (e-postalar, telefon numaraları vb.) paylaşılan içeriğe dahil edilecektir. Bunu yalnızca tüm alıcılara güveniyorsanız etkinleştirin."
+  vi: "Thông tin cá nhân của bạn (email, số điện thoại, v.v.) sẽ được bao gồm trong nội dung chia sẻ. Chỉ bật tùy chọn này nếu bạn tin tưởng tất cả người nhận."
+  id: "Informasi pribadi Anda (email, nomor telepon, dll.) akan disertakan dalam konten yang dibagikan. Aktifkan ini hanya jika Anda mempercayai semua penerima."
+  pl: "Twoje dane osobowe (e-maile, numery telefonów itp.) zostaną uwzględnione w udostępnionej treści. Włącz to tylko, jeśli ufasz wszystkim odbiorcom."
+  nl: "Je persoonlijke gegevens (e-mails, telefoonnummers, etc.) worden opgenomen in de gedeelde inhoud. Schakel dit alleen in als je alle ontvangers vertrouwt."
+  ar: "سيتم تضمين معلوماتك الشخصية (البريد الإلكتروني وأرقام الهاتف وما إلى ذلك) في المحتوى المشترك. قم بتفعيل هذا فقط إذا كنت تثق بجميع المستلمين."
+  hi: "आपकी व्यक्तिगत जानकारी (ईमेल, फोन नंबर, आदि) साझा सामग्री में शामिल की जाएगी। इसे केवल तभी सक्षम करें जब आप सभी प्राप्तकर्ताओं पर भरोसा करते हैं।"
+  th: "ข้อมูลส่วนบุคคลของคุณ (อีเมล หมายเลขโทรศัพท์ ฯลฯ) จะถูกรวมอยู่ในเนื้อหาที่แชร์ เปิดใช้งานเฉพาะเมื่อคุณเชื่อถือผู้รับทั้งหมด"
+  cs: "Vaše osobní údaje (e-maily, telefonní čísla atd.) budou zahrnuty ve sdíleném obsahu. Povolte tuto možnost pouze pokud důvěřujete všem příjemcům."
+  sv: "Din personliga information (e-postadresser, telefonnummer, etc.) kommer att inkluderas i det delade innehållet. Aktivera detta bara om du litar på alla mottagare."
+  he: "המידע האישי שלך (אימיילים, מספרי טלפון וכו') ייכלל בתוכן המשותף. הפעל זאת רק אם בטחונך במקבלי הקישור מלא."
+  verified_by_human: []
 
 optional_settings:
   context: Header for optional share settings section
@@ -1018,6 +1099,7 @@ optional_settings:
   th: การตั้งค่าเสริม
   cs: Volitelná nastavení
   sv: Valfria inställningar
+  he: הגדרות אופציונליות
   verified_by_human: []
 
 sharing_chat:
@@ -1042,6 +1124,7 @@ sharing_chat:
   th: การแชร์
   cs: Sdílení
   sv: Delar
+  he: משתף
   verified_by_human: []
 
 link_for_chat:
@@ -1066,6 +1149,7 @@ link_for_chat:
   th: ลิงก์สำหรับ
   cs: Odkaz pro
   sv: Länk för
+  he: קישור עבור
   verified_by_human: []
 
 click_to_enlarge_qr:
@@ -1090,20 +1174,78 @@ click_to_enlarge_qr:
   th: คลิกรหัส QR เพื่อขยาย
   cs: Klikněte na QR kód pro zvětšení
   sv: Klicka på QR-koden för att förstora
+  he: לחץ על קוד ה-QR להגדלה
   verified_by_human: []
 sharing_embed:
   context: Label in embed preview header during share configuration step
   en: Sharing embed
   de: Einbettung teilen
+  zh: 分享嵌入
+  es: Compartiendo incrustación
+  fr: Partage de l'intégration
+  pt: Compartilhando incorporação
+  ru: Общий доступ к встраиванию
+  ja: 埋め込みを共有
+  ko: 임베드 공유
+  it: Condivisione incorporamento
+  tr: Gömülü paylaşımı
+  vi: Chia sẻ nhúng
+  id: Berbagi sematan
+  pl: Udostępnianie osadzenia
+  nl: Insluiting delen
+  ar: مشاركة التضمين
+  hi: एम्बेड साझा करना
+  th: แชร์การฝัง
+  cs: Sdílení vložení
+  sv: Dela inbäddning
+  he: משתף הטמעה
   verified_by_human: []
 link_for_embed:
   context: Label in embed preview header after share link has been created
   en: Link for embed
   de: Link für Einbettung
+  zh: 嵌入链接
+  es: Enlace para incrustación
+  fr: Lien pour l'intégration
+  pt: Link para incorporação
+  ru: Ссылка для встраивания
+  ja: 埋め込みリンク
+  ko: 임베드 링크
+  it: Link per incorporamento
+  tr: Gömülü bağlantısı
+  vi: Liên kết nhúng
+  id: Tautan untuk sematan
+  pl: Link do osadzenia
+  nl: Link voor insluiting
+  ar: رابط التضمين
+  hi: एम्बेड के लिए लिंक
+  th: ลิงก์สำหรับการฝัง
+  cs: Odkaz pro vložení
+  sv: Länk för inbäddning
+  he: קישור להטמעה
   verified_by_human: []
 
 share_transcript:
   context: Navigation title when sharing a video transcript
   en: Share Transcript
   de: Transkript teilen
+  zh: 分享转录
+  es: Compartir transcripción
+  fr: Partager la transcription
+  pt: Compartilhar transcrição
+  ru: Поделиться транскрипцией
+  ja: トランスクリプトを共有
+  ko: 대본 공유
+  it: Condividi trascrizione
+  tr: Transkripti paylaş
+  vi: Chia sẻ bản ghi
+  id: Bagikan transkrip
+  pl: Udostępnij transkrypcję
+  nl: Transcript delen
+  ar: مشاركة النص
+  hi: ट्रांसक्रिप्ट साझा करें
+  th: แชร์บทถอดเสียง
+  cs: Sdílet přepis
+  sv: Dela transkription
+  he: שיתוף תמליל
   verified_by_human: []

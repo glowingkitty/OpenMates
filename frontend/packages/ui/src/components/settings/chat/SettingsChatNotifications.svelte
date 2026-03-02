@@ -285,7 +285,7 @@ When enabled, notifications are sent to the user's login email (from account set
         <!-- Main Enable/Disable Toggle -->
         <SettingsItem
             type="submenu"
-            icon="subsetting_icon subsetting_icon_announcement"
+            icon="subsetting_icon announcement"
             title={$text('settings.chat.notifications.enable')}
             subtitleTop={permissionStatusText}
             hasToggle={true}
@@ -312,7 +312,7 @@ When enabled, notifications are sent to the user's login email (from account set
                 
                 <SettingsItem
                     type="submenu"
-                    icon="subsetting_icon subsetting_icon_chat"
+                    icon="subsetting_icon chat"
                     title={$text('settings.chat.notifications.new_messages')}
                     subtitleTop={$text('settings.chat.notifications.new_messages_desc')}
                     hasToggle={true}
@@ -322,7 +322,7 @@ When enabled, notifications are sent to the user's login email (from account set
                 
                 <SettingsItem
                     type="submenu"
-                    icon="subsetting_icon subsetting_icon_cloud"
+                    icon="subsetting_icon cloud"
                     title={$text('settings.chat.notifications.server_events')}
                     subtitleTop={$text('settings.chat.notifications.server_events_desc')}
                     hasToggle={true}
@@ -332,7 +332,7 @@ When enabled, notifications are sent to the user's login email (from account set
                 
                 <SettingsItem
                     type="submenu"
-                    icon="subsetting_icon subsetting_icon_download"
+                    icon="subsetting_icon download"
                     title={$text('settings.chat.notifications.software_updates')}
                     subtitleTop={$text('settings.chat.notifications.software_updates_desc')}
                     hasToggle={true}
@@ -362,7 +362,7 @@ When enabled, notifications are sent to the user's login email (from account set
         <!-- Uses the login email from account settings automatically -->
         <SettingsItem
             type="submenu"
-            icon="subsetting_icon subsetting_icon_email"
+            icon="subsetting_icon email"
             title={$text('settings.chat.notifications.email_enable')}
             subtitleTop={$text('settings.chat.notifications.email_enable_desc')}
             hasToggle={true}
@@ -377,7 +377,7 @@ When enabled, notifications are sent to the user's login email (from account set
                 <!-- AI Responses toggle -->
                 <SettingsItem
                     type="submenu"
-                    icon="subsetting_icon subsetting_icon_chat"
+                    icon="subsetting_icon chat"
                     title={$text('settings.chat.notifications.email_ai_responses')}
                     subtitleTop={$text('settings.chat.notifications.email_ai_responses_desc')}
                     hasToggle={true}

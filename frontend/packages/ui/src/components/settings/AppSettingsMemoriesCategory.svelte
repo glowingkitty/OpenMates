@@ -22,7 +22,7 @@
 -->
 
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { authStore } from '../../stores/authStore';
     import SettingsItem from '../SettingsItem.svelte';
@@ -31,6 +31,7 @@
     import { text } from '@repo/ui';
     import { appSettingsMemoriesStore, appSettingsMemoriesForApp } from '../../stores/appSettingsMemoriesStore';
     import type { Readable } from 'svelte/store';
+    import { setAppStoreNavList, clearAppStoreNav } from '../../stores/appStoreNavigationStore';
 
     // Create event dispatcher for navigation
     const dispatch = createEventDispatcher();
@@ -65,15 +66,6 @@
     // and won't update when loadEntriesForApp completes
     let appEntries: Readable<Record<string, unknown>> = appSettingsMemoriesForApp(appId);
     let groupedEntries = $derived($appEntries);
-
-    /**
-     * Get the translated category description.
-     */
-    let categoryDescription = $derived(
-        category?.description_translation_key
-            ? $text(category.description_translation_key)
-            : ''
-    );
 
     /**
      * Get example translation keys from category metadata (defined in app.yml).
@@ -168,9 +160,47 @@
         if (iconName === 'coding') {
             iconName = 'code';
         }
+        // Handle special case: heart.svg -> health (since the app ID is "health" but icon file is heart.svg)
+        // This ensures the correct CSS variable --color-app-health is used instead of --color-app-heart
+        if (iconName === 'heart') {
+            iconName = 'health';
+        }
         return iconName;
     }
     
+    /**
+     * Register sibling settings/memories categories for prev/next navigation in AppDetailsHeader.
+     * Re-runs whenever app or categoryId changes (deep link changes the current category).
+     * Clears the navigation state when this component is destroyed.
+     */
+    $effect(() => {
+        const categories = app?.settings_and_memories ?? [];
+        if (categories.length > 1) {
+            setAppStoreNavList(
+                categories.map(c => ({
+                    id: c.id,
+                    name: c.name_translation_key ? $text(c.name_translation_key) : c.id,
+                })),
+                categoryId,
+                (targetCategoryId) => {
+                    dispatch('openSettings', {
+                        settingsPath: `app_store/${appId}/settings_memories/${targetCategoryId}`,
+                        direction: 'forward',
+                        icon: getIconName(app?.icon_image),
+                        title: app?.name_translation_key ? $text(app.name_translation_key) : appId,
+                    });
+                },
+            );
+        } else {
+            // Single category — no siblings to navigate to
+            clearAppStoreNav();
+        }
+    });
+
+    onDestroy(() => {
+        clearAppStoreNav();
+    });
+
     /**
      * Navigate back to app details.
      */
@@ -205,6 +235,21 @@
             direction: 'forward',
             icon: getIconName(app?.icon_image),
             title: entryTitle
+        });
+    }
+
+    /**
+     * Navigate to a read-only example entry view.
+     * Examples use the special entryId prefix "example_" so the detail component
+     * knows to render in read-only mode without Modify/Delete buttons.
+     */
+    function handleExampleClick(index: number, exampleKey: string) {
+        const title = $text(exampleKey);
+        dispatch('openSettings', {
+            settingsPath: `app_store/${appId}/settings_memories/${categoryId}/entry/example_${index}`,
+            direction: 'forward',
+            icon: getIconName(app?.icon_image),
+            title
         });
     }
     
@@ -327,15 +372,44 @@
             <button class="back-button" onclick={goBack}>← {$text('settings.app_store.back_to_app')}</button>
         </div>
     {:else}
-        <!-- Category description at the top -->
-        <div class="header">
-            {#if categoryDescription}
-                <p class="description">{categoryDescription}</p>
-            {/if}
-        </div>
-
         {#if isAuthenticated}
-            <!-- Add entry button -->
+            <!-- "My / Settings & memories" section heading — 2-line style matching skill/provider headings -->
+            <SettingsItem
+                type="heading"
+                icon="user"
+                subtitleTop={$text('settings.app_settings_memories.my')}
+                title={$text('settings.app_settings_memories.settings_and_memories')}
+            />
+
+            <!-- List of owned entries -->
+            {#if isInitialLoad}
+                <div class="loading">
+                    <p>{$text('settings.app_settings_memories.loading')}</p>
+                </div>
+            {:else if allEntries.length === 0}
+                <div class="empty">
+                    <p>{$text('settings.app_settings_memories.no_entries_yet')}</p>
+                </div>
+            {:else}
+                <div class="entries-list">
+                    {#each allEntries as entry (entry.id)}
+                        {@const entryTitle = getEntryTitle(entry.item_value)}
+                        {@const entrySubtitle = getEntrySubtitle(entry.item_value, entry.updated_at)}
+                        <SettingsItem
+                            type="submenu"
+                            icon={getIconName(app?.icon_image)}
+                            iconType="app"
+                            title={entryTitle}
+                            subtitleBottom={entrySubtitle}
+                            hasModifyButton={true}
+                            onClick={() => handleEntryClick(entry.id, entryTitle)}
+                            onModifyClick={() => handleEntryClick(entry.id, entryTitle)}
+                        />
+                    {/each}
+                </div>
+            {/if}
+
+            <!-- Add entry link -->
             <div class="add-entry-section">
                 <SettingsItem
                     type="submenu"
@@ -344,52 +418,29 @@
                     onClick={handleAddEntry}
                 />
             </div>
-            
-            <!-- List of existing entries as clickable menu items -->
-            <div class="entries-section">
-                {#if isInitialLoad}
-                    <div class="loading">
-                        <p>{$text('settings.app_settings_memories.loading')}</p>
-                    </div>
-                {:else if allEntries.length === 0}
-                    <div class="empty">
-                        <p>{$text('settings.app_settings_memories.no_settings')}</p>
-                    </div>
-                {:else}
-                    <div class="entries-list">
-                        {#each allEntries as entry (entry.id)}
-                            {@const entryTitle = getEntryTitle(entry.item_value)}
-                            {@const entrySubtitle = getEntrySubtitle(entry.item_value, entry.updated_at)}
-                            <SettingsItem
-                                type="submenu"
-                                icon={getIconName(app?.icon_image)}
-                                title={entryTitle}
-                                subtitleBottom={entrySubtitle}
-                                onClick={() => handleEntryClick(entry.id, entryTitle)}
-                            />
-                        {/each}
-                    </div>
-                {/if}
-            </div>
-        {:else}
-            <!-- For non-authenticated users, show example entries (description already shown in header above) -->
-            {#if exampleTranslationKeys.length > 0}
-                <div class="examples-only">
-                    <div class="examples-section">
-                        <p class="examples-label">{$text('settings.app_settings_memories.examples_label')}</p>
-                        <div class="examples-list">
-                            {#each exampleTranslationKeys as exampleKey}
-                                <div class="example-entry">
-                                    <SettingsItem
-                                        icon={getIconName(app?.icon_image)}
-                                        title={$text(exampleKey)}
-                                    />
-                                </div>
-                            {/each}
-                        </div>
-                    </div>
+        {/if}
+
+        <!-- Examples section — shown to all users -->
+        {#if exampleTranslationKeys.length > 0}
+            <div class="examples-section">
+                <!-- "Examples" section heading — uses task/checklist icon, matching skill heading style -->
+                <SettingsItem
+                    type="heading"
+                    icon="task"
+                    title={$text('settings.app_settings_memories.examples')}
+                />
+                <div class="examples-list">
+                    {#each exampleTranslationKeys as exampleKey, index}
+                        <SettingsItem
+                            type="submenu"
+                            icon={getIconName(app?.icon_image)}
+                            iconType="app"
+                            title={$text(exampleKey)}
+                            onClick={() => handleExampleClick(index, exampleKey)}
+                        />
+                    {/each}
                 </div>
-            {/if}
+            </div>
         {/if}
     {/if}
 </div>
@@ -400,53 +451,45 @@
         max-width: 1400px;
         margin: 0 auto;
     }
-    
-    .header {
-        margin-bottom: 2rem;
-        padding-left: 0;
-    }
-    
-    .description {
-        margin: 0;
-        color: var(--color-grey-100);
-        font-size: 1rem;
-        line-height: 1.6;
-        text-align: left;
-    }
-    
+
     .add-entry-section {
-        margin-bottom: 1rem;
-        padding-left: 0;
+        margin-top: 0.25rem;
     }
-    
-    .entries-section {
-        padding-left: 0;
-    }
-    
+
     .loading {
-        padding: 2rem;
-        text-align: center;
+        padding: 1rem 0.5rem;
         color: var(--text-secondary, #666666);
+        font-size: 0.9rem;
     }
-    
+
     .empty {
-        padding: 2rem;
-        text-align: center;
+        padding: 0.75rem 0.5rem;
         color: var(--text-secondary, #666666);
+        font-size: 0.9rem;
     }
-    
+
     .entries-list {
         display: flex;
         flex-direction: column;
         gap: 0;
     }
-    
+
+    .examples-section {
+        margin-top: 1rem;
+    }
+
+    .examples-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+
     .error {
         padding: 3rem;
         text-align: center;
         color: var(--error-color, #dc3545);
     }
-    
+
     .back-button {
         background: var(--button-background, #f0f0f0);
         border: 1px solid var(--border-color, #e0e0e0);
@@ -458,35 +501,9 @@
         color: var(--text-primary, #000000);
         transition: background 0.2s ease;
     }
-    
+
     .back-button:hover {
         background: var(--button-hover-background, #e0e0e0);
     }
-    
-    .examples-only {
-        padding: 2rem;
-        margin-top: 1rem;
-    }
-    
-    .examples-section {
-        margin-top: 1.5rem;
-    }
-    
-    .examples-label {
-        margin: 0 0 0.75rem 0;
-        color: var(--text-secondary, #666666);
-        font-size: 0.85rem;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-    
-    .examples-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0;
-        opacity: 0.6;
-    }
-
 </style>
 

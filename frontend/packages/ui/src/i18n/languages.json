@@ -94,7 +94,8 @@
       "code": "ar",
       "name": "العربية",
       "shortCode": "AR",
-      "nativeName": "العربية"
+      "nativeName": "العربية",
+      "rtl": true
     },
     {
       "code": "hi",
@@ -119,6 +120,13 @@
       "name": "Svenska",
       "shortCode": "SV",
       "nativeName": "Svenska"
+    },
+    {
+      "code": "he",
+      "name": "עברית",
+      "shortCode": "HE",
+      "nativeName": "עברית",
+      "rtl": true
     }
   ]
 }

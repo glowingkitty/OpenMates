@@ -211,6 +211,7 @@ backend/preview/Caddyfile
 .roo*
 .turbo
 
+.claude
 .cursor
 .svelte-kit
 
@@ -223,6 +224,7 @@ backend/core/api/logs/*.log.*
 
 # Test results (JSON files for manual inspection)
 test_results/
+test-results/
 *.test_results.json
 
 # Domain security configuration files

@@ -429,6 +429,16 @@ function parseAppYaml(appId, filePath) {
           continue;
         }
 
+        // Skip internal skills — they are invoked automatically by the backend and
+        // must never appear in the app store or settings UI (e.g., images.view,
+        // audio.transcribe). Users don't select these manually.
+        if (skill.internal === true) {
+          console.log(
+            `[generate-apps-metadata]   Skipping internal skill: ${appId}.${skill.id}`,
+          );
+          continue;
+        }
+
         // Auto-prepend "app_skills." prefix to skill translation keys if not already present
         const skillMetadata = {
           id: (skill.id || "").trim(),
@@ -440,6 +450,10 @@ function parseAppYaml(appId, filePath) {
             (skill.description_translation_key || "").trim(),
             "app_skills.",
           ),
+          // Include icon_image if present (used for type-specific icons in App Store cards)
+          icon_image: skill.icon_image
+            ? (skill.icon_image || "").trim()
+            : undefined,
         };
 
         // Extract providers from skill
@@ -585,6 +599,39 @@ function parseAppYaml(appId, filePath) {
           ),
         };
 
+        // Include system prompt used when this focus mode is activated (for display on settings page)
+        if (focus.systemprompt && typeof focus.systemprompt === "string") {
+          focusMetadata.system_prompt = focus.systemprompt.trim();
+        }
+        if (
+          focus.systemprompt_translation_key &&
+          typeof focus.systemprompt_translation_key === "string" &&
+          focus.systemprompt_translation_key.trim()
+        ) {
+          focusMetadata.system_prompt_translation_key =
+            focus.systemprompt_translation_key.trim();
+        }
+
+        // Include icon_image if present (used for type-specific icons in App Store cards)
+        if (
+          focus.icon_image &&
+          typeof focus.icon_image === "string" &&
+          focus.icon_image.trim()
+        ) {
+          focusMetadata.icon_image = focus.icon_image.trim();
+        }
+
+        // Include bullet-point process summary translation key (for display on settings page).
+        // The resolved text contains lines starting with "- " that are rendered as bullet points.
+        if (
+          focus.process_translation_key &&
+          typeof focus.process_translation_key === "string" &&
+          focus.process_translation_key.trim()
+        ) {
+          focusMetadata.process_translation_key =
+            focus.process_translation_key.trim();
+        }
+
         if (
           focusMetadata.id &&
           focusMetadata.name_translation_key &&
@@ -627,6 +674,10 @@ function parseAppYaml(appId, filePath) {
             "app_settings_memories.",
           ),
           type: (item.type || "single").trim(),
+          // Include icon_image if present (used for type-specific icons in App Store cards)
+          icon_image: item.icon_image
+            ? (item.icon_image || "").trim()
+            : undefined,
           // Include schema_definition if present (for dynamic form generation)
           schema_definition: item.schema || item.schema_definition || undefined,
           // Include example translation keys if present (shown to non-authenticated users to illustrate the category)
@@ -846,6 +897,11 @@ function generateTypeScript(appsMetadata) {
         lines.push(
           `                description_translation_key: ${JSON.stringify(skill.description_translation_key)},`,
         );
+        if (skill.icon_image) {
+          lines.push(
+            `                icon_image: ${JSON.stringify(skill.icon_image)},`,
+          );
+        }
         if (skill.pricing) {
           lines.push(
             `                pricing: ${JSON.stringify(skill.pricing)},`,
@@ -868,9 +924,41 @@ function generateTypeScript(appsMetadata) {
         lines.push(
           `                name_translation_key: ${JSON.stringify(focus.name_translation_key)},`,
         );
+        const hasOptionalFocusFields =
+          focus.icon_image !== undefined ||
+          focus.process_translation_key !== undefined ||
+          focus.system_prompt !== undefined ||
+          focus.system_prompt_translation_key !== undefined;
         lines.push(
-          `                description_translation_key: ${JSON.stringify(focus.description_translation_key)}`,
+          `                description_translation_key: ${JSON.stringify(focus.description_translation_key)}${hasOptionalFocusFields ? "," : ""}`,
         );
+        if (focus.icon_image !== undefined) {
+          const hasMoreAfterIcon =
+            focus.process_translation_key !== undefined ||
+            focus.system_prompt !== undefined ||
+            focus.system_prompt_translation_key !== undefined;
+          lines.push(
+            `                icon_image: ${JSON.stringify(focus.icon_image)}${hasMoreAfterIcon ? "," : ""}`,
+          );
+        }
+        if (focus.process_translation_key !== undefined) {
+          const hasMoreAfterProcess =
+            focus.system_prompt !== undefined ||
+            focus.system_prompt_translation_key !== undefined;
+          lines.push(
+            `                process_translation_key: ${JSON.stringify(focus.process_translation_key)}${hasMoreAfterProcess ? "," : ""}`,
+          );
+        }
+        if (focus.system_prompt !== undefined) {
+          lines.push(
+            `                system_prompt: ${JSON.stringify(focus.system_prompt)}${focus.system_prompt_translation_key !== undefined ? "," : ""}`,
+          );
+        }
+        if (focus.system_prompt_translation_key !== undefined) {
+          lines.push(
+            `                system_prompt_translation_key: ${JSON.stringify(focus.system_prompt_translation_key)}`,
+          );
+        }
         lines.push(`            },`);
       }
       lines.push(`        ],`);
@@ -890,6 +978,11 @@ function generateTypeScript(appsMetadata) {
           lines.push(
             `                description_translation_key: ${JSON.stringify(memory.description_translation_key)},`,
           );
+          if (memory.icon_image) {
+            lines.push(
+              `                icon_image: ${JSON.stringify(memory.icon_image)},`,
+            );
+          }
           // Include schema_definition if present (for dynamic form generation)
           if (memory.schema_definition) {
             lines.push(`                type: ${JSON.stringify(memory.type)},`);

@@ -133,10 +133,18 @@
     onNavigatePrevious?: () => void;
     /** Handler to navigate to the next embed */
     onNavigateNext?: () => void;
+    /** Direction of navigation ('previous' | 'next') — set transiently during prev/next transitions */
+    navigateDirection?: 'previous' | 'next';
     /** Whether to show the "chat" button */
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button */
     onShowChat?: () => void;
+    /**
+     * Child embed ID to auto-open on mount (set when arriving from an inline badge click).
+     * When provided, the fullscreen will immediately open the TravelConnectionEmbedFullscreen
+     * overlay for that specific connection result once the child results have loaded.
+     */
+    initialChildEmbedId?: string;
   }
   
   let {
@@ -152,26 +160,43 @@
     hasNextEmbed = false,
     onNavigatePrevious,
     onNavigateNext,
+    navigateDirection,
     showChatButton = false,
-    onShowChat
+    onShowChat,
+    initialChildEmbedId
   }: Props = $props();
   
-  // Currently selected connection for fullscreen detail view
-  let selectedConnection = $state<ConnectionResult | null>(null);
+  // Currently selected connection index for fullscreen detail view (-1 = none)
+  let selectedConnectionIndex = $state<number>(-1);
   
-  // Local reactive state
-  let localQuery = $state<string>(queryProp || '');
-  let localProvider = $state<string>(providerProp || 'Google');
-  let localEmbedIds = $state<string | string[] | undefined>(embedIds);
-  let localResults = $state<unknown[]>(resultsProp || []);
-  let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>(statusProp || 'finished');
-  let localErrorMessage = $state<string>(errorMessageProp || '');
+  // All loaded connection results (from child embeds or legacy) — needed for navigation
+  let connectionResultsForNav = $state<ConnectionResult[]>([]);
+
+  // Guard: prevent the auto-open $effect from firing more than once.
+  // Without this, closing the child overlay (selectedConnectionIndex → -1) would
+  // re-trigger the effect and immediately re-open it in an infinite loop.
+  let _autoOpenFired = $state(false);
+  
+  // Local reactive state — synced from props via $effect below.
+  let localQuery = $state<string>('');
+  let localProvider = $state<string>('');
+  // embedIdsOverride: only set during streaming when embed_ids change dynamically.
+  // Otherwise, embedIds prop is used directly via embedIdsValue $derived below.
+  let embedIdsOverride = $state<string | string[] | undefined>(undefined);
+  let localResults = $state<unknown[]>([]);
+  let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
+  let localErrorMessage = $state<string>('');
+  
+  /**
+   * Loaded connection results — populated via onChildrenLoaded callback.
+   * Used to derive the embed header banner content (route, date, provider, price summary).
+   */
+  let headerConnectionResults = $state<ConnectionResult[]>([]);
   
   // Keep local state in sync with prop changes
   $effect(() => {
     localQuery = queryProp || '';
     localProvider = providerProp || 'Google';
-    localEmbedIds = embedIds;
     localResults = resultsProp || [];
     localStatus = statusProp || 'finished';
     localErrorMessage = errorMessageProp || '';
@@ -180,19 +205,96 @@
   // Derived state
   let query = $derived(localQuery);
   let provider = $derived(localProvider);
-  let embedIdsValue = $derived(localEmbedIds);
+  // Use override if set during streaming, otherwise use the prop directly
+  let embedIdsValue = $derived(embedIdsOverride ?? embedIds);
   let legacyResults = $derived(localResults);
   let status = $derived(localStatus);
-  let fullscreenStatus = $derived(status === 'cancelled' ? 'error' : status);
+
   let errorMessage = $derived(localErrorMessage || $text('chat.an_error_occured'));
-  
-  // Skill name from translations
-  let skillName = $derived($text('app_skills.travel.search_connections'));
   
   // "via {provider}" text
   let viaProvider = $derived(
     `${$text('embeds.via')} ${provider}`
   );
+  
+  /**
+   * Route summary for the embed header banner.
+   * Uses origin/destination from the first loaded connection result, or falls back to the query.
+   * Example: "Berlin (BER) → Bangkok (BKK)"
+   */
+  let headerRouteSummary = $derived.by(() => {
+    if (headerConnectionResults.length > 0) {
+      const first = headerConnectionResults[0];
+      if (first.origin && first.destination) {
+        return `${first.origin} → ${first.destination}`;
+      }
+    }
+    return query || '';
+  });
+  
+  /**
+   * Date string for the embed header banner.
+   * Formatted as "Mon, Mar 2" (short weekday + month + day).
+   * Example: "Mon, Mar 2, 2026"
+   */
+  let headerDateDisplay = $derived.by(() => {
+    if (headerConnectionResults.length === 0) return '';
+    const first = headerConnectionResults[0];
+    if (!first.departure) return '';
+    try {
+      const date = new Date(first.departure);
+      return date.toLocaleDateString([], { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' });
+    } catch {
+      return '';
+    }
+  });
+  
+  /**
+   * Price summary for the embed header banner.
+   * Example: "from EUR 310"
+   */
+  let headerPriceInfo = $derived.by(() => {
+    if (headerConnectionResults.length === 0) return '';
+    const prices = headerConnectionResults
+      .filter(r => r.total_price)
+      .map(r => parseFloat(r.total_price!))
+      .filter(p => !isNaN(p));
+    if (prices.length === 0) return '';
+    const currency = headerConnectionResults[0]?.currency || 'EUR';
+    const minPrice = Math.min(...prices);
+    return `${$text('embeds.from')} ${currency} ${Math.round(minPrice)}`;
+  });
+  
+  /**
+   * Connection count + price line for the embed header subtitle.
+   * Example: "5 connections  ·  via Google  ·  from EUR 310"
+   */
+  let headerSubtitle = $derived.by(() => {
+    const count = headerConnectionResults.length;
+    const parts: string[] = [];
+    if (count > 0) {
+      const countLabel = count === 1
+        ? `1 ${$text('embeds.connection')}`
+        : `${count} ${$text('embeds.connections')}`;
+      parts.push(countLabel);
+    }
+    parts.push(viaProvider);
+    if (headerPriceInfo) {
+      parts.push(headerPriceInfo);
+    }
+    return parts.join('  ·  ');
+  });
+  
+  /**
+   * Header title for the embed banner.
+   * Shows the route and travel date once results are loaded.
+   * Falls back to the query string during loading.
+   */
+  let headerTitle = $derived.by(() => {
+    if (!headerRouteSummary) return query || '';
+    if (headerDateDisplay) return `${headerRouteSummary}  ·  ${headerDateDisplay}`;
+    return headerRouteSummary;
+  });
   
   /**
    * Transform raw embed content to ConnectionResult format.
@@ -437,36 +539,56 @@
   }
   
   /**
-   * Format date for header display (e.g., "March 7, 2026")
-   */
-  function formatHeaderDate(isoString?: string): string {
-    if (!isoString) return '';
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
-    } catch {
-      return '';
-    }
-  }
-  
-  /**
    * Handle connection card click - shows detail fullscreen
    */
-  function handleConnectionFullscreen(connection: ConnectionResult) {
+  function handleConnectionFullscreen(connection: ConnectionResult, results: ConnectionResult[]) {
     console.debug('[TravelSearchEmbedFullscreen] Opening connection fullscreen:', {
       embedId: connection.embed_id,
       origin: connection.origin,
       destination: connection.destination,
       price: connection.total_price,
     });
-    selectedConnection = connection;
+    connectionResultsForNav = results;
+    const idx = results.findIndex(r => r.embed_id === connection.embed_id);
+    selectedConnectionIndex = idx >= 0 ? idx : 0;
   }
   
   /**
-   * Handle closing the connection detail fullscreen
+   * Handle closing the connection detail fullscreen.
+   *
+   * Behaviour depends on how the child overlay was opened:
+   * - Opened via inline badge (initialChildEmbedId set): close the entire
+   *   fullscreen immediately — the user used a direct link and has no
+   *   expectation of a parent results grid.
+   * - Opened normally (by clicking a card in the grid): go back to the
+   *   parent results grid (selectedConnectionIndex = -1).
    */
   function handleConnectionFullscreenClose() {
-    selectedConnection = null;
+    if (initialChildEmbedId) {
+      // Opened via inline badge — skip the parent grid and close completely
+      onClose();
+    } else {
+      selectedConnectionIndex = -1;
+      connectionResultsForNav = [];
+    }
+  }
+  
+  /**
+   * Navigate to the previous connection in the overlay
+   */
+  function handleConnectionNavigatePrevious() {
+    if (selectedConnectionIndex > 0) {
+      selectedConnectionIndex -= 1;
+    }
+  }
+  
+  /**
+   * Navigate to the next connection in the overlay
+   */
+  function handleConnectionNavigateNext() {
+    if (selectedConnectionIndex < connectionResultsForNav.length - 1) {
+      selectedConnectionIndex += 1;
+    }
   }
   
   /**
@@ -482,7 +604,7 @@
     const content = data.decodedContent;
     if (typeof content.query === 'string') localQuery = content.query;
     if (typeof content.provider === 'string') localProvider = content.provider;
-    if (content.embed_ids) localEmbedIds = content.embed_ids as string | string[];
+    if (content.embed_ids) embedIdsOverride = content.embed_ids as string | string[];
     if (Array.isArray(content.results)) localResults = content.results as unknown[];
     if (typeof content.error === 'string') localErrorMessage = content.error;
   }
@@ -492,11 +614,65 @@
   // share context and properly opens the settings panel (including on mobile).
   
   /**
-   * Handle closing the entire search fullscreen
+   * Handle children loaded callback from UnifiedEmbedFullscreen.
+   * Stores the loaded connection results so we can derive the header banner content.
+   */
+  function handleChildrenLoaded(children: unknown[]) {
+    headerConnectionResults = children as ConnectionResult[];
+  }
+  
+  // Also populate header results from legacy results when no embedIds are used.
+  $effect(() => {
+    if (localResults.length > 0 && headerConnectionResults.length === 0) {
+      headerConnectionResults = transformLegacyResults(localResults);
+    }
+  });
+
+  /**
+   * Auto-open the connection overlay for a specific child embed when the fullscreen
+   * is opened via an inline badge click (initialChildEmbedId is set).
+   *
+   * Fires at most once (_autoOpenFired guard). Without the guard, closing the
+   * child overlay sets selectedConnectionIndex back to -1, which re-triggers the
+   * effect and immediately re-opens the overlay — preventing the user from closing.
+   */
+  $effect(() => {
+    if (!initialChildEmbedId) return;
+    if (_autoOpenFired) return; // fire at most once per mount
+    if (headerConnectionResults.length === 0) return; // results not yet loaded
+
+    const idx = headerConnectionResults.findIndex(r => r.embed_id === initialChildEmbedId);
+    if (idx >= 0) {
+      console.debug(
+        '[TravelSearchEmbedFullscreen] Auto-opening connection overlay for initialChildEmbedId:',
+        initialChildEmbedId,
+        'at index',
+        idx,
+      );
+      _autoOpenFired = true;
+      handleConnectionFullscreen(headerConnectionResults[idx], headerConnectionResults);
+    } else {
+      console.warn(
+        '[TravelSearchEmbedFullscreen] initialChildEmbedId not found in loaded results:',
+        initialChildEmbedId,
+        'available embed_ids:',
+        headerConnectionResults.map(r => r.embed_id),
+      );
+    }
+  });
+  
+  /**
+   * Handle closing the entire search fullscreen.
+   *
+   * When opened via inline badge (initialChildEmbedId set) and a child overlay
+   * is currently shown, close the entire fullscreen rather than going back to
+   * the parent results grid — the user arrived directly at the child result.
    */
   function handleMainClose() {
-    if (selectedConnection) {
-      selectedConnection = null;
+    if (selectedConnectionIndex >= 0 && !initialChildEmbedId) {
+      // Normal flow: child open, go back to parent grid
+      selectedConnectionIndex = -1;
+      connectionResultsForNav = [];
     } else {
       onClose();
     }
@@ -507,37 +683,27 @@
 <UnifiedEmbedFullscreen
   appId="travel"
   skillId="search_connections"
-  title=""
   onClose={handleMainClose}
   skillIconName="search"
-  status={fullscreenStatus}
-  {skillName}
-  showStatus={true}
+  embedHeaderTitle={headerTitle}
+  embedHeaderSubtitle={headerSubtitle}
   embedIds={embedIdsValue}
   childEmbedTransformer={transformToConnectionResult}
   legacyResults={legacyResults}
   currentEmbedId={embedId}
   onEmbedDataUpdated={handleEmbedDataUpdated}
+  onChildrenLoaded={handleChildrenLoaded}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
   {onNavigateNext}
+  {navigateDirection}
   {showChatButton}
   {onShowChat}
 >
   {#snippet content(ctx)}
     {@const connectionResults = getConnectionResults(ctx)}
     {@const cheapestThreshold = getCheapestThreshold(connectionResults)}
-    {@const firstDeparture = connectionResults.length > 0 ? connectionResults[0].departure : undefined}
-    
-    <!-- Header with route summary, search params, and provider -->
-    <div class="fullscreen-header">
-      <div class="search-query">{query}</div>
-      {#if firstDeparture}
-        <div class="search-date">{formatHeaderDate(firstDeparture)}</div>
-      {/if}
-      <div class="search-provider">{viaProvider}</div>
-    </div>
     
     <!-- Error state -->
     {#if status === 'error'}
@@ -578,7 +744,7 @@
               isCheapest={cheapestThreshold > 0 && result.total_price != null && parseFloat(result.total_price) <= cheapestThreshold}
               status="finished"
               isMobile={false}
-              onFullscreen={() => handleConnectionFullscreen(result)}
+              onFullscreen={() => handleConnectionFullscreen(result, connectionResults)}
             />
           {/each}
         </div>
@@ -588,70 +754,22 @@
 </UnifiedEmbedFullscreen>
 
 <!-- Connection detail fullscreen overlay -->
-{#if selectedConnection}
+{#if selectedConnectionIndex >= 0 && connectionResultsForNav[selectedConnectionIndex]}
+  {@const selectedConnection = connectionResultsForNav[selectedConnectionIndex]}
   <ChildEmbedOverlay>
     <TravelConnectionEmbedFullscreen
       connection={selectedConnection}
       onClose={handleConnectionFullscreenClose}
       embedId={selectedConnection.embed_id}
+      hasPreviousEmbed={selectedConnectionIndex > 0}
+      hasNextEmbed={selectedConnectionIndex < connectionResultsForNav.length - 1}
+      onNavigatePrevious={handleConnectionNavigatePrevious}
+      onNavigateNext={handleConnectionNavigateNext}
     />
   </ChildEmbedOverlay>
 {/if}
 
 <style>
-  /* ===========================================
-     Fullscreen Header
-     =========================================== */
-  
-  .fullscreen-header {
-    margin-top: 60px;
-    margin-bottom: 40px;
-    padding: 0 16px;
-    text-align: center;
-  }
-  
-  .search-query {
-    font-size: 24px;
-    font-weight: 600;
-    color: var(--color-font-primary);
-    line-height: 1.3;
-    word-break: break-word;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  
-  .search-date {
-    font-size: 16px;
-    font-weight: 500;
-    color: var(--color-font-primary);
-    margin-top: 6px;
-  }
-  
-  .search-provider {
-    font-size: 16px;
-    color: var(--color-font-secondary);
-    margin-top: 8px;
-  }
-  
-  @container fullscreen (max-width: 500px) {
-    .fullscreen-header {
-      margin-top: 70px;
-      margin-bottom: 24px;
-    }
-    
-    .search-query {
-      font-size: 20px;
-    }
-    
-    .search-provider {
-      font-size: 14px;
-    }
-  }
-  
   /* ===========================================
      Loading and No Results States
      =========================================== */

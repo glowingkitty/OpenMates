@@ -82,6 +82,15 @@ async def handle_chat_system_message_added(
         # Fallback to 'content' for backwards compatibility
         encrypted_content = message_payload.get("encrypted_content") or message_payload.get("content")
         created_at = message_payload.get("created_at")
+        # user_message_id links this system message to the triggering user message
+        # (e.g., the credits-rejection message links to the user's send attempt).
+        # Stored in Directus and forwarded in broadcasts so other devices can:
+        # 1. Show the user message content under "Credits needed..." in the sidebar
+        # 2. Handle the resend flow after credits are restored
+        user_message_id = message_payload.get("user_message_id")
+        # status preserves the originating device's message status (e.g., "waiting_for_user")
+        # so other devices store and display the correct state after cross-device sync
+        message_status = message_payload.get("status")
         
         # Validate required fields
         if not message_id or not encrypted_content:
@@ -167,7 +176,9 @@ async def handle_chat_system_message_added(
                 "new_chat_messages_version": new_messages_v,
                 "new_last_edited_overall_timestamp": now_ts,
                 "encrypted_chat_key": None,  # Not needed for system messages in existing chats
-                "user_id": user_id  # For sync cache updates
+                "user_id": user_id,  # For sync cache updates
+                "user_message_id": user_message_id,  # Links rejection to triggering user message
+                "message_status": message_status,  # Preserve status for phased sync delivery
             },
             queue='persistence'
         )
@@ -189,16 +200,24 @@ async def handle_chat_system_message_added(
         
         # Broadcast to other devices for sync (zero-knowledge architecture)
         # CRITICAL: Send encrypted_content, not plaintext - other devices decrypt with their chat key
+        broadcast_data: Dict[str, Any] = {
+            "message_id": message_id,
+            "role": "system",
+            "encrypted_content": encrypted_content,  # Client-encrypted with chat key
+            "created_at": created_at,
+        }
+        # Include user_message_id if present — Device B uses it for the "Credits needed..." sidebar
+        if user_message_id:
+            broadcast_data["user_message_id"] = user_message_id
+        # Include status so Device B stores the same status as Device A (e.g., "waiting_for_user")
+        if message_status:
+            broadcast_data["status"] = message_status
+
         broadcast_payload = {
             "type": "new_system_message",  # Message type for frontend handler
             "event": "new_system_message",
             "chat_id": chat_id,
-            "data": {
-                "message_id": message_id,
-                "role": "system",
-                "encrypted_content": encrypted_content,  # Client-encrypted with chat key
-                "created_at": created_at
-            },
+            "data": broadcast_data,
             "versions": {"messages_v": new_messages_v}
         }
         await manager.broadcast_to_user(

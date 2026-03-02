@@ -35,8 +35,8 @@ def mock_leaderboard_data() -> Dict[str, Any]:
         "rankings": [
             {
                 "rank": 1,
-                "model_id": "gemini-3-pro-preview",
-                "name": "Gemini 3 Pro Preview",
+                "model_id": "gemini-3.1-pro-preview",
+                "name": "Gemini 3.1 Pro Preview",
                 "provider_id": "google",
                 "country_origin": "US",
                 "composite_score": 97.8,
@@ -62,8 +62,8 @@ def mock_leaderboard_data() -> Dict[str, Any]:
             },
             {
                 "rank": 4,
-                "model_id": "claude-sonnet-4-5-20250929",
-                "name": "Claude Sonnet 4.5",
+                "model_id": "claude-sonnet-4-6",
+                "name": "Claude Sonnet 4.6",
                 "provider_id": "anthropic",
                 "country_origin": "US",
                 "composite_score": 91.7,
@@ -138,9 +138,10 @@ class TestModelSelector:
         # For complex tasks, should prefer a premium model if available in rankings
         # Primary should be from top rankings
         assert result.primary_model_id in [
-            "gemini-3-pro-preview",
+            "gemini-3.1-pro-preview",
             "claude-opus-4-5-20251101",
-            "claude-sonnet-4-5-20250929",
+            "claude-sonnet-4-6",
+            "anthropic/claude-sonnet-4-6",  # DEFAULT_FALLBACK_MODEL includes provider prefix
         ] or result.primary_model_id in PREMIUM_MODELS
 
     def test_select_models_simple_task_prefers_economical(self, mock_leaderboard_data):
@@ -227,7 +228,8 @@ class TestModelSelector:
         from backend.apps.ai.utils.model_selector import ModelSelector
 
         selector = ModelSelector(leaderboard_data=mock_leaderboard_data)
-        available = ["claude-sonnet-4-5-20250929", "mistral-large"]
+        # Model IDs can be bare or provider-prefixed; include both forms
+        available = ["claude-sonnet-4-6", "anthropic/claude-sonnet-4-6", "mistral-large"]
 
         result = selector.select_models(
             task_area="general",

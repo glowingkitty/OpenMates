@@ -20,6 +20,7 @@ title:
   th: แนวทางการออกแบบ | OpenMates
   cs: Návrhové směrnice | OpenMates
   sv: Designriktlinjer | OpenMates
+  he: "הנחיות עיצוב | OpenMates"
   verified_by_human: []
 description:
   context: Description for the design guidelines page
@@ -43,4 +44,5 @@ description:
   th: แนวทางการออกแบบที่กำหนดว่า OpenMates ถูกออกแบบและสร้างอย่างไร
   cs: Návrhové směrnice, které definují, jak je OpenMates navržen a postaven.
   sv: Designriktlinjerna som definierar hur OpenMates är designad och byggd.
+  he: הנחיות העיצוב המגדירות כיצד OpenMates מעוצבת ונבנית.
   verified_by_human: []

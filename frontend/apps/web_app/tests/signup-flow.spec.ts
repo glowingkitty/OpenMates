@@ -138,11 +138,19 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	await takeStepScreenshot(page, 'login-dialog');
 	logSignupCheckpoint('Opened login dialog.');
 
+	// Verify no missing translations on the login dialog (catches [object Object] or [T:key] issues).
+	await assertNoMissingTranslations(page);
+	logSignupCheckpoint('No missing translations on login dialog.');
+
 	// Switch to the signup tab inside the login dialog.
 	const loginTabs = page.locator('.login-tabs');
 	await expect(loginTabs).toBeVisible();
 	await loginTabs.getByRole('button', { name: /sign up/i }).click();
 	await takeStepScreenshot(page, 'signup-alpha');
+
+	// Verify no missing translations on the signup alpha disclaimer step.
+	await assertNoMissingTranslations(page);
+	logSignupCheckpoint('No missing translations on signup alpha step.');
 
 	// Alpha disclaimer: verify outbound links exist and continue.
 	// Use href-based locators because link accessible names can vary by locale.
@@ -153,6 +161,8 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 
 	await page.getByRole('button', { name: /continue/i }).click();
 	await takeStepScreenshot(page, 'basics-step');
+	// Verify no missing translations on the basics step (back button, form labels, etc.).
+	await assertNoMissingTranslations(page);
 	logSignupCheckpoint('Reached basics step.');
 
 	// Basics step: fill email/username and exercise key toggles.

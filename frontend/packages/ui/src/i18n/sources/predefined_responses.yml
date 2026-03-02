@@ -20,6 +20,7 @@ harmful_or_illegal_detected:
   th: ขออภัย ฉันไม่สามารถช่วยเหลือคำขอที่เป็นอันตรายหรือผิดกฎหมายได้ อยากคุยเรื่องอื่นไหม?
   cs: Omlouvám se, nemohu pomoci se škodlivými nebo nelegálními požadavky. Chceš si popovídat o něčem jiném?
   sv: Tyvärr kan jag inte hjälpa till med skadliga eller olagliga förfrågningar. Vill du prata om något annat?
+  he: "מצטער, אני לא יכול לסייע בבקשות מזיקות או לא חוקיות. רוצה לדבר על משהו אחר?"
   verified_by_human: []
 misuse_detected:
   context: Predefined response for misuse detection
@@ -43,6 +44,7 @@ misuse_detected:
   th: ขออภัย ฉันไม่สามารถช่วยเหลือคำขอนี้ได้เนื่องจากอาจถูกนำไปใช้ในทางที่ผิด อยากคุยเรื่องอื่นไหม?
   cs: Omlouvám se, nemohu pomoci s tímto požadavkem, protože by mohl být zneužit. Chceš si popovídat o něčem jiném?
   sv: Tyvärr kan jag inte hjälpa till med denna förfrågan eftersom den kan missbrukas för att orsaka skada. Vill du prata om något annat?
+  he: "מצטער, אני לא יכול לסייע בבקשה הזו כי ייתכן שייעשה בה שימוש לרעה כדי לגרום נזק. רוצה לדבר על משהו אחר?"
   verified_by_human: []
 processing_error_rephrase:
   context: Shown when the AI had trouble processing a request (e.g., after filtering internal errors). Asks user to rephrase.
@@ -66,6 +68,7 @@ processing_error_rephrase:
   th: ฉันมีปัญหาในการประมวลผลคำขอของคุณ คุณช่วยบอกใหม่ได้ไหมว่าต้องการให้ช่วยอะไร ยิ่งคุณให้รายละเอียดที่เฉพาะเจาะจงมากเท่าไหร่ ฉันก็ยิ่งช่วยคุณได้ดีขึ้นเท่านั้น
   cs: Měl jsem problém zpracovat tvůj požadavek. Mohl bys přeformulovat, s čím bys chtěl pomoci? Čím více konkrétních detailů mi poskytneš, tím lépe ti mohu pomoci.
   sv: Jag hade problem med att bearbeta din förfrågan. Kan du omformulera vad du vill ha hjälp med? Ju mer specifika detaljer du kan ge, desto bättre kan jag hjälpa dig.
+  he: "נתקלתי בבעיה בעיבוד הבקשה שלך. אפשר לנסח מחדש במה תרצה שאעזור? ככל שהפרטים יהיו ספציפיים יותר, כך אוכל לסייע לך טוב יותר."
   verified_by_human: []
 skill_execution_failed:
   context: Shown when LLM tried to use a skill but it failed or was unavailable
@@ -89,4 +92,5 @@ skill_execution_failed:
   th: อืม... ฉันไม่สามารถใช้ {skill_name} ได้อย่างถูกต้อง คุณช่วยบอกได้ไหมว่าต้องการให้ฉันทำอะไร เพื่อที่ฉันจะได้ลองอีกครั้ง?
   cs: Hmm... Nepodařilo se mi správně použít {skill_name}. Mohl bys upřesnit, co bys chtěl, abych udělal, a já to zkusím znovu?
   sv: Hmm... Jag kunde inte använda {skill_name} korrekt. Kan du förtydliga vad du vill att jag ska göra så att jag kan försöka igen?
+  he: "הממ... לא הצלחתי להשתמש ב-{skill_name} כראוי. אפשר להבהיר מה תרצה שאעשה כדי שאוכל לנסות שוב?"
   verified_by_human: []

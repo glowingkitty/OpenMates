@@ -30,9 +30,20 @@
          * Used when displaying skills in the app details page.
          */
         skillProviders?: string[];
+        /**
+         * Optional: Icon type for this card.
+         * - 'app' (default): show the app icon with the app's gradient background
+         * - 'skill': show the skill-specific icon with grey gradient background
+         * - 'focus': show the focus-specific icon with purple gradient background
+         * - 'memory': show the memory-specific icon with pink gradient background
+         *
+         * When set to 'skill', 'focus', or 'memory', app.icon_image is expected
+         * to hold the item-specific icon filename (not the app icon).
+         */
+        cardIconType?: 'app' | 'skill' | 'focus' | 'memory';
     }
     
-    let { app, onSelect, skillProviders }: Props = $props();
+    let { app, onSelect, skillProviders, cardIconType = 'app' }: Props = $props();
     
     // Reference to the app icon container for checking icon existence
     let appIconContainer: HTMLDivElement | null = $state(null);
@@ -110,8 +121,8 @@
      */
     function getIconName(iconImage: string | undefined): string {
         if (!iconImage) return 'app';
-        // Remove .svg extension and return the name
-        let iconName = iconImage.replace(/\.svg$/, '');
+        // Remove .svg extension and trim whitespace (YAML block scalars add a trailing newline)
+        let iconName = iconImage.replace(/\.svg$/, '').trim();
         // Handle special case: email.svg -> mail (since the icon file is mail.svg)
         if (iconName === 'email') {
             iconName = 'mail';
@@ -120,6 +131,11 @@
         // This ensures the correct CSS variable --color-app-code is used instead of --color-app-coding
         if (iconName === 'coding') {
             iconName = 'code';
+        }
+        // Handle special case: heart.svg -> health (since the app ID is "health" but icon file is heart.svg)
+        // This ensures the correct CSS class app-health and --color-app-health are used instead of app-heart
+        if (iconName === 'heart') {
+            iconName = 'health';
         }
         return iconName;
     }
@@ -310,11 +326,14 @@
             {/if}
             
             <!-- Main app icon with white border (on top) -->
+            <!-- When cardIconType is 'skill', 'focus', or 'memory', use the item-specific
+                 gradient background instead of the app gradient. app.icon_image holds the
+                 item-specific icon filename set by AppDetails. -->
             {#if app.icon_image}
                 <div class="app-icon-wrapper">
                     <Icon 
                         name={getIconName(app.icon_image)}
-                        type="app"
+                        type={cardIconType === 'app' ? 'app' : cardIconType}
                         size="38px"
                         className="app-icon-main no-fade"
                         borderColor="#ffffff"
@@ -372,7 +391,6 @@
         /* Prevent mobile browsers from misinterpreting taps as scroll gestures
            in horizontally scrollable containers */
         touch-action: manipulation;
-        border: 1px solid rgba(255, 255, 255, 0.2);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         display: flex;
         flex-direction: column;
@@ -480,13 +498,12 @@
     }
     
     .app-card-name {
-        margin: 0;
+        margin: 2px 0 0;
         font-size: 16px;
         font-weight: 600;
         color: #ffffff;
         line-height: 1.2;
         flex: 1;
-        margin-top: 10px;
     }
     
     .app-card-description {

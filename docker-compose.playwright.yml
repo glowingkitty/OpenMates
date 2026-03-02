@@ -12,10 +12,31 @@ services:
     environment:
       # Target the deployed dev environment by default.
       PLAYWRIGHT_TEST_BASE_URL: "https://app.dev.openmates.org"
-      # Load test credentials from host environment (populated via .env)
+      # Load test credentials from host environment (populated via .env).
+      # Base vars (backward-compatible fallback for single-account runs):
       OPENMATES_TEST_ACCOUNT_EMAIL:
       OPENMATES_TEST_ACCOUNT_PASSWORD:
       OPENMATES_TEST_ACCOUNT_OTP_KEY:
+      # Multi-account slots (1-5) for parallel test workers.
+      # Each slot has its own email/password/otp_key so parallel specs
+      # don't collide by sharing the same session.
+      OPENMATES_TEST_ACCOUNT_1_EMAIL:
+      OPENMATES_TEST_ACCOUNT_1_PASSWORD:
+      OPENMATES_TEST_ACCOUNT_1_OTP_KEY:
+      OPENMATES_TEST_ACCOUNT_2_EMAIL:
+      OPENMATES_TEST_ACCOUNT_2_PASSWORD:
+      OPENMATES_TEST_ACCOUNT_2_OTP_KEY:
+      OPENMATES_TEST_ACCOUNT_3_EMAIL:
+      OPENMATES_TEST_ACCOUNT_3_PASSWORD:
+      OPENMATES_TEST_ACCOUNT_3_OTP_KEY:
+      OPENMATES_TEST_ACCOUNT_4_EMAIL:
+      OPENMATES_TEST_ACCOUNT_4_PASSWORD:
+      OPENMATES_TEST_ACCOUNT_4_OTP_KEY:
+      OPENMATES_TEST_ACCOUNT_5_EMAIL:
+      OPENMATES_TEST_ACCOUNT_5_PASSWORD:
+      OPENMATES_TEST_ACCOUNT_5_OTP_KEY:
+      # Worker slot identifier (set by run-tests-worker.sh for parallel runs)
+      PLAYWRIGHT_WORKER_SLOT:
       # Load signup test vars
       SIGNUP_TEST_EMAIL_DOMAINS:
       MAILOSAUR_API_KEY:
@@ -36,4 +57,3 @@ services:
         # PLAYWRIGHT_TEST_GREP filters tests by title (regex).
         npx playwright test --config=playwright.config.ts $${PLAYWRIGHT_TEST_FILE:-} $${PLAYWRIGHT_TEST_GREP:+--grep \"$$PLAYWRIGHT_TEST_GREP\"}
       "
-

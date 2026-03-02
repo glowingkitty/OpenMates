@@ -290,7 +290,13 @@ class YouTubeService:
             
             # Handle API errors
             if response.status_code == 403:
-                logger.error(f"{log_prefix}API quota exceeded or key invalid: {response.text}")
+                # 403 from Google means either daily quota exhausted or invalid API key.
+                # Both cases are unrecoverable until quota resets (midnight Pacific time).
+                # The frontend will gracefully fall back to a static embed (thumbnail only).
+                logger.error(
+                    f"{log_prefix}QUOTA_EXCEEDED or key invalid — client will fall back to "
+                    f"static embed (thumbnail-only). Response: {response.text[:200]}"
+                )
                 raise YouTubeServiceError(
                     "YouTube API quota exceeded or invalid API key",
                     503

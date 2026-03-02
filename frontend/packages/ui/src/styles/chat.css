@@ -36,13 +36,14 @@
   border-radius: 13px;
 }
 
-/* Add back the speech bubble pointer */
+/* Add back the speech bubble pointer (LTR: tail on the right) */
 .user-message-content::before {
   content: "";
   position: absolute;
   width: 12px;
   height: 20px;
-  right: -12px;
+  /* Logical property: tail sits on the inline-end side (right in LTR, left in RTL) */
+  inset-inline-end: -12px;
   bottom: 10px;
   /* Use mask for the speech bubble shape */
   -webkit-mask-image: url("@openmates/ui/static/speechbubble.svg");
@@ -53,16 +54,23 @@
   mask-repeat: no-repeat;
   /* Apply the same background color as the message */
   background-color: var(--color-grey-blue);
+  /* LTR default: flip the SVG so tail points right */
   transform: scaleX(-1);
 }
 
-/* Add speech bubble pointer for mate messages */
+/* RTL: user message tail points to the left (inline-start side) — un-flip the SVG */
+:global([dir="rtl"]) .user-message-content::before {
+  transform: scaleX(1);
+}
+
+/* Add speech bubble pointer for mate messages (LTR: tail on the left) */
 .mate-message-content::before {
   content: "";
   position: absolute;
   width: 12px;
   height: 20px;
-  left: -12px;
+  /* Logical property: tail sits on the inline-start side (left in LTR, right in RTL) */
+  inset-inline-start: -12px;
   top: 20px;
   /* Use mask for the speech bubble shape */
   -webkit-mask-image: url("@openmates/ui/static/speechbubble.svg");
@@ -73,6 +81,13 @@
   mask-repeat: no-repeat;
   /* Apply white background color for mate messages */
   background-color: var(--color-grey-0);
+  /* LTR default: SVG already points left, no flip needed */
+  transform: scaleX(1);
+}
+
+/* RTL: mate message tail points to the right — flip the SVG */
+:global([dir="rtl"]) .mate-message-content::before {
+  transform: scaleX(-1);
 }
 
 /* Add the fade-in animation keyframes */
@@ -91,18 +106,19 @@
 
 /* Add these new classes */
 .message-align-right {
-  margin-left: auto;
-  padding-left: 12px;
+  /* Use logical properties so this works for both LTR (right side) and RTL (left side) */
+  margin-inline-start: auto;
+  padding-inline-start: 12px;
   box-sizing: border-box;
-  /* Cap width so the user bubble's left edge sits ~20px to the right of the assistant bubble's
-     left content edge. Assistant content starts ~80px from left (60px avatar + margins/gap),
-     so we offset by ~100px to land the user bubble's left edge at ~100px from the container left. */
+  /* Cap width so the user bubble's near-side edge sits ~20px from the assistant bubble's
+     content edge. Assistant content starts ~80px from start (60px avatar + margins/gap). */
   max-width: calc(100% - 100px);
 }
 
 .message-align-left {
-  margin-right: auto;
-  padding-right: 12px;
+  /* Use logical properties so this works for both LTR (left side) and RTL (right side) */
+  margin-inline-end: auto;
+  padding-inline-end: 12px;
   box-sizing: border-box;
   max-width: calc(100% - 70px);
 }
@@ -124,8 +140,8 @@
 
 .chat-message.assistant.mobile-stacked .message-align-left.mobile-full-width {
   max-width: 100%;
-  padding-right: 0px;
-  margin-left: 0;
+  padding-inline-end: 0px;
+  margin-inline-start: 0;
 }
 
 /* Adjust mate message content margins for mobile stacked layout */
@@ -146,21 +162,21 @@
 }
 
 /* When container is ≤500px the assistant avatar stacks above the message,
-   so the user bubble no longer needs a large left offset — go nearly edge-to-edge. */
+   so the user bubble no longer needs a large inline-start offset — go nearly edge-to-edge. */
 .message-align-right.mobile-compact {
   max-width: calc(100% - 20px);
-  padding-left: 0px;
+  padding-inline-start: 0px;
 }
 
 /* Media query for screens smaller than 500px - padding adjustments only */
 @media (max-width: 500px) {
   .message-align-right {
-    padding-left: 0px;
+    padding-inline-start: 0px;
     max-width: calc(100% - 20px);
   }
 
   .message-align-left {
-    padding-right: 0px;
+    padding-inline-end: 0px;
     max-width: calc(100% - 10px);
   }
 }
@@ -170,9 +186,11 @@
   opacity: 0.5;
   transition: all 0.3s ease-in-out;
   position: relative;
-  padding-right: 20px; /* Make space for the icon */
-  margin-left: 86px; /* Match user message left margin */
-  margin-right: 12px; /* Match message right margin */
+  /* Logical properties: space for the expand icon at the inline-end side */
+  padding-inline-end: 20px;
+  /* Align with the assistant avatar's inline-start offset */
+  margin-inline-start: 86px;
+  margin-inline-end: 12px;
   margin-top: 10px;
 }
 
@@ -184,7 +202,8 @@
   background-image: url("@openmates/ui/static/icons/open.svg");
   background-size: contain;
   background-repeat: no-repeat;
-  right: 0;
+  /* Logical property: icon sits at the inline-end edge */
+  inset-inline-end: 0;
   top: 50%;
   transform: translateY(-50%);
 }
@@ -197,7 +216,7 @@
 /* Add new styles for the app cards container in chat */
 .chat-app-cards-container {
   margin-top: 16px;
-  margin-left: -12px;
+  margin-inline-start: -12px;
   margin-right: -12px;
   display: flex;
   gap: 16px;

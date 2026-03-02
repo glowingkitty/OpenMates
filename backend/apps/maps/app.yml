@@ -43,6 +43,7 @@ skills:
   - id: search
     name_translation_key: maps.search
     description_translation_key: maps.search.description
+    icon_image: search.svg
     preprocessor_hint: >
       Search for places, businesses, restaurants, directions, locations.
     stage: production

@@ -1,0 +1,888 @@
+storage:
+  context: Storage submenu item under Account settings
+  en: Storage
+  de: Speicher
+  zh: 存储
+  es: Almacenamiento
+  fr: Stockage
+  pt: Armazenamento
+  ru: Хранилище
+  ja: ストレージ
+  ko: 저장소
+  it: Archiviazione
+  tr: Depolama
+  vi: Lưu trữ
+  id: Penyimpanan
+  pl: Przechowywanie
+  nl: Opslag
+  ar: التخزين
+  hi: संग्रहण
+  th: การจัดเก็บ
+  cs: Úložiště
+  sv: Lagring
+  he: אחסון
+  verified_by_human: []
+storage_title:
+  context: Title for the storage overview settings page
+  en: Storage
+  de: Speichernutzung
+  zh: 存储
+  es: Almacenamiento
+  fr: Stockage
+  pt: Armazenamento
+  ru: Хранилище
+  ja: ストレージ
+  ko: 저장소
+  it: Archiviazione
+  tr: Depolama
+  vi: Lưu trữ
+  id: Penyimpanan
+  pl: Przechowywanie
+  nl: Opslag
+  ar: التخزين
+  hi: संग्रहण
+  th: การจัดเก็บ
+  cs: Úložiště
+  sv: Lagring
+  he: אחסון
+  verified_by_human: []
+storage_loading:
+  context: Loading state message while fetching storage usage data
+  en: Loading storage usage…
+  de: Speichernutzung wird geladen…
+  zh: 正在加载存储用量…
+  es: Cargando uso de almacenamiento…
+  fr: Chargement de l'utilisation du stockage…
+  pt: Carregando uso de armazenamento…
+  ru: Загрузка использования хранилища…
+  ja: ストレージ使用量を読み込んでいます…
+  ko: 저장소 사용량 로딩 중…
+  it: Caricamento utilizzo spazio di archiviazione…
+  tr: Depolama kullanımı yükleniyor…
+  vi: Đang tải dung lượng lưu trữ…
+  id: Memuat penggunaan penyimpanan…
+  pl: Ładowanie wykorzystania pamięci…
+  nl: Opslaggebruik laden…
+  ar: جارٍ تحميل استخدام التخزين…
+  hi: संग्रहण उपयोग लोड हो रहा है…
+  th: กำลังโหลดการใช้พื้นที่เก็บข้อมูล…
+  cs: Načítám využití úložiště…
+  sv: Laddar lagringsutnyttjande…
+  he: טוען נתוני שימוש באחסון...
+  verified_by_human: []
+storage_error:
+  context: Error message displayed when storage usage data fails to load
+  en: Failed to load storage usage. Please try again.
+  de: Speichernutzung konnte nicht geladen werden. Bitte erneut versuchen.
+  zh: 无法加载存储用量，请重试。
+  es: No se pudo cargar el uso de almacenamiento. Inténtalo de nuevo.
+  fr: Impossible de charger l'utilisation du stockage. Veuillez réessayer.
+  pt: Falha ao carregar o uso de armazenamento. Por favor, tente novamente.
+  ru: Не удалось загрузить данные о хранилище. Пожалуйста, попробуйте ещё раз.
+  ja: ストレージ使用量の読み込みに失敗しました。もう一度お試しください。
+  ko: 저장소 사용량을 불러오지 못했습니다. 다시 시도해 주세요.
+  it: Impossibile caricare l'utilizzo dello spazio di archiviazione. Riprova.
+  tr: Depolama kullanımı yüklenemedi. Lütfen tekrar deneyin.
+  vi: Không thể tải dung lượng lưu trữ. Vui lòng thử lại.
+  id: Gagal memuat penggunaan penyimpanan. Silakan coba lagi.
+  pl: Nie udało się załadować wykorzystania pamięci. Spróbuj ponownie.
+  nl: Opslaggebruik kon niet worden geladen. Probeer het opnieuw.
+  ar: فشل تحميل استخدام التخزين. يرجى المحاولة مرة أخرى.
+  hi: संग्रहण उपयोग लोड नहीं हो सका। कृपया पुनः प्रयास करें।
+  th: ไม่สามารถโหลดการใช้พื้นที่เก็บข้อมูลได้ โปรดลองอีกครั้ง
+  cs: Nepodařilo se načíst využití úložiště. Zkuste to prosím znovu.
+  sv: Det gick inte att ladda lagringsutnyttjandet. Försök igen.
+  he: טעינת נתוני השימוש באחסון נכשלה. יש לנסות שוב.
+  verified_by_human: []
+storage_total_used:
+  context: "Label showing how much total storage the user is using out of the free tier. {used} = formatted size used, {free} = free tier size."
+  en: "{used} used of {free} free"
+  de: "{used} verwendet von {free} kostenlos"
+  zh: "已使用 {used}，免费额度 {free}"
+  es: "{used} usados de {free} gratis"
+  fr: "{used} utilisé sur {free} gratuits"
+  pt: "{used} usado de {free} gratuitos"
+  ru: "{used} использовано из {free} бесплатных"
+  ja: "{free} 無料のうち {used} 使用"
+  ko: "{free} 무료 중 {used} 사용됨"
+  it: "{used} utilizzati di {free} gratuiti"
+  tr: "{free} ücretsizden {used} kullanıldı"
+  vi: "Đã dùng {used} trong {free} miễn phí"
+  id: "{used} digunakan dari {free} gratis"
+  pl: "{used} użyte z {free} darmowych"
+  nl: "{used} gebruikt van {free} gratis"
+  ar: "{used} مستخدم من {free} مجاني"
+  hi: "{free} निःशुल्क में से {used} उपयोग किया"
+  th: "ใช้ {used} จาก {free} ฟรี"
+  cs: "{used} použito z {free} zdarma"
+  sv: "{used} används av {free} gratis"
+  he: "{used} בשימוש מתוך {free} בחינם"
+  verified_by_human: []
+storage_free_tier_label:
+  context: Label for the free storage tier section
+  en: Free tier
+  de: Kostenloses Kontingent
+  zh: 免费额度
+  es: Nivel gratuito
+  fr: Niveau gratuit
+  pt: Nível gratuito
+  ru: Бесплатный уровень
+  ja: 無料枠
+  ko: 무료 티어
+  it: Piano gratuito
+  tr: Ücretsiz katman
+  vi: Gói miễn phí
+  id: Tingkat gratis
+  pl: Poziom darmowy
+  nl: Gratis laag
+  ar: المستوى المجاني
+  hi: निःशुल्क स्तर
+  th: ระดับฟรี
+  cs: Bezplatná úroveň
+  sv: Gratisplan
+  he: מסלול חינמי
+  verified_by_human: []
+storage_within_free_tier:
+  context: Message shown when the user's storage usage is within the free 1 GB tier
+  en: You are within the free storage tier — no charges apply.
+  de: Du nutzt das kostenlose Speicherkontingent – keine Kosten anfallen.
+  zh: 您在免费存储额度内——无需付费。
+  es: Estás dentro del nivel de almacenamiento gratuito — no se aplican cargos.
+  fr: Vous êtes dans le niveau de stockage gratuit — aucun frais ne s'applique.
+  pt: Você está no nível de armazenamento gratuito — nenhuma cobrança se aplica.
+  ru: Вы находитесь в пределах бесплатного хранилища — плата не взимается.
+  ja: 無料ストレージ枠内です。料金はかかりません。
+  ko: 무료 저장소 티어 내에 있습니다 — 요금이 부과되지 않습니다.
+  it: Sei nel livello gratuito di archiviazione — nessun addebito applicato.
+  tr: Ücretsiz depolama katmanındasın — ücret alınmaz.
+  vi: Bạn đang trong gói lưu trữ miễn phí — không phát sinh phí.
+  id: Kamu berada dalam tingkat penyimpanan gratis — tidak ada biaya.
+  pl: Jesteś w bezpłatnym poziomie pamięci — brak opłat.
+  nl: Je bevindt je in de gratis opslaglaag — geen kosten van toepassing.
+  ar: أنت ضمن مستوى التخزين المجاني — لا توجد رسوم.
+  hi: आप निःशुल्क संग्रहण स्तर में हैं — कोई शुल्क नहीं लगेगा।
+  th: คุณอยู่ในระดับพื้นที่เก็บข้อมูลฟรี — ไม่มีการเรียกเก็บเงิน
+  cs: Jste v bezplatné úrovni úložiště — žádné poplatky se neúčtují.
+  sv: Du befinner dig i den gratis lagringsnivån — inga avgifter tillämpas.
+  he: השימוש שלך הוא במסגרת המסלול החינמי — לא יחולו חיובים.
+  verified_by_human: []
+storage_billable:
+  context: Label for billable storage above the free tier
+  en: Billable storage
+  de: Abrechenbarer Speicher
+  zh: 计费存储
+  es: Almacenamiento facturable
+  fr: Stockage facturable
+  pt: Armazenamento faturável
+  ru: Тарифицируемое хранилище
+  ja: 課金対象ストレージ
+  ko: 청구 가능한 저장소
+  it: Spazio addebitabile
+  tr: Faturalandırılabilir depolama
+  vi: Lưu trữ tính phí
+  id: Penyimpanan yang dapat ditagih
+  pl: Płatna przestrzeń
+  nl: Factureerbare opslag
+  ar: التخزين القابل للفوترة
+  hi: बिलयोग्य संग्रहण
+  th: พื้นที่เก็บข้อมูลที่ต้องชำระ
+  cs: Zpoplatněné úložiště
+  sv: Fakturerbart lagringsutrymme
+  he: אחסון לחיוב
+  verified_by_human: []
+storage_weekly_cost:
+  context: Label for the weekly storage cost in credits
+  en: Weekly cost
+  de: Wöchentliche Kosten
+  zh: 每周费用
+  es: Costo semanal
+  fr: Coût hebdomadaire
+  pt: Custo semanal
+  ru: Еженедельная стоимость
+  ja: 週次コスト
+  ko: 주간 비용
+  it: Costo settimanale
+  tr: Haftalık maliyet
+  vi: Chi phí hàng tuần
+  id: Biaya mingguan
+  pl: Koszt tygodniowy
+  nl: Wekelijkse kosten
+  ar: التكلفة الأسبوعية
+  hi: साप्ताहिक लागत
+  th: ค่าใช้จ่ายรายสัปดาห์
+  cs: Týdenní náklady
+  sv: Veckokostnad
+  he: עלות שבועית
+  verified_by_human: []
+storage_credits_per_week:
+  context: Inline value for weekly cost in credits (e.g. "6 credits / week"). {credits} is a number.
+  en: "{credits} credits / week"
+  de: "{credits} Guthaben / Woche"
+  zh: "{credits} 积分 / 周"
+  es: "{credits} créditos / semana"
+  fr: "{credits} crédits / semaine"
+  pt: "{credits} créditos / semana"
+  ru: "{credits} кредитов / неделю"
+  ja: "{credits} クレジット / 週"
+  ko: "{credits} 크레딧 / 주"
+  it: "{credits} crediti / settimana"
+  tr: "{credits} kredi / hafta"
+  vi: "{credits} tín dụng / tuần"
+  id: "{credits} kredit / minggu"
+  pl: "{credits} kredytów / tydzień"
+  nl: "{credits} credits / week"
+  ar: "{credits} ائتمانات / أسبوع"
+  hi: "{credits} क्रेडिट / सप्ताह"
+  th: "{credits} เครดิต / สัปดาห์"
+  cs: "{credits} kreditů / týden"
+  sv: "{credits} krediter / vecka"
+  he: "{credits} קרדיטים לשבוע"
+  verified_by_human: []
+storage_next_billing:
+  context: Label for the next billing date
+  en: Next billing
+  de: Nächste Abrechnung
+  zh: 下次计费
+  es: Próxima facturación
+  fr: Prochaine facturation
+  pt: Próxima cobrança
+  ru: Следующее списание
+  ja: 次回請求
+  ko: 다음 청구
+  it: Prossima fatturazione
+  tr: Sonraki faturalama
+  vi: Lần thanh toán tiếp theo
+  id: Tagihan berikutnya
+  pl: Następne rozliczenie
+  nl: Volgende facturering
+  ar: الفوترة التالية
+  hi: अगला बिलिंग
+  th: การเรียกเก็บเงินครั้งถัดไป
+  cs: Příští fakturace
+  sv: Nästa fakturering
+  he: חיוב הבא
+  verified_by_human: []
+storage_last_billed:
+  context: Label for the date the user was last charged for storage
+  en: Last billed
+  de: Zuletzt abgerechnet
+  zh: 上次计费
+  es: Última facturación
+  fr: Dernière facturation
+  pt: Última cobrança
+  ru: Последнее списание
+  ja: 前回請求
+  ko: 마지막 청구
+  it: Ultima fatturazione
+  tr: Son faturalama
+  vi: Lần thanh toán cuối
+  id: Terakhir ditagih
+  pl: Ostatnie rozliczenie
+  nl: Laatste facturering
+  ar: آخر فاتورة
+  hi: पिछला बिलिंग
+  th: ล่าสุดที่เรียกเก็บเงิน
+  cs: Naposledy fakturováno
+  sv: Senast fakturerat
+  he: חיוב אחרון
+  verified_by_human: []
+storage_category_images:
+  context: Storage category label for image files
+  en: Images
+  de: Bilder
+  zh: 图片
+  es: Imágenes
+  fr: Images
+  pt: Imagens
+  ru: Изображения
+  ja: 画像
+  ko: 이미지
+  it: Immagini
+  tr: Görseller
+  vi: Hình ảnh
+  id: Gambar
+  pl: Obrazy
+  nl: Afbeeldingen
+  ar: الصور
+  hi: छवियाँ
+  th: รูปภาพ
+  cs: Obrázky
+  sv: Bilder
+  he: תמונות
+  verified_by_human: []
+storage_category_videos:
+  context: Storage category label for video files
+  en: Videos
+  de: Videos
+  zh: 视频
+  es: Videos
+  fr: Vidéos
+  pt: Vídeos
+  ru: Видео
+  ja: 動画
+  ko: 동영상
+  it: Video
+  tr: Videolar
+  vi: Video
+  id: Video
+  pl: Filmy
+  nl: Video's
+  ar: مقاطع الفيديو
+  hi: वीडियो
+  th: วิดีโอ
+  cs: Videa
+  sv: Videor
+  he: סרטונים
+  verified_by_human: []
+storage_category_audio:
+  context: Storage category label for audio files
+  en: Audio
+  de: Audio
+  zh: 音频
+  es: Audio
+  fr: Audio
+  pt: Áudio
+  ru: Аудио
+  ja: オーディオ
+  ko: 오디오
+  it: Audio
+  tr: Ses
+  vi: Âm thanh
+  id: Audio
+  pl: Audio
+  nl: Audio
+  ar: الصوت
+  hi: ऑडियो
+  th: เสียง
+  cs: Zvuk
+  sv: Ljud
+  he: אודיו
+  verified_by_human: []
+storage_category_pdf:
+  context: Storage category label for PDF files
+  en: PDF
+  de: PDF
+  zh: PDF
+  es: PDF
+  fr: PDF
+  pt: PDF
+  ru: PDF
+  ja: PDF
+  ko: PDF
+  it: PDF
+  tr: PDF
+  vi: PDF
+  id: PDF
+  pl: PDF
+  nl: PDF
+  ar: PDF
+  hi: PDF
+  th: PDF
+  cs: PDF
+  sv: PDF
+  he: PDF
+  verified_by_human: []
+storage_category_code:
+  context: Storage category label for code and text files
+  en: Code & Text
+  de: Code & Text
+  zh: 代码与文本
+  es: Código y Texto
+  fr: Code et Texte
+  pt: Código e Texto
+  ru: Код и Текст
+  ja: コードとテキスト
+  ko: 코드 및 텍스트
+  it: Codice e Testo
+  tr: Kod ve Metin
+  vi: Mã nguồn & Văn bản
+  id: Kode & Teks
+  pl: Kod i Tekst
+  nl: Code & Tekst
+  ar: الكود والنص
+  hi: कोड और टेक्स्ट
+  th: โค้ดและข้อความ
+  cs: Kód a Text
+  sv: Kod och Text
+  he: קוד וטקסט
+  verified_by_human: []
+storage_category_docs:
+  context: Storage category label for word processor document files (e.g. Word, ODT)
+  en: Documents
+  de: Dokumente
+  zh: 文档
+  es: Documentos
+  fr: Documents
+  pt: Documentos
+  ru: Документы
+  ja: ドキュメント
+  ko: 문서
+  it: Documenti
+  tr: Belgeler
+  vi: Tài liệu
+  id: Dokumen
+  pl: Dokumenty
+  nl: Documenten
+  ar: المستندات
+  hi: दस्तावेज़
+  th: เอกสาร
+  cs: Dokumenty
+  sv: Dokument
+  he: מסמכים
+  verified_by_human: []
+storage_category_sheets:
+  context: Storage category label for spreadsheet files (e.g. Excel, ODS)
+  en: Spreadsheets
+  de: Tabellen
+  zh: 电子表格
+  es: Hojas de cálculo
+  fr: Tableurs
+  pt: Planilhas
+  ru: Таблицы
+  ja: スプレッドシート
+  ko: 스프레드시트
+  it: Fogli di calcolo
+  tr: Tablolar
+  vi: Bảng tính
+  id: Spreadsheet
+  pl: Arkusze kalkulacyjne
+  nl: Spreadsheets
+  ar: جداول البيانات
+  hi: स्प्रेडशीट
+  th: สเปรดชีต
+  cs: Tabulky
+  sv: Kalkylblad
+  he: גיליונות אלקטרוניים
+  verified_by_human: []
+storage_category_archives:
+  context: Storage category label for archive/compressed files (e.g. ZIP, TAR, 7Z)
+  en: Archives
+  de: Archive
+  zh: 压缩文件
+  es: Archivos comprimidos
+  fr: Archives
+  pt: Arquivos compactados
+  ru: Архивы
+  ja: アーカイブ
+  ko: 아카이브
+  it: Archivi
+  tr: Arşivler
+  vi: File nén
+  id: Arsip
+  pl: Archiwa
+  nl: Archieven
+  ar: الأرشيفات
+  hi: आर्काइव
+  th: ไฟล์บีบอัด
+  cs: Archivy
+  sv: Arkiv
+  he: ארכיונים
+  verified_by_human: []
+storage_category_other:
+  context: Storage category label for other/uncategorized files
+  en: Other
+  de: Sonstige
+  zh: 其他
+  es: Otros
+  fr: Autres
+  pt: Outros
+  ru: Прочее
+  ja: その他
+  ko: 기타
+  it: Altro
+  tr: Diğer
+  vi: Khác
+  id: Lainnya
+  pl: Inne
+  nl: Overige
+  ar: أخرى
+  hi: अन्य
+  th: อื่นๆ
+  cs: Ostatní
+  sv: Övrigt
+  he: אחר
+  verified_by_human: []
+storage_files_count:
+  context: Number of files in a storage category (e.g. "3 files"). {count} is a number.
+  en: "{count} files"
+  de: "{count} Dateien"
+  zh: "{count} 个文件"
+  es: "{count} archivos"
+  fr: "{count} fichiers"
+  pt: "{count} arquivos"
+  ru: "{count} файлов"
+  ja: "{count} ファイル"
+  ko: "{count} 파일"
+  it: "{count} file"
+  tr: "{count} dosya"
+  vi: "{count} tệp"
+  id: "{count} file"
+  pl: "{count} pliki"
+  nl: "{count} bestanden"
+  ar: "{count} ملفات"
+  hi: "{count} फ़ाइलें"
+  th: "{count} ไฟล์"
+  cs: "{count} souborů"
+  sv: "{count} filer"
+  he: "{count} קבצים"
+  verified_by_human: []
+storage_invoice_notice:
+  context: Info notice shown below the breakdown explaining that invoice PDFs are stored separately and not listed here — users are not charged for them and they are auto-deleted after 10 years per German tax law (§147 AO)
+  en: Invoice PDFs are not listed here. They are stored separately, free of charge, and are automatically deleted after 10 years as required by German tax law.
+  de: Rechnungs-PDFs werden hier nicht angezeigt. Sie werden separat gespeichert, kostenlos, und werden nach 10 Jahren gemäß deutschem Steuerrecht automatisch gelöscht.
+  zh: 发票PDF不在此处列出。它们单独存储，免费，并根据德国税法在10年后自动删除。
+  es: Los PDFs de facturas no se muestran aquí. Se almacenan por separado, de forma gratuita, y se eliminan automáticamente después de 10 años según la ley fiscal alemana.
+  fr: Les PDFs de factures ne sont pas listés ici. Ils sont stockés séparément, gratuitement, et supprimés automatiquement après 10 ans conformément à la loi fiscale allemande.
+  pt: Os PDFs de faturas não estão listados aqui. Eles são armazenados separadamente, de forma gratuita, e excluídos automaticamente após 10 anos conforme a lei fiscal alemã.
+  ru: PDF-файлы счетов здесь не отображаются. Они хранятся отдельно, бесплатно, и автоматически удаляются через 10 лет в соответствии с немецким налоговым законодательством.
+  ja: 請求書PDFはここには表示されません。別途無料で保存され、ドイツ税法に基づき10年後に自動的に削除されます。
+  ko: 청구서 PDF는 여기에 표시되지 않습니다. 별도로 무료로 저장되며, 독일 세법에 따라 10년 후 자동으로 삭제됩니다.
+  it: I PDF delle fatture non sono elencati qui. Sono archiviati separatamente, gratuitamente, e vengono eliminati automaticamente dopo 10 anni secondo la legge fiscale tedesca.
+  tr: Fatura PDF'leri burada listelenmez. Ayrıca ücretsiz olarak depolanır ve Alman vergi mevzuatı gereği 10 yıl sonra otomatik olarak silinir.
+  vi: Các tệp PDF hóa đơn không được liệt kê ở đây. Chúng được lưu trữ riêng, miễn phí và tự động xóa sau 10 năm theo luật thuế Đức.
+  id: PDF faktur tidak terdaftar di sini. Disimpan secara terpisah, gratis, dan otomatis dihapus setelah 10 tahun sesuai hukum pajak Jerman.
+  pl: Faktury PDF nie są tutaj wymienione. Są przechowywane oddzielnie, bezpłatnie i automatycznie usuwane po 10 latach zgodnie z niemieckim prawem podatkowym.
+  nl: Factuur-PDF's worden hier niet weergegeven. Ze worden apart opgeslagen, kosteloos, en na 10 jaar automatisch verwijderd conform de Duitse belastingwet.
+  ar: لا يتم إدراج ملفات PDF للفواتير هنا. يتم تخزينها بشكل منفصل، مجانًا، ويتم حذفها تلقائيًا بعد 10 سنوات وفقًا لقانون الضرائب الألماني.
+  hi: चालान PDF यहाँ सूचीबद्ध नहीं हैं। वे अलग से, निःशुल्क संग्रहीत किए जाते हैं, और जर्मन कर कानून के अनुसार 10 वर्षों के बाद स्वचालित रूप से हटा दिए जाते हैं।
+  th: ไฟล์ PDF ใบแจ้งหนี้ไม่ได้แสดงที่นี่ ถูกจัดเก็บแยกต่างหาก ฟรี และลบอัตโนมัติหลังจาก 10 ปีตามกฎหมายภาษีของเยอรมนี
+  cs: PDF faktury nejsou zde uvedeny. Jsou uloženy odděleně, zdarma, a automaticky smazány po 10 letech dle německého daňového práva.
+  sv: Faktura-PDF:er visas inte här. De lagras separat, kostnadsfritt, och raderas automatiskt efter 10 år enligt tysk skattelagstiftning.
+  he: חשבוניות PDF אינן מופיעות כאן. הן נשמרות בנפרד, ללא תשלום, ונמחקות אוטומטית לאחר 10 שנים כנדרש על פי חוקי המס בגרמניה.
+  verified_by_human: []
+storage_delete_confirm:
+  context: Label shown on a delete button after the first press, indicating a second press is needed to confirm. Matches the same pattern as chat deletion.
+  en: Confirm?
+  de: Bestätigen?
+  zh: 确认？
+  es: ¿Confirmar?
+  fr: Confirmer ?
+  pt: Confirmar?
+  ru: Подтвердить?
+  ja: 確認？
+  ko: 확인?
+  it: Confermare?
+  tr: Onaylıyor musun?
+  vi: Xác nhận?
+  id: Konfirmasi?
+  pl: Potwierdzić?
+  nl: Bevestigen?
+  ar: تأكيد؟
+  hi: पुष्टि करें?
+  th: ยืนยัน?
+  cs: Potvrdit?
+  sv: Bekräfta?
+  he: "לאשר?"
+  verified_by_human: []
+storage_breakdown_title:
+  context: Section heading for the per-category storage breakdown list
+  en: Breakdown by type
+  de: Aufschlüsselung nach Typ
+  zh: 按类型细分
+  es: Desglose por tipo
+  fr: Répartition par type
+  pt: Detalhamento por tipo
+  ru: Разбивка по типу
+  ja: タイプ別内訳
+  ko: 유형별 분류
+  it: Suddivisione per tipo
+  tr: Türe göre dağılım
+  vi: Phân loại theo loại
+  id: Rincian berdasarkan jenis
+  pl: Podział według typu
+  nl: Verdeling per type
+  ar: التقسيم حسب النوع
+  hi: प्रकार के अनुसार विभाजन
+  th: แยกตามประเภท
+  cs: Rozdělení podle typu
+  sv: Uppdelning efter typ
+  he: פירוט לפי סוג
+  verified_by_human: []
+storage_files_title:
+  context: Section heading for the uploaded files list in storage settings
+  en: Your Files
+  de: Deine Dateien
+  zh: 你的文件
+  es: Tus archivos
+  fr: Vos fichiers
+  pt: Seus arquivos
+  ru: Ваши файлы
+  ja: あなたのファイル
+  ko: 내 파일
+  it: I tuoi file
+  tr: Dosyalarınız
+  vi: Tệp của bạn
+  id: File Anda
+  pl: Twoje pliki
+  nl: Jouw bestanden
+  ar: ملفاتك
+  hi: आपकी फ़ाइलें
+  th: ไฟล์ของคุณ
+  cs: Vaše soubory
+  sv: Dina filer
+  he: הקבצים שלך
+  verified_by_human: []
+storage_files_loading:
+  context: Loading spinner text while fetching the file list for a selected category
+  en: Loading files…
+  de: Dateien werden geladen…
+  zh: 正在加载文件…
+  es: Cargando archivos…
+  fr: Chargement des fichiers…
+  pt: Carregando arquivos…
+  ru: Загрузка файлов…
+  ja: ファイルを読み込み中…
+  ko: 파일 불러오는 중…
+  it: Caricamento file…
+  tr: Dosyalar yükleniyor…
+  vi: Đang tải tệp…
+  id: Memuat file…
+  pl: Ładowanie plików…
+  nl: Bestanden laden…
+  ar: جارٍ تحميل الملفات…
+  hi: फ़ाइलें लोड हो रही हैं…
+  th: กำลังโหลดไฟล์…
+  cs: Načítání souborů…
+  sv: Läser in filer…
+  he: טוען קבצים...
+  verified_by_human: []
+storage_files_empty:
+  context: Message shown when the user has no uploaded files in the selected category
+  en: No files uploaded yet.
+  de: Noch keine Dateien hochgeladen.
+  zh: 尚未上传任何文件。
+  es: Aún no hay archivos subidos.
+  fr: Aucun fichier téléversé pour l'instant.
+  pt: Nenhum arquivo enviado ainda.
+  ru: Файлы ещё не загружены.
+  ja: まだファイルがアップロードされていません。
+  ko: 아직 업로드된 파일이 없습니다.
+  it: Nessun file caricato.
+  tr: Henüz dosya yüklenmedi.
+  vi: Chưa có tệp nào được tải lên.
+  id: Belum ada file yang diunggah.
+  pl: Nie przesłano jeszcze żadnych plików.
+  nl: Er zijn nog geen bestanden geüpload.
+  ar: لم يتم رفع أي ملفات بعد.
+  hi: अभी तक कोई फ़ाइल अपलोड नहीं की गई।
+  th: ยังไม่มีไฟล์ที่อัปโหลด
+  cs: Zatím nebyly nahrány žádné soubory.
+  sv: Inga filer uppladdade ännu.
+  he: טרם הועלו קבצים.
+  verified_by_human: []
+storage_filter_all:
+  context: Label for the "All" tab in the file type filter row (shows all file types)
+  en: All
+  de: Alle
+  zh: 全部
+  es: Todo
+  fr: Tout
+  pt: Todos
+  ru: Все
+  ja: すべて
+  ko: 전체
+  it: Tutto
+  tr: Tümü
+  vi: Tất cả
+  id: Semua
+  pl: Wszystkie
+  nl: Alles
+  ar: الكل
+  hi: सभी
+  th: ทั้งหมด
+  cs: Vše
+  sv: Alla
+  he: הכול
+  verified_by_human: []
+storage_delete_file:
+  context: Accessible label for the delete button on an individual file row
+  en: Delete file
+  de: Datei löschen
+  zh: 删除文件
+  es: Eliminar archivo
+  fr: Supprimer le fichier
+  pt: Excluir arquivo
+  ru: Удалить файл
+  ja: ファイルを削除
+  ko: 파일 삭제
+  it: Elimina file
+  tr: Dosyayı sil
+  vi: Xóa tệp
+  id: Hapus file
+  pl: Usuń plik
+  nl: Bestand verwijderen
+  ar: حذف الملف
+  hi: फ़ाइल हटाएं
+  th: ลบไฟล์
+  cs: Smazat soubor
+  sv: Radera fil
+  he: מחיקת קובץ
+  verified_by_human: []
+storage_delete_category:
+  context: Button label for deleting all files in the currently selected category. {category} is the localised category name (e.g. "Images").
+  en: Delete all {category}
+  de: Alle {category} löschen
+  zh: 删除所有{category}
+  es: Eliminar todos {category}
+  fr: Tout supprimer {category}
+  pt: Excluir todos {category}
+  ru: Удалить все {category}
+  ja: すべての{category}を削除
+  ko: 모든 {category} 삭제
+  it: Elimina tutti {category}
+  tr: Tüm {category} sil
+  vi: Xóa tất cả {category}
+  id: Hapus semua {category}
+  pl: Usuń wszystkie {category}
+  nl: Alles verwijderen {category}
+  ar: حذف كل {category}
+  hi: सभी {category} हटाएं
+  th: ลบทั้งหมด {category}
+  cs: Smazat vše {category}
+  sv: Radera alla {category}
+  he: "מחיקת כל ה-{category}"
+  verified_by_human: []
+storage_delete_all:
+  context: Button label for deleting ALL uploaded files regardless of type
+  en: Delete all files
+  de: Alle Dateien löschen
+  zh: 删除所有文件
+  es: Eliminar todos los archivos
+  fr: Supprimer tous les fichiers
+  pt: Excluir todos os arquivos
+  ru: Удалить все файлы
+  ja: すべてのファイルを削除
+  ko: 모든 파일 삭제
+  it: Elimina tutti i file
+  tr: Tüm dosyaları sil
+  vi: Xóa tất cả tệp
+  id: Hapus semua file
+  pl: Usuń wszystkie pliki
+  nl: Alle bestanden verwijderen
+  ar: حذف جميع الملفات
+  hi: सभी फ़ाइलें हटाएं
+  th: ลบไฟล์ทั้งหมด
+  cs: Smazat všechny soubory
+  sv: Radera alla filer
+  he: מחיקת כל הקבצים
+  verified_by_human: []
+storage_delete_confirm_single:
+  context: Confirmation dialog text when deleting a single file. {filename} is the file name, {size} is the formatted size (e.g. "2.5 MB").
+  en: Delete {filename} ({size})? This cannot be undone.
+  de: "{filename} ({size}) löschen? Dies kann nicht rückgängig gemacht werden."
+  zh: 删除{filename}（{size}）？此操作无法撤销。
+  es: "¿Eliminar {filename} ({size})? Esto no se puede deshacer."
+  fr: "Supprimer {filename} ({size}) ? Cette action est irréversible."
+  pt: "Excluir {filename} ({size})? Isso não pode ser desfeito."
+  ru: Удалить {filename} ({size})? Это действие нельзя отменить.
+  ja: "{filename}（{size}）を削除しますか？この操作は元に戻せません。"
+  ko: "{filename} ({size})을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다."
+  it: "Eliminare {filename} ({size})? Questa azione non può essere annullata."
+  tr: "{filename} ({size}) silinsin mi? Bu işlem geri alınamaz."
+  vi: "Xóa {filename} ({size})? Thao tác này không thể hoàn tác."
+  id: "Hapus {filename} ({size})? Tindakan ini tidak dapat dibatalkan."
+  pl: "Usunąć {filename} ({size})? Tej operacji nie można cofnąć."
+  nl: "{filename} ({size}) verwijderen? Dit kan niet ongedaan worden gemaakt."
+  ar: "حذف {filename} ({size})؟ لا يمكن التراجع عن هذا الإجراء."
+  hi: "{filename} ({size}) हटाएं? इसे पूर्ववत नहीं किया जा सकता।"
+  th: ลบ {filename} ({size}) ใช่ไหม? การดำเนินการนี้ไม่สามารถยกเลิกได้
+  cs: "Smazat {filename} ({size})? Tuto akci nelze vrátit zpět."
+  sv: "Radera {filename} ({size})? Det går inte att ångra."
+  he: "למחוק את {filename} ({size})? לא ניתן לבטל פעולה זו."
+  verified_by_human: []
+storage_delete_confirm_category:
+  context: Confirmation dialog text when deleting all files in a category. {category} is the category name, {count} is the number of files, {size} is total formatted size.
+  en: Delete all {category} files ({count} files, {size})? This cannot be undone.
+  de: "Alle {category}-Dateien ({count} Dateien, {size}) löschen? Dies kann nicht rückgängig gemacht werden."
+  zh: 删除所有{category}文件（{count}个文件，{size}）？此操作无法撤销。
+  es: "¿Eliminar todos los archivos de {category} ({count} archivos, {size})? Esto no se puede deshacer."
+  fr: "Supprimer tous les fichiers {category} ({count} fichiers, {size}) ? Cette action est irréversible."
+  pt: "Excluir todos os arquivos {category} ({count} arquivos, {size})? Isso não pode ser desfeito."
+  ru: "Удалить все файлы {category} ({count} файлов, {size})? Это действие нельзя отменить."
+  ja: "すべての{category}ファイル（{count}件、{size}）を削除しますか？この操作は元に戻せません。"
+  ko: "모든 {category} 파일 ({count}개, {size})을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다."
+  it: "Eliminare tutti i file {category} ({count} file, {size})? Questa azione non può essere annullata."
+  tr: "Tüm {category} dosyaları ({count} dosya, {size}) silinsin mi? Bu işlem geri alınamaz."
+  vi: "Xóa tất cả tệp {category} ({count} tệp, {size})? Thao tác này không thể hoàn tác."
+  id: "Hapus semua file {category} ({count} file, {size})? Tindakan ini tidak dapat dibatalkan."
+  pl: "Usunąć wszystkie pliki {category} ({count} pliki, {size})? Tej operacji nie można cofnąć."
+  nl: "Alle {category}-bestanden ({count} bestanden, {size}) verwijderen? Dit kan niet ongedaan worden gemaakt."
+  ar: "حذف جميع ملفات {category} ({count} ملفات، {size})؟ لا يمكن التراجع عن هذا الإجراء."
+  hi: "सभी {category} फ़ाइलें ({count} फ़ाइलें, {size}) हटाएं? इसे पूर्ववत नहीं किया जा सकता।"
+  th: ลบไฟล์ {category} ทั้งหมด ({count} ไฟล์, {size}) ใช่ไหม? การดำเนินการนี้ไม่สามารถยกเลิกได้
+  cs: "Smazat všechny soubory {category} ({count} souborů, {size})? Tuto akci nelze vrátit zpět."
+  sv: "Radera alla {category}-filer ({count} filer, {size})? Det går inte att ångra."
+  he: "למחוק את כל קבצי ה-{category} ({count} קבצים, {size})? לא ניתן לבטל פעולה זו."
+  verified_by_human: []
+storage_delete_confirm_all:
+  context: Confirmation dialog text when deleting ALL files. {count} is total file count, {size} is total formatted size.
+  en: Delete all {count} files ({size})? This cannot be undone.
+  de: "Alle {count} Dateien ({size}) löschen? Dies kann nicht rückgängig gemacht werden."
+  zh: 删除所有{count}个文件（{size}）？此操作无法撤销。
+  es: "¿Eliminar todos los {count} archivos ({size})? Esto no se puede deshacer."
+  fr: "Supprimer les {count} fichiers ({size}) ? Cette action est irréversible."
+  pt: "Excluir todos os {count} arquivos ({size})? Isso não pode ser desfeito."
+  ru: "Удалить все {count} файлов ({size})? Это действие нельзя отменить."
+  ja: "すべての{count}件のファイル（{size}）を削除しますか？この操作は元に戻せません。"
+  ko: "모든 {count}개 파일 ({size})을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다."
+  it: "Eliminare tutti i {count} file ({size})? Questa azione non può essere annullata."
+  tr: "Tüm {count} dosya ({size}) silinsin mi? Bu işlem geri alınamaz."
+  vi: "Xóa tất cả {count} tệp ({size})? Thao tác này không thể hoàn tác."
+  id: "Hapus semua {count} file ({size})? Tindakan ini tidak dapat dibatalkan."
+  pl: "Usunąć wszystkie {count} pliki ({size})? Tej operacji nie można cofnąć."
+  nl: "Alle {count} bestanden ({size}) verwijderen? Dit kan niet ongedaan worden gemaakt."
+  ar: "حذف جميع الملفات {count} ({size})؟ لا يمكن التراجع عن هذا الإجراء."
+  hi: "सभी {count} फ़ाइलें ({size}) हटाएं? इसे पूर्ववत नहीं किया जा सकता।"
+  th: ลบไฟล์ทั้งหมด {count} ไฟล์ ({size}) ใช่ไหม? การดำเนินการนี้ไม่สามารถยกเลิกได้
+  cs: "Smazat všechny {count} soubory ({size})? Tuto akci nelze vrátit zpět."
+  sv: "Radera alla {count} filer ({size})? Det går inte att ångra."
+  he: "למחוק את כל {count} הקבצים ({size})? לא ניתן לבטל פעולה זו."
+  verified_by_human: []
+storage_delete_success:
+  context: Success message after deleting files. {count} is number deleted, {size} is bytes freed formatted.
+  en: "{count} file(s) deleted ({size} freed)."
+  de: "{count} Datei(en) gelöscht ({size} freigegeben)."
+  zh: 已删除{count}个文件（释放{size}）。
+  es: "{count} archivo(s) eliminado(s) ({size} liberado)."
+  fr: "{count} fichier(s) supprimé(s) ({size} libéré(s))."
+  pt: "{count} arquivo(s) excluído(s) ({size} liberado)."
+  ru: "Удалено {count} файл(ов) (освобождено {size})."
+  ja: "{count}件のファイルを削除しました（{size}解放）。"
+  ko: "{count}개의 파일이 삭제되었습니다 ({size} 확보)."
+  it: "{count} file eliminati ({size} liberati)."
+  tr: "{count} dosya silindi ({size} boşaltıldı)."
+  vi: "Đã xóa {count} tệp ({size} được giải phóng)."
+  id: "{count} file dihapus ({size} dibebaskan)."
+  pl: "Usunięto {count} plik(ów) ({size} zwolnione)."
+  nl: "{count} bestand(en) verwijderd ({size} vrijgemaakt)."
+  ar: "تم حذف {count} ملف ({size} محرر)."
+  hi: "{count} फ़ाइल(ें) हटाई गईं ({size} मुक्त)।"
+  th: "ลบ {count} ไฟล์แล้ว ({size} ว่างขึ้น)"
+  cs: "Smazáno {count} souborů ({size} uvolněno)."
+  sv: "{count} fil(er) raderades ({size} frigjordes)."
+  he: "{count} קבצים נמחקו ({size} התפנו)."
+  verified_by_human: []
+storage_delete_error:
+  context: Error message when file deletion fails
+  en: Failed to delete files. Please try again.
+  de: Fehler beim Löschen der Dateien. Bitte versuche es erneut.
+  zh: 删除文件失败，请重试。
+  es: Error al eliminar archivos. Por favor, inténtalo de nuevo.
+  fr: Échec de la suppression des fichiers. Veuillez réessayer.
+  pt: Falha ao excluir arquivos. Por favor, tente novamente.
+  ru: Не удалось удалить файлы. Пожалуйста, попробуйте снова.
+  ja: ファイルの削除に失敗しました。もう一度お試しください。
+  ko: 파일 삭제에 실패했습니다. 다시 시도하세요.
+  it: Eliminazione dei file non riuscita. Riprova.
+  tr: Dosyalar silinemedi. Lütfen tekrar deneyin.
+  vi: Không thể xóa tệp. Vui lòng thử lại.
+  id: Gagal menghapus file. Silakan coba lagi.
+  pl: Nie udało się usunąć plików. Spróbuj ponownie.
+  nl: Verwijderen van bestanden mislukt. Probeer het opnieuw.
+  ar: فشل حذف الملفات. يرجى المحاولة مرة أخرى.
+  hi: फ़ाइलें हटाने में विफल। कृपया पुनः प्रयास करें।
+  th: ไม่สามารถลบไฟล์ได้ กรุณาลองอีกครั้ง
+  cs: Nepodařilo se smazat soubory. Zkuste to prosím znovu.
+  sv: Det gick inte att radera filerna. Försök igen.
+  he: מחיקת הקבצים נכשלה. כדאי לנסות שוב.
+  verified_by_human: []

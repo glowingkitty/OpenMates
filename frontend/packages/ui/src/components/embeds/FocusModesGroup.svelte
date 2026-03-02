@@ -98,7 +98,8 @@
             id: app.id,
             name_translation_key: focusMode.name_translation_key,
             description_translation_key: focusMode.description_translation_key,
-            icon_image: app.icon_image,
+            // Use focus mode-specific icon if available, fall back to parent app icon
+            icon_image: focusMode.icon_image || app.icon_image,
             icon_colorgradient: app.icon_colorgradient,
             providers: [],
             skills: [],
@@ -191,7 +192,8 @@
       {#each displayFocusModes as { focusMode, appId, cardApp } (`${appId}-${focusMode.id}`)}
         <div class="focus-mode-card-scaled">
           <AppStoreCard 
-            app={cardApp} 
+            app={cardApp}
+            cardIconType="focus"
             onSelect={() => handleFocusModeSelect(appId, focusMode.id)} 
           />
         </div>
@@ -251,6 +253,14 @@
     transform-origin: top left;
     width: 256px;
     height: 148px;
+  }
+
+  /* RTL: scale cards toward the inline-start edge (right side in RTL).
+     Without this override, cards scale toward 'top left' which is the
+     inline-end edge in RTL — the overflow is clipped by the wrapper's
+     overflow: hidden, cutting off part of each card. */
+  :global([dir="rtl"]) .focus-mode-card-scaled {
+    transform-origin: top right;
   }
   
   .focus-modes-group > :global(*) {

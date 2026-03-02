@@ -2,17 +2,100 @@
 # Shared utilities and models for OpenAI implementations (including via OpenRouter)
 
 import logging
-from typing import Dict, Any, List, Optional, Union
-from pydantic import BaseModel, Field
+from typing import Dict, Any, List, Optional
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
 # --- Token Calculation Helpers ---
 
+# Estimated token cost per image for vision models.
+# Based on documented values from LLM providers:
+#   - Anthropic: ~1,600 tokens/image (see https://docs.anthropic.com/en/docs/build-with-claude/vision)
+#   - Google / OpenAI: similar order of magnitude
+# We use 1,600 as a conservative single estimate for all providers, since the
+# actual count from the provider's API response is always used for real billing.
+# This estimate is only used in the pre-call credit sufficiency check.
+IMAGE_TOKENS_ESTIMATE = 1600
+
+
+def _count_content_tokens(content: Any, encoding: Any) -> int:
+    """
+    Count tokens for a message's content field, handling both plain strings
+    and multimodal content lists (text + image_url blocks).
+
+    For image_url blocks, we use IMAGE_TOKENS_ESTIMATE instead of tokenizing
+    the base64 payload. Tokenizing a base64 string gives a wildly inflated
+    count (hundreds of thousands of tokens) because tiktoken sees it as raw
+    ASCII, not as the ~1,600 vision tokens the LLM provider actually charges.
+
+    Args:
+        content: The message content — either a string or a list of content blocks.
+        encoding: The tiktoken encoding to use for text tokenization.
+
+    Returns:
+        Estimated token count for this content field.
+    """
+    if not content:
+        return 0
+
+    # Plain string content — tokenize directly
+    if isinstance(content, str):
+        return len(encoding.encode(content))
+
+    # Multimodal content — list of typed blocks
+    if isinstance(content, list):
+        total = 0
+        for block in content:
+            if not isinstance(block, dict):
+                # Unexpected format; fall back to string representation
+                total += len(encoding.encode(str(block)))
+                continue
+
+            block_type = block.get("type", "")
+
+            if block_type == "image_url":
+                # Use the documented per-image token estimate instead of
+                # tokenizing the base64 data URI, which would be massively inflated.
+                total += IMAGE_TOKENS_ESTIMATE
+                logger.debug(
+                    f"Image content block detected — using {IMAGE_TOKENS_ESTIMATE} token estimate "
+                    f"(actual cost will come from provider usage response)"
+                )
+
+            elif block_type == "text":
+                text = block.get("text", "")
+                if text:
+                    total += len(encoding.encode(text))
+
+            else:
+                # tool_use, tool_result, or other block types — tokenize their
+                # text-representable fields (excluding any nested image data)
+                text_repr = block.get("text") or block.get("content") or ""
+                if text_repr and isinstance(text_repr, str):
+                    total += len(encoding.encode(text_repr))
+                elif block.get("name"):
+                    # e.g. tool_use blocks: count name + id as a proxy
+                    total += len(encoding.encode(str(block.get("name", "")) + str(block.get("id", ""))))
+
+        return total
+
+    # Fallback for unexpected types
+    return len(encoding.encode(str(content)))
+
+
 def calculate_token_breakdown(messages: List[Dict[str, Any]], model_id: str, tools: Optional[List[Dict[str, Any]]] = None) -> Dict[str, int]:
     """
     Calculate the breakdown of tokens between system prompt and user input.
     Provides estimates based on tiktoken encoding.
+
+    For multimodal messages containing images (image_url content blocks), the
+    base64 payload is NOT tokenized — instead IMAGE_TOKENS_ESTIMATE is used per
+    image. This avoids a massive over-count that would cause false "insufficient
+    credits" rejections even when the actual image cost is affordable.
+
+    Note: These are pre-call estimates used only for the credit sufficiency check.
+    Actual billing always uses the token counts from the provider's API response.
     """
     try:
         import tiktoken
@@ -29,28 +112,28 @@ def calculate_token_breakdown(messages: List[Dict[str, Any]], model_id: str, too
                     break
                 except Exception:
                     continue
-        
+
         if not encoding:
             logger.warning(f"Could not find any suitable tiktoken encoding for model {model_id}")
             return {"system_prompt_tokens": 0, "user_input_tokens": 0}
-        
+
         system_tokens = 0
         user_tokens = 0
-        
+
         for msg in messages:
             role = msg.get("role", "")
             content = msg.get("content", "")
             if not content:
                 continue
-            
-            # Simple token count for content
-            tokens = len(encoding.encode(str(content)))
+
+            # Use multimodal-aware token counting to avoid inflating image tokens
+            tokens = _count_content_tokens(content, encoding)
             if role == "system":
                 system_tokens += tokens
             else:
                 # user, assistant (history), or tool
                 user_tokens += tokens
-        
+
         # Include tool definitions in system tokens if provided
         if tools:
             try:
@@ -60,7 +143,7 @@ def calculate_token_breakdown(messages: List[Dict[str, Any]], model_id: str, too
                 logger.debug(f"Added {tool_tokens} tokens for tool definitions to system_prompt_tokens")
             except Exception as tool_err:
                 logger.warning(f"Failed to calculate tool tokens: {tool_err}")
-                
+
         logger.info(f"Token breakdown calculated for {model_id}: system={system_tokens}, user={user_tokens}")
         return {
             "system_prompt_tokens": system_tokens,
@@ -126,14 +209,21 @@ def _sanitize_schema_for_llm_providers(schema: Dict[str, Any]) -> Dict[str, Any]
     'minimum' and 'maximum' fields for integer and number types, even though these are valid 
     JSON Schema fields. This function removes these fields to ensure compatibility.
     
-    Note: The original schema (with min/max) is kept in app.yml and used for
+    Also converts integer/number enum values to strings. Google Gemini's SDK validates
+    FunctionDeclaration parameters with Pydantic and requires all enum values to be strings,
+    even for integer-typed fields (e.g., enum: [1, 3, 7, 14] must become ["1", "3", "7", "14"]).
+    String enum values are safe for all other providers too, since the LLM will return the
+    string and we cast it back to int when we validate tool call arguments against app.yml.
+    
+    Note: The original schema (with min/max and integer enums) is kept in app.yml and used for
     validation when we receive tool call arguments from the LLM.
     
     Args:
         schema: The JSON schema dictionary to sanitize
         
     Returns:
-        A sanitized copy of the schema with minimum/maximum fields removed from integer and number properties
+        A sanitized copy of the schema with minimum/maximum removed and enum values
+        converted to strings for integer and number properties
     """
     if not isinstance(schema, dict):
         return schema
@@ -151,12 +241,19 @@ def _sanitize_schema_for_llm_providers(schema: Dict[str, Any]) -> Dict[str, Any]
         # After converting to anyOf, we still need to recursively sanitize the anyOf items
         # This will be handled by the anyOf processing below
     
-    # If this is a property definition with type 'integer' or 'number', remove minimum/maximum
-    # Cerebras and other providers reject schemas with minimum/maximum for both integer and number types
+    # If this is a property definition with type 'integer' or 'number':
+    # 1. Remove minimum/maximum fields (Cerebras and other providers reject them)
+    # 2. When the field has an enum, convert both the type and enum values to strings.
+    #    Google's API (and its Pydantic-backed SDK) only allows enum on STRING-typed fields
+    #    (API error: "enum: only allowed for STRING type"). Converting type→"string" and
+    #    enum values→str() is safe for all providers: the LLM returns the chosen string,
+    #    and skills already cast with int() when consuming tool call arguments.
     if sanitized.get("type") in ("integer", "number"):
-        # Remove minimum and maximum fields (LLM providers don't accept them)
         sanitized.pop("minimum", None)
         sanitized.pop("maximum", None)
+        if "enum" in sanitized and isinstance(sanitized["enum"], list):
+            sanitized["enum"] = [str(v) for v in sanitized["enum"]]
+            sanitized["type"] = "string"  # Google API requires STRING type for enum fields
     
     # Recursively sanitize nested structures
     if "properties" in sanitized:

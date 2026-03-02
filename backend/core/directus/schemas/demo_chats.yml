@@ -6,6 +6,11 @@ demo_chats:
       length: 64
       note: "The original chat identifier (for reference only, not used for decryption)"
       required: true
+    slug:
+      type: string
+      length: 200
+      nullable: true
+      note: "URL-friendly identifier used in SEO URLs like /demo/chat/planning-a-trip-to-japan. Must include the 'demo-' prefix (e.g. 'demo-planning-a-trip'). Auto-generated from English title on creation, manually editable before publishing. Unique across all demo chats."
     category:
       type: textfield
       note: "Category for grouping demo chats (cleartext) - the mate/topic category (e.g., travel, cooking)"
@@ -13,7 +18,7 @@ demo_chats:
       type: string
       length: 20
       default: "for_everyone"
-      note: "Target audience category: 'for_everyone' (shown in For Everyone intro chat, max 6) or 'for_developers' (shown in For Developers intro chat, max 4). Set by admin during approval."
+      note: "Target audience / content category: 'for_everyone' (shown in For Everyone intro chat), 'for_developers' (shown in For Developers intro chat), 'news' (announcements and release notes), 'learn' (AI, privacy, encryption explainers), 'features' (OpenMates functionality walkthroughs), 'example_chats' (complex multi-turn capability showcases). Set by admin during approval."
     title:
       type: textfield
       note: "Title of the chat (cleartext)"
@@ -55,4 +60,4 @@ demo_chats:
     updated_at:
       type: timestamp
       note: "When the demo chat was last updated"
-  note: "Demo chats are ordered by created_at DESC. Client generates display IDs (demo-1 to demo-10) based on position. Maximum 10 published demos (6 for_everyone + 4 for_developers) maintained automatically. demo_chat_category determines which intro chat shows them."
+  note: "Demo chats are ordered by created_at DESC. Each demo chat has a stable slug (e.g. 'demo-planning-a-trip') stored in the slug field — this replaces the old positional demo-1/demo-2 IDs. The slug is used as the chat_id in the frontend and as the URL path for SEO pages (/demo/chat/{slug}). demo_chat_category determines which intro chat shows them (for_everyone/for_developers) or their content category (news/learn/features/example_chats)."

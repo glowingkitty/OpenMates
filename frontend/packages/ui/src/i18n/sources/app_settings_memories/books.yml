@@ -23,6 +23,7 @@ favorite_books:
   th: หนังสือเล่มโปรด
   cs: Oblíbené knihy
   sv: Favoritböcker
+  he: ספרים אהובים
   verified_by_human:
     - en
     - de
@@ -48,6 +49,7 @@ favorite_books.description:
   th: หนังสือที่คุณชอบและอยากแนะนำ
   cs: Knihy, které jste milovali a doporučili byste.
   sv: Böcker du älskat och skulle rekommendera.
+  he: ספרים שאהבת והיית ממליץ עליהם.
   verified_by_human:
     - en
     - de
@@ -73,6 +75,7 @@ currently_reading:
   th: กำลังอ่านอยู่
   cs: Právě čtu
   sv: Läser just nu
+  he: קורא עכשיו
   verified_by_human:
     - en
     - de
@@ -98,6 +101,7 @@ currently_reading.description:
   th: หนังสือที่คุณกำลังอ่านอยู่
   cs: Knihy, které právě čtete.
   sv: Böcker du läser just nu.
+  he: ספרים שאתה קורא כרגע.
   verified_by_human:
     - en
     - de
@@ -123,6 +127,7 @@ to_read_list:
   th: รายการหนังสือที่ต้องอ่าน
   cs: Seznam ke čtení
   sv: Att-läsa-lista
+  he: רשימת קריאה
   verified_by_human:
     - en
     - de
@@ -148,6 +153,7 @@ to_read_list.description:
   th: หนังสือที่คุณอยากอ่านต่อไป
   cs: Knihy, které chcete číst příště.
   sv: Böcker du vill läsa härnäst.
+  he: ספרים שתרצה לקרוא בהמשך.
   verified_by_human:
     - en
     - de
@@ -176,6 +182,7 @@ favorite_books.example_1:
   th: "1984"
   cs: "1984"
   sv: "1984"
+  he: "1984"
   verified_by_human:
     - en
     - de
@@ -201,6 +208,7 @@ favorite_books.example_2:
   th: เซเปียนส์
   cs: Sapiens
   sv: Sapiens
+  he: קיצור תולדות האנושות
   verified_by_human:
     - en
     - de
@@ -226,6 +234,7 @@ favorite_books.example_3:
   th: มหาศึกแห่งดูน
   cs: Duna
   sv: Dune
+  he: חולית
   verified_by_human:
     - en
     - de
@@ -251,6 +260,7 @@ currently_reading.example_1:
   th: โปรเจกต์เฮลแมรี
   cs: Projekt Hail Mary
   sv: Projekt Hail Mary
+  he: פרויקט הייל מרי
   verified_by_human:
     - en
     - de
@@ -276,6 +286,7 @@ currently_reading.example_2:
   th: Atomic Habits
   cs: Atomové návyky
   sv: Atomic Habits
+  he: הרגלים אטומיים
   verified_by_human:
     - en
     - de
@@ -301,6 +312,7 @@ to_read_list.example_1:
   th: ปัญหาสามร่าง
   cs: Problém tří těles
   sv: Trekroppsproblemet
+  he: בעיית שלושת הגופים
   verified_by_human:
     - en
     - de
@@ -326,6 +338,7 @@ to_read_list.example_2:
   th: คิดเร็วและช้า
   cs: Myšlení rychlé a pomalé
   sv: Tänka, snabbt och långsamt
+  he: לחשוב מהר, לחשוב לאט
   verified_by_human:
     - en
     - de
@@ -351,6 +364,7 @@ to_read_list.example_3:
   th: ทำงานอย่างลึกซึ้ง
   cs: Hluboká práce
   sv: Deep Work
+  he: עבודה עמוקה
   verified_by_human:
     - en
     - de

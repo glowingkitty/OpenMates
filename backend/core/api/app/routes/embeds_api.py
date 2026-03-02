@@ -106,6 +106,64 @@ def _generate_filename_from_prompt(prompt: str | None, extension: str = "png") -
     return f"openmates_{slug}.{extension}"
 
 
+@router.get("/presigned-url")
+@limiter.limit("120/minute")
+async def get_presigned_url(
+    request: Request,
+    s3_key: str = Query(..., description="S3 object key for the encrypted file"),
+    current_user: User = Depends(get_current_user_or_api_key),
+    s3_service: S3UploadService = Depends(get_s3_service),
+):
+    """
+    Generate a presigned URL for downloading an encrypted file from S3.
+
+    The chatfiles S3 bucket is private — files cannot be fetched without a
+    presigned URL. This endpoint generates a short-lived (15-minute) presigned
+    URL that the client uses to download the AES-256-GCM ciphertext, which it
+    then decrypts locally using the Web Crypto API.
+
+    Security model:
+    - Authentication required (cookie session or Bearer API key).
+    - The presigned URL grants anonymous GET access to one S3 object for 15 minutes.
+    - Even with the URL, the downloaded content is useless without the AES key
+      (which lives only in the client-encrypted embed content in IndexedDB).
+    - No embed ownership check is performed here — the client already proved it
+      has the S3 key (which requires having decrypted the embed content locally).
+
+    Args:
+        s3_key: Full S3 object key (e.g. "user-uuid/hash/timestamp_original.bin").
+
+    Returns:
+        JSON with the presigned URL.
+
+    Raises:
+        400: Invalid or missing s3_key.
+        401: Not authenticated.
+        500: Presigned URL generation failed.
+    """
+    log_prefix = f"[Presigned URL] [user:{current_user.id[:8]}...]"
+
+    if not s3_key or not s3_key.strip():
+        raise HTTPException(status_code=400, detail="s3_key is required")
+
+    # Sanitise: S3 keys should not contain path traversal or protocol schemes
+    if ".." in s3_key or s3_key.startswith("/") or "://" in s3_key:
+        logger.warning(f"{log_prefix} Rejected suspicious s3_key: {s3_key[:80]}")
+        raise HTTPException(status_code=400, detail="Invalid s3_key")
+
+    try:
+        environment = os.getenv("SERVER_ENVIRONMENT", "development")
+        bucket_name = get_bucket_name("chatfiles", environment)
+        presigned_url = s3_service.generate_presigned_url(
+            bucket_name, s3_key, expiration=900  # 15 minutes
+        )
+        return {"url": presigned_url, "expires_in": 900}
+
+    except Exception as e:
+        logger.error(f"{log_prefix} Failed to generate presigned URL for {s3_key[:60]}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to generate presigned URL")
+
+
 @router.get("/{embed_id}/file")
 @limiter.limit("60/minute")
 async def download_embed_file(
@@ -273,9 +331,18 @@ async def download_embed_file(
             logger.error(f"{log_prefix} File decryption failed: {e}")
             raise HTTPException(status_code=500, detail="Failed to decrypt file content")
         
-        # 12. Determine content type and filename
-        content_type = "image/png" if file_format == "png" else "image/webp"
-        
+        # 12. Determine content type and filename.
+        # SVG files are served with the correct XML-based MIME type so browsers and
+        # design tools recognise them as scalable vector graphics.
+        content_type_map = {
+            "png": "image/png",
+            "jpg": "image/jpeg",
+            "jpeg": "image/jpeg",
+            "webp": "image/webp",
+            "svg": "image/svg+xml",
+        }
+        content_type = content_type_map.get(file_format, "image/webp")
+
         # Generate a human-readable filename from the prompt (if available in embed content)
         embed_prompt = embed_content.get("prompt")
         filename = _generate_filename_from_prompt(embed_prompt, file_format)

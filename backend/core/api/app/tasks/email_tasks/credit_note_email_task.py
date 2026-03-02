@@ -4,8 +4,7 @@ import os
 import base64
 import asyncio
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional
-import json
+from typing import Optional
 import hashlib
 import uuid
 
@@ -45,12 +44,18 @@ def process_credit_note_and_send_email(
     sender_country: str,
     sender_email: str,
     sender_vat: str,
-    email_encryption_key: Optional[str] = None
+    email_encryption_key: Optional[str] = None,
+    provider: Optional[str] = None,  # Payment provider for MoR-aware document generation
 ) -> bool:
     """
-    Celery task to generate credit note PDF, upload to S3, save to Directus, send email, and upload to Invoice Ninja.
+    Celery task to generate credit note / refund confirmation PDF, upload to S3, save to Directus, and send email.
+
+    For Polar refunds: generates a "Refund Confirmation" (not a credit note) because Polar as
+    Merchant of Record issues the official credit note. Our document just confirms we deducted
+    the credits on our side.
+    For Stripe/Revolut refunds: generates a standard "Credit Note".
     """
-    logger.info(f"Starting credit note processing task for Invoice ID: {invoice_id}, User ID: {user_id}")
+    logger.info(f"Starting credit note processing task for Invoice ID: {invoice_id}, User ID: {user_id}, Provider: {provider}")
     try:
         # Use asyncio.run() which handles loop creation and cleanup
         result = asyncio.run(
@@ -58,7 +63,8 @@ def process_credit_note_and_send_email(
                 self, invoice_id, user_id, order_id, refund_amount_cents,
                 unused_credits, total_credits, currency, referenced_invoice_number,
                 sender_addressline1, sender_addressline2, sender_addressline3,
-                sender_country, sender_email, sender_vat, email_encryption_key
+                sender_country, sender_email, sender_vat, email_encryption_key,
+                provider
             )
         )
         logger.info(f"Credit note processing task completed for Invoice ID: {invoice_id}, User ID: {user_id}. Success: {result}")
@@ -84,10 +90,11 @@ async def _async_process_credit_note_and_send_email(
     sender_country: str,
     sender_email: str,
     sender_vat: str,
-    email_encryption_key: Optional[str] = None
+    email_encryption_key: Optional[str] = None,
+    provider: Optional[str] = None,  # Payment provider for MoR-aware document generation
 ) -> bool:
     """
-    Async implementation for credit note processing.
+    Async implementation for credit note / refund confirmation processing.
     Generates credit note PDF, uploads to S3, saves to Directus, sends email, and uploads to Invoice Ninja.
     """
     cache_service = None
@@ -206,58 +213,67 @@ async def _async_process_credit_note_and_send_email(
             "sender_vat": sender_vat
         }
 
-        logger.info(f"Prepared credit note data dictionary")
+        logger.info("Prepared credit note data dictionary")
 
-        # 7. Generate Credit Note PDF(s)
-        # Always generate English version first
-        logger.info(f"Generating English credit note PDF")
+        # 7. Generate Credit Note / Refund Confirmation PDF(s)
+        # For Polar: "Refund Confirmation" (Polar is MoR, issues official credit note)
+        # For Stripe/Revolut: "Credit Note" (OpenMates is seller of record)
+        pdf_document_type = "refund_confirmation" if provider == "polar" else "credit_note"
+        logger.info(f"Generating English {pdf_document_type} PDF")
         pdf_buffer_en = task.credit_note_template_service.generate_credit_note(
-            credit_note_data, lang='en', currency=currency.lower()
+            credit_note_data, lang='en', currency=currency.lower(), document_type=pdf_document_type
         )
         pdf_bytes_en = pdf_buffer_en.getvalue()
         pdf_buffer_en.close()
-        # Credit note filename format: openmates_credit_note_{date}_{CN-invoice_number}.pdf
-        # Example: openmates_credit_note_2025_12_16_CN-MRRUNHO-1.pdf
-        credit_note_filename_en = f"openmates_credit_note_{date_str_filename}_{credit_note_number}.pdf"
-        logger.info(f"Generated English PDF for credit note")
+        # Filename reflects the document type:
+        # Polar: openmates_refund_confirmation_{date}_{CN-invoice_number}.pdf
+        # Stripe: openmates_credit_note_{date}_{CN-invoice_number}.pdf
+        en_filename_prefix = "refund_confirmation" if provider == "polar" else "credit_note"
+        credit_note_filename_en = f"openmates_{en_filename_prefix}_{date_str_filename}_{credit_note_number}.pdf"
+        logger.info(f"Generated English PDF: {credit_note_filename_en}")
 
         pdf_bytes_lang = None
         credit_note_filename_lang = None
         # Generate translated version if language is not English
         if user_language != 'en':
-            logger.info(f"Generating credit note PDF in user language '{user_language}'")
+            logger.info(f"Generating {pdf_document_type} PDF in user language '{user_language}'")
             try:
-                # Fetch translation for "credit_note"
+                # Fetch translation for the document type title
                 translations = task.translation_service.get_translations(user_language, ["invoices_and_credit_notes"])
-                credit_note_translation = translations.get("invoices_and_credit_notes", {}).get("credit_note", {}).get("text", "credit note")
-                credit_note_translation_lower = credit_note_translation.lower().replace(" ", "_")
+                if provider == "polar":
+                    doc_type_translation = translations.get("invoices_and_credit_notes", {}).get(
+                        "refund_confirmation_title", {}
+                    ).get("text", "refund confirmation")
+                else:
+                    doc_type_translation = translations.get("invoices_and_credit_notes", {}).get(
+                        "credit_note", {}
+                    ).get("text", "credit note")
+                doc_type_translation_lower = doc_type_translation.lower().replace(" ", "_")
 
                 pdf_buffer_lang = task.credit_note_template_service.generate_credit_note(
-                    credit_note_data, lang=user_language, currency=currency.lower()
+                    credit_note_data, lang=user_language, currency=currency.lower(), document_type=pdf_document_type
                 )
                 pdf_bytes_lang = pdf_buffer_lang.getvalue()
                 pdf_buffer_lang.close()
-                # Credit note filename format: openmates_{translated_credit_note}_{date}_{CN-invoice_number}.pdf
-                # Example (English): openmates_credit_note_2025_12_16_CN-MRRUNHO-1.pdf
-                credit_note_filename_lang = f"openmates_{credit_note_translation_lower}_{date_str_filename}_{credit_note_number}.pdf"
-                logger.info(f"Generated PDF ({credit_note_filename_lang}) for credit note in language {user_language}")
+                credit_note_filename_lang = f"openmates_{doc_type_translation_lower}_{date_str_filename}_{credit_note_number}.pdf"
+                logger.info(f"Generated PDF ({credit_note_filename_lang}) in language {user_language}")
             except Exception as lang_pdf_err:
-                logger.error(f"Failed to generate or get translation for credit note PDF in language {user_language}: {lang_pdf_err}", exc_info=True)
+                logger.error(f"Failed to generate or get translation for {pdf_document_type} PDF in language {user_language}: {lang_pdf_err}", exc_info=True)
                 # Continue without the translated version if generation fails
 
         # 8. Encrypt English PDF and Upload to S3 with unique filename
         # --- Hybrid Encryption Start ---
-        logger.info(f"Starting hybrid encryption for credit note PDF")
+        logger.info("Starting hybrid encryption for credit note PDF")
 
         # 8a. Generate local symmetric key and nonce
         aes_key = os.urandom(32)  # AES-256 key
         nonce = os.urandom(12)     # AES-GCM standard nonce size
-        logger.debug(f"Generated local AES key and nonce")
+        logger.debug("Generated local AES key and nonce")
 
         # 8b. Encrypt PDF locally using AES-GCM
         aesgcm = AESGCM(aes_key)
         encrypted_pdf_payload = aesgcm.encrypt(nonce, pdf_bytes_en, None)  # No associated data
-        logger.debug(f"Locally encrypted PDF payload using AES-GCM")
+        logger.debug("Locally encrypted PDF payload using AES-GCM")
 
         # 8c. Encrypt (wrap) the local AES key using Vault user key
         aes_key_b64 = base64.b64encode(aes_key).decode('utf-8')
@@ -265,7 +281,7 @@ async def _async_process_credit_note_and_send_email(
             aes_key_b64, vault_key_id
         )
         if not encrypted_aes_key_vault:
-            logger.error(f"Failed to encrypt (wrap) local AES key using Vault for user")
+            logger.error("Failed to encrypt (wrap) local AES key using Vault for user")
             raise Exception("Failed to wrap symmetric encryption key")
         logger.debug(f"Wrapped local AES key using Vault user key {vault_key_id}")
         # --- Hybrid Encryption End ---
@@ -352,7 +368,7 @@ async def _async_process_credit_note_and_send_email(
             "aes_nonce": nonce_b64,
             "currency": currency.lower()
         }
-        logger.info(f"Prepared Directus payload for credit note")
+        logger.info("Prepared Directus payload for credit note")
 
         # 10. Create Credit Note Record in Directus
         # Note: The 'credit_notes' collection needs to be created in Directus similar to 'invoices'
@@ -375,7 +391,7 @@ async def _async_process_credit_note_and_send_email(
             "refund_amount": refund_amount_decimal,
             "currency": currency.upper()
         }
-        logger.info(f"Prepared email context for credit note")
+        logger.info("Prepared email context for credit note")
 
         # 12. Send Refund Confirmation Email with Attachment(s)
         attachments = []
@@ -408,50 +424,58 @@ async def _async_process_credit_note_and_send_email(
             # The credit note exists in S3 and Directus.
             return False
 
-        logger.info(f"Successfully sent refund confirmation email with credit note attached.")
+        logger.info("Successfully sent refund confirmation email with credit note attached.")
 
         # 13. Process Refund Transaction in Invoice Ninja
-        logger.info(f"Processing refund transaction in Invoice Ninja for Invoice ID: {invoice_id}")
-        try:
-            # Access InvoiceNinjaService via the base task property
-            invoice_ninja_service = task.invoice_ninja_service
-
-            # Extract necessary details for Invoice Ninja
-            customer_firstname = ""
-            customer_lastname = ""
-            # For credit notes, we don't have cardholder name, so use account ID
-            if account_id:
-                customer_firstname = f"Account ID: {account_id}"
-                customer_lastname = ""
-
-            # Ensure customer_country_code is a string
-            customer_country_code = country_code if country_code is not None else ""
-
-            # Convert refund amount from cents to decimal
-            refund_amount_decimal = float(refund_amount_cents) / 100 if currency.lower() in ['eur', 'usd', 'gbp'] else float(refund_amount_cents)
-
-            # Process refund transaction in Invoice Ninja
-            # Note: We'll need to create a process_refund_transaction method in InvoiceNinjaService
-            invoice_ninja_service.process_refund_transaction(
-                user_hash=user_id_hash,
-                external_order_id=order_id,
-                invoice_id=invoice_id,
-                customer_firstname=customer_firstname,
-                customer_lastname=customer_lastname,
-                customer_account_id=account_id,
-                customer_country_code=customer_country_code,
-                refund_amount_value=refund_amount_decimal,
-                currency_code=currency.lower(),
-                refund_date=date_str_iso,
-                payment_processor=task.payment_service.provider_name,
-                custom_credit_note_number=credit_note_number,
-                custom_pdf_data=pdf_bytes_en,
-                referenced_invoice_number=referenced_invoice_number
+        # Skip for Polar: Polar is the Merchant of Record and handles all tax/accounting
+        # documents including credit notes. We only need Invoice Ninja for Stripe/Revolut
+        # where OpenMates is the seller of record.
+        if provider == "polar":
+            logger.info(
+                f"Skipping Invoice Ninja refund recording for Polar refund (invoice {invoice_id}): "
+                f"Polar is MoR, individual refund transactions are not recorded in our accounting."
             )
+        else:
+            logger.info(f"Processing refund transaction in Invoice Ninja for Invoice ID: {invoice_id}")
+            try:
+                # Access InvoiceNinjaService via the base task property
+                invoice_ninja_service = task.invoice_ninja_service
 
-        except Exception as ninja_err:
-            logger.error(f"Error processing refund transaction in Invoice Ninja: {str(ninja_err)}", exc_info=True)
-            # Log the error but do not fail the main task
+                # Extract necessary details for Invoice Ninja
+                customer_firstname = ""
+                customer_lastname = ""
+                # For credit notes, we don't have cardholder name, so use account ID
+                if account_id:
+                    customer_firstname = f"Account ID: {account_id}"
+                    customer_lastname = ""
+
+                # Ensure customer_country_code is a string
+                customer_country_code = country_code if country_code is not None else ""
+
+                # Convert refund amount from cents to decimal
+                refund_amount_decimal = float(refund_amount_cents) / 100 if currency.lower() in ['eur', 'usd', 'gbp'] else float(refund_amount_cents)
+
+                # Process refund transaction in Invoice Ninja
+                invoice_ninja_service.process_refund_transaction(
+                    user_hash=user_id_hash,
+                    external_order_id=order_id,
+                    invoice_id=invoice_id,
+                    customer_firstname=customer_firstname,
+                    customer_lastname=customer_lastname,
+                    customer_account_id=account_id,
+                    customer_country_code=customer_country_code,
+                    refund_amount_value=refund_amount_decimal,
+                    currency_code=currency.lower(),
+                    refund_date=date_str_iso,
+                    payment_processor=task.payment_service.provider_name,
+                    custom_credit_note_number=credit_note_number,
+                    custom_pdf_data=pdf_bytes_en,
+                    referenced_invoice_number=referenced_invoice_number
+                )
+
+            except Exception as ninja_err:
+                logger.error(f"Error processing refund transaction in Invoice Ninja: {str(ninja_err)}", exc_info=True)
+                # Log the error but do not fail the main task
 
         return True  # Indicate overall success if email sent and credit note processed
 

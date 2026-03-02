@@ -32,6 +32,11 @@ api.dev.openmates.org {
 		Referrer-Policy "strict-origin-when-cross-origin"
 		Permissions-Policy "geolocation=(), microphone=(), camera=(), interest-cohort=()"
 		-Server
+		# Content Security Policy (partial — safe subset with no risk of breaking the API)
+		# object-src: blocks Flash/Java applets (legacy plugin-based attack vectors)
+		# base-uri:   prevents <base> tag injection attacks (base tag hijacking)
+		# frame-ancestors: blocks clickjacking (redundant with X-Frame-Options, adds defence-in-depth)
+		Content-Security-Policy "object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
 	}
 
 	# --- Request Routing ---
@@ -44,12 +49,34 @@ api.dev.openmates.org {
 	@revolut_webhook path /v1/payments/webhook # Matcher for Revolut webhook
 	@websocket_path path /v1/ws* # Matcher for WebSocket paths (to exclude from compression)
 
+	# --- FILE UPLOADS SERVICE MATCHERS ---
+	# Uploads service (app-uploads) runs as a sidecar on localhost:8004 (dev).
+	# In production the uploads microservice runs on upload.openmates.org (separate VM),
+	# and the frontend sends to that domain directly. On dev, we proxy via this API domain
+	# so the same origin / cookie policy applies without extra CORS config.
+	@uploads_options {
+		path /api/uploads/*
+		method OPTIONS
+	}
+	@uploads_actual {
+		path /api/uploads/*
+		not method OPTIONS
+	}
+
 	# --- PUBLIC DEVELOPER API MATCHERS ---
 	# These routes are authenticated via API keys (Authorization: Bearer sk-api-...) in the backend
 	# No Origin check required - external developers access from various clients/servers
 	# FastAPI enforces which settings endpoints support API key auth vs session-only
 	@api_docs_path path /docs /docs/* /openapi.json # Swagger UI and OpenAPI schema
-	@public_api_paths path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* # Public API endpoints (authentication enforced by FastAPI)
+	# /v1/geocode/* is public (no auth required) so any client — including unauthenticated
+	# users viewing shared map embeds — can resolve addresses. Rate limited 30/min by FastAPI.
+	# /v1/analytics/* is public (no auth required) — analytics beacon accepts POSTs from any
+	# origin including unauthenticated visitors. No PII collected; aggregate-only counters.
+	# /v1/default-inspirations is public (no auth required) — returns daily inspiration previews
+	# for the DailyInspirationBanner shown to unauthenticated users on the home page.
+	# /v1/users/* — profile image endpoint supports both session cookie and API key auth;
+	#   API key clients (no Origin header) fall through here after @webapp_actual doesn't match.
+	@public_api_paths path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* /v1/geocode/* /v1/analytics/* /v1/default-inspirations /v1/users/* # Public API endpoints (authentication enforced by FastAPI where applicable)
 
 	# --- PUBLIC SHARE MATCHERS ---
 	# Share endpoints are publicly accessible (no Origin check) for social media and cross-platform sharing
@@ -76,10 +103,18 @@ api.dev.openmates.org {
 	# Includes /v1/settings/* so webapp requests with credentials get proper CORS handling
 	# Includes /v1/apps/travel/booking-link because the webapp uses session auth
 	# (credentials: include) and needs FastAPI to return the specific origin, not wildcard
+	# Includes /v1/apps/audio/skills/transcribe — webapp uses credentials: include for audio transcription
+	# Includes /v1/users/* — profile image endpoint uses session cookie (credentials: include);
+	#   browsers block wildcard CORS with credentials, so it must pass through FastAPI CORSMiddleware.
+	# NOTE: /v1/geocode/* is intentionally NOT here — it is public (no auth) and handled
+	# by @public_api_paths with wildcard CORS so unauthenticated users can access it.
 	# NOTE: Do NOT add /v1/apps/* broadly here — it would break external developer API
 	# access which relies on the wildcard CORS handler in @public_api_paths
+	# NOTE: /v1/embeds/presigned-url is here (not in @public_api_paths) because the webapp
+	# calls it with credentials: include (session cookie) — browsers block wildcard CORS
+	# with credentials, so it must go through FastAPI's CORSMiddleware (specific origin).
 	@webapp_general_options {
-		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/demo/* /v1/apps/travel/booking-link
+		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/demo/* /v1/apps/travel/booking-link /v1/apps/audio/skills/transcribe /v1/daily-inspirations /v1/daily-inspirations/* /v1/embeds/presigned-url /v1/users/*
 		method OPTIONS
 	}
 
@@ -88,8 +123,15 @@ api.dev.openmates.org {
 	# Includes /v1/demo/* and /v1/admin/* for webapp-only access (Origin check required)
 	# Includes /v1/apps/travel/booking-link for webapp session auth (credentials: include
 	# requires specific origin in CORS response, not wildcard)
+	# Includes /v1/apps/audio/skills/transcribe — webapp uses credentials: include for audio transcription
+	# Includes /v1/daily-inspirations/* — daily inspiration persistence (session auth, credentials: include)
+	# Includes /v1/embeds/presigned-url — webapp uses credentials: include for session-authenticated
+	# presigned S3 URL generation; browsers block wildcard CORS with credentials.
+	# Includes /v1/users/* — profile image endpoint (session cookie auth, credentials: include).
+	# NOTE: /v1/geocode/* is intentionally NOT here — it is public (no auth) and handled
+	# by @public_api_paths with wildcard CORS so unauthenticated users can access it.
 	@webapp_actual {
-		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/demo/* /v1/apps/travel/booking-link
+		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/demo/* /v1/apps/travel/booking-link /v1/apps/audio/skills/transcribe /v1/daily-inspirations /v1/daily-inspirations/* /v1/embeds/presigned-url /v1/users/*
 		not method OPTIONS
 	}
 
@@ -108,7 +150,7 @@ api.dev.openmates.org {
 	}
 
 	@public_api_options {
-		path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/*
+		path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* /v1/geocode/* /v1/analytics/* /v1/default-inspirations /v1/users/*
 		method OPTIONS
 	}
 
@@ -289,8 +331,84 @@ api.dev.openmates.org {
 			}
 		}
 
-		# 11. Abort all other requests not explicitly handled above
+		# 11. Handle File Upload service OPTIONS preflight from webapp origin
+		# Pass through to the uploads service FastAPI CORSMiddleware
+		handle @uploads_options {
+			reverse_proxy localhost:8004 {
+				header_up Host {http.request.host}
+			}
+		}
+
+		# 12. Handle File Upload service requests from webapp origin
+		# The uploads service authenticates via the auth_refresh_token cookie
+		# (forwarded automatically as a same-site cookie by the browser).
+		# Strip the /api/uploads prefix before forwarding (the service routes as /v1/...).
+		handle @uploads_actual {
+			encode gzip zstd
+			uri strip_prefix /api/uploads
+			reverse_proxy localhost:8004 {
+				header_up Host {http.request.host}
+			}
+		}
+
+		# 13. Abort all other requests not explicitly handled above
 		# This ensures that only defined paths are accessible.
+		handle {
+			abort
+		}
+	}
+}
+
+# upload.dev.openmates.org
+# This block simulates the production uploads VM on the dev server.
+# In production, this Caddyfile block runs on a SEPARATE VM at upload.openmates.org.
+# On dev, app-uploads is exposed on localhost:8004 (via docker-compose.override.yml).
+#
+# Self-hosted deployment note:
+# - Replace the reverse_proxy target with your uploads VM's app-uploads address.
+# - For self-hosted single-server setups, the frontend sends to /api/uploads/* on the
+#   API domain and it proxies here (or directly to localhost:8004). No separate VM needed.
+upload.dev.openmates.org {
+	log {
+		output file /var/log/caddy/upload.dev.openmates.org.log {
+			roll_size 100mb
+			roll_keep 10
+			roll_keep_for 720h
+		}
+		format json
+		level INFO
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Only allow health check and upload endpoints
+	@upload_health path /health
+	@upload_api path /v1/upload/*
+	@upload_options method OPTIONS
+
+	route {
+		handle @upload_options {
+			reverse_proxy localhost:8004 {
+				header_up Host {http.request.host}
+			}
+		}
+		handle @upload_health {
+			reverse_proxy localhost:8004 {
+				header_up Host {http.request.host}
+			}
+		}
+		handle @upload_api {
+			encode gzip zstd
+			reverse_proxy localhost:8004 {
+				header_up Host {http.request.host}
+			}
+		}
 		handle {
 			abort
 		}

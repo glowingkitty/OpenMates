@@ -22,6 +22,8 @@ from .handlers.websocket_handlers.offline_sync_handler import handle_sync_offlin
 from .handlers.websocket_handlers.initial_sync_handler import handle_initial_sync
 from .handlers.websocket_handlers.get_chat_messages_handler import handle_get_chat_messages
 from .handlers.websocket_handlers.delete_draft_handler import handle_delete_draft
+from .handlers.websocket_handlers.delete_draft_embed_handler import handle_delete_draft_embed
+from .handlers.websocket_handlers.cancel_pdf_processing_handler import handle_cancel_pdf_processing # Handler for cancelling in-progress PDF OCR tasks
 from .handlers.websocket_handlers.chat_content_batch_handler import handle_chat_content_batch # New handler
 from .handlers.websocket_handlers.cancel_ai_task_handler import handle_cancel_ai_task # New handler for cancelling AI tasks
 from .handlers.websocket_handlers.cancel_skill_handler import handle_cancel_skill # Handler for cancelling individual skill executions
@@ -40,6 +42,9 @@ from .handlers.websocket_handlers.system_message_handler import handle_chat_syst
 from .handlers.websocket_handlers.reject_settings_memory_suggestion_handler import handle_reject_settings_memory_suggestion # Handler for rejecting settings/memory suggestions
 from .handlers.websocket_handlers.email_notification_settings_handler import handle_email_notification_settings # Handler for email notification settings
 from .handlers.websocket_handlers.load_more_chats_handler import handle_load_more_chats # Handler for loading additional older chats on demand
+from .handlers.websocket_handlers.inspiration_viewed_handler import handle_inspiration_viewed # Handler for daily inspiration view tracking
+from .handlers.websocket_handlers.inspiration_received_handler import handle_inspiration_received  # ACK handler for pending inspiration delivery
+from .handlers.websocket_handlers.sync_inspiration_chat_handler import handle_sync_inspiration_chat  # Handler for syncing inspiration-created chats across devices
 
 logger = logging.getLogger(__name__)
 
@@ -308,6 +313,11 @@ async def listen_for_cache_events(app: FastAPI):
                         # This is triggered from Celery tasks via Redis pub/sub
                         # IMPORTANT: Forward ALL fields from the payload - client requires:
                         # - request_id, chat_id, requested_keys, yaml_content, message_id
+                        #
+                        # Send to ALL connected devices (not just the first) so the request
+                        # reaches the user regardless of which tab/device they are on.
+                        # The client-side handler is idempotent — duplicate deliveries are safe
+                        # because pendingPermissionRequests is keyed by request_id.
                         request_id = payload.get("request_id")
                         chat_id = payload.get("chat_id")
                         requested_keys = payload.get("requested_keys", [])
@@ -317,23 +327,26 @@ async def listen_for_cache_events(app: FastAPI):
                         if request_id and chat_id and requested_keys:
                             user_connections = manager.get_connections_for_user(user_id)
                             if user_connections:
-                                # Send to first available device
-                                target_device = list(user_connections.keys())[0]
-                                await manager.send_personal_message(
-                                    {
-                                        "type": "request_app_settings_memories",
-                                        "payload": {
-                                            "request_id": request_id,
-                                            "chat_id": chat_id,
-                                            "requested_keys": requested_keys,
-                                            "yaml_content": yaml_content,
-                                            "message_id": message_id
-                                        }
-                                    },
-                                    user_id,
-                                    target_device
-                                )
-                                logger.info(f"Redis Listener: Sent app_settings_memories request {request_id} to user {user_id} (chat: {chat_id}) via WebSocket")
+                                device_ids = list(user_connections.keys())
+                                for device_id in device_ids:
+                                    try:
+                                        await manager.send_personal_message(
+                                            {
+                                                "type": "request_app_settings_memories",
+                                                "payload": {
+                                                    "request_id": request_id,
+                                                    "chat_id": chat_id,
+                                                    "requested_keys": requested_keys,
+                                                    "yaml_content": yaml_content,
+                                                    "message_id": message_id
+                                                }
+                                            },
+                                            user_id,
+                                            device_id
+                                        )
+                                    except Exception as e:
+                                        logger.error(f"Redis Listener: FAILED to send app_settings_memories request {request_id} to device {device_id[:12]}...: {e}")
+                                logger.info(f"Redis Listener: Sent app_settings_memories request {request_id} to user {user_id} (chat: {chat_id}) via WebSocket ({len(device_ids)} device(s))")
                             else:
                                 logger.warning(f"Redis Listener: User {user_id} has no active connections for app_settings_memories request {request_id}")
                     elif event_type == "focus_mode_activated":
@@ -848,6 +861,77 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
             await asyncio.sleep(1)
 
 
+async def listen_for_preprocessing_streams(app: FastAPI):
+    """
+    Listens to Redis Pub/Sub for preprocessing step events.
+
+    The AI task worker emits a 'preprocessing_step' event for each completed step
+    (title_generated, mate_selected, model_selected) immediately after the preprocessing
+    LLM call resolves. These events are forwarded to the relevant user's WebSocket so
+    the frontend can display a real-time animated overview of the preprocessing steps.
+
+    Skipped steps (e.g., user override, existing chat) are emitted with skipped=True
+    and are silently ignored by the frontend — no card is rendered for them.
+
+    Channel: preprocessing_stream::{user_id_hash}
+    Client event name: preprocessing_step
+    """
+    if not hasattr(app.state, 'cache_service'):
+        logger.critical("Cache service not found on app.state. Preprocessing stream listener cannot start.")
+        return
+
+    cache_service: CacheService = app.state.cache_service
+    logger.debug("Starting Redis Pub/Sub listener for preprocessing step events (channel: preprocessing_stream::*)...")
+
+    await cache_service.client  # Ensure connection
+
+    async for message in cache_service.subscribe_to_channel("preprocessing_stream::*"):
+        logger.debug(f"Preprocessing Stream Listener: Raw message from pubsub: {message}")
+        try:
+            if message and isinstance(message.get("data"), dict):
+                redis_payload = message["data"]
+                redis_channel_name = message.get("channel", "")
+
+                if redis_payload.get("type") != "preprocessing_step":
+                    logger.debug(f"Preprocessing Stream Listener: Skipping unexpected event type '{redis_payload.get('type')}' on channel '{redis_channel_name}'.")
+                    continue
+
+                # The preprocessor includes user_id_uuid directly in the payload so the
+                # WebSocket listener can route without a hash reverse-lookup.
+                # (Same pattern as all other listeners: ai_stream, ai_typing, chat_updates, etc.)
+                user_id_uuid = redis_payload.get("user_id_uuid")
+                if not user_id_uuid:
+                    logger.warning(f"Preprocessing Stream Listener: Missing user_id_uuid in payload from channel '{redis_channel_name}'. Skipping.")
+                    continue
+
+                # Forward the step event directly to the client.
+                # chat_id is included so the frontend can refresh the active chat metadata
+                # (title, category, icon) as soon as each step arrives.
+                client_payload = {
+                    "step": redis_payload.get("step"),
+                    "skipped": redis_payload.get("skipped", False),
+                    "skip_reason": redis_payload.get("skip_reason"),
+                    "data": redis_payload.get("data"),
+                    "chat_id": redis_payload.get("chat_id"),
+                }
+
+                await manager.broadcast_to_user_specific_event(
+                    user_id=user_id_uuid,
+                    event_name="preprocessing_step",
+                    payload=client_payload
+                )
+                logger.debug(f"Preprocessing Stream Listener: Forwarded 'preprocessing_step' (step={redis_payload.get('step')}, skipped={redis_payload.get('skipped')}) to user {user_id_uuid}")
+
+            elif message and message.get("error") == "json_decode_error":
+                logger.error(f"Preprocessing Stream Listener: JSON decode error from channel '{message.get('channel')}': {message.get('data')}")
+            elif message:
+                logger.debug(f"Preprocessing Stream Listener: Received non-data message or confirmation: {message}")
+
+        except Exception as e:
+            logger.error(f"Preprocessing Stream Listener: Error processing message: {e}", exc_info=True)
+            await asyncio.sleep(1)
+
+
 async def listen_for_chat_updates(app: FastAPI):
     """Listens to Redis Pub/Sub for chat update events like title changes."""
     if not hasattr(app.state, 'cache_service'):
@@ -1185,6 +1269,103 @@ async def _deliver_pending_reminders(
         logger.error(f"[PENDING_DELIVERY] Error delivering pending items: {e}", exc_info=True)
 
 
+async def _deliver_pending_inspirations(
+    cache_service: CacheService,
+    manager: ConnectionManager,
+    user_id: str,
+    device_fingerprint_hash: str,
+    user_id_hash: str = "",
+) -> None:
+    """
+    Deliver any pending Daily Inspiration items that were generated while the user was offline.
+
+    Called as a background task after WebSocket connection is established (same pattern as
+    _deliver_pending_reminders). Uses a brief delay to let the client finish initialization.
+
+    The `daily_inspiration` event is handled by the frontend's chatSyncService which stores
+    inspirations in the dailyInspirationStore. The client decrypts the payload, saves it to
+    IndexedDB, and then persists it to Directus via POST /v1/daily-inspirations.
+
+    After broadcast, the pending cache is cleared with a 10-second delay. This replaced the
+    previous client-ACK-based clearing (daily_inspiration_received) which caused a multi-device
+    race condition: the first device to ACK would clear the cache, so devices connecting later
+    would find nothing pending. The delay gives all connected devices time to receive the
+    broadcast. Devices that are offline will use the Directus REST API fallback on next login.
+
+    After clearing the pending cache we also invalidate the Phase 1 sync cache
+    (daily_inspirations_sync). This ensures that if the user reconnects before
+    the client has a chance to POST /v1/daily-inspirations (which repopulates
+    the sync cache via cache warming), Phase 1 will do a fresh Directus fetch
+    rather than serving whatever stale data was previously cached.
+    """
+    try:
+        # Brief delay to let the client finish WebSocket setup and initial sync
+        await asyncio.sleep(3)
+
+        pending_inspirations = await cache_service.get_pending_inspirations(user_id)
+        if not pending_inspirations:
+            return
+
+        logger.info(
+            f"[PENDING_INSPIRATIONS] Delivering {len(pending_inspirations)} pending inspiration(s) "
+            f"to user {user_id[:8]}... on device {device_fingerprint_hash[:8]}..."
+        )
+
+        # Broadcast to ALL connected devices of this user (not just the one that
+        # triggered the connection). This ensures daily inspirations sync across
+        # phones, tablets, and desktops — not just whichever device connected first.
+        await manager.broadcast_to_user(
+            message={
+                "type": "daily_inspiration",
+                "payload": {
+                    "inspirations": pending_inspirations,
+                    "user_id": user_id,
+                },
+            },
+            user_id=user_id,
+        )
+
+        # Clear the pending cache after a brief delay to give all connected
+        # devices time to receive and process the broadcast. Previously the
+        # cache was cleared by a client ACK message, but that caused a
+        # multi-device race: the FIRST device to ACK would clear the cache,
+        # so any device connecting later would find nothing pending.
+        #
+        # The delay (10s) is generous enough for even slow mobile WS to
+        # receive the message. If a device is offline, it will pick up the
+        # inspirations from the Directus REST API fallback on next login
+        # (syncInspirationLoginFallback).
+        await asyncio.sleep(10)
+        await cache_service.clear_pending_inspirations(user_id)
+        logger.debug(
+            f"[PENDING_INSPIRATIONS] Delivered pending inspirations to ALL devices of user {user_id[:8]}... "
+            f"and cleared pending cache after delivery delay"
+        )
+
+        # Invalidate the Phase 1 sync cache so the next reconnect/login does a
+        # fresh Directus fetch. Without this, if the client hasn't yet called
+        # POST /v1/daily-inspirations (which repopulates the cache via warming),
+        # a rapid reconnect would get the old stale sync cache instead of the
+        # newly delivered inspirations.
+        if user_id_hash:
+            try:
+                await cache_service.clear_daily_inspirations_sync(user_id_hash)
+                logger.debug(
+                    f"[PENDING_INSPIRATIONS] Invalidated Phase 1 sync cache for user {user_id[:8]}..."
+                )
+            except Exception as cache_err:
+                # Non-fatal — the inspirations were already delivered
+                logger.warning(
+                    f"[PENDING_INSPIRATIONS] Could not invalidate sync cache for user {user_id[:8]}...: {cache_err}"
+                )
+
+    except Exception as e:
+        logger.error(
+            f"[PENDING_INSPIRATIONS] Error delivering pending inspirations for user {user_id[:8]}...: {e}",
+            exc_info=True,
+        )
+
+
 async def _deliver_pending_embeds(
     cache_service: CacheService,
     encryption_service: EncryptionService,
@@ -1348,6 +1529,11 @@ async def websocket_endpoint(
         _deliver_pending_embeds(
             cache_service, encryption_service, manager, user_id, user_id_hash, device_fingerprint_hash
         )
+    )
+
+    # Deliver any Daily Inspiration items generated while the user was offline
+    asyncio.create_task(
+        _deliver_pending_inspirations(cache_service, manager, user_id, device_fingerprint_hash, user_id_hash)
     )
     
     # NOTE: Pending app settings/memories permission requests are no longer re-delivered
@@ -1547,6 +1733,50 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload
                 )
+
+            elif message_type == "get_draft_versions":
+                # Lightweight reconnect-reconciliation request.
+                # Client sends a list of {chat_id, client_draft_v} for all chats that have
+                # a locally-stored draft (draft_v > 0). Server looks up current Redis draft_v
+                # for each and responds with "draft_versions_response". The client clears any
+                # local draft whose server draft_v == 0 (draft was deleted on another device
+                # while this device was offline).
+                from .handlers.websocket_handlers.get_draft_versions_handler import handle_get_draft_versions
+                await handle_get_draft_versions(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+            elif message_type == "delete_draft_embed":
+                # Deletes an uploaded file (image/PDF/recording) that was removed from
+                # the message draft before being sent.  Cleans up S3 files, the
+                # upload_files Directus record, and decrements storage_used_bytes.
+                await handle_delete_draft_embed(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+            elif message_type == "cancel_pdf_processing":
+                # Cancels an in-progress PDF OCR Celery task (triggered when the user
+                # presses Stop during the 'processing' phase, after upload is complete).
+                # Revokes the Celery task, deletes S3 files + Directus record, and
+                # broadcasts draft_embed_deleted to other devices for IndexedDB cleanup.
+                await handle_cancel_pdf_processing(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
             elif message_type == "request_chat_content_batch":
                 await handle_chat_content_batch(
                     cache_service=cache_service,
@@ -1604,12 +1834,31 @@ async def websocket_endpoint(
                 else:
                     logger.debug(f"User {user_id}: Skipping last_opened update (no active chat)")
                 
-                # Send acknowledgement to client
+                # Send acknowledgement to the sending client
                 await manager.send_personal_message(
                     {"type": "active_chat_set_ack", "payload": {"chat_id": active_chat_id}},
                     user_id,
                     device_fingerprint_hash
                 )
+
+                # Broadcast the updated last_opened to OTHER connected devices so they
+                # can update their resume card in real-time without waiting for the next
+                # login/reconnect Phase 1 sync. Only broadcast for real chat IDs (same
+                # guard as the persistence step above).
+                if is_real_chat:
+                    try:
+                        await manager.broadcast_to_user(
+                            message={
+                                "type": "last_opened_updated",
+                                "payload": {"chat_id": active_chat_id}
+                            },
+                            user_id=user_id,
+                            exclude_device_hash=device_fingerprint_hash
+                        )
+                        logger.debug(f"User {user_id}: Broadcasted last_opened_updated to other devices for chat {active_chat_id}")
+                    except Exception as broadcast_err:
+                        # Non-critical: other devices will get the update on next login sync
+                        logger.warning(f"User {user_id}: Failed to broadcast last_opened_updated to other devices: {broadcast_err}")
             elif message_type == "cancel_ai_task":
                 await handle_cancel_ai_task(
                     websocket=websocket,
@@ -1911,6 +2160,41 @@ async def websocket_endpoint(
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload
+                )
+
+            elif message_type == "inspiration_viewed":
+                # Client reports that a Daily Inspiration banner was seen by the user.
+                # Record the view in cache for the daily generation job (view count → generation count).
+                logger.debug(f"Handling inspiration_viewed from user {user_id[:8]}... payload: {payload}")
+                await handle_inspiration_viewed(
+                    cache_service=cache_service,
+                    user_id=user_id,
+                    payload=payload,
+                )
+
+            elif message_type == "daily_inspiration_received":
+                # Client ACKs that it received and stored the pending daily inspirations.
+                # Now safe to clear the pending delivery cache so they are not re-delivered.
+                logger.debug(f"Handling daily_inspiration_received ACK from user {user_id[:8]}...")
+                await handle_inspiration_received(
+                    cache_service=cache_service,
+                    user_id=user_id,
+                    payload=payload,
+                )
+
+            elif message_type == "sync_inspiration_chat":
+                # Client created a chat from a Daily Inspiration click (local-only).
+                # Sync to server cache and broadcast to other devices so the chat
+                # appears everywhere with title, category, and the assistant message.
+                logger.debug(f"Handling sync_inspiration_chat from user {user_id[:8]}...")
+                await handle_sync_inspiration_chat(
+                    manager=manager,
+                    cache_service=cache_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
                 )
 
             else:

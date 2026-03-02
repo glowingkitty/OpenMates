@@ -4,18 +4,30 @@
     import { text } from '@repo/ui';
     import { locale } from 'svelte-i18n';
     import type { Map, Marker } from 'leaflet';
-    import Toggle from '../Toggle.svelte';  // Add Toggle import
+    import Toggle from '../Toggle.svelte';
     import 'leaflet/dist/leaflet.css';
     import { getLocaleFromNavigator } from 'svelte-i18n';
     import { get } from 'svelte/store';
     import { tooltip } from '../../actions/tooltip';
+    import { getApiUrl } from '../../config/api';
+
     const dispatch = createEventDispatcher();
+
+    // ─── Props ───────────────────────────────────────────────────────────────
+    interface Props {
+        /** Whether imprecise (area) mode is the default. Controlled by privacy settings. */
+        defaultImprecise?: boolean;
+    }
+    let { defaultImprecise = true }: Props = $props();
     
     let mapContainer: HTMLElement;
     let map: Map | null = null;
     let marker: Marker | null = null;
-    let L: any; // Will hold Leaflet instance
-    let isPrecise = $state(true); // Changed default to true
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let L: any; // Will hold Leaflet instance — dynamically imported, no static type available
+    // Default to NOT precise (area mode) — matches privacy-first default.
+    // Will be overridden by defaultImprecise prop from caller.
+    let isPrecise = $state(false);
     let isLoading = $state(false);
     let currentLocation: { lat: number; lon: number } | null = null;
 
@@ -26,10 +38,12 @@
     // Add new variable to track map center
     let mapCenter = $state<{ lat: number; lon: number } | null>(null);
     
-    let tileLayer: any = null; // Add this variable to track tile layer
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let tileLayer: any = null; // Leaflet TileLayer — dynamically imported, no static type
 
     // Add at the top of the script
-    let customIcon: any = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let customIcon: any = null; // Leaflet DivIcon — dynamically imported, no static type
 
     let isTransitionComplete = false;
 
@@ -46,22 +60,29 @@
     let showPreciseToggle = $state(false);
 
     // Add new variable to track accuracy circle
-    let accuracyCircle: any = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let accuracyCircle: any = null; // Leaflet Circle — dynamically imported, no static type
 
     // Add new variable to track accuracy radius
     const ACCURACY_RADIUS = 500; // 500 meters radius for non-precise mode
 
     // Add new state variables
     let searchQuery = $state('');
-    let searchResults = $state<any[]>([]);
-    let isSearching = false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let searchResults = $state<any[]>([]); // Nominatim API results — untyped third-party API
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    let isSearching = false; // Tracks in-flight search request (set but not yet consumed in template)
     let showResults = $state(false);
 
     // Add these new functions and variables to the script section
-    let searchMarkers: any[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let searchMarkers: any[] = []; // Leaflet markers — dynamically imported, no static type
 
     // Add new state variables to store selected location details
-    let selectedLocationText: { mainLine: string; subLine: string } | null = null;
+    // selectedLocationText: display text from the chosen search result.
+    // placeType: the category label (e.g. "Railway", "Airport") stored separately so the
+    // embed can show it as a dedicated secondary line distinct from the street address.
+    let selectedLocationText: { mainLine: string; subLine: string; placeType?: string } | null = null;
     let selectedFromSearch = false;
     let selectedZoomLevel: number | null = null;
 
@@ -73,6 +94,25 @@
 
     // Add a new variable to track panel transition
     let isPanelTransitioning = false;
+
+    // ─── Reverse geocode state ────────────────────────────────────────────────
+    // Stores the resolved street address for the current map center.
+    // Populated by reverseGeocode() after map movement stops.
+    let resolvedAddress = $state<string>('');
+    // placeType: category label for the selected search result (e.g. "Railway", "Airport").
+    // Set when user clicks a search result; cleared when user pans map manually.
+    let selectedPlaceType = $state<string>('');
+    let reverseGeocodeController: AbortController | null = null;
+
+    // ─── Geolocation error state ─────────────────────────────────────────────
+    // Shown when browser location access is denied or unavailable.
+    // Cleared when the user retries or moves the map.
+    let locationError = $state<string>('');
+
+    // Set initial precision state from prop (runs once after initial render)
+    $effect(() => {
+        isPrecise = !defaultImprecise;
+    });
 
     // Helper function to capitalize first letter of each word
     function capitalize(str: string) {
@@ -98,7 +138,9 @@
 
     // Add logger for debugging
     const logger = {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         debug: (...args: any[]) => console.debug('[MapsView]', ...args),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         info: (...args: any[]) => console.info('[MapsView]', ...args)
     };
 
@@ -178,9 +220,12 @@
         if (currentLocation && map) {
             const mapRef = map;
             const zoomLevel = isPrecise ? 16 : 14;
+            // Marker is always hidden — precise mode uses the CSS .precise-center-pin overlay,
+            // area mode uses the accuracy circle. The Leaflet marker is kept as a position
+            // anchor for internal logic (e.g. moveend updates) but never rendered visibly.
             marker = L.marker([currentLocation.lat, currentLocation.lon], { 
                 icon: customIcon,
-                opacity: isPrecise ? 1 : 0 
+                opacity: 0
             }).addTo(mapRef);
             mapRef.setView([currentLocation.lat, currentLocation.lon], zoomLevel);
             
@@ -194,6 +239,8 @@
             const mapRef = map;
             mapRef.on('movestart', () => {
                 isMapMoving = true;
+                // Clear any geolocation error when the user interacts with the map
+                locationError = '';
             });
             
             mapRef.on('moveend', () => {
@@ -202,6 +249,11 @@
                 // Always update accuracy circle after movement if not in precise mode
                 if (mapCenter && !isPrecise) {
                     updateAccuracyCircle([mapCenter.lat, mapCenter.lon]);
+                }
+                // Reverse geocode the current center to get a street address
+                // Only when no search result was selected (search results carry their own address)
+                if (mapCenter && !selectedFromSearch) {
+                    reverseGeocode(mapCenter.lat, mapCenter.lon);
                 }
             });
             
@@ -220,16 +272,19 @@
                     selectedFromSearch = false;
                     selectedZoomLevel = null;
                     isCurrentLocation = false;
+                    selectedPlaceType = '';
                 }
                 
-                // Only update center marker if search results are not shown
+                // Keep Leaflet marker position synced even though it is invisible.
+                // In precise mode the .precise-center-pin CSS overlay shows the location;
+                // in area mode the accuracy circle does. The marker is never rendered.
                 if (!showResults) {
                     if (marker) {
                         marker.setLatLng([center.lat, center.lng]);
                     } else {
                         marker = L.marker([center.lat, center.lng], { 
                             icon: customIcon,
-                            opacity: isPrecise ? 1 : 0 
+                            opacity: 0
                         }).addTo(mapRef);
                     }
                 }
@@ -310,6 +365,8 @@
             return;
         }
 
+        // Clear any previous error before attempting
+        locationError = '';
         isLoading = true;
         isGettingLocation = true;
         showPreciseToggle = true; // Show the toggle when getting location
@@ -356,13 +413,13 @@
                 mapCenter = { lat, lon };
                 isCurrentLocation = true;
 
-                // Update marker with appropriate opacity
+                // Recreate marker at the new location (always invisible — see comment above).
                 if (marker) {
                     marker.remove();
                 }
                 marker = L.marker([lat, lon], { 
                     icon: customIcon,
-                    opacity: isPrecise ? 1 : 0 
+                    opacity: 0
                 }).addTo(mapRef);
 
                 // Update accuracy circle after setting the view
@@ -371,6 +428,20 @@
 
         } catch (error) {
             logger.debug('Error getting location:', error);
+            // Show a visible error to the user based on the GeolocationPositionError code:
+            //   1 = PERMISSION_DENIED  — user or browser blocked location access
+            //   2 = POSITION_UNAVAILABLE — device cannot determine location
+            //   3 = TIMEOUT — request timed out
+            if (error instanceof GeolocationPositionError) {
+                if (error.code === GeolocationPositionError.PERMISSION_DENIED) {
+                    locationError = $text('enter_message.location.location_permission_denied');
+                } else {
+                    // POSITION_UNAVAILABLE or TIMEOUT
+                    locationError = $text('enter_message.location.location_unavailable');
+                }
+            } else {
+                locationError = $text('enter_message.location.location_unavailable');
+            }
         } finally {
             isLoading = false;
             isGettingLocation = false;
@@ -398,27 +469,29 @@
         }
     }
 
-    // Update precision changes using Svelte 5 $effect
+    // Update precision changes using Svelte 5 $effect.
+    // In precise mode we use a CSS overlay pin (.precise-center-pin in the template)
+    // instead of the Leaflet marker, so the Leaflet marker is always hidden (opacity 0).
+    // In area mode we show the accuracy circle and keep the marker hidden.
     $effect(() => {
         if (map && mapCenter) {
             if (!isPrecise) {
-                // Only create circle if it doesn't exist
+                // Area mode: show accuracy circle, hide Leaflet marker
                 if (!accuracyCircle) {
                     updateAccuracyCircle([mapCenter.lat, mapCenter.lon]);
                 }
-                // Hide marker completely in non-precise mode
                 if (marker) {
                     marker.setOpacity(0);
                 }
             } else {
-                // Remove circle when precision is enabled
+                // Precise mode: remove accuracy circle (CSS overlay pin is used instead)
                 if (accuracyCircle) {
                     accuracyCircle.remove();
                     accuracyCircle = null;
                 }
-                // Show marker in precise mode
+                // Keep Leaflet marker hidden — the .precise-center-pin CSS overlay is used
                 if (marker) {
-                    marker.setOpacity(1);
+                    marker.setOpacity(0);
                 }
             }
         }
@@ -427,18 +500,51 @@
     // Update handleSelect function
     function handleSelect() {
         if (mapCenter) {
-            const selectedLocation = isPrecise ? 
-                mapCenter : 
+            // Always store the precise location (for potential future use/display)
+            const preciseLat = mapCenter.lat;
+            const preciseLon = mapCenter.lon;
+
+            // For the LLM context: use randomised location within accuracy circle in area mode
+            // to protect the user's exact position, while still giving useful context
+            const locationForLLM = isPrecise ?
+                mapCenter :
                 getRandomLocationInCircle(mapCenter, ACCURACY_RADIUS);
+
+            // Resolve the best available address string:
+            // - Search result: use the formatted result text (already two lines)
+            // - Reverse geocode: use the resolved address
+            // - Fallback: use the location indicator text
+            const address = resolvedAddress ||
+                (selectedLocationText
+                    ? [selectedLocationText.mainLine, selectedLocationText.subLine].filter(Boolean).join(', ')
+                    : locationIndicatorText);
+
+            // Determine the display name for the embed card.
+            // For search results: use the place name (mainLine only, e.g. "Berlin Hauptbahnhof").
+            // For reverse-geocoded / current location: use the indicator text as before.
+            const embedName = selectedLocationText
+                ? selectedLocationText.mainLine
+                : (locationIndicatorText || address);
 
             const previewData = {
                 type: 'mapsEmbed',
                 attrs: {
-                    lat: selectedLocation.lat,
-                    lon: selectedLocation.lon,
+                    // Coordinates sent to LLM (may be randomised in area mode)
+                    lat: locationForLLM.lat,
+                    lon: locationForLLM.lon,
+                    // Always store precise coords for the in-editor preview pin
+                    preciseLat,
+                    preciseLon,
                     zoom: selectedZoomLevel || 16,
-                    name: locationIndicatorText,
-                    type: isPrecise ? 'precise_location' : 'area',
+                    // Clean place name for the embed card title (e.g. "Berlin Hauptbahnhof")
+                    name: embedName,
+                    // Full resolved street address for LLM context and embed card secondary line
+                    address,
+                    // Category/type label for search results (e.g. "Railway", "Airport").
+                    // Shown as a dedicated muted line below the name in the embed card.
+                    placeType: selectedPlaceType || '',
+                    // Whether this is a precise pin or a generalised area
+                    locationType: isPrecise ? 'precise_location' : 'area',
                     id: crypto.randomUUID()
                 }
             };
@@ -454,9 +560,11 @@
     }
 
     // Create a debounced search function
-    function debounce(func: Function, wait: number) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function debounce(func: (...args: any[]) => unknown, wait: number) {
         let timeout: ReturnType<typeof setTimeout>;
         
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return function executedFunction(...args: any[]) {
             const later = () => {
                 clearTimeout(timeout);
@@ -474,6 +582,81 @@
         return (get(locale) || getLocaleFromNavigator() || 'en').split('-')[0];
     }
 
+    /**
+     * Reverse geocode a lat/lon pair using Nominatim.
+     * Called after map movement stops (moveend event).
+     * Stores the human-readable address in resolvedAddress so it can be
+     * included in the embed when the user taps "Select".
+     *
+     * Uses an AbortController to cancel any in-flight request when the map
+     * moves again before the previous geocode completes.
+     */
+    async function reverseGeocode(lat: number, lon: number): Promise<void> {
+        // Cancel any previous in-flight request
+        if (reverseGeocodeController) {
+            reverseGeocodeController.abort();
+        }
+        reverseGeocodeController = new AbortController();
+        const signal = reverseGeocodeController.signal;
+
+        try {
+            const currentLocale = getCurrentLocale();
+            // Route through the backend proxy instead of calling Nominatim directly.
+            // Direct browser→Nominatim calls are unreliable because:
+            //   1. Nominatim's CORS headers are inconsistent (sometimes missing entirely)
+            //   2. TLS 1.3 0-RTT ("Too Early" / HTTP 425) on the first request after page load
+            // The backend proxy handles retries with exponential back-off in one place.
+            const url = `${getApiUrl()}/v1/geocode/reverse?` +
+                `lat=${lat}` +
+                `&lon=${lon}` +
+                `&zoom=18` +
+                `&addressdetails=1` +
+                `&accept-language=${currentLocale}`;
+            const response = await fetch(url, { signal });
+
+            if (!response.ok) return;
+            const data = await response.json();
+
+            // Build a human-readable address from the address components
+            const addr = data.address || {};
+            const parts: string[] = [];
+
+            // Street + house number
+            const road = addr.road || addr.pedestrian || addr.footway || addr.path || '';
+            const houseNumber = addr.house_number || '';
+            if (road && houseNumber) {
+                parts.push(`${road} ${houseNumber}`);
+            } else if (road) {
+                parts.push(road);
+            }
+
+            // Postcode + city
+            const postcode = addr.postcode || '';
+            const city = addr.city || addr.town || addr.village || addr.municipality || addr.county || '';
+            if (postcode && city) {
+                parts.push(`${postcode} ${city}`);
+            } else if (city) {
+                parts.push(city);
+            }
+
+            // Country
+            const country = addr.country || '';
+            if (country) {
+                parts.push(country);
+            }
+
+            resolvedAddress = parts.join(', ') || data.display_name || '';
+            logger.debug('Reverse geocoded address:', resolvedAddress);
+
+        } catch (error: unknown) {
+            if ((error as { name?: string }).name === 'AbortError') {
+                // Request was cancelled because map moved — normal behaviour
+                return;
+            }
+            logger.debug('Reverse geocode failed (non-fatal):', error);
+        }
+    }
+
     // Update debouncedSearch function
     const debouncedSearch = debounce(async (query: string) => {
         if (!query.trim()) {
@@ -488,19 +671,21 @@
             // Get current locale
             const locale = getCurrentLocale();
 
+            // Route through the backend proxy — same CORS/425 reliability reasons as
+            // reverseGeocode().  The backend handles User-Agent and retries.
             const response = await fetch(
-                `https://nominatim.openstreetmap.org/search?` + 
-                `format=json` +
-                `&q=${encodeURIComponent(query)}` +
+                `${getApiUrl()}/v1/geocode/search?` +
+                `q=${encodeURIComponent(query)}` +
                 `&limit=5` +
                 `&addressdetails=1` +
                 `&extratags=1` +
                 `&namedetails=1` +
-                `&accept-language=${locale}` // Add language parameter
+                `&accept-language=${locale}`
             );
             const results = await response.json();
 
             // Format and assign a unique ID to each search result
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             searchResults = results.map((result: any) => {
                 const formattedResult = formatSearchResult(result);
                 const transitTypes = getTransitTypes(result);
@@ -519,10 +704,40 @@
                     transitServices.join(', ') : 
                     formattedResult.subLine;
 
+                // Build a human-readable street address from the Nominatim address components.
+                // This mirrors the format used by reverseGeocode() so the embed shows a
+                // consistent address regardless of whether the location came from search or map pan.
+                const addr = result.address || {};
+                const addrParts: string[] = [];
+                const road = addr.road || addr.pedestrian || addr.footway || addr.path || '';
+                const houseNumber = addr.house_number || '';
+                if (road && houseNumber) {
+                    addrParts.push(`${road} ${houseNumber}`);
+                } else if (road) {
+                    addrParts.push(road);
+                }
+                const postcode = addr.postcode || '';
+                const city = addr.city || addr.town || addr.village || addr.municipality || addr.county || '';
+                if (postcode && city) {
+                    addrParts.push(`${postcode} ${city}`);
+                } else if (city) {
+                    addrParts.push(city);
+                }
+                const country = addr.country || '';
+                if (country) addrParts.push(country);
+                const streetAddress = addrParts.join(', ') || result.display_name || '';
+
                 return {
                     id: crypto.randomUUID(),
                     mainLine: formattedResult.mainLine,
                     subLine: subLine,
+                    // Full street address from Nominatim address components — used as the embed
+                    // address when this search result is selected (avoids re-geocoding).
+                    streetAddress,
+                    // placeType: the category/type label shown in the embed card secondary line
+                    // (e.g. "Railway", "Airport", "Hotel"). Distinct from streetAddress so the
+                    // embed can show both "Berlin Hauptbahnhof / Railway" and the address.
+                    placeType: subLine,
                     lat: parseFloat(result.lat),
                     lon: parseFloat(result.lon),
                     type: result.class === 'railway' ? 'railway' : 
@@ -542,7 +757,7 @@
             showResults = true;
             addSearchMarkersToMap();
         } catch (error) {
-            logger.debug('Search error:', error);
+            console.error('[MapsView] Search error:', error);
             searchResults = [];
         } finally {
             isSearching = false;
@@ -550,10 +765,12 @@
     }, 300);
 
     // Update the formatSearchResult function
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function formatSearchResult(result: any) {
         const locale = getCurrentLocale();
         
         // Helper function to get localized name
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         function getLocalizedName(namedetails: any) {
             if (!namedetails) return null;
             
@@ -691,6 +908,7 @@
     }
 
     // Add helper function to determine transit types
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function getTransitTypes(result: any) {
         const tags = result.extratags || {};
         
@@ -780,6 +998,7 @@
     }
 
     // Update the getResultIconClass function
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function getResultIconClass(result: any) {
         // Check for airport first
         if (result.metadata?.osmClass === 'aeroway' && 
@@ -844,6 +1063,7 @@
     }
 
     // Update the highlightSearchResult function to adjust opacity based on associated result ID
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function highlightSearchResult(result: any) {
         
         searchResults = searchResults.map(r => ({
@@ -867,6 +1087,7 @@
     }
 
     // Update the handleSearchResultClick function
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function handleSearchResultClick(result: any) {
         if (map) {
             const { lat, lon } = result;
@@ -874,11 +1095,18 @@
             // Reset current location flag when selecting from search
             isCurrentLocation = false;
             
-            // Store the selected location text
+            // Store the selected location text (name + type/category shown in the indicator)
             selectedLocationText = {
                 mainLine: result.mainLine,
-                subLine: result.subLine
+                subLine: result.subLine,
+                placeType: result.placeType
             };
+            // Use the pre-built street address from the Nominatim result so the embed shows
+            // "Berlin Hauptbahnhof" as the name and the actual street address below it,
+            // rather than re-geocoding or falling back to the type string (e.g. "Railway").
+            resolvedAddress = result.streetAddress || '';
+            // Store the place type (e.g. "Railway") separately for the embed card
+            selectedPlaceType = result.placeType || '';
             selectedFromSearch = true;
             
             // Set zoom level based on result type
@@ -892,11 +1120,11 @@
             
             if (marker) {
                 marker.setLatLng([lat, lon]);
-                marker.setOpacity(isPrecise ? 1 : 0);
+                marker.setOpacity(0); // Always invisible; CSS overlay pin handles precise mode
             } else {
                 marker = L.marker([lat, lon], { 
                     icon: customIcon,
-                    opacity: isPrecise ? 1 : 0 
+                    opacity: 0
                 }).addTo(map);
             }
             
@@ -950,14 +1178,11 @@
         }
     }
 
-    // Update marker visibility when search results are shown/hidden using $effect
+    // Leaflet marker is always invisible — precise mode uses the CSS .precise-center-pin
+    // overlay and area mode uses the accuracy circle. Keep opacity at 0 regardless.
     $effect(() => {
         if (marker && map) {
-            if (showResults) {
-                marker.setOpacity(0); // Always hide marker during search results
-            } else {
-                marker.setOpacity(isPrecise ? 1 : 0); // Normal visibility rules
-            }
+            marker.setOpacity(0);
         }
     });
 
@@ -987,6 +1212,7 @@
 >
     {#if showPreciseToggle && !showResults}
         <div class="precise-toggle" transition:slide={{ duration: 300, axis: 'y' }}>
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
             <span>{@html $text('enter_message.location.precise')}</span>
             <Toggle 
                 bind:checked={isPrecise}
@@ -1013,7 +1239,21 @@
         </div>
     {/if}
     
-    <div class="map-container" bind:this={mapContainer}></div>
+    <div class="map-container" bind:this={mapContainer}>
+        <!-- Precise mode center pin: a fixed SVG icon pinned to the map center.
+             Replaces the Leaflet marker in precise mode — pure CSS overlay so it is
+             always perfectly centered regardless of map tile loading state.
+             Hidden in area (non-precise) mode where the accuracy circle is used instead. -->
+        {#if isPrecise}
+            <div class="precise-center-pin" aria-hidden="true"></div>
+        {/if}
+    </div>
+
+    {#if locationError}
+        <div class="location-error-banner" transition:slide={{ duration: 200, axis: 'y' }}>
+            {locationError}
+        </div>
+    {/if}
 
     <div class="bottom-bar">
         <div class="controls">
@@ -1025,10 +1265,19 @@
             ></button>
 
             <div class="search-container">
+                <!-- Use event.currentTarget.value instead of the bound state variable to
+                     avoid any reactivity-order issues where the state may not yet reflect
+                     the latest character at the moment the handler runs. -->
                 <input
                     type="text"
                     bind:value={searchQuery}
-                    oninput={() => debouncedSearch(searchQuery)}
+                    oninput={(e) => debouncedSearch((e.currentTarget as HTMLInputElement).value)}
+                    onkeydown={(e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            debouncedSearch((e.currentTarget as HTMLInputElement).value);
+                        }
+                    }}
                     placeholder={$text('enter_message.location.search_placeholder')}
                     class="search-input"
                 />
@@ -1048,6 +1297,7 @@
     {#if showResults && searchResults.length > 0}
         <div class="search-results-container" transition:slide={{ duration: 300 }}>
             <div class="search-results-header">
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 <h3>{@html $text('enter_message.location.search_results')}</h3>
                 <button 
                     class="clickable-icon icon_close" 
@@ -1088,13 +1338,15 @@
 
 <style>
     .maps-overlay {
+        /* Fill the .message-field container edge-to-edge.
+           Uses absolute positioning so it is contained within the
+           message-field (position:relative; overflow:hidden; border-radius:24px).
+           The message-field grows to a fixed height when the map is open
+           (see MessageInput.svelte containerStyle / showMaps logic). */
         position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 400px;
+        inset: 0;
         background: var(--color-grey-0);
-        z-index: 1000;
+        z-index: 10;
         display: flex;
         flex-direction: column;
         border-radius: 24px;
@@ -1109,6 +1361,10 @@
         height: calc(100% - 53px);
         transition: width 0.3s ease;
         z-index: 1;
+        /* Create an isolated stacking context so Leaflet's internal z-indexes
+           (leaflet-pane uses z-index 400+) do not escape this container and
+           cover the bottom-bar / search input above it. */
+        isolation: isolate;
     }
 
     .map-container.with-results {
@@ -1124,6 +1380,26 @@
         background: var(--color-grey-0);
         border-radius: 24px;
         z-index: 2;
+    }
+
+    .location-error-banner {
+        /* Floats just above the bottom-bar, centered, styled as a warning pill */
+        position: absolute;
+        bottom: 60px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--color-grey-1, #f5f5f5);
+        color: var(--color-font-primary);
+        border: 1px solid var(--color-error, #e53e3e);
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 13px;
+        text-align: center;
+        max-width: calc(100% - 40px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        z-index: 1003;
+        white-space: normal;
+        word-break: break-word;
     }
 
     .controls {
@@ -1315,6 +1591,31 @@
         transition: opacity 0.3s ease;
     }
 
+    /* Precise mode center pin: absolutely positioned at the map center.
+       Uses the maps.svg icon as a mask so it inherits the app maps colour.
+       The pin is 40×40 px, anchored at its geometric center (translate -50%,-50%)
+       so it always sits exactly over the selected point regardless of map movement.
+       Only rendered when isPrecise is true (see template above). */
+    .precise-center-pin {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 40px;
+        height: 40px;
+        background: var(--color-app-maps);
+        -webkit-mask-image: url('@openmates/ui/static/icons/maps.svg');
+        mask-image: url('@openmates/ui/static/icons/maps.svg');
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        pointer-events: none; /* Don't block map interaction */
+        z-index: 500; /* Above map tiles (z-index 400) but below UI controls */
+    }
+
     /* Update location indicator styles */
     .location-indicator {
         position: absolute;
@@ -1400,11 +1701,13 @@
         position: absolute;
         top: 0;
         left: 0;
+        /* 50% width so the map remains visible alongside the results panel */
         width: 50%;
-        height: calc(100% - 80px);
+        height: calc(100% - 53px);
         background: var(--color-grey-0);
+        /* z-index above map (1) and matching bottom-bar (2) */
         z-index: 2;
-        border-right: 1px solid var(--color-grey-20);
+        border-right: none;
     }
 
     .search-results-header {

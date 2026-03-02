@@ -11,6 +11,8 @@
 #   @mate:{mate_id}                   - Force a specific mate/persona
 #   @skill:{app_id}:{skill_id}        - Force using a specific skill
 #   @focus:{app_id}:{focus_id}        - Force a specific focus mode
+#   @memory:{app_id}:{memory_id}:{type} - Include all entries from a settings/memory category
+#   @memory-entry:{app_id}:{category_id}:{entry_id} - Include a specific entry from a settings/memory category
 #
 # Examples:
 #   "What is 2+2? @ai-model:claude-opus-4-5" -> Uses Claude Opus 4.5 for this request
@@ -36,6 +38,8 @@ class UserOverrides:
         mate_id: Overridden mate/persona ID (e.g., "coder", "researcher")
         skills: List of (app_id, skill_id) tuples for forced skill usage
         focus_modes: List of (app_id, focus_id) tuples for forced focus modes
+        memory_categories: List of (app_id, memory_id, memory_type) tuples for settings/memory category inclusion
+        memory_entries: List of (app_id, category_id, entry_id) tuples for individual entry inclusion
         cleaned_message: Original message with all override syntax removed
         has_overrides: True if any overrides were parsed
     """
@@ -45,6 +49,8 @@ class UserOverrides:
     mate_id: Optional[str] = None
     skills: List[Tuple[str, str]] = field(default_factory=list)
     focus_modes: List[Tuple[str, str]] = field(default_factory=list)
+    memory_categories: List[Tuple[str, str, str]] = field(default_factory=list)
+    memory_entries: List[Tuple[str, str, str]] = field(default_factory=list)
     cleaned_message: str = ""
     has_overrides: bool = False
 
@@ -85,6 +91,21 @@ _SKILL_PATTERN = re.compile(
 # Examples: @focus:web:research, @focus:code:review, @focus:ai:deep_think
 _FOCUS_PATTERN = re.compile(
     r'@focus:([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)',
+    re.IGNORECASE
+)
+
+# @memory-entry:{app_id}:{category_id}:{entry_id}
+# Examples: @memory-entry:code:preferred_technologies:abc123
+# Must be matched BEFORE @memory: to avoid partial matches
+_MEMORY_ENTRY_PATTERN = re.compile(
+    r'@memory-entry:([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+):([a-zA-Z0-9_.-]+)',
+    re.IGNORECASE
+)
+
+# @memory:{app_id}:{memory_id}:{type}
+# Examples: @memory:code:preferred_technologies:list, @memory:travel:trips:list
+_MEMORY_PATTERN = re.compile(
+    r'@memory:([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)',
     re.IGNORECASE
 )
 
@@ -175,6 +196,32 @@ def parse_overrides(message: str, log_prefix: str = "") -> UserOverrides:
             f"app_id={app_id}, focus_id={focus_id}"
         )
     cleaned = _FOCUS_PATTERN.sub('', cleaned)
+
+    # Parse all @memory-entry overrides (MUST come before @memory to avoid partial matches)
+    for entry_match in _MEMORY_ENTRY_PATTERN.finditer(message):
+        app_id = entry_match.group(1)
+        category_id = entry_match.group(2)
+        entry_id = entry_match.group(3)
+        overrides.memory_entries.append((app_id, category_id, entry_id))
+        overrides.has_overrides = True
+        logger.info(
+            f"{log_prefix} USER_OVERRIDE: Memory entry override detected. "
+            f"app_id={app_id}, category_id={category_id}, entry_id={entry_id}"
+        )
+    cleaned = _MEMORY_ENTRY_PATTERN.sub('', cleaned)
+
+    # Parse all @memory overrides (whole category inclusion)
+    for memory_match in _MEMORY_PATTERN.finditer(message):
+        app_id = memory_match.group(1)
+        memory_id = memory_match.group(2)
+        memory_type = memory_match.group(3)
+        overrides.memory_categories.append((app_id, memory_id, memory_type))
+        overrides.has_overrides = True
+        logger.info(
+            f"{log_prefix} USER_OVERRIDE: Memory category override detected. "
+            f"app_id={app_id}, memory_id={memory_id}, type={memory_type}"
+        )
+    cleaned = _MEMORY_PATTERN.sub('', cleaned)
 
     # Clean up extra whitespace from removed override patterns
     overrides.cleaned_message = ' '.join(cleaned.split())

@@ -20,6 +20,7 @@ trips:
   th: การเดินทาง
   cs: Cesty
   sv: Resor
+  he: טיולים
   verified_by_human:
     - en
     - de
@@ -45,6 +46,7 @@ trips.description:
   th: การเดินทางที่วางแผนไว้และที่ผ่านมาของคุณ
   cs: Vaše plánované a minulé cesty s daty.
   sv: Dina planerade och tidigare resor med datum.
+  he: הטיולים המתוכננים והקודמים שלך עם תאריכים.
   verified_by_human:
     - en
     - de
@@ -70,6 +72,7 @@ preferred_airlines:
   th: สายการบินที่ต้องการ
   cs: Preferované letecké společnosti
   sv: Föredragna flygbolag
+  he: חברות תעופה מועדפות
   verified_by_human:
     - en
     - de
@@ -95,34 +98,34 @@ preferred_airlines.description:
   th: สายการบินโปรดของคุณ
   cs: Vaše oblíbené letecké společnosti
   sv: Dina favoritflygbolag
+  he: חברות התעופה המועדפות עליך להזמנת טיסות
   verified_by_human:
     - en
     - de
 preferred_transport_methods:
   context: Settings/memory name for preferred transport methods
-  en: Preferred Transport Methods
-  de: Bevorzugte Transportmittel
+  en: Preferred Transport
+  de: Bevorzugtes Transportmittel
   zh: 首选交通方式
-  es: Métodos de transporte preferidos
-  fr: Moyens de transport préférés
-  pt: Métodos de transporte preferidos
-  ru: Предпочтительные способы транспорта
+  es: Transporte preferido
+  fr: Transport préféré
+  pt: Transporte preferido
+  ru: Предпочтительный транспорт
   ja: 優先交通手段
-  ko: 선호 교통 수단
-  it: Metodi di trasporto preferiti
-  tr: Tercih edilen ulaşım yöntemleri
-  vi: Phương tiện giao thông ưa thích
-  id: Metode transportasi pilihan
-  pl: Preferowane środki transportu
-  nl: Voorkeursvervoermethoden
-  ar: طرق النقل المفضلة
-  hi: पसंदीदा परिवहन विधियां
-  th: วิธีการขนส่งที่ต้องการ
-  cs: Preferované způsoby dopravy
-  sv: Föredragna transportmetoder
-  verified_by_human:
-    - en
-    - de
+  ko: 선호 교통수단
+  it: Trasporto preferito
+  tr: Tercih edilen ulaşım
+  vi: Phương tiện ưa thích
+  id: Transportasi pilihan
+  pl: Preferowany transport
+  nl: Voorkeursvervoer
+  ar: النقل المفضل
+  hi: पसंदीदा परिवहन
+  th: การขนส่งที่ต้องการ
+  cs: Preferovaná doprava
+  sv: Föredraget transport
+  he: תחבורה מועדפת
+  verified_by_human: []
 preferred_transport_methods.description:
   context: Description for preferred transport methods settings/memory
   en: Your preferred ways to travel.
@@ -145,6 +148,7 @@ preferred_transport_methods.description:
   th: วิธีการเดินทางที่คุณชอบ
   cs: Vaše preferované způsoby cestování.
   sv: Dina föredragna sätt att resa.
+  he: דרכי הנסיעה המועדפות עליך.
   verified_by_human:
     - en
     - de
@@ -170,6 +174,7 @@ preferred_activities:
   th: กิจกรรมที่ชื่นชอบ
   cs: Oblíbené aktivity
   sv: Föredragna aktiviteter
+  he: פעילויות מועדפות
   verified_by_human:
     - en
     - de
@@ -195,6 +200,7 @@ preferred_activities.description:
   th: กิจกรรมและประสบการณ์การเดินทางที่คุณชื่นชอบ
   cs: Vaše oblíbené cestovní aktivity a zážitky.
   sv: Dina favoritreseaktiviteter och upplevelser.
+  he: פעילויות וחוויות הטיול המועדפות עליך.
   verified_by_human:
     - en
     - de
@@ -223,6 +229,7 @@ trips.example_1:
   th: ญี่ปุ่น มีนาคม 2026
   cs: Japonsko, březen 2026
   sv: Japan, mars 2026
+  he: יפן, מרץ 2026
   verified_by_human:
     - en
     - de
@@ -248,6 +255,7 @@ trips.example_2:
   th: บาร์เซโลนา ฤดูร้อน 2025
   cs: Barcelona, léto 2025
   sv: Barcelona, sommar 2025
+  he: ברצלונה, קיץ 2025
   verified_by_human:
     - en
     - de
@@ -273,6 +281,7 @@ trips.example_3:
   th: ขับรถเที่ยวสกอตแลนด์
   cs: Výlet autem po Skotsku
   sv: Bilresa genom Skottland
+  he: טיול דרכים בסקוטלנד
   verified_by_human:
     - en
     - de
@@ -298,6 +307,7 @@ preferred_airlines.example_1:
   th: ลุฟท์ฮันซ่า
   cs: Lufthansa
   sv: Lufthansa
+  he: לופטהנזה
   verified_by_human:
     - en
     - de
@@ -323,6 +333,7 @@ preferred_airlines.example_2:
   th: สวิส
   cs: Swiss
   sv: Swiss
+  he: סוויס
   verified_by_human:
     - en
     - de
@@ -348,6 +359,7 @@ preferred_airlines.example_3:
   th: KLM
   cs: KLM
   sv: KLM
+  he: KLM
   verified_by_human:
     - en
     - de
@@ -373,6 +385,7 @@ preferred_transport_methods.example_1:
   th: รถไฟ
   cs: Vlak
   sv: Tåg
+  he: רכבת
   verified_by_human:
     - en
     - de
@@ -398,6 +411,7 @@ preferred_transport_methods.example_2:
   th: เครื่องบิน
   cs: Letadlo
   sv: Flyg
+  he: מטוס
   verified_by_human:
     - en
     - de
@@ -423,6 +437,7 @@ preferred_transport_methods.example_3:
   th: จักรยาน
   cs: Kolo
   sv: Cykel
+  he: אופניים
   verified_by_human:
     - en
     - de
@@ -448,6 +463,7 @@ preferred_activities.example_1:
   th: ไปชายหาด
   cs: Návštěva pláží
   sv: Besöka stränder
+  he: ביקור בחופים
   verified_by_human:
     - en
     - de
@@ -473,6 +489,7 @@ preferred_activities.example_2:
   th: สำรวจพิพิธภัณฑ์
   cs: Návštěva muzeí
   sv: Utforska museer
+  he: סיור במוזיאונים
   verified_by_human:
     - en
     - de
@@ -498,6 +515,7 @@ preferred_activities.example_3:
   th: เดินป่า
   cs: Turistika
   sv: Vandring
+  he: טיולים רגליים
   verified_by_human:
     - en
     - de
@@ -523,6 +541,7 @@ preferred_activities.example_4:
   th: ลองอาหารท้องถิ่น
   cs: Ochutnat místní kuchyni
   sv: Prova lokal mat
+  he: טעימת אוכל מקומי
   verified_by_human:
     - en
     - de

@@ -169,12 +169,21 @@
   }
 
   // Event listeners
+  // IMPORTANT: mousedown/touchstart listeners are registered with a short delay to avoid
+  // the race condition where the click that opens the menu immediately closes it.
+  // The user clicks the embed → FocusModeActivationEmbed dispatches focusModeContextMenu →
+  // ActiveChat sets show=true → this component mounts → if we register mousedown immediately,
+  // the same mousedown event that triggered the open would fire handleClickOutside and close the menu.
+  let clickOutsideTimeout: ReturnType<typeof setTimeout> | null = null;
   onMount(() => {
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('touchstart', handleClickOutside);
+    clickOutsideTimeout = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }, 100);
     document.addEventListener('scroll', handleScroll, true);
 
     return () => {
+      if (clickOutsideTimeout) clearTimeout(clickOutsideTimeout);
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
       document.removeEventListener('scroll', handleScroll, true);
@@ -200,7 +209,7 @@
 
 {#if show}
   <div
-    class="menu-container {show ? 'show' : ''} {showBelow ? 'below' : 'above'}"
+    class="menu-container focus-mode-context-menu {show ? 'show' : ''} {showBelow ? 'below' : 'above'}"
     style="--menu-x: {adjustedX}px; --menu-y: {adjustedY}px;"
     bind:this={menuElement}
   >
@@ -222,7 +231,7 @@
       class="menu-item details"
       onclick={(event) => handleButtonClick('details', event)}
     >
-      <div class="clickable-icon icon_info"></div>
+      <div class="clickable-icon icon_question"></div>
       {$text('embeds.context_menu.details')}
     </button>
   </div>
@@ -317,6 +326,7 @@
     width: 18px;
     height: 18px;
     min-width: 18px;
-    background: var(--color-grey-70);
+    /* Use focus mode purple gradient for both stop and details icons */
+    background: var(--icon-focus-background);
   }
 </style>

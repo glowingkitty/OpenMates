@@ -98,7 +98,8 @@
             id: app.id,
             name_translation_key: category.name_translation_key,
             description_translation_key: category.description_translation_key,
-            icon_image: app.icon_image,
+            // Use category-specific icon if available, fall back to parent app icon
+            icon_image: category.icon_image || app.icon_image,
             icon_colorgradient: app.icon_colorgradient,
             providers: [],
             skills: [],
@@ -191,7 +192,8 @@
       {#each displayCategories as { category, appId, cardApp } (`${appId}-${category.id}`)}
         <div class="memory-card-scaled">
           <AppStoreCard 
-            app={cardApp} 
+            app={cardApp}
+            cardIconType="memory"
             onSelect={() => handleCategorySelect(appId, category.id)} 
           />
         </div>

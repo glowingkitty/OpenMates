@@ -20,6 +20,7 @@ get_docs:
   th: รับเอกสาร
   cs: Získat dokumentaci
   sv: Hämta dokumentation
+  he: קבלת תיעוד
   verified_by_human:
     - en
     - de
@@ -45,13 +46,14 @@ get_docs.description:
   th: เอกสารล่าสุดของไลบรารีและเฟรมเวิร์ก
   cs: Aktuální docs knihoven a frameworků.
   sv: Senaste docs för bibliotek & ramverk.
+  he: קבלת התיעוד העדכני ביותר עבור ספריות ומסגרות עבודה.
   verified_by_human:
     - en
     - de
 
 get_docs.how_to_use.1:
   context: Example instruction for get docs skill - explore API capabilities
-  en: Based on the docs, what can I do with the Miro API?
+  en: Based on the docs, what can I do with the **Miro API**?
   de: Was kann ich laut der Dokumentation mit der Miro API machen?
   zh: 根据文档，我可以用Miro API做什么？
   es: Según la documentación, ¿qué puedo hacer con la API de Miro?
@@ -71,11 +73,12 @@ get_docs.how_to_use.1:
   th: จากเอกสาร ฉันสามารถทำอะไรกับ Miro API ได้บ้าง?
   cs: Co mohu podle dokumentace dělat s Miro API?
   sv: Baserat på dokumentationen, vad kan jag göra med Miro API?
+  he: "בהתבסס על התיעוד, מה אני יכול לעשות עם ה-**Miro API**?"
   verified_by_human: [en, de]
 
 get_docs.how_to_use.2:
   context: Example instruction for get docs skill - setup guide from docs
-  en: Using the Stripe docs, how do I set up subscriptions?
+  en: Using the **Stripe docs**, how do I set up subscriptions?
   de: Wie richte ich laut Stripe-Dokumentation Abonnements ein?
   zh: 根据Stripe文档，如何设置订阅？
   es: Según la documentación de Stripe, ¿cómo configuro las suscripciones?
@@ -95,11 +98,12 @@ get_docs.how_to_use.2:
   th: จากเอกสาร Stripe ฉันจะตั้งค่าการสมัครสมาชิกอย่างไร?
   cs: Jak pomocí dokumentace Stripe nastavím předplatné?
   sv: Hur ställer jag in prenumerationer med Stripe-dokumentationen?
+  he: "באמצעות **התיעוד של Stripe**, איך אני מגדיר מנויים?"
   verified_by_human: [en, de]
 
 get_docs.how_to_use.3:
   context: Example instruction for get docs skill - best practices
-  en: What are the best practices for error handling in FastAPI?
+  en: What are the **best practices** for error handling in FastAPI?
   de: Was sind die Best Practices für Fehlerbehandlung in FastAPI?
   zh: FastAPI中错误处理的最佳实践是什么？
   es: ¿Cuáles son las mejores prácticas para el manejo de errores en FastAPI?
@@ -119,6 +123,7 @@ get_docs.how_to_use.3:
   th: แนวทางปฏิบัติที่ดีที่สุดสำหรับการจัดการข้อผิดพลาดใน FastAPI คืออะไร?
   cs: Jaké jsou osvědčené postupy pro zpracování chyb ve FastAPI?
   sv: Vilka är bästa praxis för felhantering i FastAPI?
+  he: "מהן **שיטות העבודה המומלצות** לטיפול בשגיאות ב-FastAPI?"
   verified_by_human: [en, de]
 
 clean_repo:
@@ -143,6 +148,7 @@ clean_repo:
   th: ทำความสะอาด repo
   cs: Vyčistit úložiště
   sv: Rensa repo
+  he: ניקוי מאגר
   verified_by_human:
     - en
     - de
@@ -168,6 +174,7 @@ clean_repo.description:
   th: ค้นหาและลบโค้ดที่ไม่ได้ใช้
   cs: Najděte a odstraňte nepoužívaný kód.
   sv: Hitta och ta bort oanvänd kod.
+  he: איתור והסרה של קוד שאינו בשימוש באופן אוטומטי.
   verified_by_human:
     - en
     - de
@@ -193,6 +200,7 @@ get_issues:
   th: รับปัญหา
   cs: Získat problémy
   sv: Hämta problem
+  he: קבלת אישיוז
   verified_by_human:
     - en
     - de
@@ -218,6 +226,7 @@ get_issues.description:
   th: รับ issues GitHub/GitLab ทั้งหมดหรือตามแท็ก
   cs: Získejte issues GitHub/GitLab, všechny nebo dle tagů.
   sv: Hämta GitHub/GitLab issues, alla eller per tagg.
+  he: קבלת אישיוז מ-GitHub/GitLab, כולם או לפי תגיות.
   verified_by_human:
     - en
     - de
@@ -243,6 +252,7 @@ add_issue:
   th: เพิ่มปัญหา
   cs: Přidat problém
   sv: Lägg till problem
+  he: הוספת אישיו
   verified_by_human:
     - en
     - de
@@ -268,6 +278,7 @@ add_issue.description:
   th: เพิ่ม issue ไปยังโปรเจ็กต์ GitHub/GitLab
   cs: Přidejte issue do projektu GitHub nebo GitLab.
   sv: Lägg till issue i GitHub- eller GitLab-projekt.
+  he: הוספת אישיו לפרויקט ב-GitHub או ב-GitLab.
   verified_by_human:
     - en
     - de
@@ -293,6 +304,7 @@ remove_secrets:
   th: ลบความลับ
   cs: Odstranit tajemství
   sv: Ta bort hemligheter
+  he: הסרת סודות
   verified_by_human:
     - en
     - de
@@ -318,6 +330,7 @@ remove_secrets.description:
   th: ค้นหาและลบข้อมูลที่ละเอียดอ่อน
   cs: Najděte a odstraňte citlivá data.
   sv: Hitta och ta bort känsliga data.
+  he: איתור והסרה של נתונים רגישים באופן אוטומטי.
   verified_by_human:
     - en
     - de
@@ -343,6 +356,7 @@ get_project_overview:
   th: รับภาพรวมโปรเจ็กต์
   cs: Získat přehled projektu
   sv: Hämta projektöversikt
+  he: קבלת סקירת פרויקט
   verified_by_human:
     - en
     - de
@@ -368,6 +382,7 @@ get_project_overview.description:
   th: สร้างภาพรวม AST ของโครงสร้างโปรเจ็กต์
   cs: Vytvořte AST přehled struktury projektu.
   sv: Skapa AST-översikt av projektstruktur.
+  he: יצירת סקירת AST של מבנה הפרויקט.
   verified_by_human:
     - en
     - de

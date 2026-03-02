@@ -20,6 +20,7 @@ user_question:
   th: การนัดหมายแพทย์หัวใจที่ใกล้ที่สุดที่ไม่ขัดแย้งกับปฏิทินของฉันคือเมื่อไหร่?
   cs: Jaká je další dostupná schůzka u kardiologa, která nekoliduje s mým kalendářem?
   sv: Vad är nästa tillgängliga kardiologtid som inte krockar med min kalender?
+  he: "מהו התור הפנוי הבא לקרדיולוג שלא מתנגש עם לוח השנה שלי?"
   verified_by_human: []
 mate_initial:
   context: Initial AI response about checking calendar
@@ -43,6 +44,7 @@ mate_initial:
   th: ให้ฉันตรวจสอบปฏิทินของคุณอย่างรวดเร็วและค้นหาการนัดหมายแพทย์ที่มีอยู่ ฉันจะกลับมาหาคุณในอีกหนึ่งนาที
   cs: Dovolte mi rychle zkontrolovat váš kalendář a vyhledat dostupné lékařské schůzky. Vrátím se k vám za minutu.
   sv: Låt mig snabbt kontrollera din kalender och söka efter tillgängliga läkartider. Jag kommer tillbaka till dig om en minut.
+  he: אני בודק במהירות את לוח השנה שלך ומחפש תורים פנויים לרופא. אחזור אליך תוך דקה.
   verified_by_human: []
 mate_response:
   context: AI response with found appointment
@@ -66,6 +68,7 @@ mate_response:
   th: การนัดหมายที่ดีที่สุดที่ฉันหาได้คือพรุ่งนี้เวลา 9:00 น. ไม่ขัดแย้งกับการประชุมเปิดตัวผลิตภัณฑ์ของคุณในภายหลังของวันนั้น
   cs: Nejlepší schůzka, kterou jsem mohl najít, je zítra v 9:00. Nekoliduje s vaší schůzkou ohledně uvedení produktu později toho dne.
   sv: Den bästa tiden jag kunde hitta är imorgon kl. 9:00. Krockar inte med din produktlansering senare samma dag.
+  he: "התור הכי טוב שמצאתי הוא מחר ב-9:00. הוא לא מתנגש עם פגישת השקת המוצר שלך מאוחר יותר באותו יום."
   verified_by_human: []
 doctors.van_hausen:
   context: Doctor name
@@ -89,6 +92,7 @@ doctors.van_hausen:
   th: ดร. แวน เฮาเซน
   cs: Dr. Van Hausen
   sv: Dr. Van Hausen
+  he: "ד\"ר ואן האוזן"
   verified_by_human: []
 doctors.williams:
   context: Doctor name
@@ -112,6 +116,7 @@ doctors.williams:
   th: ดร. วิลเลียมส์
   cs: Dr. Williams
   sv: Dr. Williams
+  he: "ד\"ר וויליאמס"
   verified_by_human: []
 doctors.chen:
   context: Doctor name
@@ -135,6 +140,7 @@ doctors.chen:
   th: ดร. เฉิน
   cs: Dr. Chen
   sv: Dr. Chen
+  he: "ד\"ר צ'ן"
   verified_by_human: []
 doctors.specialty:
   context: Medical specialty
@@ -158,6 +164,7 @@ doctors.specialty:
   th: แพทย์โรคหัวใจ
   cs: Kardiolog
   sv: Kardiolog
+  he: קרדיולוג
   verified_by_human: []
 calendar.today:
   context: Calendar reference to current day
@@ -181,6 +188,7 @@ calendar.today:
   th: วันนี้
   cs: Dnes
   sv: Idag
+  he: היום
   verified_by_human: []
 calendar.wed:
   context: Calendar date
@@ -204,6 +212,7 @@ calendar.wed:
   th: พ., 12 ธ.ค.
   cs: Stř, 12. pro
   sv: Ons, 12 dec
+  he: "ד', 12 בדצמ'"
   verified_by_human: []
 calendar.thu:
   context: Calendar date
@@ -227,6 +236,7 @@ calendar.thu:
   th: พฤ., 13 ธ.ค.
   cs: Čtv, 13. pro
   sv: Tors, 13 dec
+  he: "ה', 13 בדצמ'"
   verified_by_human: []
 calendar.fri:
   context: Calendar date
@@ -250,4 +260,5 @@ calendar.fri:
   th: ศ., 14 ธ.ค.
   cs: Pá, 14. pro
   sv: Fre, 14 dec
+  he: "ו', 14 בדצמ'"
   verified_by_human: []

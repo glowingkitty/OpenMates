@@ -13,6 +13,80 @@ import type {
   Chat,
   MessageRole,
 } from "../types/chat";
+import type { EmbedType } from "../message_parsing/types";
+// Imported lazily to avoid circular deps — called after each chat-key establishment
+// so that system messages queued before the key was available get saved correctly.
+import { flushPendingSystemMessagesForChat } from "./chatSyncServiceHandlersAppSettings";
+
+/**
+ * Pending message queue for cross-device sync.
+ *
+ * When a `new_chat_message` broadcast arrives from another device but the chat
+ * key is not yet available (e.g. brand-new chat where the server hasn't
+ * persisted `encrypted_chat_key` before broadcasting), we cannot safely call
+ * `chatDB.saveMessage()` — doing so would trigger `getOrGenerateChatKey()`,
+ * which generates a random throwaway key and encrypts the message with it.
+ * When the real key later arrives the ciphertext can no longer be decrypted,
+ * causing "[Content decryption failed]" on the receiving device.
+ *
+ * Solution: buffer the plaintext message here and flush it through
+ * `chatDB.saveMessage()` only after the correct key has been cached via
+ * `chatDB.setChatKey()`.  Call `flushPendingMessagesForChat()` from every
+ * code-path that sets the key for a synced chat.
+ */
+const _pendingMessages: Map<string, Message[]> = new Map();
+
+/**
+ * In-memory set tracking chat IDs whose `encrypted_chat_key` has already been
+ * persisted to IndexedDB during this session.
+ *
+ * Problem (iOS performance): The "existing chat" key-persistence block in
+ * handleNewChatMessageImpl runs for EVERY `new_chat_message` WS event where
+ * `!chatDB.getChatKey(chatId)`. After the first write the key IS in memory so
+ * getChatKey() returns truthy and the block is skipped — but on the very first
+ * message for each chat a redundant `getChat()` + `updateChat()` IDB round-trip
+ * fires. On iOS, when many chats receive their first message in a burst (e.g.
+ * opening the sidebar while phased sync is running), this creates a storm of IDB
+ * writes + `chatUpdated` events → full `$derived` re-renders that locks up the
+ * main thread.
+ *
+ * Fix: track which chats have had their key written this session. Skip the extra
+ * getChat + updateChat entirely on repeat calls.
+ */
+const _chatKeyPersistedToIDB: Set<string> = new Set();
+
+/**
+ * Flush all messages that were held back because the chat key was missing.
+ * Safe to call multiple times — a second call is a no-op once the queue is
+ * empty.  Must be called AFTER the correct key has been set via
+ * `chatDB.setChatKey(chatId, key)`.
+ */
+export async function flushPendingMessagesForChat(
+  chatId: string,
+): Promise<void> {
+  const pending = _pendingMessages.get(chatId);
+  if (!pending || pending.length === 0) return;
+
+  // Remove from map immediately so concurrent flushes can't double-save
+  _pendingMessages.delete(chatId);
+
+  console.info(
+    `[ChatSyncService:ChatUpdates] Flushing ${pending.length} pending message(s) for chat ${chatId} now that key is available`,
+  );
+  for (const msg of pending) {
+    try {
+      await chatDB.saveMessage(msg);
+      console.debug(
+        `[ChatSyncService:ChatUpdates] Flushed pending message ${msg.message_id} for chat ${chatId}`,
+      );
+    } catch (err) {
+      console.error(
+        `[ChatSyncService:ChatUpdates] Error flushing pending message ${msg.message_id} for chat ${chatId}:`,
+        err,
+      );
+    }
+  }
+}
 
 export async function handleChatTitleUpdatedImpl(
   serviceInstance: ChatSynchronizationService,
@@ -289,6 +363,27 @@ export async function handleNewChatMessageImpl(
     messages_v?: number;
     last_edited_overall_timestamp?: number;
     encrypted_chat_key?: string;
+    /** Encrypted title — sent by sync_inspiration_chat_handler for cross-device inspiration chats */
+    encrypted_title?: string;
+    /** Encrypted category — sent by sync_inspiration_chat_handler for cross-device inspiration chats */
+    encrypted_category?: string;
+    /** Inspiration video embed data — sent by sync_inspiration_chat_handler so
+     *  other devices can store the embed + keys immediately without a Directus
+     *  round-trip. Contains client-encrypted content and key wrappers. */
+    inspiration_embed?: {
+      embed_id: string;
+      encrypted_content: string;
+      encrypted_type: string;
+      encrypted_text_preview?: string;
+      embed_keys?: Array<{
+        hashed_embed_id: string;
+        key_type: "master" | "chat";
+        hashed_chat_id: string | null;
+        encrypted_embed_key: string;
+        hashed_user_id: string;
+        created_at: number;
+      }>;
+    };
   },
 ): Promise<void> {
   console.info(
@@ -331,23 +426,93 @@ export async function handleNewChatMessageImpl(
 
       const newChat: Chat = {
         chat_id: payload.chat_id,
-        encrypted_title: null, // Will be populated by ai_typing_started metadata event
+        encrypted_title: payload.encrypted_title || null, // Set from payload if available (e.g. inspiration chat sync)
+        encrypted_category: payload.encrypted_category || undefined, // Set from payload if available (e.g. inspiration chat sync)
         messages_v: payload.messages_v || 1,
-        title_v: 0, // Will be updated when metadata arrives
+        title_v: payload.encrypted_title ? 1 : 0, // If title is provided, mark as populated
         encrypted_draft_md: null,
         encrypted_draft_preview: null,
         draft_v: 0,
-        last_edited_overall_timestamp:
-          payload.last_edited_overall_timestamp ||
-          Math.floor(Date.now() / 1000),
+        last_edited_overall_timestamp: (() => {
+          if (!payload.last_edited_overall_timestamp) {
+            console.warn(
+              `[ChatSyncService:ChatUpdates] new_chat_message for new chat ${payload.chat_id} missing last_edited_overall_timestamp — falling back to Date.now()`,
+            );
+          }
+          return (
+            payload.last_edited_overall_timestamp ||
+            Math.floor(Date.now() / 1000)
+          );
+        })(),
         unread_count: 0,
         created_at: payload.created_at || Math.floor(Date.now() / 1000),
         updated_at: Math.floor(Date.now() / 1000),
         encrypted_chat_key: payload.encrypted_chat_key || undefined, // Critical for device sync
       };
 
-      // If encrypted_chat_key is provided, decrypt it and cache it for message encryption
-      if (payload.encrypted_chat_key) {
+      // If we have the chat key and encrypted title/category, decrypt for immediate local display
+      if (
+        payload.encrypted_chat_key &&
+        (payload.encrypted_title || payload.encrypted_category)
+      ) {
+        try {
+          const { decryptChatKeyWithMasterKey, decryptWithChatKey } =
+            await import("./cryptoService");
+          const chatKey = await decryptChatKeyWithMasterKey(
+            payload.encrypted_chat_key,
+          );
+          if (chatKey) {
+            chatDB.setChatKey(payload.chat_id, chatKey);
+            // Flush any regular messages and system messages queued before this key was available
+            await flushPendingMessagesForChat(payload.chat_id);
+            await flushPendingSystemMessagesForChat(payload.chat_id);
+            // Decrypt title for immediate display
+            if (payload.encrypted_title) {
+              try {
+                const title = await decryptWithChatKey(
+                  payload.encrypted_title,
+                  chatKey,
+                );
+                if (title) {
+                  (newChat as Chat & { title?: string }).title = title;
+                }
+              } catch {
+                console.warn(
+                  `[ChatSyncService:ChatUpdates] Failed to decrypt title for new chat ${payload.chat_id}`,
+                );
+              }
+            }
+            // Decrypt category for mate profile display
+            if (payload.encrypted_category) {
+              try {
+                const category = await decryptWithChatKey(
+                  payload.encrypted_category,
+                  chatKey,
+                );
+                if (category) {
+                  (newChat as Chat & { category?: string }).category = category;
+                }
+              } catch {
+                console.warn(
+                  `[ChatSyncService:ChatUpdates] Failed to decrypt category for new chat ${payload.chat_id}`,
+                );
+              }
+            }
+            console.info(
+              `[ChatSyncService:ChatUpdates] Decrypted title/category from payload for new chat ${payload.chat_id}`,
+            );
+          }
+        } catch (error) {
+          console.warn(
+            `[ChatSyncService:ChatUpdates] Error decrypting title/category for new chat ${payload.chat_id}:`,
+            error,
+          );
+        }
+      }
+
+      // If encrypted_chat_key is provided and we haven't already decrypted it above
+      // (the title/category block already decrypts + caches the key), decrypt it now.
+      if (payload.encrypted_chat_key && !chatDB.getChatKey(payload.chat_id)) {
         try {
           const { decryptChatKeyWithMasterKey } =
             await import("./cryptoService");
@@ -356,6 +521,9 @@ export async function handleNewChatMessageImpl(
           );
           if (chatKey) {
             chatDB.setChatKey(payload.chat_id, chatKey);
+            // Flush any regular messages and system messages queued before this key was set
+            await flushPendingMessagesForChat(payload.chat_id);
+            await flushPendingSystemMessagesForChat(payload.chat_id);
             console.info(
               `[ChatSyncService:ChatUpdates] Decrypted and cached chat key for new chat ${payload.chat_id}`,
             );
@@ -370,9 +538,9 @@ export async function handleNewChatMessageImpl(
             error,
           );
         }
-      } else {
+      } else if (!payload.encrypted_chat_key) {
         console.warn(
-          `[ChatSyncService:ChatUpdates] No encrypted_chat_key in payload for new chat ${payload.chat_id}. Will wait for ai_typing_started event.`,
+          `[ChatSyncService:ChatUpdates] No encrypted_chat_key in payload for new chat ${payload.chat_id}. Message will be queued until key arrives via ai_typing_started.`,
         );
       }
 
@@ -396,6 +564,32 @@ export async function handleNewChatMessageImpl(
           console.info(
             `[ChatSyncService:ChatUpdates] Decrypted and cached chat key for existing chat ${payload.chat_id}`,
           );
+          // Flush any regular messages and system messages that arrived before the key was available
+          await flushPendingMessagesForChat(payload.chat_id);
+          await flushPendingSystemMessagesForChat(payload.chat_id);
+          // Also persist encrypted_chat_key to the IDB chat record so the key survives page reload.
+          // Without this, the key is only in memory — lost on refresh for the "existing chat" path.
+          // Guard: only run the getChat + updateChat IDB round-trip once per session per chat.
+          // On iOS, many chats receiving their first WS message in a burst creates a storm of IDB
+          // writes that locks up the main thread. After the first write the record already has the
+          // key, so subsequent calls would be no-ops — skip them entirely.
+          if (!_chatKeyPersistedToIDB.has(payload.chat_id)) {
+            _chatKeyPersistedToIDB.add(payload.chat_id);
+            const existingChatRecord = await chatDB.getChat(payload.chat_id);
+            if (
+              existingChatRecord &&
+              !existingChatRecord.encrypted_chat_key &&
+              payload.encrypted_chat_key
+            ) {
+              await chatDB.updateChat({
+                ...existingChatRecord,
+                encrypted_chat_key: payload.encrypted_chat_key,
+              });
+              console.debug(
+                `[ChatSyncService:ChatUpdates] Persisted encrypted_chat_key to IDB for existing chat ${payload.chat_id}`,
+              );
+            }
+          }
         }
       } catch (error) {
         console.error(
@@ -419,19 +613,125 @@ export async function handleNewChatMessageImpl(
       encrypted_content: "", // Will be populated by chatDB.saveMessage()
     };
 
-    // Save the message (chatDB.saveMessage will handle encryption if chat key is available)
-    await chatDB.saveMessage(newMessage);
-    console.debug(
-      `[ChatSyncService:ChatUpdates] Saved new message ${payload.message_id} to chat ${payload.chat_id}`,
-    );
+    // CRITICAL: Only save via chatDB.saveMessage() if the chat key is already cached.
+    // If the key is absent (brand-new chat where the server broadcast fired before the
+    // key was persisted), saveMessage() would call getOrGenerateChatKey() which silently
+    // generates a random throwaway key — encrypting the message with the wrong key.
+    // When the real key later arrives the ciphertext cannot be decrypted, causing
+    // "[Content decryption failed]" on this device.
+    //
+    // Instead, push the message into the pending queue and flush it in
+    // flushPendingMessagesForChat() once the correct key is available.
+    if (chatDB.getChatKey(payload.chat_id)) {
+      await chatDB.saveMessage(newMessage);
+      console.debug(
+        `[ChatSyncService:ChatUpdates] Saved new message ${payload.message_id} to chat ${payload.chat_id}`,
+      );
+    } else {
+      // Queue the message — will be flushed when key arrives (ai_typing_started or Phase 1)
+      const queue = _pendingMessages.get(payload.chat_id) ?? [];
+      queue.push(newMessage);
+      _pendingMessages.set(payload.chat_id, queue);
+      console.warn(
+        `[ChatSyncService:ChatUpdates] No chat key for ${payload.chat_id} — queued message ${payload.message_id} (queue length: ${queue.length}). Will save once key arrives.`,
+      );
+    }
 
     // Update chat metadata
     chat.messages_v = payload.messages_v || chat.messages_v + 1;
+    if (!payload.last_edited_overall_timestamp) {
+      console.warn(
+        `[ChatSyncService:ChatUpdates] new_chat_message for existing chat ${payload.chat_id} missing last_edited_overall_timestamp — falling back to Date.now()`,
+      );
+    }
     chat.last_edited_overall_timestamp =
       payload.last_edited_overall_timestamp || Math.floor(Date.now() / 1000);
     chat.updated_at = Math.floor(Date.now() / 1000);
 
     await chatDB.updateChat(chat);
+
+    // ── Store inspiration embed data if included in the broadcast ─────────
+    // When a daily inspiration chat is synced, the sending device includes
+    // the encrypted video embed content + key wrappers so we can store them
+    // locally. This prevents the decryption failure that occurs when this
+    // device tries to render the embed before store_embed has reached Directus.
+    if (
+      payload.inspiration_embed?.embed_id &&
+      payload.inspiration_embed?.encrypted_content
+    ) {
+      try {
+        const { embedStore } = await import("./embedStore");
+        const { computeSHA256 } = await import("../message_parsing/utils");
+        const embed = payload.inspiration_embed;
+        const hashedChatId = await computeSHA256(payload.chat_id);
+
+        // Store the encrypted embed content in IndexedDB (same shape as
+        // handleSendEmbedDataImpl for already_encrypted embeds)
+        const embedRef = `embed:${embed.embed_id}`;
+        const encryptedEmbedForStorage = {
+          embed_id: embed.embed_id,
+          encrypted_type: embed.encrypted_type,
+          encrypted_content: embed.encrypted_content,
+          encrypted_text_preview: embed.encrypted_text_preview || null,
+          status: "finished",
+          hashed_chat_id: hashedChatId,
+          is_private: false,
+          is_shared: false,
+          createdAt: payload.created_at || Math.floor(Date.now() / 1000),
+          updatedAt: payload.created_at || Math.floor(Date.now() / 1000),
+        };
+
+        // Type param is used for metadata extraction (app-skill-use embeds).
+        // Inspiration embeds are always videos so "videos-video" is correct.
+        // We also skip metadata extraction since there's no app/skill metadata.
+        await embedStore.putEncrypted(
+          embedRef,
+          encryptedEmbedForStorage,
+          "videos-video" as EmbedType,
+          undefined, // plaintextContent
+          undefined, // preExtractedMetadata
+          { skipMetadataExtraction: true },
+        );
+        console.info(
+          `[ChatSyncService:ChatUpdates] Stored inspiration embed ${embed.embed_id} from broadcast`,
+        );
+
+        // Store embed key wrappers so this device can decrypt the embed content
+        if (
+          embed.embed_keys &&
+          Array.isArray(embed.embed_keys) &&
+          embed.embed_keys.length > 0
+        ) {
+          const keyEntries = embed.embed_keys.map(
+            (k: {
+              hashed_embed_id: string;
+              key_type: "master" | "chat";
+              hashed_chat_id: string | null;
+              encrypted_embed_key: string;
+              hashed_user_id: string;
+              created_at: number;
+            }) => ({
+              hashed_embed_id: k.hashed_embed_id,
+              key_type: k.key_type,
+              hashed_chat_id: k.hashed_chat_id || null,
+              encrypted_embed_key: k.encrypted_embed_key,
+              hashed_user_id: k.hashed_user_id,
+              created_at: k.created_at,
+            }),
+          );
+          await embedStore.storeEmbedKeys(keyEntries);
+          console.info(
+            `[ChatSyncService:ChatUpdates] Stored ${keyEntries.length} embed key(s) for inspiration embed ${embed.embed_id}`,
+          );
+        }
+      } catch (embedErr) {
+        // Non-fatal: the embed will fall back to request_embed on render
+        console.warn(
+          `[ChatSyncService:ChatUpdates] Failed to store inspiration embed from broadcast (non-fatal):`,
+          embedErr,
+        );
+      }
+    }
 
     // Invalidate metadata cache so chat list reloads updated data
     chatMetadataCache.invalidateChat(payload.chat_id);
@@ -685,28 +985,32 @@ export async function handleChatMessageConfirmedImpl(
     return;
   }
 
-  // CRITICAL FIX: Don't reuse a single transaction across multiple async operations
-  // Instead, use separate transactions or ensure all operations complete before transaction finishes
-  // The issue is that getMessage uses the transaction in an async callback, and by the time
-  // saveMessage tries to use it, the transaction might have finished
+  // CRITICAL FIX: Use updateMessageStatus() instead of getMessage() → mutate → saveMessage().
+  //
+  // The naive mutate-and-save approach triggers encryptMessageFields() which calls
+  // getOrGenerateChatKey(). If the chat key has been evicted from the in-memory cache
+  // (a real race condition during the new-chat flow), a NEW random key is generated and
+  // the message is silently re-encrypted with it — while encrypted_chat_key on the chat
+  // still holds the original key. Subsequent decryption attempts use the original key and
+  // fail with "[Content decryption failed]" on the sending device. Other devices, which
+  // only ever received the server-persisted copy (encrypted with the correct original key),
+  // are unaffected and work fine.
+  //
+  // updateMessageStatus() reads the raw (still-encrypted) IndexedDB record, patches ONLY
+  // the status field, and writes it back — no encryption, no key operations, no risk.
   try {
-    // Use separate transactions for each operation to avoid InvalidStateError
-    const messageToUpdate = await chatDB.getMessage(payload.message_id);
+    await chatDB.updateMessageStatus(payload.message_id, "synced");
 
-    if (messageToUpdate) {
-      // Ensure the message belongs to the correct chat, though this should be guaranteed by message_id uniqueness
-      if (messageToUpdate.chat_id === payload.chat_id) {
-        messageToUpdate.status = "synced";
-        // Use a new transaction for saveMessage
-        await chatDB.saveMessage(messageToUpdate);
-      } else {
-        console.warn(
-          `[ChatSyncService:ChatUpdates] Confirmed message (id: ${payload.message_id}) found, but belongs to chat ${messageToUpdate.chat_id} instead of expected ${payload.chat_id}.`,
-        );
-      }
-    } else {
+    // Verify the message belongs to this chat (log only; updateMessageStatus already
+    // succeeded so there is nothing to roll back).
+    const confirmedMessage = await chatDB.getMessage(payload.message_id);
+    if (!confirmedMessage) {
       console.warn(
         `[ChatSyncService:ChatUpdates] Confirmed message (id: ${payload.message_id}) not found in local DB for chat ${payload.chat_id}.`,
+      );
+    } else if (confirmedMessage.chat_id !== payload.chat_id) {
+      console.warn(
+        `[ChatSyncService:ChatUpdates] Confirmed message (id: ${payload.message_id}) belongs to chat ${confirmedMessage.chat_id} instead of expected ${payload.chat_id}.`,
       );
     }
 

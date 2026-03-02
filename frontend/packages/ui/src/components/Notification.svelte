@@ -38,6 +38,9 @@
             case 'warning':
             case 'error':
                 return 'warning';
+            case 'chat_message':
+                // New assistant message — uses the chat/message icon
+                return 'chat';
             case 'info':
             default:
                 return 'reminder';
@@ -154,6 +157,7 @@
     class:notification-warning={notification.type === 'warning'}
     class:notification-error={notification.type === 'error'}
     class:notification-info={notification.type === 'info'}
+    class:notification-chat-message={notification.type === 'chat_message'}
     class:notification-exiting={isExiting}
     class:notification-dragging={isDragging}
     style={dragStyle}

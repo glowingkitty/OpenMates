@@ -109,14 +109,14 @@
             : null
     );
     let focusTranslationKey = $derived(
-        activeFocusId ? `${activeFocusId.replace('-', '.')}` : null
+        activeFocusId ? `app_focus_modes.${activeFocusId.replace('-', '.')}` : null
     );
     let focusDisplayName = $derived.by(() => {
         if (!focusTranslationKey) return focusFallbackName;
         const translated = $text(focusTranslationKey);
-        // If $text returned the raw key (translation not found and default wasn't applied),
+        // If $text returned the placeholder marker (translation not found),
         // fall back to the human-readable name derived from the focus ID
-        if (translated === focusTranslationKey) return focusFallbackName;
+        if (translated.startsWith('[T:')) return focusFallbackName;
         return translated || focusFallbackName;
     });
     

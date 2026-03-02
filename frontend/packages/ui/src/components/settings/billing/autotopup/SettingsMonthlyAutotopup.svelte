@@ -57,26 +57,19 @@ Allows creating new subscriptions if user has a saved payment method
     /**
      * Format currency amount for display.
      * Handles both API prices (in cents) and pricing config prices (in main currency units).
-     * 
+     *
      * @param amount - Price amount
-     * @param currency - Currency code (EUR, USD, JPY)
+     * @param currency - Currency code (EUR, USD)
      * @param isInCents - Whether the amount is in cents (true for API responses, false for pricing config). Defaults to true.
-     * @returns Formatted currency string (e.g., "€20.00" or "¥4000")
+     * @returns Formatted currency string (e.g., "€20.00" or "$30.00")
      */
     function formatCurrency(amount: number, currency: string, isInCents: boolean = true): string {
         const symbols: Record<string, string> = {
             'EUR': '€',
             'USD': '$',
-            'JPY': '¥'
         };
-        const symbol = symbols[currency.toUpperCase()] || '€';
-        const currencyUpper = currency.toUpperCase();
-        
-        // JPY doesn't use decimal places - use amount as-is
-        if (currencyUpper === 'JPY') {
-            return `${symbol}${amount.toLocaleString('en-US')}`;
-        }
-        
+        const symbol = symbols[currency.toUpperCase()] || currency.toUpperCase();
+
         // EUR/USD: convert from cents to main currency unit if needed, then format with 2 decimal places
         const mainCurrencyAmount = isInCents ? amount / 100 : amount;
         return `${symbol}${mainCurrencyAmount.toFixed(2)}`;
@@ -89,7 +82,7 @@ Allows creating new subscriptions if user has a saved payment method
 
     // Get price for a tier in selected currency
     function getTierPrice(tier: any): number {
-        const currencyKey = selectedCurrency.toLowerCase() as 'eur' | 'usd' | 'jpy';
+        const currencyKey = selectedCurrency.toLowerCase() as 'eur' | 'usd';
         return tier.price[currencyKey];
     }
 
@@ -383,7 +376,6 @@ Allows creating new subscriptions if user has a saved payment method
                     <select id="currency" bind:value={selectedCurrency} disabled={isCreating}>
                         <option value="EUR">EUR (€)</option>
                         <option value="USD">USD ($)</option>
-                        <option value="JPY">JPY (¥)</option>
                     </select>
                 </div>
 

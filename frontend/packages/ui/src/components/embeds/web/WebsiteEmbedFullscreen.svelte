@@ -60,6 +60,8 @@
     onNavigatePrevious?: () => void;
     /** Handler to navigate to the next embed */
     onNavigateNext?: () => void;
+    /** Direction of navigation ('previous' | 'next') — set transiently during prev/next transitions */
+    navigateDirection?: 'previous' | 'next';
     /** Whether to show the "chat" button to restore chat visibility (ultra-wide forceOverlayMode) */
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button to restore chat visibility */
@@ -82,6 +84,7 @@
     hasNextEmbed = false,
     onNavigatePrevious,
     onNavigateNext,
+    navigateDirection,
     showChatButton = false,
     onShowChat
   }: Props = $props();
@@ -388,21 +391,27 @@
 <UnifiedEmbedFullscreen
   appId="web"
   skillId="website"
-  title=""
+  embedHeaderTitle={displayTitle}
+  embedHeaderSubtitle={formattedDate() ?? undefined}
+  embedHeaderFaviconUrl={faviconUrl}
+  skillIconName="website"
   {onClose}
   currentEmbedId={embedId}
-  skillIconName="website"
-  skillName={displayTitle}
-  faviconUrl={faviconUrl}
-  showSkillIcon={false}
-  showStatus={false}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
   {onNavigateNext}
+  {navigateDirection}
   {showChatButton}
   {onShowChat}
 >
+  {#snippet embedHeaderCta()}
+    <!-- CTA Button - "Open on [hostname]" -->
+    <button class="cta-button" onclick={handleOpenInNewTab}>
+      Open on {hostname()}
+    </button>
+  {/snippet}
+
   <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
   {#snippet content(_)}
     <div class="website-fullscreen-content">
@@ -419,30 +428,6 @@
           />
         </div>
       {/if}
-      
-      <!-- Title Section: Favicon + Title -->
-      <div class="title-section">
-        {#if faviconUrl}
-          <img 
-            src={faviconUrl} 
-            alt="" 
-            class="title-favicon"
-            crossorigin="anonymous"
-            onerror={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-          />
-        {/if}
-        <h1 class="website-title">{displayTitle}</h1>
-      </div>
-      
-      <!-- Date metadata - only shown when we have a specific date from backend (e.g., web search results) -->
-      {#if formattedDate()}
-        <div class="date-info">{formattedDate()}</div>
-      {/if}
-      
-      <!-- CTA Button - "Open on [hostname]" -->
-      <button class="cta-button" onclick={handleOpenInNewTab}>
-        Open on {hostname()}
-      </button>
       
       <!-- Description - rendered as plain text (HTML tags stripped server-side, client fallback) -->
       {#if cleanedDescription}
@@ -483,7 +468,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 80px 40px 40px; /* Top padding for action buttons */
+    padding: 24px 40px 40px;
     max-width: 600px;
     margin: 0 auto;
     width: 100%;
@@ -513,55 +498,6 @@
   }
   
   /* ===========================================
-     Title Section
-     =========================================== */
-  
-  .title-section {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    width: 100%;
-    max-width: 500px;
-    margin-bottom: 25px;
-  }
-  
-  .title-favicon {
-    width: 28.5px;
-    height: 28.5px;
-    border-radius: 14.25px;
-    flex-shrink: 0;
-    border: 1.5px solid white;
-    background-color: white;
-    object-fit: cover;
-    margin-top: 2px;
-  }
-  
-  .website-title {
-    font-family: 'Lexend Deca', sans-serif;
-    font-size: 22px;
-    font-weight: 700;
-    color: var(--color-grey-100);
-    line-height: 1.3;
-    margin: 0;
-    word-break: break-word;
-  }
-  
-  /* ===========================================
-     Date Info
-     =========================================== */
-  
-  .date-info {
-    font-family: 'Lexend Deca', sans-serif;
-    font-weight: 700;
-    color: #858585;
-    width: 100%;
-    max-width: 500px;
-    margin-bottom: 16px;
-    /* Align with title text (accounting for favicon width + gap) */
-    padding-left: 40.5px;
-  }
-  
-  /* ===========================================
      CTA Button
      =========================================== */
   
@@ -576,7 +512,6 @@
     font-weight: 500;
     cursor: pointer;
     transition: background-color 0.2s, transform 0.15s;
-    margin-bottom: 24px;
     min-width: 200px;
   }
   
@@ -687,26 +622,11 @@
   /* Smaller screens */
   @container fullscreen (max-width: 600px) {
     .website-fullscreen-content {
-      padding: 70px 20px 30px;
+      padding: 20px 20px 30px;
     }
     
     .header-image-container {
       border-radius: 20px;
-    }
-    
-    .website-title {
-      font-size: 18px;
-    }
-    
-    .date-info {
-      font-size: 12px;
-      padding-left: 36px;
-    }
-    
-    .title-favicon {
-      width: 24px;
-      height: 24px;
-      border-radius: 12px;
     }
     
     .cta-button {
@@ -727,24 +647,12 @@
   /* Very small screens */
   @container fullscreen (max-width: 400px) {
     .website-fullscreen-content {
-      padding: 60px 16px 24px;
+      padding: 16px 16px 24px;
     }
     
     .header-image {
       min-height: 120px;
       max-height: 180px;
-    }
-    
-    .title-section {
-      gap: 8px;
-    }
-    
-    .website-title {
-      font-size: 16px;
-    }
-    
-    .date-info {
-      padding-left: 32px;
     }
     
     .snippet-card {

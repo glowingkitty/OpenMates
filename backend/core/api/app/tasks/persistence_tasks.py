@@ -235,7 +235,9 @@ async def _async_persist_new_chat_message_task(
     task_id: str = "UNKNOWN",
     encrypted_chat_key: Optional[str] = None, # Encrypted chat key for device sync
     user_id: Optional[str] = None, # User ID for sync cache updates (not hashed)
-    encrypted_pii_mappings: Optional[str] = None # Encrypted PII placeholder-to-original mappings
+    encrypted_pii_mappings: Optional[str] = None, # Encrypted PII placeholder-to-original mappings
+    user_message_id: Optional[str] = None, # Links system message to its triggering user message
+    message_status: Optional[str] = None, # Client-side message status (e.g., "waiting_for_user")
 ):
     """
     Async logic for:
@@ -301,6 +303,11 @@ async def _async_persist_new_chat_message_task(
                     logger.warning(f"[SYNC_CACHE_VALIDATION] ⚠️ Message {message_id} has no encrypted_content!")
                 
                 # Create the new message as a JSON string (matching Directus format)
+                # Use the provided message_status if present (e.g., "waiting_for_user" for
+                # credits-rejection system messages), otherwise default to "delivered".
+                # This ensures phased sync delivers the correct status so other devices
+                # display the right UI state (e.g., "Credits needed..." in the sidebar).
+                sync_cache_status = message_status if message_status else "delivered"
                 new_message_dict = {
                     "id": message_id,
                     "chat_id": chat_id,
@@ -309,7 +316,7 @@ async def _async_persist_new_chat_message_task(
                     "encrypted_category": encrypted_category,
                     "encrypted_content": encrypted_content,
                     "created_at": created_at,
-                    "status": "delivered"  # Default status
+                    "status": sync_cache_status,
                 }
                 # Only include encrypted_model_name for assistant messages
                 if encrypted_model_name and role == 'assistant':
@@ -317,6 +324,9 @@ async def _async_persist_new_chat_message_task(
                 # Include encrypted PII mappings if provided (user messages with PII detection)
                 if encrypted_pii_mappings:
                     new_message_dict["encrypted_pii_mappings"] = encrypted_pii_mappings
+                # Include user_message_id for system messages (links rejection to user message)
+                if user_message_id:
+                    new_message_dict["user_message_id"] = user_message_id
                 new_message_json = json.dumps(new_message_dict)
                 
                 # ATOMIC CACHE UPDATE: Use append instead of read-modify-write
@@ -448,6 +458,9 @@ async def _async_persist_new_chat_message_task(
         # Include encrypted PII mappings if provided (user messages with PII detection)
         if encrypted_pii_mappings:
             message_data_for_directus["encrypted_pii_mappings"] = encrypted_pii_mappings
+        # Include user_message_id for system messages (links rejection to triggering user message)
+        if user_message_id:
+            message_data_for_directus["user_message_id"] = user_message_id
 
         created_message_item = await directus_service.chat.create_message_in_directus(
             message_data=message_data_for_directus
@@ -506,7 +519,9 @@ def persist_new_chat_message_task(
     new_last_edited_overall_timestamp: Optional[int] = None,
     encrypted_chat_key: Optional[str] = None, # Encrypted chat key for device sync
     user_id: Optional[str] = None, # User ID for sync cache updates (not hashed)
-    encrypted_pii_mappings: Optional[str] = None # Encrypted PII placeholder-to-original mappings
+    encrypted_pii_mappings: Optional[str] = None, # Encrypted PII placeholder-to-original mappings
+    user_message_id: Optional[str] = None, # Links system message to its triggering user message
+    message_status: Optional[str] = None, # Client-side message status (e.g., "waiting_for_user")
 ):
     task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
     logger.info(
@@ -524,7 +539,9 @@ def persist_new_chat_message_task(
             encrypted_content, created_at,
             new_chat_messages_version, new_last_edited_overall_timestamp,
             task_id, encrypted_chat_key, user_id, # Pass encrypted chat key and user_id for device sync
-            encrypted_pii_mappings  # Pass encrypted PII mappings for cross-device restoration
+            encrypted_pii_mappings,  # Pass encrypted PII mappings for cross-device restoration
+            user_message_id,  # Links system message to triggering user message
+            message_status,   # Preserves client status (e.g., "waiting_for_user") across devices
         ))
     except Exception as e:
         logger.error(
@@ -768,11 +785,14 @@ async def _async_persist_delete_chat(
                 f"check method's specific return behavior (e.g., if messages existed). Task ID: {task_id}"
             )
 
-        # 3. Delete ALL private embeds for this chat from Directus
-        # Shared embeds are preserved since they may be referenced elsewhere
-        # Also delete associated S3 files (e.g., generated images) using s3_file_keys metadata
+        # 3. Delete ALL embeds for this chat from Directus.
+        #    - Private / non-shared embeds are always deleted.
+        #    - Shared embeds are also deleted when they are not used in any other
+        #      chat belonging to the same user (per product spec).
+        #    Also deletes associated S3 files and upload_files dedup records, and
+        #    decrements the user's storage_used_bytes counter accordingly.
         hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
-        
+
         # Initialize S3 service for cleaning up S3 files associated with embeds
         s3_service = None
         try:
@@ -783,19 +803,62 @@ async def _async_persist_delete_chat(
         except Exception as e:
             logger.warning(f"Failed to initialize S3 service for embed cleanup (chat {chat_id}): {e}. "
                           f"S3 files will not be cleaned up but embed records will still be deleted.")
-        
-        all_embeds_deleted_directus = await directus_service.embed.delete_all_embeds_for_chat(
-            hashed_chat_id, s3_service=s3_service
+
+        embeds_deleted_ok, deleted_embed_ids = await directus_service.embed.delete_all_embeds_for_chat(
+            hashed_chat_id, s3_service=s3_service, user_id=user_id
         )
-        if all_embeds_deleted_directus:
+        if embeds_deleted_ok:
             logger.info(
-                f"Successfully processed deletion of all private embeds for chat {chat_id} from Directus. Task ID: {task_id}"
+                f"Successfully deleted embed(s) for chat {chat_id} from Directus "
+                f"({len(deleted_embed_ids)} embed(s) removed). Task ID: {task_id}"
             )
         else:
             logger.warning(
-                f"Attempt to delete all private embeds for chat {chat_id} from Directus completed; "
-                f"check method's specific return behavior (e.g., if embeds existed). Task ID: {task_id}"
+                f"Embed deletion for chat {chat_id} completed with warnings. Task ID: {task_id}"
             )
+
+        # 3.5 Clean up upload_files dedup records and update the user's storage counter.
+        #     This must run after embed deletion so we know which embed_ids were freed.
+        if deleted_embed_ids:
+            try:
+                bytes_freed = await directus_service.embed.delete_upload_files_for_embeds(
+                    deleted_embed_ids
+                )
+                if bytes_freed > 0:
+                    # Decrement storage_used_bytes on the user (floor at 0 to avoid negatives).
+                    # We use a direct Directus update here; the cache will be refreshed
+                    # on the next cache-warm (or on next login).
+                    try:
+                        user_data = await directus_service.get_items(
+                            'directus_users',
+                            params={'filter[id][_eq]': user_id, 'fields': 'storage_used_bytes', 'limit': 1},
+                            no_cache=True,
+                        )
+                        current_bytes = 0
+                        if user_data and isinstance(user_data, list) and len(user_data) > 0:
+                            current_bytes = int(user_data[0].get('storage_used_bytes') or 0)
+                        new_bytes = max(0, current_bytes - bytes_freed)
+                        await directus_service.update_user(
+                            user_id, {'storage_used_bytes': new_bytes}
+                        )
+                        logger.info(
+                            f"Storage counter updated for user {user_id}: "
+                            f"{current_bytes} → {new_bytes} bytes "
+                            f"({bytes_freed} bytes freed). Task ID: {task_id}"
+                        )
+                    except Exception as counter_err:
+                        # Non-fatal: the weekly billing job will reconcile the counter.
+                        logger.warning(
+                            f"Failed to update storage counter for user {user_id} "
+                            f"after chat deletion (chat {chat_id}): {counter_err}. "
+                            f"Weekly billing reconciliation will correct the value."
+                        )
+            except Exception as upload_cleanup_err:
+                # Non-fatal: orphaned upload_files records will be caught by billing reconciliation.
+                logger.warning(
+                    f"Failed to clean up upload_files for deleted embeds "
+                    f"(chat {chat_id}): {upload_cleanup_err}"
+                )
 
         # 4. Delete the chat itself from Directus
         # This should happen after draft, message, and embed deletion to avoid orphaned data if chat deletion fails.
@@ -937,6 +1000,35 @@ async def _async_persist_delete_message(
                 f"Deleted {len(deleted_embeds)} embeds for message {client_message_id} "
                 f"in chat {chat_id}. Task ID: {task_id}"
             )
+            # Clean up upload_files dedup records and update storage counter
+            try:
+                bytes_freed = await directus_service.embed.delete_upload_files_for_embeds(deleted_embeds)
+                if bytes_freed > 0:
+                    try:
+                        user_data = await directus_service.get_items(
+                            'directus_users',
+                            params={'filter[id][_eq]': user_id, 'fields': 'storage_used_bytes', 'limit': 1},
+                            no_cache=True,
+                        )
+                        current_bytes = 0
+                        if user_data and isinstance(user_data, list) and len(user_data) > 0:
+                            current_bytes = int(user_data[0].get('storage_used_bytes') or 0)
+                        new_bytes = max(0, current_bytes - bytes_freed)
+                        await directus_service.update_user(user_id, {'storage_used_bytes': new_bytes})
+                        logger.info(
+                            f"Storage counter updated for user {user_id} after message deletion: "
+                            f"{current_bytes} → {new_bytes} bytes freed. Task ID: {task_id}"
+                        )
+                    except Exception as counter_err:
+                        logger.warning(
+                            f"Failed to update storage counter for user {user_id} "
+                            f"after message deletion: {counter_err}"
+                        )
+            except Exception as upload_cleanup_err:
+                logger.warning(
+                    f"Failed to clean up upload_files after message deletion "
+                    f"(message {client_message_id}): {upload_cleanup_err}"
+                )
 
         logger.info(
             f"TASK_LOGIC_FINISH: _async_persist_delete_message completed "
@@ -986,6 +1078,134 @@ def persist_delete_message(self, user_id: str, chat_id: str, client_message_id: 
             loop.close()
         logger.info(
             f"TASK_FINALLY_SYNC_WRAPPER: Event loop closed for persist_delete_message task_id: {task_id}"
+        )
+
+
+async def _async_persist_delete_draft_embed(
+    user_id: str,
+    embed_id: str,
+    chat_id: Optional[str],
+    task_id: str,
+) -> None:
+    """
+    Async logic for the persist_delete_draft_embed Celery task.
+
+    Deletes the S3 files and upload_files Directus record for a file that was
+    uploaded to a draft but removed before the message was sent.  Also decrements
+    the user's storage_used_bytes counter.
+    """
+    logger.info(
+        f"TASK_LOGIC_ENTRY: Starting _async_persist_delete_draft_embed "
+        f"for user {user_id}, embed {embed_id} (chat {chat_id}). Task ID: {task_id}"
+    )
+
+    directus_service = DirectusService()
+
+    # Initialize S3 service for cleaning up S3 files.
+    # If initialization fails, skip S3 deletion but still remove the Directus record
+    # so the user's storage counter stays accurate.
+    s3_service = None
+    try:
+        secrets_manager = SecretsManager()
+        await secrets_manager.initialize()
+        s3_service = S3UploadService(secrets_manager=secrets_manager)
+        await s3_service.initialize()
+    except Exception as s3_init_err:
+        logger.warning(
+            f"Failed to initialize S3 service for draft embed deletion "
+            f"(embed {embed_id}): {s3_init_err}. "
+            "S3 files will not be deleted, but the Directus record will be removed."
+        )
+
+    bytes_freed = await directus_service.embed.delete_draft_upload_file(
+        embed_id=embed_id,
+        user_id=user_id,
+        s3_service=s3_service,
+    )
+
+    if bytes_freed > 0:
+        # Decrement the user's storage_used_bytes counter.
+        try:
+            user_data = await directus_service.get_items(
+                'directus_users',
+                params={'filter[id][_eq]': user_id, 'fields': 'storage_used_bytes', 'limit': 1},
+                no_cache=True,
+            )
+            current_bytes = 0
+            if user_data and isinstance(user_data, list) and len(user_data) > 0:
+                current_bytes = int(user_data[0].get('storage_used_bytes') or 0)
+            new_bytes = max(0, current_bytes - bytes_freed)
+            await directus_service.update_user(user_id, {'storage_used_bytes': new_bytes})
+            logger.info(
+                f"Storage counter updated for user {user_id} after draft embed deletion: "
+                f"{current_bytes} → {new_bytes} bytes (freed {bytes_freed:,} bytes). Task ID: {task_id}"
+            )
+        except Exception as counter_err:
+            # Non-fatal: the weekly billing reconciliation will correct any drift.
+            logger.warning(
+                f"Failed to update storage counter for user {user_id} "
+                f"after draft embed deletion (embed {embed_id}): {counter_err}"
+            )
+    else:
+        logger.debug(
+            f"No bytes freed for draft embed deletion of embed {embed_id} "
+            f"(record may not have existed). Task ID: {task_id}"
+        )
+
+    logger.info(
+        f"TASK_LOGIC_FINISH: _async_persist_delete_draft_embed completed "
+        f"for embed {embed_id}, user {user_id}. Task ID: {task_id}"
+    )
+
+
+@app.task(name="app.tasks.persistence_tasks.persist_delete_draft_embed", bind=True)
+def persist_delete_draft_embed(
+    self,
+    user_id: str,
+    embed_id: str,
+    chat_id: Optional[str] = None,
+) -> bool:
+    """
+    Celery task (sync wrapper) to delete an uploaded file that was removed from a
+    message draft before the message was sent.
+
+    Cleans up:
+    - S3 variant files (original, full, preview) from the chatfiles bucket
+    - The upload_files Directus record
+    - Decrements storage_used_bytes on the user record
+    """
+    task_id = self.request.id or "UNKNOWN_TASK_ID"
+    loop = None
+    try:
+        logger.info(
+            f"TASK_ENTRY_SYNC_WRAPPER: Starting persist_delete_draft_embed task "
+            f"for user_id: {user_id}, embed_id: {embed_id}, task_id: {task_id}"
+        )
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(_async_persist_delete_draft_embed(
+            user_id=user_id,
+            embed_id=embed_id,
+            chat_id=chat_id,
+            task_id=task_id,
+        ))
+        logger.info(
+            f"TASK_SUCCESS_SYNC_WRAPPER: persist_delete_draft_embed task completed "
+            f"for user_id: {user_id}, embed_id: {embed_id}, task_id: {task_id}"
+        )
+        return True
+    except Exception as e:
+        logger.error(
+            f"TASK_FAILURE_SYNC_WRAPPER: Failed to run persist_delete_draft_embed task "
+            f"for user_id {user_id}, embed_id: {embed_id}, task_id: {task_id}: {str(e)}",
+            exc_info=True,
+        )
+        raise self.retry(exc=e, countdown=60)
+    finally:
+        if loop:
+            loop.close()
+        logger.info(
+            f"TASK_FINALLY_SYNC_WRAPPER: Event loop closed for persist_delete_draft_embed task_id: {task_id}"
         )
 
 

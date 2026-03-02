@@ -1390,6 +1390,12 @@ async def passkey_registration_complete(
             
             logger.info(f"Passkey registration completed successfully for user {user_id[:6]}...")
             event_logger.info(f"User account created with passkey - ID: {user_id}")
+
+            # Track signup funnel: passkey setup (new accounts only)
+            try:
+                await cache_service.increment_stat("signup_step_auth_passkey_setup")
+            except Exception as stats_err:
+                logger.warning(f"Failed to increment auth_passkey_setup funnel stat: {stats_err}")
         else:
             # For existing users, just log the passkey addition
             logger.info(f"Passkey added successfully to existing user {user_id[:6]}...")

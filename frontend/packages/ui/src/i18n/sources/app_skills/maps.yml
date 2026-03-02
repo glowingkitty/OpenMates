@@ -20,6 +20,7 @@ search:
   th: ค้นหา
   cs: Hledat
   sv: Sök
+  he: חיפוש
   verified_by_human:
     - en
     - de
@@ -45,13 +46,14 @@ search.description:
   th: ค้นหาสถานที่ ธุรกิจ และตำแหน่ง
   cs: Hledejte místa, podniky a lokace.
   sv: Sök efter platser, företag och platser.
+  he: חיפוש מקומות, עסקים ומיקומים.
   verified_by_human:
     - en
     - de
 
 search.how_to_use.1:
   context: Example instruction for maps search skill - restaurants
-  en: Find Italian restaurants near Alexanderplatz, Berlin
+  en: "**Find** Italian restaurants near Alexanderplatz, Berlin"
   de: Finde italienische Restaurants am Alexanderplatz, Berlin
   zh: 查找Berlin Alexanderplatz附近的意大利餐厅
   es: Encuentra restaurantes italianos cerca de Alexanderplatz, Berlin
@@ -71,11 +73,12 @@ search.how_to_use.1:
   th: ค้นหาร้านอาหารอิตาเลียนใกล้ Alexanderplatz, Berlin
   cs: Najdi italské restaurace poblíž Alexanderplatz, Berlin
   sv: Hitta italienska restauranger nära Alexanderplatz, Berlin
+  he: "**מצא** מסעדות איטלקיות ליד אלכסנדרפלאץ, ברלין"
   verified_by_human: [en, de]
 
 search.how_to_use.2:
   context: Example instruction for maps search skill - workspaces
-  en: Search for coworking spaces in downtown Munich
+  en: "**Search** for coworking spaces in downtown Munich"
   de: Suche Coworking-Spaces in der Münchner Innenstadt
   zh: 搜索Munich市中心的共享办公空间
   es: Busca espacios de coworking en el centro de Munich
@@ -95,11 +98,12 @@ search.how_to_use.2:
   th: ค้นหาพื้นที่ทำงานร่วมในใจกลาง Munich
   cs: Najdi coworkingové prostory v centru Munich
   sv: Sök efter coworking-utrymmen i centrala Munich
+  he: "**חפש** חללי עבודה משותפים במרכז העיר מינכן"
   verified_by_human: [en, de]
 
 search.how_to_use.3:
   context: Example instruction for maps search skill - nearby services
-  en: Find pharmacies open now near me
+  en: "**Find** pharmacies open now near me"
   de: Finde Apotheken in meiner Nähe, die jetzt geöffnet sind
   zh: 查找我附近现在营业的药店
   es: Encuentra farmacias abiertas ahora cerca de mí
@@ -119,4 +123,5 @@ search.how_to_use.3:
   th: ค้นหาร้านขายยาที่เปิดอยู่ใกล้ฉัน
   cs: Najdi lékárny otevřené teď poblíž
   sv: Hitta apotek som har öppet nu nära mig
+  he: "**מצא** בתי מרקחת פתוחים עכשיו בקרבתי"
   verified_by_human: [en, de]

@@ -212,10 +212,12 @@ async def _get_webshare_proxy_url(secrets_manager: SecretsManager) -> Optional[s
             logger.debug("Webshare credentials not found - URL validation will use direct connection")
             return None
         
-        # Webshare proxy endpoint (rotating residential)
-        # Format: http://username:password@p.webshare.io:80
-        # NOTE: Use p.webshare.io for rotating residential proxies (not proxy.webshare.io which is for datacenter)
-        proxy_url = f"http://{ws_username}:{ws_password}@p.webshare.io:80"
+        # Webshare proxy endpoint (rotating residential).
+        # The "-rotate" suffix on the username is required by Webshare's rotating proxy
+        # authentication format (username/password mode).  Without it the proxy returns
+        # 407 Proxy Authentication Required even with valid credentials.
+        # NOTE: Use p.webshare.io for rotating residential (not proxy.webshare.io for datacenter).
+        proxy_url = f"http://{ws_username}-rotate:{ws_password}@p.webshare.io:80/"
         logger.debug("Webshare proxy configured for URL validation")
         return proxy_url
         

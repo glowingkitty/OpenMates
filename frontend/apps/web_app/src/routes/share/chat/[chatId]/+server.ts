@@ -19,51 +19,56 @@ import { env } from '$env/dynamic/private';
  * 3. Client-side JavaScript redirects to main app if key fragment is present
  */
 export const GET: RequestHandler = async ({ params, url, fetch }) => {
-    const chatId = params.chatId;
+	const chatId = params.chatId;
 
-    if (!chatId) {
-        return new Response('Invalid chat ID', { status: 400 });
-    }
+	if (!chatId) {
+		return new Response('Invalid chat ID', { status: 400 });
+	}
 
-    // Fetch OG metadata from backend API
-    const backendUrl = env.BACKEND_URL || 'https://app.dev.openmates.org';
-    let ogTitle = 'Shared Chat - OpenMates';
-    let ogDescription = 'View this shared conversation on OpenMates';
-    let ogImage = '/og-images/default-chat.png';
+	// Fetch OG metadata from backend API
+	const backendUrl = env.BACKEND_URL || 'https://app.dev.openmates.org';
+	let ogTitle = 'Shared Chat - OpenMates';
+	let ogDescription = 'View this shared conversation on OpenMates';
+	let ogImage = '/og-images/default-chat.png';
 
-    try {
-        // Add cache-busting timestamp to ensure we get fresh data
-        const cacheBuster = Date.now();
-        const response = await fetch(`${backendUrl}/v1/share/chat/${chatId}/og-metadata?t=${cacheBuster}`, {
-            cache: 'no-store', // Prevent any caching of the API response
-        });
+	try {
+		// Add cache-busting timestamp to ensure we get fresh data
+		const cacheBuster = Date.now();
+		const response = await fetch(
+			`${backendUrl}/v1/share/chat/${chatId}/og-metadata?t=${cacheBuster}`,
+			{
+				cache: 'no-store' // Prevent any caching of the API response
+			}
+		);
 
-        if (response.ok) {
-            const data = await response.json();
-            ogTitle = data.title || ogTitle;
-            ogDescription = data.description || ogDescription;
-            ogImage = data.image || ogImage;
-            
-            // Log what we received to help debug OG tag issues
-            console.log(`[OG Tags] Fetched metadata for chat ${chatId}:`, {
-                title: ogTitle.substring(0, 50),
-                description: ogDescription.substring(0, 50),
-                image: ogImage,
-                isFallback: ogTitle === 'Shared Chat - OpenMates' && ogDescription === 'View this shared conversation on OpenMates'
-            });
-        } else {
-            console.warn(`Failed to fetch OG metadata for chat ${chatId}: ${response.status}`);
-        }
-    } catch (error) {
-        console.error(`Error fetching OG metadata for chat ${chatId}:`, error);
-        // Use fallback values
-    }
+		if (response.ok) {
+			const data = await response.json();
+			ogTitle = data.title || ogTitle;
+			ogDescription = data.description || ogDescription;
+			ogImage = data.image || ogImage;
 
-    const siteUrl = url.origin;
-    const shareUrl = `${siteUrl}/share/chat/${chatId}`;
+			// Log what we received to help debug OG tag issues
+			console.log(`[OG Tags] Fetched metadata for chat ${chatId}:`, {
+				title: ogTitle.substring(0, 50),
+				description: ogDescription.substring(0, 50),
+				image: ogImage,
+				isFallback:
+					ogTitle === 'Shared Chat - OpenMates' &&
+					ogDescription === 'View this shared conversation on OpenMates'
+			});
+		} else {
+			console.warn(`Failed to fetch OG metadata for chat ${chatId}: ${response.status}`);
+		}
+	} catch (error) {
+		console.error(`Error fetching OG metadata for chat ${chatId}:`, error);
+		// Use fallback values
+	}
 
-    // Generate HTML with OG tags
-    const html = `<!DOCTYPE html>
+	const siteUrl = url.origin;
+	const shareUrl = `${siteUrl}/share/chat/${chatId}`;
+
+	// Generate HTML with OG tags
+	const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -86,12 +91,20 @@ export const GET: RequestHandler = async ({ params, url, fetch }) => {
     <meta name="twitter:description" content="${ogDescription}">
     <meta name="twitter:image" content="${siteUrl}${ogImage}">
 
-    <!-- Redirect to main app if JavaScript is enabled and key fragment exists -->
+    <!-- Redirect to main app so SvelteKit boots and can client-side navigate to the share page -->
     <script>
-        // If user has the full URL with key fragment, redirect to main app
+        // When a user opens /share/chat/{chatId}#key=... directly (fresh browser load),
+        // this HTML is served by +server.ts instead of +page.svelte (SvelteKit convention:
+        // server routes take priority over page routes for HTTP requests).
+        //
+        // Fix: redirect to the root SPA using a special hash format #share-chat-id={chatId}&key={blob}.
+        // The root +page.svelte detects this hash, calls SvelteKit goto('/share/chat/{chatId}#key={blob}'),
+        // which triggers client-side navigation to +page.svelte (which decrypts and stores the chat).
+        //
+        // The encryption key stays in the URL fragment the whole time and is never sent to the server.
         if (window.location.hash && window.location.hash.includes('key=')) {
-            const fragment = window.location.hash.substring(1);
-            window.location.href = '/#chat-id=${chatId}&' + fragment;
+            var keyFragment = window.location.hash.substring(1); // Remove leading '#'
+            window.location.href = '/#share-chat-id=${chatId}&' + keyFragment;
         }
     </script>
 </head>
@@ -102,14 +115,13 @@ export const GET: RequestHandler = async ({ params, url, fetch }) => {
 </body>
 </html>`;
 
-    return new Response(html, {
-        headers: {
-            'Content-Type': 'text/html; charset=utf-8',
-            // Prevent caching of OG tags to ensure fresh metadata is always served
-            'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-            'Pragma': 'no-cache',
-            'Expires': '0',
-        },
-    });
+	return new Response(html, {
+		headers: {
+			'Content-Type': 'text/html; charset=utf-8',
+			// Prevent caching of OG tags to ensure fresh metadata is always served
+			'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+			Pragma: 'no-cache',
+			Expires: '0'
+		}
+	});
 };
-

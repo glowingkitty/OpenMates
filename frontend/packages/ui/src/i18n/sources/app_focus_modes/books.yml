@@ -20,6 +20,7 @@ book_recommendations:
   th: คำแนะนำหนังสือ
   cs: Doporučení knih
   sv: Bokrekommendationer
+  he: המלצות ספרים
   verified_by_human:
     - en
     - de
@@ -45,6 +46,7 @@ book_recommendations.description:
   th: รับคำแนะนำหนังสือตามรสนิยมของคุณ
   cs: Získejte doporučení knih podle vašeho vkusu.
   sv: Få bokrekommendationer baserat på din smak.
+  he: קבל המלצות ספרים בהתאם לטעם שלך.
   verified_by_human:
     - en
     - de
@@ -70,6 +72,7 @@ book_discussion:
   th: การสนทนาเกี่ยวกับหนังสือ
   cs: Diskuze o knize
   sv: Bokdiskussion
+  he: דיון על ספרים
   verified_by_human:
     - en
     - de
@@ -95,6 +98,7 @@ book_discussion.description:
   th: สนทนาเกี่ยวกับหนังสือเหมือนในชมรมอ่านหนังสือ
   cs: Diskutujte o knize jako ve čtenářském klubu.
   sv: Diskutera en bok som i en bokklubb.
+  he: דון בספר כמו במועדון קריאה.
   verified_by_human:
     - en
     - de

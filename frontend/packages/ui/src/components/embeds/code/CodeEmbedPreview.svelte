@@ -23,6 +23,9 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { countCodeLines, formatLanguageName, parseCodeEmbedContent } from './codeEmbedContent';
+  import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
+  import { embedPIIStore, addEmbedPIIMappings, removeEmbedPIIMappings } from '../../../stores/embedPIIStore';
+  import { loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
   
   /**
    * Props for code embed preview
@@ -95,8 +98,52 @@
   // Reference to the code element for syntax highlighting
   let codeElement: HTMLElement | null = $state(null);
 
+  // Subscribe to the global embed PII store to get the current chat's PII state.
+  // This allows the preview to reactively apply PII masking without needing
+  // to receive props from the parent (previews are mounted imperatively via mount()).
+  let embedPIIState = $state({ mappings: [] as import('../../../types/chat').PIIMapping[], revealed: false });
+  $effect(() => {
+    const unsub = embedPIIStore.subscribe((state) => { embedPIIState = state; });
+    return unsub;
+  });
+
+  // Load embed-level PII mappings from EmbedStore and register them in the global store.
+  // These cover PII that was redacted when the code embed was created (file drop or paste).
+  // They are stored separately from the embed content (under embed_pii:{embed_id}, master-key
+  // encrypted) so they are never exposed via share links.
+  // We clean up on unmount to avoid stale mappings if the embed is removed from view.
+  $effect(() => {
+    if (!id) return;
+    let cancelled = false;
+    loadEmbedPIIMappings(id).then((mappings) => {
+      if (cancelled) return;
+      if (mappings.length > 0) {
+        addEmbedPIIMappings(id, mappings);
+        console.debug('[CodeEmbedPreview] Registered embed-level PII mappings:', id, mappings.length);
+      }
+    });
+    return () => {
+      cancelled = true;
+      removeEmbedPIIMappings(id);
+    };
+  });
+
+  /**
+   * Apply PII masking to the raw code string before parsing/displaying in preview.
+   * Mirrors the same logic in CodeEmbedFullscreen.
+   */
+  let piiProcessedCodeContent = $derived.by(() => {
+    const { mappings, revealed } = embedPIIState;
+    if (!mappings.length || !codeContent) return codeContent;
+    if (revealed) {
+      return restorePIIInText(codeContent, mappings);
+    } else {
+      return replacePIIOriginalsWithPlaceholders(codeContent, mappings);
+    }
+  });
+
   // Parse code content to extract language, filename, and actual code
-  let parsedContent = $derived.by(() => parseCodeEmbedContent(codeContent, { language, filename }));
+  let parsedContent = $derived.by(() => parseCodeEmbedContent(piiProcessedCodeContent, { language, filename }));
   let renderCodeContent = $derived(parsedContent.code);
   let renderLanguage = $derived(parsedContent.language || '');
   let renderFilename = $derived(parsedContent.filename);
@@ -133,18 +180,29 @@
     return $text('embeds.code_snippet');
   });
   
-  // Build status text: line count + language (always use code_info.text format)
+  // Build status text: line count + language (always use code_info.text format).
+  // When line count is not yet available (embed data still loading from EmbedStore),
+  // fall back to just the display language so "Completed" is never shown.
   let statusText = $derived.by(() => {
     const lineCount = actualLineCount;
-    if (lineCount === 0) return '';
-    
-    // Build line count text with proper singular/plural handling
-    const lineCountText = lineCount === 1 
-      ? $text('embeds.code_line_singular')
-      : $text('embeds.code_line_plural');
-    
     const languageToShow = displayLanguage;
-    return languageToShow ? `${lineCount} ${lineCountText}, ${languageToShow}` : `${lineCount} ${lineCountText}`;
+
+    if (lineCount > 0) {
+      // Full info: "42 lines, Python"
+      const lineCountText = lineCount === 1
+        ? $text('embeds.code_line_singular')
+        : $text('embeds.code_line_plural');
+      return languageToShow
+        ? `${lineCount} ${lineCountText}, ${languageToShow}`
+        : `${lineCount} ${lineCountText}`;
+    }
+
+    // Line count not available yet — show language only so we never fall back to "Completed"
+    if (languageToShow) return languageToShow;
+
+    // Last resort: return a single space so BasicInfosBar uses customStatusText
+    // (a non-empty customStatusText suppresses the default "Completed" fallback)
+    return ' ';
   });
   
   // Map skillId to icon name

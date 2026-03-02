@@ -518,6 +518,39 @@ class EmbedMethods:
             logger.error(f"Error checking for existing embed_key: {e}", exc_info=True)
             return []
 
+    async def update_embed_key(self, key_id: str, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Update an existing embed_key entry in Directus by its Directus item ID.
+
+        Used by store_embed_keys_handler to upsert key wrappers when re-encryption
+        produces a new embed key (key B) while Directus still holds wrappers for the
+        old key (key A). Without this, content encrypted with key B is permanently
+        unreadable because the key wrappers still point to key A.
+
+        Args:
+            key_id: The Directus item UUID (id field) of the embed_key record.
+            update_data: Fields to update (typically just {"encrypted_embed_key": "..."}).
+
+        Returns:
+            Updated embed_key dictionary if successful, None otherwise.
+        """
+        logger.debug(f"Updating embed_key with Directus id: {key_id}")
+        try:
+            url = f"{self.directus_service.base_url}/items/embed_keys/{key_id}"
+            token = await self.directus_service.ensure_auth_token()
+            if not token:
+                logger.error(f"Failed to get auth token for embed_key update: {key_id}")
+                return None
+            headers = {"Authorization": f"Bearer {token}"}
+            response = await self.directus_service._client.patch(url, json=update_data, headers=headers)
+            response.raise_for_status()
+            updated_key = response.json().get('data')
+            logger.info(f"Successfully updated embed_key {key_id}")
+            return updated_key
+        except Exception as e:
+            logger.error(f"Error updating embed_key {key_id}: {e}", exc_info=True)
+            return None
+
     async def create_embed_key(self, embed_key_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         Create a new embed_key entry in Directus.
@@ -564,67 +597,336 @@ class EmbedMethods:
             logger.error(f"Error creating embed_key: {e}", exc_info=True)
             return None
 
-    async def delete_all_embeds_for_chat(self, hashed_chat_id: str, s3_service=None) -> bool:
+    async def delete_all_embeds_for_chat(
+        self,
+        hashed_chat_id: str,
+        s3_service=None,
+        user_id: Optional[str] = None,
+    ) -> tuple[bool, list[str]]:
         """
         Deletes ALL embeds for a specific chat from Directus.
         Also deletes associated S3 files (e.g., generated images) if s3_service is provided.
-        
-        This is called when a chat is deleted to clean up orphaned embeds.
-        Only deletes embeds that:
-        1. Are not shared (is_private is true or is_shared is false)
-        2. Belong exclusively to this chat
-        
+
+        Deletion policy (per product spec):
+        - Private / non-shared embeds are always deleted.
+        - Shared embeds are ALSO deleted if they are not referenced by any OTHER chat
+          belonging to the same user. If no user_id is supplied the old behaviour
+          (shared embeds are kept) is preserved for safety.
+
         Args:
-            hashed_chat_id: SHA256 hash of the chat_id to delete embeds for
-            s3_service: Optional S3UploadService instance for deleting associated S3 files
-            
+            hashed_chat_id: SHA256 hash of the chat_id to delete embeds for.
+            s3_service:     Optional S3UploadService for deleting associated S3 files.
+            user_id:        Optional plaintext user_id — used to find the user's other
+                            chats so we can decide whether a shared embed is still needed.
+
         Returns:
-            True if successful, False otherwise
+            Tuple of (success: bool, deleted_embed_uuid_ids: list[str]).
+            The embed UUID list is needed by the caller to clean up upload_files records
+            and update the storage counter.
         """
-        logger.info(f"Attempting to delete all embeds for hashed_chat_id: {hashed_chat_id[:16]}... from Directus.")
+        logger.info(
+            f"Attempting to delete all embeds for hashed_chat_id: {hashed_chat_id[:16]}... from Directus."
+        )
+        deleted_embed_uuid_ids: list[str] = []
         try:
-            # Query for all embeds belonging to this chat that are not shared
-            # Only delete embeds that are private (is_private=true) or not shared (is_shared=false)
-            # Include s3_file_keys to enable S3 cleanup
-            params = {
+            # ------------------------------------------------------------------
+            # Step 1: Fetch ALL embeds for this chat (private + shared)
+            # ------------------------------------------------------------------
+            params_all = {
                 'filter[hashed_chat_id][_eq]': hashed_chat_id,
-                'filter[_or][0][is_private][_eq]': True,  # is_private is true
-                'filter[_or][1][is_shared][_eq]': False,  # is_shared is false
-                'fields': 'id,embed_id,s3_file_keys',
-                'limit': -1  # Get all
+                'fields': 'id,embed_id,s3_file_keys,is_private,is_shared',
+                'limit': -1,
             }
-            
-            response = await self.directus_service.get_items('embeds', params=params, no_cache=True)
-            
-            if not response or not isinstance(response, list) or len(response) == 0:
-                logger.info(f"No private embeds found for hashed_chat_id: {hashed_chat_id[:16]}... (nothing to delete)")
-                return True
-            
-            embed_ids = [embed.get('id') for embed in response if embed.get('id')]
-            embed_uuid_ids = [embed.get('embed_id') for embed in response if embed.get('embed_id')]
-            
-            logger.info(f"Found {len(embed_ids)} private embed(s) to delete for hashed_chat_id: {hashed_chat_id[:16]}...")
-            
-            if not embed_ids:
-                logger.info("No embed IDs found to delete.")
-                return True
-            
-            # Delete associated S3 files before deleting the embed records
-            if s3_service:
-                await self._delete_s3_files_for_embeds(response, s3_service)
-            
-            # Use bulk delete for efficiency
-            success = await self.directus_service.bulk_delete_items(collection='embeds', item_ids=embed_ids)
-            
-            if success:
-                logger.info(f"Successfully deleted {len(embed_ids)} embeds for hashed_chat_id: {hashed_chat_id[:16]}... (embed_ids: {embed_uuid_ids[:5]}...)")
+            all_embeds = await self.directus_service.get_items('embeds', params=params_all, no_cache=True)
+
+            if not all_embeds or not isinstance(all_embeds, list) or len(all_embeds) == 0:
+                logger.info(
+                    f"No embeds found for hashed_chat_id: {hashed_chat_id[:16]}... (nothing to delete)"
+                )
+                return True, []
+
+            # Split into private (always delete) and shared (conditional delete)
+            private_embeds = [
+                e for e in all_embeds
+                if e.get('is_private') is True or e.get('is_shared') is False
+            ]
+            shared_embeds = [
+                e for e in all_embeds
+                if e.get('is_private') is not True and e.get('is_shared') is True
+            ]
+
+            logger.info(
+                f"Found {len(private_embeds)} private and {len(shared_embeds)} shared embed(s) "
+                f"for hashed_chat_id: {hashed_chat_id[:16]}..."
+            )
+
+            # ------------------------------------------------------------------
+            # Step 2: Decide which shared embeds to delete.
+            # A shared embed is deletable when it is NOT referenced by any other
+            # chat of the same user (i.e. its hashed_chat_id only points here).
+            # ------------------------------------------------------------------
+            shared_embeds_to_delete: list[dict] = []
+            shared_embeds_to_keep: list[dict] = []
+
+            if shared_embeds and user_id:
+                hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+                for embed in shared_embeds:
+                    embed_id = embed.get('embed_id')
+                    if not embed_id:
+                        # No embed_id — treat as deletable
+                        shared_embeds_to_delete.append(embed)
+                        continue
+
+                    # Check whether any OTHER chat of this user references the same embed_id.
+                    # We look for embeds with the same embed_id but a different hashed_chat_id
+                    # that still belong to the same user (via hashed_user_id).
+                    other_ref_params = {
+                        'filter[embed_id][_eq]': embed_id,
+                        'filter[hashed_user_id][_eq]': hashed_user_id,
+                        'filter[hashed_chat_id][_neq]': hashed_chat_id,
+                        'fields': 'id',
+                        'limit': 1,
+                    }
+                    other_refs = await self.directus_service.get_items(
+                        'embeds', params=other_ref_params, no_cache=True
+                    )
+                    if other_refs and len(other_refs) > 0:
+                        # Still referenced by another chat — keep it
+                        shared_embeds_to_keep.append(embed)
+                        logger.debug(
+                            f"Keeping shared embed {embed_id[:8]}... — still used in another chat"
+                        )
+                    else:
+                        # No other reference — delete it
+                        shared_embeds_to_delete.append(embed)
+                        logger.debug(
+                            f"Marking shared embed {embed_id[:8]}... for deletion — no other chat references it"
+                        )
             else:
-                logger.warning(f"Bulk delete failed for embeds of hashed_chat_id: {hashed_chat_id[:16]}...")
-            
-            return success
+                # No user_id provided: fall back to the old behaviour (keep all shared embeds)
+                shared_embeds_to_keep = shared_embeds
+
+            if shared_embeds_to_keep:
+                logger.info(
+                    f"Keeping {len(shared_embeds_to_keep)} shared embed(s) still referenced by other chats."
+                )
+
+            # ------------------------------------------------------------------
+            # Step 3: Build the final list of embeds to delete
+            # ------------------------------------------------------------------
+            embeds_to_delete = private_embeds + shared_embeds_to_delete
+
+            if not embeds_to_delete:
+                logger.info("All embeds are still needed — nothing to delete.")
+                return True, []
+
+            directus_ids = [e.get('id') for e in embeds_to_delete if e.get('id')]
+            embed_uuid_ids = [e.get('embed_id') for e in embeds_to_delete if e.get('embed_id')]
+
+            # ------------------------------------------------------------------
+            # Step 4: Delete S3 files, then Directus records
+            # ------------------------------------------------------------------
+            if s3_service:
+                await self._delete_s3_files_for_embeds(embeds_to_delete, s3_service)
+
+            success = await self.directus_service.bulk_delete_items(
+                collection='embeds', item_ids=directus_ids
+            )
+
+            if success:
+                deleted_embed_uuid_ids = embed_uuid_ids
+                logger.info(
+                    f"Successfully deleted {len(directus_ids)} embed(s) for "
+                    f"hashed_chat_id: {hashed_chat_id[:16]}..."
+                )
+            else:
+                logger.warning(
+                    f"Bulk delete failed for embeds of hashed_chat_id: {hashed_chat_id[:16]}..."
+                )
+
+            return success, deleted_embed_uuid_ids
+
         except Exception as e:
-            logger.error(f"Error deleting all embeds for hashed_chat_id: {hashed_chat_id[:16]}...: {e}", exc_info=True)
-            return False
+            logger.error(
+                f"Error deleting all embeds for hashed_chat_id: {hashed_chat_id[:16]}...: {e}",
+                exc_info=True,
+            )
+            return False, []
+
+    async def delete_draft_upload_file(
+        self,
+        embed_id: str,
+        user_id: str,
+        s3_service=None,
+    ) -> int:
+        """
+        Delete a single upload_files record (and its S3 objects) for an embed that
+        was uploaded as part of a draft but never included in a sent message.
+
+        This is the "draft embed cleanup" path — called when:
+        - The user removes an image/PDF/recording from the message input before sending
+        - The embed was already fully uploaded to S3 (cancelUpload was a no-op)
+
+        Steps:
+          1. Fetch the upload_files record for this embed_id (must belong to user_id).
+          2. Delete all S3 variant files (original, full, preview) using files_metadata.
+          3. Delete the upload_files Directus record.
+          4. Return bytes_freed so the caller can decrement storage_used_bytes.
+
+        Args:
+            embed_id:   The embed UUID (from TipTap node attrs.id / upload response).
+            user_id:    The user who owns the file — used for ownership validation.
+            s3_service: Optional S3UploadService instance. If None, S3 deletion is skipped
+                        (safe fallback — record is still removed, billing reconciliation corrects).
+
+        Returns:
+            Bytes freed (file_size_bytes from the deleted record), or 0 if nothing was deleted.
+        """
+        log_prefix = f"[DraftEmbedCleanup] [user:{user_id[:8]}...] [embed:{embed_id[:8]}...]"
+        logger.info(f"{log_prefix} Deleting draft upload file.")
+
+        try:
+            # Step 1: Fetch the upload_files record, validating user ownership.
+            params = {
+                'filter[embed_id][_eq]': embed_id,
+                'filter[user_id][_eq]': user_id,   # Ownership check — never delete other users' files
+                'fields': 'id,file_size_bytes,files_metadata',
+                'limit': 1,
+            }
+            records = await self.directus_service.get_items(
+                'upload_files', params=params, no_cache=True
+            )
+
+            if not records or not isinstance(records, list) or len(records) == 0:
+                logger.debug(
+                    f"{log_prefix} No upload_files record found (may already be deleted or not owned by user)."
+                )
+                return 0
+
+            record = records[0]
+            directus_id = record.get('id')
+            file_size_bytes = int(record.get('file_size_bytes') or 0)
+            files_metadata = record.get('files_metadata')
+
+            # Step 2: Delete S3 variant files (original, full, preview).
+            # files_metadata structure: {"original": {"s3_key": "...", ...}, "full": {...}, "preview": {...}}
+            if s3_service and files_metadata and isinstance(files_metadata, dict):
+                s3_deleted = 0
+                s3_failed = 0
+                for variant_name, variant_data in files_metadata.items():
+                    if not isinstance(variant_data, dict):
+                        continue
+                    s3_key = variant_data.get('s3_key')
+                    if not s3_key:
+                        continue
+                    try:
+                        await s3_service.delete_file(
+                            bucket_key='chatfiles',
+                            file_key=s3_key,
+                        )
+                        s3_deleted += 1
+                        logger.debug(
+                            f"{log_prefix} Deleted S3 object chatfiles/{s3_key} (variant: {variant_name})."
+                        )
+                    except Exception as s3_err:
+                        s3_failed += 1
+                        logger.warning(
+                            f"{log_prefix} Failed to delete S3 object chatfiles/{s3_key}: {s3_err}"
+                        )
+                logger.info(
+                    f"{log_prefix} S3 deletion: {s3_deleted} deleted, {s3_failed} failed."
+                )
+            elif not s3_service:
+                logger.warning(
+                    f"{log_prefix} No s3_service provided — S3 files not deleted. "
+                    "Directus record will be removed; billing reconciliation will not reclaim S3 storage."
+                )
+
+            # Step 3: Delete the upload_files Directus record.
+            if directus_id:
+                success = await self.directus_service.delete_item('upload_files', directus_id)
+                if success:
+                    logger.info(
+                        f"{log_prefix} Deleted upload_files record {directus_id} "
+                        f"({file_size_bytes:,} bytes freed)."
+                    )
+                else:
+                    logger.warning(f"{log_prefix} Failed to delete upload_files record {directus_id}.")
+                    # Still return bytes_freed so the storage counter is decremented
+                    # (even if the record lingers, the weekly billing job will reconcile)
+
+            return file_size_bytes
+
+        except Exception as e:
+            logger.error(
+                f"{log_prefix} Error deleting draft upload file: {e}",
+                exc_info=True,
+            )
+            return 0
+
+    async def delete_upload_files_for_embeds(self, embed_ids: List[str]) -> int:
+        """
+        Delete upload_files records whose embed_id is in the provided list.
+
+        Called after embed + S3 deletion to clean up the deduplication records and
+        free storage counter space. Returns the total file_size_bytes freed so the
+        caller can decrement the user's storage_used_bytes counter.
+
+        Args:
+            embed_ids: List of embed UUID strings (from the embed.embed_id field).
+
+        Returns:
+            Total bytes freed (sum of file_size_bytes for all deleted records).
+        """
+        if not embed_ids:
+            return 0
+
+        total_bytes_freed = 0
+        try:
+            # Directus filter: embed_id IN (embed_ids)
+            # We build an _in filter which is most efficient for bulk lookups.
+            params = {
+                'filter[embed_id][_in]': ','.join(embed_ids),
+                'fields': 'id,embed_id,file_size_bytes',
+                'limit': -1,
+            }
+            records = await self.directus_service.get_items(
+                'upload_files', params=params, no_cache=True
+            )
+
+            if not records or not isinstance(records, list) or len(records) == 0:
+                logger.debug(
+                    f"No upload_files records found for {len(embed_ids)} embed_id(s). Nothing to clean up."
+                )
+                return 0
+
+            directus_ids = [r.get('id') for r in records if r.get('id')]
+            total_bytes_freed = sum(
+                int(r.get('file_size_bytes') or 0) for r in records
+            )
+
+            logger.info(
+                f"Deleting {len(directus_ids)} upload_files record(s), "
+                f"freeing {total_bytes_freed:,} bytes."
+            )
+
+            success = await self.directus_service.bulk_delete_items(
+                collection='upload_files', item_ids=directus_ids
+            )
+            if not success:
+                logger.warning(
+                    f"Bulk delete of upload_files failed for embed_ids: {embed_ids[:5]}..."
+                )
+                return 0
+
+            return total_bytes_freed
+
+        except Exception as e:
+            logger.error(
+                f"Error deleting upload_files for embed_ids {embed_ids[:5]}...: {e}",
+                exc_info=True,
+            )
+            return 0
 
     async def delete_embeds_for_message(self, hashed_chat_id: str, hashed_message_id: str, s3_service=None) -> list:
         """
@@ -744,6 +1046,130 @@ class EmbedMethods:
         except Exception as e:
             logger.error(f"Error deleting embed_keys for embed {embed_id}: {e}", exc_info=True)
             return False
+
+    async def delete_all_upload_files_for_user(
+        self,
+        user_id: str,
+        s3_service,
+    ) -> int:
+        """
+        Delete all uploaded files for a user due to storage billing failure.
+
+        This is the nuclear deletion path triggered after 4 consecutive weekly
+        billing failures. It:
+          1. Fetches every upload_files record for the user.
+          2. Deletes each S3 object (original, full, preview variants) listed in
+             the files_metadata JSON field.
+          3. Bulk-deletes all upload_files Directus records for the user.
+
+        Embed records are intentionally NOT deleted — they remain in Directus so
+        the UI can show "File was deleted" for any chat messages that referenced
+        uploaded files.
+
+        Args:
+            user_id:    Plaintext user ID whose files should be purged.
+            s3_service: Initialised S3UploadService instance.
+
+        Returns:
+            Total bytes freed (sum of file_size_bytes across all deleted records).
+        """
+        logger.info(f"[StorageBilling] Purging all upload files for user {user_id}.")
+        try:
+            # ──────────────────────────────────────────────────────────────────
+            # Step 1: Fetch all upload_files records for the user.
+            # ──────────────────────────────────────────────────────────────────
+            params: Dict[str, Any] = {
+                'filter[user_id][_eq]': user_id,
+                'fields': 'id,file_size_bytes,files_metadata',
+                'limit': -1,
+            }
+            records = await self.directus_service.get_items(
+                'upload_files', params=params, no_cache=True
+            )
+
+            if not records or not isinstance(records, list) or len(records) == 0:
+                logger.info(
+                    f"[StorageBilling] No upload_files records found for user {user_id}. Nothing to delete."
+                )
+                return 0
+
+            logger.info(
+                f"[StorageBilling] Found {len(records)} upload_files record(s) to purge for user {user_id}."
+            )
+
+            # ──────────────────────────────────────────────────────────────────
+            # Step 2: Delete each S3 object referenced in files_metadata.
+            # files_metadata structure:
+            #   {"original": {"s3_key": "...", ...}, "full": {...}, "preview": {...}}
+            # All three variants live in the "chatfiles" bucket.
+            # ──────────────────────────────────────────────────────────────────
+            s3_deleted = 0
+            s3_failed = 0
+            for record in records:
+                files_metadata = record.get('files_metadata')
+                if not files_metadata or not isinstance(files_metadata, dict):
+                    continue
+                for variant_name, variant_data in files_metadata.items():
+                    if not isinstance(variant_data, dict):
+                        continue
+                    s3_key = variant_data.get('s3_key')
+                    if not s3_key:
+                        continue
+                    try:
+                        await s3_service.delete_file(
+                            bucket_key='chatfiles',
+                            file_key=s3_key,
+                        )
+                        s3_deleted += 1
+                        logger.debug(
+                            f"[StorageBilling] Deleted S3 object chatfiles/{s3_key} "
+                            f"(variant: {variant_name}) for user {user_id}."
+                        )
+                    except Exception as s3_err:
+                        s3_failed += 1
+                        logger.warning(
+                            f"[StorageBilling] Failed to delete S3 object chatfiles/{s3_key} "
+                            f"for user {user_id}: {s3_err}"
+                        )
+
+            logger.info(
+                f"[StorageBilling] S3 deletion for user {user_id}: "
+                f"{s3_deleted} objects deleted, {s3_failed} failures."
+            )
+
+            # ──────────────────────────────────────────────────────────────────
+            # Step 3: Compute bytes freed and bulk-delete Directus records.
+            # ──────────────────────────────────────────────────────────────────
+            directus_ids = [r.get('id') for r in records if r.get('id')]
+            total_bytes_freed = sum(
+                int(r.get('file_size_bytes') or 0) for r in records
+            )
+
+            delete_success = await self.directus_service.bulk_delete_items(
+                collection='upload_files', item_ids=directus_ids
+            )
+            if not delete_success:
+                logger.error(
+                    f"[StorageBilling] Bulk delete of upload_files failed for user {user_id}. "
+                    f"Directus records may still exist despite S3 objects being deleted."
+                )
+                raise RuntimeError(
+                    f"Failed to bulk-delete upload_files records for user {user_id}."
+                )
+
+            logger.info(
+                f"[StorageBilling] Purge complete for user {user_id}: "
+                f"{len(directus_ids)} Directus records deleted, "
+                f"{total_bytes_freed:,} bytes freed."
+            )
+            return total_bytes_freed
+
+        except Exception as e:
+            logger.error(
+                f"[StorageBilling] Error purging upload files for user {user_id}: {e}",
+                exc_info=True,
+            )
+            raise
 
     async def _delete_s3_files_for_embeds(self, embeds: list, s3_service) -> None:
         """

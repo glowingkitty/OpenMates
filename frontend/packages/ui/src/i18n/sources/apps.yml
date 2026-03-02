@@ -20,6 +20,7 @@ ai:
   th: AI
   cs: AI
   sv: AI
+  he: AI
   verified_by_human: [en, de]
 ai.description:
   context: Description for the AI app
@@ -43,6 +44,7 @@ ai.description:
   th: ถามคำถาม สร้างไอเดีย และอื่นๆ
   cs: Pokládejte otázky, generujte nápady a další.
   sv: Ställ frågor, brainstorma idéer och mer.
+  he: שאל שאלות, העלה רעיונות ועוד.
   verified_by_human: [en, de]
 ai.skills.ask:
   context: Skill name for AI ask skill
@@ -66,6 +68,7 @@ ai.skills.ask:
   th: ถาม
   cs: Zeptat se
   sv: Fråga
+  he: שאל
   verified_by_human: [en, de]
 ai.skills.ask.description:
   context: Description for AI ask skill
@@ -89,6 +92,7 @@ ai.skills.ask.description:
   th: ถามด้วยข้อความ รูปภาพ และสื่ออื่นๆ
   cs: Ptejte se textem, obrázky a dalšími médii.
   sv: Fråga med text, bilder och annat media.
+  he: שאל באמצעות טקסט, תמונות ומדיה נוספת.
   verified_by_human: [en, de]
 web:
   context: App name for the Web app
@@ -112,6 +116,7 @@ web:
   th: เว็บ
   cs: Internet
   sv: Internet
+  he: Web
   verified_by_human: [en, de]
 web.description:
   context: Description for the Web app
@@ -135,6 +140,7 @@ web.description:
   th: เรียกดูเว็บไซต์ วิจัยหัวข้อ
   cs: Procházejte weby, zkoumejte témata.
   sv: Bläddra på webbplatser, forska ämnen.
+  he: גלוש באתרים, חקור נושאים ועוד.
   verified_by_human: [en, de]
 web.skills.search:
   context: Skill name for web search
@@ -158,6 +164,7 @@ web.skills.search:
   th: ค้นหา
   cs: Hledat
   sv: Sök
+  he: חפש
   verified_by_human: [en, de]
 web.skills.search.description:
   context: Description for web search skill
@@ -181,6 +188,7 @@ web.skills.search.description:
   th: ค้นหาเว็บ
   cs: Hledat na webu.
   sv: Sök på webben.
+  he: חפש באינטרנט.
   verified_by_human: [en, de]
 mail:
   context: App name for the Mail app (handles both email and physical mail)
@@ -204,6 +212,7 @@ mail:
   th: ไปรษณีย์
   cs: Pošta
   sv: Post
+  he: דואר
   verified_by_human: [en, de]
 mail.description:
   context: Description for the Mail app
@@ -227,6 +236,7 @@ mail.description:
   th: ส่ง จัดการ และเขียนอีเมล
   cs: Posílejte, spravujte a vytvářejte e-maily.
   sv: Skicka, hantera och skriv e-post.
+  he: שלח, נהל וכתוב הודעות אימייל.
   verified_by_human: [en, de]
 life_coaching:
   context: App name for the Life coaching app
@@ -250,6 +260,7 @@ life_coaching:
   th: การโค้ชชีวิต
   cs: Life coaching
   sv: Livscoaching
+  he: אימון אישי
   verified_by_human: [en, de]
 life_coaching.description:
   context: Description for the Life coaching app
@@ -273,7 +284,56 @@ life_coaching.description:
   th: วางแผนขั้นตอนต่อไปในชีวิตของคุณ
   cs: Naplánujte si další kroky v životě.
   sv: Planera dina nästa steg i livet.
+  he: תכנן את הצעדים הבאים שלך בחיים.
   verified_by_human: [en, de]
+audio:
+  context: App name for the Audio app (voice notes with AI transcription)
+  en: Audio
+  de: Audio
+  zh: 音频
+  es: Audio
+  fr: Audio
+  pt: Áudio
+  ru: Аудио
+  ja: 音声
+  ko: 오디오
+  it: Audio
+  tr: Ses
+  vi: Âm thanh
+  id: Audio
+  pl: Audio
+  nl: Audio
+  ar: صوت
+  hi: ऑडियो
+  th: เสียง
+  cs: Zvuk
+  sv: Ljud
+  he: אודיו
+  verified_by_human: []
+audio.description:
+  context: Description for the Audio app (voice note recording + AI transcription)
+  en: Record voice notes and get transcripts.
+  de: Sprachnotizen aufnehmen und Transkripte erhalten.
+  zh: 录制语音笔记并获取转录。
+  es: Graba notas de voz y obtén transcripciones.
+  fr: "Enregistrez des notes vocales et transcrivez-les."
+  pt: Grave notas de voz e obtenha transcrições.
+  ru: Записывайте голосовые заметки и получайте расшифровки.
+  ja: 音声メモを録音してテキストに変換します。
+  ko: 음성 노트를 녹음하고 텍스트로 변환하세요.
+  it: Registra note vocali e ottieni trascrizioni.
+  tr: Sesli notlar kaydedin ve transkripsiyonlar alın.
+  vi: Ghi âm ghi chú giọng nói và nhận bản ghi.
+  id: Rekam catatan suara dan dapatkan transkripsi.
+  pl: Nagrywaj notatki głosowe i uzyskuj transkrypcje.
+  nl: Neem spraaknotities op en ontvang transcripties.
+  ar: سجّل ملاحظات صوتية واحصل على نصوص.
+  hi: वॉयस नोट रिकॉर्ड करें और ट्रांस्क्रिप्ट प्राप्त करें।
+  th: บันทึกโน้ตเสียงและรับข้อความถอดเสียง
+  cs: Nahrajte hlasové poznámky a získejte přepisy.
+  sv: Spela in röstanteckningar och få transkriberingar.
+  he: הקלט הערות קוליות וקבל תמלולים.
+  verified_by_human: []
 videos:
   context: App name for the Videos app
   en: Videos
@@ -296,29 +356,31 @@ videos:
   th: วิดีโอ
   cs: Videa
   sv: Videor
+  he: סרטונים
   verified_by_human: [en, de]
 videos.description:
   context: Description for the Videos app
-  en: Create & search videos, get transcripts.
-  de: Videos erstellen, suchen und transkribieren.
-  zh: 创建和搜索视频、获取转录。
-  es: Crea y busca videos, obtén transcripciones.
-  fr: Créez et recherchez des vidéos, transcriptions.
-  pt: Crie e pesquise vídeos, transcrições.
-  ru: Создавайте и ищите видео, транскрипты.
-  ja: 動画を作成・検索し、文字起こし。
-  ko: 비디오 생성, 검색, 자막 가져오기.
-  it: Crea e cerca video, trascrizioni.
-  tr: Video oluşturun, arayın, transkript alın.
-  vi: Tạo và tìm video, lấy bản ghi.
-  id: Buat dan cari video, dapatkan transkrip.
-  pl: Twórz i szukaj filmy, transkrypcje.
-  nl: Maak en zoek video's, transcripties.
-  ar: أنشئ وابحث عن فيديو واحصل على النصوص.
-  hi: वीडियो बनाएं और खोजें, ट्रांसक्रिप्ट पाएं।
-  th: สร้างและค้นหาวิดีโอ รับสำเนา
-  cs: Vytvářejte a hledejte videa, přepisy.
-  sv: Skapa och sök videor, transkriptioner.
+  en: Search videos, get transcripts & more.
+  de: Videos suchen und Transkripte abrufen.
+  zh: 搜索视频、获取转录等。
+  es: Busca videos, obtén transcripciones.
+  fr: Cherchez des vidéos, obtenez des transcriptions.
+  pt: Pesquise vídeos e obtenha transcrições.
+  ru: Ищите видео, получайте транскрипции.
+  ja: 動画を検索し、文字起こしを取得。
+  ko: 비디오 검색, 자막 가져오기 등.
+  it: Cerca video, ottieni trascrizioni.
+  tr: Video arayın, transkript alın.
+  vi: Tìm video, lấy bản ghi và hơn thế.
+  id: Cari video, dapatkan transkrip.
+  pl: Szukaj filmów, pobieraj transkrypcje.
+  nl: Zoek video's, krijg transcripties.
+  ar: ابحث عن فيديو واحصل على النصوص.
+  hi: वीडियो खोजें, ट्रांसक्रिप्ट पाएं।
+  th: ค้นหาวิดีโอ รับสำเนาและอื่นๆ
+  cs: Hledejte videa, získejte přepisy.
+  sv: Sök videor, hämta transkriptioner.
+  he: חפש סרטונים, קבל תמלולים ועוד.
   verified_by_human: [en, de]
 tv:
   context: App name for the TV app
@@ -342,6 +404,7 @@ tv:
   th: ทีวี
   cs: TV
   sv: TV
+  he: טלוויזיה
   verified_by_human: [en, de]
 tv.description:
   context: Description for the TV app
@@ -365,6 +428,7 @@ tv.description:
   th: ติดตามหนัง รายการ และรายการที่ต้องดู
   cs: Sledujte filmy, seriály a seznam k zhlédnutí.
   sv: Följ filmer, serier och din att-se-lista.
+  he: עקוב אחר סרטים, סדרות ובנה רשימת צפייה.
   verified_by_human: [en, de]
 travel:
   context: App name for the Travel app
@@ -388,29 +452,31 @@ travel:
   th: การเดินทาง
   cs: Cestování
   sv: Resor
+  he: נסיעות
   verified_by_human: [en, de]
 travel.description:
   context: Description for the Travel app
-  en: Plan, book and manage your trips.
-  de: Plane, buche und verwalte deine Reisen.
-  zh: 计划、预订和管理您的旅行。
-  es: Planifica, reserva y gestiona tus viajes.
-  fr: Planifiez, réservez et gérez vos voyages.
-  pt: Planeje, reserve e gerencie viagens.
-  ru: Планируйте, бронируйте поездки.
-  ja: 旅行を計画、予約、管理。
-  ko: 여행 계획, 예약 및 관리.
-  it: Pianifica, prenota e gestisci viaggi.
-  tr: Seyahatleri planlayın, rezerve edin.
-  vi: Lên kế hoạch, đặt và quản lý chuyến đi.
-  id: Rencanakan, pesan, kelola perjalanan.
-  pl: Planuj, rezerwuj i zarządzaj podróżami.
-  nl: Plan, boek en beheer je reizen.
-  ar: خطط واحجز وأدر رحلاتك.
-  hi: यात्रा की योजना बनाएं, बुक करें, प्रबंधित करें।
-  th: วางแผน จอง และจัดการการเดินทาง
-  cs: Plánujte, rezervujte a spravujte cesty.
-  sv: Planera, boka och hantera resor.
+  en: Search stays, connections & plan trips.
+  de: Unterkünfte, Verbindungen suchen & planen.
+  zh: 搜索住宿、交通并规划旅行。
+  es: Busca alojamientos, conexiones y planifica.
+  fr: Cherchez hébergements, trajets et planifiez.
+  pt: Pesquise hospedagens, conexões e planeje.
+  ru: Ищите жильё, маршруты и планируйте.
+  ja: 宿泊先・交通手段を検索し旅行を計画。
+  ko: 숙소, 교통편 검색 및 여행 계획.
+  it: Cerca alloggi, trasporti e pianifica.
+  tr: Konaklama, ulaşım arayın ve planlayın.
+  vi: Tìm chỗ ở, phương tiện và lên kế hoạch.
+  id: Cari penginapan, transportasi dan rencana.
+  pl: Szukaj noclegów, połączeń i planuj.
+  nl: Zoek verblijven, verbindingen en plan.
+  ar: ابحث عن إقامات ووسائل نقل وخطط.
+  hi: आवास, कनेक्शन खोजें और योजना बनाएं।
+  th: ค้นหาที่พัก การเดินทาง และวางแผน
+  cs: Hledejte ubytování, spojení a plánujte.
+  sv: Sök boenden, förbindelser och planera.
+  he: חפש מקומות לינה, דרכי הגעה ותכנן טיולים.
   verified_by_human: [en, de]
 study:
   context: App name for the Study app
@@ -434,6 +500,7 @@ study:
   th: การศึกษา
   cs: Studium
   sv: Studier
+  he: לימודים
   verified_by_human: [en, de]
 study.description:
   context: Description for the Study app
@@ -457,6 +524,7 @@ study.description:
   th: เรียนรู้หัวข้อและเตรียมสอบ
   cs: Učte se témata a připravte se na zkoušky.
   sv: Lär dig ämnen och förbered dig för tentor.
+  he: למד נושאים, התכונן למבחנים ועוד.
   verified_by_human: [en, de]
 plants:
   context: App name for the Plants app
@@ -480,6 +548,7 @@ plants:
   th: พืช
   cs: Rostliny
   sv: Växter
+  he: צמחים
   verified_by_human: [en, de]
 plants.description:
   context: Description for the Plants app
@@ -503,6 +572,7 @@ plants.description:
   th: ติดตามพืชและความต้องการการดูแล
   cs: Sledujte rostliny a potřeby péče.
   sv: Följ dina växter och vårdbehov.
+  he: עקוב אחר הצמחים שלך, השקיה וצרכי טיפול.
   verified_by_human: [en, de]
 pcb_design:
   context: App name for the PCB design app
@@ -526,6 +596,7 @@ pcb_design:
   th: การออกแบบ PCB
   cs: Návrh desek plošných spojů
   sv: PCB-design
+  he: עיצוב PCB
   verified_by_human: [en, de]
 pcb_design.description:
   context: Description for the PCB design app
@@ -549,6 +620,7 @@ pcb_design.description:
   th: วางแผน สร้าง และดีบักการออกแบบ PCB
   cs: Plánujte, tvořte a laďte návrhy PCB.
   sv: Planera, skapa och felsök PCB-design.
+  he: תכנן, צור ונפה שגיאות בעיצובי ה-PCB שלך.
   verified_by_human: [en, de]
 nutrition:
   context: App name for the Nutrition app
@@ -572,6 +644,7 @@ nutrition:
   th: โภชนาการ
   cs: Výživa
   sv: Nutrition
+  he: תזונה
   verified_by_human: [en, de]
 nutrition.description:
   context: Description for the Nutrition app
@@ -595,6 +668,7 @@ nutrition.description:
   th: ติดตามมื้ออาหาร หาสูตร และกินอย่างสุขภาพ
   cs: Sledujte jídla, najděte recepty a jezte zdravěji.
   sv: Följ måltider, hitta recept och ät hälsosammare.
+  he: עקוב אחר ארוחות, מצא מתכונים ואכול בריא יותר.
   verified_by_human: [en, de]
 images:
   context: App name for the Images app
@@ -618,29 +692,31 @@ images:
   th: รูปภาพ
   cs: Obrázky
   sv: Bilder
+  he: תמונות
   verified_by_human: [en, de]
 images.description:
   context: Description for the Images app
-  en: Generate, modify and resize images.
-  de: Bilder generieren, bearbeiten und skalieren.
-  zh: 生成、修改和调整图像大小。
-  es: Genera, modifica y redimensiona imágenes.
-  fr: Générez, modifiez et redimensionnez images.
-  pt: Gere, modifique e redimensione imagens.
-  ru: Генерируйте, изменяйте и меняйте размер.
-  ja: 画像を生成、変更、リサイズ。
-  ko: 이미지 생성, 수정, 크기 조정.
-  it: Genera, modifica e ridimensiona immagini.
-  tr: Görüntü oluşturun, değiştirin, boyutlandırın.
-  vi: Tạo, chỉnh sửa và thay đổi kích thước ảnh.
-  id: Hasilkan, modifikasi dan ubah ukuran gambar.
-  pl: Generuj, modyfikuj i zmieniaj rozmiar.
-  nl: Genereer, wijzig en schaal afbeeldingen.
-  ar: أنشئ وعدل وغير حجم الصور.
-  hi: छवियां बनाएं, संशोधित करें और आकार बदलें।
-  th: สร้าง แก้ไข และปรับขนาดภาพ
-  cs: Generujte, upravujte a měňte velikost.
-  sv: Generera, ändra och skala bilder.
+  en: Generate images from text descriptions.
+  de: Bilder aus Textbeschreibungen generieren.
+  zh: 根据文字描述生成图像。
+  es: Genera imágenes a partir de descripciones.
+  fr: Générez des images à partir de textes.
+  pt: Gere imagens a partir de descrições.
+  ru: Генерируйте изображения из описаний.
+  ja: テキストから画像を生成。
+  ko: 텍스트 설명으로 이미지를 생성하세요.
+  it: Genera immagini da descrizioni testuali.
+  tr: Metin açıklamalarından görüntü oluşturun.
+  vi: Tạo hình ảnh từ mô tả văn bản.
+  id: Hasilkan gambar dari deskripsi teks.
+  pl: Generuj obrazy z opisów tekstowych.
+  nl: Genereer afbeeldingen uit tekstomschrijvingen.
+  ar: أنشئ صورًا من الأوصاف النصية.
+  hi: टेक्स्ट विवरण से छवियां बनाएं।
+  th: สร้างภาพจากคำอธิบาย
+  cs: Generujte obrázky z textových popisů.
+  sv: Generera bilder från textbeskrivningar.
+  he: צור תמונות מתיאורי טקסט.
   verified_by_human: [en, de]
 images.skills.generate:
   context: Skill name for image generation
@@ -664,6 +740,7 @@ images.skills.generate:
   th: สร้าง
   cs: Generovat
   sv: Generera
+  he: יצירה
   verified_by_human: [en, de]
 images.skills.generate.description:
   context: Description for image generation skill
@@ -687,6 +764,7 @@ images.skills.generate.description:
   th: สร้างภาพจากข้อความหรือภาพอื่น
   cs: Vytvořte obrázky z textu nebo jiných obrázků.
   sv: Skapa bilder från text eller andra bilder.
+  he: יצירת תמונות מטקסט או מתמונות אחרות.
   verified_by_human: [en, de]
 images.skills.generate_draft:
   context: Skill name for draft image generation
@@ -710,6 +788,7 @@ images.skills.generate_draft:
   th: สร้างฉบับร่าง
   cs: Generovat koncept
   sv: Generera utkast
+  he: יצירת טיוטה
   verified_by_human: [en, de]
 images.skills.generate_draft.description:
   context: Description for draft image generation skill
@@ -733,6 +812,7 @@ images.skills.generate_draft.description:
   th: สร้างภาพฉบับร่างอย่างรวดเร็ว
   cs: Rychle generovat koncept obrázku.
   sv: Generera snabbt en utkastbild.
+  he: יצירה מהירה של טיוטת תמונה.
   verified_by_human: [en, de]
 images.preferred_styles:
   context: Settings/memory category name for preferred image styles
@@ -756,6 +836,7 @@ images.preferred_styles:
   th: สไตล์ที่ชอบ
   cs: Preferované styly
   sv: Föredragna stilar
+  he: סגנונות מועדפים
   verified_by_human: [en, de]
 images.preferred_styles.description:
   context: Description for preferred image styles settings/memory category
@@ -779,6 +860,7 @@ images.preferred_styles.description:
   th: สไตล์ที่ชอบสำหรับภาพที่สร้าง
   cs: Vaše preferované styly pro obrázky
   sv: Dina föredragna stilar för bilder
+  he: הסגנונות המועדפים שלך עבור תמונות שנוצרו
   verified_by_human: [en, de]
 health:
   context: App name for the Health app
@@ -802,6 +884,7 @@ health:
   th: สุขภาพ
   cs: Zdraví
   sv: Hälsa
+  he: בריאות
   verified_by_human: [en, de]
 health.description:
   context: Description for the Health app
@@ -825,6 +908,7 @@ health.description:
   th: ปรับปรุงสุขภาพและความเป็นอยู่ที่ดีของคุณ
   cs: Zlepšete své zdraví a pohodu.
   sv: Förbättra din hälsa och välbefinnande.
+  he: שיפור הבריאות והרווחה האישית שלך.
   verified_by_human: [en, de]
 fitness:
   context: App name for the Fitness app
@@ -848,6 +932,7 @@ fitness:
   th: ฟิตเนส
   cs: Fitness
   sv: Fitness
+  he: כושר
   verified_by_human: [en, de]
 fitness.description:
   context: Description for the Fitness app
@@ -871,6 +956,7 @@ fitness.description:
   th: รักษาความฟิต เคลื่อนไหว รักษาสุขภาพ
   cs: Zůstaňte fit, pohybujte se, zůstaňte zdraví.
   sv: Håll dig i form, rör dig, håll dig frisk.
+  he: שמירה על כושר, תנועה ואורח חיים בריא.
   verified_by_human: [en, de]
 code:
   context: App name for the Code app
@@ -894,29 +980,31 @@ code:
   th: โค้ด
   cs: Kód
   sv: Kod
+  he: קוד
   verified_by_human: [en, de]
 code.description:
   context: Description for the Code app
-  en: Write, test, improve and execute code.
-  de: Schreibe, teste, verbessere und führe Code aus.
-  zh: 编写、测试、改进和执行代码。
-  es: Escribe, prueba, mejora y ejecuta código.
-  fr: Écrivez, testez, améliorez et exécutez du code.
-  pt: Escreva, teste, melhore e execute código.
-  ru: Пишите, тестируйте, улучшайте и выполняйте код.
-  ja: コードを書く、テストする、改善する、実行する。
-  ko: 코드를 작성, 테스트, 개선 및 실행하세요.
-  it: Scrivi, testa, migliora ed esegui codice.
-  tr: Kod yazın, test edin, iyileştirin ve çalıştırın.
-  vi: Viết, kiểm tra, cải thiện và thực thi mã.
-  id: Tulis, uji, tingkatkan, dan jalankan kode.
-  pl: Pisz, testuj, ulepszaj i wykonuj kod.
-  nl: Schrijf, test, verbeter en voer code uit.
-  ar: اكتب واختبر وحسّن ونفّذ الكود.
-  hi: कोड लिखें, परीक्षण करें, सुधार करें और निष्पादित करें।
-  th: เขียน ทดสอบ ปรับปรุง และรันโค้ด
-  cs: Pište, testujte, vylepšujte a spouštějte kód.
-  sv: Skriv, testa, förbättra och kör kod.
+  en: Get coding help, docs & project advice.
+  de: Programmier-Hilfe, Doku und Projektberatung.
+  zh: 获取编码帮助、文档和项目建议。
+  es: Ayuda de programación, docs y proyectos.
+  fr: Aide au code, docs et conseils projets.
+  pt: Ajuda com código, docs e projetos.
+  ru: Помощь с кодом, документацией и проектами.
+  ja: コーディング支援、ドキュメントと相談。
+  ko: 코딩 도움, 문서 및 프로젝트 조언.
+  it: Aiuto con codice, docs e progetti.
+  tr: Kodlama yardımı, belgeler ve proje tavsiyeleri.
+  vi: Trợ giúp lập trình, tài liệu và dự án.
+  id: Bantuan coding, docs, dan saran proyek.
+  pl: Pomoc z kodem, dokumentacją i projektami.
+  nl: Hulp bij coderen, docs en projectadvies.
+  ar: مساعدة في البرمجة والمستندات والمشاريع.
+  hi: कोडिंग सहायता, डॉक्स और प्रोजेक्ट सलाह।
+  th: ช่วยเขียนโค้ด เอกสาร และคำแนะนำโปรเจกต์
+  cs: Pomoc s kódem, dokumentací a projekty.
+  sv: Kodningshjälp, docs och projektråd.
+  he: קבלת עזרה בתכנות, תיעוד וייעוץ לפרויקטים.
   verified_by_human: [en, de]
 docs:
   context: App name for the Docs app
@@ -940,6 +1028,7 @@ docs:
   th: เอกสาร
   cs: Dokumenty
   sv: Dokument
+  he: מסמכים
   verified_by_human: []
 docs.description:
   context: Description for the Docs app
@@ -963,6 +1052,7 @@ docs.description:
   th: สร้างเอกสาร รายงาน บทความ และอื่นๆ
   cs: Vytvářejte dokumenty, zprávy, články a další.
   sv: Skapa dokument, rapporter, artiklar och mer.
+  he: יצירת מסמכים, דוחות, מאמרים ועוד.
   verified_by_human: []
 books:
   context: App name for the Books app
@@ -986,29 +1076,31 @@ books:
   th: หนังสือ
   cs: Knihy
   sv: Böcker
+  he: ספרים
   verified_by_human: [en, de]
 books.description:
   context: Description for the Books app
-  en: Manage your ebooks, translate them & more.
-  de: E-Books verwalten, übersetzen und mehr.
-  zh: 管理电子书、翻译等。
-  es: Gestiona tus ebooks, tradúcelos y más.
-  fr: Gérez vos ebooks, traduisez-les.
-  pt: Gerencie seus e-books, traduza-os.
-  ru: Управляйте e-книгами, переводите.
-  ja: 電子書籍を管理し、翻訳。
-  ko: 전자책 관리, 번역 등.
-  it: Gestisci i tuoi ebook, traducili.
-  tr: E-kitapları yönetin, çevirin.
-  vi: Quản lý sách điện tử, dịch chúng.
-  id: Kelola ebook, terjemahkan, dan lainnya.
-  pl: Zarządzaj e-bookami, tłumacz.
-  nl: Beheer je e-books, vertaal ze.
-  ar: أدر كتبك الإلكترونية وترجمها.
-  hi: ई-बुक्स प्रबंधित करें, अनुवाद करें।
-  th: จัดการอีบุ๊ก แปล และอื่นๆ
-  cs: Spravujte e-knihy, překládejte.
-  sv: Hantera e-böcker, översätt dem.
+  en: Track your reading list and discuss books.
+  de: Leseliste verwalten und Bücher besprechen.
+  zh: 管理阅读清单并讨论书籍。
+  es: Gestiona tu lista de lectura y discute.
+  fr: Gérez votre liste de lecture et discutez.
+  pt: Gerencie sua lista de leitura e discuta.
+  ru: Ведите список чтения и обсуждайте книги.
+  ja: 読書リストを管理し、本を語り合う。
+  ko: 독서 목록을 관리하고 책을 토론하세요.
+  it: Gestisci la tua lista e discuti di libri.
+  tr: Okuma listenizi yönetin, kitap tartışın.
+  vi: Quản lý danh sách đọc và thảo luận sách.
+  id: Kelola daftar bacaan dan diskusi buku.
+  pl: Zarządzaj listą lektur i dyskutuj.
+  nl: Beheer je leeslijst en bespreek boeken.
+  ar: تتبع قائمة القراءة وناقش الكتب.
+  hi: पठन सूची ट्रैक करें और किताबें चर्चा करें।
+  th: จัดการรายการหนังสือและพูดคุยเรื่องหนังสือ
+  cs: Spravujte seznam četby a diskutujte.
+  sv: Hantera din läslista och diskutera böcker.
+  he: מעקב אחר רשימת הקריאה ודיון על ספרים.
   verified_by_human: [en, de]
 maps:
   context: App name for the Maps app
@@ -1032,6 +1124,7 @@ maps:
   th: แผนที่
   cs: Mapy
   sv: Kartor
+  he: מפות
   verified_by_human: [en, de]
 maps.description:
   context: Description for the Maps app
@@ -1055,6 +1148,7 @@ maps.description:
   th: ค้นหาสถานที่ รับเส้นทาง
   cs: Hledejte místa, získejte směry.
   sv: Sök platser, få vägbeskrivningar.
+  he: חיפוש מקומות, קבלת הנחיות הגעה ועוד.
   verified_by_human: [en, de]
 maps.favorite_places:
   context: Setting name for favorite places in Maps app
@@ -1078,6 +1172,7 @@ maps.favorite_places:
   th: สถานที่โปรด
   cs: Oblíbená místa
   sv: Favoritplatser
+  he: מקומות מועדפים
   verified_by_human: [en, de]
 maps.favorite_places.description:
   context: Description for favorite places setting in Maps app
@@ -1101,6 +1196,7 @@ maps.favorite_places.description:
   th: สถานที่โปรดที่บันทึกไว้
   cs: Vaše uložená oblíbená místa.
   sv: Dina sparade favoritplatser.
+  he: המקומות המועדפים ששמרת לגישה מהירה.
   verified_by_human: [en, de]
 maps.search:
   context: Skill name for search in Maps app
@@ -1124,6 +1220,7 @@ maps.search:
   th: ค้นหา
   cs: Hledat
   sv: Sök
+  he: חיפוש
   verified_by_human: [en, de]
 maps.search.description:
   context: Description for search skill in Maps app
@@ -1147,6 +1244,7 @@ maps.search.description:
   th: ค้นหาสถานที่ ธุรกิจ และตำแหน่ง
   cs: Hledejte místa, podniky a lokace.
   sv: Sök platser, företag och platser.
+  he: חיפוש מקומות, עסקים ומיקומים.
   verified_by_human: [en, de]
 news:
   context: App name for the News app
@@ -1170,6 +1268,7 @@ news:
   th: ข่าว
   cs: Zprávy
   sv: Nyheter
+  he: חדשות
   verified_by_human: [en, de]
 news.description:
   context: Description for the News app
@@ -1193,6 +1292,7 @@ news.description:
   th: ติดตามข่าวสารด้วยข่าวล่าสุด
   cs: Zůstaňte informováni s nejnovějšími zprávami.
   sv: Håll dig informerad med de senaste nyheterna.
+  he: להישאר מעודכנים בחדשות האחרונות.
   verified_by_human: [en, de]
 news.search:
   context: Skill name for search in News app
@@ -1216,6 +1316,7 @@ news.search:
   th: ค้นหา
   cs: Hledat
   sv: Sök
+  he: חיפוש
   verified_by_human: [en, de]
 news.search.description:
   context: Description for search skill in News app
@@ -1239,6 +1340,7 @@ news.search.description:
   th: ค้นหาบทความข่าวและเรื่องราว
   cs: Hledejte novinové články a příběhy.
   sv: Sök efter nyhetsartiklar och berättelser.
+  he: חיפוש כתבות וסיפורים חדשותיים.
   verified_by_human: [en, de]
 news.understand_the_news:
   context: Focus name for understanding the news in News app
@@ -1262,6 +1364,7 @@ news.understand_the_news:
   th: เข้าใจข่าว
   cs: Porozumět zprávám
   sv: Förstå nyheterna
+  he: הבנת החדשות
   verified_by_human: [en, de]
 news.understand_the_news.description:
   context: Description for understand the news focus in News app
@@ -1285,7 +1388,104 @@ news.understand_the_news.description:
   th: รับความช่วยเหลือในการเข้าใจเหตุการณ์ปัจจุบัน
   cs: Pomoc s porozuměním aktuálním událostem.
   sv: Hjälp att förstå aktuella händelser.
+  he: קבלת עזרה בהבנת אירועים אקטואליים.
   verified_by_human: [en, de]
+events:
+  context: App name for the Events app
+  en: Events
+  de: Veranstaltungen
+  zh: 活动
+  es: Eventos
+  fr: Événements
+  pt: Eventos
+  ru: События
+  ja: イベント
+  ko: 이벤트
+  it: Eventi
+  tr: Etkinlikler
+  vi: Sự kiện
+  id: Acara
+  pl: Wydarzenia
+  nl: Evenementen
+  ar: الأحداث
+  hi: इवेंट्स
+  th: กิจกรรม
+  cs: Události
+  sv: Evenemang
+  he: אירועים
+  verified_by_human: [en, de]
+events.description:
+  context: Description for the Events app
+  en: Discover meetups, conferences & local events.
+  de: Entdecke Meetups, Konferenzen und lokale Events.
+  zh: 发现聚会、会议和本地活动。
+  es: Descubre meetups, conferencias y eventos locales.
+  fr: Découvrez des meetups, conférences et événements locaux.
+  pt: Descubra meetups, conferências e eventos locais.
+  ru: Открывайте митапы, конференции и местные события.
+  ja: ミートアップ、カンファレンス、地元のイベントを発見。
+  ko: 밋업, 컨퍼런스 및 지역 이벤트를 발견하세요.
+  it: Scopri meetup, conferenze ed eventi locali.
+  tr: Meetup, konferans ve yerel etkinlikleri keşfedin.
+  vi: Khám phá meetup, hội nghị và sự kiện địa phương.
+  id: Temukan meetup, konferensi & acara lokal.
+  pl: Odkryj meetupy, konferencje i lokalne wydarzenia.
+  nl: Ontdek meetups, conferenties en lokale evenementen.
+  ar: اكتشف اللقاءات والمؤتمرات والفعاليات المحلية.
+  hi: मीटअप, सम्मेलन और स्थानीय इवेंट खोजें।
+  th: ค้นพบ meetup การประชุม และกิจกรรมท้องถิ่น
+  cs: Objevujte meetupy, konference a místní události.
+  sv: Hitta meetups, konferenser och lokala evenemang.
+  he: גלה מיטאפים, כנסים ואירועים מקומיים.
+  verified_by_human: [en, de]
+events.search:
+  context: Skill name for search in Events app
+  en: Search
+  de: Suche
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: بحث
+  hi: खोजें
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  he: חיפוש
+  verified_by_human: [en, de]
+events.search.description:
+  context: Description for search skill in Events app
+  en: Find local meetups, conferences and events.
+  de: Meetups, Konferenzen und Events in der Nähe finden.
+  zh: 发现本地聚会、会议和活动。
+  es: Encuentra meetups, conferencias y eventos locales.
+  fr: Trouvez des meetups, conférences et événements locaux.
+  pt: Encontre meetups, conferências e eventos locais.
+  ru: Найдите митапы, конференции и события рядом.
+  ja: 近くのミートアップ、カンファレンス、イベントを探す。
+  ko: 근처 밋업, 컨퍼런스, 이벤트를 찾으세요.
+  it: Trova meetup, conferenze ed eventi locali.
+  tr: Yakınındaki meetup, konferans ve etkinlikleri bul.
+  vi: Tìm meetup, hội nghị và sự kiện địa phương.
+  id: Temukan meetup, konferensi, dan acara lokal.
+  pl: Znajdź meetupy, konferencje i lokalne wydarzenia.
+  nl: Vind meetups, conferenties en lokale evenementen.
+  ar: اعثر على لقاءات ومؤتمرات وأحداث محلية.
+  hi: स्थानीय मीटअप, कॉन्फ्रेंस और इवेंट खोजें।
+  th: ค้นหา meetup การประชุม และกิจกรรมใกล้ๆ
+  cs: Najděte meetupy, konference a místní akce.
+  sv: Hitta meetups, konferenser och lokala evenemang.
+  he: מצא מפגשים, כנסים ואירועים מקומיים.
+  verified_by_human: []
 reminder:
   context: App name for the Reminder app
   en: Reminder
@@ -1308,6 +1508,7 @@ reminder:
   th: การแจ้งเตือน
   cs: Připomínka
   sv: Påminnelse
+  he: תזכורת
   verified_by_human: [en, de]
 reminder.description:
   context: Description for the Reminder app
@@ -1331,6 +1532,7 @@ reminder.description:
   th: ตั้งการเตือนสำหรับเวลาที่กำหนด
   cs: Nastavte připomínky na konkrétní časy.
   sv: Ställ in påminnelser för specifika tider.
+  he: הגדרת תזכורות לזמנים ספציפיים או אקראיים.
   verified_by_human: [en, de]
 reminder.skills.set_reminder:
   context: Skill name for setting a reminder
@@ -1354,6 +1556,7 @@ reminder.skills.set_reminder:
   th: ตั้งการแจ้งเตือน
   cs: Nastavit připomínku
   sv: Ställ in påminnelse
+  he: הגדרת תזכורת
   verified_by_human: [en, de]
 reminder.skills.set_reminder.description:
   context: Description for set reminder skill
@@ -1377,6 +1580,7 @@ reminder.skills.set_reminder.description:
   th: สร้างแจ้งเตือนครั้งเดียวหรือซ้ำ
   cs: Vytvořte jednorázové nebo opakující se.
   sv: Skapa engångs- eller återkommande.
+  he: יצירת תזכורות חד-פעמיות או חוזרות.
   verified_by_human: [en, de]
 reminder.skills.list_reminders:
   context: Skill name for listing reminders
@@ -1400,6 +1604,7 @@ reminder.skills.list_reminders:
   th: รายการแจ้งเตือน
   cs: Seznam připomínek
   sv: Lista påminnelser
+  he: רשימת תזכורות
   verified_by_human: [en, de]
 reminder.skills.list_reminders.description:
   context: Description for list reminders skill
@@ -1423,6 +1628,7 @@ reminder.skills.list_reminders.description:
   th: ดูการแจ้งเตือนที่กำหนดไว้ของคุณ
   cs: Zobrazit naplánované připomínky.
   sv: Visa dina schemalagda påminnelser.
+  he: צפייה בתזכורות המתוזמנות שלך.
   verified_by_human: [en, de]
 reminder.skills.cancel_reminder:
   context: Skill name for cancelling a reminder
@@ -1446,6 +1652,7 @@ reminder.skills.cancel_reminder:
   th: ยกเลิกการแจ้งเตือน
   cs: Zrušit připomínku
   sv: Avbryt påminnelse
+  he: ביטול תזכורת
   verified_by_human: [en, de]
 reminder.skills.cancel_reminder.description:
   context: Description for cancel reminder skill
@@ -1469,32 +1676,110 @@ reminder.skills.cancel_reminder.description:
   th: ยกเลิกการแจ้งเตือนที่กำหนดไว้
   cs: Zrušit naplánovanou připomínku.
   sv: Avbryt en schemalagd påminnelse.
+  he: ביטול תזכורת מתוזמנת.
   verified_by_human: [en, de]
 reminder.active_reminders.title:
   context: Heading for the active reminders list in reminder app settings
   en: Active Reminders
   de: Aktive Erinnerungen
+  he: תזכורות פעילות
   verified_by_human: []
 reminder.active_reminders.empty:
   context: Message when user has no active reminders
   en: No active reminders
   de: Keine aktiven Erinnerungen
+  he: אין תזכורות פעילות
   verified_by_human: []
 reminder.active_reminders.loading:
   context: Loading text while fetching reminders
   en: Loading reminders...
   de: Lade Erinnerungen...
+  he: טוען תזכורות...
   verified_by_human: []
 reminder.active_reminders.error:
   context: Error message when fetching reminders fails
   en: Could not load reminders
   de: Erinnerungen konnten nicht geladen werden
+  he: לא ניתן לטעון תזכורות
   verified_by_human: []
 reminder.active_reminders.repeating:
   context: Badge text for repeating reminders in the list
   en: Repeating
   de: Wiederkehrend
+  he: חוזרת
   verified_by_human: []
+openmates:
+  context: App name for the OpenMates platform app (used by Settings.svelte via apps.${appId})
+  en: OpenMates
+  de: OpenMates
+  zh: OpenMates
+  es: OpenMates
+  fr: OpenMates
+  pt: OpenMates
+  ru: OpenMates
+  ja: OpenMates
+  ko: OpenMates
+  it: OpenMates
+  tr: OpenMates
+  vi: OpenMates
+  id: OpenMates
+  pl: OpenMates
+  nl: OpenMates
+  ar: OpenMates
+  hi: OpenMates
+  th: OpenMates
+  cs: OpenMates
+  sv: OpenMates
+  he: OpenMates
+  verified_by_human: [en]
+openmates_app:
+  context: App name for the OpenMates platform app
+  en: OpenMates
+  de: OpenMates
+  zh: OpenMates
+  es: OpenMates
+  fr: OpenMates
+  pt: OpenMates
+  ru: OpenMates
+  ja: OpenMates
+  ko: OpenMates
+  it: OpenMates
+  tr: OpenMates
+  vi: OpenMates
+  id: OpenMates
+  pl: OpenMates
+  nl: OpenMates
+  ar: OpenMates
+  hi: OpenMates
+  th: OpenMates
+  cs: OpenMates
+  sv: OpenMates
+  he: OpenMates
+  verified_by_human: [en]
+openmates_app.description:
+  context: Description for the OpenMates platform app
+  en: Discover what OpenMates can do for you.
+  de: Entdecke, was OpenMates für dich tun kann.
+  zh: 发现 OpenMates 能为您做什么。
+  es: Descubre lo que OpenMates puede hacer por ti.
+  fr: Découvrez ce qu'OpenMates peut faire pour vous.
+  pt: Descubra o que o OpenMates pode fazer por você.
+  ru: Узнайте, что OpenMates может сделать для вас.
+  ja: OpenMates があなたにできることを発見しよう。
+  ko: OpenMates가 당신을 위해 무엇을 할 수 있는지 알아보세요.
+  it: Scopri cosa OpenMates può fare per te.
+  tr: OpenMates'in sizin için neler yapabileceğini keşfedin.
+  vi: Khám phá những gì OpenMates có thể làm cho bạn.
+  id: Temukan apa yang bisa OpenMates lakukan untukmu.
+  pl: Odkryj, co OpenMates może dla ciebie zrobić.
+  nl: Ontdek wat OpenMates voor jou kan doen.
+  ar: اكتشف ما يمكن لـ OpenMates فعله من أجلك.
+  hi: जानें OpenMates आपके लिए क्या कर सकता है।
+  th: ค้นพบสิ่งที่ OpenMates สามารถทำให้คุณได้
+  cs: Zjistěte, co pro vás OpenMates může udělat.
+  sv: Upptäck vad OpenMates kan göra för dig.
+  he: גלה מה OpenMates יכולה לעשות עבורך.
+  verified_by_human: [en]
 jobs:
   context: App name for the Jobs app
   en: Jobs
@@ -1517,6 +1802,7 @@ jobs:
   th: งาน
   cs: Práce
   sv: Jobb
+  he: משרות
   verified_by_human: [en, de]
 jobs.description:
   context: Description for the Jobs app
@@ -1540,4 +1826,149 @@ jobs.description:
   th: รับข้อมูลเชิงลึกด้านอาชีพและคำแนะนำในการทำงาน
   cs: Získejte kariérní postřehy a pracovní rady.
   sv: Få karriärinsikter och jobbråd.
+  he: קבל תובנות קריירה וייעוץ תעסוקתי.
+  verified_by_human: [en, de]
+pdf:
+  context: App name for the PDF app (upload and process PDF documents)
+  en: PDF
+  de: PDF
+  zh: PDF
+  es: PDF
+  fr: PDF
+  pt: PDF
+  ru: PDF
+  ja: PDF
+  ko: PDF
+  it: PDF
+  tr: PDF
+  vi: PDF
+  id: PDF
+  pl: PDF
+  nl: PDF
+  ar: PDF
+  hi: PDF
+  th: PDF
+  cs: PDF
+  sv: PDF
+  he: PDF
+  verified_by_human: [en, de]
+pdf.description:
+  context: Description for the PDF app
+  en: Upload PDFs and read or search their content.
+  de: PDFs hochladen und deren Inhalt lesen oder durchsuchen.
+  zh: 上传PDF并读取或搜索内容。
+  es: Sube PDFs y lee o busca en su contenido.
+  fr: "T\u00e9l\u00e9versez des PDFs et lisez ou recherchez."
+  pt: Carregue PDFs e leia ou pesquise o conteúdo.
+  ru: Загружайте PDF и читайте или ищите их содержимое.
+  ja: PDFをアップロードしてコンテンツを読んだり検索したりできます。
+  ko: PDF를 업로드하여 내용을 읽거나 검색하세요.
+  it: Carica PDF e leggi o cerca il loro contenuto.
+  tr: PDF yükleyin ve içeriklerini okuyun veya arayın.
+  vi: "T\u1ea3i PDF l\u00ean v\u00e0 \u0111\u1ecdc ho\u1eb7c t\u00ecm ki\u1ebfm n\u1ed9i dung."
+  id: Unggah PDF dan baca atau cari isinya.
+  pl: "Prze\u015blij PDF i czytaj lub szukaj ich tre\u015bci."
+  nl: Upload PDF's en lees of doorzoek de inhoud.
+  ar: "\u0627\u0631\u0641\u0639 PDF \u0648\u0627\u0642\u0631\u0623 \u0623\u0648 \u0627\u0628\u062d\u062b \u0641\u064a \u0645\u062d\u062a\u0648\u0627\u0647\u0627."
+  hi: "PDF \u0905\u092a\u0932\u094b\u0921 \u0915\u0930\u0947\u0902 \u0914\u0930 \u0909\u0928\u0915\u0940 \u0938\u093e\u092e\u0917\u094d\u0930\u0940 \u092a\u0922\u093c\u0947\u0902 \u092f\u093e \u0916\u094b\u091c\u0947\u0902\u0964"
+  th: "\u0e2d\u0e31\u0e1b\u0e42\u0e2b\u0e25\u0e14 PDF \u0e41\u0e25\u0e30\u0e2d\u0e48\u0e32\u0e19\u0e2b\u0e23\u0e37\u0e2d\u0e04\u0e49\u0e19\u0e2b\u0e32\u0e40\u0e19\u0e37\u0e49\u0e2d\u0e2b\u0e32"
+  cs: "Nahrajte PDF a \u010dt\u011bte nebo prohledejte jejich obsah."
+  sv: "Ladda upp PDF och l\u00e4s eller s\u00f6k i inneh\u00e5llet."
+  he: העלאת קובצי PDF וקריאה או חיפוש בתוכן שלהם.
+  verified_by_human: [en, de]
+math:
+  context: App name for the Math app
+  en: Math
+  de: Mathe
+  zh: 数学
+  es: Matemáticas
+  fr: Maths
+  pt: Matemática
+  ru: Математика
+  ja: 数学
+  ko: 수학
+  it: Matematica
+  tr: Matematik
+  vi: Toán học
+  id: Matematika
+  pl: Matematyka
+  nl: Wiskunde
+  ar: رياضيات
+  hi: गणित
+  th: คณิตศาสตร์
+  cs: Matematika
+  sv: Matematik
+  he: מתמטיקה
+  verified_by_human: []
+math.description:
+  context: Description for the Math app
+  en: Solve equations, calculate, and plot functions.
+  de: Gleichungen lösen, berechnen und Funktionen zeichnen.
+  zh: 求解方程、计算和绘制函数图像。
+  es: Resuelve ecuaciones, calcula y traza funciones.
+  fr: Résolvez des équations, calculez et tracez des fonctions.
+  pt: Resolva equações, calcule e trace funções.
+  ru: Решайте уравнения, вычисляйте и стройте графики функций.
+  ja: 方程式を解いたり、計算したり、関数をグラフ化しましょう。
+  ko: 방정식을 풀고, 계산하고, 함수를 그려보세요.
+  it: Risolvi equazioni, calcola e traccia funzioni.
+  tr: Denklemleri çözün, hesaplayın ve fonksiyonları çizin.
+  vi: Giải phương trình, tính toán và vẽ đồ thị hàm số.
+  id: Selesaikan persamaan, hitung, dan plot fungsi.
+  pl: Rozwiązuj równania, obliczaj i rysuj wykresy funkcji.
+  nl: Los vergelijkingen op, bereken en plot functies.
+  ar: حل المعادلات والحساب ورسم الدوال.
+  hi: समीकरण हल करें, गणना करें और फ़ंक्शन प्लॉट करें।
+  th: แก้สมการ คำนวณ และพล็อตฟังก์ชัน
+  cs: Řešte rovnice, počítejte a kreslete grafy funkcí.
+  sv: Lös ekvationer, beräkna och rita funktioner.
+  he: פתרון משוואות, ביצוע חישובים וסרטוט פונקציות.
+  verified_by_human: []
+shopping:
+  context: App name for the Shopping app
+  en: Shopping
+  de: Einkaufen
+  zh: 购物
+  es: Compras
+  fr: Courses
+  pt: Compras
+  ru: Покупки
+  ja: ショッピング
+  ko: 쇼핑
+  it: Spesa
+  tr: Alışveriş
+  vi: Mua sắm
+  id: Belanja
+  pl: Zakupy
+  nl: Boodschappen
+  ar: التسوق
+  hi: खरीदारी
+  th: ช้อปปิ้ง
+  cs: Nakupování
+  sv: Shopping
+  he: קניות
+  verified_by_human: [en, de]
+shopping.description:
+  context: Description for the Shopping app
+  en: Compare supermarket prices and find deals.
+  de: Supermarktpreise vergleichen und Angebote finden.
+  zh: 比较超市价格，找到优惠。
+  es: Compara precios de supermercado y encuentra ofertas.
+  fr: Comparez les prix des supermarchés et trouvez des offres.
+  pt: Compare preços de supermercado e encontre ofertas.
+  ru: Сравнивайте цены супермаркетов и находите предложения.
+  ja: スーパーの価格を比較してお得情報を見つけよう。
+  ko: 슈퍼마켓 가격 비교 및 할인 찾기.
+  it: Confronta prezzi del supermercato e trova offerte.
+  tr: Süpermarket fiyatlarını karşılaştırın ve fırsatlar bulun.
+  vi: So sánh giá siêu thị và tìm ưu đãi.
+  id: Bandingkan harga supermarket dan temukan penawaran.
+  pl: Porównuj ceny w supermarketach i znajdź okazje.
+  nl: Vergelijk supermarktprijzen en vind aanbiedingen.
+  ar: قارن أسعار السوبر ماركت واعثر على العروض.
+  hi: सुपरमार्केट कीमतें तुलना करें और डील खोजें।
+  th: เปรียบเทียบราคาซุปเปอร์มาร์เก็ตและค้นหาข้อเสนอ
+  cs: Porovnejte ceny v supermarketech a najděte nabídky.
+  sv: Jämför supermarketpriser och hitta erbjudanden.
+  he: השוואת מחירי סופרמרקטים ומציאת מבצעים.
   verified_by_human: [en, de]

@@ -1,0 +1,265 @@
+#cloud-config
+#
+# Cloud-init template for the OpenMates Upload Server VM.
+#
+# DO NOT EDIT PLACEHOLDERS MANUALLY — use the render script instead:
+#   python scripts/render-deploy-config.py deployment/upload_server/upload-cloud-config.yaml
+#
+# The script reads DEPLOY_* variables from your .env file and outputs
+# a ready-to-paste cloud-init YAML with all values filled in.
+#
+# WHAT THIS DOES (automated on first boot):
+#   - Creates a non-root user with sudo, disables root login + password SSH
+#   - Updates the OS and installs essential packages
+#   - Installs Docker, Docker Compose, and Caddy (via official repos)
+#   - Clones the repo (dev branch) into ~/projects/OpenMates
+#   - Generates backend/upload/.env from .env.example with:
+#       - PROD_CORE_API_URL and DEV_CORE_API_URL pre-filled from DEPLOY_* vars
+#       - API keys left as <PLACEHOLDER> for manual fill-in
+#   - Writes and applies the production Caddyfile (TLS + reverse proxy)
+#     for the single upload domain (${DEPLOY_UPLOAD_DOMAIN}); Origin header
+#     determines whether to route to the prod or dev core API
+#   - Configures UFW firewall (only ports 22, 80, 443)
+#   - Configures fail2ban for SSH brute-force protection
+#
+# MANUAL STEPS AFTER SSH-ING IN (secrets only):
+#   1. Fill in the API keys in ~/projects/OpenMates/backend/upload/.env:
+#      nano ~/projects/OpenMates/backend/upload/.env
+#      (fill in: PROD_INTERNAL_API_SHARED_TOKEN, DEV_INTERNAL_API_SHARED_TOKEN,
+#                SECRET__HETZNER__*, SECRET__SIGHTENGINE__*)
+#   2. Start the upload server:
+#      cd ~/projects/OpenMates
+#      docker compose -f backend/upload/docker-compose.yml up -d
+#   3. Verify: curl https://${DEPLOY_UPLOAD_DOMAIN}/health
+
+# ---------------------------------------------------------------------------
+# User setup
+# ---------------------------------------------------------------------------
+users:
+  - name: ${DEPLOY_USERNAME}
+    groups: [sudo, docker]
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      - ${DEPLOY_SSH_PUBLIC_KEY}
+
+# Disable root login and password authentication
+ssh_pwauth: false
+disable_root: true
+
+# ---------------------------------------------------------------------------
+# System updates and package installation
+# ---------------------------------------------------------------------------
+package_update: true
+package_upgrade: true
+
+packages:
+  - ufw
+  - fail2ban
+  - git
+  - curl
+  - wget
+  - unzip
+  - htop
+  - nano
+
+# ---------------------------------------------------------------------------
+# Runtime commands (executed in order on first boot)
+# ---------------------------------------------------------------------------
+runcmd:
+  # --- Install Docker ---
+  - curl -fsSL https://get.docker.com -o get-docker.sh
+  - sh get-docker.sh
+  - usermod -aG docker ${DEPLOY_USERNAME}
+  - systemctl enable docker
+  - systemctl start docker
+  - rm -f get-docker.sh
+
+  # --- Install Docker Compose (standalone binary) ---
+  - curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+  - chmod +x /usr/local/bin/docker-compose
+  - ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+
+  # --- Install Caddy (official Debian repo) ---
+  # write_files runs before runcmd, so the production Caddyfile already exists.
+  # DEBIAN_FRONTEND=noninteractive + --force-confold prevents dpkg from prompting
+  # about the existing Caddyfile (it would hang with no stdin in cloud-init).
+  - curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  - curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
+  - apt update
+  - DEBIAN_FRONTEND=noninteractive apt install -y -o DPkg::options::="--force-confold" caddy
+  - systemctl enable caddy
+
+  # --- Clone repo ---
+  - sudo -u ${DEPLOY_USERNAME} mkdir -p /home/${DEPLOY_USERNAME}/projects
+  - sudo -u ${DEPLOY_USERNAME} git clone --branch dev https://github.com/glowingkitty/OpenMates.git /home/${DEPLOY_USERNAME}/projects/OpenMates
+
+  # --- Generate .env from .env.example ---
+  # Copies .env.example to .env, then substitutes the values we already know:
+  #   - PROD_CORE_API_URL / DEV_CORE_API_URL: filled from DEPLOY_* vars (private IPs)
+  # API keys (S3, SightEngine, shared tokens) are left as <PLACEHOLDER> for manual fill-in.
+  # Vault (production mode) initializes itself on first docker compose up — no root token needed in .env.
+  - sudo -u ${DEPLOY_USERNAME} cp /home/${DEPLOY_USERNAME}/projects/OpenMates/backend/upload/.env.example /home/${DEPLOY_USERNAME}/projects/OpenMates/backend/upload/.env
+  - sed -i "s|PROD_CORE_API_URL=http://<PROD_SERVER_PRIVATE_IP>:8000|PROD_CORE_API_URL=http://${DEPLOY_PROD_SERVER_PRIVATE_IP}:8000|" /home/${DEPLOY_USERNAME}/projects/OpenMates/backend/upload/.env
+  - sed -i "s|DEV_CORE_API_URL=http://<DEV_SERVER_PRIVATE_IP>:8000|DEV_CORE_API_URL=http://${DEPLOY_DEV_SERVER_PRIVATE_IP}:8000|" /home/${DEPLOY_USERNAME}/projects/OpenMates/backend/upload/.env
+  - chown ${DEPLOY_USERNAME}:${DEPLOY_USERNAME} /home/${DEPLOY_USERNAME}/projects/OpenMates/backend/upload/.env
+  - chmod 600 /home/${DEPLOY_USERNAME}/projects/OpenMates/backend/upload/.env
+
+  # --- Configure UFW firewall ---
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow ssh
+  - ufw allow 80/tcp
+  - ufw allow 443/tcp
+  - ufw --force enable
+
+  # --- Configure fail2ban ---
+  - systemctl enable fail2ban
+  - systemctl start fail2ban
+
+  # --- Set up Caddy log directory ---
+  # Must run after Caddy is installed so the caddy system user exists.
+  - mkdir -p /var/log/caddy
+  - chown -R caddy:caddy /var/log/caddy
+
+  # --- Apply production Caddyfile ---
+  # The Caddyfile was written by write_files with DEPLOY_* vars already substituted.
+  - systemctl reload caddy
+  - systemctl start caddy
+
+# ---------------------------------------------------------------------------
+# Config files written on first boot
+# ---------------------------------------------------------------------------
+write_files:
+  # Production Caddyfile — DEPLOY_* placeholders are substituted by the render
+  # script at provisioning time (before pasting into Hetzner user data).
+  # Single domain block: Origin header determines prod vs dev routing.
+  # Requests from openmates.org → X-Target-Env: prod
+  # Requests from app.dev.openmates.org → X-Target-Env: dev
+  # All other origins are blocked.
+  - path: /etc/caddy/Caddyfile
+    content: |
+      {
+        email ${DEPLOY_ACME_EMAIL}
+      }
+
+      ${DEPLOY_UPLOAD_DOMAIN} {
+        log {
+          output file /var/log/caddy/${DEPLOY_UPLOAD_DOMAIN}.log {
+            roll_size 100mb
+            roll_keep 10
+            roll_keep_for 720h
+          }
+          format json
+          level INFO
+        }
+
+        encode gzip zstd
+
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "DENY"
+          Referrer-Policy "strict-origin-when-cross-origin"
+          Permissions-Policy "geolocation=(), microphone=(), camera=(), interest-cohort=()"
+          -Server
+        }
+
+        # Health endpoint — always accessible, no origin check
+        @upload_health path /health
+        handle @upload_health {
+          reverse_proxy localhost:8000 {
+            header_up Host {http.request.host}
+          }
+        }
+
+        # Requests from the production web app
+        @prod_origin expression {header.Origin} == "https://openmates.org"
+        handle @prod_origin {
+          @upload_api path /v1/upload/*
+          @upload_options method OPTIONS
+          route {
+            handle @upload_options {
+              reverse_proxy localhost:8000 {
+                header_up Host {http.request.host}
+                header_up X-Target-Env "prod"
+              }
+            }
+            handle @upload_api {
+              reverse_proxy localhost:8000 {
+                header_up Host {http.request.host}
+                header_up X-Target-Env "prod"
+              }
+            }
+            handle {
+              abort
+            }
+          }
+        }
+
+        # Requests from the dev web app
+        @dev_origin expression {header.Origin} == "https://app.dev.openmates.org"
+        handle @dev_origin {
+          @upload_api path /v1/upload/*
+          @upload_options method OPTIONS
+          route {
+            handle @upload_options {
+              reverse_proxy localhost:8000 {
+                header_up Host {http.request.host}
+                header_up X-Target-Env "dev"
+              }
+            }
+            handle @upload_api {
+              reverse_proxy localhost:8000 {
+                header_up Host {http.request.host}
+                header_up X-Target-Env "dev"
+              }
+            }
+            handle {
+              abort
+            }
+          }
+        }
+
+        # Block everything else — missing or unrecognised Origin
+        handle {
+          abort
+        }
+      }
+    owner: root:root
+    permissions: "0644"
+
+  # fail2ban SSH jail
+  - path: /etc/fail2ban/jail.local
+    content: |
+      [sshd]
+      enabled = true
+      port = ssh
+      filter = sshd
+      logpath = /var/log/auth.log
+      maxretry = 3
+      bantime = 3600
+      findtime = 600
+    permissions: "0644"
+
+# ---------------------------------------------------------------------------
+# Final message (shown in cloud-init logs)
+# ---------------------------------------------------------------------------
+final_message: |
+  Upload Server cloud-init complete.
+  SSH in as '${DEPLOY_USERNAME}' and run the following commands:
+
+  1. Fill in the remaining secrets in the .env (already pre-filled: PROD_CORE_API_URL, DEV_CORE_API_URL):
+     nano ~/projects/OpenMates/backend/upload/.env
+     (fill in: PROD_INTERNAL_API_SHARED_TOKEN, DEV_INTERNAL_API_SHARED_TOKEN,
+               SECRET__HETZNER__S3_ACCESS_KEY, SECRET__HETZNER__S3_SECRET_KEY,
+               SECRET__HETZNER__S3_REGION_NAME,
+               SECRET__SIGHTENGINE__API_USER, SECRET__SIGHTENGINE__API_SECRET)
+     Note: Vault (production mode) self-initializes on first 'docker compose up' — no root token needed.
+
+  2. Start the upload server:
+     cd ~/projects/OpenMates
+     docker compose -f backend/upload/docker-compose.yml up -d
+
+  3. Verify:
+     curl https://${DEPLOY_UPLOAD_DOMAIN}/health

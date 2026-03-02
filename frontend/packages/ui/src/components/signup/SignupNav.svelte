@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { _ } from 'svelte-i18n';
+    import { text } from '../../i18n/translations';
     import { userProfile } from '../../stores/userProfile'; // Import userProfile store
     import { getWebsiteUrl, routes } from '../../config/links';
     // Import current step store and gift check stores
@@ -148,45 +148,45 @@
     function getNavText(step: string) {
         // Login mode: always show "Demo"
         if (mode === 'login') {
-            return $_('login.demo');
+            return $text('login.demo');
         }
         
         // Signup mode: show step-specific text
         // Show "Demo" for first two steps since we now have Login/Signup tabs at the top
-        if (step === STEP_ALPHA_DISCLAIMER) return $_('login.demo');
-        if (step === STEP_BASICS) return $_('login.demo');
-        if (step === STEP_CONFIRM_EMAIL) return $_('signup.sign_up');
-        if (step === STEP_SECURE_ACCOUNT) return $_('signup.sign_up');
-        if (step === STEP_PASSWORD) return $_('signup.secure_your_account');
-        if (step === STEP_ONE_TIME_CODES) return $_('settings.logout');
-        if (step === STEP_TFA_APP_REMINDER) return $_('signup.connect_2fa_app');
-        if (step === STEP_BACKUP_CODES) return $_('signup.2fa_app_reminder.text');
+        if (step === STEP_ALPHA_DISCLAIMER) return $text('login.demo');
+        if (step === STEP_BASICS) return $text('login.demo');
+        if (step === STEP_CONFIRM_EMAIL) return $text('signup.sign_up');
+        if (step === STEP_SECURE_ACCOUNT) return $text('signup.sign_up');
+        if (step === STEP_PASSWORD) return $text('signup.secure_your_account');
+        if (step === STEP_ONE_TIME_CODES) return $text('settings.logout');
+        if (step === STEP_TFA_APP_REMINDER) return $text('signup.connect_2fa_app');
+        if (step === STEP_BACKUP_CODES) return $text('signup.2fa_app_reminder.text');
         // CRITICAL: For passkey signup, recovery_key step should show "Logout" (triggers logout)
         // For password signup, it should show "Backup codes" (goes back to backup_codes step)
         if (step === STEP_RECOVERY_KEY) {
             return $signupStore.loginMethod === 'passkey' 
-                ? $_('settings.logout') 
-                : $_('signup.backup_codes');
+                ? $text('settings.logout') 
+                : $text('signup.backup_codes');
         }
-        // if (step === STEP_PROFILE_PICTURE) return $_('settings.logout'); // Removed
-        if (step === STEP_SETTINGS) return $_('signup.upload_profile_picture');
-        if (step === STEP_MATE_SETTINGS) return $_('signup.settings');
+        // if (step === STEP_PROFILE_PICTURE) return $text('settings.logout'); // Removed
+        if (step === STEP_SETTINGS) return $text('signup.upload_profile_picture');
+        if (step === STEP_MATE_SETTINGS) return $text('signup.settings');
         // Credits step: show previous step text (recovery_key for both passkey and password flows)
-        if (step === STEP_CREDITS) return $_('signup.recovery_key');
-        if (step === STEP_PAYMENT) return $_('signup.select_credits');
-        if (step === STEP_AUTO_TOP_UP) return $_('settings.logout');
-        return $_('signup.sign_up');
+        if (step === STEP_CREDITS) return $text('signup.recovery_key');
+        if (step === STEP_PAYMENT) return $text('signup.select_credits');
+        if (step === STEP_AUTO_TOP_UP) return $text('settings.logout');
+        return $text('signup.sign_up');
     }
 
 // Update the reactive skipButtonText for different steps and states using Svelte 5 runes
 let skipButtonText = $derived(
-    (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) ? $_('signup.next') :
+    (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) ? $text('signup.next') :
     // Only show "Next" for TFA app reminder if an app has been selected AND saved
-    (currentStep === STEP_TFA_APP_REMINDER && selectedAppName && selectedAppName.trim() !== '' && isAppSaved) ? $_('signup.next') :
-    (currentStep === STEP_SETTINGS && $userProfile.consent_privacy_and_apps_default_settings) ? $_('signup.next') :
-    (currentStep === STEP_MATE_SETTINGS && $userProfile.consent_mates_default_settings) ? $_('signup.next') :
-    // (currentStep === STEP_CREDITS) ? $_('signup.skip_and_show_demo_first') : // Credits step skip demo # TODO implement this later
-    $_('signup.skip') // Default skip text
+    (currentStep === STEP_TFA_APP_REMINDER && selectedAppName && selectedAppName.trim() !== '' && isAppSaved) ? $text('signup.next') :
+    (currentStep === STEP_SETTINGS && $userProfile.consent_privacy_and_apps_default_settings) ? $text('signup.next') :
+    (currentStep === STEP_MATE_SETTINGS && $userProfile.consent_mates_default_settings) ? $text('signup.next') :
+    // (currentStep === STEP_CREDITS) ? $text('signup.skip_and_show_demo_first') : // Credits step skip demo # TODO implement this later
+    $text('signup.skip') // Default skip text
 );
 
     // Determine if the skip/next button should be shown using Svelte 5 runes
@@ -211,7 +211,7 @@ let skipButtonText = $derived(
 </script>
 
 <div class="nav-area">
-    <button class="nav-button" onclick={handleBackClick} aria-label={mode === 'login' ? $_('login.demo') : getNavText(currentStep)}>
+    <button class="nav-button" onclick={handleBackClick} aria-label={mode === 'login' ? $text('login.demo') : getNavText(currentStep)}>
         <div class="clickable-icon icon_back"></div>
         {getNavText(currentStep)}
     </button>
@@ -219,7 +219,7 @@ let skipButtonText = $derived(
     {#if mode === 'signup' && showAdminButton}
         <button class="admin-button" onclick={openSelfHostedDocs}>
             <div class="clickable-icon icon_server admin-icon"></div>
-            <span class="admin-text">{$_('signup.server_admin')}</span>
+            <span class="admin-text">{$text('signup.server_admin')}</span>
             <div class="clickable-icon icon_question question-icon"></div>
         </button>
     {/if}

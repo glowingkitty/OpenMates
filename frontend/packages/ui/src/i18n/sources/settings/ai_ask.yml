@@ -23,114 +23,276 @@ ai_ask_settings.description:
   th: ถามคำถามโดยใช้ข้อความ รูปภาพ และสื่ออื่นๆ
   cs: Položte otázku pomocí textu, obrázků a dalších médií.
   sv: Ställ en fråga med text, bilder och andra medier.
+  he: שאל שאלה, באמצעות טקסט, תמונות ומדיה אחרת.
   verified_by_human: [en, de]
 
 ai_ask_settings.pricing:
   context: Section heading for pricing information
   en: Pricing
   de: Preise
+  ar: التسعير
+  he: תמחור
   verified_by_human: []
 
 ai_ask_settings.pricing_starting_at:
   context: Label showing the cheapest pricing option
   en: Starting at
   de: Ab
+  ar: يبدأ من
+  he: החל מ-
   verified_by_human: []
 
 ai_ask_settings.input_text:
   context: Label for input text pricing
   en: Input
   de: Eingabe
+  ar: إدخال
+  he: קלט
   verified_by_human: []
 
 ai_ask_settings.output_text:
   context: Label for output text pricing
   en: Output
   de: Ausgabe
+  ar: إخراج
+  he: פלט
   verified_by_human: []
 
 ai_ask_settings.per:
   context: Separator word between credit and tokens (e.g., "1 credit per 500 tokens")
   en: per
   de: pro
+  ar: لكل
+  he: לכל
   verified_by_human: []
 
 ai_ask_settings.tokens:
   context: Label for tokens unit
   en: tokens
   de: Tokens
+  ar: رموز
+  he: טוקנים
   verified_by_human: []
 
 ai_ask_settings.pricing_note:
   context: Note explaining pricing varies by model
   en: Prices vary by model. Premium models cost more credits per token.
   de: Preise variieren je nach Modell. Premium-Modelle kosten mehr Credits pro Token.
+  ar: تختلف الأسعار حسب الموديل. تكلف النماذج المميزة رصيدًا أكثر لكل رمز.
+  he: המחירים משתנים לפי המודל. מודלי פרימיום עולים יותר קרדיטים לכל טוקן.
   verified_by_human: []
 
 ai_ask_settings.settings:
   context: Section heading for settings
   en: Settings
   de: Einstellungen
+  ar: الإعدادات
+  he: הגדרות
   verified_by_human: []
 
 ai_ask_settings.auto_select_model:
   context: Label for auto-select model toggle
   en: Auto-select model
   de: Modell automatisch auswählen
+  ar: اختيار النموذج تلقائيًا
+  he: בחירת מודל אוטומטית
   verified_by_human: []
 
 ai_ask_settings.auto_select_description:
   context: Description of auto-select feature
   en: Automatically selects the best model based on your query complexity and preferences.
   de: Wählt automatisch das beste Modell basierend auf der Komplexität Ihrer Anfrage und Ihren Präferenzen.
+  ar: يختار تلقائيًا أفضل نموذج بناءً على تعقيد استعلامك وتفضيلاتك.
+  he: בוחר באופן אוטומטי את המודל הטוב ביותר בהתבסס על מורכבות השאילתה וההעדפות שלך.
   verified_by_human: []
 
 ai_ask_settings.manual_select_note:
   context: Note about manual model selection via @ mention
   en: You can always manually select a model using @mention in the chat.
   de: Sie können jederzeit ein Modell manuell mit @Erwähnung im Chat auswählen.
+  ar: يمكنك دائمًا اختيار نموذج يدويًا باستخدام @الإشارة في الدردشة.
+  he: "תמיד ניתן לבחור מודל ידנית באמצעות @mention בצ'אט."
+  verified_by_human: []
+
+ai_ask_settings.default_models:
+  context: Section heading for the Default Models settings block (where users pick their preferred simple/complex model)
+  en: Default Models
+  de: Standardmodelle
+  zh: 默认模型
+  es: Modelos predeterminados
+  fr: Modèles par défaut
+  pt: Modelos padrão
+  ru: Модели по умолчанию
+  ja: デフォルトモデル
+  ko: 기본 모델
+  it: Modelli predefiniti
+  tr: Varsayılan modeller
+  vi: Mô hình mặc định
+  id: Model default
+  pl: Domyślne modele
+  nl: Standaardmodellen
+  ar: النماذج الافتراضية
+  hi: डिफ़ॉल्ट मॉडल
+  th: โมเดลเริ่มต้น
+  cs: Výchozí modely
+  sv: Standardmodeller
+  he: מודלים ברירת מחדל
+  verified_by_human: []
+
+ai_ask_settings.simple_requests:
+  context: Label for the dropdown that sets the default model for simple/easy AI requests
+  en: Simple requests
+  de: Einfache Anfragen
+  zh: 简单请求
+  es: Solicitudes simples
+  fr: Requêtes simples
+  pt: Solicitações simples
+  ru: Простые запросы
+  ja: シンプルなリクエスト
+  ko: 간단한 요청
+  it: Richieste semplici
+  tr: Basit istekler
+  vi: Yêu cầu đơn giản
+  id: Permintaan sederhana
+  pl: Proste zapytania
+  nl: Eenvoudige verzoeken
+  ar: الطلبات البسيطة
+  hi: सरल अनुरोध
+  th: คำของ่าย
+  cs: Jednoduché dotazy
+  sv: Enkla förfrågningar
+  he: בקשות פשוטות
+  verified_by_human: []
+
+ai_ask_settings.complex_requests:
+  context: Label for the dropdown that sets the default model for complex/hard AI requests
+  en: Complex requests
+  de: Komplexe Anfragen
+  zh: 复杂请求
+  es: Solicitudes complejas
+  fr: Requêtes complexes
+  pt: Solicitações complexas
+  ru: Сложные запросы
+  ja: 複雑なリクエスト
+  ko: 복잡한 요청
+  it: Richieste complesse
+  tr: Karmaşık istekler
+  vi: Yêu cầu phức tạp
+  id: Permintaan kompleks
+  pl: Złożone zapytania
+  nl: Complexe verzoeken
+  ar: الطلبات المعقدة
+  hi: जटिल अनुरोध
+  th: คำขอซับซ้อน
+  cs: Složité dotazy
+  sv: Komplexa förfrågningar
+  he: בקשות מורכבות
+  verified_by_human: []
+
+ai_ask_settings.model_auto:
+  context: Option label meaning "let the system auto-select the best model" shown first in the default model dropdowns
+  en: Auto
+  de: Automatisch
+  zh: 自动
+  es: Auto
+  fr: Auto
+  pt: Automático
+  ru: Авто
+  ja: 自動
+  ko: 자동
+  it: Automatico
+  tr: Otomatik
+  vi: Tự động
+  id: Otomatis
+  pl: Automatycznie
+  nl: Automatisch
+  ar: تلقائي
+  hi: स्वचालित
+  th: อัตโนมัติ
+  cs: Automaticky
+  sv: Automatiskt
+  he: אוטומטי
+  verified_by_human: []
+
+ai_ask_settings.default_models_save_error:
+  context: Error notification shown when saving default model preferences to the server fails (optimistic save failure)
+  en: Failed to save default model preference. Please try again.
+  de: Standardmodell konnte nicht gespeichert werden. Bitte versuche es erneut.
+  zh: 保存默认模型偏好失败，请重试。
+  es: No se pudo guardar la preferencia de modelo predeterminado. Por favor, inténtalo de nuevo.
+  fr: Impossible d'enregistrer la préférence du modèle par défaut. Veuillez réessayer.
+  pt: Falha ao salvar a preferência de modelo padrão. Por favor, tente novamente.
+  ru: Не удалось сохранить настройку модели по умолчанию. Пожалуйста, попробуйте ещё раз.
+  ja: デフォルトモデルの設定を保存できませんでした。もう一度お試しください。
+  ko: 기본 모델 설정을 저장하지 못했습니다. 다시 시도해 주세요.
+  it: Impossibile salvare la preferenza del modello predefinito. Per favore riprova.
+  tr: Varsayılan model tercihi kaydedilemedi. Lütfen tekrar deneyin.
+  vi: Không thể lưu tùy chọn mô hình mặc định. Vui lòng thử lại.
+  id: Gagal menyimpan preferensi model default. Silakan coba lagi.
+  pl: Nie udało się zapisać preferencji modelu domyślnego. Spróbuj ponownie.
+  nl: Kan de voorkeur voor het standaardmodel niet opslaan. Probeer het opnieuw.
+  ar: فشل حفظ تفضيل النموذج الافتراضي. يرجى المحاولة مرة أخرى.
+  hi: डिफ़ॉल्ट मॉडल प्राथमिकता सहेजने में विफल। कृपया पुनः प्रयास करें।
+  th: ไม่สามารถบันทึกการตั้งค่าโมเดลเริ่มต้นได้ กรุณาลองอีกครั้ง
+  cs: Nepodařilo se uložit předvolbu výchozího modelu. Zkuste to prosím znovu.
+  sv: Det gick inte att spara standardmodellens inställning. Försök igen.
+  he: שמירת העדפת המודל ברירת המחדל נכשלה. אנא נסה שנית.
   verified_by_human: []
 
 ai_ask_settings.available_models:
   context: Section heading for available models list
   en: Available Models
   de: Verfügbare Modelle
+  ar: النماذج المتاحة
+  he: מודלים זמינים
   verified_by_human: []
 
 ai_ask_settings.models_description:
   context: Description above models list
   en: Enable or disable models for the AI Ask skill. Disabled models won't appear in @mention suggestions.
   de: Aktivieren oder deaktivieren Sie Modelle für die AI Ask-Funktion. Deaktivierte Modelle erscheinen nicht in @Erwähnungsvorschlägen.
+  ar: مكّن أو عطّل النماذج لمهارة AI Ask. لن تظهر النماذج المعطّلة في اقتراحات @الإشارة.
+  he: הפעל או השבת מודלים עבור מיומנות ה-AI Ask. מודלים מושבתים לא יופיעו בהצעות @mention.
   verified_by_human: []
 
 ai_ask_settings.search_placeholder:
   context: Placeholder text for model search input
   en: Search models...
   de: Modelle suchen...
+  ar: البحث في النماذج...
+  he: חיפוש מודלים...
   verified_by_human: []
 
 ai_ask_settings.sort_by_price:
   context: Sort option for sorting by price (cheapest first)
   en: Price (cheapest)
   de: Preis (günstigste)
+  ar: السعر (الأرخص)
+  he: מחיר (הזול ביותר)
   verified_by_human: []
 
 ai_ask_settings.sort_by_performance:
   context: Sort option for sorting by performance tier
   en: Performance
   de: Leistung
+  ar: الأداء
+  he: ביצועים
   verified_by_human: []
 
 ai_ask_settings.sort_by_new:
   context: Sort option for sorting by release date (newest first)
   en: Newest
   de: Neueste
+  ar: الأحدث
+  he: החדשים ביותר
   verified_by_human: []
 
 ai_ask_settings.no_models_found:
   context: Message shown when search returns no results
   en: No models found matching your search.
   de: Keine Modelle gefunden, die Ihrer Suche entsprechen.
+  ar: لم يتم العثور على نماذج تطابق بحثك.
+  he: לא נמצאו מודלים התואמים לחיפוש שלך.
   verified_by_human: []
 
 # Model details page translations
@@ -139,120 +301,160 @@ ai_ask_model_details.model_not_found:
   context: Error message when model is not found
   en: Model not found.
   de: Modell nicht gefunden.
+  ar: النموذج غير موجود.
+  he: המודל לא נמצא.
   verified_by_human: []
 
 ai_ask_model_details.back_to_models:
   context: Back button text to return to models list
   en: Back to models
   de: Zurück zu Modellen
+  ar: العودة إلى النماذج
+  he: חזרה למודלים
   verified_by_human: []
 
 ai_ask_model_details.model_info:
-  context: Section heading for model information
-  en: Model Information
-  de: Modellinformationen
+  context: Section heading for model details
+  en: Details
+  de: Details
+  ar: التفاصيل
+  he: פרטים
   verified_by_human: []
 
 ai_ask_model_details.origin:
   context: Label for model origin/provider
   en: Origin
   de: Herkunft
+  ar: المصدر
+  he: מקור
   verified_by_human: []
 
 ai_ask_model_details.release_date:
   context: Label for model release date
   en: Released
   de: Veröffentlicht
+  ar: تاريخ الإصدار
+  he: שוחרר
   verified_by_human: []
 
 ai_ask_model_details.tier:
   context: Label for model pricing tier
   en: Tier
   de: Stufe
+  ar: الفئة
+  he: רמה
   verified_by_human: []
 
 ai_ask_model_details.tier_economy:
   context: Economy tier label (cheapest models)
   en: Economy
   de: Economy
+  ar: اقتصادي
+  he: חיסכון
   verified_by_human: []
 
 ai_ask_model_details.tier_standard:
   context: Standard tier label (mid-range models)
   en: Standard
   de: Standard
+  ar: قياسي
+  he: סטנדרט
   verified_by_human: []
 
 ai_ask_model_details.tier_premium:
   context: Premium tier label (most capable models)
   en: Premium
   de: Premium
+  ar: مميز
+  he: פרימיום
   verified_by_human: []
 
 ai_ask_model_details.type:
   context: Label for model type
   en: Type
   de: Typ
+  ar: النوع
+  he: סוג
   verified_by_human: []
 
 ai_ask_model_details.reasoning_model:
   context: Badge label for reasoning/thinking models
   en: Reasoning Model
   de: Reasoning-Modell
+  ar: نموذج الاستدلال
+  he: מודל חשיבה
   verified_by_human: []
 
 ai_ask_model_details.input_types:
   context: Label for supported input types
   en: Accepts
   de: Akzeptiert
+  ar: يقبل
+  he: מקבל
   verified_by_human: []
 
 ai_ask_model_details.output_types:
   context: Label for supported output types
   en: Outputs
   de: Ausgaben
+  ar: مخرجات
+  he: מוציא
   verified_by_human: []
 
 ai_ask_model_details.input_type_text:
   context: Text input type label
   en: Text
   de: Text
+  ar: نص
+  he: טקסט
   verified_by_human: []
 
 ai_ask_model_details.input_type_image:
   context: Image input type label
   en: Images
   de: Bilder
+  ar: صور
+  he: תמונות
   verified_by_human: []
 
 ai_ask_model_details.input_type_video:
   context: Video input type label
   en: Video
   de: Video
+  ar: فيديو
+  he: וידאו
   verified_by_human: []
 
 ai_ask_model_details.input_type_audio:
   context: Audio input type label
   en: Audio
   de: Audio
+  ar: صوت
+  he: אודיו
   verified_by_human: []
 
 ai_ask_model_details.output_type_text:
   context: Text output type label
   en: Text
   de: Text
+  ar: نص
+  he: טקסט
   verified_by_human: []
 
 ai_ask_model_details.output_type_image:
   context: Image output type label
   en: Images
   de: Bilder
+  ar: صور
+  he: תמונות
   verified_by_human: []
 
 ai_ask_model_details.pricing:
   context: Section heading for pricing details
   en: Pricing
   de: Preise
+  ar: التسعير
+  he: תמחור
   verified_by_human: []
 
 ai_ask_model_details.text_input:
@@ -277,6 +479,7 @@ ai_ask_model_details.text_input:
   th: ข้อความเข้า
   cs: Textový vstup
   sv: Textinmatning
+  he: קלט טקסט
   verified_by_human: [en, de]
 
 ai_ask_model_details.text_output:
@@ -301,6 +504,7 @@ ai_ask_model_details.text_output:
   th: ข้อความออก
   cs: Textový výstup
   sv: Textutmatning
+  he: פלט טקסט
   verified_by_human: [en, de]
 
 ai_ask_model_details.provider:
@@ -325,22 +529,37 @@ ai_ask_model_details.provider:
   th: ผู้ให้บริการ
   cs: Poskytovatel
   sv: Leverantör
+  he: ספק
   verified_by_human: [en, de]
 
 ai_ask_model_details.servers:
   context: Section heading for available servers
   en: Servers
   de: Server
+  ar: الخوادم
+  he: שרתים
   verified_by_human: []
 
 ai_ask_model_details.servers_description:
   context: Description explaining server options
   en: Select which servers to use for this model. Disabled servers will be skipped during processing.
   de: Wählen Sie die Server aus, die für dieses Modell verwendet werden sollen. Deaktivierte Server werden bei der Verarbeitung übersprungen.
+  ar: اختر الخوادم التي ستُستخدم لهذا النموذج. سيتم تخطي الخوادم المعطّلة أثناء المعالجة.
+  he: בחר באילו שרתים להשתמש עבור מודל זה. המערכת תדלג על שרתים מושבתים במהלך העיבוד.
   verified_by_human: []
 
 ai_ask_model_details.default:
   context: Badge label indicating default server
   en: Default
   de: Standard
+  ar: افتراضي
+  he: ברירת מחדל
+  verified_by_human: []
+
+ai_ask_model_details.enable_model:
+  context: Toggle label to enable or disable a model in the AI Ask skill settings
+  en: Enable model
+  de: Modell aktivieren
+  ar: تفعيل النموذج
+  he: הפעלת מודל
   verified_by_human: []

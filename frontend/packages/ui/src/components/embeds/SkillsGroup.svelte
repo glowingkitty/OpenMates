@@ -98,7 +98,8 @@
             id: app.id,
             name_translation_key: skill.name_translation_key,
             description_translation_key: skill.description_translation_key,
-            icon_image: app.icon_image,
+            // Use skill-specific icon if available, fall back to parent app icon
+            icon_image: skill.icon_image || app.icon_image,
             icon_colorgradient: app.icon_colorgradient,
             providers: skill.providers || [],
             skills: [],
@@ -191,7 +192,8 @@
       {#each displaySkills as { skill, appId, cardApp } (`${appId}-${skill.id}`)}
         <div class="skill-card-scaled">
           <AppStoreCard 
-            app={cardApp} 
+            app={cardApp}
+            cardIconType="skill"
             skillProviders={skill.providers}
             onSelect={() => handleSkillSelect(appId, skill.id)} 
           />
@@ -252,6 +254,14 @@
     transform-origin: top left;
     width: 256px;
     height: 148px;
+  }
+
+  /* RTL: scale cards toward the inline-start edge (right side in RTL).
+     Without this override, cards scale toward 'top left' which is the
+     inline-end edge in RTL — the overflow is clipped by the wrapper's
+     overflow: hidden, cutting off part of each card. */
+  :global([dir="rtl"]) .skill-card-scaled {
+    transform-origin: top right;
   }
   
   .skills-group > :global(*) {

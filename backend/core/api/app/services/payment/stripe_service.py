@@ -637,32 +637,37 @@ class StripeService:
         try:
             # CRITICAL: For monthly auto top-up subscriptions, we want to schedule the first charge based on billing preference.
             # The subscription should be created as 'active' but with the first billing cycle starting at the chosen date.
-            # We use billing_cycle_anchor to set when the first invoice will be generated and charged.
-            from datetime import datetime, timedelta, timezone
+            # For 'anniversary' billing we do NOT set billing_cycle_anchor — Stripe's default behaviour is to bill
+            # exactly one calendar month from creation, which is what we want. Setting billing_cycle_anchor to
+            # "now + 30 days" is unsafe because in short months (e.g. February) +30 days can land after the natural
+            # billing date and Stripe rejects the request with "billing_cycle_anchor cannot be later than next natural
+            # billing date". For 'first_of_month' billing we do set the anchor to the 1st of next month.
+            from datetime import datetime, timezone
 
-            # Calculate billing cycle anchor based on preference
-            now = datetime.now(timezone.utc)
+            subscription_params = {
+                "customer": customer_id,
+                "items": [{"price": price_id}],
+                "metadata": metadata or {},
+                "proration_behavior": "none",  # Don't prorate the first period
+                "expand": ["latest_invoice"]
+            }
 
             if billing_day_preference == 'first_of_month':
-                # Bill on the 1st of next month
+                # Bill on the 1st of next month — safe to use billing_cycle_anchor here because the
+                # 1st of next month is always at or before the natural monthly billing date.
+                now = datetime.now(timezone.utc)
                 year = now.year
                 month = now.month + 1
                 if month > 12:
                     month = 1
                     year += 1
                 billing_cycle_anchor = int(datetime(year, month, 1, tzinfo=timezone.utc).timestamp())
+                subscription_params["billing_cycle_anchor"] = billing_cycle_anchor
+                logger.debug(f"Using first_of_month billing anchor: {billing_cycle_anchor}")
             else:
-                # Anniversary billing: one month from now (default)
-                billing_cycle_anchor = int((now + timedelta(days=30)).timestamp())
-            
-            subscription_params = {
-                "customer": customer_id,
-                "items": [{"price": price_id}],
-                "metadata": metadata or {},
-                "billing_cycle_anchor": billing_cycle_anchor,  # First charge in one month
-                "proration_behavior": "none",  # Don't prorate the first period
-                "expand": ["latest_invoice"]
-            }
+                # Anniversary billing: let Stripe bill exactly one calendar month from now (its default).
+                # No billing_cycle_anchor needed — omitting it is safe and correct for all months.
+                logger.debug("Anniversary billing: no billing_cycle_anchor set, Stripe will bill one month from creation")
             
             # CRITICAL: If default_payment_method is provided, explicitly set it to ensure Stripe uses it
             # This is essential for subscriptions to work properly with saved payment methods
@@ -672,23 +677,22 @@ class StripeService:
             
             subscription = stripe.Subscription.create(**subscription_params)
             
+            anchor_display = subscription_params.get("billing_cycle_anchor", "Stripe default (1 month from creation)")
             logger.info(
                 f"Stripe subscription created: {subscription.id} for customer: {customer_id}, "
-                f"status: {subscription.status}, billing_cycle_anchor: {billing_cycle_anchor} "
+                f"status: {subscription.status}, billing_cycle_anchor: {anchor_display} "
                 f"(first charge scheduled for one month from now)"
             )
-            
-            # CRITICAL: With billing_cycle_anchor set, Stripe creates the subscription as 'active' but doesn't
-            # generate an invoice immediately. The first invoice will be generated at the billing_cycle_anchor date.
-            # No client_secret is needed since no immediate payment is required.
-            # The subscription will be active and ready, with the first charge scheduled for the billing_cycle_anchor date.
-            
-            # Get current_period_end - with billing_cycle_anchor, this should be set to the anchor date
+
+            # CRITICAL: Stripe creates the subscription as 'active'. With billing_cycle_anchor set the first
+            # invoice is generated at the anchor date; without it Stripe bills exactly one calendar month from
+            # creation. No client_secret is needed since no immediate payment is required.
+
+            # Get current_period_end from the subscription object
             current_period_end = getattr(subscription, 'current_period_end', None)
-            
+
             if current_period_end is None:
-                # If current_period_end is not available, it should be the billing_cycle_anchor
-                # But let's retrieve the subscription to be sure
+                # current_period_end not on the initial object — retrieve the full subscription
                 logger.debug("current_period_end not available on initial subscription object, retrieving full subscription details...")
                 try:
                     full_subscription = stripe.Subscription.retrieve(subscription.id)
@@ -696,13 +700,16 @@ class StripeService:
                     if current_period_end:
                         logger.debug(f"Retrieved current_period_end from full subscription: {current_period_end}")
                     else:
-                        # Fallback: use billing_cycle_anchor as current_period_end
-                        current_period_end = billing_cycle_anchor
-                        logger.debug(f"Using billing_cycle_anchor as current_period_end: {current_period_end}")
+                        # Fallback: use the billing_cycle_anchor if one was set, otherwise estimate 30 days
+                        current_period_end = subscription_params.get("billing_cycle_anchor") or int(
+                            (datetime.now(timezone.utc).timestamp()) + 30 * 86400
+                        )
+                        logger.debug(f"Using fallback current_period_end: {current_period_end}")
                 except Exception as retrieve_error:
                     logger.warning(f"Failed to retrieve full subscription details: {retrieve_error}")
-                    # Fallback: use billing_cycle_anchor
-                    current_period_end = billing_cycle_anchor
+                    current_period_end = subscription_params.get("billing_cycle_anchor") or int(
+                        (datetime.now(timezone.utc).timestamp()) + 30 * 86400
+                    )
             
             logger.info(
                 f"Subscription {subscription.id} created successfully. Status: {subscription.status}, "

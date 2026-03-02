@@ -1,10 +1,37 @@
 # Security Settings Translations
 # Used in SecurityAuth.svelte and SettingsPassword.svelte
 
+security.description:
+  context: Short description shown in the account security settings page gradient banner header
+  en: Manage your passwords, passkeys and two-factor authentication
+  de: Verwalte deine Passwörter, Passkeys und Zwei-Faktor-Authentifizierung
+  zh: 管理您的密码、通行密钥和双因素认证
+  es: Gestiona tus contraseñas, llaves de acceso y autenticación de dos factores
+  fr: Gérez vos mots de passe, clés d'accès et authentification à deux facteurs
+  pt: ""
+  ru: ""
+  ja: パスワード、パスキー、二要素認証を管理する
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: إدارة كلمات المرور ومفاتيح المرور والمصادقة الثنائية
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: נהל את הסיסמאות, מפתחות הגישה והאימות הדו-שלבי שלך
+  verified_by_human: []
+
 security:
   context: Security settings section title
   en: Security
   de: Sicherheit
+  ar: الأمان
+  he: אבטחה
   verified_by_human: []
 
 # --- SecurityAuth Component ---
@@ -30,6 +57,7 @@ auth_title:
   th: ยืนยันตัวตนของคุณ
   cs: Ověřte svou totožnost
   sv: Verifiera din identitet
+  he: אימות זהות
   verified_by_human: []
 auth_description:
   context: Description for security authentication modal
@@ -53,6 +81,7 @@ auth_description:
   th: กรุณายืนยันตัวตนเพื่อดำเนินการต่อกับการดำเนินการที่มีความละเอียดอ่อนด้านความปลอดภัยนี้
   cs: Pro pokračování v této bezpečnostní operaci se prosím ověřte.
   sv: Autentisera för att fortsätta med denna säkerhetskänsliga operation.
+  he: נא לבצע אימות כדי להמשיך בפעולה רגישה זו מבחינת אבטחה.
   verified_by_human: []
 passkey_authenticating:
   context: Loading message during passkey authentication
@@ -76,6 +105,7 @@ passkey_authenticating:
   th: กำลังยืนยันตัวตนด้วยคีย์การเข้าถึง...
   cs: Ověřování přístupovým klíčem...
   sv: Autentiserar med åtkomstnyckel...
+  he: מבצע אימות באמצעות מפתח גישה...
   verified_by_human: []
 enter_password:
   context: Prompt to enter password
@@ -99,6 +129,7 @@ enter_password:
   th: ป้อนรหัสผ่านปัจจุบันของคุณ
   cs: Zadejte své aktuální heslo
   sv: Ange ditt nuvarande lösenord
+  he: הזן את הסיסמה הנוכחית שלך
   verified_by_human: []
 password_placeholder:
   context: Placeholder for password input
@@ -122,6 +153,7 @@ password_placeholder:
   th: รหัสผ่าน
   cs: Heslo
   sv: Lösenord
+  he: סיסמה
   verified_by_human: []
 verify_password:
   context: Button to verify password
@@ -145,6 +177,7 @@ verify_password:
   th: ยืนยันรหัสผ่าน
   cs: Ověřit heslo
   sv: Verifiera lösenord
+  he: אימות סיסמה
   verified_by_human: []
 use_passkey_instead:
   context: Link to switch to passkey authentication
@@ -168,6 +201,7 @@ use_passkey_instead:
   th: ใช้คีย์การเข้าถึงแทน
   cs: Použijte místo toho přístupový klíč
   sv: Använd åtkomstnyckel istället
+  he: שימוש במפתח גישה במקום
   verified_by_human: []
 use_password_instead:
   context: Link to switch to password authentication
@@ -191,6 +225,7 @@ use_password_instead:
   th: ใช้รหัสผ่านแทน
   cs: Použijte místo toho heslo
   sv: Använd lösenord istället
+  he: שימוש בסיסמה במקום
   verified_by_human: []
 enter_2fa_code:
   context: Prompt to enter 2FA code
@@ -214,6 +249,7 @@ enter_2fa_code:
   th: ป้อนรหัส 2FA ของคุณ
   cs: Zadejte svůj 2FA kód
   sv: Ange din 2FA-kod
+  he: הזן את קוד ה-2FA שלך
   verified_by_human: []
 passkey_prompt:
   context: Prompt for passkey authentication
@@ -237,6 +273,7 @@ passkey_prompt:
   th: ใช้คีย์การเข้าถึงของคุณเพื่อยืนยันตัวตน
   cs: K ověření použijte svůj přístupový klíč
   sv: Använd din åtkomstnyckel för att autentisera
+  he: השתמש במפתח הגישה שלך כדי להזדהות
   verified_by_human: []
 authenticate_with_passkey:
   context: Button to authenticate with passkey
@@ -260,6 +297,7 @@ authenticate_with_passkey:
   th: ยืนยันตัวตนด้วยคีย์การเข้าถึง
   cs: Ověřit přístupovým klíčem
   sv: Autentisera med åtkomstnyckel
+  he: אימות באמצעות מפתח גישה
   verified_by_human: []
 no_auth_method:
   context: Error when no authentication method is available
@@ -283,6 +321,7 @@ no_auth_method:
   th: ไม่มีวิธีการยืนยันตัวตนที่พร้อมใช้งาน กรุณาติดต่อฝ่ายสนับสนุน
   cs: Žádná metoda ověření není k dispozici. Kontaktujte prosím podporu.
   sv: Ingen autentiseringsmetod tillgänglig. Kontakta supporten.
+  he: אין שיטת אימות זמינה. נא ליצור קשר עם התמיכה.
   verified_by_human: []
 
 # --- SettingsPassword Component ---
@@ -308,6 +347,7 @@ loading:
   th: กำลังโหลด...
   cs: Načítání...
   sv: Laddar...
+  he: טוען...
   verified_by_human: []
 change_password:
   context: Title for change password page
@@ -331,6 +371,7 @@ change_password:
   th: เปลี่ยนรหัสผ่าน
   cs: Změnit heslo
   sv: Ändra lösenord
+  he: שינוי סיסמה
   verified_by_human: []
 add_password:
   context: Title for add password page
@@ -354,6 +395,7 @@ add_password:
   th: เพิ่มรหัสผ่าน
   cs: Přidat heslo
   sv: Lägg till lösenord
+  he: הוספת סיסמה
   verified_by_human: []
 change_password_description:
   context: Description for change password page
@@ -377,6 +419,7 @@ change_password_description:
   th: เปลี่ยนรหัสผ่านของคุณเป็นรหัสใหม่ คุณจะต้องยืนยันตัวตนก่อน
   cs: Změňte své heslo na nové. Nejprve budete muset ověřit svou totožnost.
   sv: Ändra ditt lösenord till ett nytt. Du måste först verifiera din identitet.
+  he: שנה את הסיסמה שלך לסיסמה חדשה. תחילה עליך לאמת את זהותך.
   verified_by_human: []
 add_password_description:
   context: Description for add password page
@@ -400,6 +443,7 @@ add_password_description:
   th: เพิ่มรหัสผ่านในบัญชีของคุณเป็นวิธีการเข้าสู่ระบบทางเลือก คุณจะต้องยืนยันตัวตนก่อน
   cs: Přidejte ke svému účtu heslo jako alternativní způsob přihlášení. Nejprve budete muset ověřit svou totožnost.
   sv: Lägg till ett lösenord till ditt konto som en alternativ inloggningsmetod. Du måste först verifiera din identitet.
+  he: הוסף סיסמה לחשבון שלך כשיטת התחברות חלופית. תחילה עליך לאמת את זהותך.
   verified_by_human: []
 auth_required_for_password:
   context: Message explaining authentication is required
@@ -423,6 +467,7 @@ auth_required_for_password:
   th: เพื่อความปลอดภัยของคุณ กรุณายืนยันตัวตนก่อนเปลี่ยนรหัสผ่าน
   cs: Pro vaši bezpečnost ověřte svou totožnost před změnou hesla.
   sv: För din säkerhet, verifiera din identitet innan du ändrar ditt lösenord.
+  he: למען ביטחונך, נא לאמת את זהותך לפני שינוי הסיסמה.
   verified_by_human: []
 verify_identity:
   context: Title for verify identity section
@@ -446,6 +491,7 @@ verify_identity:
   th: ยืนยันตัวตน
   cs: Ověřte svou totožnost
   sv: Verifiera din identitet
+  he: אימות זהות
   verified_by_human: []
 verify_identity_description:
   context: Description for verify identity section
@@ -469,6 +515,7 @@ verify_identity_description:
   th: ใช้คีย์การเข้าถึงหรือรหัสผ่านของคุณเพื่อยืนยันว่าเป็นคุณ
   cs: K ověření, že jste to vy, použijte svůj přístupový klíč nebo heslo.
   sv: Använd din åtkomstnyckel eller lösenord för att verifiera att det är du.
+  he: השתמש במפתח הגישה או בסיסמה שלך כדי לאמת שזה אתה.
   verified_by_human: []
 new_password:
   context: Label for new password input
@@ -492,6 +539,7 @@ new_password:
   th: รหัสผ่านใหม่
   cs: Nové heslo
   sv: Nytt lösenord
+  he: סיסמה חדשה
   verified_by_human: []
 new_password_placeholder:
   context: Placeholder for new password input
@@ -515,6 +563,7 @@ new_password_placeholder:
   th: ป้อนรหัสผ่านใหม่ของคุณ
   cs: Zadejte nové heslo
   sv: Ange ditt nya lösenord
+  he: הזן את הסיסמה החדשה שלך
   verified_by_human: []
 confirm_password:
   context: Label for confirm password input
@@ -538,6 +587,7 @@ confirm_password:
   th: ยืนยันรหัสผ่าน
   cs: Potvrdit heslo
   sv: Bekräfta lösenord
+  he: אישור סיסמה
   verified_by_human: []
 confirm_password_placeholder:
   context: Placeholder for confirm password input
@@ -561,6 +611,7 @@ confirm_password_placeholder:
   th: ป้อนรหัสผ่านใหม่ของคุณอีกครั้ง
   cs: Zadejte znovu nové heslo
   sv: Ange ditt nya lösenord igen
+  he: הזן שוב את הסיסמה החדשה שלך
   verified_by_human: []
 password_requirements:
   context: Title for password requirements list
@@ -584,6 +635,7 @@ password_requirements:
   th: ข้อกำหนดรหัสผ่าน
   cs: Požadavky na heslo
   sv: Lösenordskrav
+  he: דרישות סיסמה
   verified_by_human: []
 password_req_length:
   context: Password requirement - minimum length
@@ -607,6 +659,7 @@ password_req_length:
   th: อย่างน้อย 8 ตัวอักษร
   cs: Alespoň 8 znaků
   sv: Minst 8 tecken
+  he: 8 תווים לפחות
   verified_by_human: []
 password_req_case:
   context: Password requirement - mixed case
@@ -630,6 +683,7 @@ password_req_case:
   th: ตัวพิมพ์ใหญ่และตัวพิมพ์เล็ก
   cs: Velká a malá písmena
   sv: Stora och små bokstäver
+  he: אותיות גדולות וקטנות
   verified_by_human: []
 password_req_number:
   context: Password requirement - contains number
@@ -653,6 +707,7 @@ password_req_number:
   th: อย่างน้อยหนึ่งตัวเลข
   cs: Alespoň jedno číslo
   sv: Minst en siffra
+  he: מספר אחד לפחות
   verified_by_human: []
 password_strength_warning:
   context: Warning for weak but acceptable password
@@ -676,6 +731,7 @@ password_strength_warning:
   th: พิจารณาเพิ่มอักขระพิเศษเพื่อรหัสผ่านที่แข็งแกร่งขึ้น
   cs: Zvažte přidání speciálních znaků pro silnější heslo
   sv: Överväg att lägga till specialtecken för ett starkare lösenord
+  he: כדאי להוסיף תווים מיוחדים כדי ליצור סיסמה חזקה יותר
   verified_by_human: []
 change_password_button:
   context: Button to submit password change
@@ -699,6 +755,7 @@ change_password_button:
   th: เปลี่ยนรหัสผ่าน
   cs: Změnit heslo
   sv: Ändra lösenord
+  he: שינוי סיסמה
   verified_by_human: []
 add_password_button:
   context: Button to submit new password
@@ -722,6 +779,7 @@ add_password_button:
   th: เพิ่มรหัสผ่าน
   cs: Přidat heslo
   sv: Lägg till lösenord
+  he: הוספת סיסמה
   verified_by_human: []
 password_updated:
   context: Title after successful password update
@@ -745,6 +803,7 @@ password_updated:
   th: อัปเดตรหัสผ่านแล้ว
   cs: Heslo aktualizováno
   sv: Lösenord uppdaterat
+  he: הסיסמה עודכנה
   verified_by_human: []
 password_changed_success:
   context: Success message after changing password
@@ -768,6 +827,7 @@ password_changed_success:
   th: รหัสผ่านของคุณถูกเปลี่ยนเรียบร้อยแล้ว
   cs: Vaše heslo bylo úspěšně změněno.
   sv: Ditt lösenord har ändrats framgångsrikt.
+  he: הסיסמה שלך שונתה בהצלחה.
   verified_by_human: []
 password_added_success:
   context: Success message after adding password
@@ -791,6 +851,7 @@ password_added_success:
   th: เพิ่มรหัสผ่านในบัญชีของคุณเรียบร้อยแล้ว
   cs: Heslo bylo úspěšně přidáno k vašemu účtu.
   sv: Lösenord har lagts till ditt konto framgångsrikt.
+  he: הסיסמה נוספה לחשבון שלך בהצלחה.
   verified_by_human: []
 change_password_again:
   context: Button to change password again after success
@@ -814,6 +875,7 @@ change_password_again:
   th: เปลี่ยนรหัสผ่านอีกครั้ง
   cs: Změnit heslo znovu
   sv: Ändra lösenord igen
+  he: שינוי סיסמה שוב
   verified_by_human: []
 
 # --- Two-Factor Authentication (2FA) Settings ---
@@ -839,6 +901,7 @@ tfa_title:
   th: การยืนยันตัวตนสองขั้นตอน
   cs: Dvoufaktorové ověření
   sv: Tvåfaktorsautentisering
+  he: אימות דו-שלבי
   verified_by_human: []
 tfa_enabled:
   context: Status when 2FA is enabled
@@ -862,6 +925,7 @@ tfa_enabled:
   th: เปิดใช้งาน 2FA แล้ว
   cs: 2FA povoleno
   sv: 2FA aktiverat
+  he: אימות דו-שלבי מופעל
   verified_by_human: []
 tfa_enabled_short:
   context: Short status when 2FA is enabled
@@ -885,6 +949,7 @@ tfa_enabled_short:
   th: เปิดใช้งาน
   cs: Povoleno
   sv: Aktiverat
+  he: מופעל
   verified_by_human: []
 tfa_disabled:
   context: Status when 2FA is disabled
@@ -908,6 +973,7 @@ tfa_disabled:
   th: ยังไม่เปิดใช้งาน 2FA
   cs: 2FA není povoleno
   sv: 2FA inte aktiverat
+  he: אימות דו-שלבי אינו מופעל
   verified_by_human: []
 tfa_disabled_short:
   context: Short status when 2FA is disabled
@@ -931,6 +997,7 @@ tfa_disabled_short:
   th: ไม่ได้เปิดใช้งาน
   cs: Není povoleno
   sv: Inte aktiverat
+  he: לא מופעל
   verified_by_human: []
 tfa_disabled_description:
   context: Description when 2FA is disabled
@@ -954,6 +1021,7 @@ tfa_disabled_description:
   th: เพิ่มชั้นความปลอดภัยพิเศษให้กับบัญชีของคุณด้วยแอป 2FA
   cs: Přidejte ke svému účtu další vrstvu zabezpečení pomocí aplikace 2FA.
   sv: Lägg till ett extra säkerhetslager till ditt konto med en 2FA-app.
+  he: הוסף שכבת אבטחה נוספת לחשבון שלך באמצעות אפליקציית אימות (2FA).
   verified_by_human: []
 tfa_app_used:
   context: Label showing which app is used
@@ -977,6 +1045,7 @@ tfa_app_used:
   th: แอปที่ใช้
   cs: Použitá aplikace
   sv: Använd app
+  he: אפליקציה בשימוש
   verified_by_human: []
 tfa_app_unknown:
   context: Status when 2FA app name is not saved
@@ -1000,6 +1069,7 @@ tfa_app_unknown:
   th: กำหนดค่าแอปยืนยันตัวตนแล้ว
   cs: Autentizační aplikace nakonfigurována
   sv: Autentiseringsapp konfigurerad
+  he: אפליקציית אימות הוגדרה
   verified_by_human: []
 tfa_enable:
   context: Button to enable 2FA
@@ -1023,6 +1093,7 @@ tfa_enable:
   th: เปิดใช้งาน 2FA
   cs: Povolit 2FA
   sv: Aktivera 2FA
+  he: הפעלת אימות דו-שלבי
   verified_by_human: []
 tfa_disable:
   context: Button to disable 2FA
@@ -1046,6 +1117,7 @@ tfa_disable:
   th: ปิดใช้งาน 2FA
   cs: Zakázat 2FA
   sv: Inaktivera 2FA
+  he: ביטול אימות דו-שלבי
   verified_by_human: []
 tfa_change_app:
   context: Button to change 2FA app
@@ -1069,6 +1141,7 @@ tfa_change_app:
   th: เปลี่ยนแอป
   cs: Změnit aplikaci
   sv: Byt app
+  he: החלפת אפליקציה
   verified_by_human: []
 tfa_cannot_disable:
   context: Info message explaining that 2FA cannot be disabled for security reasons
@@ -1092,6 +1165,7 @@ tfa_cannot_disable:
   th: ด้วยเหตุผลด้านความปลอดภัย การยืนยันตัวตนสองขั้นตอนไม่สามารถปิดได้ คุณสามารถเปลี่ยนแอปยืนยันตัวตนได้ตลอดเวลา
   cs: Z bezpečnostních důvodů nelze dvoufaktorové ověřování deaktivovat. Autentizační aplikaci můžete kdykoli změnit.
   sv: Av säkerhetsskäl kan tvåfaktorsautentisering inte inaktiveras. Du kan byta autentiseringsapp när som helst.
+  he: מטעמי אבטחה, לא ניתן לבטל את האימות הדו-שלבי. ניתן להחליף את אפליקציית האימות בכל עת.
   verified_by_human: []
 tfa_auth_required:
   context: Description for 2FA auth requirement
@@ -1115,6 +1189,7 @@ tfa_auth_required:
   th: กรุณายืนยันตัวตนเพื่อจัดการการตั้งค่า 2FA
   cs: Ověřte svou totožnost pro správu nastavení 2FA.
   sv: Verifiera din identitet för att hantera 2FA-inställningar.
+  he: נא לאמת את הזהות שלך כדי לנהל את הגדרות האימות הדו-שלבי.
   verified_by_human: []
 tfa_scan_qr:
   context: Title for QR code scan step
@@ -1138,6 +1213,7 @@ tfa_scan_qr:
   th: สแกน QR โค้ด
   cs: Naskenujte QR kód
   sv: Skanna QR-kod
+  he: סריקת קוד QR
   verified_by_human: []
 tfa_scan_instructions:
   context: Instructions for scanning QR code
@@ -1161,6 +1237,7 @@ tfa_scan_instructions:
   th: เปิดแอปยืนยันตัวตนและสแกน QR โค้ดนี้เพื่อเพิ่มบัญชีของคุณ
   cs: Otevřete autentizační aplikaci a naskenujte tento QR kód pro přidání účtu.
   sv: Öppna din autentiseringsapp och skanna denna QR-kod för att lägga till ditt konto.
+  he: פתח את אפליקציית האימות וסרוק את קוד ה-QR כדי להוסיף את החשבון שלך.
   verified_by_human: []
 tfa_secret_key:
   context: Label for secret key
@@ -1184,6 +1261,7 @@ tfa_secret_key:
   th: หรือป้อนคีย์นี้ด้วยตนเอง
   cs: Nebo zadejte tento klíč ručně
   sv: Eller ange denna nyckel manuellt
+  he: או הזן את המפתח הזה ידנית
   verified_by_human: []
 tfa_enter_code:
   context: Prompt to enter verification code
@@ -1207,6 +1285,7 @@ tfa_enter_code:
   th: ป้อนรหัส 6 หลักจากแอปของคุณ
   cs: Zadejte 6místný kód z vaší aplikace
   sv: Ange den 6-siffriga koden från din app
+  he: הזן את הקוד בן 6 הספרות מהאפליקציה
   verified_by_human: []
 tfa_no_app:
   context: Question about not having an app
@@ -1230,6 +1309,7 @@ tfa_no_app:
   th: ไม่มีแอปยืนยันตัวตน?
   cs: Nemáte autentizační aplikaci?
   sv: Har du ingen autentiseringsapp?
+  he: "אין לך אפליקציית אימות?"
   verified_by_human: []
 tfa_find_apps:
   context: Link to find 2FA apps
@@ -1253,6 +1333,7 @@ tfa_find_apps:
   th: ค้นหาแอป 2FA ฟรี
   cs: Najít bezplatné 2FA aplikace
   sv: Hitta gratis 2FA-appar
+  he: מצא אפליקציות אימות בחינם
   verified_by_human: []
 tfa_select_app:
   context: Title for app selection step
@@ -1276,6 +1357,7 @@ tfa_select_app:
   th: คุณใช้แอปไหน?
   cs: Kterou aplikaci jste použili?
   sv: Vilken app använde du?
+  he: "באיזו אפליקציה השתמשת?"
   verified_by_human: []
 tfa_select_app_description:
   context: Description for app selection step
@@ -1299,6 +1381,7 @@ tfa_select_app_description:
   th: สิ่งนี้ช่วยให้เราเตือนคุณว่าควรใช้แอปไหนเมื่อเข้าสู่ระบบ
   cs: To nám pomůže připomenout vám, kterou aplikaci použít při přihlášení.
   sv: Detta hjälper oss att påminna dig vilken app du ska använda vid inloggning.
+  he: זה יעזור לנו להזכיר לך באיזו אפליקציה להשתמש בעת ההתחברות.
   verified_by_human: []
 tfa_backup_codes:
   context: Title for backup codes step
@@ -1322,6 +1405,7 @@ tfa_backup_codes:
   th: บันทึกรหัสสำรองของคุณ
   cs: Uložte si záložní kódy
   sv: Spara dina reservkoder
+  he: שמור את קודי הגיבוי שלך
   verified_by_human: []
 tfa_backup_codes_description:
   context: Description for backup codes
@@ -1345,6 +1429,7 @@ tfa_backup_codes_description:
   th: รหัสเหล่านี้สามารถใช้เพื่อเข้าถึงบัญชีของคุณหากคุณสูญเสียอุปกรณ์ 2FA แต่ละรหัสสามารถใช้ได้เพียงครั้งเดียว เก็บรักษาไว้อย่างปลอดภัย
   cs: Tyto kódy lze použít pro přístup k účtu, pokud ztratíte 2FA zařízení. Každý kód lze použít pouze jednou. Uložte je bezpečně.
   sv: Dessa koder kan användas för att komma åt ditt konto om du tappar bort din 2FA-enhet. Varje kod kan endast användas en gång. Förvara dem säkert.
+  he: ניתן להשתמש בקודים אלו כדי לגשת לחשבון שלך אם תאבד את מכשיר האימות הדו-שלבי. ניתן להשתמש בכל קוד פעם אחת בלבד. שמור אותם במקום בטוח.
   verified_by_human: []
 tfa_copy_codes:
   context: Button to copy backup codes
@@ -1368,6 +1453,7 @@ tfa_copy_codes:
   th: คัดลอกรหัส
   cs: Kopírovat kódy
   sv: Kopiera koder
+  he: העתקת קודים
   verified_by_human: []
 tfa_confirm_codes_stored:
   context: Checkbox to confirm codes are stored
@@ -1391,6 +1477,7 @@ tfa_confirm_codes_stored:
   th: ฉันได้บันทึกรหัสสำรองไว้ในที่ปลอดภัยแล้ว
   cs: Uložil jsem své záložní kódy na bezpečné místo
   sv: Jag har sparat mina reservkoder på en säker plats
+  he: שמרתי את קודי הגיבוי שלי במקום בטוח
   verified_by_human: []
 tfa_complete_setup:
   context: Button to complete 2FA setup
@@ -1414,6 +1501,7 @@ tfa_complete_setup:
   th: ตั้งค่าเสร็จสิ้น
   cs: Dokončit nastavení
   sv: Slutför installation
+  he: השלמת ההגדרה
   verified_by_human: []
 tfa_setup_complete:
   context: Title for setup completion
@@ -1437,6 +1525,7 @@ tfa_setup_complete:
   th: เปิดใช้งาน 2FA สำเร็จ!
   cs: 2FA úspěšně povoleno!
   sv: 2FA aktiverat framgångsrikt!
+  he: "אימות דו-שלבי הופעל בהצלחה!"
   verified_by_human: []
 tfa_setup_complete_description:
   context: Description for setup completion
@@ -1460,6 +1549,7 @@ tfa_setup_complete_description:
   th: บัญชีของคุณได้รับการปกป้องด้วยการยืนยันตัวตนสองขั้นตอนแล้ว คุณจะต้องป้อนรหัสจากแอปทุกครั้งที่เข้าสู่ระบบ
   cs: Váš účet je nyní chráněn dvoufaktorovým ověřením. Při každém přihlášení budete muset zadat kód z aplikace.
   sv: Ditt konto är nu skyddat med tvåfaktorsautentisering. Du behöver ange en kod från din app varje gång du loggar in.
+  he: החשבון שלך מוגן כעת באמצעות אימות דו-שלבי. יהיה עליך להזין קוד מהאפליקציה בכל פעם שתתחבר.
   verified_by_human: []
 tfa_disable_confirm_title:
   context: Title for disable confirmation
@@ -1483,6 +1573,7 @@ tfa_disable_confirm_title:
   th: ปิดใช้งานการยืนยันตัวตนสองขั้นตอน?
   cs: Zakázat dvoufaktorové ověření?
   sv: Inaktivera tvåfaktorsautentisering?
+  he: "להשבית אימות דו-שלבי?"
   verified_by_human: []
 tfa_disable_confirm_description:
   context: Warning for disabling 2FA
@@ -1506,6 +1597,7 @@ tfa_disable_confirm_description:
   th: การปิดใช้งาน 2FA จะทำให้บัญชีของคุณมีความปลอดภัยน้อยลง คุณไม่จำเป็นต้องใช้รหัสเพื่อเข้าสู่ระบบ แต่บัญชีของคุณจะเสี่ยงต่อการเข้าถึงโดยไม่ได้รับอนุญาตมากขึ้น
   cs: Zakázání 2FA učiní váš účet méně bezpečným. Nebudete potřebovat kód k přihlášení, ale váš účet bude zranitelnější vůči neoprávněnému přístupu.
   sv: Att inaktivera 2FA gör ditt konto mindre säkert. Du behöver ingen kod för att logga in, men ditt konto blir mer sårbart för obehörig åtkomst.
+  he: השבתת אימות דו-שלבי תהפוך את החשבון שלך לפחות מאובטח. לא יהיה צורך בקוד כדי להתחבר, אך החשבון שלך יהיה פגיע יותר לגישה בלתי מורשית.
   verified_by_human: []
 tfa_disable_confirm:
   context: Button to confirm disabling 2FA
@@ -1529,6 +1621,7 @@ tfa_disable_confirm:
   th: ปิดใช้งาน 2FA
   cs: Zakázat 2FA
   sv: Inaktivera 2FA
+  he: השבתת אימות דו-שלבי
   verified_by_human: []
 tfa_disabled_success:
   context: Success message after disabling 2FA
@@ -1552,6 +1645,7 @@ tfa_disabled_success:
   th: การยืนยันตัวตนสองขั้นตอนถูกปิดใช้งานแล้ว
   cs: Dvoufaktorové ověření bylo zakázáno.
   sv: Tvåfaktorsautentisering har inaktiverats.
+  he: האימות הדו-שלבי הושבת.
   verified_by_human: []
 tfa_setup_failed:
   context: Error when 2FA setup fails
@@ -1575,6 +1669,7 @@ tfa_setup_failed:
   th: ไม่สามารถตั้งค่า 2FA ได้ กรุณาลองอีกครั้ง
   cs: Nastavení 2FA selhalo. Zkuste to prosím znovu.
   sv: Misslyckades med att konfigurera 2FA. Försök igen.
+  he: הגדרת האימות הדו-שלבי נכשלה. יש לנסות שוב.
   verified_by_human: []
 tfa_setup_error:
   context: Generic error during 2FA setup
@@ -1598,6 +1693,7 @@ tfa_setup_error:
   th: เกิดข้อผิดพลาด กรุณาลองอีกครั้งในภายหลัง
   cs: Došlo k chybě. Zkuste to prosím později.
   sv: Ett fel uppstod. Försök igen senare.
+  he: אירעה שגיאה. יש לנסות שוב מאוחר יותר.
   verified_by_human: []
 tfa_invalid_code:
   context: Error for invalid verification code
@@ -1621,6 +1717,7 @@ tfa_invalid_code:
   th: รหัสไม่ถูกต้อง กรุณาลองอีกครั้ง
   cs: Neplatný kód. Zkuste to prosím znovu.
   sv: Ogiltig kod. Försök igen.
+  he: קוד לא תקין. יש לנסות שוב.
   verified_by_human: []
 tfa_verify_error:
   context: Error during code verification
@@ -1644,6 +1741,7 @@ tfa_verify_error:
   th: ไม่สามารถตรวจสอบรหัสได้ กรุณาลองอีกครั้ง
   cs: Ověření kódu selhalo. Zkuste to prosím znovu.
   sv: Misslyckades med att verifiera koden. Försök igen.
+  he: אימות הקוד נכשל. יש לנסות שוב.
   verified_by_human: []
 tfa_save_app_failed:
   context: Error when saving app selection fails
@@ -1667,6 +1765,7 @@ tfa_save_app_failed:
   th: บันทึกการเลือกแอปไม่สำเร็จ
   cs: Uložení výběru aplikace selhalo.
   sv: Misslyckades med att spara appval.
+  he: שמירת בחירת האפליקציה נכשלה.
   verified_by_human: []
 tfa_save_app_error:
   context: Generic error when saving app
@@ -1690,6 +1789,7 @@ tfa_save_app_error:
   th: เกิดข้อผิดพลาดขณะบันทึก
   cs: Při ukládání došlo k chybě.
   sv: Ett fel uppstod vid sparande.
+  he: אירעה שגיאה במהלך השמירה.
   verified_by_human: []
 tfa_backup_codes_failed:
   context: Error when requesting backup codes fails
@@ -1713,6 +1813,7 @@ tfa_backup_codes_failed:
   th: ไม่สามารถสร้างรหัสสำรองได้
   cs: Generování záložních kódů selhalo.
   sv: Misslyckades med att generera reservkoder.
+  he: יצירת קודי הגיבוי נכשלה.
   verified_by_human: []
 tfa_backup_codes_error:
   context: Generic error for backup codes
@@ -1736,6 +1837,7 @@ tfa_backup_codes_error:
   th: เกิดข้อผิดพลาดขณะสร้างรหัสสำรอง
   cs: Při generování záložních kódů došlo k chybě.
   sv: Ett fel uppstod vid generering av reservkoder.
+  he: אירעה שגיאה במהלך יצירת קודי הגיבוי.
   verified_by_human: []
 tfa_confirm_failed:
   context: Error when confirmation fails
@@ -1759,6 +1861,7 @@ tfa_confirm_failed:
   th: การยืนยันล้มเหลว กรุณาลองอีกครั้ง
   cs: Potvrzení selhalo. Zkuste to prosím znovu.
   sv: Bekräftelse misslyckades. Försök igen.
+  he: האישור נכשל. יש לנסות שוב.
   verified_by_human: []
 tfa_confirm_error:
   context: Generic error during confirmation
@@ -1782,6 +1885,7 @@ tfa_confirm_error:
   th: เกิดข้อผิดพลาดระหว่างการยืนยัน
   cs: Během potvrzení došlo k chybě.
   sv: Ett fel uppstod vid bekräftelse.
+  he: אירעה שגיאה במהלך האישור.
   verified_by_human: []
 tfa_disable_failed:
   context: Error when disabling 2FA fails
@@ -1805,6 +1909,7 @@ tfa_disable_failed:
   th: ไม่สามารถปิดใช้งาน 2FA ได้
   cs: Zakázání 2FA selhalo.
   sv: Misslyckades med att inaktivera 2FA.
+  he: השבתת האימות הדו-שלבי נכשלה.
   verified_by_human: []
 tfa_disable_error:
   context: Generic error when disabling 2FA
@@ -1828,6 +1933,7 @@ tfa_disable_error:
   th: เกิดข้อผิดพลาดขณะปิดใช้งาน 2FA
   cs: Při zakázání 2FA došlo k chybě.
   sv: Ett fel uppstod vid inaktivering av 2FA.
+  he: אירעה שגיאה במהלך השבתת האימות הדו-שלבי.
   verified_by_human: []
 
 # --- Reset Backup Codes (standalone, without full 2FA re-setup) ---
@@ -1853,6 +1959,7 @@ tfa_reset_backup_codes:
   th: รีเซ็ตรหัสสำรอง
   cs: Resetovat záložní kódy
   sv: Återställ säkerhetskoder
+  he: איפוס קודי גיבוי
   verified_by_human: []
 tfa_new_backup_codes:
   context: Heading shown when displaying newly generated backup codes after reset
@@ -1876,6 +1983,7 @@ tfa_new_backup_codes:
   th: รหัสสำรองใหม่
   cs: Nové záložní kódy
   sv: Nya säkerhetskoder
+  he: קודי גיבוי חדשים
   verified_by_human: []
 tfa_reset_codes_success:
   context: Success message after backup codes have been reset
@@ -1899,6 +2007,7 @@ tfa_reset_codes_success:
   th: รหัสสำรองของคุณถูกรีเซ็ตเรียบร้อยแล้ว เก็บรักษาไว้ในที่ปลอดภัย
   cs: Vaše záložní kódy byly úspěšně resetovány. Uložte je na bezpečné místo.
   sv: Dina säkerhetskoder har återställts framgångsrikt. Förvara dem på en säker plats.
+  he: קודי הגיבוי שלך אופסו בהצלחה. יש לשמור אותם במקום בטוח.
   verified_by_human: []
 tfa_reset_codes_failed:
   context: Error when backend returns failure during backup code reset
@@ -1922,6 +2031,7 @@ tfa_reset_codes_failed:
   th: ไม่สามารถรีเซ็ตรหัสสำรองได้ กรุณาลองอีกครั้ง
   cs: Resetování záložních kódů se nezdařilo. Zkuste to prosím znovu.
   sv: Det gick inte att återställa säkerhetskoderna. Försök igen.
+  he: איפוס קודי הגיבוי נכשל. יש לנסות שוב.
   verified_by_human: []
 tfa_reset_codes_error:
   context: Generic error when resetting backup codes fails unexpectedly
@@ -1945,6 +2055,7 @@ tfa_reset_codes_error:
   th: เกิดข้อผิดพลาดขณะรีเซ็ตรหัสสำรอง
   cs: Při resetování záložních kódů došlo k chybě.
   sv: Ett fel uppstod vid återställning av säkerhetskoder.
+  he: אירעה שגיאה במהלך איפוס קודי הגיבוי.
   verified_by_human: []
 
 # --- Recovery Key Settings ---
@@ -1970,6 +2081,7 @@ recovery_key_title:
   th: คีย์กู้คืน
   cs: Klíč pro obnovení
   sv: Återställningsnyckel
+  he: מפתח שחזור
   verified_by_human: []
 recovery_key_set:
   context: Subtitle when recovery key is configured
@@ -1993,6 +2105,7 @@ recovery_key_set:
   th: กำหนดค่าแล้ว
   cs: Nakonfigurováno
   sv: Konfigurerad
+  he: מוגדר
   verified_by_human: []
 recovery_key_not_set:
   context: Subtitle when recovery key is not configured
@@ -2016,6 +2129,7 @@ recovery_key_not_set:
   th: ไม่ได้กำหนดค่า
   cs: Nenakonfigurováno
   sv: Ej konfigurerad
+  he: לא מוגדר
   verified_by_human: []
 recovery_key_description:
   context: Description for recovery key settings page
@@ -2039,6 +2153,7 @@ recovery_key_description:
   th: คีย์กู้คืนของคุณเป็นวิธีเดียวในการกู้คืนบัญชีหากคุณสูญเสียการเข้าถึงวิธีการเข้าสู่ระบบทั้งหมด เก็บรักษาไว้อย่างปลอดภัยแบบออฟไลน์ เช่น ในตัวจัดการรหัสผ่านหรือสำเนาที่พิมพ์ออกมา
   cs: Klíč pro obnovení je jediný způsob, jak obnovit svůj účet, pokud ztratíte přístup ke všem přihlašovacím metodám. Uchovávejte jej bezpečně offline, například ve správci hesel nebo vytištěné kopii.
   sv: Din återställningsnyckel är det enda sättet att återställa ditt konto om du förlorar åtkomsten till alla dina inloggningsmetoder. Förvara den säkert offline, till exempel i en lösenordshanterare eller utskriven kopia.
+  he: מפתח השחזור שלך הוא הדרך היחידה לשחזר את החשבון שלך אם תאבד את הגישה לכל שיטות ההתחברות שלך. יש לשמור אותו במקום בטוח במצב לא מקוון, למשל במנהל סיסמאות או כעותק מודפס.
   verified_by_human: []
 recovery_key_status:
   context: Label for recovery key status
@@ -2062,6 +2177,7 @@ recovery_key_status:
   th: สถานะ
   cs: Stav
   sv: Status
+  he: סטטוס
   verified_by_human: []
 recovery_key_last_updated:
   context: Label for when recovery key was last updated
@@ -2085,6 +2201,7 @@ recovery_key_last_updated:
   th: อัปเดตล่าสุด
   cs: Naposledy aktualizováno
   sv: Senast uppdaterad
+  he: עדכון אחרון
   verified_by_human: []
 recovery_key_regenerate_button:
   context: Button to regenerate recovery key
@@ -2108,6 +2225,7 @@ recovery_key_regenerate_button:
   th: สร้างคีย์กู้คืนใหม่
   cs: Vygenerovat nový klíč pro obnovení
   sv: Generera ny återställningsnyckel
+  he: הנפקת מפתח שחזור חדש
   verified_by_human: []
 recovery_key_create_button:
   context: Button to create recovery key (when none exists)
@@ -2131,6 +2249,7 @@ recovery_key_create_button:
   th: สร้างคีย์กู้คืน
   cs: Vytvořit klíč pro obnovení
   sv: Skapa återställningsnyckel
+  he: יצירת מפתח שחזור
   verified_by_human: []
 recovery_key_regenerate_hint:
   context: Hint text for regenerate button
@@ -2154,6 +2273,7 @@ recovery_key_regenerate_hint:
   th: การดำเนินการนี้จะทำให้คีย์กู้คืนปัจจุบันของคุณเป็นโมฆะ
   cs: Tím se zneplatní váš aktuální klíč pro obnovení
   sv: Detta ogiltigförklarar din nuvarande återställningsnyckel
+  he: פעולה זו תבטל את מפתח השחזור הנוכחי שלך
   verified_by_human: []
 recovery_key_create_hint:
   context: Hint text for create button
@@ -2177,6 +2297,7 @@ recovery_key_create_hint:
   th: แนะนำอย่างยิ่งสำหรับความปลอดภัยของบัญชี
   cs: Důrazně doporučeno pro zabezpečení účtu
   sv: Starkt rekommenderat för kontosäkerhet
+  he: מומלץ מאוד לאבטחת החשבון
   verified_by_human: []
 recovery_key_auth_title:
   context: Title for authentication step when regenerating recovery key
@@ -2200,6 +2321,7 @@ recovery_key_auth_title:
   th: ยืนยันตัวตนของคุณ
   cs: Ověřte svou totožnost
   sv: Verifiera din identitet
+  he: אימות זהות
   verified_by_human: []
 recovery_key_auth_description:
   context: Description for authentication step when regenerating recovery key
@@ -2223,6 +2345,7 @@ recovery_key_auth_description:
   th: กรุณายืนยันตัวตนเพื่อสร้างคีย์กู้คืนใหม่
   cs: Pro vygenerování nového klíče pro obnovení se prosím ověřte.
   sv: Autentisera för att generera en ny återställningsnyckel.
+  he: יש לבצע אימות כדי להנפיק מפתח שחזור חדש.
   verified_by_human: []
 recovery_key_auth_failed:
   context: Error when authentication fails
@@ -2246,6 +2369,7 @@ recovery_key_auth_failed:
   th: การยืนยันตัวตนล้มเหลว กรุณาลองอีกครั้ง
   cs: Ověření selhalo. Zkuste to prosím znovu.
   sv: Autentisering misslyckades. Försök igen.
+  he: האימות נכשל. כדאי לנסות שוב.
   verified_by_human: []
 recovery_key_generating:
   context: Message while generating recovery key
@@ -2269,6 +2393,7 @@ recovery_key_generating:
   th: กำลังสร้างคีย์กู้คืนใหม่ของคุณ...
   cs: Generování nového klíče pro obnovení...
   sv: Genererar din nya återställningsnyckel...
+  he: מנפיק את מפתח השחזור החדש שלך...
   verified_by_human: []
 recovery_key_download_title:
   context: Title for download step
@@ -2292,6 +2417,7 @@ recovery_key_download_title:
   th: บันทึกคีย์กู้คืนของคุณ
   cs: Uložte svůj klíč pro obnovení
   sv: Spara din återställningsnyckel
+  he: שמירת מפתח השחזור שלך
   verified_by_human: []
 recovery_key_warning:
   context: Warning about recovery key importance
@@ -2315,6 +2441,7 @@ recovery_key_warning:
   th: เก็บรักษาคีย์กู้คืนนี้อย่างปลอดภัย ไม่สามารถกู้คืนได้หากสูญหาย
   cs: Uložte tento klíč pro obnovení bezpečně. V případě ztráty jej nelze obnovit.
   sv: Förvara denna återställningsnyckel säkert. Den kan inte återställas om den förloras.
+  he: יש לשמור את מפתח השחזור הזה בבטחה. לא ניתן יהיה לשחזר אותו אם יאבד.
   verified_by_human: []
 recovery_key_downloaded:
   context: Message when recovery key has been downloaded
@@ -2338,6 +2465,7 @@ recovery_key_downloaded:
   th: ดาวน์โหลดคีย์กู้คืนแล้ว
   cs: Klíč pro obnovení stažen
   sv: Återställningsnyckel nedladdad
+  he: מפתח השחזור הורד
   verified_by_human: []
 recovery_key_download_button:
   context: Button to download recovery key
@@ -2361,6 +2489,7 @@ recovery_key_download_button:
   th: ดาวน์โหลดคีย์กู้คืน
   cs: Stáhnout klíč pro obnovení
   sv: Ladda ner återställningsnyckel
+  he: הורדת מפתח שחזור
   verified_by_human: []
 recovery_key_important:
   context: Important notice about recovery key
@@ -2384,6 +2513,7 @@ recovery_key_important:
   th: <strong>สำคัญ:</strong> นี่เป็นวิธีเดียวในการกู้คืนบัญชีของคุณหากคุณสูญเสียการเข้าถึงวิธีการเข้าสู่ระบบทั้งหมด เก็บไว้ในที่ปลอดภัย
   cs: <strong>Důležité:</strong> Toto je jediný způsob, jak obnovit svůj účet, pokud ztratíte přístup ke všem přihlašovacím metodám. Uložte jej na bezpečné místo.
   sv: <strong>Viktigt:</strong> Detta är det enda sättet att återställa ditt konto om du förlorar åtkomsten till alla dina inloggningsmetoder. Förvara den på ett säkert ställe.
+  he: "<strong>חשוב:</strong> זוהי הדרך היחידה לשחזר את החשבון שלך אם תאבד את הגישה לכל שיטות ההתחברות שלך. יש לשמור אותו במקום בטוח."
   verified_by_human: []
 recovery_key_important_no_html:
   context: Important notice about recovery key (no HTML, for safe rendering)
@@ -2407,6 +2537,7 @@ recovery_key_important_no_html:
   th: "สำคัญ: นี่เป็นวิธีเดียวในการกู้คืนบัญชีของคุณหากคุณสูญเสียการเข้าถึงวิธีการเข้าสู่ระบบทั้งหมด เก็บไว้ในที่ปลอดภัย"
   cs: "Důležité: Toto je jediný způsob, jak obnovit svůj účet, pokud ztratíte přístup ke všem přihlašovacím metodám. Uložte jej na bezpečné místo."
   sv: "Viktigt: Detta är det enda sättet att återställa ditt konto om du förlorar åtkomsten till alla dina inloggningsmetoder. Förvara den på ett säkert ställe."
+  he: "חשוב: זוהי הדרך היחידה לשחזר את החשבון שלך אם תאבד את הגישה לכל שיטות ההתחברות שלך. יש לשמור אותו במקום בטוח."
   verified_by_human: []
 recovery_key_confirm_required:
   context: Error message when user tries to save without confirming storage
@@ -2430,6 +2561,7 @@ recovery_key_confirm_required:
   th: กรุณายืนยันว่าคุณได้บันทึกคีย์กู้คืนของคุณก่อนดำเนินการต่อ
   cs: Prosím potvrďte, že jste uložili svůj klíč pro obnovení, než budete pokračovat.
   sv: Vänligen bekräfta att du har sparat din återställningsnyckel innan du fortsätter.
+  he: יש לאשר ששמרת את מפתח השחזור לפני המשך התהליך.
   verified_by_human: []
 recovery_key_confirm_title:
   context: Title for confirmation step
@@ -2453,6 +2585,7 @@ recovery_key_confirm_title:
   th: ยืนยันว่าบันทึกคีย์กู้คืนแล้ว
   cs: Potvrďte uložení klíče pro obnovení
   sv: Bekräfta att återställningsnyckeln har sparats
+  he: אישור שמירת מפתח שחזור
   verified_by_human: []
 recovery_key_confirm_description:
   context: Description for confirmation step
@@ -2476,6 +2609,7 @@ recovery_key_confirm_description:
   th: การคลิกยืนยันแสดงว่าคุณรับทราบว่าคุณได้บันทึกคีย์กู้คืนไว้ในที่ปลอดภัยแล้ว คีย์กู้คืนเก่าของคุณจะถูกยกเลิก
   cs: Kliknutím na potvrdit potvrzujete, že jste uložili klíč pro obnovení na bezpečné místo. Váš starý klíč pro obnovení bude zneplatněn.
   sv: Genom att klicka på bekräfta bekräftar du att du har sparat din återställningsnyckel på en säker plats. Din gamla återställningsnyckel blir ogiltig.
+  he: בלחיצה על אישור, הנך מאשר/ת ששמרת את מפתח השחזור במקום בטוח. מפתח השחזור הישן שלך יבוטל.
   verified_by_human: []
 recovery_key_confirm_button:
   context: Button to confirm recovery key saved
@@ -2499,6 +2633,7 @@ recovery_key_confirm_button:
   th: ฉันได้บันทึกคีย์กู้คืนของฉันแล้ว
   cs: Uložil jsem si klíč pro obnovení
   sv: Jag har sparat min återställningsnyckel
+  he: שמרתי את מפתח השחזור שלי
   verified_by_human: []
 recovery_key_success:
   context: Success message after recovery key is saved
@@ -2522,6 +2657,7 @@ recovery_key_success:
   th: บันทึกคีย์กู้คืนสำเร็จแล้ว!
   cs: Klíč pro obnovení byl úspěšně uložen!
   sv: Återställningsnyckel sparad framgångsrikt!
+  he: "מפתח השחזור נשמר בהצלחה!"
   verified_by_human: []
 
 # Password + 2FA combined setup flow translations
@@ -2546,6 +2682,7 @@ tfa_setup_required:
   th: ตั้งค่าการยืนยันตัวตนสองขั้นตอน
   cs: Nastavit dvoufázové ověření
   sv: Konfigurera tvåfaktorsautentisering
+  he: הגדרת אימות דו-שלבי
   verified_by_human: []
 
 tfa_setup_required_description:
@@ -2569,6 +2706,7 @@ tfa_setup_required_description:
   th: เพื่อทำการตั้งค่ารหัสผ่านให้เสร็จสมบูรณ์ คุณต้องเปิดใช้งานการยืนยันตัวตนสองขั้นตอนเพื่อความปลอดภัยเพิ่มเติม
   cs: Pro dokončení nastavení hesla musíte povolit dvoufázové ověření pro další zabezpečení.
   sv: För att slutföra din lösenordsinställning måste du aktivera tvåfaktorsautentisering för extra säkerhet.
+  he: כדי להשלים את הגדרת הסיסמה, עליך להפעיל אימות דו-שלבי לאבטחה נוספת.
   verified_by_human: []
 
 password_needs_tfa:
@@ -2592,6 +2730,7 @@ password_needs_tfa:
   th: การเข้าสู่ระบบด้วยรหัสผ่านต้องใช้การยืนยันตัวตนสองขั้นตอน ทำการตั้งค่าด้านล่างให้เสร็จสมบูรณ์เพื่อรักษาความปลอดภัยของบัญชีของคุณ
   cs: Přihlášení heslem vyžaduje dvoufázové ověření. Dokončete níže uvedené nastavení pro zabezpečení svého účtu.
   sv: Lösenordsinloggning kräver tvåfaktorsautentisering. Slutför installationen nedan för att säkra ditt konto.
+  he: כניסה באמצעות סיסמה דורשת אימות דו-שלבי. עליך להשלים את ההגדרה למטה כדי לאבטח את החשבון שלך.
   verified_by_human: []
 
 password_and_tfa_success:
@@ -2615,6 +2754,7 @@ password_and_tfa_success:
   th: รหัสผ่านและการยืนยันตัวตนสองขั้นตอนของคุณได้รับการตั้งค่าเรียบร้อยแล้ว บัญชีของคุณได้รับการรักษาความปลอดภัยอย่างสมบูรณ์แล้ว
   cs: Vaše heslo a dvoufázové ověření byly úspěšně nastaveny. Váš účet je nyní plně zabezpečen.
   sv: Ditt lösenord och tvåfaktorsautentisering har konfigurerats framgångsrikt. Ditt konto är nu helt säkrat.
+  he: הסיסמה ואימות דו-שלבי הוגדרו בהצלחה. החשבון שלך מאובטח כעת באופן מלא.
   verified_by_human: []
 
 tfa_required_for_password:
@@ -2638,4 +2778,5 @@ tfa_required_for_password:
   th: ต้องใช้การยืนยันตัวตนสองขั้นตอนเพื่อตั้งค่ารหัสผ่าน กรุณาทำการตั้งค่า 2FA ให้เสร็จสมบูรณ์เพื่อดำเนินการต่อ
   cs: Pro nastavení hesla je vyžadováno dvoufázové ověření. Pro pokračování prosím dokončete nastavení 2FA.
   sv: Tvåfaktorsautentisering krävs för att ställa in ett lösenord. Slutför 2FA-installationen för att fortsätta.
+  he: נדרש אימות דו-שלבי כדי להגדיר סיסמה. יש להשלים את הגדרת האימות הדו-שלבי כדי להמשיך.
   verified_by_human: []

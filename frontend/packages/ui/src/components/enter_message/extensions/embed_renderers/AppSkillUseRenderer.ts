@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Renderer for app_skill_use embeds (app skill execution results).
  * Handles preview rendering and fullscreen view integration.
@@ -8,6 +9,9 @@
  * - Web search results (parent app_skill_use with child website embeds)
  * - Video transcript skills
  * - Other app skills (generic fallback)
+ *
+ * Note: `any` is intentionally used throughout this file for embed data
+ * received from dynamic TOON-decoded content with unknown schemas.
  */
 
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
@@ -16,11 +20,15 @@ import {
   resolveEmbed,
   decodeToonContent,
 } from "../../../../services/embedResolver";
+import { chatSyncService } from "../../../../services/chatSyncService";
+import { unmarkEmbedAsProcessed } from "../../../../services/chatSyncServiceHandlersAI";
+import { embedStore } from "../../../../services/embedStore";
 import { mount, unmount } from "svelte";
 import WebSearchEmbedPreview from "../../../embeds/web/WebSearchEmbedPreview.svelte";
 import NewsSearchEmbedPreview from "../../../embeds/news/NewsSearchEmbedPreview.svelte";
 import VideosSearchEmbedPreview from "../../../embeds/videos/VideosSearchEmbedPreview.svelte";
 import MapsSearchEmbedPreview from "../../../embeds/maps/MapsSearchEmbedPreview.svelte";
+import MapsLocationEmbedPreview from "../../../embeds/maps/MapsLocationEmbedPreview.svelte";
 import VideoTranscriptEmbedPreview from "../../../embeds/videos/VideoTranscriptEmbedPreview.svelte";
 import WebReadEmbedPreview from "../../../embeds/web/WebReadEmbedPreview.svelte";
 import CodeGetDocsEmbedPreview from "../../../embeds/code/CodeGetDocsEmbedPreview.svelte";
@@ -29,6 +37,14 @@ import TravelSearchEmbedPreview from "../../../embeds/travel/TravelSearchEmbedPr
 import TravelPriceCalendarEmbedPreview from "../../../embeds/travel/TravelPriceCalendarEmbedPreview.svelte";
 import TravelStaysEmbedPreview from "../../../embeds/travel/TravelStaysEmbedPreview.svelte";
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
+import ImageViewEmbedPreview from "../../../embeds/images/ImageViewEmbedPreview.svelte";
+import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
+import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
+import PdfSearchEmbedPreview from "../../../embeds/pdf/PdfSearchEmbedPreview.svelte";
+import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
+import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
+import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPreview.svelte";
+import MathCalculateEmbedPreview from "../../../embeds/math/MathCalculateEmbedPreview.svelte";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -55,6 +71,92 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
       // Load embed from EmbedStore (even if processing, so we can mount the correct component)
       embedData = await resolveEmbed(embedId);
+
+      // DECRYPTION FAILURE RECOVERY: If the embed loaded from IndexedDB but failed to decrypt
+      // (e.g. on tab reload when embed key could not be unwrapped), evict the broken entry and
+      // re-request fresh data from the server. The server response (send_embed_data) includes
+      // embed_keys, which lets the client try the unwrap again with a clean store state.
+      // Without this, the embed would be permanently hidden because status="error" is set by
+      // the decryption failure path, causing the "hide error embeds" guard below to fire.
+      if (embedData?._decryptionFailed) {
+        console.warn(
+          "[AppSkillUseRenderer] Embed decryption failed — evicting and re-requesting from server:",
+          embedId,
+        );
+        try {
+          // Evict the undecryptable entry so the next resolveEmbed() triggers a server fetch.
+          await embedStore.deleteEmbed(embedId);
+        } catch (deleteError) {
+          console.warn(
+            "[AppSkillUseRenderer] Could not evict decryption-failed embed:",
+            deleteError,
+          );
+        }
+        // Register a one-shot listener so we re-render the moment fresh data arrives.
+        const decryptRetryHandler = (event: Event) => {
+          const customEvent = event as CustomEvent<{ embed_id: string }>;
+          if (customEvent.detail?.embed_id !== embedId) return;
+          chatSyncService.removeEventListener(
+            "embedUpdated",
+            decryptRetryHandler,
+          );
+          this.render(context).catch((err) => {
+            console.error(
+              "[AppSkillUseRenderer] Error in decryption-retry re-render:",
+              err,
+            );
+          });
+        };
+        chatSyncService.addEventListener("embedUpdated", decryptRetryHandler);
+        // CRITICAL: Remove this embed from the processed-embeds set before requesting
+        // fresh data. If the embed was processed in this session (e.g., during live
+        // generation), `isEmbedAlreadyProcessed` would silently drop the incoming
+        // `send_embed_data` response, preventing re-encryption with the new key.
+        unmarkEmbedAsProcessed(embedId);
+
+        // Request fresh embed data from the server (includes embed_keys for re-decryption).
+        try {
+          const { webSocketService } =
+            await import("../../../../services/websocketService");
+          await webSocketService.sendMessage("request_embed", {
+            embed_id: embedId,
+          });
+        } catch (requestError) {
+          console.warn(
+            "[AppSkillUseRenderer] Could not request embed from server after decryption failure:",
+            requestError,
+          );
+        }
+        // Leave content empty (processing skeleton) while waiting for the server response.
+        content.innerHTML = "";
+        return;
+      }
+
+      // If the embed is not in IndexedDB yet but the node attributes already say "finished",
+      // the send_embed_data WebSocket event hasn't been processed yet (race condition). Register
+      // a one-shot listener so we re-render the moment the embed data arrives. Without this,
+      // the embed renders with an empty decodedContent and stays stuck on the skeleton forever
+      // because renderImageViewComponent (and similar) won't call resolveAndUpdateImageViewProps
+      // when originalEmbedId is empty (fix for issue #5dc543b0 — images view never shows image).
+      if (!embedData && attrs.status === "finished") {
+        const retryHandler = (event: Event) => {
+          const customEvent = event as CustomEvent<{ embed_id: string }>;
+          if (customEvent.detail?.embed_id !== embedId) return;
+          chatSyncService.removeEventListener("embedUpdated", retryHandler);
+          // Re-invoke the full render() so all routing + component mounting runs with fresh data.
+          this.render(context).catch((err) => {
+            console.error(
+              "[AppSkillUseRenderer] Error in embedUpdated re-render for finished embed:",
+              err,
+            );
+          });
+        };
+        chatSyncService.addEventListener("embedUpdated", retryHandler);
+        console.debug(
+          "[AppSkillUseRenderer] Embed not cached yet (finished status), waiting for embedUpdated:",
+          embedId,
+        );
+      }
 
       if (embedData) {
         // CRITICAL FIX: Filter out error embeds with "superseded" message
@@ -178,6 +280,16 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
 
+      // For maps location (user-selected location pin), render using Svelte component
+      if (appId === "maps" && skillId === "location") {
+        return this.renderMapsLocationComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
       // For maps search, render using Svelte component
       if (appId === "maps" && skillId === "search") {
         return this.renderMapsSearchComponent(
@@ -211,6 +323,36 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       // For travel search_stays, render stays preview
       if (appId === "travel" && skillId === "search_stays") {
         return this.renderTravelStaysComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      // For health search_appointments, render health appointment search preview
+      if (appId === "health" && skillId === "search_appointments") {
+        return this.renderHealthSearchComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      // For shopping search_products, render shopping product search preview
+      if (appId === "shopping" && skillId === "search_products") {
+        return this.renderShoppingSearchComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      // For events search, render events search preview using Svelte component
+      if (appId === "events" && skillId === "search") {
+        return this.renderEventsSearchComponent(
           attrs,
           embedData,
           decodedContent,
@@ -294,6 +436,86 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           status,
         });
         return this.renderImageGenerateComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      // For images/view skill, render image view preview with original embed fullscreen
+      if (appId === "images" && skillId === "view") {
+        console.debug("[AppSkillUseRenderer] Rendering images view for", {
+          appId,
+          skillId,
+          decodedContent,
+          status,
+        });
+        return this.renderImageViewComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      // For pdf/view skill, render PDF view preview with original embed fullscreen
+      if (appId === "pdf" && skillId === "view") {
+        console.debug("[AppSkillUseRenderer] Rendering pdf view for", {
+          appId,
+          skillId,
+          decodedContent,
+          status,
+        });
+        return this.renderPdfViewComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      // For pdf/read skill, render PDF read preview with original embed fullscreen
+      if (appId === "pdf" && skillId === "read") {
+        console.debug("[AppSkillUseRenderer] Rendering pdf read for", {
+          appId,
+          skillId,
+          decodedContent,
+          status,
+        });
+        return this.renderPdfReadComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      // For pdf/search skill, render PDF search preview with original embed fullscreen
+      if (appId === "pdf" && skillId === "search") {
+        console.debug("[AppSkillUseRenderer] Rendering pdf search for", {
+          appId,
+          skillId,
+          decodedContent,
+          status,
+        });
+        return this.renderPdfSearchComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      // For math calculate, render math calculate preview using Svelte component
+      if (appId === "math" && skillId === "calculate") {
+        console.debug("[AppSkillUseRenderer] Rendering math calculate for", {
+          appId,
+          skillId,
+          decodedContent,
+          status,
+        });
+        return this.renderMathCalculateComponent(
           attrs,
           embedData,
           decodedContent,
@@ -626,6 +848,84 @@ export class AppSkillUseRenderer implements EmbedRenderer {
   }
 
   /**
+   * Render maps location embed using Svelte component.
+   * Triggered when a user selects a location via the MapsView map picker.
+   * Displays a static map image with the selected location pin.
+   */
+  private renderMapsLocationComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+
+    // Extract location-specific fields
+    const lat = decodedContent?.lat ?? undefined;
+    const lon = decodedContent?.lon ?? undefined;
+    const zoom = decodedContent?.zoom ?? 15;
+    const name = decodedContent?.name || "";
+    const locationType = decodedContent?.location_type || "precise_location";
+    const mapImageUrl = decodedContent?.map_image_url || "";
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(MapsLocationEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          lat,
+          lon,
+          zoom,
+          name,
+          locationType,
+          mapImageUrl: mapImageUrl || undefined,
+          status: status as "processing" | "finished" | "error",
+          taskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted MapsLocationEmbedPreview component:",
+        { embedId, status, lat, lon, name },
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting MapsLocationEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
    * Render travel search_connections embed using Svelte component
    */
   private renderTravelSearchComponent(
@@ -824,6 +1124,216 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     } catch (error) {
       console.error(
         "[AppSkillUseRenderer] Error mounting TravelStaysEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render health search_appointments embed using Svelte component.
+   * Mirrors renderTravelSearchComponent exactly — same props pattern.
+   */
+  private renderHealthSearchComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const query = decodedContent?.query || (attrs as any).query || "";
+    const provider = decodedContent?.provider || "Doctolib";
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const skillTaskId = decodedContent?.skill_task_id || "";
+    const results = decodedContent?.results || [];
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(HealthSearchEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query,
+          provider,
+          status: status as "processing" | "finished" | "error",
+          results,
+          taskId,
+          skillTaskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted HealthSearchEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting HealthSearchEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render shopping search_products embed using Svelte component.
+   * Mirrors renderHealthSearchComponent exactly — same props pattern.
+   */
+  private renderShoppingSearchComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const query = decodedContent?.query || (attrs as any).query || "";
+    const provider = decodedContent?.provider || "REWE";
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const skillTaskId = decodedContent?.skill_task_id || "";
+    const results = decodedContent?.results || [];
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(ShoppingSearchEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query,
+          provider,
+          status: status as "processing" | "finished" | "error",
+          results,
+          taskId,
+          skillTaskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted ShoppingSearchEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting ShoppingSearchEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render events search embed using Svelte component.
+   * Event results are stored inline in the parent embed TOON — no child embeds needed.
+   */
+  private renderEventsSearchComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const query = decodedContent?.query || (attrs as any).query || "";
+    const provider = decodedContent?.provider || "Meetup";
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const skillTaskId = decodedContent?.skill_task_id || "";
+    const results = decodedContent?.results || [];
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(EventsSearchEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query,
+          provider,
+          status: status as "processing" | "finished" | "error",
+          results,
+          taskId,
+          skillTaskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted EventsSearchEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting EventsSearchEmbedPreview:",
         error,
       );
       this.renderGenericSkill(attrs, embedData, decodedContent, content);
@@ -1475,6 +1985,739 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       content.addEventListener("click", () => {
         this.openFullscreen(attrs, embedData, decodedContent);
       });
+    }
+  }
+
+  /**
+   * Open the ORIGINAL uploaded image's fullscreen viewer.
+   * Resolves the original image upload embed by embed_id, then fires
+   * 'imagefullscreen' CustomEvent so ActiveChat mounts ImageEmbedFullscreen.
+   *
+   * If the upload embed is not yet cached (sync still in flight), waits for the
+   * 'embedUpdated' event and retries — preventing silent failures when the user
+   * clicks the view embed card immediately after a fresh upload.
+   */
+  private async openImageUploadFullscreen(embedId: string): Promise<void> {
+    if (!embedId) {
+      console.warn(
+        "[AppSkillUseRenderer] openImageUploadFullscreen: no embed_id",
+      );
+      return;
+    }
+
+    /**
+     * Fire the imagefullscreen event from a decoded upload embed content object.
+     * Returns true if the event was dispatched, false if content was unavailable.
+     */
+    const dispatchFullscreenEvent = async (
+      uploadEmbed: any,
+    ): Promise<boolean> => {
+      if (!uploadEmbed) return false;
+      const uploadContent = uploadEmbed.content
+        ? await decodeToonContent(uploadEmbed.content)
+        : null;
+
+      const event = new CustomEvent("imagefullscreen", {
+        detail: {
+          src: undefined, // no local blob URL (this is a persisted embed)
+          filename:
+            uploadContent?.filename || (uploadEmbed as any).filename || "",
+          s3Files: uploadContent?.files || undefined,
+          s3BaseUrl: uploadContent?.s3_base_url || "",
+          aesKey: uploadContent?.aes_key || "",
+          aesNonce: uploadContent?.aes_nonce || "",
+          isAuthenticated: true,
+          fileSize: uploadContent?.file_size,
+          fileType: uploadContent?.file_type,
+          aiDetection: uploadContent?.ai_detection ?? null,
+        },
+        bubbles: true,
+      });
+      document.dispatchEvent(event);
+      console.debug(
+        "[AppSkillUseRenderer] Dispatched imagefullscreen for upload embed:",
+        embedId,
+      );
+      return true;
+    };
+
+    try {
+      const uploadEmbed = await resolveEmbed(embedId);
+      if (await dispatchFullscreenEvent(uploadEmbed)) return;
+
+      // Embed not in cache yet — register a one-shot listener and retry when it arrives
+      console.debug(
+        "[AppSkillUseRenderer] Upload embed not cached yet for fullscreen, waiting for embedUpdated:",
+        embedId,
+      );
+      const handler = (event: Event) => {
+        const customEvent = event as CustomEvent<{ embed_id: string }>;
+        if (customEvent.detail?.embed_id !== embedId) return;
+
+        chatSyncService.removeEventListener("embedUpdated", handler);
+
+        resolveEmbed(embedId)
+          .then((fresh) => dispatchFullscreenEvent(fresh))
+          .catch((err) => {
+            console.error(
+              "[AppSkillUseRenderer] Failed to open fullscreen after embedUpdated:",
+              err,
+            );
+          });
+      };
+      chatSyncService.addEventListener("embedUpdated", handler);
+    } catch (err) {
+      console.error(
+        "[AppSkillUseRenderer] Failed to open image upload fullscreen:",
+        err,
+      );
+    }
+  }
+
+  /**
+   * Open the ORIGINAL uploaded PDF's fullscreen viewer.
+   * Resolves the original PDF upload embed by embed_id, then fires
+   * 'pdffullscreen' CustomEvent so ActiveChat mounts PDFEmbedFullscreen.
+   */
+  private async openPdfUploadFullscreen(embedId: string): Promise<void> {
+    if (!embedId) {
+      console.warn(
+        "[AppSkillUseRenderer] openPdfUploadFullscreen: no embed_id",
+      );
+      return;
+    }
+    try {
+      const uploadEmbed = await resolveEmbed(embedId);
+      if (!uploadEmbed) {
+        console.warn(
+          "[AppSkillUseRenderer] Could not resolve original PDF embed:",
+          embedId,
+        );
+        return;
+      }
+      const uploadContent = uploadEmbed.content
+        ? await decodeToonContent(uploadEmbed.content)
+        : null;
+
+      const event = new CustomEvent("pdffullscreen", {
+        detail: {
+          // embedId is required by PDFEmbedFullscreen to load TOON content from IDB
+          embedId,
+          filename:
+            uploadContent?.filename || (uploadEmbed as any).filename || "",
+          pageCount:
+            uploadContent?.page_count ??
+            (uploadEmbed as any).page_count ??
+            null,
+        },
+        bubbles: true,
+      });
+      document.dispatchEvent(event);
+      console.debug(
+        "[AppSkillUseRenderer] Dispatched pdffullscreen for upload embed:",
+        embedId,
+      );
+    } catch (err) {
+      console.error(
+        "[AppSkillUseRenderer] Failed to open PDF upload fullscreen:",
+        err,
+      );
+    }
+  }
+
+  /**
+   * Render images/view skill embed using ImageViewEmbedPreview component.
+   * On fullscreen click, opens the original uploaded image's fullscreen viewer.
+   */
+  private renderImageViewComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const error = decodedContent?.error || "";
+
+    // embed_id references the original uploaded image embed
+    const originalEmbedId = decodedContent?.embed_id || "";
+
+    // Filename from the original embed (backend includes it in the skill output text)
+    const filename = decodedContent?.filename || "";
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+
+      // On fullscreen click: open the ORIGINAL uploaded image's fullscreen
+      const handleFullscreen = () => {
+        this.openImageUploadFullscreen(originalEmbedId);
+      };
+
+      const component = mount(ImageViewEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          filename,
+          status: status as "processing" | "finished" | "error",
+          error,
+          isMobile: false,
+          // Only wire fullscreen when we have an original embed to open
+          onFullscreen:
+            status === "finished" && originalEmbedId
+              ? handleFullscreen
+              : undefined,
+          // S3 data will be resolved from the original embed by the component
+          // (passed via AppSkillUseRenderer after resolving the original embed)
+        },
+      });
+
+      mountedComponents.set(content, component);
+
+      // If finished: resolve the original embed to get S3 data for image preview
+      if (status === "finished" && originalEmbedId) {
+        this.resolveAndUpdateImageViewProps(
+          content,
+          originalEmbedId,
+          component,
+          handleFullscreen,
+        );
+      }
+
+      // On first load (live generation), the TOON content stored in IDB is a
+      // processing placeholder that has no embed_id yet. When the finalized
+      // send_embed_data WS event arrives, the IDB entry is updated with the real
+      // embed_id, but this component instance is already mounted and won't
+      // re-render automatically. Register a one-shot 'embedUpdated' listener so
+      // we re-call renderImageViewComponent with the fresh data once it arrives.
+      if (!originalEmbedId && embedId) {
+        const imageViewRetryHandler = (event: Event) => {
+          const customEvent = event as CustomEvent<{ embed_id: string }>;
+          if (customEvent.detail?.embed_id !== embedId) return;
+          chatSyncService.removeEventListener(
+            "embedUpdated",
+            imageViewRetryHandler,
+          );
+          // Re-run the full render() so renderImageViewComponent is called again
+          // with the updated decodedContent (which will now have a real embed_id).
+          // We resolve fresh embedData + decodedContent via re-render().
+          resolveEmbed(embedId)
+            .then(async (freshEmbedData) => {
+              const freshDecoded = freshEmbedData?.content
+                ? await decodeToonContent(freshEmbedData.content)
+                : null;
+              this.renderImageViewComponent(
+                attrs,
+                freshEmbedData,
+                freshDecoded,
+                content,
+              );
+            })
+            .catch((err) => {
+              console.error(
+                "[AppSkillUseRenderer] Error in imageViewRetryHandler re-render:",
+                err,
+              );
+            });
+        };
+        chatSyncService.addEventListener("embedUpdated", imageViewRetryHandler);
+        console.debug(
+          "[AppSkillUseRenderer] ImageView embed has no embed_id yet, waiting for embedUpdated:",
+          embedId,
+        );
+      }
+
+      console.debug(
+        "[AppSkillUseRenderer] Mounted ImageViewEmbedPreview component:",
+        {
+          embedId,
+          status,
+          originalEmbedId,
+          filename,
+        },
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting ImageViewEmbedPreview component:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Resolve the original image upload embed and update the ImageViewEmbedPreview
+   * component with S3 data so it can show the actual image preview.
+   *
+   * If the upload embed is not yet in IndexedDB (e.g. sync is still in flight),
+   * registers a one-shot 'embedUpdated' listener and retries automatically when
+   * the embed arrives — same pattern as ImageRenderer.ts for restored draft images.
+   */
+  private async resolveAndUpdateImageViewProps(
+    content: HTMLElement,
+    originalEmbedId: string,
+    component: ReturnType<typeof mount>,
+    handleFullscreen: () => void,
+  ): Promise<void> {
+    /**
+     * Inner helper: decode the upload embed content and remount the preview
+     * with S3 data. Returns true if the remount succeeded, false otherwise.
+     */
+    const tryUpdateWithEmbed = async (uploadEmbed: any): Promise<boolean> => {
+      if (!uploadEmbed) return false;
+      const uploadContent = uploadEmbed.content
+        ? await decodeToonContent(uploadEmbed.content)
+        : null;
+      if (!uploadContent) return false;
+
+      // Re-mount with S3 data populated from the original embed.
+      // Unmount + remount because Svelte 5 mount() props are not reactive after mount.
+      const existingComponent = mountedComponents.get(content);
+      if (!existingComponent) return false;
+
+      try {
+        unmount(existingComponent);
+      } catch {
+        // ignore
+      }
+
+      content.innerHTML = "";
+
+      const s3Files = uploadContent.files as
+        | Record<
+            string,
+            {
+              s3_key: string;
+              width: number;
+              height: number;
+              size_bytes: number;
+              format: string;
+            }
+          >
+        | undefined;
+
+      const updated = mount(ImageViewEmbedPreview, {
+        target: content,
+        props: {
+          id: originalEmbedId,
+          filename: (uploadContent.filename as string) || "",
+          status: "finished" as const,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+          s3BaseUrl: (uploadContent.s3_base_url as string) || "",
+          s3Files,
+          aesKey: (uploadContent.aes_key as string) || "",
+          aesNonce: (uploadContent.aes_nonce as string) || "",
+        },
+      });
+
+      mountedComponents.set(content, updated);
+      console.debug(
+        "[AppSkillUseRenderer] Updated ImageViewEmbedPreview with S3 data for embed:",
+        originalEmbedId,
+      );
+      return true;
+    };
+
+    try {
+      const uploadEmbed = await resolveEmbed(originalEmbedId);
+      if (await tryUpdateWithEmbed(uploadEmbed)) return;
+
+      // Upload embed not in IndexedDB yet (e.g. still syncing from server or the
+      // embed_data WS event hasn't arrived yet). Register a one-shot listener and
+      // retry when the embed is delivered — same approach as ImageRenderer.ts.
+      console.debug(
+        "[AppSkillUseRenderer] Original image embed not cached yet, waiting for embedUpdated:",
+        originalEmbedId,
+      );
+      const handler = (event: Event) => {
+        const customEvent = event as CustomEvent<{ embed_id: string }>;
+        if (customEvent.detail?.embed_id !== originalEmbedId) return;
+
+        // Remove listener immediately to avoid duplicate remounts
+        chatSyncService.removeEventListener("embedUpdated", handler);
+
+        resolveEmbed(originalEmbedId)
+          .then((fresh) => tryUpdateWithEmbed(fresh))
+          .catch((err) => {
+            console.error(
+              "[AppSkillUseRenderer] Failed to update ImageViewEmbedPreview after embedUpdated:",
+              err,
+            );
+          });
+      };
+      chatSyncService.addEventListener("embedUpdated", handler);
+    } catch (err) {
+      console.error(
+        "[AppSkillUseRenderer] Error resolving original image embed for preview:",
+        err,
+      );
+    }
+  }
+
+  /**
+   * Render pdf/view skill embed using PdfViewEmbedPreview component.
+   * On fullscreen click, opens the original uploaded PDF's fullscreen viewer.
+   */
+  private renderPdfViewComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const error = decodedContent?.error || "";
+
+    // embed_id references the original uploaded PDF embed
+    const originalEmbedId = decodedContent?.embed_id || "";
+
+    // Pages viewed (the LLM passes this as an array)
+    const pages: number[] = Array.isArray(decodedContent?.pages)
+      ? decodedContent.pages
+      : [];
+
+    // Filename and page count from the original PDF embed context
+    const filename = decodedContent?.filename || "";
+    const pageCount = decodedContent?.page_count ?? undefined;
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+
+      // On fullscreen click: open the ORIGINAL uploaded PDF's fullscreen
+      const handleFullscreen = () => {
+        this.openPdfUploadFullscreen(originalEmbedId);
+      };
+
+      const component = mount(PdfViewEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          filename,
+          pageCount,
+          pages,
+          status: status as "processing" | "finished" | "error",
+          error,
+          taskId,
+          isMobile: false,
+          onFullscreen:
+            status === "finished" && originalEmbedId
+              ? handleFullscreen
+              : undefined,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted PdfViewEmbedPreview component:",
+        {
+          embedId,
+          status,
+          originalEmbedId,
+          pages,
+          filename,
+        },
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting PdfViewEmbedPreview component:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render pdf/read skill embed using PdfReadEmbedPreview component.
+   * On fullscreen click, opens the original uploaded PDF's fullscreen viewer.
+   */
+  private renderPdfReadComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const error = decodedContent?.error || "";
+
+    // embed_id references the original uploaded PDF embed
+    const originalEmbedId = decodedContent?.embed_id || "";
+
+    // Pages returned and skipped from the read skill response
+    const pagesReturned: number[] = Array.isArray(
+      decodedContent?.pages_returned,
+    )
+      ? decodedContent.pages_returned
+      : [];
+    const pagesSkipped: number[] = Array.isArray(decodedContent?.pages_skipped)
+      ? decodedContent.pages_skipped
+      : [];
+
+    const filename = decodedContent?.filename || "";
+    const pageCount = decodedContent?.page_count ?? undefined;
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+
+      const handleFullscreen = () => {
+        this.openPdfUploadFullscreen(originalEmbedId);
+      };
+
+      const component = mount(PdfReadEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          filename,
+          pagesReturned,
+          pagesSkipped,
+          pageCount,
+          status: status as "processing" | "finished" | "error",
+          error,
+          taskId,
+          isMobile: false,
+          onFullscreen:
+            status === "finished" && originalEmbedId
+              ? handleFullscreen
+              : undefined,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted PdfReadEmbedPreview component:",
+        {
+          embedId,
+          status,
+          originalEmbedId,
+          pagesReturned,
+          pagesSkipped,
+          filename,
+        },
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting PdfReadEmbedPreview component:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render pdf/search skill embed using PdfSearchEmbedPreview component.
+   * On fullscreen click, opens the original uploaded PDF's fullscreen viewer.
+   */
+  private renderPdfSearchComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const error = decodedContent?.error || "";
+
+    // embed_id references the original uploaded PDF embed
+    const originalEmbedId = decodedContent?.embed_id || "";
+
+    // Search-specific fields from the search skill response
+    const query = decodedContent?.query || "";
+    const totalMatches: number | undefined =
+      typeof decodedContent?.total_matches === "number"
+        ? decodedContent.total_matches
+        : undefined;
+    const truncated: boolean = decodedContent?.truncated === true;
+    const filename = decodedContent?.filename || "";
+    const pageCount = decodedContent?.page_count ?? undefined;
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+
+      const handleFullscreen = () => {
+        this.openPdfUploadFullscreen(originalEmbedId);
+      };
+
+      const component = mount(PdfSearchEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          filename,
+          query,
+          totalMatches,
+          truncated,
+          pageCount,
+          status: status as "processing" | "finished" | "error",
+          error,
+          taskId,
+          isMobile: false,
+          onFullscreen:
+            status === "finished" && originalEmbedId
+              ? handleFullscreen
+              : undefined,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted PdfSearchEmbedPreview component:",
+        {
+          embedId,
+          status,
+          originalEmbedId,
+          query,
+          totalMatches,
+          filename,
+        },
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting PdfSearchEmbedPreview component:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render math/calculate skill embed using Svelte component.
+   * Displays calculation query and results with math gradient styling.
+   */
+  private renderMathCalculateComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const query = decodedContent?.query || (attrs as any).query || "";
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const skillTaskId = decodedContent?.skill_task_id || "";
+    const results = decodedContent?.results || [];
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(MathCalculateEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query,
+          status: status as "processing" | "finished" | "error",
+          results,
+          taskId,
+          skillTaskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted MathCalculateEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting MathCalculateEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
     }
   }
 

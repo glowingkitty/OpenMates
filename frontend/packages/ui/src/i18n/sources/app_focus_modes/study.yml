@@ -20,6 +20,7 @@ what_to_study:
   th: เรียนอะไร
   cs: Co studovat
   sv: Vad ska man studera
+  he: מה ללמוד
   verified_by_human:
     - en
     - de
@@ -45,6 +46,7 @@ what_to_study.description:
   th: ค้นหาปริญญาและสาขาวิชาที่เหมาะสม
   cs: Najděte správný titul a obor studia.
   sv: Hitta rätt examen och studieområde.
+  he: מציאת התואר ותחום הלימודים המתאימים.
   verified_by_human:
     - en
     - de
@@ -70,6 +72,7 @@ learn_topic:
   th: เรียนรู้หัวข้อ
   cs: Naučit se téma
   sv: Lär dig ämne
+  he: למידת נושא
   verified_by_human:
     - en
     - de
@@ -95,6 +98,7 @@ learn_topic.description:
   th: เรียนรู้ด้วยบทเรียนแบบปรับตัวและการแจ้งเตือน
   cs: Učte se s adaptivními lekcemi a připomínkami.
   sv: Lär dig med adaptiva lektioner och påminnelser.
+  he: למידה באמצעות שיעורים אדפטיביים ותזכורות.
   verified_by_human:
     - en
     - de
@@ -120,6 +124,7 @@ test_knowledge:
   th: ทดสอบความรู้
   cs: Otestovat znalosti
   sv: Testa kunskap
+  he: בחינת ידע
   verified_by_human:
     - en
     - de
@@ -145,6 +150,7 @@ test_knowledge.description:
   th: ทดสอบความรู้ด้วยคำถามแบบควิซ
   cs: Otestujte znalosti pomocí kvízových otázek.
   sv: Testa dina kunskaper med quizfrågor.
+  he: בחינת הידע שלך באמצעות שאלות בסגנון חידון.
   verified_by_human:
     - en
     - de
@@ -170,6 +176,7 @@ socratic_questioning:
   th: การตั้งคำถามแบบโสกราตีส
   cs: Sokratovské dotazování
   sv: Sokratisk frågeställning
+  he: שאילת שאלות סוקרטית
   verified_by_human:
     - en
     - de
@@ -195,6 +202,7 @@ socratic_questioning.description:
   th: เพิ่มความเข้าใจผ่านคำถามนำทาง
   cs: Prohloubte porozumění prostřednictvím otázek.
   sv: Fördjupa förståelsen genom guidade frågor.
+  he: העמקת ההבנה באמצעות שאלות מונחות.
   verified_by_human:
     - en
     - de

@@ -9,13 +9,19 @@ This script is designed to be run via docker exec:
     docker exec api python /app/backend/scripts/admin_debug_cli.py <command> [options]
 
 Commands:
-    logs        - Query Docker Compose logs from Loki
-    issues      - List issue reports
-    issue       - Get details of a specific issue
-    user        - Inspect a user by email
-    chat        - Inspect a chat by ID
-    embed       - Inspect an embed by ID
-    requests    - Inspect recent AI requests
+    logs          - Query Docker Compose logs from Loki (core API server)
+    upload-logs   - Query Docker logs from the upload server (upload.openmates.org)
+    preview-logs  - Query Docker logs from the preview server (preview.openmates.org)
+    upload-update - git pull + rebuild + restart upload server containers
+    preview-update - git pull + rebuild + restart preview server containers
+    issues        - List issue reports
+    issue         - Get details of a specific issue
+    issue-delete  - Delete an issue (after confirmed fixed)
+    user          - Inspect a user by email
+    chat          - Inspect a chat by ID
+    embed         - Inspect an embed by ID
+    requests      - Inspect recent AI requests
+    newsletter    - Inspect newsletter subscription data
 
 Examples:
     # Get logs from api service in last 30 minutes
@@ -24,8 +30,28 @@ Examples:
     # Get logs with error filtering
     docker exec api python /app/backend/scripts/admin_debug_cli.py logs --services api,task-worker --search "ERROR|WARNING"
 
+    # Get upload server logs (last 60 min, app-uploads service)
+    docker exec api python /app/backend/scripts/admin_debug_cli.py upload-logs
+
+    # Get upload server logs with filtering
+    docker exec api python /app/backend/scripts/admin_debug_cli.py upload-logs --services app-uploads,clamav --since 30 --search "ERROR"
+
+    # Get preview server logs
+    docker exec api python /app/backend/scripts/admin_debug_cli.py preview-logs --since 30 --lines 200
+
     # List unprocessed issues
     docker exec api python /app/backend/scripts/admin_debug_cli.py issues
+
+    # Trigger a full self-update of the upload server (git pull + rebuild + restart)
+    # Automatically polls /admin/update/status until done and prints per-step results
+    docker exec api python /app/backend/scripts/admin_debug_cli.py upload-update
+
+    # Trigger a full self-update of the preview server
+    docker exec api python /app/backend/scripts/admin_debug_cli.py preview-update
+
+    # Poll the current/last update status without triggering a new update
+    docker exec api python /app/backend/scripts/admin_debug_cli.py upload-status
+    docker exec api python /app/backend/scripts/admin_debug_cli.py preview-status
 
     # Inspect a user
     docker exec api python /app/backend/scripts/admin_debug_cli.py user someone@example.com
@@ -33,13 +59,21 @@ Examples:
     # Inspect a chat
     docker exec api python /app/backend/scripts/admin_debug_cli.py chat <chat_id>
 
-Vault Secret Path:
-    The admin API key is stored in Vault at:
-    kv/data/providers/admin with key "debug_cli__api_key"
-    (following the SECRET__{PROVIDER}__{KEY} convention)
-    
-    To set this up, add to your environment:
-    SECRET__ADMIN__DEBUG_CLI__API_KEY=sk-api-xxxxx
+Vault Secret Paths:
+    Core API admin key:
+        kv/data/providers/admin  key: "debug_cli__api_key"
+        Set via: SECRET__ADMIN__DEBUG_CLI__API_KEY=sk-api-xxxxx
+
+    Upload server admin log key:
+        kv/data/providers/upload_server  key: "admin_log_api_key"
+        Set via: SECRET__UPLOAD_SERVER__ADMIN_LOG_API_KEY=<random-key>
+        Also add ADMIN_LOG_API_KEY=<same-key> to the upload VM's .env
+
+    Preview server admin log key:
+        kv/data/providers/preview_server  key: "admin_log_api_key"
+        Set via: SECRET__PREVIEW_SERVER__ADMIN_LOG_API_KEY=<random-key>
+        Also add ADMIN_LOG_API_KEY=<same-key> to the preview VM's .env
+
     Then restart vault-setup to import: docker compose ... restart vault-setup
 """
 
@@ -97,6 +131,22 @@ def censor_emails_in_data(data: object) -> object:
 # For production debugging, we hit the external API
 PROD_API_URL = "https://api.openmates.org/v1/admin/debug"
 DEV_API_URL = "https://api.dev.openmates.org/v1/admin/debug"
+
+# Upload and preview servers run on separate VMs — always hit their public URLs.
+# (There is no dev-specific upload or preview server.)
+# Caddy on each VM routes /admin/* to the admin-sidecar container (port 8001),
+# which holds the Docker socket. The main service containers do NOT have Docker access.
+UPLOAD_SERVER_URL = "https://upload.openmates.org/admin/logs"
+PREVIEW_SERVER_URL = "https://preview.openmates.org/admin/logs"
+
+# Update endpoints — trigger git pull + rebuild + restart on the satellite VM.
+# Served by the admin-sidecar container. Never available on the core API server.
+UPLOAD_SERVER_UPDATE_URL = "https://upload.openmates.org/admin/update"
+PREVIEW_SERVER_UPDATE_URL = "https://preview.openmates.org/admin/update"
+
+# Status endpoints — poll the current/last update status (no side effects).
+UPLOAD_SERVER_STATUS_URL = "https://upload.openmates.org/admin/update/status"
+PREVIEW_SERVER_STATUS_URL = "https://preview.openmates.org/admin/update/status"
 
 
 async def get_api_key_from_vault() -> str:
@@ -205,6 +255,504 @@ async def cmd_logs(args, api_key: str):
         print(result.get("logs", "No logs found"))
 
 
+async def get_satellite_log_key(vault_path: str, vault_key: str, server_name: str) -> str:
+    """
+    Fetch a satellite server's admin log API key from the core Vault.
+
+    The key is stored under SECRET__{PROVIDER}__{KEY} convention and imported
+    into Vault by vault-setup. For example:
+        SECRET__UPLOAD_SERVER__ADMIN_LOG_API_KEY → kv/data/providers/upload_server
+        key: "admin_log_api_key"
+
+    Args:
+        vault_path:  Vault KV path (e.g. "kv/data/providers/upload_server")
+        vault_key:   Key within that path (e.g. "admin_log_api_key")
+        server_name: Human-readable name for error messages (e.g. "upload server")
+
+    Returns:
+        The API key string.
+    """
+    from backend.core.api.app.utils.secrets_manager import SecretsManager
+
+    secrets_manager = SecretsManager()
+    await secrets_manager.initialize()
+
+    try:
+        api_key = await secrets_manager.get_secret(vault_path, vault_key)
+        if not api_key:
+            print(
+                f"Error: Admin log key for {server_name} not found in Vault at "
+                f"{vault_path} (key: {vault_key})",
+                file=sys.stderr,
+            )
+            print("", file=sys.stderr)
+            print(f"To set up the {server_name} admin log key:", file=sys.stderr)
+            print(
+                "1. Generate a random secret: python3 -c \"import secrets; print(secrets.token_hex(32))\"",
+                file=sys.stderr,
+            )
+            if "upload" in server_name:
+                print(
+                    "2. Add to core server .env: SECRET__UPLOAD_SERVER__ADMIN_LOG_API_KEY=<key>",
+                    file=sys.stderr,
+                )
+                print("3. Add to upload VM's .env: ADMIN_LOG_API_KEY=<same-key>", file=sys.stderr)
+            else:
+                print(
+                    "2. Add to core server .env: SECRET__PREVIEW_SERVER__ADMIN_LOG_API_KEY=<key>",
+                    file=sys.stderr,
+                )
+                print("3. Add to preview VM's .env: ADMIN_LOG_API_KEY=<same-key>", file=sys.stderr)
+            print("4. Restart vault-setup: docker compose ... restart vault-setup", file=sys.stderr)
+            sys.exit(1)
+        return api_key
+    finally:
+        await secrets_manager.aclose()
+
+
+async def _fetch_satellite_logs(
+    url: str,
+    api_key: str,
+    services: Optional[str],
+    lines: int,
+    since: int,
+    search: Optional[str],
+) -> str:
+    """
+    Call the /admin/logs endpoint on a satellite server (upload or preview).
+
+    Args:
+        url:      Full URL of the admin logs endpoint.
+        api_key:  X-Admin-Log-Key secret.
+        services: Comma-separated service names (or None for default).
+        lines:    Number of log lines to return.
+        since:    Time window in minutes.
+        search:   Optional regex filter.
+
+    Returns:
+        Log output as plain text.
+    """
+    params: dict = {
+        "lines": lines,
+        "since_minutes": since,
+    }
+    if services:
+        params["services"] = services
+    if search:
+        params["search"] = search
+
+    headers = {"X-Admin-Log-Key": api_key}
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.get(url, headers=headers, params=params)
+
+        if response.status_code == 401:
+            print("Error: Invalid admin log API key", file=sys.stderr)
+            sys.exit(1)
+        elif response.status_code == 503:
+            print(
+                "Error: Admin logs endpoint not configured on the server "
+                "(ADMIN_LOG_API_KEY env var not set on the satellite VM)",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        elif response.status_code == 400:
+            print(f"Error: {response.text}", file=sys.stderr)
+            sys.exit(1)
+        elif response.status_code != 200:
+            print(f"Error: Server returned {response.status_code}", file=sys.stderr)
+            print(response.text, file=sys.stderr)
+            sys.exit(1)
+
+        return response.text
+
+    except httpx.ConnectError:
+        print(f"Error: Could not connect to {url}", file=sys.stderr)
+        sys.exit(1)
+    except httpx.TimeoutException:
+        print("Error: Request timed out (log fetch took > 60s)", file=sys.stderr)
+        sys.exit(1)
+
+
+async def cmd_upload_logs(args, _unused_api_key: str):
+    """
+    Fetch logs from the upload server (upload.openmates.org).
+
+    Calls GET https://upload.openmates.org/admin/logs using the admin log API key
+    stored in core Vault at kv/data/providers/upload_server (key: admin_log_api_key).
+
+    The request is served by the admin-sidecar container on the upload VM (port 8001,
+    proxied by Caddy). The sidecar runs docker compose logs and returns the output.
+    The main app-uploads container does NOT have Docker socket access.
+    Requires ADMIN_LOG_API_KEY to be set on the upload VM's admin-sidecar and the
+    same value stored in the core Vault via SECRET__UPLOAD_SERVER__ADMIN_LOG_API_KEY.
+    """
+    api_key = await get_satellite_log_key(
+        vault_path="kv/data/providers/upload_server",
+        vault_key="admin_log_api_key",
+        server_name="upload server",
+    )
+
+    output = await _fetch_satellite_logs(
+        url=UPLOAD_SERVER_URL,
+        api_key=api_key,
+        services=args.services,
+        lines=args.lines,
+        since=args.since,
+        search=args.search,
+    )
+
+    if args.json:
+        print(json.dumps({"logs": output, "server": "upload"}))
+    else:
+        services_label = args.services or "app-uploads"
+        print(f"=== Upload Server Logs [{services_label}] — last {args.since} min ===")
+        if args.search:
+            print(f"Search pattern: {args.search}")
+        print()
+        print(output)
+
+
+async def cmd_preview_logs(args, _unused_api_key: str):
+    """
+    Fetch logs from the preview server (preview.openmates.org).
+
+    Calls GET https://preview.openmates.org/admin/logs using the admin log API key
+    stored in core Vault at kv/data/providers/preview_server (key: admin_log_api_key).
+
+    The request is served by the admin-sidecar container on the preview VM (port 8001,
+    proxied by Caddy). The sidecar runs docker compose logs and returns the output.
+    Requires ADMIN_LOG_API_KEY to be set on the preview VM's admin-sidecar and the
+    same value stored in the core Vault via SECRET__PREVIEW_SERVER__ADMIN_LOG_API_KEY.
+    """
+    api_key = await get_satellite_log_key(
+        vault_path="kv/data/providers/preview_server",
+        vault_key="admin_log_api_key",
+        server_name="preview server",
+    )
+
+    output = await _fetch_satellite_logs(
+        url=PREVIEW_SERVER_URL,
+        api_key=api_key,
+        services=args.services,
+        lines=args.lines,
+        since=args.since,
+        search=args.search,
+    )
+
+    if args.json:
+        print(json.dumps({"logs": output, "server": "preview"}))
+    else:
+        print(f"=== Preview Server Logs — last {args.since} min ===")
+        if args.search:
+            print(f"Search pattern: {args.search}")
+        print()
+        print(output)
+
+
+async def _trigger_satellite_update(
+    update_url: str,
+    status_url: str,
+    api_key: str,
+    server_name: str,
+    poll_timeout_s: int = 720,
+) -> None:
+    """
+    Call the POST /admin/update endpoint on a satellite server (upload or preview),
+    then poll GET /admin/update/status until the update completes or times out.
+
+    Args:
+        update_url:     Full URL of the /admin/update endpoint.
+        status_url:     Full URL of the /admin/update/status endpoint.
+        api_key:        X-Admin-Log-Key secret.
+        server_name:    Human-readable name for error messages (e.g. "upload server").
+        poll_timeout_s: Maximum seconds to wait for completion (default: 720 = 12 min).
+    """
+    import time as _time
+
+    headers = {"X-Admin-Log-Key": api_key}
+
+    # ── Step 1: trigger the update ──────────────────────────────────────────
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(update_url, headers=headers)
+
+        if response.status_code == 401:
+            print("Error: Invalid admin log API key", file=sys.stderr)
+            sys.exit(1)
+        elif response.status_code == 409:
+            print(f"Note: An update is already in progress on the {server_name}.")
+            print("Polling status until it completes...\n")
+            # Fall through to polling below — no need to trigger again
+        elif response.status_code == 503:
+            print(
+                "Error: Admin update endpoint not configured on the server "
+                "(ADMIN_LOG_API_KEY or SERVICE_UPDATE_TARGET not set on the satellite VM)",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        elif response.status_code == 404:
+            # Older sidecar without /admin/update/status — fall back to simple trigger
+            print("Note: This sidecar does not support status polling (old version).")
+            print("Update triggered. Check logs manually with *-logs command.")
+            return
+        elif response.status_code != 202:
+            print(f"Error: Server returned {response.status_code}", file=sys.stderr)
+            print(response.text, file=sys.stderr)
+            sys.exit(1)
+        else:
+            # 202 Accepted
+            try:
+                data = response.json()
+                print(data.get("message", "Update accepted (202). Polling for completion...\n"))
+            except Exception:
+                print("Update accepted (202). Polling for completion...\n")
+
+    except httpx.ConnectError:
+        print(f"Error: Could not connect to {update_url}", file=sys.stderr)
+        sys.exit(1)
+    except httpx.TimeoutException:
+        print("Error: Request timed out", file=sys.stderr)
+        sys.exit(1)
+
+    # ── Step 2: poll /admin/update/status until done ────────────────────────
+    poll_interval_s = 10
+    deadline = _time.monotonic() + poll_timeout_s
+    dots = 0
+
+    while _time.monotonic() < deadline:
+        await asyncio.sleep(poll_interval_s)
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                status_resp = await client.get(status_url, headers=headers)
+        except (httpx.ConnectError, httpx.TimeoutException):
+            # Network hiccup during rebuild — the container may be restarting
+            dots += 1
+            print(f"  [{dots * poll_interval_s}s] Waiting for server to come back...", flush=True)
+            continue
+
+        if status_resp.status_code == 404:
+            # "never_run" — sidecar restarted and has no record of an update;
+            # this means the rebuild succeeded (new container running).
+            print("\n  Server restarted with fresh sidecar (no update record — rebuild likely succeeded).")
+            print("  Verify by checking logs: upload-logs --services admin-sidecar --since 5")
+            return
+
+        if status_resp.status_code not in (200, 404):
+            dots += 1
+            print(f"  [{dots * poll_interval_s}s] Status poll returned HTTP {status_resp.status_code} — retrying...")
+            continue
+
+        try:
+            status_data = status_resp.json()
+        except Exception:
+            dots += 1
+            print(f"  [{dots * poll_interval_s}s] Could not parse status response — retrying...")
+            continue
+
+        status = status_data.get("status", "unknown")
+
+        if status == "in_progress":
+            dots += 1
+            print(f"  [{dots * poll_interval_s}s] Update in progress...", flush=True)
+            continue
+
+        # Completed (success or failed)
+        _print_update_status(status_data, server_name)
+        if status != "success":
+            sys.exit(1)
+        return
+
+    # Timed out
+    print(
+        f"\nError: Update did not complete within {poll_timeout_s}s. "
+        "Check logs manually with *-logs --services admin-sidecar.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+
+def _print_update_status(data: dict, server_name: str) -> None:
+    """Pretty-print a completed update status response."""
+    status = data.get("status", "unknown")
+    icon = "✓" if status == "success" else "✗"
+    print(f"\n{icon} Update {status.upper()} on {server_name}")
+    print(f"  Started:  {data.get('started_at', 'N/A')}")
+    print(f"  Finished: {data.get('finished_at', 'N/A')}")
+    print(f"  Duration: {data.get('duration_s', '?')}s")
+    print(f"  Target:   {data.get('target', 'N/A')}")
+    if data.get("extras"):
+        print(f"  Extras:   {', '.join(data['extras'])}")
+    steps = data.get("steps", [])
+    if steps:
+        print("\n  Steps:")
+        for step in steps:
+            step_icon = "✓" if step.get("success") else "✗"
+            print(f"    {step_icon} {step.get('name')}  ({step.get('duration_s', '?')}s)")
+            if not step.get("success") and step.get("output"):
+                # Print last 600 chars of output for failed steps
+                output_tail = step["output"][-600:].strip()
+                if output_tail:
+                    for line in output_tail.splitlines():
+                        print(f"         {line}")
+    if data.get("error"):
+        print(f"\n  Error: {data['error']}")
+
+
+async def cmd_upload_update(args, _unused_api_key: str):
+    """
+    Trigger a full self-update of the upload server (upload.openmates.org).
+
+    Calls POST https://upload.openmates.org/admin/update using the admin log API key
+    stored in core Vault at kv/data/providers/upload_server (key: admin_log_api_key).
+
+    The server runs:
+      1. git pull
+      2. docker compose build app-uploads
+      3. docker compose up -d app-uploads
+      4. docker compose up -d vault-setup  (if SERVICE_UPDATE_EXTRAS is set)
+
+    Then polls GET /admin/update/status every 10s until done, printing per-step results.
+    """
+    api_key = await get_satellite_log_key(
+        vault_path="kv/data/providers/upload_server",
+        vault_key="admin_log_api_key",
+        server_name="upload server",
+    )
+
+    print("=== Triggering update on upload server ===\n")
+    await _trigger_satellite_update(
+        update_url=UPLOAD_SERVER_UPDATE_URL,
+        status_url=UPLOAD_SERVER_STATUS_URL,
+        api_key=api_key,
+        server_name="upload server",
+    )
+
+
+async def cmd_preview_update(args, _unused_api_key: str):
+    """
+    Trigger a full self-update of the preview server (preview.openmates.org).
+
+    Calls POST https://preview.openmates.org/admin/update using the admin log API key
+    stored in core Vault at kv/data/providers/preview_server (key: admin_log_api_key).
+
+    The server runs:
+      1. git pull
+      2. docker compose build preview
+      3. docker compose up -d preview
+
+    Then polls GET /admin/update/status every 10s until done, printing per-step results.
+    """
+    api_key = await get_satellite_log_key(
+        vault_path="kv/data/providers/preview_server",
+        vault_key="admin_log_api_key",
+        server_name="preview server",
+    )
+
+    print("=== Triggering update on preview server ===\n")
+    await _trigger_satellite_update(
+        update_url=PREVIEW_SERVER_UPDATE_URL,
+        status_url=PREVIEW_SERVER_STATUS_URL,
+        api_key=api_key,
+        server_name="preview server",
+    )
+
+
+async def _fetch_satellite_status(status_url: str, api_key: str, server_name: str) -> None:
+    """
+    Fetch and display the current/last update status from a satellite server.
+
+    Args:
+        status_url:  Full URL of the /admin/update/status endpoint.
+        api_key:     X-Admin-Log-Key secret.
+        server_name: Human-readable server name.
+    """
+    headers = {"X-Admin-Log-Key": api_key}
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.get(status_url, headers=headers)
+    except httpx.ConnectError:
+        print(f"Error: Could not connect to {status_url}", file=sys.stderr)
+        sys.exit(1)
+    except httpx.TimeoutException:
+        print("Error: Request timed out", file=sys.stderr)
+        sys.exit(1)
+
+    if response.status_code == 401:
+        print("Error: Invalid admin log API key", file=sys.stderr)
+        sys.exit(1)
+    elif response.status_code == 404:
+        try:
+            data = response.json()
+            if data.get("status") == "never_run":
+                print(f"No update has run on {server_name} since the sidecar last started.")
+                return
+        except Exception:
+            pass
+        print("Error: Status endpoint returned 404 — sidecar may be an older version", file=sys.stderr)
+        sys.exit(1)
+    elif response.status_code != 200:
+        print(f"Error: Server returned {response.status_code}", file=sys.stderr)
+        print(response.text, file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        data = response.json()
+    except Exception:
+        print("Error: Could not parse status response", file=sys.stderr)
+        sys.exit(1)
+
+    status = data.get("status", "unknown")
+    if status == "in_progress":
+        print(f"Update is currently IN PROGRESS on {server_name}.")
+        print(f"  Target: {data.get('target', 'N/A')}")
+        if data.get("extras"):
+            print(f"  Extras: {', '.join(data['extras'])}")
+        print("\nPoll again in a few seconds, or check sidecar logs:")
+        print("  upload-logs --services admin-sidecar --since 5")
+    else:
+        _print_update_status(data, server_name)
+
+
+async def cmd_upload_status(args, _unused_api_key: str):
+    """
+    Poll the current/last update status on the upload server.
+
+    Calls GET https://upload.openmates.org/admin/update/status — no side effects.
+    """
+    api_key = await get_satellite_log_key(
+        vault_path="kv/data/providers/upload_server",
+        vault_key="admin_log_api_key",
+        server_name="upload server",
+    )
+    print("=== Upload Server Update Status ===\n")
+    await _fetch_satellite_status(
+        status_url=UPLOAD_SERVER_STATUS_URL,
+        api_key=api_key,
+        server_name="upload server",
+    )
+
+
+async def cmd_preview_status(args, _unused_api_key: str):
+    """
+    Poll the current/last update status on the preview server.
+
+    Calls GET https://preview.openmates.org/admin/update/status — no side effects.
+    """
+    api_key = await get_satellite_log_key(
+        vault_path="kv/data/providers/preview_server",
+        vault_key="admin_log_api_key",
+        server_name="preview server",
+    )
+    print("=== Preview Server Update Status ===\n")
+    await _fetch_satellite_status(
+        status_url=PREVIEW_SERVER_STATUS_URL,
+        api_key=api_key,
+        server_name="preview server",
+    )
+
+
 async def cmd_issues(args, api_key: str):
     """List issue reports."""
     base_url = get_base_url(args.dev)
@@ -260,8 +808,37 @@ async def cmd_issue(args, api_key: str):
         print(f"\nDescription:\n{result.get('description') or 'N/A'}")
         
         if result.get('full_report'):
-            print("\n=== Full Report ===")
-            print(json.dumps(result['full_report'], indent=2))
+            report = result['full_report']
+            # Display console logs separately for readability
+            logs = report.get('logs', {})
+            console_logs = logs.get('console_logs') if isinstance(logs, dict) else None
+            docker_logs = logs.get('docker_compose_logs') if isinstance(logs, dict) else None
+
+            # Print report without logs (they're displayed separately below)
+            report_without_logs = {k: v for k, v in report.items() if k != 'logs'}
+            if report_without_logs:
+                print("\n=== Full Report (metadata) ===")
+                print(json.dumps(report_without_logs, indent=2))
+
+            if console_logs:
+                print("\n=== Console Logs ===")
+                print(str(console_logs))
+
+            if docker_logs:
+                print("\n=== Docker Compose Logs ===")
+                print(str(docker_logs))
+
+
+async def cmd_issue_delete(args, api_key: str):
+    """Delete an issue (Directus + S3). Use after the issue is confirmed fixed."""
+    base_url = get_base_url(args.dev)
+    result = await make_request(f"issues/{args.issue_id}", api_key, base_url, method="DELETE")
+    if args.json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"Success: {result.get('success')}")
+        print(f"Message: {result.get('message')}")
+        print(f"Deleted from S3: {result.get('deleted_from_s3')}")
 
 
 async def cmd_user(args, api_key: str):
@@ -423,6 +1000,7 @@ async def cmd_newsletter(args, api_key: str):
         return
 
     summary = result.get("summary", {})
+    confirmed = summary.get('confirmed_subscribers', 0)
 
     print()
     print("=" * 60)
@@ -431,11 +1009,37 @@ async def cmd_newsletter(args, api_key: str):
     print()
     print("  SUMMARY")
     print("  " + "-" * 40)
-    print(f"  Confirmed subscribers:    {summary.get('confirmed_subscribers', 0)}")
+    print(f"  Confirmed subscribers:    {confirmed}")
     print(f"  Unconfirmed records:      {summary.get('unconfirmed_records', 0)}")
     print(f"  Total Directus records:   {summary.get('total_records_in_directus', 0)}")
     print(f"  Blocked/ignored emails:   {summary.get('ignored_blocked_emails', 0)}")
     print(f"  Darkmode preference:      {summary.get('darkmode_subscribers', 0)}")
+    print()
+
+    # Registration status breakdown
+    reg_status = summary.get("registration_status", {})
+    not_signed_up = reg_status.get("not_signed_up", 0)
+    signup_incomplete = reg_status.get("signup_incomplete", 0)
+    signup_complete = reg_status.get("signup_complete", 0)
+    unknown = reg_status.get("unknown", 0)
+    total_known = not_signed_up + signup_incomplete + signup_complete
+
+    print("  REGISTRATION STATUS")
+    print("  " + "-" * 40)
+    if total_known > 0 or unknown == 0:
+        base = confirmed if confirmed > 0 else 1
+
+        def pct(n: int) -> str:
+            return f"{n / base * 100:.0f}%"
+
+        print(f"  Not signed up:            {not_signed_up:>4}  ({pct(not_signed_up)})")
+        print(f"  Signup incomplete:        {signup_incomplete:>4}  ({pct(signup_incomplete)})")
+        print(f"  Fully signed up:          {signup_complete:>4}  ({pct(signup_complete)})")
+        if unknown > 0:
+            print(f"  Status unknown:           {unknown:>4}  (run backfill to populate)")
+    else:
+        print("  No status data yet — run the backfill script first.")
+        print("  docker exec api python /app/backend/scripts/backfill_newsletter_user_status.py --apply")
     print()
 
     lang_breakdown = summary.get("language_breakdown", {})
@@ -471,17 +1075,19 @@ async def cmd_newsletter(args, api_key: str):
         if subscribers:
             for i, sub in enumerate(subscribers, 1):
                 email = sub.get("email", "[unknown]")
-                confirmed = sub.get("confirmed_at", "N/A")
+                confirmed_at = sub.get("confirmed_at", "N/A")
                 subscribed = sub.get("subscribed_at", "N/A")
                 lang = sub.get("language", "?")
                 dark = "dark" if sub.get("darkmode") else "light"
                 has_unsub = "yes" if sub.get("has_unsubscribe_token") else "NO"
+                reg_status = sub.get("user_registration_status") or "unknown"
                 print(f"    {i}. {email}")
-                print(f"       Confirmed:    {confirmed}")
+                print(f"       Confirmed:    {confirmed_at}")
                 print(f"       Subscribed:   {subscribed}")
                 print(f"       Language:     {lang}")
                 print(f"       Theme:        {dark}")
                 print(f"       Unsub token:  {has_unsub}")
+                print(f"       Reg status:   {reg_status}")
                 print()
         else:
             print("  No subscribers found.")
@@ -505,13 +1111,26 @@ async def cmd_newsletter(args, api_key: str):
 
 async def async_main(args):
     """Async main function."""
-    # Get API key from Vault
+    # Satellite commands fetch their own Vault keys internally — they don't need
+    # the core API admin key and don't distinguish between dev and prod.
+    _satellite_commands = {
+        "upload-logs", "preview-logs",
+        "upload-update", "preview-update",
+        "upload-status", "preview-status",
+    }
+    if args.command in _satellite_commands:
+        # Satellite commands are not server-specific (there is only one upload/preview VM).
+        # Pass None as api_key — the commands fetch their own keys from Vault.
+        await args.func(args, None)
+        return
+
+    # Get core API key from Vault (used by all other commands)
     api_key = await get_api_key_from_vault()
-    
+
     # Show which server we're using
     server = "DEVELOPMENT" if args.dev else "PRODUCTION"
     print(f"[Using {server} server]\n", file=sys.stderr)
-    
+
     # Call the appropriate command
     await args.func(args, api_key)
 
@@ -527,14 +1146,100 @@ def main():
     
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
     
-    # logs command
-    logs_parser = subparsers.add_parser("logs", help="Query Docker Compose logs")
+    # logs command (core API server via Loki)
+    logs_parser = subparsers.add_parser("logs", help="Query Docker Compose logs from core API server (via Loki)")
     logs_parser.add_argument("--services", "-s", help="Comma-separated list of services (default: all)")
     logs_parser.add_argument("--lines", "-n", type=int, default=100, help="Lines per service (default: 100, max: 500)")
     logs_parser.add_argument("--since", "-t", type=int, default=60, help="Minutes to look back (default: 60, max: 1440)")
     logs_parser.add_argument("--search", "-g", help="Regex pattern to filter logs")
     logs_parser.set_defaults(func=cmd_logs)
-    
+
+    # upload-logs command (upload.openmates.org — separate VM, no Loki)
+    upload_logs_parser = subparsers.add_parser(
+        "upload-logs",
+        help="Query Docker logs from the upload server (upload.openmates.org)",
+    )
+    upload_logs_parser.add_argument(
+        "--services", "-s",
+        default=None,
+        help="Comma-separated services (default: app-uploads). Allowed: app-uploads, clamav, vault, admin-sidecar",
+    )
+    upload_logs_parser.add_argument(
+        "--lines", "-n",
+        type=int,
+        default=100,
+        help="Lines per service (default: 100, max: 500)",
+    )
+    upload_logs_parser.add_argument(
+        "--since", "-t",
+        type=int,
+        default=60,
+        help="Minutes to look back (default: 60, max: 1440)",
+    )
+    upload_logs_parser.add_argument(
+        "--search", "-g",
+        default=None,
+        help="Regex pattern to filter log lines (case-insensitive)",
+    )
+    upload_logs_parser.set_defaults(func=cmd_upload_logs)
+
+    # preview-logs command (preview.openmates.org — separate VM, no Loki)
+    preview_logs_parser = subparsers.add_parser(
+        "preview-logs",
+        help="Query Docker logs from the preview server (preview.openmates.org)",
+    )
+    preview_logs_parser.add_argument(
+        "--services", "-s",
+        default=None,
+        help="Services to fetch (default: preview). Currently only: preview",
+    )
+    preview_logs_parser.add_argument(
+        "--lines", "-n",
+        type=int,
+        default=100,
+        help="Number of log lines (default: 100, max: 500)",
+    )
+    preview_logs_parser.add_argument(
+        "--since", "-t",
+        type=int,
+        default=60,
+        help="Minutes to look back (default: 60, max: 1440)",
+    )
+    preview_logs_parser.add_argument(
+        "--search", "-g",
+        default=None,
+        help="Regex pattern to filter log lines (case-insensitive)",
+    )
+    preview_logs_parser.set_defaults(func=cmd_preview_logs)
+
+    # upload-update command (upload.openmates.org — git pull + rebuild + restart)
+    upload_update_parser = subparsers.add_parser(  # noqa: F841
+        "upload-update",
+        help="git pull + rebuild + restart the upload server (upload.openmates.org)",
+    )
+    upload_update_parser.set_defaults(func=cmd_upload_update)
+
+    # preview-update command (preview.openmates.org — git pull + rebuild + restart)
+    preview_update_parser = subparsers.add_parser(  # noqa: F841
+        "preview-update",
+        help="git pull + rebuild + restart the preview server (preview.openmates.org)",
+    )
+    preview_update_parser.set_defaults(func=cmd_preview_update)
+
+    # upload-status command — poll /admin/update/status (no side effects)
+    upload_status_parser = subparsers.add_parser(  # noqa: F841
+        "upload-status",
+        help="Poll the current/last update status on the upload server (no side effects)",
+    )
+    upload_status_parser.set_defaults(func=cmd_upload_status)
+
+    # preview-status command — poll /admin/update/status (no side effects)
+    preview_status_parser = subparsers.add_parser(  # noqa: F841
+        "preview-status",
+        help="Poll the current/last update status on the preview server (no side effects)",
+    )
+    preview_status_parser.set_defaults(func=cmd_preview_status)
+
     # issues command
     issues_parser = subparsers.add_parser("issues", help="List issue reports")
     issues_parser.add_argument("--search", "-s", help="Search in title/description")
@@ -546,8 +1251,14 @@ def main():
     # issue command
     issue_parser = subparsers.add_parser("issue", help="Get issue details")
     issue_parser.add_argument("issue_id", help="Issue ID")
-    issue_parser.add_argument("--include-logs", "-l", action="store_true", help="Include related logs")
+    issue_parser.add_argument("--no-logs", dest="include_logs", action="store_false", help="Skip fetching the full YAML report from S3 (logs are included by default)")
     issue_parser.set_defaults(func=cmd_issue)
+
+    # issue-delete command
+    issue_delete_parser = subparsers.add_parser("issue-delete", help="Delete an issue (after confirmed fixed)")
+    issue_delete_parser.add_argument("issue_id", help="Issue ID to delete")
+    issue_delete_parser.add_argument("--json", "-j", action="store_true", help="Output raw JSON")
+    issue_delete_parser.set_defaults(func=cmd_issue_delete)
     
     # user command
     user_parser = subparsers.add_parser("user", help="Inspect a user by email")

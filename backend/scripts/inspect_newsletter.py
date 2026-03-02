@@ -114,7 +114,7 @@ async def get_all_subscriber_records(
     collection_name = "newsletter_subscribers"
     url = f"{directus_service.base_url}/items/{collection_name}"
     params = {
-        "fields": "id,encrypted_email_address,hashed_email,confirmed_at,subscribed_at,language,darkmode,unsubscribe_token",
+        "fields": "id,encrypted_email_address,hashed_email,confirmed_at,subscribed_at,language,darkmode,unsubscribe_token,user_registration_status",
         "sort": "-subscribed_at",
         "limit": -1,
         "meta": "total_count,filter_count",
@@ -243,16 +243,28 @@ async def run_inspection(args: argparse.Namespace) -> None:
     ignored_count = await get_ignored_emails_count(directus_service)
     result["summary"]["ignored_blocked_emails"] = ignored_count
 
-    # 3. Language breakdown
+    # 3. Language breakdown and registration status
     lang_breakdown: Dict[str, int] = defaultdict(int)
     darkmode_count = 0
+    reg_status_counts: Dict[str, int] = {
+        "not_signed_up": 0,
+        "signup_incomplete": 0,
+        "signup_complete": 0,
+        "unknown": 0,
+    }
     for sub in subscribers:
         lang = sub.get("language", "unknown")
         lang_breakdown[lang] += 1
         if sub.get("darkmode"):
             darkmode_count += 1
+        reg_status = sub.get("user_registration_status")
+        if reg_status in reg_status_counts:
+            reg_status_counts[reg_status] += 1
+        else:
+            reg_status_counts["unknown"] += 1
     result["summary"]["language_breakdown"] = dict(sorted(lang_breakdown.items(), key=lambda x: -x[1]))
     result["summary"]["darkmode_subscribers"] = darkmode_count
+    result["summary"]["registration_status"] = reg_status_counts
 
     # 4. Pending subscriptions from cache
     if show_pending:
@@ -316,13 +328,38 @@ def print_formatted(
     print()
 
     # Summary
+    confirmed = summary.get('confirmed_subscribers', 0)
     print("  SUMMARY")
     print("  " + "-" * 40)
-    print(f"  Confirmed subscribers:    {summary.get('confirmed_subscribers', 0)}")
+    print(f"  Confirmed subscribers:    {confirmed}")
     print(f"  Unconfirmed records:      {summary.get('unconfirmed_records', 0)}")
     print(f"  Total Directus records:   {summary.get('total_records_in_directus', 0)}")
     print(f"  Blocked/ignored emails:   {summary.get('ignored_blocked_emails', 0)}")
     print(f"  Darkmode preference:      {summary.get('darkmode_subscribers', 0)}")
+    print()
+
+    # Registration status breakdown
+    reg_status = summary.get("registration_status", {})
+    not_signed_up = reg_status.get("not_signed_up", 0)
+    signup_incomplete = reg_status.get("signup_incomplete", 0)
+    signup_complete = reg_status.get("signup_complete", 0)
+    unknown = reg_status.get("unknown", 0)
+    total_known = not_signed_up + signup_incomplete + signup_complete
+
+    print("  REGISTRATION STATUS")
+    print("  " + "-" * 40)
+    if total_known > 0 or unknown == 0:
+        def pct(n: int) -> str:
+            base = confirmed if confirmed > 0 else 1
+            return f"{n / base * 100:.0f}%"
+        print(f"  Not signed up:            {not_signed_up:>4}  ({pct(not_signed_up)})")
+        print(f"  Signup incomplete:        {signup_incomplete:>4}  ({pct(signup_incomplete)})")
+        print(f"  Fully signed up:          {signup_complete:>4}  ({pct(signup_complete)})")
+        if unknown > 0:
+            print(f"  Status unknown (pre-backfill): {unknown:>4}")
+    else:
+        print("  No status data yet — run the backfill script first.")
+        print("  docker exec api python /app/backend/scripts/backfill_newsletter_user_status.py")
     print()
 
     # Language breakdown
@@ -367,12 +404,14 @@ def print_formatted(
                 lang = sub.get("language", "?")
                 dark = "dark" if sub.get("darkmode") else "light"
                 has_unsub = "yes" if sub.get("has_unsubscribe_token") else "NO"
+                reg_status = sub.get("user_registration_status") or "unknown"
                 print(f"    {i}. {email}")
                 print(f"       Confirmed:    {confirmed}")
                 print(f"       Subscribed:   {subscribed}")
                 print(f"       Language:     {lang}")
                 print(f"       Theme:        {dark}")
                 print(f"       Unsub token:  {has_unsub}")
+                print(f"       Reg status:   {reg_status}")
                 print()
         else:
             print("  No subscribers found.")

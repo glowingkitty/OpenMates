@@ -43,6 +43,150 @@ from backend.core.api.app.utils.config_manager import config_manager
 
 logger = logging.getLogger(__name__)
 
+
+async def translate_chat_title(
+    task_id: str,
+    title: str,
+    target_language: str,
+    secrets_manager: "SecretsManager",
+) -> str:
+    """
+    Translate a chat title into the user's system/UI language via an isolated LLM call.
+
+    Why a separate call instead of relying on the fast_preprocess_request_tool instruction:
+    The preprocessing Call A sees the full conversation history (in any language). Even with
+    an explicit USER_SYSTEM_LANGUAGE instruction in the schema and description, the model
+    frequently generates the title in the conversation language when the entire message is
+    in a foreign language. An isolated call with no conversation context is immune to language
+    bleed and reliably produces the correct language.
+
+    This mirrors the translate_new_chat_suggestions / translate_chat_summary pattern used
+    in the postprocessor.
+
+    Args:
+        task_id: Task ID for logging
+        title: Raw chat title string (may be in the wrong language)
+        target_language: ISO 639-1 language code to translate into (e.g. "en", "de", "fr")
+        secrets_manager: Secrets manager instance for LLM credentials
+
+    Returns:
+        Translated title string. Falls back to the original title if the translation
+        call fails (non-fatal — we prefer a title in the wrong language over no title).
+    """
+    if not title or not title.strip():
+        return title
+
+    logger.info(
+        f"[Task ID: {task_id}] [TranslateTitle] Translating chat title to '{target_language}'"
+    )
+
+    language_names = {
+        "en": "English", "de": "German", "fr": "French", "es": "Spanish",
+        "it": "Italian", "pt": "Portuguese", "nl": "Dutch", "pl": "Polish",
+        "ru": "Russian", "ja": "Japanese", "zh": "Chinese", "ko": "Korean",
+        "ar": "Arabic", "tr": "Turkish", "sv": "Swedish", "no": "Norwegian",
+        "da": "Danish", "fi": "Finnish", "cs": "Czech", "ro": "Romanian",
+        "hu": "Hungarian", "el": "Greek", "he": "Hebrew", "hi": "Hindi",
+        "uk": "Ukrainian",
+    }
+    language_name = language_names.get(target_language, target_language.upper())
+
+    # Inline tool schema — static and minimal, no conversation context
+    translation_tool = {
+        "type": "function",
+        "function": {
+            "name": "translate_title",
+            "description": (
+                f"Translate a short chat title into {language_name} ({target_language}). "
+                "Preserve the exact meaning. Keep it concise (max 7 words). "
+                "Return only the translated title."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "translated_title": {
+                        "type": "string",
+                        "description": (
+                            f"The title translated into {language_name}. "
+                            "Must be concise (max 7 words) and preserve the original meaning."
+                        ),
+                    }
+                },
+                "required": ["translated_title"],
+            },
+        },
+    }
+
+    system_message = (
+        f"You are a professional translation engine. "
+        f"Translate the given short chat title into {language_name} ({target_language}). "
+        f"Rules:\n"
+        f"- Preserve the exact meaning of the title\n"
+        f"- Keep it concise (max 7 words)\n"
+        f"- Use natural phrasing in {language_name}\n"
+        f"- Do NOT add explanations, articles, or extra words unless needed for the language"
+    )
+
+    user_message = f"Translate this chat title to {language_name}:\n\n{title}"
+
+    messages = [
+        {"role": "system", "content": system_message},
+        {"role": "user", "content": user_message},
+    ]
+
+    model_id = "mistral/mistral-small-latest"
+
+    try:
+        from backend.apps.ai.utils.llm_utils import resolve_fallback_servers_from_provider_config
+        translation_fallbacks = resolve_fallback_servers_from_provider_config(model_id)
+
+        llm_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
+            task_id=task_id,
+            model_id=model_id,
+            message_history=messages,
+            tool_definition=translation_tool,
+            secrets_manager=secrets_manager,
+            user_app_settings_and_memories_metadata=None,
+            dynamic_context=None,
+            fallback_models=translation_fallbacks,
+        )
+
+        if llm_result.error_message:
+            logger.error(
+                f"[Task ID: {task_id}] [TranslateTitle] LLM call failed: {llm_result.error_message}. "
+                f"Falling back to original (untranslated) title."
+            )
+            return title
+
+        if llm_result.arguments is None:
+            logger.warning(
+                f"[Task ID: {task_id}] [TranslateTitle] LLM returned None arguments. "
+                f"Falling back to original title."
+            )
+            return title
+
+        translated = llm_result.arguments.get("translated_title", "")
+
+        if not translated or not isinstance(translated, str) or not translated.strip():
+            logger.warning(
+                f"[Task ID: {task_id}] [TranslateTitle] Empty or invalid translated_title. "
+                f"Falling back to original title."
+            )
+            return title
+
+        logger.info(
+            f"[Task ID: {task_id}] [TranslateTitle] Successfully translated title to '{target_language}'"
+        )
+        return translated.strip()
+
+    except Exception as e:
+        logger.error(
+            f"[Task ID: {task_id}] [TranslateTitle] Unexpected error during translation: {e}",
+            exc_info=True,
+        )
+        return title
+
+
 class PreprocessingResult(BaseModel):
     """
     Defines the Pydantic model for the output structure of the preprocessing step.
@@ -96,6 +240,11 @@ class PreprocessingResult(BaseModel):
 
     raw_llm_response: Optional[Dict[str, Any]] = Field(None, description="Raw arguments from the LLM tool call.")
     error_message: Optional[str] = None
+
+    # When True, relevant_app_skills came only from user @skill mentions; main processor must not merge always_include_skills.
+    user_requested_skills_only: bool = Field(False, description="True if user explicitly specified skills via @skill:app:skill_id; skip LLM skill selection and do not add always_include_skills.")
+    # When True, relevant_focus_modes came only from user @focus mentions.
+    user_requested_focus_only: bool = Field(False, description="True if user explicitly specified focus mode(s) via @focus:app:focus_id.")
 
 
 def _sanitize_text_content(text: str, log_prefix: str = "") -> str:
@@ -266,6 +415,54 @@ def _get_insufficient_credits_error_message() -> str:
     return "You don't have enough credits to complete this request. Please buy more credits or activate auto top-up with a valid payment method."
 
 
+async def _emit_preprocessing_step(
+    cache_service: CacheService,
+    channel: str,
+    step: str,
+    skipped: bool,
+    user_id_uuid: Optional[str] = None,
+    chat_id: Optional[str] = None,
+    skip_reason: Optional[str] = None,
+    data: Optional[Dict[str, Any]] = None,
+    log_prefix: str = ""
+) -> None:
+    """
+    Emits a preprocessing step event to the Redis channel for real-time UI streaming.
+
+    Each step event allows the frontend to show exactly what the preprocessor selected
+    (title, mate, model) or why a step was skipped (user override, existing chat, etc.).
+
+    Args:
+        cache_service: CacheService instance for publishing Redis events.
+        channel: Redis channel (preprocessing_stream::{user_id_hash}).
+        step: Step name: "title_generated", "mate_selected", or "model_selected".
+        skipped: True if this step was skipped (do not render a card in the UI).
+        user_id_uuid: The user's UUID for WebSocket routing by the API server listener.
+        chat_id: The chat ID so the frontend can refresh the active chat metadata.
+        skip_reason: Why skipped: "existing_chat", "user_override", or "predefined".
+        data: Step-specific result data (title, mate info, model info).
+        log_prefix: Prefix for log messages.
+    """
+    payload: Dict[str, Any] = {
+        "type": "preprocessing_step",
+        "step": step,
+        "skipped": skipped,
+        "user_id_uuid": user_id_uuid,
+        "chat_id": chat_id,
+    }
+    if skip_reason:
+        payload["skip_reason"] = skip_reason
+    if data:
+        payload["data"] = data
+
+    try:
+        await cache_service.publish_event(channel, payload)
+        logger.debug(f"{log_prefix} Emitted preprocessing_step '{step}' (skipped={skipped}) to channel '{channel}'")
+    except Exception as e:
+        # Non-fatal: UI streaming failure should not abort the main flow
+        logger.warning(f"{log_prefix} Failed to emit preprocessing_step '{step}': {e}")
+
+
 async def handle_preprocessing(
     request_data: AskSkillRequest,
     base_instructions: Dict[str, Any],
@@ -276,10 +473,17 @@ async def handle_preprocessing(
     encryption_service: EncryptionService, # Added EncryptionService for reuse
     user_app_settings_and_memories_metadata: Optional[Dict[str, List[str]]] = None,
     discovered_apps_metadata: Optional[Dict[str, AppYAML]] = None,  # AppYAML metadata for tool preselection
-    user_overrides: Optional[UserOverrides] = None  # User overrides from @ mentioning syntax
+    user_overrides: Optional[UserOverrides] = None,  # User overrides from @ mentioning syntax
+    preprocessing_stream_channel: Optional[str] = None,  # Redis channel for real-time step events
+    is_new_chat: bool = False  # True if this is the first message in a new chat (no title yet)
 ) -> PreprocessingResult:
     """
     Handles the preprocessing of an AI skill request.
+
+    After the main LLM call resolves, emits real-time step events via Redis to the
+    preprocessing_stream_channel so the frontend can display each preprocessing step
+    as it completes (title generated, mate selected, model selected).
+    Steps that are skipped (e.g., user override, existing chat) are not shown.
 
     Args:
         request_data: The AskSkillRequest Pydantic model.
@@ -290,6 +494,8 @@ async def handle_preprocessing(
         secrets_manager: Instance of SecretsManager.
         directus_service: Instance of DirectusService for reuse.
         encryption_service: Instance of EncryptionService for reuse.
+        preprocessing_stream_channel: Redis channel for publishing real-time preprocessing step events.
+        is_new_chat: True if this is the first message (title generation step applies).
 
     Returns:
         PreprocessingResult: A Pydantic model containing the results of the preprocessing.
@@ -370,13 +576,19 @@ async def handle_preprocessing(
                 logger.info(f"{log_prefix} User {request_data.user_id} has auto top-up enabled and a payment method. Attempting to top up before processing...")
 
                 try:
-                    # Trigger low balance auto top-up synchronously
-                    # This will check cooldown, payment method, and process payment
+                    # Trigger low balance auto top-up synchronously.
+                    # Returns True only if a Stripe charge was actually initiated.
+                    # Returns False if the top-up was skipped (cooldown, missing config, etc.),
+                    # in which case we must NOT sleep — the credits haven't changed.
                     import asyncio
-                    await billing_service._trigger_low_balance_topup(request_data.user_id, cached_user)
+                    charge_initiated = await billing_service._trigger_low_balance_topup(request_data.user_id, cached_user)
 
-                    # Wait a moment for payment to process
-                    await asyncio.sleep(2)
+                    if charge_initiated:
+                        # Wait for the Stripe webhook to process the payment and add credits
+                        # to the user's cache entry before we re-check the balance.
+                        await asyncio.sleep(2)
+                    else:
+                        logger.info(f"{log_prefix} Auto top-up was skipped (no charge initiated) — not waiting for credits update.")
 
                     # Refresh user credits from cache after top-up
                     refreshed_user = await cache_service.get_user_by_id(request_data.user_id)
@@ -524,37 +736,54 @@ async def handle_preprocessing(
             error_message="Critical preprocessing instructions are missing."
         )
 
-    # Deepcopy the tool definition to allow modification
+    # Deepcopy the tool definitions to allow modification
     import copy
     tool_definition_for_llm = copy.deepcopy(base_instructions["preprocess_request_tool"])
+    # Initialized to None here so Pyright doesn't flag it as possibly-unbound at the usage sites
+    # below (which are all guarded by `if is_first_message:`, but static analysis can't always tell).
+    fast_tool_definition: Optional[Dict[str, Any]] = None
 
-    # Conditionally remove title and icon_names generation if chat already has a title
-    # Icon/category are generated only once with the title (first message only)
+    # Determine whether this is the first message (no title yet) or a follow-up.
     # CRITICAL: Use chat_has_title flag from client, NOT message_history length
     # (message_history can be empty on first request when cache is used)
     is_first_message = not request_data.chat_has_title
-    
-    if not is_first_message:
-        logger.info(f"{log_prefix} Chat already has a title (follow-up message). Omitting title, icon_names, and category generation from LLM tool call.")
-        # Remove title field
-        if 'title' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('properties', {}):
-            del tool_definition_for_llm['function']['parameters']['properties']['title']
-        if 'title' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('required', []):
-            tool_definition_for_llm['function']['parameters']['required'].remove('title')
-        # Remove icon_names field (icon and category are set once with the title)
-        if 'icon_names' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('properties', {}):
-            del tool_definition_for_llm['function']['parameters']['properties']['icon_names']
-        if 'icon_names' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('required', []):
-            tool_definition_for_llm['function']['parameters']['required'].remove('icon_names')
-        # Remove category field
-        if 'category' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('properties', {}):
-            del tool_definition_for_llm['function']['parameters']['properties']['category']
-        if 'category' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('required', []):
-            tool_definition_for_llm['function']['parameters']['required'].remove('category')
-    else:
-        logger.info(f"{log_prefix} This is the first message (chat has no title yet). Including title, icon_names, and category generation in LLM tool call.")
 
-    logger.info(f"{log_prefix} Loaded and potentially modified instruction tool (preprocess_request_tool).")
+    if is_first_message:
+        # --- First message: two-call split ---
+        # Call A (fast_preprocess_request_tool): title, category, icon_names, harmful_or_illegal,
+        #   misuse_risk, output_language.  Small schema → fast response → UI shown immediately.
+        # Call B (preprocess_request_tool): routing fields (complexity, task_area, skills, etc.)
+        #   + chat_summary + chat_tags.  Does NOT include title/category/icons/safety/language.
+        # Both calls are fired in parallel and awaited together.
+        logger.info(f"{log_prefix} First message — using two-call parallel preprocessing (Call A: fast UI, Call B: routing).")
+
+        if "fast_preprocess_request_tool" not in base_instructions:
+            logger.error(f"{log_prefix} Missing 'fast_preprocess_request_tool' in base_instructions.")
+            return PreprocessingResult(
+                can_proceed=False,
+                rejection_reason="internal_error_missing_instructions",
+                error_message="Critical fast preprocessing instructions are missing."
+            )
+        fast_tool_definition = copy.deepcopy(base_instructions["fast_preprocess_request_tool"])
+
+        # Call B does NOT need harmful_or_illegal / misuse_risk / output_language on first messages
+        # (those come from Call A).  They are defined as optional in the schema and not in required,
+        # so nothing to remove — the LLM simply won't be asked for them.
+        logger.info(f"{log_prefix} Loaded fast_preprocess_request_tool (Call A) and preprocess_request_tool (Call B).")
+    else:
+        # --- Follow-up message: single call (same as before the split) ---
+        # Add category, harmful_or_illegal, misuse_risk, and output_language to the required list for Call B
+        # (on first messages those come from Call A, but on follow-ups there is no Call A).
+        # Category is critical for follow-ups: without it, the LLM doesn't return a category and
+        # the system falls back to 'general_knowledge', losing the specialized mate from the first message.
+        logger.info(f"{log_prefix} Follow-up message — single-call preprocessing (no Call A).")
+        follow_up_extra_required = ["category", "harmful_or_illegal", "misuse_risk", "output_language"]
+        required_list = tool_definition_for_llm.get("function", {}).get("parameters", {}).get("required", [])
+        for field in follow_up_extra_required:
+            if field not in required_list:
+                required_list.append(field)
+
+    logger.info(f"{log_prefix} Loaded and potentially modified instruction tool(s) for preprocessing.")
     
     # Load mates_configs from cache (preloaded by main API server at startup)
     # The main API server preloads these into the shared Dragonfly cache during startup.
@@ -594,7 +823,86 @@ async def handle_preprocessing(
             error_message="Mate configuration is missing or empty, cannot determine categories for LLM."
         )
     
-    available_categories_list = sorted(list(set(mate.category for mate in all_mates if mate.category)))
+    # Build a deduplicated map of category -> description from mate configs.
+    # Each category corresponds to exactly one mate; we use the mate's description field
+    # as the per-category hint so the preprocessing LLM understands precisely what each
+    # category covers and can make accurate routing decisions.
+    #
+    # IMPORTANT: these descriptions are deliberately written to avoid overlap between
+    # categories — the preprocessing LLM must be able to distinguish them clearly.
+    # We also override a small number of categories with tighter, more precise hints
+    # (especially 'onboarding_support' and 'general_knowledge') to prevent mis-routing.
+    #
+    # Override map: category -> description string used in the {CATEGORIES_LIST} prompt.
+    # Any category NOT in this map falls back to the description from mates.yml.
+    CATEGORY_DESCRIPTION_OVERRIDES: Dict[str, str] = {
+        # 'onboarding_support' is the most mis-routed category. The override makes the
+        # restriction explicit so the LLM never picks it for generic user tasks.
+        "onboarding_support": (
+            "ONLY for questions about the OpenMates platform itself: its features, mates, apps, "
+            "skills, focus modes, account management, or pricing. "
+            "Do NOT use for any general user task (writing, research, coding, cooking, travel, etc.)."
+        ),
+        # 'general_knowledge' is the catch-all fallback. The override makes this explicit
+        # so the LLM always prefers a specific category when one fits, and only falls back
+        # here when nothing else matches.
+        "general_knowledge": (
+            "Fallback for topics that do not fit any other specific category. "
+            "Use for everyday personal tasks (writing emails or letters, drafting documents, "
+            "casual conversation, miscellaneous questions). "
+            "Always prefer a more specific category when one clearly fits — "
+            "only use this when no other category is a good match."
+        ),
+        # 'electrical_engineering' is scoped to professional/academic EE topics only,
+        # not hobbyist electronics (which belongs to 'maker_prototyping').
+        "electrical_engineering": (
+            "Professional electrical engineering: circuit design, power systems, signal processing, "
+            "PCB design, electrical standards, and academic/industrial EE problems. "
+            "For hobbyist DIY electronics projects, use 'maker_prototyping' instead."
+        ),
+        # 'maker_prototyping' covers the hobbyist/DIY side; explicitly excludes pure EE theory.
+        "maker_prototyping": (
+            "Hands-on DIY and maker projects: 3D printing, Arduino/Raspberry Pi, hobbyist electronics, "
+            "fabrication, and rapid prototyping. "
+            "For professional electrical engineering theory or industrial systems, use 'electrical_engineering'."
+        ),
+        # 'software_development' covers coding and engineering; 'design' covers visual/UX work —
+        # the override makes this boundary clear since UI work can straddle both.
+        "software_development": (
+            "Writing, debugging, or reviewing code; software architecture; DevOps; APIs; databases; "
+            "and software engineering practices. "
+            "For graphic design, UI/UX visual concepts, or design tools, use 'design' instead."
+        ),
+        "design": (
+            "Graphic design, UI/UX design concepts, visual aesthetics, typography, branding, "
+            "and design tools. "
+            "For implementing or coding a UI, use 'software_development' instead."
+        ),
+    }
+
+    # Build the category -> description map from mates, then apply overrides.
+    category_description_map: Dict[str, str] = {}
+    for mate in all_mates:
+        if mate.category and mate.category not in category_description_map:
+            # Use stripped first line of description as the default hint
+            raw_desc = (mate.description or "").strip()
+            # Collapse newlines so the hint stays on one line in the prompt
+            single_line = " ".join(raw_desc.split())
+            category_description_map[mate.category] = single_line
+
+    # Apply overrides — these take priority over the auto-generated descriptions above
+    for cat, override_desc in CATEGORY_DESCRIPTION_OVERRIDES.items():
+        if cat in category_description_map:
+            category_description_map[cat] = override_desc
+
+    # Build the sorted list in "category: description" format.
+    # The ": " separator is detected by llm_utils.py to switch from comma to newline
+    # formatting, giving each category its own line in the final prompt — much easier
+    # for the LLM to parse than a long comma-separated blob.
+    available_categories_list = sorted(
+        [f"{cat}: {desc}" for cat, desc in category_description_map.items()]
+    )
+
     if not available_categories_list:
         logger.critical(f"{log_prefix} CRITICAL: No categories could be derived from the loaded mates. Mates.yml might be misconfigured or all mates lack categories.")
         return PreprocessingResult(
@@ -602,16 +910,30 @@ async def handle_preprocessing(
             rejection_reason="internal_error_no_mate_categories",
             error_message="No categories found in mate configurations, cannot guide LLM for mate selection."
         )
-    
-    # Ensure 'general_knowledge' is always available as a fallback category
-    # This is critical for category validation fallback logic
-    if "general_knowledge" not in available_categories_list:
+
+    # Ensure 'general_knowledge' is always available as a fallback category.
+    # This is critical for category validation fallback logic.
+    general_knowledge_present = any(item.startswith("general_knowledge:") for item in available_categories_list)
+    if not general_knowledge_present:
         logger.warning(
             f"{log_prefix} 'general_knowledge' category not found in available categories list. "
-            f"Adding it as a fallback option. Available categories: {available_categories_list}"
+            f"Adding it as a fallback option."
         )
-        available_categories_list.append("general_knowledge")
-        available_categories_list = sorted(available_categories_list)  # Re-sort after adding
+        fallback_desc = CATEGORY_DESCRIPTION_OVERRIDES.get(
+            "general_knowledge",
+            "Fallback for topics that do not fit any other specific category."
+        )
+        available_categories_list.append(f"general_knowledge: {fallback_desc}")
+        available_categories_list = sorted(available_categories_list)
+
+    # Build a set of bare category IDs (e.g. {"science", "finance", ...}) for validation.
+    # The LLM is prompted with the full "id: description" strings (available_categories_list)
+    # so it understands what each category means, but it is expected to return ONLY the bare
+    # ID (e.g. "science", not "science: Science expert..."). Using bare IDs for validation
+    # prevents valid LLM responses from being incorrectly rejected and retried.
+    available_category_ids: set[str] = {
+        item.split(": ", 1)[0] for item in available_categories_list
+    }
  
     # Extract and log available app skills for tool preselection
     # Note: Exclude ai.ask from available skills - it's the main processing entry point, not a tool
@@ -664,70 +986,208 @@ async def handle_preprocessing(
                     else:
                         available_focus_modes_list.append(focus_identifier)
     
-    logger.info(f"{log_prefix} Preparing for LLM call. Using {len(available_categories_list)} categories from mates.yml: {available_categories_list}")
+    logger.info(f"{log_prefix} Preparing for LLM call(s). Using {len(available_categories_list)} categories from mates.yml: {available_categories_list}")
     logger.info(f"  - User Message History Length: {len(request_data.message_history)}")
-    logger.info(f"  - Tool to call by LLM: {tool_definition_for_llm.get('function', {}).get('name')}")
     logger.info(f"  - Available app skills for tool preselection ({len(available_skills_list)} total): {', '.join(available_skills_list) if available_skills_list else 'None'}")
     logger.info(f"  - Available focus modes ({len(available_focus_modes_list)} total): {', '.join(available_focus_modes_list) if available_focus_modes_list else 'None'}")
-    logger.info("  - Dynamic context for LLM prompt:")
     logger.info(f"    - CATEGORIES_LIST: {available_categories_list}")
     logger.info(f"    - AVAILABLE_APP_SKILLS: {available_skills_list if available_skills_list else 'None'}")
     logger.info(f"    - AVAILABLE_FOCUS_MODES: {available_focus_modes_list if available_focus_modes_list else 'None'}")
     logger.info(f"    - AVAILABLE_APP_SETTINGS_AND_MEMORIES (from direct param): {user_app_settings_and_memories_metadata}")
 
-    preprocessing_model = skill_config.default_llms.preprocessing_model # Changed variable name and attribute accessed
-    
+    preprocessing_model = skill_config.default_llms.preprocessing_model
+
     # Resolve fallback servers from provider config instead of hardcoded list in app.yml
     # This allows fallback servers to be configured in provider YAML files (e.g., mistral.yml)
     from backend.apps.ai.utils.llm_utils import resolve_fallback_servers_from_provider_config
     preprocessing_fallbacks = resolve_fallback_servers_from_provider_config(preprocessing_model)
-    
-    logger.info(f"{log_prefix} Using preprocessing_model: {preprocessing_model} from skill_config.") # Updated log message
+
+    logger.info(f"{log_prefix} Using preprocessing_model: {preprocessing_model} from skill_config.")
     if preprocessing_fallbacks:
         logger.info(f"{log_prefix} Resolved {len(preprocessing_fallbacks)} fallback server(s) for preprocessing: {preprocessing_fallbacks}")
 
-    # Build dynamic context with categories and available app skills (with descriptions)
-    # Include current date/time so preprocessing LLM knows temporal context
+    # Build dynamic context with categories and available app skills (with descriptions).
+    # Include current date/time so preprocessing LLMs know temporal context.
     now = datetime.datetime.now(datetime.timezone.utc)
     date_time_str = now.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+    # --- Fetch previous category for follow-up messages ---
+    # On follow-up messages, we need the previous category to guide the LLM towards
+    # keeping the same mate/category unless the topic has clearly changed.
+    # This prevents follow-up questions from falling back to 'general_knowledge'.
+    previous_category: Optional[str] = None
+    if not is_first_message and cache_service and request_data.user_id and request_data.chat_id:
+        try:
+            chat_list_item = await cache_service.get_chat_list_item_data(
+                request_data.user_id, request_data.chat_id, refresh_ttl=False
+            )
+            if chat_list_item and hasattr(chat_list_item, 'last_mate_category') and chat_list_item.last_mate_category:
+                previous_category = chat_list_item.last_mate_category
+                logger.info(
+                    f"{log_prefix} Retrieved previous category '{previous_category}' from cache "
+                    f"for follow-up category continuity."
+                )
+            else:
+                logger.debug(
+                    f"{log_prefix} No previous category found in cache for chat {request_data.chat_id}. "
+                    f"LLM will select category without bias."
+                )
+        except Exception as e:
+            logger.warning(
+                f"{log_prefix} Failed to fetch previous category from cache: {e}. "
+                f"LLM will select category without bias."
+            )
 
     dynamic_context = {
         "CATEGORIES_LIST": available_categories_list,
         "AVAILABLE_APP_SKILLS": available_skills_list if available_skills_list else [],
         "AVAILABLE_FOCUS_MODES": available_focus_modes_list if available_focus_modes_list else [],
-        "CURRENT_DATE_TIME": date_time_str
+        "CURRENT_DATE_TIME": date_time_str,
+        # PREVIOUS_CATEGORY: provided for follow-up messages so the LLM defaults to the
+        # previous category unless the topic has clearly changed. Empty string if unknown.
+        "PREVIOUS_CATEGORY": previous_category or "none (first message or unknown)"
     }
 
-    llm_call_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
-        task_id=f"{request_data.chat_id}_{request_data.message_id}",
-        model_id=preprocessing_model,
-        fallback_models=preprocessing_fallbacks,  # Pass fallback providers
-        message_history=sanitized_message_history,
-        tool_definition=tool_definition_for_llm, # Use the (potentially modified) tool definition
-        secrets_manager=secrets_manager, # Pass SecretsManager
-        user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
-        dynamic_context=dynamic_context
-    )
+    import asyncio as _asyncio
 
-    if llm_call_result.error_message or not llm_call_result.arguments:
-        default_err_msg = "Preprocessing LLM failed to analyze the request or returned no arguments."
-        final_err_msg = llm_call_result.error_message or default_err_msg
-        
-        # Log the specific error if available, otherwise the generic one
-        logger.error(f"{log_prefix} Preprocessing LLM call failed. Model: {preprocessing_model}. Error: {final_err_msg}")
-        
-        raw_response_data = {"error": final_err_msg}
-        if llm_call_result.raw_provider_response_summary:
-            raw_response_data["provider_response_summary"] = llm_call_result.raw_provider_response_summary
-
-        return PreprocessingResult(
-            can_proceed=False,
-            rejection_reason="internal_error_llm_preprocessing_failed",
-            error_message=final_err_msg, # Use the more specific error message
-            raw_llm_response=raw_response_data
+    if is_first_message:
+        # -----------------------------------------------------------------------
+        # Two-call parallel preprocessing for first messages.
+        #
+        # Call A (fast_preprocess_request_tool): small schema, fires and resolves
+        #   quickly.  Provides title, category, icon_names, safety scores, and
+        #   output_language.  Results are used to emit the title_generated event
+        #   to the frontend before Call B even finishes.
+        #
+        # Call B (preprocess_request_tool): full routing / metadata schema without
+        #   the UI fields (no title, category, icons, safety, language).  Provides
+        #   complexity, task_area, skills, focus modes, memories, summary and tags.
+        #
+        # Both coroutines are awaited with asyncio.gather so they run in parallel
+        # over the network and we wait for both before doing any further work.
+        # -----------------------------------------------------------------------
+        # Call B: fast_tool only needs CATEGORIES_LIST and CURRENT_DATE_TIME.
+        # Call A (main tool): needs the full dynamic_context.
+        # Include the user's UI language so the title is generated in the user's preferred language,
+        # regardless of the language the user is chatting in (mirrors how chat_summary works).
+        user_system_language_for_title = (
+            request_data.user_preferences.get("language", "en")
+            if request_data.user_preferences
+            else "en"
         )
-    
-    llm_analysis_args = llm_call_result.arguments # Arguments are now guaranteed to be non-None
+        fast_dynamic_context = {
+            "CATEGORIES_LIST": available_categories_list,
+            "CURRENT_DATE_TIME": date_time_str,
+            "USER_SYSTEM_LANGUAGE": user_system_language_for_title,
+        }
+
+        logger.info(f"{log_prefix} Firing Call A (fast UI) and Call B (routing) in parallel.")
+
+        # fast_tool_definition is guaranteed non-None here: the early-return guard above
+        # (missing 'fast_preprocess_request_tool' key) ensures we only reach this point if
+        # fast_tool_definition was set at line 614.  The assert narrows the type for Pyright.
+        assert fast_tool_definition is not None, "fast_tool_definition must be set before parallel calls"
+
+        call_a_coro = call_preprocessing_llm(
+            task_id=f"{request_data.chat_id}_{request_data.message_id}_A",
+            model_id=preprocessing_model,
+            fallback_models=preprocessing_fallbacks,
+            message_history=sanitized_message_history,
+            tool_definition=fast_tool_definition,
+            secrets_manager=secrets_manager,
+            user_app_settings_and_memories_metadata=None,  # fast tool doesn't need memories
+            dynamic_context=fast_dynamic_context,
+        )
+        call_b_coro = call_preprocessing_llm(
+            task_id=f"{request_data.chat_id}_{request_data.message_id}_B",
+            model_id=preprocessing_model,
+            fallback_models=preprocessing_fallbacks,
+            message_history=sanitized_message_history,
+            tool_definition=tool_definition_for_llm,
+            secrets_manager=secrets_manager,
+            user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
+            dynamic_context=dynamic_context,
+        )
+
+        call_a_result, call_b_result = await _asyncio.gather(call_a_coro, call_b_coro)
+
+        # Handle Call A failure — fast UI fields missing means we cannot safely show the chat
+        # title or perform safety checks on those fields; treat as hard failure.
+        if call_a_result.error_message or not call_a_result.arguments:
+            final_err_msg = call_a_result.error_message or "Fast preprocessing LLM (Call A) returned no arguments."
+            logger.error(f"{log_prefix} Call A failed. Error: {final_err_msg}")
+            raw_response_data: Dict[str, Any] = {"error": final_err_msg}
+            if call_a_result.raw_provider_response_summary:
+                raw_response_data["provider_response_summary"] = call_a_result.raw_provider_response_summary
+            return PreprocessingResult(
+                can_proceed=False,
+                rejection_reason="internal_error_llm_preprocessing_failed",
+                error_message=final_err_msg,
+                raw_llm_response=raw_response_data,
+            )
+
+        # Handle Call B failure — routing fields are essential; also treat as hard failure.
+        if call_b_result.error_message or not call_b_result.arguments:
+            final_err_msg = call_b_result.error_message or "Preprocessing LLM (Call B) returned no arguments."
+            logger.error(f"{log_prefix} Call B failed. Error: {final_err_msg}")
+            raw_response_data = {"error": final_err_msg}
+            if call_b_result.raw_provider_response_summary:
+                raw_response_data["provider_response_summary"] = call_b_result.raw_provider_response_summary
+            return PreprocessingResult(
+                can_proceed=False,
+                rejection_reason="internal_error_llm_preprocessing_failed",
+                error_message=final_err_msg,
+                raw_llm_response=raw_response_data,
+            )
+
+        # Merge the two result dicts: Call A fields take priority for the fields it owns
+        # (title, category, icon_names, harmful_or_illegal, misuse_risk, output_language),
+        # Call B provides all routing/metadata fields.
+        llm_analysis_args: Dict[str, Any] = {}
+        llm_analysis_args.update(call_b_result.arguments)  # routing fields first
+        llm_analysis_args.update(call_a_result.arguments)  # UI + safety fields override / fill in
+        logger.info(f"{log_prefix} Both LLM calls succeeded. Merged results from Call A + Call B.")
+        # Build a combined raw response summary for debug logging below (used in both paths).
+        combined_raw_response_summary: Optional[Any] = {
+            "call_a": call_a_result.raw_provider_response_summary,
+            "call_b": call_b_result.raw_provider_response_summary,
+        }
+
+    else:
+        # -----------------------------------------------------------------------
+        # Single-call preprocessing for follow-up messages (unchanged behaviour).
+        # Call B includes harmful_or_illegal, misuse_risk, and output_language since
+        # there is no parallel Call A on follow-ups.
+        # -----------------------------------------------------------------------
+        logger.info(f"{log_prefix} Follow-up: firing single Call B (routing + safety + language).")
+        llm_call_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
+            task_id=f"{request_data.chat_id}_{request_data.message_id}",
+            model_id=preprocessing_model,
+            fallback_models=preprocessing_fallbacks,
+            message_history=sanitized_message_history,
+            tool_definition=tool_definition_for_llm,
+            secrets_manager=secrets_manager,
+            user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
+            dynamic_context=dynamic_context,
+        )
+
+        if llm_call_result.error_message or not llm_call_result.arguments:
+            default_err_msg = "Preprocessing LLM failed to analyze the request or returned no arguments."
+            final_err_msg = llm_call_result.error_message or default_err_msg
+            logger.error(f"{log_prefix} Preprocessing LLM call failed. Model: {preprocessing_model}. Error: {final_err_msg}")
+            raw_response_data = {"error": final_err_msg}
+            if llm_call_result.raw_provider_response_summary:
+                raw_response_data["provider_response_summary"] = llm_call_result.raw_provider_response_summary
+            return PreprocessingResult(
+                can_proceed=False,
+                rejection_reason="internal_error_llm_preprocessing_failed",
+                error_message=final_err_msg,
+                raw_llm_response=raw_response_data,
+            )
+
+        llm_analysis_args = llm_call_result.arguments
+        # Store for unified debug logging below.
+        combined_raw_response_summary = llm_call_result.raw_provider_response_summary
     
     # Sanitize llm_analysis_args for logging: show only metadata for chat_summary and chat_tags
     sanitized_args = llm_analysis_args.copy()
@@ -737,8 +1197,8 @@ async def handle_preprocessing(
         sanitized_args["chat_tags"] = {"count": len(sanitized_args["chat_tags"]), "content": "[REDACTED_CONTENT]"}
     
     logger.info(f"{log_prefix} Received LLM analysis args: {sanitized_args}")
-    if llm_call_result.raw_provider_response_summary:
-        logger.debug(f"{log_prefix} Raw provider response summary: {llm_call_result.raw_provider_response_summary}")
+    if combined_raw_response_summary:
+        logger.debug(f"{log_prefix} Raw provider response summary: {combined_raw_response_summary}")
     
     HARM_THRESHOLD = skill_config.preprocessing_thresholds.harmful_content_score # Corrected attribute name
     MISUSE_THRESHOLD = skill_config.preprocessing_thresholds.misuse_risk_score
@@ -1008,6 +1468,26 @@ async def handle_preprocessing(
             f"{selected_llm_for_main_id} (Name: {selected_llm_for_main_name})"
         )
 
+    # --- Apply User Default Model Preference (cross-device setting, lower priority than @mention) ---
+    # This runs after @mention override check but before ModelSelector auto-selection.
+    # Priority: @mention override > user default model > auto-selection via ModelSelector.
+    if not model_override_applied:
+        user_default_key = "default_ai_model_complex" if complexity_val == "complex" else "default_ai_model_simple"
+        user_default_model = (request_data.user_preferences or {}).get(user_default_key)
+        if user_default_model and "/" in user_default_model:
+            # Resolve human-readable display name from provider config
+            provider_part, model_id_part = user_default_model.split("/", 1)
+            resolved_name = config_manager.get_model_display_name(model_id_part, provider_part)
+            selected_llm_for_main_id = user_default_model
+            selected_llm_for_main_name = resolved_name if resolved_name else model_id_part
+            model_override_applied = True
+            model_selection_reason = f"User default ({user_default_key}): {user_default_model}"
+            logger.info(
+                f"{log_prefix} USER_DEFAULT_MODEL: Applying user default model "
+                f"({user_default_key}={user_default_model}, complexity={complexity_val}). "
+                f"Name: {selected_llm_for_main_name}"
+            )
+
     # --- Use Intelligent Model Selector if no user override ---
     if not model_override_applied:
         # Check if auto model selection is enabled in skill_config
@@ -1109,32 +1589,54 @@ async def handle_preprocessing(
         llm_analysis_args["llm_response_temp"] = llm_response_temp_val
     
     # --- Validate and potentially retry category selection ---
-    # The LLM should select a category from available_categories_list, but sometimes it makes up a non-existent category.
-    # We validate the category and retry preprocessing once if invalid, then fallback to 'general_knowledge' if retry also fails.
+    # The LLM should return a bare category ID (e.g. "science", "finance") — NOT the full
+    # "id: description" string from available_categories_list. We validate against
+    # available_category_ids (bare IDs only) to avoid incorrectly rejecting valid responses.
     llm_category = llm_analysis_args.get("category")
     validated_category = llm_category
 
-    # Validate category against available categories list
-    if llm_category and llm_category not in available_categories_list:
+    # Defensive strip: if the LLM returned the full "id: description" string instead of just
+    # the bare ID, extract the part before the first ": " so we don't needlessly retry.
+    if llm_category and ": " in llm_category:
+        stripped = llm_category.split(": ", 1)[0].strip()
+        if stripped in available_category_ids:
+            logger.debug(f"{log_prefix} LLM returned full category string, trimmed to bare ID: '{stripped}'")
+            llm_category = stripped
+            llm_analysis_args["category"] = stripped
+            validated_category = stripped
+
+    # Validate the returned category is a known bare ID
+    if llm_category and llm_category not in available_category_ids:
         logger.warning(
             f"{log_prefix} LLM returned invalid category '{llm_category}' which is not in available categories list: {available_categories_list}. "
             f"Attempting retry..."
         )
         
-        # Retry preprocessing once with a more explicit instruction about category validation
+        # Retry preprocessing once with a more explicit instruction about category validation.
+        # On first messages the category comes from Call A (fast_preprocess_request_tool), so we
+        # retry with that tool.  On follow-up messages it comes from the main tool (Call B).
         try:
-            # Create a modified tool definition that emphasizes category validation
-            retry_tool_definition = copy.deepcopy(tool_definition_for_llm)
+            # Choose which tool definition to retry with based on message type.
+            # - First message: category came from Call A → retry with fast_tool_definition
+            # - Follow-up:     category came from the single Call B → retry with tool_definition_for_llm
+            retry_base_tool = fast_tool_definition if is_first_message else tool_definition_for_llm
+            retry_dynamic_ctx = (
+                {"CATEGORIES_LIST": available_categories_list, "CURRENT_DATE_TIME": date_time_str}
+                if is_first_message
+                else dynamic_context
+            )
+            retry_tool_definition = copy.deepcopy(retry_base_tool)
             # Add a note in the category description emphasizing it MUST be from the list
             category_desc = retry_tool_definition.get('function', {}).get('parameters', {}).get('properties', {}).get('category', {}).get('description', '')
             retry_tool_definition['function']['parameters']['properties']['category']['description'] = (
-                f"{category_desc} **CRITICAL: You MUST select EXACTLY one category from this list: {available_categories_list}. "
-                f"DO NOT invent new categories. If unsure, use 'general_knowledge'."
+                f"{category_desc} **CRITICAL: You MUST select EXACTLY one category ID from this list: {available_categories_list}. "
+                f"Return ONLY the short category ID (the part before the colon, e.g. 'science', 'finance', 'travel'). "
+                f"DO NOT return the full description string. DO NOT invent new categories. If unsure, use 'general_knowledge'."
             )
-            
-            logger.info(f"{log_prefix} Retrying preprocessing LLM call with explicit category validation instructions...")
-            # Pass the FULL dynamic_context (same as first call) so the retry LLM has all the info
-            # it needs. We only extract category from the retry result, but having complete context
+
+            logger.info(f"{log_prefix} Retrying preprocessing LLM call with explicit category validation instructions (is_first_message={is_first_message})...")
+            # Pass the FULL dynamic_context so the retry LLM has all the info it needs.
+            # We only extract category from the retry result, but having complete context
             # helps the LLM make a better decision. We also merge relevant_app_skills from the retry
             # as a union with the first call's skills, since the retry may identify skills the first
             # call missed (or vice versa).
@@ -1145,8 +1647,8 @@ async def handle_preprocessing(
                 message_history=sanitized_message_history,
                 tool_definition=retry_tool_definition,
                 secrets_manager=secrets_manager,
-                user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
-                dynamic_context=dynamic_context  # Use the same full context as the first call
+                user_app_settings_and_memories_metadata=None if is_first_message else user_app_settings_and_memories_metadata,
+                dynamic_context=retry_dynamic_ctx,
             )
             
             if retry_llm_call_result.error_message or not retry_llm_call_result.arguments:
@@ -1158,17 +1660,22 @@ async def handle_preprocessing(
                 validated_category = "general_knowledge"
             else:
                 retry_category = retry_llm_call_result.arguments.get("category")
-                if retry_category and retry_category in available_categories_list:
+                # Strip trailing description in case the LLM returned "science: Science expert..."
+                # instead of just "science" — extract only the bare ID before the first ": "
+                if retry_category and ": " in retry_category:
+                    retry_category = retry_category.split(": ", 1)[0].strip()
+                    logger.debug(f"{log_prefix} Retry category trimmed to bare ID: '{retry_category}'")
+                if retry_category and retry_category in available_category_ids:
                     logger.info(f"{log_prefix} Retry successful! LLM returned valid category '{retry_category}'.")
                     validated_category = retry_category
                     # Update llm_analysis_args with the validated category for consistency
                     llm_analysis_args["category"] = validated_category
                 else:
-                    # Retry also returned an invalid category (either None, empty, or not in available_categories_list)
+                    # Retry also returned an invalid category (either None, empty, or not in available_category_ids)
                     logger.warning(
                         f"{log_prefix} Retry preprocessing also returned invalid category '{retry_category}' "
                         f"(original invalid category was '{llm_category}'). "
-                        f"Category '{retry_category if retry_category else 'None/empty'}' is not in available categories list: {available_categories_list}. "
+                        f"Category '{retry_category if retry_category else 'None/empty'}' is not in available category IDs: {sorted(available_category_ids)}. "
                         f"Using 'general_knowledge' as fallback category."
                     )
                     validated_category = "general_knowledge"
@@ -1223,14 +1730,40 @@ async def handle_preprocessing(
         # Category is valid
         logger.debug(f"{log_prefix} Category '{validated_category}' is valid (exists in available categories list).")
     
-    # --- Mate selection based on validated category ---
+    # --- Mate selection: user override first, then explicit request_data, then category-based ---
+    # When the user specified @mate:..., we use only that and do not run automatic selection
+    # (consistent with model and skill/focus overrides).
     selected_mate_id: Optional[str] = None
 
-    # If mate_id is explicitly provided (e.g., from focus mode continuation or follow-up queue),
-    # respect it and skip category-based selection. This prevents mate switching when the
-    # preprocessor re-runs during continuation tasks.
-    if request_data.mate_id:
-        # Validate the explicit mate_id exists in the mates list
+    if user_overrides and user_overrides.mate_id:
+        # --- Apply User Mate Override (@mate:...) — skip automatic selection ---
+        # User can force a specific mate/persona using @mate:{mate_id} or @mate:{category}
+        override_value = user_overrides.mate_id
+        override_mate = next((mate for mate in all_mates if mate.id == override_value), None) if all_mates else None
+        if not override_mate:
+            override_mate = next((mate for mate in all_mates if mate.category == override_value), None) if all_mates else None
+            if override_mate:
+                logger.info(
+                    f"{log_prefix} USER_OVERRIDE: Matched override value '{override_value}' by category. "
+                    f"Resolved to mate_id='{override_mate.id}'"
+                )
+        if override_mate:
+            selected_mate_id = override_mate.id
+            if override_mate.category:
+                validated_category = override_mate.category
+                llm_analysis_args["category"] = validated_category
+            logger.info(
+                f"{log_prefix} USER_OVERRIDE: Using user-requested mate (skipping automatic selection). "
+                f"mate_id={selected_mate_id}, category={validated_category} (user specified: @mate:{override_value})"
+            )
+        else:
+            logger.warning(
+                f"{log_prefix} USER_OVERRIDE: Invalid mate override '{override_value}' (not found as mate ID or category). "
+                f"Falling back to automatic selection. Available: mates={[m.id for m in all_mates]}, categories={[m.category for m in all_mates]}."
+            )
+
+    if not selected_mate_id and request_data.mate_id:
+        # Mate_id from request (e.g., focus mode continuation or follow-up queue) — respect it
         explicit_mate = next((mate for mate in all_mates if mate.id == request_data.mate_id), None) if all_mates else None
         if explicit_mate:
             selected_mate_id = explicit_mate.id
@@ -1242,6 +1775,7 @@ async def handle_preprocessing(
             )
 
     if not selected_mate_id and validated_category:
+        # Automatic selection based on LLM-detected category
         if not all_mates:
             logger.error(f"{log_prefix} Mates list is unexpectedly empty during mate selection for category '{validated_category}'.")
         else:
@@ -1254,47 +1788,6 @@ async def handle_preprocessing(
                     f"{log_prefix} No mate found for validated category '{validated_category}'. "
                     f"'selected_mate_id' will be None. Main processing must handle this."
                 )
-
-    # --- Apply User Mate Override (@mate:...) if specified ---
-    # User can force a specific mate/persona using @mate:{mate_id} or @mate:{category}
-    # This overrides the automatic mate selection based on LLM-detected category.
-    # IMPORTANT: Users can specify either the mate ID (e.g., @mate:sophia) or the 
-    # category name (e.g., @mate:software_development). We check both.
-    if user_overrides and user_overrides.mate_id:
-        override_value = user_overrides.mate_id
-        override_mate = None
-        
-        # First, try to match by mate ID (e.g., @mate:sophia)
-        override_mate = next((mate for mate in all_mates if mate.id == override_value), None)
-        
-        # If no match by ID, try to match by category (e.g., @mate:software_development)
-        if not override_mate:
-            override_mate = next((mate for mate in all_mates if mate.category == override_value), None)
-            if override_mate:
-                logger.info(
-                    f"{log_prefix} USER_OVERRIDE: Matched override value '{override_value}' by category. "
-                    f"Resolved to mate_id='{override_mate.id}'"
-                )
-        
-        if override_mate:
-            selected_mate_id = override_mate.id
-            # Update category to match the mate's category for consistency
-            if override_mate.category:
-                validated_category = override_mate.category
-                llm_analysis_args["category"] = validated_category
-            logger.info(
-                f"{log_prefix} USER_OVERRIDE: Applied mate override. "
-                f"mate_id={selected_mate_id}, category={validated_category} "
-                f"(user specified: @mate:{override_value})"
-            )
-        else:
-            logger.warning(
-                f"{log_prefix} USER_OVERRIDE: Invalid mate override. "
-                f"'{override_value}' not found as mate ID or category. "
-                f"Available mates: {[m.id for m in all_mates]}. "
-                f"Available categories: {[m.category for m in all_mates]}. "
-                f"Keeping automatic selection: {selected_mate_id}"
-            )
     
     # --- Validate load_app_settings_and_memories field ---
     # Filter out any keys that don't exist in the available metadata
@@ -1367,6 +1860,73 @@ async def handle_preprocessing(
         # If user_app_settings_and_memories_metadata is None/empty, we can't validate, so keep as-is
         # (The system will handle missing keys gracefully)
 
+    # --- Force-include @memory / @memory-entry mentioned keys ---
+    # When the user explicitly mentions a settings/memory category or entry via @memory or
+    # @memory-entry syntax, those keys MUST be loaded regardless of what the preprocessing LLM
+    # decided. The LLM may under-select (or skip entirely) when it misclassifies the request
+    # (e.g. "general_knowledge" / "simple"), but an explicit mention is an unambiguous user intent
+    # and must always be honoured.
+    #
+    # Key format used by the cache/main-processor is "app_id:item_key" (colon separator).
+    #
+    # @memory:travel:trips:list  -> override key "travel:trips"
+    # @memory-entry:code:preferred_technologies:abc123 -> override key "code:preferred_technologies"
+    #   (individual entries still live under the same category cache key; the main processor
+    #    fetches the whole category and the LLM uses only the relevant entries from it)
+    if user_overrides:
+        forced_memory_keys: List[str] = []
+
+        # @memory:app_id:memory_id:type  → force-load category "app_id:memory_id"
+        for app_id, memory_id, _memory_type in (user_overrides.memory_categories or []):
+            forced_key = f"{app_id}:{memory_id}"
+            forced_memory_keys.append(forced_key)
+
+        # @memory-entry:app_id:category_id:entry_id → force-load category "app_id:category_id"
+        # (the whole category is the granularity of a cache entry; the specific entry lives inside)
+        for app_id, category_id, _entry_id in (user_overrides.memory_entries or []):
+            forced_key = f"{app_id}:{category_id}"
+            forced_memory_keys.append(forced_key)
+
+        if forced_memory_keys:
+            # Validate forced keys against what the client says is actually available, to avoid
+            # requesting non-existent categories (which would stall the main processor).
+            if user_app_settings_and_memories_metadata:
+                available_keys_set = {
+                    f"{app_id}:{item_key}"
+                    for app_id, item_keys in user_app_settings_and_memories_metadata.items()
+                    for item_key in item_keys
+                }
+                invalid_forced = [k for k in forced_memory_keys if k not in available_keys_set]
+                forced_memory_keys = [k for k in forced_memory_keys if k in available_keys_set]
+                if invalid_forced:
+                    logger.warning(
+                        f"{log_prefix} USER_OVERRIDE: @memory mention(s) reference keys that are "
+                        f"not in the available metadata and will be skipped: {invalid_forced}. "
+                        f"Available: {list(available_keys_set)}"
+                    )
+
+            # Merge: start from LLM-validated list and add any missing forced keys (preserve order)
+            existing_set = set(load_app_settings_and_memories_val)
+            added_keys = []
+            for key in forced_memory_keys:
+                if key not in existing_set:
+                    load_app_settings_and_memories_val.append(key)
+                    existing_set.add(key)
+                    added_keys.append(key)
+
+            if added_keys:
+                llm_analysis_args["load_app_settings_and_memories"] = load_app_settings_and_memories_val
+                logger.info(
+                    f"{log_prefix} USER_OVERRIDE: Force-added {len(added_keys)} app settings/memories "
+                    f"key(s) from explicit @memory mention(s): {added_keys}. "
+                    f"Final load list: {load_app_settings_and_memories_val}"
+                )
+            else:
+                logger.debug(
+                    f"{log_prefix} USER_OVERRIDE: @memory mention(s) referenced keys already in "
+                    f"LLM-selected list; no additions needed. Keys: {forced_memory_keys}"
+                )
+
     # --- Validate relevant_embedded_previews field ---
     # This list specifies which types of embedded previews to prepare for in the main LLM response
     relevant_embedded_previews_val = llm_analysis_args.get("relevant_embedded_previews", [])
@@ -1392,7 +1952,7 @@ async def handle_preprocessing(
             f"{log_prefix} CRITICAL: 'chat_summary' is missing or empty from LLM response! "
             f"This field is REQUIRED in the tool definition. "
             f"LLM response keys: {list(llm_analysis_args.keys())}. "
-            f"Raw LLM response summary: {llm_call_result.raw_provider_response_summary}. "
+            f"Raw LLM response summary: {combined_raw_response_summary}. "
             f"This will cause post-processing to fail. "
             f"Message history length: {len(sanitized_message_history)}. "
             f"Preprocessing model: {preprocessing_model}."
@@ -1448,139 +2008,273 @@ async def handle_preprocessing(
     else:
         logger.info(f"{log_prefix} Detected output language: '{output_language_val}'")
 
-    # Extract relevant_app_skills from LLM response if present (for tool preselection)
-    # For now, if not provided by LLM, we'll set to None (meaning all skills available)
-    relevant_app_skills_val = llm_analysis_args.get("relevant_app_skills")
-    if relevant_app_skills_val and isinstance(relevant_app_skills_val, list):
-        # Build a robust skill name resolver to handle common LLM hallucinations
-        # This mirrors the tool_resolver_map pattern in main_processor.py
-        # Maps hallucinated skill names to valid skill identifiers
-        skill_resolver_map: Dict[str, str] = {}
-        
-        for valid_skill in available_skill_ids:
-            # Add exact match
-            skill_resolver_map[valid_skill] = valid_skill
-            
-            # Handle underscore variant: app_skill -> app-skill
-            underscore_variant = valid_skill.replace("-", "_")
-            skill_resolver_map[underscore_variant] = valid_skill
-            
-            # Handle duplicated segment pattern: app-skill-skill -> app-skill
-            # Example: web-search-search -> web-search
-            parts = valid_skill.split("-")
-            if len(parts) >= 2:
-                # Create duplicated variant: web-search -> web-search-search
-                duplicated = f"{valid_skill}-{parts[-1]}"
-                skill_resolver_map[duplicated] = valid_skill
-                
-                # Also handle underscore with duplication: web_search_search -> web-search
-                underscore_duplicated = f"{underscore_variant}_{parts[-1].replace('-', '_')}"
-                skill_resolver_map[underscore_duplicated] = valid_skill
-        
-        logger.debug(f"{log_prefix} Built skill resolver map with {len(skill_resolver_map)} entries for handling hallucinated skill names")
-        
-        # Validate and correct skill identifiers
-        validated_relevant_skills = []
-        corrected_skills = []
-        invalid_skills = []
-        
-        for skill in relevant_app_skills_val:
-            if skill in available_skill_ids:
-                # Exact match - no correction needed
-                validated_relevant_skills.append(skill)
-            elif skill in skill_resolver_map:
-                # Hallucinated name that we can correct
-                corrected_skill = skill_resolver_map[skill]
-                validated_relevant_skills.append(corrected_skill)
-                corrected_skills.append(f"{skill} -> {corrected_skill}")
-            else:
-                # Could not resolve - truly invalid
-                invalid_skills.append(skill)
-        
-        # Remove duplicates while preserving order
-        validated_relevant_skills = list(dict.fromkeys(validated_relevant_skills))
-        
-        if corrected_skills:
-            logger.info(
-                f"{log_prefix} Corrected {len(corrected_skills)} hallucinated skill name(s): {corrected_skills}"
-            )
-        
-        if invalid_skills:
+    # --- User override: explicit @skill mentions ---
+    # When the user specifies skills via @skill:app_id:skill_id, use only those and skip LLM selection entirely.
+    user_requested_skills_only = False
+    user_requested_focus_only = False
+
+    if user_overrides and user_overrides.skills:
+        # Build skill identifiers in "app_id-skill_id" format and validate against available skills
+        override_skill_ids = [f"{app_id}-{skill_id}" for app_id, skill_id in user_overrides.skills]
+        validated_relevant_skills = [s for s in override_skill_ids if s in available_skill_ids]
+        invalid_override_skills = [s for s in override_skill_ids if s not in available_skill_ids]
+        if invalid_override_skills:
             logger.warning(
-                f"{log_prefix} LLM returned {len(invalid_skills)} invalid skill identifier(s) that couldn't be resolved: {invalid_skills}. "
-                f"Filtered out. Available skills: {available_skill_ids if available_skill_ids else 'None'}. "
-                f"This may indicate that the app for these skills is not discovered or the skill identifier format is incorrect."
+                f"{log_prefix} USER_OVERRIDE: Skipping invalid @skill override(s) not in available skills: {invalid_override_skills}. "
+                f"Using: {validated_relevant_skills}"
             )
         if validated_relevant_skills:
-            logger.info(f"{log_prefix} Preprocessing selected {len(validated_relevant_skills)} relevant skill(s) for main processing: {', '.join(validated_relevant_skills)}")
-        else:
-            # Empty list means no skills are relevant - this is valid per architecture
-            # We should NOT include all skills, only the preselected ones (which is empty)
-            logger.info(f"{log_prefix} Preprocessing selected no relevant skills (or all were invalid). No skills will be provided to main processing (architecture: only preselected skills are forwarded).")
-            validated_relevant_skills = []  # Keep as empty list, not None - this ensures only preselected skills are forwarded
-    else:
-        # No preselection provided by LLM - treat as empty list (no skills preselected)
-        # Architecture requires only preselected skills to be forwarded, so empty list means no skills
-        validated_relevant_skills = []  # Keep as empty list, not None - this ensures only preselected skills are forwarded
-        logger.info(f"{log_prefix} No skill preselection from preprocessing. No skills will be provided to main processing (architecture: only preselected skills are forwarded).")
-    
-    # Extract relevant_focus_modes from LLM response if present (for focus mode activation)
-    # Focus modes change how the AI responds by providing specialized system prompt instructions
-    relevant_focus_modes_val = llm_analysis_args.get("relevant_focus_modes")
-    validated_relevant_focus_modes: List[str] = []
-    
-    if relevant_focus_modes_val and isinstance(relevant_focus_modes_val, list):
-        # Build a resolver map to handle common LLM hallucinations (similar to skills)
-        # Uses available_focus_mode_ids (bare IDs) for validation, NOT available_focus_modes_list
-        # (which contains descriptions appended for LLM prompt context)
-        focus_resolver_map: Dict[str, str] = {}
-        
-        for valid_focus in available_focus_mode_ids:
-            # Add exact match
-            focus_resolver_map[valid_focus] = valid_focus
-            
-            # Handle underscore variant: app_focus -> app-focus
-            underscore_variant = valid_focus.replace("-", "_")
-            focus_resolver_map[underscore_variant] = valid_focus
-        
-        # Validate and correct focus mode identifiers
-        corrected_focus_modes = []
-        invalid_focus_modes = []
-        
-        for focus in relevant_focus_modes_val:
-            if focus in available_focus_mode_ids:
-                # Exact match - no correction needed
-                validated_relevant_focus_modes.append(focus)
-            elif focus in focus_resolver_map:
-                # Hallucinated name that we can correct
-                corrected_focus = focus_resolver_map[focus]
-                validated_relevant_focus_modes.append(corrected_focus)
-                corrected_focus_modes.append(f"{focus} -> {corrected_focus}")
-            else:
-                # Could not resolve - truly invalid
-                invalid_focus_modes.append(focus)
-        
-        # Remove duplicates while preserving order
-        validated_relevant_focus_modes = list(dict.fromkeys(validated_relevant_focus_modes))
-        
-        if corrected_focus_modes:
+            user_requested_skills_only = True
             logger.info(
-                f"{log_prefix} Corrected {len(corrected_focus_modes)} hallucinated focus mode name(s): {corrected_focus_modes}"
+                f"{log_prefix} USER_OVERRIDE: Using only user-requested skills (skipping preprocessing LLM selection): {', '.join(validated_relevant_skills)}"
             )
-        
-        if invalid_focus_modes:
-            logger.warning(
-                f"{log_prefix} LLM returned {len(invalid_focus_modes)} invalid focus mode identifier(s) that couldn't be resolved: {invalid_focus_modes}. "
-                f"Filtered out. Available focus modes: {available_focus_mode_ids if available_focus_mode_ids else 'None'}."
-            )
-        
-        if validated_relevant_focus_modes:
-            logger.info(f"{log_prefix} Preprocessing selected {len(validated_relevant_focus_modes)} relevant focus mode(s): {', '.join(validated_relevant_focus_modes)}")
         else:
-            logger.debug(f"{log_prefix} Preprocessing selected no relevant focus modes.")
-    else:
-        logger.debug(f"{log_prefix} No focus mode preselection from preprocessing.")
+            logger.warning(
+                f"{log_prefix} USER_OVERRIDE: No valid skills from user overrides (all invalid or empty). Falling back to no skill preselection."
+            )
+            validated_relevant_skills = []
+
+    if not user_requested_skills_only:
+        # Extract relevant_app_skills from LLM response if present (for tool preselection)
+        # When user did not specify skills, use preprocessing LLM selection.
+        relevant_app_skills_val = llm_analysis_args.get("relevant_app_skills")
+        if relevant_app_skills_val and isinstance(relevant_app_skills_val, list):
+            # Build a robust skill name resolver to handle common LLM hallucinations
+            # This mirrors the tool_resolver_map pattern in main_processor.py
+            # Maps hallucinated skill names to valid skill identifiers
+            skill_resolver_map: Dict[str, str] = {}
+            
+            for valid_skill in available_skill_ids:
+                # Add exact match
+                skill_resolver_map[valid_skill] = valid_skill
+                
+                # Handle underscore variant: app_skill -> app-skill
+                underscore_variant = valid_skill.replace("-", "_")
+                skill_resolver_map[underscore_variant] = valid_skill
+                
+                # Handle duplicated segment pattern: app-skill-skill -> app-skill
+                # Example: web-search-search -> web-search
+                parts = valid_skill.split("-")
+                if len(parts) >= 2:
+                    # Create duplicated variant: web-search -> web-search-search
+                    duplicated = f"{valid_skill}-{parts[-1]}"
+                    skill_resolver_map[duplicated] = valid_skill
+                    
+                    # Also handle underscore with duplication: web_search_search -> web-search
+                    underscore_duplicated = f"{underscore_variant}_{parts[-1].replace('-', '_')}"
+                    skill_resolver_map[underscore_duplicated] = valid_skill
+            
+            logger.debug(f"{log_prefix} Built skill resolver map with {len(skill_resolver_map)} entries for handling hallucinated skill names")
+            
+            # Validate and correct skill identifiers
+            validated_relevant_skills = []
+            corrected_skills = []
+            invalid_skills = []
+            
+            for skill in relevant_app_skills_val:
+                if skill in available_skill_ids:
+                    # Exact match - no correction needed
+                    validated_relevant_skills.append(skill)
+                elif skill in skill_resolver_map:
+                    # Hallucinated name that we can correct
+                    corrected_skill = skill_resolver_map[skill]
+                    validated_relevant_skills.append(corrected_skill)
+                    corrected_skills.append(f"{skill} -> {corrected_skill}")
+                else:
+                    # Could not resolve - truly invalid
+                    invalid_skills.append(skill)
+            
+            # Remove duplicates while preserving order
+            validated_relevant_skills = list(dict.fromkeys(validated_relevant_skills))
+            
+            if corrected_skills:
+                logger.info(
+                    f"{log_prefix} Corrected {len(corrected_skills)} hallucinated skill name(s): {corrected_skills}"
+                )
+            
+            if invalid_skills:
+                logger.warning(
+                    f"{log_prefix} LLM returned {len(invalid_skills)} invalid skill identifier(s) that couldn't be resolved: {invalid_skills}. "
+                    f"Filtered out. Available skills: {available_skill_ids if available_skill_ids else 'None'}. "
+                    f"This may indicate that the app for these skills is not discovered or the skill identifier format is incorrect."
+                )
+            if validated_relevant_skills:
+                logger.info(f"{log_prefix} Preprocessing selected {len(validated_relevant_skills)} relevant skill(s) for main processing: {', '.join(validated_relevant_skills)}")
+            else:
+                # Empty list means no skills are relevant - this is valid per architecture
+                # We should NOT include all skills, only the preselected ones (which is empty)
+                logger.info(f"{log_prefix} Preprocessing selected no relevant skills (or all were invalid). No skills will be provided to main processing (architecture: only preselected skills are forwarded).")
+                validated_relevant_skills = []  # Keep as empty list, not None - this ensures only preselected skills are forwarded
+        else:
+            # No preselection provided by LLM - treat as empty list (no skills preselected)
+            # Architecture requires only preselected skills to be forwarded, so empty list means no skills
+            validated_relevant_skills = []  # Keep as empty list, not None - this ensures only preselected skills are forwarded
+            logger.info(f"{log_prefix} No skill preselection from preprocessing. No skills will be provided to main processing (architecture: only preselected skills are forwarded).")
+
+    # --- User override: explicit @focus mentions ---
+    # When the user specifies focus mode(s) via @focus:app_id:focus_id, use only those and skip LLM selection.
+    validated_relevant_focus_modes: List[str] = []
+    if user_overrides and user_overrides.focus_modes:
+        override_focus_ids = [f"{app_id}-{focus_id}" for app_id, focus_id in user_overrides.focus_modes]
+        validated_relevant_focus_modes = [f for f in override_focus_ids if f in available_focus_mode_ids]
+        invalid_override_focus = [f for f in override_focus_ids if f not in available_focus_mode_ids]
+        if invalid_override_focus:
+            logger.warning(
+                f"{log_prefix} USER_OVERRIDE: Skipping invalid @focus override(s) not in available focus modes: {invalid_override_focus}. "
+                f"Using: {validated_relevant_focus_modes}"
+            )
+        if validated_relevant_focus_modes:
+            user_requested_focus_only = True
+            logger.info(
+                f"{log_prefix} USER_OVERRIDE: Using only user-requested focus mode(s) (skipping preprocessing LLM selection): {', '.join(validated_relevant_focus_modes)}"
+            )
+
+    if not user_requested_focus_only:
+        # Extract relevant_focus_modes from LLM response if present (for focus mode activation)
+        # Focus modes change how the AI responds by providing specialized system prompt instructions
+        relevant_focus_modes_val = llm_analysis_args.get("relevant_focus_modes")
+        validated_relevant_focus_modes = []  # LLM path: start empty, populate from LLM response below
+        if relevant_focus_modes_val and isinstance(relevant_focus_modes_val, list):
+            # Build a resolver map to handle common LLM hallucinations (similar to skills)
+            # Uses available_focus_mode_ids (bare IDs) for validation, NOT available_focus_modes_list
+            # (which contains descriptions appended for LLM prompt context)
+            focus_resolver_map: Dict[str, str] = {}
+            
+            for valid_focus in available_focus_mode_ids:
+                # Add exact match
+                focus_resolver_map[valid_focus] = valid_focus
+                
+                # Handle underscore variant: app_focus -> app-focus
+                underscore_variant = valid_focus.replace("-", "_")
+                focus_resolver_map[underscore_variant] = valid_focus
+            
+            # Validate and correct focus mode identifiers
+            corrected_focus_modes = []
+            invalid_focus_modes = []
+            
+            for focus in relevant_focus_modes_val:
+                if focus in available_focus_mode_ids:
+                    # Exact match - no correction needed
+                    validated_relevant_focus_modes.append(focus)
+                elif focus in focus_resolver_map:
+                    # Hallucinated name that we can correct
+                    corrected_focus = focus_resolver_map[focus]
+                    validated_relevant_focus_modes.append(corrected_focus)
+                    corrected_focus_modes.append(f"{focus} -> {corrected_focus}")
+                else:
+                    # Could not resolve - truly invalid
+                    invalid_focus_modes.append(focus)
+            
+            # Remove duplicates while preserving order
+            validated_relevant_focus_modes = list(dict.fromkeys(validated_relevant_focus_modes))
+            
+            if corrected_focus_modes:
+                logger.info(
+                    f"{log_prefix} Corrected {len(corrected_focus_modes)} hallucinated focus mode name(s): {corrected_focus_modes}"
+                )
+            
+            if invalid_focus_modes:
+                logger.warning(
+                    f"{log_prefix} LLM returned {len(invalid_focus_modes)} invalid focus mode identifier(s) that couldn't be resolved: {invalid_focus_modes}. "
+                    f"Filtered out. Available focus modes: {available_focus_mode_ids if available_focus_mode_ids else 'None'}."
+                )
+            
+            if validated_relevant_focus_modes:
+                logger.info(f"{log_prefix} Preprocessing selected {len(validated_relevant_focus_modes)} relevant focus mode(s): {', '.join(validated_relevant_focus_modes)}")
+            else:
+                logger.debug(f"{log_prefix} Preprocessing selected no relevant focus modes.")
+        else:
+            logger.debug(f"{log_prefix} No focus mode preselection from preprocessing.")
     
+    # --- Rule-based skill forcing based on embed type in message history ---
+    # The preprocessing LLM occasionally fails to select the correct skills when the
+    # message history contains file embeds (images, PDFs). Without the right skills
+    # preselected the main LLM receives the toon block but has no tool to call, causing
+    # hallucinated content. We fix this with deterministic rules that run AFTER LLM
+    # validation and override any LLM omission. Rules only fire when the skill is
+    # actually available (i.e., the app is healthy and discovered) and the user has not
+    # explicitly @mentioned specific skills.
+    #
+    # Detection relies on substrings that are always present in toon-encoded embed blocks:
+    #   images/upload:  app_id: images  +  skill_id: upload
+    #   pdf (finished): app_id: pdf     +  status: finished
+    if not user_requested_skills_only:
+        # Single pass over message history — collect embed types in one scan
+        has_image_upload_embed = False
+        has_pdf_embed = False
+        for msg in request_data.message_history:
+            content = msg.content if hasattr(msg, "content") else (msg.get("content") if isinstance(msg, dict) else None)
+            if not isinstance(content, str):
+                continue
+            # Quick substring checks — avoids YAML parsing overhead on plain-text messages
+            if not has_image_upload_embed and "app_id: images" in content and "skill_id: upload" in content:
+                has_image_upload_embed = True
+            if not has_pdf_embed and "app_id: pdf" in content and "status: finished" in content:
+                has_pdf_embed = True
+            if has_image_upload_embed and has_pdf_embed:
+                break  # No need to scan further
+
+        # --- images-view ---
+        if has_image_upload_embed and "images-view" in available_skill_ids:
+            if "images-view" not in validated_relevant_skills:
+                # Prepend so images-view is first (highest priority for image questions)
+                validated_relevant_skills = ["images-view"] + validated_relevant_skills
+                logger.info(
+                    f"{log_prefix} [RULE_BASED] Forced 'images-view' into preselected skills: "
+                    f"detected images/upload toon block in message history. "
+                    f"(Prevents hallucination when preprocessing LLM misses image skill.)"
+                )
+            else:
+                logger.debug(
+                    f"{log_prefix} [RULE_BASED] 'images-view' already preselected by LLM — no override needed."
+                )
+
+        # --- pdf-read, pdf-search, pdf-view ---
+        # All three PDF skills are forced when a finished PDF embed is present because
+        # the correct tool to call depends on the user's question (read for text extraction,
+        # search for keyword lookup, view for visual/layout analysis). The main LLM selects
+        # among them. Forcing all three avoids the situation where the LLM misses the PDF
+        # entirely and answers without any of its content.
+        if has_pdf_embed:
+            pdf_skills_to_force = [s for s in ("pdf-read", "pdf-search", "pdf-view") if s in available_skill_ids]
+            if pdf_skills_to_force:
+                forced = []
+                for skill in pdf_skills_to_force:
+                    if skill not in validated_relevant_skills:
+                        validated_relevant_skills.append(skill)
+                        forced.append(skill)
+                if forced:
+                    logger.info(
+                        f"{log_prefix} [RULE_BASED] Forced {forced} into preselected skills: "
+                        f"detected pdf/finished toon block in message history. "
+                        f"(Ensures LLM can read/search/view the PDF regardless of preprocessing selection.)"
+                    )
+                else:
+                    logger.debug(
+                        f"{log_prefix} [RULE_BASED] PDF skills already preselected by LLM — no override needed."
+                    )
+
+        # --- math-calculate ---
+        # Deterministic rule: when the preprocessing LLM identifies task_area == "math",
+        # always include math-calculate regardless of the LLM's relevant_app_skills output.
+        # Rationale: Mistral Small consistently returns task_area="math" for calculation
+        # requests but fails to populate relevant_app_skills with "math-calculate" (it
+        # omits it even when the hint says MANDATORY). Since the LLM's own task_area
+        # classification is the ground truth signal, we can rely on it deterministically.
+        # This mirrors the images-view / PDF rule-based forcing pattern.
+        if task_area_val == "math" and "math-calculate" in available_skill_ids:
+            if "math-calculate" not in validated_relevant_skills:
+                validated_relevant_skills.append("math-calculate")
+                logger.info(
+                    f"{log_prefix} [RULE_BASED] Forced 'math-calculate' into preselected skills: "
+                    f"task_area='math' detected by preprocessing LLM. "
+                    f"(Preprocessing LLM reliably classifies math tasks but fails to add the skill.)"
+                )
+            else:
+                logger.debug(
+                    f"{log_prefix} [RULE_BASED] 'math-calculate' already preselected by LLM — no override needed."
+                )
+
     # --- Determine if hardcoded disclaimer injection is required ---
     # This is a HARDCODED safety mechanism for legal compliance.
     # We do NOT rely on LLM instructions to include disclaimers for sensitive topics.
@@ -1629,6 +2323,8 @@ async def handle_preprocessing(
         chat_tags=chat_tags_val,  # Use validated chat tags (maxItems: 10)
         relevant_app_skills=validated_relevant_skills,  # Use validated relevant skills (filtered against available skills)
         relevant_focus_modes=validated_relevant_focus_modes,  # Use validated relevant focus modes (filtered against available focus modes)
+        user_requested_skills_only=user_requested_skills_only,  # True when user specified @skill; main processor must not merge always_include_skills
+        user_requested_focus_only=user_requested_focus_only,  # True when user specified @focus
         output_language=output_language_val,  # Detected language of user's request (ISO 639-1 code)
         requires_advice_disclaimer=requires_disclaimer,  # Hardcoded disclaimer type to inject (or None if not needed)
         selected_main_llm_model_id=selected_llm_for_main_id,
@@ -1641,6 +2337,217 @@ async def handle_preprocessing(
         raw_llm_response=llm_analysis_args,
         error_message=None
     )
-    
+
+    # Translate the chat title into the user's system/UI language when the conversation was
+    # detected in a different language. This mirrors the translate_chat_summary /
+    # translate_new_chat_suggestions pattern: an isolated LLM call with no conversation
+    # context cannot be affected by language bleed, making it far more reliable than
+    # relying on the USER_SYSTEM_LANGUAGE instruction in the fast_preprocess_request_tool
+    # prompt (which the model frequently ignores when the entire message is in a foreign language).
+    #
+    # Only fires on first messages (when title is freshly generated) and only when the
+    # detected conversation language differs from the user's UI language.
+    if (
+        is_first_message
+        and final_result.title
+        and final_result.output_language
+        and user_system_language_for_title != final_result.output_language
+    ):
+        logger.info(
+            f"{log_prefix} Conversation language '{final_result.output_language}' differs "
+            f"from UI language '{user_system_language_for_title}' — translating chat title."
+        )
+        translated_title = await translate_chat_title(
+            task_id=f"{request_data.chat_id}_{request_data.message_id}_title_translate",
+            title=final_result.title,
+            target_language=user_system_language_for_title,
+            secrets_manager=secrets_manager,
+        )
+        final_result.title = translated_title
+
     logger.info(f"{log_prefix} Preprocessing finished.")
+
+    # --- Emit real-time preprocessing step events ---
+    # These events allow the frontend to display a step-by-step animated overview of what
+    # the preprocessor decided: title generated, mate selected, model selected.
+    # Each step is only shown when it actually ran — skipped steps are silently omitted.
+    # Steps are published in sequence after the full result is assembled so the data is correct.
+    if preprocessing_stream_channel and cache_service:
+        try:
+            # user_id_uuid is included in all step events so the WebSocket listener can
+            # route the event to the correct user via ConnectionManager without a hash lookup.
+            # chat_id is included so the frontend can refresh the active chat metadata on step arrival.
+            user_id_uuid_for_events = request_data.user_id
+            chat_id_for_events = request_data.chat_id
+
+            # Step 1: Chat title (only relevant for new chats)
+            if not is_new_chat:
+                # Existing chat: title generation step was skipped — emit but frontend will not render it
+                await _emit_preprocessing_step(
+                    cache_service=cache_service,
+                    channel=preprocessing_stream_channel,
+                    step="title_generated",
+                    skipped=True,
+                    user_id_uuid=user_id_uuid_for_events,
+                    chat_id=chat_id_for_events,
+                    skip_reason="existing_chat",
+                    log_prefix=log_prefix
+                )
+            elif final_result.title:
+                # New chat and title was generated
+                await _emit_preprocessing_step(
+                    cache_service=cache_service,
+                    channel=preprocessing_stream_channel,
+                    step="title_generated",
+                    skipped=False,
+                    user_id_uuid=user_id_uuid_for_events,
+                    chat_id=chat_id_for_events,
+                    data={"title": final_result.title},
+                    log_prefix=log_prefix
+                )
+            else:
+                # New chat but no title returned (unexpected) — still skip gracefully
+                await _emit_preprocessing_step(
+                    cache_service=cache_service,
+                    channel=preprocessing_stream_channel,
+                    step="title_generated",
+                    skipped=True,
+                    user_id_uuid=user_id_uuid_for_events,
+                    chat_id=chat_id_for_events,
+                    skip_reason="no_title_returned",
+                    log_prefix=log_prefix
+                )
+
+            # Step 2: Mate selection
+            # Skipped if user provided @mate: override or request_data had an explicit mate_id
+            mate_was_user_override = bool(user_overrides and user_overrides.mate_id)
+            mate_was_predefined = bool(request_data.mate_id and not mate_was_user_override)
+            if mate_was_user_override or mate_was_predefined:
+                skip_reason_mate = "user_override" if mate_was_user_override else "predefined"
+                await _emit_preprocessing_step(
+                    cache_service=cache_service,
+                    channel=preprocessing_stream_channel,
+                    step="mate_selected",
+                    skipped=True,
+                    user_id_uuid=user_id_uuid_for_events,
+                    chat_id=chat_id_for_events,
+                    skip_reason=skip_reason_mate,
+                    log_prefix=log_prefix
+                )
+            elif final_result.selected_mate_id and final_result.category:
+                # Find the selected mate's details for the frontend card
+                selected_mate_config = next(
+                    (mate for mate in all_mates if mate.id == final_result.selected_mate_id),
+                    None
+                )
+                if selected_mate_config:
+                    await _emit_preprocessing_step(
+                        cache_service=cache_service,
+                        channel=preprocessing_stream_channel,
+                        step="mate_selected",
+                        skipped=False,
+                        user_id_uuid=user_id_uuid_for_events,
+                        chat_id=chat_id_for_events,
+                        data={
+                            "mate_id": selected_mate_config.id,
+                            "mate_name": selected_mate_config.name,
+                            "mate_description": selected_mate_config.description,
+                            "mate_category": selected_mate_config.category,
+                        },
+                        log_prefix=log_prefix
+                    )
+                else:
+                    # Mate config not found — skip silently
+                    await _emit_preprocessing_step(
+                        cache_service=cache_service,
+                        channel=preprocessing_stream_channel,
+                        step="mate_selected",
+                        skipped=True,
+                        user_id_uuid=user_id_uuid_for_events,
+                        chat_id=chat_id_for_events,
+                        skip_reason="mate_config_not_found",
+                        log_prefix=log_prefix
+                    )
+            else:
+                await _emit_preprocessing_step(
+                    cache_service=cache_service,
+                    channel=preprocessing_stream_channel,
+                    step="mate_selected",
+                    skipped=True,
+                    user_id_uuid=user_id_uuid_for_events,
+                    chat_id=chat_id_for_events,
+                    skip_reason="no_mate_selected",
+                    log_prefix=log_prefix
+                )
+
+            # Step 3: Model selection
+            # Skipped if user provided @ai-model: or @best-model: override
+            model_was_user_override = bool(model_override_applied)
+            if model_was_user_override:
+                await _emit_preprocessing_step(
+                    cache_service=cache_service,
+                    channel=preprocessing_stream_channel,
+                    step="model_selected",
+                    skipped=True,
+                    user_id_uuid=user_id_uuid_for_events,
+                    chat_id=chat_id_for_events,
+                    skip_reason="user_override",
+                    log_prefix=log_prefix
+                )
+            elif final_result.selected_main_llm_model_id and final_result.selected_main_llm_model_name:
+                # Resolve provider display name and region from the selected model
+                model_provider_name: Optional[str] = None
+                model_server_region: Optional[str] = None
+                model_provider_icon: Optional[str] = None
+                try:
+                    if "/" in final_result.selected_main_llm_model_id:
+                        provider_id_part = final_result.selected_main_llm_model_id.split("/")[0]
+                        provider_config = config_manager.get_provider_config(provider_id_part)
+                        if provider_config:
+                            # Find the best server (first available or default)
+                            servers = getattr(provider_config, "servers", None)
+                            if servers and isinstance(servers, list) and len(servers) > 0:
+                                default_server = servers[0]
+                                model_provider_name = getattr(default_server, "name", None) or provider_id_part
+                                model_server_region = getattr(default_server, "region", None)
+                                model_provider_icon = provider_id_part
+                            else:
+                                model_provider_name = provider_id_part
+                                model_provider_icon = provider_id_part
+                except Exception as e_provider:
+                    logger.debug(f"{log_prefix} Could not resolve provider info for step event: {e_provider}")
+
+                await _emit_preprocessing_step(
+                    cache_service=cache_service,
+                    channel=preprocessing_stream_channel,
+                    step="model_selected",
+                    skipped=False,
+                    user_id_uuid=user_id_uuid_for_events,
+                    chat_id=chat_id_for_events,
+                    data={
+                        "model_name": final_result.selected_main_llm_model_name,
+                        "model_id": final_result.selected_main_llm_model_id,
+                        "provider_name": model_provider_name,
+                        "provider_icon": model_provider_icon,
+                        "server_region": model_server_region,
+                    },
+                    log_prefix=log_prefix
+                )
+            else:
+                await _emit_preprocessing_step(
+                    cache_service=cache_service,
+                    channel=preprocessing_stream_channel,
+                    step="model_selected",
+                    skipped=True,
+                    user_id_uuid=user_id_uuid_for_events,
+                    chat_id=chat_id_for_events,
+                    skip_reason="no_model_selected",
+                    log_prefix=log_prefix
+                )
+
+            logger.debug(f"{log_prefix} All preprocessing step events emitted to '{preprocessing_stream_channel}'")
+        except Exception as e_stream:
+            # Streaming events are non-fatal — log and continue
+            logger.warning(f"{log_prefix} Error emitting preprocessing step events (non-fatal): {e_stream}", exc_info=True)
+
     return final_result

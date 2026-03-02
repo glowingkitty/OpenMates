@@ -107,6 +107,8 @@
     onNavigatePrevious?: () => void;
     /** Handler to navigate to the next embed */
     onNavigateNext?: () => void;
+    /** Direction of navigation ('previous' | 'next') — set transiently during prev/next transitions */
+    navigateDirection?: 'previous' | 'next';
     /** Whether to show the "chat" button to restore chat visibility (ultra-wide forceOverlayMode) */
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button to restore chat visibility */
@@ -124,6 +126,7 @@
     hasNextEmbed = false,
     onNavigatePrevious,
     onNavigateNext,
+    navigateDirection,
     showChatButton = false,
     onShowChat
   }: Props = $props();
@@ -132,16 +135,19 @@
   // State: Track which video is shown in fullscreen
   // ============================================
   
-  /** Currently selected video for fullscreen view (null = show search results) */
-  let selectedVideo = $state<VideoSearchResult | null>(null);
+  /** Index of selected video in allVideoResults (-1 = none) */
+  let selectedVideoIndex = $state<number>(-1);
+  
+  /** Flat array of all loaded video results for sibling navigation */
+  let allVideoResults = $state<VideoSearchResult[]>([]);
+  
+  /** Currently selected video (derived from index) */
+  let selectedVideo = $derived(selectedVideoIndex >= 0 ? allVideoResults[selectedVideoIndex] ?? null : null);
   
   // Determine if mobile layout
   let isMobile = $derived(
     typeof window !== 'undefined' && window.innerWidth <= 500
   );
-  
-  // Get skill name from translations (matches preview)
-  let skillName = $derived($text('embeds.search'));
   
   // Get "via {provider}" text from translations
   let viaProvider = $derived(
@@ -330,10 +336,15 @@
   // which uses currentEmbedId, appId, and skillId to construct the embed
   // share context and properly opens the settings panel (including on mobile).
   
+  /** Metadata map: embed_id -> VideoMetadata (populated on click) */
+  let videoMetadataMap = $state<Map<string, VideoMetadata>>(new Map());
+  
+  /** Metadata for the currently selected video */
+  let selectedVideoMetadata = $derived(selectedVideo ? (videoMetadataMap.get(selectedVideo.embed_id) ?? null) : null);
+  
   /**
-   * Handle video click - shows the video in fullscreen mode
-   * Uses VideoEmbedFullscreen for full video player experience
-   * Passes all video metadata for proper display
+   * Handle video click - shows the video in fullscreen mode.
+   * Uses index-based selection so prev/next arrows navigate within siblings.
    */
   function handleVideoFullscreen(videoData: VideoSearchResult, metadata: VideoMetadata) {
     console.debug('[VideosSearchEmbedFullscreen] Opening video fullscreen:', {
@@ -344,34 +355,45 @@
       duration: metadata.duration?.formatted,
       viewCount: metadata.viewCount
     });
-    selectedVideo = videoData;
-    selectedVideoMetadata = metadata;
+    // Store metadata for this video
+    const newMap = new Map(videoMetadataMap);
+    newMap.set(videoData.embed_id, metadata);
+    videoMetadataMap = newMap;
+    
+    const idx = allVideoResults.findIndex(r => r.embed_id === videoData.embed_id);
+    if (idx >= 0) {
+      selectedVideoIndex = idx;
+    } else {
+      allVideoResults = [videoData];
+      selectedVideoIndex = 0;
+    }
   }
   
-  /** Metadata for the currently selected video (passed to VideoEmbedFullscreen) */
-  let selectedVideoMetadata = $state<VideoMetadata | null>(null);
-  
   /**
-   * Handle closing the video fullscreen - returns to search results
-   * Called when user clicks minimize button on VideoEmbedFullscreen
+   * Handle closing the video fullscreen - returns to search results.
    */
   function handleVideoFullscreenClose() {
     console.debug('[VideosSearchEmbedFullscreen] Closing video fullscreen, returning to search results');
-    selectedVideo = null;
-    selectedVideoMetadata = null;
+    selectedVideoIndex = -1;
+  }
+  
+  /** Navigate to the previous sibling video */
+  function handleVideoNavigatePrevious() {
+    if (selectedVideoIndex > 0) selectedVideoIndex -= 1;
+  }
+  
+  /** Navigate to the next sibling video */
+  function handleVideoNavigateNext() {
+    if (selectedVideoIndex < allVideoResults.length - 1) selectedVideoIndex += 1;
   }
   
   /**
-   * Handle closing the entire search fullscreen
-   * Called when user closes the main VideosSearchEmbedFullscreen
+   * Handle closing the entire search fullscreen.
    */
   function handleMainClose() {
-    // If a video is open, first close it and return to search results
-    if (selectedVideo) {
-      selectedVideo = null;
-      selectedVideoMetadata = null;
+    if (selectedVideoIndex >= 0) {
+      selectedVideoIndex = -1;
     } else {
-      // Otherwise, close the entire fullscreen
       onClose();
     }
   }
@@ -422,13 +444,12 @@
 <UnifiedEmbedFullscreen
   appId="videos"
   skillId="search"
-  title=""
+  embedHeaderTitle={query}
+  embedHeaderSubtitle={viaProvider}
+  skillIconName="search"
+  showSkillIcon={true}
   onClose={handleMainClose}
   currentEmbedId={embedId}
-  skillIconName="search"
-  status="finished"
-  {skillName}
-  showStatus={true}
   {embedIds}
   childEmbedTransformer={transformToVideoResult}
   legacyResults={resultsProp}
@@ -436,17 +457,16 @@
   {hasNextEmbed}
   {onNavigatePrevious}
   {onNavigateNext}
+  {navigateDirection}
   {showChatButton}
   {onShowChat}
 >
   {#snippet content(ctx)}
     {@const videoResults = getVideoResults(ctx)}
-    
-    <!-- Header with search query and provider - 60px top margin, 40px bottom margin -->
-    <div class="fullscreen-header">
-      <div class="search-query">{query}</div>
-      <div class="search-provider">{viaProvider}</div>
-    </div>
+    <!-- Sync allVideoResults for sibling navigation -->
+    {#if videoResults.length > 0 && videoResults !== allVideoResults}
+      {allVideoResults = videoResults}
+    {/if}
     
     {#if ctx.isLoadingChildren}
       <div class="loading-state">
@@ -488,6 +508,7 @@
 <!-- Video fullscreen overlay - rendered ON TOP when a video is selected -->
 <!-- Uses ChildEmbedOverlay for consistent overlay positioning across all search fullscreens -->
 <!-- Passes full metadata to VideoEmbedFullscreen for proper display (no additional fetch needed) -->
+<!-- Sibling navigation: prev/next cycle through all search result videos -->
 {#if selectedVideo}
   <ChildEmbedOverlay>
     <VideoEmbedFullscreen
@@ -497,43 +518,15 @@
       embedId={selectedVideo.embed_id}
       videoId={selectedVideo.videoId}
       metadata={selectedVideoMetadata || createVideoMetadata(selectedVideo)}
+      hasPreviousEmbed={selectedVideoIndex > 0}
+      hasNextEmbed={selectedVideoIndex < allVideoResults.length - 1}
+      onNavigatePrevious={handleVideoNavigatePrevious}
+      onNavigateNext={handleVideoNavigateNext}
     />
   </ChildEmbedOverlay>
 {/if}
 
 <style>
-  /* ===========================================
-     Fullscreen Header - Query and Provider
-     =========================================== */
-  
-  .fullscreen-header {
-    margin-top: 60px;
-    margin-bottom: 40px;
-    padding: 0 16px;
-    text-align: center;
-  }
-  
-  .search-query {
-    font-size: 24px;
-    font-weight: 600;
-    color: var(--color-font-primary);
-    line-height: 1.3;
-    word-break: break-word;
-    /* Limit to 3 lines with ellipsis */
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  
-  .search-provider {
-    font-size: 16px;
-    color: var(--color-font-secondary);
-    margin-top: 8px;
-  }
-  
   /* ===========================================
      Loading and No Results States
      =========================================== */

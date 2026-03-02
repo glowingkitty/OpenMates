@@ -846,9 +846,14 @@ export async function copyChatToClipboard(
         );
         return;
       } catch (clipboardError) {
+        // Extract error message for proper logging (Safari errors don't serialize well)
+        const errorMsg =
+          clipboardError instanceof Error
+            ? clipboardError.message
+            : String(clipboardError);
         console.warn(
-          "[ChatExportService] Modern clipboard API failed, trying fallback:",
-          clipboardError,
+          "[ChatExportService] Modern clipboard API failed, trying fallback. Error:",
+          errorMsg,
         );
       }
     }
@@ -860,8 +865,13 @@ export async function copyChatToClipboard(
       "[ChatExportService] Chat copied to clipboard successfully using fallback method",
     );
   } catch (error) {
-    console.error("[ChatExportService] Error copying to clipboard:", error);
-    throw new Error("Failed to copy to clipboard");
+    // Extract error message for proper logging (Safari errors don't serialize well)
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(
+      "[ChatExportService] Error copying to clipboard. Error:",
+      errorMsg,
+    );
+    throw new Error(`Failed to copy to clipboard: ${errorMsg}`);
   }
 }
 
@@ -903,8 +913,13 @@ async function fallbackCopyToClipboard(text: string): Promise<void> {
         throw new Error("execCommand copy failed");
       }
     } catch (error) {
-      console.error("[ChatExportService] Fallback copy failed:", error);
-      reject(error);
+      // Extract error message for proper logging (Safari errors don't serialize well)
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error(
+        "[ChatExportService] Fallback copy failed. Error:",
+        errorMsg,
+      );
+      reject(new Error(`Fallback copy failed: ${errorMsg}`));
     } finally {
       // Clean up
       document.body.removeChild(textArea);

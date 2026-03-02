@@ -8,7 +8,7 @@ Features:
 - Creates one-time purchase products for credit packages
 - Creates subscription products for monthly auto top-up
 - Updates existing products when prices change
-- Handles multiple currencies (EUR, USD, JPY)
+- Handles multiple currencies (EUR, USD)
 - Logs all operations for audit trail
 """
 
@@ -18,7 +18,6 @@ import stripe
 from typing import Dict, List, Optional, Any
 from pathlib import Path
 import yaml
-import os
 
 logger = logging.getLogger(__name__)
 
@@ -182,7 +181,8 @@ class StripeProductSync:
                 continue
             
             # Create/update product for each currency
-            for currency in ["eur", "usd", "jpy"]:
+            # JPY removed: Stripe is only used for EU/EEA users; non-EU users go through Polar
+            for currency in ["eur", "usd"]:
                 price = tier.get("price", {}).get(currency)
                 if not price:
                     logger.warning(f"No price found for {currency} in tier {credits} credits")
@@ -208,7 +208,7 @@ class StripeProductSync:
         
         Args:
             credits: Number of credits
-            currency: Currency code (eur, usd, jpy)
+            currency: Currency code (eur, usd)
             price: Price in the currency
             existing_products: Dict of existing products by name
             existing_prices: Dict of existing prices by product ID
@@ -440,7 +440,8 @@ class StripeProductSync:
                     total_credits = credits + extra_credits
                     
                     # Create subscription config for each currency
-                    for currency in ["eur", "usd", "jpy"]:
+                    # JPY removed: Stripe is only used for EU/EEA users; non-EU users go through Polar
+                    for currency in ["eur", "usd"]:
                         price = tier.get("price", {}).get(currency)
                         if price is not None:
                             subscription_tiers.append({
@@ -793,7 +794,8 @@ class StripeProductSync:
                     total_credits = credits + extra_credits
                     
                     # Create subscription config for each currency
-                    for currency in ["eur", "usd", "jpy"]:
+                    # JPY removed: Stripe is only used for EU/EEA users; non-EU users go through Polar
+                    for currency in ["eur", "usd"]:
                         price = tier.get("price", {}).get(currency)
                         if price is not None:
                             subscription_tiers.append({
@@ -932,8 +934,8 @@ class StripeProductSync:
                 }
             )
             
-            # Create the price for this product
-            price = self.stripe_api.Price.create(
+            # Create the price for this product (result not used; side-effect registers the price in Stripe)
+            self.stripe_api.Price.create(
                 product=product.id,
                 unit_amount=price_cents,
                 currency=currency,
@@ -984,8 +986,8 @@ class StripeProductSync:
                 }
             )
             
-            # Create the recurring price for this product
-            price = self.stripe_api.Price.create(
+            # Create the recurring price for this product (result not used; side-effect registers the price in Stripe)
+            self.stripe_api.Price.create(
                 product=product.id,
                 unit_amount=price_cents,
                 currency=currency,
@@ -1254,14 +1256,15 @@ class StripeProductSync:
         results = {"created": 0, "updated": 0, "errors": 0}
 
         # Define supporter contribution tiers (€5, €10, €20, €50, €100, €200)
+        # Supporter payments always go through Stripe for all users.
+        # JPY removed: non-EU users pay via Polar (not Stripe), so JPY is no longer needed.
         supporter_tiers = [5, 10, 20, 50, 100, 200]
-        currencies = ["eur", "usd", "jpy"]
+        currencies = ["eur", "usd"]
 
         # Currency conversion rates (approximate)
         eur_to_other = {
             "eur": 1.0,
             "usd": 1.1,
-            "jpy": 150.0
         }
 
         logger.info(f"Synchronizing supporter products with {len(supporter_tiers)} tiers across {len(currencies)} currencies")
@@ -1311,7 +1314,7 @@ class StripeProductSync:
             product_description: Description of the product
             is_recurring: True for monthly subscriptions, False for one-time
             supporter_tiers: List of EUR amounts [5, 10, 20, 50, 100, 200]
-            currencies: List of currency codes ["eur", "usd", "jpy"]
+            currencies: List of currency codes ["eur", "usd"]
             eur_to_other: Currency conversion rates
             existing_products: Dict of existing products by name
             existing_prices: Dict of existing prices by product ID
@@ -1480,7 +1483,7 @@ class StripeProductSync:
                 price_cents = int(price * 100)
 
             # Create product name
-            product_name = f"Supporter Contribution"
+            product_name = "Supporter Contribution"
 
             # Check if product already exists
             existing_product = existing_products.get(product_name)
@@ -1527,7 +1530,7 @@ class StripeProductSync:
                 price_cents = int(price * 100)
 
             # Create product name
-            product_name = f"Monthly Supporter Contribution"
+            product_name = "Monthly Supporter Contribution"
 
             # Check if product already exists
             existing_product = existing_products.get(product_name)
@@ -1712,9 +1715,9 @@ class StripeProductSync:
         try:
             # Create description based on type
             if is_recurring:
-                description = f"Monthly recurring supporter contribution to help fund OpenMates development"
+                description = "Monthly recurring supporter contribution to help fund OpenMates development"
             else:
-                description = f"One-time supporter contribution to help fund OpenMates development"
+                description = "One-time supporter contribution to help fund OpenMates development"
 
             # Create the product
             product = self.stripe_api.Product.create(

@@ -26,6 +26,18 @@ export interface MateMetadata {
   color_start: string;
   /** Color gradient end for mentions (from mates.yml background_color_end) */
   color_end: string;
+  /**
+   * Translation key for the mate's full system prompt text.
+   * Resolves to the i18n value shown in mate settings and used at inference time.
+   * Pattern: "mates.{id}.systemprompt"
+   */
+  system_prompt_translation_key: string;
+  /**
+   * Translation key for the mate's bullet-point process summary.
+   * Each line starting with "- " is rendered as a bullet point in the mate detail page.
+   * Pattern: "mates.{id}.process"
+   */
+  process_translation_key: string;
 }
 
 /**
@@ -53,6 +65,8 @@ export const matesMetadata: MateMetadata[] = [
     ],
     color_start: "#155D91",
     color_end: "#42ABF4",
+    system_prompt_translation_key: "mates.software_development.systemprompt",
+    process_translation_key: "mates.software_development.process",
   },
   {
     id: "business_development",
@@ -69,6 +83,8 @@ export const matesMetadata: MateMetadata[] = [
     ],
     color_start: "#004040",
     color_end: "#008080",
+    system_prompt_translation_key: "mates.business_development.systemprompt",
+    process_translation_key: "mates.business_development.process",
   },
   {
     id: "life_coach_psychology",
@@ -87,6 +103,8 @@ export const matesMetadata: MateMetadata[] = [
     ],
     color_start: "#FDB250",
     color_end: "#F42C2D",
+    system_prompt_translation_key: "mates.life_coach_psychology.systemprompt",
+    process_translation_key: "mates.life_coach_psychology.process",
   },
   {
     id: "medical_health",
@@ -104,6 +122,8 @@ export const matesMetadata: MateMetadata[] = [
     ],
     color_start: "#FD50A0",
     color_end: "#F42C2D",
+    system_prompt_translation_key: "mates.medical_health.systemprompt",
+    process_translation_key: "mates.medical_health.process",
   },
   {
     id: "legal_law",
@@ -114,6 +134,8 @@ export const matesMetadata: MateMetadata[] = [
     search_names: ["leon", "legal", "law", "lawyer", "attorney", "contract"],
     color_start: "#239CFF",
     color_end: "#005BA5",
+    system_prompt_translation_key: "mates.legal_law.systemprompt",
+    process_translation_key: "mates.legal_law.process",
   },
   {
     id: "finance",
@@ -131,6 +153,8 @@ export const matesMetadata: MateMetadata[] = [
     ],
     color_start: "#119106",
     color_end: "#15780D",
+    system_prompt_translation_key: "mates.finance.systemprompt",
+    process_translation_key: "mates.finance.process",
   },
   {
     id: "design",
@@ -149,6 +173,8 @@ export const matesMetadata: MateMetadata[] = [
     ],
     color_start: "#101010",
     color_end: "#2E2E2E",
+    system_prompt_translation_key: "mates.design.systemprompt",
+    process_translation_key: "mates.design.process",
   },
   {
     id: "marketing_sales",
@@ -159,6 +185,8 @@ export const matesMetadata: MateMetadata[] = [
     search_names: ["mark", "marketing", "sales", "advertising", "promotion"],
     color_start: "#FF8C00",
     color_end: "#F4B400",
+    system_prompt_translation_key: "mates.marketing_sales.systemprompt",
+    process_translation_key: "mates.marketing_sales.process",
   },
   {
     id: "science",
@@ -177,6 +205,8 @@ export const matesMetadata: MateMetadata[] = [
     ],
     color_start: "#FF7300",
     color_end: "#D53200",
+    system_prompt_translation_key: "mates.science.systemprompt",
+    process_translation_key: "mates.science.process",
   },
   {
     id: "history",
@@ -194,6 +224,8 @@ export const matesMetadata: MateMetadata[] = [
     ],
     color_start: "#4989F2",
     color_end: "#2F44BF",
+    system_prompt_translation_key: "mates.history.systemprompt",
+    process_translation_key: "mates.history.process",
   },
   {
     id: "cooking_food",
@@ -212,12 +244,13 @@ export const matesMetadata: MateMetadata[] = [
     ],
     color_start: "#FD8450",
     color_end: "#F42C2D",
+    system_prompt_translation_key: "mates.cooking_food.systemprompt",
+    process_translation_key: "mates.cooking_food.process",
   },
   {
     id: "electrical_engineering",
     name_translation_key: "mates.electrical_engineering",
-    description_translation_key:
-      "mate_descriptions.electrical_engineering",
+    description_translation_key: "mate_descriptions.electrical_engineering",
     profile_class: "electrical_engineering",
     expertise_icon: "engineering",
     search_names: [
@@ -230,6 +263,8 @@ export const matesMetadata: MateMetadata[] = [
     ],
     color_start: "#233888",
     color_end: "#2E4EC8",
+    system_prompt_translation_key: "mates.electrical_engineering.systemprompt",
+    process_translation_key: "mates.electrical_engineering.process",
   },
   {
     id: "maker_prototyping",
@@ -247,6 +282,8 @@ export const matesMetadata: MateMetadata[] = [
     ],
     color_start: "#EA7600",
     color_end: "#FBAB59",
+    system_prompt_translation_key: "mates.maker_prototyping.systemprompt",
+    process_translation_key: "mates.maker_prototyping.process",
   },
   {
     id: "movies_tv",
@@ -265,6 +302,8 @@ export const matesMetadata: MateMetadata[] = [
     ],
     color_start: "#00C2C5",
     color_end: "#3170DC",
+    system_prompt_translation_key: "mates.movies_tv.systemprompt",
+    process_translation_key: "mates.movies_tv.process",
   },
   {
     id: "activism",
@@ -282,6 +321,8 @@ export const matesMetadata: MateMetadata[] = [
     ],
     color_start: "#F53D00",
     color_end: "#F56200",
+    system_prompt_translation_key: "mates.activism.systemprompt",
+    process_translation_key: "mates.activism.process",
   },
   {
     id: "general_knowledge",
@@ -299,6 +340,31 @@ export const matesMetadata: MateMetadata[] = [
     ],
     color_start: "#DE1E66",
     color_end: "#FF763B",
+    system_prompt_translation_key: "mates.general_knowledge.systemprompt",
+    process_translation_key: "mates.general_knowledge.process",
+  },
+  {
+    // Suki — OpenMates onboarding and support assistant.
+    // Category matches mates.yml and onboardingChatService.ts ONBOARDING_CATEGORY.
+    // @mate:suki or @mate:onboarding_support both resolve to this mate.
+    id: "onboarding_support",
+    name_translation_key: "mates.onboarding_support",
+    description_translation_key: "mate_descriptions.onboarding_support",
+    profile_class: "onboarding_support",
+    expertise_icon: "compass",
+    search_names: [
+      "suki",
+      "onboarding",
+      "support",
+      "help",
+      "welcome",
+      "getting started",
+      "openmates",
+    ],
+    color_start: "#6364FF",
+    color_end: "#9B6DFF",
+    system_prompt_translation_key: "mates.onboarding_support.systemprompt",
+    process_translation_key: "mates.onboarding_support.process",
   },
 ];
 

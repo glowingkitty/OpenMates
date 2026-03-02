@@ -137,60 +137,263 @@ function convertMentionSyntaxToDisplayName(text: string): string {
  * @param maxLength Maximum length of the preview (default: 100 characters)
  * @returns Truncated preview text suitable for display
  */
+/**
+ * Convert a single TipTap embed node to a human-readable token for display.
+ * Returns a token like "[Image]", "[Video]", "[Location]", etc.
+ *
+ * For nodes with contentRef (already stored in EmbedStore), the type is derived
+ * from the embed reference JSON. For unserialized nodes (still uploading / demo mode),
+ * the type comes from the node's attrs.type field.
+ */
+function embedNodeToDisplayToken(attrs: Record<string, unknown>): string {
+  const type = (attrs.type as string) ?? "";
+  const contentRef = attrs.contentRef as string | null | undefined;
+
+  if (contentRef?.startsWith("embed:")) {
+    // Serialized embed — type is already known from attrs
+    // Map internal type names to user-facing tokens
+    if (type === "web-website") return "[Website]";
+    if (type === "videos-video") return "[Video]";
+    if (type === "code-code") return "[Code]";
+    if (type === "maps") return "[Location]";
+    if (type === "image") return "[Image]";
+    if (type === "audio") return "[Audio]";
+    if (type === "recording") return "[Recording]";
+    if (type === "pdf") return "[PDF]";
+    if (type === "file") return "[File]";
+    if (type === "book") return "[Book]";
+    if (type) return `[${type}]`;
+  } else {
+    // Unserialized embed (still uploading, demo mode, or no contentRef yet)
+    // Also covers preview embeds (contentRef starts with "preview:") which
+    // are created for unauthenticated users — these share the same type values
+    // as serialized embeds (e.g. "code-code"), so we handle both here.
+    if (type === "image") return "[Image]";
+    if (type === "audio") return "[Audio]";
+    if (type === "recording") return "[Recording]";
+    if (type === "videos-video") return "[Video]";
+    if (type === "pdf") return "[PDF]";
+    if (type === "file") return "[File]";
+    if (type === "code" || type === "code-code") return "[Code]";
+    if (type === "book") return "[Book]";
+    if (type) return `[${type}]`;
+  }
+
+  return "";
+}
+
+/**
+ * Walk a TipTap JSON document in document order and produce a flat array of
+ * preview tokens — preserving the exact sequence of text and embeds as the user
+ * composed them. This is the single source of truth for draft preview generation.
+ *
+ * WHY: The previous approach serialised TipTap → markdown (which drops unserialized
+ * embeds such as uploading images that have no contentRef), then appended embed tokens
+ * at the END. This broke the order: "[Image] [Image] [Image] describe the images"
+ * would render as "describe the images [Image] [Image] [Image]" in the chat list.
+ *
+ * This function fixes the problem by walking the document tree in order and emitting
+ * tokens for both text content and embeds at their correct positions.
+ */
+function buildPreviewTokensFromTiptap(doc: unknown): string[] {
+  if (!doc || typeof doc !== "object") return [];
+  const root = doc as Record<string, unknown>;
+  const tokens: string[] = [];
+
+  // Process a paragraph node: walk its children in order
+  function processParagraph(node: Record<string, unknown>) {
+    const children =
+      (node.content as Record<string, unknown>[] | undefined) ?? [];
+    for (const child of children) {
+      const childType = child.type as string;
+
+      if (childType === "text") {
+        // Collect text, applying mention conversion
+        const rawText = (child.text as string) ?? "";
+        const converted = convertMentionSyntaxToDisplayName(rawText);
+        if (converted.trim()) tokens.push(converted.trim());
+      } else if (childType === "embed") {
+        // Embed inside a paragraph (inline embed) — emit a token
+        const attrs = (child.attrs ?? {}) as Record<string, unknown>;
+        const token = embedNodeToDisplayToken(attrs);
+        if (token) tokens.push(token);
+      } else if (childType === "aiModelMention") {
+        // @ai-model mention nodes — look up the human-readable model name
+        const attrs = (child.attrs ?? {}) as Record<string, unknown>;
+        const modelId = (attrs.modelId as string) ?? "";
+        // Use the already-imported modelsMetadata (imported at the top of draftSave.ts)
+        const model = modelsMetadata.find((m) => m.id === modelId);
+        if (model) {
+          tokens.push(`@${model.name.replace(/\s+/g, "-")}`);
+        } else if (modelId) {
+          tokens.push(`@ai-model:${modelId}`);
+        }
+      } else if (childType === "mate") {
+        const attrs = (child.attrs ?? {}) as Record<string, unknown>;
+        const mateName = (attrs.name as string) ?? "";
+        if (mateName) tokens.push(`@${mateName}`);
+      } else if (childType === "genericMention") {
+        const attrs = (child.attrs ?? {}) as Record<string, unknown>;
+        const syntax = (attrs.mentionSyntax as string) ?? "";
+        // Convert mention syntax to display name (e.g. @skill:app:id → @App-Skill)
+        if (syntax) tokens.push(convertMentionSyntaxToDisplayName(syntax));
+      } else if (childType === "hardBreak") {
+        // Treat a hard break as a space between tokens
+        tokens.push(" ");
+      }
+    }
+  }
+
+  // Walk top-level nodes in document order
+  const topLevel =
+    (root.content as Record<string, unknown>[] | undefined) ?? [];
+  for (const node of topLevel) {
+    const nodeType = node.type as string;
+
+    if (nodeType === "paragraph") {
+      processParagraph(node);
+    } else if (nodeType === "embed") {
+      // Top-level embed (shouldn't be common but handle defensively)
+      const attrs = (node.attrs ?? {}) as Record<string, unknown>;
+      const token = embedNodeToDisplayToken(attrs);
+      if (token) tokens.push(token);
+    } else if (nodeType === "heading") {
+      // Extract text from headings
+      const children =
+        (node.content as Record<string, unknown>[] | undefined) ?? [];
+      const text = children
+        .filter((c) => c.type === "text")
+        .map((c) => (c.text as string) ?? "")
+        .join("")
+        .trim();
+      if (text) tokens.push(text);
+    } else if (nodeType === "bulletList" || nodeType === "orderedList") {
+      // Extract first item text from lists for preview
+      const items =
+        (node.content as Record<string, unknown>[] | undefined) ?? [];
+      for (const item of items) {
+        const itemChildren =
+          (item.content as Record<string, unknown>[] | undefined) ?? [];
+        for (const child of itemChildren) {
+          if (child.type === "paragraph") {
+            processParagraph(child);
+          }
+        }
+      }
+    } else if (nodeType === "blockquote") {
+      // Extract text from blockquotes
+      const children =
+        (node.content as Record<string, unknown>[] | undefined) ?? [];
+      for (const child of children) {
+        if ((child as Record<string, unknown>).type === "paragraph") {
+          processParagraph(child as Record<string, unknown>);
+        }
+      }
+    }
+    // Code blocks (codeBlock nodes) are skipped intentionally —
+    // the serialized markdown representation handles them in the fallback path.
+  }
+
+  return tokens;
+}
+
+/**
+ * Apply code-block and embed-reference replacements to a markdown string,
+ * returning a human-readable preview line. Used as fallback when no TipTap JSON
+ * is available, and to handle serialized embed references (json/json_embed blocks)
+ * that the document-order walk converts via embedNodeToDisplayToken.
+ */
+function processMarkdownForPreview(markdown: string): string {
+  let displayText = convertMentionSyntaxToDisplayName(markdown);
+
+  // Replace legacy json_embed code blocks with their URLs
+  displayText = displayText.replace(
+    /```json_embed\n([\s\S]*?)\n```/g,
+    (match) => {
+      const url = extractUrlFromJsonEmbedBlock(match);
+      return url ? ` ${url} ` : match;
+    },
+  );
+
+  // Replace serialized embed reference blocks (```json\n{...}\n```) with tokens
+  displayText = displayText.replace(
+    /```json\n([\s\S]*?)\n```/g,
+    (match, jsonContent) => {
+      try {
+        const parsed = JSON.parse(jsonContent.trim());
+        const type = parsed?.type;
+        if (type === "location") return " [Location] ";
+        if (type === "video") return " [Video] ";
+        if (type === "website") return " [Website] ";
+        if (type === "image") return " [Image] ";
+        if (type === "code") return " [Code] ";
+        if (type) return ` [${type}] `;
+      } catch {
+        // Not valid JSON — fall through
+      }
+      return match;
+    },
+  );
+
+  // Replace remaining code blocks with a placeholder
+  displayText = displayText.replace(
+    /```(\w*)\n([\s\S]*?)\n```/g,
+    (match, language, codeContent) => {
+      const trimmedCode = codeContent.trim();
+      if (trimmedCode) {
+        const firstLine = trimmedCode.split("\n")[0].trim();
+        return ` [Code: ${firstLine.substring(0, 30)}${firstLine.length > 30 ? "..." : ""}] `;
+      }
+      return language ? ` [${language} code] ` : " [code] ";
+    },
+  );
+
+  return displayText;
+}
+
 function generateDraftPreview(
   markdown: string,
   maxLength: number = 100,
+  tiptapJSON?: unknown,
 ): string {
+  // CRITICAL: When TipTap JSON is available, always use a document-order walk to build
+  // the preview. This is the ONLY way to guarantee that embeds and text appear in the
+  // correct order in the chat list. The previous approach (markdown → text, then append
+  // embed tokens) broke order: images uploaded before text would appear AFTER the text
+  // in the preview, e.g. "[Image] [Image] describe it" → "describe it [Image] [Image]".
+  if (tiptapJSON) {
+    try {
+      const tokens = buildPreviewTokensFromTiptap(tiptapJSON);
+      if (tokens.length === 0) return "";
+
+      // Join tokens with a single space and clean up whitespace
+      const cleanedText = tokens.join(" ").replace(/\s+/g, " ").trim();
+      if (!cleanedText) return "";
+
+      return cleanedText.length > maxLength
+        ? cleanedText.substring(0, maxLength) + "..."
+        : cleanedText;
+    } catch (error) {
+      console.error(
+        "[DraftService] Error building preview from TipTap JSON, falling back to markdown:",
+        error,
+      );
+      // Fall through to markdown-based fallback below
+    }
+  }
+
+  // Fallback: markdown-only path (used when no TipTap JSON is provided,
+  // e.g. when reading encrypted drafts from the database without the live editor).
   if (!markdown) return "";
 
   try {
-    let displayText = markdown;
-
-    // Convert backend mention syntax to human-readable display names
-    // e.g., "@ai-model:claude-4-sonnet" -> "@Claude-4.5-Sonnet"
-    displayText = convertMentionSyntaxToDisplayName(displayText);
-
-    // Replace json_embed code blocks with their URLs for display, ensuring proper spacing
-    displayText = displayText.replace(
-      /```json_embed\n([\s\S]*?)\n```/g,
-      (match, jsonContent) => {
-        const url = extractUrlFromJsonEmbedBlock(match);
-        if (url) {
-          // Ensure the URL has spaces around it for proper separation from surrounding text
-          return ` ${url} `;
-        }
-        return match; // Return original if URL extraction failed
-      },
-    );
-
-    // Replace regular code blocks with a placeholder showing the code content
-    // This handles ```python\ncode\n``` style blocks
-    displayText = displayText.replace(
-      /```(\w*)\n([\s\S]*?)\n```/g,
-      (match, language, codeContent) => {
-        // Show the actual code content, not just the language
-        const trimmedCode = codeContent.trim();
-        if (trimmedCode) {
-          // Show first line of code or truncated version
-          const firstLine = trimmedCode.split("\n")[0].trim();
-          return ` [Code: ${firstLine.substring(0, 30)}${firstLine.length > 30 ? "..." : ""}] `;
-        }
-        return language ? ` [${language} code] ` : " [code] ";
-      },
-    );
-
-    // Clean up multiple spaces and trim
+    const displayText = processMarkdownForPreview(markdown);
     const cleanedText = displayText.replace(/\s+/g, " ").trim();
-
-    // Truncate to maxLength if needed
-    if (cleanedText.length > maxLength) {
-      return cleanedText.substring(0, maxLength) + "...";
-    }
-
-    return cleanedText;
+    return cleanedText.length > maxLength
+      ? cleanedText.substring(0, maxLength) + "..."
+      : cleanedText;
   } catch (error) {
     console.error("[DraftService] Error generating draft preview:", error);
-    // Fallback: simple truncation of original markdown
     return markdown.length > maxLength
       ? markdown.substring(0, maxLength) + "..."
       : markdown;
@@ -412,6 +615,13 @@ export async function clearCurrentDraft() {
   }
 }
 
+// Flag: when a save is skipped because another is in-progress, this is set so
+// the finally block knows to schedule a follow-up save with the latest content.
+// This prevents the race condition where fast typing during a slow save (encryption)
+// causes the debounce to fire, get dropped by the isSaveInProgress guard, and the
+// latest content is never persisted.
+let resaveNeeded = false;
+
 /**
  * Saves the current editor content as a draft.
  * If content is empty, it triggers the modified clearCurrentDraft (which now deletes).
@@ -430,12 +640,14 @@ export const saveDraftDebounced = debounce(
     const isAuthenticated = get(authStore).isAuthenticated;
     const currentState = get(draftEditorUIState);
 
-    // CRITICAL FIX: Check save lock to prevent race conditions
-    // If another save is in progress, skip this one to prevent duplicate chat creation
-    // The debounce should normally prevent this, but async operations can cause overlap
+    // Check save lock to prevent duplicate chat creation from concurrent saves.
+    // Instead of silently dropping the save (which loses the latest content),
+    // set resaveNeeded so the in-progress save's finally block will schedule
+    // a follow-up save that captures the current editor state.
     if (currentState.isSaveInProgress) {
+      resaveNeeded = true;
       console.debug(
-        "[DraftService] Save already in progress, skipping to prevent duplicate chat creation",
+        "[DraftService] Save already in progress, marked resaveNeeded=true so latest content will be saved after current save completes",
       );
       return;
     }
@@ -623,7 +835,12 @@ export const saveDraftDebounced = debounce(
       }
 
       // Generate preview text from markdown for chat list display
-      const previewText = generateDraftPreview(contentMarkdown);
+      // Pass contentJSON so unserialized embed nodes (e.g. uploading images) are shown
+      const previewText = generateDraftPreview(
+        contentMarkdown,
+        100,
+        contentJSON,
+      );
 
       // Save to sessionStorage (cleartext, no encryption)
       saveSessionStorageDraft(
@@ -738,7 +955,8 @@ export const saveDraftDebounced = debounce(
     const contentMarkdown = tipTapToCanonicalMarkdown(contentJSON);
 
     // Generate preview text from markdown for chat list display
-    const previewText = generateDraftPreview(contentMarkdown);
+    // Pass contentJSON so unserialized embed nodes (e.g. uploading images) are shown
+    const previewText = generateDraftPreview(contentMarkdown, 100, contentJSON);
 
     // CRITICAL FIX: await encryptWithMasterKey since it's async to prevent TypeError when calling substring
     const encryptedMarkdown = await encryptWithMasterKey(contentMarkdown);
@@ -1084,6 +1302,25 @@ export const saveDraftDebounced = debounce(
     } finally {
       // CRITICAL: Ensure save lock is always released, even if an unexpected error occurs
       draftEditorUIState.update((s) => ({ ...s, isSaveInProgress: false }));
+
+      // If another save was requested while this one was in progress, schedule
+      // a follow-up save with a short delay to capture the latest editor content.
+      // This prevents content loss when the user types during a slow save (encryption).
+      if (resaveNeeded) {
+        resaveNeeded = false;
+        console.debug(
+          "[DraftService] Executing follow-up save for content that arrived during previous save",
+        );
+        // Short delay to let the state update propagate, then re-trigger the debounced save.
+        // Using setTimeout instead of calling saveDraftDebounced directly to avoid
+        // re-entering while the finally block is still executing.
+        setTimeout(() => {
+          const followUpEditor = getEditorInstance();
+          if (followUpEditor && !followUpEditor.isDestroyed) {
+            saveDraftDebounced(chatIdFromMessageInput);
+          }
+        }, 100);
+      }
     }
   },
   1200,

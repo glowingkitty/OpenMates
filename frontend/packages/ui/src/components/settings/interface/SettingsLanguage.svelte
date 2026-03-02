@@ -12,12 +12,13 @@ changes to the documentation (to keep the documentation up to date).
 <script lang="ts">
     import { text, SUPPORTED_LANGUAGES } from '@repo/ui';
     import SettingsItem from '../../SettingsItem.svelte';
-    import { locale, locales } from 'svelte-i18n';
+    import { locale } from 'svelte-i18n';
     import { browser } from '$app/environment';
     import { waitLocale } from 'svelte-i18n';
+    import { isRtlLanguage } from '../../../i18n/languages';
     import { loadMetaTags, getMetaTags } from '../../../config/meta';
     import { createEventDispatcher, onMount } from 'svelte';
-    import { settingsNavigationStore, updateBreadcrumbsWithLanguage } from '../../../stores/settingsNavigationStore';
+    import { updateBreadcrumbsWithLanguage } from '../../../stores/settingsNavigationStore';
     import { getApiUrl, apiEndpoints } from '../../../config/api'; // Import API config
     import { contentCache } from '../../../utils/contentCache'; // Import content cache to clear on language change
     import { authStore } from '../../../stores/authStore'; // Import auth store to check authentication status
@@ -88,17 +89,16 @@ changes to the documentation (to keep the documentation up to date).
             // Update current language after locale is set
             currentLanguage = newLocale;
 
-            // Store preference in localStorage
+            // Store preference in localStorage (sole source of truth for language preference)
             localStorage.setItem('preferredLanguage', newLocale);
-            
-            // Store preference in cookies for SSR (expires in 1 year)
-            document.cookie = `preferredLanguage=${newLocale}; path=/; max-age=31536000; SameSite=Lax`;
             
             // Wait for translations to load
             await waitLocale();
 
-            // Update HTML lang attribute
+            // Update HTML lang + dir attributes.
+            // dir="rtl" flips the entire layout for right-to-left languages like Arabic.
             document.documentElement.setAttribute('lang', newLocale);
+            document.documentElement.setAttribute('dir', isRtlLanguage(newLocale) ? 'rtl' : 'ltr');
 
             try {
                 // Attempt to reload meta tags with new language (with proper error handling)
@@ -234,7 +234,7 @@ changes to the documentation (to keep the documentation up to date).
     {#each sortedLanguages as language}
         <SettingsItem 
             type="quickaction"
-            icon="subsetting_icon subsetting_icon_language"
+            icon="subsetting_icon language"
             title={language.name}
             hasToggle={true}
             checked={currentLanguage === language.code}
@@ -261,7 +261,9 @@ changes to the documentation (to keep the documentation up to date).
         transform: translate(-50%, -50%);
         font-size: 16px;
         font-weight: 600;
-        color: var(--color-grey-90);
+        /* Always white so the text is legible on the blue subsetting_icon background
+           regardless of light/dark theme mode */
+        color: #ffffff;
         pointer-events: none;
         z-index: 2;
     }

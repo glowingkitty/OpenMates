@@ -7,7 +7,7 @@ services:
       # Expose Directus only on localhost for SSH forwarding
       - "127.0.0.1:8055:8055"
 
-  grafana:
-    ports:
-      # Expose Grafana only on localhost for SSH forwarding
-      - "127.0.0.1:3000:3000"
+  # Grafana removed — see docker-compose.yml for details.
+  # grafana:
+  #   ports:
+  #     - "127.0.0.1:3000:3000"

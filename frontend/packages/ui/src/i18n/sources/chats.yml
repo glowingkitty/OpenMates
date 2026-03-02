@@ -20,6 +20,7 @@ context_menu.download:
   th: ดาวน์โหลด
   cs: Stáhnout
   sv: Ladda ned
+  he: הורדה
   verified_by_human: []
 context_menu.copy:
   context: Menu option to copy chat (YAML with embedded link) to clipboard. When pasted inside OpenMates, only the link is used. When pasted outside, the full YAML is available.
@@ -43,6 +44,7 @@ context_menu.copy:
   th: คัดลอก
   cs: Kopírovat
   sv: Kopiera
+  he: העתקה
   verified_by_human: []
 context_menu.delete:
   context: Menu option to delete chat and all its messages
@@ -66,6 +68,7 @@ context_menu.delete:
   th: ลบ
   cs: Smazat
   sv: Ta bort
+  he: מחיקה
   verified_by_human: []
 context_menu.confirm:
   context: Menu option to confirm deletion of chat
@@ -89,6 +92,7 @@ context_menu.confirm:
   th: ยืนยัน
   cs: Potvrdit
   sv: Bekräfta
+  he: אישור
   verified_by_human: []
 
 context_menu.select:
@@ -113,6 +117,7 @@ context_menu.select:
   th: เลือก
   cs: Vybrat
   sv: Välj
+  he: בחירה
   verified_by_human: []
 
 context_menu.downloading:
@@ -137,6 +142,7 @@ context_menu.downloading:
   th: กำลังดาวน์โหลด...
   cs: Stahování...
   sv: Laddar ned...
+  he: מוריד...
   verified_by_human: []
 
 context_menu.downloading_selected:
@@ -161,6 +167,7 @@ context_menu.downloading_selected:
   th: กำลังดาวน์โหลด...
   cs: Stahování...
   sv: Laddar ned...
+  he: מוריד...
   verified_by_human: []
 
 context_menu.download_selected:
@@ -185,6 +192,7 @@ context_menu.download_selected:
   th: ดาวน์โหลดที่เลือก
   cs: Stáhnout vybrané
   sv: Ladda ned markerade
+  he: הורדת הנבחרים
   verified_by_human: []
 
 context_menu.copy_selected:
@@ -209,6 +217,7 @@ context_menu.copy_selected:
   th: คัดลอกที่เลือก
   cs: Kopírovat vybrané
   sv: Kopiera markerade
+  he: העתקת הנבחרים
   verified_by_human: []
 
 context_menu.delete_selected:
@@ -233,6 +242,7 @@ context_menu.delete_selected:
   th: ลบที่เลือก
   cs: Smazat vybrané
   sv: Ta bort markerade
+  he: מחיקת הנבחרים
   verified_by_human: []
 
 context_menu.unselect:
@@ -257,6 +267,7 @@ context_menu.unselect:
   th: ยกเลิกการเลือก
   cs: Zrušit výběr
   sv: Avmarkera
+  he: ביטול בחירה
   verified_by_human: []
 
 context_menu.pin:
@@ -281,6 +292,7 @@ context_menu.pin:
   th: ปักหมุด
   cs: Připnout
   sv: Fäst
+  he: נעיצה
   verified_by_human: []
 
 context_menu.unpin:
@@ -305,6 +317,7 @@ context_menu.unpin:
   th: เลิกปักหมุด
   cs: Odepnout
   sv: Lossa
+  he: ביטול נעיצה
   verified_by_human: []
 
 context_menu.mark_unread:
@@ -329,6 +342,7 @@ context_menu.mark_unread:
   th: ทำเครื่องหมายว่ายังไม่ได้อ่าน
   cs: Označit jako nepřečtené
   sv: Markera som oläst
+  he: סימון כלא נקרא
   verified_by_human: []
 
 context_menu.mark_read:
@@ -353,6 +367,7 @@ context_menu.mark_read:
   th: ทำเครื่องหมายว่าอ่านแล้ว
   cs: Označit jako přečtené
   sv: Markera som läst
+  he: סימון כנקרא
   verified_by_human: []
 
 context_menu.hide:
@@ -377,6 +392,7 @@ context_menu.hide:
   th: ซ่อน
   cs: Skrýt
   sv: Dölj
+  he: הסתרה
   verified_by_human: []
 
 hidden_chats.unlock:
@@ -401,6 +417,7 @@ hidden_chats.unlock:
   th: ปลดล็อกแชทที่ซ่อนอยู่
   cs: Odemknout skryté chaty
   sv: Lås upp dolda chattar
+  he: "פתיחת צ'אטים מוסתרים"
   verified_by_human: []
 
 hidden_chats.lock:
@@ -425,6 +442,7 @@ hidden_chats.lock:
   th: ล็อกแชทที่ซ่อนอยู่
   cs: Zamknout skryté chaty
   sv: Lås dolda chattar
+  he: "נעילת צ'אטים מוסתרים"
   verified_by_human: []
 
 hidden_chats.title:
@@ -449,6 +467,7 @@ hidden_chats.title:
   th: แชทที่ซ่อนอยู่
   cs: Skryté chaty
   sv: Dolda chattar
+  he: "צ'אטים מוסתרים"
   verified_by_human: []
 
 hidden_chats.unlock_title:
@@ -473,6 +492,7 @@ hidden_chats.unlock_title:
   th: ปลดล็อกแชทที่ซ่อนอยู่
   cs: Odemknout skryté chaty
   sv: Lås upp dolda chattar
+  he: "פתיחת צ'אטים מוסתרים"
   verified_by_human: []
 
 hidden_chats.set_code_title:
@@ -497,6 +517,7 @@ hidden_chats.set_code_title:
   th: ตั้งค่ารหัสแชทที่ซ่อนอยู่
   cs: Nastavit kód skrytých chatů
   sv: Ange kod för dolda chattar
+  he: "הגדרת קוד לצ'אטים מוסתרים"
   verified_by_human: []
 
 hidden_chats.set_code_description:
@@ -521,6 +542,7 @@ hidden_chats.set_code_description:
   th: ป้อนรหัส 4-6 หลักเพื่อปกป้องแชทที่ซ่อนอยู่ของคุณ รหัสนี้แยกจากรหัสผ่านการเข้าสู่ระบบของคุณ
   cs: Zadejte 4-6místný kód pro ochranu vašich skrytých chatů. Tento kód je oddělený od vašeho přihlašovacího hesla.
   sv: Ange en 4-6-siffrig kod för att skydda dina dolda chattar. Denna kod är separat från ditt inloggningslösenord.
+  he: "הזן קוד בן 4-6 ספרות כדי להגן על הצ'אטים המוסתרים שלך. קוד זה נפרד מסיסמת ההתחברות שלך."
   verified_by_human: []
 
 hidden_chats.code_label:
@@ -545,6 +567,7 @@ hidden_chats.code_label:
   th: รหัส
   cs: Kód
   sv: Kod
+  he: קוד
   verified_by_human: []
 
 hidden_chats.confirm_code_label:
@@ -569,6 +592,7 @@ hidden_chats.confirm_code_label:
   th: ยืนยันรหัส
   cs: Potvrdit kód
   sv: Bekräfta kod
+  he: אישור קוד
   verified_by_human: []
 
 hidden_chats.unlock_and_hide_button:
@@ -593,6 +617,7 @@ hidden_chats.unlock_and_hide_button:
   th: "ปลดล็อกและซ่อนแชท"
   cs: "Odemknout a skrýt chat"
   sv: "Lås upp och dölj chatt"
+  he: "פתיחה והסתרת צ'אט"
   verified_by_human: []
 
 hidden_chats.unlocked_and_hiding:
@@ -617,6 +642,7 @@ hidden_chats.unlocked_and_hiding:
   th: "ปลดล็อกแชทที่ซ่อนอยู่แล้ว กำลังซ่อนแชท..."
   cs: "Skryté chaty odemčeny. Chat se skrývá..."
   sv: "Dolda chattar upplåsta. Chatt döljs..."
+  he: "הצ'אטים המוסתרים נפתחו. הצ'אט מוסתר כעת..."
   verified_by_human: []
 
 hidden_chats.unlock_button:
@@ -641,6 +667,7 @@ hidden_chats.unlock_button:
   th: ปลดล็อก
   cs: Odemknout
   sv: Lås upp
+  he: פתיחה
   verified_by_human: []
 
 hidden_chats.set_code_button:
@@ -665,6 +692,7 @@ hidden_chats.set_code_button:
   th: ตั้งค่ารหัส
   cs: Nastavit kód
   sv: Ange kod
+  he: הגדרת קוד
   verified_by_human: []
 
 hidden_chats.cancel:
@@ -689,6 +717,7 @@ hidden_chats.cancel:
   th: ยกเลิก
   cs: Zrušit
   sv: Avbryt
+  he: ביטול
   verified_by_human: []
 
 hidden_chats.incorrect_code:
@@ -713,6 +742,7 @@ hidden_chats.incorrect_code:
   th: รหัสไม่ถูกต้อง กรุณาลองอีกครั้ง
   cs: Nesprávný kód. Zkuste to znovu.
   sv: Felaktig kod. Försök igen.
+  he: קוד שגוי. יש לנסות שוב.
   verified_by_human: []
 
 hidden_chats.invalid_code_format:
@@ -737,6 +767,7 @@ hidden_chats.invalid_code_format:
   th: กรุณาป้อนรหัส 4-6 หลัก
   cs: Zadejte 4-6místný kód
   sv: Ange en 4-6-siffrig kod
+  he: נא להזין קוד בן 4-6 ספרות
   verified_by_human: []
 
 hidden_chats.codes_dont_match:
@@ -761,6 +792,7 @@ hidden_chats.codes_dont_match:
   th: รหัสไม่ตรงกัน
   cs: Kódy se neshodují
   sv: Koderna matchar inte
+  he: הקודים אינם תואמים
   verified_by_human: []
 
 hidden_chats.lockout_message:
@@ -785,6 +817,7 @@ hidden_chats.lockout_message:
   th: พยายามล้มเหลวมากเกินไป กรุณารอ {seconds} วินาที
   cs: Příliš mnoho neúspěšných pokusů. Počkejte {seconds} sekund.
   sv: För många misslyckade försök. Vänta {seconds} sekunder.
+  he: "יותר מדי ניסיונות כושלים. נא להמתין {seconds} שניות."
   verified_by_human: []
 
 hidden_chats.unlock_error:
@@ -809,6 +842,7 @@ hidden_chats.unlock_error:
   th: เกิดข้อผิดพลาด กรุณาลองอีกครั้ง
   cs: Došlo k chybě. Zkuste to znovu.
   sv: Ett fel uppstod. Försök igen.
+  he: אירעה שגיאה. נא לנסות שוב.
   verified_by_human: []
 
 hidden_chats.unlocked:
@@ -833,6 +867,7 @@ hidden_chats.unlocked:
   th: ปลดล็อกแชทที่ซ่อนอยู่แล้ว
   cs: Skryté chaty odemčeny
   sv: Dolda chattar upplåsta
+  he: "הצ\\'אטים החבויים נפתחו"
   verified_by_human: []
 
 hidden_chats.locked:
@@ -857,6 +892,7 @@ hidden_chats.locked:
   th: ล็อกแชทที่ซ่อนอยู่แล้ว
   cs: Skryté chaty zamčeny
   sv: Dolda chattar låsta
+  he: "הצ\\'אטים החבויים ננעלו"
   verified_by_human: []
 
 hidden_chats.show_hidden_chats:
@@ -881,6 +917,7 @@ hidden_chats.show_hidden_chats:
   th: "แสดงแชทที่ซ่อนอยู่"
   cs: "Zobrazit skryté chaty"
   sv: "Visa dolda chattar"
+  he: "הצג צ\\'אטים חבויים"
   verified_by_human: []
 
 hidden_chats.login_required:
@@ -905,6 +942,7 @@ hidden_chats.login_required:
   th: "เข้าสู่ระบบเพื่อซ่อนแชทและดูแชทที่ซ่อนอยู่ของคุณที่นี่"
   cs: "Přihlaste se, abyste mohli skrýt chaty a zobrazit zde své skryté chaty"
   sv: "Logga in för att dölja chattar och se dina dolda chattar här"
+  he: "יש להתחבר כדי להסתיר צ\\'אטים ולראות את הצ\\'אטים החבויים שלך כאן"
   verified_by_human: []
 
 hidden_chats.code_placeholder:
@@ -929,6 +967,7 @@ hidden_chats.code_placeholder:
   th: ป้อนรหัสผ่านของคุณ
   cs: Zadejte svůj přístupový kód
   sv: Ange din lösenkod
+  he: הזן קוד גישה
   verified_by_human: []
 
 hidden_chats.set_password_title:
@@ -953,6 +992,7 @@ hidden_chats.set_password_title:
   th: ตั้งค่ารหัสผ่านแชทที่ซ่อนอยู่
   cs: Nastavit heslo skrytých chatů
   sv: Ange lösenord för dolda chattar
+  he: "הגדרת סיסמה לצ\\'אטים חבויים"
   verified_by_human: []
 
 hidden_chats.set_password_description:
@@ -977,6 +1017,7 @@ hidden_chats.set_password_description:
   th: ป้อนรหัสผ่านเพื่อปกป้องแชทที่ซ่อนอยู่ของคุณ รหัสผ่านนี้แยกจากรหัสผ่านการเข้าสู่ระบบของคุณ รหัสผ่านที่ไม่ซ้ำกันแต่ละรหัสสามารถใช้เพื่อซ่อน/แสดงแชทที่แตกต่างกัน
   cs: Zadejte heslo pro ochranu vašich skrytých chatů. Toto heslo je oddělené od vašeho přihlašovacího hesla. Každé jedinečné heslo lze použít k skrytí/zobrazení různých chatů.
   sv: Ange ett lösenord för att skydda dina dolda chattar. Detta lösenord är separat från ditt inloggningslösenord. Varje unikt lösenord kan användas för att dölja/visa olika chattar.
+  he: "יש להזין סיסמה כדי להגן על הצ\\'אטים החבויים שלך. סיסמה זו נפרדת מסיסמת ההתחברות שלך. ניתן להשתמש בכל סיסמה ייחודית כדי להסתיר/להציג צ\\'אטים שונים."
   verified_by_human: []
 
 hidden_chats.password_label:
@@ -1001,6 +1042,7 @@ hidden_chats.password_label:
   th: รหัสผ่าน
   cs: Heslo
   sv: Lösenord
+  he: סיסמה
   verified_by_human: []
 
 hidden_chats.confirm_password_label:
@@ -1025,6 +1067,7 @@ hidden_chats.confirm_password_label:
   th: ยืนยันรหัสผ่าน
   cs: Potvrdit heslo
   sv: Bekräfta lösenord
+  he: אימות סיסמה
   verified_by_human: []
 
 hidden_chats.password_placeholder:
@@ -1049,6 +1092,7 @@ hidden_chats.password_placeholder:
   th: ป้อนรหัสผ่าน
   cs: Zadejte heslo
   sv: Ange lösenord
+  he: הזן סיסמה
   verified_by_human: []
 
 hidden_chats.password_info:
@@ -1073,6 +1117,7 @@ hidden_chats.password_info:
   th: รหัสผ่านที่ไม่ซ้ำกันแต่ละรหัสสามารถใช้เพื่อซ่อน/แสดงแชทที่แตกต่างกัน
   cs: Každé jedinečné heslo lze použít k skrytí/zobrazení různých chatů.
   sv: Varje unikt lösenord kan användas för att dölja/visa olika chattar.
+  he: "ניתן להשתמש בכל סיסמה ייחודית כדי להסתיר/להציג צ\\'אטים שונים."
   verified_by_human: []
 
 hidden_chats.set_password_button:
@@ -1097,6 +1142,7 @@ hidden_chats.set_password_button:
   th: ตั้งค่ารหัสผ่าน
   cs: Nastavit heslo
   sv: Ange lösenord
+  he: הגדר סיסמה
   verified_by_human: []
 
 hidden_chats.invalid_password_format:
@@ -1121,6 +1167,7 @@ hidden_chats.invalid_password_format:
   th: กรุณาป้อนรหัสผ่านที่ถูกต้อง
   cs: Zadejte platné heslo
   sv: Ange ett giltigt lösenord
+  he: נא להזין סיסמה תקינה
   verified_by_human: []
 
 hidden_chats.passwords_dont_match:
@@ -1145,6 +1192,7 @@ hidden_chats.passwords_dont_match:
   th: รหัสผ่านไม่ตรงกัน
   cs: Hesla se neshodují
   sv: Lösenorden matchar inte
+  he: הסיסמאות אינן תואמות
   verified_by_human: []
 
 hidden_chats.incorrect_password:
@@ -1169,6 +1217,7 @@ hidden_chats.incorrect_password:
   th: รหัสผ่านไม่ถูกต้อง กรุณาลองอีกครั้ง
   cs: Nesprávné heslo. Zkuste to znovu.
   sv: Felaktigt lösenord. Försök igen.
+  he: סיסמה שגויה. נא לנסות שוב.
   verified_by_human: []
 
 hidden_chats.unlock_description:
@@ -1193,6 +1242,7 @@ hidden_chats.unlock_description:
   th: ป้อนรหัสผ่านของคุณเพื่อปลดล็อกแชทที่ซ่อนอยู่ รหัสผ่านที่ไม่ซ้ำกันแต่ละรหัสสามารถใช้เพื่อซ่อน/แสดงแชทที่แตกต่างกัน
   cs: Zadejte své heslo pro odemknutí skrytých chatů. Každé jedinečné heslo lze použít k skrytí/zobrazení různých chatů.
   sv: Ange ditt lösenord för att låsa upp dolda chattar. Varje unikt lösenord kan användas för att dölja/visa olika chattar.
+  he: "יש להזין את הסיסמה כדי לפתוח צ\\'אטים חבויים. ניתן להשתמש בכל סיסמה ייחודית כדי להסתיר/להציג צ\\'אטים שונים."
   verified_by_human: []
 
 hidden_chats.auto_locked:
@@ -1217,6 +1267,7 @@ hidden_chats.auto_locked:
   th: แชทที่ซ่อนอยู่ถูกล็อกเนื่องจากไม่มีการใช้งาน
   cs: Skryté chaty zamčeny kvůli nečinnosti
   sv: Dolda chattar låsta på grund av inaktivitet
+  he: "הצ\\'אטים החבויים ננעלו עקב חוסר פעילות"
   verified_by_human: []
 
 select_all:
@@ -1241,6 +1292,7 @@ select_all:
   th: เลือกทั้งหมด
   cs: Vybrat vše
   sv: Välj alla
+  he: בחר הכל
   verified_by_human: []
 
 unselect_all:
@@ -1265,6 +1317,7 @@ unselect_all:
   th: ยกเลิกการเลือกทั้งหมด
   cs: Zrušit výběr všech
   sv: Avmarkera alla
+  he: ביטול בחירת הכל
   verified_by_human: []
 
 cancel:
@@ -1289,6 +1342,7 @@ cancel:
   th: ยกเลิก
   cs: Zrušit
   sv: Avbryt
+  he: ביטול
   verified_by_human: []
 
 loadMore.button:
@@ -1313,6 +1367,7 @@ loadMore.button:
   th: แสดงเพิ่มเติม
   cs: Zobrazit více
   sv: Visa fler
+  he: הצג עוד
   verified_by_human: []
 
 resume_last_chat.title:
@@ -1337,6 +1392,7 @@ resume_last_chat.title:
   th: ดำเนินการต่อจากจุดที่คุณค้างไว้
   cs: Pokračujte tam, kde jste skončili
   sv: Fortsätt där du slutade
+  he: להמשיך מהמקום שבו הפסקת
   verified_by_human: []
 
 resume_last_chat.continue_button:
@@ -1361,6 +1417,7 @@ resume_last_chat.continue_button:
   th: ดำเนินการต่อ
   cs: Pokračovat
   sv: Fortsätt
+  he: המשך
   verified_by_human: []
 
 resume_last_chat.start_new:
@@ -1385,6 +1442,32 @@ resume_last_chat.start_new:
   th: หรือเริ่มแชทใหม่
   cs: nebo začněte nový chat
   sv: eller starta en ny chatt
+  he: "או להתחיל צ\\'אט חדש"
+  verified_by_human: []
+
+back_to_intro.title:
+  context: Subtitle above the "OpenMates | For everyone" link card on new chat screen for non-authenticated users
+  en: Back to the intro
+  de: Zurück zur Einführung
+  zh: 返回介绍
+  es: Volver a la introducción
+  fr: Retour à l'introduction
+  pt: Voltar à introdução
+  ru: Вернуться к введению
+  ja: イントロに戻る
+  ko: 인트로로 돌아가기
+  it: Torna all'introduzione
+  tr: Tanıtıma dön
+  vi: Quay lại phần giới thiệu
+  id: Kembali ke pengenalan
+  pl: Wróć do wprowadzenia
+  nl: Terug naar de intro
+  ar: العودة إلى المقدمة
+  hi: इंट्रो पर वापस जाएं
+  th: กลับไปที่บทนำ
+  cs: Zpět k úvodu
+  sv: Tillbaka till intro
+  he: חזרה למבוא
   verified_by_human: []
 
 context_menu.credits:
@@ -1409,6 +1492,7 @@ context_menu.credits:
   th: เครดิต
   cs: kredity
   sv: krediter
+  he: קרדיטים
   verified_by_human: []
 
 context_menu.delete_message:
@@ -1433,19 +1517,677 @@ context_menu.delete_message:
   th: ลบ
   cs: Smazat
   sv: Ta bort
+  he: מחיקה
   verified_by_human: []
 context_menu.unhide:
   context: Context menu action to unhide a hidden chat
   en: Unhide
   de: Einblenden
+  zh: 取消隐藏
+  es: Mostrar
+  fr: Afficher
+  pt: Reexibir
+  ru: Показать
+  ja: 再表示
+  ko: 숨기기 해제
+  it: Mostra
+  tr: Gizlemeyi kaldır
+  vi: Bỏ ẩn
+  id: Tampilkan
+  pl: Odkryj
+  nl: Zichtbaar maken
+  ar: إظهار
+  hi: दिखाएं
+  th: ยกเลิกการซ่อน
+  cs: Zobrazit
+  sv: Visa igen
+  he: ביטול הסתרה
   verified_by_human: []
 hidden_chats.no_hidden_chats:
   context: Message shown when hidden chats section is empty
   en: No hidden chats
   de: Keine versteckten Chats
+  zh: 没有隐藏的聊天
+  es: No hay chats ocultos
+  fr: Aucun chat masqué
+  pt: Nenhum chat oculto
+  ru: Нет скрытых чатов
+  ja: 非表示のチャットはありません
+  ko: 숨겨진 채팅이 없습니다
+  it: Nessuna chat nascosta
+  tr: Gizli sohbet yok
+  vi: Không có cuộc trò chuyện ẩn
+  id: Tidak ada chat tersembunyi
+  pl: Brak ukrytych czatów
+  nl: Geen verborgen chats
+  ar: لا توجد محادثات مخفية
+  hi: कोई छिपी चैट नहीं
+  th: ไม่มีแชทที่ซ่อนอยู่
+  cs: Žádné skryté chaty
+  sv: Inga dolda chattar
+  he: "אין צ'אטים מוסתרים"
   verified_by_human: []
 hidden_chats.no_hidden_chats_unlocked:
   context: Error message when unlock attempt succeeds but no chats were decrypted
   en: No hidden chats were unlocked. The password may be incorrect.
   de: Es wurden keine versteckten Chats entsperrt. Das Passwort ist möglicherweise falsch.
+  zh: 没有隐藏的聊天被解锁。密码可能不正确。
+  es: No se desbloquearon chats ocultos. La contraseña puede ser incorrecta.
+  fr: Aucun chat masqué n'a été déverrouillé. Le mot de passe est peut-être incorrect.
+  pt: Nenhum chat oculto foi desbloqueado. A senha pode estar incorreta.
+  ru: Скрытые чаты не были разблокированы. Возможно, пароль неверный.
+  ja: 非表示のチャットはロック解除されませんでした。パスワードが正しくない可能性があります。
+  ko: 숨겨진 채팅이 잠금 해제되지 않았습니다. 비밀번호가 올바르지 않을 수 있습니다.
+  it: Nessuna chat nascosta è stata sbloccata. La password potrebbe essere errata.
+  tr: Hiçbir gizli sohbet açılmadı. Şifre yanlış olabilir.
+  vi: Không có cuộc trò chuyện ẩn nào được mở khóa. Mật khẩu có thể không chính xác.
+  id: Tidak ada chat tersembunyi yang dibuka. Kata sandi mungkin salah.
+  pl: Żadne ukryte czaty nie zostały odblokowane. Hasło może być nieprawidłowe.
+  nl: Er zijn geen verborgen chats ontgrendeld. Het wachtwoord is mogelijk onjuist.
+  ar: لم يتم فتح أي محادثات مخفية. قد تكون كلمة المرور غير صحيحة.
+  hi: कोई छिपी चैट अनलॉक नहीं हुई। पासवर्ड गलत हो सकता है।
+  th: ไม่มีแชทที่ซ่อนถูกปลดล็อก รหัสผ่านอาจไม่ถูกต้อง
+  cs: Žádné skryté chaty nebyly odemčeny. Heslo může být nesprávné.
+  sv: Inga dolda chattar låstes upp. Lösenordet kan vara felaktigt.
+  he: "לא שוחררו צ'אטים מוסתרים. ייתכן שהסיסמה שגויה."
+  verified_by_human: []
+
+search.placeholder:
+  context: Placeholder text for the search input bar in the chat list sidebar
+  en: Search chats, settings & apps...
+  de: Chats, Einstellungen & Apps suchen...
+  zh: 搜索聊天和设置...
+  es: Buscar chats y configuración...
+  fr: Rechercher des chats et paramètres...
+  pt: Pesquisar chats e configurações...
+  ru: Поиск чатов и настроек...
+  ja: チャットと設定を検索...
+  ko: 채팅 및 설정 검색...
+  it: Cerca chat e impostazioni...
+  tr: Sohbet ve ayarları ara...
+  vi: Tìm kiếm cuộc trò chuyện và cài đặt...
+  id: Cari obrolan dan pengaturan...
+  pl: Szukaj czatów i ustawień...
+  nl: Zoek chats en instellingen...
+  ar: البحث في الدردشات والإعدادات...
+  hi: चैट और सेटिंग खोजें...
+  th: ค้นหาแชทและการตั้งค่า...
+  cs: Hledat chaty a nastavení...
+  sv: Sök chattar och inställningar...
+  he: "חיפוש צ'אטים, הגדרות ואפליקציות…"
+  verified_by_human: []
+
+search.no_results:
+  context: Message shown when search returns no results for the query
+  en: No results found
+  de: Keine Ergebnisse gefunden
+  zh: 未找到结果
+  es: No se encontraron resultados
+  fr: Aucun résultat trouvé
+  pt: Nenhum resultado encontrado
+  ru: Результаты не найдены
+  ja: 結果が見つかりません
+  ko: 결과를 찾을 수 없습니다
+  it: Nessun risultato trovato
+  tr: Sonuç bulunamadı
+  vi: Không tìm thấy kết quả
+  id: Tidak ada hasil ditemukan
+  pl: Nie znaleziono wyników
+  nl: Geen resultaten gevonden
+  ar: لم يتم العثور على نتائج
+  hi: कोई परिणाम नहीं मिला
+  th: ไม่พบผลลัพธ์
+  cs: Nebyly nalezeny žádné výsledky
+  sv: Inga resultat hittades
+  he: לא נמצאו תוצאות
+  verified_by_human: []
+
+search.settings:
+  context: Section header for settings results in the search results list
+  en: Settings
+  de: Einstellungen
+  zh: 设置
+  es: Configuración
+  fr: Paramètres
+  pt: Configurações
+  ru: Настройки
+  ja: 設定
+  ko: 설정
+  it: Impostazioni
+  tr: Ayarlar
+  vi: Cài đặt
+  id: Pengaturan
+  pl: Ustawienia
+  nl: Instellingen
+  ar: الإعدادات
+  hi: सेटिंग
+  th: การตั้งค่า
+  cs: Nastavení
+  sv: Inställningar
+  he: הגדרות
+  verified_by_human: []
+
+search.indexing:
+  context: Text shown while the search index is being built (warming up message cache)
+  en: Building search index...
+  de: Suchindex wird aufgebaut...
+  zh: 正在构建搜索索引...
+  es: Creando índice de búsqueda...
+  fr: Construction de l'index de recherche...
+  pt: Construindo índice de pesquisa...
+  ru: Построение поискового индекса...
+  ja: 検索インデックスを構築中...
+  ko: 검색 인덱스 구축 중...
+  it: Creazione dell'indice di ricerca...
+  tr: Arama dizini oluşturuluyor...
+  vi: Đang xây dựng chỉ mục tìm kiếm...
+  id: Membangun indeks pencarian...
+  pl: Budowanie indeksu wyszukiwania...
+  nl: Zoekindex opbouwen...
+  ar: جارٍ بناء فهرس البحث...
+  hi: खोज अनुक्रमणिका बनाई जा रही है...
+  th: กำลังสร้างดัชนีการค้นหา...
+  cs: Vytváření vyhledávacího indexu...
+  sv: Bygger sökindex...
+  he: בונה אינדקס חיפוש…
+  verified_by_human: []
+
+search.apps:
+  context: Section header for app/skill/focus mode/memory results in the search results list
+  en: Apps & Skills
+  de: Apps & Skills
+  zh: 应用与技能
+  es: Apps y habilidades
+  fr: Applications et compétences
+  pt: Apps e habilidades
+  ru: Приложения и навыки
+  ja: アプリとスキル
+  ko: 앱 및 스킬
+  it: App e abilità
+  tr: Uygulamalar ve beceriler
+  vi: Ứng dụng và kỹ năng
+  id: Aplikasi & keterampilan
+  pl: Aplikacje i umiejętności
+  nl: Apps en vaardigheden
+  ar: التطبيقات والمهارات
+  hi: ऐप्स और कौशल
+  th: แอปและทักษะ
+  cs: Aplikace a dovednosti
+  sv: Appar och färdigheter
+  he: אפליקציות ומיומנויות
+  verified_by_human: []
+
+search.app_app:
+  context: Badge label shown on app search results indicating it is an App entry type
+  en: App
+  de: App
+  zh: 应用
+  es: App
+  fr: App
+  pt: App
+  ru: Приложение
+  ja: アプリ
+  ko: 앱
+  it: App
+  tr: Uygulama
+  vi: Ứng dụng
+  id: Aplikasi
+  pl: Aplikacja
+  nl: App
+  ar: تطبيق
+  hi: ऐप
+  th: แอป
+  cs: Aplikace
+  sv: App
+  he: אפליקציה
+  verified_by_human: []
+
+search.app_skill:
+  context: Badge label shown on skill search results indicating it is a Skill entry type
+  en: Skill
+  de: Skill
+  zh: 技能
+  es: Habilidad
+  fr: Compétence
+  pt: Habilidade
+  ru: Навык
+  ja: スキル
+  ko: 스킬
+  it: Abilità
+  tr: Beceri
+  vi: Kỹ năng
+  id: Keterampilan
+  pl: Umiejętność
+  nl: Vaardigheid
+  ar: مهارة
+  hi: कौशल
+  th: ทักษะ
+  cs: Dovednost
+  sv: Färdighet
+  he: מיומנות
+  verified_by_human: []
+
+search.app_focus_mode:
+  context: Badge label shown on focus mode search results indicating it is a Focus Mode entry type
+  en: Focus Mode
+  de: Fokus-Modus
+  zh: 专注模式
+  es: Modo de enfoque
+  fr: Mode de mise au point
+  pt: Modo de foco
+  ru: Режим фокуса
+  ja: フォーカスモード
+  ko: 집중 모드
+  it: Modalità di messa a fuoco
+  tr: Odak modu
+  vi: Chế độ tập trung
+  id: Mode fokus
+  pl: Tryb skupienia
+  nl: Focusmodus
+  ar: وضع التركيز
+  hi: फोकस मोड
+  th: โหมดโฟกัส
+  cs: Režim soustředění
+  sv: Fokusläge
+  he: מצב מיקוד
+  verified_by_human: []
+
+search.app_memory:
+  context: Badge label shown on memory/settings search results indicating it is a Memory entry type
+  en: Memory
+  de: Speicher
+  zh: 记忆
+  es: Memoria
+  fr: Mémoire
+  pt: Memória
+  ru: Память
+  ja: メモリ
+  ko: 메모리
+  it: Memoria
+  tr: Bellek
+  vi: Bộ nhớ
+  id: Memori
+  pl: Pamięć
+  nl: Geheugen
+  ar: ذاكرة
+  hi: मेमोरी
+  th: หน่วยความจำ
+  cs: Paměť
+  sv: Minne
+  he: זיכרון
+  verified_by_human: []
+
+search.go_to_message:
+  context: Tooltip shown on message snippet search results, indicating clicking will scroll to that message
+  en: Go to message
+  de: Zur Nachricht springen
+  zh: 跳转到消息
+  es: Ir al mensaje
+  fr: Aller au message
+  pt: Ir para a mensagem
+  ru: Перейти к сообщению
+  ja: メッセージに移動
+  ko: 메시지로 이동
+  it: Vai al messaggio
+  tr: Mesaja git
+  vi: Đi đến tin nhắn
+  id: Pergi ke pesan
+  pl: Przejdź do wiadomości
+  nl: Ga naar bericht
+  ar: انتقل إلى الرسالة
+  hi: संदेश पर जाएं
+  th: ไปที่ข้อความ
+  cs: Přejít na zprávu
+  sv: Gå till meddelande
+  he: מעבר להודעה
+  verified_by_human: []
+
+scroll_to_active_chat:
+  context: Accessible aria-label for the sticky pin button that scrolls the active chat back into view when it is out of the visible chat list
+  en: Scroll to active chat
+  de: Zum aktiven Chat scrollen
+  zh: 滚动到当前对话
+  es: Desplazarse al chat activo
+  fr: Faire défiler jusqu'au chat actif
+  pt: Rolar para o chat ativo
+  ru: Прокрутить к активному чату
+  ja: アクティブなチャットにスクロール
+  ko: 활성 채팅으로 스크롤
+  it: Scorri fino alla chat attiva
+  tr: Aktif sohbete kaydır
+  vi: Cuộn đến cuộc trò chuyện đang hoạt động
+  id: Gulir ke obrolan aktif
+  pl: Przewiń do aktywnego czatu
+  nl: Scroll naar actieve chat
+  ar: التمرير إلى المحادثة النشطة
+  hi: सक्रिय चैट पर स्क्रॉल करें
+  th: เลื่อนไปยังแชทที่ใช้งานอยู่
+  cs: Přejít na aktivní chat
+  sv: Rulla till aktiv chatt
+  he: "גלילה לצ'אט הפעיל"
+  verified_by_human: []
+
+active_chat:
+  context: Fallback label shown in the sticky pin when the active chat title is not available (e.g. still loading)
+  en: Active chat
+  de: Aktiver Chat
+  zh: 当前对话
+  es: Chat activo
+  fr: Chat actif
+  pt: Chat ativo
+  ru: Активный чат
+  ja: アクティブなチャット
+  ko: 활성 채팅
+  it: Chat attiva
+  tr: Aktif sohbet
+  vi: Cuộc trò chuyện đang hoạt động
+  id: Obrolan aktif
+  pl: Aktywny czat
+  nl: Actieve chat
+  ar: المحادثة النشطة
+  hi: सक्रिय चैट
+  th: แชทที่ใช้งานอยู่
+  cs: Aktivní chat
+  sv: Aktiv chatt
+  he: "צ'אט פעיל"
+  verified_by_human: []
+
+search.results_label:
+  context: Accessible label for the search results list (used for screen readers)
+  en: Search results
+  de: Suchergebnisse
+  zh: 搜索结果
+  es: Resultados de búsqueda
+  fr: Résultats de recherche
+  pt: Resultados da pesquisa
+  ru: Результаты поиска
+  ja: 検索結果
+  ko: 검색 결과
+  it: Risultati di ricerca
+  tr: Arama sonuçları
+  vi: Kết quả tìm kiếm
+  id: Hasil pencarian
+  pl: Wyniki wyszukiwania
+  nl: Zoekresultaten
+  ar: نتائج البحث
+  hi: खोज परिणाम
+  th: ผลการค้นหา
+  cs: Výsledky hledání
+  sv: Sökresultat
+  he: תוצאות חיפוש
+  verified_by_human: []
+
+context_menu.fork:
+  context: Message context menu option to fork the conversation from this message onwards (creates a copy of the chat up to and including this message) — short label, 1-2 words max
+  en: Fork
+  de: Verzweigen
+  zh: 派生
+  es: Bifurcar
+  fr: Bifurquer
+  pt: Bifurcar
+  ru: Разветвить
+  ja: 分岐
+  ko: 포크
+  it: Biforca
+  tr: Çatalla
+  vi: Phân nhánh
+  id: Cabangkan
+  pl: Rozwidl
+  nl: Vertakken
+  ar: تفريع
+  hi: फोर्क करें
+  th: แยก
+  cs: Rozvětvit
+  sv: Förgrena
+  he: פיצול
+  verified_by_human: []
+
+fork.title:
+  context: Title of the fork conversation settings panel
+  en: Fork Conversation
+  de: Konversation verzweigen
+  zh: 派生对话
+  es: Bifurcar conversación
+  fr: Bifurquer la conversation
+  pt: Bifurcar conversa
+  ru: Разветвить беседу
+  ja: 会話を分岐
+  ko: 대화 포크
+  it: Biforca conversazione
+  tr: Konuşmayı çatalla
+  vi: Phân nhánh cuộc trò chuyện
+  id: Cabangkan percakapan
+  pl: Rozwidl rozmowę
+  nl: Gesprek vertakken
+  ar: تفريع المحادثة
+  hi: बातचीत को फोर्क करें
+  th: แยกการสนทนา
+  cs: Rozvětvit konverzaci
+  sv: Förgrena konversation
+  he: פיצול שיחה
+  verified_by_human: []
+
+fork.name_label:
+  context: Label for the input field where the user types the name for the forked conversation
+  en: Fork name
+  de: Name der Verzweigung
+  zh: 派生名称
+  es: Nombre del fork
+  fr: Nom du fork
+  pt: Nome do fork
+  ru: Название ответвления
+  ja: 分岐名
+  ko: 포크 이름
+  it: Nome del fork
+  tr: Çatal adı
+  vi: Tên nhánh
+  id: Nama cabang
+  pl: Nazwa rozwidlenia
+  nl: Naam van vertakking
+  ar: اسم التفريع
+  hi: फोर्क का नाम
+  th: ชื่อสาขา
+  cs: Název větve
+  sv: Förgreningsnamn
+  he: שם הפיצול
+  verified_by_human: []
+
+fork.name_placeholder:
+  context: Placeholder text shown inside the fork name input field before the user types
+  en: Enter a name for the fork...
+  de: Namen für die Verzweigung eingeben...
+  zh: 输入派生名称...
+  es: Ingresa un nombre para el fork...
+  fr: Entrez un nom pour le fork...
+  pt: Insira um nome para o fork...
+  ru: Введите название ответвления...
+  ja: 分岐の名前を入力...
+  ko: 포크 이름 입력...
+  it: Inserisci un nome per il fork...
+  tr: Çatal için bir ad girin...
+  vi: Nhập tên cho nhánh...
+  id: Masukkan nama untuk cabang...
+  pl: Wprowadź nazwę rozwidlenia...
+  nl: Voer een naam in voor de vertakking...
+  ar: أدخل اسمًا للتفريع...
+  hi: फोर्क के लिए नाम दर्ज करें...
+  th: ป้อนชื่อสาขา...
+  cs: Zadejte název větve...
+  sv: Ange ett namn för förgreningen...
+  he: הזן שם לפיצול…
+  verified_by_human: []
+
+fork.fork_button:
+  context: Button label to start the fork operation
+  en: Fork
+  de: Verzweigen
+  zh: 派生
+  es: Bifurcar
+  fr: Bifurquer
+  pt: Bifurcar
+  ru: Разветвить
+  ja: 分岐する
+  ko: 포크
+  it: Biforca
+  tr: Çatalla
+  vi: Phân nhánh
+  id: Cabangkan
+  pl: Rozwidl
+  nl: Vertakken
+  ar: تفريع
+  hi: फोर्क
+  th: แยก
+  cs: Rozvětvit
+  sv: Förgrena
+  he: פיצול
+  verified_by_human: []
+
+fork.forking_progress:
+  context: Status text shown while the fork operation is in progress, with the percentage completed
+  en: Forking… {progress}%
+  de: Verzweige… {progress}%
+  zh: 派生中… {progress}%
+  es: Bifurcando… {progress}%
+  fr: Bifurcation… {progress}%
+  pt: Bifurcando… {progress}%
+  ru: Разветвление… {progress}%
+  ja: 分岐中… {progress}%
+  ko: 포크 중… {progress}%
+  it: Biforcazione… {progress}%
+  tr: Çatallanıyor… {progress}%
+  vi: Đang phân nhánh… {progress}%
+  id: Mencabangkan… {progress}%
+  pl: Rozwidlanie… {progress}%
+  nl: Vertakken… {progress}%
+  ar: جارٍ التفريع… {progress}%
+  hi: फोर्क हो रहा है… {progress}%
+  th: กำลังแยก… {progress}%
+  cs: Rozvětvování… {progress}%
+  sv: Förgrenar… {progress}%
+  he: "מפצל… {progress}%"
+  verified_by_human: []
+
+fork.forking_banner:
+  context: Short text shown in the progress banner at the top of the chat window while a fork is being created in the background
+  en: Forking chat…
+  de: Chat wird verzweigt…
+  zh: 正在派生聊天…
+  es: Bifurcando chat…
+  fr: Chat en cours de bifurcation…
+  pt: Bifurcando chat…
+  ru: Разветвление чата…
+  ja: チャットを分岐中…
+  ko: 채팅 포크 중…
+  it: Biforcazione chat in corso…
+  tr: Sohbet çatallanıyor…
+  vi: Đang phân nhánh chat…
+  id: Mencabangkan chat…
+  pl: Rozwidlanie czatu…
+  nl: Chat vertakken…
+  ar: جارٍ تفريع الدردشة…
+  hi: चैट फोर्क हो रही है…
+  th: กำลังแยกแชท…
+  cs: Rozvětvování chatu…
+  sv: Förgrenar chatt…
+  he: "מפצל צ'אט…"
+  verified_by_human: []
+
+fork.complete_notification:
+  context: Notification message shown when a fork operation completes successfully. The user can click the notification to open the forked chat.
+  en: Chat fork complete — tap to open
+  de: Chat-Verzweigung abgeschlossen — tippen zum Öffnen
+  zh: 对话派生完成 — 点击打开
+  es: Fork completado — toca para abrir
+  fr: Fork terminé — appuyez pour ouvrir
+  pt: Fork concluído — toque para abrir
+  ru: Разветвление завершено — нажмите, чтобы открыть
+  ja: 会話の分岐が完了しました — タップして開く
+  ko: 포크 완료 — 탭하여 열기
+  it: Fork completato — tocca per aprire
+  tr: Çatal tamamlandı — açmak için dokun
+  vi: Phân nhánh hoàn tất — nhấn để mở
+  id: Fork selesai — ketuk untuk membuka
+  pl: Rozwidlenie zakończone — dotknij, aby otworzyć
+  nl: Vertakking voltooid — tik om te openen
+  ar: اكتمل التفريع — اضغط للفتح
+  hi: फोर्क पूर्ण — खोलने के लिए टैप करें
+  th: แยกสำเร็จ — แตะเพื่อเปิด
+  cs: Rozvětvení dokončeno — klepněte pro otevření
+  sv: Förgrening klar — tryck för att öppna
+  he: "פיצול הצ'אט הושלם — לחץ לפתיחה"
+  verified_by_human: []
+
+fork.error_notification:
+  context: Notification message shown when a fork operation fails
+  en: Fork failed. Please try again.
+  de: Verzweigung fehlgeschlagen. Bitte erneut versuchen.
+  zh: 派生失败，请重试。
+  es: El fork falló. Inténtalo de nuevo.
+  fr: La bifurcation a échoué. Veuillez réessayer.
+  pt: Fork falhou. Tente novamente.
+  ru: Разветвление не удалось. Попробуйте ещё раз.
+  ja: 分岐に失敗しました。もう一度お試しください。
+  ko: 포크에 실패했습니다. 다시 시도하세요.
+  it: Fork non riuscito. Riprova.
+  tr: Çatal başarısız. Lütfen tekrar deneyin.
+  vi: Phân nhánh thất bại. Vui lòng thử lại.
+  id: Fork gagal. Silakan coba lagi.
+  pl: Rozwidlenie nie powiodło się. Spróbuj ponownie.
+  nl: Vertakking mislukt. Probeer opnieuw.
+  ar: فشل التفريع. يرجى المحاولة مرة أخرى.
+  hi: फोर्क विफल हो गया। कृपया पुनः प्रयास करें।
+  th: การแยกล้มเหลว กรุณาลองใหม่
+  cs: Rozvětvení se nezdařilo. Zkuste to znovu.
+  sv: Förgrening misslyckades. Försök igen.
+  he: הפיצול נכשל. יש לנסות שוב.
+  verified_by_human: []
+
+fork.disabled_incognito:
+  context: Tooltip or message shown when the fork option is disabled because the chat is in incognito mode
+  en: Fork is not available in incognito mode
+  de: Verzweigung ist im Inkognito-Modus nicht verfügbar
+  zh: 隐身模式下无法使用派生
+  es: El fork no está disponible en modo incógnito
+  fr: La bifurcation n'est pas disponible en mode incognito
+  pt: Fork não disponível no modo incógnito
+  ru: Разветвление недоступно в режиме инкогнито
+  ja: インコグニートモードでは分岐を使用できません
+  ko: 시크릿 모드에서는 포크를 사용할 수 없습니다
+  it: Fork non disponibile in modalità incognito
+  tr: Çatal gizli modda kullanılamaz
+  vi: Fork không khả dụng ở chế độ ẩn danh
+  id: Fork tidak tersedia dalam mode penyamaran
+  pl: Rozwidlenie jest niedostępne w trybie incognito
+  nl: Vertakken is niet beschikbaar in incognitomodus
+  ar: التفريع غير متاح في وضع التصفح الخاص
+  hi: इनकॉग्निटो मोड में फोर्क उपलब्ध नहीं है
+  th: ไม่สามารถแยกในโหมดไม่ระบุตัวตน
+  cs: V anonymním režimu není rozvětvení dostupné
+  sv: Förgrening är inte tillgänglig i inkognitoläge
+  he: פיצול אינו זמין במצב גלישה בסתר
+  verified_by_human: []
+
+fork.messages_label:
+  context: Label shown in the fork settings panel indicating how many messages will be included in the fork
+  en: Messages to fork
+  de: Nachrichten zum Verzweigen
+  zh: 要派生的消息
+  es: Mensajes a bifurcar
+  fr: Messages à bifurquer
+  pt: Mensagens a bifurcar
+  ru: Сообщения для разветвления
+  ja: 分岐するメッセージ
+  ko: 포크할 메시지
+  it: Messaggi da bifurcare
+  tr: Çatallanacak mesajlar
+  vi: Tin nhắn để phân nhánh
+  id: Pesan untuk dicabangkan
+  pl: Wiadomości do rozwidlenia
+  nl: Berichten om te vertakken
+  ar: الرسائل المراد تفريعها
+  hi: फोर्क के लिए संदेश
+  th: ข้อความที่จะแยก
+  cs: Zprávy k rozvětvení
+  sv: Meddelanden att förgrena
+  he: הודעות לפיצול
   verified_by_human: []

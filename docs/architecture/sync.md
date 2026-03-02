@@ -14,18 +14,19 @@ This document outlines the complete 3-phase sync architecture that aligns with t
 
 ## Sync Security Controls
 
-| Security Control | Implementation | Benefit |
-|---|---|---|
-| **Client-side decryption** | `frontend/packages/ui/src/services/cryptoService.ts:200-250` | Server never sees plaintext chat data |
-| **Encrypted IndexedDB** | `frontend/packages/ui/src/services/db.ts` | Data at rest encrypted on client |
-| **AES-256-GCM encryption** | `cryptoService.ts:200-250` | Authenticated encryption (detects tampering) |
-| **Master key protection** | `cryptoKeyStorage.ts`, `cryptoService.ts:123-139` | Hybrid: Memory (stayLoggedIn=false) or IndexedDB CryptoKey (stayLoggedIn=true) |
-| **Device verification** | `auth_login.py:829-852` | Only authenticated devices receive key data |
-| **Rate-limited access** | `auth_login.py:50-51` | Brute force attacks mitigated |
+| Security Control           | Implementation                                               | Benefit                                                                        |
+| -------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| **Client-side decryption** | `frontend/packages/ui/src/services/cryptoService.ts:200-250` | Server never sees plaintext chat data                                          |
+| **Encrypted IndexedDB**    | `frontend/packages/ui/src/services/db.ts`                    | Data at rest encrypted on client                                               |
+| **AES-256-GCM encryption** | `cryptoService.ts:200-250`                                   | Authenticated encryption (detects tampering)                                   |
+| **Master key protection**  | `cryptoKeyStorage.ts`, `cryptoService.ts:123-139`            | Hybrid: Memory (stayLoggedIn=false) or IndexedDB CryptoKey (stayLoggedIn=true) |
+| **Device verification**    | `auth_login.py:829-852`                                      | Only authenticated devices receive key data                                    |
+| **Rate-limited access**    | `auth_login.py:50-51`                                        | Brute force attacks mitigated                                                  |
 
 ## Sync Process Overview
 
 ### Login Flow
+
 1. **Email Lookup**: User enters email → `/lookup` endpoint caches user profile and **starts predictive cache warming** (encrypted data only)
 2. **User Authentication**: User enters password + 2FA while cache warming runs in background
 3. **Login Success**: User clicks login → Authentication succeeds → **Chats already cached!** ✅
@@ -72,7 +73,7 @@ This document outlines the complete 3-phase sync architecture that aligns with t
                                                     └─────────────────┘
 
 Phase 1: Last Opened Chat AND New Chat Suggestions (Immediate)
-Phase 2: Last 20 Chats (Quick Access)  
+Phase 2: Last 20 Chats (Quick Access)
 Phase 3: Last 100 Chats (Full Sync)
 
 Key Optimization: Cache warming starts BEFORE authentication completes!
@@ -81,15 +82,18 @@ Key Optimization: Cache warming starts BEFORE authentication completes!
 ## Phased Sync Architecture
 
 ### Phase 1: Last Opened Chat AND New Chat Suggestions (Immediate Priority)
+
 **Goal**: Get user into their last opened content as quickly as possible with all needed data
 
 **IMPORTANT - User Choice Protection**:
+
 - If user manually switches to "new chat" or clicks on a different chat AFTER page load, sync phases will NOT override their choice
 - The client tracks `userMadeExplicitChoice` and `initialChatLoaded` flags in `phasedSyncStateStore`
 - When user clicks "new chat", the store uses a sentinel value (`NEW_CHAT_SENTINEL`) instead of null to explicitly indicate new chat mode
 - Only Phase 1 triggers chat loading in `+page.svelte`; Phase 2 and 3 only update the sidebar chat list
 
 **Process (Server - Optimized with Parallel Queries)**:
+
 1. **Server**: Parse `last_opened` field to get target chat ID (if any)
 2. **Server**: Run two Directus queries IN PARALLEL using `asyncio.gather`:
    - Query A: Fetch 50 new chat suggestions for user (always runs)
@@ -97,6 +101,7 @@ Key Optimization: Cache warming starts BEFORE authentication completes!
 3. **Server**: Cache results and send via WebSocket "phase_1_last_chat_ready" event
 
 **Process (Client)**:
+
 1. **Client**: Check `canAutoNavigate()` - if user made explicit choice, skip auto-load
 2. **Client**: Store suggestions in IndexedDB
 3. **Client**: Dispatch "newChatSuggestionsReady" event for immediate display
@@ -106,21 +111,25 @@ Key Optimization: Cache warming starts BEFORE authentication completes!
 7. **Client**: Mark `initialChatLoaded` to prevent future sync phases from overriding
 
 **Data Flow (Chat)**:
+
 ```
 Directus (Encrypted) → WebSocket (Encrypted) → IndexedDB (Encrypted) → Memory (Decrypted) → UI
 ```
 
 **Data Flow (Embeds)**:
+
 ```
 Directus (Encrypted) → WebSocket (Encrypted) → EmbedStore/IndexedDB (Encrypted) → Memory (Decrypted) → UI
 ```
 
 **Data Flow (Suggestions)**:
+
 ```
 Directus (Unencrypted) → WebSocket (Unencrypted) → IndexedDB → UI
 ```
 
 **Directus Requests (Parallel Execution)**:
+
 - **Parallel Query A**: Get 50 new chat suggestions for user (always runs)
 - **Parallel Query B** (if `last_opened` is a chat ID):
   - Get chat metadata and all messages for that chat_id (encrypted)
@@ -129,6 +138,7 @@ Directus (Unencrypted) → WebSocket (Unencrypted) → IndexedDB → UI
 **OPTIMIZATION**: Queries A and B run concurrently via `asyncio.gather()`, reducing Phase 1 latency by ~50% when both are needed.
 
 **Embed Loading Process (Server-Side)**:
+
 1. **Hash Chat IDs**: Server hashes each chat_id using SHA256 to get `hashed_chat_id` values
    - For Phase 1: Hash the last opened chat_id
    - For Phase 2: Hash all 20 chat_ids
@@ -141,7 +151,7 @@ Directus (Unencrypted) → WebSocket (Unencrypted) → IndexedDB → UI
    - **Sync Cache**: `embed:{embed_id}:sync` (client-encrypted, for Phase 1/2/3 client sync) - global cache, one entry per embed
    - **Chat Index**: `chat:{chat_id}:embed_ids` (Redis Set tracking which embed_ids belong to each chat, used for eviction)
    - **TTL**: 1 hour for sync cache (embeds sent to client during sync)
-   - **Note**: During cache warming, embeds remain client-encrypted (zero-knowledge maintained). They are only vault-encrypted and stored in AI cache (`embed:{embed_id}`) later when client provides them as cleartext during message processing (see [Message Processing Architecture](./message_processing.md#embed-processing-during-inference))
+   - **Note**: During cache warming, embeds remain client-encrypted (zero-knowledge maintained). They are only vault-encrypted and stored in AI cache (`embed:{embed_id}`) later when client provides them as cleartext during message processing (see [Message Processing Architecture](./message-processing.md#embed-processing-during-inference))
 4. **Composite Embeds**: For `app_skill_use` embeds with `embed_ids` array, also load child embeds
    - Extract child `embed_id` values from parent embed's `embed_ids` field (this is in encrypted_content, but we can parse the JSON structure without decrypting the actual content)
    - Query and cache child embeds by `embed_id` (not by hashed_chat_id, since child embeds may be in different chats)
@@ -149,11 +159,12 @@ Directus (Unencrypted) → WebSocket (Unencrypted) → IndexedDB → UI
 5. **Completion**: Once all embeds are cached, Phase 1/2/3 cache warming is complete
 
 **Key Points**:
+
 - **Zero-Knowledge Maintained**: Server never decrypts message content - uses hashed_chat_id to query embeds directly
 - **Efficient Querying**: Direct query by hashed_chat_id is more efficient than parsing encrypted messages
 - **Batch Loading**: All embeds for a phase loaded in single/batched Directus query
 - **Sync Cache Only**: During cache warming, embeds are stored in sync cache only (client-encrypted) - they remain encrypted and are sent to client as-is
-- **AI Cache Population**: Embeds are vault-encrypted and stored in AI cache (`embed:{embed_id}`) later when client provides them as cleartext during message processing (see [Message Processing Architecture](./message_processing.md#embed-processing-during-inference))
+- **AI Cache Population**: Embeds are vault-encrypted and stored in AI cache (`embed:{embed_id}`) later when client provides them as cleartext during message processing (see [Message Processing Architecture](./message-processing.md#embed-processing-during-inference))
 - **Chat Index**: `chat:{chat_id}:embed_ids` Redis Set tracks which embeds belong to each chat for eviction
 - **Access Control**: When loading from cache, verify `hashed_user_id` matches requesting user (private embeds) or check `share_mode`/`shared_with_users` (shared embeds)
 - **Child Embed Loading**: For composite embeds, child embed_ids are extracted from parent embed's embed_ids field (JSON structure parsing, not content decryption)
@@ -162,6 +173,7 @@ Directus (Unencrypted) → WebSocket (Unencrypted) → IndexedDB → UI
 **Key Insight**: Phase 1 ALWAYS sends suggestions, ensuring users have immediate content regardless of whether they're viewing a chat or the new chat section.
 
 **Encryption Flow Diagram**:
+
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   Directus      │    │   WebSocket      │    │   IndexedDB     │
@@ -188,9 +200,11 @@ Key Points:
 ```
 
 ### Phase 2: Last 20 Updated Chats (Quick Access)
+
 **Goal**: Provide quick access to recent chats
 
 **Process**:
+
 1. **Server**: Load last 20 updated chats (by `last_edited_overall_timestamp`)
 2. **Server**: Load embeds referenced in messages for these chats
 3. **Server**: Send encrypted chat metadata and embeds via WebSocket "recentChatsReady" event
@@ -200,19 +214,23 @@ Key Points:
 7. **Client**: Update chat list UI with decrypted titles and metadata
 
 **Data Flow**:
+
 ```
 Directus (Encrypted) → WebSocket (Encrypted) → IndexedDB (Encrypted) → Memory (Decrypted) → Chat List UI
 ```
 
 **Embed Data Flow**:
+
 ```
 Directus (Encrypted) → WebSocket (Encrypted) → EmbedStore/IndexedDB (Encrypted) → Memory (Decrypted) → UI (when messages rendered)
 ```
 
 ### Phase 3: Last 100 Updated Chats (Full Sync)
+
 **Goal**: Complete sync of user's recent chat history
 
 **Process**:
+
 1. **Server**: Load last 100 updated chats, their messages, and all embeds referenced in those messages
 2. **Server**: Send encrypted data in batches via WebSocket "phase_3_last_100_chats_ready" event
 3. **Client**: Store all encrypted chat data in IndexedDB
@@ -222,11 +240,13 @@ Directus (Encrypted) → WebSocket (Encrypted) → EmbedStore/IndexedDB (Encrypt
 7. **Server**: After Phase 3 completes, trigger app settings/memories sync (see Post-Phase 3 section below)
 
 **Data Flow**:
+
 ```
 Directus (Encrypted) → WebSocket (Batched Encrypted) → IndexedDB (Encrypted) → Memory (Decrypted as needed)
 ```
 
 **Embed Data Flow**:
+
 ```
 Directus (Encrypted) → WebSocket (Batched Encrypted) → ContentStore/IndexedDB (Encrypted) → Memory (Decrypted as needed)
 ```
@@ -234,11 +254,13 @@ Directus (Encrypted) → WebSocket (Batched Encrypted) → ContentStore/IndexedD
 **Note**: Phase 3 NEVER sends new chat suggestions - they are ALWAYS sent in Phase 1 to ensure immediate availability.
 
 ### Post-Phase 3: App Settings and Memories Sync
+
 **Goal**: Sync all app settings and memories entries after all chats have been synced
 
 **Timing**: This sync begins automatically after Phase 3 chat sync completes, ensuring chat data takes priority.
 
 **Process**:
+
 1. **Server**: After Phase 3 chat sync completes, server fetches all app settings and memories for the user from Directus
 2. **Server**: Sends encrypted app settings/memories data via WebSocket "app_settings_memories_sync_ready" event
 3. **Client**: Receives encrypted data and stores in IndexedDB (encrypted with app-specific keys)
@@ -247,11 +269,13 @@ Directus (Encrypted) → WebSocket (Batched Encrypted) → ContentStore/IndexedD
 6. **Client**: Updates App Store settings UI with synced data
 
 **Data Flow**:
+
 ```
 Directus (Encrypted) → WebSocket (Encrypted) → IndexedDB (Encrypted) → Memory (Decrypted as needed) → App Store Settings UI
 ```
 
 **Conflict Resolution**:
+
 - When both server and client have different versions of the same entry:
   - Compare `item_version` numbers
   - Preserve the entry with the higher `item_version` (most recent update wins)
@@ -259,12 +283,14 @@ Directus (Encrypted) → WebSocket (Encrypted) → IndexedDB (Encrypted) → Mem
   - Client handles conflict resolution automatically during sync
 
 **Multi-Device Consistency**:
+
 - All devices receive the same encrypted data from the server
 - Each device decrypts independently using the user's master encryption key
 - Version tracking ensures consistency across devices
 - Changes made on one device are synced to all other devices on next sync cycle
 
 **Implementation Notes**:
+
 - Sync happens automatically after chat sync completes
 - No user action required - sync runs in background
 - Encrypted data remains secure during transmission and storage
@@ -274,11 +300,13 @@ Directus (Encrypted) → WebSocket (Encrypted) → IndexedDB (Encrypted) → Mem
 ## Predictive Cache Warming Optimization
 
 ### Overview
+
 Cache warming now starts **predictively** during the `/lookup` endpoint (when user enters email), rather than waiting until after authentication succeeds. This provides instant sync UX.
 
 ### Implementation Details
 
 **Timeline:**
+
 1. User enters email → `/lookup` endpoint called
 2. Server caches user profile (username, settings, etc.)
 3. **NEW**: Server dispatches `warm_user_cache` Celery task (async, non-blocking)
@@ -288,6 +316,7 @@ Cache warming now starts **predictively** during the `/lookup` endpoint (when us
 7. Instant WebSocket sync (data already in Redis)
 
 **Security Properties:**
+
 - ✅ **Zero-knowledge maintained**: All cached data is encrypted, server cannot decrypt
 - ✅ **Rate limiting**: `/lookup` already has `3/minute` rate limit
 - ✅ **Deduplication**: Checks `cache_primed` and `warming_in_progress` flags to prevent duplicate work
@@ -296,11 +325,13 @@ Cache warming now starts **predictively** during the `/lookup` endpoint (when us
 - ✅ **Fallback protection**: `/login` endpoint still dispatches cache warming if `/lookup` was skipped
 
 **Code Locations:**
+
 - **Primary trigger**: `/lookup` endpoint in `backend/core/api/app/routes/auth_routes/auth_login.py` (lines ~1040-1070)
 - **Fallback trigger**: `/login` endpoint in same file (lines ~237-260, ~389-411, ~648-670)
 - **Cache warming task**: `backend/core/api/app/tasks/user_cache_tasks.py`
 
 **Deduplication Logic:**
+
 ```python
 # Check if cache already primed
 cache_primed = await cache_service.is_user_cache_primed(user_id)
@@ -316,6 +347,7 @@ if not cache_primed and not is_warming:
 ```
 
 **Expected UX Impact:**
+
 - **Before**: 2-5 second wait after login for chats to load
 - **After**: Instant sync, chats appear immediately after login
 
@@ -326,6 +358,7 @@ if not cache_primed and not is_warming:
 #### 1. Enhanced Cache Warming (`user_cache_tasks.py`)
 
 **Three-Phase Cache Warming:**
+
 - **Phase 1**: Last opened chat AND new chat suggestions (immediate priority)
   - ALWAYS loads new chat suggestions (50 latest)
   - If last opened = chat ID: Also load chat metadata, messages, and all embeds referenced in those messages
@@ -334,6 +367,7 @@ if not cache_primed and not is_warming:
 - **Phase 3**: Last 100 updated chats (full sync) - includes embeds referenced in messages - NO suggestions
 
 **Key Features:**
+
 - Sequential phase execution with proper event emission
 - Zero-knowledge compliance (server never decrypts data)
 - Suggestions ALWAYS loaded in Phase 1 for immediate availability
@@ -344,14 +378,16 @@ if not cache_primed and not is_warming:
 #### 2. WebSocket Event Handlers (`websockets.py`)
 
 **Redis Listener Events:**
+
 - `priority_chat_ready`: Phase 1 completion
-- `recentChatsReady`: Phase 2 completion  
+- `recentChatsReady`: Phase 2 completion
 - `fullSyncReady`: Phase 3 completion
 - `cache_primed`: Full sync completion
 
 **Event Broadcasting:**
+
 - `phase_1_last_chat_ready`: Phase 1 completion
-- `phase_2_last_20_chats_ready`: Phase 2 completion  
+- `phase_2_last_20_chats_ready`: Phase 2 completion
 - `phase_3_last_100_chats_ready`: Phase 3 completion
 - `cache_primed`: Full sync completion
 - Handle multiple device synchronization
@@ -360,12 +396,14 @@ if not cache_primed and not is_warming:
 #### 3. Storage Management Service
 
 **Storage Limits:**
+
 - Maximum 100 cached chats
 - Configurable storage size limits (default: 50MB)
 - Automatic eviction of oldest chats on overflow
 - Embeds stored separately in EmbedStore (IndexedDB) with independent eviction
 
 **Key Features:**
+
 - Storage usage monitoring and statistics
 - Intelligent eviction policies
 - Chat priority management
@@ -379,14 +417,15 @@ if not cache_primed and not is_warming:
 **User Choice Protection:**
 The `phasedSyncState` store prevents sync phases from overriding explicit user choices:
 
-| State Flag | Purpose |
-|---|---|
-| `initialSyncCompleted` | Prevents redundant syncs when components remount |
-| `initialChatLoaded` | Set when first chat loads after page reload; blocks future auto-navigation |
-| `userMadeExplicitChoice` | Set when user clicks on a chat or "new chat"; sync will NEVER override |
-| `currentActiveChatId` | Tracks current active chat; uses `NEW_CHAT_SENTINEL` for new chat mode |
+| State Flag               | Purpose                                                                    |
+| ------------------------ | -------------------------------------------------------------------------- |
+| `initialSyncCompleted`   | Prevents redundant syncs when components remount                           |
+| `initialChatLoaded`      | Set when first chat loads after page reload; blocks future auto-navigation |
+| `userMadeExplicitChoice` | Set when user clicks on a chat or "new chat"; sync will NEVER override     |
+| `currentActiveChatId`    | Tracks current active chat; uses `NEW_CHAT_SENTINEL` for new chat mode     |
 
 **Key Methods:**
+
 - `shouldAutoSelectPhase1Chat(chatId)`: Returns false if user made explicit choice or initial chat loaded
 - `canAutoNavigate()`: Returns false if `userMadeExplicitChoice || initialChatLoaded`
 - `markUserMadeExplicitChoice()`: Called when user clicks on chat in sidebar or "new chat" button
@@ -398,18 +437,21 @@ Instead of `null`, the store uses `'__new_chat__'` sentinel value to explicitly 
 #### 2. Phased Sync Service (`PhasedSyncService.ts`)
 
 **Client-Side Sync Management:**
+
 - Event-driven sync coordination
 - Automatic chat opening after Phase 1 (if no explicit user choice)
 - Encrypted data storage in IndexedDB
 - Memory management for decrypted data
 
 **Key Features:**
+
 - WebSocket event handling for all sync phases
 - Automatic chat decryption and storage
 - Sync status tracking and management
 - Error handling and recovery
 
 **Event Handling (Optimized):**
+
 - `phase_1_last_chat_ready`: **Only event that triggers chat loading** in `+page.svelte`
 - `phase_2_last_20_chats_ready`: Updates sidebar chat list only (handled by `Chats.svelte`)
 - `phase_3_last_100_chats_ready`: Updates sidebar chat list only (handled by `Chats.svelte`)
@@ -446,6 +488,7 @@ Instead of `null`, the store uses `'__new_chat__'` sentinel value to explicitly 
 ### WebSocket Events
 
 **Server → Client:**
+
 - `phase_1_last_chat_ready`: Phase 1 complete
 - `phase_2_last_20_chats_ready`: Phase 2 complete
 - `phase_3_last_100_chats_ready`: Phase 3 complete
@@ -453,12 +496,14 @@ Instead of `null`, the store uses `'__new_chat__'` sentinel value to explicitly 
 - `sync_status_response`: Sync status update
 
 **Client → Server:**
+
 - `phased_sync_request`: Request specific phases
 - `sync_status_request`: Request sync status
 
 ### Redis Pub/Sub Events
 
 **Cache Events:**
+
 - `phase_1_last_chat_ready`: Phase 1 completion
 - `phase_2_last_20_chats_ready`: Phase 2 completion
 - `phase_3_last_100_chats_ready`: Phase 3 completion
@@ -467,12 +512,14 @@ Instead of `null`, the store uses `'__new_chat__'` sentinel value to explicitly 
 ## Encryption Strategy
 
 ### Chat-Specific Keys
+
 - **Generation**: Client generates unique AES key per chat
 - **Encryption**: Chat key encrypted with user's master key
 - **Storage**: Encrypted chat key stored in `chats.encrypted_chat_key` field
 - **Access**: Client decrypts chat key using master key when needed
 
 ### Data Encryption Levels
+
 1. **Chat Metadata**: Encrypted with chat-specific key
    - `encrypted_title`, `encrypted_chat_summary`, `encrypted_chat_tags`, `encrypted_follow_up_request_suggestions`, `encrypted_active_focus_id`
 2. **Message Content**: Encrypted with chat-specific key
@@ -484,6 +531,7 @@ Instead of `null`, the store uses `'__new_chat__'` sentinel value to explicitly 
    - `encrypted_draft_md`, `encrypted_draft_preview`, `encrypted_email_address`
 
 ### Server-Side Encryption (Keep As Is)
+
 - **Billing Data**: `encrypted_credit_balance`, `encrypted_stripe_payment_method_id`
 - **Security Data**: `encrypted_tfa_secret`
 - **App Settings**: `user_app_settings_and_memories` collection
@@ -493,11 +541,13 @@ Instead of `null`, the store uses `'__new_chat__'` sentinel value to explicitly 
 ### Eviction Policy
 
 **Triggers:**
+
 - Chat count exceeds 100
 - Storage size exceeds configured limit
 - New chat addition would cause overflow
 
 **Eviction Process:**
+
 1. Identify oldest chat by timestamp
 2. Remove from all cache components
 3. Clean up associated data
@@ -506,6 +556,7 @@ Instead of `null`, the store uses `'__new_chat__'` sentinel value to explicitly 
 ### Storage Statistics
 
 **Monitored Metrics:**
+
 - Current chat count vs. maximum
 - Storage usage in MB
 - Utilization percentages
@@ -516,12 +567,14 @@ Instead of `null`, the store uses `'__new_chat__'` sentinel value to explicitly 
 ### Zero-Knowledge Compliance
 
 **Server-Side:**
+
 - Never decrypts user data
 - Only stores and forwards encrypted content
 - No access to decryption keys
 - Encrypted data transmission only
 
 **Client-Side:**
+
 - All decryption happens in memory
 - IndexedDB stores only encrypted data
 - Chat-specific encryption keys
@@ -534,11 +587,13 @@ Instead of `null`, the store uses `'__new_chat__'` sentinel value to explicitly 
 The system uses a clean single-hash approach where each browser instance is treated as a unique device:
 
 **Device Hash Formula:**
+
 ```
 SHA256(OS:Country:UserID:SessionID)
 ```
 
 **How It Works:**
+
 1. **SessionID Generation**: Each browser tab/instance generates a unique UUID stored in `sessionStorage`
 2. **Login Flow**: Client sends `session_id` in login request body
 3. **Device Hash Creation**: Backend generates hash including sessionId and stores in Directus
@@ -547,6 +602,7 @@ SHA256(OS:Country:UserID:SessionID)
 6. **Match**: Hashes match → connection authenticated ✅
 
 **Benefits:**
+
 - ✅ **Clean Architecture**: Single hash type, no dual-hash complexity
 - ✅ **Explicit Devices**: Each browser instance is a separate "device" entry
 - ✅ **No Conflicts**: Arc and Firefox on same physical device have unique hashes
@@ -555,13 +611,14 @@ SHA256(OS:Country:UserID:SessionID)
 - ✅ **Security**: Device verification works same as before
 
 **Example - Two Browsers:**
+
 ```python
 # Arc browser
 session_id_arc = "6f5865f1-ff42-4208-83f0-155f0541c90a"
 hash_arc = SHA256("Mac OS X:Local:user123:6f5865f1-ff42-4208...")
 # → f50cd4d6...
 
-# Firefox browser  
+# Firefox browser
 session_id_firefox = "8a7932d2-bb53-5319-94g1-266g0652d01b"
 hash_firefox = SHA256("Mac OS X:Local:user123:8a7932d2-bb53-5319...")
 # → a71fe3c9...
@@ -573,6 +630,7 @@ hash_firefox = SHA256("Mac OS X:Local:user123:8a7932d2-bb53-5319...")
 ### Key Management Strategy
 
 ### Zero-Knowledge Key Architecture
+
 - **Server Never Has Decryption Keys**: Server cannot decrypt any user data
 - **Encrypted Key Storage**: Chat-specific encryption keys are stored on server, encrypted with user's master key
 - **Client-Only Decryption**: All decryption happens exclusively on the client side
@@ -580,6 +638,7 @@ hash_firefox = SHA256("Mac OS X:Local:user123:8a7932d2-bb53-5319...")
 - **Login-Based Key Derivation**: User login credentials derive the master key for decrypting chat keys
 
 ### Key Derivation Flow
+
 ```
 Login Method → Wrapped Master Key → Master Key → Chat Keys → Data Decryption
      │              │                    │           │            │
@@ -595,12 +654,14 @@ Login Method → Wrapped Master Key → Master Key → Chat Keys → Data Decryp
 ### Server-Side
 
 **Efficient Data Loading:**
+
 - Batch requests for multiple chats
 - Parallel processing where possible
 - Smart caching with TTL management
 - Incremental updates after initial load
 
 **Database Optimization:**
+
 - Indexed queries for chat ordering
 - Efficient message fetching
 - Optimized field selection
@@ -609,12 +670,14 @@ Login Method → Wrapped Master Key → Master Key → Chat Keys → Data Decryp
 ### Client-Side
 
 **Memory Management:**
+
 - Lazy decryption (decrypt only when needed)
 - Encrypted storage in IndexedDB
 - Decrypted data in memory only
 - Efficient memory cleanup
 
 **Background Processing:**
+
 - Phase 2 and 3 run in background
 - Non-blocking UI updates
 - Progressive data loading
@@ -625,6 +688,7 @@ Login Method → Wrapped Master Key → Master Key → Chat Keys → Data Decryp
 ### Server-Side
 
 **Error Recovery:**
+
 - Graceful degradation on cache misses
 - Database fallback for critical data
 - Retry mechanisms for failed operations
@@ -633,6 +697,7 @@ Login Method → Wrapped Master Key → Master Key → Chat Keys → Data Decryp
 ### Client-Side
 
 **Error Recovery:**
+
 - Automatic retry on sync failures
 - Fallback to cached data
 - User notification for critical errors
@@ -643,12 +708,14 @@ Login Method → Wrapped Master Key → Master Key → Chat Keys → Data Decryp
 ### Metrics
 
 **Server Metrics:**
+
 - Sync completion rates by phase
 - Storage usage statistics
 - Eviction frequency and patterns
 - Error rates and types
 
 **Client Metrics:**
+
 - Sync duration by phase
 - Storage utilization
 - Decryption performance
@@ -657,6 +724,7 @@ Login Method → Wrapped Master Key → Master Key → Chat Keys → Data Decryp
 ### Logging
 
 **Structured Logging:**
+
 - Phase completion events
 - Storage management actions
 - Error conditions and recovery
@@ -667,12 +735,14 @@ Login Method → Wrapped Master Key → Master Key → Chat Keys → Data Decryp
 ### Unit Tests
 
 **Backend:**
+
 - Cache warming phases
 - Storage management logic
 - Event handling
 - Error scenarios
 
 **Frontend:**
+
 - Sync service logic
 - Event handling
 - Data encryption/decryption
@@ -681,6 +751,7 @@ Login Method → Wrapped Master Key → Master Key → Chat Keys → Data Decryp
 ### Integration Tests
 
 **End-to-End Sync:**
+
 - Complete 3-phase sync flow
 - Storage overflow scenarios
 - Error recovery testing
@@ -691,6 +762,7 @@ Login Method → Wrapped Master Key → Master Key → Chat Keys → Data Decryp
 ### Configuration
 
 **Environment Variables:**
+
 - Storage limits and thresholds
 - Cache TTL settings
 - Sync phase timeouts
@@ -699,6 +771,7 @@ Login Method → Wrapped Master Key → Master Key → Chat Keys → Data Decryp
 ### Monitoring
 
 **Health Checks:**
+
 - Sync service availability
 - Storage usage monitoring
 - Error rate tracking
@@ -707,6 +780,7 @@ Login Method → Wrapped Master Key → Master Key → Chat Keys → Data Decryp
 ### Scaling
 
 **Horizontal Scaling:**
+
 - Redis cluster for pub/sub
 - Database connection pooling
 - Load balancer configuration
@@ -717,18 +791,21 @@ Login Method → Wrapped Master Key → Master Key → Chat Keys → Data Decryp
 ### Planned Features
 
 **Search Implementation:**
+
 - Full-text search across chats
 - Encrypted search indexes
 - Search result ranking
 - Search history management
 
 **Advanced Storage:**
+
 - Pinned chat support
 - Smart eviction policies
 - Storage compression
 - Backup and restore
 
 **Performance:**
+
 - Predictive prefetching
 - Smart caching algorithms
 - Network optimization
@@ -737,6 +814,7 @@ Login Method → Wrapped Master Key → Master Key → Chat Keys → Data Decryp
 ## Drafts
 
 ### Draft Storage and Sync
+
 - **Server Storage**: Drafts stored on server in chats model "draft" field
 - **Multi-Device Sync**: When draft updated on one device via [`sendUpdateDraftImpl()`](../../frontend/packages/ui/src/services/chatSyncServiceSenders.ts:71), sent to server and distributed to other logged-in devices
 - **Server Cache**: Draft saved to server cache via [`update_user_draft_in_cache()`](../../backend/core/api/app/services/cache_chat_mixin.py:256) for devices coming online after network interruption
@@ -747,6 +825,7 @@ Login Method → Wrapped Master Key → Master Key → Chat Keys → Data Decryp
 ## Opening Chat
 
 ### Chat Opening Process
+
 - **Decryption**: When chat opened via [`loadChat()`](../../frontend/packages/ui/src/components/ActiveChat.svelte), decrypt chat metadata using [`chatMetadataCache`](../../frontend/packages/ui/src/services/chatMetadataCache.ts:79) and display in web UI
 - **Message Loading**: Messages loaded from IndexedDB via [`getMessagesForChat()`](../../frontend/packages/ui/src/services/db.ts) and decrypted on-demand for display
 - **Embed Resolution**: When messages contain embed references, resolve embeds from EmbedStore (IndexedDB) or fetch from Directus if missing
@@ -758,13 +837,14 @@ Login Method → Wrapped Master Key → Master Key → Chat Keys → Data Decryp
 ## Search
 
 ### Search Implementation (Future)
+
 - **Scope**: Cover chats and their content (drafts, messages, files, embedded previews)
 - **Settings Search**: Include app settings and memories (with optional hiding from search)
 - **Quick Access**: Allow quick access to settings and their options
 - **Data Source**: All data stored in IndexedDB via [`chatDB`](../../frontend/packages/ui/src/services/db.ts)
 - **Index Building**: Build search index after all chats and messages are synced
 - **Privacy**: Maintain zero-knowledge architecture during search operations (search on decrypted content client-side only)
-- **Implementation**: See [`search.md`](./search.md) for detailed search architecture
+- **Implementation**: See [`search.md`](../user-guide/search.md) for detailed search architecture
 
 ## Next Steps
 
@@ -779,6 +859,7 @@ Login Method → Wrapped Master Key → Master Key → Chat Keys → Data Decryp
 The implemented 3-phase sync architecture provides a robust, secure, and performant solution for zero-knowledge chat synchronization. The system maintains complete privacy while delivering excellent user experience through intelligent data loading and storage management.
 
 Key achievements:
+
 - ✅ Complete 3-phase sync implementation
 - ✅ Zero-knowledge architecture compliance
 - ✅ Storage management with eviction policies

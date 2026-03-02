@@ -15,10 +15,65 @@
 
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { notificationStore } from "../stores/notificationStore";
+import { activeChatStore } from "../stores/activeChatStore";
 import { chatDB } from "./db";
 import { decryptWithMasterKey } from "./cryptoService";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { get } from "svelte/store";
+import type { Message } from "../types/chat";
+
+/**
+ * Pending system-message queue for cross-device sync.
+ *
+ * System messages (e.g., insufficient-credits rejections) arrive via
+ * `new_system_message` broadcast from another device.  Two race conditions
+ * can prevent them from being safely saved immediately:
+ *
+ * 1. The chat doesn't exist locally yet — `handleNewSystemMessageImpl`
+ *    previously just dropped the message with a console.warn.
+ * 2. The chat exists but the chat key is not yet in the in-memory cache —
+ *    calling `chatDB.saveMessage()` would trigger `getOrGenerateChatKey()`,
+ *    which generates a random throwaway key and caches it.  All future
+ *    decryption attempts use the wrong key → "[Content decryption failed]".
+ *
+ * Solution: buffer the system message here and flush it through
+ * `chatDB.saveMessage()` only after both the chat exists AND the correct
+ * key is in the in-memory cache.  `flushPendingSystemMessagesForChat()` must
+ * be called from every code-path that establishes the chat key.
+ */
+const _pendingSystemMessages: Map<string, Message[]> = new Map();
+
+/**
+ * Flush all pending system messages for a chat now that the key is available.
+ * Safe to call multiple times — a second call is a no-op once the queue is empty.
+ * Must be called AFTER the correct key has been set via `chatDB.setChatKey()`.
+ */
+export async function flushPendingSystemMessagesForChat(
+  chatId: string,
+): Promise<void> {
+  const pending = _pendingSystemMessages.get(chatId);
+  if (!pending || pending.length === 0) return;
+
+  // Remove from map immediately so concurrent flushes can't double-save
+  _pendingSystemMessages.delete(chatId);
+
+  console.info(
+    `[ChatSyncService:AppSettings] Flushing ${pending.length} pending system message(s) for chat ${chatId} now that key is available`,
+  );
+  for (const msg of pending) {
+    try {
+      await chatDB.saveMessage(msg);
+      console.debug(
+        `[ChatSyncService:AppSettings] Flushed pending system message ${msg.message_id} for chat ${chatId}`,
+      );
+    } catch (err) {
+      console.error(
+        `[ChatSyncService:AppSettings] Error flushing pending system message ${msg.message_id} for chat ${chatId}:`,
+        err,
+      );
+    }
+  }
+}
 
 /**
  * Payload structure for request_app_settings_memories WebSocket message
@@ -32,6 +87,16 @@ interface RequestAppSettingsMemoriesPayload {
 }
 
 /**
+ * Individual entry within a category for entry-level selection in the permission dialog.
+ */
+export interface AppSettingsMemoriesEntryInfo {
+  id: string; // Entry ID
+  title: string; // Display title (from is_title schema field)
+  subtitle?: string; // Display subtitle (from is_subtitle schema field)
+  selected: boolean; // Whether this individual entry is selected for sharing
+}
+
+/**
  * Parsed category for the permission dialog
  */
 export interface AppSettingsMemoriesCategory {
@@ -42,6 +107,7 @@ export interface AppSettingsMemoriesCategory {
   entryCount: number; // Number of entries in this category
   iconGradient?: string; // Optional CSS gradient for the icon background
   selected: boolean; // Whether this category is selected for sharing
+  entries?: AppSettingsMemoriesEntryInfo[]; // Individual entries for entry-level selection (loaded on expand)
 }
 
 /**
@@ -59,6 +125,38 @@ export interface PendingPermissionRequest {
 // Store for pending permission requests (keyed by request_id)
 // This allows the dialog to be shown and the user to respond later
 const pendingPermissionRequests = new Map<string, PendingPermissionRequest>();
+
+/**
+ * Notification IDs for the "inactive chat needs permission" banners.
+ * Keyed by request_id so each pending request has at most one notification.
+ */
+const permissionNotificationIds = new Map<string, string>();
+
+/**
+ * activeChatStore unsubscribe functions for each pending notification.
+ * When the user navigates to the target chat we auto-dismiss the banner.
+ * Keyed by request_id.
+ */
+const permissionNotificationUnsubs = new Map<string, () => void>();
+
+/**
+ * Dismiss the "inactive chat needs permission" notification for a given request_id
+ * and clean up the store subscription.
+ * Safe to call multiple times (idempotent).
+ */
+function dismissPermissionNotification(requestId: string): void {
+  const notifId = permissionNotificationIds.get(requestId);
+  if (notifId) {
+    notificationStore.removeNotification(notifId);
+    permissionNotificationIds.delete(requestId);
+  }
+
+  const unsub = permissionNotificationUnsubs.get(requestId);
+  if (unsub) {
+    unsub();
+    permissionNotificationUnsubs.delete(requestId);
+  }
+}
 
 /**
  * Get a pending permission request by ID
@@ -132,6 +230,89 @@ export function getAppGradient(appId: string): string {
 }
 
 /**
+ * Populate individual entry info for categories so the permission dialog
+ * can show expandable entry-level selection. Uses the appSettingsMemoriesStore
+ * which has already-decrypted entries in memory.
+ *
+ * Falls back gracefully if entries can't be loaded (dialog still works at category level).
+ */
+async function populateCategoryEntries(
+  categories: AppSettingsMemoriesCategory[],
+): Promise<void> {
+  try {
+    const { appSettingsMemoriesStore } =
+      await import("../stores/appSettingsMemoriesStore");
+    const { appSkillsStore } = await import("../stores/appSkillsStore");
+    const storeState = get(appSettingsMemoriesStore);
+
+    console.debug(
+      `[ChatSyncService:AppSettings] Populating entries for ${categories.length} categories. ` +
+        `Total decrypted entries in store: ${storeState.decryptedEntries.size}`,
+    );
+
+    for (const category of categories) {
+      // Find schema for is_title / is_subtitle fields
+      const app = appSkillsStore.apps[category.appId];
+      let titleField: string | null = null;
+      let subtitleField: string | null = null;
+
+      if (app) {
+        const memoryMeta = app.settings_and_memories.find(
+          (m) => m.id === category.itemType,
+        );
+        if (memoryMeta?.schema_definition?.properties) {
+          for (const [key, prop] of Object.entries(
+            memoryMeta.schema_definition.properties,
+          )) {
+            if (prop.is_title) titleField = key;
+            if (prop.is_subtitle) subtitleField = key;
+          }
+        }
+      }
+
+      // Get decrypted entries for this category
+      const entries: AppSettingsMemoriesEntryInfo[] = [];
+      for (const decryptedEntry of Array.from(
+        storeState.decryptedEntries.values(),
+      )) {
+        if (
+          decryptedEntry.app_id === category.appId &&
+          decryptedEntry.settings_group === category.itemType
+        ) {
+          const title = titleField
+            ? String(
+                decryptedEntry.item_value[titleField] ||
+                  decryptedEntry.item_key,
+              )
+            : decryptedEntry.item_key;
+          const subtitle = subtitleField
+            ? String(decryptedEntry.item_value[subtitleField] || "")
+            : undefined;
+
+          entries.push({
+            id: decryptedEntry.id,
+            title,
+            subtitle,
+            selected: true, // Default to selected (same as category)
+          });
+        }
+      }
+
+      category.entries = entries;
+      console.debug(
+        `[ChatSyncService:AppSettings] Populated ${entries.length} entries for category ${category.key} (${category.displayName})`,
+      );
+    }
+  } catch (error) {
+    console.error(
+      "[ChatSyncService:AppSettings] Error populating category entries:",
+      error,
+    );
+    throw error; // Re-throw so caller can handle it
+  }
+}
+
+/**
  * Handles server request for app settings/memories.
  *
  * 1. Parse the requested keys and build categories with entry counts
@@ -165,6 +346,46 @@ export async function handleRequestAppSettingsMemoriesImpl(
   }
 
   try {
+    // Guard: if we already have a response system message for this user_message_id, the user
+    // already answered this request (confirmed or rejected). Drop the incoming request silently.
+    // This happens when the continuation task's preprocessor re-requests the same categories
+    // and the server issues a second WebSocket event for the same user_message_id.
+    if (payload.message_id) {
+      try {
+        const existingMessages = await chatDB.getMessagesForChat(chat_id);
+        const alreadyAnswered = existingMessages.some((msg) => {
+          if (
+            msg.role !== "system" ||
+            !msg.content ||
+            typeof msg.content !== "string"
+          )
+            return false;
+          try {
+            const parsed = JSON.parse(msg.content);
+            return (
+              parsed.type === "app_settings_memories_response" &&
+              parsed.user_message_id === payload.message_id
+            );
+          } catch {
+            return false;
+          }
+        });
+        if (alreadyAnswered) {
+          console.info(
+            `[ChatSyncService:AppSettings] Dropping request ${request_id}: a response already exists for ` +
+              `user_message_id=${payload.message_id} in chat ${chat_id}. Request was already answered.`,
+          );
+          return;
+        }
+      } catch (checkError) {
+        // Non-fatal: if we can't check, proceed normally — worst case the user sees the dialog again
+        console.warn(
+          "[ChatSyncService:AppSettings] Could not check for existing response, proceeding:",
+          checkError,
+        );
+      }
+    }
+
     // Get entry counts from IndexedDB to show in the dialog
     const entryCounts = await chatDB.getAppSettingsMemoriesEntryCounts();
 
@@ -221,6 +442,26 @@ export async function handleRequestAppSettingsMemoriesImpl(
       return;
     }
 
+    // Populate individual entry info for each category (for entry-level selection in the dialog)
+    // IMPORTANT: If this fails, categories will have no entry-level info (only category-level)
+    try {
+      await populateCategoryEntries(categories);
+      console.info(
+        `[ChatSyncService:AppSettings] Successfully populated entries for ${categories.length} categories`,
+      );
+    } catch (populateError) {
+      console.error(
+        "[ChatSyncService:AppSettings] Failed to populate category entries. Dialog will only show category-level selection:",
+        populateError,
+      );
+      // Initialize entries as empty array for each category so the UI can still work
+      for (const category of categories) {
+        if (!category.entries) {
+          category.entries = [];
+        }
+      }
+    }
+
     console.info(
       `[ChatSyncService:AppSettings] Built ${categories.length} categories for permission dialog`,
     );
@@ -260,16 +501,22 @@ export async function handleRequestAppSettingsMemoriesImpl(
 
     // Update user message status from 'processing' to 'waiting_for_user' since we're waiting for input
     // This shows "Waiting for you..." in the sidebar and typing indicator instead of "Processing..."
+    //
+    // IMPORTANT: Use updateMessageStatus() NOT getMessage()→spread→saveMessage().
+    // saveMessage() calls encryptMessageFields() → getOrGenerateChatKey(). If the chat key
+    // is transiently absent from the in-memory cache, getOrGenerateChatKey() silently
+    // generates a new random key and re-encrypts the message with it — while
+    // encrypted_chat_key still holds the original key. This causes "[Content decryption
+    // failed]" on the sender's device. updateMessageStatus() patches only the status field
+    // in-place via a raw IndexedDB transaction with no encryption involved.
     if (payload.message_id) {
       try {
         const userMessage = await chatDB.getMessage(payload.message_id);
         if (userMessage && userMessage.status === "processing") {
-          // Update the message status and save it back
-          const updatedMessage = {
-            ...userMessage,
-            status: "waiting_for_user" as const,
-          };
-          await chatDB.saveMessage(updatedMessage);
+          await chatDB.updateMessageStatus(
+            payload.message_id,
+            "waiting_for_user",
+          );
           console.info(
             `[ChatSyncService:AppSettings] Updated user message ${payload.message_id} status from 'processing' to 'waiting_for_user'`,
           );
@@ -350,6 +597,38 @@ export async function handleRequestAppSettingsMemoriesImpl(
         `[ChatSyncService:AppSettings] Dispatched showAppSettingsMemoriesPermissionDialog event for request ${request_id}`,
       );
     }
+
+    // Show a persistent notification banner when the request arrives for a chat the user
+    // isn't currently viewing. Without this the event fires into the void — the dialog
+    // component only listens while that chat is open, so the user would never know.
+    const activeChatId = activeChatStore.get();
+    if (activeChatId !== chat_id) {
+      const notifId = notificationStore.addNotificationWithOptions("info", {
+        message: "A conversation is waiting for your permission to continue",
+        duration: 0, // Persistent — user must act or navigate to the target chat
+        dismissible: true,
+        actionLabel: "View",
+        onAction: () => {
+          activeChatStore.setActiveChat(chat_id);
+          // Navigation to the chat causes the dialog to appear; dismiss the banner
+          dismissPermissionNotification(request_id);
+        },
+      });
+      permissionNotificationIds.set(request_id, notifId);
+
+      // Also auto-dismiss if the user navigates to the target chat by any other means
+      // (e.g., clicking the chat directly in the sidebar).
+      const unsub = activeChatStore.subscribe((currentChatId) => {
+        if (currentChatId === chat_id) {
+          dismissPermissionNotification(request_id);
+        }
+      });
+      permissionNotificationUnsubs.set(request_id, unsub);
+
+      console.info(
+        `[ChatSyncService:AppSettings] Showing inactive-chat permission notification (request ${request_id}, target chat ${chat_id})`,
+      );
+    }
   } catch (error) {
     console.error(
       "[ChatSyncService:AppSettings] Error handling app settings/memories request:",
@@ -380,6 +659,7 @@ export async function handlePermissionDialogConfirm(
   serviceInstance: ChatSynchronizationService,
   requestId: string,
   selectedKeys: string[],
+  selectedEntryIdsByCategory?: Map<string, string[] | null>,
 ): Promise<void> {
   // Try in-memory Map first (fresh request), fall back to permission store (recovered request)
   let pendingRequest = pendingPermissionRequests.get(requestId);
@@ -432,6 +712,10 @@ export async function handlePermissionDialogConfirm(
       const appId = key.substring(0, dashIndex);
       const itemType = key.substring(dashIndex + 1);
 
+      // Check if specific entries were selected for this category
+      // null means "all entries" (no entry-level filtering)
+      const selectedEntryIds = selectedEntryIdsByCategory?.get(key) ?? null;
+
       // Get entries for this category
       const entries = await chatDB.getAppSettingsMemoriesEntriesByAppAndType(
         appId,
@@ -439,6 +723,11 @@ export async function handlePermissionDialogConfirm(
       );
 
       for (const entry of entries) {
+        // If entry-level selection is active, skip entries that weren't selected
+        if (selectedEntryIds !== null && !selectedEntryIds.includes(entry.id)) {
+          continue;
+        }
+
         try {
           // Decrypt the entry content
           const decryptedJson = await decryptWithMasterKey(
@@ -468,10 +757,14 @@ export async function handlePermissionDialogConfirm(
         "[ChatSyncService:AppSettings] No entries to send after decryption",
       );
       removePendingPermissionRequest(requestId);
+      dismissPermissionNotification(requestId);
       return;
     }
 
     // Import and call the sender function
+    console.info(
+      `[ChatSyncService:AppSettings] About to send ${appSettingsMemories.length} entries to server...`,
+    );
     const { sendAppSettingsMemoriesConfirmedImpl } =
       await import("./chatSyncServiceSenders");
     await sendAppSettingsMemoriesConfirmedImpl(
@@ -481,7 +774,7 @@ export async function handlePermissionDialogConfirm(
     );
 
     console.info(
-      `[ChatSyncService:AppSettings] Sent ${appSettingsMemories.length} entries to server`,
+      `[ChatSyncService:AppSettings] Successfully sent ${appSettingsMemories.length} entries to server`,
     );
 
     // Create system message with response metadata (synced to server for cross-device display)
@@ -516,6 +809,7 @@ export async function handlePermissionDialogConfirm(
 
     // Clean up the pending request
     removePendingPermissionRequest(requestId);
+    dismissPermissionNotification(requestId);
 
     // Notify user
     notificationStore.addNotification(
@@ -619,6 +913,7 @@ export async function handlePermissionDialogExclude(
   }
 
   removePendingPermissionRequest(requestId);
+  dismissPermissionNotification(requestId);
 }
 
 /**
@@ -689,6 +984,7 @@ export async function handlePermissionDialogLocalDismiss(
 
   // Remove from pending requests (no WebSocket send - server handles its own cleanup)
   removePendingPermissionRequest(requestId);
+  dismissPermissionNotification(requestId);
 
   // Clear the dialog UI
   const { appSettingsMemoriesPermissionStore } =
@@ -842,14 +1138,42 @@ async function saveAppSettingsMemoriesResponseMessage(
       `[ChatSyncService:AppSettings] Sent system message ${messageId} to server`,
     );
 
+    // Update the chat's last_edited_overall_timestamp so the chat moves to the top of the
+    // sidebar list when a system message (app settings/memories response) is added.
+    // System messages are user-facing interactions and should trigger the same sort update
+    // as user/assistant messages.
+    let updatedChatForDispatch: import("../types/chat").Chat | null = null;
+    try {
+      const chat = await chatDB.getChat(chatId);
+      if (chat) {
+        const updatedChat: import("../types/chat").Chat = {
+          ...chat,
+          last_edited_overall_timestamp: now,
+          updated_at: now,
+        };
+        await chatDB.updateChat(updatedChat);
+        updatedChatForDispatch = updatedChat;
+        console.debug(
+          `[ChatSyncService:AppSettings] Updated chat ${chatId} last_edited_overall_timestamp for response system message`,
+        );
+      }
+    } catch (chatUpdateError) {
+      console.warn(
+        `[ChatSyncService:AppSettings] Failed to update chat timestamp for response system message:`,
+        chatUpdateError,
+      );
+    }
+
     // Dispatch chatUpdated event to trigger UI refresh
     // ActiveChat listens for 'chatUpdated' with newMessage to update the chat history
+    // Include chat object so Chats.svelte uses the in-place patch path (faster than full DB reload)
     serviceInstance.dispatchEvent(
       new CustomEvent("chatUpdated", {
         detail: {
           chat_id: chatId,
           type: "system_message_added",
           newMessage: syncedMessage,
+          ...(updatedChatForDispatch ? { chat: updatedChatForDispatch } : {}),
         },
       }),
     );
@@ -970,26 +1294,54 @@ async function saveAppSettingsMemoriesRequestMessage(
     await chatDB.saveMessage(syncedMessage);
 
     console.debug(
-      `[ChatSyncService:AppSettings] Sent request system message ${messageId} to server`,
+      `[ChatSyncService:AppSettings] Sent system message ${messageId} to server`,
     );
+
+    // Update the chat's last_edited_overall_timestamp so the chat moves to the top of the
+    // sidebar list when a system message (app settings/memories response) is added.
+    // System messages are user-facing interactions and should trigger the same sort update
+    // as user/assistant messages.
+    let updatedChatForDispatch: import("../types/chat").Chat | null = null;
+    try {
+      const chat = await chatDB.getChat(chatId);
+      if (chat) {
+        const updatedChat: import("../types/chat").Chat = {
+          ...chat,
+          last_edited_overall_timestamp: now,
+          updated_at: now,
+        };
+        await chatDB.updateChat(updatedChat);
+        updatedChatForDispatch = updatedChat;
+        console.debug(
+          `[ChatSyncService:AppSettings] Updated chat ${chatId} last_edited_overall_timestamp for system message`,
+        );
+      }
+    } catch (chatUpdateError) {
+      console.warn(
+        `[ChatSyncService:AppSettings] Failed to update chat timestamp for system message:`,
+        chatUpdateError,
+      );
+    }
 
     // Dispatch chatUpdated event to trigger UI refresh
     // ActiveChat listens for 'chatUpdated' with newMessage to update the chat history
+    // Include chat object so Chats.svelte uses the in-place patch path (faster than full DB reload)
     serviceInstance.dispatchEvent(
       new CustomEvent("chatUpdated", {
         detail: {
           chat_id: chatId,
           type: "system_message_added",
           newMessage: syncedMessage,
+          ...(updatedChatForDispatch ? { chat: updatedChatForDispatch } : {}),
         },
       }),
     );
   } catch (sendError) {
     console.error(
-      `[ChatSyncService:AppSettings] Error sending request system message to server:`,
+      `[ChatSyncService:AppSettings] Error sending system message to server:`,
       sendError,
     );
-    // Message is still saved locally, will be synced later
+    // Message is saved locally, will be synced later
   }
 }
 
@@ -1055,6 +1407,19 @@ export async function handleAppSettingsMemoriesSyncReadyImpl(
     console.info(
       `[ChatSyncService:AppSettings] Successfully synced ${entries.length} app settings/memories entries`,
     );
+
+    // Refresh the in-memory store so entries are immediately available for the
+    // @ mention dropdown. Without this, the dropdown reads stale (empty) store
+    // state even though IndexedDB now has the entries.
+    // Non-blocking: a failure here must never break the sync flow.
+    const { appSettingsMemoriesStore } =
+      await import("../stores/appSettingsMemoriesStore");
+    appSettingsMemoriesStore.loadEntries().catch((err) => {
+      console.warn(
+        "[ChatSyncService:AppSettings] Failed to refresh store after sync (non-fatal):",
+        err,
+      );
+    });
 
     // Dispatch custom event to notify App Store components that sync is complete
     // This allows the App Store UI to refresh if it's currently open
@@ -1197,6 +1562,18 @@ export async function handleAppSettingsMemoriesEntrySyncedImpl(
       `[ChatSyncService:AppSettings] Synced ${entries.length} entries from another device`,
     );
 
+    // Refresh the in-memory store so the new entry is immediately available for
+    // the @ mention dropdown on this device.
+    // Non-blocking: a failure here must never break the sync flow.
+    const { appSettingsMemoriesStore } =
+      await import("../stores/appSettingsMemoriesStore");
+    appSettingsMemoriesStore.loadEntries().catch((err) => {
+      console.warn(
+        "[ChatSyncService:AppSettings] Failed to refresh store after cross-device sync (non-fatal):",
+        err,
+      );
+    });
+
     // Dispatch custom event to notify App Store components to refresh
     // This allows the UI to show the new entry immediately
     if (typeof window !== "undefined") {
@@ -1328,6 +1705,7 @@ export async function handleDismissAppSettingsMemoriesDialogImpl(
 
   // Remove from pending requests
   removePendingPermissionRequest(request_id);
+  dismissPermissionNotification(request_id);
 
   // Dispatch event to dismiss the Permission Dialog UI
   // The dialog component should listen for this and close itself
@@ -1368,6 +1746,13 @@ interface NewSystemMessagePayload {
     role: "system";
     encrypted_content: string; // Encrypted with chat key (zero-knowledge)
     created_at: number;
+    /** ID of the user message that triggered this system response (e.g., credits rejection).
+     *  Used by the sidebar to fetch and display the user message content below the
+     *  "Credits needed..." label. May be absent for older system messages. */
+    user_message_id?: string;
+    /** Status of this system message — e.g. "waiting_for_user" for credits rejection.
+     *  Preserves the originating device's status so other devices show the correct UI state. */
+    status?: string;
   };
   versions: {
     messages_v: number;
@@ -1377,13 +1762,20 @@ interface NewSystemMessagePayload {
 /**
  * Handles new system messages broadcast from other devices.
  *
- * When another device creates a system message (like app settings/memories response):
+ * When another device creates a system message (like an insufficient-credits rejection
+ * or app settings/memories response):
  * 1. Server broadcasts the encrypted message to all other logged-in devices
  * 2. This handler receives the message and stores it in IndexedDB
  * 3. Dispatches event to notify UI components to refresh
  *
  * **Zero-Knowledge Architecture**: Message content is encrypted with chat key.
  * Server stores but cannot decrypt. Decryption happens client-side on-demand.
+ *
+ * **Pending queue**: If the chat doesn't exist yet OR the chat key is not in cache,
+ * the message is buffered in `_pendingSystemMessages` and flushed once both are
+ * available.  This prevents the race condition where `chatDB.saveMessage()` calls
+ * `getOrGenerateChatKey()` and generates a random throwaway key, causing all
+ * subsequent decryption to fail with "[Content decryption failed]".
  */
 export async function handleNewSystemMessageImpl(
   serviceInstance: ChatSynchronizationService,
@@ -1395,6 +1787,8 @@ export async function handleNewSystemMessageImpl(
       chat_id: payload.chat_id,
       message_id: payload.data?.message_id,
       messages_v: payload.versions?.messages_v,
+      status: payload.data?.status,
+      has_user_message_id: !!payload.data?.user_message_id,
     },
   );
 
@@ -1408,53 +1802,83 @@ export async function handleNewSystemMessageImpl(
     return;
   }
 
+  // Preserve the status from the originating device (e.g., "waiting_for_user" for
+  // credits-rejection messages).  This is critical for the sidebar to show
+  // "Credits needed..." instead of falling back to "Untitled Chat" on reload.
+  // Default to "waiting_for_user" for system messages since that's the most common
+  // cross-device case (credits rejection). Regular app-settings/memories responses
+  // can override with a different status via the payload.
+  const messageStatus =
+    (data.status as Message["status"]) || "waiting_for_user";
+
+  // Build the system message object.
+  // NOTE: Do NOT call chatDB.saveMessage() yet — it calls encryptMessageFields()
+  // which calls getOrGenerateChatKey().  If the chat key is not in cache, a random
+  // throwaway key is generated and cached, corrupting all future decryption for this
+  // chat.  Instead, we save only after confirming the key is in cache.
+  const systemMessage: Message = {
+    message_id: data.message_id,
+    chat_id: chat_id,
+    role: "system" as const,
+    encrypted_content: data.encrypted_content,
+    created_at: data.created_at,
+    status: messageStatus,
+    ...(data.user_message_id ? { user_message_id: data.user_message_id } : {}),
+  };
+
   try {
-    // Check if chat exists locally
+    // Check if chat exists locally AND key is in cache before saving.
+    // If either is missing, queue the message for later flush.
     const chat = await chatDB.getChat(chat_id);
-    if (!chat) {
+    const keyInCache = !!chatDB.getChatKey(chat_id);
+
+    if (!chat || !keyInCache) {
+      // Queue for flush once chat+key are available (via new_chat_message or phased sync)
+      const queue = _pendingSystemMessages.get(chat_id) ?? [];
+      queue.push(systemMessage);
+      _pendingSystemMessages.set(chat_id, queue);
       console.warn(
-        `[ChatSyncService:AppSettings] Chat ${chat_id} not found locally, skipping system message sync`,
+        `[ChatSyncService:AppSettings] Chat ${chat_id} not ready (chat=${!!chat}, keyInCache=${keyInCache}) — ` +
+          `queued system message ${data.message_id} (queue length: ${queue.length}). ` +
+          `Will save once chat+key are available.`,
       );
       return;
     }
 
-    // Create message object for IndexedDB
-    // Content is encrypted with chat key - will be decrypted when loaded
-    const systemMessage = {
-      message_id: data.message_id,
-      chat_id: chat_id,
-      role: "system" as const,
-      encrypted_content: data.encrypted_content,
-      created_at: data.created_at,
-      status: "synced" as const,
-    };
-
-    // Save to IndexedDB
+    // Save to IndexedDB — key is in cache so encryptMessageFields() won't generate a bad key
     await chatDB.saveMessage(systemMessage);
     console.debug(
-      `[ChatSyncService:AppSettings] Saved system message ${data.message_id} from other device`,
+      `[ChatSyncService:AppSettings] Saved system message ${data.message_id} from other device (status=${messageStatus})`,
     );
 
-    // Update chat's messages_v version counter
-    if (versions?.messages_v !== undefined) {
-      await chatDB.updateChatComponentVersion(
-        chat_id,
-        "messages_v",
-        versions.messages_v,
-      );
-      console.debug(
-        `[ChatSyncService:AppSettings] Updated chat ${chat_id} messages_v to ${versions.messages_v}`,
-      );
-    }
+    // Update chat's messages_v version counter AND last_edited_overall_timestamp.
+    // System messages from other devices are user-facing events (e.g. credits rejection,
+    // app settings/memories response) that should sort the chat to the top.
+    const sysMessageTimestamp =
+      data.created_at || Math.floor(Date.now() / 1000);
+    const updatedChat: import("../types/chat").Chat = {
+      ...chat,
+      last_edited_overall_timestamp: sysMessageTimestamp,
+      updated_at: Math.floor(Date.now() / 1000),
+      ...(versions?.messages_v !== undefined
+        ? { messages_v: versions.messages_v }
+        : {}),
+    };
+    await chatDB.updateChat(updatedChat);
+    console.debug(
+      `[ChatSyncService:AppSettings] Updated chat ${chat_id} last_edited_overall_timestamp and messages_v for cross-device system message`,
+    );
 
     // Dispatch chatUpdated event to trigger UI refresh
     // ActiveChat listens for 'chatUpdated' with newMessage to update the chat history
+    // Include chat object so Chats.svelte uses the in-place patch path (faster than full DB reload)
     serviceInstance.dispatchEvent(
       new CustomEvent("chatUpdated", {
         detail: {
           chat_id: chat_id,
           type: "system_message_synced",
           messagesUpdated: true,
+          chat: updatedChat,
         },
       }),
     );
@@ -1505,11 +1929,14 @@ export async function handleSystemMessageConfirmedImpl(
   }
 
   try {
-    // Update message status to synced (if it's still 'sending')
+    // Update message status to synced (if it's still 'sending').
+    // IMPORTANT: Use updateMessageStatus() NOT getMessage()→spread→saveMessage().
+    // See the comment in handleAppSettingsSkillWaitingForUserImpl for the full
+    // explanation of why saveMessage() on an existing message can silently corrupt
+    // the message via a key re-generation race.
     const message = await chatDB.getMessage(message_id);
     if (message && message.status === "sending") {
-      const syncedMessage = { ...message, status: "synced" as const };
-      await chatDB.saveMessage(syncedMessage);
+      await chatDB.updateMessageStatus(message_id, "synced");
       console.debug(
         `[ChatSyncService:AppSettings] Updated system message ${message_id} status to 'synced'`,
       );
@@ -1619,10 +2046,7 @@ export async function handlePendingAIResponseImpl(
     }
 
     // Skip error responses - they shouldn't be persisted
-    if (
-      content.includes("[ERROR") ||
-      content === "chat.an_error_occured"
-    ) {
+    if (content.includes("[ERROR") || content === "chat.an_error_occured") {
       console.debug(
         `[ChatSyncService:PendingAI] Skipping error response for message ${message_id}`,
       );
@@ -1655,9 +2079,12 @@ export async function handlePendingAIResponseImpl(
       `[ChatSyncService:PendingAI] Saved pending AI response ${message_id} to IndexedDB for chat ${chat_id}`,
     );
 
-    // Update chat metadata with new messages_v
+    // Update chat metadata with new messages_v.
+    // Use the server-provided fired_at timestamp (when the AI actually finished), not
+    // Date.now() (reconnect time), so that the chat sorts to its correct position in
+    // history rather than always jumping to the top when the user reconnects.
     const newMessagesV = (chat.messages_v || 0) + 1;
-    const newLastEdited = Math.floor(Date.now() / 1000);
+    const newLastEdited = payload.fired_at || aiMessage.created_at;
     const updatedChat = {
       ...chat,
       messages_v: newMessagesV,
@@ -1665,7 +2092,7 @@ export async function handlePendingAIResponseImpl(
     };
     await chatDB.updateChat(updatedChat as import("../types/chat").Chat);
     console.info(
-      `[ChatSyncService:PendingAI] Updated chat ${chat_id} metadata: messages_v=${newMessagesV}`,
+      `[ChatSyncService:PendingAI] Updated chat ${chat_id} metadata: messages_v=${newMessagesV}, last_edited=${newLastEdited} (fired_at=${payload.fired_at})`,
     );
 
     // Dispatch chatUpdated event to trigger UI refresh
@@ -1868,6 +2295,35 @@ export async function handleReminderFiredImpl(
       `[ChatSyncService:Reminder] Saved reminder system message ${message_id} to IndexedDB`,
     );
 
+    // For existing_chat reminders: update the chat's last_edited_overall_timestamp so the chat
+    // moves to the top of the sidebar list when the reminder fires.
+    // (For new_chat reminders this is already handled when the chat is created above.)
+    // A reminder firing is a meaningful event the user should see, so it should sort the chat up
+    // just like any other system/user/assistant message.
+    let updatedChatForDispatch: import("../types/chat").Chat | null = null;
+    if (target_type === "existing_chat") {
+      try {
+        const existingChat = await chatDB.getChat(chat_id);
+        if (existingChat) {
+          const updatedChat: import("../types/chat").Chat = {
+            ...existingChat,
+            last_edited_overall_timestamp: now,
+            updated_at: now,
+          };
+          await chatDB.updateChat(updatedChat);
+          updatedChatForDispatch = updatedChat;
+          console.debug(
+            `[ChatSyncService:Reminder] Updated chat ${chat_id} last_edited_overall_timestamp for reminder system message`,
+          );
+        }
+      } catch (chatUpdateError) {
+        console.warn(
+          `[ChatSyncService:Reminder] Failed to update chat timestamp for reminder:`,
+          chatUpdateError,
+        );
+      }
+    }
+
     // Send encrypted content to server for persistence via existing system message flow
     const serverPayload = {
       chat_id: chat_id,
@@ -1901,6 +2357,7 @@ export async function handleReminderFiredImpl(
 
     // Dispatch chatUpdated event to trigger UI refresh
     // This makes the system message appear in the chat immediately
+    // Include chat object so Chats.svelte uses the in-place patch path (faster than full DB reload)
     serviceInstance.dispatchEvent(
       new CustomEvent("chatUpdated", {
         detail: {
@@ -1908,6 +2365,7 @@ export async function handleReminderFiredImpl(
           type: "reminder_system_message_added",
           newMessage: systemMessage,
           messagesUpdated: true,
+          ...(updatedChatForDispatch ? { chat: updatedChatForDispatch } : {}),
         },
       }),
     );

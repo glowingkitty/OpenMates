@@ -363,10 +363,14 @@ export async function handlePhase1LastChatImpl(
       const userProfile = await userDB.getUserProfile();
       const currentUserId = userProfile?.user_id;
 
-      // CRITICAL FIX: Ensure chat_details has the chat_id field
-      // The backend sends chat_id at payload root, but chat_details needs it too
-      // Ensure all required Chat fields are present
+      // Build the Chat object from payload.
+      // CRITICAL: Spread chat_details FIRST so explicit field assignments below win.
+      // Previously the spread was last, which could overwrite explicit null-coalescing
+      // defaults (e.g. messages_v ?? 0) with raw undefined values from chat_details,
+      // and override user_id with whatever was (or wasn't) in the server payload.
       const chatWithId: Chat = {
+        ...payload.chat_details,
+        // Explicit fields below override the spread
         chat_id: payload.chat_id,
         encrypted_title: payload.chat_details.encrypted_title ?? null,
         messages_v: payload.chat_details.messages_v ?? 0,
@@ -386,7 +390,6 @@ export async function handlePhase1LastChatImpl(
           payload.chat_details.updated_at ?? Math.floor(Date.now() / 1000),
         // Set user_id from current user (all synced chats belong to them - server filters by hashed_user_id)
         user_id: currentUserId,
-        // Include optional fields
         encrypted_chat_key: payload.chat_details.encrypted_chat_key ?? null,
         encrypted_icon: payload.chat_details.encrypted_icon ?? null,
         encrypted_category: payload.chat_details.encrypted_category ?? null,
@@ -394,20 +397,22 @@ export async function handlePhase1LastChatImpl(
           payload.chat_details.encrypted_active_focus_id ?? null,
         is_shared: payload.chat_details.is_shared,
         is_private: payload.chat_details.is_private,
-        ...payload.chat_details,
       };
 
-      // Use a single transaction for all Phase 1 writes (chat + messages) for instant availability
+      // NOTE: We intentionally do NOT use a shared multi-store transaction here.
+      // IDB transactions auto-commit when there are no pending requests AND the JS
+      // event loop returns. addChat() and saveMessage() both do async crypto (key
+      // derivation) BEFORE queuing their IDB writes, which causes the shared
+      // transaction to auto-commit in the async gap — resulting in
+      // InvalidStateError warnings on every login.
+      // Each function already manages its own reliable internal transaction, so
+      // calling them without a shared transaction is the correct pattern here.
       await chatDB.init();
-      const transaction = await chatDB.getTransaction(
-        ["chats", "messages"],
-        "readwrite",
-      );
 
-      // Store chat metadata in transaction
-      await chatDB.addChat(chatWithId, transaction);
+      // Store chat metadata (uses its own internal transaction)
+      await chatDB.addChat(chatWithId);
 
-      // Store messages if provided
+      // Store messages if provided (each uses its own internal transaction)
       if (payload.messages && payload.messages.length > 0) {
         console.info(
           "[ChatSyncService:CoreSync] Saving",
@@ -442,23 +447,12 @@ export async function handlePhase1LastChatImpl(
             message.chat_id = payload.chat_id;
           }
 
-          await chatDB.saveMessage(message, transaction);
+          await chatDB.saveMessage(message);
         }
       }
 
-      // Wait for transaction to complete
-      await new Promise<void>((resolve, reject) => {
-        transaction.oncomplete = () => resolve();
-        transaction.onerror = () => reject(transaction.error);
-      });
-
-      // CRITICAL FIX: Add delay after transaction to ensure IndexedDB has flushed to disk
-      // Without this, getAllChats() called immediately after returns 0 chats!
-      // 50ms ensures data is queryable across different transactions
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
       console.info(
-        "[ChatSyncService:CoreSync] ✅ Phase 1 transaction completed - data is now immediately available in IndexedDB for chat:",
+        "[ChatSyncService:CoreSync] ✅ Phase 1 writes complete for chat:",
         payload.chat_id,
       );
     }
@@ -502,6 +496,80 @@ export async function handlePhase1LastChatImpl(
     } else {
       console.warn(
         "[ChatSyncService:CoreSync] ⚠️ No new chat suggestions received in Phase 1 - this is unexpected!",
+      );
+    }
+
+    // Handle daily inspirations synced in Phase 1 (mirrors new_chat_suggestions pattern).
+    // Raw encrypted Directus records are decrypted and saved to IndexedDB here so inspirations
+    // are available immediately after login without waiting for the fallback fetch.
+    // Import the store once upfront so both the success and empty branches can use it without
+    // an extra async microtask gap before calling setInspirations / markPhase1Empty.
+    try {
+      const { dailyInspirationStore } =
+        await import("../stores/dailyInspirationStore");
+
+      if (payload.daily_inspirations && payload.daily_inspirations.length > 0) {
+        console.info(
+          "[ChatSyncService:CoreSync] Processing",
+          payload.daily_inspirations.length,
+          "daily inspirations from Phase 1 sync",
+        );
+        try {
+          const { processInspirationRecordsFromSync } =
+            await import("./dailyInspirationDB");
+          const savedInspirations = await processInspirationRecordsFromSync(
+            payload.daily_inspirations,
+          );
+
+          // Populate the store so UI updates immediately.
+          // Always write personalized data from Phase 1 — it must override any
+          // public defaults that loadDefaultInspirations() may have already loaded
+          // (defaults load fast via unauthenticated REST; Phase 1 is slower because
+          // it requires the WS auth handshake). The store's setInspirations guard
+          // prevents defaults from overwriting personalized data, but the reverse
+          // must never apply: personalized data (with is_opened / opened_chat_id)
+          // must always win.
+          if (savedInspirations && savedInspirations.length > 0) {
+            dailyInspirationStore.setInspirations(savedInspirations, {
+              personalized: true,
+            });
+            console.info(
+              "[ChatSyncService:CoreSync] ✅ Daily inspiration store populated with",
+              savedInspirations.length,
+              "personalized inspiration(s) from Phase 1 sync",
+            );
+          } else {
+            // Server sent N inspirations but decryption returned 0 — most likely the
+            // master key was not yet available (first login race condition). Log this
+            // clearly so it shows up in debug sessions. Also call markPhase1Empty()
+            // so the fallback in Chats.svelte uses the shorter 1 s wait rather than
+            // 3.5 s (the payload was non-empty so the normal empty branch below is
+            // never reached, leaving the fallback on the slower path without this fix).
+            console.warn(
+              "[ChatSyncService:CoreSync] ⚠️ processInspirationRecordsFromSync returned 0 despite",
+              payload.daily_inspirations.length,
+              "records from server — master key likely absent on first login. Triggering short fallback.",
+            );
+            dailyInspirationStore.markPhase1Empty();
+          }
+        } catch (inspirationError) {
+          console.error(
+            "[ChatSyncService:CoreSync] Error processing daily inspirations from Phase 1 sync:",
+            inspirationError,
+          );
+        }
+      } else {
+        // Phase 1 delivered zero inspirations — the server has none stored for this user.
+        // Signal the fallback in Chats.svelte to use a shorter wait (1 s instead of 3.5 s).
+        console.warn(
+          "[ChatSyncService:CoreSync] ⚠️ No daily inspirations received in Phase 1 — marking phase1Empty so fallback uses 1 s wait instead of 3.5 s",
+        );
+        dailyInspirationStore.markPhase1Empty();
+      }
+    } catch (storeImportErr) {
+      console.error(
+        "[ChatSyncService:CoreSync] Failed to import dailyInspirationStore in Phase 1:",
+        storeImportErr,
       );
     }
 

@@ -20,6 +20,7 @@ favorite_places:
   th: สถานที่โปรด
   cs: Oblíbená místa
   sv: Favoritplatser
+  he: מקומות מועדפים
   verified_by_human:
     - en
     - de
@@ -45,6 +46,7 @@ favorite_places.description:
   th: สถานที่โปรดที่บันทึกไว้สำหรับการเข้าถึงอย่างรวดเร็ว
   cs: Vaše uložená oblíbená místa pro rychlý přístup.
   sv: Dina sparade favoritplatser för snabb åtkomst.
+  he: המקומות המועדפים ששמרת לגישה מהירה.
   verified_by_human:
     - en
     - de
@@ -73,6 +75,7 @@ favorite_places.example_1:
   th: บ้าน
   cs: Domov
   sv: Hem
+  he: בית
   verified_by_human:
     - en
     - de
@@ -98,6 +101,7 @@ favorite_places.example_2:
   th: ออฟฟิศ
   cs: Kancelář
   sv: Kontor
+  he: משרד
   verified_by_human:
     - en
     - de
@@ -123,6 +127,7 @@ favorite_places.example_3:
   th: ร้านกาแฟโปรด
   cs: Oblíbená kavárna
   sv: Favoritkafé
+  he: בית הקפה המועדף
   verified_by_human:
     - en
     - de

@@ -48,7 +48,25 @@ directus_users:
     encrypted_profileimage_url:
       type: string
       length: 512
-      note: "Encrypted profile image URL"
+      note: "LEGACY: Encrypted profile image URL (public-read S3 bucket). Kept for backward compat — new uploads use profile_image_s3_key + encrypted_profile_image_aes_key + profile_image_aes_nonce instead."
+
+    profile_image_s3_key:
+      type: string
+      length: 512
+      nullable: true
+      note: "S3 object key in the private profile-images-private bucket (e.g. '<user_id>-<ts>-<random>.enc'). Set only for new-style encrypted uploads. Null for legacy public-URL users."
+
+    encrypted_profile_image_aes_key:
+      type: string
+      length: 512
+      nullable: true
+      note: "Vault Transit-wrapped AES-256 key used to encrypt the profile image bytes. Must be unwrapped with the user's Vault key before AES-GCM decryption."
+
+    profile_image_aes_nonce:
+      type: string
+      length: 128
+      nullable: true
+      note: "Base64-encoded 12-byte AES-GCM nonce for profile image decryption."
 
     encrypted_credit_balance:
       type: string
@@ -281,6 +299,29 @@ directus_users:
       nullable: true
       note: "ISO timestamp of when the user consented to the withdrawal waiver (agreed to immediate execution of digital services, acknowledging that withdrawal right expires once credits are used). Required for EU/German consumer law compliance."
 
+    # Storage tracking and billing fields
+    storage_used_bytes:
+      type: bigInteger
+      default: 0
+      note: "Total S3 storage used by this user in bytes across all upload_files records. Incremented on new file upload, decremented when files are deleted (on chat deletion or manual delete). Used for weekly storage billing calculation."
+
+    storage_last_billed_at:
+      type: integer
+      nullable: true
+      note: "Unix timestamp (seconds) of the last completed weekly storage billing run for this user. Used to track billing history and prevent double-charging."
+
+    # Auto-deletion settings (privacy feature)
+    auto_delete_chats_after_days:
+      type: integer
+      nullable: true
+      note: "Auto-delete chats older than N days. Null means never auto-delete. The daily Celery Beat task reads this field and dispatches persist_delete_chat for stale chats. Settable via POST /v1/settings/auto-delete-chats."
+
+    storage_billing_failures:
+      type: integer
+      default: 0
+      nullable: false
+      note: "Number of consecutive weekly storage billing failures due to insufficient credits. Incremented each Sunday when charge_storage_fees cannot deduct credits. Reset to 0 on successful charge. When this reaches 4, all user upload files are deleted from S3 and upload_files records are purged."
+
     # Email notification fields
     email_notifications_enabled:
       type: boolean
@@ -297,3 +338,16 @@ directus_users:
       type: json
       note: "User's email notification preferences: { aiResponses: boolean }. Controls which events trigger email notifications."
       default: '{"aiResponses": true}'
+
+    # Default model preferences for AI Ask skill (cross-device sync)
+    default_ai_model_simple:
+      type: string
+      length: 256
+      nullable: true
+      note: "User's preferred default model for simple AI requests. Null = auto-select. Format: 'provider/model_id' (e.g., 'anthropic/claude-haiku-4-5-20251001'). Settable via POST /v1/settings/ai-model-defaults."
+
+    default_ai_model_complex:
+      type: string
+      length: 256
+      nullable: true
+      note: "User's preferred default model for complex AI requests. Null = auto-select. Format: 'provider/model_id' (e.g., 'anthropic/claude-opus-4-6'). Settable via POST /v1/settings/ai-model-defaults."

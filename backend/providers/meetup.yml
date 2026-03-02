@@ -1,0 +1,24 @@
+# backend/providers/meetup.yml
+#
+# Configuration for Meetup provider.
+# Used by the Events app for searching local meetups, conferences, and events.
+
+provider_id: "meetup"
+name: "Meetup"
+description: "Community platform for finding and building local groups and events worldwide."
+logo_svg: "logos/meetup.svg"
+region: "US" # Meetup HQ is in New York, US
+
+# API endpoint configuration
+# Meetup uses an unauthenticated GraphQL endpoint (gql2) for public event searches
+api_base_url: "https://api.meetup.com/gql2"
+
+# Rate limiting / access notes:
+# - No API key required for public event search queries
+# - Unauthenticated GraphQL endpoint; rate limits are enforced server-side by Meetup
+# - Meetup does not publish exact rate limits for unauthenticated access
+
+# Pricing information
+# Users are charged per events search request
+pricing:
+  per_request_credits: 5 # 5 credits per events search request (set in app.yml)

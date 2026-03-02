@@ -65,6 +65,8 @@
     onNavigatePrevious?: () => void;
     /** Handler to navigate to the next embed */
     onNavigateNext?: () => void;
+    /** Direction of the navigation that triggered this mount (for slide animation) */
+    navigateDirection?: 'next' | 'previous' | null;
     /** Whether to show the "chat" button to restore chat visibility (ultra-wide forceOverlayMode) */
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button to restore chat visibility */
@@ -84,6 +86,7 @@
     hasNextEmbed = false,
     onNavigatePrevious,
     onNavigateNext,
+    navigateDirection = null,
     showChatButton = false,
     onShowChat,
     metadata
@@ -95,18 +98,34 @@
   
   // Use metadata from preview if available, otherwise extract from URL
   // Priority: metadata props > direct props > extracted from URL
-  let videoId = $state(metadata?.videoId || propVideoId || '');
+  // Initialised to static defaults; $effect below syncs from props to support reactive updates.
+  let videoId = $state('');
   // Raw thumbnail URL (direct YouTube CDN) - will be proxied for display
-  let rawThumbnailUrl = $state(metadata?.thumbnailUrl || '');
-  let displayTitle = $state(metadata?.title || title || 'YouTube Video');
-  let channelName = $state(metadata?.channelName || '');
-  let channelId = $state(metadata?.channelId || '');
-  let rawChannelThumbnail = $state(metadata?.channelThumbnail || '');  // Channel profile picture URL
-  let description = $state(metadata?.description || '');
-  let duration = $state(metadata?.duration);
-  let viewCount = $state(metadata?.viewCount);
-  let likeCount = $state(metadata?.likeCount);
-  let publishedAt = $state(metadata?.publishedAt);
+  let rawThumbnailUrl = $state('');
+  let displayTitle = $state('YouTube Video');
+  let channelName = $state('');
+  let channelId = $state('');
+  let rawChannelThumbnail = $state('');  // Channel profile picture URL
+  let description = $state('');
+  let duration = $state<VideoMetadata['duration'] | undefined>(undefined);
+  let viewCount = $state<VideoMetadata['viewCount'] | undefined>(undefined);
+  let likeCount = $state<VideoMetadata['likeCount'] | undefined>(undefined);
+  let publishedAt = $state<VideoMetadata['publishedAt'] | undefined>(undefined);
+
+  // Sync state from props (runs on mount and whenever metadata/propVideoId/title changes)
+  $effect(() => {
+    videoId = metadata?.videoId || propVideoId || '';
+    rawThumbnailUrl = metadata?.thumbnailUrl || '';
+    displayTitle = metadata?.title || title || 'YouTube Video';
+    channelName = metadata?.channelName || '';
+    channelId = metadata?.channelId || '';
+    rawChannelThumbnail = metadata?.channelThumbnail || '';
+    description = metadata?.description || '';
+    duration = metadata?.duration;
+    viewCount = metadata?.viewCount;
+    likeCount = metadata?.likeCount;
+    publishedAt = metadata?.publishedAt;
+  });
   
   // DEBUG: Log received metadata to verify data flow
   $effect(() => {
@@ -253,7 +272,7 @@
   function formatViewCount(count: number | undefined): string {
     if (!count) return '';
     const formattedCount = formatCompactNumber(count);
-    return $text('embeds.video_views', { count: formattedCount });
+    return $text('embeds.video_views', { values: { count: formattedCount } });
   }
   
   /**
@@ -263,7 +282,7 @@
   function formatLikeCount(count: number | undefined): string {
     if (!count) return '';
     const formattedCount = formatCompactNumber(count);
-    return $text('embeds.video_likes', { count: formattedCount });
+    return $text('embeds.video_likes', { values: { count: formattedCount } });
   }
   
   /**
@@ -281,10 +300,10 @@
       
       if (diffDays < 1) return $text('embeds.date_today');
       if (diffDays === 1) return $text('embeds.date_yesterday');
-      if (diffDays < 7) return $text('embeds.date_days_ago', { count: diffDays });
-      if (diffDays < 30) return $text('embeds.date_weeks_ago', { count: Math.floor(diffDays / 7) });
-      if (diffDays < 365) return $text('embeds.date_months_ago', { count: Math.floor(diffDays / 30) });
-      return $text('embeds.date_years_ago', { count: Math.floor(diffDays / 365) });
+      if (diffDays < 7) return $text('embeds.date_days_ago', { values: { count: diffDays } });
+      if (diffDays < 30) return $text('embeds.date_weeks_ago', { values: { count: Math.floor(diffDays / 7) } });
+      if (diffDays < 365) return $text('embeds.date_months_ago', { values: { count: Math.floor(diffDays / 30) } });
+      return $text('embeds.date_years_ago', { values: { count: Math.floor(diffDays / 365) } });
     } catch {
       return '';
     }
@@ -313,15 +332,6 @@
   // ===========================================
   // BasicInfosBar Derived Values (match VideoEmbedPreview format)
   // ===========================================
-  
-  // Shortened video title for BasicInfosBar (truncate if too long)
-  let shortenedTitle = $derived.by(() => {
-    const titleToShorten = displayTitle || $text('embeds.youtube_video');
-    // Max ~30 chars for preview layout in the info bar
-    const maxLength = 30;
-    if (titleToShorten.length <= maxLength) return titleToShorten;
-    return titleToShorten.substring(0, maxLength - 1) + '…';
-  });
   
   // Formatted upload date for BasicInfosBar
   let formattedUploadDate = $derived(formatUploadDate(publishedAt));
@@ -367,7 +377,8 @@
     });
   }
   
-  // Handle tip creator - opens tip settings menu
+  // Handle tip creator - opens tip settings menu (commented out for now)
+  /*
   async function handleTipCreator() {
     if (!url || !videoId) {
       console.warn('[VideoEmbedFullscreen] Cannot tip: missing URL or video ID');
@@ -387,7 +398,7 @@
       });
       
       // Navigate to tip settings
-      navigateToSettings('shared/tip', $text('settings.tip.tip_creator'), 'tip', 'settings.tip.tip_creator');
+      navigateToSettings('shared/tip', $text('embeds.tip_creator'), 'tip', 'embeds.tip_creator');
       
       // Open settings panel if not already open
       panelState.openSettings();
@@ -399,6 +410,7 @@
       notificationStore.error('Failed to open tip menu. Please try again.');
     }
   }
+  */
   
   // Handle copy - copies video URL to clipboard with notification
   async function handleCopy() {
@@ -489,25 +501,36 @@
 <UnifiedEmbedFullscreen
   appId="videos"
   skillId="video"
-  title=""
+  embedHeaderTitle={displayTitle}
+  embedHeaderSubtitle={customStatusText ? `${channelName ? `by ${channelName}` : ''}${channelName && formattedUploadDate ? ', ' : ''}${formattedUploadDate ? `${formattedUploadDate} uploaded` : ''}` : undefined}
+  embedHeaderFaviconUrl={channelThumbnailUrl || undefined}
+  embedHeaderFaviconIsCircular={true}
+  skillIconName="video"
   onClose={handleClose}
   onCopy={handleCopy}
   currentEmbedId={embedId}
-  skillIconName="video"
-  status="finished"
-  skillName={shortenedTitle}
-  faviconUrl={channelThumbnailUrl || undefined}
-  faviconIsCircular={true}
-  showSkillIcon={false}
-  showStatus={true}
-  {customStatusText}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
   {onNavigateNext}
+  {navigateDirection}
   {showChatButton}
   {onShowChat}
 >
+  {#snippet embedHeaderCta()}
+    <!-- Open on YouTube CTA - always visible in header when URL is available -->
+    {#if url}
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="open-on-youtube-button"
+      >
+        {$text('embeds.open_on_youtube')}
+      </a>
+    {/if}
+  {/snippet}
+
   {#snippet content()}
     <div class="video-container">
       <!-- Video thumbnail with play button -->
@@ -542,76 +565,56 @@
           </button>
         </div>
         <!-- Action buttons - positioned below thumbnail -->
-        {#if url}
-          <div class="button-container">
-            <!-- Tip Creator button - positioned left to the play on YouTube button -->
+        <div class="button-container">
+          <!-- Tip Creator button (commented out for now) -->
+          <!-- <button
+            class="tip-creator-button"
+            onclick={handleTipCreator}
+            type="button"
+            aria-label={$text('embeds.tip_creator')}
+          >
+            <span class="clickable-icon icon_volunteering"></span>
+          </button> -->
+          <!-- Picture-in-Picture button - only shown when video is playing -->
+          {#if isVideoPlaying && videoId && embedUrl}
             <button
-              class="tip-creator-button"
-              onclick={handleTipCreator}
+              class="pip-button"
+              onclick={handleEnterPip}
               type="button"
-              aria-label={$text('embeds.tip_creator')}
+              aria-label={$text('embeds.video_pip')}
             >
-              <span class="clickable-icon icon_volunteering"></span>
+              <span class="clickable-icon icon_pip"></span>
             </button>
-            <a 
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="open-on-youtube-button"
-            >
-              {$text('embeds.open_on_youtube')}
-            </a>
-            <!-- Picture-in-Picture button - only shown when video is playing -->
-            {#if isVideoPlaying && videoId && embedUrl}
-              <button
-                class="pip-button"
-                onclick={handleEnterPip}
-                type="button"
-                aria-label={$text('embeds.video_pip')}
-              >
-                <span class="clickable-icon icon_pip"></span>
-              </button>
-            {/if}
-          </div>
-        {/if}
+          {/if}
+        </div>
       {:else if isVideoPlaying}
         <!-- Video is playing - VideoIframe shows the actual video -->
         <!-- This spacer maintains layout so buttons stay below the video -->
         <div class="video-playing-spacer"></div>
         
         <!-- Action buttons when video is playing -->
-        {#if url}
-          <div class="button-container">
-            <!-- Tip Creator button -->
+        <div class="button-container">
+          <!-- Tip Creator button (commented out for now) -->
+          <!-- <button
+            class="tip-creator-button"
+            onclick={handleTipCreator}
+            type="button"
+            aria-label={$text('embeds.tip_creator')}
+          >
+            <span class="clickable-icon icon_volunteering"></span>
+          </button> -->
+          <!-- Picture-in-Picture button -->
+          {#if videoId && embedUrl}
             <button
-              class="tip-creator-button"
-              onclick={handleTipCreator}
+              class="pip-button"
+              onclick={handleEnterPip}
               type="button"
-              aria-label={$text('embeds.tip_creator')}
+              aria-label={$text('embeds.video_pip')}
             >
-              <span class="clickable-icon icon_volunteering"></span>
+              <span class="clickable-icon icon_pip"></span>
             </button>
-            <a 
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="open-on-youtube-button"
-            >
-              {$text('embeds.open_on_youtube')}
-            </a>
-            <!-- Picture-in-Picture button -->
-            {#if videoId && embedUrl}
-              <button
-                class="pip-button"
-                onclick={handleEnterPip}
-                type="button"
-                aria-label={$text('embeds.video_pip')}
-              >
-                <span class="clickable-icon icon_pip"></span>
-              </button>
-            {/if}
-          </div>
-        {/if}
+          {/if}
+        </div>
       {/if}
       
       <!-- Views and likes - displayed below the buttons with icons -->
@@ -619,7 +622,7 @@
         <div class="video-stats-row">
           {#if viewCount}
             <span class="stat-item">
-              <span class="stat-icon icon_visibility"></span>
+              <span class="stat-icon icon_visible"></span>
               {formatViewCount(viewCount)}
             </span>
           {/if}
@@ -708,7 +711,7 @@
     overflow: hidden;
     background-color: var(--color-grey-15);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    margin-top: 60px;
+    margin-top: 16px;
   }
   
   .video-thumbnail {
@@ -958,7 +961,8 @@
     filter: none;
   }
   
-  /* Tip creator button - rounded button with icon only */
+  /* Tip creator button - rounded button with icon only (commented out for now) */
+  /*
   .tip-creator-button {
     background-color: var(--color-button-secondary, var(--color-grey-20));
     padding: 0;
@@ -984,6 +988,7 @@
     scale: 0.98;
     filter: none;
   }
+  */
   
   /* Picture-in-Picture button - rounded button with icon only */
   .pip-button {
@@ -1013,7 +1018,6 @@
   }
   
   /* Icon sizing within buttons */
-  .tip-creator-button .clickable-icon,
   .pip-button .clickable-icon {
     width: 20px;
     height: 20px;

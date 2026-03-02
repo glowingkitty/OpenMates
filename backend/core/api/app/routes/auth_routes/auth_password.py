@@ -14,6 +14,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import get_direct
 from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, validate_username
 from backend.core.api.app.routes.auth_routes.auth_login import finalize_login_session
 from backend.core.api.app.schemas.auth import LoginRequest
+from backend.core.api.app.utils.newsletter_utils import update_newsletter_registration_status
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -117,6 +118,23 @@ async def setup_password(
         user_id = user_data.get("id")
         vault_key_id = user_data.get("vault_key_id")
 
+        # Update newsletter subscriber status if this email was subscribed.
+        # The Directus user record has just been created (signup_completed=False at this point),
+        # so the status is "signup_incomplete". This is updated to "signup_complete" when the
+        # user completes the full signup flow (handled by auth_login.py early-step reset logic).
+        try:
+            await update_newsletter_registration_status(
+                hashed_email=setup_request.hashed_email,
+                status="signup_incomplete",
+                directus_service=directus_service,
+            )
+        except Exception as newsletter_status_err:
+            # Non-critical — log but do not block account creation
+            logger.error(
+                f"Failed to update newsletter registration status for new user {user_id}: {newsletter_status_err}",
+                exc_info=True,
+            )
+
         # Create encryption key record
         try:
             hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
@@ -198,6 +216,12 @@ async def setup_password(
         # Track metrics
         metrics_service.track_user_creation()
         metrics_service.update_active_users(1, 1)
+
+        # Track signup funnel: password setup completed
+        try:
+            await cache_service.increment_stat("signup_step_auth_password_setup")
+        except Exception as stats_err:
+            logger.warning(f"Failed to increment auth_password_setup funnel stat: {stats_err}")
 
         # Log compliance event
         compliance_service.log_user_creation(

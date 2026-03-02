@@ -6,6 +6,8 @@ import { websocketStatus } from "../stores/websocketStatusStore";
 import { notificationStore } from "../stores/notificationStore";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { phasedSyncState } from "../stores/phasedSyncStateStore";
+import { get } from "svelte/store";
+import { forcedLogoutInProgress, isLoggingOut } from "../stores/signupState";
 import type {
   OfflineChange,
   Message,
@@ -403,6 +405,24 @@ export class ChatSynchronizationService extends EventTarget {
           );
         });
     });
+    // Handle draft_embed_deleted broadcast from other devices:
+    // Another device deleted an uploaded file from the message draft — clean up
+    // the local IndexedDB EmbedStore entry so it doesn't accumulate indefinitely.
+    webSocketService.on("draft_embed_deleted", (payload) => {
+      const { embed_id } = payload as { embed_id: string; chat_id?: string };
+      if (!embed_id) return;
+      console.debug(
+        `[ChatSyncService] Received draft_embed_deleted for embed ${embed_id} — cleaning up IndexedDB`,
+      );
+      import("./embedStore")
+        .then(({ embedStore }) => embedStore.deleteEmbed(embed_id))
+        .catch((err) => {
+          console.warn(
+            `[ChatSyncService] Failed to delete draft embed ${embed_id} from IndexedDB on broadcast:`,
+            err,
+          );
+        });
+    });
     // Handle encrypted_chat_metadata updates (e.g., when chat is hidden/unhidden on another device)
     webSocketService.on("encrypted_chat_metadata", (payload) =>
       chatUpdateHandlers.handleEncryptedChatMetadataImpl(
@@ -450,6 +470,15 @@ export class ChatSynchronizationService extends EventTarget {
         payload as AITypingStartedPayload,
       ),
     );
+    // Real-time preprocessing step events: title_generated, mate_selected, model_selected.
+    // These arrive in a burst after the single preprocessing LLM call resolves.
+    // The handler dispatches a "preprocessingStep" CustomEvent for ActiveChat.svelte to consume.
+    webSocketService.on("preprocessing_step", (payload) =>
+      aiHandlers.handlePreprocessingStepImpl(
+        this,
+        payload as import("../types/chat").PreprocessorStepResult,
+      ),
+    );
     webSocketService.on("ai_typing_ended", (payload) =>
       aiHandlers.handleAITypingEndedImpl(
         this,
@@ -486,14 +515,169 @@ export class ChatSynchronizationService extends EventTarget {
       ),
     );
 
-    // Import and register app settings/memories handlers
-    import("./chatSyncServiceHandlersAppSettings").then((module) => {
-      webSocketService.on("request_app_settings_memories", (payload) =>
+    // Handle daily inspiration deliveries from server.
+    // Sent both on-connect (pending delivery) and after background Celery generation.
+    // Payload: { inspirations: DailyInspiration[], user_id: string }
+    webSocketService.on("daily_inspiration", (payload) =>
+      aiHandlers.handleDailyInspirationImpl(
+        this,
+        payload as {
+          inspirations: import("../stores/dailyInspirationStore").DailyInspiration[];
+          user_id: string;
+        },
+      ),
+    );
+
+    // Handle real-time last_opened_updated broadcast from another device.
+    // When the user opens a chat on Device A, the server broadcasts this event to all
+    // other connected devices (Device B, C...) so they can update their resume card
+    // immediately without waiting for the next login/reconnect Phase 1 sync.
+    // Payload: { chat_id: string }
+    webSocketService.on("last_opened_updated", (payload) => {
+      const { chat_id } = payload as { chat_id: string };
+      if (!chat_id) return;
+
+      console.debug(
+        `[ChatSyncService] Received last_opened_updated from another device: ${chat_id}`,
+      );
+
+      // Update IndexedDB and userProfile store (mirrors sendSetActiveChatImpl local write)
+      (async () => {
+        try {
+          const { userDB } = await import("./userDB");
+          const { updateProfile } = await import("../stores/userProfile");
+
+          await userDB.updateUserData({ last_opened: chat_id });
+          updateProfile({ last_opened: chat_id });
+
+          console.debug(
+            `[ChatSyncService] Updated last_opened in IndexedDB and profile store from cross-device broadcast: ${chat_id}`,
+          );
+
+          // If the chat is already in IndexedDB, update the phasedSyncState resume card
+          // so the welcome screen shows the up-to-date "Continue where you left off" card.
+          // This only applies when the user is on the welcome/new-chat screen.
+          const { phasedSyncState, NEW_CHAT_SENTINEL } =
+            await import("../stores/phasedSyncStateStore");
+          const { chatDB } = await import("./db");
+          const currentChatId = get(phasedSyncState).currentActiveChatId;
+          const isOnWelcomeScreen =
+            currentChatId === null || currentChatId === NEW_CHAT_SENTINEL;
+
+          if (isOnWelcomeScreen) {
+            const chat = await chatDB.getChat(chat_id);
+            if (chat) {
+              // Decrypt title, category, icon for the resume card display
+              let displayTitle = chat.title || "Untitled Chat";
+              let displayCategory = chat.category || null;
+              let displayIcon = chat.icon || null;
+
+              try {
+                const { decryptWithChatKey, decryptChatKeyWithMasterKey } =
+                  await import("./cryptoService");
+                let chatKey = chatDB.getChatKey(chat_id);
+                if (!chatKey && chat.encrypted_chat_key) {
+                  chatKey = await decryptChatKeyWithMasterKey(
+                    chat.encrypted_chat_key,
+                  );
+                  if (chatKey) chatDB.setChatKey(chat_id, chatKey);
+                }
+                if (chatKey) {
+                  if (chat.encrypted_title) {
+                    try {
+                      displayTitle =
+                        (await decryptWithChatKey(
+                          chat.encrypted_title,
+                          chatKey,
+                        )) || displayTitle;
+                    } catch {
+                      /* fall through */
+                    }
+                  }
+                  if (chat.encrypted_category) {
+                    try {
+                      displayCategory = await decryptWithChatKey(
+                        chat.encrypted_category,
+                        chatKey,
+                      );
+                    } catch {
+                      /* fall through */
+                    }
+                  }
+                  if (chat.encrypted_icon) {
+                    try {
+                      displayIcon = await decryptWithChatKey(
+                        chat.encrypted_icon,
+                        chatKey,
+                      );
+                    } catch {
+                      /* fall through */
+                    }
+                  }
+                }
+              } catch (decryptErr) {
+                console.warn(
+                  "[ChatSyncService] Failed to decrypt fields for last_opened_updated resume card:",
+                  decryptErr,
+                );
+              }
+
+              phasedSyncState.setResumeChatData(
+                chat,
+                displayTitle,
+                displayCategory,
+                displayIcon,
+              );
+              console.debug(
+                `[ChatSyncService] Updated resume card from cross-device last_opened_updated: "${displayTitle}" (${chat_id})`,
+              );
+            }
+            // If the chat isn't in IndexedDB yet, the userProfile.last_opened update above
+            // will cause ActiveChat.svelte's $effect to retry loading it from IndexedDB.
+          }
+        } catch (error) {
+          console.error(
+            "[ChatSyncService] Error handling last_opened_updated:",
+            error,
+          );
+        }
+      })();
+    });
+
+    // Handle real-time inspiration_opened broadcast from any device (including self).
+    // When the user opens a Daily Inspiration chat, the REST endpoint broadcasts this
+    // event to ALL connected devices. The handler in chatSyncServiceHandlersAI guards
+    // against self-echo by checking whether the inspiration is already opened locally.
+    // Payload: { inspiration_id: string, opened_chat_id: string }
+    webSocketService.on("inspiration_opened", (payload) =>
+      aiHandlers.handleInspirationOpenedImpl(
+        this,
+        payload as { inspiration_id: string; opened_chat_id: string },
+      ),
+    );
+
+    // IMPORTANT: "request_app_settings_memories" and "dismiss_app_settings_memories_dialog"
+    // are registered synchronously (not inside a dynamic import .then()) to avoid a race
+    // condition where the server sends these events immediately after the AI task completes —
+    // before the dynamic import has resolved. If the handler is not yet registered when the
+    // message arrives, the WebSocket service silently drops it and the permission dialog
+    // never appears (user sees infinite typing indicator instead).
+    // Same pattern as "focus_mode_activated" below — see that comment for full explanation.
+    webSocketService.on("request_app_settings_memories", (payload) => {
+      import("./chatSyncServiceHandlersAppSettings").then((module) =>
         module.handleRequestAppSettingsMemoriesImpl(this, payload),
       );
-      webSocketService.on("dismiss_app_settings_memories_dialog", (payload) =>
+    });
+    webSocketService.on("dismiss_app_settings_memories_dialog", (payload) => {
+      import("./chatSyncServiceHandlersAppSettings").then((module) =>
         module.handleDismissAppSettingsMemoriesDialogImpl(this, payload),
       );
+    });
+
+    // Import and register remaining app settings/memories handlers.
+    // These events are not time-critical (they don't arrive immediately after a user message)
+    // so registering them inside a dynamic import .then() is safe here.
+    import("./chatSyncServiceHandlersAppSettings").then((module) => {
       webSocketService.on("app_settings_memories_sync_ready", (payload) =>
         module.handleAppSettingsMemoriesSyncReadyImpl(this, payload),
       );
@@ -719,6 +903,67 @@ export class ChatSynchronizationService extends EventTarget {
         );
       });
 
+    // GLOBAL CREDITS-DEPLETED NOTIFICATION
+    // When any user_credits_updated WebSocket event drops the balance to 0 (and the
+    // previous balance was > 0), show a persistent warning notification globally so
+    // the user is informed regardless of which page they are on.
+    // Settings.svelte and Signup.svelte also listen for this event to update their
+    // local credit counters — those remain unchanged. This handler is an additional
+    // global listener for the notification only.
+    //
+    // Pattern: track previous credits in a closure variable; on each event, compare.
+    // On first event we learn the current balance but don't know the "previous" value,
+    // so we skip the notification to avoid false positives on page load.
+    let _prevCredits: number | undefined = undefined;
+
+    webSocketService.on("user_credits_updated", async (payload) => {
+      try {
+        const credits: number =
+          typeof payload?.credits === "number" ? payload.credits : -1;
+        if (credits < 0) return; // malformed payload — ignore
+
+        // Update the userProfile store so credit displays stay in sync
+        const { updateCredits } = await import("../stores/userProfile");
+        updateCredits(credits);
+
+        // Only show the notification when balance transitions from >0 → 0.
+        // Skip on first event (_prevCredits is undefined) to avoid false alert on connect.
+        if (_prevCredits !== undefined && _prevCredits > 0 && credits === 0) {
+          const { settingsDeepLink } =
+            await import("../stores/settingsDeepLinkStore");
+          const { panelState } = await import("../stores/panelStateStore");
+
+          // Use get() to read the current translated string from the i18n store.
+          // This is the standard way to read a Svelte store outside a component.
+          const { get } = await import("svelte/store");
+          const { text } = await import("../i18n/translations");
+          const t = get(text);
+
+          notificationStore.addNotificationWithOptions("warning", {
+            message: t("app_skills.audio.transcribe.no_credits"),
+            actionLabel: t("billing.buy_credits"),
+            onAction: () => {
+              settingsDeepLink.set("billing/buy-credits");
+              panelState.openSettings();
+            },
+            duration: 0, // persistent until dismissed
+            dismissible: true,
+          });
+
+          console.info(
+            "[ChatSyncService] Credits depleted (>0 → 0): showing persistent buy-credits notification",
+          );
+        }
+
+        _prevCredits = credits;
+      } catch (e) {
+        console.error(
+          "[ChatSyncService] Error handling user_credits_updated:",
+          e,
+        );
+      }
+    });
+
     // DATA INCONSISTENCY RE-SYNC LISTENER
     // When Phase 2/3 detects that local message count < server message count,
     // a chatDataInconsistency event is dispatched. Without this listener, the
@@ -888,6 +1133,24 @@ export class ChatSynchronizationService extends EventTarget {
       return;
     }
 
+    // CRITICAL: Skip sync when a forced logout or logout is in progress.
+    // During forced logout, chatDB.init() is blocked (throws "Database initialization
+    // blocked during logout") which causes startPhasedSync() to fail with a confusing
+    // "Failed to start chat synchronization" error toast. This is not a real sync failure —
+    // it's expected behavior during logout. Skip silently to avoid misleading the user.
+    if (get(forcedLogoutInProgress) || get(isLoggingOut)) {
+      console.warn(
+        "[ChatSyncService] ❌ Skipping sync — logout in progress (forcedLogout:",
+        get(forcedLogoutInProgress),
+        ", isLoggingOut:",
+        get(isLoggingOut),
+        ")",
+      );
+      // Dispatch synthetic completion so the UI doesn't stay stuck in "Loading chats..."
+      this.dispatchSyncTimeoutComplete("logout-in-progress");
+      return;
+    }
+
     if (this.webSocketConnected && this.cachePrimed) {
       console.info(
         "[ChatSyncService] ✅ Conditions met, starting phased sync NOW!",
@@ -974,6 +1237,24 @@ export class ChatSynchronizationService extends EventTarget {
   }
   public async sendDeleteDraft(chat_id: string) {
     await senders.sendDeleteDraftImpl(this, chat_id);
+  }
+  /**
+   * Notify the server that an uploaded file was removed from the message draft
+   * before sending.  Triggers S3/Directus cleanup and storage counter update.
+   * Also broadcasts 'draft_embed_deleted' to other devices so they clean up IndexedDB.
+   */
+  public async sendDeleteDraftEmbed(embed_id: string, chat_id?: string) {
+    await senders.sendDeleteDraftEmbedImpl(this, embed_id, chat_id);
+  }
+
+  /**
+   * Cancel an in-progress PDF OCR task.
+   * Called when the user presses Stop during status='processing'.
+   * The server revokes the Celery task, deletes S3 files, and broadcasts
+   * draft_embed_deleted to other devices.
+   */
+  public async sendCancelPdfProcessing(embed_id: string, chat_id?: string) {
+    await senders.sendCancelPdfProcessingImpl(this, embed_id, chat_id);
   }
   public async sendDeleteChat(
     chat_id: string,
@@ -1138,6 +1419,39 @@ export class ChatSynchronizationService extends EventTarget {
     await senders.sendLoadMoreChatsImpl(this, offset, limit);
   }
 
+  /**
+   * Sync a locally-created inspiration chat to the server and other devices.
+   * Called after handleStartChatFromInspiration creates the chat in IndexedDB.
+   */
+  public async sendSyncInspirationChat(
+    chatId: string,
+    messageId: string,
+    messageContent: string,
+    category: string,
+    encryptedTitle: string,
+    encryptedCategory: string,
+    encryptedContent: string,
+    encryptedChatKey: string,
+    createdAt: number,
+    encryptedFollowUpSuggestions?: string,
+    inspirationEmbed?: senders.InspirationEmbedData,
+  ): Promise<void> {
+    await senders.sendSyncInspirationChatImpl(
+      this,
+      chatId,
+      messageId,
+      messageContent,
+      category,
+      encryptedTitle,
+      encryptedCategory,
+      encryptedContent,
+      encryptedChatKey,
+      createdAt,
+      encryptedFollowUpSuggestions,
+      inspirationEmbed,
+    );
+  }
+
   // --- New Phased Sync Methods ---
 
   /**
@@ -1153,6 +1467,15 @@ export class ChatSynchronizationService extends EventTarget {
       console.warn(
         "[ChatSyncService] Cannot start phased sync - WebSocket not connected",
       );
+      return;
+    }
+
+    // Defense-in-depth: skip sync if logout is in progress (primary guard is in attemptInitialSync)
+    if (get(forcedLogoutInProgress) || get(isLoggingOut)) {
+      console.warn(
+        "[ChatSyncService] Cannot start phased sync - logout in progress",
+      );
+      this.dispatchSyncTimeoutComplete("logout-in-progress");
       return;
     }
 
@@ -1208,8 +1531,14 @@ export class ChatSynchronizationService extends EventTarget {
       const clientSuggestions = await chatDB.getAllNewChatSuggestions();
       const client_suggestions_count = clientSuggestions.length;
 
+      // Collect embed IDs the client already has in IndexedDB.
+      // Sent to the server so it can skip re-pushing embeds we already have,
+      // preventing the "all embeds on every reconnect" flood for active users.
+      const { embedStore } = await import("./embedStore");
+      const client_embed_ids = await embedStore.getAllEmbedIds();
+
       console.log(
-        `[ChatSyncService] 3/4: Phased sync preparing request with client state: ${client_chat_ids.length} chats, ${client_suggestions_count} suggestions`,
+        `[ChatSyncService] 3/4: Phased sync preparing request with client state: ${client_chat_ids.length} chats, ${client_suggestions_count} suggestions, ${client_embed_ids.length} embed(s) already on device`,
       );
 
       const payload: PhasedSyncRequestPayload = {
@@ -1217,6 +1546,7 @@ export class ChatSynchronizationService extends EventTarget {
         client_chat_versions,
         client_chat_ids,
         client_suggestions_count,
+        client_embed_ids,
       };
 
       await webSocketService.sendMessage("phased_sync_request", payload);
@@ -1273,9 +1603,11 @@ export class ChatSynchronizationService extends EventTarget {
    * Dispatch a synthetic phasedSyncComplete event when timeout is reached.
    * This ensures the UI doesn't stay stuck in "Loading chats..." state forever.
    *
-   * @param reason - The reason for the synthetic completion ('timeout' or 'error')
+   * @param reason - The reason for the synthetic completion
    */
-  private dispatchSyncTimeoutComplete(reason: "timeout" | "error"): void {
+  private dispatchSyncTimeoutComplete(
+    reason: "timeout" | "error" | "logout-in-progress",
+  ): void {
     console.info(
       `[ChatSyncService] Dispatching synthetic phasedSyncComplete event (reason: ${reason})`,
     );
@@ -1331,8 +1663,21 @@ export class ChatSynchronizationService extends EventTarget {
 
       for (const msg of orphaned) {
         try {
-          const finalized = { ...msg, status: "synced" as const };
-          await chatDB.saveMessage(finalized);
+          // CRITICAL FIX: Use updateMessageStatus() instead of saveMessage().
+          //
+          // The naive `{ ...msg, status: "synced" } → saveMessage()` approach triggers
+          // encryptMessageFields() which calls getOrGenerateChatKey(). If the chat key
+          // has been evicted from the in-memory cache (a real race condition during
+          // WebSocket reconnect on a new-chat flow), a NEW random key is generated and
+          // the message is silently re-encrypted with it — while encrypted_chat_key on
+          // the chat still holds the original key. Subsequent decryption attempts fail
+          // with "[Content decryption failed]". This is the same class of bug fixed for
+          // the handleChatMessageConfirmedImpl path in commit 65780674.
+          //
+          // updateMessageStatus() reads the raw (still-encrypted) IndexedDB record,
+          // patches ONLY the status field, and writes it back — no encryption, no key
+          // operations, no risk.
+          await chatDB.updateMessageStatus(msg.message_id, "synced");
           console.info(
             `[ChatSyncService] Finalized orphaned ${msg.status} message ${msg.message_id} in chat ${msg.chat_id}`,
           );
@@ -1391,9 +1736,18 @@ export class ChatSynchronizationService extends EventTarget {
       // Update status to 'sending' and retry each message
       for (const message of pendingMessages) {
         try {
-          // Update status to 'sending' before retry
-          const updatedMessage: Message = { ...message, status: "sending" };
-          await chatDB.saveMessage(updatedMessage);
+          // CRITICAL FIX: Use updateMessageStatus() instead of saveMessage() for the
+          // status-only update before retrying. The old code used:
+          //   saveMessage({ ...message, status: "sending" })
+          // which calls encryptMessageFields() → getOrGenerateChatKey(). If the chat key
+          // is absent from the in-memory cache, a NEW random key is registered and all
+          // subsequent operations (embed encryption, etc.) use the wrong key, causing
+          // "[Content decryption failed]" on this device and any device that received the
+          // originally-keyed server copy.
+          //
+          // updateMessageStatus() patches only the status field in IndexedDB without
+          // touching encryption — safe by design.
+          await chatDB.updateMessageStatus(message.message_id, "sending");
 
           // Dispatch event to update UI
           this.dispatchEvent(
@@ -1406,24 +1760,25 @@ export class ChatSynchronizationService extends EventTarget {
             }),
           );
 
-          // Retry sending the message
+          // Retry sending the message (pass original `message` since it already has
+          // the correct encrypted/plaintext fields as stored in IndexedDB)
           console.debug(
             `[ChatSyncService] Retrying message ${message.message_id} for chat ${message.chat_id}`,
           );
-          await this.sendNewMessage(updatedMessage);
+          await this.sendNewMessage(message);
         } catch (error) {
           console.error(
             `[ChatSyncService] Error retrying message ${message.message_id}:`,
             error,
           );
 
-          // Update status back to 'waiting_for_internet' if retry failed
+          // Update status back to 'waiting_for_internet' if retry failed — status-only
+          // update, never needs encryption.
           try {
-            const failedMessage: Message = {
-              ...message,
-              status: "waiting_for_internet",
-            };
-            await chatDB.saveMessage(failedMessage);
+            await chatDB.updateMessageStatus(
+              message.message_id,
+              "waiting_for_internet",
+            );
 
             this.dispatchEvent(
               new CustomEvent("messageStatusChanged", {

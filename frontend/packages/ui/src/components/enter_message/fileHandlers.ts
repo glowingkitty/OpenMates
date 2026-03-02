@@ -1,13 +1,6 @@
 import type { Editor } from "@tiptap/core";
-import {
-  insertVideo,
-  insertCodeFile,
-  insertImage,
-  insertFile,
-  insertAudio,
-  insertEpub,
-} from "./embedHandlers"; // Import the new embed handlers
-import { isVideoFile, isCodeOrTextFile, isEpubFile } from "./utils"; // Import necessary utils
+import { insertCodeFile, insertImage, insertPDF } from "./embedHandlers"; // Only images, PDFs, and code/text files are accepted via the upload button
+import { isCodeOrTextFile } from "./utils"; // Import necessary utils
 
 // File size limits (consider moving to a config file later)
 const FILE_SIZE_LIMITS = {
@@ -20,10 +13,14 @@ const MAX_PER_FILE_SIZE = FILE_SIZE_LIMITS.PER_FILE_MAX_SIZE * 1024 * 1024;
 /**
  * Processes an array of files (from drop, paste, or input selection).
  * Inserts appropriate embeds into the editor.
+ *
+ * @param isAuthenticated - When false, images are inserted in demo mode (local preview
+ *   only, no server upload). Authenticated users get the full upload pipeline.
  */
 export async function processFiles(
   files: File[],
   editor: Editor,
+  isAuthenticated: boolean = true,
 ): Promise<void> {
   const totalSize = files.reduce((sum, file) => sum + file.size, 0);
   if (totalSize > MAX_TOTAL_SIZE) {
@@ -41,28 +38,38 @@ export async function processFiles(
       continue; // Skip this file
     }
 
-    editor.commands.focus("end"); // Focus before inserting
-
-    // Determine file type and call appropriate insertion function
-    if (isVideoFile(file)) {
-      await insertVideo(editor, file, undefined, false);
-    } else if (isCodeOrTextFile(file.name)) {
-      await insertCodeFile(editor, file);
-    } else if (file.type.startsWith("image/")) {
-      await insertImage(editor, file, false); // isRecording = false for file uploads
+    // Supported via the upload button: images, PDFs (authenticated only), code/text files.
+    // All other file types (video, audio, EPUB, etc.) are silently skipped.
+    if (file.type.startsWith("image/")) {
+      editor.commands.focus("end");
+      // Pass isAuthenticated — unauthenticated users get demo mode (local preview only)
+      await insertImage(
+        editor,
+        file,
+        false,
+        undefined,
+        undefined,
+        isAuthenticated,
+      );
     } else if (file.type === "application/pdf") {
-      await insertFile(editor, file, "pdf");
-    } else if (file.type.startsWith("audio/")) {
-      await insertAudio(editor, file);
-    } else if (isEpubFile(file)) {
-      await insertEpub(editor, file);
+      // PDF upload requires authentication — no demo mode (server-side OCR pipeline)
+      if (isAuthenticated) {
+        editor.commands.focus("end");
+        await insertPDF(editor, file);
+      } else {
+        console.warn(
+          "[FileHandlers] PDF upload requires authentication — skipping in demo mode",
+        );
+      }
+    } else if (isCodeOrTextFile(file.name)) {
+      editor.commands.focus("end");
+      await insertCodeFile(editor, file, isAuthenticated);
     } else {
-      // Fallback for other file types
-      await insertFile(editor, file, "file");
+      // Unsupported file type — skip silently
+      console.warn(
+        `[FileHandlers] Skipping unsupported file type: ${file.type || "unknown"} (${file.name})`,
+      );
     }
-
-    // Add a space after inserting the embed node
-    // editor.commands.insertContent(' '); // This is handled within insert functions now
   }
 }
 
@@ -73,6 +80,7 @@ export async function handleDrop(
   event: DragEvent,
   editorElement: HTMLElement | undefined,
   editor: Editor,
+  isAuthenticated: boolean = true,
 ): Promise<void> {
   event.preventDefault();
   event.stopPropagation();
@@ -81,7 +89,7 @@ export async function handleDrop(
   const droppedFiles = Array.from(event.dataTransfer?.files || []);
   if (!droppedFiles.length) return;
 
-  await processFiles(droppedFiles, editor);
+  await processFiles(droppedFiles, editor, isAuthenticated);
 }
 
 /**
@@ -174,6 +182,7 @@ export function extractChatLinkFromYAML(text: string): string | null {
 export async function handlePaste(
   event: ClipboardEvent,
   editor: Editor,
+  isAuthenticated: boolean = true,
 ): Promise<void> {
   // Handle file pasting (images, etc.)
   const files: File[] = [];
@@ -191,7 +200,7 @@ export async function handlePaste(
 
   if (files.length > 0) {
     event.preventDefault(); // Prevent default paste behavior only if files are found
-    await processFiles(files, editor);
+    await processFiles(files, editor, isAuthenticated);
   }
   // Allow default paste behavior for text, etc.
 }
@@ -202,12 +211,13 @@ export async function handlePaste(
 export async function onFileSelected(
   event: Event,
   editor: Editor,
+  isAuthenticated: boolean = true,
 ): Promise<void> {
   const input = event.target as HTMLInputElement;
   if (!input.files?.length) return;
 
   const files = Array.from(input.files);
-  await processFiles(files, editor);
+  await processFiles(files, editor, isAuthenticated);
 
   input.value = ""; // Clear the input after processing
 }

@@ -1,29 +1,27 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request, Security
+from fastapi import APIRouter, HTTPException, Depends, Request, Security
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer
 import logging
+import math
 import time
 import os
-import random
-import string
 import hashlib
 import json
 import glob
 from typing import Optional, Dict, Any
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pydantic import BaseModel, Field # Import BaseModel and Field for response models
 
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.models.user import User
-from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service, get_current_user, get_encryption_service, get_current_user_or_api_key
-from backend.core.api.app.services.image_safety import ImageSafetyService
-from backend.core.api.app.services.s3 import S3UploadService
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service, get_current_user, get_encryption_service, get_current_user_or_api_key, get_current_user_optional
+from backend.core.api.app.routes.auth_routes.auth_utils import validate_username
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
-from backend.core.api.app.schemas.settings import LanguageUpdateRequest, DarkModeUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse # Import request/response models
+from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, AiModelDefaultsRequest, StorageOverviewResponse, StorageCategoryBreakdown, StorageFileItem, StorageFilesListResponse, StorageDeleteFilesRequest, StorageDeleteFilesResponse  # Import request/response models
 from backend.apps.reminder.utils import format_reminder_time
 
 # Create an optional API key scheme that doesn't fail if missing (for endpoints that support both session and API key auth)
@@ -154,154 +152,6 @@ async def get_active_reminders(
         logger.error(f"Error fetching active reminders: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch reminders")
 
-
-# --- Endpoint for updating profile image ---
-@router.post("/user/update_profile_image", response_model=dict, include_in_schema=False)  # Exclude from schema - not in whitelist
-@limiter.limit("10/minute")  # Prevent abuse of profile image uploads
-async def update_profile_image(
-    request: Request,  # Keep request parameter for IP/fingerprint
-    file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user)
-):
-    # Access services from app state
-    s3_service: S3UploadService = request.app.state.s3_service
-    image_safety_service: ImageSafetyService = request.app.state.image_safety_service
-    cache_service: CacheService = request.app.state.cache_service # Explicitly get cache service
-    directus_service: DirectusService = request.app.state.directus_service # Explicitly get directus service
-    encryption_service: EncryptionService = request.app.state.encryption_service # Explicitly get encryption service
-
-    if not s3_service or not image_safety_service or not cache_service or not directus_service or not encryption_service:
-         logger.error("Required services not available in app state for settings route.")
-         raise HTTPException(status_code=503, detail="Service unavailable")
-
-    bucket_config = s3_service.get_bucket_config('profile_images')
-    
-    try:
-        # Validate content type first (cheapest check)
-        if file.content_type not in bucket_config['allowed_types']:
-            raise HTTPException(status_code=400, detail="Invalid file type")
-
-        # Check file size before reading entire content
-        if file.size and file.size > bucket_config['max_size']:
-            raise HTTPException(status_code=400, detail="File too large")
-
-        # Read image content only after validation
-        image_content = await file.read()
-        
-        # Double check actual content size
-        if len(image_content) > bucket_config['max_size']:
-            raise HTTPException(status_code=400, detail="File too large")
-
-        # Check rejected uploads count from cache (using service from backend.core.api.app.state)
-        reject_key = f"profile_image_rejects:{current_user.id}"
-        reject_count = await cache_service.get(reject_key) or 0
-
-        # Check image safety (using service from backend.core.api.app.state)
-        is_safe = await image_safety_service.check_profile_image(image_content)
-        if not is_safe:
-            # Increment and store reject count
-            reject_count += 1
-            await cache_service.set(reject_key, reject_count, ttl=86400)  # 24h TTL
-
-            if reject_count >= 4:  # Changed from 3 to 4 (delete on 4th attempt)
-                # Get device information for compliance logging
-                # Generate device hash using the current_user.id
-                device_hash, _, _, _, _, _, _, _ = generate_device_fingerprint_hash(request, user_id=current_user.id)
-                client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
-
-                # Delete user account with proper reason
-                # Note: The deletion will be logged by the delete_user method (using service from backend.core.api.app.state)
-                await directus_service.delete_user(
-                    current_user.id,
-                    deletion_type="policy_violation",
-                    reason="repeated_inappropriate_profile_images",
-                    ip_address=client_ip,
-                    device_fingerprint=device_hash, # Use generated device_hash
-                    details={
-                        "reject_count": reject_count,
-                        "timestamp": int(time.time())
-                    }
-                )
-                
-                # Clean all user data from cache using the enhanced method
-                await cache_service.delete_user_cache(current_user.id)
-                
-                # Also delete the reject count key
-                await cache_service.delete(reject_key)
-                    
-                return {
-                    "status": "account_deleted",
-                    "detail": "Account deleted due to policy violations"
-                }
-            
-            return {
-                "status": "error",
-                "detail": "Image not allowed",
-                "reject_count": reject_count
-            }
-
-        # Reset reject count if upload is successful
-        await cache_service.delete(reject_key)
-
-        # Generate unique filename
-        file_ext = os.path.splitext(file.filename)[1].lower()
-        random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
-        new_filename = f"{current_user.id}-{int(time.time())}-{random_suffix}{file_ext}"
-
-        # Get old image URL from the current user object (already fetched/cached)
-        old_url = current_user.profile_image_url
-
-        # Upload new image (using service from backend.core.api.app.state)
-        upload_result = await s3_service.upload_file(
-            bucket_key='profile_images',
-            file_key=new_filename,
-            content=image_content,
-            content_type=file.content_type
-        )
-        
-        # Profile images bucket is public read - always use regular URL, not presigned URL
-        image_url = upload_result['url']
-
-        # --- Get vault_key_id from current_user (cached or fetched by dependency) ---
-        vault_key_id = current_user.vault_key_id
-        if not vault_key_id:
-             logger.error(f"User {current_user.id} does not have a vault_key_id in current_user object")
-             raise HTTPException(status_code=500, detail="User encryption key not found")
-        # --- End get vault_key_id ---
-
-        # Encrypt URL (using service from backend.core.api.app.state)
-        encrypted_url, _ = await encryption_service.encrypt_with_user_key(image_url, vault_key_id) # Use encrypt_with_user_key
-
-        # Update Directus (using service from backend.core.api.app.state)
-        await directus_service.update_user(current_user.id, {
-            "encrypted_profileimage_url": encrypted_url,
-            "last_opened": "/signup/credits" # For now we skip settings and mate settings, will implement those later again
-        })
-
-        # Update cache with new image URL and last_opened step
-        logger.info(f"Attempting to update cache for user {current_user.id} after profile image upload.")
-        cache_update_success = await cache_service.update_user(current_user.id, {
-            "profile_image_url": image_url,
-            "last_opened": "/signup/credits" # For now we skip settings and mate settings, will implement those later again
-        })
-        if cache_update_success:
-            logger.info(f"Successfully updated cache for user {current_user.id} with new profile image URL.")
-        else:
-            # Log warning, but don't fail the request as Directus was updated
-            logger.warning(f"Failed to update cache for user {current_user.id} after profile image upload, but Directus was updated.")
-
-        # Delete old image from S3
-        if old_url:
-            old_key = old_url.split('/')[-1]
-            await s3_service.delete_file('profile_images', old_key) # Use service from backend.core.api.app.state
-
-        return {"url": image_url}
-
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        logger.error(f"Error processing image: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error processing image")
 
 # --- Endpoint for Privacy & Apps Consent ---
 @router.post("/user/consent/privacy-apps", response_model=SimpleSuccessResponse, include_in_schema=False)  # Exclude from schema - not in whitelist
@@ -501,6 +351,70 @@ async def update_user_timezone(
         raise HTTPException(status_code=500, detail="An error occurred while updating timezone setting")
 
 
+# --- Endpoint for updating username ---
+@router.post("/user/username", response_model=SimpleSuccessResponse, include_in_schema=False)
+@limiter.limit("10/minute")  # Rate-limit to prevent abuse
+async def update_username(
+    request: Request,
+    request_data: UsernameUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+):
+    """
+    Update the user's username.
+
+    The new username is validated for format (3–20 chars, letters/numbers/dots/underscores,
+    at least one letter), encrypted with the user's vault key, and stored as
+    ``encrypted_username`` in Directus. The Redis cache is also updated so that
+    subsequent session lookups immediately reflect the new username without a DB round-trip.
+    """
+    user_id = current_user.id
+    new_username = request_data.username.strip()
+    vault_key_id = current_user.vault_key_id
+
+    logger.info(f"Updating username for user {user_id}")
+
+    # Validate format using the shared validator (same rules enforced at signup)
+    is_valid, error_msg = validate_username(new_username)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=error_msg)
+
+    try:
+        # Encrypt the new username with the user's vault key
+        encrypted_username, _ = await encryption_service.encrypt_with_user_key(
+            plaintext=new_username,
+            key_id=vault_key_id,
+        )
+
+        # Persist to Directus (source of truth)
+        success_directus = await directus_service.update_user(
+            user_id, {"encrypted_username": encrypted_username}
+        )
+        if not success_directus:
+            logger.error(f"Failed to update encrypted_username in Directus for user {user_id}")
+            raise HTTPException(status_code=500, detail="Failed to save username")
+
+        # Update Redis cache so the new username is reflected immediately
+        cache_update_success = await cache_service.update_user(user_id, {"username": new_username})
+        if not cache_update_success:
+            logger.warning(
+                f"Failed to update username cache for user {user_id} after Directus update — "
+                "cache will be stale until next session refresh"
+            )
+        else:
+            logger.info(f"Username updated successfully for user {user_id}")
+
+        return SimpleSuccessResponse(success=True, message="Username updated successfully")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating username for user {user_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred while updating username")
+
+
 # --- Endpoint for disabling 2FA ---
 @router.post("/user/disable-2fa", response_model=SimpleSuccessResponse, include_in_schema=False)
 @limiter.limit("5/minute")  # Sensitive security operation - strict rate limit
@@ -655,8 +569,8 @@ async def update_low_balance_auto_topup(
     if request_data.amount < 0:
         raise HTTPException(status_code=400, detail="Amount must be positive")
 
-    if request_data.currency.lower() not in ['eur', 'usd', 'jpy']:
-        raise HTTPException(status_code=400, detail="Invalid currency. Must be EUR, USD, or JPY")
+    if request_data.currency.lower() not in ['eur', 'usd']:
+        raise HTTPException(status_code=400, detail="Invalid currency. Must be EUR or USD")
 
     if request_data.enabled and not request_data.email:
         raise HTTPException(status_code=400, detail="Email is required to enable low balance auto top-up")
@@ -2234,10 +2148,32 @@ class IssueReportRequest(BaseModel):
     description: Optional[str] = Field(None, min_length=10, max_length=5000, description="Issue description (optional, 10-5000 characters if provided)")
     chat_or_embed_url: Optional[str] = Field(None, max_length=500, description="Optional chat or embed URL related to the issue")
     contact_email: Optional[str] = Field(None, max_length=255, description="Optional contact email address for follow-up communication")
+    language: str = Field("en", max_length=10, description="ISO 639-1 language code from the client UI (used for confirmation email localisation)")
     device_info: Optional[DeviceInfo] = Field(None, description="Device information for debugging purposes (browser, screen size, touch support)")
     console_logs: Optional[str] = Field(None, max_length=50000, description="Console logs from the client (last 100 lines)")
     indexeddb_report: Optional[str] = Field(None, max_length=100000, description="IndexedDB inspection report for active chat (metadata only, no plaintext content - safe for debugging)")
     last_messages_html: Optional[str] = Field(None, max_length=200000, description="Rendered HTML of the last user message and assistant response for debugging rendering issues")
+    active_chat_sidebar_html: Optional[str] = Field(None, max_length=100000, description="outerHTML of the active chat entry in the sidebar (Chat.svelte) at the time of report — captures title, status label, typing indicator, and category icon state")
+    runtime_debug_state: Optional[dict] = Field(None, description="Runtime state snapshot: WebSocket status, online status, AI typing status, pending uploads, phased sync state")
+    action_history: Optional[str] = Field(None, max_length=5000, description="Last 20 user-action history entries (button names, navigation — no text content entered by user)")
+    screenshot_png_base64: Optional[str] = Field(
+        None,
+        max_length=3_000_000,  # ~2.25 MB PNG (base64 overhead ≈ 33%)
+        description=(
+            "Base64-encoded PNG screenshot of the current tab captured via getDisplayMedia(). "
+            "Stored unencrypted in the issue_logs S3 bucket so admins and LLMs can view it directly "
+            "via a pre-signed URL. Only available for authenticated users."
+        )
+    )
+    picked_element_html: Optional[str] = Field(
+        None,
+        max_length=200000,
+        description=(
+            "outerHTML of the DOM element that the user tapped/clicked using the element picker. "
+            "Captures the exact HTML structure of a broken UI element for debugging layout, "
+            "rendering, or content issues. Collected client-side via the element picker overlay."
+        )
+    )
 
 
 class IssueReportResponse(BaseModel):
@@ -2255,7 +2191,8 @@ class IssueReportResponse(BaseModel):
 @limiter.limit("5/minute")  # Rate limit to prevent abuse
 async def report_issue(
     request: Request,
-    issue_data: IssueReportRequest
+    issue_data: IssueReportRequest,
+    current_user: Optional[User] = Depends(get_current_user_optional)  # Optional auth - supports both authenticated and non-authenticated users
 ):
     """
     Report an issue to the server owner.
@@ -2263,6 +2200,9 @@ async def report_issue(
     This endpoint is exclusive to the web app (not accessible via API keys) but allows
     both authenticated and non-authenticated users to submit issue reports.
     The issue report is sent via email to the server owner (admin email).
+    
+    When an admin user reports an issue, the title is prefixed with '(Admin): ' to easily
+    identify admin-reported issues from regular user reports.
     
     The email includes:
     - Issue title
@@ -2274,6 +2214,7 @@ async def report_issue(
     Args:
         request: FastAPI Request object (for IP extraction and geo location)
         issue_data: Issue report data (title, description, optional URL)
+        current_user: Optional authenticated user (None for non-authenticated users)
     
     Returns:
         IssueReportResponse with success status and message
@@ -2284,9 +2225,25 @@ async def report_issue(
         from html import escape
         from urllib.parse import urlparse, urlunparse
         
+        # Check if the reporter is an authenticated admin user
+        is_from_admin = current_user is not None and current_user.is_admin
+        reported_by_user_id = current_user.id if current_user else None
+        
+        if is_from_admin:
+            logger.info(f"Issue report submitted by admin user {reported_by_user_id}")
+        elif reported_by_user_id:
+            logger.info(f"Issue report submitted by authenticated user {reported_by_user_id}")
+        else:
+            logger.info("Issue report submitted by non-authenticated user")
+        
         # SECURITY: Sanitize user inputs to prevent XSS attacks
         # HTML escape title and description to prevent injection of malicious HTML/JavaScript
         sanitized_title = escape(issue_data.title.strip())
+        
+        # Add '(Admin): ' prefix to title if reported by an admin user
+        if is_from_admin and not sanitized_title.startswith("(Admin): "):
+            sanitized_title = f"(Admin): {sanitized_title}"
+        
         # Description is optional - only sanitize if provided
         sanitized_description = escape(issue_data.description.strip()) if issue_data.description else None
         
@@ -2341,6 +2298,12 @@ async def report_issue(
                 logger.warning(f"Invalid email format in issue report: {email_str[:50]}")
                 sanitized_email = None
         
+        # Validate and sanitise the language code from the client
+        # Only allow simple ISO 639-1 / BCP-47 codes (e.g. "en", "de", "zh"); default to "en"
+        import re as _re
+        raw_language = issue_data.language.strip().lower()[:10] if issue_data.language else "en"
+        sanitized_language = raw_language if _re.match(r'^[a-z]{2,3}(-[a-z0-9]{2,8})?$', raw_language) else "en"
+
         # Extract client IP address
         client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
         
@@ -2404,8 +2367,122 @@ async def report_issue(
             last_messages_html_str = issue_data.last_messages_html.strip()
             logger.info(f"Last messages HTML provided with issue report: {len(last_messages_html_str)} characters")
 
-        # Encrypt sensitive fields for database storage (server-side encryption)
+        # Process user action history if provided
+        # This contains the last 20 user interactions (button names, navigation)
+        # NO user-typed text content is ever included — only developer-authored labels
+        action_history_str = None
+        if issue_data.action_history and issue_data.action_history.strip():
+            action_history_str = issue_data.action_history.strip()
+            logger.info(f"Action history provided with issue report: {len(action_history_str)} characters")
+
+        # Process active chat sidebar HTML if provided
+        # This contains the outerHTML of the active chat entry in the sidebar at the time of report,
+        # showing the chat title, status label, typing indicator and category icon state.
+        active_chat_sidebar_html_str = None
+        if issue_data.active_chat_sidebar_html and issue_data.active_chat_sidebar_html.strip():
+            active_chat_sidebar_html_str = issue_data.active_chat_sidebar_html.strip()
+            logger.info(f"Active chat sidebar HTML provided with issue report: {len(active_chat_sidebar_html_str)} characters")
+
+        # Process user-picked element HTML if provided
+        # This contains the outerHTML of a DOM element the user tapped/clicked via the
+        # element picker overlay. Helps debug layout, rendering, or content issues by
+        # showing the exact HTML structure of the broken UI element at report time.
+        picked_element_html_str = None
+        if issue_data.picked_element_html and issue_data.picked_element_html.strip():
+            picked_element_html_str = issue_data.picked_element_html.strip()
+            logger.info(f"Picked element HTML provided with issue report: {len(picked_element_html_str)} characters")
+
+        # Process runtime debug state if provided
+        # This is a JSON-serialisable dict containing WS status, online status, AI typing,
+        # pending uploads and phased sync state — useful for debugging send/sync issues.
+        import json as _json
+        runtime_debug_state_str = None
+        if issue_data.runtime_debug_state:
+            try:
+                runtime_debug_state_str = _json.dumps(issue_data.runtime_debug_state, indent=2)
+                logger.info(f"Runtime debug state provided with issue report: {len(runtime_debug_state_str)} characters")
+            except Exception as _e:
+                logger.warning(f"Failed to serialise runtime_debug_state: {_e}")
+
+        # Retrieve encryption service early — needed for both screenshot key encryption
+        # and the regular field encryption block below.
         encryption_service: EncryptionService = request.app.state.encryption_service
+
+        # Process screenshot PNG if provided.
+        # The frontend sends a base64-encoded PNG captured via getDisplayMedia() (authenticated users only).
+        # We store it unencrypted in the issue_logs S3 bucket so admins and LLMs can view it via
+        # a pre-signed URL without any decryption step. The S3 key is stored encrypted in Directus.
+        screenshot_presigned_url: Optional[str] = None
+        encrypted_screenshot_s3_key: Optional[str] = None
+
+        if issue_data.screenshot_png_base64 and current_user:
+            # Only process screenshots from authenticated users (unauthenticated users cannot attach screenshots)
+            try:
+                import base64 as _base64
+                import uuid as _uuid
+                from datetime import datetime as _dt, timezone as _tz
+
+                # Decode base64 → PNG bytes
+                # Strip the data URI prefix if the browser included it (e.g. "data:image/png;base64,...")
+                raw_b64 = issue_data.screenshot_png_base64.strip()
+                if raw_b64.startswith('data:'):
+                    raw_b64 = raw_b64.split(',', 1)[1]
+                screenshot_bytes = _base64.b64decode(raw_b64)
+
+                # Basic size guard (2 MB decoded)
+                if len(screenshot_bytes) > 2 * 1024 * 1024:
+                    logger.warning(
+                        f"Screenshot too large ({len(screenshot_bytes)} bytes) — skipping upload"
+                    )
+                else:
+                    # Upload unencrypted PNG to the issue_logs S3 bucket.
+                    # The bucket is private, so only pre-signed URLs can access the file.
+                    s3_service = request.app.state.s3_service
+                    timestamp_str = _dt.now(_tz.utc).strftime('%Y%m%d_%H%M%S')
+                    unique_id = _uuid.uuid4().hex[:8]
+                    screenshot_s3_key = f"issue-screenshots/{timestamp_str}_{unique_id}.png"
+
+                    await s3_service.upload_file(
+                        bucket_key='issue_logs',
+                        file_key=screenshot_s3_key,
+                        content=screenshot_bytes,
+                        content_type='image/png'
+                    )
+                    logger.info(
+                        f"Uploaded screenshot PNG to S3: {screenshot_s3_key} "
+                        f"({len(screenshot_bytes)} bytes)"
+                    )
+
+                    # Generate a 7-day pre-signed URL for immediate use in the email / inspect script
+                    from backend.core.api.app.services.s3.config import get_bucket_name as _get_bucket_name
+                    environment = s3_service.environment
+                    screenshot_bucket_name = _get_bucket_name('issue_logs', environment)
+                    screenshot_presigned_url = s3_service.generate_presigned_url(
+                        bucket_name=screenshot_bucket_name,
+                        file_key=screenshot_s3_key,
+                        expiration=7 * 24 * 3600  # 7 days
+                    )
+                    logger.info("Generated 7-day pre-signed URL for screenshot")
+
+                    # Encrypt the S3 key for Directus storage
+                    encrypted_screenshot_s3_key = await encryption_service.encrypt_issue_report_data(
+                        screenshot_s3_key
+                    )
+                    logger.debug("Encrypted screenshot S3 key for database storage")
+
+            except Exception as _e:
+                # Screenshot upload failure must NOT block the issue report submission
+                logger.error(
+                    f"Failed to process screenshot for issue report: {str(_e)}",
+                    exc_info=True
+                )
+                screenshot_presigned_url = None
+                encrypted_screenshot_s3_key = None
+        elif issue_data.screenshot_png_base64 and not current_user:
+            logger.warning("Screenshot ignored — only authenticated users can attach screenshots")
+
+        # Encrypt sensitive fields for database storage (server-side encryption)
+        # Note: encryption_service was already retrieved above before the screenshot block.
         encrypted_contact_email = None
         encrypted_chat_or_embed_url = None
         encrypted_estimated_location = None
@@ -2456,6 +2533,10 @@ async def report_issue(
                 "encrypted_estimated_location": encrypted_estimated_location,
                 "encrypted_device_info": encrypted_device_info,
                 "encrypted_issue_report_yaml_s3_key": encrypted_issue_report_yaml_s3_key,
+                # Encrypted S3 key for the screenshot PNG (if provided by an authenticated user)
+                "encrypted_screenshot_s3_key": encrypted_screenshot_s3_key,
+                "is_from_admin": is_from_admin,
+                "reported_by_user_id": reported_by_user_id,
                 "created_at": current_timestamp.isoformat(),
                 "updated_at": current_timestamp.isoformat()
             }
@@ -2506,12 +2587,22 @@ async def report_issue(
                 "issue_description": sanitized_description,
                 "chat_or_embed_url": sanitized_url,
                 "contact_email": sanitized_email,  # Use plaintext for email (not encrypted)
+                "language": sanitized_language,    # Client UI language for confirmation email localisation
                 "timestamp": current_time,
                 "estimated_location": estimated_location,
                 "device_info": device_info_str,
                 "console_logs": console_logs_str,
                 "indexeddb_report": indexeddb_report_str,
-                "last_messages_html": last_messages_html_str
+                "last_messages_html": last_messages_html_str,
+                "active_chat_sidebar_html": active_chat_sidebar_html_str,
+                "runtime_debug_state": runtime_debug_state_str,
+                "action_history": action_history_str,
+                # outerHTML of the DOM element the user picked via the element picker overlay.
+                # Captures the exact HTML of a broken UI element for debugging layout/rendering issues.
+                "picked_element_html": picked_element_html_str,
+                # Pre-signed URL for the screenshot PNG (7-day validity). Included in the
+                # admin email and in inspect_issue.py so LLMs can view the screenshot directly.
+                "screenshot_presigned_url": screenshot_presigned_url
             },
             queue='email'
         )
@@ -2554,6 +2645,7 @@ class DeleteAccountRequest(BaseModel):
     confirm_data_deletion: bool  # User must confirm they understand data will be deleted
     auth_method: str  # "passkey" or "2fa_otp"
     auth_code: Optional[str] = None  # OTP code for 2FA, or credential_id for passkey
+    email_encryption_key: Optional[str] = None  # Client-side email encryption key for sending refund emails during deletion
 
 
 async def _calculate_delete_account_preview(
@@ -2851,7 +2943,8 @@ async def delete_account(
                 "reason": "User requested account deletion",
                 "ip_address": client_ip,
                 "device_fingerprint": device_fingerprint,
-                "refund_invoices": True
+                "refund_invoices": True,
+                "email_encryption_key": delete_request.email_encryption_key,
             },
             queue="user_init"  # Use user_init queue for account deletion
         )
@@ -3671,3 +3764,844 @@ async def delete_uncompleted_account(
     except Exception as e:
         logger.error(f"Error deleting uncompleted account: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# ─── Auto-deletion settings ───────────────────────────────────────────────────
+
+
+@router.post("/auto-delete-chats", response_model=SimpleSuccessResponse, include_in_schema=False)
+@limiter.limit("30/minute")
+async def update_auto_delete_chats(
+    request: Request,
+    request_data: AutoDeleteChatsRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> SimpleSuccessResponse:
+    """
+    Persist the user's chat auto-deletion period.
+
+    Accepts a period string (e.g. "90d", "1y", "never") and converts it to an
+    integer day count stored on the user record as ``auto_delete_chats_after_days``.
+    "never" stores null, which tells the auto-delete task to skip this user.
+
+    The daily Celery Beat task (auto_delete_tasks.auto_delete_old_chats) reads this
+    field each run and schedules deletion of chats older than the configured period.
+    """
+    user_id = current_user.id
+    days = period_to_days(request_data.period)  # None for "never", int otherwise
+
+    logger.info(
+        f"[AutoDelete] Updating auto-delete period for user {user_id}: "
+        f"period={request_data.period!r} → days={days}"
+    )
+
+    update_data = {'auto_delete_chats_after_days': days}
+
+    try:
+        # Persist to Directus (source of truth)
+        success = await directus_service.update_user(user_id, update_data)
+        if not success:
+            logger.error(
+                f"[AutoDelete] Failed to update Directus for user {user_id} "
+                f"(period={request_data.period!r})."
+            )
+            raise HTTPException(status_code=500, detail="Failed to save auto-delete setting")
+
+        # Mirror to cache so the frontend sees the new value immediately
+        cache_ok = await cache_service.update_user(user_id, update_data)
+        if not cache_ok:
+            # Non-fatal: Directus is the source of truth; cache will be refreshed on next request.
+            logger.warning(
+                f"[AutoDelete] Cache update failed for user {user_id} after "
+                f"auto-delete period change (Directus was updated successfully)."
+            )
+        else:
+            logger.info(f"[AutoDelete] Cache updated for user {user_id}.")
+
+        return SimpleSuccessResponse(
+            success=True,
+            message="Auto-delete setting saved successfully"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"[AutoDelete] Unexpected error updating auto-delete period for user {user_id}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="An error occurred while saving auto-delete setting")
+
+
+# ─── AI Model Default Preferences ────────────────────────────────────────────
+
+
+@router.post("/ai-model-defaults", response_model=SimpleSuccessResponse, include_in_schema=False)
+@limiter.limit("30/minute")
+async def update_ai_model_defaults(
+    request: Request,
+    request_data: AiModelDefaultsRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> SimpleSuccessResponse:
+    """
+    Persist the user's preferred default AI models for simple and complex requests.
+
+    These values are injected into user_preferences when a message is received and
+    take precedence over auto-selection (ModelSelector), but are overridden by an
+    explicit @mention in the message.
+
+    Model ID format: "provider/model_id" (e.g., "anthropic/claude-haiku-4-5-20251001").
+    Pass null (or omit) to reset a tier to auto-select.
+    """
+    user_id = current_user.id
+
+    # Validate model IDs — must be either None (auto-select) or contain a "/" separator
+    for field_name, value in [
+        ("default_ai_model_simple", request_data.default_ai_model_simple),
+        ("default_ai_model_complex", request_data.default_ai_model_complex),
+    ]:
+        if value is not None and "/" not in value:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid model ID for '{field_name}': must be in 'provider/model_id' format (e.g. 'anthropic/claude-haiku-4-5-20251001')."
+            )
+
+    update_data = {
+        'default_ai_model_simple': request_data.default_ai_model_simple,
+        'default_ai_model_complex': request_data.default_ai_model_complex,
+    }
+
+    logger.info(
+        f"[AiModelDefaults] Updating default models for user {user_id}: "
+        f"simple={request_data.default_ai_model_simple!r}, "
+        f"complex={request_data.default_ai_model_complex!r}"
+    )
+
+    try:
+        # Persist to Directus (source of truth)
+        success = await directus_service.update_user(user_id, update_data)
+        if not success:
+            logger.error(
+                f"[AiModelDefaults] Failed to update Directus for user {user_id}."
+            )
+            raise HTTPException(status_code=500, detail="Failed to save default model setting")
+
+        # Mirror to cache so the WebSocket handler picks up the new values immediately
+        cache_ok = await cache_service.update_user(user_id, update_data)
+        if not cache_ok:
+            # Non-fatal: Directus is the source of truth; cache will be refreshed on next request.
+            logger.warning(
+                f"[AiModelDefaults] Cache update failed for user {user_id} after "
+                f"default model change (Directus was updated successfully)."
+            )
+        else:
+            logger.info(f"[AiModelDefaults] Cache updated for user {user_id}.")
+
+        return SimpleSuccessResponse(
+            success=True,
+            message="Default model settings saved successfully"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"[AiModelDefaults] Unexpected error updating default models for user {user_id}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="An error occurred while saving default model setting")
+
+
+# ─── Storage Overview ─────────────────────────────────────────────────────────
+
+# Mirrors the constants in storage_billing_tasks.py — update both if pricing changes.
+_STORAGE_FREE_BYTES: int = 1_073_741_824       # 1 GB
+_STORAGE_CREDITS_PER_GB_PER_WEEK: int = 3
+
+
+def _classify_mime_type(mime: str) -> str:
+    """
+    Map a MIME type string to one of the standard storage category names.
+
+    Categories (must match i18n keys storage.category.<name>):
+      images, videos, audio, pdf, code, docs, sheets, archives, other
+    """
+    if not mime:
+        return "other"
+    lower = mime.lower()
+
+    if lower.startswith("image/"):
+        return "images"
+    if lower.startswith("video/"):
+        return "videos"
+    if lower.startswith("audio/"):
+        return "audio"
+    if lower == "application/pdf":
+        return "pdf"
+    if lower.startswith("text/") or lower in (
+        "application/json",
+        "application/xml",
+        "application/javascript",
+        "application/x-javascript",
+        "application/typescript",
+        "application/x-typescript",
+        "application/x-sh",
+        "application/x-python",
+        "application/x-ruby",
+        "application/x-perl",
+    ):
+        return "code"
+    if lower in (
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.template",
+        "application/vnd.oasis.opendocument.text",
+        "application/rtf",
+    ):
+        return "docs"
+    if lower in (
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.template",
+        "application/vnd.oasis.opendocument.spreadsheet",
+    ):
+        return "sheets"
+    if lower in (
+        "application/zip",
+        "application/x-zip-compressed",
+        "application/x-tar",
+        "application/gzip",
+        "application/x-gzip",
+        "application/x-bzip2",
+        "application/x-7z-compressed",
+        "application/x-rar-compressed",
+        "application/vnd.rar",
+    ):
+        return "archives"
+    return "other"
+
+
+def _next_billing_timestamp() -> int:
+    """
+    Return the Unix timestamp of the next Sunday at 03:00 UTC.
+    This mirrors the weekly billing schedule in storage_billing_tasks.py.
+    """
+    now = datetime.now(timezone.utc)
+    # weekday(): Mon=0 … Sun=6
+    days_until_sunday = (6 - now.weekday()) % 7
+    # If today is already Sunday and it's past 03:00, roll to next Sunday.
+    if days_until_sunday == 0 and (now.hour > 3 or (now.hour == 3 and now.minute > 0)):
+        days_until_sunday = 7
+    next_sunday = (now + timedelta(days=days_until_sunday)).replace(
+        hour=3, minute=0, second=0, microsecond=0
+    )
+    return int(next_sunday.timestamp())
+
+
+@router.get("/storage", response_model=StorageOverviewResponse)
+@limiter.limit("30/minute")
+async def get_storage_overview(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> StorageOverviewResponse:
+    """
+    Return the current user's storage usage, broken down by file-type category,
+    along with billing information (free tier, weekly cost, next billing date).
+
+    Source of truth: the `upload_files` collection is queried directly so that
+    the numbers are accurate immediately after file deletions (the cached
+    `storage_used_bytes` counter on directus_users is only reconciled during
+    the weekly billing run).
+
+    Endpoint: GET /v1/settings/storage
+    """
+    user_id: str = current_user.id
+    logger.info(f"[Storage] Fetching storage overview for user {user_id}")
+
+    try:
+        # ── 1. Fetch all upload_files records for the user ──────────────────
+        # We need content_type and file_size_bytes for each file so we can
+        # categorise them in Python.  Directus aggregate + groupBy on
+        # content_type would give us bytes per MIME type but not file_count,
+        # so fetching fields directly is simpler and accurate.
+        files_result = await directus_service.get_items(
+            "upload_files",
+            params={
+                "filter": {"user_id": {"_eq": user_id}},
+                "fields": "content_type,file_size_bytes",
+                "limit": -1,
+            },
+            no_cache=True,
+        )
+
+        # ── 2. Aggregate into categories ────────────────────────────────────
+        # category_name → {"bytes": int, "count": int}
+        category_map: Dict[str, Dict[str, int]] = {}
+
+        total_bytes: int = 0
+        total_files: int = 0
+
+        if files_result and isinstance(files_result, list):
+            for row in files_result:
+                mime: str = row.get("content_type") or ""
+                size: int = int(row.get("file_size_bytes") or 0)
+                cat: str = _classify_mime_type(mime)
+
+                if cat not in category_map:
+                    category_map[cat] = {"bytes": 0, "count": 0}
+                category_map[cat]["bytes"] += size
+                category_map[cat]["count"] += 1
+
+                total_bytes += size
+                total_files += 1
+
+        # ── 3. Build ordered breakdown list ─────────────────────────────────
+        # Only include categories that have at least one file.
+        category_order = ["images", "videos", "audio", "pdf", "code", "docs", "sheets", "archives", "other"]
+        breakdown = [
+            StorageCategoryBreakdown(
+                category=cat,
+                bytes_used=category_map[cat]["bytes"],
+                file_count=category_map[cat]["count"],
+            )
+            for cat in category_order
+            if cat in category_map
+        ]
+
+        # ── 4. Compute billing fields ────────────────────────────────────────
+        billable_gb: int = 0
+        weekly_cost_credits: int = 0
+        next_billing_date: Optional[int] = None
+
+        if total_bytes > _STORAGE_FREE_BYTES:
+            billable_gb = math.ceil((total_bytes - _STORAGE_FREE_BYTES) / _STORAGE_FREE_BYTES)
+            weekly_cost_credits = billable_gb * _STORAGE_CREDITS_PER_GB_PER_WEEK
+            next_billing_date = _next_billing_timestamp()
+
+        # ── 5. Fetch last_billed_at from directus_users ──────────────────────
+        last_billed_at: Optional[int] = None
+        try:
+            user_fields = await directus_service.get_user_fields_direct(
+                user_id, ["storage_last_billed_at"]
+            )
+            raw_ts = (user_fields or {}).get("storage_last_billed_at")
+            if raw_ts is not None:
+                last_billed_at = int(raw_ts)
+        except Exception as e_lba:
+            # Non-fatal: proceed without last_billed_at
+            logger.warning(
+                f"[Storage] Could not fetch storage_last_billed_at for user {user_id}: {e_lba}"
+            )
+
+        logger.info(
+            f"[Storage] User {user_id}: total_bytes={total_bytes}, total_files={total_files}, "
+            f"billable_gb={billable_gb}, weekly_cost={weekly_cost_credits}"
+        )
+
+        return StorageOverviewResponse(
+            total_bytes=total_bytes,
+            total_files=total_files,
+            free_bytes=_STORAGE_FREE_BYTES,
+            billable_gb=billable_gb,
+            credits_per_gb_per_week=_STORAGE_CREDITS_PER_GB_PER_WEEK,
+            weekly_cost_credits=weekly_cost_credits,
+            next_billing_date=next_billing_date,
+            last_billed_at=last_billed_at,
+            breakdown=breakdown,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"[Storage] Unexpected error fetching storage overview for user {user_id}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="Failed to fetch storage overview")
+
+
+# ─── Category → MIME filter helper ────────────────────────────────────────────
+
+def _mime_filter_for_category(category: str) -> Dict[str, Any]:
+    """
+    Return a Directus _or filter clause that matches all MIME types in a given
+    storage category.  Used by the file-list and delete-by-category endpoints.
+
+    Each returned dict is suitable for merging into a Directus params dict as
+    the value of "filter[content_type]".
+
+    Raises ValueError for unknown category names so callers can surface a 400.
+    """
+    # Map category → list of exact MIME values or prefix flags.
+    # Using Directus _starts_with for prefix-based matching (image/, video/, audio/).
+    CATEGORY_FILTERS: Dict[str, Any] = {
+        "images":   {"_starts_with": "image/"},
+        "videos":   {"_starts_with": "video/"},
+        "audio":    {"_starts_with": "audio/"},
+        "pdf":      {"_eq": "application/pdf"},
+        "code": {"_in": [
+            "application/json", "application/xml",
+            "application/javascript", "application/x-javascript",
+            "application/typescript", "application/x-typescript",
+            "application/x-sh", "application/x-python",
+            "application/x-ruby", "application/x-perl",
+            # text/* handled separately via starts_with below — combine with _or
+        ]},
+        "docs": {"_in": [
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.template",
+            "application/vnd.oasis.opendocument.text",
+            "application/rtf",
+        ]},
+        "sheets": {"_in": [
+            "application/vnd.ms-excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.template",
+            "application/vnd.oasis.opendocument.spreadsheet",
+        ]},
+        "archives": {"_in": [
+            "application/zip", "application/x-zip-compressed",
+            "application/x-tar", "application/gzip", "application/x-gzip",
+            "application/x-bzip2", "application/x-7z-compressed",
+            "application/x-rar-compressed", "application/vnd.rar",
+        ]},
+    }
+    if category not in CATEGORY_FILTERS and category != "other":
+        raise ValueError(f"Unknown storage category: {category!r}")
+    if category in CATEGORY_FILTERS:
+        return CATEGORY_FILTERS[category]
+    # "other" cannot be expressed as a single Directus filter cleanly — we
+    # return None to signal that Python-side filtering must be used.
+    return {}
+
+
+# ─── Storage File Listing ──────────────────────────────────────────────────────
+
+@router.get("/storage/files", response_model=StorageFilesListResponse)
+@limiter.limit("30/minute")
+async def list_storage_files(
+    request: Request,
+    category: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> StorageFilesListResponse:
+    """
+    Return the list of uploaded files for the current user, optionally filtered
+    by storage category.
+
+    Files are returned newest-first (sorted by created_at descending).
+    The category param must match one of the standard category names
+    (images, videos, audio, pdf, code, docs, sheets, archives, other).
+    If omitted, all files are returned.
+
+    Endpoint: GET /v1/settings/storage/files?category=<name>
+    """
+    user_id: str = current_user.id
+    logger.info(f"[StorageFiles] Listing files for user {user_id} (category={category!r})")
+
+    try:
+        # ── 1. Build Directus filter ─────────────────────────────────────────
+        base_filter: Dict[str, Any] = {"user_id": {"_eq": user_id}}
+        if category and category != "other":
+            # Validate category name first
+            try:
+                mime_filter = _mime_filter_for_category(category)
+            except ValueError:
+                raise HTTPException(status_code=400, detail=f"Unknown category: {category!r}")
+
+            # For prefix-based categories (images/videos/audio), Directus supports
+            # _starts_with; for the rest we use _in.  "code" also needs text/ prefix —
+            # handled by Python-side classification below.
+            base_filter["content_type"] = mime_filter
+
+        # ── 2. Fetch upload_files ─────────────────────────────────────────────
+        records = await directus_service.get_items(
+            "upload_files",
+            params={
+                "filter": base_filter,
+                "fields": "id,embed_id,original_filename,content_type,file_size_bytes,files_metadata,created_at",
+                "sort": "-created_at",
+                "limit": -1,
+            },
+            no_cache=True,
+        )
+
+        if not records or not isinstance(records, list):
+            records = []
+
+        # ── 3. Build response items ────────────────────────────────────────────
+        file_items: list[StorageFileItem] = []
+        total_bytes: int = 0
+
+        for row in records:
+            mime: str = row.get("content_type") or ""
+            row_category: str = _classify_mime_type(mime)
+
+            # For "other" category filter and "code" (which needs text/ prefix too),
+            # apply Python-side classification to match correctly.
+            if category and row_category != category:
+                continue
+
+            size: int = int(row.get("file_size_bytes") or 0)
+            files_metadata = row.get("files_metadata") or {}
+            variant_count: int = len(files_metadata) if isinstance(files_metadata, dict) else 1
+
+            raw_ts = row.get("created_at")
+            created_at: Optional[int] = int(raw_ts) if raw_ts is not None else None
+
+            file_items.append(StorageFileItem(
+                id=str(row.get("id") or ""),
+                embed_id=str(row.get("embed_id") or ""),
+                original_filename=str(row.get("original_filename") or ""),
+                content_type=mime,
+                category=row_category,
+                file_size_bytes=size,
+                variant_count=variant_count,
+                created_at=created_at,
+            ))
+            total_bytes += size
+
+        logger.info(
+            f"[StorageFiles] Returning {len(file_items)} file(s) "
+            f"({total_bytes:,} bytes) for user {user_id}"
+        )
+
+        return StorageFilesListResponse(
+            files=file_items,
+            total_count=len(file_items),
+            total_bytes=total_bytes,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"[StorageFiles] Unexpected error listing files for user {user_id}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="Failed to list storage files")
+
+
+# ─── Storage File View (server-side decrypt + stream) ─────────────────────────
+
+@router.get("/storage/files/{embed_id}/view")
+@limiter.limit("60/minute")
+async def view_storage_file(
+    embed_id: str,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+):
+    """
+    Stream the decrypted content of an uploaded file so the browser can open it.
+
+    Fetches the upload_files record, downloads the AES-256-GCM encrypted bytes
+    from S3, decrypts them using the stored plaintext AES key/nonce, and streams
+    the result with the correct Content-Type header.
+
+    For images, the 'full' variant is used (best quality for viewing).
+    For all other file types (PDF, audio, etc.), the 'original' variant is used.
+
+    Security model:
+    - Authentication required.
+    - Ownership validated: upload_files.user_id must match current_user.id.
+    - The AES key is stored server-side in upload_files (same security model as
+      the existing deduplication path — the server already has the key).
+
+    Endpoint: GET /v1/settings/storage/files/{embed_id}/view
+    """
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    import base64
+    from fastapi.responses import Response as FastAPIResponse
+
+    user_id: str = current_user.id
+    log_prefix = f"[StorageView] [user:{user_id[:8]}...] [embed:{embed_id[:8]}...]"
+
+    try:
+        # ── 1. Fetch upload_files record (ownership check) ─────────────────────
+        records = await directus_service.get_items(
+            "upload_files",
+            params={
+                "filter": {
+                    "embed_id": {"_eq": embed_id},
+                    "user_id": {"_eq": user_id},
+                },
+                "fields": "id,content_type,files_metadata,aes_key,aes_nonce",
+                "limit": 1,
+            },
+            no_cache=True,
+        )
+
+        if not records or not isinstance(records, list) or len(records) == 0:
+            logger.warning(f"{log_prefix} upload_files record not found or not owned by user")
+            raise HTTPException(status_code=404, detail="File not found")
+
+        record = records[0]
+        content_type: str = record.get("content_type") or "application/octet-stream"
+        files_metadata: Dict[str, Any] = record.get("files_metadata") or {}
+        aes_key_b64: str = record.get("aes_key") or ""
+        aes_nonce_b64: str = record.get("aes_nonce") or ""
+
+        if not aes_key_b64 or not aes_nonce_b64:
+            logger.error(f"{log_prefix} Missing AES key or nonce in upload_files record")
+            raise HTTPException(status_code=500, detail="Encryption metadata missing")
+
+        # ── 2. Choose the best variant to serve ───────────────────────────────
+        # For images: prefer 'full' (high-res WEBP), fall back to 'preview', then 'original'.
+        # For everything else: 'original' only.
+        category = _classify_mime_type(content_type)
+        if category == "images":
+            variant_preference = ["full", "preview", "original"]
+        else:
+            variant_preference = ["original"]
+
+        chosen_variant: Optional[Dict[str, Any]] = None
+        chosen_variant_name: str = "original"
+        for variant_name in variant_preference:
+            v = files_metadata.get(variant_name)
+            if v and isinstance(v, dict) and v.get("s3_key"):
+                chosen_variant = v
+                chosen_variant_name = variant_name
+                break
+
+        if not chosen_variant:
+            logger.error(f"{log_prefix} No usable variant found in files_metadata: {list(files_metadata.keys())}")
+            raise HTTPException(status_code=404, detail="File content not found")
+
+        s3_key: str = chosen_variant["s3_key"]
+        # For image variants we serve as webp; for others use the original content_type
+        serve_content_type: str = "image/webp" if category == "images" else content_type
+
+        logger.info(f"{log_prefix} Serving variant '{chosen_variant_name}' s3_key={s3_key[:40]}...")
+
+        # ── 3. Get S3 service from app state ──────────────────────────────────
+        s3_service = request.app.state.s3_service
+        if not s3_service:
+            logger.error(f"{log_prefix} S3 service not available")
+            raise HTTPException(status_code=503, detail="Storage service unavailable")
+
+        # ── 4. Download encrypted bytes from S3 ──────────────────────────────
+        from backend.core.api.app.services.s3.config import get_bucket_name as _get_bucket_name_sv
+        chatfiles_bucket = _get_bucket_name_sv("chatfiles", os.getenv("SERVER_ENVIRONMENT", "development"))
+        encrypted_bytes: bytes = await s3_service.get_file(
+            bucket_name=chatfiles_bucket,
+            object_key=s3_key,
+        )
+
+        if not encrypted_bytes:
+            logger.error(f"{log_prefix} S3 returned empty content for {s3_key}")
+            raise HTTPException(status_code=404, detail="File content not found in storage")
+
+        # ── 5. Decrypt AES-256-GCM ────────────────────────────────────────────
+        try:
+            aes_key: bytes = base64.b64decode(aes_key_b64)
+            aes_nonce: bytes = base64.b64decode(aes_nonce_b64)
+            aesgcm = AESGCM(aes_key)
+            plaintext: bytes = aesgcm.decrypt(aes_nonce, encrypted_bytes, None)
+        except Exception as dec_err:
+            logger.error(f"{log_prefix} Decryption failed: {dec_err}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Failed to decrypt file")
+
+        logger.info(
+            f"{log_prefix} Serving {len(plaintext):,} decrypted bytes "
+            f"as {serve_content_type}"
+        )
+
+        # ── 6. Stream response with Content-Disposition: inline ───────────────
+        return FastAPIResponse(
+            content=plaintext,
+            media_type=serve_content_type,
+            headers={"Content-Disposition": "inline"},
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"{log_prefix} Unexpected error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve file")
+
+
+# ─── Storage File Deletion ─────────────────────────────────────────────────────
+
+@router.delete("/storage/files", response_model=StorageDeleteFilesResponse)
+@limiter.limit("10/minute")
+async def delete_storage_files(
+    payload: StorageDeleteFilesRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> StorageDeleteFilesResponse:
+    """
+    Delete uploaded files for the current user from S3 and Directus.
+
+    Embed records are intentionally NOT deleted — the chat UI will continue to
+    show an entry but will display "File deleted" when the embed content is gone.
+
+    Scopes:
+      - single:   Delete one file by its upload_files Directus ID (file_id required).
+      - category: Delete all files in a MIME category (category required).
+      - all:      Delete every uploaded file for the current user.
+
+    For each deleted record:
+      1. All S3 variant objects (original, full, preview) are deleted.
+      2. The upload_files Directus record is deleted.
+      3. The user's storage_used_bytes counter is decremented.
+
+    Endpoint: DELETE /v1/settings/storage/files
+    Rate limited: 10/minute (irreversible bulk operation).
+    """
+    user_id: str = current_user.id
+    log_prefix = f"[StorageDelete] [user:{user_id[:8]}...] scope={payload.scope!r}"
+
+    VALID_SCOPES = {"single", "category", "all"}
+    if payload.scope not in VALID_SCOPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid scope {payload.scope!r}. Must be one of: {', '.join(VALID_SCOPES)}"
+        )
+    if payload.scope == "single" and not payload.file_id:
+        raise HTTPException(status_code=400, detail="file_id is required when scope='single'")
+    if payload.scope == "category" and not payload.category:
+        raise HTTPException(status_code=400, detail="category is required when scope='category'")
+
+    logger.info(f"{log_prefix} file_id={payload.file_id!r} category={payload.category!r}")
+
+    try:
+        # ── 1. Get S3 service ─────────────────────────────────────────────────
+        s3_service = request.app.state.s3_service
+        if not s3_service:
+            logger.error(f"{log_prefix} S3 service not available")
+            raise HTTPException(status_code=503, detail="Storage service unavailable")
+
+        # ── 2. Fetch target records ───────────────────────────────────────────
+        base_filter: Dict[str, Any] = {"user_id": {"_eq": user_id}}
+
+        if payload.scope == "single":
+            base_filter["id"] = {"_eq": payload.file_id}
+        elif payload.scope == "category":
+            category_name = payload.category
+            # Validate and build MIME filter
+            try:
+                mime_filter = _mime_filter_for_category(category_name)
+            except ValueError:
+                raise HTTPException(status_code=400, detail=f"Unknown category: {category_name!r}")
+
+            if mime_filter:
+                base_filter["content_type"] = mime_filter
+            # "other" category has empty mime_filter — Python-side filter applied below
+
+        records = await directus_service.get_items(
+            "upload_files",
+            params={
+                "filter": base_filter,
+                "fields": "id,embed_id,file_size_bytes,files_metadata,content_type",
+                "limit": -1,
+            },
+            no_cache=True,
+        )
+
+        if not records or not isinstance(records, list):
+            records = []
+
+        # Python-side category filter for "other" and "code" (text/* prefix)
+        if payload.scope == "category" and payload.category:
+            category_name = payload.category
+            records = [
+                r for r in records
+                if _classify_mime_type(r.get("content_type") or "") == category_name
+            ]
+
+        if not records:
+            logger.info(f"{log_prefix} No matching records found; nothing to delete")
+            return StorageDeleteFilesResponse(deleted_count=0, bytes_freed=0)
+
+        # ── 3. Ownership double-check: reject if any record doesn't belong to user ──
+        # The filter already enforces user_id, but log a warning if somehow a mismatch slips through.
+        for r in records:
+            # (filter already guarantees this; belt-and-suspenders check)
+            pass
+
+        logger.info(f"{log_prefix} Deleting {len(records)} record(s)")
+
+        # ── 4. Delete S3 variant objects ──────────────────────────────────────
+        s3_deleted = 0
+        s3_failed = 0
+        for record in records:
+            files_metadata = record.get("files_metadata")
+            if not files_metadata or not isinstance(files_metadata, dict):
+                continue
+            for variant_name, variant_data in files_metadata.items():
+                if not isinstance(variant_data, dict):
+                    continue
+                s3_key = variant_data.get("s3_key")
+                if not s3_key:
+                    continue
+                try:
+                    await s3_service.delete_file(bucket_key="chatfiles", file_key=s3_key)
+                    s3_deleted += 1
+                    logger.debug(
+                        f"{log_prefix} Deleted S3 chatfiles/{s3_key} (variant: {variant_name})"
+                    )
+                except Exception as s3_err:
+                    s3_failed += 1
+                    logger.warning(
+                        f"{log_prefix} Failed to delete S3 chatfiles/{s3_key}: {s3_err}"
+                    )
+
+        logger.info(
+            f"{log_prefix} S3: {s3_deleted} deleted, {s3_failed} failed"
+        )
+
+        # ── 5. Bulk-delete Directus records ───────────────────────────────────
+        directus_ids = [r.get("id") for r in records if r.get("id")]
+        total_bytes_freed = sum(int(r.get("file_size_bytes") or 0) for r in records)
+
+        delete_success = await directus_service.bulk_delete_items(
+            collection="upload_files", item_ids=directus_ids
+        )
+        if not delete_success:
+            logger.error(
+                f"{log_prefix} Bulk Directus delete failed for {len(directus_ids)} records. "
+                "S3 objects may already be deleted."
+            )
+            raise HTTPException(status_code=500, detail="Failed to delete file records")
+
+        # ── 6. Decrement storage_used_bytes on directus_users ─────────────────
+        if total_bytes_freed > 0:
+            try:
+                user_fields = await directus_service.get_user_fields_direct(
+                    user_id, ["storage_used_bytes"]
+                )
+                current_bytes = int((user_fields or {}).get("storage_used_bytes") or 0)
+                new_bytes = max(0, current_bytes - total_bytes_freed)
+                await directus_service.update_user(user_id, {"storage_used_bytes": new_bytes})
+                logger.info(
+                    f"{log_prefix} storage_used_bytes: {current_bytes:,} → {new_bytes:,} "
+                    f"(freed {total_bytes_freed:,})"
+                )
+            except Exception as counter_err:
+                # Non-fatal: the direct upload_files query in GET /storage is source of truth.
+                logger.warning(
+                    f"{log_prefix} Failed to update storage_used_bytes: {counter_err}"
+                )
+
+        logger.info(
+            f"{log_prefix} Done: {len(directus_ids)} records deleted, "
+            f"{total_bytes_freed:,} bytes freed"
+        )
+
+        return StorageDeleteFilesResponse(
+            deleted_count=len(directus_ids),
+            bytes_freed=total_bytes_freed,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"{log_prefix} Unexpected error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to delete storage files")

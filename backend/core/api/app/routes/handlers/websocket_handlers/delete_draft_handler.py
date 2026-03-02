@@ -180,16 +180,16 @@ async def handle_delete_draft(
                     f"(chat_id: {chat_id}) from Directus."
                 )
             else:
+                # Directus deletion failed, but the Redis cache was already cleared above.
+                # We still broadcast draft_deleted to other devices so they don't retain a
+                # stale draft indefinitely. The Directus record will expire via TTL on the
+                # next logout-persist task, and the draft is already gone from the hot path.
+                # Do NOT return early here — fall through to the broadcast below.
                 logger.error(
                     f"User {user_id}, Device {device_fingerprint_hash}: Failed to delete draft {draft_to_delete_id} "
-                    f"(chat_id: {chat_id}) from Directus (delete_item returned False)."
+                    f"(chat_id: {chat_id}) from Directus (delete_item returned False). "
+                    f"Proceeding with broadcast anyway since Redis cache was already cleared."
                 )
-                await manager.send_personal_message(
-                    message={"type": "error", "payload": {"message": f"Failed to delete draft {chat_id} on server.", "chat_id": chat_id}},
-                    user_id=user_id,
-                    device_fingerprint_hash=device_fingerprint_hash
-                )
-                return  # Exit early on Directus deletion failure
         else:
             logger.info(
                 f"User {user_id}, Device {device_fingerprint_hash}: No draft found in Directus for chat_id: {chat_id} to delete."
@@ -227,6 +227,24 @@ async def handle_delete_draft(
             f"User {user_id}, Device {device_fingerprint_hash}: Error processing delete_draft for chat_id {chat_id}: {e}",
             exc_info=True
         )
+        # Even when the Directus path throws, we still want to broadcast draft_deleted to
+        # other devices. The Redis cache was already cleared above (outside this try block),
+        # so there is no authoritative draft left. Broadcasting ensures cross-device
+        # consistency even if the permanent-storage cleanup failed.
+        try:
+            await manager.broadcast_to_user(
+                message={"type": "draft_deleted", "payload": {"chat_id": chat_id}},
+                user_id=user_id,
+                exclude_device_hash=device_fingerprint_hash
+            )
+            logger.info(
+                f"User {user_id}: Broadcasted draft_deleted to other devices for chat_id {chat_id} "
+                f"(fallback after Directus exception)."
+            )
+        except Exception as broadcast_err:
+            logger.error(
+                f"User {user_id}: Failed to broadcast draft_deleted (fallback) for chat_id {chat_id}: {broadcast_err}"
+            )
         # Attempt to send an error message to the client
         try:
             await manager.send_personal_message(

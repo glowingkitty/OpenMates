@@ -86,6 +86,8 @@
     onNavigatePrevious?: () => void;
     /** Handler to navigate to the next embed */
     onNavigateNext?: () => void;
+    /** Direction of navigation ('previous' | 'next') — set transiently during prev/next transitions */
+    navigateDirection?: 'previous' | 'next';
     /** Whether to show the "chat" button */
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button */
@@ -105,26 +107,37 @@
     hasNextEmbed = false,
     onNavigatePrevious,
     onNavigateNext,
+    navigateDirection,
     showChatButton = false,
     onShowChat
   }: Props = $props();
   
-  // Currently selected stay for fullscreen detail view (overlay)
-  let selectedStay = $state<StayResult | null>(null);
+  // Index-based selection for sibling navigation in the overlay
+  /** Index of selected stay in allStayResults (-1 = none) */
+  let selectedStayIndex = $state<number>(-1);
   
-  // Local reactive state
-  let localQuery = $state<string>(queryProp || '');
-  let localProvider = $state<string>(providerProp || 'Google');
-  let localEmbedIds = $state<string | string[] | undefined>(embedIds);
-  let localResults = $state<unknown[]>(resultsProp || []);
-  let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>(statusProp || 'finished');
-  let localErrorMessage = $state<string>(errorMessageProp || '');
+  /** Flat array of all loaded stay results for sibling navigation */
+  let allStayResults = $state<StayResult[]>([]);
+  
+  /** Currently selected stay (derived from index) */
+  let selectedStay = $derived(selectedStayIndex >= 0 ? allStayResults[selectedStayIndex] ?? null : null);
+  
+  // Local reactive state — initialised to defaults; synced from props via $effect below
+  let localQuery = $state<string>('');
+  let localProvider = $state<string>('Google');
+  // embedIdsOverride: set by handleEmbedDataUpdated during streaming to override the prop value.
+  // embedIdsValue: derived as override ?? prop so the prop value is available immediately on mount
+  // (critical: UnifiedEmbedFullscreen checks embedIds in onMount; $effect runs too late).
+  let embedIdsOverride = $state<string | string[] | undefined>(undefined);
+  let embedIdsValue = $derived(embedIdsOverride ?? embedIds);
+  let localResults = $state<unknown[]>([]);
+  let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
+  let localErrorMessage = $state<string>('');
   
   // Keep local state in sync with prop changes
   $effect(() => {
     localQuery = queryProp || '';
     localProvider = providerProp || 'Google';
-    localEmbedIds = embedIds;
     localResults = resultsProp || [];
     localStatus = statusProp || 'finished';
     localErrorMessage = errorMessageProp || '';
@@ -133,14 +146,10 @@
   // Derived state
   let query = $derived(localQuery);
   let provider = $derived(localProvider);
-  let embedIdsValue = $derived(localEmbedIds);
   let legacyResults = $derived(localResults);
   let status = $derived(localStatus);
-  let fullscreenStatus = $derived(status === 'cancelled' ? 'error' : status);
+
   let errorMessage = $derived(localErrorMessage || $text('chat.an_error_occured'));
-  
-  // Skill name from translations
-  let skillName = $derived($text('app_skills.travel.search_stays'));
   
   // "via {provider}" text
   let viaProvider = $derived(
@@ -352,7 +361,8 @@
   // =========================================================================
   
   /**
-   * Handle stay card click - opens detail fullscreen as overlay
+   * Handle stay card click - opens detail fullscreen as overlay.
+   * Uses index-based selection so prev/next arrows navigate within siblings.
    */
   function handleStayFullscreen(stay: StayResult) {
     console.debug('[TravelStaysEmbedFullscreen] Opening stay fullscreen:', {
@@ -361,14 +371,30 @@
       rating: stay.overall_rating,
       price: stay.extracted_rate_per_night,
     });
-    selectedStay = stay;
+    const idx = allStayResults.findIndex(r => r.embed_id === stay.embed_id);
+    if (idx >= 0) {
+      selectedStayIndex = idx;
+    } else {
+      allStayResults = [stay];
+      selectedStayIndex = 0;
+    }
   }
   
   /**
-   * Handle closing the stay detail fullscreen overlay
+   * Handle closing the stay detail fullscreen overlay.
    */
   function handleStayFullscreenClose() {
-    selectedStay = null;
+    selectedStayIndex = -1;
+  }
+  
+  /** Navigate to the previous sibling stay */
+  function handleStayNavigatePrevious() {
+    if (selectedStayIndex > 0) selectedStayIndex -= 1;
+  }
+  
+  /** Navigate to the next sibling stay */
+  function handleStayNavigateNext() {
+    if (selectedStayIndex < allStayResults.length - 1) selectedStayIndex += 1;
   }
   
   /**
@@ -376,8 +402,8 @@
    * If a stay detail overlay is open, close it first; otherwise close the parent.
    */
   function handleMainClose() {
-    if (selectedStay) {
-      selectedStay = null;
+    if (selectedStayIndex >= 0) {
+      selectedStayIndex = -1;
     } else {
       onClose();
     }
@@ -397,7 +423,7 @@
     if (typeof content.query === 'string') localQuery = content.query;
     if (typeof content.provider === 'string') localProvider = content.provider;
     // Update embed IDs when parent embed is updated with child references
-    if (content.embed_ids) localEmbedIds = content.embed_ids as string | string[];
+    if (content.embed_ids) embedIdsOverride = content.embed_ids as string | string[];
     // Legacy: inline results (backwards compat)
     if (Array.isArray(content.results)) localResults = content.results as unknown[];
     if (typeof content.error === 'string') localErrorMessage = content.error;
@@ -408,12 +434,9 @@
 <UnifiedEmbedFullscreen
   appId="travel"
   skillId="search_stays"
-  title=""
   onClose={handleMainClose}
   skillIconName="search"
-  status={fullscreenStatus}
-  {skillName}
-  showStatus={true}
+  embedHeaderTitle={$text('app_skills.travel.search_stays')}
   embedIds={embedIdsValue}
   childEmbedTransformer={transformToStayResult}
   legacyResults={legacyResults}
@@ -423,12 +446,17 @@
   {hasNextEmbed}
   {onNavigatePrevious}
   {onNavigateNext}
+  {navigateDirection}
   {showChatButton}
   {onShowChat}
 >
   {#snippet content(ctx)}
     {@const stayResults = getStayResults(ctx)}
     {@const cheapestThreshold = getCheapestThreshold(stayResults)}
+    <!-- Sync allStayResults for sibling navigation -->
+    {#if stayResults.length > 0 && stayResults !== allStayResults}
+      {allStayResults = stayResults}
+    {/if}
     
     <!-- Header with search query and provider -->
     <div class="fullscreen-header">
@@ -484,12 +512,16 @@
   {/snippet}
 </UnifiedEmbedFullscreen>
 
-<!-- Stay detail fullscreen overlay -->
+<!-- Stay detail fullscreen overlay — sibling navigation between all stay results -->
 {#if selectedStay}
   <ChildEmbedOverlay>
     <TravelStayEmbedFullscreen
       stay={selectedStay}
       onClose={handleStayFullscreenClose}
+      hasPreviousEmbed={selectedStayIndex > 0}
+      hasNextEmbed={selectedStayIndex < allStayResults.length - 1}
+      onNavigatePrevious={handleStayNavigatePrevious}
+      onNavigateNext={handleStayNavigateNext}
     />
   </ChildEmbedOverlay>
 {/if}

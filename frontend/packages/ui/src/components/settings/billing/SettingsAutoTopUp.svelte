@@ -97,7 +97,7 @@ Auto Top-Up Settings - Submenu for low balance and monthly auto top-up options
 
 <!-- On Low Balance Menu Item -->
 <SettingsItem
-    icon="subsetting_icon subsetting_icon_low_balance"
+    icon="subsetting_icon low_balance"
     title={$text('settings.billing.on_low_balance')}
     subtitle={lowBalanceEnabled 
         ? `${$text('settings.enabled')} - ${$text('settings.billing.threshold')}: ${formatCredits(lowBalanceThreshold)}`
@@ -107,7 +107,7 @@ Auto Top-Up Settings - Submenu for low balance and monthly auto top-up options
 
 <!-- Monthly Subscription Menu Item -->
 <SettingsItem
-    icon="subsetting_icon subsetting_icon_calendar"
+    icon="subsetting_icon calendar"
     title={$text('settings.billing.monthly')}
     subtitle={hasActiveSubscription && subscriptionDetails
         ? `${$text('settings.active')} - ${formatCredits(subscriptionDetails.credits_amount || 0)} ${$text('settings.billing.credits')}/month${nextChargeDate ? ` • ${$text('settings.billing.next_charge')}: ${nextChargeDate.toLocaleDateString()}` : ''}`

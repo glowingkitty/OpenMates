@@ -20,9 +20,30 @@ career_insights:
   th: ข้อมูลเชิงลึกด้านอาชีพ
   cs: Kariérní postřehy
   sv: Karriärinsikter
+  he: תובנות קריירה
   verified_by_human:
     - en
     - de
+career_insights.process:
+  context: Bullet-point process summary for career insights focus mode, shown on the settings page. Each line starts with "- ".
+  en: |
+    - Understands your current job situation and what's prompting a change
+    - Explores what energizes and drains you in past and current roles
+    - Identifies your core skills, strengths, and areas of expertise
+    - Discusses your values, interests, and priorities in a career
+    - Considers practical constraints (location, finances, family, timeline)
+    - Suggests 2–4 concrete career directions that match your profile
+    - Provides actionable next steps (networking, upskilling, job boards)
+  he: |
+    - הבנת מצב התעסוקה הנוכחי שלך ומה מניע את השינוי
+    - בחינת מה שמעניק לך אנרגיה ומה שמרוקן אותך בתפקידים קודמים ונוכחיים
+    - זיהוי מיומנויות הליבה, החוזקות ותחומי המומחיות שלך
+    - דיון בערכים, בתחומי העניין ובעדיפויות שלך בקריירה
+    - התחשבות במגבלות מעשיות (מיקום, מצב כלכלי, משפחה, לוחות זמנים)
+    - הצעה של 2–4 כיווני קריירה קונקרטיים שמתאימים לפרופיל שלך
+    - מתן צעדים מעשיים להמשך (נטוורקינג, שדרוג מיומנויות, לוחות דרושים)
+  verified_by_human:
+    - en
 career_insights.description:
   context: Description for career insights focus mode in the Jobs app
   en: Find the right career based on your strengths.
@@ -45,6 +66,79 @@ career_insights.description:
   th: ค้นหาอาชีพที่เหมาะสมตามจุดแข็งของคุณ
   cs: Najděte kariéru na základě vašich silných stránek.
   sv: Hitta rätt karriär baserat på dina styrkor.
+  he: מציאת הקריירה הנכונה עבורך על סמך החוזקות שלך.
   verified_by_human:
     - en
     - de
+career_insights.how_to_use.1:
+  context: "How-to-use example 1 for the Career Insights focus mode. Use **word** to highlight key trigger words."
+  en: "I'm a **software developer** feeling burned out — help me explore alternative careers"
+  de: "Ich bin **Softwareentwickler** und fühle mich ausgebrannt — hilf mir, Alternativen zu erkunden"
+  zh: "我是**软件开发人员**，感到精疲力竭——帮我探索替代职业"
+  es: "Soy **desarrollador de software** y me siento agotado — ayúdame a explorar carreras alternativas"
+  fr: "Je suis **développeur logiciel** et je me sens épuisé — aidez-moi à explorer des carrières alternatives"
+  pt: "Sou **desenvolvedor de software** e me sinto esgotado — ajude-me a explorar carreiras alternativas"
+  ru: "Я **разработчик программного обеспечения** и чувствую выгорание — помоги мне изучить альтернативные карьеры"
+  ja: "**ソフトウェア開発者**として燃え尽きを感じています — 代替キャリアを探る手助けをして"
+  ko: "저는 **소프트웨어 개발자**인데 번아웃을 느끼고 있어요 — 대안적인 커리어를 탐색하는 데 도움을 주세요"
+  it: "Sono uno **sviluppatore software** esausto — aiutami a esplorare carriere alternative"
+  tr: "**Yazılım geliştirici** olarak tükenmişlik hissediyorum — alternatif kariyer yollarını keşfetmeme yardım et"
+  vi: "Tôi là **nhà phát triển phần mềm** cảm thấy kiệt sức — giúp tôi khám phá các nghề nghiệp thay thế"
+  id: "Saya **pengembang perangkat lunak** yang merasa kelelahan — bantu saya menjelajahi karier alternatif"
+  pl: "Jestem **programistą** i czuję się wypalony — pomóż mi odkryć alternatywne ścieżki kariery"
+  nl: "Ik ben een **softwareontwikkelaar** met een burn-out — help me alternatieve carrières te verkennen"
+  ar: "أنا **مطور برمجيات** أشعر بالإرهاق — ساعدني في استكشاف مسارات مهنية بديلة"
+  hi: "मैं एक **सॉफ्टवेयर डेवलपर** हूं जो थका हुआ महसूस कर रहा हूं — मुझे वैकल्पिक करियर खोजने में मदद करें"
+  th: "ฉันเป็น**นักพัฒนาซอฟต์แวร์**ที่รู้สึกหมดแรง — ช่วยฉันสำรวจอาชีพทางเลือก"
+  cs: "Jsem **softwarový vývojář** a cítím se vyhořelý — pomož mi prozkoumat alternativní kariéry"
+  sv: "Jag är **mjukvaruutvecklare** och känner mig utbränd — hjälp mig utforska alternativa karriärer"
+  he: "אני **מפתח תוכנה** שמרגיש שחוק — עזור לי לחקור קריירות חלופיות"
+  verified_by_human: []
+career_insights.how_to_use.2:
+  context: "How-to-use example 2 for the Career Insights focus mode. Use **word** to highlight key trigger words."
+  en: "I love **creative work** and problem-solving — what careers match my skills?"
+  de: "Ich liebe **kreative Arbeit** und Problemlösung — welche Karrieren passen zu meinen Fähigkeiten?"
+  zh: "我喜欢**创意工作**和解决问题——哪些职业符合我的技能？"
+  es: "Me encanta el **trabajo creativo** y resolver problemas — ¿qué carreras se adaptan a mis habilidades?"
+  fr: "J'adore le **travail créatif** et la résolution de problèmes — quelles carrières correspondent à mes compétences ?"
+  pt: "Amo **trabalho criativo** e resolução de problemas — quais carreiras combinam com minhas habilidades?"
+  ru: "Я люблю **творческую работу** и решение проблем — какие карьеры подходят под мои навыки?"
+  ja: "**クリエイティブな仕事**と問題解決が好きです — 私のスキルに合う職業は何ですか？"
+  ko: "저는 **창의적인 일**과 문제 해결을 좋아해요 — 제 기술에 맞는 직업은 무엇인가요?"
+  it: "Amo il **lavoro creativo** e la risoluzione dei problemi — quali carriere si adattano alle mie competenze?"
+  tr: "**Yaratıcı çalışmayı** ve problem çözmeyi seviyorum — hangi kariyer yolları becerilerimle uyuşuyor?"
+  vi: "Tôi thích **công việc sáng tạo** và giải quyết vấn đề — những nghề nghiệp nào phù hợp với kỹ năng của tôi?"
+  id: "Saya suka **pekerjaan kreatif** dan pemecahan masalah — karier apa yang sesuai dengan keterampilan saya?"
+  pl: "Uwielbiam **pracę twórczą** i rozwiązywanie problemów — jakie kariery pasują do moich umiejętności?"
+  nl: "Ik hou van **creatief werk** en probleemoplossing — welke carrières passen bij mijn vaardigheden?"
+  ar: "أحب **العمل الإبداعي** وحل المشكلات — ما المسارات المهنية التي تناسب مهاراتي؟"
+  hi: "मुझे **रचनात्मक काम** और समस्या-समाधान पसंद है — कौन से करियर मेरे कौशल से मेल खाते हैं?"
+  th: "ฉันชอบ**งานสร้างสรรค์**และการแก้ปัญหา — อาชีพไหนที่เหมาะกับทักษะของฉัน?"
+  cs: "Miluji **kreativní práci** a řešení problémů — jaké kariéry odpovídají mým dovednostem?"
+  sv: "Jag älskar **kreativt arbete** och problemlösning — vilka karriärer matchar mina färdigheter?"
+  he: "אני אוהב **עבודה יצירתית** ופתרון בעיות — אילו קריירות מתאימות לכישורים שלי?"
+  verified_by_human: []
+career_insights.how_to_use.3:
+  context: "How-to-use example 3 for the Career Insights focus mode. Use **word** to highlight key trigger words."
+  en: "I want to **switch industries** from finance to tech — how should I start?"
+  de: "Ich möchte von der **Finanzbranche** in die Technologiebranche wechseln — wie soll ich anfangen?"
+  zh: "我想从**金融行业**转到科技行业——我应该如何开始？"
+  es: "Quiero **cambiar de industria** de finanzas a tecnología — ¿cómo debería empezar?"
+  fr: "Je veux **changer de secteur** de la finance à la technologie — comment dois-je commencer ?"
+  pt: "Quero **mudar de setor** das finanças para a tecnologia — como devo começar?"
+  ru: "Я хочу **сменить отрасль** с финансов на технологии — с чего начать?"
+  ja: "**業界を転換**して金融からテクノロジーへ移りたい — どう始めればよいですか？"
+  ko: "금융에서 기술 분야로 **업종을 변경**하고 싶어요 — 어떻게 시작해야 할까요?"
+  it: "Voglio **cambiare settore** dalla finanza alla tecnologia — da dove dovrei iniziare?"
+  tr: "Finans sektöründen teknolojiye **geçiş yapmak** istiyorum — nasıl başlamalıyım?"
+  vi: "Tôi muốn **chuyển ngành** từ tài chính sang công nghệ — tôi nên bắt đầu như thế nào?"
+  id: "Saya ingin **berpindah industri** dari keuangan ke teknologi — bagaimana cara memulainya?"
+  pl: "Chcę **zmienić branżę** z finansów na technologię — jak powinienem zacząć?"
+  nl: "Ik wil **van sector veranderen** van financiën naar technologie — hoe moet ik beginnen?"
+  ar: "أريد **تغيير المجال** من المالية إلى التكنولوجيا — كيف يجب أن أبدأ؟"
+  hi: "मैं **उद्योग बदलना** चाहता हूं, वित्त से प्रौद्योगिकी में — मुझे कैसे शुरू करना चाहिए?"
+  th: "ฉันต้องการ**เปลี่ยนอุตสาหกรรม**จากการเงินไปสู่เทคโนโลยี — ฉันควรเริ่มต้นอย่างไร?"
+  cs: "Chci **přejít do jiného odvětví** z finančnictví do technologií — jak bych měl začít?"
+  sv: "Jag vill **byta bransch** från finans till teknik — hur ska jag börja?"
+  he: "אני רוצה **לעבור ענף** ממימון לטכנולוגיה — כיצד כדאי להתחיל?"
+  verified_by_human: []

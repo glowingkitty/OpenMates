@@ -15,7 +15,6 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import VideoEmbedPreview from './VideoEmbedPreview.svelte';
   import type { VideoMetadata } from './VideoEmbedPreview.svelte';
-  // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   import type { VideoTranscriptSkillPreviewData, VideoTranscriptResult } from '../../../types/appSkills';
   
@@ -40,6 +39,8 @@
     onNavigatePrevious?: () => void;
     /** Handler to navigate to the next embed */
     onNavigateNext?: () => void;
+    /** Direction of navigation ('previous' | 'next') — set transiently during prev/next transitions */
+    navigateDirection?: 'previous' | 'next';
     /** Whether to show the "chat" button to restore chat visibility (ultra-wide forceOverlayMode) */
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button to restore chat visibility */
@@ -55,6 +56,7 @@
     hasNextEmbed = false,
     onNavigatePrevious,
     onNavigateNext,
+    navigateDirection,
     showChatButton = false,
     onShowChat
   }: Props = $props();
@@ -250,7 +252,9 @@
     try {
       // Dispatch event to open video fullscreen
       // ActiveChat will handle closing the current fullscreen and opening the new one
-      // Pass the full metadata from VideoEmbedPreview so fullscreen can display it
+      // IMPORTANT: ActiveChat's template reads snake_case keys from decodedContent
+      // (channel_name, channel_thumbnail, thumbnail, duration_seconds, duration_formatted,
+      //  view_count, like_count, published_at) — do NOT use camelCase here.
       const event = new CustomEvent('embedfullscreen', {
         detail: {
           embedType: 'videos-video',
@@ -261,14 +265,18 @@
           decodedContent: {
             url: videoUrl,
             title: metadata.title || videoTitle,
-            // Pass metadata to fullscreen view
-            channelName: metadata.channelName,
-            channelThumbnail: metadata.channelThumbnail,
-            thumbnailUrl: metadata.thumbnailUrl,
-            duration: metadata.duration,
-            viewCount: metadata.viewCount,
-            likeCount: metadata.likeCount,
-            publishedAt: metadata.publishedAt
+            video_id: metadata.videoId,
+            // snake_case keys to match ActiveChat template's decodedContent reads
+            channel_name: metadata.channelName,
+            channel_id: metadata.channelId,
+            channel_thumbnail: metadata.channelThumbnail,
+            thumbnail: metadata.thumbnailUrl,
+            // Flat duration fields — ActiveChat reads duration_seconds + duration_formatted separately
+            duration_seconds: metadata.duration?.totalSeconds,
+            duration_formatted: metadata.duration?.formatted,
+            view_count: metadata.viewCount,
+            like_count: metadata.likeCount,
+            published_at: metadata.publishedAt
           },
           onClose: () => {
             console.debug('[VideoTranscriptEmbedFullscreen] Video fullscreen closed');
@@ -293,7 +301,7 @@
     try {
       const transcriptText = results
         .filter(r => r.transcript)
-        .map((r, index) => {
+        .map((r) => {
           let content = '';
           if (r.metadata?.title) {
             content += `# ${r.metadata.title}\n\n`;
@@ -328,7 +336,7 @@
     try {
       const transcriptText = results
         .filter(r => r.transcript)
-        .map((r, index) => {
+        .map((r) => {
           let content = '';
           if (r.metadata?.title) {
             content += `# ${r.metadata.title}\n\n`;
@@ -420,21 +428,21 @@
 <UnifiedEmbedFullscreen
   appId="videos"
   skillId="get_transcript"
-  title=""
+  embedHeaderTitle={videoTitle}
+  embedHeaderSubtitle={transcriptSkillName}
+  skillIconName="transcript"
+  showSkillIcon={true}
   {onClose}
   onCopy={handleCopy}
   onDownload={handleDownload}
   onShare={handleShare}
-  skillIconName="transcript"
-  status="finished"
-  skillName={transcriptSkillName}
   currentEmbedId={embedId}
   onEmbedDataUpdated={handleEmbedDataUpdated}
-  showSkillIcon={true}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
   {onNavigateNext}
+  {navigateDirection}
   {showChatButton}
   {onShowChat}
 >
@@ -485,7 +493,7 @@
             <div class="transcript-content">{transcriptText}</div>
           {:else}
             <!-- Try to render each result's transcript -->
-            {#each results as result, index}
+            {#each results as result}
               {@const resultAny = result as any}
               {#if result.transcript}
                 <div class="transcript-content">{@html parseTranscriptToHtml(result.transcript)}</div>

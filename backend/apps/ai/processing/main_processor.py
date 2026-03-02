@@ -370,6 +370,72 @@ async def _publish_skill_status(
         )
 
 
+def _validate_skill_provider(
+    provider: Optional[str],
+    app_id: str,
+    skill_id: str,
+    discovered_apps_metadata: Dict[str, AppYAML],
+    log_prefix: str,
+) -> Optional[str]:
+    """
+    Validate a provider value against the skill's known providers list from app.yml.
+
+    If the provider is not in the skill's providers list (or is None/empty), returns
+    the first valid provider from the skill definition. This prevents LLM hallucination
+    (e.g. returning 'Brave Search' for the events skill that only supports 'Meetup').
+
+    Args:
+        provider:                 Provider string from LLM output or metadata (may be wrong)
+        app_id:                   App identifier (e.g. 'events', 'web', 'maps')
+        skill_id:                 Skill identifier (e.g. 'search')
+        discovered_apps_metadata: Full app metadata dict from which skill providers are read
+        log_prefix:               Log prefix for debug/warning messages
+
+    Returns:
+        A valid provider string, or the original provider if the skill has no providers
+        list defined (in which case we cannot validate).
+    """
+    app_metadata = discovered_apps_metadata.get(app_id)
+    if not app_metadata:
+        return provider
+
+    skill_providers: Optional[List[str]] = None
+    for skill_def in (app_metadata.skills or []):
+        if skill_def.id == skill_id:
+            skill_providers = skill_def.providers
+            break
+
+    if not skill_providers:
+        # No providers list in app.yml — cannot validate, return as-is
+        return provider
+
+    if provider in skill_providers:
+        return provider
+
+    # Provider is invalid (hallucinated or wrong) — override with the first valid one
+    correct_provider = skill_providers[0]
+    if provider:
+        logger.warning(
+            "%s Provider %r is not in the skill's providers list %r for %s.%s — "
+            "overriding with %r",
+            log_prefix,
+            provider,
+            skill_providers,
+            app_id,
+            skill_id,
+            correct_provider,
+        )
+    else:
+        logger.debug(
+            "%s No provider set for %s.%s — defaulting to %r",
+            log_prefix,
+            app_id,
+            skill_id,
+            correct_provider,
+        )
+    return correct_provider
+
+
 async def _charge_skill_credits(
     task_id: str,
     request_data: AskSkillRequest,
@@ -378,11 +444,17 @@ async def _charge_skill_credits(
     discovered_apps_metadata: Dict[str, AppYAML],
     results: List[Dict[str, Any]],
     parsed_args: Dict[str, Any],
-    log_prefix: str
+    log_prefix: str,
+    grouped_results: Optional[List[Dict[str, Any]]] = None,
 ) -> None:
     """
     Calculate and charge credits for a skill execution.
     Creates usage entry automatically via BillingService.
+    
+    Args:
+        grouped_results: Optional grouped results from multi-request skills.
+            Each group has {"id": ..., "results": [...], "error": "..."}.
+            Used to count only successful requests for billing (failed requests are not charged).
     """
     try:
         # Get skill definition from app metadata
@@ -494,9 +566,28 @@ async def _charge_skill_credits(
         
         # Calculate credits based on skill execution
         # All skills use 'requests' array format - charge per request (units_processed)
+        # IMPORTANT: Only charge for SUCCESSFUL requests. Failed requests (e.g., rate-limited
+        # searches, HTTP errors) should not be billed to the user.
         units_processed = None
-        if "requests" in parsed_args and isinstance(parsed_args["requests"], list):
-            # Count number of requests in the requests array
+        if grouped_results and isinstance(grouped_results, list):
+            # Use grouped_results to count only successful requests (no error field, non-empty results)
+            total_requests = len(grouped_results)
+            successful_requests = sum(
+                1 for group in grouped_results
+                if isinstance(group, dict)
+                and not group.get("error")  # No error field
+                and group.get("results")    # Has non-empty results
+            )
+            units_processed = successful_requests
+            if successful_requests < total_requests:
+                logger.info(
+                    f"{log_prefix} Skill '{app_id}.{skill_id}': {successful_requests}/{total_requests} "
+                    f"request(s) succeeded — only charging for successful ones"
+                )
+            else:
+                logger.debug(f"{log_prefix} Skill '{app_id}.{skill_id}' executed with {units_processed} successful request(s)")
+        elif "requests" in parsed_args and isinstance(parsed_args["requests"], list):
+            # Fallback: count all requests in the requests array (when grouped_results not available)
             units_processed = len(parsed_args["requests"])
             logger.debug(f"{log_prefix} Skill '{app_id}.{skill_id}' executed with {units_processed} request(s) in requests array")
         else:
@@ -504,6 +595,11 @@ async def _charge_skill_credits(
             # This handles edge cases where a skill might not use the requests pattern yet
             units_processed = 1
             logger.debug(f"{log_prefix} Skill '{app_id}.{skill_id}' has no 'requests' array, charging for single execution")
+        
+        # If all requests failed, skip billing entirely
+        if units_processed <= 0:
+            logger.info(f"{log_prefix} Skill '{app_id}.{skill_id}': no successful requests, skipping billing entirely.")
+            return
         
         # Calculate credits
         if pricing_config:
@@ -566,17 +662,14 @@ async def _charge_skill_credits(
             "server_region": resolved_region,  # Server region (e.g., "US", "EU")
         }
         
-        # Charge credits via internal API (this will also create usage entry)
-        # app_id and skill_id are required and must be non-empty - they come from tool call parsing
-        # The billing service will validate these fields before creating the usage entry
-        charge_payload = {
-            "user_id": request_data.user_id,
-            "user_id_hash": request_data.user_id_hash,
-            "credits": credits_charged,
-            "skill_id": skill_id,  # Required: ID of the skill that was executed
-            "app_id": app_id,  # Required: ID of the app that contains the skill
-            "usage_details": usage_details  # Contains chat_id, message_id, and other optional metadata
-        }
+        # Charge credits via internal API — one call per successful request.
+        # This creates one usage entry per request instead of one combined entry,
+        # so users can see individual search/map/news requests in the usage detail view.
+        # credits_charged is the TOTAL for all requests; per_request_credits is the
+        # per-unit cost computed by dividing total credits by units_processed.
+        per_request_credits = credits_charged // units_processed if units_processed > 0 else credits_charged
+        # Use ceiling division to handle rounding: the last request gets any remainder.
+        credits_remainder = credits_charged - (per_request_credits * units_processed)
         
         headers = {"Content-Type": "application/json"}
         if INTERNAL_API_SHARED_TOKEN:
@@ -584,10 +677,29 @@ async def _charge_skill_credits(
         
         async with httpx.AsyncClient() as client:
             url = f"{INTERNAL_API_BASE_URL}/internal/billing/charge"
-            logger.info(f"{log_prefix} Charging {credits_charged} credits for skill '{app_id}.{skill_id}'. Payload: {charge_payload}")
-            response = await client.post(url, json=charge_payload, headers=headers, timeout=10.0)
-            response.raise_for_status()
-            logger.info(f"{log_prefix} Successfully charged {credits_charged} credits for skill '{app_id}.{skill_id}'. Response: {response.json()}")
+            for i in range(units_processed):
+                # Add any remainder credits to the last request
+                request_credits = per_request_credits + (credits_remainder if i == units_processed - 1 else 0)
+                if request_credits <= 0:
+                    continue
+                
+                # Each individual request gets units_processed=1 to reflect one request
+                request_usage_details = {**usage_details, "units_processed": 1}
+                
+                charge_payload = {
+                    "user_id": request_data.user_id,
+                    "user_id_hash": request_data.user_id_hash,
+                    "credits": request_credits,
+                    "skill_id": skill_id,  # Required: ID of the skill that was executed
+                    "app_id": app_id,  # Required: ID of the app that contains the skill
+                    "usage_details": request_usage_details  # Contains chat_id, message_id, and other optional metadata
+                }
+                logger.info(f"{log_prefix} Charging {request_credits} credits for skill '{app_id}.{skill_id}' (request {i + 1}/{units_processed}).")
+                response = await client.post(url, json=charge_payload, headers=headers, timeout=10.0)
+                response.raise_for_status()
+                logger.debug(f"{log_prefix} Charged request {i + 1}/{units_processed} for '{app_id}.{skill_id}': {response.json()}")
+            
+            logger.info(f"{log_prefix} Successfully charged {credits_charged} total credits for skill '{app_id}.{skill_id}' across {units_processed} request(s).")
             
     except httpx.HTTPStatusError as e:
         logger.error(f"{log_prefix} HTTP error charging credits for skill '{app_id}.{skill_id}': {e.response.status_code} - {e.response.text}", exc_info=True)
@@ -733,6 +845,15 @@ async def handle_main_processing(
     # - Once user confirms/rejects, client sends data back
     # - On user's NEXT message, data is available in cache for LLM processing
     loaded_app_settings_and_memories_content: Dict[str, Any] = {}
+    # Start with any cleartext the client sent for @memory/@memory-entry mentions (so we do not request those again)
+    if getattr(request_data, "mentioned_settings_memories_cleartext", None):
+        mentioned = request_data.mentioned_settings_memories_cleartext
+        if isinstance(mentioned, dict) and mentioned:
+            for key, value in mentioned.items():
+                if isinstance(key, str) and value is not None:
+                    loaded_app_settings_and_memories_content[key] = value
+            logger.info(f"{log_prefix} [DEBUG] Pre-filled {len(mentioned)} app settings/memories from client-mentioned cleartext: {list(mentioned.keys())}")
+
     if preprocessing_results.load_app_settings_and_memories and cache_service:
         logger.info(f"{log_prefix} [DEBUG] Preprocessing requested app settings/memories: {preprocessing_results.load_app_settings_and_memories}")
         try:
@@ -741,7 +862,14 @@ async def handle_main_processing(
                 create_app_settings_memories_request_message
             )
             
-            requested_keys = preprocessing_results.load_app_settings_and_memories
+            requested_keys = list(preprocessing_results.load_app_settings_and_memories)
+            # Include keys from client-mentioned cleartext so we have a full set; they are already in loaded_app_settings_and_memories_content
+            if getattr(request_data, "mentioned_settings_memories_cleartext", None):
+                mentioned = request_data.mentioned_settings_memories_cleartext
+                if isinstance(mentioned, dict):
+                    for key in mentioned:
+                        if key not in requested_keys:
+                            requested_keys.append(key)
             
             # Check cache first (similar to how embeds are handled)
             # Cache stores vault-encrypted data that server can decrypt for AI processing
@@ -801,9 +929,24 @@ async def handle_main_processing(
                     except Exception as decrypt_error:
                         logger.error(f"{log_prefix} Error decrypting app settings/memories for {key}: {decrypt_error}", exc_info=True)
             
-            # Check if we need to create a new request for missing keys
-            missing_keys = [key for key in requested_keys if key not in cached_data]
+            # Check if we need to create a new request for missing keys.
+            # Keys already in loaded_app_settings_and_memories_content (from client cleartext or cache) must not be requested again.
+            missing_keys = [
+                key for key in requested_keys
+                if key not in loaded_app_settings_and_memories_content
+            ]
             
+            if missing_keys and getattr(request_data, "is_app_settings_memories_continuation", False):
+                # This is a continuation task (user already confirmed/rejected the original request).
+                # Do NOT issue another permission dialog — the user's decision was already recorded.
+                # Proceed without the missing data instead.
+                logger.info(
+                    f"{log_prefix} Continuation task: skipping new permission request for "
+                    f"{len(missing_keys)} missing keys {missing_keys} — user already responded to the original request. "
+                    f"Proceeding without these keys."
+                )
+                missing_keys = []
+
             if missing_keys:
                 logger.info(f"{log_prefix} Creating new app settings/memories request for {len(missing_keys)} missing keys")
                 # Create new system message request in chat history
@@ -969,9 +1112,16 @@ async def handle_main_processing(
             logger.warning(f"{log_prefix} relevant_app_skills is None (should be list or empty list). Treating as empty list.")
             preselected_skills = set()
 
-    # HARDENING: Merge always_include_skills into preselected_skills
-    # Ensures critical skills (like web-search) are ALWAYS available regardless of preprocessing.
-    if always_include_skills:
+    # HARDENING: Merge always_include_skills into preselected_skills — but NOT when the user
+    # explicitly requested specific skills via @skill:app:skill_id. In that case we use only
+    # the user's selection and add a mandatory instruction to use those tools.
+    user_requested_skills_only = getattr(preprocessing_results, "user_requested_skills_only", False)
+    if user_requested_skills_only and preselected_skills:
+        logger.info(
+            f"{log_prefix} [USER_SKILLS] User explicitly requested skill(s); not merging always_include_skills. "
+            f"Preselected only: {preselected_skills}"
+        )
+    elif always_include_skills:
         if preselected_skills is None:
             preselected_skills = set()
         skills_to_add = set(always_include_skills) - preselected_skills
@@ -982,6 +1132,16 @@ async def handle_main_processing(
             )
         preselected_skills = preselected_skills | set(always_include_skills)
         logger.debug(f"{log_prefix} Final preselected skills (after merging always-include): {preselected_skills}")
+
+    # When user explicitly requested skills, add a mandatory instruction so the model must use them
+    if user_requested_skills_only and preselected_skills:
+        mandatory_skills_list = ", ".join(sorted(preselected_skills))
+        mandatory_instruction = (
+            f"The user explicitly requested that you use the following tool(s) for this request; "
+            f"you MUST call at least one of them: {mandatory_skills_list}. Do not use other tools unless the user's request clearly requires them."
+        )
+        prompt_parts.append(mandatory_instruction)
+        logger.info(f"{log_prefix} [USER_SKILLS] Added mandatory skill instruction for: {mandatory_skills_list}")
 
     # === DYNAMIC APP-SPECIFIC INSTRUCTIONS ===
     # Load instructions from each available app's app.yml configuration.
@@ -1034,6 +1194,26 @@ async def handle_main_processing(
     else:
         logger.warning(f"{log_prefix} [APP_INSTRUCTIONS] No discovered apps - app-specific instructions unavailable")
     
+    # === IMAGE CONTENT SAFETY INSTRUCTION ===
+    # Conditionally inject prompt-injection defence for image uploads.
+    # Only included when the images-view skill is preselected by the preprocessor,
+    # so conversations without images pay zero extra tokens for this instruction.
+    if preselected_skills and "images-view" in preselected_skills:
+        image_safety_instruction = base_instructions.get("base_image_content_safety_instruction", "")
+        if image_safety_instruction:
+            prompt_parts.append(image_safety_instruction)
+            logger.info(f"{log_prefix} [IMAGE_SAFETY] Injected image content safety instruction (images-view is preselected)")
+    
+    # === TOOL-CALLING THINKING DISCIPLINE ===
+    # Prevents reasoning models (e.g., Gemini Flash) from hallucinating about tool
+    # output in their thinking phase before the tool returns. Only injected when
+    # skills are preselected, so conversations without tool use pay zero tokens.
+    if preselected_skills:
+        thinking_discipline = base_instructions.get("base_tool_thinking_discipline_instruction", "")
+        if thinking_discipline:
+            prompt_parts.append(thinking_discipline)
+            logger.debug(f"{log_prefix} [THINKING_DISCIPLINE] Injected tool-calling thinking discipline instruction")
+    
     # Add generic proactive skill usage instruction (only when apps are available)
     # This encourages using available skills proactively for time-sensitive queries
     if discovered_apps_metadata:
@@ -1044,12 +1224,23 @@ async def handle_main_processing(
         logger.info(f"{log_prefix} Skipping base_proactive_skill_usage_instruction - no apps available")
     
     prompt_parts.append(base_instructions.get("base_url_sourcing_instruction", ""))
+    # Add inline embed referencing instruction (only when skill results may be in context)
+    # This teaches the LLM to use [text](embed:embed_ref) syntax to reference specific items
+    # from previous skill results. Only injected when apps/skills are available since the
+    # embed_ref field only appears in tool results from skill calls.
+    if preselected_skills:
+        prompt_parts.append(base_instructions.get("base_embed_referencing_instruction", ""))
     # Add code block formatting instruction to ensure proper language and filename syntax
     # This helps with consistent parsing and rendering of code embeds
     prompt_parts.append(base_instructions.get("base_code_block_instruction", ""))
     # Add document generation instruction for rich document embeds (document_html fences)
     # This enables the LLM to create structured HTML documents rendered as document previews
     prompt_parts.append(base_instructions.get("base_document_generation_instruction", ""))
+    # Add math plot instruction only when the math app is available.
+    # Teaches the LLM to emit ```plot f(x) = ... ``` fences that stream_consumer.py
+    # converts to interactive math-plot embeds rendered by function-plot on the frontend.
+    if discovered_apps_metadata and "math" in discovered_apps_metadata:
+        prompt_parts.append(base_instructions.get("base_plot_code_block_instruction", ""))
     
     # DEBUG: Log the app_settings_memories content before adding to prompt
     # This helps diagnose issues where data is found in cache but not injected into prompt
@@ -1097,6 +1288,28 @@ async def handle_main_processing(
     if active_focus_prompt_text:
         prompt_parts.insert(0, f"--- Active Focus: {request_data.active_focus_id} ---\n{active_focus_prompt_text}\n--- End Active Focus ---")
 
+    # Enforce response language based on the preprocessor's detected output_language.
+    # Appended last so it sits at the end of the system prompt where LLMs give it high
+    # attention — this overrides any language the mate persona or instructions might imply.
+    # ISO 639-1 code → human-readable name mapping (must stay in sync with SUPPORTED_LANGUAGES
+    # in preprocessor.py). English is skipped — no instruction needed since it's the default.
+    _LANGUAGE_NAMES: dict[str, str] = {
+        "de": "German", "zh": "Chinese", "es": "Spanish", "fr": "French",
+        "pt": "Portuguese", "ru": "Russian", "ja": "Japanese", "ko": "Korean",
+        "it": "Italian", "tr": "Turkish", "vi": "Vietnamese", "id": "Indonesian",
+        "pl": "Polish", "nl": "Dutch", "ar": "Arabic", "hi": "Hindi",
+        "th": "Thai", "cs": "Czech", "sv": "Swedish",
+    }
+    output_language_code = preprocessing_results.output_language or "en"
+    if output_language_code != "en":
+        language_name = _LANGUAGE_NAMES.get(output_language_code, output_language_code)
+        prompt_parts.append(
+            f"IMPORTANT: The user is communicating in {language_name}. "
+            f"You MUST respond entirely in {language_name}. "
+            f"Do not switch to any other language under any circumstances."
+        )
+        logger.debug(f"{log_prefix} Added language enforcement instruction for '{output_language_code}' ({language_name}).")
+
     full_system_prompt = "\n\n".join(filter(None, prompt_parts))
     
     # Generate tool definitions from discovered apps using the tool generator
@@ -1123,6 +1336,8 @@ async def handle_main_processing(
     
     relevant_focus_modes = preprocessing_results.relevant_focus_modes if hasattr(preprocessing_results, 'relevant_focus_modes') else []
     has_active_focus_mode = bool(request_data.active_focus_id)
+    # Whether the user explicitly specified this focus mode via @focus:app:id mention
+    user_requested_focus_only = getattr(preprocessing_results, 'user_requested_focus_only', False)
     
     if relevant_focus_modes and not has_active_focus_mode:
         # Build enum and descriptions for activate_focus_mode tool
@@ -1233,6 +1448,158 @@ async def handle_main_processing(
     
     # --- End of existing logic ---
 
+    # --- User-requested focus mode: bypass LLM + countdown ---
+    # When the user explicitly mentioned a focus mode via @focus:app_id:focus_id in their message,
+    # we skip the normal flow (LLM deciding to call activate_focus_mode, 5s countdown) and
+    # directly activate the focus mode with countdown=0 (immediate).
+    # This mirrors the exact same activation pipeline used in the deferred path, but without delay.
+    if user_requested_focus_only and relevant_focus_modes and not has_active_focus_mode:
+        focus_id = relevant_focus_modes[0]  # Only one can be selected per the UI constraint
+        logger.info(
+            f"{log_prefix} [FOCUS_MODE_OVERRIDE] User explicitly requested focus mode '{focus_id}' via @mention. "
+            f"Bypassing LLM tool call and countdown — activating immediately."
+        )
+
+        # Create the focus mode activation embed (same as the LLM-initiated path)
+        fm_embed_id = None
+        if cache_service and user_vault_key_id and directus_service:
+            try:
+                from backend.core.api.app.services.embed_service import EmbedService
+                embed_service = EmbedService(
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service
+                )
+
+                # Resolve the translated focus mode display name
+                focus_mode_display_name = focus_id  # fallback
+                try:
+                    fm_app_id, fm_mode_id = focus_id.split('-', 1)
+                    user_language = preprocessing_results.output_language or "en"
+                    fm_app_metadata = discovered_apps_metadata.get(fm_app_id)
+                    if fm_app_metadata and fm_app_metadata.focuses:
+                        for fm_def in fm_app_metadata.focuses:
+                            if fm_def.id == fm_mode_id:
+                                focus_mode_display_name = translation_service.get_nested_translation(
+                                    fm_def.name_translation_key, lang=user_language
+                                ) or ""
+                                if not focus_mode_display_name and user_language != "en":
+                                    focus_mode_display_name = translation_service.get_nested_translation(
+                                        fm_def.name_translation_key, lang="en"
+                                    ) or fm_def.name_translation_key
+                                elif not focus_mode_display_name:
+                                    focus_mode_display_name = fm_def.name_translation_key
+                                break
+                except Exception:
+                    pass
+
+                fm_embed_data = await embed_service.create_focus_mode_activation_embed(
+                    focus_id=focus_id,
+                    app_id=focus_id.split('-', 1)[0] if '-' in focus_id else focus_id,
+                    focus_mode_name=focus_mode_display_name,
+                    chat_id=request_data.chat_id,
+                    message_id=request_data.message_id,
+                    user_id=request_data.user_id,
+                    user_id_hash=request_data.user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    task_id=task_id,
+                    log_prefix=log_prefix
+                )
+
+                if fm_embed_data:
+                    fm_embed_id = fm_embed_data.get("embed_id")
+                    fm_embed_ref = fm_embed_data.get("embed_reference")
+                    if fm_embed_ref:
+                        yield f"```json\n{fm_embed_ref}\n```\n\n"
+                        logger.info(
+                            f"{log_prefix} [FOCUS_MODE_OVERRIDE] Yielded focus mode activation embed "
+                            f"(embed_id={fm_embed_id})"
+                        )
+            except Exception as embed_error:
+                logger.error(
+                    f"{log_prefix} [FOCUS_MODE_OVERRIDE] Error creating focus mode embed: {embed_error}",
+                    exc_info=True
+                )
+
+        # Load focus mode system prompt (same as the LLM-initiated path)
+        focus_prompt_text = ""
+        try:
+            focus_app_id, focus_mode_id = focus_id.split('-', 1)
+            translation_key = f"focus_modes.{focus_app_id}_{focus_mode_id}.systemprompt"
+            user_language = preprocessing_results.output_language or "en"
+            focus_prompt_text = translation_service.get_nested_translation(translation_key, lang=user_language) or ""
+            if not focus_prompt_text and user_language != "en":
+                focus_prompt_text = translation_service.get_nested_translation(translation_key, lang="en") or ""
+                logger.info(
+                    f"{log_prefix} [FOCUS_MODE_OVERRIDE] Loaded focus prompt in fallback language (en) "
+                    f"({len(focus_prompt_text)} chars)"
+                )
+            else:
+                logger.info(
+                    f"{log_prefix} [FOCUS_MODE_OVERRIDE] Loaded focus prompt in user language ({user_language}) "
+                    f"({len(focus_prompt_text)} chars)"
+                )
+        except Exception as e:
+            logger.error(f"{log_prefix} [FOCUS_MODE_OVERRIDE] Error loading focus prompt: {e}", exc_info=True)
+
+        # Store pending activation context in Redis (same structure as the LLM-initiated path)
+        if cache_service:
+            try:
+                pending_context = {
+                    "focus_id": focus_id,
+                    "focus_prompt": focus_prompt_text,
+                    "embed_id": fm_embed_id,
+                    "chat_id": request_data.chat_id,
+                    "message_id": request_data.message_id,
+                    "user_id": request_data.user_id,
+                    "user_id_hash": request_data.user_id_hash,
+                    "mate_id": preprocessing_results.selected_mate_id or request_data.mate_id,
+                    "chat_has_title": request_data.chat_has_title,
+                    "is_incognito": getattr(request_data, 'is_incognito', False),
+                    "task_id": task_id,
+                }
+                await cache_service.store_pending_focus_activation(
+                    chat_id=request_data.chat_id,
+                    context=pending_context,
+                )
+                logger.info(f"{log_prefix} [FOCUS_MODE_OVERRIDE] Stored pending focus activation context")
+            except Exception as e:
+                logger.error(
+                    f"{log_prefix} [FOCUS_MODE_OVERRIDE] Failed to store pending context: {e}",
+                    exc_info=True
+                )
+
+        # Schedule auto-confirm task with countdown=0 (immediate, no user-facing countdown delay)
+        # The standard 5-second countdown is skipped because the user explicitly chose this focus mode.
+        try:
+            from backend.core.api.app.tasks.celery_config import app as celery_app_instance
+            celery_app_instance.send_task(
+                'apps.ai.tasks.focus_mode_auto_confirm',
+                kwargs={
+                    "chat_id": request_data.chat_id,
+                },
+                queue='app_ai',
+                countdown=0,  # Immediate — user explicitly requested this focus mode, no countdown needed
+            )
+            logger.info(
+                f"{log_prefix} [FOCUS_MODE_OVERRIDE] Scheduled auto-confirm task with countdown=0 "
+                f"(user-requested focus mode '{focus_id}' bypasses the 5s countdown)"
+            )
+        except Exception as e:
+            logger.error(
+                f"{log_prefix} [FOCUS_MODE_OVERRIDE] Failed to schedule auto-confirm task: {e}",
+                exc_info=True
+            )
+
+        # Yield the same special marker and return — stream_consumer handles this identically
+        # to the LLM-initiated path (no error, awaiting continuation from auto-confirm task)
+        logger.info(
+            f"{log_prefix} [FOCUS_MODE_OVERRIDE] Yielding pending marker and returning — "
+            f"auto-confirm fires immediately for user-requested focus mode '{focus_id}'"
+        )
+        yield {"__awaiting_focus_mode_confirmation__": True, "focus_id": focus_id, "chat_id": request_data.chat_id}
+        return
+
     # Validate that we have a model_id before proceeding with main processing
     # This prevents crashes when preprocessing fails and model_id is None
     if not preprocessing_results.selected_main_llm_model_id:
@@ -1267,6 +1634,25 @@ async def handle_main_processing(
     )
 
     usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]] = None
+
+    # === CUMULATIVE TOKEN TRACKING ACROSS ALL LLM ITERATIONS ===
+    # When tool calls are involved, the LLM is called multiple times per user turn:
+    # once to decide which tools to use, and again after receiving tool results.
+    # Each intermediate call sends the full (growing) chat history plus all tool results
+    # accumulated so far, so each call incurs real API token costs.
+    #
+    # We accumulate the token counts from every LLM call in this turn so the user is
+    # billed for the true total rather than only the final iteration's tokens.
+    # The final `usage` object from the last iteration is still used for provider/model
+    # metadata — only its token counts are replaced by these cumulative totals.
+    #
+    # `tool_inference_iterations` counts how many EXTRA LLM calls were triggered by
+    # tool use (i.e., total iterations minus 1).  A value of 0 means no tool calls
+    # were made (single LLM call, baseline behaviour).  This is stored in the usage
+    # entry so users can see it in Settings → Usage detail view.
+    cumulative_input_tokens: int = 0
+    cumulative_output_tokens: int = 0
+    tool_inference_iterations: int = 0  # Number of extra LLM calls caused by tool use
 
     # === SKILL CALL BUDGET TRACKING ===
     # Track total skill calls across all iterations to prevent runaway research loops.
@@ -1386,6 +1772,30 @@ async def handle_main_processing(
         async for chunk in aggregate_paragraphs(llm_stream):
             if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata)):
                 usage = chunk
+                # Accumulate token counts from every LLM call in this turn.
+                # Each tool-use iteration re-sends the full history plus tool results,
+                # so all iterations contribute real API costs that must be billed.
+                _iter_input = 0
+                _iter_output = 0
+                if isinstance(chunk, MistralUsage):
+                    _iter_input = chunk.prompt_tokens or 0
+                    _iter_output = chunk.completion_tokens or 0
+                elif isinstance(chunk, GoogleUsageMetadata):
+                    _iter_input = chunk.prompt_token_count or 0
+                    _iter_output = chunk.candidates_token_count or 0
+                elif isinstance(chunk, AnthropicUsageMetadata):
+                    _iter_input = chunk.input_tokens or 0
+                    _iter_output = chunk.output_tokens or 0
+                elif isinstance(chunk, OpenAIUsageMetadata):
+                    _iter_input = chunk.input_tokens or 0
+                    _iter_output = chunk.output_tokens or 0
+                cumulative_input_tokens += _iter_input
+                cumulative_output_tokens += _iter_output
+                logger.debug(
+                    f"{log_prefix} [CUMULATIVE_TOKENS] Iteration {iteration + 1}: "
+                    f"+{_iter_input} input, +{_iter_output} output tokens. "
+                    f"Running totals: {cumulative_input_tokens} in / {cumulative_output_tokens} out"
+                )
                 continue
             if isinstance(chunk, (ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedOpenAIToolCall)):
                 tool_calls_for_this_turn.append(chunk)
@@ -1480,12 +1890,20 @@ async def handle_main_processing(
                                     if key != "id":
                                         request_metadata[key] = value
                                 
-                                # Provider from request or fallback (for search skills)
-                                if "provider" not in request_metadata and skill_id == "search":
-                                    if app_id == "maps":
-                                        request_metadata["provider"] = "Google Maps"
-                                    else:
-                                        request_metadata["provider"] = "Brave Search"
+                                # Provider from request or fallback (for search skills).
+                                # Validate against the skill's known providers list to prevent
+                                # LLM hallucination (e.g. 'Brave Search' for the events skill).
+                                raw_provider = request_metadata.get("provider")
+                                if raw_provider is not None or skill_id == "search":
+                                    validated_provider = _validate_skill_provider(
+                                        provider=raw_provider,
+                                        app_id=app_id,
+                                        skill_id=skill_id,
+                                        discovered_apps_metadata=discovered_apps_metadata,
+                                        log_prefix=log_prefix,
+                                    )
+                                    if validated_provider is not None:
+                                        request_metadata["provider"] = validated_provider
                                 
                                 # Add request ID for later matching
                                 # ALWAYS auto-generate 1-indexed IDs - ignore any LLM-provided IDs
@@ -1583,18 +2001,19 @@ async def handle_main_processing(
                                         metadata[key] = value
                                 logger.debug(f"{log_prefix} INLINE: Extracted metadata from direct args: {list(metadata.keys())}")
                             
-                            # Provider fallback for search skills
-                            if "provider" not in metadata and skill_id == "search":
-                                if app_id == "maps":
-                                    metadata["provider"] = "Google Maps"
-                                elif app_id == "web":
-                                    metadata["provider"] = "Brave Search"
-                                elif app_id == "news":
-                                    metadata["provider"] = "Brave Search"
-                                elif app_id == "videos":
-                                    metadata["provider"] = "Brave Search"
-                                else:
-                                    metadata["provider"] = "Brave Search"  # Default fallback
+                            # Provider validation for search skills.
+                            # Validates the provider (from LLM args or absent) against the skill's
+                            # known providers list in app.yml to prevent LLM hallucination.
+                            if skill_id == "search" or "provider" in metadata:
+                                validated_provider = _validate_skill_provider(
+                                    provider=metadata.get("provider"),
+                                    app_id=app_id,
+                                    skill_id=skill_id,
+                                    discovered_apps_metadata=discovered_apps_metadata,
+                                    log_prefix=log_prefix,
+                                )
+                                if validated_provider is not None:
+                                    metadata["provider"] = validated_provider
                             
                             # Log final metadata for debugging
                             metadata_summary = ", ".join([f"{k}={v}" for k, v in metadata.items()])
@@ -1691,6 +2110,17 @@ async def handle_main_processing(
 
         if not tool_calls_for_this_turn:
             break
+
+        # This iteration produced tool calls — the loop will continue with at least one
+        # more LLM call to process the tool results.  Each such additional call re-sends
+        # the full conversation history plus the new tool results, contributing real token
+        # costs that we must bill.  Counting extra iterations here lets us surface this
+        # information to the user in the usage detail view.
+        tool_inference_iterations += 1
+        logger.info(
+            f"{log_prefix} [CUMULATIVE_TOKENS] Tool calls detected — incrementing tool_inference_iterations "
+            f"to {tool_inference_iterations}."
+        )
 
         logger.info(f"{log_prefix} Processing {len(tool_calls_for_this_turn)} tool call(s).")
         
@@ -1790,6 +2220,67 @@ async def handle_main_processing(
                     current_message_history.append(tool_response_message)
                     # Set force_no_tools to prevent further tool calls
                     force_no_tools = True
+
+                    # === BUG FIX: Update orphaned placeholder embeds to error ===
+                    # When the budget check skips a tool call, placeholder embeds that were
+                    # already created (status=processing) are left stuck forever.
+                    # We must update them to error so the frontend shows the correct state.
+                    orphaned_placeholder = inline_placeholder_embeds.get(tool_call_id)
+                    if orphaned_placeholder and cache_service and user_vault_key_id and directus_service:
+                        try:
+                            from backend.core.api.app.services.embed_service import EmbedService
+                            _budget_embed_service = EmbedService(
+                                cache_service=cache_service,
+                                directus_service=directus_service,
+                                encryption_service=encryption_service
+                            )
+                            error_msg = "Research limit reached — this result was not fetched."
+
+                            if isinstance(orphaned_placeholder, dict) and orphaned_placeholder.get("multiple"):
+                                # Multiple placeholder embeds (multi-request tool call)
+                                for _p in orphaned_placeholder.get("placeholders", []):
+                                    _eid = _p.get("embed_id") if isinstance(_p, dict) else None
+                                    if _eid:
+                                        await _budget_embed_service.update_embed_status_to_error(
+                                            embed_id=_eid,
+                                            app_id=app_id,
+                                            skill_id=skill_id,
+                                            error_message=error_msg,
+                                            chat_id=request_data.chat_id,
+                                            message_id=request_data.message_id,
+                                            user_id=request_data.user_id,
+                                            user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id,
+                                            task_id=task_id,
+                                            log_prefix=log_prefix
+                                        )
+                                        logger.info(
+                                            f"{log_prefix} [SKILL_BUDGET] Updated orphaned placeholder {_eid} to error"
+                                        )
+                            elif isinstance(orphaned_placeholder, dict) and "embed_id" in orphaned_placeholder:
+                                # Single placeholder embed
+                                _eid = orphaned_placeholder["embed_id"]
+                                await _budget_embed_service.update_embed_status_to_error(
+                                    embed_id=_eid,
+                                    app_id=app_id,
+                                    skill_id=skill_id,
+                                    error_message=error_msg,
+                                    chat_id=request_data.chat_id,
+                                    message_id=request_data.message_id,
+                                    user_id=request_data.user_id,
+                                    user_id_hash=request_data.user_id_hash,
+                                    user_vault_key_id=user_vault_key_id,
+                                    task_id=task_id,
+                                    log_prefix=log_prefix
+                                )
+                                logger.info(
+                                    f"{log_prefix} [SKILL_BUDGET] Updated orphaned placeholder {_eid} to error"
+                                )
+                        except Exception as _budget_err:
+                            logger.warning(
+                                f"{log_prefix} [SKILL_BUDGET] Failed to update orphaned placeholder to error: {_budget_err}"
+                            )
+
                     continue  # Skip to next tool call
                 
                 # === DEDUPLICATION CHECK (EXECUTION PHASE) ===
@@ -1884,16 +2375,25 @@ async def handle_main_processing(
                                 )
                                 
                                 # Resolve the translated focus mode name for UI display
+                                # Load in the user's language (from preprocessing) with English fallback
                                 focus_mode_display_name = focus_id  # fallback
                                 try:
                                     fm_app_id, fm_mode_id = focus_id.split('-', 1)
+                                    user_language = preprocessing_results.output_language or "en"
                                     fm_app_metadata = discovered_apps_metadata.get(fm_app_id)
                                     if fm_app_metadata and fm_app_metadata.focuses:
                                         for fm_def in fm_app_metadata.focuses:
                                             if fm_def.id == fm_mode_id:
+                                                # Try user's language first, fallback to English
                                                 focus_mode_display_name = translation_service.get_nested_translation(
-                                                    fm_def.name_translation_key
-                                                ) or fm_def.name_translation_key
+                                                    fm_def.name_translation_key, lang=user_language
+                                                ) or ""
+                                                if not focus_mode_display_name and user_language != "en":
+                                                    focus_mode_display_name = translation_service.get_nested_translation(
+                                                        fm_def.name_translation_key, lang="en"
+                                                    ) or fm_def.name_translation_key
+                                                elif not focus_mode_display_name:
+                                                    focus_mode_display_name = fm_def.name_translation_key
                                                 break
                                 except Exception:
                                     pass
@@ -1928,17 +2428,24 @@ async def handle_main_processing(
                                     exc_info=True
                                 )
                         
-                        # --- Load focus mode prompt for storage in pending context ---
+                        # --- Load focus mode prompt from translation service ---
+                        # Translation key format: focus_modes.{app_id}_{focus_id}.systemprompt
+                        # Load in the user's language (from preprocessing) with English fallback
                         focus_prompt_text = ""
                         try:
                             focus_app_id, focus_mode_id = focus_id.split('-', 1)
-                            app_metadata_for_focus = discovered_apps_metadata.get(focus_app_id)
-                            if app_metadata_for_focus and app_metadata_for_focus.focuses:
-                                for focus_def in app_metadata_for_focus.focuses:
-                                    if focus_def.id == focus_mode_id:
-                                        focus_prompt_text = focus_def.system_prompt or ""
-                                        logger.info(f"{log_prefix} [FOCUS_MODE] Loaded focus prompt ({len(focus_prompt_text)} chars)")
-                                        break
+                            translation_key = f"focus_modes.{focus_app_id}_{focus_mode_id}.systemprompt"
+                            user_language = preprocessing_results.output_language or "en"
+                            
+                            # Try to load in user's language first
+                            focus_prompt_text = translation_service.get_nested_translation(translation_key, lang=user_language) or ""
+                            
+                            # Fallback to English if not found in user's language
+                            if not focus_prompt_text and user_language != "en":
+                                focus_prompt_text = translation_service.get_nested_translation(translation_key, lang="en") or ""
+                                logger.info(f"{log_prefix} [FOCUS_MODE] Loaded focus prompt in fallback language (en) ({len(focus_prompt_text)} chars)")
+                            else:
+                                logger.info(f"{log_prefix} [FOCUS_MODE] Loaded focus prompt in user language ({user_language}) ({len(focus_prompt_text)} chars)")
                         except Exception as e:
                             logger.error(f"{log_prefix} [FOCUS_MODE] Error loading focus prompt: {e}", exc_info=True)
                         
@@ -2120,18 +2627,27 @@ async def handle_main_processing(
                                 if isinstance(first_request, dict) and "query" in first_request:
                                     metadata["query"] = first_request["query"]
                             
-                            # Direct provider
+                            # Extract provider from LLM args (direct or nested), then validate
+                            # against the skill's known providers list to prevent hallucination.
+                            raw_provider: Optional[str] = None
                             if "provider" in parsed_args:
-                                metadata["provider"] = parsed_args["provider"]
-                            # Nested provider
+                                raw_provider = parsed_args["provider"]
                             elif "requests" in parsed_args and isinstance(parsed_args["requests"], list) and len(parsed_args["requests"]) > 0:
                                 first_request = parsed_args["requests"][0]
                                 if isinstance(first_request, dict) and "provider" in first_request:
-                                    metadata["provider"] = first_request["provider"]
-                            
-                            # Default provider for web search
-                            if skill_id == "search" and "provider" not in metadata:
-                                metadata["provider"] = "Brave Search"
+                                    raw_provider = first_request["provider"]
+
+                            # Validate provider (covers fallback + hallucination correction)
+                            if skill_id == "search" or raw_provider is not None:
+                                validated_provider = _validate_skill_provider(
+                                    provider=raw_provider,
+                                    app_id=app_id,
+                                    skill_id=skill_id,
+                                    discovered_apps_metadata=discovered_apps_metadata,
+                                    log_prefix=log_prefix,
+                                )
+                                if validated_provider is not None:
+                                    metadata["provider"] = validated_provider
 
                             # Create placeholder embed (fallback path)
                             placeholder_embed_data = await embed_service.create_processing_embed_placeholder(
@@ -2207,7 +2723,8 @@ async def handle_main_processing(
                         app_id=app_id,
                         skill_id=skill_id,
                         discovered_apps_metadata=discovered_apps_metadata,
-                        task_id=task_id
+                        task_id=task_id,
+                        message_history=current_message_history,
                     )
 
                     # For async skills (e.g., images.generate), thread placeholder embed_ids
@@ -2230,6 +2747,23 @@ async def handle_main_processing(
                             skill_arguments = skill_arguments.copy()
                             skill_arguments["_placeholder_embed_ids"] = _placeholder_ids
                     
+                    # Inject user_vault_key_id as server-side context for skills that need
+                    # Vault Transit access (e.g. images-view needs it to look up embed
+                    # crypto details from the Redis cache). Underscore prefix ensures it is
+                    # stripped before Pydantic validation in base_app.py.
+                    if user_vault_key_id:
+                        skill_arguments = skill_arguments.copy()
+                        skill_arguments["_user_vault_key_id"] = user_vault_key_id
+
+                    # Inject the embed_ref → embed_id mapping so skills like images-view
+                    # can resolve a human-readable file_path argument (e.g. "my_photo.jpg")
+                    # back to the internal UUID embed_id for Redis/Vault/S3 lookup.
+                    # Underscore prefix causes base_app.py to strip it before Pydantic validation.
+                    embed_file_path_index = getattr(request_data, "embed_file_path_index", None)
+                    if embed_file_path_index:
+                        skill_arguments = skill_arguments.copy()
+                        skill_arguments["_file_path_index"] = embed_file_path_index
+
                     # Execute skill with retry logic (20s timeout, 1 retry by default)
                     # On timeout, the request is cancelled and retried with a fresh connection,
                     # which helps when external APIs are slow or proxy IPs need rotation
@@ -2423,6 +2957,34 @@ async def handle_main_processing(
                 first_response: Optional[Dict[str, Any]] = None  # Initialize to avoid UnboundLocalError
                 grouped_results: Optional[List[Dict[str, Any]]] = None  # Preserve grouping for embed creation
                 
+                # Detect multimodal content block results from view skills (e.g., images.view).
+                # These return [[{"type": "text", ...}, {"type": "image_url", ...}]] — a list
+                # containing a single list of OpenAI-style content blocks.
+                # We must NOT TOON-encode them; instead we pass the inner list directly as
+                # tool_result_content_str so the provider adapters can convert the image_url
+                # block to the LLM-specific format (Anthropic image source, Gemini inlineData, etc.).
+                is_multimodal_result = (
+                    not is_async_skill
+                    and isinstance(results, list)
+                    and len(results) == 1
+                    and isinstance(results[0], list)
+                    and len(results[0]) > 0
+                    and all(
+                        isinstance(b, dict) and b.get("type") in ("text", "image_url")
+                        for b in results[0]
+                    )
+                )
+                if is_multimodal_result:
+                    # Bypass all TOON encoding — set tool_result_content_str to the raw content
+                    # block list so it arrives at the LLM as a proper multimodal tool result.
+                    # preview_data["results_toon"] is set later when is_multimodal_result is False;
+                    # for multimodal results we skip both TOON encoding blocks below.
+                    tool_result_content_str = results[0]
+                    logger.info(
+                        f"{log_prefix} Detected multimodal content block result from '{tool_name}' "
+                        f"({len(results[0])} blocks). Bypassing TOON encoding — passing raw list to LLM."
+                    )
+
                 if not is_async_skill and results and all(isinstance(r, dict) and "results" in r for r in results):
                     first_response = results[0]
                     # Skills no longer provide preview_data - we'll create it in main_processor
@@ -2544,7 +3106,7 @@ async def handle_main_processing(
                 # - profile: {name: "..."} → profile_name: "..."
                 # - meta_url: {favicon: "..."} → meta_url_favicon: "..."
                 # - extra_snippets: [...] → extra_snippets: "|".join([...])
-                if not is_async_skill:
+                if not is_async_skill and not is_multimodal_result:
                     try:
                         # DEBUG: Log original JSON structure (first 15 lines)
                         json_before = json.dumps(results, indent=2) if len(results) == 1 else json.dumps({"results": results, "count": len(results)}, indent=2)
@@ -2579,7 +3141,49 @@ async def handle_main_processing(
                 # Filter results for current LLM inference (removes non-essential fields to reduce tokens)
                 # Full results are kept in preview_data for UI rendering and will be stored in chat history
                 filtered_results = _filter_skill_results_for_llm(results, ignore_fields_for_inference) if not is_async_skill else []
-                
+
+                # Inject embed_ref slugs into composite skill results (web search, flights, places, etc.)
+                # CRITICAL: Slugs are generated HERE (once) so that:
+                #   1. The LLM sees them in the tool result → can write [text](embed:ref) inline refs
+                #   2. The SAME slugs are baked into child embed TOON by update_embed_with_results
+                #      (which reads embed_ref from the result dict if already present)
+                # Generating slugs in two places would produce different random suffixes → ref mismatch.
+                _composite_skill_ids = {"search", "places_search", "events_search", "search_connections", "search_stays"}
+                if skill_id in _composite_skill_ids and not is_async_skill and not is_multimodal_result:
+                    try:
+                        from backend.core.api.app.services.embed_service import EmbedService as _EmbedSvc
+                        _child_type = _EmbedSvc.get_child_embed_type(app_id, skill_id)
+                        _seen_refs: Dict[str, int] = {}
+                        results_with_refs = []
+                        for _r in results:
+                            _raw_ref = _EmbedSvc._generate_embed_ref_slug(_child_type, _r)
+                            _unique_ref = _EmbedSvc._unique_embed_ref(_raw_ref, _seen_refs)
+                            _r_with_ref = dict(_r)
+                            _r_with_ref["embed_ref"] = _unique_ref
+                            results_with_refs.append(_r_with_ref)
+                        logger.debug(
+                            f"{log_prefix} Pre-generated embed_ref slugs for {len(results_with_refs)} "
+                            f"{_child_type} results (single source of truth for tool result + child TOON)"
+                        )
+                        # Also annotate grouped_results so per-group embed calls use the same slugs.
+                        # We match by position within each group to the flat results_with_refs list.
+                        if grouped_results:
+                            _ref_iter = iter(results_with_refs)
+                            for _gr in grouped_results:
+                                _gr_results = _gr.get("results", [])
+                                _gr["results"] = []
+                                for _grr in _gr_results:
+                                    try:
+                                        _grr_with_ref = next(_ref_iter)
+                                    except StopIteration:
+                                        _grr_with_ref = _grr  # safety fallback
+                                    _gr["results"].append(_grr_with_ref)
+                    except Exception as _slug_err:
+                        logger.warning(f"{log_prefix} embed_ref slug pre-generation failed, falling back to per-embed generation: {_slug_err}")
+                        results_with_refs = results
+                else:
+                    results_with_refs = results
+
                 # CRITICAL: Store FULL results (not filtered) in chat history for persistence
                 # This ensures all fields from Brave search (page_age, profile.name, url, etc.) are available
                 # for future LLM calls and UI rendering. The filtered version is only used for the current LLM call.
@@ -2588,22 +3192,22 @@ async def handle_main_processing(
                 # 
                 # IMPORTANT: Flatten nested objects before encoding to enable TOON tabular format
                 # This ensures efficient encoding with tabular arrays instead of repeated field names
-                if not is_async_skill:
+                if not is_async_skill and not is_multimodal_result:
                     try:
                         # DEBUG: Log original JSON structure (first 15 lines)
-                        json_before = json.dumps(results, indent=2) if len(results) == 1 else json.dumps({"results": results, "count": len(results)}, indent=2)
+                        json_before = json.dumps(results_with_refs, indent=2) if len(results_with_refs) == 1 else json.dumps({"results": results_with_refs, "count": len(results_with_refs)}, indent=2)
                         json_lines = json_before.split('\n')
                         logger.info(f"{log_prefix} === TOON CONVERSION DEBUG (chat history) ===")
                         logger.info(f"{log_prefix} Original JSON structure (first 15 lines, {len(json_before)} chars total):")
-                        if len(results) == 1:
+                        if len(results_with_refs) == 1:
                             # Single result - flatten and encode full result as TOON for chat history
-                            flattened_result = _flatten_for_toon_tabular(results[0])
+                            flattened_result = _flatten_for_toon_tabular(results_with_refs[0])
                             tool_result_content_str = encode(flattened_result)
                         else:
                             # Multiple results - flatten each result, then combine and encode as TOON
                             # Flattening enables TOON to use tabular format for uniform objects
-                            flattened_results = [_flatten_for_toon_tabular(result) for result in results]
-                            tool_result_content_str = encode({"results": flattened_results, "count": len(results)})
+                            flattened_results = [_flatten_for_toon_tabular(result) for result in results_with_refs]
+                            tool_result_content_str = encode({"results": flattened_results, "count": len(results_with_refs)})
                         
                         logger.debug(f"{log_prefix} TOON conversion (chat history) length={len(tool_result_content_str)} chars")
                         
@@ -2622,6 +3226,7 @@ async def handle_main_processing(
                 
                 # Calculate and charge credits for skill execution
                 # NOTE: Skip for async skills - credits are charged by the Celery task
+                # Pass grouped_results so _charge_skill_credits can count only successful requests
                 if not is_async_skill:
                     await _charge_skill_credits(
                         task_id=task_id,
@@ -2631,7 +3236,8 @@ async def handle_main_processing(
                         discovered_apps_metadata=discovered_apps_metadata,
                         results=results,
                         parsed_args=parsed_args,
-                        log_prefix=log_prefix
+                        log_prefix=log_prefix,
+                        grouped_results=grouped_results,
                     )
                 
                 # STEP 3: Create embeds from results
@@ -2639,7 +3245,7 @@ async def handle_main_processing(
                 # For single request: Update the existing placeholder embed
                 # NOTE: Skip for async skills - the Celery task handles embed updates
                 updated_embed_data_list: List[Dict[str, Any]] = []
-                if not is_async_skill and cache_service and user_vault_key_id and directus_service:
+                if not is_async_skill and not is_multimodal_result and cache_service and user_vault_key_id and directus_service:
                     try:
                         from backend.core.api.app.services.embed_service import EmbedService
 
@@ -2880,6 +3486,11 @@ async def handle_main_processing(
                                         f"{log_prefix} Updating placeholder {placeholder_embed_id} with results for request {request_id}"
                                     )
                                     
+                                    # CRITICAL: Pass request_results directly — for grouped multi-request
+                                    # skills, grouped_results[i]["results"] was already annotated with
+                                    # pre-generated embed_ref slugs in the results_with_refs block above
+                                    # (via in-place patch of grouped_results). So request_results here
+                                    # already carries embed_ref → embed_service will reuse it, not regenerate.
                                     updated_embed_data = await embed_service.update_embed_with_results(
                                         embed_id=placeholder_embed_id,
                                         app_id=app_id,
@@ -3002,11 +3613,12 @@ async def handle_main_processing(
                                         # Filter out None values
                                         placeholder_metadata = {k: v for k, v in placeholder_metadata.items() if v is not None}
                                         
+                                        # CRITICAL: Pass results_with_refs (pre-generated embed_ref slugs)
                                         updated_embed_data = await embed_service.update_embed_with_results(
                                             embed_id=embed_id,
                                             app_id=app_id,
                                             skill_id=skill_id,
-                                            results=results,  # Same results for all placeholders
+                                            results=results_with_refs,  # Pre-annotated with embed_ref
                                             chat_id=request_data.chat_id,
                                             message_id=request_data.message_id,
                                             user_id=request_data.user_id,
@@ -3045,30 +3657,48 @@ async def handle_main_processing(
                                                     if key != "id":  # Skip id field
                                                         single_request_metadata[key] = value
                                     
-                                    # Add provider fallback for search skills
-                                    if "provider" not in single_request_metadata and skill_id == "search":
-                                        if app_id == "maps":
-                                            single_request_metadata["provider"] = "Google Maps"
-                                        else:
-                                            single_request_metadata["provider"] = "Brave Search"
+                                    # Validate/set provider for search skills against skill's known
+                                    # providers list to prevent LLM hallucination.
+                                    if skill_id == "search" or "provider" in single_request_metadata:
+                                        validated_provider = _validate_skill_provider(
+                                            provider=single_request_metadata.get("provider"),
+                                            app_id=app_id,
+                                            skill_id=skill_id,
+                                            discovered_apps_metadata=discovered_apps_metadata,
+                                            log_prefix=log_prefix,
+                                        )
+                                        if validated_provider is not None:
+                                            single_request_metadata["provider"] = validated_provider
                                     
                                     # DEBUG: Log what's being passed to update_embed_with_results
                                     if results and len(results) > 0:
                                         first_result = results[0]
-                                        logger.info(
-                                            f"{log_prefix} [EMBED_DEBUG] BEFORE update_embed_with_results - "
-                                            f"results[0] keys: {list(first_result.keys())}, "
-                                            f"has_thumbnail={'thumbnail' in first_result}, "
-                                            f"has_meta_url={'meta_url' in first_result}, "
-                                            f"thumbnail={first_result.get('thumbnail')}, "
-                                            f"meta_url={first_result.get('meta_url')}"
-                                        )
+                                        # Guard against non-dict results (e.g. images-view returns
+                                        # a list of content blocks, not a dict)
+                                        if isinstance(first_result, dict):
+                                            logger.info(
+                                                f"{log_prefix} [EMBED_DEBUG] BEFORE update_embed_with_results - "
+                                                f"results[0] keys: {list(first_result.keys())}, "
+                                                f"has_thumbnail={'thumbnail' in first_result}, "
+                                                f"has_meta_url={'meta_url' in first_result}, "
+                                                f"thumbnail={first_result.get('thumbnail')}, "
+                                                f"meta_url={first_result.get('meta_url')}"
+                                            )
+                                        else:
+                                            logger.info(
+                                                f"{log_prefix} [EMBED_DEBUG] BEFORE update_embed_with_results - "
+                                                f"results[0] type: {type(first_result).__name__}, "
+                                                f"len: {len(first_result) if hasattr(first_result, '__len__') else 'N/A'}"
+                                            )
                                     
+                                    # CRITICAL: Pass results_with_refs so embed_service receives the
+                                    # pre-generated embed_ref slugs (same slugs the LLM saw in the
+                                    # tool_result_content_str). This prevents the slug-mismatch bug.
                                     updated_embed_data = await embed_service.update_embed_with_results(
                                         embed_id=single_embed_id,
                                         app_id=app_id,
                                         skill_id=skill_id,
-                                        results=results,
+                                        results=results_with_refs,
                                         chat_id=request_data.chat_id,
                                         message_id=request_data.message_id,
                                         user_id=request_data.user_id,
@@ -3090,10 +3720,11 @@ async def handle_main_processing(
                                     logger.warning(f"{log_prefix} Failed to update embed for '{tool_name}'")
                             else:
                                 # No placeholder, create new embed
+                                # CRITICAL: Pass results_with_refs (pre-generated embed_ref slugs)
                                 embed_data = await embed_service.create_embeds_from_skill_results(
                                     app_id=app_id,
                                     skill_id=skill_id,
-                                    results=results,
+                                    results=results_with_refs,
                                     chat_id=request_data.chat_id,
                                     message_id=request_data.message_id,
                                     user_id=request_data.user_id,
@@ -3113,6 +3744,76 @@ async def handle_main_processing(
                     except Exception as e:
                         logger.error(f"{log_prefix} Error creating/updating embeds for '{tool_name}': {e}", exc_info=True)
                         # Continue without embed update - don't fail the entire skill execution
+
+                # For multimodal results (e.g. images.view), the embed update block was skipped above.
+                # If a placeholder embed was created for this tool call, mark it as "finished"
+                # using only the text block (strip image bytes — we don't want to cache MBs of
+                # base64 image data in the embed content).
+                if is_multimodal_result and placeholder_embed_data and cache_service and user_vault_key_id and directus_service:
+                    try:
+                        from backend.core.api.app.services.embed_service import EmbedService
+                        embed_service_mm = EmbedService(
+                            cache_service=cache_service,
+                            directus_service=directus_service,
+                            encryption_service=encryption_service
+                        )
+                        mm_embed_id = placeholder_embed_data.get("embed_id")
+                        if mm_embed_id:
+                            # Extract only the text blocks — skip image_url blocks to avoid
+                            # storing large base64 blobs in the embed cache.
+                            text_only_results = [
+                                block for block in results[0]
+                                if isinstance(block, dict) and block.get("type") == "text"
+                            ]
+                            if not text_only_results:
+                                text_only_results = [{"type": "text", "text": f"[{tool_name}]"}]
+
+                            # For images.view (and similar multimodal skills that reference an
+                            # original upload embed), resolve file_path → original upload embed_id
+                            # via the file_path_index so the finished TOON content includes
+                            # embed_id. The frontend uses this to fetch S3/AES data from the
+                            # original upload embed and display the decrypted image preview.
+                            mm_request_metadata: dict[str, Any] | None = None
+                            _mm_file_path_index = getattr(request_data, "embed_file_path_index", None) or {}
+                            _mm_file_path = skill_arguments.get("file_path", "")
+                            if _mm_file_path and _mm_file_path_index:
+                                _mm_original_embed_id = _mm_file_path_index.get(_mm_file_path)
+                                if _mm_original_embed_id:
+                                    mm_request_metadata = {
+                                        "embed_id": _mm_original_embed_id,
+                                        "file_path": _mm_file_path,
+                                    }
+                                    logger.info(
+                                        f"{log_prefix} Multimodal embed {mm_embed_id}: resolved "
+                                        f"file_path='{_mm_file_path}' → original embed_id={_mm_original_embed_id}"
+                                    )
+                                else:
+                                    logger.warning(
+                                        f"{log_prefix} Multimodal embed {mm_embed_id}: file_path "
+                                        f"'{_mm_file_path}' not found in file_path_index "
+                                        f"(keys: {list(_mm_file_path_index.keys())})"
+                                    )
+
+                            logger.info(
+                                f"{log_prefix} Updating multimodal placeholder embed {mm_embed_id} "
+                                f"to finished (text-only, {len(text_only_results)} block(s))"
+                            )
+                            await embed_service_mm.update_embed_with_results(
+                                embed_id=mm_embed_id,
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                results=text_only_results,
+                                chat_id=request_data.chat_id,
+                                message_id=request_data.message_id,
+                                user_id=request_data.user_id,
+                                user_id_hash=request_data.user_id_hash,
+                                user_vault_key_id=user_vault_key_id,
+                                task_id=task_id,
+                                log_prefix=log_prefix,
+                                request_metadata=mm_request_metadata,
+                            )
+                    except Exception as e:
+                        logger.warning(f"{log_prefix} Failed to finalize multimodal placeholder embed: {e}", exc_info=True)
 
                 # Publish "finished" status with preview data
                 # This triggers WebSocket event to update the frontend embed preview
@@ -3455,6 +4156,32 @@ async def handle_main_processing(
             break
 
     if usage:
+        # Yield cumulative token totals as a sentinel dict BEFORE the usage object.
+        # stream_consumer.py reads this to bill for ALL LLM calls in this turn rather
+        # than only the last one.  The sentinel is always emitted when we have usage
+        # data — when no tools were used there is exactly one iteration so the
+        # cumulative totals equal the single-iteration totals (zero-overhead path).
+        #
+        # Fields:
+        #   total_input_tokens  — sum of input tokens across every LLM call in this turn
+        #   total_output_tokens — sum of output tokens across every LLM call in this turn
+        #   tool_inference_iterations — number of extra LLM calls triggered by tool use
+        #                               (0 = no tools used, 1 = one tool round, etc.)
+        #
+        # A future FAQ link can explain why input_tokens may be higher than expected:
+        # each tool result is injected back into the context, making the next call's
+        # input larger.  See docs/billing.md (TODO: create) for the full explanation.
+        yield {
+            "__cumulative_llm_usage__": True,
+            "total_input_tokens": cumulative_input_tokens,
+            "total_output_tokens": cumulative_output_tokens,
+            "tool_inference_iterations": tool_inference_iterations,
+        }
+        logger.info(
+            f"{log_prefix} [CUMULATIVE_TOKENS] Final totals: "
+            f"{cumulative_input_tokens} input tokens, {cumulative_output_tokens} output tokens, "
+            f"{tool_inference_iterations} tool inference iteration(s)."
+        )
         yield usage
 
     # Yield tool calls info as a special marker at the end of the stream
@@ -3483,7 +4210,8 @@ def _normalize_skill_arguments(
     app_id: str,
     skill_id: str,
     discovered_apps_metadata: Dict[str, Any],
-    task_id: str
+    task_id: str,
+    message_history: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """
     Normalizes LLM-generated skill arguments to match the expected schema format.
@@ -3498,12 +4226,20 @@ def _normalize_skill_arguments(
     - The LLM sends flat arguments without a "requests" key
     - The flat arguments match the items schema of the "requests" array
     
+    Special recovery case — empty arguments (LLM sends "{}"):
+    - When the LLM provides completely empty arguments AND the skill requires a "requests"
+      array with a "query" field (e.g. web-search), the last user message from message_history
+      is used as the query. This covers a known bug where some LLM providers (e.g. Qwen via
+      Cerebras) emit an empty tool-call arguments string for the web-search tool.
+    
     Args:
         arguments: The parsed tool call arguments from the LLM
         app_id: The app ID
         skill_id: The skill ID
         discovered_apps_metadata: The full app metadata (contains tool_schema)
         task_id: Task ID for logging
+        message_history: Optional conversation history used to recover a query when the LLM
+            sends empty arguments. Each entry is a dict with at least "role" and "content".
         
     Returns:
         Normalized arguments dict. Returns the original arguments unchanged if no
@@ -3511,11 +4247,8 @@ def _normalize_skill_arguments(
     """
     log_prefix = f"[Task ID: {task_id}]"
     
-    # If arguments already contain "requests", no normalization needed
-    if "requests" in arguments:
-        return arguments
-    
-    # Look up the skill's tool_schema to determine expected format
+    # Look up the skill's tool_schema FIRST — we need to know whether this skill
+    # expects a "requests" array before we can decide how to handle incoming args.
     app_metadata = discovered_apps_metadata.get(app_id)
     if not app_metadata or not app_metadata.skills:
         return arguments
@@ -3533,15 +4266,51 @@ def _normalize_skill_arguments(
     schema_properties = schema.get("properties", {})
     schema_required = schema.get("required", [])
     
-    # Check if the schema requires a "requests" property of type "array"
-    if "requests" not in schema_properties:
-        return arguments
+    schema_expects_requests = (
+        "requests" in schema_properties
+        and schema_properties["requests"].get("type") == "array"
+        and "requests" in schema_required
+    )
     
-    requests_schema = schema_properties["requests"]
-    if requests_schema.get("type") != "array":
-        return arguments
+    if "requests" in arguments:
+        # The LLM sent a "requests" key.
+        if schema_expects_requests:
+            # Schema also wants "requests" — no normalization needed.
+            return arguments
+        else:
+            # Schema does NOT have "requests" (flat-schema skill like pdf.read/view/search).
+            # The LLM mis-wrapped flat args as {"requests": [{"file_path": "x.pdf", ...}]}.
+            # Extract the first item and flatten it so the skill receives the expected kwargs.
+            requests_list = arguments.get("requests")
+            if isinstance(requests_list, list) and len(requests_list) > 0:
+                if len(requests_list) > 1:
+                    logger.warning(
+                        f"{log_prefix} [NORMALIZE] LLM sent {len(requests_list)} items in "
+                        f"'requests' for flat-schema skill '{app_id}.{skill_id}' (schema has "
+                        f"no 'requests' property). Using first item only and discarding the rest."
+                    )
+                flat_item = requests_list[0]
+                if isinstance(flat_item, dict):
+                    # Merge flat item with underscore-prefixed metadata keys from the outer dict.
+                    normalized = {k: v for k, v in arguments.items() if k.startswith("_")}
+                    normalized.update({k: v for k, v in flat_item.items() if not k.startswith("_")})
+                    logger.warning(
+                        f"{log_prefix} [NORMALIZE] Unwrapped 'requests[0]' into flat args for "
+                        f"'{app_id}.{skill_id}'. Flat keys: {list(flat_item.keys())}. "
+                        f"LLM incorrectly wrapped flat-schema skill args in a 'requests' array."
+                    )
+                    return normalized
+            # Unexpected shape — return as-is and let validation raise a clear error.
+            logger.warning(
+                f"{log_prefix} [NORMALIZE] LLM sent 'requests' for flat-schema skill "
+                f"'{app_id}.{skill_id}' but 'requests' value is not a non-empty list "
+                f"(type={type(arguments.get('requests')).__name__}). Passing through as-is."
+            )
+            return arguments
     
-    if "requests" not in schema_required:
+    # No "requests" key in arguments.
+    if not schema_expects_requests:
+        # Flat args for flat-schema skill — no normalization needed.
         return arguments
     
     # The schema requires a "requests" array but the LLM sent flat arguments.
@@ -3549,7 +4318,52 @@ def _normalize_skill_arguments(
     flat_request = {k: v for k, v in arguments.items() if not k.startswith("_")}
     
     if not flat_request:
-        # No non-metadata keys to wrap — return as-is and let validation catch it
+        # LLM sent completely empty arguments (e.g. arguments="{}").
+        # Attempt recovery: check if the "requests" items schema requires a "query" field.
+        # If so, extract the last user message from history and use it as the query.
+        # This covers a known Qwen/Cerebras bug where web-search is called with no args.
+        items_schema = schema_properties["requests"].get("items", {})
+        items_required = items_schema.get("required", [])
+        
+        if "query" in items_required and message_history:
+            # Find the last user message in history (most recent first)
+            last_user_text: Optional[str] = None
+            for msg in reversed(message_history):
+                if isinstance(msg, dict) and msg.get("role") == "user":
+                    content = msg.get("content", "")
+                    if isinstance(content, str) and content.strip():
+                        last_user_text = content.strip()
+                        break
+                    elif isinstance(content, list):
+                        # Some providers use content arrays (e.g. [{type: text, text: "..."}])
+                        for part in content:
+                            if isinstance(part, dict) and part.get("type") == "text":
+                                text = part.get("text", "").strip()
+                                if text:
+                                    last_user_text = text
+                                    break
+                        if last_user_text:
+                            break
+            
+            if last_user_text:
+                # Preserve metadata keys (underscore-prefixed) at the top level
+                normalized = {k: v for k, v in arguments.items() if k.startswith("_")}
+                normalized["requests"] = [{"query": last_user_text}]
+                logger.warning(
+                    f"{log_prefix} [NORMALIZE] LLM sent empty arguments ('{{}}') for "
+                    f"'{app_id}.{skill_id}' which requires a 'requests' array. "
+                    f"Recovered query from last user message: '{last_user_text[:100]}{'...' if len(last_user_text) > 100 else ''}'. "
+                    f"This is a known LLM bug (Qwen/Cerebras emitting empty tool-call args)."
+                )
+                return normalized
+        
+        # No recovery possible — return as-is and let validation raise a clear error
+        logger.warning(
+            f"{log_prefix} [NORMALIZE] LLM sent empty arguments ('{{}}') for "
+            f"'{app_id}.{skill_id}' which requires a 'requests' array. "
+            f"Cannot recover (no query field in items schema or no message history). "
+            f"Skill will fail with a validation error."
+        )
         return arguments
     
     # Preserve metadata keys (underscore-prefixed) at the top level

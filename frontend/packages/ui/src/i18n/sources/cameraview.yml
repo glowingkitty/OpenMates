@@ -20,6 +20,7 @@ close:
   th: ปิดกล้อง
   cs: Zavřít kameru
   sv: Stäng kamera
+  he: סגור מצלמה
   verified_by_human: []
 stoprecording:
   context: Button text for finishing video recording
@@ -43,6 +44,7 @@ stoprecording:
   th: สิ้นสุดการบันทึก
   cs: Dokončit nahrávání
   sv: Avsluta inspelning
+  he: סיום הקלטה
   verified_by_human: []
 startrecording:
   context: Button text for starting video recording
@@ -66,6 +68,7 @@ startrecording:
   th: บันทึกวิดีโอ
   cs: Zaznamenat video
   sv: Spela in video
+  he: הקלט וידאו
   verified_by_human: []
 takephoto:
   context: Button text for taking a photo
@@ -89,4 +92,5 @@ takephoto:
   th: ถ่ายรูป
   cs: Pořiďte fotografii
   sv: Ta foto
+  he: צלם תמונה
   verified_by_human: []

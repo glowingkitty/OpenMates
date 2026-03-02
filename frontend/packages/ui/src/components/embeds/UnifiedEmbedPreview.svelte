@@ -77,10 +77,18 @@
     showSkillIcon?: boolean;
     /** Whether the details content contains a full-width image (removes padding, adds negative margin) */
     hasFullWidthImage?: boolean;
+    /**
+     * Override the fixed card height (px value, e.g. 350).
+     * Used for portrait/vertical images so the full image height is visible
+     * instead of being cropped. Only affects the desktop layout.
+     */
+    customHeight?: number;
     /** Callback when embed data is updated - allows child components to update their specific data */
     onEmbedDataUpdated?: (data: { status: string; decodedContent: Record<string, unknown> }) => void;
     /** Optional snippet rendered before the title text in BasicInfosBar (e.g., category circle) */
     titleIcon?: import('svelte').Snippet;
+    /** Optional snippet rendered between the app icon and the status text in BasicInfosBar (e.g., play button for audio) */
+    actionButton?: import('svelte').Snippet;
   }
   
   let {
@@ -101,8 +109,10 @@
     customStatusText,
     showSkillIcon = true,
     hasFullWidthImage = false,
+    customHeight,
     onEmbedDataUpdated,
-    titleIcon
+    titleIcon,
+    actionButton
   }: Props = $props();
   
   // Local reactive state for status - can be updated when embedUpdated fires
@@ -511,20 +521,6 @@
     if ((status === 'finished' || status === 'error') && onFullscreen) {
       console.debug('[UnifiedEmbedPreview] Calling onFullscreen for embed:', id);
       
-      // Store the preview element's position for transition
-      if (previewElement) {
-        const rect = previewElement.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-        
-        // Store position in a data attribute that UnifiedEmbedFullscreen can read
-        // This allows the fullscreen to animate from the preview position
-        document.documentElement.style.setProperty('--preview-center-x', `${centerX}px`);
-        document.documentElement.style.setProperty('--preview-center-y', `${centerY}px`);
-        document.documentElement.style.setProperty('--preview-width', `${rect.width}px`);
-        document.documentElement.style.setProperty('--preview-height', `${rect.height}px`);
-      }
-      
       try {
         onFullscreen();
         console.debug('[UnifiedEmbedPreview] onFullscreen called successfully');
@@ -605,9 +601,26 @@
   
   // Handle stop button click - prevent event propagation
   // Wrapper for BasicInfosBar onStop prop (it expects () => void)
+  // 
+  // OPTIMISTIC UPDATE: Immediately set localStatus = 'cancelled' so the stop button
+  // disappears and the spinner stops right away. The server will later confirm via
+  // skill_execution_status → embed_update → embedUpdated, which writes 'cancelled'
+  // again — harmless. Without this, the embed stays in "processing" state for the
+  // duration of the full network round-trip (cancel_skill WS → Redis write → skill
+  // executor checks flag → status event back to client), which can be 1–3+ seconds
+  // if the skill is in the middle of an external HTTP call.
   function handleStop() {
     if (onStop) {
       onStop();
+    }
+    // Optimistically mark as cancelled regardless of whether the call succeeded —
+    // if it failed, onStop() will have logged an error and the server won't confirm,
+    // so the embed will remain visually cancelled but won't actually be. This is
+    // acceptable: the user wanted to stop, and the worst case is a stale UI state
+    // that would resolve on next reload. No silent data loss occurs.
+    if (localStatus === 'processing') {
+      localStatus = 'cancelled';
+      console.debug(`[UnifiedEmbedPreview] Optimistically marked embed ${id} as cancelled`);
     }
   }
 </script>
@@ -626,7 +639,10 @@
   data-app-id={appId}
   data-skill-id={skillId}
   data-status={status}
-  style={tiltTransform ? `transform: ${tiltTransform};` : ''}
+  style={[
+    tiltTransform ? `transform: ${tiltTransform};` : '',
+    (!useMobileLayout && customHeight) ? `height: ${customHeight}px; min-height: ${customHeight}px; max-height: ${customHeight}px;` : ''
+  ].filter(Boolean).join(' ')}
   {...((status === 'finished' || status === 'error') ? {
     role: 'button',
     tabindex: 0,
@@ -676,6 +692,7 @@
         {showSkillIcon}
         customStatusText={customStatusText}
         {titleIcon}
+        {actionButton}
       />
     </div>
   {:else}
@@ -709,6 +726,7 @@
         {showSkillIcon}
         customStatusText={customStatusText}
         {titleIcon}
+        {actionButton}
       />
     </div>
   {/if}

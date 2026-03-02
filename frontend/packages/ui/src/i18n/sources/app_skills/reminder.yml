@@ -20,6 +20,7 @@ set_reminder:
   th: ตั้งการแจ้งเตือน
   cs: Nastavit připomínku
   sv: Ställ in påminnelse
+  he: הגדרת תזכורת
   verified_by_human: [en, de]
 set_reminder.description:
   context: Description for set reminder skill
@@ -43,11 +44,12 @@ set_reminder.description:
   th: สร้างแจ้งเตือนครั้งเดียวหรือซ้ำ
   cs: Vytvořte jednorázové nebo opakující se.
   sv: Skapa engångs- eller återkommande.
+  he: יצירת תזכורות חד-פעמיות או חוזרות.
   verified_by_human: [en, de]
 
 set_reminder.how_to_use.1:
   context: Example instruction for set reminder skill - one-time reminder
-  en: Remind me to call the dentist tomorrow at 10am
+  en: "**Remind** me to call the dentist tomorrow at 10am"
   de: Erinnere mich morgen um 10 Uhr den Zahnarzt anzurufen
   zh: 提醒我明天上午10点给牙医打电话
   es: Recuérdame llamar al dentista mañana a las 10am
@@ -67,11 +69,12 @@ set_reminder.how_to_use.1:
   th: เตือนฉันโทรหาหมอฟันพรุ่งนี้ตอน 10 โมงเช้า
   cs: Připomeň mi zítra v 10 hodin zavolat zubaři
   sv: Påminn mig att ringa tandläkaren imorgon kl. 10
+  he: "**תזכיר** לי להתקשר לרופא השיניים מחר ב-10:00"
   verified_by_human: [en, de]
 
 set_reminder.how_to_use.2:
   context: Example instruction for set reminder skill - recurring weekly
-  en: Set a weekly reminder for team standup every Monday at 9am
+  en: "Set a **weekly** reminder for team standup every Monday at 9am"
   de: Setze eine wöchentliche Erinnerung für das Team-Standup jeden Montag um 9 Uhr
   zh: 设置每周一上午9点的团队站会提醒
   es: Establece un recordatorio semanal para el standup del equipo cada lunes a las 9am
@@ -91,11 +94,12 @@ set_reminder.how_to_use.2:
   th: ตั้งการแจ้งเตือนรายสัปดาห์สำหรับ standup ทีมทุกวันจันทร์เวลา 9 โมงเช้า
   cs: Nastav týdenní připomínku na týmový standup každé pondělí v 9 hodin
   sv: Ställ in en veckovis påminnelse för teamets standup varje måndag kl. 9
+  he: "הגדר תזכורת **שבועית** לישיבת צוות בכל יום שני ב-9:00"
   verified_by_human: [en, de]
 
 set_reminder.how_to_use.3:
   context: Example instruction for set reminder skill - recurring interval
-  en: Remind me to water my plants every 3 days
+  en: "**Remind** me to water my plants every 3 days"
   de: Erinnere mich alle 3 Tage meine Pflanzen zu gießen
   zh: 每3天提醒我给植物浇水
   es: Recuérdame regar mis plantas cada 3 días
@@ -115,6 +119,7 @@ set_reminder.how_to_use.3:
   th: เตือนฉันรดน้ำต้นไม้ทุก 3 วัน
   cs: Připomeň mi zalévat rostliny každé 3 dny
   sv: Påminn mig att vattna mina växter var tredje dag
+  he: "**תזכיר** לי להשקות את העציצים כל 3 ימים"
   verified_by_human: [en, de]
 
 list_reminders:
@@ -139,6 +144,7 @@ list_reminders:
   th: รายการแจ้งเตือน
   cs: Seznam připomínek
   sv: Lista påminnelser
+  he: רשימת תזכורות
   verified_by_human: [en, de]
 list_reminders.description:
   context: Description for list reminders skill
@@ -162,11 +168,12 @@ list_reminders.description:
   th: ดูการแจ้งเตือนที่กำหนดไว้ของคุณ
   cs: Zobrazit naplánované připomínky.
   sv: Visa dina schemalagda påminnelser.
+  he: צפייה בתזכורות המתוזמנות שלך.
   verified_by_human: [en, de]
 
 list_reminders.how_to_use.1:
   context: Example instruction for list reminders skill - show all
-  en: Show me all my active reminders
+  en: "Show me all my **active** reminders"
   de: Zeige mir alle meine aktiven Erinnerungen
   zh: 显示我所有活跃的提醒
   es: Muéstrame todos mis recordatorios activos
@@ -186,11 +193,12 @@ list_reminders.how_to_use.1:
   th: แสดงการแจ้งเตือนที่ใช้งานอยู่ทั้งหมดของฉัน
   cs: Ukaž mi všechny moje aktivní připomínky
   sv: Visa alla mina aktiva påminnelser
+  he: "הצג לי את כל התזכורות ה**פעילות** שלי"
   verified_by_human: [en, de]
 
 list_reminders.how_to_use.2:
   context: Example instruction for list reminders skill - this week
-  en: What reminders do I have for this week?
+  en: What reminders do I have **for this week**?
   de: Welche Erinnerungen habe ich für diese Woche?
   zh: 这周我有哪些提醒？
   es: ¿Qué recordatorios tengo para esta semana?
@@ -210,11 +218,12 @@ list_reminders.how_to_use.2:
   th: สัปดาห์นี้ฉันมีการแจ้งเตือนอะไรบ้าง?
   cs: Jaké připomínky mám na tento týden?
   sv: Vilka påminnelser har jag den här veckan?
+  he: "אילו תזכורות יש לי **לשבוע הזה**?"
   verified_by_human: [en, de]
 
 list_reminders.how_to_use.3:
   context: Example instruction for list reminders skill - recurring
-  en: List all my recurring reminders
+  en: "**List** all my recurring reminders"
   de: Liste alle meine wiederkehrenden Erinnerungen auf
   zh: 列出我所有的重复提醒
   es: Lista todos mis recordatorios recurrentes
@@ -234,6 +243,7 @@ list_reminders.how_to_use.3:
   th: แสดงรายการแจ้งเตือนที่เกิดซ้ำทั้งหมดของฉัน
   cs: Vypiš všechny moje opakující se připomínky
   sv: Lista alla mina återkommande påminnelser
+  he: "**הצג** את כל התזכורות החוזרות שלי"
   verified_by_human: [en, de]
 
 cancel_reminder:
@@ -258,6 +268,7 @@ cancel_reminder:
   th: ยกเลิกการแจ้งเตือน
   cs: Zrušit připomínku
   sv: Avbryt påminnelse
+  he: ביטול תזכורת
   verified_by_human: [en, de]
 cancel_reminder.description:
   context: Description for cancel reminder skill
@@ -281,11 +292,12 @@ cancel_reminder.description:
   th: ยกเลิกการแจ้งเตือนที่กำหนดไว้
   cs: Zrušit naplánovanou připomínku.
   sv: Avbryt en schemalagd påminnelse.
+  he: ביטול תזכורת מתוזמנת.
   verified_by_human: [en, de]
 
 cancel_reminder.how_to_use.1:
   context: Example instruction for cancel reminder skill - specific reminder
-  en: Cancel my dentist reminder
+  en: "**Cancel** my dentist reminder"
   de: Lösche meine Zahnarzt-Erinnerung
   zh: 取消我的牙医提醒
   es: Cancela mi recordatorio del dentista
@@ -305,11 +317,12 @@ cancel_reminder.how_to_use.1:
   th: ยกเลิกการแจ้งเตือนหมอฟันของฉัน
   cs: Zruš mou připomínku na zubaře
   sv: Avbryt min tandläkarpåminnelse
+  he: "**בטל** את התזכורת לרופא השיניים"
   verified_by_human: [en, de]
 
 cancel_reminder.how_to_use.2:
   context: Example instruction for cancel reminder skill - remove recurring
-  en: Remove the weekly standup reminder
+  en: "**Remove** the weekly standup reminder"
   de: Entferne die wöchentliche Standup-Erinnerung
   zh: 删除每周站会提醒
   es: Elimina el recordatorio semanal del standup
@@ -329,11 +342,12 @@ cancel_reminder.how_to_use.2:
   th: ลบการแจ้งเตือน standup รายสัปดาห์
   cs: Odstraň týdenní připomínku standupu
   sv: Ta bort den veckovisa standup-påminnelsen
+  he: "**הסר** את התזכורת לישיבת הצוות השבועית"
   verified_by_human: [en, de]
 
 cancel_reminder.how_to_use.3:
   context: Example instruction for cancel reminder skill - cancel by date
-  en: Cancel all reminders for tomorrow
+  en: "**Cancel** all reminders for tomorrow"
   de: Lösche alle Erinnerungen für morgen
   zh: 取消明天的所有提醒
   es: Cancela todos los recordatorios para mañana
@@ -353,4 +367,5 @@ cancel_reminder.how_to_use.3:
   th: ยกเลิกการแจ้งเตือนทั้งหมดสำหรับพรุ่งนี้
   cs: Zruš všechny připomínky na zítra
   sv: Avbryt alla påminnelser för imorgon
+  he: "**בטל** את כל התזכורות למחר"
   verified_by_human: [en, de]

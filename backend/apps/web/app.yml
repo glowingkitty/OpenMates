@@ -9,6 +9,7 @@ settings_and_memories:
   - id: bookmarks
     name_translation_key: web.bookmarks
     description_translation_key: web.bookmarks.description
+    icon_image: web.svg
     type: list
     stage: production
     example_translation_keys:
@@ -45,6 +46,7 @@ settings_and_memories:
   - id: read_later
     name_translation_key: web.read_later
     description_translation_key: web.read_later.description
+    icon_image: task.svg
     type: list
     stage: production
     example_translation_keys:
@@ -82,6 +84,7 @@ skills:
   - id: search
     name_translation_key: web.search
     description_translation_key: web.search.description
+    icon_image: search.svg
     preprocessor_hint: >
       General web search for current information, prices, weather, facts, stocks, sports scores, etc.
       Use as a fallback when no specialized skill applies.
@@ -226,6 +229,7 @@ skills:
   - id: read
     name_translation_key: web.read
     description_translation_key: web.read.description
+    icon_image: web.svg
     preprocessor_hint: >
       Read and extract content from a specific URL or webpage the user provided.
     stage: production
@@ -292,38 +296,24 @@ focuses:
     name_translation_key: web.check_reputation
     description_translation_key: web.check_reputation.description
     stage: planning
-    process:
-      - check if a business exist on trustpilot and what its rating is
-      - check on whois.com if the website is nearky registered
-      - use trustpilot, whois.com and othet sites ro identify scams and business with bad customer ratings
-    systemprompt: |
       You are an expert on identifying scams vs legit businesses.
   - id: analyze_privacy
     name_translation_key: web.analyze_privacy
     description_translation_key: web.analyze_privacy.description
     stage: planning
-    process:
-      - gets the legal pages of a website
-      - analyzes the legal pages for privacy implications
-      - creates a report based on the findings
-      - asks the user if they want to proceed with the service based on the privacy implications or if they have additional questions
-    systemprompt: |
       You are an expert on privacy analysis and data protection. Your role is to analyze legal pages (terms of service, privacy policy, cookie policy) and identify privacy implications, data collection practices, and potential risks for users.
   - id: research
     name_translation_key: web.research
     description_translation_key: web.research.description
+    process_translation_key: focus_modes.web_research.process
+    systemprompt_translation_key: focus_modes.web_research.systemprompt
     stage: development
     preprocessor_hint: >
       Select when the user wants in-depth research on a topic, asks to investigate or analyze something thoroughly,
       or needs comprehensive information gathered from multiple web sources.
-    systemprompt: |
       You are an expert researcher. Your role is to conduct thorough web research by making multiple searches to understand a topic comprehensively, including its causes, effects, and broader context.
   - id: deep_web_research
     name_translation_key: web.deep_web_research
     description_translation_key: web.deep_web_research.description
     stage: planning
-    process:
-      - asks user multiple clearifying questions, then creates a list of requirements / priorities / search terms
-      - then starts in depth web searches for the search terms and creates a report based on the findings
-    systemprompt: |
       You are an expert for deep web research.

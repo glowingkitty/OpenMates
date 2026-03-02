@@ -35,7 +35,13 @@ import * as offlineOps from "./db/offlineChangesAndUpdates";
 
 // Import logout state to prevent database re-initialization during logout
 import { get } from "svelte/store";
-import { forcedLogoutInProgress, isLoggingOut } from "../stores/signupState";
+import {
+  forcedLogoutInProgress,
+  isLoggingOut,
+  setForcedLogoutInProgress,
+  lastResumeTimestamp,
+  RESUME_ORPHAN_GRACE_MS,
+} from "../stores/signupState";
 
 // Minimal type helpers for migration paths where IndexedDB records can include legacy fields.
 type ChatRecordWithMessages = Chat & { messages?: Message[] };
@@ -104,7 +110,11 @@ class ChatDatabase {
   // Version 17: (Removed) Was app_settings_memories_actions store - now using system messages instead
   // Version 18: Added pending_embed_share_updates store for embed share metadata retry queue
   // Version 19: Added pending_embed_operations store for offline embed queue
-  private readonly VERSION = 19;
+  // Version 20: Added daily_inspirations store for client-side persistence of personalised inspirations
+  // Version 21: Delete stale old-format community demo chats (demo-1, demo-2, demo-e0090311, …)
+  //             that may have been saved to chats_db before the server migrated to word-slug IDs.
+  private readonly VERSION = 21;
+  public readonly DAILY_INSPIRATIONS_STORE_NAME = "daily_inspirations";
   private initializationPromise: Promise<void> | null = null;
 
   // Flag to prevent new operations during database deletion
@@ -235,71 +245,70 @@ class ChatDatabase {
         console.warn(
           "[ChatDatabase] CLEANUP MARKER FOUND - setting forcedLogoutInProgress",
         );
-        forcedLogoutInProgress.set(true);
+        // CRITICAL: Remove the marker IMMEDIATELY to prevent a re-trigger loop.
+        // Without this, the 30s safety timeout in setForcedLogoutInProgress() resets
+        // the flag, and the next init() call finds the marker again — creating an
+        // infinite cycle where forcedLogoutInProgress toggles every 30s while periodic
+        // callers (ShareMetadataQueue, EmbedSenders) keep triggering init().
+        // The marker has served its purpose: we detected cleanup is needed.
+        // The logout flow (triggered by checkAuth() or +page.svelte) will handle
+        // the actual cleanup. If the logout flow completes, it calls deleteDatabase()
+        // which also removes the marker (harmless no-op). If the logout flow fails,
+        // the orphan detection in the else-branch below will re-detect and re-set
+        // the marker on the next full page load.
+        localStorage.removeItem("openmates_needs_cleanup");
+        setForcedLogoutInProgress();
       } else {
-        // Check if master key is missing - if so, we can't decrypt encrypted chats
-        // Dynamically import to avoid circular dependencies
-        const { getKeyFromStorage } = await import("./cryptoService");
-        const hasMasterKey = await getKeyFromStorage();
+        // FIX 1: Skip orphan detection for memory-only-key sessions where auth is
+        // still valid. When stayLoggedIn=false, the master key lives in memory only.
+        // iOS can evict this memory during tab suspension — this is expected behaviour,
+        // NOT an orphaned database. Triggering forced logout here would disconnect the
+        // user even though their session is perfectly intact.
+        //
+        // Conditions under which we safely skip the check:
+        //   a) The user chose NOT to stay logged in (key is memory-only by design), AND
+        //   b) Auth state still reports the user as authenticated (session is valid)
+        //
+        // If either condition is false the check still runs:
+        //   - stayLoggedIn=true  → key should be in IndexedDB; absence IS suspicious
+        //   - isAuthenticated=false → normal orphan detection still warranted
+        const wasStayLoggedIn =
+          typeof localStorage !== "undefined" &&
+          localStorage.getItem("openmates_was_stay_logged_in") === "true";
 
-        if (!hasMasterKey) {
-          // Check if database exists and contains encrypted data
-          // Only trigger cleanup if there are actual encrypted chats that can't be decrypted
-          if (typeof indexedDB !== "undefined") {
-            // Check if database exists and contains encrypted data
-            // Only trigger cleanup if there are actual encrypted chats that can't be decrypted
-            try {
-              // Check localStorage marker for faster detection
-              const dbInitialized =
-                typeof localStorage !== "undefined" &&
-                localStorage.getItem("openmates_chats_db_initialized") ===
-                  "true";
+        if (!wasStayLoggedIn) {
+          // Memory-only key session: import authStore lazily to avoid circular deps
+          const { authStore } = await import("../stores/authStore");
+          const isAuthenticated = get(authStore).isAuthenticated;
+          if (isAuthenticated) {
+            console.debug(
+              "[ChatDatabase] Skipping orphan detection: memory-only key session with valid auth (stayLoggedIn=false)",
+            );
+            // Skip the async key check entirely — fall through to normal DB init
+          } else {
+            // Not authenticated + memory key — still run the check
+            await this._runOrphanKeyCheck();
+          }
+        } else {
+          // FIX 2: Skip orphan detection for a short window after a page resume event
+          // (visibilitychange / pageshow). On mobile, init() can be called almost
+          // immediately after the tab becomes visible, before the memory key store has
+          // had a chance to re-initialize from auth flows that wake up concurrently.
+          // Suppressing for RESUME_ORPHAN_GRACE_MS (3s) prevents a race-condition
+          // false-positive. A subsequent init() call (triggered by any normal operation)
+          // will catch a truly orphaned DB once the grace period expires.
+          const timeSinceResume =
+            lastResumeTimestamp > 0
+              ? Date.now() - lastResumeTimestamp
+              : Infinity;
 
-              if (dbInitialized) {
-                // Try to open database and check if it contains encrypted chats
-                // This is a more precise check than just checking if DB exists
-                const checkRequest = indexedDB.open(this.DB_NAME, this.VERSION);
-
-                checkRequest.onsuccess = (event) => {
-                  const db = (event.target as IDBOpenDBRequest).result;
-                  const transaction = db.transaction(
-                    [this.CHATS_STORE_NAME],
-                    "readonly",
-                  );
-                  const store = transaction.objectStore(this.CHATS_STORE_NAME);
-                  const countRequest = store.count();
-
-                  countRequest.onsuccess = () => {
-                    const chatCount = countRequest.result;
-                    if (chatCount > 0) {
-                      console.warn(
-                        "[ChatDatabase] ORPHANED DATABASE DETECTED: No master key but found",
-                        chatCount,
-                        "encrypted chats",
-                      );
-                      console.warn(
-                        "[ChatDatabase] Setting cleanup marker and forcedLogoutInProgress=true",
-                      );
-                      if (typeof localStorage !== "undefined") {
-                        localStorage.setItem("openmates_needs_cleanup", "true");
-                      }
-                      forcedLogoutInProgress.set(true);
-                    }
-                    db.close();
-                  };
-
-                  countRequest.onerror = () => {
-                    db.close();
-                  };
-                };
-
-                checkRequest.onerror = () => {
-                  // Database doesn't exist or can't be opened, no cleanup needed
-                };
-              }
-            } catch {
-              // Error checking database, assume no cleanup needed
-            }
+          if (timeSinceResume < RESUME_ORPHAN_GRACE_MS) {
+            console.debug(
+              `[ChatDatabase] Skipping orphan detection: within ${RESUME_ORPHAN_GRACE_MS}ms resume grace period (${Math.round(timeSinceResume)}ms since resume)`,
+            );
+            // Skip — will re-run on next init() call outside the grace window
+          } else {
+            await this._runOrphanKeyCheck();
           }
         }
       }
@@ -422,6 +431,69 @@ class ChatDatabase {
         );
       };
     });
+  }
+
+  /**
+   * Run the async "orphaned database" check: if the master key is absent but
+   * the DB contains encrypted chats, trigger a forced logout to clean up.
+   *
+   * Extracted from init() so it can be called conditionally (after Fix 1/2
+   * guard clauses decide the check is safe to run at this moment).
+   */
+  private async _runOrphanKeyCheck(): Promise<void> {
+    const { getKeyFromStorage } = await import("./cryptoService");
+    const hasMasterKey = await getKeyFromStorage();
+
+    if (!hasMasterKey && typeof indexedDB !== "undefined") {
+      try {
+        const dbInitialized =
+          typeof localStorage !== "undefined" &&
+          localStorage.getItem("openmates_chats_db_initialized") === "true";
+
+        if (dbInitialized) {
+          const checkRequest = indexedDB.open(this.DB_NAME, this.VERSION);
+
+          checkRequest.onsuccess = (event) => {
+            const db = (event.target as IDBOpenDBRequest).result;
+            const transaction = db.transaction(
+              [this.CHATS_STORE_NAME],
+              "readonly",
+            );
+            const store = transaction.objectStore(this.CHATS_STORE_NAME);
+            const countRequest = store.count();
+
+            countRequest.onsuccess = () => {
+              const chatCount = countRequest.result;
+              if (chatCount > 0) {
+                console.warn(
+                  "[ChatDatabase] ORPHANED DATABASE DETECTED: No master key but found",
+                  chatCount,
+                  "encrypted chats",
+                );
+                console.warn(
+                  "[ChatDatabase] Setting cleanup marker and forcedLogoutInProgress=true",
+                );
+                if (typeof localStorage !== "undefined") {
+                  localStorage.setItem("openmates_needs_cleanup", "true");
+                }
+                setForcedLogoutInProgress();
+              }
+              db.close();
+            };
+
+            countRequest.onerror = () => {
+              db.close();
+            };
+          };
+
+          checkRequest.onerror = () => {
+            // Database doesn't exist or can't be opened, no cleanup needed
+          };
+        }
+      } catch {
+        // Error checking database, assume no cleanup needed
+      }
+    }
   }
 
   /**
@@ -635,16 +707,37 @@ class ChatDatabase {
     }
 
     // Pending embed operations store (v19) - offline queue for embed encryption
-    if (!db.objectStoreNames.contains(this.PENDING_EMBED_OPERATIONS_STORE_NAME)) {
+    if (
+      !db.objectStoreNames.contains(this.PENDING_EMBED_OPERATIONS_STORE_NAME)
+    ) {
       const pendingEmbedOpsStore = db.createObjectStore(
         this.PENDING_EMBED_OPERATIONS_STORE_NAME,
         { keyPath: "operation_id" },
       );
-      pendingEmbedOpsStore.createIndex("embed_id", "embed_id", { unique: false });
+      pendingEmbedOpsStore.createIndex("embed_id", "embed_id", {
+        unique: false,
+      });
       pendingEmbedOpsStore.createIndex("created_at", "created_at", {
         unique: false,
       });
       console.debug("[ChatDatabase] Created pending_embed_operations store");
+    }
+
+    // Daily inspirations store (v20) - client-side persistence for personalised inspiration carousel.
+    // Entries are encrypted with the master key (same as embeds) so content stays private.
+    // Indexed by generated_at to support incremental sync and TTL-based cleanup.
+    if (!db.objectStoreNames.contains(this.DAILY_INSPIRATIONS_STORE_NAME)) {
+      const dailyInspirationsStore = db.createObjectStore(
+        this.DAILY_INSPIRATIONS_STORE_NAME,
+        { keyPath: "inspiration_id" },
+      );
+      dailyInspirationsStore.createIndex("generated_at", "generated_at", {
+        unique: false,
+      });
+      dailyInspirationsStore.createIndex("is_opened", "is_opened", {
+        unique: false,
+      });
+      console.debug("[ChatDatabase] Created daily_inspirations store (v20)");
     }
 
     // Note: app_settings_memories_actions store was removed in favor of system messages
@@ -653,6 +746,52 @@ class ChatDatabase {
     // Embed data migration (v14)
     if (transaction && oldVersion < 14) {
       this.migrateEmbedData(transaction, EMBEDS_STORE_NAME);
+    }
+
+    // v21: Delete stale old-format community demo chats from the user's chats_db.
+    // Before the server migrated to word-slug IDs, community demo chats were stored
+    // with IDs like "demo-1", "demo-2" (numeric suffix) or "demo-e0090311" (8-char
+    // hex fragment from an earlier intermediate migration). These IDs no longer exist
+    // on the server. If any remain in chats_db they will appear as broken / undecryptable
+    // chat entries and confuse navigation. We delete them along with their messages and
+    // embeds so the DB is clean on next startup.
+    if (transaction && oldVersion < 21) {
+      const chatsStore = transaction.objectStore(this.CHATS_STORE_NAME);
+      const chatsReq = chatsStore.openCursor();
+      chatsReq.onsuccess = (e) => {
+        const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
+        if (!cursor) return;
+        const chatId: string =
+          (cursor.value as { chat_id: string }).chat_id ?? "";
+        // Detect old numeric (demo-1) and hex-fragment (demo-e0090311) formats.
+        // New word-slug IDs (demo-capital-of-spain) have multiple hyphen-separated
+        // words after "demo-" and will not match these patterns.
+        const suffix = chatId.startsWith("demo-") ? chatId.slice(5) : "";
+        const isOldFormat =
+          /^\d+$/.test(suffix) || /^[0-9a-f]{8}$/.test(suffix);
+        if (isOldFormat) {
+          console.debug(
+            `[ChatDatabase] v21 migration: removing stale demo chat ${chatId}`,
+          );
+          cursor.delete();
+          // Cascade: delete all messages for this chat
+          const msgStore = transaction.objectStore(this.MESSAGES_STORE_NAME);
+          const msgIdx = msgStore.index("chat_id");
+          msgIdx.openCursor(IDBKeyRange.only(chatId)).onsuccess = (me) => {
+            const mc = (me.target as IDBRequest<IDBCursorWithValue>).result;
+            if (mc) {
+              mc.delete();
+              mc.continue();
+            }
+          };
+          // Cascade: delete all embeds for this chat (embeds store uses hashed_chat_id
+          // index, but also has a plain chat_id path via contentRef — iterate by
+          // hashed_chat_id is not available here without hashing, so we use the
+          // fact that old demo chats would never have had embeds; skip for safety
+          // and leave any orphaned embed records (they are harmless and small).
+        }
+        cursor.continue();
+      };
     }
   }
 
@@ -861,8 +1000,11 @@ class ChatDatabase {
     return chatCrudOps.addChat(this, chat, transaction);
   }
 
-  async getAllChats(transaction?: IDBTransaction): Promise<Chat[]> {
-    return chatCrudOps.getAllChats(this, transaction);
+  async getAllChats(
+    transaction?: IDBTransaction,
+    options?: { limit?: number },
+  ): Promise<Chat[]> {
+    return chatCrudOps.getAllChats(this, transaction, options);
   }
 
   async getChat(
@@ -963,6 +1105,50 @@ class ChatDatabase {
 
   async getAllMessages(duringInit: boolean = false): Promise<Message[]> {
     return messageOps.getAllMessages(this, duringInit);
+  }
+
+  /**
+   * Update only the status field of a message without re-encrypting any content.
+   *
+   * Use this instead of `getMessage() → mutate → saveMessage()` whenever only
+   * the status needs to change. The `saveMessage()` path calls `encryptMessageFields()`
+   * which calls `getOrGenerateChatKey()` — if the key is not in the in-memory cache
+   * it silently generates a NEW key, re-encrypting the message with it while
+   * `encrypted_chat_key` still holds the original key. This causes "[Content decryption
+   * failed]" on the sending device while other devices work fine.
+   *
+   * This method reads the raw IndexedDB record, patches only `status`, and writes it
+   * back — no encryption or key operations involved.
+   */
+  async updateMessageStatus(
+    message_id: string,
+    newStatus: Message["status"],
+  ): Promise<void> {
+    return messageOps.updateMessageStatus(this, message_id, newStatus);
+  }
+
+  /**
+   * Update one or more non-encrypted fields on an existing message without
+   * re-encrypting any content or triggering key operations.
+   *
+   * Use this for metadata-only updates (e.g. thinking_content, has_thinking,
+   * thinking_signature, thinking_token_count) where the encrypted_content must
+   * remain untouched. Reads the raw IndexedDB record, merges `fields`, and
+   * writes it back — no encryption or key operations involved.
+   *
+   * See messageOperations.ts → updateMessageRawFields() for full docs.
+   */
+  async updateMessageRawFields(
+    message_id: string,
+    fields: Partial<Message>,
+    fallback?: Omit<Message, "message_id">,
+  ): Promise<void> {
+    return messageOps.updateMessageRawFields(
+      this,
+      message_id,
+      fields,
+      fallback,
+    );
   }
 
   async deleteMessage(
@@ -1486,7 +1672,9 @@ class ChatDatabase {
    * Add a pending embed operation to the offline queue.
    * Called when the WebSocket is disconnected during embed encryption.
    */
-  async addPendingEmbedOperation(operation: PendingEmbedOperation): Promise<void> {
+  async addPendingEmbedOperation(
+    operation: PendingEmbedOperation,
+  ): Promise<void> {
     await this.init();
     const transaction = await this.getTransaction(
       this.PENDING_EMBED_OPERATIONS_STORE_NAME,

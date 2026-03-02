@@ -44,6 +44,7 @@ export {
   SUPPORTED_LOCALES,
   getLanguageByCode,
   isLanguageSupported,
+  isRtlLanguage,
 } from "./src/i18n/languages";
 
 // Stores
@@ -96,6 +97,7 @@ export {
   encryptWithEmbedKey,
   decryptWithEmbedKey,
 } from "./src/services/cryptoService"; // Export cryptographic utilities
+export { wasStayLoggedIn } from "./src/services/cryptoKeyStorage"; // Export stayLoggedIn detection for forced-logout notifications
 export { decryptShareKeyBlob } from "./src/services/shareEncryption"; // Export share encryption utilities
 export {
   generateEmbedShareKeyBlob,

@@ -20,6 +20,7 @@ title:
   th: OpenMates
   cs: OpenMates
   sv: OpenMates
+  he: OpenMates
   verified_by_human: []
 description:
   context: Main description of OpenMates used in meta tags
@@ -43,6 +44,7 @@ description:
   th: เพื่อนร่วมทีมดิจิทัลส่วนบุคคลของคุณสามารถตอบคำถามที่ซับซ้อน ทำภารกิจของคุณให้เสร็จ และใช้แอปที่สามารถเปลี่ยนแปลงชีวิตประจำวันและการทำงานของคุณได้ สร้างขึ้นโดยเน้นที่ความเป็นส่วนตัวและความปลอดภัย
   cs: Vaši personalizovaní digitální týmoví kolegové mohou odpovídat na složité otázky, plnit vaše úkoly a používat aplikace, které mohou transformovat váš každodenní život a práci. Postaveno s důrazem na soukromí a bezpečnost.
   sv: Dina personliga digitala lagkamrater kan svara på komplexa frågor, utföra dina uppgifter och använda appar som kan förvandla ditt vardagliga liv och arbete. Byggt med fokus på integritet och säkerhet.
+  he: חברי הצוות הדיגיטליים המותאמים אישית שלך יכולים לענות על שאלות מורכבות, לבצע את המשימות שלך ולהשתמש באפליקציות שיכולות לשנות את חיי היומיום והעבודה שלך. נבנה עם דגש על פרטיות ובטיחות.
   verified_by_human: []
 keywords:
   context: Keywords for SEO, separated by commas
@@ -66,6 +68,7 @@ keywords:
   th: AI,ปัญญาประดิษฐ์,เพื่อนร่วมทีม,ดิจิทัล,ผู้ช่วยเสมือน,ระบบอัตโนมัติ,ประสิทธิภาพ,ความเป็นส่วนตัว,ความปลอดภัย
   cs: AI,umělá inteligence,spolupracovníci,digitální,virtuální asistent,automatizace,produktivita,soukromí,bezpečnost
   sv: AI,artificiell intelligens,lagkamrater,digital,virtuell assistent,automatisering,produktivitet,integritet,säkerhet
+  he: AI,בינה מלאכותית,חברי צוות,דיגיטלי,עוזר וירטואלי,אוטומציה,פרודוקטיביות,פרטיות,בטיחות
   verified_by_human: []
 author:
   context: Author meta tag
@@ -89,6 +92,7 @@ author:
   th: ทีม OpenMates
   cs: Tým OpenMates
   sv: OpenMates Team
+  he: צוות OpenMates
   verified_by_human: []
 siteName:
   context: Used in meta tags and titles
@@ -112,4 +116,5 @@ siteName:
   th: OpenMates
   cs: OpenMates
   sv: OpenMates
+  he: OpenMates
   verified_by_human: []

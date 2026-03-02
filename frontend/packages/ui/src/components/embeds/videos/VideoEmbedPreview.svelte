@@ -186,25 +186,32 @@
     return undefined;
   });
   
-  // Raw thumbnail URL: use prop or construct from video ID
+  // Raw thumbnail URL: use prop or construct from video ID.
+  // When a full API fetch was performed, `thumbnail` is the best available resolution
+  // (maxres > high > medium > default) as stored by createYouTubeEmbed().
+  // When no API fetch was performed (static embed / no credits), `thumbnail` is null
+  // and we fall back to hqdefault.jpg — guaranteed to exist for every YouTube video.
+  // maxresdefault.jpg only exists for HD uploads, so using it as a fallback causes
+  // unnecessary 404s and a visible delay before the onerror fallback fires.
   let rawThumbnailUrl = $derived.by(() => {
     if (thumbnail) {
       return thumbnail;
     }
-    // Fallback: construct thumbnail URL from video ID
+    // Fallback: construct thumbnail URL from video ID using hqdefault (always available)
     if (effectiveVideoId) {
-      return `https://img.youtube.com/vi/${effectiveVideoId}/maxresdefault.jpg`;
+      return `https://img.youtube.com/vi/${effectiveVideoId}/hqdefault.jpg`;
     }
     return '';
   });
   
-  // Proxied thumbnail URL through preview server for privacy
-  // This prevents users' browsers from making direct requests to YouTube/Google CDN
-  let thumbnailUrl = $derived.by(() => {
-    if (!rawThumbnailUrl) return '';
-    return `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(rawThumbnailUrl)}&max_width=${PREVIEW_IMAGE_MAX_WIDTH}`;
-  });
-  
+  // Thumbnail URL: try the privacy-proxy first, fall back to direct CDN if it fails.
+  // The proxy (preview.openmates.org) may be unavailable for unauthenticated users or
+  // during development; the direct YouTube CDN URL is always the reliable fallback.
+  // onerror below implements the two-step retry so the image always renders.
+  let thumbnailUrl = $derived(rawThumbnailUrl
+    ? `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(rawThumbnailUrl)}&max_width=${PREVIEW_IMAGE_MAX_WIDTH}`
+    : '');
+
   // Proxied channel thumbnail URL through preview server for privacy
   // Channel thumbnails are small circular profile pictures
   // Display size: 29x29px, request 2x for retina (58px)
@@ -357,14 +364,16 @@
               alt={displayTitle}
               class="video-thumbnail"
               loading="lazy"
-              crossorigin="anonymous"
               onerror={(e) => {
-                // Try fallback thumbnail quality (also proxied)
+                // Two-step fallback: proxy → direct CDN → hide.
+                // Step 1: if the proxied URL failed, retry with the direct CDN URL.
+                // Step 2: if the direct CDN URL also fails, hide the image.
                 const img = e.target as HTMLImageElement;
-                if (img.src.includes('maxresdefault')) {
-                  const fallbackRaw = `https://img.youtube.com/vi/${effectiveVideoId}/hqdefault.jpg`;
-                  img.src = `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(fallbackRaw)}&max_width=${PREVIEW_IMAGE_MAX_WIDTH}`;
+                if (rawThumbnailUrl && img.src !== rawThumbnailUrl) {
+                  // Proxy failed — retry directly from the YouTube CDN
+                  img.src = rawThumbnailUrl;
                 } else {
+                  // Direct CDN also failed — hide image, show fallback below
                   img.style.display = 'none';
                 }
               }}

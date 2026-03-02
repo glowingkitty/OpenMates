@@ -87,10 +87,18 @@
     onNavigatePrevious?: () => void;
     /** Handler to navigate to the next embed */
     onNavigateNext?: () => void;
+    /** Direction of navigation ('previous' | 'next') — set transiently during prev/next transitions */
+    navigateDirection?: 'previous' | 'next';
     /** Whether to show the "chat" button to restore chat visibility (ultra-wide forceOverlayMode) */
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button to restore chat visibility */
     onShowChat?: () => void;
+    /**
+     * Child embed ID to auto-open on mount (set when arriving from an inline badge click).
+     * When provided, the fullscreen will immediately open WebsiteEmbedFullscreen overlay
+     * for that specific result once results have loaded.
+     */
+    initialChildEmbedId?: string;
   }
   
   let {
@@ -107,8 +115,10 @@
     hasNextEmbed = false,
     onNavigatePrevious,
     onNavigateNext,
+    navigateDirection,
     showChatButton = false,
-    onShowChat
+    onShowChat,
+    initialChildEmbedId
   }: Props = $props();
   
   // Debug: Log what props WebSearchEmbedFullscreen receives
@@ -132,26 +142,37 @@
   
   // ============================================
   // State: Track which website is shown in fullscreen
+  // Index-based so prev/next can navigate between siblings
   // ============================================
   
-  /** Currently selected website for fullscreen view (null = show search results) */
-  let selectedWebsite = $state<WebSearchResult | null>(null);
+  /** Index of the selected website in webResults (-1 = none, show search results) */
+  let selectedWebsiteIndex = $state<number>(-1);
   
-  // Local reactive state for embed data (allows updates via embedUpdated events)
-  let localQuery = $state<string>(previewData?.query || queryProp || '');
-  let localProvider = $state<string>(previewData?.provider || providerProp || 'Brave Search');
-  let localEmbedIds = $state<string | string[] | undefined>(embedIds);
-  let localResults = $state<unknown[]>(previewData?.results || resultsProp || []);
-  let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>(
-    (previewData?.status as 'processing' | 'finished' | 'error' | 'cancelled') || statusProp || 'finished'
-  );
-  let localErrorMessage = $state<string>(errorMessageProp || '');
+  /** Flat array of all loaded web results — populated when children finish loading */
+  let allWebResults = $state<WebSearchResult[]>([]);
+
+  /** Guard: prevent the auto-open $effect from firing more than once per mount. */
+  let _autoOpenFired = $state(false);
+  
+  /** Currently selected website for fullscreen view (derived from index) */
+  let selectedWebsite = $derived(selectedWebsiteIndex >= 0 ? allWebResults[selectedWebsiteIndex] ?? null : null);
+  
+  // Local reactive state for embed data — initialised to defaults; synced from props via $effect below
+  let localQuery = $state<string>('');
+  let localProvider = $state<string>('Brave Search');
+  // embedIdsOverride: set by handleEmbedDataUpdated during streaming to override the prop value.
+  // embedIdsValue: derived as override ?? prop so the prop value is available immediately on mount
+  // (critical: UnifiedEmbedFullscreen checks embedIds in onMount; $effect runs too late).
+  let embedIdsOverride = $state<string | string[] | undefined>(undefined);
+  let embedIdsValue = $derived(embedIdsOverride ?? embedIds);
+  let localResults = $state<unknown[]>([]);
+  let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
+  let localErrorMessage = $state<string>('');
   
   // Keep local state in sync with prop changes (e.g., navigation)
   $effect(() => {
     localQuery = previewData?.query || queryProp || '';
     localProvider = previewData?.provider || providerProp || 'Brave Search';
-    localEmbedIds = embedIds;
     localResults = previewData?.results || resultsProp || [];
     localStatus = (previewData?.status as 'processing' | 'finished' | 'error' | 'cancelled') || statusProp || 'finished';
     localErrorMessage = errorMessageProp || '';
@@ -160,15 +181,10 @@
   // Extract values from local state (single source of truth)
   let query = $derived(localQuery);
   let provider = $derived(localProvider);
-  let embedIdsValue = $derived(localEmbedIds);
   // Legacy results from previewData or direct results prop (used as fallback)
   let legacyResults = $derived(localResults);
   let status = $derived(localStatus);
-  let fullscreenStatus = $derived(status === 'cancelled' ? 'error' : status);
   let errorMessage = $derived(localErrorMessage || $text('chat.an_error_occured'));
-  
-  // Get skill name from translations (matches preview)
-  let skillName = $derived($text('embeds.search'));
   
   // Get "via {provider}" text from translations
   let viaProvider = $derived(
@@ -300,8 +316,8 @@
   }
   
   /**
-   * Handle website click - shows the website in fullscreen mode
-   * Instead of opening in new tab, we display WebsiteEmbedFullscreen
+   * Handle website click - shows the website in fullscreen mode.
+   * Uses index-based selection so prev/next arrows navigate within siblings.
    */
   function handleWebsiteFullscreen(websiteData: WebSearchResult) {
     console.debug('[WebSearchEmbedFullscreen] Opening website fullscreen:', {
@@ -313,16 +329,45 @@
       hasExtraSnippets: !!websiteData.extra_snippets,
       page_age: websiteData.page_age
     });
-    selectedWebsite = websiteData;
+    const idx = allWebResults.findIndex(r => r.embed_id === websiteData.embed_id);
+    selectedWebsiteIndex = idx >= 0 ? idx : 0;
+    // Fallback: ensure the item is in allWebResults (e.g., called before onChildrenLoaded)
+    if (idx < 0) {
+      allWebResults = [websiteData];
+      selectedWebsiteIndex = 0;
+    }
   }
   
   /**
-   * Handle closing the website fullscreen - returns to search results
-   * Called when user clicks minimize button on WebsiteEmbedFullscreen
+   * Handle closing the website fullscreen.
+   *
+   * When opened via inline badge (initialChildEmbedId set): close the entire
+   * fullscreen immediately — no parent results grid expected.
+   * When opened normally (card click): return to the parent search results grid.
    */
   function handleWebsiteFullscreenClose() {
-    console.debug('[WebSearchEmbedFullscreen] Closing website fullscreen, returning to search results');
-    selectedWebsite = null;
+    if (initialChildEmbedId) {
+      // Opened via inline badge — skip the parent grid and close completely
+      console.debug('[WebSearchEmbedFullscreen] Closing website fullscreen (inline badge origin) — closing entire fullscreen');
+      onClose();
+    } else {
+      console.debug('[WebSearchEmbedFullscreen] Closing website fullscreen, returning to search results');
+      selectedWebsiteIndex = -1;
+    }
+  }
+  
+  /** Navigate to the previous sibling website */
+  function handleWebsiteNavigatePrevious() {
+    if (selectedWebsiteIndex > 0) {
+      selectedWebsiteIndex -= 1;
+    }
+  }
+  
+  /** Navigate to the next sibling website */
+  function handleWebsiteNavigateNext() {
+    if (selectedWebsiteIndex < allWebResults.length - 1) {
+      selectedWebsiteIndex += 1;
+    }
   }
   
   /**
@@ -340,7 +385,7 @@
     if (typeof content.query === 'string') localQuery = content.query;
     if (typeof content.provider === 'string') localProvider = content.provider;
     if (content.embed_ids) {
-      localEmbedIds = content.embed_ids as string | string[];
+      embedIdsOverride = content.embed_ids as string | string[];
     }
     if (Array.isArray(content.results)) {
       localResults = content.results as unknown[];
@@ -355,11 +400,12 @@
    * Called when user closes the main WebSearchEmbedFullscreen
    */
   function handleMainClose() {
-    // If a website is open, first close it and return to search results
-    if (selectedWebsite) {
-      selectedWebsite = null;
+    // If a website is open AND we were NOT opened via inline badge,
+    // return to the parent search results grid first.
+    // If opened via inline badge, close the entire fullscreen immediately.
+    if (selectedWebsiteIndex >= 0 && !initialChildEmbedId) {
+      selectedWebsiteIndex = -1;
     } else {
-      // Otherwise, close the entire fullscreen
       onClose();
     }
   }
@@ -367,6 +413,37 @@
   // Share is handled by UnifiedEmbedFullscreen's built-in share handler
   // which uses currentEmbedId, appId, and skillId to construct the embed
   // share context and properly opens the settings panel (including on mobile).
+
+  /**
+   * Auto-open the website overlay for a specific child embed when the fullscreen
+   * is opened via an inline badge click (initialChildEmbedId is set).
+   * Fires at most once per mount (_autoOpenFired guard) to prevent re-opening
+   * after the user closes the child overlay.
+   */
+  $effect(() => {
+    if (!initialChildEmbedId) return;
+    if (_autoOpenFired) return; // fire at most once per mount
+    if (allWebResults.length === 0) return; // results not yet loaded
+
+    const idx = allWebResults.findIndex(r => r.embed_id === initialChildEmbedId);
+    if (idx >= 0) {
+      console.debug(
+        '[WebSearchEmbedFullscreen] Auto-opening website overlay for initialChildEmbedId:',
+        initialChildEmbedId,
+        'at index',
+        idx,
+      );
+      _autoOpenFired = true;
+      handleWebsiteFullscreen(allWebResults[idx]);
+    } else {
+      console.warn(
+        '[WebSearchEmbedFullscreen] initialChildEmbedId not found in loaded results:',
+        initialChildEmbedId,
+        'available embed_ids:',
+        allWebResults.map(r => r.embed_id),
+      );
+    }
+  });
 </script>
 
 <!-- 
@@ -383,21 +460,18 @@
 
 <!-- Search results view - ALWAYS rendered (base layer) -->
 <!-- 
-  Pass skillName and showStatus to UnifiedEmbedFullscreen for consistent BasicInfosBar
-  that matches the embed preview (shows "Search" + "Completed", not the query)
-  
+  Header banner: search query as title + "via {provider}" as subtitle
   Child embeds are loaded automatically via embedIds prop and passed to content snippet
   The childEmbedTransformer converts raw embed data to WebSearchResult format
 -->
 <UnifiedEmbedFullscreen
   appId="web"
   skillId="search"
-  title=""
+  embedHeaderTitle={query}
+  embedHeaderSubtitle={viaProvider}
   onClose={handleMainClose}
   skillIconName="search"
-  status={fullscreenStatus}
-  {skillName}
-  showStatus={true}
+  showSkillIcon={true}
   embedIds={embedIdsValue}
   childEmbedTransformer={transformToWebResult}
   legacyResults={legacyResults}
@@ -407,17 +481,16 @@
   {hasNextEmbed}
   {onNavigatePrevious}
   {onNavigateNext}
+  {navigateDirection}
   {showChatButton}
   {onShowChat}
 >
   {#snippet content(ctx)}
     {@const webResults = getWebResults(ctx)}
-    
-    <!-- Header with search query and provider - 60px top margin, 40px bottom margin -->
-    <div class="fullscreen-header">
-      <div class="search-query">{query}</div>
-      <div class="search-provider">{viaProvider}</div>
-    </div>
+    <!-- Sync allWebResults whenever the resolved list changes (enables index-based sibling navigation) -->
+    {#if webResults.length > 0 && webResults !== allWebResults}
+      {allWebResults = webResults}
+    {/if}
     
     <!-- Error state: show simplified error for debugging -->
     {#if status === 'error'}
@@ -467,6 +540,7 @@
 
 <!-- Website fullscreen overlay - rendered ON TOP when a website is selected -->
 <!-- Uses ChildEmbedOverlay for consistent overlay positioning across all search fullscreens -->
+<!-- Sibling navigation: prev/next cycle through all search result websites -->
 {#if selectedWebsite}
   <ChildEmbedOverlay>
     <WebsiteEmbedFullscreen
@@ -479,60 +553,15 @@
       dataDate={selectedWebsite.page_age}
       onClose={handleWebsiteFullscreenClose}
       embedId={selectedWebsite.embed_id}
+      hasPreviousEmbed={selectedWebsiteIndex > 0}
+      hasNextEmbed={selectedWebsiteIndex < allWebResults.length - 1}
+      onNavigatePrevious={handleWebsiteNavigatePrevious}
+      onNavigateNext={handleWebsiteNavigateNext}
     />
   </ChildEmbedOverlay>
 {/if}
 
 <style>
-  /* ===========================================
-     Fullscreen Header - Query and Provider
-     Uses container queries for responsive sizing
-     =========================================== */
-  
-  .fullscreen-header {
-    margin-top: 60px;
-    margin-bottom: 40px;
-    padding: 0 16px;
-    text-align: center;
-  }
-  
-  .search-query {
-    font-size: 24px;
-    font-weight: 600;
-    color: var(--color-font-primary);
-    line-height: 1.3;
-    word-break: break-word;
-    /* Limit to 3 lines with ellipsis */
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  
-  .search-provider {
-    font-size: 16px;
-    color: var(--color-font-secondary);
-    margin-top: 8px;
-  }
-  
-  /* Container query: smaller text on narrow containers */
-  @container fullscreen (max-width: 500px) {
-    .fullscreen-header {
-      margin-top: 70px; /* More space for action buttons */
-      margin-bottom: 24px;
-    }
-    
-    .search-query {
-      font-size: 20px;
-    }
-    
-    .search-provider {
-      font-size: 14px;
-    }
-  }
-  
   /* ===========================================
      Loading and No Results States
      =========================================== */
@@ -584,7 +613,7 @@
     width: calc(100% - 20px);
     max-width: 1000px;
     margin: 0 auto;
-    padding: 0 10px;
+    padding: 24px 10px;
     padding-bottom: 120px; /* Space for bottom bar + gradient */
     /* Responsive: auto-fit columns with minimum 280px width */
     /* This naturally becomes single column when container is narrow */

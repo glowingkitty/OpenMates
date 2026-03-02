@@ -100,10 +100,12 @@ ALLOWED_LOG_SERVICES = [
     "app-code",
     "app-travel",
     "app-images",
+    "app-pdf",
     # App workers
     "app-ai-worker",
     "app-web-worker",
     "app-images-worker",
+    "app-pdf-worker",
     # Infrastructure (cache only - safe to query)
     "cache",
 ]
@@ -218,6 +220,8 @@ class IssueListItem(BaseModel):
     timestamp: str
     created_at: str
     processed: bool
+    is_from_admin: bool = False
+    reported_by_user_id: Optional[str] = None
 
 
 class IssuesListResponse(BaseModel):
@@ -241,6 +245,8 @@ class IssueDetailResponse(BaseModel):
     created_at: str
     updated_at: str
     processed: bool
+    is_from_admin: bool = False
+    reported_by_user_id: Optional[str] = None
     full_report: Optional[Dict[str, Any]] = None
 
 
@@ -474,6 +480,8 @@ async def list_issues(
                 timestamp=issue.get("timestamp", ""),
                 created_at=issue.get("created_at", ""),
                 processed=issue.get("processed", False) or False,
+                is_from_admin=issue.get("is_from_admin", False) or False,
+                reported_by_user_id=issue.get("reported_by_user_id"),
             ))
         
         return IssuesListResponse(
@@ -613,6 +621,8 @@ async def get_issue_detail(
             created_at=issue.get("created_at", ""),
             updated_at=issue.get("updated_at", ""),
             processed=issue.get("processed", False) or False,
+            is_from_admin=issue.get("is_from_admin", False) or False,
+            reported_by_user_id=issue.get("reported_by_user_id"),
             full_report=full_report,
         )
         
@@ -637,6 +647,7 @@ async def delete_issue(
     
     This performs a full delete:
     - Deletes the encrypted YAML file from S3 (if exists)
+    - Deletes the screenshot PNG from S3 (if exists)
     - Deletes the issue record from Directus
     
     Args:
@@ -648,7 +659,7 @@ async def delete_issue(
     logger.info(f"Admin {admin_user.id} deleting issue: {issue_id}")
     
     try:
-        # Fetch issue to get S3 key
+        # Fetch issue to get S3 keys
         params = {
             "filter[id][_eq]": issue_id,
             "limit": 1,
@@ -660,30 +671,40 @@ async def delete_issue(
         
         issue = issues[0]
         deleted_from_s3 = False
-        
-        # Delete from S3 if exists
+        s3_service = get_s3_service(request)
+
+        # Delete YAML report from S3 if exists
         if issue.get("encrypted_issue_report_yaml_s3_key"):
             try:
-                s3_service = get_s3_service(request)
-                
                 # Decrypt S3 key
                 s3_object_key = await encryption_service.decrypt_issue_report_data(
                     issue["encrypted_issue_report_yaml_s3_key"]
                 )
                 
                 if s3_object_key:
-                    from backend.core.api.app.services.s3.config import get_bucket_name
-                    bucket_name = get_bucket_name('issue_logs', os.getenv('SERVER_ENVIRONMENT', 'development'))
-                    
-                    # Delete from S3
                     await s3_service.delete_file(
-                        bucket_name=bucket_name,
-                        object_key=s3_object_key
+                        bucket_key='issue_logs',
+                        file_key=s3_object_key
                     )
                     deleted_from_s3 = True
-                    logger.info(f"Deleted S3 file for issue {issue_id}: {s3_object_key}")
+                    logger.info(f"Deleted S3 YAML file for issue {issue_id}: {s3_object_key}")
             except Exception as e:
-                logger.warning(f"Failed to delete S3 file for issue {issue_id}: {e}")
+                logger.warning(f"Failed to delete S3 YAML file for issue {issue_id}: {e}")
+
+        # Delete screenshot PNG from S3 if exists
+        if issue.get("encrypted_screenshot_s3_key"):
+            try:
+                screenshot_s3_key = await encryption_service.decrypt_issue_report_data(
+                    issue["encrypted_screenshot_s3_key"]
+                )
+                if screenshot_s3_key:
+                    await s3_service.delete_file(
+                        bucket_key='issue_logs',
+                        file_key=screenshot_s3_key
+                    )
+                    logger.info(f"Deleted S3 screenshot for issue {issue_id}: {screenshot_s3_key}")
+            except Exception as e:
+                logger.warning(f"Failed to delete S3 screenshot for issue {issue_id}: {e}")
         
         # Delete from Directus
         success = await directus_service.delete_item("issues", issue_id, admin_required=True)
@@ -1366,7 +1387,7 @@ async def inspect_newsletter(
         # 1. Fetch all subscriber records with meta counts
         collection_url = f"{directus_service.base_url}/items/newsletter_subscribers"
         all_params = {
-            "fields": "id,encrypted_email_address,hashed_email,confirmed_at,subscribed_at,language,darkmode,unsubscribe_token",
+            "fields": "id,encrypted_email_address,hashed_email,confirmed_at,subscribed_at,language,darkmode,unsubscribe_token,user_registration_status",
             "sort": "-subscribed_at",
             "limit": -1,
             "meta": "total_count,filter_count",
@@ -1384,14 +1405,26 @@ async def inspect_newsletter(
         confirmed_count = sum(1 for s in subscribers if s.get("confirmed_at"))
         unconfirmed_count = total_records - confirmed_count
 
-        # 2. Language and darkmode breakdown
+        # 2. Language, darkmode, and registration status breakdown
         lang_breakdown: Dict[str, int] = defaultdict(int)
         darkmode_count = 0
+        reg_status_counts: Dict[str, int] = {
+            "not_signed_up": 0,
+            "signup_incomplete": 0,
+            "signup_complete": 0,
+            "unknown": 0,
+        }
         for sub in subscribers:
             lang = sub.get("language", "unknown")
             lang_breakdown[lang] += 1
             if sub.get("darkmode"):
                 darkmode_count += 1
+            # Tally registration status
+            reg_status = sub.get("user_registration_status")
+            if reg_status in reg_status_counts:
+                reg_status_counts[reg_status] += 1
+            else:
+                reg_status_counts["unknown"] += 1
 
         # 3. Ignored emails count
         ignored_count = 0
@@ -1413,6 +1446,7 @@ async def inspect_newsletter(
             "ignored_blocked_emails": ignored_count,
             "language_breakdown": dict(sorted(lang_breakdown.items(), key=lambda x: -x[1])),
             "darkmode_subscribers": darkmode_count,
+            "registration_status": reg_status_counts,
         }
 
         # 4. Pending subscriptions from cache
@@ -1467,6 +1501,7 @@ async def inspect_newsletter(
                     "language": sub.get("language", "unknown"),
                     "darkmode": sub.get("darkmode", False),
                     "has_unsubscribe_token": bool(sub.get("unsubscribe_token")),
+                    "user_registration_status": sub.get("user_registration_status"),
                 })
             result["subscribers"] = subscriber_list
 

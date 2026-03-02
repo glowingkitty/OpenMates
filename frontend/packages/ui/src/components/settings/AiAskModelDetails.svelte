@@ -22,7 +22,6 @@
     import { authStore } from '../../stores/authStore';
     import { userProfile, updateProfile } from '../../stores/userProfile';
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
-    import { getProviderIconUrl } from '../../data/providerIcons';
     import SettingsItem from '../SettingsItem.svelte';
     import Toggle from '../Toggle.svelte';
     import Icon from '../Icon.svelte';
@@ -212,50 +211,30 @@
             <button class="back-button" onclick={goBack}>← {$text('settings.ai_ask.ai_ask_model_details.back_to_models')}</button>
         </div>
     {:else}
-        <!-- Model header with logo, name, and main toggle -->
-        <div class="model-header">
-            <div class="model-icon">
-                <img 
-                    src={getProviderIconUrl(model.logo_svg)} 
-                    alt={model.provider_name}
-                    class="provider-logo"
-                />
-            </div>
-            <div class="model-title-section">
-                <h1 class="model-name">{model.name}</h1>
-                <span class="model-provider">{$text('enter_message.mention_dropdown.from_provider').replace('{provider}', model.provider_name)}</span>
-            </div>
-            {#if isAuthenticated}
-                <div 
-                    class="model-toggle"
-                    onclick={handleModelToggle}
-                    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleModelToggle(); } }}
-                    role="button"
-                    tabindex="0"
-                >
-                    <!-- pointer-events:none prevents the checkbox from independently toggling 
-                         via bind:checked when clicked — the wrapper div handles the toggle logic 
-                         through handleModelToggle() to avoid a double-toggle bug -->
-                    <div style="pointer-events: none;">
-                        <Toggle 
-                            checked={isModelEnabled}
-                            ariaLabel={`${isModelEnabled ? 'Disable' : 'Enable'} ${model.name}`}
-                        />
-                    </div>
-                </div>
-            {/if}
-        </div>
-        
         <!-- Description -->
         <div class="description-section">
             <p class="model-description">{model.description}</p>
         </div>
         
+        <!-- Enable/disable toggle for this model -->
+        {#if isAuthenticated}
+            <div class="section">
+                <SettingsItem
+                    type="submenu"
+                    icon="ai"
+                    title={$text('settings.ai_ask.ai_ask_model_details.enable_model')}
+                    hasToggle={true}
+                    checked={isModelEnabled}
+                    onClick={handleModelToggle}
+                />
+            </div>
+        {/if}
+        
         <!-- Model info section -->
         <div class="section">
             <SettingsItem 
                 type="heading"
-                icon="icon_info"
+                icon="insight"
                 title={$text('settings.ai_ask.ai_ask_model_details.model_info')}
             />
             <div class="info-content">
@@ -313,13 +292,13 @@
             <div class="section">
                 <SettingsItem 
                     type="heading"
-                    icon="credits"
+                    icon="coins"
                     title={$text('settings.ai_ask.ai_ask_model_details.pricing')}
                 />
                 <div class="pricing-content">
                     {#if model.pricing.input_tokens_per_credit}
                         <div class="pricing-row">
-                            <Icon name="credits" type="subsetting" size="24px" noAnimation={true} />
+                            <Icon name="download" type="subsetting" size="24px" noAnimation={true} />
                             <span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.text_input')}</span>
                             <span class="pricing-value">
                                 1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per')} {model.pricing.input_tokens_per_credit} {$text('settings.ai_ask.ai_ask_settings.tokens')}
@@ -328,7 +307,7 @@
                     {/if}
                     {#if model.pricing.output_tokens_per_credit}
                         <div class="pricing-row">
-                            <Icon name="credits" type="subsetting" size="24px" noAnimation={true} />
+                            <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
                             <span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.text_output')}</span>
                             <span class="pricing-value">
                                 1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per')} {model.pricing.output_tokens_per_credit} {$text('settings.ai_ask.ai_ask_settings.tokens')}
@@ -396,58 +375,9 @@
         margin: 0 auto;
     }
     
-    /* Model header */
-    .model-header {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        padding-bottom: 1.5rem;
-        border-bottom: 1px solid var(--color-grey-20);
-    }
-    
-    .model-icon {
-        flex-shrink: 0;
-        width: 64px;
-        height: 64px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .provider-logo {
-        width: 56px;
-        height: 56px;
-        border-radius: 12px;
-        object-fit: contain;
-        background: var(--color-grey-10);
-        padding: 8px;
-    }
-    
-    .model-title-section {
-        flex: 1;
-        min-width: 0;
-    }
-    
-    .model-name {
-        margin: 0;
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: var(--color-primary-start);
-        line-height: 1.2;
-    }
-    
-    .model-provider {
-        font-size: 0.9rem;
-        color: var(--color-grey-60);
-    }
-    
-    .model-toggle {
-        flex-shrink: 0;
-    }
-    
     /* Description */
     .description-section {
-        margin: 1.5rem 0;
+        margin: 0.5rem 0 1.5rem;
     }
     
     .model-description {
@@ -648,10 +578,6 @@
     }
     
     /* Dark mode */
-    :global(.dark) .provider-logo {
-        background: var(--color-grey-20);
-    }
-    
     :global(.dark) .provider-item:hover {
         background: var(--color-grey-15);
     }
@@ -678,18 +604,6 @@
     
     /* Responsive */
     @media (max-width: 600px) {
-        .model-header {
-            flex-wrap: wrap;
-        }
-        
-        .model-title-section {
-            flex: 1 1 calc(100% - 96px);
-        }
-        
-        .model-toggle {
-            margin-left: auto;
-        }
-        
         .info-row {
             flex-direction: column;
             align-items: flex-start;

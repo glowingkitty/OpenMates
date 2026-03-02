@@ -19,6 +19,19 @@ class AppPricing(BaseModel):
     per_minute: Optional[int] = None # credits per minute
     fixed: Optional[int] = None # fixed credits per call
 
+class AppSkillApiConfig(BaseModel):
+    """
+    REST API configuration for a skill.
+    
+    Controls how the skill is exposed in the public REST API (/v1/apps/{app_id}/skills/{skill_id}).
+    By default, skills expose both GET (metadata) and POST (execute) endpoints.
+    Use this to restrict visibility (e.g., GET-only for skills that require client-side encryption
+    flows and cannot be executed meaningfully via a stateless REST API call).
+    """
+    expose_get: bool = Field(default=True, description="Whether to expose a GET endpoint for skill metadata. Set to false for skills that should only accept POST requests (e.g., write-only anonymous data collection).")
+    expose_post: bool = Field(default=True, description="Whether to expose a POST endpoint for skill execution. Set to false for skills that require client-side encryption flows (e.g., image generation) and cannot be executed via a stateless REST API call. The GET metadata endpoint remains visible so developers know the skill exists.")
+
+
 class AppSkillDefinition(BaseModel):
     """Defines the structure for a skill within an app's metadata."""
     id: str
@@ -38,6 +51,13 @@ class AppSkillDefinition(BaseModel):
     # Included alongside the skill identifier in the preprocessing prompt so the LLM can
     # make informed skill selection decisions without hardcoded guidance in base_instructions.yml.
     preprocessor_hint: Optional[str] = Field(default=None, description="Brief hint for the preprocessing LLM describing when to select this skill (1-3 sentences).")
+    # REST API configuration — controls how the skill is exposed in the public API docs
+    api_config: Optional[AppSkillApiConfig] = Field(default=None, description="REST API configuration for this skill. Controls GET/POST endpoint exposure in /docs.")
+    # Internal skills are used by the AI backend only and must NOT be shown to users
+    # in the app store or settings UI. Set internal: true for skills that are invoked
+    # automatically (e.g., images.view for uploaded images, audio.transcribe for
+    # voice recordings) — users never discover or invoke these manually.
+    internal: Optional[bool] = Field(default=False, description="If true, this skill is hidden from the app store and settings UI. It is invoked automatically by the backend and is not user-facing.")
 
 class AppFocusDefinition(BaseModel):
     """Defines the structure for a focus mode within an app's metadata."""
@@ -107,6 +127,17 @@ class AppYAML(BaseModel):
     id: Optional[str] = None # Made id optional, will be derived if not present
     name_translation_key: str # Translation key for app name (e.g., "app_translations.web") - required
     description_translation_key: str # Translation key for app description (e.g., "apps.web.description") - required (no backwards compatibility)
+    expose_in_api: bool = Field(
+        default=True,
+        description=(
+            "Whether to expose this app in the public REST API docs (/docs) and the "
+            "list-apps endpoint. Set to false for apps whose skills rely on zero-knowledge "
+            "encryption or other client-side crypto flows that cannot be executed via a "
+            "stateless REST call (e.g., the images app). When false, the app-level GET "
+            "endpoint and all skill endpoints are registered with include_in_schema=False "
+            "so they are invisible in OpenAPI docs but still reachable at runtime."
+        ),
+    )
     icon_image: Optional[str] = Field(default=None, pattern=r'.+\.svg$') # Filename ending with .svg
     icon_colorgradient: Optional[IconColorGradient] = None
     skills: List[AppSkillDefinition] = []

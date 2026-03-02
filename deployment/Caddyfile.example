@@ -46,6 +46,11 @@
 		Referrer-Policy "strict-origin-when-cross-origin"
 		Permissions-Policy "geolocation=(), microphone=(), camera=(), interest-cohort=()"
 		-Server
+		# Content Security Policy (partial — safe subset with no risk of breaking the API)
+		# object-src: blocks Flash/Java applets (legacy plugin-based attack vectors)
+		# base-uri:   prevents <base> tag injection attacks (base tag hijacking)
+		# frame-ancestors: blocks clickjacking (redundant with X-Frame-Options, adds defence-in-depth)
+		Content-Security-Policy "object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
 	}
 
 	# --- Request Routing ---
@@ -54,12 +59,29 @@
 	@health_path path /health /v1/health /v1/health/* /v1/server # Health check and server info endpoints (public, no auth required)
 	@options_method method OPTIONS # Renamed for clarity
 
+	# --- FILE UPLOADS SERVICE MATCHERS ---
+	# Uploads service (app-uploads) runs as a separate microservice.
+	# Replace <UPLOADS_UPSTREAM> with its host:port (e.g. localhost:8004 or app-uploads:8000).
+	@uploads_options {
+		path /api/uploads/*
+		method OPTIONS
+	}
+	@uploads_actual {
+		path /api/uploads/*
+		not method OPTIONS
+	}
+
 	# --- PUBLIC DEVELOPER API MATCHERS ---
 	# These routes are authenticated via API keys (Authorization: Bearer sk-api-...) in the backend
 	# No Origin check required - external developers access from various clients/servers
 	# FastAPI enforces which settings endpoints support API key auth vs session-only
 	@api_docs_path path /docs /docs/* /openapi.json # Swagger UI and OpenAPI schema
-	@public_api_paths path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* # Public API endpoints (authentication enforced by FastAPI)
+	# /v1/geocode/* is public (no auth required) so unauthenticated users can resolve addresses.
+	# /v1/analytics/* is public (no auth required) — analytics beacon for aggregate-only counters.
+	# /v1/default-inspirations is public (no auth required) — daily inspiration previews for unauthenticated users.
+	# /v1/users/* — profile image endpoint supports both session cookie and API key auth;
+	#   API key clients (no Origin header) fall through here after @webapp_actual doesn't match.
+	@public_api_paths path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* /v1/geocode/* /v1/analytics/* /v1/default-inspirations /v1/users/* # Public API endpoints (authentication enforced by FastAPI where applicable)
 
 	# --- PUBLIC SHARE MATCHERS ---
 	# Share endpoints are publicly accessible (no Origin check) for social media and cross-platform sharing
@@ -80,8 +102,16 @@
 	# Includes /v1/settings/* so webapp requests with credentials get proper CORS handling
 	# Includes /v1/apps/travel/booking-link because the webapp uses session auth
 	# (credentials: include) and needs FastAPI to return the specific origin, not wildcard
+	# Includes /v1/apps/audio/skills/transcribe — webapp uses credentials: include for audio transcription
+	# NOTE: /v1/geocode/* is intentionally NOT here — it is public (no auth) and handled
+	# by @public_api_paths with wildcard CORS so unauthenticated users can access it.
+	# NOTE: /v1/embeds/presigned-url is here (not in @public_api_paths) because the webapp
+	# calls it with credentials: include (session cookie) — browsers block wildcard CORS
+	# with credentials, so it must go through FastAPI's CORSMiddleware (specific origin).
+	# Includes /v1/users/* — profile image endpoint uses session cookie (credentials: include);
+	#   browsers block wildcard CORS with credentials, so it must pass through FastAPI CORSMiddleware.
 	@webapp_general_options {
-		path /v1/auth/* /v1/settings/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/demo/* /v1/apps/travel/booking-link
+		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/demo/* /v1/apps/travel/booking-link /v1/apps/audio/skills/transcribe /v1/daily-inspirations /v1/daily-inspirations/* /v1/embeds/presigned-url /v1/users/*
 		method OPTIONS
 	}
 
@@ -89,8 +119,15 @@
 	# Includes /v1/settings/* so webapp requests with credentials get proper CORS handling (FastAPI sets specific origin)
 	# Includes /v1/demo/* and /v1/admin/* for webapp-only access (Origin check required)
 	# Includes /v1/apps/travel/booking-link for webapp session auth (credentials: include)
+	# Includes /v1/apps/audio/skills/transcribe — webapp uses credentials: include for audio transcription
+	# Includes /v1/daily-inspirations/* — daily inspiration persistence (session auth, credentials: include)
+	# Includes /v1/embeds/presigned-url — webapp uses credentials: include for session-authenticated
+	# presigned S3 URL generation; browsers block wildcard CORS with credentials.
+	# Includes /v1/users/* — profile image endpoint (session cookie auth, credentials: include).
+	# NOTE: /v1/geocode/* is intentionally NOT here — it is public (no auth) and handled
+	# by @public_api_paths with wildcard CORS so unauthenticated users can access it.
 	@webapp_actual {
-		path /v1/auth/* /v1/settings/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/demo/* /v1/apps/travel/booking-link
+		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/demo/* /v1/apps/travel/booking-link /v1/apps/audio/skills/transcribe /v1/daily-inspirations /v1/daily-inspirations/* /v1/embeds/presigned-url /v1/users/*
 		not method OPTIONS
 	}
 
@@ -109,7 +146,7 @@
 	}
 
 	@public_api_options {
-		path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/*
+		path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* /v1/geocode/* /v1/analytics/* /v1/default-inspirations /v1/users/*
 		method OPTIONS
 	}
 
@@ -284,7 +321,23 @@
 			}
 		}
 
-		# 10. Abort all other requests not explicitly handled above
+		# 10. Handle File Upload service OPTIONS preflight
+		handle @uploads_options {
+			reverse_proxy <UPLOADS_UPSTREAM> {
+				header_up Host {http.request.host}
+			}
+		}
+
+		# 11. Handle File Upload service requests (strip /api/uploads prefix before forwarding)
+		handle @uploads_actual {
+			encode gzip zstd
+			uri strip_prefix /api/uploads
+			reverse_proxy <UPLOADS_UPSTREAM> {
+				header_up Host {http.request.host}
+			}
+		}
+
+		# 12. Abort all other requests not explicitly handled above
 		# This ensures that only defined paths are accessible.
 		handle {
 			abort
@@ -317,6 +370,11 @@
 		Referrer-Policy "strict-origin-when-cross-origin"
 		Permissions-Policy "geolocation=(), microphone=(), camera=(), interest-cohort=()"
 		-Server
+		# Content Security Policy (partial — safe subset for the frontend webapp)
+		# object-src: blocks Flash/Java applets (legacy plugin-based attack vectors)
+		# base-uri:   prevents <base> tag injection attacks (base tag hijacking)
+		# Note: frame-ancestors uses SAMEORIGIN here (not 'none') to match X-Frame-Options
+		Content-Security-Policy "object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
 	}
 
 	# Reverse proxy to webapp container
@@ -329,6 +387,71 @@
 		header_up X-Real-IP {http.request.remote}
 	}
 }
+
+# Upload Service Domain Configuration (OPTIONAL — only needed if running uploads on a separate VM)
+#
+# DEPLOYMENT MODELS:
+#
+#   Option A — Single server (simplest, recommended for self-hosting):
+#     The app-uploads container runs on the same server as the API.
+#     The /api/uploads/* route inside the API domain block above already proxies
+#     to the local uploads service (set UPLOADS_UPSTREAM=localhost:8004).
+#     You do NOT need this separate domain block at all.
+#
+#   Option B — Separate uploads VM (production OpenMates setup):
+#     app-uploads runs on a dedicated VM (e.g., upload.yourdomain.com).
+#     This block runs on that VM and proxies incoming requests to the local app-uploads container.
+#     Set <UPLOAD_DOMAIN> to upload.yourdomain.com and <LOCAL_UPLOADS_UPSTREAM> to localhost:8000
+#     (or app-uploads:8000 if running in Docker on the same host).
+#     The API domain's UPLOADS_UPSTREAM should point to this domain or its private IP.
+#
+# Uncomment and configure only if using Option B (separate uploads VM):
+#
+# <UPLOAD_DOMAIN> {
+# 	log {
+# 		output file /var/log/caddy/<UPLOAD_DOMAIN>.log {
+# 			roll_size 100mb
+# 			roll_keep 10
+# 			roll_keep_for 720h
+# 		}
+# 		format json
+# 		level INFO
+# 	}
+#
+# 	header {
+# 		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+# 		X-Content-Type-Options "nosniff"
+# 		X-Frame-Options "DENY"
+# 		Referrer-Policy "strict-origin-when-cross-origin"
+# 		-Server
+# 	}
+#
+# 	@upload_health path /health
+# 	@upload_api path /v1/upload/*
+# 	@upload_options method OPTIONS
+#
+# 	route {
+# 		handle @upload_options {
+# 			reverse_proxy <LOCAL_UPLOADS_UPSTREAM> {
+# 				header_up Host {http.request.host}
+# 			}
+# 		}
+# 		handle @upload_health {
+# 			reverse_proxy <LOCAL_UPLOADS_UPSTREAM> {
+# 				header_up Host {http.request.host}
+# 			}
+# 		}
+# 		handle @upload_api {
+# 			encode gzip zstd
+# 			reverse_proxy <LOCAL_UPLOADS_UPSTREAM> {
+# 				header_up Host {http.request.host}
+# 			}
+# 		}
+# 		handle {
+# 			abort
+# 		}
+# 	}
+# }
 
 # Optional: Add additional domains for other services if needed
 # Example configuration for additional services:

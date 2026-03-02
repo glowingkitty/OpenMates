@@ -52,6 +52,8 @@ class BillingService:
                 - model_used: Model identifier if applicable
                 - input_tokens: Input token count if applicable
                 - output_tokens: Output token count if applicable
+                - tool_inference_iterations: Extra LLM calls from tool use (0 = no tools used).
+                    Only present for AI Ask skill. Stored as cleartext integer for client-side display.
             api_key_hash: Optional SHA-256 hash of the API key that created this usage entry (for API key-based usage)
             device_hash: Optional SHA-256 hash of the device that created this usage entry (for API key-based usage)
         """
@@ -174,11 +176,47 @@ class BillingService:
             
             logger.info(f"Successfully charged {credits_to_deduct} credits from user {user_id}. New balance: {new_credits}")
 
+            # Track paid request timestamp for Daily Inspiration eligibility.
+            # The daily inspiration generation job uses this to identify active users
+            # (only users who made a paid request in the last 24h get new inspirations).
+            # Non-fatal: if caching fails, the user may not get personalized inspirations
+            # on this cycle but the core billing flow is unaffected.
+            # Skip for incognito chats (is_incognito is checked below when usage_details is parsed,
+            # but we need it here too — read it directly from usage_details).
+            _is_incognito_charge = (
+                usage_details.get("is_incognito", False) if usage_details else False
+            )
+            if not _is_incognito_charge:
+                try:
+                    # Pass the user's UI language so generated inspirations match their locale.
+                    # The language is available on the cached user profile (set during login).
+                    _user_language = user.get("language", "en") or "en"
+                    await self.cache_service.track_inspiration_paid_request(
+                        user_id=user_id, language=_user_language
+                    )
+                except Exception as e_track:
+                    logger.warning(
+                        f"Failed to track paid request for daily inspiration (non-fatal): {e_track}"
+                    )
+
             # 4.5. Update Server Global Stats (Incremental)
             # Track credits used and decrease total liability
             if payment_enabled:
                 await self.cache_service.increment_stat("credits_used", credits_to_deduct)
                 await self.cache_service.update_liability(-credits_to_deduct)
+
+            # 4.6. Track token usage for cost analytics (Phase 6)
+            # Increment total_input_tokens and total_output_tokens from usage_details
+            if usage_details:
+                try:
+                    input_tok = usage_details.get("input_tokens")
+                    output_tok = usage_details.get("output_tokens")
+                    if input_tok and isinstance(input_tok, int) and input_tok > 0:
+                        await self.cache_service.increment_stat("total_input_tokens", input_tok)
+                    if output_tok and isinstance(output_tok, int) and output_tok > 0:
+                        await self.cache_service.increment_stat("total_output_tokens", output_tok)
+                except Exception as _tok_err:
+                    logger.warning(f"Failed to increment token counters: {_tok_err}")
 
             # 5. Broadcast the new credit balance to all user devices
             await self.websocket_manager.broadcast_to_user(
@@ -227,6 +265,15 @@ class BillingService:
             else:
                 source = "direct"
             
+            # Extract tool_inference_iterations from usage_details (AI Ask skill only).
+            # This is the count of extra LLM calls triggered by tool use in this turn.
+            # 0 = no tool calls were made; stored as cleartext integer in the usage entry.
+            _tool_inference_iterations: Optional[int] = None
+            if usage_details:
+                _raw_tii = usage_details.get("tool_inference_iterations")
+                if isinstance(_raw_tii, int):
+                    _tool_inference_iterations = _raw_tii
+
             await self.directus_service.usage.create_usage_entry(
                 user_id_hash=user_id_hash,
                 app_id=app_id.strip(),  # Ensure no leading/trailing whitespace
@@ -250,6 +297,7 @@ class BillingService:
                 device_hash=device_hash,  # Device hash for tracking which device created this usage
                 server_provider=usage_details.get("server_provider") if usage_details else None,
                 server_region=usage_details.get("server_region") if usage_details else None,
+                tool_inference_iterations=_tool_inference_iterations,
             )
 
         except HTTPException as e:
@@ -258,6 +306,148 @@ class BillingService:
         except Exception as e:
             logger.error(f"An unexpected error occurred while charging credits for user {user_id}: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail="An internal error occurred during credit deduction.")
+
+    async def refund_user_credits(
+        self,
+        user_id: str,
+        credits_to_refund: int,
+        user_id_hash: str,
+        app_id: str,
+        skill_id: str,
+        reason: str = "",
+    ) -> None:
+        """
+        Refund (add back) credits to a user after a failed task.
+
+        Mirrors charge_user_credits but in the reverse direction:
+        - Adds credits to the cached user balance.
+        - Updates Directus with the new encrypted balance.
+        - Broadcasts the new balance to all user devices.
+
+        No usage entry is created — a refund is not a skill execution.
+
+        Args:
+            user_id:          Actual user ID for cache lookup.
+            credits_to_refund: Number of credits to restore (must be > 0).
+            user_id_hash:     Hashed user ID for logging.
+            app_id:           App that originally charged the credits.
+            skill_id:         Skill that originally charged the credits.
+            reason:           Human-readable description of why the refund was issued.
+        """
+        if not isinstance(credits_to_refund, int) or credits_to_refund <= 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Credits to refund must be a positive integer.",
+            )
+
+        from backend.core.api.app.utils.server_mode import is_payment_enabled
+        payment_enabled = is_payment_enabled()
+
+        try:
+            # 1. Get user from cache (fall back to Directus on miss)
+            user = await self.cache_service.get_user_by_id(user_id)
+            if not user:
+                logger.info(f"[Refund] User {user_id} not in cache — fetching from Directus")
+                profile_success, user_profile, profile_message = (
+                    await self.directus_service.get_user_profile(user_id)
+                )
+                if not profile_success or not user_profile:
+                    logger.error(
+                        f"[Refund] User profile not found in Directus for user {user_id}: {profile_message}"
+                    )
+                    raise HTTPException(status_code=404, detail=f"User {user_id} not found.")
+                if "user_id" not in user_profile:
+                    user_profile["user_id"] = user_id
+                if "id" not in user_profile:
+                    user_profile["id"] = user_id
+                await self.cache_service.set_user(user_profile, user_id=user_id)
+                user = user_profile
+
+            current_credits = user.get("credits", 0)
+            if not isinstance(current_credits, int):
+                current_credits = 0
+
+            if payment_enabled:
+                new_credits = current_credits + credits_to_refund
+            else:
+                # Self-hosted mode: credit balance is not tracked, skip actual update.
+                logger.info(
+                    f"[Refund] Payment disabled (self-hosted mode). Skipping refund for user {user_id}."
+                )
+                return
+
+            user["credits"] = new_credits
+
+            # 2. Update server stats (reverse of charge)
+            if self.server_stats_service:
+                await self.server_stats_service.increment_stat("credits_used", -credits_to_refund)
+                await self.server_stats_service.update_liability(credits_to_refund)
+
+            # 3. Update cache
+            await self.cache_service.set_user(user, user_id=user_id)
+
+            # 4. Persist to Directus with retry
+            encrypted_new_credits_tuple = await self.encryption_service.encrypt_with_user_key(
+                plaintext=str(new_credits),
+                key_id=user["vault_key_id"],
+            )
+            encrypted_new_credits = encrypted_new_credits_tuple[0]
+
+            max_retries = 3
+            retry_delay = 5
+            for attempt in range(max_retries):
+                update_successful = await self.directus_service.update_user(
+                    user_id, {"encrypted_credit_balance": encrypted_new_credits}
+                )
+                if update_successful:
+                    logger.info(
+                        f"[Refund] Updated credits in Directus on attempt {attempt + 1}."
+                    )
+                    break
+                logger.warning(
+                    f"[Refund] Attempt {attempt + 1} to update Directus failed. "
+                    f"Retrying in {retry_delay}s…"
+                )
+                if attempt < max_retries - 1:
+                    import asyncio
+                    await asyncio.sleep(retry_delay)
+            else:
+                logger.critical(
+                    f"[Refund] CRITICAL: Failed to persist refund for user {user_id} "
+                    f"after {max_retries} attempts. Cache updated but DB is stale."
+                )
+                # Do not raise — the user's in-memory balance is correct; the DB
+                # will self-heal on next login when the cache is rebuilt from Directus.
+
+            # 5. Update global stats cache
+            await self.cache_service.increment_stat("credits_used", -credits_to_refund)
+            await self.cache_service.update_liability(credits_to_refund)
+
+            # 6. Broadcast new balance to all devices
+            await self.websocket_manager.broadcast_to_user(
+                user_id=user_id,
+                message={
+                    "type": "user_credits_updated",
+                    "payload": {"credits": new_credits},
+                },
+            )
+
+            logger.info(
+                f"[Refund] Refunded {credits_to_refund} credits to user {user_id[:8]}… "
+                f"({app_id}/{skill_id}). New balance: {new_credits}. Reason: {reason[:200]}"
+            )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(
+                f"[Refund] Unexpected error refunding credits for user {user_id}: {e}",
+                exc_info=True,
+            )
+            raise HTTPException(
+                status_code=500,
+                detail="An internal error occurred during credit refund.",
+            )
 
     async def _check_and_trigger_low_balance_topup(
         self,
@@ -304,10 +494,17 @@ class BillingService:
         self,
         user_id: str,
         user: Dict[str, Any]
-    ) -> None:
+    ) -> bool:
         """
         Triggers automatic credit purchase when balance falls below threshold.
         Runs asynchronously to not block the main credit deduction.
+
+        Returns:
+            True  — a Stripe charge was actually initiated and confirmed.
+                    The caller should wait (asyncio.sleep) for the webhook to
+                    add credits before re-checking the user's balance.
+            False — no charge was attempted (cooldown, missing config, no email,
+                    no payment method, etc.).  The caller must NOT wait.
         """
         try:
             # 1. Check cooldown period - but only if user now has sufficient credits
@@ -319,13 +516,13 @@ class BillingService:
                 # If user has credits now, respect the cooldown
                 if current_credits > 100:  # Above the auto top-up threshold
                     logger.info(f"Low balance auto top-up for user {user_id} on cooldown (last trigger: {int(time.time() - last_triggered)}s ago)")
-                    return
+                    return False
                 else:
                     # If user still has insufficient credits, previous auto top-up likely failed
                     # Allow retry but with a shorter cooldown (5 minutes) to prevent spam
                     if (time.time() - last_triggered) < 300:  # 5 minutes
                         logger.info(f"Auto top-up retry for user {user_id} on short cooldown (last trigger: {int(time.time() - last_triggered)}s ago, waiting 5min)")
-                        return
+                        return False
                     else:
                         logger.info(f"Auto top-up retry for user {user_id} allowed - previous attempt may have failed to add credits")
 
@@ -333,21 +530,21 @@ class BillingService:
             customer_id = user.get('stripe_customer_id')
             if not customer_id:
                 logger.warning(f"No Stripe customer ID found for user {user_id} auto top-up. Feature may not be configured properly.")
-                return
+                return False
 
             # 3. Decrypt payment method
             logger.debug(f"Decrypting payment method for user {user_id} auto top-up")
             payment_method_id = await self._get_decrypted_payment_method(user)
             if not payment_method_id:
                 logger.warning(f"No payment method found for user {user_id} auto top-up. Feature may not be configured properly.")
-                return
+                return False
             logger.debug(f"Successfully decrypted payment method for user {user_id}: pm_****{payment_method_id[-4:]}")
 
             # 4. Get configuration
             credits_amount = user.get('auto_topup_low_balance_amount')
             if not credits_amount or credits_amount <= 0:
                 logger.warning(f"Invalid credits amount for user {user_id} auto top-up: {credits_amount}")
-                return
+                return False
 
             currency = user.get('auto_topup_low_balance_currency', 'eur').lower()
 
@@ -355,12 +552,15 @@ class BillingService:
             price_data = await self._get_price_for_tier(credits_amount, currency)
             if not price_data:
                 logger.error(f"No pricing found for {credits_amount} credits in {currency} for user {user_id}")
-                return
+                return False
 
             # 6. Get decrypted email for receipt
             logger.debug(f"Decrypting email for user {user_id} auto top-up")
             email = await self._get_decrypted_email(user)
             logger.debug(f"Email decryption result for user {user_id}: {'success' if email else 'failed/empty'}")
+            if not email:
+                logger.warning(f"No email found for user {user_id} auto top-up — skipping to avoid Stripe InvalidRequestError.")
+                return False
 
             # 7. Create PaymentIntent using existing payment service
             # Initialize SecretsManager with cache service
@@ -390,7 +590,7 @@ class BillingService:
 
             if not order_result or not order_result.get('client_secret'):
                 logger.error(f"Failed to create payment intent for user {user_id} auto top-up")
-                return
+                return False
 
             # Cache the order for webhook processing (critical for credit addition)
             payment_intent_id = order_result['id']
@@ -405,7 +605,7 @@ class BillingService:
 
             if not cache_success:
                 logger.error(f"Failed to cache auto top-up order {payment_intent_id} for user {user_id}. Webhook processing will fail.")
-                return
+                return False
 
             # 8. Validate payment method belongs to customer and confirm payment
             import stripe
@@ -416,7 +616,7 @@ class BillingService:
                 payment_method = stripe.PaymentMethod.retrieve(payment_method_id)
                 if payment_method.customer != customer_id:
                     logger.error(f"Payment method {payment_method_id} does not belong to customer {customer_id} for user {user_id}")
-                    return
+                    return False
 
                 # Use 'id' field from order_result (PaymentIntent ID)
                 # Include return_url for automatic payment methods that might redirect
@@ -435,16 +635,20 @@ class BillingService:
                 logger.error(f"Stripe error confirming auto top-up payment for user {user_id}: {e.user_message}", exc_info=True)
                 # Update cached order status to failed
                 await self.cache_service.update_order_status(payment_intent_id, "auto_topup_failed")
-                return
+                return False
 
             # 9. Update last triggered timestamp
             await self._update_last_topup_timestamp(user_id)
 
             logger.info(f"✅ Auto top-up successfully triggered for user {user_id}: {credits_amount} credits via {currency.upper()}")
 
+            # Charge was successfully initiated — caller should wait for webhook to add credits
+            return True
+
         except Exception as e:
             logger.error(f"❌ Auto top-up failed for user {user_id}: {e}", exc_info=True)
             # Don't raise - this is a background operation
+            return False
 
     async def _get_last_topup_timestamp(self, user: Dict[str, Any]) -> Optional[float]:
         """
@@ -595,11 +799,9 @@ class BillingService:
                 if tier.get('credits') == credits_amount:
                     price = tier.get('price', {}).get(currency)
                     if price is not None:
-                        # Convert to cents (Stripe expects smallest currency unit)
-                        if currency.lower() == 'jpy':
-                            amount_cents = int(price)  # JPY has no decimal
-                        else:
-                            amount_cents = int(price * 100)  # EUR/USD use cents
+                        # Convert to cents (Stripe expects smallest currency unit).
+                        # EUR and USD are the only currencies used with Stripe.
+                        amount_cents = int(price * 100)
 
                         return {
                             'amount': amount_cents,

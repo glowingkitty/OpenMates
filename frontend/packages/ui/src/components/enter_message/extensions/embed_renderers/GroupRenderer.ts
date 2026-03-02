@@ -29,6 +29,13 @@ import ReminderEmbedPreview from "../../../embeds/reminder/ReminderEmbedPreview.
 import TravelSearchEmbedPreview from "../../../embeds/travel/TravelSearchEmbedPreview.svelte";
 import TravelStaysEmbedPreview from "../../../embeds/travel/TravelStaysEmbedPreview.svelte";
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
+import ImageViewEmbedPreview from "../../../embeds/images/ImageViewEmbedPreview.svelte";
+import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
+import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPreview.svelte";
+import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
+import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
+import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
+import PdfSearchEmbedPreview from "../../../embeds/pdf/PdfSearchEmbedPreview.svelte";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -777,6 +784,24 @@ export class GroupRenderer implements EmbedRenderer {
         return;
       }
 
+      if (appId === "events" && skillId === "search") {
+        const component = mount(EventsSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            provider: provider || "Meetup",
+            status,
+            results,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
       if (appId === "videos" && skillId === "search") {
         const component = mount(VideosSearchEmbedPreview, {
           target,
@@ -943,17 +968,234 @@ export class GroupRenderer implements EmbedRenderer {
           target,
           props: {
             id: embedId,
-            prompt: decodedContent?.prompt || "",
-            model: decodedContent?.model || "",
-            s3BaseUrl: decodedContent?.s3_base_url || "",
-            files: decodedContent?.files || undefined,
-            aesKey: decodedContent?.aes_key || "",
-            aesNonce: decodedContent?.aes_nonce || "",
+            prompt: decodedContent?.prompt || embedData?.prompt || "",
+            model: decodedContent?.model || embedData?.model || "",
+            s3BaseUrl:
+              decodedContent?.s3_base_url || embedData?.s3_base_url || "",
+            files: decodedContent?.files || embedData?.files || undefined,
+            aesKey: decodedContent?.aes_key || embedData?.aes_key || "",
+            aesNonce: decodedContent?.aes_nonce || embedData?.aes_nonce || "",
             status: status as "processing" | "finished" | "error",
-            error: decodedContent?.error || "",
+            error: decodedContent?.error || embedData?.error || "",
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      // Handle images.view skill — shows the original uploaded image.
+      // The decoded content contains the original upload embed_id; we mount the
+      // component first (shows a skeleton) and then resolve the original embed
+      // asynchronously to populate the S3 preview data.
+      if (appId === "images" && skillId === "view") {
+        // embed_id in the skill-use content references the original uploaded image embed
+        const originalEmbedId = decodedContent?.embed_id || "";
+        const filename = decodedContent?.filename || "";
+
+        const handleImageViewFullscreen = () => {
+          if (!originalEmbedId) return;
+          // Open the original uploaded image's fullscreen viewer
+          resolveEmbed(originalEmbedId)
+            .then(async (uploadEmbed) => {
+              if (!uploadEmbed) return;
+              const uploadContent = uploadEmbed.content
+                ? await decodeToonContent(uploadEmbed.content)
+                : null;
+              const event = new CustomEvent("imagefullscreen", {
+                detail: {
+                  src: undefined,
+                  filename:
+                    uploadContent?.filename ||
+                    ((uploadEmbed as Record<string, unknown>)
+                      .filename as string) ||
+                    "",
+                  s3Files: uploadContent?.files || undefined,
+                  s3BaseUrl: uploadContent?.s3_base_url || "",
+                  aesKey: uploadContent?.aes_key || "",
+                  aesNonce: uploadContent?.aes_nonce || "",
+                  isAuthenticated: true,
+                  fileSize: uploadContent?.file_size,
+                  fileType: uploadContent?.file_type,
+                  aiDetection: uploadContent?.ai_detection ?? null,
+                },
+                bubbles: true,
+              });
+              document.dispatchEvent(event);
+            })
+            .catch((err) => {
+              console.error(
+                "[GroupRenderer] Failed to open image upload fullscreen:",
+                err,
+              );
+            });
+        };
+
+        const component = mount(ImageViewEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            filename,
+            status: status as "processing" | "finished" | "error",
+            error: decodedContent?.error || "",
+            isMobile: false,
+            onFullscreen:
+              status === "finished" && originalEmbedId
+                ? handleImageViewFullscreen
+                : undefined,
+          },
+        });
+        mountedComponents.set(target, component);
+
+        // If finished: resolve the original upload embed asynchronously to
+        // populate the S3 preview data in the component.
+        if (status === "finished" && originalEmbedId) {
+          this.resolveAndUpdateImageViewProps(
+            target,
+            originalEmbedId,
+            handleImageViewFullscreen,
+          );
+        }
+        return;
+      }
+
+      // Handle health.search_appointments skill
+      if (appId === "health" && skillId === "search_appointments") {
+        const component = mount(HealthSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            provider: provider || "Doctolib",
+            status,
+            results,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      // Handle shopping.search_products skill
+      if (appId === "shopping" && skillId === "search_products") {
+        const component = mount(ShoppingSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            provider: provider || "REWE",
+            status,
+            results,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      // Handle pdf.read skill — opens original uploaded PDF fullscreen on click
+      if (appId === "pdf" && skillId === "read") {
+        const originalEmbedId = decodedContent?.embed_id || "";
+        const filename = decodedContent?.filename || "";
+        const pagesReturned: number[] = decodedContent?.pages_returned || [];
+        const pagesSkipped: number[] = decodedContent?.pages_skipped || [];
+        const pageCount: number | undefined =
+          decodedContent?.page_count ?? undefined;
+
+        const handlePdfReadFullscreen = () => {
+          if (!originalEmbedId) return;
+          this.openPdfUploadFullscreen(originalEmbedId);
+        };
+
+        const component = mount(PdfReadEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            filename,
+            pagesReturned,
+            pagesSkipped,
+            pageCount,
+            status: status as "processing" | "finished" | "error",
+            error: decodedContent?.error || "",
+            isMobile: false,
+            onFullscreen:
+              status === "finished" && originalEmbedId
+                ? handlePdfReadFullscreen
+                : undefined,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      // Handle pdf.view skill — opens original uploaded PDF fullscreen on click
+      if (appId === "pdf" && skillId === "view") {
+        const originalEmbedId = decodedContent?.embed_id || "";
+        const filename = decodedContent?.filename || "";
+        const pages: number[] = decodedContent?.pages || [];
+        const pageCount: number | undefined =
+          decodedContent?.page_count ?? undefined;
+
+        const handlePdfViewFullscreen = () => {
+          if (!originalEmbedId) return;
+          this.openPdfUploadFullscreen(originalEmbedId);
+        };
+
+        const component = mount(PdfViewEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            filename,
+            pages,
+            pageCount,
+            status: status as "processing" | "finished" | "error",
+            error: decodedContent?.error || "",
+            isMobile: false,
+            onFullscreen:
+              status === "finished" && originalEmbedId
+                ? handlePdfViewFullscreen
+                : undefined,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      // Handle pdf.search skill — opens original uploaded PDF fullscreen on click
+      if (appId === "pdf" && skillId === "search") {
+        const originalEmbedId = decodedContent?.embed_id || "";
+        const filename = decodedContent?.filename || "";
+        const searchQuery = decodedContent?.query || query || "";
+        const totalMatches: number | undefined =
+          decodedContent?.total_matches ?? undefined;
+        const truncated: boolean = decodedContent?.truncated ?? false;
+
+        const handlePdfSearchFullscreen = () => {
+          if (!originalEmbedId) return;
+          this.openPdfUploadFullscreen(originalEmbedId);
+        };
+
+        const component = mount(PdfSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            filename,
+            query: searchQuery,
+            totalMatches,
+            truncated,
+            status: status as "processing" | "finished" | "error",
+            error: decodedContent?.error || "",
+            isMobile: false,
+            onFullscreen:
+              status === "finished" && originalEmbedId
+                ? handlePdfSearchFullscreen
+                : undefined,
           },
         });
         mountedComponents.set(target, component);
@@ -973,6 +1215,135 @@ export class GroupRenderer implements EmbedRenderer {
       decodedContent,
     );
     target.innerHTML = fallbackHtml;
+  }
+
+  /**
+   * Resolve the original image upload embed and re-mount ImageViewEmbedPreview
+   * with the S3 data needed to display the image preview.
+   *
+   * Called asynchronously after the initial mount (which shows a skeleton) so
+   * the group item is visible immediately during streaming.
+   */
+  private async resolveAndUpdateImageViewProps(
+    target: HTMLElement,
+    originalEmbedId: string,
+    handleFullscreen: () => void,
+  ): Promise<void> {
+    try {
+      const uploadEmbed = await resolveEmbed(originalEmbedId);
+      if (!uploadEmbed) return;
+      const uploadContent = uploadEmbed.content
+        ? await decodeToonContent(uploadEmbed.content)
+        : null;
+      if (!uploadContent) return;
+
+      // Re-mount with S3 data from the resolved upload embed.
+      // We unmount + re-mount because Svelte 5 mount() props cannot be updated
+      // after the initial mount.
+      const existingComponent = mountedComponents.get(target);
+      if (!existingComponent) return;
+
+      try {
+        unmount(existingComponent);
+      } catch {
+        // ignore
+      }
+
+      target.innerHTML = "";
+
+      const s3Files = uploadContent.files as
+        | Record<
+            string,
+            {
+              s3_key: string;
+              width: number;
+              height: number;
+              size_bytes: number;
+              format: string;
+            }
+          >
+        | undefined;
+
+      const updated = mount(ImageViewEmbedPreview, {
+        target,
+        props: {
+          id: originalEmbedId,
+          filename: (uploadContent.filename as string) || "",
+          status: "finished" as const,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+          s3BaseUrl: (uploadContent.s3_base_url as string) || "",
+          s3Files,
+          aesKey: (uploadContent.aes_key as string) || "",
+          aesNonce: (uploadContent.aes_nonce as string) || "",
+        },
+      });
+
+      mountedComponents.set(target, updated);
+      console.debug(
+        "[GroupRenderer] Updated ImageViewEmbedPreview with S3 data for upload embed:",
+        originalEmbedId,
+      );
+    } catch (err) {
+      console.error(
+        "[GroupRenderer] Error resolving original image embed for ImageViewEmbedPreview:",
+        err,
+      );
+    }
+  }
+
+  /**
+   * Open the ORIGINAL uploaded PDF's fullscreen viewer from a GroupRenderer context.
+   *
+   * Resolves the PDF upload embed by embed_id, decodes its TOON content, then
+   * dispatches 'pdffullscreen' on document so ActiveChat mounts PDFEmbedFullscreen.
+   *
+   * This mirrors the same method in AppSkillUseRenderer — kept separate here so
+   * GroupRenderer has no dependency on AppSkillUseRenderer.
+   */
+  private async openPdfUploadFullscreen(embedId: string): Promise<void> {
+    if (!embedId) {
+      console.warn("[GroupRenderer] openPdfUploadFullscreen: no embed_id");
+      return;
+    }
+    try {
+      const uploadEmbed = await resolveEmbed(embedId);
+      if (!uploadEmbed) {
+        console.warn(
+          "[GroupRenderer] Could not resolve original PDF embed:",
+          embedId,
+        );
+        return;
+      }
+      const uploadContent = uploadEmbed.content
+        ? await decodeToonContent(uploadEmbed.content)
+        : null;
+
+      const event = new CustomEvent("pdffullscreen", {
+        detail: {
+          embedId,
+          filename:
+            uploadContent?.filename ||
+            (uploadEmbed as Record<string, unknown>).filename ||
+            "",
+          pageCount:
+            (uploadContent?.page_count as number | null | undefined) ??
+            (uploadEmbed as Record<string, unknown>).page_count ??
+            null,
+        },
+        bubbles: true,
+      });
+      document.dispatchEvent(event);
+      console.debug(
+        "[GroupRenderer] Dispatched pdffullscreen for upload embed:",
+        embedId,
+      );
+    } catch (err) {
+      console.error(
+        "[GroupRenderer] Failed to open PDF upload fullscreen:",
+        err,
+      );
+    }
   }
 
   /**
@@ -2386,13 +2757,37 @@ export class GroupRenderer implements EmbedRenderer {
     // Determine embed type from attrs
     const embedType = attrs.type === "web-website" ? "website" : attrs.type;
 
+    // For preview embeds (contentRef starts with 'preview:'), decodedContent is
+    // always null because preview embeds are not stored in EmbedStore. We
+    // synthesise a minimal decodedContent object from the node attrs so that
+    // ActiveChat.svelte's `{#if decodedContent?.code …}` condition is truthy
+    // and the fullscreen component receives the code content correctly.
+    let finalDecodedContent = decodedContent;
+    if (!finalDecodedContent && attrs.contentRef?.startsWith("preview:")) {
+      finalDecodedContent = {
+        code: attrs.code || "",
+        language: attrs.language || "text",
+        filename: attrs.filename || "",
+        lineCount: attrs.lineCount || 0,
+      };
+      console.debug(
+        "[GroupRenderer] Built synthetic decodedContent for preview embed fullscreen",
+        {
+          contentRef: attrs.contentRef,
+          codeLength: (attrs.code || "").length,
+          language: attrs.language,
+          filename: attrs.filename,
+        },
+      );
+    }
+
     // Dispatch custom event to open fullscreen view
     // The fullscreen component will handle loading and displaying embed content
     const event = new CustomEvent("embedfullscreen", {
       detail: {
         embedId: attrs.contentRef?.replace("embed:", ""),
         embedData,
-        decodedContent,
+        decodedContent: finalDecodedContent,
         embedType,
         attrs,
       },

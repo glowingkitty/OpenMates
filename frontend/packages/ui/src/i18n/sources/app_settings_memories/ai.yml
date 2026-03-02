@@ -20,6 +20,7 @@ communication_style:
   th: สไตล์การสื่อสาร
   cs: Komunikační styl
   sv: Kommunikationsstil
+  he: סגנון תקשורת
   verified_by_human: [en, de]
 
 communication_style.description:
@@ -44,6 +45,7 @@ communication_style.description:
   th: วิธีที่คุณต้องการให้ AI สื่อสาร
   cs: Jak upřednostňujete komunikaci s AI
   sv: Hur du föredrar att AI kommunicerar
+  he: העדפות לגבי אופן התקשורת של ה-AI איתך
   verified_by_human: [en, de]
 learning_preferences:
   context: Settings/memory name for learning preferences
@@ -67,6 +69,7 @@ learning_preferences:
   th: ความชอบในการเรียนรู้
   cs: Předvolby učení
   sv: Inlärningspreferenser
+  he: העדפות למידה
   verified_by_human: [en, de]
 
 learning_preferences.description:
@@ -91,6 +94,7 @@ learning_preferences.description:
   th: วิธีที่คุณต้องการเรียนรู้และรับข้อมูล
   cs: Jak upřednostňujete učení a spotřebu informací
   sv: Hur du föredrar att lära dig och konsumera information
+  he: העדפות לגבי אופן הלמידה וצריכת המידע שלך
   verified_by_human: [en, de]
 
 interaction_preferences:
@@ -115,6 +119,7 @@ interaction_preferences:
   th: ความชอบในการโต้ตอบ
   cs: Předvolby interakce
   sv: Interaktionspreferenser
+  he: העדפות אינטראקציה
   verified_by_human: [en, de]
 
 interaction_preferences.description:
@@ -139,6 +144,7 @@ interaction_preferences.description:
   th: วิธีที่คุณต้องการให้ AI มีปฏิสัมพันธ์กับคุณ
   cs: Jak upřednostňujete interakci s AI
   sv: Hur du föredrar att AI interagerar med dig
+  he: העדפות לגבי אופן האינטראקציה של ה-AI איתך
   verified_by_human: [en, de]
 
 # Example entries shown to non-authenticated users to illustrate what each category stores
@@ -165,6 +171,7 @@ communication_style.example_1:
   th: มืออาชีพและกระชับ
   cs: Profesionální a stručný
   sv: Professionell och koncis
+  he: מקצועי ותמציתי
   verified_by_human: [en, de]
 
 communication_style.example_2:
@@ -189,6 +196,7 @@ communication_style.example_2:
   th: สบายๆ และเป็นมิตร
   cs: Neformální a přátelský
   sv: Avslappnad och vänlig
+  he: יומיומי וידידותי
   verified_by_human: [en, de]
 
 learning_preferences.example_1:
@@ -213,6 +221,7 @@ learning_preferences.example_1:
   th: เรียนรู้แบบภาพ
   cs: Vizuální učení
   sv: Visuell inlärning
+  he: למידה חזותית
   verified_by_human: [en, de]
 
 learning_preferences.example_2:
@@ -237,4 +246,5 @@ learning_preferences.example_2:
   th: ฝึกปฏิบัติจริง
   cs: Praktické cvičení
   sv: Praktisk övning
+  he: תרגול מעשי
   verified_by_human: [en, de]

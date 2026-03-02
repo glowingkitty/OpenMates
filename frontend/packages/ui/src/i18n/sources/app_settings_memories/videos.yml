@@ -20,6 +20,7 @@ to_watch_list:
   th: รายการที่ต้องดู
   cs: Seznam k sledování
   sv: Att-se-lista
+  he: רשימת צפייה
   verified_by_human:
     - en
     - de
@@ -45,6 +46,7 @@ to_watch_list.description:
   th: วิดีโอที่คุณต้องการดู
   cs: Videa, která chcete sledovat
   sv: Videor du vill titta på
+  he: סרטונים שברצונך לראות
   verified_by_human:
     - en
     - de
@@ -70,6 +72,7 @@ subscribed_channels:
   th: ช่องที่สมัครสมาชิก
   cs: Odebírané kanály
   sv: Prenumererade kanaler
+  he: ערוצים רשומים
   verified_by_human:
     - en
     - de
@@ -95,6 +98,7 @@ subscribed_channels.description:
   th: ช่อง YouTube ที่คุณสมัครสมาชิก
   cs: YouTube kanály, na které jste přihlášeni
   sv: YouTube-kanaler du prenumererar på
+  he: ערוצי YouTube שאליהם נרשמת
   verified_by_human:
     - en
     - de
@@ -123,6 +127,7 @@ to_watch_list.example_1:
   th: คำปราศรัยหลักงานเทคโนโลยี
   cs: Hlavní přednáška tech konference
   sv: Teknikkonferens keynote
+  he: הרצאה מרכזית בכנס טכנולוגיה
   verified_by_human:
     - en
     - de
@@ -148,6 +153,7 @@ to_watch_list.example_2:
   th: สอนทำอาหาร
   cs: Kuchařský tutoriál
   sv: Matlagningsguide
+  he: מדריך בישול
   verified_by_human:
     - en
     - de
@@ -173,6 +179,7 @@ to_watch_list.example_3:
   th: วิดีโอท่องเที่ยว
   cs: Cestovatelský vlog
   sv: Resevlogg
+  he: ולוג טיולים
   verified_by_human:
     - en
     - de
@@ -198,6 +205,7 @@ subscribed_channels.example_1:
   th: Fireship
   cs: Fireship
   sv: Fireship
+  he: Fireship
   verified_by_human:
     - en
     - de
@@ -223,6 +231,7 @@ subscribed_channels.example_2:
   th: Kurzgesagt
   cs: Kurzgesagt
   sv: Kurzgesagt
+  he: Kurzgesagt
   verified_by_human:
     - en
     - de
@@ -248,6 +257,7 @@ subscribed_channels.example_3:
   th: Veritasium
   cs: Veritasium
   sv: Veritasium
+  he: Veritasium
   verified_by_human:
     - en
     - de

@@ -23,10 +23,14 @@ import * as cryptoService from "../services/cryptoService";
 import { deleteSessionId } from "../utils/sessionId";
 import { phasedSyncState } from "./phasedSyncStateStore";
 import { aiTypingStore } from "./aiTypingStore";
+import { dailyInspirationStore } from "./dailyInspirationStore";
 import { webSocketService } from "../services/websocketService";
 import { chatListCache } from "../services/chatListCache";
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage";
+import { clearAllSessionStorageDrafts } from "../services/drafts/sessionStorageDraftService";
+import { resetChatNavigationList } from "./chatNavigationStore";
 import { clientLogForwarder } from "../services/clientLogForwarder";
+import { applyServerDarkMode } from "./theme";
 
 // Import core auth state and related flags
 import {
@@ -126,7 +130,7 @@ export async function login(
       `Attempting login... (TFA Code Provided: ${!!tfaCode}, Type: ${codeType || "otp"}, Stay Logged In: ${stayLoggedIn})`,
     );
 
-    const requestBody: any = { hashed_email, lookup_hash };
+    const requestBody: Record<string, string> = { hashed_email, lookup_hash };
     if (tfaCode) {
       requestBody.tfa_code = tfaCode;
       requestBody.code_type = codeType || "otp";
@@ -217,13 +221,16 @@ export async function login(
         // (setting these flags to true) but the user then successfully logs in.
         // Without this reset, userDB.saveUserData() would throw "Database initialization blocked during logout"
         const { get } = await import("svelte/store");
-        const { forcedLogoutInProgress, isLoggingOut } =
-          await import("./signupState");
+        const {
+          forcedLogoutInProgress,
+          isLoggingOut,
+          resetForcedLogoutInProgress,
+        } = await import("./signupState");
         if (get(forcedLogoutInProgress)) {
           console.debug(
             "[Login] Resetting forcedLogoutInProgress to false - successful login with valid master key",
           );
-          forcedLogoutInProgress.set(false);
+          resetForcedLogoutInProgress();
         }
         if (get(isLoggingOut)) {
           console.debug(
@@ -303,7 +310,15 @@ export async function login(
                 data.user.auto_topup_low_balance_amount,
               auto_topup_low_balance_currency:
                 data.user.auto_topup_low_balance_currency,
+              // Refund policy consent — used to skip redundant consent screens in settings
+              has_accepted_refund_policy:
+                data.user.has_accepted_refund_policy ?? false,
             });
+
+            // Apply server dark mode preference to the theme store.
+            // applyServerDarkMode is a no-op when the user already has a local
+            // manual preference in localStorage, so local choices always win.
+            applyServerDarkMode(userDarkMode);
 
             // Sync browser timezone to server (non-blocking)
             // This ensures the server always has the user's current timezone
@@ -430,13 +445,26 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     deviceVerificationReason.set(null);
     phasedSyncState.reset(); // Reset phased sync state on logout
     aiTypingStore.reset(); // Reset typing indicator state on logout to prevent stale "{mate} is typing" indicators
+    dailyInspirationStore.reset(); // Clear user-specific inspirations on logout so defaults are shown to logged-out users
 
     // CRITICAL: Clear in-memory chat caches IMMEDIATELY during synchronous logout
     // The chatListCache singleton persists across component mounts/unmounts, so if Chats.svelte
     // is destroyed (e.g., sidebar closed on mobile) when logout happens, its authStore subscriber
     // won't fire to clear the cache. Clearing here ensures stale chats never appear after logout.
     chatListCache.clear();
+    // CRITICAL: Clear sessionStorage drafts so that the unauthenticated allChats
+    // derived in Chats.svelte does NOT build virtual "Untitled chat" ghost entries
+    // from stale draft IDs left over from the previous session. This runs BEFORE
+    // authStore.set() flips isAuthenticated to false, so the derived never sees
+    // the stale data. (Confirmed root cause: ghost chats survive until tab reload
+    // because sessionStorage is tab-scoped and isn't cleared by any other logout path.)
+    clearAllSessionStorageDrafts();
     chatDB.clearAllChatKeys();
+    // Reset the module-level chat list in chatNavigationStore so that stale
+    // user chats do not remain in memory when Chats.svelte is unmounted (sidebar
+    // closed on mobile). Without this, updateNavFromCache() would use the old list
+    // and show hasPrev=true on the intro chat immediately after logout.
+    resetChatNavigationList();
     console.debug(
       "[AuthStore] Cleared chatListCache and chatDB.chatKeys during logout",
     );
@@ -525,18 +553,34 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
             console.debug(
               "[AuthStore] Sending logout request to server with auth cookies...",
             );
-            const response = await fetch(logoutApiUrl, {
-              method: "POST",
-              credentials: "include", // Include cookies with request
-              headers: { "Content-Type": "application/json" },
-            });
-            if (!response.ok) {
-              console.error(
-                "Server logout request failed:",
-                response.statusText,
+            // Use AbortController with 10s timeout to prevent the fetch from hanging
+            // indefinitely during device sleep/wake when the network is still recovering.
+            // Without this, the afterServerCleanup callback (which resets forcedLogoutInProgress)
+            // may never run, leaving the app stuck in a permanent "logout in progress" state.
+            const logoutAbortController = new AbortController();
+            const logoutTimeoutId = setTimeout(() => {
+              logoutAbortController.abort();
+              console.warn(
+                "[AuthStore] Server logout request timed out after 10s — aborting",
               );
-            } else {
-              console.debug("[AuthStore] Server logout successful.");
+            }, 10_000);
+            try {
+              const response = await fetch(logoutApiUrl, {
+                method: "POST",
+                credentials: "include", // Include cookies with request
+                headers: { "Content-Type": "application/json" },
+                signal: logoutAbortController.signal,
+              });
+              if (!response.ok) {
+                console.error(
+                  "Server logout request failed:",
+                  response.statusText,
+                );
+              } else {
+                console.debug("[AuthStore] Server logout successful.");
+              }
+            } finally {
+              clearTimeout(logoutTimeoutId);
             }
           } catch (e) {
             console.error(
@@ -553,15 +597,27 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
             console.debug(
               "[AuthStore] Sending policy violation logout request to server with auth cookies...",
             );
-            const response = await fetch(policyLogoutApiUrl, {
-              method: "POST",
-              credentials: "include", // Include cookies with request
-              headers: { "Content-Type": "application/json" },
-            });
-            console.debug(
-              "[AuthStore] Policy violation logout response:",
-              response.ok,
-            );
+            const policyAbortController = new AbortController();
+            const policyTimeoutId = setTimeout(() => {
+              policyAbortController.abort();
+              console.warn(
+                "[AuthStore] Policy violation logout request timed out after 10s — aborting",
+              );
+            }, 10_000);
+            try {
+              const response = await fetch(policyLogoutApiUrl, {
+                method: "POST",
+                credentials: "include", // Include cookies with request
+                headers: { "Content-Type": "application/json" },
+                signal: policyAbortController.signal,
+              });
+              console.debug(
+                "[AuthStore] Policy violation logout response:",
+                response.ok,
+              );
+            } finally {
+              clearTimeout(policyTimeoutId);
+            }
           } catch (e) {
             console.error(
               "[AuthStore] Policy violation logout API call failed (user already logged out locally):",

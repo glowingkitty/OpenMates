@@ -16,7 +16,7 @@
     import AppEmbedsPanel from './appSettings/AppEmbedsPanel.svelte';
     import ActiveRemindersList from './appSettings/ActiveRemindersList.svelte';
     import SettingsItem from '../SettingsItem.svelte';
-    import type { AppMetadata, SkillMetadata, FocusModeMetadata, MemoryFieldMetadata } from '../../types/apps';
+    import type { AppMetadata, SkillMetadata } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     
@@ -46,38 +46,21 @@
     let memoryFields = $derived(app?.settings_and_memories || []);
     
     /**
-     * Get the translated app name.
-     * Uses name_translation_key if available, otherwise falls back to name.
-     */
-    let appName = $derived(
-        app?.name_translation_key 
-            ? $text(app.name_translation_key)
-            : (app?.name || appId)
-    );
-    
-    /**
-     * Get the translated app description.
-     * Uses description_translation_key if available, otherwise falls back to description.
-     */
-    let appDescription = $derived(
-        app?.description_translation_key 
-            ? $text(app.description_translation_key)
-            : (app?.description || '')
-    );
-    
-    /**
      * Convert a skill to an app-like metadata object for AppStoreCard.
      * This allows us to reuse AppStoreCard to display skills.
-     * 
+     *
      * Note: We use the appId (not skill.id) for the id field so that AppStoreCard
-     * uses the correct gradient color from the app.
+     * uses the correct app gradient for the card background.
+     * When the skill has its own icon_image, that is used instead of the app icon,
+     * so AppStoreCard renders the skill-specific icon with the grey skill gradient.
      */
     function skillToAppMetadata(skill: SkillMetadata, appId: string, app: AppMetadata): AppMetadata {
         return {
-            id: appId, // Use appId so gradient matches the app
+            id: appId, // Use appId so card background gradient matches the app
             name_translation_key: skill.name_translation_key,
             description_translation_key: skill.description_translation_key,
-            icon_image: app.icon_image,
+            // Use skill's own icon_image if available; fall back to app icon
+            icon_image: skill.icon_image || app.icon_image,
             icon_colorgradient: app.icon_colorgradient,
             providers: skill.providers || [],
             skills: [],
@@ -100,6 +83,11 @@
         // This ensures the correct CSS variable --color-app-code is used instead of --color-app-coding
         if (iconName === 'coding') {
             iconName = 'code';
+        }
+        // Handle special case: heart.svg -> health (since the app ID is "health" but icon file is heart.svg)
+        // This ensures the correct CSS variable --color-app-health is used instead of --color-app-heart
+        if (iconName === 'heart') {
+            iconName = 'health';
         }
         return iconName;
     }
@@ -160,40 +148,6 @@
             <button class="back-button" onclick={goBack}>← Back to App Store</button>
         </div>
     {:else}
-        <!-- App description -->
-        <div class="app-header">
-            <p class="app-description">{appDescription}</p>
-        </div>
-        
-        <!-- Settings & Memories section - always show cards for each category -->
-        {#if memoryFields.length > 0}
-            <div class="section">
-                <SettingsItem
-                    type="heading"
-                    icon="settings"
-                    title={$text('settings.app_store.settings_memories.title')}
-                />
-                <div class="items-scroll-container">
-                    <div class="items-scroll">
-                        {#each memoryFields as category (category.id)}
-                            {@const categoryApp: AppMetadata = {
-                                id: appId,
-                                name_translation_key: category.name_translation_key,
-                                description_translation_key: category.description_translation_key,
-                                icon_image: app.icon_image,
-                                icon_colorgradient: app.icon_colorgradient,
-                                providers: [],
-                                skills: [],
-                                focus_modes: [],
-                                settings_and_memories: []
-                            }}
-                            <AppStoreCard app={categoryApp} onSelect={() => handleSettingsMemoriesCategorySelect(category.id)} />
-                        {/each}
-                    </div>
-                </div>
-            </div>
-        {/if}
-        
         <!-- Skills section - only show if skills exist -->
         {#if skills.length > 0}
             <div class="section">
@@ -202,14 +156,51 @@
                     icon="skill"
                     title={$text('settings.app_store.skills.title')}
                 />
+                <p class="section-description">{$text('settings.app_store.skills.section_description')}</p>
                 <div class="items-scroll-container">
                     <div class="items-scroll">
                         {#each skills as skill (skill.id)}
                             {@const skillApp = skillToAppMetadata(skill, appId, app)}
-                            <AppStoreCard 
-                                app={skillApp} 
+                            <AppStoreCard
+                                app={skillApp}
+                                cardIconType="skill"
                                 skillProviders={skill.providers}
-                                onSelect={() => handleSkillSelect(skill.id)} 
+                                onSelect={() => handleSkillSelect(skill.id)}
+                            />
+                        {/each}
+                    </div>
+                </div>
+            </div>
+        {/if}
+
+        <!-- Settings & Memories section - always show cards for each category -->
+        {#if memoryFields.length > 0}
+            <div class="section">
+                <SettingsItem
+                    type="heading"
+                    icon="settings"
+                    title={$text('settings.app_store.settings_memories.title')}
+                />
+                <p class="section-description">{$text('settings.app_store.settings_memories.section_description')}</p>
+                <div class="items-scroll-container">
+                    <div class="items-scroll">
+                        {#each memoryFields as category (category.id)}
+                            {@const categoryApp: AppMetadata = {
+                                id: appId,
+                                name_translation_key: category.name_translation_key,
+                                description_translation_key: category.description_translation_key,
+                                // Use category's own icon_image if available; fall back to app icon
+                                icon_image: category.icon_image || app.icon_image,
+                                icon_colorgradient: app.icon_colorgradient,
+                                providers: [],
+                                skills: [],
+                                focus_modes: [],
+                                settings_and_memories: []
+                            }}
+                            <AppStoreCard
+                                app={categoryApp}
+                                cardIconType="memory"
+                                onSelect={() => handleSettingsMemoriesCategorySelect(category.id)}
                             />
                         {/each}
                     </div>
@@ -225,6 +216,7 @@
                     icon="focus"
                     title={$text('settings.app_store.focus_modes.title')}
                 />
+                <p class="section-description">{$text('settings.app_store.focus_modes.section_description')}</p>
                 <div class="items-scroll-container">
                     <div class="items-scroll">
                         {#each focusModes as focusMode (focusMode.id)}
@@ -232,14 +224,19 @@
                                 id: appId,
                                 name_translation_key: focusMode.name_translation_key,
                                 description_translation_key: focusMode.description_translation_key,
-                                icon_image: app.icon_image,
+                                // Use focus mode's own icon_image if available; fall back to app icon
+                                icon_image: focusMode.icon_image || app.icon_image,
                                 icon_colorgradient: app.icon_colorgradient,
                                 providers: [],
                                 skills: [],
                                 focus_modes: [],
                                 settings_and_memories: []
                             }}
-                            <AppStoreCard app={focusModeApp} onSelect={() => handleFocusModeSelect(focusMode.id)} />
+                            <AppStoreCard
+                                app={focusModeApp}
+                                cardIconType="focus"
+                                onSelect={() => handleFocusModeSelect(focusMode.id)}
+                            />
                         {/each}
                     </div>
                 </div>
@@ -281,22 +278,18 @@
         margin: 0 auto;
     }
     
-    .app-header {
-        margin-bottom: 2rem;
-        padding-left: 0;
-    }
-    
-    .app-description {
-        margin: 0;
-        color: var(--color-grey-100);
-        font-size: 1rem;
-        line-height: 1.6;
-        text-align: left;
-    }
-    
     .section {
         margin-top: 2rem;
         padding-left: 0;
+    }
+
+    /* Description text shown under section headings (Skills / Focus Modes / Settings & Memories) */
+    .section-description {
+        margin: 0.35rem 0 0.5rem 0;
+        padding: 0;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        color: var(--color-font-secondary);
     }
     
     /* Ensure SettingsItem headings align with description text */

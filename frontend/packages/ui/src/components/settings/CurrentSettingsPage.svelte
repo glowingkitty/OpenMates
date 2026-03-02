@@ -24,7 +24,11 @@
         menuItemsCount = $bindable(0),
         sliderElement = null,
         isMenuVisible = false,
-        paymentEnabled = true
+        paymentEnabled = true,
+        // When true (default), renders the docked profile avatar + username + credits inline.
+        // Set to false when a SettingsMainHeader gradient banner is rendered above, so the
+        // profile section is not duplicated.
+        showProfileHeader = true,
     }: {
         activeSettingsView?: string;
         direction?: string;
@@ -39,6 +43,7 @@
         sliderElement?: HTMLDivElement | null;
         isMenuVisible?: boolean;
         paymentEnabled?: boolean;
+        showProfileHeader?: boolean;
     } = $props();
     
     // State for docked profile visibility
@@ -78,7 +83,18 @@
     // Local state for incognito toggle that syncs with store
     let incognitoToggleChecked = $state(false);
     
-    // Sync local toggle state with store
+    // Guard to prevent the onClick handler from firing twice in the same tick.
+    // Toggle.svelte uses bind:checked on a checkbox inside a <label>, and SettingsItem wraps
+    // it in a div with its own onclick. In Safari and some other browsers this can trigger
+    // the parent onClick callback twice (once from the toggle-container div click, once from
+    // the label/input synthetic click), causing a double-toggle where deactivation immediately
+    // re-activates incognito mode.
+    let incognitoClickInProgress = $state(false);
+    
+    // Sync local toggle state with store.
+    // Note: we only sync FROM the store TO local state (not the other way around).
+    // The local state is the source of truth for the UI; the store is updated explicitly
+    // in the onClick handler.
     $effect(() => {
         incognitoToggleChecked = $incognitoMode;
     });
@@ -140,9 +156,13 @@
         }
     }
     
+    // Routes that are accessible only via deep link (e.g. from the chat context menu)
+    // and must NOT appear in the settings nav sidebar.
+    const DEEPLINK_ONLY_VIEWS = new Set(['fork']);
+
     // Add function to filter out nested views from main menu
     function isTopLevelView(key: string): boolean {
-        return !key.includes('/');
+        return !key.includes('/') && !DEEPLINK_ONLY_VIEWS.has(key);
     }
 
     function handleLogout() {
@@ -245,85 +265,112 @@
             class="settings-items active"
             in:slideIn={{ dir: direction }}
         >
-            <!-- Show user info for all users (authenticated shows username, non-authenticated shows "Guest") -->
-            <!-- Profile container that scrolls with content (appears instantly when menu opens) -->
-            {#if showDockedProfile}
-                <div class="profile-container-docked">
-                    {#if !isAuthenticated}
-                        <div class="profile-picture language-icon-container">
-                            <!-- Show user icon when menu is open (same behavior as original profile container) -->
-                            <div class="clickable-icon icon_user"></div>
+            <!-- Profile header: docked avatar + username + credits.
+                 Hidden when showProfileHeader=false (e.g. SettingsMainHeader gradient banner
+                 is already rendered above by Settings.svelte, so we skip it here). -->
+            {#if showProfileHeader}
+                <!-- Profile container that scrolls with content (appears after 400ms delay) -->
+                {#if showDockedProfile}
+                    <div class="profile-container-docked">
+                        {#if !isAuthenticated}
+                            <div class="profile-picture language-icon-container">
+                                <!-- Show user icon when menu is open (same behavior as original profile container) -->
+                                <div class="clickable-icon icon_user"></div>
+                            </div>
+                        {:else}
+                            <div
+                                class="profile-picture"
+                                style={profileImageUrl ? `background-image: url(${profileImageUrl})` : ''}
+                            >
+                                {#if !profileImageUrl}
+                                    <div class="default-user-icon"></div>
+                                {/if}
+                            </div>
+                        {/if}
+                    </div>
+                {/if}
+                <div class="user-info-container">
+                    <div class="username" class:shifted={!paymentEnabled}>{username || 'Guest'}</div>
+                    <!-- Credits container - hidden visually when payment is disabled (self-hosted) but maintains layout space -->
+                    <div class="credits-container" class:hidden={!paymentEnabled}>
+                        <span class="credits-icon"></span>
+                        <div class="credits-text">
+                            <span class="credits-amount"><mark>{$text('settings.credits_amount').replace('{credits_amount}', credits.toString())}</mark></span>
                         </div>
-                    {:else}
-                        <div
-                            class="profile-picture"
-                            style={profileImageUrl ? `background-image: url(${profileImageUrl})` : ''}
-                        >
-                            {#if !profileImageUrl}
-                                <div class="default-user-icon"></div>
-                            {/if}
-                        </div>
-                    {/if}
-                </div>
-            {/if}
-            <div class="user-info-container">
-                <div class="username" class:shifted={!paymentEnabled}>{username || 'Guest'}</div>
-                <!-- Credits container - hidden visually when payment is disabled (self-hosted) but maintains layout space -->
-                <div class="credits-container" class:hidden={!paymentEnabled}>
-                    <span class="credits-icon"></span>
-                    <div class="credits-text">
-                        <span class="credits-amount"><mark>{$text('settings.credits_amount').replace('{credits_amount}', credits.toString())}</mark></span>
                     </div>
                 </div>
-            </div>
+            {/if}
             
             <!-- Incognito mode toggle - appears above Usage like language toggles -->
             <!-- Only show for authenticated users -->
-            <!-- TODO: Temporarily commented out - incognito mode is too buggy and needs more testing -->
-            <!-- {#if isAuthenticated}
-                <SettingsItem
-                    type="quickaction"
-                    icon="subsetting_icon subsetting_icon_incognito"
-                    title={$text('settings.incognito')}
-                    hasToggle={true}
-                    checked={incognitoToggleChecked}
-                    onClick={async () => {
-                        // Get current value from store to ensure we're toggling from the correct state
-                        const currentValue = $incognitoMode;
-                        const newValue = !currentValue;
+            {#if isAuthenticated}
+                <div data-testid="incognito-toggle-wrapper">
+                    <SettingsItem
+                        type="quickaction"
+                        icon="subsetting_icon incognito"
+                        title={$text('settings.incognito')}
+                        hasToggle={true}
+                        checked={incognitoToggleChecked}
+                        onClick={async () => {
+                            // Guard against double-fire: in Safari, clicking the toggle can trigger
+                            // onClick twice in the same tick (once from the toggle-container div,
+                            // once from the label's synthetic click event). Without this guard,
+                            // deactivation would immediately re-activate incognito mode.
+                            if (incognitoClickInProgress) {
+                                console.debug('[CurrentSettingsPage] incognito onClick: ignoring duplicate fire');
+                                return;
+                            }
+                            incognitoClickInProgress = true;
+                            // Reset the guard after the current microtask queue is flushed.
+                            // Using Promise.resolve() ensures the guard is active for any synchronous
+                            // re-entrant calls but resets before the next user interaction.
+                            Promise.resolve().then(() => { incognitoClickInProgress = false; });
 
-                        // CRITICAL: If mode is currently ON and we're turning it OFF, just toggle it off
-                        // Don't show the info screen when turning off
-                        if (currentValue && !newValue) {
-                            // Update local state immediately for responsive UI
-                            incognitoToggleChecked = newValue;
+                            // Read the intended new value from the store (source of truth).
+                            // We read from the store (not incognitoToggleChecked) because the Toggle's
+                            // bind:checked may have already flipped the local state before onClick fires.
+                            const currentValue = $incognitoMode;
+                            const newValue = !currentValue;
 
-                            // Update store (handles deletion of incognito chats when disabling)
-                            await incognitoMode.set(newValue);
+                            // CRITICAL: If mode is currently ON and we're turning it OFF, just toggle it off.
+                            // Don't show the info screen when turning off.
+                            if (currentValue && !newValue) {
+                                // Update local state immediately for responsive UI
+                                incognitoToggleChecked = false;
+
+                                // Update store (handles deletion of incognito chats when disabling)
+                                await incognitoMode.set(false);
+
+                                // Dispatch to parent for any additional handling
+                                handleQuickSettingClick('incognito');
+                                return; // Exit early - don't navigate to info screen
+                            }
+
+                            // If mode is currently OFF and we're turning it ON:
+                            // - If the user has already seen the explainer before, activate immediately.
+                            // - Otherwise show the info/explainer screen first so the user confirms.
+                            if (newValue) {
+                                if ($userProfile.incognito_explainer_seen) {
+                                    // User already confirmed the explainer before — activate immediately.
+                                    await incognitoMode.set(true);
+                                    incognitoToggleChecked = true;
+                                } else {
+                                    // First time — show explainer. Keep toggle OFF until user confirms.
+                                    // The Toggle's bind:checked may have already flipped it to true (optimistic),
+                                    // so we reset it here to wait for confirmation.
+                                    incognitoToggleChecked = false;
+
+                                    // Navigate to incognito info submenu - user will confirm activation there
+                                    showSettingsView('incognito/info', null);
+                                }
+                            }
 
                             // Dispatch to parent for any additional handling
                             handleQuickSettingClick('incognito');
-                            return; // Exit early - don't navigate to info screen
-                        }
-
-                        // If mode is currently OFF and we're turning it ON, show info screen first
-                        // The info screen will handle actually activating the mode when user confirms
-                        // Don't update the toggle state yet - let the info screen handle activation
-                        // This prevents the toggle from appearing "on" before the user confirms
-                        if (newValue) {
-                            // Navigate to incognito info submenu - user will confirm activation there
-                            showSettingsView('incognito/info', null);
-                        } else {
-                            // This shouldn't happen (we already handled turning off above), but just in case
-                            incognitoToggleChecked = newValue;
-                            await incognitoMode.set(newValue);
-                        }
-
-                        // Dispatch to parent for any additional handling
-                        handleQuickSettingClick('incognito');
-                    }}
-                />
-            {/if} -->
+                        }}
+                    />
+                </div>
+            {/if}
 
             <!-- Regular Settings -->
             {#each Object.entries(settingsViews).filter(([key, _]) => isTopLevelView(key)) as [key, _]}
@@ -337,7 +384,7 @@
             <!-- Only show logout button for authenticated users -->
             {#if username}
                 <SettingsItem 
-                    icon="subsetting_icon subsetting_icon_logout" 
+                    icon="subsetting_icon logout" 
                     title={$text('settings.logout')} 
                     onClick={handleLogout} 
                 />
@@ -357,6 +404,9 @@
                     activeSettingsView={key}
                     accountId={accountId}
                     on:openSettings={(event: any) => dispatch('openSettings', event.detail)}
+                    on:navigateBack={() => dispatch('navigateBack')}
+                    on:chatSelected={(event: CustomEvent) => dispatch('chatSelected', event.detail)}
+                    on:closeSettings={() => dispatch('closeSettings')}
                 />
             </div>
         {/if}
@@ -418,7 +468,8 @@
     }
 
     .user-info-container {
-        margin-left: 85px;
+        /* Logical property: indent text to clear the avatar on the inline-start side */
+        margin-inline-start: 85px;
         display: flex;
         flex-direction: column;
         gap: 4px;

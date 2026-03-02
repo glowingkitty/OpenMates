@@ -20,6 +20,7 @@ get_transcript:
   th: รับสำเนา
   cs: Získat přepis
   sv: Hämta transkription
+  he: קבלת תמלול
   verified_by_human:
     - en
     - de
@@ -45,13 +46,14 @@ get_transcript.description:
   th: รับสำเนาของวิดีโอ YouTube
   cs: Získejte přepis videa YouTube.
   sv: Få transkriptionen av en YouTube-video.
+  he: קבלת התמלול של סרטון YouTube.
   verified_by_human:
     - en
     - de
 
 get_transcript.how_to_use.1:
   context: Example instruction for get transcript skill - get transcript from URL
-  en: "Get the transcript of this YouTube video: https://youtube.com/watch?v=..."
+  en: "**Get the transcript** of this YouTube video: https://youtube.com/watch?v=..."
   de: "Hole das Transkript dieses YouTube-Videos: https://youtube.com/watch?v=..."
   zh: "获取这个YouTube视频的文字记录：https://youtube.com/watch?v=..."
   es: "Obtén la transcripción de este video de YouTube: https://youtube.com/watch?v=..."
@@ -71,11 +73,12 @@ get_transcript.how_to_use.1:
   th: "รับสำเนาของวิดีโอ YouTube นี้: https://youtube.com/watch?v=..."
   cs: "Získej přepis tohoto YouTube videa: https://youtube.com/watch?v=..."
   sv: "Hämta transkriptionen av denna YouTube-video: https://youtube.com/watch?v=..."
+  he: "**קבל את התמלול** של סרטון ה-YouTube הזה: https://youtube.com/watch?v=..."
   verified_by_human: [en, de]
 
 get_transcript.how_to_use.2:
   context: Example instruction for get transcript skill - transcribe and analyze
-  en: Transcribe this lecture and highlight the key points
+  en: "**Transcribe** this lecture and highlight the key points"
   de: Transkribiere diese Vorlesung und hebe die wichtigsten Punkte hervor
   zh: 转录这个讲座并突出重点内容
   es: Transcribe esta conferencia y resalta los puntos clave
@@ -95,11 +98,12 @@ get_transcript.how_to_use.2:
   th: ถอดเสียงการบรรยายนี้และเน้นประเด็นสำคัญ
   cs: Přepiš tuto přednášku a zvýrazni klíčové body
   sv: Transkribera denna föreläsning och markera nyckelpunkterna
+  he: "**תמלל** את ההרצאה הזו והדגש את נקודות המפתח"
   verified_by_human: [en, de]
 
 get_transcript.how_to_use.3:
   context: Example instruction for get transcript skill - summarize from transcript
-  en: Get the transcript and summarize what they said about climate change
+  en: Get the transcript and **summarize** what they said about climate change
   de: Hole das Transkript und fasse zusammen, was über den Klimawandel gesagt wurde
   zh: 获取文字记录并总结他们关于气候变化的内容
   es: Obtén la transcripción y resume lo que dijeron sobre el cambio climático
@@ -119,6 +123,7 @@ get_transcript.how_to_use.3:
   th: รับสำเนาและสรุปสิ่งที่พวกเขาพูดเกี่ยวกับการเปลี่ยนแปลงสภาพภูมิอากาศ
   cs: Získej přepis a shrň, co řekli o změně klimatu
   sv: Hämta transkriptionen och sammanfatta vad de sa om klimatförändringarna
+  he: "קבל את התמלול ו**סכם** את מה שנאמר על שינויי אקלים"
   verified_by_human: [en, de]
 
 search:
@@ -143,6 +148,7 @@ search:
   th: ค้นหา
   cs: Hledat
   sv: Sök
+  he: חיפוש
   verified_by_human:
     - en
     - de
@@ -168,13 +174,14 @@ search.description:
   th: ค้นหาวิดีโอบนเว็บ
   cs: Hledejte videa na webu.
   sv: Sök efter videor på webben.
+  he: חיפוש סרטונים באינטרנט.
   verified_by_human:
     - en
     - de
 
 search.how_to_use.1:
   context: Example instruction for video search skill - learning
-  en: Find videos about learning to play guitar for beginners
+  en: "**Find videos** about learning to play guitar for beginners"
   de: Finde Videos zum Gitarrespielen lernen für Anfänger
   zh: 查找适合初学者学习吉他的视频
   es: Encuentra videos sobre aprender a tocar guitarra para principiantes
@@ -194,11 +201,12 @@ search.how_to_use.1:
   th: ค้นหาวิดีโอเกี่ยวกับการเรียนเล่นกีตาร์สำหรับผู้เริ่มต้น
   cs: Najdi videa o učení se hry na kytaru pro začátečníky
   sv: Hitta videor om att lära sig spela gitarr för nybörjare
+  he: "**מצא סרטונים** על לימוד נגינה בגיטרה למתחילים"
   verified_by_human: [en, de]
 
 search.how_to_use.2:
   context: Example instruction for video search skill - talks
-  en: Search for TED talks about artificial intelligence
+  en: "**Search** for TED talks about artificial intelligence"
   de: Suche TED-Talks über künstliche Intelligenz
   zh: 搜索关于人工智能的TED演讲
   es: Busca charlas TED sobre inteligencia artificial
@@ -218,11 +226,12 @@ search.how_to_use.2:
   th: ค้นหา TED talks เกี่ยวกับปัญญาประดิษฐ์
   cs: Vyhledej přednášky TED o umělé inteligenci
   sv: Sök efter TED-föreläsningar om artificiell intelligens
+  he: "**חפש** הרצאות TED על בינה מלאכותית"
   verified_by_human: [en, de]
 
 search.how_to_use.3:
   context: Example instruction for video search skill - cooking
-  en: Find cooking videos for homemade pasta
+  en: "**Find** cooking videos for homemade pasta"
   de: Finde Kochvideos für selbstgemachte Pasta
   zh: 查找自制意大利面的烹饪视频
   es: Encuentra videos de cocina para pasta casera
@@ -242,4 +251,5 @@ search.how_to_use.3:
   th: ค้นหาวิดีโอทำอาหารสำหรับพาสต้าทำเอง
   cs: Najdi videa o vaření domácích těstovin
   sv: Hitta matlagningsvideor för hemgjord pasta
+  he: "**מצא** סרטוני בישול להכנת פסטה ביתית"
   verified_by_human: [en, de]

@@ -23,6 +23,7 @@ writing_style:
   th: รูปแบบการเขียน
   cs: Styly psaní
   sv: Skrivstilar
+  he: סגנונות כתיבה
   verified_by_human: []
 writing_style.description:
   context: Description for writing style preferences
@@ -46,6 +47,7 @@ writing_style.description:
   th: รูปแบบการเขียนที่คุณชอบสำหรับเอกสาร
   cs: Vaše preferované styly psaní dokumentů.
   sv: Dina föredragna skribentstilar för dokument.
+  he: סגנונות הכתיבה המועדפים עליך למסמכים.
   verified_by_human: []
 
 # Example entries shown to non-authenticated users to illustrate what each category stores
@@ -72,6 +74,7 @@ writing_style.example_1:
   th: ธุรกิจเป็นทางการ
   cs: Formální obchodní
   sv: Formellt affärsspråk
+  he: עסקי רשמי
   verified_by_human: []
 writing_style.example_2:
   context: Example entry for writing styles (an academic style)
@@ -95,6 +98,7 @@ writing_style.example_2:
   th: วิชาการ
   cs: Akademický
   sv: Akademiskt
+  he: אקדמי
   verified_by_human: []
 writing_style.example_3:
   context: Example entry for writing styles (a casual blog style)
@@ -118,4 +122,5 @@ writing_style.example_3:
   th: บล็อกทั่วไป
   cs: Neformální blog
   sv: Avslappnad blogg
+  he: בלוג קליל
   verified_by_human: []

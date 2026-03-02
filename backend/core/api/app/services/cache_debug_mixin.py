@@ -1,21 +1,23 @@
 # backend/core/api/app/services/cache_debug_mixin.py
 # 
 # Cache mixin for storing debug information about AI request processing.
-# Stores the last 10 user requests globally (not per user) with complete
-# input/output data for each processor stage (pre-processor, main-processor, post-processor).
+# Stores the last 50 admin user requests globally with complete input/output 
+# data for each processor stage (pre-processor, main-processor, post-processor).
 #
 # ARCHITECTURE:
-# - Uses a Redis list to store the last 10 request entries (circular buffer)
+# - Only caches requests from admin users (is_admin = True)
+# - Uses a Redis list to store the last 50 admin request entries (circular buffer)
 # - Each entry is encrypted server-side with a system-level Vault key
-# - Auto-expires after 30 minutes for privacy/storage efficiency
-# - Entries include chat_id for filtering in the inspection script
+# - Auto-expires after 72 hours for extended debugging capability
+# - Entries include chat_id and user_id for filtering in the inspection script
 #
 # CACHE STRUCTURE:
-# - Key: "debug:last_requests" (single global list)
-# - Value: List of encrypted JSON entries (max 10)
+# - Key: "debug:admin_requests" (admin-only global list)
+# - Value: List of encrypted JSON entries (max 50)
 # - Each entry contains:
 #   - task_id: Celery task ID
 #   - chat_id: Chat ID for filtering
+#   - user_id: User ID (admin only)
 #   - timestamp: Unix timestamp when request was processed
 #   - preprocessor_input: Complete preprocessor input data
 #   - preprocessor_output: Complete preprocessor output data
@@ -27,7 +29,8 @@
 # SECURITY:
 # - All data is encrypted with the DEBUG_REQUESTS_ENCRYPTION_KEY (Vault transit)
 # - Only accessible via the inspect_last_requests.py script running inside the API container
-# - Auto-expires after 30 minutes to minimize data retention
+# - Auto-expires after 72 hours to minimize data retention
+# - Only admin requests are cached (regular users are never cached)
 #
 # USAGE:
 # - Call cache_debug_request_data() from ask_skill_task.py after each processor stage
@@ -40,26 +43,28 @@ from typing import Any, Optional, List, Dict
 
 logger = logging.getLogger(__name__)
 
-# TTL for debug request entries (30 minutes)
-DEBUG_REQUEST_TTL = 1800  # 30 minutes in seconds
+# TTL for admin debug request entries (72 hours)
+DEBUG_REQUEST_TTL_ADMIN = 259200  # 72 hours in seconds
 
-# Maximum number of debug requests to store (circular buffer)
-MAX_DEBUG_REQUESTS = 10
+# Maximum number of admin debug requests to store (circular buffer)
+MAX_DEBUG_REQUESTS_ADMIN = 50
 
-# Redis key for the debug requests list
-DEBUG_REQUESTS_KEY = "debug:last_requests"
+# Redis key for the admin debug requests list
+DEBUG_REQUESTS_KEY = "debug:admin_requests"
 
 
 class DebugCacheMixin:
     """
     Mixin for caching debug information about AI request processing.
     
-    This mixin provides methods for storing and retrieving the last 10 AI
+    This mixin provides methods for storing and retrieving the last 50 admin
     request processing debug entries, including complete input/output data
     for each processor stage.
     
     All data is encrypted server-side with a system-level Vault key
-    (DEBUG_REQUESTS_ENCRYPTION_KEY) and auto-expires after 30 minutes.
+    (DEBUG_REQUESTS_ENCRYPTION_KEY) and auto-expires after 72 hours.
+    
+    Only requests from admin users are cached for debugging purposes.
     """
 
     async def cache_debug_request_entry(
@@ -67,12 +72,15 @@ class DebugCacheMixin:
         encryption_service: Any,  # EncryptionService instance
         task_id: str,
         chat_id: str,
+        user_id: str,
         stage: str,  # "preprocessor", "main_processor", or "postprocessor"
         input_data: Optional[Dict[str, Any]] = None,
         output_data: Optional[Dict[str, Any]] = None,
     ) -> bool:
         """
         Cache debug data for a specific processing stage.
+        
+        Only caches requests from admin users. Regular user requests are not cached.
         
         This method updates an existing entry or creates a new one for the task_id.
         If the entry doesn't exist, it creates a new entry with the given data.
@@ -82,6 +90,7 @@ class DebugCacheMixin:
             encryption_service: EncryptionService instance for encrypting data
             task_id: Celery task ID (unique identifier for this request)
             chat_id: Chat ID for filtering requests
+            user_id: User ID (used to check if user is admin)
             stage: Processing stage ("preprocessor", "main_processor", or "postprocessor")
             input_data: Input data for this stage (will be JSON serialized)
             output_data: Output data for this stage (will be JSON serialized)
@@ -95,6 +104,18 @@ class DebugCacheMixin:
             return False
         
         try:
+            # Check if user is admin - only cache admin requests
+            from backend.core.api.app.services.directus import DirectusService
+            directus_service = DirectusService(
+                cache_service=self,
+                encryption_service=encryption_service
+            )
+            is_admin = await directus_service.admin.is_user_admin(user_id)
+            
+            if not is_admin:
+                # Skip caching for non-admin users
+                logger.debug(f"[DEBUG_CACHE] Skipping cache for non-admin user {user_id}")
+                return False
             # Step 1: Get all existing entries and find/update the one for this task_id
             existing_entries = await self._get_all_debug_entries(encryption_service)
             
@@ -108,10 +129,11 @@ class DebugCacheMixin:
                     break
             
             if entry is None:
-                # Create new entry
+                # Create new entry (admin user only)
                 entry = {
                     "task_id": task_id,
                     "chat_id": chat_id,
+                    "user_id": user_id,
                     "timestamp": int(time.time()),
                     "preprocessor_input": None,
                     "preprocessor_output": None,
@@ -151,9 +173,9 @@ class DebugCacheMixin:
             else:
                 # Add new entry at the beginning (most recent first)
                 existing_entries.insert(0, entry)
-                # Trim to MAX_DEBUG_REQUESTS
-                if len(existing_entries) > MAX_DEBUG_REQUESTS:
-                    existing_entries = existing_entries[:MAX_DEBUG_REQUESTS]
+                # Trim to MAX_DEBUG_REQUESTS_ADMIN
+                if len(existing_entries) > MAX_DEBUG_REQUESTS_ADMIN:
+                    existing_entries = existing_entries[:MAX_DEBUG_REQUESTS_ADMIN]
             
             # Step 6: Encrypt and save all entries
             await self._save_all_debug_entries(encryption_service, existing_entries)
@@ -273,8 +295,8 @@ class DebugCacheMixin:
                 logger.error("[DEBUG_CACHE] Failed to encrypt debug entries")
                 return False
             
-            # Save to Redis with TTL
-            await client.set(DEBUG_REQUESTS_KEY, encrypted_data, ex=DEBUG_REQUEST_TTL)
+            # Save to Redis with TTL (72 hours for admin requests)
+            await client.set(DEBUG_REQUESTS_KEY, encrypted_data, ex=DEBUG_REQUEST_TTL_ADMIN)
             
             logger.debug(f"[DEBUG_CACHE] Saved {len(entries)} debug entries to cache")
             return True
@@ -285,7 +307,7 @@ class DebugCacheMixin:
 
     async def clear_debug_requests(self) -> bool:
         """
-        Clear all debug request entries from cache.
+        Clear all admin debug request entries from cache.
         
         Useful for privacy or when debugging is complete.
         

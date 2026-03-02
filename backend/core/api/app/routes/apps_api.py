@@ -611,6 +611,15 @@ async def call_app_skill(
                 return response.json()
             elif response.status_code == 404:
                 raise HTTPException(status_code=404, detail=f"Skill '{skill_id}' not found in app '{app_id}'")
+            elif response.status_code == 402:
+                # Billing rejection (e.g. insufficient credits) — propagate the original
+                # detail from the app service so the frontend can detect 402 and show the
+                # appropriate "buy credits" UI instead of a generic error message.
+                try:
+                    detail = response.json().get("detail", "Insufficient credits")
+                except Exception:
+                    detail = "Insufficient credits"
+                raise HTTPException(status_code=402, detail=detail)
             else:
                 logger.error(f"App service error: {response.status_code} - {response.text}")
                 raise HTTPException(status_code=500, detail="Internal service error")
@@ -1003,6 +1012,13 @@ async def list_apps(
         
         apps = []
         for app_id, app_metadata in discovered_apps.items():
+            # Skip apps that are explicitly hidden from the public REST API.
+            # These apps (e.g., images) rely on zero-knowledge encryption or other
+            # client-side crypto flows that cannot be executed via stateless REST calls.
+            if not getattr(app_metadata, 'expose_in_api', True):
+                logger.debug(f"Skipping app '{app_id}' from list_apps response (expose_in_api=False)")
+                continue
+
             # Resolve app name and description
             app_name = resolve_translation(
                 translation_service,
@@ -1282,6 +1298,127 @@ def _register_travel_custom_routes(app: FastAPI, app_name: str) -> None:
     logger.info("Registered custom route: POST /v1/apps/travel/booking-link")
 
 
+def _register_audio_custom_routes(app: FastAPI, app_name: str) -> None:
+    """
+    Register audio-specific REST endpoints that require session or API key authentication.
+
+    Overrides the generic skill POST registration for the 'transcribe' skill so that the
+    webapp (which authenticates via session cookies, not API keys) can call it directly.
+
+    The generic ``create_post_skill_handler`` only accepts API key auth (``ApiKeyAuth``).
+    Transcription is initiated by the webapp, which has no API key — it uses the session
+    cookie for authentication.  This custom handler uses ``get_current_user_or_api_key``
+    instead, mirroring the pattern used by ``_register_travel_custom_routes``.
+
+    Billing for the transcribe skill is handled entirely inside ``TranscribeSkill.execute()``
+    in the ``app-audio`` container, so this handler does NOT charge credits itself.
+
+    Currently registers:
+    - POST /v1/apps/audio/skills/transcribe — Audio transcription via Mistral Voxtral.
+      Accepts session cookies (webapp) or Bearer API key (external clients).
+    """
+    from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
+
+    async def transcribe_handler(
+        request_body: Dict[str, Any] = Body(..., description="Transcription request matching the audio/transcribe tool_schema."),
+        request: Request = None,
+        user=Depends(get_current_user_or_api_key),
+        cache_service: CacheService = Depends(get_cache_service),
+        directus_service: DirectusService = Depends(get_directus_service),
+    ) -> SkillResponse:
+        """
+        Transcribe an audio recording that has been uploaded to S3.
+
+        The recording must already be encrypted and stored in S3.  Pass the S3 location
+        and AES-256-GCM decryption keys in the ``requests`` array.  The skill fetches,
+        decrypts, and sends the audio to Mistral Voxtral for transcription.
+
+        Credits are charged based on audio duration (3 credits/min, 1-min minimum).
+
+        Supports both session authentication (webapp) and API key authentication (external).
+        """
+        # Extract user_id from the User object returned by get_current_user_or_api_key.
+        # Works for both session auth (User.id) and API key auth (User.id from profile fetch).
+        user_id = user.id if hasattr(user, "id") else str(user)
+
+        try:
+            logger.info(f"Audio transcribe: User {user_id[:8]}... initiating transcription")
+
+            # Resolve the user's Vault Transit key ID so the transcribe skill can unwrap
+            # vault_wrapped_aes_key without needing the plaintext aes_key from the client.
+            # This closes a security asymmetry where audio was the only file type receiving
+            # a plaintext AES key — images and PDFs already use vault_wrapped_aes_key.
+            vault_key_id = await cache_service.get_user_vault_key_id(user_id)
+            if not vault_key_id:
+                logger.debug(f"vault_key_id not in cache for user {user_id[:8]}..., fetching from Directus")
+                user_profile_result = await directus_service.users.get_user_profile(user_id)
+                if user_profile_result and user_profile_result[1]:
+                    vault_key_id = user_profile_result[1].get("vault_key_id")
+                    if vault_key_id:
+                        await cache_service.update_user(user_id, {"vault_key_id": vault_key_id})
+
+            if not vault_key_id:
+                logger.error(f"Audio transcribe: vault_key_id not found for user {user_id[:8]}...")
+                raise HTTPException(status_code=500, detail="Cannot resolve encryption key for transcription")
+
+            # Inject vault_key_id into the request body using the framework's standard
+            # context field name (_user_vault_key_id). The base_app.py skill execution
+            # framework reads this and passes it as user_vault_key_id kwarg to execute().
+            request_body["_user_vault_key_id"] = vault_key_id
+
+            # Build a user_info dict compatible with call_app_skill's expectations.
+            # api_key_encrypted_name and api_key_hash are not available for session auth —
+            # use empty string / None as safe defaults.  The transcribe skill ignores them.
+            user_info = {
+                "user_id": user_id,
+                "api_key_encrypted_name": "",
+                "api_key_hash": None,
+                "device_hash": None,
+            }
+
+            result = await call_app_skill(
+                app_id="audio",
+                skill_id="transcribe",
+                input_data=request_body,
+                parameters={},
+                user_info=user_info,
+            )
+
+            return SkillResponse(
+                success=True,
+                data=result,
+                credits_charged=None,  # Charged inside TranscribeSkill.execute()
+            )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(
+                f"Audio transcribe error for user {user_id[:8]}...: {e}",
+                exc_info=True,
+            )
+            return SkillResponse(success=False, error=f"Transcription failed: {str(e)}")
+
+    # Register the endpoint without ApiKeyAuth dependency — auth is handled inside the handler
+    # via get_current_user_or_api_key, which accepts both session cookies and API keys.
+    app.add_api_route(
+        path="/v1/apps/audio/skills/transcribe",
+        endpoint=limiter.limit("30/minute")(transcribe_handler),
+        methods=["POST"],
+        response_model=SkillResponse,
+        tags=[f"Apps | {app_name.capitalize()}"],
+        name="audio_transcribe",
+        summary="Transcribe audio recording",
+        description=(
+            "Transcribe an encrypted audio recording stored in S3 using Mistral Voxtral Mini. "
+            "Pass the S3 location and AES-256-GCM decryption keys in the 'requests' array. "
+            "Credits are charged based on audio duration (3 credits/min, 1-min minimum). "
+            "Supports both session and API key authentication."
+        ),
+    )
+    logger.info("Registered custom route: POST /v1/apps/audio/skills/transcribe")
+
+
 def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYAML]):
     """
     Dynamically register explicit routes for each app and each skill.
@@ -1444,6 +1581,14 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
             
             return get_app_handler
         
+        # Determine whether this app should be visible in the OpenAPI docs.
+        # Apps with expose_in_api=False (e.g., images) rely on zero-knowledge encryption
+        # or other client-side crypto flows that cannot be executed via a stateless REST
+        # call. Their endpoints are still registered so the server can route requests, but
+        # they are hidden from /docs to avoid misleading REST API consumers.
+        expose_in_api = getattr(app_metadata, 'expose_in_api', True)
+        include_in_schema = expose_in_api
+
         # Register GET /v1/apps/{app_id} endpoint
         handler = create_get_app_handler(app_id, app_metadata)
         # Apply rate limiting and add security requirement
@@ -1457,7 +1602,8 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
             name=f"get_app_{app_id}",
             summary=f"Get metadata for {app_name}",
             description=f"Get metadata for the {app_name} app. {app_description}".strip(),
-            dependencies=[ApiKeyAuth]  # Mark endpoint as requiring API key
+            dependencies=[ApiKeyAuth],  # Mark endpoint as requiring API key
+            include_in_schema=include_in_schema,  # Hide from /docs when expose_in_api=False
         )
         
         # Register routes for each skill in the app
@@ -1537,21 +1683,57 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             full_module_path = module_path
                         skill_module = importlib.import_module(full_module_path)
                         
-                        # Look for Request and Response models in the module
-                        # Common patterns: SearchRequest/SearchResponse, ReadRequest/ReadResponse, etc.
-                        # Include skill-specific names like GetDocsRequest for get_docs skill
-                        # Also include AI-specific models: AskSkillRequest, OpenAICompletionRequest
-                        for model_name in ['OpenAICompletionRequest', 'AskSkillRequest', 'SearchRequest', 'ReadRequest', 'TranscriptRequest', 'GetDocsRequest', 'ImageGenerationRequest', 'Request']:
-                            if hasattr(skill_module, model_name):
-                                SkillRequestModel = getattr(skill_module, model_name)
-                                logger.debug(f"Found request model '{model_name}' for skill {captured_app_id}/{captured_skill.id}")
-                                break
+                        # Generic model discovery: scan all module attributes for Pydantic
+                        # BaseModel subclasses whose names end with "Request" or "Response".
+                        # This replaces the previous hardcoded lookup list, ensuring that
+                        # any new skill that follows the naming convention (e.g.,
+                        # ShareUsecaseRequest, SetReminderResponse) is automatically
+                        # discovered without code changes here.
+                        #
+                        # Priority order for Request models:
+                        #   1. OpenAICompletionRequest (special AI ask format)
+                        #   2. Any class ending with "Request" (e.g., SearchRequest, SetReminderRequest)
+                        # Priority order for Response models:
+                        #   1. OpenAICompletionResponse (special AI ask format)
+                        #   2. Any class ending with "Response" but NOT the base SkillResponse/skill's own wrapper
                         
-                        for model_name in ['OpenAICompletionResponse', 'AskSkillResponse', 'SearchResponse', 'ReadResponse', 'TranscriptResponse', 'GetDocsResponse', 'ImageGenerationResponse', 'Response']:
-                            if hasattr(skill_module, model_name):
-                                SkillResponseModel = getattr(skill_module, model_name)
-                                logger.debug(f"Found response model '{model_name}' for skill {captured_app_id}/{captured_skill.id}")
-                                break
+                        request_candidates = []
+                        response_candidates = []
+                        
+                        for attr_name in dir(skill_module):
+                            attr = getattr(skill_module, attr_name, None)
+                            # Only consider classes that are Pydantic BaseModel subclasses
+                            # and defined in THIS module (not imports from base_skill etc.)
+                            if (attr is not None
+                                    and isinstance(attr, type)
+                                    and issubclass(attr, BaseModel)
+                                    and attr is not BaseModel
+                                    and getattr(attr, '__module__', '') == full_module_path):
+                                if attr_name.endswith('Request'):
+                                    request_candidates.append(attr_name)
+                                elif attr_name.endswith('Response'):
+                                    response_candidates.append(attr_name)
+                        
+                        # Select the best request model:
+                        # Prefer OpenAICompletionRequest for AI ask, otherwise take the first *Request
+                        if 'OpenAICompletionRequest' in request_candidates:
+                            SkillRequestModel = getattr(skill_module, 'OpenAICompletionRequest')
+                            logger.debug(f"Found request model 'OpenAICompletionRequest' for skill {captured_app_id}/{captured_skill.id}")
+                        elif request_candidates:
+                            # Pick the most specific one (prefer AskSkillRequest over generic Request)
+                            chosen = request_candidates[0]
+                            SkillRequestModel = getattr(skill_module, chosen)
+                            logger.debug(f"Found request model '{chosen}' for skill {captured_app_id}/{captured_skill.id}")
+                        
+                        # Select the best response model:
+                        # Prefer OpenAICompletionResponse for AI ask, otherwise take the first *Response
+                        if 'OpenAICompletionResponse' in response_candidates:
+                            SkillResponseModel = getattr(skill_module, 'OpenAICompletionResponse')
+                            logger.debug(f"Found response model 'OpenAICompletionResponse' for skill {captured_app_id}/{captured_skill.id}")
+                        elif response_candidates:
+                            chosen = response_candidates[0]
+                            SkillResponseModel = getattr(skill_module, chosen)
+                            logger.debug(f"Found response model '{chosen}' for skill {captured_app_id}/{captured_skill.id}")
                                 
                     except Exception as e:
                         logger.warning(f"Could not import models from skill module {captured_skill.class_path}: {e}")
@@ -1736,7 +1918,9 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 else:
                                     units_processed = 1
                                 
-                                # Charge credits via internal API (this also creates usage entry)
+                                # Charge credits via internal API — one call per request.
+                                # This creates one usage entry per request instead of one combined
+                                # entry, so users can see individual requests in the usage detail view.
                                 if credits_charged > 0:
                                     # Create user_id_hash for privacy
                                     user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
@@ -1744,27 +1928,35 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     # Resolve provider info for usage tracking
                                     provider_info = resolve_skill_provider_info(captured_skill, captured_app_id, get_config_manager(request))
                                     
-                                    # Create usage details (matching format from main_processor.py)
-                                    usage_details = {
-                                        "api_key_name": user_info.get('api_key_encrypted_name'),
-                                        "external_request": True,
-                                        "units_processed": units_processed,  # Number of requests processed
-                                        "model_used": provider_info["model_used"],
-                                        "server_provider": provider_info["server_provider"],
-                                        "server_region": provider_info["server_region"],
-                                    }
+                                    # Calculate per-request credits (distribute evenly, remainder on last)
+                                    per_request_credits = credits_charged // units_processed if units_processed > 0 else credits_charged
+                                    credits_remainder = credits_charged - (per_request_credits * units_processed)
                                     
-                                    # Charge credits (this happens asynchronously and won't block the response)
-                                    await charge_credits_via_internal_api(
-                                        user_id=user_info['user_id'],
-                                        user_id_hash=user_id_hash,
-                                        credits=credits_charged,
-                                        app_id=captured_app_id,
-                                        skill_id=captured_skill.id,
-                                        usage_details=usage_details,
-                                        api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
-                                        device_hash=user_info.get('device_hash'),  # Device hash for tracking
-                                    )
+                                    for i in range(units_processed):
+                                        request_credits = per_request_credits + (credits_remainder if i == units_processed - 1 else 0)
+                                        if request_credits <= 0:
+                                            continue
+                                        
+                                        # Each individual request gets units_processed=1 in usage details
+                                        usage_details = {
+                                            "api_key_name": user_info.get('api_key_encrypted_name'),
+                                            "external_request": True,
+                                            "units_processed": 1,  # One entry per request
+                                            "model_used": provider_info["model_used"],
+                                            "server_provider": provider_info["server_provider"],
+                                            "server_region": provider_info["server_region"],
+                                        }
+                                        
+                                        await charge_credits_via_internal_api(
+                                            user_id=user_info['user_id'],
+                                            user_id_hash=user_id_hash,
+                                            credits=request_credits,
+                                            app_id=captured_app_id,
+                                            skill_id=captured_skill.id,
+                                            usage_details=usage_details,
+                                            api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
+                                            device_hash=user_info.get('device_hash'),  # Device hash for tracking
+                                        )
                             
                             # Parse result into the skill's response model for proper typing
                             try:
@@ -2179,7 +2371,9 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 else:
                                     units_processed = 1
                                 
-                                # Charge credits via internal API (this also creates usage entry)
+                                # Charge credits via internal API — one call per request.
+                                # This creates one usage entry per request instead of one combined
+                                # entry, so users can see individual requests in the usage detail view.
                                 if credits_charged > 0:
                                     # Create user_id_hash for privacy
                                     user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
@@ -2187,27 +2381,35 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     # Resolve provider info for usage tracking
                                     provider_info = resolve_skill_provider_info(captured_skill, captured_app_id, get_config_manager(request))
                                     
-                                    # Create usage details (matching format from main_processor.py)
-                                    usage_details = {
-                                        "api_key_name": user_info.get('api_key_encrypted_name'),
-                                        "external_request": True,
-                                        "units_processed": units_processed,  # Number of requests processed
-                                        "model_used": provider_info["model_used"],
-                                        "server_provider": provider_info["server_provider"],
-                                        "server_region": provider_info["server_region"],
-                                    }
+                                    # Calculate per-request credits (distribute evenly, remainder on last)
+                                    per_request_credits = credits_charged // units_processed if units_processed > 0 else credits_charged
+                                    credits_remainder = credits_charged - (per_request_credits * units_processed)
                                     
-                                    # Charge credits (this happens asynchronously and won't block the response)
-                                    await charge_credits_via_internal_api(
-                                        user_id=user_info['user_id'],
-                                        user_id_hash=user_id_hash,
-                                        credits=credits_charged,
-                                        app_id=captured_app_id,
-                                        skill_id=captured_skill.id,
-                                        usage_details=usage_details,
-                                        api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
-                                        device_hash=user_info.get('device_hash'),  # Device hash for tracking
-                                    )
+                                    for i in range(units_processed):
+                                        request_credits = per_request_credits + (credits_remainder if i == units_processed - 1 else 0)
+                                        if request_credits <= 0:
+                                            continue
+                                        
+                                        # Each individual request gets units_processed=1 in usage details
+                                        usage_details = {
+                                            "api_key_name": user_info.get('api_key_encrypted_name'),
+                                            "external_request": True,
+                                            "units_processed": 1,  # One entry per request
+                                            "model_used": provider_info["model_used"],
+                                            "server_provider": provider_info["server_provider"],
+                                            "server_region": provider_info["server_region"],
+                                        }
+                                        
+                                        await charge_credits_via_internal_api(
+                                            user_id=user_info['user_id'],
+                                            user_id_hash=user_id_hash,
+                                            credits=request_credits,
+                                            app_id=captured_app_id,
+                                            skill_id=captured_skill.id,
+                                            usage_details=usage_details,
+                                            api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
+                                            device_hash=user_info.get('device_hash'),  # Device hash for tracking
+                                        )
                             
                             return SkillResponse(
                                 success=True,
@@ -2227,20 +2429,43 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                 return post_skill_handler
             
             # Register GET /v1/apps/{app_id}/skills/{skill_id} endpoint
-            get_handler = create_get_skill_handler(app_id, skill, app_metadata)
-            app.add_api_route(
-                path=f"/v1/apps/{app_id}/skills/{skill.id}",
-                endpoint=limiter.limit("60/minute")(get_handler),
-                methods=["GET"],
-                response_model=SkillMetadata,
-                tags=[f"Apps | {app_name.capitalize()}"],  # Use "Apps | {AppName}" tag for better organization (capitalized)
-                name=f"get_skill_{app_id}_{skill.id}",
-                summary=f"Get metadata for {skill_name}",
-                description=f"Get metadata for the {skill_name} skill including pricing information. Requires API key authentication.",
-                dependencies=[ApiKeyAuth]  # Mark endpoint as requiring API key
-            )
+            # Respect api_config.expose_get — some skills (e.g., share-usecase) are
+            # POST-only and should not expose a GET metadata endpoint.
+            should_expose_get = True
+            if skill.api_config and not skill.api_config.expose_get:
+                should_expose_get = False
+                logger.info(f"Skipping GET endpoint for skill {app_id}/{skill.id} (api_config.expose_get=false)")
+            
+            if should_expose_get:
+                get_handler = create_get_skill_handler(app_id, skill, app_metadata)
+                app.add_api_route(
+                    path=f"/v1/apps/{app_id}/skills/{skill.id}",
+                    endpoint=limiter.limit("60/minute")(get_handler),
+                    methods=["GET"],
+                    response_model=SkillMetadata,
+                    tags=[f"Apps | {app_name.capitalize()}"],  # Use "Apps | {AppName}" tag for better organization (capitalized)
+                    name=f"get_skill_{app_id}_{skill.id}",
+                    summary=f"Get metadata for {skill_name}",
+                    description=f"Get metadata for the {skill_name} skill including pricing information. Requires API key authentication.",
+                    dependencies=[ApiKeyAuth],  # Mark endpoint as requiring API key
+                    include_in_schema=include_in_schema,  # Hide from /docs when app has expose_in_api=False
+                )
             
             # Register POST /v1/apps/{app_id}/skills/{skill_id} endpoint
+            # Respect api_config.expose_post — some skills (e.g., images/generate) require
+            # client-side encryption flows (WebSocket + browser crypto) and cannot be executed
+            # meaningfully via a stateless REST API call. Their POST endpoint is intentionally
+            # omitted from /docs to avoid misleading REST API consumers.
+            # The GET metadata endpoint remains so developers know the skill exists.
+            should_expose_post = True
+            if skill.api_config and not skill.api_config.expose_post:
+                should_expose_post = False
+                logger.info(f"Skipping POST endpoint for skill {app_id}/{skill.id} (api_config.expose_post=false)")
+
+            if not should_expose_post:
+                logger.info(f"Registered routes for skill: GET /v1/apps/{app_id}/skills/{skill.id} (POST omitted)")
+                continue
+
             post_handler = create_post_skill_handler(app_id, skill, app_metadata)
             
             # Determine response model - check if handler uses a custom response model
@@ -2280,7 +2505,8 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                 name=f"execute_skill_{app_id}_{skill.id}",
                 summary=f"Execute {skill_name}",
                 description=f"Execute the {skill_name} skill. The skill will be executed, billed, and a usage entry will be created automatically. Requires API key authentication.",
-                dependencies=[ApiKeyAuth]  # Mark endpoint as requiring API key
+                dependencies=[ApiKeyAuth],  # Mark endpoint as requiring API key
+                include_in_schema=include_in_schema,  # Hide from /docs when app has expose_in_api=False
             )
             
             logger.info(f"Registered routes for skill: GET/POST /v1/apps/{app_id}/skills/{skill.id}")
@@ -2288,5 +2514,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
         # Register app-specific custom endpoints (non-skill routes)
         if app_id == "travel":
             _register_travel_custom_routes(app, app_name)
+        if app_id == "audio":
+            _register_audio_custom_routes(app, app_name)
         
         logger.info(f"Registered routes for app: GET /v1/apps/{app_id}")

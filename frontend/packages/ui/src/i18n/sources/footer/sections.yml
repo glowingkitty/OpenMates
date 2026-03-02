@@ -20,6 +20,7 @@ website:
   th: ''
   cs: ''
   sv: ''
+  he: אתר
   verified_by_human: []
 for_everyone:
   context: Footer link text for general audience section
@@ -43,6 +44,7 @@ for_everyone:
   th: ''
   cs: ''
   sv: ''
+  he: לכולנו
   verified_by_human: []
 for_developers:
   context: Footer link text for developer section
@@ -66,6 +68,7 @@ for_developers:
   th: ''
   cs: ''
   sv: ''
+  he: למפתחים
   verified_by_human: []
 webapp:
   context: Footer link text for web app section
@@ -89,6 +92,7 @@ webapp:
   th: ''
   cs: ''
   sv: ''
+  he: אפליקציית ווב
   verified_by_human: []
 docs:
   context: Footer section title for documentation
@@ -112,6 +116,7 @@ docs:
   th: ''
   cs: ''
   sv: ''
+  he: תיעוד
   verified_by_human: []
 user_guide:
   context: Footer link text for user guide
@@ -135,6 +140,7 @@ user_guide:
   th: ''
   cs: ''
   sv: ''
+  he: מדריך למשתמש
   verified_by_human: []
 api_docs:
   context: Footer link text for API documentation
@@ -158,6 +164,7 @@ api_docs:
   th: ''
   cs: ''
   sv: ''
+  he: תיעוד API
   verified_by_human: []
 roadmap:
   context: Footer link text for roadmap
@@ -181,6 +188,7 @@ roadmap:
   th: ''
   cs: ''
   sv: ''
+  he: מפת דרכים
   verified_by_human: []
 design_guidelines:
   context: Footer link text for design guidelines
@@ -204,6 +212,7 @@ design_guidelines:
   th: ''
   cs: ''
   sv: ''
+  he: הנחיות עיצוב
   verified_by_human: []
 legal:
   context: Legal section header
@@ -227,6 +236,7 @@ legal:
   th: ''
   cs: ''
   sv: ''
+  he: משפטי
   verified_by_human: []
 contact:
   context: Contact section header
@@ -250,6 +260,7 @@ contact:
   th: ''
   cs: ''
   sv: ''
+  he: צור קשר
   verified_by_human: []
 imprint:
   context: Legal imprint link
@@ -273,6 +284,7 @@ imprint:
   th: ''
   cs: ''
   sv: ''
+  he: פרטי העסק
   verified_by_human: []
 privacy:
   context: Privacy policy link
@@ -296,6 +308,7 @@ privacy:
   th: ''
   cs: ''
   sv: ''
+  he: פרטיות
   verified_by_human: []
 terms_and_conditions:
   context: Terms and conditions link
@@ -319,6 +332,7 @@ terms_and_conditions:
   th: ''
   cs: ''
   sv: ''
+  he: תנאי שימוש
   verified_by_human: []
 discord:
   context: Discord contact link
@@ -342,6 +356,7 @@ discord:
   th: ''
   cs: ''
   sv: ''
+  he: Discord
   verified_by_human: []
 email:
   context: Email contact link
@@ -365,6 +380,7 @@ email:
   th: ''
   cs: ''
   sv: ''
+  he: אימייל
   verified_by_human: []
 instagram:
   context: Instagram link in footer
@@ -388,6 +404,7 @@ instagram:
   th: ''
   cs: ''
   sv: ''
+  he: Instagram
   verified_by_human: []
 github:
   context: GitHub link in footer
@@ -411,4 +428,5 @@ github:
   th: ''
   cs: ''
   sv: ''
+  he: GitHub
   verified_by_human: []

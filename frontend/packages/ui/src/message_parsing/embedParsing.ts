@@ -18,10 +18,17 @@ function mapEmbedReferenceType(embedType: string): string {
     video: "videos-video", // YouTube and other video embeds
     place: "maps-place",
     event: "maps-event",
+    // User-pinned map location (sent as {"type":"location","embed_id":"..."} by the client)
+    location: "maps",
     code: "code-code",
     sheet: "sheets-sheet",
     document: "docs-doc",
     file: "file",
+    // Audio recording embeds: serialized as "audio-recording" by sendHandlers/serializers,
+    // but the TipTap node type and renderer are registered as "recording".
+    "audio-recording": "recording",
+    // Math plot embeds: auto-detected from ```plot ... ``` code blocks by stream_consumer.py
+    "math-plot": "math-plot",
   };
 
   return typeMap[embedType] || embedType;
@@ -234,12 +241,12 @@ export function parseEmbedNodes(
 
               // Copy query if present (for search skills)
               if (embedRef.query) {
-                (embedAttrs as any).query = embedRef.query;
+                embedAttrs.query = embedRef.query;
               }
 
               // Copy provider if present (for search skills)
               if (embedRef.provider) {
-                (embedAttrs as any).provider = embedRef.provider;
+                embedAttrs.provider = embedRef.provider;
               }
 
               // Copy focus mode metadata if present (for focus_mode_activation embeds)

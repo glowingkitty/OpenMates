@@ -9,6 +9,7 @@ settings_and_memories:
   - id: trips
     name_translation_key: travel.trips
     description_translation_key: travel.trips.description
+    icon_image: travel.svg
     type: list
     stage: production
     example_translation_keys:
@@ -40,6 +41,7 @@ settings_and_memories:
   - id: preferred_airlines
     name_translation_key: travel.preferred_airlines
     description_translation_key: travel.preferred_airlines.description
+    icon_image: travel.svg
     type: list
     stage: production
     example_translation_keys:
@@ -59,6 +61,7 @@ settings_and_memories:
   - id: preferred_transport_methods
     name_translation_key: travel.preferred_transport_methods
     description_translation_key: travel.preferred_transport_methods.description
+    icon_image: travel.svg
     type: list
     stage: production
     example_translation_keys:
@@ -87,6 +90,7 @@ settings_and_memories:
   - id: preferred_activities
     name_translation_key: travel.preferred_activities
     description_translation_key: travel.preferred_activities.description
+    icon_image: planning.svg
     type: list
     stage: production
     example_translation_keys:
@@ -107,6 +111,7 @@ skills:
   - id: search_connections
     name_translation_key: app_skills.travel.search_connections
     description_translation_key: app_skills.travel.search_connections.description
+    icon_image: travel.svg
     preprocessor_hint: >
       Search specific flight/train connections for a particular date with details (airlines, times, stops, durations).
       Use when user specifies an exact travel date. Costs 25 credits per search.
@@ -234,6 +239,7 @@ skills:
   - id: search_stays
     name_translation_key: app_skills.travel.search_stays
     description_translation_key: app_skills.travel.search_stays.description
+    icon_image: home.svg
     stage: production
     class_path: backend.apps.travel.skills.search_stays.SearchStaysSkill
     pricing:

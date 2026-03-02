@@ -180,10 +180,24 @@ async def get_youtube_metadata_post(
         )
         
     except YouTubeServiceError as e:
-        logger.warning(f"[YouTube] Service error for {url[:50]}...: {e.message}")
+        # Log quota exhaustion and rate-limit hits at a distinct level so they
+        # stand out in monitoring. Both are expected/recoverable — the frontend
+        # will fall back to a static (thumbnail-only) embed automatically.
+        if e.status_code == 503:
+            logger.error(
+                f"[YouTube] QUOTA_EXHAUSTED or API unavailable for {url[:80]!r} — "
+                f"returning 503, client falls back to static embed: {e.message}"
+            )
+        elif e.status_code == 429:
+            logger.warning(
+                f"[YouTube] RATE_LIMIT hit for {url[:80]!r} — "
+                f"returning 429, client falls back to static embed: {e.message}"
+            )
+        else:
+            logger.warning(f"[YouTube] Service error ({e.status_code}) for {url[:80]!r}: {e.message}")
         raise HTTPException(status_code=e.status_code, detail=e.message)
     except Exception as e:
-        logger.error(f"[YouTube] Unexpected error for {url[:50]}...: {e}", exc_info=True)
+        logger.error(f"[YouTube] Unexpected error for {url[:80]!r}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 

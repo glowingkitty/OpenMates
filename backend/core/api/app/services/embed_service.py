@@ -6,6 +6,9 @@ import logging
 import json
 import hashlib
 import uuid
+import random
+import string
+import re
 from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime
 
@@ -419,9 +422,13 @@ class EmbedService:
             # Generate embed_id for placeholder
             embed_id = str(uuid.uuid4())
 
-            # Create minimal placeholder content with language and filename
+            # Create minimal placeholder content with language and filename.
+            # app_id and skill_id are included so the frontend can index this embed
+            # under the "code" app in IndexedDB, making it visible in My Embeds.
             placeholder_content = {
                 "type": "code",
+                "app_id": "code",
+                "skill_id": "code",
                 "language": language or "",
                 "code": "",  # Empty initially, will be updated as code streams
                 "filename": filename,
@@ -552,9 +559,13 @@ class EmbedService:
             # Create updated content with new code
             # Calculate line count for display (count all lines including empty ones)
             line_count = code_content.count('\n') + 1 if code_content else 0
-            
+
+            # app_id / skill_id are preserved across updates so the embed remains
+            # visible in My Embeds under the "code" app after finalization.
             updated_content = {
                 "type": "code",
+                "app_id": "code",
+                "skill_id": "code",
                 "language": language,
                 "code": code_content,
                 "filename": filename,
@@ -666,9 +677,13 @@ class EmbedService:
 
             embed_id = str(uuid.uuid4())
 
-            # Placeholder content — table markdown will be accumulated as rows stream
+            # Placeholder content — table markdown will be accumulated as rows stream.
+            # app_id and skill_id are included so the frontend can index this embed
+            # under the "sheets" app in IndexedDB, making it visible in My Embeds.
             placeholder_content = {
                 "type": "sheet",
+                "app_id": "sheets",
+                "skill_id": "sheet",
                 "table": "",           # Raw markdown table, accumulated row by row
                 "title": title or "",
                 "status": "processing",
@@ -779,8 +794,12 @@ class EmbedService:
                     except Exception:
                         title = ""
 
+            # app_id / skill_id are preserved across updates so the embed remains
+            # visible in My Embeds under the "sheets" app after finalization.
             updated_content = {
                 "type": "sheet",
+                "app_id": "sheets",
+                "skill_id": "sheet",
                 "table": table_content,
                 "title": title or "",
                 "status": status,
@@ -845,6 +864,193 @@ class EmbedService:
             return False
 
     # =========================================================================
+    # Math plot embed methods (for ```plot ... ``` fenced blocks)
+    # Mirrors the table embed pattern but uses type="math-plot" with expression content.
+    # Created by stream_consumer.py when the LLM outputs a ```plot\nf(x)=...\n``` block.
+    # =========================================================================
+
+    async def create_plot_embed_placeholder(
+        self,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        log_prefix: str = ""
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a "processing" math-plot embed placeholder when a ```plot block starts.
+        Mirrors create_table_embed_placeholder() but for type="math-plot".
+
+        The embed will be updated with the full expression content once the closing
+        ``` fence is received, then finalized to "finished" status.
+
+        Returns:
+            Dictionary with embed_id and embed_reference, or None on failure.
+        """
+        try:
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+
+            embed_id = str(uuid.uuid4())
+
+            # Placeholder content — plot_spec will be filled in when the closing fence arrives.
+            # app_id and skill_id are included so the frontend can index this embed
+            # under the "math" app in IndexedDB, making it visible in My Embeds.
+            placeholder_content = {
+                "type": "math-plot",
+                "app_id": "math",
+                "skill_id": "plot",
+                "plot_spec": "",   # Raw expression from the plot block, filled in at finalization
+                "status": "processing",
+            }
+
+            placeholder_toon = encode(placeholder_content)
+
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                placeholder_toon,
+                user_vault_key_id
+            )
+
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "math-plot",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "status": "processing",
+                "hashed_user_id": user_id_hash,
+                "is_private": False,
+                "is_shared": False,
+                "encryption_mode": "client",
+                "embed_ids": None,
+                "encrypted_content": encrypted_content,
+                "created_at": int(datetime.now().timestamp()),
+                "updated_at": int(datetime.now().timestamp())
+            }
+
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+            # Send plaintext TOON to client immediately so it can render the placeholder
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="math-plot",
+                content_toon=placeholder_toon,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="processing",
+                task_id=task_id,
+                is_private=False,
+                is_shared=False,
+                created_at=embed_data["created_at"],
+                updated_at=embed_data["updated_at"],
+                log_prefix=log_prefix
+            )
+
+            logger.info(f"{log_prefix} Created processing math-plot embed placeholder {embed_id}")
+
+            embed_reference = json.dumps({
+                "type": "math-plot",
+                "embed_id": embed_id
+            })
+
+            return {
+                "embed_id": embed_id,
+                "embed_reference": embed_reference
+            }
+
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating math-plot embed placeholder: {e}", exc_info=True)
+            return None
+
+    async def update_plot_embed_content(
+        self,
+        embed_id: str,
+        expression: str,
+        chat_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        status: str = "finished",
+        log_prefix: str = ""
+    ) -> bool:
+        """
+        Update math-plot embed content with the expression from the plot block.
+        Called once when the closing ``` fence is received.
+
+        Args:
+            embed_id:          The embed to update.
+            expression:        The full expression text from between the ```plot fences.
+            status:            "finished" when the block is complete.
+        """
+        try:
+            cached_embed = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+            if not cached_embed:
+                logger.warning(f"{log_prefix} Math-plot embed {embed_id} not found in cache, cannot update")
+                return False
+
+            # app_id / skill_id are preserved across updates so the embed remains
+            # visible in My Embeds under the "math" app after finalization.
+            updated_content = {
+                "type": "math-plot",
+                "app_id": "math",
+                "skill_id": "plot",
+                "plot_spec": expression,
+                "status": status,
+            }
+
+            updated_toon = encode(updated_content)
+
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                updated_toon,
+                user_vault_key_id
+            )
+
+            updated_embed_data = {
+                **cached_embed,
+                "encrypted_content": encrypted_content,
+                "status": status,
+                "updated_at": int(datetime.now().timestamp())
+            }
+
+            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="math-plot",
+                content_toon=updated_toon,
+                chat_id=chat_id,
+                message_id=cached_embed.get("message_id", ""),
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status=status,
+                task_id=cached_embed.get("hashed_task_id"),
+                is_private=cached_embed.get("is_private", False),
+                is_shared=cached_embed.get("is_shared", False),
+                created_at=cached_embed.get("created_at"),
+                updated_at=updated_embed_data["updated_at"],
+                log_prefix=log_prefix,
+                check_cache_status=False
+            )
+
+            logger.info(f"{log_prefix} Updated math-plot embed {embed_id} (expr len={len(expression)}, status: {status})")
+
+            if status == "finished":
+                self._schedule_embed_persistence_fallback(embed_id)
+
+            return True
+
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating math-plot embed content: {e}", exc_info=True)
+            return False
+
+    # =========================================================================
     # Document embed methods (for document_html fenced blocks)
     # Mirrors the code embed pattern but uses type="document" with HTML content
     # =========================================================================
@@ -890,9 +1096,13 @@ class EmbedService:
             # Generate embed_id for placeholder
             embed_id = str(uuid.uuid4())
 
-            # Create minimal placeholder content for document embed
+            # Create minimal placeholder content for document embed.
+            # app_id and skill_id are included so the frontend can index this embed
+            # under the "docs" app in IndexedDB, making it visible in My Embeds.
             placeholder_content = {
                 "type": "document",
+                "app_id": "docs",
+                "skill_id": "document",
                 "html": "",  # Empty initially, will be updated as HTML streams
                 "title": title,
                 "status": "processing",
@@ -1020,9 +1230,13 @@ class EmbedService:
             text_content = re.sub(r'<[^>]+>', ' ', html_content)
             word_count = len(text_content.split()) if text_content.strip() else 0
 
-            # Create updated content with new HTML
+            # Create updated content with new HTML.
+            # app_id / skill_id are preserved across updates so the embed remains
+            # visible in My Embeds under the "docs" app after finalization.
             updated_content = {
                 "type": "document",
+                "app_id": "docs",
+                "skill_id": "document",
                 "html": html_content,
                 "title": title,
                 "status": status,
@@ -1381,45 +1595,496 @@ class EmbedService:
             logger.error(f"{log_prefix} Error retrieving embed {embed_id} from cache: {e}", exc_info=True)
             return None
 
+    # ---- Fields to strip from embed TOON before showing to LLM ----
+    # These are cryptographic and infrastructure details that the LLM doesn't
+    # need for reasoning. The images-view skill resolves them server-side by
+    # embed_ref (filepath/filename). Stripping them also prevents the plaintext
+    # aes_key (used only by the client for local decryption) from ever entering
+    # the LLM context.
+    _TOON_LLM_STRIP_FIELDS = frozenset({
+        "aes_key",               # Plaintext AES key — client-only, never for LLM
+        "vault_wrapped_aes_key", # Opaque Vault ciphertext — resolved server-side
+        "aes_nonce",             # AES-GCM nonce — resolved server-side
+        "s3_base_url",           # S3 bucket URL — resolved server-side
+        "files",                 # Nested s3_key per variant — resolved server-side
+        "content_hash",          # Internal dedup hash — not useful for LLM
+    })
+
+    def _filter_toon_for_llm(
+        self, toon_content: str, embed_id: str, log_prefix: str = "",
+        seen_embed_refs: Optional[Dict[str, int]] = None,
+    ) -> Tuple[str, Optional[str]]:
+        """
+        Filter a TOON-encoded embed content string for LLM consumption.
+
+        Decodes the TOON, strips cryptographic/infrastructure fields that the
+        LLM doesn't need, injects ``embed_ref`` (a human-readable filepath or
+        filename) instead of the raw UUID ``embed_id``, and re-encodes to TOON.
+
+        The ``embed_ref`` is what the LLM uses as the argument to skills like
+        ``images-view``.  The server maps ``embed_ref → embed_id`` via the
+        ``embed_file_path_index`` built during resolution.
+
+        Returns a tuple ``(filtered_toon, embed_ref)``:
+          - ``filtered_toon``: the TOON string safe for LLM context
+          - ``embed_ref``: the human-readable reference injected (or ``None``
+            if this embed type does not get an embed_ref injection)
+
+        For image upload embeds (app_id="images", skill_id="upload"), the LLM
+        sees only:
+          - embed_ref, app_id, skill_id, type, status
+          - filename (uploaded images)
+          - ai_detection (uploaded images — sightengine scan result)
+          - prompt, model, aspect_ratio, output_filetype, generated_at (generated images)
+
+        If decoding/re-encoding fails, returns the original TOON unchanged
+        to avoid data loss.
+
+        Args:
+            toon_content: Raw TOON string from the embed cache.
+            embed_id: The embed's UUID (used for Redis lookup; NOT shown to LLM).
+            log_prefix: Logging prefix.
+            seen_embed_refs: Mutable dict tracking embed_refs already assigned in
+                this resolution pass, used to deduplicate filenames across multiple
+                embeds with the same name.  Key: base embed_ref, value: count seen
+                so far.  Pass the same dict for every call within one resolution
+                pass so duplicates receive a ``(2)``, ``(3)`` suffix.
+
+        Returns:
+            Tuple of (filtered_toon, embed_ref):
+              - filtered_toon: TOON string safe for LLM context
+              - embed_ref: the human-readable reference injected into the TOON
+                (e.g. "my_photo.jpg"), or None if this embed type is not given
+                an embed_ref (passes through unchanged).
+        """
+        try:
+            decoded = decode(toon_content)
+            if not isinstance(decoded, dict):
+                # Non-dict TOON (unusual) — return as-is, no embed_ref
+                return toon_content, None
+
+            # Route to type-specific filtering logic.
+            #
+            # IMPORTANT: We must NOT filter app_skill_use embeds that wrap an images.view
+            # result (app_id="images", skill_id="view"). Those embeds are tracking
+            # placeholders whose embed_id is an internal task reference — NOT the crypto
+            # address of the image. Injecting their embed_id would mislead the LLM into
+            # calling images.view with the wrong ID (the placeholder's UUID instead of the
+            # upload's UUID), causing the skill to fail with "missing vault_wrapped_aes_key".
+            app_id = decoded.get("app_id")
+            skill_id = decoded.get("skill_id")
+            embed_type = decoded.get("type")
+
+            if embed_type == "audio-recording":
+                # Audio recording embeds: the LLM only needs the transcript for context
+                # and a minimal set of fields to let it target the recording in downstream
+                # skills (e.g. re-transcription, audio processing).
+                #
+                # Kept:
+                #   embed_ref     — human-readable filename so the LLM can refer to this recording
+                #   type          — discriminator so the LLM knows what it's looking at
+                #   transcript    — the actual speech content (primary inference signal)
+                #   duration      — useful context ("a 2-minute recording said …")
+                #   mime_type     — needed if a skill re-processes the file
+                #   filename      — human-readable label (may be None)
+                #   status        — lifecycle state (should always be "finished" here)
+                #
+                # Stripped: s3_base_url, files (s3 keys), aes_key, aes_nonce,
+                #           vault_wrapped_aes_key — all crypto/infra, resolved server-side.
+                #           app_id, skill_id — internal routing metadata, not useful to LLM.
+                #           embed_id (UUID) — not shown to LLM; use embed_ref instead.
+                _AUDIO_KEEP = frozenset({
+                    "type", "transcript", "duration", "mime_type", "filename", "status"
+                })
+                filtered = {k: v for k, v in decoded.items() if k in _AUDIO_KEEP}
+                # Use filename as embed_ref; fall back to a short UUID prefix.
+                raw_ref = (decoded.get("filename") or embed_id[:8])
+                embed_ref = self._unique_embed_ref(raw_ref, seen_embed_refs)
+                filtered["embed_ref"] = embed_ref
+                filtered_toon = encode(filtered)
+                logger.debug(
+                    f"{log_prefix} Filtered audio-recording embed TOON for LLM: "
+                    f"{len(toon_content)} → {len(filtered_toon)} chars "
+                    f"(kept: {list(filtered.keys())}, embed_ref={embed_ref!r})"
+                )
+                return filtered_toon, embed_ref
+
+            if embed_type == "pdf":
+                # PDF upload embeds processed by app-pdf-worker.
+                #
+                # The LLM needs document metadata (filename, page count, TOC, per-page token
+                # estimates) to plan which skills to call. It does NOT need any cryptographic
+                # or storage fields — the pdf.read/pdf.view/pdf.search skills resolve all
+                # of those server-side via file_path → embed_id → Redis → Vault.
+                #
+                # Kept:
+                #   embed_ref              — original filename; used as the skill file_path arg
+                #   type, status           — discriminator and lifecycle state
+                #   filename               — human-readable label (same value as embed_ref)
+                #   page_count             — total pages (LLM uses to plan pagination)
+                #   total_tokens_estimated — total OCR tokens (LLM uses for context planning)
+                #   per_page_tokens        — per-page token estimates (LLM uses for page selection)
+                #   toc                    — table of contents (LLM uses for navigation)
+                #   legend                 — legend section info (LLM uses for interpretation)
+                #   app_id                 — "pdf" (skill routing discriminator)
+                #
+                # Stripped (all crypto/storage — resolved server-side):
+                #   aes_key, aes_nonce, vault_wrapped_aes_key — AES encryption fields
+                #   ocr_data_s3_key, screenshot_s3_keys, extracted_image_s3_keys — S3 object keys
+                #   s3_base_url — S3 bucket URL
+                #   embed_id (UUID) — never shown to LLM; use embed_ref (filename) instead
+                _PDF_STRIP_FIELDS = frozenset({
+                    "aes_key",
+                    "aes_nonce",
+                    "vault_wrapped_aes_key",
+                    "ocr_data_s3_key",
+                    "screenshot_s3_keys",
+                    "extracted_image_s3_keys",
+                    "s3_base_url",
+                })
+                filtered = {
+                    k: v for k, v in decoded.items()
+                    if k not in _PDF_STRIP_FIELDS and k != "embed_id"
+                }
+                # Use the original filename as embed_ref so the LLM passes it to pdf.* skills.
+                raw_ref = decoded.get("filename") or embed_id[:8]
+                embed_ref = self._unique_embed_ref(raw_ref, seen_embed_refs)
+                filtered["embed_ref"] = embed_ref
+                filtered_toon = encode(filtered)
+                logger.debug(
+                    f"{log_prefix} Filtered PDF embed TOON for LLM: "
+                    f"{len(toon_content)} → {len(filtered_toon)} chars "
+                    f"(kept: {list(filtered.keys())}, embed_ref={embed_ref!r})"
+                )
+                return filtered_toon, embed_ref
+
+            if app_id != "images" or skill_id != "upload":
+                # For all other embed types (search results, web pages, travel, maps, etc.),
+                # check whether the TOON content already contains an embed_ref that was
+                # injected by create_embeds_from_skill_results().  If so, strip the raw
+                # embed_id (UUID) so the LLM never sees it and return the embed_ref as-is.
+                # If no embed_ref is present, pass through unchanged.
+                embed_ref_in_toon = decoded.get("embed_ref")
+                if embed_ref_in_toon and isinstance(embed_ref_in_toon, str):
+                    # Strip internal fields the LLM should not see, but keep content fields.
+                    filtered = {
+                        k: v for k, v in decoded.items()
+                        if k not in self._TOON_LLM_STRIP_FIELDS and k != "embed_id"
+                    }
+                    # embed_ref is already in the dict; ensure it stays.
+                    filtered["embed_ref"] = embed_ref_in_toon
+                    embed_ref = self._unique_embed_ref(embed_ref_in_toon, seen_embed_refs)
+                    filtered["embed_ref"] = embed_ref
+                    filtered_toon = encode(filtered)
+                    logger.debug(
+                        f"{log_prefix} Passed embed_ref through for embed {embed_id}: "
+                        f"embed_ref={embed_ref!r}, type={embed_type!r}, "
+                        f"app_id={app_id!r}, skill_id={skill_id!r}"
+                    )
+                    return filtered_toon, embed_ref
+                # No embed_ref in TOON — pass through as-is, no embed_ref exposed.
+                return toon_content, None
+
+            # ----------------------------------------------------------------
+            # Image upload embeds: strip crypto/infra fields; inject embed_ref.
+            # ----------------------------------------------------------------
+            filtered = {
+                k: v for k, v in decoded.items()
+                if k not in self._TOON_LLM_STRIP_FIELDS
+            }
+
+            # Build a human-readable embed_ref from the original filename.
+            # The filename stored in the TOON is file.name from the frontend upload
+            # handler (the true original user filename, not the S3 key).
+            # If it is missing or looks like a bare UUID (no extension, 36 chars),
+            # fall back to a short embed_id prefix so the LLM still has something
+            # meaningful to pass to images-view.
+            raw_filename: str = decoded.get("filename") or ""
+            if raw_filename:
+                raw_ref = raw_filename
+            else:
+                raw_ref = embed_id[:8]
+
+            embed_ref = self._unique_embed_ref(raw_ref, seen_embed_refs)
+
+            # Replace any previously injected embed_id with the human-readable
+            # embed_ref.  The UUID is intentionally NOT exposed to the LLM.
+            filtered.pop("embed_id", None)
+            filtered["embed_ref"] = embed_ref
+
+            # Re-encode to TOON
+            filtered_toon = encode(filtered)
+            logger.debug(
+                f"{log_prefix} Filtered image embed TOON for LLM: "
+                f"{len(toon_content)} → {len(filtered_toon)} chars "
+                f"(stripped {len(decoded) - len(filtered) + 1} fields, "  # +1 for embed_id removal
+                f"remaining: {list(filtered.keys())}, embed_ref={embed_ref!r})"
+            )
+            return filtered_toon, embed_ref
+
+        except Exception as e:
+            # On any failure, return the original TOON to avoid data loss
+            logger.warning(
+                f"{log_prefix} Failed to filter TOON for LLM (embed {embed_id}): {e}. "
+                f"Returning original TOON."
+            )
+            return toon_content, None
+
+    @staticmethod
+    def get_child_embed_type(app_id: str, skill_id: str) -> str:
+        """
+        Return the canonical child embed type for a given app_id + skill_id combination.
+
+        This is used by both embed creation paths (update_embed_with_results and
+        create_embeds_from_skill_results) and by main_processor.py when it needs to
+        inject embed_ref slugs into tool results before sending them to the LLM.
+
+        Returns one of: "connection", "stay", "place", "event", "website"
+        """
+        if app_id == "maps" and skill_id == "search":
+            return "place"
+        elif app_id == "travel" and skill_id == "search_connections":
+            return "connection"
+        elif app_id == "travel" and skill_id == "search_stays":
+            return "stay"
+        elif skill_id == "places_search":
+            return "place"
+        elif skill_id == "events_search":
+            return "event"
+        elif app_id == "events" and skill_id == "search":
+            return "event"
+        else:
+            return "website"  # Default: web search, news, videos, etc.
+
+    @staticmethod
+    def _generate_embed_ref_slug(
+        child_type: str,
+        result: Dict[str, Any],
+    ) -> str:
+        """
+        Generate a short, descriptive embed_ref slug for a child embed result.
+
+        The slug is derived from result content so it's human-readable and gives the
+        LLM a meaningful handle to reference specific items inline:
+          - website/news: domain from URL (e.g. "wikipedia.org")
+          - place: place name, slugified (e.g. "eiffel-tower")
+          - connection (flight/train): carrier + departure time (e.g. "ryanair-0600")
+          - stay (hotel): hotel name, slugified (e.g. "hotel-ibis-paris")
+          - event: event title, slugified (e.g. "jazz-festival-2026")
+
+        A 3-character random alphanumeric suffix is appended to guarantee global
+        uniqueness across multiple embeds of the same type in a single chat:
+          "wikipedia.org-k8D", "ryanair-0600-x4F"
+
+        Args:
+            child_type: The embed type string ("website", "place", "connection", etc.)
+            result: The raw result dict for this child embed.
+
+        Returns:
+            A short descriptive slug with 3-char random suffix, e.g. "wikipedia.org-k8D".
+        """
+        def _random_suffix() -> str:
+            chars = string.ascii_letters + string.digits
+            return "".join(random.choices(chars, k=3))
+
+        def _slugify(text: str, max_words: int = 3) -> str:
+            """Lowercase, keep alphanumeric and hyphens, limit word count."""
+            text = text.lower().strip()
+            # Replace non-word chars with hyphens
+            text = re.sub(r"[^a-z0-9]+", "-", text)
+            text = text.strip("-")
+            # Limit to max_words hyphen-separated parts
+            parts = text.split("-")[:max_words]
+            return "-".join(p for p in parts if p)
+
+        def _extract_domain(url: str) -> str:
+            """Extract bare domain from a URL (no www prefix)."""
+            # Strip scheme
+            url = re.sub(r"^https?://", "", url)
+            # Take host part only
+            url = url.split("/")[0]
+            # Remove www.
+            url = re.sub(r"^www\.", "", url)
+            # Keep only hostname (no port)
+            url = url.split(":")[0]
+            return url.lower()[:40]
+
+        suffix = _random_suffix()
+        slug = ""
+
+        try:
+            if child_type in ("website", "video"):
+                # Use domain from URL as the slug
+                url = result.get("url") or result.get("link") or ""
+                if url:
+                    slug = _extract_domain(url)
+                else:
+                    title = result.get("title") or ""
+                    slug = _slugify(title) if title else "result"
+
+            elif child_type == "place":
+                name = result.get("name") or result.get("title") or ""
+                slug = _slugify(name) if name else "place"
+
+            elif child_type == "connection":
+                # Flights/trains: carrier + departure time.
+                # Flight results use "carriers" (a list) and "departure" (ISO datetime
+                # e.g. "2026-03-05T06:45:00"). Fall back to singular/alternate field
+                # names used by other providers.
+                carriers_raw = result.get("carriers") or []
+                if isinstance(carriers_raw, list) and carriers_raw:
+                    carrier = carriers_raw[0]
+                else:
+                    carrier = (
+                        result.get("carrier")
+                        or result.get("airline")
+                        or result.get("operator")
+                        or ""
+                    )
+                depart = (
+                    result.get("departure")        # ISO datetime: "2026-03-05T06:45:00"
+                    or result.get("departure_time")
+                    or result.get("departs_at")
+                    or ""
+                )
+                carrier_slug = _slugify(carrier, max_words=1) if carrier else "flight"
+                # Extract "HH:MM" from ISO datetime or plain "HH:MM" string → "HHMM"
+                if depart and "T" in depart:
+                    # ISO format: take only the time part after "T"
+                    depart = depart.split("T")[1]
+                depart_str = depart.replace(":", "").replace(" ", "")[:4] if depart else ""
+                slug = f"{carrier_slug}-{depart_str}" if depart_str else carrier_slug
+
+            elif child_type == "stay":
+                name = (
+                    result.get("name")
+                    or result.get("hotel_name")
+                    or result.get("title")
+                    or ""
+                )
+                slug = _slugify(name) if name else "hotel"
+
+            elif child_type == "event":
+                name = result.get("name") or result.get("title") or ""
+                slug = _slugify(name) if name else "event"
+
+            else:
+                # Generic fallback: try title/name fields
+                title = (
+                    result.get("title")
+                    or result.get("name")
+                    or result.get("url")
+                    or ""
+                )
+                if title:
+                    if title.startswith("http"):
+                        slug = _extract_domain(title)
+                    else:
+                        slug = _slugify(str(title))
+                else:
+                    slug = child_type or "item"
+
+        except Exception:
+            # Never fail embed creation over slug generation
+            slug = child_type or "item"
+
+        # Truncate slug to 40 chars to keep refs compact
+        slug = slug[:40].rstrip("-")
+        return f"{slug}-{suffix}"
+
+    @staticmethod
+    def _unique_embed_ref(
+        raw_ref: str,
+        seen_embed_refs: Optional[Dict[str, int]],
+    ) -> str:
+        """
+        Return a unique embed_ref string for this resolution pass.
+
+        If ``seen_embed_refs`` is provided and ``raw_ref`` has already been
+        used, append a ``(2)``, ``(3)`` … suffix so every embed in a chat
+        has a distinct, stable reference the LLM can address.
+
+        Args:
+            raw_ref: Desired reference string (e.g. the original filename).
+            seen_embed_refs: Mutable counter dict shared across all calls
+                in one resolution pass.  Pass None to skip deduplication.
+
+        Returns:
+            A unique reference string.
+        """
+        if seen_embed_refs is None:
+            return raw_ref
+
+        count = seen_embed_refs.get(raw_ref, 0)
+        seen_embed_refs[raw_ref] = count + 1
+
+        if count == 0:
+            return raw_ref
+        # Second occurrence gets suffix " (2)", third " (3)", etc.
+        return f"{raw_ref} ({count + 1})"
+
     async def resolve_embed_references_in_content(
         self,
         content: str,
         user_vault_key_id: str,
-        log_prefix: str = ""
-    ) -> str:
+        log_prefix: str = "",
+        # Shared deduplication counter for embed_refs across multiple messages in one
+        # resolution pass.  Caller should create one dict and pass it for every message
+        # in the history so duplicate filenames across messages get consistent suffixes.
+        # Pass None (default) to use a fresh counter per-call.
+        seen_embed_refs: Optional[Dict[str, int]] = None,
+    ) -> Tuple[str, Dict[str, str]]:
         """
         Resolve embed references in message content by replacing JSON code blocks
         with actual embed content from cache (as TOON format).
-        
+
         According to embeds architecture, messages contain embed references like:
         ```json
         {"type": "app_skill_use", "embed_id": "..."}
         ```
-        
+
         This function:
         1. Parses message markdown to find JSON code blocks with embed references
         2. For each embed reference, loads embed from cache
         3. Decrypts TOON content (but keeps as TOON string - not decoded to JSON)
-        4. Replaces embed reference JSON block with TOON code block containing embed content
-        
-        CRITICAL: TOON format is preserved (not decoded to JSON) to maintain space savings
-        (30-60% token reduction vs JSON). LLM can process TOON format directly.
-        
+        4. Filters the TOON for LLM (strips crypto fields; injects embed_ref for
+           image/audio embeds instead of the raw UUID embed_id)
+        5. Replaces embed reference JSON block with TOON code block containing
+           embed content
+
+        CRITICAL: TOON format is preserved (not decoded to JSON) to maintain space
+        savings (30-60% token reduction vs JSON). LLM can process TOON format directly.
+
         Args:
-            content: Message content (markdown) that may contain embed references
-            user_vault_key_id: User's vault key ID for decryption
-            log_prefix: Logging prefix for this operation
-            
+            content: Message content (markdown) that may contain embed references.
+            user_vault_key_id: User's vault key ID for decryption.
+            log_prefix: Logging prefix for this operation.
+            seen_embed_refs: Mutable deduplication counter shared across multiple
+                messages so filenames are unique even across the full history.
+
         Returns:
-            Content with embed references resolved (replaced with TOON code blocks)
+            Tuple of (resolved_content, file_path_index):
+              - resolved_content: Content with embed references resolved
+                (replaced with TOON code blocks).
+              - file_path_index: Mapping of embed_ref → embed_id UUID for every
+                embed that received an embed_ref injection.  Used by main_processor
+                to let skills resolve embed_ref back to the internal UUID for
+                Redis lookups.  Empty dict if no such embeds were encountered.
         """
         import re
         import json as json_lib
-        
+
+        # Per-call deduplication counter if the caller did not provide one.
+        if seen_embed_refs is None:
+            seen_embed_refs = {}
+
+        # Maps embed_ref (human-readable) → embed_id (UUID) for this call.
+        file_path_index: Dict[str, str] = {}
+
         # Pattern to match JSON code blocks that might contain embed references
         # Format: ```json\n{...}\n```
         json_block_pattern = r'```json\s*\n([\s\S]*?)\n```'
-        
+
         # Find all embed references first
         # Embed references now include optional URL field as fallback for LLM inference
         # Format: {"type": "...", "embed_id": "...", "url": "..."} (url is optional but recommended)
@@ -1443,27 +2108,27 @@ class EmbedService:
                         })
             except json_lib.JSONDecodeError:
                 continue
-        
-        # If no embed references found, return original content
+
+        # If no embed references found, return original content with empty index
         if not embed_refs:
-            return content
-        
+            return content, file_path_index
+
         # Resolve all embed references (async)
         resolved_parts = []
         last_end = 0
-        
+
         for embed_ref_info in embed_refs:
             match = embed_ref_info["match"]
             embed_id = embed_ref_info["embed_id"]
             embed_type = embed_ref_info["embed_type"]
             embed_url = embed_ref_info.get("embed_url")  # May be None for legacy references
-            
+
             # Add content before this match
             resolved_parts.append(content[last_end:match.start()])
-            
+
             # Load embed from cache (returns TOON string, not decoded)
             toon_content = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
-            
+
             if not toon_content:
                 # CRITICAL: If embed not found in cache, try to use URL as fallback
                 # This ensures LLM has at least the URL to work with even if full embed content is missing
@@ -1486,20 +2151,37 @@ class EmbedService:
                     )
                     resolved_parts.append(embed_ref_info["full_match"])  # Keep original reference
             else:
-                # Replace embed reference with TOON content directly
+                # Filter the TOON content before showing to the LLM.
+                # Strips crypto/infra fields; injects embed_ref (human-readable filepath
+                # or filename) for image/audio embeds instead of the raw UUID embed_id.
+                filtered_toon, embed_ref = self._filter_toon_for_llm(
+                    toon_content, embed_id, log_prefix, seen_embed_refs
+                )
+
+                # If an embed_ref was assigned, record it in the file_path_index so
+                # skills can resolve it back to the internal UUID at execution time.
+                if embed_ref is not None:
+                    file_path_index[embed_ref] = embed_id
+
+                # Replace embed reference with filtered TOON content
                 # TOON format is space-efficient (30-60% savings vs JSON) and LLM can process it
                 # Format as code block to preserve TOON structure
-                resolved_text = f"```toon\n{toon_content}\n```"
-                
-                logger.debug(f"{log_prefix} Resolved embed reference {embed_id} ({embed_type}) with TOON content ({len(toon_content)} chars)")
+                resolved_text = f"```toon\n{filtered_toon}\n```"
+
+                logger.debug(
+                    f"{log_prefix} Resolved embed reference {embed_id} ({embed_type}) "
+                    f"with filtered TOON content ({len(filtered_toon)} chars, was "
+                    f"{len(toon_content)} chars)"
+                    + (f", embed_ref={embed_ref!r}" if embed_ref else "")
+                )
                 resolved_parts.append(resolved_text)
-            
+
             last_end = match.end()
-        
+
         # Add remaining content after last match
         resolved_parts.append(content[last_end:])
-        
-        return "".join(resolved_parts)
+
+        return "".join(resolved_parts), file_path_index
 
     async def update_embed_with_results(
         self,
@@ -1594,7 +2276,7 @@ class EmbedService:
                 
                 # Extract common metadata fields that should be preserved
                 # Include all common input parameters (query, url, provider, languages, etc.)
-                for key in ['query', 'provider', 'url', 'languages', 'input_data', 'count', 'country', 'search_lang', 'safesearch']:
+                for key in ['query', 'provider', 'url', 'languages', 'input_data', 'count', 'country', 'search_lang', 'safesearch', 'file_path', 'embed_id']:
                     if key in original_content:
                         original_metadata[key] = original_content[key]
                         logger.debug(f"{log_prefix} Found metadata key '{key}': {original_metadata[key]}")
@@ -1612,25 +2294,8 @@ class EmbedService:
                 logger.warning(f"{log_prefix} Could not retrieve original embed metadata for {embed_id} and no request_metadata provided")
 
             if is_composite:
-                # Create child embeds (one per result)
-                # Maps search (app_id="maps", skill_id="search") should create "place" embeds
-                # Web search (app_id="web", skill_id="search") should create "website" embeds
-                # Travel search_connections should create "connection" embeds
-                # Travel search_stays should create "stay" embeds
-                if app_id == "maps" and skill_id == "search":
-                    child_type = "place"
-                elif app_id == "travel" and skill_id == "search_connections":
-                    child_type = "connection"
-                elif app_id == "travel" and skill_id == "search_stays":
-                    child_type = "stay"
-                elif skill_id == "search":
-                    child_type = "website"  # Web search, news search, videos search
-                elif skill_id == "places_search":
-                    child_type = "place"
-                elif skill_id == "events_search":
-                    child_type = "event"
-                else:
-                    child_type = "website"  # Default fallback
+                # Determine child embed type using canonical helper (single source of truth)
+                child_type = EmbedService.get_child_embed_type(app_id, skill_id)
 
                 for result in results:
                     # Generate embed_id for child
@@ -1645,8 +2310,30 @@ class EmbedService:
                         f"meta_url={result.get('meta_url')}"
                     )
 
+                    # Use pre-generated embed_ref from result dict if present (single source of truth).
+                    # main_processor.py pre-generates slugs in results_with_refs BEFORE building
+                    # the tool_result_content_str, so the LLM sees the SAME slug that ends up in
+                    # the child embed TOON — preventing the slug-mismatch bug where two independent
+                    # random suffixes are generated for the same logical result.
+                    # Fall back to generating a new slug only if embed_ref is missing (e.g., for
+                    # non-composite skills or code paths that bypass the pre-generation step).
+                    result_with_ref = dict(result)
+                    if "embed_ref" in result_with_ref:
+                        child_embed_ref = result_with_ref["embed_ref"]
+                        logger.debug(f"{log_prefix} Reusing pre-generated embed_ref '{child_embed_ref}' for child embed")
+                    else:
+                        child_embed_ref = self._generate_embed_ref_slug(child_type, result)
+                        result_with_ref["embed_ref"] = child_embed_ref
+
+                    # Inject app_id and skill_id into child TOON so the frontend can
+                    # extract them when registering embed_ref → appId in the in-memory index.
+                    # Without this the inline badge gradient falls back to grey because
+                    # the child result dict only contains flight/event fields, not app metadata.
+                    result_with_ref["app_id"] = app_id
+                    result_with_ref["skill_id"] = skill_id
+
                     # Convert result to TOON format (PLAINTEXT)
-                    flattened_result = _flatten_for_toon_tabular(result)
+                    flattened_result = _flatten_for_toon_tabular(result_with_ref)
                     
                     # DEBUG: Log the result AFTER flattening to see if thumbnail_original/meta_url_favicon exist
                     logger.info(
@@ -2369,25 +3056,8 @@ class EmbedService:
             child_embed_ids = []
             
             if is_composite:
-                # Create child embeds (one per result)
-                # Maps search (app_id="maps", skill_id="search") should create "place" embeds
-                # Web search (app_id="web", skill_id="search") should create "website" embeds
-                # Travel search_connections should create "connection" embeds
-                # Travel search_stays should create "stay" embeds
-                if app_id == "maps" and skill_id == "search":
-                    child_type = "place"
-                elif app_id == "travel" and skill_id == "search_connections":
-                    child_type = "connection"
-                elif app_id == "travel" and skill_id == "search_stays":
-                    child_type = "stay"
-                elif skill_id == "search":
-                    child_type = "website"  # Web search, news search, videos search
-                elif skill_id == "places_search":
-                    child_type = "place"
-                elif skill_id == "events_search":
-                    child_type = "event"
-                else:
-                    child_type = "website"  # Default fallback
+                # Determine child embed type using canonical helper (single source of truth)
+                child_type = EmbedService.get_child_embed_type(app_id, skill_id)
                 
                 # CRITICAL: Generate parent_embed_id FIRST so child embeds can reference it
                 # This enables key inheritance: child embeds use parent's encryption key
@@ -2396,9 +3066,30 @@ class EmbedService:
                 for result in results:
                     # Generate embed_id for child
                     child_embed_id = str(uuid.uuid4())
-                    
-                    # Convert result to TOON format
-                    flattened_result = _flatten_for_toon_tabular(result)
+
+                    # Use pre-generated embed_ref from result dict if present (single source of truth).
+                    # main_processor.py pre-generates slugs in results_with_refs BEFORE building
+                    # the tool_result_content_str and passes them here via the results list.
+                    # This ensures the LLM's inline ref slug EXACTLY matches the slug stored in
+                    # the child embed TOON — preventing the slug-mismatch bug.
+                    # The embed_ref is injected INSIDE the encrypted TOON content so only the
+                    # client (after decryption) and the LLM (via filtered TOON) can see it.
+                    result_with_ref = dict(result)
+                    if "embed_ref" in result_with_ref:
+                        child_embed_ref = result_with_ref["embed_ref"]
+                        logger.debug(f"{log_prefix} Reusing pre-generated embed_ref '{child_embed_ref}' for child embed")
+                    else:
+                        child_embed_ref = self._generate_embed_ref_slug(child_type, result)
+                        result_with_ref["embed_ref"] = child_embed_ref
+
+                    # Inject app_id and skill_id into child TOON so the frontend can
+                    # extract them when registering embed_ref → appId in the in-memory index.
+                    # Without this the inline badge gradient falls back to grey because
+                    # the child result dict only contains flight/event fields, not app metadata.
+                    result_with_ref["app_id"] = app_id
+                    result_with_ref["skill_id"] = skill_id
+
+                    flattened_result = _flatten_for_toon_tabular(result_with_ref)
                     content_toon = encode(flattened_result)
                     
                     # Calculate text length for child embed
@@ -2462,7 +3153,15 @@ class EmbedService:
                 
                 # Create parent app_skill_use embed
                 # NOTE: parent_embed_id was already generated above (before child embeds)
-                
+
+                # Generate an embed_ref for the parent (composite skill result).
+                # Format: "{app_id}-{skill_id}-{suffix}" so the LLM can refer to the
+                # whole result set (e.g. "web-search-k8D") as well as individual items.
+                parent_embed_ref = self._generate_embed_ref_slug(
+                    f"{app_id}-{skill_id}",
+                    request_metadata or {},
+                )
+
                 # Parent embed content: metadata about the skill execution
                 # Include request metadata (query, etc.) if provided for proper frontend rendering
                 parent_content = {
@@ -2470,7 +3169,8 @@ class EmbedService:
                     "skill_id": skill_id,
                     "result_count": len(results),
                     "embed_ids": child_embed_ids,
-                    "status": "finished"
+                    "status": "finished",
+                    "embed_ref": parent_embed_ref,
                 }
                 
                 # Add request metadata (query, provider, etc.) if available
@@ -2578,7 +3278,13 @@ class EmbedService:
                 # Non-composite result - create single app_skill_use embed
                 # All skills return results as an array, so we always structure it consistently
                 embed_id = str(uuid.uuid4())
-                
+
+                # Generate embed_ref for this single embed (injected inside encrypted TOON).
+                # For single results, derive the slug from the first result.
+                single_embed_ref = self._generate_embed_ref_slug(
+                    skill_id, results[0] if results else {}
+                )
+
                 # Flatten all results for TOON encoding
                 flattened_results = [_flatten_for_toon_tabular(result) for result in results]
                 
@@ -2591,7 +3297,8 @@ class EmbedService:
                     "skill_id": skill_id,
                     "results": flattened_results,
                     "result_count": len(results),
-                    "status": "finished"
+                    "status": "finished",
+                    "embed_ref": single_embed_ref,
                 }
                 
                 # Add request metadata if available

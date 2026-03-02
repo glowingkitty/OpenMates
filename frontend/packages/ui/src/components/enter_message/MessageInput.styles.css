@@ -149,9 +149,155 @@
   padding: 0 0 10px 0;
 }
 
+/* Maps overlay open — field expands to show the map edge-to-edge.
+   The MapsView sits as an absolutely-positioned child that fills inset:0,
+   so padding is cleared and height is driven by containerStyle. */
+.message-field.maps-open {
+  padding: 0;
+}
+
 .message-field.recording-active {
-  /* Adjust padding when recording is active to accommodate RecordAudio component */
-  padding-bottom: 120px;
+  /* RecordAudio now uses an absolute inset overlay — no extra padding needed */
+}
+
+/* When a focus pill is visible, add top padding so typed text doesn't collide with the pill.
+   The pill is 36px tall + 8px gap = 44px. Rounded up to 48px with a little breathing room.
+   transition matches .message-field to keep the expansion smooth. */
+.message-field.has-focus-pill {
+  padding-top: 48px;
+}
+
+/* Focus mode pill: floating pill anchored to the top of .message-field.
+   Uses the app's gradient as background (passed via --focus-pill-gradient CSS var).
+   Left side (button) = deep link to focus settings.
+   Right side (toggle wrapper) = 1-second deactivation with undo. */
+.focus-pill {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(
+    --focus-pill-gradient,
+    linear-gradient(135deg, #5856d6, #a78bfa)
+  );
+  border-radius: 20px;
+  padding: 0;
+  height: 36px;
+  max-width: calc(100% - 24px);
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  cursor: default;
+  user-select: none;
+}
+
+/* Left clickable area: icon + label + "focus on" */
+.focus-pill-body {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px 0 12px;
+  height: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-family-primary);
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.focus-pill-body:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Icon using CSS mask-image with the per-focus-mode icon */
+.focus-pill-icon {
+  display: block;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  background-color: white;
+  -webkit-mask-image: var(--icon-url);
+  mask-image: var(--icon-url);
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+.focus-pill-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+}
+
+/* Trailing "focus on" label — slightly dimmed to keep focus name prominent */
+.focus-pill-on-text {
+  flex-shrink: 0;
+  opacity: 0.8;
+  font-weight: 400;
+}
+
+/* Toggle wrapper: right side of pill, separated by a translucent divider */
+.focus-pill-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  height: 100%;
+  flex-shrink: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+}
+
+/* Incognito pill: inherits the focus-pill layout but uses a fixed dark privacy gradient
+   and the anonym.svg icon instead of a per-app gradient and focus icon. */
+.incognito-pill {
+  background: linear-gradient(
+    135deg,
+    #1a1a2e 0%,
+    #2d2d44 50%,
+    #1e1e35 100%
+  ) !important;
+  --focus-pill-gradient: none; /* prevent any inherited CSS variable from overriding */
+}
+
+/* Incognito pill body: non-interactive display (no deep-link action) */
+.incognito-pill-body {
+  cursor: default !important;
+}
+
+.incognito-pill-body:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Anonym icon using CSS mask-image pointing to anonym.svg */
+.incognito-pill-icon {
+  display: block;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  background-color: white;
+  -webkit-mask-image: url("@openmates/ui/static/icons/anonym.svg");
+  mask-image: url("@openmates/ui/static/icons/anonym.svg");
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
 }
 
 /* Scrollable area */
@@ -231,6 +377,8 @@
   left: 0;
   right: 0;
   top: 0.5rem;
+  /* Smooth fade out when editor gains focus */
+  transition: opacity 0.25s ease-in-out;
 }
 
 :global(
@@ -242,15 +390,14 @@
   width: auto;
   padding-left: 0;
   top: 0;
+  /* Fade out the placeholder as field becomes active */
+  opacity: 0;
 }
 
-:global(
-  .ProseMirror.ProseMirror-focused p.is-editor-empty:first-child::before
-) {
-  display: none; /* Hide placeholder when focused and empty */
-}
-
-/* Fullscreen button */
+/* Fullscreen / expand button — top-right corner of the message field.
+   Does NOT override background so the mask-based icon colour (--color-primary)
+   from button.clickable-icon in icons.css is preserved and the icon is visible.
+   Shown when the field is focused or has content (controlled by {#if} in the template). */
 .fullscreen-button {
   position: absolute;
   top: 10px;
@@ -258,7 +405,8 @@
   opacity: 0.5;
   transition: opacity 0.2s ease-in-out;
   z-index: 10;
-  background: none;
+  /* No background override — inherits var(--color-primary) from button.clickable-icon
+     which is the mask fill colour; overriding to 'none' would make the icon invisible. */
   border: none;
   padding: 5px;
   cursor: pointer;
@@ -268,9 +416,22 @@
   opacity: 1;
 }
 
+/* =============================================================================
+   Message Input Fullscreen Expand Mode
+   ============================================================================= */
+
+/* Fullscreen mode: field grows in-place to 65dvh.
+   Height is applied via inline `style` from messagePanelStyle. */
+.message-field.fullscreen-expanded {
+  /* Smooth entry — max-height transition on .message-field handles animation */
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+
 .clickable-icon {
-  /* General style for icon buttons */
-  background: none;
+  /* General style for icon buttons.
+     NOTE: Do NOT set background here — the icon colour (mask fill) is controlled by
+     button.clickable-icon { background: var(--color-primary) } in icons.css.
+     Setting background:none here would override that and make mask-image icons invisible. */
   border: none;
   padding: 0;
   cursor: pointer;
@@ -286,23 +447,41 @@
   box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.1);
 }
 
-.message-field.drag-over::after {
-  content: "Drop files here";
+/* Drop overlay: an absolutely-positioned panel that covers the editor area
+   and shows a file icon + "Drop files to upload" label while dragging.
+   Uses the existing .icon_files mask-image icon from icons.css.
+   pointer-events: none ensures the drag events still reach the parent. */
+.drop-overlay {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  bottom: 60px;
+  bottom: 60px; /* leave room for the action-buttons row */
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 1.1em;
-  font-weight: 500;
-  color: var(--color-primary);
-  background: rgba(255, 255, 255, 0.8);
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.88);
   z-index: 5;
   pointer-events: none;
   border-radius: 22px;
+}
+
+/* File icon inside the drop overlay — re-uses the existing icon_files mask */
+.drop-overlay-icon {
+  width: 40px;
+  height: 40px;
+  background-color: var(--color-primary);
+  /* Mask set via .icon_files from icons.css */
+  pointer-events: none;
+}
+
+.drop-overlay-text {
+  font-size: 1.05em;
+  font-weight: 500;
+  color: var(--color-primary);
+  pointer-events: none;
 }
 
 /* Unified embed styles moved to EmbeddPreview.styles.css */
@@ -525,6 +704,16 @@
   }
 }
 
+/* Wrapper for ActionButtons fade transition.
+   Zero-height, non-clipping container so the absolutely-positioned ActionButtons
+   still positions relative to .message-field while we can apply opacity transitions. */
+.action-buttons-fade-wrapper {
+  position: static;
+  height: 0;
+  overflow: visible;
+  width: 100%;
+}
+
 /* Stop Processing Button - positioned in bottom right of message field */
 /* Override global button styles from buttons.css */
 .stop-processing-button {
@@ -571,15 +760,14 @@
   filter: none !important;
 }
 
-/* Stop processing button icon */
-/* More specific selector to override general .clickable-icon rules */
+/* Stop processing button icon — red mask fill with pulsing animation */
+/* Use background shorthand (not background-color) to match and override
+   the span.clickable-icon { background: var(--color-primary) } rule in icons.css */
 .stop-processing-button .clickable-icon.icon_stop_processing {
   width: 28px;
   height: 28px;
-  /* If using mask-image, set background-color to red for the mask */
-  /* If SVG already has color, this can be removed */
-  background-color: red !important;
-  transition: background-color 0.2s ease;
+  background: red !important;
+  transition: background 0.2s ease;
   /* Ensure mask-image is properly applied */
   -webkit-mask-size: contain;
   mask-size: contain;
@@ -587,10 +775,24 @@
   mask-position: center;
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
+  /* Pulsing animation matching BasicInfosBar stop button */
+  animation: stopButtonPulse 1.2s ease-in-out infinite;
 }
 
 .stop-processing-button:hover .clickable-icon.icon_stop_processing {
-  background-color: darkred !important;
+  background: darkred !important;
+  animation-play-state: paused;
+}
+
+/* Pulsing animation for stop button - subtle opacity changes */
+@keyframes stopButtonPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 /* Queued message indicator - shown when a message is queued due to active AI task */
@@ -611,4 +813,17 @@
   pointer-events: none;
   max-width: calc(100% - 40px);
   text-align: center;
+}
+
+/* Mic permission hint reuses the queued-message-indicator pill style but with a
+   neutral background (not the yellow warning color used for queued messages). */
+.queued-message-indicator.mic-permission-hint {
+  background-color: var(--color-grey-30, rgba(128, 128, 128, 0.3));
+  color: var(--color-text-primary, #000);
+}
+
+/* Blocked state uses an error/red background to signal the user must act. */
+.queued-message-indicator.mic-permission-hint.mic-permission-blocked {
+  background-color: var(--color-error-light, rgba(231, 76, 60, 0.15));
+  color: var(--color-error, #e74c3c);
 }

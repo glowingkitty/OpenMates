@@ -85,6 +85,10 @@ financial:
 
     ---
     *⚠️ Detta är endast utbildningsinformation och inte finansiell rådgivning. Konsultera en kvalificerad finansiell expert eller skatterådgivare för ekonomiska beslut.*
+  he: |
+    ---
+    *⚠️ זהו מידע לימודי בלבד ואינו מהווה ייעוץ פיננסי. יש להיוועץ באיש מקצוע פיננסי מוסמך או ביועץ מס לצורך קבלת החלטות פיננסיות.*
+    ---
   verified_by_human: []
 
 medical:
@@ -169,6 +173,10 @@ medical:
 
     ---
     *⚠️ Detta är endast utbildningsinformation och inte medicinsk rådgivning. Konsultera din läkare för medicinska beslut.*
+  he: |
+    ---
+    *⚠️ זהו מידע לימודי בלבד ואינו מהווה ייעוץ רפואי. יש להיוועץ ברופא לצורך קבלת החלטות רפואיות.*
+    ---
   verified_by_human: []
 
 legal:
@@ -253,6 +261,10 @@ legal:
 
     ---
     *⚠️ Detta är endast utbildningsinformation och inte juridisk rådgivning. Konsultera en advokat för juridisk rådgivning.*
+  he: |
+    ---
+    *⚠️ זהו מידע לימודי בלבד ואינו מהווה ייעוץ משפטי. יש להיוועץ בעורך דין לקבלת ייעוץ משפטי.*
+    ---
   verified_by_human: []
 
 mental_health:
@@ -337,5 +349,9 @@ mental_health:
 
     ---
     *⚠️ Detta är endast utbildningsinformation och inte professionell psykologisk rådgivning. För mentala hälsoproblem, vänligen konsultera en kvalificerad terapeut eller rådgivare. Om du upplever en kris, kontakta omedelbart akuttjänster eller en krislinje.*
+  he: |
+    ---
+    *⚠️ זהו מידע לימודי בלבד ואינו מהווה ייעוץ פסיכולוגי מקצועי. בנושאים של בריאות הנפש, יש להיוועץ במטפל או ביועץ מוסמך. אם הנך במצב חירום, יש ליצור קשר עם שירותי החירום או עם קו סיוע באופן מיידי.*
+    ---
   verified_by_human: []
 

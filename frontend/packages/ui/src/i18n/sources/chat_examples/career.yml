@@ -20,6 +20,7 @@ user_question:
   th: ฉันไม่มีความสุขในงานปัจจุบันของฉัน คุณมีความคิดว่าฉันควรไปในทิศทางใดแทน?
   cs: Jsem nešťastný ve své současné práci. Máš nějaké nápady, jakým směrem bych se místo toho mohl vydat?
   sv: Jag är olycklig i mitt nuvarande jobb. Har du några idéer om vilken riktning jag skulle kunna gå istället?
+  he: "אני לא מרוצה בעבודה הנוכחית שלי. יש לך רעיונות לאיזה כיוון אני יכול לפנות במקום?"
   verified_by_human: []
 mate_response:
   context: AI response to career change question
@@ -183,4 +184,9 @@ mate_response:
     1. Vilka aspekter av dina tidigare jobb fann du mest givande?
 
     '
+  he: |
+    כמובן! מכיוון שציינת שיש לך רקע בשיווק ושאתה נהנה מסטוריטלינג, נוכל לחפש תפקידים שמנצלים את הכישורים האלה.
+    
+    כדי לקבל כיוון טוב יותר, תוכל לומר לי:
+    1. אילו היבטים בעבודות הקודמות שלך היו הכי מספקים עבורך?
   verified_by_human: []

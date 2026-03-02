@@ -44,6 +44,9 @@ tagline:
   th: ''
   cs: ''
   sv: ''
+  he: |
+    בונים את התוכנה המועילה ביותר
+    אי פעם.
   verified_by_human: []
 made_in_eu:
   context: Footer text indicating EU origin
@@ -67,4 +70,5 @@ made_in_eu:
   th: ''
   cs: ''
   sv: ''
+  he: מיוצר באיחוד האירופי
   verified_by_human: []

@@ -9,6 +9,7 @@ This document describes the passkey implementation for OpenMates' authentication
 **Backend Library**: Uses [`py_webauthn`](https://github.com/duo-labs/py_webauthn) (v2.7.0) for robust WebAuthn ceremony verification, replacing manual signature verification for improved reliability and compatibility.
 
 **Implementation Files**:
+
 - **Backend**: [`backend/core/api/app/routes/auth_routes/auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py)
 - **Frontend Signup**: [`frontend/packages/ui/src/components/signup/steps/secureaccount/SecureAccountTopContent.svelte`](../../frontend/packages/ui/src/components/signup/steps/secureaccount/SecureAccountTopContent.svelte) - Handles passkey registration during signup
 - **Frontend Login**: [`frontend/packages/ui/src/components/Login.svelte`](../../frontend/packages/ui/src/components/Login.svelte) - Main login component with passkey support
@@ -22,16 +23,19 @@ This document describes the passkey implementation for OpenMates' authentication
 ### Why PRF is Required for Zero-Knowledge Encryption
 
 **Current password model (zero-knowledge)**:
+
 - Password → PBKDF2(password, salt) → wrappingKey
 - Server receives: encrypted_master_key + lookup_hash
 - Server can't decrypt without password (only client has it)
 
 **Passkey model WITHOUT PRF (not zero-knowledge)**:
+
 - credential_id → HKDF(credential_id, salt) → wrappingKey
 - credential_id is PUBLIC, so attacker can derive wrappingKey if server breached
 - Violates zero-knowledge principle
 
 **Passkey model WITH PRF (zero-knowledge)**:
+
 - passkey.sign(prf_eval_first) → PRF signature (using private key, where `prf_eval_first = SHA256(rp_id)[:32]`)
 - HKDF(PRF_signature, user_email_salt) → wrappingKey
 - Server receives: encrypted_master_key + credential_id
@@ -41,6 +45,7 @@ This document describes the passkey implementation for OpenMates' authentication
 ### PRF (Pseudo-Random Function) Support
 
 **What is PRF?**
+
 - WebAuthn extension that allows the authenticator to sign arbitrary data using its private key
 - Signature is deterministic for the same input (same `prf_eval_first` always produces same signature for same passkey)
 - We use global salt: `prf_eval_first = SHA256(rp_id)[:32]` (same for all users on same domain)
@@ -48,6 +53,7 @@ This document describes the passkey implementation for OpenMates' authentication
 - Private key never leaves the device
 
 **Device Support**:
+
 - ✓ macOS (Passkeys in iCloud Keychain, security keys)
 - ✓ iOS (Face ID/Touch ID)
 - ✓ Android (Biometrics, Google Password Manager)
@@ -56,11 +62,13 @@ This document describes the passkey implementation for OpenMates' authentication
 
 **Fallback for Non-PRF Devices:**
 If user's device doesn't support PRF, they can:
+
 1. **Use password + 2FA** (already zero-knowledge)
 2. **Switch to a PRF-supporting passkey manager** (e.g., iCloud Keychain, Google Password Manager, Passkey)
 3. **Use a security key that supports PRF**
 
 **User Experience:**
+
 - During signup: Check device PRF support
 - If not supported: Show clear message with options
 - Don't allow non-PRF passkey registration (prevents false sense of security)
@@ -70,14 +78,17 @@ If user's device doesn't support PRF, they can:
 ### Signup Flow
 
 **Frontend Components**:
+
 - [`SecureAccountTopContent.svelte`](../../frontend/packages/ui/src/components/signup/steps/secureaccount/SecureAccountTopContent.svelte) - User selects passkey or password
 - [`PasskeyRegistrationBottomContent.svelte`](../../frontend/packages/ui/src/components/signup/steps/passkey/PasskeyRegistrationBottomContent.svelte) - Handles passkey registration
 
 **Backend Endpoints**:
+
 - `POST /auth/passkey/registration/initiate` - Generates challenge and returns WebAuthn options
 - `POST /auth/passkey/registration/complete` - Validates attestation and stores passkey
 
 **Key Storage**:
+
 - Passkey stored in `user_passkeys` table (see schema below)
 - Master key wrapped using PRF-derived wrapping key
 - Email encrypted with master key and stored as `encrypted_email_with_master_key` for passwordless login
@@ -87,13 +98,16 @@ If user's device doesn't support PRF, they can:
 ### Login Flow
 
 **Frontend Components**:
+
 - [`Login.svelte`](../../frontend/packages/ui/src/components/Login.svelte) - Main login component with passkey support (handles complete passkey login flow)
 
 **Backend Endpoints**:
+
 - `POST /auth/passkey/assertion/initiate` - Generates assertion challenge
 - `POST /auth/passkey/assertion/verify` - Verifies passkey assertion and returns user data
 
 **Passwordless Login Flow**:
+
 1. User clicks "Login with passkey" (no email entry required)
 2. Frontend calls `POST /auth/passkey/assertion/initiate` to get WebAuthn challenge
 3. Backend generates challenge with PRF extension using global salt: `SHA256(rp_id)[:32]`
@@ -113,6 +127,7 @@ If user's device doesn't support PRF, they can:
 17. Frontend waits for cache warming to complete (via WebSocket sync status) before loading main interface
 
 **Implementation**:
+
 - Backend: [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py) for assertion verification
 - Frontend: [`Login.svelte`](../../frontend/packages/ui/src/components/Login.svelte) for passkey login flow
 
@@ -130,12 +145,14 @@ If user's device doesn't support PRF, they can:
 6. Same process recovers master key deterministically
 
 **Why Global Salt?**
+
 - Enables true passwordless login: no email lookup required before passkey authentication
 - Deterministic: same `rp_id` always produces same `prf_eval_first` for all users on same domain
 - Secure: Each passkey's private key is unique, so PRF signatures remain unique per user
 - Solves "chicken-and-egg" problem: server can send `prf_eval_first` without knowing user identity
 
 **Implementation**: See [`cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts) for key derivation functions:
+
 - `deriveWrappingKeyFromPRF()` - Derives wrapping key from PRF signature
 - `encryptKey()` / `decryptKey()` - Wraps/unwraps master key
 - `hashKeyFromPRF()` - Generates lookup_hash from PRF signature
@@ -147,6 +164,7 @@ If user's device doesn't support PRF, they can:
 **Solution**: Email encrypted with master key and stored on server as `encrypted_email_with_master_key`.
 
 **Flow**:
+
 1. During signup: Email encrypted with master key → stored on server
 2. During login: Server returns `encrypted_email_with_master_key`
 3. Client decrypts email using master key (derived from PRF signature)
@@ -159,6 +177,7 @@ If user's device doesn't support PRF, they can:
 ## Database Schema
 
 **Table**: `user_passkeys`
+
 - `hashed_user_id` - SHA256 hash of user_id (indexed, for privacy-preserving lookups)
 - `user_id` - Direct reference to user_id (for efficient reverse lookups)
 - `credential_id` - Base64-encoded credential ID from WebAuthn (unique)
@@ -174,6 +193,7 @@ If user's device doesn't support PRF, they can:
 **Schema Definition**: [`user_passkeys.yml`](../../backend/core/directus/schemas/user_passkeys.yml)
 
 **Users Table Additions**:
+
 - `encrypted_email_with_master_key` - Email encrypted with master key (for passwordless login)
 
 **Schema Definition**: [`users.yml`](../../backend/core/directus/schemas/users.yml)
@@ -181,10 +201,12 @@ If user's device doesn't support PRF, they can:
 ## API Endpoints
 
 ### Registration Flow
+
 - `POST /auth/passkey/registration/initiate` - See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py) - Generates WebAuthn registration options with PRF extension using global salt
 - `POST /auth/passkey/registration/complete` - See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py) - Verifies attestation using `py_webauthn` library and stores passkey
 
 ### Login Flow
+
 - `POST /auth/passkey/assertion/initiate` - See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py) - Generates WebAuthn challenge with PRF extension using global salt
 - `POST /auth/passkey/assertion/verify` - See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py) - Verifies passkey signature, starts cache warming, returns encrypted user data
 - `POST /auth/login` - See [`auth_login.py`](../../backend/core/api/app/routes/auth_routes/auth_login.py) - Completes authentication with `lookup_hash` and `login_method: 'passkey'`
@@ -192,6 +214,7 @@ If user's device doesn't support PRF, they can:
 ## Security Considerations
 
 ### 1. PRF Support Verification
+
 - **Requirement**: Check device PRF support before signup
 - **Detection**: Test `navigator.credentials.create()` with PRF extension
 - **User Experience**: Show clear message if PRF not supported
@@ -201,6 +224,7 @@ If user's device doesn't support PRF, they can:
 **Implementation**: See [`SecureAccountTopContent.svelte`](../../frontend/packages/ui/src/components/signup/steps/secureaccount/SecureAccountTopContent.svelte) for PRF validation during passkey registration.
 
 ### 2. Sign Count Validation
+
 - Detects cloned authenticators (if sign_count doesn't increase)
 - If sign_count ≤ previous, flag as suspicious
 - Require additional verification (email confirmation, 2FA)
@@ -209,6 +233,7 @@ If user's device doesn't support PRF, they can:
 **Implementation**: See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py) for sign count validation.
 
 ### 3. Challenge Freshness
+
 - Generate new challenge for each registration/assertion
 - Challenge expires after 5 minutes if unused
 - Prevent replay attacks by validating timestamp
@@ -216,6 +241,7 @@ If user's device doesn't support PRF, they can:
 **Implementation**: See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py) for challenge caching.
 
 ### 4. User ID Lookup Efficiency
+
 - `user_passkeys` table includes `user_id` for efficient reverse lookups
 - Query by `hashed_user_id` (indexed) → get `user_id` directly
 - No batch-querying of users table required
@@ -223,6 +249,7 @@ If user's device doesn't support PRF, they can:
 **Implementation**: See [`directus.py`](../../backend/core/api/app/services/directus/directus.py) for efficient lookup method.
 
 ### 5. Cache Warming for Passkey Login
+
 - Cache warming starts immediately after passkey verification when `user_id` is known
 - Similar to password login: `/lookup` endpoint starts cache warming, `/passkey/assertion/verify` starts cache warming
 - Asynchronous task dispatch: doesn't block passkey verification response
@@ -239,7 +266,7 @@ If user's device doesn't support PRF, they can:
 
 2. **User loses passkey**
    - Recovery key is the primary recovery method (mandatory during signup)
-   - Email-based account recovery available (see [Account Recovery](./account_recovery.md))
+   - Email-based account recovery available (see [Account Recovery](./account-recovery.md))
 
 3. **Passkey login fails**
    - Fall back to password login (if password exists)
@@ -255,18 +282,21 @@ If user's device doesn't support PRF, they can:
 ## UX Considerations
 
 ### Signup
+
 - Clear messaging: "Passkeys are faster and more secure"
 - Explain: "You won't need to remember a password"
 - Device selection: Recommend saving on phone (resident credential)
 - Error handling: Clear messages for failed registration
 
 ### Login
+
 - "Sign in with Passkey" as primary option
 - Auto-fill supported devices (resident credentials)
 - Fallback: "Use email and password instead"
 - Device verification: Show which device is being used
 
 ### Settings
+
 - View registered passkeys with device names and last used date
 - Option to rename passkey
 - Option to remove passkey
@@ -277,16 +307,19 @@ If user's device doesn't support PRF, they can:
 **Current State**: Users have password-based accounts
 
 **Option 1: Optional Passkey Addition**
+
 - Allow users to add passkey in settings
 - Keep password as backup
 - User can toggle default login method
 
 **Option 2: Encourage Migration**
+
 - In-app prompt: "Upgrade to passkey for better security"
 - One-click migration (user taps passkey button)
 - Can still keep password or remove it
 
 **Recommendation**: Start with **Option 1**
+
 - Less disruptive
 - Users control their security
 - Can encourage in settings/onboarding later

@@ -65,6 +65,8 @@
     onNavigatePrevious?: () => void;
     /** Handler to navigate to the next embed */
     onNavigateNext?: () => void;
+    /** Direction of navigation ('previous' | 'next') — set transiently during prev/next transitions */
+    navigateDirection?: 'previous' | 'next';
     /** Whether to show the "chat" button to restore chat visibility (ultra-wide forceOverlayMode) */
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button to restore chat visibility */
@@ -82,6 +84,7 @@
     hasNextEmbed = false,
     onNavigatePrevious,
     onNavigateNext,
+    navigateDirection,
     showChatButton = false,
     onShowChat
   }: Props = $props();
@@ -99,9 +102,6 @@
   let customIcon: DivIcon | null = null;
   let selectedPlaceIndex = $state<number | null>(null);
   
-  // Cached place results for map initialization
-  let cachedPlaceResults = $state<PlaceSearchResult[]>([]);
-  
   // Check dark mode
   let isDarkMode = $derived(() => {
     const systemDarkMode = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -109,9 +109,6 @@
       getComputedStyle(document.documentElement).getPropertyValue('--is-dark-mode').trim() === 'true';
     return systemDarkMode || websiteDarkMode;
   });
-  
-  // Get skill name from translations (matches preview)
-  let skillName = $derived($text('embeds.search'));
   
   // Get "via {provider}" text from translations
   let viaProvider = $derived(
@@ -344,13 +341,16 @@
   });
   
   /**
-   * Effect to initialize map when child embeds finish loading
+   * Called by UnifiedEmbedFullscreen when child place embeds finish loading.
+   * Transforms the loaded children into PlaceSearchResult[] and initializes the map.
+   * This is the correct way to trigger map init — via a callback, not a template side effect.
    */
-  $effect(() => {
-    if (cachedPlaceResults.length > 0 && !map) {
-      initializeMapWithResults(cachedPlaceResults);
-    }
-  });
+  function handleChildrenLoaded(children: unknown[]) {
+    if (map) return; // Already initialized
+    const results = children as PlaceSearchResult[];
+    if (results.length === 0) return;
+    initializeMapWithResults(results);
+  }
 </script>
 
 <!-- 
@@ -363,27 +363,24 @@
 <UnifiedEmbedFullscreen
   appId="maps"
   skillId="search"
-  title=""
   {onClose}
   currentEmbedId={embedId}
   skillIconName="search"
-  status="finished"
-  {skillName}
-  showStatus={true}
+  embedHeaderTitle={$text('embeds.search')}
   {embedIds}
   childEmbedTransformer={transformToPlaceResult}
   legacyResults={resultsProp}
+  onChildrenLoaded={handleChildrenLoaded}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
   {onNavigateNext}
+  {navigateDirection}
   {showChatButton}
   {onShowChat}
 >
   {#snippet content(ctx)}
     {@const placeResults = getPlaceResults(ctx)}
-    <!-- Cache results for map initialization -->
-    {(() => { cachedPlaceResults = placeResults; return ''; })()}
     
     <!-- Header with search query and provider - 60px top margin, 40px bottom margin -->
     <div class="fullscreen-header">

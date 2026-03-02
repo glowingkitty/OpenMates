@@ -3,15 +3,18 @@
 /**
  * Validation script for locale JSON files and translation integrity
  * 
- * This script:
+ * This script performs 7 validation steps:
  * 1. Reads LANGUAGE_CODES from languages.json (single source of truth)
  * 2. Checks if each required locale JSON file exists and is valid JSON
  * 3. Validates that all .text leaf values are strings (catches [object Object] bugs)
  * 4. Validates YAML source files for non-string language values
  * 5. Scans .svelte/.ts files for $text() calls and validates keys exist in en.json
+ *    — scans both packages/ui/src AND apps/web_app/src
+ * 6. Validates translation keys in matesMetadata.ts against en.json
+ * 7. Cross-locale completeness: checks all non-English locales have the same keys as en.json
  * 
  * This ensures the build fails early if locale files are missing, malformed,
- * or would produce [object Object] at runtime.
+ * contain broken translation keys, or have missing translations in any locale.
  * 
  * Usage: node scripts/validate-locales.js
  */
@@ -31,6 +34,8 @@ import { LANGUAGE_CODES } from './languages-config.js';
 const LOCALES_DIR = path.join(__dirname, '../src/i18n/locales');
 const SOURCES_DIR = path.join(__dirname, '../src/i18n/sources');
 const SRC_DIR = path.join(__dirname, '../src');
+// Also scan the web_app source directory for $text() calls (routes, pages, etc.)
+const WEB_APP_SRC_DIR = path.join(__dirname, '../../apps/web_app/src');
 
 // ─── Helper: walk a directory tree ──────────────────────────────────────────
 
@@ -63,7 +68,7 @@ function walkFiles(dir, filter) {
  * @returns {{ missingFiles: string[], invalidFiles: Array<{langCode: string, error: string}>, parsedLocales: Object }}
  */
 function validateLocaleFiles() {
-    console.log('🔍 Validating locale JSON files...\n');
+    console.log('🔍 Step 1: Validating locale JSON files...\n');
 
     if (!fs.existsSync(LOCALES_DIR)) {
         console.error(`❌ Locales directory does not exist: ${LOCALES_DIR}`);
@@ -192,6 +197,9 @@ function resolveDotKey(obj, dotKey) {
  * Scan .svelte and .ts source files for $text('...') calls and validate that
  * each referenced key resolves to a node with a .text string in en.json.
  *
+ * Scans both packages/ui/src AND apps/web_app/src to catch all translation
+ * key usages across the entire frontend.
+ *
  * This catches:
  *  - Typos in translation keys (key doesn't exist)
  *  - Intermediate node references (key exists but has no .text leaf)
@@ -204,9 +212,15 @@ function validateTextKeysInSource(enLocale) {
     const objectKeys = [];
     const seenKeys = new Set(); // deduplicate per-key (still report file:line for first occurrence)
 
-    const sourceFiles = walkFiles(SRC_DIR, name =>
-        name.endsWith('.svelte') || (name.endsWith('.ts') && !name.endsWith('.d.ts'))
-    );
+    // File filter: .svelte and .ts files (excluding .d.ts declaration files)
+    const fileFilter = name =>
+        name.endsWith('.svelte') || (name.endsWith('.ts') && !name.endsWith('.d.ts'));
+
+    // Collect source files from both directories
+    const sourceFiles = [
+        ...walkFiles(SRC_DIR, fileFilter),
+        ...walkFiles(WEB_APP_SRC_DIR, fileFilter)
+    ];
 
     // Regex matches $text('some.key') and $text("some.key") — single or double quotes.
     // It also matches the store-access form: $text('key', { vars }).
@@ -216,8 +230,11 @@ function validateTextKeysInSource(enLocale) {
     // Skip files that reference $text() for non-lookup purposes (e.g., the translation helper itself)
     const SKIP_FILES = new Set(['src/i18n/translations.ts']);
 
+    // Base directory for relative path computation (packages/ui/)
+    const uiBaseDir = path.join(__dirname, '..');
+
     for (const filePath of sourceFiles) {
-        const relFile = path.relative(path.join(__dirname, '..'), filePath);
+        const relFile = path.relative(uiBaseDir, filePath);
 
         // Skip files that aren't actual translation consumers
         if (SKIP_FILES.has(relFile)) continue;
@@ -264,6 +281,124 @@ function validateTextKeysInSource(enLocale) {
     return { missingKeys, objectKeys };
 }
 
+// ─── 5. Validate matesMetadata.ts translation keys ─────────────────────────
+
+/**
+ * Extract translation keys from matesMetadata.ts and validate them against en.json.
+ * Mates define name_translation_key and description_translation_key properties.
+ *
+ * @param {Object} enLocale - Parsed en.json
+ * @returns {{ missingKeys: Array<{key: string, file: string, property: string}> }}
+ */
+function validateMatesMetadataKeys(enLocale) {
+    const missingKeys = [];
+    const matesMetadataPath = path.join(SRC_DIR, 'data', 'matesMetadata.ts');
+
+    if (!fs.existsSync(matesMetadataPath)) {
+        console.warn('⚠️  matesMetadata.ts not found — skipping mates key validation');
+        return { missingKeys };
+    }
+
+    const content = fs.readFileSync(matesMetadataPath, 'utf-8');
+
+    // Extract all translation key string values from *_translation_key properties.
+    // Matches patterns like: name_translation_key: "mates.software_development"
+    // or: description_translation_key: 'mate_descriptions.software_development'
+    const keyRegex = /(\w+_translation_key)\s*:\s*['"]([^'"]+)['"]/g;
+    let match;
+
+    while ((match = keyRegex.exec(content)) !== null) {
+        const property = match[1];
+        const key = match[2];
+
+        const resolved = resolveDotKey(enLocale, key);
+
+        if (resolved === undefined) {
+            missingKeys.push({ key, file: 'src/data/matesMetadata.ts', property });
+        } else if (typeof resolved === 'object' && resolved !== null) {
+            // Key exists but needs a .text leaf
+            if (!('text' in resolved) || typeof resolved.text !== 'string') {
+                missingKeys.push({ key, file: 'src/data/matesMetadata.ts', property });
+            }
+        }
+    }
+
+    return { missingKeys };
+}
+
+// ─── 6. Cross-locale completeness check ─────────────────────────────────────
+
+/**
+ * Collect all leaf key paths (dot-notation paths ending in .text) from a locale object.
+ *
+ * @param {Object} obj - The locale JSON object
+ * @param {string} prefix - Current dot-notation prefix
+ * @returns {Set<string>} Set of dot-notation key paths (e.g., "signup.sign_up.text")
+ */
+function collectLeafPaths(obj, prefix = '') {
+    const paths = new Set();
+    if (obj == null || typeof obj !== 'object') return paths;
+
+    for (const [key, value] of Object.entries(obj)) {
+        const currentPath = prefix ? `${prefix}.${key}` : key;
+
+        if (key === 'text' && typeof value === 'string') {
+            // This is a valid translation leaf
+            paths.add(currentPath);
+        } else if (typeof value === 'object' && value !== null) {
+            for (const subPath of collectLeafPaths(value, currentPath)) {
+                paths.add(subPath);
+            }
+        }
+    }
+    return paths;
+}
+
+/**
+ * Check that all non-English locales contain the same .text leaf keys as en.json.
+ * Missing keys in a locale mean that language will show [T:key] placeholders at runtime.
+ *
+ * @param {Object} parsedLocales - Map of language code to parsed JSON
+ * @returns {{ missingByLocale: Object<string, string[]>, totalMissing: number }}
+ */
+function validateCrossLocaleCompleteness(parsedLocales) {
+    const enLocale = parsedLocales['en'];
+    if (!enLocale) {
+        return { missingByLocale: {}, totalMissing: 0 };
+    }
+
+    const enPaths = collectLeafPaths(enLocale);
+    const missingByLocale = {};
+    let totalMissing = 0;
+
+    for (const langCode of LANGUAGE_CODES) {
+        if (langCode === 'en') continue;
+        const locale = parsedLocales[langCode];
+        if (!locale) continue; // already reported as missing file in step 1
+
+        const localePaths = collectLeafPaths(locale);
+        const missing = [];
+
+        for (const enPath of enPaths) {
+            if (!localePaths.has(enPath)) {
+                // Convert .text leaf path back to the $text() key format for readability
+                // e.g., "signup.sign_up.text" → "signup.sign_up"
+                const displayKey = enPath.endsWith('.text')
+                    ? enPath.slice(0, -5)
+                    : enPath;
+                missing.push(displayKey);
+            }
+        }
+
+        if (missing.length > 0) {
+            missingByLocale[langCode] = missing;
+            totalMissing += missing.length;
+        }
+    }
+
+    return { missingByLocale, totalMissing };
+}
+
 // ─── Main ───────────────────────────────────────────────────────────────────
 
 function validateLocales() {
@@ -277,7 +412,7 @@ function validateLocales() {
     }
 
     // ── Step 2: Check .text leaves are strings in every locale ──
-    console.log('\n🔍 Checking .text leaf values in locale JSON files...\n');
+    console.log('\n🔍 Step 2: Checking .text leaf values in locale JSON files...\n');
     let textLeafErrors = 0;
     for (const [langCode, locale] of Object.entries(parsedLocales)) {
         const errors = findNonStringTextLeaves(locale);
@@ -294,7 +429,7 @@ function validateLocales() {
     }
 
     // ── Step 3: Check YAML source files for non-string language values ──
-    console.log('\n🔍 Checking YAML source files for non-string values...\n');
+    console.log('\n🔍 Step 3: Checking YAML source files for non-string values...\n');
     const yamlErrors = validateYamlSources();
     if (yamlErrors.length > 0) {
         hasErrors = true;
@@ -306,38 +441,98 @@ function validateLocales() {
     }
 
     // ── Step 4: Validate $text() keys against en.json ──
-    console.log('\n🔍 Validating $text() keys in source code against en.json...\n');
+    // Scans both packages/ui/src AND apps/web_app/src
+    console.log('\n🔍 Step 4: Validating $text() keys in source code against en.json...\n');
     const enLocale = parsedLocales['en'];
+    let missingKeyCount = 0;
+    let objectKeyCount = 0;
+
     if (enLocale) {
         const { missingKeys, objectKeys } = validateTextKeysInSource(enLocale);
+        missingKeyCount = missingKeys.length;
+        objectKeyCount = objectKeys.length;
 
         if (objectKeys.length > 0) {
             // Object keys reference intermediate nodes (no .text leaf).
             // At runtime, the typeof guard in translations.ts catches these and
-            // shows [T:key] placeholder instead of [object Object]. Warn so
-            // developers fix them, but don't block the build.
-            console.warn(`⚠️  Found ${objectKeys.length} $text() call(s) referencing keys that resolve to objects (broken translation — shows placeholder):\n`);
+            // shows [T:key] placeholder instead of [object Object].
+            // This is a build-breaking error — these keys will never render correctly.
+            hasErrors = true;
+            console.error(`❌ Found ${objectKeys.length} $text() call(s) referencing keys that resolve to objects (broken translation — shows [T:] placeholder):\n`);
             for (const { key, file, line } of objectKeys) {
-                console.warn(`   $text('${key}')  →  ${file}:${line}`);
+                console.error(`   $text('${key}')  →  ${file}:${line}`);
             }
         }
 
         if (missingKeys.length > 0) {
-            // Missing keys show [T:key] placeholder — warn but don't fail the build
-            // (they might be dynamically constructed keys or not yet added)
-            console.warn(`\n⚠️  Found ${missingKeys.length} $text() call(s) referencing keys not found in en.json (will show [T:key] placeholder):\n`);
+            // Missing keys will show [T:key] placeholder in the UI.
+            // This is a build-breaking error — every static $text() key must exist.
+            hasErrors = true;
+            console.error(`\n❌ Found ${missingKeys.length} $text() call(s) referencing keys not found in en.json (will show [T:key] placeholder):\n`);
             for (const { key, file, line } of missingKeys) {
-                console.warn(`   $text('${key}')  →  ${file}:${line}`);
+                console.error(`   $text('${key}')  →  ${file}:${line}`);
             }
         }
 
         if (objectKeys.length === 0 && missingKeys.length === 0) {
             console.log('✓ All static $text() keys resolve to valid translations');
-        } else if (objectKeys.length === 0) {
-            console.log('\n✓ No [object Object] risks found in $text() calls');
         }
     } else {
         console.warn('⚠️  en.json not available — skipping $text() key validation');
+    }
+
+    // ── Step 5: Validate matesMetadata.ts translation keys ──
+    console.log('\n🔍 Step 5: Validating matesMetadata.ts translation keys against en.json...\n');
+    if (enLocale) {
+        const { missingKeys: matesMissing } = validateMatesMetadataKeys(enLocale);
+        if (matesMissing.length > 0) {
+            hasErrors = true;
+            console.error(`❌ Found ${matesMissing.length} missing translation key(s) in matesMetadata.ts:\n`);
+            for (const { key, property } of matesMissing) {
+                console.error(`   ${property}: '${key}'  →  not found in en.json`);
+            }
+        } else {
+            console.log('✓ All matesMetadata.ts translation keys resolve to valid translations');
+        }
+    } else {
+        console.warn('⚠️  en.json not available — skipping matesMetadata key validation');
+    }
+
+    // ── Step 6: Cross-locale completeness check ──
+    // Verifies that every key present in en.json also exists in all other locales.
+    // Missing keys in non-English locales cause [T:key] placeholders for those languages.
+    console.log('\n🔍 Step 6: Checking cross-locale completeness (all locales vs en.json)...\n');
+    if (enLocale) {
+        const { missingByLocale, totalMissing } = validateCrossLocaleCompleteness(parsedLocales);
+
+        if (totalMissing > 0) {
+            // Report as warnings (not build-breaking errors) because:
+            // 1. New translations take time to be translated to all languages
+            // 2. svelte-i18n falls back to the English value when a key is missing in a locale
+            // 3. Making this a hard error would block builds whenever new keys are added
+            // Once translation coverage is high enough, this can be upgraded to an error.
+            const localesAffected = Object.keys(missingByLocale).length;
+            console.warn(`⚠️  ${totalMissing} translation(s) missing across ${localesAffected} locale(s):\n`);
+
+            for (const [langCode, missing] of Object.entries(missingByLocale)) {
+                // Show count and first few examples per locale to keep output manageable
+                const MAX_EXAMPLES = 5;
+                const shown = missing.slice(0, MAX_EXAMPLES);
+                const remaining = missing.length - MAX_EXAMPLES;
+                console.warn(`   ${langCode}: ${missing.length} missing key(s)`);
+                for (const key of shown) {
+                    console.warn(`      - ${key}`);
+                }
+                if (remaining > 0) {
+                    console.warn(`      ... and ${remaining} more`);
+                }
+            }
+            console.warn('');
+        } else {
+            console.log('✓ All locales have complete translations matching en.json');
+        }
+    } else {
+        console.warn('⚠️  en.json not available — skipping cross-locale completeness check');
     }
 
     // ── Summary ──
@@ -359,6 +554,12 @@ function validateLocales() {
         if (yamlErrors.length > 0) {
             console.error(`\n   YAML source errors: ${yamlErrors.length}`);
         }
+        if (missingKeyCount > 0) {
+            console.error(`\n   Missing $text() keys in source code: ${missingKeyCount}`);
+        }
+        if (objectKeyCount > 0) {
+            console.error(`\n   Broken $text() keys (resolve to objects): ${objectKeyCount}`);
+        }
 
         console.error('\n⚠️  The build cannot proceed with translation errors.');
         console.error('   Fix the issues above, then run "npm run build:translations && npm run validate:locales".');
@@ -371,4 +572,3 @@ function validateLocales() {
 
 // Run validation
 validateLocales();
-

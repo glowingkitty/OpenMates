@@ -43,13 +43,16 @@
     activeChatId = undefined,
     selectMode = false,
     selectedChatIds = new Set<string>(),
-    onToggleSelection
+    onToggleSelection,
+    highlightedTitle = null,
   }: {
     chat: Chat;
     activeChatId?: string | undefined;
     selectMode?: boolean;
     selectedChatIds?: Set<string>;
     onToggleSelection?: (chatId: string) => void;
+    /** Pre-highlighted HTML string for the chat title (used in search results to show <mark> tags). When provided, overrides the normal title rendering. */
+    highlightedTitle?: string | null;
   } = $props();
   
   // Check if this chat is selected
@@ -79,7 +82,7 @@
   let categoryGradientColors: { start: string; end: string } | null = $state(null);
   let chatCategory: string | null = $state(null); // Store the chat's category (null if not set by server)
   let chatIcon: string | null = $state(null); // Store the chat's icon (null if not set by server)
-  
+
   // Context menu state
   let showContextMenu = $state(false);
   let contextMenuX = $state(0);
@@ -238,6 +241,17 @@
    * Extract text from markdown, replacing json_embed blocks with their URLs
    * and code blocks with readable placeholders for better display in chat previews
    */
+  /**
+   * Extract human-readable preview text from stored markdown content.
+   * This is the fallback path used when no TipTap JSON is available
+   * (e.g. when reading encrypted drafts from the database).
+   *
+   * NOTE: This path cannot preserve the document order of unserialized embeds
+   * (e.g. uploading images without a contentRef) because they are not present
+   * in the markdown at all. The primary path (generateDraftPreview in draftSave.ts)
+   * uses TipTap JSON to preserve order correctly. This function handles the case
+   * where only markdown is available (e.g. fallback decryption of old drafts).
+   */
   function extractDisplayTextFromMarkdown(markdown: string): string {
     if (!markdown) return '';
     
@@ -248,23 +262,37 @@
       // e.g., "@ai-model:claude-4-sonnet" -> "@Claude-4.5-Sonnet"
       displayText = convertMentionSyntaxToDisplayName(displayText);
       
-      // Replace json_embed code blocks with their URLs for display, ensuring proper spacing
-      displayText = displayText.replace(/```json_embed\n([\s\S]*?)\n```/g, (match, jsonContent) => {
+      // Replace legacy json_embed code blocks with their URLs for display
+      displayText = displayText.replace(/```json_embed\n([\s\S]*?)\n```/g, (match) => {
         const url = extractUrlFromJsonEmbedBlock(match);
-        if (url) {
-          // Ensure the URL has spaces around it for proper separation from surrounding text
-          return ` ${url} `;
-        }
-        return match; // Return original if URL extraction failed
+        return url ? ` ${url} ` : match;
       });
       
-      // Replace regular code blocks with a placeholder showing the code content
+      // Replace serialized embed reference blocks (```json\n{...}\n```) with human-readable tokens.
+      // These are produced by serializers.ts for embeds stored in EmbedStore.
+      // Must be applied BEFORE the generic code-block handler below so they don't
+      // fall through and show as "[Code: {]".
+      displayText = displayText.replace(/```json\n([\s\S]*?)\n```/g, (match, jsonContent) => {
+        try {
+          const parsed = JSON.parse(jsonContent.trim());
+          const type = parsed?.type;
+          if (type === 'location') return ' [Location] ';
+          if (type === 'video') return ' [Video] ';
+          if (type === 'website') return ' [Website] ';
+          if (type === 'image') return ' [Image] ';
+          if (type === 'code' || type === 'code-code' || type === 'code-code-group') return ' [Code] ';
+          if (type) return ` [${type}] `;
+        } catch {
+          // Not valid JSON — fall through to generic code-block handler
+        }
+        return match;
+      });
+      
+      // Replace remaining code blocks with a placeholder showing the code content
       // This handles ```python\ncode\n``` style blocks
       displayText = displayText.replace(/```(\w*)\n([\s\S]*?)\n```/g, (match, language, codeContent) => {
-        // Show the actual code content, not just the language
         const trimmedCode = codeContent.trim();
         if (trimmedCode) {
-          // Show first line of code or truncated version
           const firstLine = trimmedCode.split('\n')[0].trim();
           return ` [Code: ${firstLine.substring(0, 30)}${firstLine.length > 30 ? '...' : ''}] `;
         }
@@ -399,6 +427,12 @@
 
   // Store cached metadata at component level
   let cachedMetadata: DecryptedChatMetadata | null = $state(null);
+
+  // Active focus mode badge: derived from cachedMetadata.activeFocusId.
+  // Shows a small circle in the bottom-right of the category circle when a focus mode is active.
+  // Format of activeFocusId: "{app_id}-{focus_mode_id}" e.g. "jobs-career_insights"
+  let activeFocusId = $derived(cachedMetadata?.activeFocusId ?? null);
+  let activeFocusBadgeAppId = $derived(activeFocusId ? activeFocusId.split('-')[0] : null);
   
   // CRITICAL: Track if we're waiting for title (reactive variable for template)
   // This ensures we keep showing "Processing..." until title is ready
@@ -413,6 +447,42 @@
       displayLabel = '';
       displayText = '';
       cachedMetadata = null;
+      return;
+    }
+
+    // INCOGNITO CHAT HANDLING: Incognito chats store title/category/icon directly (no encryption,
+    // no IndexedDB). All metadata is read directly from the chat object, and messages are loaded
+    // from incognitoChatService (sessionStorage). We must handle these before the public chat path
+    // because incognito chats are NOT in IndexedDB and chatMetadataCache will return nothing.
+    if (currentChat.is_incognito) {
+      // Title is stored plaintext on the chat object (incognito chats don't use encrypted_title)
+      // No draft support for incognito chats - they are ephemeral session-only chats
+      draftTextContent = '';
+      cachedMetadata = null;
+
+      // Load the last message from sessionStorage via incognitoChatService
+      try {
+        const { incognitoChatService } = await import('../../services/incognitoChatService');
+        const messages = await incognitoChatService.getMessagesForChat(currentChat.chat_id);
+        lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+      } catch (error) {
+        console.debug(`[Chat] Error loading incognito messages for ${currentChat.chat_id}:`, error);
+        lastMessage = null;
+      }
+
+      // Category and icon are stored plaintext on the chat object
+      chatCategory = currentChat.category || null;
+      const iconField = currentChat.icon;
+      if (iconField) {
+        const iconNames = iconField.split(',');
+        chatIcon = iconNames.length > 0 ? iconNames[0] : null;
+      } else {
+        chatIcon = null;
+      }
+
+      // No displayLabel/displayText for incognito chats (they have no draft status)
+      displayLabel = '';
+      displayText = '';
       return;
     }
 
@@ -596,9 +666,12 @@
           // Special statuses (sending, processing, etc.) are transient and should be rare
           // For most chats, we don't need to fetch (delivered/synced messages aren't shown anyway)
           // Only fetch if this chat is actively being used (typing, or it's the active chat)
+          // ALSO fetch for untitled chats with messages — these may be credit-rejected chats
+          // that need to display "Credits needed..." in the sidebar
           const mightHaveSpecialStatus = 
             typingStoreValue?.chatId === currentChat.chat_id ||
-            currentChat.chat_id === activeChatId;
+            currentChat.chat_id === activeChatId ||
+            (!cachedMetadata?.title && currentChat.messages_v > 0);
           
           if (mightHaveSpecialStatus) {
             // Might have special status - fetch and cache
@@ -674,19 +747,34 @@
     displayText = '';
 
     // Handle sending, processing, waiting_for_internet, waiting_for_user, and failed states first as they take precedence
-    // Check all messages (not just lastMessage) for waiting_for_user since the system message
-    // may not be the last message in the array
-    const waitingForUserMessage = chat.messages?.find(m => m.status === 'waiting_for_user');
-    hasWaitingForUser = !!waitingForUserMessage;
-    if (hasWaitingForUser) {
-      // Show "Waiting for user" label with the system message content as preview
-      // (e.g., insufficient credits message), using draft-like design in the sidebar
-      displayLabel = $text('enter_message.waiting_for_user');
-      // Extract the system message content to show as preview text
-      if (waitingForUserMessage.content) {
-        displayText = typeof waitingForUserMessage.content === 'string' 
-          ? waitingForUserMessage.content 
-          : extractTextFromTiptap(waitingForUserMessage.content);
+    // Check lastMessage for waiting_for_user status (credit rejection, etc.)
+    // The last message can be either the system rejection message or the user message (both get waiting_for_user)
+    hasWaitingForUser = lastMessage?.status === 'waiting_for_user';
+    if (hasWaitingForUser && lastMessage) {
+      // Show "Credits needed..." label with user message content as preview
+      // using draft-like design in the sidebar
+      displayLabel = $text('chat.credits_needed');
+      
+      if (lastMessage.role === 'user') {
+        // Last message IS the user message — show its content directly
+        displayText = typeof lastMessage.content === 'string' 
+          ? lastMessage.content 
+          : extractTextFromTiptap(lastMessage.content);
+      } else if (lastMessage.role === 'system' && lastMessage.user_message_id) {
+        // Last message is the system rejection message — fetch the user message for preview
+        try {
+          const userMessage = await chatDB.getMessage(lastMessage.user_message_id);
+          if (userMessage?.content) {
+            displayText = typeof userMessage.content === 'string' 
+              ? userMessage.content 
+              : extractTextFromTiptap(userMessage.content);
+          } else {
+            displayText = '';
+          }
+        } catch (error) {
+          console.error('[Chat] Error fetching user message for credit rejection preview:', error);
+          displayText = '';
+        }
       } else {
         displayText = '';
       }
@@ -694,14 +782,22 @@
       // Sidebar always shows "Processing..." for both sending and processing states.
       // The detailed status steps (generating title, selecting mate, etc.) are shown
       // only in the ActiveChat centered overlay — the sidebar keeps it simple.
+      // CRITICAL: Use extractDisplayTextFromMarkdown to strip ```json embed blocks (images, code, etc.)
+      // so the sidebar shows "[Image]" instead of raw JSON like "```json\n{\"type\": \"image\"...".
       displayLabel = $text('enter_message.processing');
-      displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
+      displayText = typeof lastMessage.content === 'string'
+        ? extractDisplayTextFromMarkdown(lastMessage.content)
+        : extractTextFromTiptap(lastMessage.content);
     } else if (lastMessage?.status === 'waiting_for_internet') {
       displayLabel = $text('enter_message.waiting_for_internet');
-      displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
+      displayText = typeof lastMessage.content === 'string'
+        ? extractDisplayTextFromMarkdown(lastMessage.content)
+        : extractTextFromTiptap(lastMessage.content);
     } else if (lastMessage?.status === 'failed') {
-      displayLabel = 'Failed'; 
-      displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
+      displayLabel = 'Failed';
+      displayText = typeof lastMessage.content === 'string'
+        ? extractDisplayTextFromMarkdown(lastMessage.content)
+        : extractTextFromTiptap(lastMessage.content);
     } else if (draftTextContent) {
       // If there's a draft, display draft information
       if (cachedMetadata?.title) {
@@ -829,6 +925,23 @@
     }
   }
   
+  // Handler for focus mode activation/deactivation events from chatSyncService.
+  // Refreshes cachedMetadata for this chat entry so the sidebar badge updates immediately.
+  async function handleFocusModeChange(event: Event) {
+    const customEvent = event as CustomEvent;
+    const chatId = customEvent.detail?.chat_id;
+    if (chat && chatId === chat.chat_id) {
+      // Explicitly invalidate the cache here so that updateDisplayInfo reads the fresh
+      // encrypted_active_focus_id from IndexedDB rather than a stale cached value.
+      // chatSyncService also invalidates before dispatching, but there can be a race
+      // if updateDisplayInfo runs before the invalidation propagates across async boundaries.
+      chatMetadataCache.invalidateChat(chat.chat_id);
+      // Fetch the updated chat (chatSyncService already wrote the new encrypted_active_focus_id)
+      const freshChat = await chatDB.getChat(chat.chat_id).catch(() => null);
+      await updateDisplayInfo(freshChat ?? chat);
+    }
+  }
+
   // Handler for hiding chat after unlock
   function handleHideChatAfterUnlock(event: Event) {
     const customEvent = event as CustomEvent<{ chatId: string }>;
@@ -854,6 +967,12 @@
     
     // Listen for hide chat after unlock event
     window.addEventListener('hideChatAfterUnlock', handleHideChatAfterUnlock);
+
+    // Listen for focus mode activation/deactivation to refresh the badge in the sidebar.
+    // chatSyncService invalidates chatMetadataCache before dispatching this event, so
+    // re-running updateDisplayInfo will pick up the fresh encrypted_active_focus_id.
+    chatSyncService.addEventListener('focusModeActivated', handleFocusModeChange as EventListener);
+    chatSyncService.addEventListener('focusModeDeactivated', handleFocusModeChange as EventListener);
   });
 
   onDestroy(() => {
@@ -867,6 +986,8 @@
     chatSyncService.removeEventListener('aiTaskInitiated', handleChatOrMessageUpdated as EventListener);
     chatSyncService.removeEventListener('aiTaskEnded', handleChatOrMessageUpdated as EventListener);
     window.removeEventListener('hideChatAfterUnlock', handleHideChatAfterUnlock);
+    chatSyncService.removeEventListener('focusModeActivated', handleFocusModeChange as EventListener);
+    chatSyncService.removeEventListener('focusModeDeactivated', handleFocusModeChange as EventListener);
   });
 
   function truncateText(textToTruncate: string, maxLength: number = 60): string { // Renamed param
@@ -906,8 +1027,18 @@
     wasActive = isActive;
   });
   
-  // Detect if this is a draft-only chat (has draft content but no title and no messages) using Svelte 5 runes
-  let isDraftOnly = $derived(chat && draftTextContent && !cachedMetadata?.title && (!lastMessage || lastMessage === null));
+  // Detect if this is a draft-only chat (has draft content but no title and no messages) using Svelte 5 runes.
+  // CRITICAL: Also check the raw chat object for draft indicators (encrypted_draft_preview / encrypted_draft_md)
+  // so isDraftOnly is true immediately on first render, before the async updateDisplayInfo() call resolves
+  // and populates draftTextContent. Without this, there is a brief window where draftTextContent is still ''
+  // (initial $state value), isDraftOnly is false, and the component falls through to the "Untitled chat"
+  // fallback — which is the intermittent "shows Untitled chat instead of Draft:" bug.
+  let hasDraftIndicator = $derived(
+    !!draftTextContent ||
+    !!chat?.encrypted_draft_preview ||
+    !!chat?.encrypted_draft_md
+  );
+  let isDraftOnly = $derived(chat && hasDraftIndicator && !cachedMetadata?.title && !chat.title && (!lastMessage || lastMessage === null));
   
   // Detect if this is a chat waiting for metadata (new chat that just sent first message)
   // These chats should show message content with status indicator, similar to draft-only but with message
@@ -1786,7 +1917,11 @@
             <span class="draft-content-as-title">{truncateText(displayText, 60)}</span>
           {/if}
         </div>
-      {:else if (lastMessage?.status === 'sending' || lastMessage?.status === 'processing' || isWaitingForTitle) && !currentTypingMateInfo}
+      {:else if (lastMessage?.status === 'sending' || lastMessage?.status === 'processing' || isWaitingForTitle) && !currentTypingMateInfo && !cachedMetadata?.title && !chat.title}
+        <!-- Status-only layout: only shown when we genuinely have no title yet.
+             Once title/category/icon arrive (cachedMetadata.title or chat.title is set),
+             we fall through to the chat-with-profile layout so the title is shown immediately
+             even while the AI is still processing the response. -->
         <div class="status-only-preview">
           {#if displayLabel}<span class="status-label">{displayLabel}</span>{/if}
           {#if displayText}<span class="status-content-preview">{truncateText(displayText, 60)}</span>{/if}
@@ -1861,7 +1996,7 @@
                 {@const chatIconName = chatIcon || getFallbackIconForCategory(chatCategory)}
                 {@const IconComponent = getLucideIcon(chatIconName)}
                 <div class="category-circle-wrapper">
-                  <div 
+                   <div 
                     class="category-circle" 
                     style={categoryGradientColors ? `background: linear-gradient(135deg, ${categoryGradientColors.start}, ${categoryGradientColors.end})` : 'background: #cccccc'}
                   >
@@ -1879,6 +2014,17 @@
                       </div>
                     {/if}
                   </div>
+                  <!-- Focus mode badge: small circle in bottom-right when a focus mode is active -->
+                  {#if activeFocusBadgeAppId}
+                    <div
+                      class="focus-mode-badge"
+                      style="background: var(--color-app-{activeFocusBadgeAppId}, #5856d6);"
+                      title={activeFocusId ?? ''}
+                      aria-label="Focus mode active"
+                    >
+                      <span class="focus-mode-badge-icon"></span>
+                    </div>
+                  {/if}
                 </div>
               {:else}
                 <!-- Category is null - backend hasn't set it yet or it's a legacy chat -->
@@ -1911,14 +2057,20 @@
             <!-- Demo chats use plaintext title, regular chats use cached decrypted title -->
             <!-- CRITICAL: Never show "Untitled chat" - show "Processing..." status instead if title not ready -->
             <!-- Using {@html} to render HTML styling (e.g., OpenMates branding) -->
-            <div class="chat-title-wrapper">
-              {#if chat.title || cachedMetadata?.title}
+             <div class="chat-title-wrapper">
+              {#if highlightedTitle}
+                <!-- Search result mode: use pre-highlighted HTML title (has <mark> tags for matched text) -->
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                <span class="chat-title">{@html highlightedTitle}</span>
+              {:else if chat.title || cachedMetadata?.title}
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 <span class="chat-title">{@html chat.title || cachedMetadata?.title}</span>
               {:else if isWaitingForTitle}
                 <!-- Show "Processing..." as title when waiting for metadata -->
                 <span class="chat-title processing-title">{$text('enter_message.processing')}</span>
               {:else}
                 <!-- Fallback: Only show "Untitled chat" if we're sure metadata is ready (shouldn't happen) -->
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 <span class="chat-title">{@html $text('chat.untitled_chat')}</span>
               {/if}
               {#if chat.pinned}
@@ -1926,12 +2078,8 @@
                   <span class="clickable-icon icon_pin" title="Pinned"></span>
                 </span>
               {/if}
-              {#if chat.is_incognito}
-                <span class="incognito-label">
-                  <span class="icon icon_incognito"></span>
-                  {$text('settings.incognito')}
-                </span>
-              {/if}
+              <!-- Incognito label badge removed: incognito chats are now grouped under their own
+                   "INCOGNITO" sidebar section header, making per-chat badges redundant. -->
             </div>
             {#if typingIndicatorInTitleView}
               <span class="status-message typing-shimmer">
@@ -2046,6 +2194,19 @@
     font-weight: 500;
     color: var(--color-text);
     margin-bottom: 2px;
+  }
+
+  /* Highlight styling for search match <mark> tags within the title — yellow background */
+  .chat-title :global(mark) {
+    background: none;
+    background-color: rgba(255, 213, 0, 0.4);
+    -webkit-background-clip: unset;
+    background-clip: unset;
+    -webkit-text-fill-color: unset;
+    color: inherit;
+    font-weight: inherit;
+    border-radius: 2px;
+    padding: 1px 0;
   }
 
   .pin-indicator {
@@ -2180,28 +2341,43 @@
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
   }
 
-  .incognito-label {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 0.75em;
-    color: var(--color-grey-60);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-weight: 500;
-  }
-
-  .incognito-label .icon {
-    width: 12px;
-    height: 12px;
-    opacity: 0.7;
-  }
-
   /* Category circle styles */
   .category-circle-wrapper {
     flex: 0 0 28px;
     position: relative;
     height: 28px;
+  }
+
+  /* Focus mode badge: small circle overlaid at the bottom-right of the category circle.
+     Indicates an active focus mode is engaged in this chat. */
+  .focus-mode-badge {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid var(--color-background);
+    z-index: 1;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+
+  .focus-mode-badge-icon {
+    width: 7px;
+    height: 7px;
+    display: block;
+    background-color: white;
+    -webkit-mask-image: url('@openmates/ui/static/icons/filter.svg');
+    mask-image: url('@openmates/ui/static/icons/filter.svg');
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-size: contain;
   }
 
   .category-circle {

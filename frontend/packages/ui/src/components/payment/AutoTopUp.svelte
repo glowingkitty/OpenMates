@@ -91,7 +91,7 @@ Matches the design from the signup flow screenshot.
             // Get price for the credits amount from pricing tiers
             const tier = pricingTiers.find(t => t.credits === lowBalanceAmount);
             if (tier) {
-                lowBalancePrice = tier.price[currency.toLowerCase() as 'eur' | 'usd' | 'jpy'] || 0;
+                lowBalancePrice = tier.price[currency.toLowerCase() as 'eur' | 'usd'] || 0;
             }
             console.debug('[AutoTopUp] Synced low balance settings from profile:', {
                 enabled: lowBalanceEnabled,
@@ -129,7 +129,7 @@ Matches the design from the signup flow screenshot.
     let baseCredits = $derived(monthlyTier ? monthlyTier.credits : 21000); // Default to 21,000 if tier not found
     let bonusCredits = $derived(monthlyTier ? (monthlyTier.monthly_auto_top_up_extra_credits || 0) : 1000); // Default to 1,000 bonus
     let totalCredits = $derived(baseCredits + bonusCredits); // Should be 22,000 total
-    let monthlyPrice = $derived(monthlyTier ? monthlyTier.price[currency.toLowerCase() as 'eur' | 'usd' | 'jpy'] : 20); // Default to 20 EUR
+    let monthlyPrice = $derived(monthlyTier ? monthlyTier.price[currency.toLowerCase() as 'eur' | 'usd'] : 20); // Default to 20 EUR
     
     // Fixed threshold: always 100 credits
     const lowBalanceThreshold = 100;
@@ -139,22 +139,18 @@ Matches the design from the signup flow screenshot.
     // This ensures consistency regardless of timing (fresh purchase, page reload, new device)
     // The invoice is the single source of truth for what credits were actually purchased
 
-    // Format currency symbol
+    // Format currency symbol — falls back to ISO code so we never show a wrong symbol
     function getCurrencySymbol(curr: string): string {
         switch (curr.toLowerCase()) {
             case 'eur': return '€';
             case 'usd': return '$';
-            case 'jpy': return '¥';
-            default: return '€';
+            default: return curr.toUpperCase();
         }
     }
 
     // Format price based on currency
     function formatPrice(price: number, curr: string): string {
         const symbol = getCurrencySymbol(curr);
-        if (curr.toLowerCase() === 'jpy') {
-            return `${symbol}${price}`;
-        }
         return `${symbol}${price}`;
     }
 
@@ -190,7 +186,7 @@ Matches the design from the signup flow screenshot.
                 const defaultTier = pricingTiers.find(tier => tier.credits === defaultLowBalanceAmount);
                 
                 if (defaultTier) {
-                    const currentCurrency = (profile.auto_topup_low_balance_currency || currency || 'eur').toLowerCase() as 'eur' | 'usd' | 'jpy';
+                    const currentCurrency = (profile.auto_topup_low_balance_currency || currency || 'eur').toLowerCase() as 'eur' | 'usd';
                     lowBalanceAmount = defaultLowBalanceAmount;
                     lowBalancePrice = defaultTier.price[currentCurrency] || defaultTier.price.eur;
                     

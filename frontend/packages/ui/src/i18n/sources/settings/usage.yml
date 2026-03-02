@@ -20,6 +20,7 @@ usage:
   th: การใช้งาน
   cs: Použití
   sv: Användning
+  he: שימוש
   verified_by_human: []
 title:
   context: Usage settings page title
@@ -43,6 +44,7 @@ title:
   th: การใช้งาน
   cs: Použití
   sv: Användning
+  he: שימוש
   verified_by_human: []
 description:
   context: Usage settings description
@@ -66,6 +68,7 @@ description:
   th: ภาพรวมของกิจกรรมล่าสุดที่ใช้เครดิต
   cs: Přehled posledních aktivit, kde byly utraceny kredity
   sv: Översikt över senaste aktiviteter där krediter har spenderats
+  he: סקירה של הפעילויות האחרונות שבהן נוצלו קרדיטים
   verified_by_human: []
 tab_chats:
   context: Chats tab label
@@ -89,6 +92,7 @@ tab_chats:
   th: แชท
   cs: Chaty
   sv: Chattar
+  he: "צ'אטים"
   verified_by_human: []
 tab_apps:
   context: Apps tab label
@@ -112,6 +116,7 @@ tab_apps:
   th: แอป
   cs: Aplikace
   sv: Appar
+  he: אפליקציות
   verified_by_human: []
 tab_api:
   context: API tab label
@@ -135,6 +140,7 @@ tab_api:
   th: API
   cs: API
   sv: API
+  he: API
   verified_by_human: []
 group_by_month:
   context: Group by month button label
@@ -158,6 +164,7 @@ group_by_month:
   th: ตามเดือน
   cs: Podle měsíce
   sv: Per månad
+  he: לפי חודש
   verified_by_human: []
 group_by_day:
   context: Group by day button label
@@ -181,6 +188,7 @@ group_by_day:
   th: ตามวัน
   cs: Podle dne
   sv: Per dag
+  he: לפי יום
   verified_by_human: []
 sort:
   context: Sort button label
@@ -204,6 +212,7 @@ sort:
   th: เรียงลำดับ
   cs: Seřadit
   sv: Sortera
+  he: מיון
   verified_by_human: []
 export:
   context: Export button label
@@ -227,6 +236,7 @@ export:
   th: ส่งออก
   cs: Exportovat
   sv: Exportera
+  he: ייצוא
   verified_by_human: []
 loading:
   context: Loading message
@@ -250,6 +260,7 @@ loading:
   th: กำลังโหลดข้อมูลการใช้งาน...
   cs: Načítání dat o použití...
   sv: Laddar användningsdata...
+  he: טוען נתוני שימוש...
   verified_by_human: []
 error_loading:
   context: Error loading usage data
@@ -273,6 +284,7 @@ error_loading:
   th: โหลดข้อมูลการใช้งานล้มเหลว
   cs: Načtení dat o použití se nezdařilo
   sv: Misslyckades med att ladda användningsdata
+  he: טעינת נתוני השימוש נכשלה
   verified_by_human: []
 no_usage_title:
   context: No usage data title
@@ -296,6 +308,7 @@ no_usage_title:
   th: ไม่มีข้อมูลการใช้งาน
   cs: Žádná data o použití
   sv: Ingen användningsdata
+  he: אין נתוני שימוש
   verified_by_human: []
 no_usage_description:
   context: No usage data description
@@ -319,6 +332,7 @@ no_usage_description:
   th: สถิติการใช้งานของคุณจะปรากฏที่นี่เมื่อคุณเริ่มใช้ OpenMates
   cs: Vaše statistiky použití se zde zobrazí, jakmile začnete používat OpenMates.
   sv: Dina användningsstatistik kommer att visas här när du börjar använda OpenMates.
+  he: סטטיסטיקות השימוש שלך יופיעו כאן ברגע שתתחיל להשתמש ב-OpenMates.
   verified_by_human: []
 exporting:
   context: Exporting message
@@ -342,6 +356,7 @@ exporting:
   th: กำลังส่งออกข้อมูลการใช้งาน...
   cs: Exportování dat o použití...
   sv: Exporterar användningsdata...
+  he: מייצא נתוני שימוש...
   verified_by_human: []
 export_success:
   context: Export success message
@@ -365,6 +380,7 @@ export_success:
   th: ส่งออกข้อมูลการใช้งานสำเร็จ
   cs: Data o použití byla úspěšně exportována
   sv: Användningsdata exporterades framgångsrikt
+  he: נתוני השימוש יוצאו בהצלחה
   verified_by_human: []
 export_error:
   context: Export error message
@@ -388,6 +404,7 @@ export_error:
   th: ส่งออกข้อมูลการใช้งานล้มเหลว
   cs: Export dat o použití se nezdařil
   sv: Misslyckades med att exportera användningsdata
+  he: ייצוא נתוני השימוש נכשל
   verified_by_human: []
 pdf_coming_soon:
   context: PDF export coming soon message
@@ -411,6 +428,7 @@ pdf_coming_soon:
   th: การส่งออก PDF เร็วๆ นี้
   cs: Export PDF brzy
   sv: PDF-export kommer snart
+  he: ייצוא ל-PDF בקרוב
   verified_by_human: []
 back:
   context: Back button label
@@ -434,6 +452,7 @@ back:
   th: กลับ
   cs: Zpět
   sv: Tillbaka
+  he: חזרה
   verified_by_human: []
 api_key_details:
   context: API key details header
@@ -457,6 +476,7 @@ api_key_details:
   th: คีย์ API
   cs: API klíč
   sv: API-nyckel
+  he: מפתח API
   verified_by_human: []
 chat_details:
   context: Chat details header
@@ -480,6 +500,7 @@ chat_details:
   th: รายละเอียดแชท
   cs: Podrobnosti chatu
   sv: Chattdetaljer
+  he: "פרטי צ'אט"
   verified_by_human: []
 activity_ai:
   context: AI activity label
@@ -503,6 +524,7 @@ activity_ai:
   th: AI
   cs: AI
   sv: AI
+  he: AI
   verified_by_human: []
 activity_ask:
   context: Ask activity sublabel
@@ -526,6 +548,7 @@ activity_ask:
   th: ถาม
   cs: Zeptat se
   sv: Fråga
+  he: שאלה
   verified_by_human: []
 unknown_activity:
   context: Unknown activity label
@@ -549,6 +572,7 @@ unknown_activity:
   th: กิจกรรมที่ไม่ทราบ
   cs: Neznámá aktivita
   sv: Okänd aktivitet
+  he: פעילות לא ידועה
   verified_by_human: []
 just_now:
   context: Just now time label
@@ -572,6 +596,7 @@ just_now:
   th: เมื่อสักครู่
   cs: Právě teď
   sv: Just nu
+  he: ממש עכשיו
   verified_by_human: []
 minutes_ago:
   context: Minutes ago label
@@ -595,6 +620,7 @@ minutes_ago:
   th: นาทีที่แล้ว
   cs: minut zpět
   sv: minuter sedan
+  he: דקות לפני
   verified_by_human: []
 hours_ago:
   context: Hours ago label
@@ -618,6 +644,7 @@ hours_ago:
   th: ชั่วโมงที่แล้ว
   cs: hodin zpět
   sv: timmar sedan
+  he: שעות לפני
   verified_by_human: []
 days_ago:
   context: Days ago label
@@ -641,6 +668,7 @@ days_ago:
   th: วันที่แล้ว
   cs: dní zpět
   sv: dagar sedan
+  he: ימים לפני
   verified_by_human: []
 previous_page:
   context: Previous page button
@@ -664,6 +692,7 @@ previous_page:
   th: หน้าที่แล้ว
   cs: Předchozí stránka
   sv: Föregående sida
+  he: עמוד קודם
   verified_by_human: []
 next_page:
   context: Next page button
@@ -687,6 +716,7 @@ next_page:
   th: หน้าถัดไป
   cs: Další stránka
   sv: Nästa sida
+  he: עמוד הבא
   verified_by_human: []
 page_info:
   context: Page information text with placeholders
@@ -710,6 +740,7 @@ page_info:
   th: หน้า {current} จาก {total}
   cs: Stránka {current} z {total}
   sv: Sida {current} av {total}
+  he: "עמוד {current} מתוך {total}"
   verified_by_human: []
 show_more:
   context: Show more months button
@@ -733,6 +764,7 @@ show_more:
   th: แสดงเพิ่มเติม
   cs: Zobrazit více
   sv: Visa mer
+  he: הצג עוד
   verified_by_human: []
 view_chat_details:
   context: View chat details button aria label
@@ -756,6 +788,7 @@ view_chat_details:
   th: ดูรายละเอียดแชท
   cs: Zobrazit podrobnosti chatu
   sv: Visa chattdetaljer
+  he: "הצגת פרטי הצ'אט"
   verified_by_human: []
 tab_overview:
   context: Overview tab label in usage settings - shows daily usage breakdown
@@ -779,6 +812,7 @@ tab_overview:
   th: ภาพรวม
   cs: Přehled
   sv: Översikt
+  he: סקירה כללית
   verified_by_human: []
 today:
   context: Label for today's date in the daily usage overview
@@ -802,6 +836,7 @@ today:
   th: วันนี้
   cs: Dnes
   sv: Idag
+  he: היום
   verified_by_human: []
 yesterday:
   context: Label for yesterday's date in the daily usage overview
@@ -825,6 +860,7 @@ yesterday:
   th: เมื่อวาน
   cs: Včera
   sv: Igår
+  he: אתמול
   verified_by_human: []
 no_usage_on_day:
   context: Shown when there is no usage data for a specific day
@@ -848,6 +884,7 @@ no_usage_on_day:
   th: ไม่มีการใช้งานในวันนี้
   cs: Žádné použití v tento den
   sv: Ingen användning denna dag
+  he: אין שימוש ביום זה
   verified_by_human: []
 load_more_days:
   context: Button to load more days in the daily overview
@@ -871,6 +908,7 @@ load_more_days:
   th: โหลดเพิ่มเติม
   cs: Načíst více dní
   sv: Ladda fler dagar
+  he: טעינת ימים נוספים
   verified_by_human: []
 credits_label:
   context: Label shown next to credit amounts in daily overview
@@ -894,6 +932,7 @@ credits_label:
   th: เครดิต
   cs: kreditů
   sv: krediter
+  he: קרדיטים
   verified_by_human: []
 api_key_label:
   context: Label for API key items in the daily usage overview
@@ -917,6 +956,7 @@ api_key_label:
   th: คีย์ API
   cs: API klíč
   sv: API-nyckel
+  he: מפתח API
   verified_by_human: []
 model_label:
   context: Label for the AI model used in a usage entry detail view
@@ -940,6 +980,7 @@ model_label:
   th: โมเดล
   cs: Model
   sv: Modell
+  he: מודל
   verified_by_human: []
 input_tokens_label:
   context: Label for input tokens count in a usage entry detail view
@@ -963,6 +1004,7 @@ input_tokens_label:
   th: โทเค็นอินพุต
   cs: Vstupní tokeny
   sv: Inmatningstoken
+  he: טוקנים של קלט
   verified_by_human: []
 output_tokens_label:
   context: Label for output tokens count in a usage entry detail view
@@ -986,6 +1028,7 @@ output_tokens_label:
   th: โทเค็นเอาต์พุต
   cs: Výstupní tokeny
   sv: Utmatningstoken
+  he: טוקנים של פלט
   verified_by_human: []
 total_credits_label:
   context: Label for total credits in a usage entry detail view
@@ -1009,6 +1052,7 @@ total_credits_label:
   th: เครดิตทั้งหมด
   cs: Celkové kredity
   sv: Totala krediter
+  he: "סה\"כ קרדיטים"
   verified_by_human: []
 entry_detail_title:
   context: Title shown in the usage entry detail view header
@@ -1032,6 +1076,7 @@ entry_detail_title:
   th: รายละเอียดการใช้งาน
   cs: Podrobnosti použití
   sv: Användningsdetaljer
+  he: פרטי שימוש
   verified_by_human: []
 provider_label:
   context: Label for the AI provider (e.g., Google, Anthropic, OpenAI) in usage entry detail view
@@ -1055,6 +1100,7 @@ provider_label:
   th: ผู้ให้บริการ
   cs: Poskytovatel
   sv: Leverantör
+  he: ספק
   verified_by_human: []
 server_provider_label:
   context: Label for the server provider name (e.g., AWS Bedrock, Google Vertex AI) in usage entry detail view
@@ -1078,6 +1124,7 @@ server_provider_label:
   th: เซิร์ฟเวอร์
   cs: Server
   sv: Server
+  he: שרת
   verified_by_human: []
 server_region_label:
   context: Label for the server region (e.g., EU, US) in usage entry detail view
@@ -1101,6 +1148,7 @@ server_region_label:
   th: ภูมิภาค
   cs: Region
   sv: Region
+  he: אזור
   verified_by_human: []
 user_input_tokens_label:
   context: Label for user input tokens count in usage entry detail view
@@ -1124,6 +1172,7 @@ user_input_tokens_label:
   th: โทเค็นอินพุตผู้ใช้
   cs: Vstupní tokeny uživatele
   sv: Användarens inmatningstoken
+  he: טוקנים של קלט משתמש
   verified_by_human: []
 system_prompt_tokens_label:
   context: Label for system prompt tokens count in usage entry detail view
@@ -1147,6 +1196,7 @@ system_prompt_tokens_label:
   th: โทเค็นพรอมต์ระบบ
   cs: Tokeny systémového promptu
   sv: Systempromptstoken
+  he: טוקנים של הנחיית מערכת
   verified_by_human: []
 credits_breakdown_label:
   context: Label for the credit cost breakdown section in usage entry detail view
@@ -1170,6 +1220,7 @@ credits_breakdown_label:
   th: รายละเอียดเครดิต
   cs: Rozpis kreditů
   sv: Kreditfördelning
+  he: פירוט קרדיטים
   verified_by_human: []
 credits_system_prompt_label:
   context: Label for system prompt credit cost in the breakdown
@@ -1193,6 +1244,7 @@ credits_system_prompt_label:
   th: พรอมต์ระบบ
   cs: Systémový prompt
   sv: Systemprompt
+  he: הנחיית מערכת
   verified_by_human: []
 credits_history_label:
   context: Label for chat history credit cost in the breakdown
@@ -1216,6 +1268,7 @@ credits_history_label:
   th: ประวัติแชท
   cs: Historie chatu
   sv: Chatthistorik
+  he: "היסטוריית צ'אט"
   verified_by_human: []
 credits_response_label:
   context: Label for response credit cost in the breakdown
@@ -1239,6 +1292,31 @@ credits_response_label:
   th: การตอบกลับ
   cs: Odpověď
   sv: Svar
+  he: תגובה
+  verified_by_human: []
+incognito_chat:
+  context: Label shown for usage entries from an incognito chat (ephemeral, never synced to server)
+  en: Incognito chat
+  de: Inkognito-Chat
+  zh: 隐私聊天
+  es: Chat incógnito
+  fr: Chat incognito
+  pt: Chat incógnito
+  ru: Инкогнито-чат
+  ja: シークレットチャット
+  ko: 시크릿 채팅
+  it: Chat incognito
+  tr: Gizli sohbet
+  vi: Cuộc trò chuyện ẩn danh
+  id: Obrolan penyamaran
+  pl: Czat incognito
+  nl: Incognito gesprek
+  ar: محادثة متخفية
+  hi: गुप्त चैट
+  th: แชทไม่ระบุตัวตน
+  cs: Inkognito chat
+  sv: Inkognitosamtal
+  he: "צ'אט אנונימי"
   verified_by_human: []
 deleted_chat:
   context: Label shown for usage entries from a chat that has been deleted
@@ -1262,14 +1340,173 @@ deleted_chat:
   th: แชทที่ถูกลบ
   cs: Smazaný chat
   sv: Borttagen chatt
+  he: "צ'אט שנמחק"
+  verified_by_human: []
+unsent_draft:
+  context: Label shown for usage entries from an audio recording that was made in a new chat that was never sent
+  en: Unsent draft
+  de: Nicht gesendeter Entwurf
+  zh: 未发送的草稿
+  es: Borrador no enviado
+  fr: Brouillon non envoyé
+  pt: Rascunho não enviado
+  ru: Неотправленный черновик
+  ja: 未送信の下書き
+  ko: 전송되지 않은 초안
+  it: Bozza non inviata
+  tr: Gönderilmemiş taslak
+  vi: Bản nháp chưa gửi
+  id: Draf belum terkirim
+  pl: Niewysłany szkic
+  nl: Niet verzonden concept
+  ar: مسودة لم تُرسل
+  hi: न भेजा गया मसौदा
+  th: แบบร่างที่ยังไม่ได้ส่ง
+  cs: Neodeslané návrh
+  sv: Ej skickad utkast
+  he: טיוטה שלא נשלחה
   verified_by_human: []
 view_app_details:
   context: Aria-label on clickable app usage row for accessibility
   en: View app details
   de: App-Details anzeigen
+  zh: 查看应用详情
+  es: Ver detalles de la aplicación
+  fr: Voir les détails de l'application
+  pt: Ver detalhes do aplicativo
+  ru: Просмотреть детали приложения
+  ja: アプリの詳細を表示
+  ko: 앱 세부정보 보기
+  it: Visualizza dettagli app
+  tr: Uygulama ayrıntılarını görüntüle
+  vi: Xem chi tiết ứng dụng
+  id: Lihat detail aplikasi
+  pl: Zobacz szczegóły aplikacji
+  nl: App-details bekijken
+  ar: عرض تفاصيل التطبيق
+  hi: ऐप विवरण देखें
+  th: ดูรายละเอียดแอป
+  cs: Zobrazit podrobnosti aplikace
+  sv: Visa appdetaljer
+  he: הצגת פרטי אפליקציה
   verified_by_human: []
 view_api_key_details:
   context: Aria-label on clickable API key usage row for accessibility
   en: View API key details
   de: API-Schlüssel-Details anzeigen
+  zh: 查看 API 密钥详情
+  es: Ver detalles de la clave API
+  fr: Voir les détails de la clé API
+  pt: Ver detalhes da chave API
+  ru: Просмотреть детали API-ключа
+  ja: APIキーの詳細を表示
+  ko: API 키 세부정보 보기
+  it: Visualizza dettagli chiave API
+  tr: API anahtarı ayrıntılarını görüntüle
+  vi: Xem chi tiết khóa API
+  id: Lihat detail kunci API
+  pl: Zobacz szczegóły klucza API
+  nl: API-sleuteldetails bekijken
+  ar: عرض تفاصيل مفتاح API
+  hi: API कुंजी विवरण देखें
+  th: ดูรายละเอียดคีย์ API
+  cs: Zobrazit podrobnosti API klíče
+  sv: Visa API-nyckeldetaljer
+  he: הצגת פרטי מפתח API
+  verified_by_human: []
+tool_iterations_label:
+  context: Label for the number of extra LLM iterations triggered by app skill tool use in usage entry detail view
+  en: App skill iterations
+  de: App-Skill-Iterationen
+  zh: 应用技能迭代次数
+  es: Iteraciones de habilidades de la app
+  fr: Itérations de compétences d'app
+  pt: Iterações de habilidades do app
+  ru: Итерации навыков приложения
+  ja: アプリスキルの反復回数
+  ko: 앱 스킬 반복 횟수
+  it: Iterazioni skill app
+  tr: Uygulama becerisi tekrarları
+  vi: Số lần lặp kỹ năng ứng dụng
+  id: Iterasi keterampilan aplikasi
+  pl: Iteracje umiejętności aplikacji
+  nl: App-vaardigheidsherhaling
+  ar: تكرارات مهارة التطبيق
+  hi: ऐप स्किल पुनरावृत्ति
+  th: รอบซ้ำทักษะแอป
+  cs: Iterace dovedností aplikace
+  sv: Iterationer för appfärdigheter
+  he: איטרציות של כישורי אפליקציה
+  verified_by_human: []
+tool_iterations_hint:
+  context: Short hint shown next to the tool iteration count explaining why token counts are higher when app skills were used
+  en: Including app skill responses
+  de: Einschließlich App-Skill-Antworten
+  zh: 包含应用技能响应
+  es: Incluye respuestas de habilidades de la app
+  fr: Réponses de compétences d'app incluses
+  pt: Incluindo respostas de habilidades do app
+  ru: Включая ответы навыков приложения
+  ja: アプリスキルのレスポンスを含む
+  ko: 앱 스킬 응답 포함
+  it: Include risposte skill app
+  tr: Uygulama becerisi yanıtları dahil
+  vi: Bao gồm phản hồi kỹ năng ứng dụng
+  id: Termasuk respons keterampilan aplikasi
+  pl: W tym odpowiedzi umiejętności aplikacji
+  nl: Inclusief app-vaardigheidsantwoorden
+  ar: يشمل ردود مهارة التطبيق
+  hi: ऐप स्किल प्रतिक्रियाएं सहित
+  th: รวมการตอบสนองทักษะแอป
+  cs: Včetně odpovědí dovedností aplikace
+  sv: Inklusive svar på appfärdigheter
+  he: כולל תגובות של מיומנויות אפליקציה
+  verified_by_human: []
+open_message:
+  context: Button label on a usage entry detail page that navigates to the original chat message that triggered this usage
+  en: Open message
+  de: Nachricht öffnen
+  zh: 打开消息
+  es: Abrir mensaje
+  fr: Ouvrir le message
+  pt: Abrir mensagem
+  ru: Открыть сообщение
+  ja: メッセージを開く
+  ko: 메시지 열기
+  it: Apri messaggio
+  tr: Mesajı aç
+  vi: Mở tin nhắn
+  id: Buka pesan
+  pl: Otwórz wiadomość
+  nl: Bericht openen
+  ar: فتح الرسالة
+  hi: संदेश खोलें
+  th: เปิดข้อความ
+  cs: Otevřít zprávu
+  sv: Öppna meddelande
+  he: פתח הודעה
+  verified_by_human: []
+open_embed:
+  context: Button label on a usage entry detail page that opens the embed (skill result card) generated by this usage
+  en: Open result
+  de: Ergebnis öffnen
+  zh: 打开结果
+  es: Abrir resultado
+  fr: Ouvrir le résultat
+  pt: Abrir resultado
+  ru: Открыть результат
+  ja: 結果を開く
+  ko: 결과 열기
+  it: Apri risultato
+  tr: Sonucu aç
+  vi: Mở kết quả
+  id: Buka hasil
+  pl: Otwórz wynik
+  nl: Resultaat openen
+  ar: فتح النتيجة
+  hi: परिणाम खोलें
+  th: เปิดผลลัพธ์
+  cs: Otevřít výsledek
+  sv: Öppna resultat
+  he: פתח תוצאה
   verified_by_human: []

@@ -10,20 +10,9 @@
     import { text } from '@repo/ui';
     import { embedStore } from '../../../services/embedStore';
     import { resolveEmbed, decodeToonContent } from '../../../services/embedResolver';
+    import { embedPreviewRegistry } from '../../../services/embedPreviewRegistry';
     import type { EmbedStoreEntry } from '../../../message_parsing/types';
     import { appSkillsStore } from '../../../stores/appSkillsStore';
-    
-    // Import embed preview components
-    import WebSearchEmbedPreview from '../../../components/embeds/web/WebSearchEmbedPreview.svelte';
-    import NewsSearchEmbedPreview from '../../../components/embeds/news/NewsSearchEmbedPreview.svelte';
-    import VideosSearchEmbedPreview from '../../../components/embeds/videos/VideosSearchEmbedPreview.svelte';
-    import MapsSearchEmbedPreview from '../../../components/embeds/maps/MapsSearchEmbedPreview.svelte';
-    import VideoTranscriptEmbedPreview from '../../../components/embeds/videos/VideoTranscriptEmbedPreview.svelte';
-    import CodeGetDocsEmbedPreview from '../../../components/embeds/code/CodeGetDocsEmbedPreview.svelte';
-    import CodeEmbedPreview from '../../../components/embeds/code/CodeEmbedPreview.svelte';
-    import ReminderEmbedPreview from '../../../components/embeds/reminder/ReminderEmbedPreview.svelte';
-    import TravelSearchEmbedPreview from '../../../components/embeds/travel/TravelSearchEmbedPreview.svelte';
-    import TravelPriceCalendarEmbedPreview from '../../../components/embeds/travel/TravelPriceCalendarEmbedPreview.svelte';
 
     // Use $props() for component props in Svelte 5
     interface Props {
@@ -240,6 +229,14 @@
                 return;
             }
 
+            // Determine the correct embedType for the fullscreen event.
+            // Auto-converted embeds (code, sheet, math-plot, document) use their own type
+            // string so the fullscreen handler can route them to the correct component.
+            // Skill embeds use 'app-skill-use'.
+            const rawType = embedEntry.type || '';
+            const autoConvertedTypes = ['code', 'code-code', 'sheet', 'sheets-sheet', 'math-plot', 'document', 'docs-doc'];
+            const eventEmbedType = autoConvertedTypes.includes(rawType) ? rawType : 'app-skill-use';
+
             // Dispatch the same event that embed renderers use
             // This will be handled by the global fullscreen handler (if available)
             const event = new CustomEvent('embedfullscreen', {
@@ -247,7 +244,7 @@
                     embedId: embedId,
                     embedData: embedData,
                     decodedContent: decodedContent,
-                    embedType: 'app-skill-use',
+                    embedType: eventEmbedType,
                     attrs: {
                         type: embedEntry.type,
                         contentRef: embedEntry.contentRef,
@@ -265,9 +262,11 @@
     }
 
     /**
-     * Render embed preview component based on app_id and skill_id
-     * Returns the appropriate Svelte component with props
-     * 
+     * Render embed preview component using the shared embedPreviewRegistry.
+     *
+     * The registry is the single source of truth for (appId, skillId / embedType) → component.
+     * Adding a new embed type only requires registering it in embedPreviewRegistry.ts.
+     *
      * Verifies that the embed belongs to the current app before rendering.
      * This is a defensive check to ensure we don't render embeds from other apps.
      */
@@ -290,11 +289,9 @@
 
             // Get app_id from embed entry (preferred) or decoded content (fallback)
             const embedAppId = embedEntry.app_id || decodedContent.app_id || '';
-            const skillId = embedEntry.skill_id || decodedContent.skill_id || '';
-            const status = embedData.status || embedEntry.type || 'finished';
 
-            // Verify that this embed belongs to the current app
-            // This is a defensive check to prevent rendering embeds from other apps
+            // Verify that this embed belongs to the current app.
+            // This is a defensive check to prevent rendering embeds from other apps.
             if (embedAppId !== appId) {
                 console.warn('[AppEmbedsPanel] Skipping embed - app_id mismatch:', {
                     embedId,
@@ -306,179 +303,19 @@
                 return null;
             }
 
-            console.debug('[AppEmbedsPanel] Rendering embed preview:', { embedId, appId: embedAppId, skillId, status });
+            console.debug('[AppEmbedsPanel] Delegating to embedPreviewRegistry for:', {
+                embedId,
+                app_id: embedAppId,
+                skill_id: embedEntry.skill_id || decodedContent.skill_id,
+                type: embedEntry.type,
+            });
 
-            // Determine which component to use based on app_id and skill_id
-            // This matches the logic from AppSkillUseRenderer
-            // Use embedAppId (already verified to match appId) instead of appId prop
-            if (embedAppId === 'web' && skillId === 'search') {
-                return {
-                    component: WebSearchEmbedPreview,
-                    props: {
-                        id: embedId,
-                        query: decodedContent.query || '',
-                        provider: decodedContent.provider || 'Brave Search',
-                        status: status,
-                        results: decodedContent.results || [],
-                        isMobile: false,
-                        onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry)
-                    }
-                };
-            }
-
-            if (embedAppId === 'news' && skillId === 'search') {
-                return {
-                    component: NewsSearchEmbedPreview,
-                    props: {
-                        id: embedId,
-                        query: decodedContent.query || '',
-                        provider: decodedContent.provider || 'Brave Search',
-                        status: status,
-                        results: decodedContent.results || [],
-                        isMobile: false,
-                        onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry)
-                    }
-                };
-            }
-
-            if (embedAppId === 'videos' && skillId === 'search') {
-                return {
-                    component: VideosSearchEmbedPreview,
-                    props: {
-                        id: embedId,
-                        query: decodedContent.query || '',
-                        provider: decodedContent.provider || 'Brave Search',
-                        status: status,
-                        results: decodedContent.results || [],
-                        isMobile: false,
-                        onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry)
-                    }
-                };
-            }
-
-            if (embedAppId === 'maps' && skillId === 'search') {
-                return {
-                    component: MapsSearchEmbedPreview,
-                    props: {
-                        id: embedId,
-                        query: decodedContent.query || '',
-                        provider: decodedContent.provider || 'Brave Search',
-                        status: status,
-                        results: decodedContent.results || [],
-                        isMobile: false,
-                        onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry)
-                    }
-                };
-            }
-
-            if (embedAppId === 'videos' && (skillId === 'get_transcript' || skillId === 'get-transcript')) {
-                return {
-                    component: VideoTranscriptEmbedPreview,
-                    props: {
-                        id: embedId,
-                        results: decodedContent.results || [],
-                        status: status,
-                        isMobile: false,
-                        onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry)
-                    }
-                };
-            }
-
-            // Code app: get_docs skill - fetches library documentation via Context7
-            if (embedAppId === 'code' && (skillId === 'get_docs' || skillId === 'get-docs')) {
-                return {
-                    component: CodeGetDocsEmbedPreview,
-                    props: {
-                        id: embedId,
-                        status: status,
-                        // Results contain: library object (id, title), documentation, word_count
-                        results: decodedContent.results || [],
-                        // Input library name from the request
-                        library: decodedContent.library || '',
-                        // Question/query that was asked
-                        question: decodedContent.question || '',
-                        isMobile: false,
-                        onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry)
-                    }
-                };
-            }
-
-            // Code app: Regular code embeds (AI-generated code blocks)
-            // These have embed type 'code' or 'code_embed' and contain code content
-            const embedType = embedEntry.type || decodedContent.type || '';
-            if (embedAppId === 'code' || embedType === 'code' || embedType === 'code_embed') {
-                // Code embeds have: code, language, filename fields
-                const codeContent = decodedContent.code || decodedContent.content || '';
-                return {
-                    component: CodeEmbedPreview,
-                    props: {
-                        id: embedId,
-                        status: status,
-                        language: decodedContent.language || '',
-                        filename: decodedContent.filename,
-                        lineCount: decodedContent.line_count || 0,
-                        codeContent: codeContent,
-                        isMobile: false,
-                        onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry)
-                    }
-                };
-            }
-
-            // Travel app: search_connections skill
-            if (embedAppId === 'travel' && (skillId === 'search_connections' || skillId === 'search-connections')) {
-                return {
-                    component: TravelSearchEmbedPreview,
-                    props: {
-                        id: embedId,
-                        query: decodedContent.query || '',
-                        provider: decodedContent.provider || 'Google',
-                        status: status,
-                        results: decodedContent.results || [],
-                        isMobile: false,
-                        onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry)
-                    }
-                };
-            }
-
-            // Travel app: price_calendar skill
-            if (embedAppId === 'travel' && (skillId === 'price_calendar' || skillId === 'price-calendar')) {
-                return {
-                    component: TravelPriceCalendarEmbedPreview,
-                    props: {
-                        id: embedId,
-                        query: decodedContent.query || '',
-                        status: status,
-                        results: decodedContent.results || [],
-                        isMobile: false,
-                        onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry)
-                    }
-                };
-            }
-
-            // Reminder app: set-reminder skill
-            if (embedAppId === 'reminder' && (skillId === 'set_reminder' || skillId === 'set-reminder')) {
-                return {
-                    component: ReminderEmbedPreview,
-                    props: {
-                        id: embedId,
-                        reminderId: decodedContent.reminder_id,
-                        triggerAtFormatted: decodedContent.trigger_at_formatted,
-                        triggerAt: decodedContent.trigger_at,
-                        targetType: decodedContent.target_type,
-                        isRepeating: decodedContent.is_repeating || false,
-                        message: decodedContent.message,
-                        emailNotificationWarning: decodedContent.email_notification_warning,
-                        status: status,
-                        error: decodedContent.error,
-                        isMobile: false,
-                        onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry)
-                    }
-                };
-            }
-
-            // Fallback: Generic preview (could be enhanced later)
-            console.warn('[AppEmbedsPanel] No specific preview component for:', { appId: embedAppId, skillId, embedType });
-            return null;
+            return await embedPreviewRegistry.resolve({
+                embedId,
+                embedData: { ...embedData, app_id: embedAppId, skill_id: embedEntry.skill_id || decodedContent.skill_id },
+                decodedContent: decodedContent as Record<string, unknown>,
+                onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry),
+            });
         } catch (error) {
             console.error('[AppEmbedsPanel] Error rendering embed preview:', error);
             return null;

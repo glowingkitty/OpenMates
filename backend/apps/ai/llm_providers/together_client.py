@@ -232,8 +232,8 @@ async def _send_together_request(
                 for tc in message.get("tool_calls", []):
                     if tc.get("type") == "function":
                         function_data = tc.get("function", {})
-                        function_name = function_data.get("name", "")
-                        arguments_raw = function_data.get("arguments", "{}")
+                        function_name = function_data.get("name") or ""
+                        arguments_raw = function_data.get("arguments") or "{}"
                         
                         # Parse the function arguments
                         parsed_args: Dict[str, Any] = {}
@@ -450,12 +450,12 @@ async def _stream_together_response(
                                     # Update id if present (first chunk)
                                     tool_calls_buffer[buffer_key]["id"] = tc_id
                                 
-                                # Update function name if present
-                                if "function" in tc_delta and "name" in tc_delta["function"]:
+                                # Update function name if present (guard against None)
+                                if "function" in tc_delta and "name" in tc_delta["function"] and tc_delta["function"]["name"]:
                                     tool_calls_buffer[buffer_key]["function"]["name"] = tc_delta["function"]["name"]
                                 
-                                # Update function arguments if present (accumulate across chunks)
-                                if "function" in tc_delta and "arguments" in tc_delta["function"]:
+                                # Update function arguments if present (accumulate across chunks, guard against None)
+                                if "function" in tc_delta and "arguments" in tc_delta["function"] and tc_delta["function"]["arguments"]:
                                     tool_calls_buffer[buffer_key]["function"]["arguments"] += tc_delta["function"]["arguments"]
                         
                         # Check for finish_reason and yield accumulated tool calls
@@ -463,8 +463,8 @@ async def _stream_together_response(
                         if finish_reason in ("tool_calls", "tool_call") and tool_calls_buffer:
                             # Yield all accumulated tool calls when finish_reason indicates tool_calls
                             for buffer_key, tc in tool_calls_buffer.items():
-                                function_name = tc["function"]["name"]
-                                arguments_raw = tc["function"]["arguments"]
+                                function_name = tc["function"]["name"] or ""
+                                arguments_raw = tc["function"]["arguments"] or ""
                                 
                                 # Parse the function arguments
                                 parsed_args: Dict[str, Any] = {}

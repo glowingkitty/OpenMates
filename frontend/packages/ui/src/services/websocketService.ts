@@ -11,7 +11,14 @@ import { getSessionId } from "../utils/sessionId";
 import { getWebSocketToken } from "../utils/cookies"; // Use getWebSocketToken instead of getAuthRefreshToken
 import { authStore } from "../stores/authStore"; // To check login status
 import { get } from "svelte/store"; // Import get
-import { isLoggingOut, forcedLogoutInProgress } from "../stores/signupState"; // Import logout state
+import {
+  isLoggingOut,
+  forcedLogoutInProgress,
+  forcedLogoutSetAt,
+  FORCED_LOGOUT_STALENESS_MS,
+  resetForcedLogoutInProgress,
+  recordPageResume,
+} from "../stores/signupState"; // Import logout state + staleness helpers
 import { websocketStatus } from "../stores/websocketStatusStore"; // Import the new shared store
 import { notificationStore } from "../stores/notificationStore"; // Import notification store
 
@@ -183,6 +190,7 @@ class WebSocketService extends EventTarget {
         // 1. reconnectAttempts > 0: We were already trying to reconnect (normal disconnect flow)
         // 2. reconnectAttempts === 0 but WS is dead: Connection silently died during device sleep/hibernate
         //    without onclose firing, so reconnectAttempts was never incremented
+        this.clearStaleLogoutFlags("online");
         if (
           get(authStore).isAuthenticated &&
           !this.isConnected() &&
@@ -208,48 +216,156 @@ class WebSocketService extends EventTarget {
       // This handler runs an immediate liveness check when the user returns to the page.
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState !== "visible") return;
-        if (!get(authStore).isAuthenticated) return;
+        this.handlePageResume("visibilitychange");
+      });
 
-        console.debug(
-          "[WebSocketService] Page became visible - checking connection liveness",
-        );
-
-        if (!this.isConnected() && !this.connectionPromise) {
-          // WebSocket is dead (either ws is null or readyState is not OPEN).
-          // This commonly happens after device sleep where onclose may not have fired.
+      // Listen for Safari BFCache page restore (pageshow event).
+      // On iOS Safari, when a user navigates back or restores a tab from BFCache,
+      // visibilitychange may not fire but pageshow always does with event.persisted=true.
+      window.addEventListener("pageshow", (event: PageTransitionEvent) => {
+        if (event.persisted) {
+          // Page was restored from BFCache — connection is certainly dead
           console.info(
-            "[WebSocketService] Connection is dead after tab/device resume - reconnecting immediately",
+            "[WebSocketService] Page restored from BFCache (pageshow.persisted) — checking connection",
           );
-          this.reconnectAttempts = 0;
-          this.connect().catch((err) => {
-            console.warn(
-              "[WebSocketService] Reconnection after visibility change failed:",
-              err,
-            );
-          });
-        } else if (this.isConnected()) {
-          // WebSocket appears connected but may be stale (server may have already
-          // cleaned up our connection during the sleep period).
-          // Send an immediate ping to verify liveness. If the pong doesn't come
-          // back, the existing pong timeout logic will close and reconnect.
-          console.debug(
-            "[WebSocketService] Connection appears alive after resume - sending liveness ping",
-          );
-          try {
-            this.sendMessage("ping", {}).catch(() => {
-              // If sending fails, the connection is dead - onclose will handle reconnection
-              console.warn(
-                "[WebSocketService] Liveness ping failed to send - connection likely dead",
-              );
-            });
-          } catch {
-            // Sync error from sendMessage, connection is dead
-            console.warn(
-              "[WebSocketService] Liveness ping threw - connection likely dead",
-            );
-          }
+          this.handlePageResume("pageshow");
         }
       });
+
+      // Listen for network type changes on mobile (e.g., cellular → Wi-Fi after wake).
+      // navigator.connection is not available in all browsers (Safari notably lacks it),
+      // but where present it fires earlier and more reliably than the online event.
+      const connection = (navigator as any).connection;
+      if (connection && typeof connection.addEventListener === "function") {
+        connection.addEventListener("change", () => {
+          console.info(
+            "[WebSocketService] Network connection type changed — checking connection",
+          );
+          this.clearStaleLogoutFlags("connection-change");
+          if (
+            get(authStore).isAuthenticated &&
+            !this.isConnected() &&
+            !this.connectionPromise
+          ) {
+            this.reconnectAttempts = 0;
+            this.connect().catch((err) => {
+              console.warn(
+                "[WebSocketService] Reconnection after network change failed:",
+                err,
+              );
+            });
+          }
+        });
+      }
+    }
+  }
+
+  /**
+   * Shared handler for page resume events (visibilitychange, pageshow).
+   * Clears stale logout flags, emits a "resuming" event for the OfflineBanner
+   * grace period, then checks and repairs the WebSocket connection.
+   */
+  private handlePageResume(source: string): void {
+    if (!get(authStore).isAuthenticated) return;
+
+    console.debug(
+      `[WebSocketService] Page became visible (${source}) — checking connection liveness`,
+    );
+
+    // Record the resume timestamp so ChatDatabase.init() can suppress orphan
+    // detection for a short grace period (RESUME_ORPHAN_GRACE_MS = 3s).
+    // This prevents a race condition where the async IDB key check fires before
+    // memory-key stores have re-initialized after an iOS wake event.
+    recordPageResume();
+
+    // CRITICAL: Clear stale forcedLogoutInProgress/isLoggingOut flags that may have
+    // gotten stuck during device sleep. Without this, every reconnection attempt fails
+    // with "Cannot connect: Logout in progress" and the user is stuck offline forever.
+    this.clearStaleLogoutFlags(source);
+
+    // Emit "resuming" event so the OfflineBanner can start a grace period
+    // and suppress the offline notification during the reconnection attempt.
+    this.dispatchEvent(new CustomEvent("resuming"));
+
+    if (!this.isConnected() && !this.connectionPromise) {
+      // WebSocket is dead (either ws is null or readyState is not OPEN).
+      // This commonly happens after device sleep where onclose may not have fired.
+      console.info(
+        `[WebSocketService] Connection is dead after resume (${source}) — reconnecting immediately`,
+      );
+      this.reconnectAttempts = 0;
+      this.connect().catch((err) => {
+        console.warn(
+          `[WebSocketService] Reconnection after ${source} failed:`,
+          err,
+        );
+      });
+    } else if (this.isConnected()) {
+      // WebSocket appears connected but may be stale (server may have already
+      // cleaned up our connection during the sleep period).
+      // Send an immediate ping to verify liveness. If the pong doesn't come
+      // back, the existing pong timeout logic will close and reconnect.
+      console.debug(
+        "[WebSocketService] Connection appears alive after resume — sending liveness ping",
+      );
+      try {
+        this.sendMessage("ping", {}).catch(() => {
+          // If sending fails, the connection is dead — onclose will handle reconnection
+          console.warn(
+            "[WebSocketService] Liveness ping failed to send — connection likely dead",
+          );
+        });
+      } catch {
+        // Sync error from sendMessage, connection is dead
+        console.warn(
+          "[WebSocketService] Liveness ping threw — connection likely dead",
+        );
+      }
+    }
+  }
+
+  /**
+   * Clear stale forcedLogoutInProgress and isLoggingOut flags.
+   *
+   * After device sleep/wake, these flags can get stuck because:
+   * 1. The async logout flow started (e.g., missing master key detected)
+   * 2. The server logout fetch hung because the network was down during sleep
+   * 3. The afterServerCleanup callback never ran, so the flag stays true
+   *
+   * If the flag has been true for more than FORCED_LOGOUT_STALENESS_MS (10s),
+   * we consider the logout flow dead and reset the flags. The user is already
+   * effectively logged out (authStore.isAuthenticated === false) — the flag is
+   * just preventing reconnection and DB operations unnecessarily.
+   */
+  private clearStaleLogoutFlags(source: string): void {
+    const isForcedLogout = get(forcedLogoutInProgress);
+    const isLoggingOutNow = get(isLoggingOut);
+
+    if (!isForcedLogout && !isLoggingOutNow) return;
+
+    // Check if the forcedLogoutInProgress flag is stale (set more than FORCED_LOGOUT_STALENESS_MS ago)
+    if (isForcedLogout && forcedLogoutSetAt > 0) {
+      const elapsed = Date.now() - forcedLogoutSetAt;
+      if (elapsed >= FORCED_LOGOUT_STALENESS_MS) {
+        console.warn(
+          `[WebSocketService] Clearing stale forcedLogoutInProgress (stuck for ${Math.round(elapsed / 1000)}s, source: ${source})`,
+        );
+        resetForcedLogoutInProgress();
+        // Also remove the cleanup marker to prevent chatDB.init() from
+        // re-detecting it and re-setting the flag we just cleared.
+        if (typeof localStorage !== "undefined") {
+          localStorage.removeItem("openmates_needs_cleanup");
+        }
+      }
+    }
+
+    // Also reset isLoggingOut if forcedLogout was stale — they're typically set together
+    // and if the forced logout flow is dead, the logging-out flag is also stale.
+    if (isLoggingOutNow && !get(forcedLogoutInProgress)) {
+      console.warn(
+        `[WebSocketService] Clearing stale isLoggingOut flag (source: ${source})`,
+      );
+      isLoggingOut.set(false);
     }
   }
 

@@ -6,88 +6,89 @@ input[type="search"],
 input[type="tel"],
 input[type="url"],
 input[type="number"] {
-    /* Base dimensions and layout */
-    width: 100%;
-    max-width: 350px;
-    padding: 12px 16px 12px 45px; /* Add padding for icon */
-    padding-left: 48px;
+  /* Base dimensions and layout */
+  width: 100%;
+  max-width: 350px;
+  /* Logical padding: inline-start side has extra space for the icon */
+  padding: 12px 16px;
+  padding-inline-start: 48px;
 
-    /* Remove max-width since we're using fixed width */
-    min-width: unset;  /* Remove min-width */
+  /* Remove max-width since we're using fixed width */
+  min-width: unset; /* Remove min-width */
 
-    /* Modern rounded appearance */
-    border-radius: 24px;  /* Fully rounded corners */
-    border: 2px solid var(--color-grey-0); /* Default border color */
-    background-color: var(--color-grey-0);
-    color: var(--color-grey-100);
+  /* Modern rounded appearance */
+  border-radius: 24px; /* Fully rounded corners */
+  border: 2px solid var(--color-grey-0); /* Default border color */
+  background-color: var(--color-grey-0);
+  color: var(--color-grey-100);
 
-    /* Subtle shadow for depth */
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  /* Subtle shadow for depth */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 
-    /* Smooth transitions */
-    transition: all 0.2s ease-in-out;
+  /* Smooth transitions */
+  transition: all 0.2s ease-in-out;
 
-    /* Add text overflow handling */
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    overflow: hidden;
+  /* Add text overflow handling */
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .revolut-card-field-dark {
-    width: 100%;
-    max-width: 350px;
-    padding: 0px;
-    padding-left: 17px;
-    padding-right: 20px;
-    border-radius: 24px;
-    border: 2px solid #1c1b22;
-    background-color: #1c1b22;
-    color: #ffffff;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    transition: all 0.2s ease-in-out;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    min-height: 48px;
-    font-family: "Lexend Deca Variable";
-    font-size: 16px;
-    font-weight: 700;
-    line-height: normal;
+  width: 100%;
+  max-width: 350px;
+  padding: 0px;
+  padding-left: 17px;
+  padding-right: 20px;
+  border-radius: 24px;
+  border: 2px solid #1c1b22;
+  background-color: #1c1b22;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease-in-out;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  font-family: "Lexend Deca Variable";
+  font-size: 16px;
+  font-weight: 700;
+  line-height: normal;
 }
 
 .revolut-card-field-light {
-    width: 100%;
-    max-width: 350px;
-    padding: 0px;
-    padding-left: 17px;
-    padding-right: 20px;
-    border-radius: 24px;
-    border: 2px solid #ffffff;
-    background-color: #ffffff;
-    color: #000000;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    transition: all 0.2s ease-in-out;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    min-height: 48px;
-    font-family: "Lexend Deca Variable";
-    font-size: 16px;
-    font-weight: 700;
-    line-height: normal;
+  width: 100%;
+  max-width: 350px;
+  padding: 0px;
+  padding-left: 17px;
+  padding-right: 20px;
+  border-radius: 24px;
+  border: 2px solid #ffffff;
+  background-color: #ffffff;
+  color: #000000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease-in-out;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  font-family: "Lexend Deca Variable";
+  font-size: 16px;
+  font-weight: 700;
+  line-height: normal;
 }
 
 .revolut-card-field--focused {
-    border-color: var(--color-grey-50);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: var(--color-grey-50);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .revolut-card-field--invalid {
-    border-color: var(--color-error, #e74c3c);
+  border-color: var(--color-error, #e74c3c);
 }
 
 input[type="text"]:focus,
@@ -96,77 +97,79 @@ input[type="search"]:focus,
 input[type="tel"]:focus,
 input[type="url"]:focus,
 input[type="number"]:focus {
-    /* Focus state enhancements */
-    outline: none;
-    border-color: var(--color-grey-50);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  /* Focus state enhancements */
+  outline: none;
+  border-color: var(--color-grey-50);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .input-group {
-    margin-bottom: 1rem;
+  margin-bottom: 1rem;
 }
 
 .input-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-    width: 100%;
-    max-width: 350px;
-    margin: 0 auto;  /* Center the input wrapper */
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 350px;
+  margin: 0 auto; /* Center the input wrapper */
 }
 
 /* Adjust the icon to be inside the input field */
 .input-wrapper .clickable-icon {
-    position: absolute; /* Keep it absolute */
-    left: 1rem; /* Position it inside the input */
-    color: var(--color-grey-60);
-    z-index: 1; /* Ensure it appears above the input */
+  position: absolute; /* Keep it absolute */
+  /* Logical property: icon sits at the inline-start side (left in LTR, right in RTL) */
+  inset-inline-start: 1rem;
+  color: var(--color-grey-60);
+  z-index: 1; /* Ensure it appears above the input */
 }
 
 /* Shared styles for fields with icons */
 .icon-field {
-    /* Container for input and icon */
-    position: relative;
-    width: 100%;
-    margin-bottom: 16px; /* Add spacing between stacked fields */
-    transition: transform 0.2s ease-in-out;
+  /* Container for input and icon */
+  position: relative;
+  width: 100%;
+  margin-bottom: 16px; /* Add spacing between stacked fields */
+  transition: transform 0.2s ease-in-out;
 }
 
 /* Base icon styling */
 .icon-field::before {
-    content: '';
-    position: absolute;
-    left: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 20px;
-    height: 20px;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: contain;
-    pointer-events: none;
-    z-index: 1;
-    filter: brightness(0) saturate(100%) invert(65%) sepia(0%) saturate(0%) hue-rotate(153deg) brightness(89%) contrast(85%);
+  content: "";
+  position: absolute;
+  /* Logical property: icon sits at the inline-start side (left in LTR, right in RTL) */
+  inset-inline-start: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  pointer-events: none;
+  z-index: 1;
+  filter: brightness(0) saturate(100%) invert(65%) sepia(0%) saturate(0%)
+    hue-rotate(153deg) brightness(89%) contrast(85%);
 }
 
 .icon-field:hover,
 .icon-field:focus-within {
-    transform: translateY(-1px);
+  transform: translateY(-1px);
 }
 
 .icon-field.search-field::before {
-    background-image: url('@openmates/ui/static/icons/search.svg');
+  background-image: url("@openmates/ui/static/icons/search.svg");
 }
 
 .icon-field.apikey-field::before {
-    background-image: url('@openmates/ui/static/icons/secret.svg');
+  background-image: url("@openmates/ui/static/icons/secret.svg");
 }
 
 .icon-field.teamslug-field::before {
-    background-image: url('@openmates/ui/static/icons/team.svg');
+  background-image: url("@openmates/ui/static/icons/team.svg");
 }
 
 .icon-field.email-field::before {
-    background-image: url('@openmates/ui/static/icons/mail.svg');
+  background-image: url("@openmates/ui/static/icons/mail.svg");
 }
-

@@ -1,5 +1,6 @@
 import logging
 import json
+import httpx
 from typing import Dict, Any, Optional, Tuple, List # Added List import
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,7 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
         user_data = response.json().get("data", {})
         
         vault_key_id = user_data.get("vault_key_id")
-        logger.info(f"Found vault_key_id")
+        logger.info("Found vault_key_id")
         
         if not vault_key_id:
             logger.error("No vault_key_id found in user data")
@@ -104,7 +105,28 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             
             # Keep encrypted timestamp encrypted
             "encrypted_auto_topup_last_triggered": user_data.get("encrypted_auto_topup_last_triggered"),
+
+            # Keep encrypted email for auto top-up encrypted (server-side vault encryption,
+            # decrypted at point of use in billing_service._get_decrypted_email())
+            "encrypted_email_auto_topup": user_data.get("encrypted_email_auto_topup"),
         }
+
+        # Expose profile_image_s3_key in the profile dict so the internal
+        # process_profile_image endpoint can read it for old-object cleanup.
+        # (It is not sensitive — it's just an S3 key, not an AES key.)
+        profile["profile_image_s3_key"] = user_data.get("profile_image_s3_key")
+
+        # Profile image URL resolution:
+        #   All profile images are stored as AES-256-GCM encrypted blobs in the private
+        #   S3 bucket. Users with a profile_image_s3_key get the authenticated proxy URL.
+        #   Users without a profile image get no profile_image_url (frontend shows placeholder).
+        _new_s3_key = user_data.get("profile_image_s3_key")
+        if _new_s3_key:
+            profile["profile_image_url"] = f"/v1/users/{user_id}/profile-image"
+            logger.info(
+                f"[UserProfile] User {user_id[:8]}... has encrypted profile image; "
+                f"setting profile_image_url to proxy URL"
+            )
 
         # Decrypt fields that are safe to cache and commonly needed (DO NOT decrypt tfa_secret here)
         try:
@@ -114,7 +136,6 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             fields_to_decrypt = [
                 ("username", "encrypted_username"),
                 ("credits", "encrypted_credit_balance"),
-                ("profile_image_url", "encrypted_profileimage_url"),
                 ("tfa_app_name", "encrypted_tfa_app_name"),
                 ("gifted_credits_for_signup", "encrypted_gifted_credits_for_signup"),
                 ("invoice_counter", "encrypted_invoice_counter")

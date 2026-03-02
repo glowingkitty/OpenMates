@@ -20,6 +20,7 @@ quantum_computing:
   th: สอนฉันเกี่ยวกับการคำนวณควอนตัมในแง่ง่าย ๆ
   cs: Vysvětli mi kvantové počítače prostřednictvím jednoduchých výrazů
   sv: Lär mig om kvantberäkning i enkla termer
+  he: למד אותי על מחשוב קוונטי במונחים פשוטים
   verified_by_human: []
 plan_trip_japan:
   context: Default new chat suggestion
@@ -43,6 +44,7 @@ plan_trip_japan:
   th: ช่วยฉันวางแผนการเดินทาง 7 วันไปญี่ปุ่น
   cs: Pomozte mi naplánovat 7denní cestu do Japonska
   sv: Hjälp mig planera en 7-dagars resa till Japan
+  he: עזור לי לתכנן טיול של 7 ימים ליפן
   verified_by_human: []
 ai_news:
   context: Default new chat suggestion
@@ -66,6 +68,7 @@ ai_news:
   th: ข่าวล่าสุดเกี่ยวกับการพัฒนา AI คืออะไร?
   cs: Jaké jsou nejnovější zprávy o vývoji AI?
   sv: Vad är senaste nyheterna om AI-utveckling?
+  he: "מהן החדשות האחרונות על פיתוחי בינה מלאכותית?"
   verified_by_human: []
 photosynthesis:
   context: Default new chat suggestion
@@ -89,6 +92,7 @@ photosynthesis:
   th: อธิบายวิธีการทำงานของโฟโตซิงเทซิส
   cs: Vysvětli, jak funguje fotosyntéza
   sv: Förklara hur fotosyntes fungerar
+  he: הסבר לי איך עובד תהליך הפוטוסינתזה
   verified_by_human: []
 professional_email:
   context: Default new chat suggestion
@@ -112,6 +116,7 @@ professional_email:
   th: ช่วยฉันเขียนอีเมลระดับมืออาชีพ
   cs: Pomozte mi napsat profesionální email
   sv: Hjälp mig att skriva ett professionellt e-postmeddelande
+  he: עזור לי לכתוב אימייל מקצועי
   verified_by_human: []
 healthy_breakfast:
   context: Default new chat suggestion
@@ -135,6 +140,7 @@ healthy_breakfast:
   th: ความคิดอาหารเช้าที่มีสุขภาพดีบางประการคืออะไร?
   cs: Jaké jsou některé nápady na zdravou snídaňi?
   sv: Vilka är några idéer för frukost som är hälsosam?
+  he: "מהם כמה רעיונות לארוחת בוקר בריאה?"
   verified_by_human: []
 blockchain:
   context: Default new chat suggestion
@@ -158,6 +164,7 @@ blockchain:
   th: อธิบายเทคโนโลยี Blockchain
   cs: Vysvětli technologii blockchain
   sv: Förklara blockchain-teknologi
+  he: "הסבר לי על טכנולוגיית בלוקצ'יין"
   verified_by_human: []
 learn_spanish:
   context: Default new chat suggestion
@@ -181,6 +188,7 @@ learn_spanish:
   th: ช่วยฉันเรียนรู้พื้นฐานของภาษาสเปน
   cs: Pomozte mi naučit se základy španělštiny
   sv: Hjälp mig att lära mig grunderna i spanska
+  he: עזור לי ללמוד ספרדית בסיסית
   verified_by_human: []
 ml_vs_ai:
   context: Default new chat suggestion
@@ -204,6 +212,7 @@ ml_vs_ai:
   th: ความแตกต่างระหว่างการเรียนรู้ของเครื่องและ AI คืออะไร?
   cs: Jaký je rozdíl mezi strojovým učením a umělou inteligencí?
   sv: Vad är skillnaden mellan maskininlärning och AI?
+  he: "מה ההבדל בין למידת מכונה לבינה מלאכותית?"
   verified_by_human: []
 improve_productivity:
   context: Default new chat suggestion
@@ -227,6 +236,7 @@ improve_productivity:
   th: ฉันจะปรับปรุงประสิทธิผลของตนเองได้อย่างไร?
   cs: Jak mohu zlepšit svou produktivitu?
   sv: Hur kan jag förbättra min produktivitet?
+  he: "איך אוכל לשפר את הפרודוקטיביות שלי?"
   verified_by_human: []
 theory_relativity:
   context: Default new chat suggestion
@@ -250,6 +260,7 @@ theory_relativity:
   th: อธิบายทฤษฎีสัมพัทธภาพ
   cs: Vysvětli teorii relativity
   sv: Förklara relativitetsteorin
+  he: הסבר לי את תורת היחסות
   verified_by_human: []
 workout_plan:
   context: Default new chat suggestion
@@ -273,6 +284,7 @@ workout_plan:
   th: ช่วยฉันสร้างแผนการออกกำลังกาย
   cs: Pomozte mi vytvořit plán tréninku
   sv: Hjälp mig skapa en träningsplan
+  he: עזור לי לבנות תוכנית אימונים
   verified_by_human: []
 cybersecurity:
   context: Default new chat suggestion
@@ -296,6 +308,7 @@ cybersecurity:
   th: ปฏิบัติที่ดีที่สุดสำหรับความปลอดภัยไซเบอร์คืออะไร?
   cs: Jaké jsou nejlepší postupy pro kybernetickou bezpečnost?
   sv: Vilka är de bästa metoderna för cybersäkerhet?
+  he: "מהן שיטות העבודה המומלצות לאבטחת סייבר?"
   verified_by_human: []
 learn_coding:
   context: Default new chat suggestion
@@ -319,6 +332,7 @@ learn_coding:
   th: ฉันจะเริ่มต้นการเรียนรู้การเขียนโปรแกรมได้อย่างไร?
   cs: Jak začnu učit se programovat?
   sv: Hur börjar jag lära mig att koda?
+  he: "איך מתחילים ללמוד תכנות?"
   verified_by_human: []
 stock_market:
   context: Default new chat suggestion
@@ -342,6 +356,7 @@ stock_market:
   th: อธิบายวิธีการทำงานของตลาดหุ้น
   cs: Vysvětli, jak funguje akciový trh
   sv: Förklara hur aktiemarkanden fungerar
+  he: הסבר לי איך עובד שוק ההון
   verified_by_human: []
 cover_letter:
   context: Default new chat suggestion
@@ -365,6 +380,7 @@ cover_letter:
   th: ช่วยฉันเขียนจดหมายสมัครงาน
   cs: Pomozte mi napsat motivační dopis
   sv: Hjälp mig skriva ett följebrev
+  he: עזור לי לכתוב מכתב מקדים (Cover Letter)
   verified_by_human: []
 writing_prompts:
   context: Default new chat suggestion
@@ -388,6 +404,7 @@ writing_prompts:
   th: ความคิดเกี่ยวกับการเขียนสร้างสรรค์บางส่วนคืออะไร?
   cs: Jaké jsou některé nápady na kreativní psaní?
   sv: Vad är några idéer för kreativt skrivande?
+  he: "מהם כמה רעיונות לכתיבה יוצרת?"
   verified_by_human: []
 carbon_footprint:
   context: Default new chat suggestion
@@ -411,6 +428,7 @@ carbon_footprint:
   th: ฉันจะลดปริมาณคาร์บอนไดออกไซด์ของฉันได้อย่างไร?
   cs: Jak mohu snížit svoji uhlíkovou stopu?
   sv: Hur kan jag minska mitt kolfotavtryck?
+  he: "איך אוכל לצמצם את טביעת הרגל הפחמנית שלי?"
   verified_by_human: []
 internet_history:
   context: Default new chat suggestion
@@ -434,6 +452,7 @@ internet_history:
   th: อธิบายประวัติศาสตร์ของอินเทอร์เน็ต
   cs: Vysvětli historii internetu
   sv: Förklara Internet historia
+  he: הסבר לי על ההיסטוריה של האינטרנט
   verified_by_human: []
 meal_prep:
   context: Default new chat suggestion
@@ -457,4 +476,5 @@ meal_prep:
   th: ช่วยฉันวางแผนการเตรียมอาหารที่ดีต่อสุขภาพ
   cs: Pomozte mi naplánovat zdravou přípravu jídel
   sv: Hjälp mig planera en hälsosam måltidsförberedelse
+  he: עזור לי לתכנן הכנת ארוחות בריאות מראש
   verified_by_human: []

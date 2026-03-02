@@ -23,11 +23,13 @@ pyotp==2.9.0
 user-agents==2.2.0
 staticmap==0.5.7
 Pillow==12.1.1
+cairosvg==2.7.1
 cryptography==46.0.5
 google-genai==1.58.0
 tiktoken==0.9.0
 anthropic==0.57.1
 stripe==12.2.0
+polar-sdk==0.29.0
 timezonefinder==8.2.0
 pytz==2025.2
 pynacl==1.6.2
@@ -40,5 +42,9 @@ google-api-python-client==2.187.0
 webauthn==2.7.0
 # Note: cbor2 is included as a dependency of webauthn, so we don't need to list it explicitly
 airports-py==3.0.0
+maxminddb==3.1.0
+pymupdf==1.27.1  # Required by app-pdf-worker for PDF page screenshot rendering
+sympy==1.14.0    # Required by app-math for symbolic math (calculate skill)
+mpmath==1.4.0    # Required by app-math for high-precision numeric evaluation
 
 # TODO separate requirements file for each app and for core services, to only include what is needed

@@ -20,6 +20,7 @@ check_reputation:
   th: ตรวจสอบชื่อเสียง
   cs: Zkontrolovat pověst
   sv: Kontrollera rykte
+  he: בדיקת מוניטין
   verified_by_human:
     - en
     - de
@@ -45,6 +46,7 @@ check_reputation.description:
   th: ตรวจสอบว่าธุรกิจถูกต้องตามกฎหมายและน่าเชื่อถือหรือไม่
   cs: Zkontrolujte, zda je podnik legitimní a spolehlivý.
   sv: Kontrollera om ett företag är legitimt och pålitligt.
+  he: בדוק אם עסק הוא לגיטימי ואמין.
   verified_by_human:
     - en
     - de
@@ -70,6 +72,7 @@ analyze_privacy:
   th: วิเคราะห์ความเป็นส่วนตัว
   cs: Analyzovat soukromí
   sv: Analysera integritet
+  he: ניתוח פרטיות
   verified_by_human:
     - en
     - de
@@ -95,6 +98,7 @@ analyze_privacy.description:
   th: วิเคราะห์ความเป็นส่วนตัวของเว็บไซต์ตามเงื่อนไข
   cs: Analyzujte soukromí webu na základě jeho podmínek.
   sv: Analysera en webbplats integritet baserat på villkor.
+  he: נתח את רמת הפרטיות של אתר על סמך תנאי השימוש שלו.
   verified_by_human:
     - en
     - de
@@ -120,6 +124,7 @@ research:
   th: การวิจัย
   cs: Výzkum
   sv: Forskning
+  he: מחקר
   verified_by_human:
     - en
     - de
@@ -145,9 +150,82 @@ research.description:
   th: วิจัยหัวข้อจากหลายมุมมอง
   cs: Prozkoumejte téma z více úhlů pohledu.
   sv: Undersök ett ämne från flera vinklar.
+  he: חקור נושא ממספר זוויות.
   verified_by_human:
     - en
     - de
+research.how_to_use.1:
+  context: "How-to-use example 1 for the Web Research focus mode. Use **word** to highlight key trigger words."
+  en: "Research **climate change** and its economic impact on coastal cities by 2050"
+  de: "Recherchiere **Klimawandel** und seine wirtschaftlichen Folgen für Küstenstädte bis 2050"
+  zh: "研究**气候变化**及其到2050年对沿海城市的经济影响"
+  es: "Investiga el **cambio climático** y su impacto económico en ciudades costeras para 2050"
+  fr: "Recherche le **changement climatique** et son impact économique sur les villes côtières d'ici 2050"
+  pt: "Pesquise a **mudança climática** e seu impacto econômico nas cidades costeiras até 2050"
+  ru: "Исследуй **изменение климата** и его экономическое влияние на прибрежные города к 2050 году"
+  ja: "**気候変動**と2050年までの沿岸都市への経済的影響を調査して"
+  ko: "**기후 변화**가 2050년까지 해안 도시에 미치는 경제적 영향을 조사해줘"
+  it: "Ricerca il **cambiamento climatico** e il suo impatto economico sulle città costiere entro il 2050"
+  tr: "**İklim değişikliği** ve 2050'ye kadar kıyı şehirleri üzerindeki ekonomik etkisini araştır"
+  vi: "Nghiên cứu **biến đổi khí hậu** và tác động kinh tế lên các thành phố ven biển vào năm 2050"
+  id: "Teliti **perubahan iklim** dan dampak ekonominya pada kota pesisir pada 2050"
+  pl: "Zbadaj **zmiany klimatyczne** i ich ekonomiczny wpływ na nadmorskie miasta do 2050 roku"
+  nl: "Onderzoek **klimaatverandering** en de economische impact op kuststeden in 2050"
+  ar: "ابحث في **تغير المناخ** وتأثيره الاقتصادي على المدن الساحلية بحلول 2050"
+  hi: "**जलवायु परिवर्तन** और 2050 तक तटीय शहरों पर इसके आर्थिक प्रभाव पर शोध करें"
+  th: "วิจัย**การเปลี่ยนแปลงสภาพภูมิอากาศ**และผลกระทบทางเศรษฐกิจต่อเมืองชายฝั่งภายในปี 2050"
+  cs: "Prozkoumej **změny klimatu** a jejich ekonomický dopad na pobřežní města do roku 2050"
+  sv: "Undersök **klimatförändringen** och dess ekonomiska påverkan på kuststäder till 2050"
+  he: "חקור את **שינוי האקלים** והשפעתו הכלכלית על ערי חוף עד 2050"
+  verified_by_human: []
+research.how_to_use.2:
+  context: "How-to-use example 2 for the Web Research focus mode. Use **word** to highlight key trigger words."
+  en: "What are the **pros and cons** of universal basic income? Show me different perspectives"
+  de: "Was sind die **Vor- und Nachteile** des bedingungslosen Grundeinkommens? Zeig mir verschiedene Perspektiven"
+  zh: "全民基本收入的**优缺点**是什么？给我展示不同角度"
+  es: "¿Cuáles son los **pros y contras** del ingreso básico universal? Muéstrame diferentes perspectivas"
+  fr: "Quels sont les **avantages et inconvénients** du revenu universel de base ? Montre-moi différentes perspectives"
+  pt: "Quais são os **prós e contras** da renda básica universal? Mostre-me diferentes perspectivas"
+  ru: "Каковы **плюсы и минусы** безусловного базового дохода? Покажи разные точки зрения"
+  ja: "ベーシックインカムの**メリットとデメリット**は何か？様々な視点を教えて"
+  ko: "기본소득의 **장단점**은 무엇인가? 다양한 관점을 보여줘"
+  it: "Quali sono i **pro e contro** del reddito di base universale? Mostrami diverse prospettive"
+  tr: "Evrensel temel gelirin **artıları ve eksileri** nelerdir? Farklı perspektifler göster"
+  vi: "Ưu và nhược điểm của thu nhập cơ bản toàn cầu là gì? Cho tôi xem các góc nhìn khác nhau"
+  id: "Apa **pro dan kontra** pendapatan dasar universal? Tunjukkan berbagai perspektif"
+  pl: "Jakie są **zalety i wady** powszechnego dochodu podstawowego? Pokaż mi różne perspektywy"
+  nl: "Wat zijn de **voor- en nadelen** van een universeel basisinkomen? Toon me verschillende perspectieven"
+  ar: "ما هي **مزايا وعيوب** الدخل الأساسي الشامل؟ أرني وجهات نظر مختلفة"
+  hi: "सार्वभौमिक बुनियादी आय के **फायदे और नुकसान** क्या हैं? मुझे अलग-अलग दृष्टिकोण दिखाएं"
+  th: "ข้อดีและข้อเสียของรายได้พื้นฐานถ้วนหน้าคืออะไร? แสดงมุมมองต่างๆ ให้ดูหน่อย"
+  cs: "Jaké jsou **klady a zápory** univerzálního základního příjmu? Ukáže mi různé perspektivy"
+  sv: "Vilka är **för- och nackdelarna** med universell basinkomst? Visa mig olika perspektiv"
+  he: "מהם **היתרונות והחסרונות** של הכנסה בסיסית אוניברסלית? הראה לי נקודות מבט שונות"
+  verified_by_human: []
+research.how_to_use.3:
+  context: "How-to-use example 3 for the Web Research focus mode. Use **word** to highlight key trigger words."
+  en: "Investigate the **causes** behind the rise of fast fashion and its environmental consequences"
+  de: "Untersuche die **Ursachen** des Aufstiegs der Fast Fashion und deren Umweltfolgen"
+  zh: "调查快时尚兴起的**原因**及其对环境的影响"
+  es: "Investiga las **causas** detrás del auge de la moda rápida y sus consecuencias ambientales"
+  fr: "Enquête sur les **causes** de l'essor de la fast fashion et ses conséquences environnementales"
+  pt: "Investigue as **causas** por trás do crescimento da moda rápida e suas consequências ambientais"
+  ru: "Исследуй **причины** роста быстрой моды и её экологические последствия"
+  ja: "ファストファッション台頭の**原因**とその環境への影響を調査して"
+  ko: "패스트패션 부상의 **원인**과 환경적 결과를 조사해줘"
+  it: "Indaga le **cause** del boom del fast fashion e le sue conseguenze ambientali"
+  tr: "Hızlı modanın yükselişinin **nedenlerini** ve çevresel sonuçlarını araştır"
+  vi: "Điều tra **nguyên nhân** của sự trỗi dậy của thời trang nhanh và hậu quả môi trường"
+  id: "Selidiki **penyebab** kebangkitan fast fashion dan dampak lingkungannya"
+  pl: "Zbadaj **przyczyny** wzrostu popularności fast fashion i jej konsekwencje środowiskowe"
+  nl: "Onderzoek de **oorzaken** achter de opkomst van fast fashion en de milieugevolgen"
+  ar: "التحقيق في **أسباب** صعود الموضة السريعة وعواقبها البيئية"
+  hi: "फास्ट फैशन के उदय के **कारणों** और इसके पर्यावरणीय परिणामों की जांच करें"
+  th: "สืบสวน**สาเหตุ**ของการเติบโตของแฟชั่นด่วนและผลกระทบต่อสิ่งแวดล้อม"
+  cs: "Prozkoumej **příčiny** vzestupu rychlé módy a její environmentální důsledky"
+  sv: "Undersök **orsakerna** till snabbmodets framväxt och dess miljökonsekvenser"
+  he: "בדוק את **הסיבות** לעלייתה של מהר-אופנה ואת ההשלכות הסביבתיות שלה"
+  verified_by_human: []
 deep_web_research:
   context: Focus mode name for deep web research
   en: Deep web research
@@ -170,6 +248,7 @@ deep_web_research:
   th: การวิจัยเว็บเชิงลึก
   cs: Hluboký webový výzkum
   sv: Djup webbforskning
+  he: מחקר ברשת העמוקה
   verified_by_human:
     - en
     - de
@@ -195,6 +274,7 @@ deep_web_research.description:
   th: วางแผนและวิจัยเว็บเชิงลึกเพื่อสร้างรายงาน
   cs: Naplánujte a proveďte hloubkový webový výzkum.
   sv: Planera och genomför djup webbforskning.
+  he: תכנן ובצע מחקר ברשת העמוקה עבור דוח.
   verified_by_human:
     - en
     - de

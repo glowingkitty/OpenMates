@@ -20,6 +20,7 @@ discord_members:
   th: สมาชิกใน Discord ของเราจะ
   cs: Členové našeho Discordu získají
   sv: ''
+  he: חברים בדיסקורד שלנו
   verified_by_human: []
 early_access:
   context: Part of waiting list message about early access
@@ -43,6 +44,7 @@ early_access:
   th: ได้รับการเข้าถึงก่อนกำหนด
   cs: časný přístup.
   sv: ''
+  he: יקבלו גישה מוקדמת.
   verified_by_human: []
 first_invites:
   context: Timeline for first invites
@@ -66,4 +68,5 @@ first_invites:
   th: การเชิญครั้งแรกในม.ค./ก.พ. 2025
   cs: První pozvánky v lednu/únoru 2025
   sv: ''
+  he: הזמנות ראשונות בינואר/פברואר 2025
   verified_by_human: []

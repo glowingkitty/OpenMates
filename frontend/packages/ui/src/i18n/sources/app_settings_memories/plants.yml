@@ -20,6 +20,7 @@ my_plants:
   th: พืชของฉัน
   cs: Moje rostliny
   sv: Mina växter
+  he: הצמחים שלי
   verified_by_human:
     - en
     - de
@@ -45,6 +46,7 @@ my_plants.description:
   th: คอลเลกชันพืชพร้อมตารางการดูแล
   cs: Vaše sbírka rostlin s harmonogramy péče
   sv: Din växtsamling med vårdplaner
+  he: אוסף הצמחים שלך עם לוחות זמנים לטיפול
   verified_by_human:
     - en
     - de
@@ -73,6 +75,7 @@ my_plants.example_1:
   th: มอนสเตร่า
   cs: Monstera Deliciosa
   sv: Monstera Deliciosa
+  he: מונסטרה דליסיוסה
   verified_by_human: [en, de]
 
 my_plants.example_2:
@@ -97,4 +100,5 @@ my_plants.example_2:
   th: ลิ้นมังกร
   cs: Zelenec
   sv: Svärmorstunga
+  he: סנסביירה
   verified_by_human: [en, de]

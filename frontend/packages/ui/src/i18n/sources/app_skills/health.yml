@@ -20,6 +20,7 @@ search_appointments:
   th: ค้นหานัดหมาย
   cs: Hledat schůzky
   sv: Sök bokningar
+  he: חיפוש תורים
   verified_by_human:
     - en
     - de
@@ -45,13 +46,14 @@ search_appointments.description:
   th: ค้นหานัดหมายแพทย์ที่มีใกล้คุณ
   cs: Najděte dostupné lékařské schůzky poblíž.
   sv: Hitta tillgängliga läkarbokningar nära dig.
+  he: מציאת תורים פנויים לרופאים בקרבתך.
   verified_by_human:
     - en
     - de
 
 search_appointments.how_to_use.1:
   context: Example instruction for health search appointments skill - dermatologist
-  en: Find a dermatologist near me with availability this week
+  en: "**Find** a dermatologist near me with availability this week"
   de: Finde einen Hautarzt in der Nähe mit Terminen diese Woche
   zh: 查找附近本周有空的皮肤科医生
   es: Busca un dermatólogo cerca con disponibilidad esta semana
@@ -71,11 +73,12 @@ search_appointments.how_to_use.1:
   th: ค้นหาแพทย์ผิวหนังใกล้ฉันที่มีนัดว่างสัปดาห์นี้
   cs: Najděte dermatologa poblíž s volnými termíny tento týden
   sv: Hitta en hudläkare nära mig med tider denna vecka
+  he: "**מצא** רופא עור בקרבתי עם זמינות השבוע"
   verified_by_human: [en, de]
 
 search_appointments.how_to_use.2:
   context: Example instruction for health search appointments skill - dentist
-  en: Search for available dentist appointments in Munich next Monday
+  en: "**Search** for available dentist appointments in Munich next Monday"
   de: Suche verfügbare Zahnarzttermine in München nächsten Montag
   zh: 搜索下周一在 Munich 可用的牙医预约
   es: Busca citas de dentista disponibles en Munich el próximo lunes
@@ -95,11 +98,12 @@ search_appointments.how_to_use.2:
   th: ค้นหานัดหมายทันตแพทย์ที่มีใน Munich วันจันทร์หน้า
   cs: Hledejte dostupné termíny u zubaře v Munich příští pondělí
   sv: Sök lediga tandläkartider i Munich nästa måndag
+  he: "**חפש** תורים פנויים לרופא שיניים במינכן ביום שני הבא"
   verified_by_human: [en, de]
 
 search_appointments.how_to_use.3:
   context: Example instruction for health search appointments skill - general practitioner
-  en: Are there any general practitioners with open slots tomorrow?
+  en: Are there any general practitioners with **open slots** tomorrow?
   de: Gibt es Hausärzte mit freien Terminen morgen?
   zh: 明天有空的全科医生吗？
   es: ¿Hay médicos de cabecera con citas disponibles mañana?
@@ -119,6 +123,7 @@ search_appointments.how_to_use.3:
   th: มีแพทย์ทั่วไปที่มีนัดว่างพรุ่งนี้ไหม?
   cs: Jsou zítra k dispozici praktičtí lékaři s volnými termíny?
   sv: Finns det allmänläkare med lediga tider imorgon?
+  he: "האם יש רופאי משפחה עם **תורים פנויים** מחר?"
   verified_by_human: [en, de]
 
 create_report:
@@ -143,6 +148,7 @@ create_report:
   th: สร้างรายงาน
   cs: Vytvořit zprávu
   sv: Skapa rapport
+  he: יצירת דוח
   verified_by_human:
     - en
     - de
@@ -168,6 +174,7 @@ create_report.description:
   th: สร้างรายงานสำหรับการไปพบแพทย์
   cs: Vytvořte zprávu pro návštěvu lékaře.
   sv: Skapa en rapport för läkarbesöket.
+  he: יצירת דוח עבור הביקור אצל הרופא.
   verified_by_human:
     - en
     - de
@@ -194,6 +201,7 @@ create_report.how_to_use.1:
   th: สร้างรายงานเกี่ยวกับอาการปวดหัวเรื้อรังสำหรับแพทย์ระบบประสาท
   cs: Vytvořte zprávu o mých přetrvávajících bolestech hlavy pro neurologa
   sv: Skapa en rapport om min ihållande huvudvärk för min neurolog
+  he: צור דוח על כאבי הראש המתמשכים שלי עבור הנוירולוג שלי
   verified_by_human: [en, de]
 
 create_report.how_to_use.2:
@@ -218,6 +226,7 @@ create_report.how_to_use.2:
   th: เตรียมรายงานแพทย์เกี่ยวกับอาการปวดหลังล่าสุด
   cs: Připravte lékařskou zprávu o mých nedávných bolestech zad
   sv: Förbered en medicinsk rapport om mina senaste ryggsmärtor
+  he: הכן דוח רפואי על תסמיני כאבי הגב האחרונים שלי
   verified_by_human: [en, de]
 
 create_report.how_to_use.3:
@@ -242,4 +251,5 @@ create_report.how_to_use.3:
   th: เขียนรายงานสรุปอาการแพ้สำหรับแพทย์ของฉัน
   cs: Napište zprávu shrnující mé alergické příznaky pro lékaře
   sv: Skriv en rapport som sammanfattar mina allergisymtom för min läkare
+  he: כתוב דוח המסכם את תסמיני האלרגיה שלי עבור הרופא שלי
   verified_by_human: [en, de]

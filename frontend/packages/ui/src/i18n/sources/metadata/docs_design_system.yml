@@ -20,6 +20,7 @@ title:
   th: ระบบการออกแบบ | OpenMates
   cs: Návrhový systém | OpenMates
   sv: Designsystem | OpenMates
+  he: "מערכת עיצוב | OpenMates"
   verified_by_human: []
 description:
   context: Description for the design system page
@@ -43,4 +44,5 @@ description:
   th: ระบบการออกแบบที่แสดงส่วนประกอบทั้งหมดที่ใช้ใน OpenMates
   cs: Návrhový systém, který zobrazuje všechny komponenty používané v OpenMates.
   sv: Designsystemet som visar alla komponenter som används i OpenMates.
+  he: מערכת העיצוב המציגה את כל הרכיבים שבשימוש ב-OpenMates.
   verified_by_human: []

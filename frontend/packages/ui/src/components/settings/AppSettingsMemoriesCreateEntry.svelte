@@ -14,12 +14,22 @@
 -->
 <script lang="ts">
     import { untrack } from 'svelte';
+    import { get } from 'svelte/store';
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { authStore } from '../../stores/authStore';
+    import { createEntryPrefillStore } from '../../stores/createEntryPrefillStore';
     import type { AppMetadata, MemoryFieldMetadata, SchemaPropertyDefinition } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
+    import {
+        MAX_LENGTH_SHORT,
+        MAX_LENGTH_MULTILINE,
+        MAX_LENGTH_GENERIC_VALUE,
+        MAX_LENGTH_GENERIC_KEY,
+        getMaxLength,
+        validateMaxLength
+    } from '../../utils/inputValidation';
 
     // Create event dispatcher for navigation
     const dispatch = createEventDispatcher();
@@ -140,6 +150,39 @@
                     settingsGroup: ''
                 };
             }
+
+            // Apply prefill from suggestion (when user clicked a suggestion card to customize)
+            const prefill = get(createEntryPrefillStore);
+            if (prefill && prefill.app_id === appId && prefill.item_type === categoryId) {
+                if (Object.keys(userInputProperties).length > 0) {
+                    // Schema-based form: merge prefill.item_value into formState
+                    for (const key of Object.keys(userInputProperties)) {
+                        if (prefill.item_value[key] !== undefined && prefill.item_value[key] !== null) {
+                            formState[key] = prefill.item_value[key];
+                        }
+                    }
+                    // Set title/name field from suggested_title if schema has one
+                    let titleField: string | null = null;
+                    if (schema?.properties) {
+                        const withIsTitle = Object.entries(schema.properties).find(([, p]) => p.is_title);
+                        titleField = withIsTitle ? withIsTitle[0] : (schema.properties.name ? 'name' : schema.properties.title ? 'title' : null);
+                    }
+                    if (titleField) {
+                        formState[titleField] = prefill.suggested_title;
+                    }
+                } else {
+                    // Generic form
+                    formState = {
+                        ...formState,
+                        itemKey: prefill.suggested_title,
+                        itemValue: typeof prefill.item_value === 'object' && prefill.item_value !== null
+                            ? JSON.stringify(prefill.item_value, null, 2)
+                            : String(prefill.item_value),
+                        settingsGroup: categoryId
+                    };
+                }
+                createEntryPrefillStore.set(null);
+            }
             
             // Mark as initialized and track schema ID (also untracked to prevent loops)
             formInitialized = true;
@@ -160,6 +203,11 @@
         // This ensures the correct CSS variable --color-app-code is used instead of --color-app-coding
         if (iconName === 'coding') {
             iconName = 'code';
+        }
+        // Handle special case: heart.svg -> health (since the app ID is "health" but icon file is heart.svg)
+        // This ensures the correct CSS variable --color-app-health is used instead of --color-app-heart
+        if (iconName === 'heart') {
+            iconName = 'health';
         }
         return iconName;
     }
@@ -201,16 +249,26 @@
     /**
      * Validate form fields based on schema requirements.
      * Only validates user-input fields (excludes auto_generated fields).
+     * Validates required fields, numeric ranges, and string length limits.
      */
     function validateForm(): string | null {
         if (Object.keys(userInputProperties).length === 0) {
             // Generic form validation (fallback when no schema)
-            if (!formState.itemKey || String(formState.itemKey).trim() === '') {
+            const keyVal = String(formState.itemKey ?? '');
+            const valueVal = String(formState.itemValue ?? '');
+
+            if (!keyVal.trim()) {
                 return $text('settings.app_settings_memories.item_key_required');
             }
-            if (!formState.itemValue || String(formState.itemValue).trim() === '') {
+            const keyLengthError = validateMaxLength(keyVal, MAX_LENGTH_GENERIC_KEY, 'Key');
+            if (keyLengthError) return keyLengthError;
+
+            if (!valueVal.trim()) {
                 return $text('settings.app_settings_memories.item_value_required');
             }
+            const valueLengthError = validateMaxLength(valueVal, MAX_LENGTH_GENERIC_VALUE, 'Value');
+            if (valueLengthError) return valueLengthError;
+
             return null;
         }
         
@@ -230,7 +288,7 @@
             }
         }
         
-        // Type validation for user-input fields only
+        // Type and length validation for user-input fields only
         for (const [fieldName, prop] of Object.entries(userInputProperties)) {
             const value = formState[fieldName];
             if (value === undefined || value === null || String(value).trim() === '') {
@@ -247,6 +305,15 @@
                 }
                 if (prop.maximum !== undefined && numValue > prop.maximum) {
                     return `${prop.description || fieldName} must be at most ${prop.maximum}`;
+                }
+            } else if (prop.type === 'string' || prop.type === undefined) {
+                // Validate string length for text fields (skip enum — value is always from allowed list)
+                if (!prop.enum) {
+                    const strVal = String(value);
+                    const maxLen = getMaxLength(prop);
+                    const label = prop.description || fieldName;
+                    const lengthError = validateMaxLength(strVal, maxLen, label);
+                    if (lengthError) return lengthError;
                 }
             }
         }
@@ -480,12 +547,22 @@
                                     <option value={enumValue}>{enumValue}</option>
                                 {/each}
                             </select>
+                        {:else if prop.multiline}
+                            <textarea
+                                id={fieldName}
+                                bind:value={formState[fieldName]}
+                                placeholder={prop.description || fieldName}
+                                rows="4"
+                                maxlength={getMaxLength(prop)}
+                                disabled={isCreating}
+                            ></textarea>
                         {:else}
                             <input
                                 id={fieldName}
                                 type="text"
                                 bind:value={formState[fieldName]}
                                 placeholder={prop.description || fieldName}
+                                maxlength={getMaxLength(prop)}
                                 disabled={isCreating}
                             />
                         {/if}
@@ -506,9 +583,10 @@
                         type="text"
                         bind:value={formState.itemKey}
                         placeholder="e.g., favorite_movie or watched.2024"
+                        maxlength={MAX_LENGTH_GENERIC_KEY}
                         disabled={isCreating}
                     />
-                    <small>Key to identify this setting/memory entry</small>
+                    <small>Key to identify this setting/memory entry (max {MAX_LENGTH_GENERIC_KEY} characters)</small>
                 </div>
 
                 <div class="form-group">
@@ -520,6 +598,7 @@
                         type="text"
                         bind:value={formState.settingsGroup}
                         placeholder="e.g., Movies (defaults to first part of item key)"
+                        maxlength={MAX_LENGTH_SHORT}
                         disabled={isCreating}
                     />
                     <small>Group to organize this entry under</small>
@@ -535,9 +614,10 @@
                         bind:value={formState.itemValue}
                         placeholder="Example: JSON object or plain text"
                         rows="6"
+                        maxlength={MAX_LENGTH_GENERIC_VALUE}
                         disabled={isCreating}
                     ></textarea>
-                    <small>Value can be JSON or plain text. JSON will be automatically parsed.</small>
+                    <small>Value can be JSON or plain text. JSON will be automatically parsed. (max {MAX_LENGTH_GENERIC_VALUE} characters)</small>
                 </div>
             {/if}
 

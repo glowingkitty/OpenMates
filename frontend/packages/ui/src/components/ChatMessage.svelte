@@ -14,13 +14,16 @@
   import type { MessageStatus, MessageRole } from '../types/chat';
   import { text, settingsDeepLink, panelState } from '@repo/ui'; // For translations
   import { getModelDisplayName, getModelByNameOrId } from '../utils/modelDisplayName';
-  import { reportIssueStore } from '../stores/reportIssueStore';
-  import { messageHighlightStore } from '../stores/messageHighlightStore';
+  import { getMatesById } from '../data/matesMetadata';
+import { reportIssueStore } from '../stores/reportIssueStore';
+import { messageHighlightStore, searchTextHighlightStore } from '../stores/messageHighlightStore';
+import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadStore';
   import { chatDB } from '../services/db';
   import { chatSyncService } from '../services/chatSyncService';
   import { uint8ArrayToUrlSafeBase64 } from '../services/cryptoService';
   import type { AppSettingsMemoriesResponseContent, AppSettingsMemoriesResponseCategory } from '../services/chatSyncServiceHandlersAppSettings';
   import { appSkillsStore } from '../stores/appSkillsStore';
+  import { writeEmbedToClipboard, writeMessageWithEmbedsToClipboard } from '../message_parsing/serializers';
   
   // Define types for message content parts
   type AppCardData = {
@@ -68,7 +71,9 @@
     messageId = undefined,
     userMessageId = undefined,
     onDeleteMessage = undefined,
-    isFirstMessage = false
+    isFirstMessage = false,
+    isCreditsRestored = false,
+    onResend = undefined
   }: {
     role?: MessageRole;
     category?: string;
@@ -96,6 +101,13 @@
     userMessageId?: string; // User message ID that triggered this response (usage records are stored with this ID)
     onDeleteMessage?: () => void; // Callback when user confirms message deletion
     isFirstMessage?: boolean; // Whether this is the first message in the chat (delete is disabled for first messages)
+    /** True when this message has status 'waiting_for_user' (credits rejection) AND
+     *  the user now has credits again. Replaces the "Buy Credits" UI with a
+     *  "Credits restored" banner and a "Resend message" button. */
+    isCreditsRestored?: boolean;
+    /** Callback to resend the original message after credits are restored.
+     *  Called when the user clicks "Resend message" in the credits-restored banner. */
+    onResend?: () => void;
   } = $props();
   
   // State for thinking section expansion
@@ -112,8 +124,9 @@
       const category = app.settings_and_memories.find(sm => sm.id === cat.itemType);
       if (category?.name_translation_key) {
         // Use the translation key to get localized name
+        // Guard: $text() returns the key itself when no translation is found
         const translated = $text(category.name_translation_key);
-        if (translated && translated !== translationKey) {
+        if (translated && translated !== category.name_translation_key) {
           return translated;
         }
       }
@@ -130,6 +143,14 @@
   // Determine if we should use mobile-stacked layout based on container width
   // Breakpoint is 500px to match the original media query
   let shouldStackMobile = $derived(containerWidth > 0 && containerWidth <= 500);
+
+  // Effective role: forces assistant messages with 'waiting_for_user' status to render
+  // as system notices. This handles messages persisted in the DB before the role fix was
+  // deployed (they have role='assistant' + status='waiting_for_user' + category set).
+  // Normal assistant messages never have 'waiting_for_user' status, so this is safe.
+  let effectiveRole = $derived(
+    role === 'assistant' && status === 'waiting_for_user' ? 'system' as const : role
+  );
 
   // Check if original_message content contains special placeholders (used in demo chats)
   // When present, we use DemoMessageContent for special placeholder handling
@@ -164,6 +185,18 @@
   // Get the chat ID from the original message (needed for ExampleChatsGroup exclusion)
   let currentChatId = $derived(original_message?.chat_id || 'demo-for-everyone');
 
+  /**
+   * Whether the fork action is disabled for this message.
+   * Fork is disabled for incognito chats and when no messageId is available.
+   * We check original_message.is_incognito (if available) as a fast path.
+   * The authoritative check is done in the service layer.
+   */
+  let isForkDisabled = $derived(
+    !messageId ||
+    !original_message?.chat_id ||
+    !!original_message?.is_incognito
+  );
+
   // If appCards is provided, add it to messageParts using $effect (Svelte 5 runes mode)
   $effect(() => {
     if (appCards && (!messageParts || messageParts.length === 0)) {
@@ -183,6 +216,25 @@
                     'Assistant');
 
   // animated prop is now included in the main $props() call above
+
+  /**
+   * Whether the current category corresponds to a real AI mate whose detail
+   * page can be opened in settings. Excludes 'openmates_official' and any
+   * category not found in matesMetadata.
+   */
+  const _matesById = getMatesById();
+  let isMateClickable = $derived(
+      !!category && category !== 'openmates_official' && !!_matesById[category]
+  );
+
+  /**
+   * Open the settings panel deep-linked to this mate's detail page.
+   */
+  function openMateSettings() {
+      if (!category || !isMateClickable) return;
+      settingsDeepLink.set(`mates/${category}`);
+      panelState.openSettings();
+  }
 
   // Add menu state using $state (Svelte 5 runes mode)
   let showMenu = $state(false);
@@ -212,19 +264,199 @@
   // State for report button hover
   let isReportHovered = $state(false);
 
-  // State for message highlighting
-  let isHighlighted = $state(false);
+  /**
+   * Counter incremented each time ReadOnlyMessage signals that its TipTap editor has
+   * finished creating and text nodes are now in the DOM. This acts as an extra reactive
+   * dependency for the search-highlight $effect so that it re-runs even when the query
+   * and the container element have not changed (e.g. lazy IntersectionObserver init fires
+   * AFTER the highlight $effect already ran and found no text nodes to highlight).
+   */
+  let contentReadyCounter = $state(0);
 
-  // Handle message highlighting
+  /**
+   * Listener effect: attaches a 'contentready' event handler to messageContentElement.
+   * ReadOnlyMessage dispatches this event (bubbling) after createEditor() completes,
+   * which triggers the highlight $effect below to re-run via contentReadyCounter.
+   */
+  $effect(() => {
+    const container = messageContentElement;
+    if (!container) return;
+
+    function onContentReady() {
+      contentReadyCounter++;
+    }
+
+    container.addEventListener('contentready', onContentReady);
+    return () => {
+      container.removeEventListener('contentready', onContentReady);
+    };
+  });
+
+  /**
+   * In-chat search text highlighting.
+   * When search is open and has a query, walks the DOM text nodes inside the message
+   * content and wraps matching substrings in <mark class="search-match"> elements.
+   * Cleans up (removes marks) when the query changes or search closes.
+   *
+   * IMPORTANT: The DOM walk is deferred to a requestAnimationFrame callback so it runs
+   * AFTER Svelte and the markdown renderer have finished painting the message content.
+   * Without this deferral the TreeWalker finds no text nodes because child components
+   * (e.g. ReadOnlyMessage / markdown renderer) have not yet rendered their content into
+   * messageContentElement when the $effect first fires.
+   *
+   * contentReadyCounter is also tracked as a dependency so this effect re-runs when
+   * ReadOnlyMessage's lazy IntersectionObserver finally creates the TipTap editor and
+   * text nodes become available (which can happen AFTER the initial rAF already fired).
+   */
+  $effect(() => {
+    const query = $searchTextHighlightStore;
+    const container = messageContentElement;
+    // Track contentReadyCounter so the effect re-runs when ReadOnlyMessage content lands
+    const _contentReady = contentReadyCounter; // eslint-disable-line @typescript-eslint/no-unused-vars
+    if (!container) return;
+
+    // Cancel any previously queued (but not-yet-fired) highlight update.
+    let rafHandle: number | null = null;
+
+    function removeExistingMarks(el: HTMLElement) {
+      // Clean up any <mark class="search-match"> nodes left by a previous run.
+      // We collect them first because replacing nodes while iterating is unsafe.
+      const marks = Array.from(el.querySelectorAll('mark.search-match'));
+      for (const mark of marks) {
+        const parent = mark.parentNode;
+        if (parent) {
+          parent.replaceChild(document.createTextNode(mark.textContent || ''), mark);
+          parent.normalize();
+        }
+      }
+    }
+
+    function applyHighlights() {
+      // Guard: container may have been removed from DOM since the RAF was queued
+      if (!container.isConnected) return;
+
+      // Always clean up previous highlights first
+      removeExistingMarks(container);
+
+      if (!query || query.trim().length === 0) return;
+
+      const lowerQuery = query.toLowerCase().trim();
+      if (!lowerQuery) return;
+
+      // Walk all text nodes in the message content.
+      // Runs in rAF so the markdown renderer has already painted its content.
+      const walker = document.createTreeWalker(
+        container,
+        NodeFilter.SHOW_TEXT,
+        null,
+      );
+
+      const textNodes: Text[] = [];
+      let node: Node | null;
+      while ((node = walker.nextNode())) {
+        textNodes.push(node as Text);
+      }
+
+      // Process each text node — wrap matches in <mark class="search-match">
+      for (const textNode of textNodes) {
+        const textContent = textNode.textContent || '';
+        const lowerContent = textContent.toLowerCase();
+        const firstIdx = lowerContent.indexOf(lowerQuery);
+        if (firstIdx === -1) continue;
+
+        // Build a document fragment with highlighted runs
+        const fragment = document.createDocumentFragment();
+        let lastIdx = 0;
+        let searchFrom = 0;
+
+        while (searchFrom < lowerContent.length) {
+          const idx = lowerContent.indexOf(lowerQuery, searchFrom);
+          if (idx === -1) break;
+
+          // Text before the match
+          if (idx > lastIdx) {
+            fragment.appendChild(document.createTextNode(textContent.slice(lastIdx, idx)));
+          }
+
+          // The match — wrapped in <mark>
+          const mark = document.createElement('mark');
+          mark.className = 'search-match';
+          mark.textContent = textContent.slice(idx, idx + lowerQuery.length);
+          fragment.appendChild(mark);
+
+          lastIdx = idx + lowerQuery.length;
+          searchFrom = lastIdx;
+        }
+
+        // Remaining text after the last match
+        if (lastIdx < textContent.length) {
+          fragment.appendChild(document.createTextNode(textContent.slice(lastIdx)));
+        }
+
+        // Replace the original text node with the fragment
+        textNode.parentNode?.replaceChild(fragment, textNode);
+      }
+    }
+
+    // If there's no query, remove existing marks synchronously (no need to defer cleanup).
+    if (!query || query.trim().length === 0) {
+      removeExistingMarks(container);
+      return;
+    }
+
+    // Defer DOM walk to the next animation frame so that all child components
+    // (markdown renderer, etc.) have had a chance to render their content first.
+    rafHandle = requestAnimationFrame(applyHighlights);
+
+    // Cleanup: cancel the pending frame if the effect re-runs before it fires
+    // (e.g. query changed again, or the component is destroyed).
+    return () => {
+      if (rafHandle !== null) {
+        cancelAnimationFrame(rafHandle);
+      }
+      // Also clean up any marks when the effect is torn down (e.g. search closed)
+      if (container.isConnected) {
+        removeExistingMarks(container);
+      }
+    };
+  });
+
+  /**
+   * Handle search result click highlighting — pulse the matched text marks.
+   * When the user clicks a search result snippet, messageHighlightStore is set to
+   * this message's ID. Instead of blinking the whole message bubble, we add
+   * class 'search-match-active' to all <mark class="search-match"> elements in the
+   * message, which triggers a CSS opacity pulse animation.
+   * The class is cleared after the animation completes (~1.2s).
+   */
   $effect(() => {
     if (original_message?.message_id && $messageHighlightStore === original_message.message_id) {
-      isHighlighted = true;
-      // Clear highlight after 3 seconds
-      const timer = setTimeout(() => {
-        isHighlighted = false;
-        messageHighlightStore.set(null);
-      }, 3000);
-      return () => clearTimeout(timer);
+      const container = messageContentElement;
+      if (!container) return;
+
+      // Apply pulse to all match marks currently in the message.
+      // They may not yet exist if the highlight $effect hasn't run yet (lazy init).
+      // We queue the pulse in a rAF so that the highlight $effect has a chance to
+      // run first (it also uses rAF internally).
+      let rafHandle: number | null = null;
+      rafHandle = requestAnimationFrame(() => {
+        const marks = Array.from(container.querySelectorAll('mark.search-match'));
+        for (const mark of marks) {
+          mark.classList.add('search-match-active');
+        }
+        // Remove the active class after animation completes
+        const timer = setTimeout(() => {
+          const activeMarks = Array.from(container.querySelectorAll('mark.search-match-active'));
+          for (const mark of activeMarks) {
+            mark.classList.remove('search-match-active');
+          }
+          messageHighlightStore.set(null);
+        }, 1200);
+        return () => clearTimeout(timer);
+      });
+      return () => {
+        if (rafHandle !== null) cancelAnimationFrame(rafHandle);
+      };
     }
   });
 
@@ -362,6 +594,55 @@
     } catch (err) {
       console.error('[ChatMessage] Error deleting message:', err);
     }
+  }
+
+  /**
+   * Open the Fork Conversation settings panel for this message.
+   * Sets window.__forkContext with the necessary data, then navigates to the
+   * fork settings panel via settingsDeepLink + panelState.openSettings().
+   *
+   * The fork includes all messages up to and including this one (inclusive).
+   * Disabled for incognito chats.
+   */
+  async function handleFork() {
+    if (!messageId || !currentChatId) return;
+
+    const chatId = currentChatId;
+
+    // Load chat title and message count for the fork context
+    let defaultTitle = '';
+    let messageCount = 0;
+    try {
+      const { decryptWithChatKey } = await import('../services/cryptoService');
+      const chat = await chatDB.getChat(chatId);
+      if (chat?.encrypted_title) {
+        const key = chatDB.getChatKey(chatId);
+        if (key) {
+          defaultTitle = await decryptWithChatKey(chat.encrypted_title, key) ?? '';
+        }
+      }
+      // Count messages up to and including this one
+      const allMsgs = await chatDB.getMessagesForChat(chatId);
+      allMsgs.sort((a, b) => (a.created_at ?? 0) - (b.created_at ?? 0));
+      const idx = allMsgs.findIndex(m => m.message_id === messageId);
+      messageCount = idx >= 0 ? idx + 1 : allMsgs.length;
+    } catch (err) {
+      console.warn('[ChatMessage] handleFork: could not load chat metadata:', err);
+    }
+
+    // Pass context via window global (same pattern as __embedShareContext)
+    (window as Window & { __forkContext?: unknown }).__forkContext = {
+      sourceChatId: chatId,
+      upToMessageId: messageId,
+      defaultTitle,
+      messageCount,
+    };
+
+    settingsDeepLink.set('fork');
+    panelState.openSettings();
+    showMessageMenu = false;
+
+    console.debug('[ChatMessage] Fork context set, opening fork settings:', { chatId, messageId, messageCount });
   }
 
   /**
@@ -530,15 +811,22 @@
    * Copies the full message content to clipboard, or selected text if available.
    * Respects PII visibility state: when PII is hidden, placeholders are used
    * instead of original values in the copied content.
+   *
+   * When copying a full message (not a text selection), if the message contains embeds,
+   * the clipboard also carries structured embed reference data
+   * ("application/x-openmates-embed" MIME type) alongside the text.
+   * This allows pasting the message into MessageInput and having the embeds rendered
+   * as live embed cards rather than plain markdown text.
    */
   async function handleCopyMessage() {
     try {
       let contentToCopy: string;
       const selection = window.getSelection();
+      const isCopyingSelection = selectable && selection && selection.toString().length > 0;
       
       // If there's a selection and it's within this message, copy only the selection
-      if (selectable && selection && selection.toString().length > 0) {
-        contentToCopy = selection.toString();
+      if (isCopyingSelection) {
+        contentToCopy = selection!.toString();
         console.debug('[ChatMessage] Copying selected text');
       } else {
         // original_message.content has PLACEHOLDERS (raw from DB).
@@ -557,12 +845,49 @@
           console.debug('[ChatMessage] Copying message with placeholders (hidden mode)');
         }
       }
-        
-      await navigator.clipboard.writeText(contentToCopy);
+      
+      if (isCopyingSelection) {
+        // Plain text copy for selections — no embed reference needed
+        await navigator.clipboard.writeText(contentToCopy);
+      } else {
+        // Full message copy: extract embed node attributes from the TipTap document
+        // so the clipboard carries structured embed references alongside the text.
+        // The ReadOnlyMessage component renders the TipTap doc; we parse the markdown
+        // to extract embed nodes without depending on the DOM.
+        let embedAttrs: import('../message_parsing/types').EmbedNodeAttributes[] = [];
+        try {
+          const { parse_message } = await import('../message_parsing/parse_message');
+          const rawMarkdown = typeof original_message?.content === 'string'
+            ? original_message.content
+            : '';
+          if (rawMarkdown) {
+            const tiptapDoc = parse_message(rawMarkdown, 'read', { unifiedParsingEnabled: true });
+            // Walk the TipTap document to collect embed nodes
+            const collectEmbeds = (nodes: any[]): void => {
+              for (const node of nodes ?? []) {
+                if (node.type === 'embed' && node.attrs?.contentRef?.startsWith('embed:')) {
+                  embedAttrs.push(node.attrs);
+                }
+                if (node.content) collectEmbeds(node.content);
+              }
+            };
+            collectEmbeds(tiptapDoc?.content ?? []);
+          }
+        } catch (parseErr) {
+          // Non-critical: if parsing fails, fall back to plain text copy
+          console.warn('[ChatMessage] Failed to extract embed nodes for clipboard:', parseErr);
+          embedAttrs = [];
+        }
+
+        // Write embed references + message text to clipboard using dual-MIME ClipboardItem.
+        // When pasted inside OpenMates MessageInput, the paste handler reads the embed
+        // JSON and re-inserts the embed nodes. When pasted externally, text/plain is used.
+        await writeMessageWithEmbedsToClipboard(embedAttrs, contentToCopy);
+      }
       
       const { notificationStore } = await import('../stores/notificationStore');
       notificationStore.success(
-        selectable && selection && selection.toString().length > 0
+        isCopyingSelection
           ? 'Selected text copied to clipboard'
           : 'Message copied to clipboard'
       );
@@ -744,6 +1069,13 @@
   async function handleMenuAction(action: string) {
     if (!selectedNode) return;
 
+    // Snapshot node attrs immediately. The EmbedContextMenu onClose callback fires as soon
+    // as a menu button is clicked (before this async function resolves), which sets
+    // selectedNode = null. All async paths below must use this snapshot instead of
+    // accessing selectedNode.attrs after any await to avoid "Cannot read properties of null".
+    // Cast via unknown so TypeScript accepts it as EmbedNodeAttributes across all call sites.
+    const snapshotAttrs = selectedNode.attrs as unknown as import('../message_parsing/types').EmbedNodeAttributes;
+
     // Legacy node handlers removed - now using unified embed system
     // Actions are handled directly below
 
@@ -887,39 +1219,58 @@
                         selectedNode.attrs.type?.startsWith('code-code');
     if (menuType === 'code' && selectedNode.type.name === 'embed' && isCodeEmbed) {
       const embedId = getEmbedIdFromNode(selectedNode);
+      // Snapshot inline attrs for fallback (used when no embedId or resolve fails)
+      const inlineCode = selectedNode.attrs?.code || '';
+      const inlineLanguage = selectedNode.attrs?.language || 'text';
+      const inlineFilename = selectedNode.attrs?.filename;
 
       try {
-        let code = selectedNode.attrs?.code || '';
-        let language = selectedNode.attrs?.language || 'text';
-        let filename = selectedNode.attrs?.filename;
+        if (action === 'copy') {
+          // Build content promise that resolves the embed if possible, falling back to inline attrs.
+          // The promise is constructed WITHOUT await so writeEmbedToClipboard can call
+          // navigator.clipboard.write() synchronously (Safari gesture-token compatibility).
+          const codePromise: Promise<string> = embedId
+            ? import('../services/embedResolver').then(({ resolveEmbed, decodeToonContent }) =>
+                resolveEmbed(embedId).then(async (embedData) => {
+                  if (embedData?.content) {
+                    const decoded = await decodeToonContent(embedData.content);
+                    return decoded?.code || inlineCode;
+                  }
+                  return inlineCode;
+                })
+              )
+            : Promise.resolve(inlineCode);
 
-        // Prefer resolving the embed by ID when available (source of truth)
-        if (embedId) {
-          const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
-          const embedData = await resolveEmbed(embedId);
-          if (embedData?.content) {
-            const decodedContent = await decodeToonContent(embedData.content);
-            code = decodedContent?.code || code;
-            language = decodedContent?.language || language;
-            filename = decodedContent?.filename || filename;
-          }
-        }
+          // Initiate clipboard write immediately (synchronous within the gesture context).
+          const copyDone = writeEmbedToClipboard(snapshotAttrs, codePromise);
 
-        switch (action) {
-          case 'copy': {
-            if (!code) break;
-            await navigator.clipboard.writeText(code);
+          // Await resolution to show notification; rethrow errors to the outer catch.
+          const code = await codePromise;
+          await copyDone;
+          if (code) {
             const { notificationStore } = await import('../stores/notificationStore');
             notificationStore.success('Code copied to clipboard');
-            break;
           }
-          case 'download': {
-            if (!code) break;
+        } else if (action === 'download') {
+          // Download does not need the gesture-token trick — just resolve normally.
+          let code = inlineCode;
+          let language = inlineLanguage;
+          let filename = inlineFilename;
+          if (embedId) {
+            const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
+            const embedData = await resolveEmbed(embedId);
+            if (embedData?.content) {
+              const decoded = await decodeToonContent(embedData.content);
+              code = decoded?.code || code;
+              language = decoded?.language || language;
+              filename = decoded?.filename || filename;
+            }
+          }
+          if (code) {
             const { downloadCodeFile } = await import('../services/zipExportService');
             await downloadCodeFile(code, language, filename);
             const { notificationStore } = await import('../stores/notificationStore');
             notificationStore.success('Code file downloaded successfully');
-            break;
           }
         }
       } catch (error) {
@@ -945,31 +1296,42 @@
       }
 
       try {
-        const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
-        const embedData = await resolveEmbed(embedId);
-        if (!embedData?.content) return;
-
-        const decodedContent = await decodeToonContent(embedData.content);
-        const query = decodedContent?.query || '';
-        const provider = decodedContent?.provider || 'Brave Search';
-        const results = decodedContent?.results || [];
-
         if (action === 'copy') {
-          let yaml = `query: "${query}"\n`;
-          yaml += `provider: "${provider}"\n`;
-          yaml += `results:\n`;
+          // Build the markdown text promise without awaiting — enables synchronous
+          // navigator.clipboard.write() call for Safari gesture-token compatibility.
+          // Format: bold labels + bullet-point URLs so it reads well in any text editor.
+          const mdPromise: Promise<string> = import('../services/embedResolver').then(
+            ({ resolveEmbed, decodeToonContent }) =>
+              resolveEmbed(embedId).then(async (embedData) => {
+                if (!embedData?.content) {
+                  console.warn('[ChatMessage] No embed data found for web search embed, cannot copy');
+                  return '';
+                }
+                const decodedContent = await decodeToonContent(embedData.content);
+                const query = decodedContent?.query || '';
+                const provider = decodedContent?.provider || 'Brave Search';
+                const results = decodedContent?.results || [];
 
-          results.forEach((result: any) => {
-            yaml += `  - title: "${(result.title || '').replace(/"/g, '\\"')}"\n`;
-            yaml += `    url: "${(result.url || '').replace(/"/g, '\\"')}"\n`;
-            if (result.snippet) {
-              yaml += `    snippet: "${String(result.snippet).replace(/"/g, '\\"')}"\n`;
-            }
-          });
+                let md = `*Query:*\n"${query}"\n\n`;
+                md += `*Provider:*\n${provider}\n\n`;
+                md += `*Results:*\n`;
+                results.forEach((result: any) => {
+                  if (result.url) md += `- ${result.url}\n`;
+                });
+                return md.trimEnd();
+              })
+          );
 
-          await navigator.clipboard.writeText(yaml);
-          const { notificationStore } = await import('../stores/notificationStore');
-          notificationStore.success('Copied to clipboard');
+          // Initiate clipboard write immediately (synchronous within the gesture context).
+          const copyDone = writeEmbedToClipboard(snapshotAttrs, mdPromise);
+
+          // Await both to surface errors and show notification.
+          const md = await mdPromise;
+          await copyDone;
+          if (md) {
+            const { notificationStore } = await import('../stores/notificationStore');
+            notificationStore.success('Copied to clipboard');
+          }
         }
       } catch (error) {
         console.error('[ChatMessage] Error handling web search action:', error);
@@ -994,85 +1356,78 @@
       }
 
       try {
-        // Load embed data to get transcript content
-        const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
-        const embedData = await resolveEmbed(embedId);
-        if (!embedData?.content) {
-          console.warn('[ChatMessage] No embed data found for video transcript');
-          showMenu = false;
-          selectedNode = null;
-          return;
-        }
-
-        const decodedContent = await decodeToonContent(embedData.content);
-        const results = decodedContent.results || [];
-        const firstResult = results[0] || {};
-        const videoTitle = firstResult.metadata?.title || firstResult.url || 'Video Transcript';
-
-        switch (action) {
-          case 'copy':
-            // Copy transcript as formatted markdown
-            const transcriptText = results
-              .filter((r: any) => r.transcript)
-              .map((r: any) => {
-                let content = '';
-                if (r.metadata?.title) {
-                  content += `# ${r.metadata.title}\n\n`;
+        if (action === 'copy') {
+          // Build transcript text promise without awaiting — Safari gesture-token fix.
+          const transcriptPromise: Promise<string> = import('../services/embedResolver').then(
+            ({ resolveEmbed, decodeToonContent }) =>
+              resolveEmbed(embedId).then(async (embedData) => {
+                if (!embedData?.content) {
+                  console.warn('[ChatMessage] No embed data found for video transcript');
+                  return '';
                 }
-                if (r.url) {
-                  content += `Source: ${r.url}\n\n`;
-                }
-                if (r.word_count) {
-                  content += `Word count: ${r.word_count.toLocaleString()}\n\n`;
-                }
-                content += r.transcript || '';
-                return content;
+                const decodedContent = await decodeToonContent(embedData.content);
+                const results = decodedContent.results || [];
+                return results
+                  .filter((r: any) => r.transcript)
+                  .map((r: any) => {
+                    let content = '';
+                    if (r.metadata?.title) content += `# ${r.metadata.title}\n\n`;
+                    if (r.url) content += `Source: ${r.url}\n\n`;
+                    if (r.word_count) content += `Word count: ${r.word_count.toLocaleString()}\n\n`;
+                    content += r.transcript || '';
+                    return content;
+                  })
+                  .join('\n\n---\n\n');
               })
-              .join('\n\n---\n\n');
-            
-            if (transcriptText) {
-              await navigator.clipboard.writeText(transcriptText);
-              const { notificationStore } = await import('../stores/notificationStore');
-              notificationStore.success('Transcript copied to clipboard');
-            }
-            break;
+          );
 
-          case 'download':
-            // Download transcript as markdown file
-            const downloadText = results
-              .filter((r: any) => r.transcript)
-              .map((r: any) => {
-                let content = '';
-                if (r.metadata?.title) {
-                  content += `# ${r.metadata.title}\n\n`;
-                }
-                if (r.url) {
-                  content += `Source: ${r.url}\n\n`;
-                }
-                if (r.word_count) {
-                  content += `Word count: ${r.word_count.toLocaleString()}\n\n`;
-                }
-                content += r.transcript || '';
-                return content;
-              })
-              .join('\n\n---\n\n');
-            
-            if (downloadText) {
-              const blob = new Blob([downloadText], { type: 'text/markdown' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `${videoTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_transcript.md`;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              URL.revokeObjectURL(url);
-            }
-            break;
+          // Initiate clipboard write immediately (synchronous within the gesture context).
+          const copyDone = writeEmbedToClipboard(snapshotAttrs, transcriptPromise);
 
-          case 'share':
-            // Handled by generic share handler above
-            break;
+          const transcriptText = await transcriptPromise;
+          await copyDone;
+          if (transcriptText) {
+            const { notificationStore } = await import('../stores/notificationStore');
+            notificationStore.success('Transcript copied to clipboard');
+          }
+        } else if (action === 'download') {
+          // Download does not need the gesture-token trick — resolve normally.
+          const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
+          const embedData = await resolveEmbed(embedId);
+          if (!embedData?.content) {
+            console.warn('[ChatMessage] No embed data found for video transcript');
+            showMenu = false;
+            selectedNode = null;
+            return;
+          }
+          const decodedContent = await decodeToonContent(embedData.content);
+          const results = decodedContent.results || [];
+          const firstResult = results[0] || {};
+          const videoTitle = firstResult.metadata?.title || firstResult.url || 'Video Transcript';
+          const downloadText = results
+            .filter((r: any) => r.transcript)
+            .map((r: any) => {
+              let content = '';
+              if (r.metadata?.title) content += `# ${r.metadata.title}\n\n`;
+              if (r.url) content += `Source: ${r.url}\n\n`;
+              if (r.word_count) content += `Word count: ${r.word_count.toLocaleString()}\n\n`;
+              content += r.transcript || '';
+              return content;
+            })
+            .join('\n\n---\n\n');
+          if (downloadText) {
+            const blob = new Blob([downloadText], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${videoTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_transcript.md`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }
+        } else if (action === 'share') {
+          // Handled by generic share handler above
         }
       } catch (error) {
         console.error('[ChatMessage] Error handling video transcript action:', error);
@@ -1086,10 +1441,13 @@
       
       switch (action) {
         case 'copy':
-          // Copy video URL to clipboard
+          // Copy video URL to clipboard.
+          // videoUrl is already known — no async resolution needed.
+          // writeEmbedToClipboard accepts a plain string; it wraps it in a resolved
+          // promise internally, so the ClipboardItem is still constructed synchronously.
           if (videoUrl) {
             try {
-              await navigator.clipboard.writeText(videoUrl);
+              await writeEmbedToClipboard(snapshotAttrs, videoUrl);
               const { notificationStore } = await import('../stores/notificationStore');
               notificationStore.success('Video URL copied to clipboard');
             } catch (error) {
@@ -1122,102 +1480,246 @@
       }
 
       try {
-        const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
-        const embedData = await resolveEmbed(embedId);
-        if (!embedData?.content) {
-          console.warn('[ChatMessage] No embed data found for app-skill-use embed:', embedId);
-          showMenu = false;
-          selectedNode = null;
-          return;
-        }
-        const decodedContent = typeof embedData.content === 'string'
-          ? await decodeToonContent(embedData.content)
-          : embedData.content as Record<string, unknown>;
-        if (!decodedContent) {
-          console.warn('[ChatMessage] Failed to decode content for embed:', embedId);
-          showMenu = false;
-          selectedNode = null;
-          return;
-        }
+        if (action === 'copy') {
+          // --- Safari gesture-token-safe copy path ---
+          //
+          // For ALL copy actions in this block we follow the same pattern:
+          //   1. Build a Promise<string> that resolves the embed content WITHOUT awaiting it.
+          //   2. Call writeEmbedToClipboard(attrs, promise) SYNCHRONOUSLY — this calls
+          //      navigator.clipboard.write() before any await, preserving Safari's gesture token.
+          //   3. Await the content promise and the copy promise to surface errors + show notification.
+          //
+          // The content-extraction logic is identical to the old await-based code — it is just
+          // wrapped in a .then() chain instead of being awaited inline.
 
-        // --- Images: download original image with prompt-based filename and metadata ---
-        if (selectedAppId === 'images' && action === 'download') {
-          const files = decodedContent.files as { original?: { s3_key: string; format?: string } } | undefined;
-          const s3BaseUrl = decodedContent.s3_base_url as string | undefined;
-          const aesKey = decodedContent.aes_key as string | undefined;
-          const aesNonce = decodedContent.aes_nonce as string | undefined;
-          const imagePrompt = decodedContent.prompt as string | undefined;
-          const imageModel = decodedContent.model as string | undefined;
-          const imageGeneratedAt = decodedContent.generated_at as string | undefined;
+          // Snapshot appId/skillId for use inside the promise (these may change after await)
+          const appId = selectedAppId;
+          const skillId = selectedSkillId;
 
-          if (files?.original?.s3_key && s3BaseUrl && aesKey && aesNonce) {
-            try {
-              const { fetchAndDecryptImage } = await import('./embeds/images/imageEmbedCrypto');
-              const { generateImageFilename, embedPngMetadata } = await import('./embeds/images/imageDownloadUtils');
-              const blob = await fetchAndDecryptImage(
-                s3BaseUrl,
-                files.original.s3_key,
-                aesKey,
-                aesNonce
-              );
-              const ext = files.original.format || 'png';
-              
-              // Embed PNG tEXt metadata (prompt, model, software) for file manager visibility
-              let downloadBlob: Blob = blob;
-              if (ext === 'png') {
-                const arrayBuffer = await blob.arrayBuffer();
-                const metadataBytes = embedPngMetadata(arrayBuffer, {
-                  prompt: imagePrompt,
-                  model: imageModel,
-                  software: 'OpenMates',
-                  generatedAt: imageGeneratedAt
-                });
-                // Copy into a plain ArrayBuffer to satisfy BlobPart typing
-                const ab = new ArrayBuffer(metadataBytes.byteLength);
-                new Uint8Array(ab).set(metadataBytes);
-                downloadBlob = new Blob([ab], { type: 'image/png' });
-              }
-              
-              const filename = generateImageFilename(imagePrompt, ext);
-              
-              const url = URL.createObjectURL(downloadBlob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = filename;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              URL.revokeObjectURL(url);
-              const { notificationStore } = await import('../stores/notificationStore');
-              notificationStore.success('Image downloaded');
-            } catch (err) {
-              console.error('[ChatMessage] Error downloading image:', err);
-              const { notificationStore } = await import('../stores/notificationStore');
-              notificationStore.error('Failed to download image');
-            }
-          } else {
-            const { notificationStore } = await import('../stores/notificationStore');
-            notificationStore.error('Original image not available');
+          const contentPromise: Promise<string> = import('../services/embedResolver').then(
+            ({ resolveEmbed, decodeToonContent }) =>
+              resolveEmbed(embedId).then(async (embedData): Promise<string> => {
+                if (!embedData?.content) {
+                  console.warn('[ChatMessage] No embed data found for app-skill-use embed (copy):', embedId);
+                  return '';
+                }
+                const decodedContent: Record<string, unknown> = typeof embedData.content === 'string'
+                  ? await decodeToonContent(embedData.content)
+                  : embedData.content as Record<string, unknown>;
+                if (!decodedContent) {
+                  console.warn('[ChatMessage] Failed to decode content for embed (copy):', embedId);
+                  return '';
+                }
+
+                // --- Docs: strip HTML to plain text ---
+                if (appId === 'docs') {
+                  const htmlContent = (decodedContent.html as string) || '';
+                  const tempDiv = document.createElement('div');
+                  tempDiv.innerHTML = htmlContent;
+                  return tempDiv.textContent || tempDiv.innerText || '';
+                }
+
+                // --- Sheets: convert markdown table to TSV (tab-separated values) ---
+                // TSV pastes directly into Excel/Google Sheets as individual cells
+                // (comma-separated CSV would require the "Import" dialog on most apps).
+                if (appId === 'sheets') {
+                  const tableContent = (decodedContent.code as string) || (decodedContent.table as string) || '';
+                  if (!tableContent) return '';
+                  // Filter out separator rows (---|---|---) and empty lines
+                  const lines = tableContent.split('\n').filter((l: string) => l.trim() && !l.trim().match(/^[\s|:-]+$/));
+                  return lines.map((line: string) =>
+                    line.split('|')
+                      .map((cell: string) => cell.trim())
+                      .filter((cell: string) => cell !== '')
+                      .join('\t')
+                  ).join('\n');
+                }
+
+                // --- Web Read / News Read: article markdown with source URLs ---
+                if ((appId === 'web' || appId === 'news') && skillId === 'read') {
+                  const results = (decodedContent.results as Array<{ markdown?: string; title?: string; url?: string }>) || [];
+                  const textParts = results.map(r => {
+                    let part = '';
+                    if (r.title) part += `# ${r.title}\n\n`;
+                    if (r.url) part += `*Source:* ${r.url}\n\n`;
+                    if (r.markdown) part += r.markdown;
+                    return part;
+                  }).filter(Boolean);
+                  return textParts.join('\n\n---\n\n');
+                }
+
+                // --- Videos/News Search: query + provider + bullet-point URLs ---
+                // Same format as web search (handled in the separate menuType='web' block above,
+                // but videos/news search reach this block via selectedAppId/selectedSkillId).
+                if ((appId === 'videos' || appId === 'news') && skillId === 'search') {
+                  const query = (decodedContent.query as string) || '';
+                  const provider = (decodedContent.provider as string) || '';
+                  const results = (decodedContent.results as Array<{ url?: string; title?: string }>) || [];
+                  let md = `*Query:*\n"${query}"\n\n`;
+                  if (provider) md += `*Provider:*\n${provider}\n\n`;
+                  md += `*Results:*\n`;
+                  results.forEach((r: any) => {
+                    if (r.url) md += `- ${r.url}\n`;
+                  });
+                  return md.trimEnd();
+                }
+
+                // --- Math Calculate ---
+                if (appId === 'math' && skillId === 'calculate') {
+                  interface CalculateResult { expression?: string; result?: string; result_type?: string; mode?: string; steps?: string[]; error?: string; }
+                  const query = (decodedContent.query as string) || '';
+                  const results = (decodedContent.results as CalculateResult[]) || [];
+                  const lines: string[] = [];
+                  if (query) lines.push(`Expression: ${query}`);
+                  for (const r of results) {
+                    if (r.expression && r.expression !== query) lines.push(`  ${r.expression}`);
+                    if (r.result) lines.push(`= ${r.result}${r.result_type ? ` (${r.result_type})` : ''}`);
+                    if (r.error) lines.push(`Error: ${r.error}`);
+                    if (r.steps && r.steps.length > 0) lines.push(...r.steps.map((s, i) => `  Step ${i + 1}: ${s}`));
+                  }
+                  return lines.join('\n') || query;
+                }
+
+                // --- Math Plot ---
+                if (appId === 'math' && skillId === 'plot') {
+                  // plot_spec is the canonical field; expression is the legacy name before rename
+                  const plotSpec = (decodedContent.plot_spec as string) || (decodedContent.expression as string) || '';
+                  const title = (decodedContent.title as string) || '';
+                  const lines: string[] = [];
+                  if (title) lines.push(`Plot: ${title}`);
+                  if (plotSpec) lines.push(plotSpec);
+                  return lines.join('\n') || plotSpec;
+                }
+
+                // --- Generic fallback: build readable text from scalar fields ---
+                // Produces a readable plain-text representation of decodedContent so every
+                // embed type gets a working Copy button automatically.
+                const SKIP_KEYS = new Set([
+                  'aes_key', 'aes_nonce', 's3_key', 's3_base_url', 'iv',
+                  'thumbnail_s3_key', 'screenshot_s3_keys', 'thumbnail_url',
+                ]);
+                const TITLE_KEYS = ['title', 'query', 'name', 'prompt', 'expression', 'plot_spec'];
+
+                const titleLines: string[] = [];
+                for (const key of TITLE_KEYS) {
+                  const v = decodedContent[key];
+                  if (typeof v === 'string' && v.trim()) {
+                    titleLines.push(`${key}: ${v.trim()}`);
+                  }
+                }
+                const bodyLines: string[] = [];
+                for (const [key, val] of Object.entries(decodedContent)) {
+                  if (SKIP_KEYS.has(key)) continue;
+                  if (TITLE_KEYS.includes(key)) continue;
+                  if (typeof val === 'string' && val.trim()) {
+                    bodyLines.push(`${key}: ${val.trim()}`);
+                  } else if (typeof val === 'number') {
+                    bodyLines.push(`${key}: ${val}`);
+                  }
+                }
+                const allLines = [...titleLines, ...bodyLines];
+                return allLines.join('\n') || JSON.stringify(decodedContent, null, 2);
+              })
+          );
+
+          // Initiate clipboard write SYNCHRONOUSLY (preserves Safari gesture token).
+          const copyDone = writeEmbedToClipboard(snapshotAttrs, contentPromise);
+
+          // Now await content + copy completion to surface errors and show notification.
+          const plainText = await contentPromise;
+          await copyDone;
+
+          const { notificationStore } = await import('../stores/notificationStore');
+          if (plainText) {
+            notificationStore.success('Copied to clipboard');
           }
-        }
+        } else {
+          // --- Non-copy actions: download etc. (no gesture-token requirement) ---
+          // Resolve embed data sequentially — these actions don't touch the clipboard.
+          const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
+          const embedData = await resolveEmbed(embedId);
+          if (!embedData?.content) {
+            console.warn('[ChatMessage] No embed data found for app-skill-use embed:', embedId);
+            showMenu = false;
+            selectedNode = null;
+            return;
+          }
+          const decodedContent = typeof embedData.content === 'string'
+            ? await decodeToonContent(embedData.content)
+            : embedData.content as Record<string, unknown>;
+          if (!decodedContent) {
+            console.warn('[ChatMessage] Failed to decode content for embed:', embedId);
+            showMenu = false;
+            selectedNode = null;
+            return;
+          }
 
-        // --- Docs: copy (plain text) or download (docx) ---
-        else if (selectedAppId === 'docs') {
-          const htmlContent = (decodedContent.html as string) || '';
-          const docTitle = (decodedContent.title as string) || '';
-          const docFilename = (decodedContent.filename as string) || docTitle || 'document';
+          // --- Images: download original image with prompt-based filename and metadata ---
+          if (selectedAppId === 'images' && action === 'download') {
+            const files = decodedContent.files as { original?: { s3_key: string; format?: string } } | undefined;
+            const s3BaseUrl = decodedContent.s3_base_url as string | undefined;
+            const aesKey = decodedContent.aes_key as string | undefined;
+            const aesNonce = decodedContent.aes_nonce as string | undefined;
+            const imagePrompt = decodedContent.prompt as string | undefined;
+            const imageModel = decodedContent.model as string | undefined;
+            const imageGeneratedAt = decodedContent.generated_at as string | undefined;
 
-          if (action === 'copy') {
-            // Strip HTML to plain text
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = htmlContent;
-            const plainText = tempDiv.textContent || tempDiv.innerText || '';
-            if (plainText) {
-              await navigator.clipboard.writeText(plainText);
+            if (files?.original?.s3_key && s3BaseUrl && aesKey && aesNonce) {
+              try {
+                const { fetchAndDecryptImage } = await import('./embeds/images/imageEmbedCrypto');
+                const { generateImageFilename, embedPngMetadata } = await import('./embeds/images/imageDownloadUtils');
+                const blob = await fetchAndDecryptImage(
+                  s3BaseUrl,
+                  files.original.s3_key,
+                  aesKey,
+                  aesNonce
+                );
+                const ext = files.original.format || 'png';
+                
+                // Embed PNG tEXt metadata (prompt, model, software) for file manager visibility
+                let downloadBlob: Blob = blob;
+                if (ext === 'png') {
+                  const arrayBuffer = await blob.arrayBuffer();
+                  const metadataBytes = embedPngMetadata(arrayBuffer, {
+                    prompt: imagePrompt,
+                    model: imageModel,
+                    software: 'OpenMates',
+                    generatedAt: imageGeneratedAt
+                  });
+                  // Copy into a plain ArrayBuffer to satisfy BlobPart typing
+                  const ab = new ArrayBuffer(metadataBytes.byteLength);
+                  new Uint8Array(ab).set(metadataBytes);
+                  downloadBlob = new Blob([ab], { type: 'image/png' });
+                }
+                
+                const filename = generateImageFilename(imagePrompt, ext);
+                
+                const url = URL.createObjectURL(downloadBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                const { notificationStore } = await import('../stores/notificationStore');
+                notificationStore.success('Image downloaded');
+              } catch (err) {
+                console.error('[ChatMessage] Error downloading image:', err);
+                const { notificationStore } = await import('../stores/notificationStore');
+                notificationStore.error('Failed to download image');
+              }
+            } else {
               const { notificationStore } = await import('../stores/notificationStore');
-              notificationStore.success('Document copied to clipboard');
+              notificationStore.error('Original image not available');
             }
-          } else if (action === 'download') {
+          }
+
+          // --- Docs: download (docx) ---
+          else if (selectedAppId === 'docs' && action === 'download') {
+            const htmlContent = (decodedContent.html as string) || '';
+            const docTitle = (decodedContent.title as string) || '';
+            const docFilename = (decodedContent.filename as string) || docTitle || 'document';
             try {
               const { asBlob } = await import('html-docx-js-typescript');
               const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${docTitle}</title></head><body>${htmlContent}</body></html>`;
@@ -1238,85 +1740,33 @@
               notificationStore.error('Failed to download document');
             }
           }
-        }
 
-        // --- Sheets: copy (CSV or markdown) or download (CSV) ---
-        else if (selectedAppId === 'sheets') {
-          const tableContent = (decodedContent.code as string) || (decodedContent.table as string) || '';
-          const sheetTitle = (decodedContent.title as string) || 'table';
-
-          if (action === 'copy') {
-            // Copy as CSV format for easy pasting into spreadsheet apps
+          // --- Sheets: download (TSV) ---
+          // Tab-separated format: pastes directly as separate cells in Excel / Google Sheets.
+          // File extension is .tsv; most spreadsheet apps recognise it without an import dialog.
+          else if (selectedAppId === 'sheets' && action === 'download') {
+            const tableContent = (decodedContent.code as string) || (decodedContent.table as string) || '';
+            const sheetTitle = (decodedContent.title as string) || 'table';
             if (tableContent) {
-              // Convert markdown table to CSV
               const lines = tableContent.split('\n').filter((l: string) => l.trim() && !l.trim().match(/^[\s|:-]+$/));
-              const csv = lines.map((line: string) =>
+              const tsv = lines.map((line: string) =>
                 line.split('|')
                   .map((cell: string) => cell.trim())
                   .filter((cell: string) => cell !== '')
-                  .map((cell: string) => `"${cell.replace(/"/g, '""')}"`)
-                  .join(',')
+                  .join('\t')
               ).join('\n');
-              await navigator.clipboard.writeText(csv);
-              const { notificationStore } = await import('../stores/notificationStore');
-              notificationStore.success('Table copied as CSV');
-            }
-          } else if (action === 'download') {
-            if (tableContent) {
-              const lines = tableContent.split('\n').filter((l: string) => l.trim() && !l.trim().match(/^[\s|:-]+$/));
-              const csv = lines.map((line: string) =>
-                line.split('|')
-                  .map((cell: string) => cell.trim())
-                  .filter((cell: string) => cell !== '')
-                  .map((cell: string) => `"${cell.replace(/"/g, '""')}"`)
-                  .join(',')
-              ).join('\n');
-              const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+              const blob = new Blob([tsv], { type: 'text/tab-separated-values;charset=utf-8;' });
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
               a.href = url;
-              a.download = `${sheetTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.csv`;
+              a.download = `${sheetTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.tsv`;
               document.body.appendChild(a);
               a.click();
               document.body.removeChild(a);
               URL.revokeObjectURL(url);
               const { notificationStore } = await import('../stores/notificationStore');
-              notificationStore.success('Table downloaded as CSV');
+              notificationStore.success('Table downloaded');
             }
-          }
-        }
-
-        // --- Web Read: copy article text ---
-        else if (selectedAppId === 'web' && selectedSkillId === 'read' && action === 'copy') {
-          const results = (decodedContent.results as Array<{ markdown?: string; title?: string; url?: string }>) || [];
-          const textParts = results.map(r => {
-            let part = '';
-            if (r.title) part += `# ${r.title}\n\n`;
-            if (r.url) part += `Source: ${r.url}\n\n`;
-            if (r.markdown) part += r.markdown;
-            return part;
-          }).filter(Boolean);
-          if (textParts.length > 0) {
-            await navigator.clipboard.writeText(textParts.join('\n\n---\n\n'));
-            const { notificationStore } = await import('../stores/notificationStore');
-            notificationStore.success('Article copied to clipboard');
-          }
-        }
-
-        // --- News Read: copy article text ---
-        else if (selectedAppId === 'news' && selectedSkillId === 'read' && action === 'copy') {
-          const results = (decodedContent.results as Array<{ markdown?: string; title?: string; url?: string }>) || [];
-          const textParts = results.map(r => {
-            let part = '';
-            if (r.title) part += `# ${r.title}\n\n`;
-            if (r.url) part += `Source: ${r.url}\n\n`;
-            if (r.markdown) part += r.markdown;
-            return part;
-          }).filter(Boolean);
-          if (textParts.length > 0) {
-            await navigator.clipboard.writeText(textParts.join('\n\n---\n\n'));
-            const { notificationStore } = await import('../stores/notificationStore');
-            notificationStore.success('Article copied to clipboard');
           }
         }
       } catch (error) {
@@ -1330,7 +1780,8 @@
 
       return;
     }
-    // Handle other actions for legacy embed types
+    // Handle other actions for direct-type embeds (sheets-sheet, docs-doc, code-code, etc.)
+    // and legacy embed types that are not app-skill-use.
     else {
       switch (action) {
         case 'download':
@@ -1343,11 +1794,96 @@
             document.body.removeChild(a);
           }
           break;
-        case 'copy':
-          if (selectedNode.attrs?.url || selectedNode.attrs?.src) {
-            navigator.clipboard.writeText(selectedNode.attrs.url || selectedNode.attrs.src);
+
+        case 'copy': {
+          // Use snapshotAttrs (captured at function start) — selectedNode is nulled
+          // by the EmbedContextMenu onClose before this async path completes.
+          //
+          // Safari gesture-token pattern: build a Promise<string> for the content,
+          // call writeEmbedToClipboard IMMEDIATELY (no await before it), then await
+          // to surface errors and show a notification.
+          const embedType = snapshotAttrs?.type as string | undefined;
+          const contentRef = snapshotAttrs?.contentRef as string | undefined;
+          const embedId = contentRef?.startsWith('embed:') ? contentRef.replace('embed:', '') : null;
+
+          if (embedId) {
+            // Build content promise without awaiting.
+            const contentPromise: Promise<string> = import('../services/embedResolver').then(
+              ({ resolveEmbed, decodeToonContent }) =>
+                resolveEmbed(embedId).then(async (embedData): Promise<string> => {
+                  const decodedContent = embedData?.content
+                    ? (typeof embedData.content === 'string'
+                        ? await decodeToonContent(embedData.content)
+                        : embedData.content as Record<string, unknown>)
+                    : null;
+
+                  if (!decodedContent) return '';
+
+                  if (embedType === 'sheets-sheet' || embedType === 'sheets-sheet-group') {
+                    const tableContent = (decodedContent.code as string) || (decodedContent.table as string) || '';
+                    if (!tableContent) return '';
+                    const lines = tableContent.split('\n').filter((l: string) => l.trim() && !l.trim().match(/^[\s|:-]+$/));
+                    return lines.map((line: string) =>
+                      line.split('|')
+                        .map((cell: string) => cell.trim())
+                        .filter((cell: string) => cell !== '')
+                        .map((cell: string) => `"${cell.replace(/"/g, '""')}"`)
+                        .join(',')
+                    ).join('\n');
+                  }
+                  if (embedType === 'docs-doc') {
+                    const htmlContent = (decodedContent.html as string) || '';
+                    if (!htmlContent) return '';
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = htmlContent;
+                    return tempDiv.textContent || tempDiv.innerText || '';
+                  }
+                  if (embedType === 'code-code' || embedType?.startsWith('code-')) {
+                    return (decodedContent.code as string) || (decodedContent.content as string) || '';
+                  }
+                  // Generic: extract readable scalar fields, skip internal keys
+                  const SKIP_KEYS = new Set(['aes_key', 'aes_nonce', 's3_key', 's3_base_url', 'iv', 'thumbnail_s3_key', 'screenshot_s3_keys', 'thumbnail_url']);
+                  return Object.entries(decodedContent)
+                    .filter(([k, v]) => !SKIP_KEYS.has(k) && (typeof v === 'string' || typeof v === 'number'))
+                    .map(([k, v]) => `${k}: ${v}`)
+                    .join('\n');
+                })
+            );
+
+            try {
+              // Initiate clipboard write SYNCHRONOUSLY (preserves Safari gesture token).
+              const copyDone = writeEmbedToClipboard(snapshotAttrs, contentPromise);
+
+              const plainText = await contentPromise;
+              await copyDone;
+
+              if (plainText) {
+                const { notificationStore } = await import('../stores/notificationStore');
+                notificationStore.success('Copied to clipboard');
+              } else {
+                // Fallback: legacy embeds may have url or src
+                const legacyUrl = (snapshotAttrs as unknown as Record<string, unknown>).url as string | undefined;
+                if (legacyUrl) {
+                  await writeEmbedToClipboard(snapshotAttrs, legacyUrl);
+                  const { notificationStore } = await import('../stores/notificationStore');
+                  notificationStore.success('Copied to clipboard');
+                }
+              }
+            } catch (err) {
+              console.error('[ChatMessage] Error copying direct-type embed:', err);
+              const { notificationStore } = await import('../stores/notificationStore');
+              notificationStore.error('Failed to copy');
+            }
+          } else {
+            // Legacy embeds with no contentRef: copy url if available.
+            // Already known synchronously — no gesture-token issue.
+            const legacyUrl = (snapshotAttrs as unknown as Record<string, unknown>).url as string | undefined;
+            if (legacyUrl) {
+              await writeEmbedToClipboard(snapshotAttrs, legacyUrl);
+            }
           }
           break;
+        }
       }
     }
 
@@ -1363,7 +1899,24 @@
   // Add reactive statement to handle status changes using $derived (Svelte 5 runes mode)
   // Note: 'processing' status is NOT shown under the message - it's shown in the typing indicator area instead
   let messageStatusText = $derived(status === 'sending' ? $text('enter_message.sending') :
-                      status === 'waiting_for_internet' ? $text('enter_message.waiting_for_internet') : '');
+                      status === 'waiting_for_internet' ? $text('enter_message.waiting_for_internet') :
+                      status === 'waiting_for_upload' ? $text('enter_message.waiting_for_upload') : '');
+
+  // Reactive embed upload progress for messages with status 'waiting_for_upload'.
+  // Reads from the global pendingUploadStore and derives the list of per-embed
+  // progress entries that belong to THIS message (matched by messageId).
+  let uploadEmbedProgressList = $derived((() => {
+    if (status !== 'waiting_for_upload' || !original_message?.message_id) return [] as EmbedProgress[];
+    const allPending = $pendingUploadStore;
+    const chatId = original_message.chat_id as string | undefined;
+    if (!chatId) return [] as EmbedProgress[];
+    const queue = allPending.get(chatId);
+    if (!queue) return [] as EmbedProgress[];
+    // Find the pending send whose messageId matches this message
+    const ctx = queue.find(c => c.messageId === original_message.message_id);
+    if (!ctx) return [] as EmbedProgress[];
+    return Array.from(ctx.embedProgress.values()) as EmbedProgress[];
+  })());
 
   // Functions for handling truncated message display
   async function handleShowFullMessage() {
@@ -1398,27 +1951,67 @@
   }
 </script>
 
-{#if role === 'system'}
+{#if effectiveRole === 'system'}
   <!-- System message: rendered as a smaller centered notice (e.g., reminders, insufficient credits) -->
   <!-- NOTE: content may be TipTap JSON (converted by G_mapToInternalMessage), so we prefer
-       the original plaintext from original_message.content for display -->
+       the original plaintext from original_message.content for display.
+       Uses effectiveRole instead of role so that legacy assistant messages with
+       waiting_for_user status (persisted before role fix) also render as system notices. -->
   <div class="chat-message system">
     <div class="system-message-notice">
-      <span class="system-message-text">{typeof content === 'string' ? content : (typeof original_message?.content === 'string' ? original_message.content : '')}</span>
+      {#if status === 'waiting_for_user' && isCreditsRestored}
+        <!-- Credits restored: show positive message + Resend button.
+             The original rejection text is replaced so the chat looks clean after recovery. -->
+        <span class="system-message-text credits-restored-text">
+          {$text('chat.credits_restored_message')}
+        </span>
+        <button
+          class="system-message-action-btn credits-restored-btn"
+          onclick={onResend}
+        >
+          {$text('chat.credits_restored_resend')}
+        </button>
+      {:else}
+        <!-- Normal system message (e.g., credit rejection notice) -->
+        <span class="system-message-text">{typeof content === 'string' ? content : (typeof original_message?.content === 'string' ? original_message.content : '')}</span>
+        {#if status === 'waiting_for_user'}
+          <!-- Credit rejection: show a button to navigate to billing/buy-credits -->
+          <button
+            class="system-message-action-btn"
+            onclick={() => {
+              settingsDeepLink.set('billing/buy-credits');
+              panelState.openSettings();
+            }}
+          >
+            {$text('chat.insufficient_credits_buy')}
+          </button>
+        {/if}
+      {/if}
     </div>
   </div>
 {:else}
-<div class="chat-message {role}" class:pending={status === 'sending' || status === 'waiting_for_internet'} class:assistant={role === 'assistant'} class:user={role === 'user'} class:mobile-stacked={role === 'assistant' && shouldStackMobile}>
-  {#if role === 'assistant'}
-    <!-- Use openmates_official category for official messages (shows favicon, no AI badge) -->
-    <div class="mate-profile {category || 'default'}" class:mate-profile-small-mobile={shouldStackMobile}></div>
+<div class="chat-message {effectiveRole}" class:pending={status === 'sending' || status === 'waiting_for_internet'} class:assistant={effectiveRole === 'assistant'} class:user={effectiveRole === 'user'} class:mobile-stacked={effectiveRole === 'assistant' && shouldStackMobile}>
+  {#if effectiveRole === 'assistant'}
+    <!-- Mate profile image: clickable for real mates (opens mate detail in settings) -->
+    {#if isMateClickable}
+      <button
+        type="button"
+        class="mate-profile-link"
+        onclick={openMateSettings}
+        aria-label={displayName}
+        title={displayName}
+      >
+        <div class="mate-profile {category || 'default'}" class:mate-profile-small-mobile={shouldStackMobile}></div>
+      </button>
+    {:else}
+      <div class="mate-profile {category || 'default'}" class:mate-profile-small-mobile={shouldStackMobile}></div>
+    {/if}
   {/if}
 
   <div class="message-align-{role === 'user' ? 'right' : 'left'}" class:mobile-full-width={role === 'assistant' && shouldStackMobile} class:mobile-compact={role === 'user' && shouldStackMobile}>
     <div 
       bind:this={messageContentElement}
       class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''}" 
-      class:highlighted={isHighlighted}
       style="opacity: {defaultHidden ? '0' : '1'};"
       role="article"
       oncontextmenu={handleMessageContextMenu}
@@ -1428,7 +2021,15 @@
       ontouchcancel={handleMessageTouchEnd}
     >
       {#if role === 'assistant'}
-        <div class="chat-mate-name">{displayName}</div>
+        {#if isMateClickable}
+          <button
+            type="button"
+            class="chat-mate-name chat-mate-name-link"
+            onclick={openMateSettings}
+          >{displayName}</button>
+        {:else}
+          <div class="chat-mate-name">{displayName}</div>
+        {/if}
       {/if}
 
       <div class="chat-message-text">
@@ -1501,14 +2102,11 @@
 
       {#if showMenu}
         {@const isFocusMode = menuType === 'focusMode'}
-        {@const showCopyAction = !isFocusMode && (
-          menuType === 'code' || menuType === 'video' || menuType === 'video-transcript' || menuType === 'web' ||
-          /* App-skill-use embeds that support copy (matching fullscreen onCopy capability) */
-          (selectedAppId === 'docs') ||
-          (selectedAppId === 'sheets') ||
-          (selectedAppId === 'web' && selectedSkillId === 'read') ||
-          (selectedAppId === 'news' && selectedSkillId === 'read')
-        )}
+        <!-- Copy is available for all finished embeds outside focus mode.
+             Each embed type has a specific handler in handleMenuAction; unknown types
+             fall back to a generic decodedContent serializer so every future embed
+             automatically gets a working Copy button without any extra wiring. -->
+        {@const showCopyAction = !isFocusMode}
         {@const showDownloadAction = !isFocusMode && (
           menuType === 'code' || menuType === 'video-transcript' || menuType === 'pdf' ||
           /* App-skill-use embeds that support download (matching fullscreen onDownload capability) */
@@ -1547,21 +2145,23 @@
         />
       {/if}
 
-      {#if showMessageMenu}
-        <MessageContextMenu
-          x={messageMenuX}
-          y={messageMenuY}
-          show={showMessageMenu}
-          onClose={() => showMessageMenu = false}
-          onCopy={handleCopyMessage}
-          onSelect={handleSelectMessage}
-          onDelete={messageId && !isFirstMessage ? handleDeleteMessage : undefined}
-          disableDelete={isFirstMessage}
-          {messageId}
-          {userMessageId}
-          {role}
-        />
-      {/if}
+       {#if showMessageMenu}
+         <MessageContextMenu
+           x={messageMenuX}
+           y={messageMenuY}
+           show={showMessageMenu}
+           onClose={() => showMessageMenu = false}
+           onCopy={handleCopyMessage}
+           onSelect={handleSelectMessage}
+           onDelete={messageId && !isFirstMessage ? handleDeleteMessage : undefined}
+           disableDelete={isFirstMessage}
+           onFork={handleFork}
+           disableFork={isForkDisabled}
+           {messageId}
+           {userMessageId}
+           {role}
+         />
+       {/if}
     </div>
     {#if role === 'assistant' && model_name}
       <div class="generated-by-container">
@@ -1598,6 +2198,30 @@
         {messageStatusText}
       </div>
     {/if}
+    {#if status === 'waiting_for_upload' && uploadEmbedProgressList.length > 0}
+      <!-- Per-embed upload progress bars shown under queued messages -->
+      <div class="upload-progress-list">
+        {#each uploadEmbedProgressList as embedProg (embedProg.embedId)}
+          <div class="upload-progress-item">
+            <span class="upload-progress-label">{embedProg.label}</span>
+            {#if embedProg.status === 'uploading'}
+              <span class="upload-progress-text">
+                {$text('enter_message.upload_progress.uploading', { values: { percent: embedProg.uploadPercent } })}
+              </span>
+              <div class="upload-progress-bar-track">
+                <div class="upload-progress-bar-fill" style="width: {embedProg.uploadPercent}%"></div>
+              </div>
+            {:else if embedProg.status === 'transcribing'}
+              <span class="upload-progress-text">{$text('enter_message.upload_progress.transcribing')}</span>
+            {:else if embedProg.status === 'processing'}
+              <span class="upload-progress-text">{$text('enter_message.upload_progress.processing')}</span>
+            {:else if embedProg.status === 'error'}
+              <span class="upload-progress-text upload-progress-error">{$text('enter_message.upload_progress.error')}</span>
+            {/if}
+          </div>
+        {/each}
+      </div>
+    {/if}
     
     <!-- App Settings & Memories action summary (only for user messages) -->
     <!-- This data comes from system messages stored in chat history and synced across devices -->
@@ -1621,7 +2245,7 @@
                 <Icon 
                   name={cat.appId} 
                   type="app" 
-                  size="22px"
+                  size="18px"
                   noAnimation={true}
                 />
                 <span class="badge-text">{getCategoryDisplayName(cat)} ({cat.entryCount})</span>
@@ -1667,6 +2291,35 @@
     font-size: 13px;
     line-height: 1.4;
     color: var(--color-grey-60, #888);
+  }
+
+  /* Action button inside system message notices (e.g., "Buy Credits" for insufficient credits).
+     display:block ensures it appears on its own line below the notice text. */
+  .system-message-action-btn {
+    display: block;
+    margin: 8px auto 0;
+    padding: 6px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-on-primary, #fff);
+    background: var(--color-button-primary, #e65c3a);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+
+  .system-message-action-btn:hover {
+    opacity: 0.85;
+  }
+
+  /* Credits-restored variant: positive green tone to signal good news. */
+  .credits-restored-text {
+    color: var(--color-grey-80, #ccc);
+  }
+
+  .credits-restored-btn {
+    background: var(--color-success, #28a745);
   }
 
   .chat-app-cards-container {
@@ -1717,23 +2370,37 @@
     white-space: nowrap;
   }
 
-  .mate-message-content.highlighted {
-    animation: highlight-animation 3s ease-out;
+  /* Note: .mate-message-content.highlighted and @keyframes highlight-animation have been
+   * removed. Clicking a search result now highlights the matched text (mark.search-match-active)
+   * instead of blinking the entire message bubble. See match-pulse keyframes near search-match CSS. */
+
+  /* In-chat search text highlighting — <mark class="search-match"> injected via DOM.
+   * Uses a yellow background highlight instead of color change.
+   * Must override the global `mark` rule in fonts.css which uses -webkit-text-fill-color:transparent
+   * (gradient text effect). That property takes priority over `color` in WebKit/Blink, making the
+   * text invisible unless we explicitly reset it here. */
+  :global(mark.search-match) {
+    background: none;
+    background-color: rgba(255, 213, 0, 0.4);
+    /* Reset WebKit gradient-text trick from global mark rule in fonts.css */
+    -webkit-background-clip: unset;
+    background-clip: unset;
+    -webkit-text-fill-color: unset;
+    color: inherit;
+    font-weight: inherit;
+    border-radius: 2px;
+    padding: 1px 0;
   }
 
-  @keyframes highlight-animation {
-    0% {
-      background-color: var(--color-primary-transparent, rgba(var(--color-primary-rgb), 0.2));
-      box-shadow: 0 0 15px var(--color-primary);
-    }
-    70% {
-      background-color: var(--color-primary-transparent, rgba(var(--color-primary-rgb), 0.2));
-      box-shadow: 0 0 10px var(--color-primary);
-    }
-    100% {
-      background-color: transparent;
-      box-shadow: none;
-    }
+  /* When a search result is clicked, pulse the matched text to higher opacity and back */
+  :global(mark.search-match.search-match-active) {
+    animation: match-pulse 1.2s ease-out forwards;
+  }
+
+  @keyframes match-pulse {
+    0%   { background-color: rgba(255, 213, 0, 0.9); }
+    60%  { background-color: rgba(255, 213, 0, 0.9); }
+    100% { background-color: rgba(255, 213, 0, 0.4); }
   }
 
   .chat-app-cards-container.scrollable {
@@ -1809,6 +2476,57 @@
     text-align: right;
   }
 
+  /* Upload progress list shown under waiting_for_upload messages */
+  .upload-progress-list {
+    margin-top: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .upload-progress-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .upload-progress-label {
+    font-size: 11px;
+    color: var(--color-font-secondary);
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .upload-progress-text {
+    font-size: 11px;
+    color: var(--color-font-tertiary);
+    flex-shrink: 0;
+  }
+
+  .upload-progress-error {
+    color: var(--color-error, #e53935);
+  }
+
+  .upload-progress-bar-track {
+    flex: 1;
+    min-width: 40px;
+    height: 3px;
+    background: var(--color-grey-20, rgba(255, 255, 255, 0.12));
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .upload-progress-bar-fill {
+    height: 100%;
+    background: var(--color-primary);
+    border-radius: 2px;
+    transition: width 0.2s ease;
+  }
+
   .message-truncation-controls {
     margin-top: 8px;
     text-align: center;
@@ -1839,38 +2557,39 @@
   
   /* App Settings & Memories Summary Styles */
   .app-settings-memories-summary {
-    margin-top: 8px;
+    margin-top: 6px;
     padding: 0;
     text-align: right;
-    font-size: 13px;
+    font-size: 12px;
     color: var(--color-grey-60);
   }
   
   .summary-label {
     display: block;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     font-weight: 500;
   }
   
   .summary-categories {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 8px;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
   }
   
   .category-badge {
+    /* Reset global button styles */
+    all: unset;
+    /* Re-apply only what we need */
+    box-sizing: border-box;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     background: var(--color-grey-15, #f5f5f5);
-    border-radius: 12px;
-    padding: 4px 10px 4px 4px;
-    text-decoration: none;
+    border-radius: 8px;
+    padding: 2px 8px 2px 4px;
     cursor: pointer;
     transition: background-color 0.15s ease;
-    border: none;
-    font-family: inherit;
   }
   
   .category-badge:hover {
@@ -1878,7 +2597,7 @@
   }
   
   .badge-text {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 500;
     color: var(--color-font-primary, #000);
   }

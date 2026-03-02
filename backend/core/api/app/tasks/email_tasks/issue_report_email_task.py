@@ -43,12 +43,18 @@ def send_issue_report_email(
     issue_description: Optional[str] = None,
     chat_or_embed_url: Optional[str] = None,
     contact_email: Optional[str] = None,
+    language: str = "en",
     timestamp: str = "",
     estimated_location: str = "",
     device_info: Optional[str] = None,
     console_logs: Optional[str] = None,
     indexeddb_report: Optional[str] = None,
-    last_messages_html: Optional[str] = None
+    last_messages_html: Optional[str] = None,
+    active_chat_sidebar_html: Optional[str] = None,
+    runtime_debug_state: Optional[str] = None,
+    action_history: Optional[str] = None,
+    picked_element_html: Optional[str] = None,
+    screenshot_presigned_url: Optional[str] = None
 ) -> bool:
     """
     Celery task to send issue report email to server owner/admin.
@@ -60,12 +66,19 @@ def send_issue_report_email(
         issue_description: The description of the reported issue
         chat_or_embed_url: Optional URL to a chat or embed related to the issue
         contact_email: Optional contact email address for follow-up communication
+        language: ISO 639-1 language code from the client UI (for confirmation email localisation)
         timestamp: Timestamp when the issue was reported (formatted string)
         estimated_location: Estimated geographic location based on IP address
         device_info: Optional device information for debugging (browser, screen size, touch support)
         console_logs: Optional console logs from the client (last 100 lines)
         indexeddb_report: Optional IndexedDB inspection report (metadata only, no plaintext content)
         last_messages_html: Optional rendered HTML of the last user message and assistant response
+        active_chat_sidebar_html: Optional outerHTML of the active chat sidebar entry (Chat.svelte)
+        runtime_debug_state: Optional JSON string with WS status, AI typing, pending uploads, sync state
+        action_history: Optional last 20 user-action history entries (button names/navigation only,
+                        no user-typed text content)
+        picked_element_html: Optional outerHTML of the DOM element the user tapped/clicked via the
+                             element picker overlay — captures the broken UI element's HTML structure
 
     Returns:
         bool: True if email was sent successfully, False otherwise
@@ -80,8 +93,9 @@ def send_issue_report_email(
         result = asyncio.run(
             _async_send_issue_report_email(
                 self, admin_email, issue_id, issue_title, issue_description,
-                chat_or_embed_url, contact_email, timestamp, estimated_location, device_info, console_logs,
-                indexeddb_report, last_messages_html
+                chat_or_embed_url, contact_email, language, timestamp, estimated_location, device_info, console_logs,
+                indexeddb_report, last_messages_html, active_chat_sidebar_html, runtime_debug_state, action_history,
+                picked_element_html, screenshot_presigned_url
             )
         )
         if result:
@@ -217,16 +231,42 @@ async def _async_send_issue_report_email(
     issue_description: Optional[str] = None,
     chat_or_embed_url: Optional[str] = None,
     contact_email: Optional[str] = None,
+    language: str = "en",
     timestamp: str = "",
     estimated_location: str = "",
     device_info: Optional[str] = None,
     console_logs: Optional[str] = None,
     indexeddb_report: Optional[str] = None,
-    last_messages_html: Optional[str] = None
+    last_messages_html: Optional[str] = None,
+    active_chat_sidebar_html: Optional[str] = None,
+    runtime_debug_state: Optional[str] = None,
+    action_history: Optional[str] = None,
+    picked_element_html: Optional[str] = None,
+    screenshot_presigned_url: Optional[str] = None
 ) -> bool:
     """
     Async implementation for sending issue report email.
-    
+
+    Args:
+        task: The Celery base task instance
+        admin_email: Admin email address to send the report to
+        issue_id: Database ID of the issue record (for S3 upload linking)
+        issue_title: Issue title
+        issue_description: Formatted description with user flow / expected / actual behaviour
+        chat_or_embed_url: Optional share URL for active chat or embed
+        contact_email: Optional reporter email for confirmation
+        language: ISO 639-1 language code for localised confirmation email
+        timestamp: Human-readable report timestamp
+        estimated_location: Geo-location string derived from IP
+        device_info: Serialised device info (browser, viewport, touch)
+        console_logs: Last 100 client-side console log lines
+        indexeddb_report: IndexedDB inspection metadata (no plaintext content)
+        last_messages_html: Rendered HTML of last user + assistant messages
+        active_chat_sidebar_html: outerHTML of the active chat sidebar entry (Chat.svelte)
+        runtime_debug_state: JSON string with WS status, AI typing, pending uploads, sync state
+        action_history: Last 20 user-action history entries (button names /
+                        navigation only — no user-typed text content)
+
     Note: This function ensures proper cleanup of async resources (like httpx clients)
     before the event loop closes to prevent "Event loop is closed" errors.
     """
@@ -305,7 +345,26 @@ async def _async_send_issue_report_email(
                 'indexeddb_inspection': indexeddb_report.strip() if indexeddb_report and indexeddb_report.strip() else None,
                 # Rendered HTML of the last user message and assistant response
                 # Helps debug rendering issues by showing exactly what the user saw
-                'last_messages_html': last_messages_html.strip() if last_messages_html and last_messages_html.strip() else None
+                'last_messages_html': last_messages_html.strip() if last_messages_html and last_messages_html.strip() else None,
+                # outerHTML of the active chat entry in the sidebar (Chat.svelte) at submit time.
+                # Shows title, status label, typing indicator text and category icon state.
+                # Useful for "wrong chat active" and "typing indicator stuck" bugs.
+                'active_chat_sidebar_html': active_chat_sidebar_html.strip() if active_chat_sidebar_html and active_chat_sidebar_html.strip() else None,
+                # Runtime state snapshot: WS status, online status, AI typing, pending uploads, sync state.
+                # JSON string — helps debug message-sending and sync issues.
+                'runtime_debug_state': runtime_debug_state.strip() if runtime_debug_state and runtime_debug_state.strip() else None,
+                # User-action history: last 20 interactions (button names / navigation only)
+                # NO user-typed text content is ever included — only developer-authored labels
+                # (data-action attrs, aria-labels, placeholder text, class names)
+                'action_history': action_history.strip() if action_history and action_history.strip() else None,
+                # outerHTML of the DOM element the user tapped/clicked via the element picker overlay.
+                # Captures the exact HTML structure of a broken UI element for debugging layout,
+                # rendering, or content issues.
+                'picked_element_html': picked_element_html.strip() if picked_element_html and picked_element_html.strip() else None,
+                # Pre-signed URL for the screenshot PNG (valid 7 days from report time).
+                # The image is stored unencrypted in the private issue_logs S3 bucket so
+                # admins and LLMs can load it directly without any decryption step.
+                'screenshot_presigned_url': screenshot_presigned_url if screenshot_presigned_url else None
             }
         }
 
@@ -405,7 +464,10 @@ async def _async_send_issue_report_email(
             "contact_email": contact_email_formatted,
             "timestamp": timestamp,
             "estimated_location": estimated_location,
-            "device_info": device_info_formatted
+            "device_info": device_info_formatted,
+            # Pre-signed URL for the screenshot PNG — included in the email so admins
+            # and LLMs can view the screenshot directly without needing the inspect script.
+            "screenshot_presigned_url": screenshot_presigned_url if screenshot_presigned_url else None
         }
         logger.info("Prepared email context for issue report")
         
@@ -434,6 +496,50 @@ async def _async_send_issue_report_email(
             f"Successfully sent issue report email to {admin_email} "
             f"(subject: 'Issue reported: {issue_title[:50]}...')"
         )
+        
+        # Send confirmation email to the user who reported the issue (if they provided an email)
+        # This email contains only the basics: title, description, timestamp, issue ID
+        # No logs, device info, or other technical debugging data
+        if contact_email and contact_email != "Not provided":
+            try:
+                logger.info(f"Sending issue report confirmation email to reporter: {contact_email}")
+                
+                # Prepare confirmation email context (only basic report info)
+                confirmation_context = {
+                    "darkmode": True,
+                    "issue_id": issue_id,
+                    "issue_title": sanitized_title,
+                    "issue_description": sanitized_description if sanitized_description else None,
+                    "timestamp": timestamp,
+                }
+                
+                confirmation_success = await task.email_template_service.send_email(
+                    template="issue_report_confirmation",
+                    recipient_email=contact_email,
+                    context=confirmation_context,
+                    lang=language,  # Use the client's UI language passed from the API route
+                )
+                
+                if confirmation_success:
+                    logger.info(
+                        f"Successfully sent issue report confirmation email to {contact_email} "
+                        f"for issue '{issue_title[:50]}...'"
+                    )
+                else:
+                    logger.error(
+                        f"Failed to send issue report confirmation email to {contact_email} - "
+                        f"send_email() returned False. The admin email was sent successfully."
+                    )
+            except Exception as confirmation_error:
+                # Log the error but don't fail the overall task - the admin email was already sent
+                logger.error(
+                    f"Error sending issue report confirmation email to {contact_email}: "
+                    f"{str(confirmation_error)}. The admin email was sent successfully.",
+                    exc_info=True
+                )
+        else:
+            logger.info("No contact email provided - skipping issue report confirmation email to reporter")
+        
         return True
         
     except Exception as e:

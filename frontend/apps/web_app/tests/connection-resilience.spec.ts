@@ -47,12 +47,11 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	generateTotp,
-	assertNoMissingTranslations
+	assertNoMissingTranslations,
+	getTestAccount,
 } = require('./signup-flow-helpers');
 
-const TEST_EMAIL = process.env.OPENMATES_TEST_ACCOUNT_EMAIL;
-const TEST_PASSWORD = process.env.OPENMATES_TEST_ACCOUNT_PASSWORD;
-const TEST_OTP_KEY = process.env.OPENMATES_TEST_ACCOUNT_OTP_KEY;
+const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 /**
  * Shared login helper: navigates to home, logs in with email/password/OTP,

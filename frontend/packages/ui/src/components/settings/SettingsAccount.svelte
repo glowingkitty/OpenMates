@@ -22,6 +22,35 @@ Account Settings - Main menu for account-related settings including Security, Ex
     // Current timezone from user profile
     let currentTimezone = $derived($userProfile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 
+    // Current username from user profile (displayed as subtitle in the menu item)
+    let currentUsername = $derived($userProfile.username || '');
+
+    /**
+     * Navigate to Username submenu.
+     * Dispatches navigation event to parent Settings component.
+     */
+    function navigateToUsername() {
+        dispatch('openSettings', {
+            settingsPath: 'account/username',
+            direction: 'forward',
+            icon: 'user',
+            title: $text('settings.account.username')
+        });
+    }
+
+    /**
+     * Navigate to Profile Picture submenu.
+     * Dispatches navigation event to parent Settings component.
+     */
+    function navigateToProfilePicture() {
+        dispatch('openSettings', {
+            settingsPath: 'account/profile-picture',
+            direction: 'forward',
+            icon: 'image',
+            title: $text('settings.account.profile_picture')
+        });
+    }
+
     /**
      * Navigate to Timezone submenu.
      * Dispatches navigation event to parent Settings component.
@@ -76,6 +105,19 @@ Account Settings - Main menu for account-related settings including Security, Ex
     }
 
     /**
+     * Navigate to Storage overview submenu.
+     * Shows total storage usage, per-category breakdown, and billing info.
+     */
+    function navigateToStorage() {
+        dispatch('openSettings', {
+            settingsPath: 'account/storage',
+            direction: 'forward',
+            icon: 'storage',
+            title: $text('settings.storage')
+        });
+    }
+
+    /**
      * Navigate to Delete Account submenu.
      * Dispatches navigation event to parent Settings component.
      */
@@ -89,11 +131,26 @@ Account Settings - Main menu for account-related settings including Security, Ex
     }
 </script>
 
+<SettingsItem
+    type="subsubmenu"
+    icon="user"
+    title={$text('settings.account.username')}
+    subtitle={currentUsername}
+    onClick={navigateToUsername}
+/>
+
+<SettingsItem
+    type="submenu"
+    icon="user"
+    title={$text('settings.account.profile_picture')}
+    onClick={navigateToProfilePicture}
+/>
+
 <SettingsItem 
     type="subsubmenu"
     icon="clock"
-    subtitle={$text('settings.account.timezone')}
-    title={getTimezoneDisplayLabel(currentTimezone)}
+    title={$text('settings.account.timezone')}
+    subtitle={getTimezoneDisplayLabel(currentTimezone)}
     onClick={navigateToTimezone}
 />
 
@@ -116,6 +173,13 @@ Account Settings - Main menu for account-related settings including Security, Ex
     icon="download"
     title={$text('settings.account.export')}
     onClick={navigateToExportData}
+/>
+
+<SettingsItem
+    type="submenu"
+    icon="storage"
+    title={$text('settings.storage')}
+    onClick={navigateToStorage}
 />
 
 <SettingsItem

@@ -68,7 +68,7 @@ echo ""
 
 # Step 1: Validate Caddyfile syntax
 echo -e "${BLUE}[1/3] Validating Caddyfile syntax...${NC}"
-if caddy validate --config "$CADDYFILE_PATH" 2>&1; then
+if caddy validate --config "$CADDYFILE_PATH" --adapter caddyfile 2>&1; then
     echo -e "${GREEN}✓ Caddyfile syntax is valid${NC}"
 else
     echo -e "${RED}✗ Caddyfile validation failed${NC}"

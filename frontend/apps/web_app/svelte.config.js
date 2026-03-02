@@ -29,6 +29,15 @@ const config = {
 			// see https://github.com/sveltejs/kit/tree/master/packages/adapter-vercel
 			// for more information on Vercel specific options
 		}),
+		paths: {
+			// Use absolute asset paths (/_app/...) instead of relative (./_app/...).
+			// Required because the Vercel rewrite for /dev/* serves the SPA shell HTML
+			// at deep nested URLs (e.g. /dev/preview/embeds/web/Component).
+			// With relative paths, the browser would resolve ./_app/... relative to
+			// that deep URL, producing wrong paths like /dev/preview/embeds/web/_app/...
+			// which return HTML instead of JS (MIME type error, blank page).
+			relative: false
+		},
 		files: {
 			assets: 'static'
 		},

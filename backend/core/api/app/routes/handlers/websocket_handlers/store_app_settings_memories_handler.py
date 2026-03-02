@@ -21,6 +21,15 @@ This enables permanent storage in Directus while maintaining zero-knowledge arch
 - created_at, updated_at: Unix timestamps
 - item_version: Version for conflict resolution
 - sequence_number: Optional ordering
+
+**Size Limits**:
+- MAX_ITEM_KEY_BYTES: Maximum size for the item_key field (plain text key identifier)
+- MAX_ENCRYPTED_ENTRY_BYTES: Maximum size of the encrypted_item_json payload.
+  Accounts for encryption overhead (base64 + IV + auth tag) on top of frontend char limits.
+  Frontend limits: single-line 100 chars, multiline 500 chars, generic value 1000 chars.
+  Worst-case JSON with all fields + overhead at ~4x: 1000 * 4 = 4 000 bytes. We allow
+  20 000 bytes as the backend upper bound — generous enough to absorb overhead while
+  blocking clients that bypass the UI.
 """
 
 import logging
@@ -33,6 +42,16 @@ from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Size limits for incoming entry payloads
+# ---------------------------------------------------------------------------
+# Frontend enforces character limits (500 short / 2000 multiline / 3000 generic).
+# These byte limits act as a backend defence-in-depth against clients that bypass
+# the UI.  Encryption adds overhead (~1.4x base64 + IV + auth tag), so we allow
+# ~50 KB for the encrypted blob and 2 KB for the plaintext item_key.
+MAX_ENCRYPTED_ENTRY_BYTES: int = 20_000   # 20 KB upper bound for encrypted_item_json
+MAX_ITEM_KEY_BYTES: int = 500            # 500 bytes upper bound for the plain-text item_key
 
 
 async def handle_store_app_settings_memories_entry(
@@ -99,7 +118,35 @@ async def handle_store_app_settings_memories_entry(
                 device_fingerprint_hash
             )
             return
-        
+
+        # Validate payload sizes to prevent storage abuse and oversized context injection.
+        # These are defence-in-depth limits; the frontend enforces tighter character limits.
+        item_key_str = str(item_key)
+        if len(item_key_str.encode("utf-8")) > MAX_ITEM_KEY_BYTES:
+            logger.warning(
+                f"[StoreAppSettingsMemories] item_key too large from user {user_id[:8]}...: "
+                f"{len(item_key_str)} chars (max {MAX_ITEM_KEY_BYTES} bytes)"
+            )
+            await manager.send_personal_message(
+                {"type": "error", "payload": {"message": "Entry key exceeds maximum allowed size"}},
+                user_id,
+                device_fingerprint_hash
+            )
+            return
+
+        encrypted_json_str = str(encrypted_item_json)
+        if len(encrypted_json_str.encode("utf-8")) > MAX_ENCRYPTED_ENTRY_BYTES:
+            logger.warning(
+                f"[StoreAppSettingsMemories] encrypted_item_json too large from user {user_id[:8]}...: "
+                f"{len(encrypted_json_str)} bytes (max {MAX_ENCRYPTED_ENTRY_BYTES})"
+            )
+            await manager.send_personal_message(
+                {"type": "error", "payload": {"message": "Entry data exceeds maximum allowed size"}},
+                user_id,
+                device_fingerprint_hash
+            )
+            return
+
         # Hash user ID for Directus storage (zero-knowledge)
         hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
         

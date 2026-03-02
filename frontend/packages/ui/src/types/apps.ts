@@ -46,6 +46,8 @@ export interface SkillMetadata {
   description_translation_key: string; // Translation key for skill description
   pricing?: SkillPricing;
   providers?: string[]; // List of provider names used by this skill
+  /** Icon filename for this skill (e.g. "search.svg") — used in App Store skill cards */
+  icon_image?: string;
 }
 
 /**
@@ -79,6 +81,14 @@ export interface FocusModeMetadata {
   id: string;
   name_translation_key: string; // Translation key for focus mode name
   description_translation_key: string; // Translation key for focus mode description
+  /** Translation key for bullet-point process summary (from app.yml process field) */
+  process_translation_key?: string;
+  /** Literal system prompt used when this focus mode is activated (from app.yml systemprompt) */
+  system_prompt?: string;
+  /** Translation key for system prompt when literal is not set (from app.yml systemprompt_translation_key) */
+  system_prompt_translation_key?: string;
+  /** Icon filename for this focus mode (e.g. "career_insights.svg") — used in the active focus pill above the message input */
+  icon_image?: string;
 }
 
 /**
@@ -99,14 +109,18 @@ export interface FocusModeMetadata {
  */
 export interface SchemaPropertyDefinition {
   type?: string;
+  format?: string; // JSON Schema format hint: "date", "uri", "email", etc.
   description?: string;
   enum?: string[];
   default?: unknown;
   minimum?: number;
   maximum?: number;
+  maxLength?: number; // Maximum allowed string length for this field (overrides category default)
+  multiline?: boolean; // If true, renders as a <textarea> instead of <input type="text">
   auto_generated?: boolean; // If true, field is auto-populated by client, not shown in form
   is_title?: boolean; // If true, this field's value is displayed as the entry title in list views
   is_subtitle?: boolean; // If true, this field's value is displayed as the entry subtitle in list views
+  [key: string]: unknown; // Allow additional backend-defined schema properties
 }
 
 export interface MemoryFieldMetadata {
@@ -114,6 +128,8 @@ export interface MemoryFieldMetadata {
   name_translation_key: string; // Translation key for memory field name
   description_translation_key: string; // Translation key for memory field description
   type: string;
+  /** Icon filename for this settings/memory category (e.g. "calendar.svg") — used in App Store cards */
+  icon_image?: string;
   schema_definition?: {
     type?: string;
     properties?: Record<string, SchemaPropertyDefinition>;

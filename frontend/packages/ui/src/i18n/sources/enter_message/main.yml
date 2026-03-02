@@ -20,6 +20,7 @@ enter_your_message:
   th: ใส่ข้อความของคุณ
   cs: Zadejte svou zprávu
   sv: "Ange ditt meddelande"
+  he: הקלד את ההודעה שלך
   verified_by_human: []
 click_to_enter_message:
   context: Placeholder text shown when message field is not focused
@@ -43,6 +44,7 @@ click_to_enter_message:
   th: คลิกที่นี่เพื่อใส่ข้อความของคุณ
   cs: Klikněte sem pro zadání zprávy
   sv: "Klicka här för att ange ditt meddelande"
+  he: לחץ כאן כדי להקליד הודעה
   verified_by_human: []
 click_to_add_text:
   context: Prompt shown after attachments to add more text
@@ -66,6 +68,7 @@ click_to_add_text:
   th: คลิกที่นี่เพื่อเพิ่มข้อความ
   cs: Klikněte sem pro přidání textu
   sv: "Klicka här för att lägga till text"
+  he: לחץ כאן כדי להוסיף טקסט
   verified_by_human: []
 send:
   context: Button text for sending a message
@@ -89,6 +92,12 @@ send:
   th: ส่ง
   cs: Odeslat
   sv: "Skicka"
+  he: שלח
+  verified_by_human: []
+buy_credits:
+  context: Button text shown instead of Send when a signed-in user has zero credits
+  en: Buy credits
+  he: קנה קרדיטים
   verified_by_human: []
 is_typing_powered_by:
   context: Text shown when someone is typing with model and provider information
@@ -192,6 +201,9 @@ is_typing_powered_by:
     Drivs av {model_name} via {provider_name}
 
     "
+  he: |
+    {mate} מקליד/ה...
+    מופעל על ידי {model_name} באמצעות {provider_name}
   verified_by_human: []
 is_typing:
   context: Text shown when someone is typing
@@ -215,6 +227,7 @@ is_typing:
   th: "{mate} กำลังพิมพ์..."
   cs: "{mate} píše..."
   sv: "{mate} skriver..."
+  he: "{mate} מקליד/ה..."
   verified_by_human: []
 is_thinking:
   context: Text shown in sidebar when a thinking/reasoning model is processing in a background chat
@@ -238,6 +251,7 @@ is_thinking:
   th: "{mate} กำลังคิด..."
   cs: "{mate} přemýšlí..."
   sv: "{mate} tänker..."
+  he: "{mate} חושב/ת..."
   verified_by_human: []
 using_skill:
   context: Text shown in sidebar when an app skill is being used in a background chat (e.g. Using Search...)
@@ -261,6 +275,7 @@ using_skill:
   th: "กำลังใช้ {skill}..."
   cs: "Používání {skill}..."
   sv: "Använder {skill}..."
+  he: "משתמש ב-{skill}..."
   verified_by_human: []
 draft:
   context: Text shown for drafts
@@ -284,6 +299,7 @@ draft:
   th: "ร่าง:"
   cs: "Návrh:"
   sv: "Utkast:"
+  he: "טיוטה:"
   verified_by_human: []
 draft_with_beginning:
   context: Text shown for drafts, but with the draft beginning
@@ -307,6 +323,7 @@ draft_with_beginning:
   th: "ร่าง: {draft_beginning}"
   cs: "Návrh: {draft_beginning}"
   sv: "Utkast: {draft_beginning}"
+  he: "טיוטה: {draft_beginning}"
   verified_by_human: []
 sending:
   context: Text shown when sending a message
@@ -330,6 +347,7 @@ sending:
   th: "กำลังส่ง..."
   cs: "Odesílání..."
   sv: "Skickar..."
+  he: שולח...
   verified_by_human: []
 processing:
   context: Text shown when the AI is processing a response
@@ -353,6 +371,7 @@ processing:
   th: กำลังประมวลผล...
   cs: Zpracovávání...
   sv: "Bearbetar..."
+  he: מעבד...
   verified_by_human: []
 waiting_for_internet:
   context: Text shown when disconnected from server and having to sync later
@@ -376,6 +395,7 @@ waiting_for_internet:
   th: กำลังรอการเชื่อมต่ออินเทอร์เน็ตใหม่...
   cs: Čekání na opětovné připojení k internetu...
   sv: "Väntar på återanslutning till internet..."
+  he: ממתין לחיבור מחדש לאינטרנט...
   verified_by_human: []
 waiting_for_user:
   context: Text shown when chat is paused waiting for user action (e.g., insufficient credits, app settings permission)
@@ -399,6 +419,7 @@ waiting_for_user:
   th: กำลังรอคุณ...
   cs: Čeká na vás...
   sv: "Väntar på dig..."
+  he: ממתין לך...
   verified_by_human: []
 stop:
   context: Button text for stopping the AI response
@@ -422,29 +443,31 @@ stop:
   th: หยุด
   cs: Zastavit
   sv: Stoppa
+  he: עצור
   verified_by_human: []
 status.generating_title:
-  context: Progressive status text shown while AI is generating a chat title for a new chat
-  en: Generating chat title...
-  de: Chat-Titel wird erstellt...
-  zh: 正在生成聊天标题...
-  es: Generando título del chat...
-  fr: Génération du titre du chat...
-  pt: Gerando título do chat...
-  ru: Генерация заголовка чата...
-  ja: チャットタイトルを生成中...
-  ko: 채팅 제목 생성 중...
-  it: Generazione del titolo della chat...
-  tr: Sohbet başlığı oluşturuluyor...
-  vi: Đang tạo tiêu đề cuộc trò chuyện...
-  id: Membuat judul obrolan...
-  pl: Generowanie tytułu czatu...
-  nl: Chattitel wordt gegenereerd...
-  ar: جاري إنشاء عنوان المحادثة...
-  hi: चैट शीर्षक बनाया जा रहा है...
-  th: กำลังสร้างชื่อแชท...
-  cs: Generování názvu chatu...
-  sv: Genererar chattitel...
+  context: Progressive status text shown while AI is processing a new chat request (initial step before step cards appear)
+  en: Processing...
+  de: Verarbeitung...
+  zh: 处理中...
+  es: Procesando...
+  fr: Traitement...
+  pt: Processando...
+  ru: Обработка...
+  ja: 処理中...
+  ko: 처리 중...
+  it: Elaborazione...
+  tr: İşleniyor...
+  vi: Đang xử lý...
+  id: Memproses...
+  pl: Przetwarzanie...
+  nl: Verwerken...
+  ar: جاري المعالجة...
+  hi: प्रोसेसिंग...
+  th: กำลังประมวลผล...
+  cs: Zpracování...
+  sv: Bearbetar...
+  he: מעבד...
   verified_by_human: []
 status.selecting_mate:
   context: Progressive status text shown while AI is selecting the optimal mate (assistant persona)
@@ -468,6 +491,7 @@ status.selecting_mate:
   th: กำลังเลือกผู้ช่วยที่เหมาะสม...
   cs: Výběr optimálního partnera...
   sv: Väljer optimal kompanjon...
+  he: בוחר עוזר אופטימלי...
   verified_by_human: []
 status.analyzing_message:
   context: Progressive status text shown while AI is analyzing the user message (for existing chats)
@@ -491,6 +515,7 @@ status.analyzing_message:
   th: กำลังวิเคราะห์ข้อความของคุณ...
   cs: Analýza vaší zprávy...
   sv: Analyserar ditt meddelande...
+  he: מנתח את ההודעה שלך...
   verified_by_human: []
 status.selecting_model:
   context: Progressive status text shown while AI is selecting the optimal AI model
@@ -514,14 +539,209 @@ status.selecting_model:
   th: กำลังเลือกโมเดล AI...
   cs: Výběr AI modelu...
   sv: Väljer AI-modell...
+  he: בוחר מודל AI...
   verified_by_human: []
 attachments.record_audio.hint:
   context: Inline hint text shown next to the audio record button
   en: Hold to record
   de: Halten zum Aufnehmen
+  he: החזק כדי להקליט
   verified_by_human: []
 message_queued:
   context: Fallback text shown when user sends a message while AI task is active
   en: Message queued
   de: Nachricht in Warteschlange
+  he: ההודעה בתור
+  verified_by_human: []
+waiting_for_upload:
+  context: Status text shown under a user message that is queued while file attachments are still uploading
+  en: "Uploading attachment..."
+  de: "Anhang wird hochgeladen..."
+  zh: "正在上传附件..."
+  es: "Subiendo archivo adjunto..."
+  fr: "Envoi de la pièce jointe..."
+  pt: "Enviando anexo..."
+  ru: "Загрузка вложения..."
+  ja: "添付ファイルをアップロード中..."
+  ko: "첨부 파일 업로드 중..."
+  it: "Caricamento allegato..."
+  tr: "Ek yükleniyor..."
+  vi: "Đang tải tệp đính kèm..."
+  id: "Mengunggah lampiran..."
+  pl: "Przesyłanie załącznika..."
+  nl: "Bijlage uploaden..."
+  ar: "جاري رفع المرفق..."
+  hi: "अनुलग्नक अपलोड हो रहा है..."
+  th: "กำลังอัปโหลดไฟล์แนบ..."
+  cs: "Nahrávání přílohy..."
+  sv: "Laddar upp bilaga..."
+  he: מעלה קובץ מצורף...
+  verified_by_human: []
+upload_progress.uploading:
+  context: Per-attachment progress label shown under a queued message — {percent} is a number 0–100
+  en: "Uploading {percent}%"
+  de: "{percent}% hochgeladen"
+  zh: "上传 {percent}%"
+  es: "Subiendo {percent}%"
+  fr: "Envoi {percent}%"
+  pt: "Enviando {percent}%"
+  ru: "Загрузка {percent}%"
+  ja: "アップロード中 {percent}%"
+  ko: "업로드 중 {percent}%"
+  it: "Caricamento {percent}%"
+  tr: "Yükleniyor {percent}%"
+  vi: "Đang tải lên {percent}%"
+  id: "Mengunggah {percent}%"
+  pl: "Przesyłanie {percent}%"
+  nl: "Uploaden {percent}%"
+  ar: "جاري الرفع {percent}%"
+  hi: "अपलोड हो रहा है {percent}%"
+  th: "กำลังอัปโหลด {percent}%"
+  cs: "Nahrávání {percent}%"
+  sv: "Laddar upp {percent}%"
+  he: "מעלה {percent}%"
+  verified_by_human: []
+upload_progress.transcribing:
+  context: Per-attachment status label shown under a queued message while audio is being transcribed
+  en: "Transcribing..."
+  de: "Transkribierung..."
+  zh: "转录中..."
+  es: "Transcribiendo..."
+  fr: "Transcription..."
+  pt: "Transcrevendo..."
+  ru: "Транскрипция..."
+  ja: "文字起こし中..."
+  ko: "전사 중..."
+  it: "Trascrizione..."
+  tr: "Transkript oluşturuluyor..."
+  vi: "Đang phiên âm..."
+  id: "Mentranskripsikan..."
+  pl: "Transkrypcja..."
+  nl: "Transcriberen..."
+  ar: "جاري النسخ..."
+  hi: "ट्रांसक्राइब हो रहा है..."
+  th: "กำลังถอดความ..."
+  cs: "Přepisování..."
+  sv: "Transkriberar..."
+  he: מתמלל...
+  verified_by_human: []
+upload_progress.processing:
+  context: Per-attachment status label shown under a queued message while a PDF is being processed (OCR)
+  en: "Processing..."
+  de: "Verarbeitung..."
+  zh: "处理中..."
+  es: "Procesando..."
+  fr: "Traitement..."
+  pt: "Processando..."
+  ru: "Обработка..."
+  ja: "処理中..."
+  ko: "처리 중..."
+  it: "Elaborazione..."
+  tr: "İşleniyor..."
+  vi: "Đang xử lý..."
+  id: "Memproses..."
+  pl: "Przetwarzanie..."
+  nl: "Verwerken..."
+  ar: "جاري المعالجة..."
+  hi: "प्रसंस्करण..."
+  th: "กำลังประมวลผล..."
+  cs: "Zpracovávání..."
+  sv: "Bearbetar..."
+  he: מעבד...
+  verified_by_human: []
+upload_progress.error:
+  context: Per-attachment error label shown under a queued message when a file upload fails
+  en: "Upload failed"
+  de: "Upload fehlgeschlagen"
+  zh: "上传失败"
+  es: "Error al subir"
+  fr: "Échec de l'envoi"
+  pt: "Falha no upload"
+  ru: "Ошибка загрузки"
+  ja: "アップロード失敗"
+  ko: "업로드 실패"
+  it: "Caricamento fallito"
+  tr: "Yükleme başarısız"
+  vi: "Tải lên thất bại"
+  id: "Gagal mengunggah"
+  pl: "Błąd przesyłania"
+  nl: "Upload mislukt"
+  ar: "فشل الرفع"
+  hi: "अपलोड विफल"
+  th: "อัปโหลดล้มเหลว"
+  cs: "Nahrávání selhalo"
+  sv: "Uppladdning misslyckades"
+  he: העלאה נכשלה
+  verified_by_human: []
+preprocessing_step.chat_title_label:
+  context: "Label prefix shown in the preprocessing step card when the AI has generated a chat title"
+  en: "Chat title:"
+  de: "Chat-Titel:"
+  zh: "聊天标题："
+  es: "Título del chat:"
+  fr: "Titre du chat :"
+  pt: "Título do chat:"
+  ru: "Заголовок чата:"
+  ja: "チャットタイトル："
+  ko: "채팅 제목:"
+  it: "Titolo chat:"
+  tr: "Sohbet başlığı:"
+  vi: "Tiêu đề chat:"
+  id: "Judul obrolan:"
+  pl: "Tytuł czatu:"
+  nl: "Chattitel:"
+  ar: "عنوان المحادثة:"
+  hi: "चैट शीर्षक:"
+  th: "ชื่อแชท:"
+  cs: "Název chatu:"
+  sv: "Chattitel:"
+  he: "כותרת הצ'אט:"
+  verified_by_human: []
+preprocessing_step.selected_mate_label:
+  context: "Label prefix shown in the preprocessing step card when the AI has selected a mate/persona"
+  en: "Selected mate:"
+  de: "Ausgewählter Mate:"
+  zh: "已选择助手："
+  es: "Compañero seleccionado:"
+  fr: "Partenaire sélectionné :"
+  pt: "Companheiro selecionado:"
+  ru: "Выбранный помощник:"
+  ja: "選択されたメイト："
+  ko: "선택된 메이트:"
+  it: "Compagno selezionato:"
+  tr: "Seçilen arkadaş:"
+  vi: "Trợ lý đã chọn:"
+  id: "Mitra dipilih:"
+  pl: "Wybrany partner:"
+  nl: "Geselecteerde mate:"
+  ar: "المساعد المختار:"
+  hi: "चयनित सहायक:"
+  th: "ผู้ช่วยที่เลือก:"
+  cs: "Vybraný partner:"
+  sv: "Vald kompanjon:"
+  he: "עוזר שנבחר:"
+  verified_by_human: []
+preprocessing_step.selected_model_label:
+  context: "Label prefix shown in the preprocessing step card when the AI has selected an AI model"
+  en: "Selected model:"
+  de: "Ausgewähltes Modell:"
+  zh: "已选择模型："
+  es: "Modelo seleccionado:"
+  fr: "Modèle sélectionné :"
+  pt: "Modelo selecionado:"
+  ru: "Выбранная модель:"
+  ja: "選択されたモデル："
+  ko: "선택된 모델:"
+  it: "Modello selezionato:"
+  tr: "Seçilen model:"
+  vi: "Mô hình đã chọn:"
+  id: "Model dipilih:"
+  pl: "Wybrany model:"
+  nl: "Geselecteerd model:"
+  ar: "النموذج المختار:"
+  hi: "चयनित मॉडल:"
+  th: "โมเดลที่เลือก:"
+  cs: "Vybraný model:"
+  sv: "Vald modell:"
+  he: "מודל שנבחר:"
   verified_by_human: []

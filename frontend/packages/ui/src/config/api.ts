@@ -1,6 +1,37 @@
 // API base URLs from environment
 // VITE_API_URL: Single URL for self-hosted deployments (takes precedence over all other settings)
 // VITE_API_URL_DEV/PROD: Environment-specific URLs for cloud deployments
+//
+// Upload server URLs from environment
+// VITE_UPLOAD_URL: Single URL for self-hosted deployments (takes precedence)
+// VITE_UPLOAD_URL_DEV/PROD: Environment-specific upload server URLs for cloud deployments
+// The upload server (app-uploads microservice) is a separate VM — NOT proxied through the web app.
+// Both dev and prod deployments use the same upload server: https://upload.openmates.org
+// The upload server distinguishes dev vs prod requests via the Origin header (set by Caddy).
+export const uploadUrls = {
+  development:
+    import.meta.env.VITE_UPLOAD_URL_DEV || "https://upload.openmates.org",
+  production:
+    import.meta.env.VITE_UPLOAD_URL_PROD || "https://upload.openmates.org",
+} as const;
+
+// Helper to get the upload server base URL
+export function getUploadUrl(): string {
+  // VITE_UPLOAD_URL takes precedence — used for self-hosted deployments
+  if (import.meta.env.VITE_UPLOAD_URL) {
+    return import.meta.env.VITE_UPLOAD_URL;
+  }
+
+  switch (import.meta.env.VITE_ENV) {
+    case "production":
+      return uploadUrls.production;
+    case "preview":
+      return uploadUrls.development;
+    default:
+      return uploadUrls.development;
+  }
+}
+
 export const apiUrls = {
   development: import.meta.env.VITE_API_URL_DEV || "http://localhost:8000",
   production: import.meta.env.VITE_API_URL_PROD || "https://api.openmates.org",
@@ -46,6 +77,20 @@ export function getWebSocketUrl(sessionId?: string, token?: string): string {
   }
 
   return wsUrl;
+}
+
+// Upload server endpoints (separate base URL — use getUploadUrl() + these paths)
+export const uploadEndpoints = {
+  // Upload a profile image (JPEG, already processed by browser canvas to 340x340).
+  // Returns { status: "ok", url: "https://..." } on success.
+  // Returns { status: "rejected", reject_count: N, detail: "..." } on content safety violation.
+  // Returns { status: "account_deleted" } when the 4th violation threshold is reached.
+  profile_image: "/v1/upload/profile-image",
+} as const;
+
+// Helper to get a full upload server endpoint URL
+export function getUploadEndpoint(path: string = ""): string {
+  return `${getUploadUrl()}${path}`;
 }
 
 // API endpoints
@@ -111,16 +156,18 @@ export const apiEndpoints = {
     serverStatus: "/v1/settings/server-status", // Get server status (payment enabled, server edition, etc.)
     reminders: "/v1/settings/reminders", // Get active (pending) reminders for app settings
     user: {
-      update_profile_image: "/v1/settings/user/update_profile_image", // Update profile image of user
       consent_privacy_apps: "/v1/settings/user/consent/privacy-apps", // Record consent for privacy/apps settings
       consent_mates: "/v1/settings/user/consent/mates", // Record consent for mates settings
       language: "/v1/settings/user/language", // Update user language
       darkmode: "/v1/settings/user/darkmode", // Update user dark mode preference
       timezone: "/v1/settings/user/timezone", // Update user timezone (auto-detected or manual)
+      username: "/v1/settings/user/username", // Update username (validated + encrypted server-side)
     },
     autoTopUp: {
       lowBalance: "/v1/settings/auto-topup/low-balance", // Update low balance auto top-up settings (requires 2FA)
     },
+    autoDeleteChats: "/v1/settings/auto-delete-chats", // Persist chat auto-deletion period
+    aiModelDefaults: "/v1/settings/ai-model-defaults", // Persist default AI model preferences (simple/complex)
     software_update: {
       check: "/v1/settings/software_update/check", // Check for software updates
       install: "/v1/settings/software_update/install", // Install software update

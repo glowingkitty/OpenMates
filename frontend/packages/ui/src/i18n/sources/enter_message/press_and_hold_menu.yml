@@ -19,7 +19,8 @@ delete:
   hi: हटाएं
   th: ลบ
   cs: Smazat
-  sv: 'Ta bort'
+  sv: "Ta bort"
+  he: מחיקה
   verified_by_human: []
 copy_link:
   context: Menu option to copy web link
@@ -42,7 +43,8 @@ copy_link:
   hi: लिंक कॉपी करें
   th: คัดลอกลิงก์
   cs: Kopírovat odkaz
-  sv: 'Kopiera länk'
+  sv: "Kopiera länk"
+  he: העתקת קישור
   verified_by_human: []
 download:
   context: Menu option to download an attachment
@@ -65,7 +67,8 @@ download:
   hi: डाउनलोड करें
   th: ดาวน์โหลด
   cs: Stáhnout
-  sv: 'Ladda ner'
+  sv: "Ladda ner"
+  he: הורדה
   verified_by_human: []
 view:
   context: Menu option to view attachment in full screen
@@ -88,7 +91,32 @@ view:
   hi: देखें
   th: ดู
   cs: Zobrazit
-  sv: 'Visa'
+  sv: "Visa"
+  he: צפייה
+  verified_by_human: []
+paste_as_text:
+  context: Menu option to replace an embed (text, website, video URL, audio recording) with its plain text content in the message input
+  en: Paste as text
+  de: Als Text einfügen
+  zh: 粘贴为文本
+  es: Pegar como texto
+  fr: Coller en texte
+  pt: Colar como texto
+  ru: Вставить как текст
+  ja: テキストとして貼り付け
+  ko: 텍스트로 붙여넣기
+  it: Incolla come testo
+  tr: Metin olarak yapıştır
+  vi: Dán dưới dạng văn bản
+  id: Tempel sebagai teks
+  pl: Wklej jako tekst
+  nl: Plakken als tekst
+  ar: لصق كنص
+  hi: टेक्स्ट के रूप में पेस्ट करें
+  th: วางเป็นข้อความ
+  cs: Vložit jako text
+  sv: Klistra in som text
+  he: הדבר כטקסט
   verified_by_human: []
 copied_to_clipboard:
   context: Message shown when a URL has been copied to clipboard
@@ -111,5 +139,6 @@ copied_to_clipboard:
   hi: क्लिपबोर्ड पर कॉपी किया गया
   th: คัดลอกไปยังคลิปบอร์ดแล้ว
   cs: Zkopírováno do schránky
-  sv: 'Kopierat till urklipp'
+  sv: "Kopierat till urklipp"
+  he: הועתק ללוח
   verified_by_human: []

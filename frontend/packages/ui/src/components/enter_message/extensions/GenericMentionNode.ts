@@ -12,7 +12,7 @@ declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     genericMention: {
       setGenericMention: (options: {
-        mentionType: "skill" | "focus_mode" | "settings_memory";
+        mentionType: "skill" | "focus_mode" | "settings_memory" | "settings_memory_entry";
         displayName: string;
         mentionSyntax: string;
         /** Gradient start color from app config */

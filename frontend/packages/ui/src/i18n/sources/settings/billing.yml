@@ -1,3 +1,27 @@
+description:
+  context: Short description shown in the billing settings page gradient banner header
+  en: Manage your credits, subscriptions and payment methods
+  de: Verwalte deine Credits, Abonnements und Zahlungsmethoden
+  zh: 管理您的积分、订阅和支付方式
+  es: Gestiona tus créditos, suscripciones y métodos de pago
+  fr: Gérez vos crédits, abonnements et moyens de paiement
+  pt: ""
+  ru: ""
+  ja: クレジット、サブスクリプション、支払い方法を管理する
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: إدارة رصيدك واشتراكاتك وطرق الدفع
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: נהל את הקרדיטים, המנויים ואמצעי התשלום שלך
+  verified_by_human: []
 billing:
   context: Billing settings menu item
   en: Billing
@@ -20,6 +44,7 @@ billing:
   th: การเรียกเก็บเงิน
   cs: Fakturace
   sv: Fakturering
+  he: חיוב
   verified_by_human: []
 title:
   context: Billing settings page title
@@ -43,6 +68,7 @@ title:
   th: การเรียกเก็บเงินและเครดิต
   cs: Fakturace a Kredity
   sv: Fakturering och Krediter
+  he: חיוב וקרדיטים
   verified_by_human: []
 current_balance:
   context: Current credit balance heading
@@ -66,6 +92,7 @@ current_balance:
   th: ยอดคงเหลือปัจจุบัน
   cs: Aktuální Zůstatek
   sv: Nuvarande Saldo
+  he: יתרה נוכחית
   verified_by_human: []
 credits:
   context: Credits label
@@ -89,6 +116,7 @@ credits:
   th: เครดิต
   cs: kredity
   sv: krediter
+  he: קרדיטים
   verified_by_human: []
 buy_more_credits:
   context: Button to purchase additional credits
@@ -112,6 +140,7 @@ buy_more_credits:
   th: ซื้อเครดิตเพิ่มเติม
   cs: Koupit Více Kreditů
   sv: Köp Fler Krediter
+  he: קנה עוד קרדיטים
   verified_by_human: []
 monthly_subscription:
   context: Monthly subscription heading
@@ -135,6 +164,7 @@ monthly_subscription:
   th: สมาชิกเติมเงินอัตโนมัติรายเดือน
   cs: Měsíční Předplatné Automatického Dobití
   sv: Månadsvis Automatisk Påfyllningsprenumeration
+  he: מנוי טעינה אוטומטית חודשי
   verified_by_human: []
 status:
   context: Subscription status label
@@ -158,6 +188,7 @@ status:
   th: สถานะ
   cs: Stav
   sv: Status
+  he: סטטוס
   verified_by_human: []
 amount:
   context: Credits amount label
@@ -181,6 +212,7 @@ amount:
   th: จำนวน
   cs: Částka
   sv: Belopp
+  he: כמות
   verified_by_human: []
 price:
   context: Subscription price label
@@ -204,6 +236,7 @@ price:
   th: ราคา
   cs: Cena
   sv: Pris
+  he: מחיר
   verified_by_human: []
 next_charge:
   context: Next billing date label
@@ -227,6 +260,7 @@ next_charge:
   th: การเรียกเก็บเงินครั้งถัดไป
   cs: Další Poplatek
   sv: Nästa Avgift
+  he: החיוב הבא
   verified_by_human: []
 manage:
   context: Button to manage subscription
@@ -250,6 +284,7 @@ manage:
   th: จัดการการสมัครสมาชิก
   cs: Spravovat Předplatné
   sv: Hantera Prenumeration
+  he: ניהול מנוי
   verified_by_human: []
 cancel:
   context: Button to cancel subscription
@@ -273,6 +308,7 @@ cancel:
   th: ยกเลิกการสมัครสมาชิก
   cs: Zrušit Předplatné
   sv: Avbryt Prenumeration
+  he: ביטול מנוי
   verified_by_human: []
 no_subscription:
   context: Message when no subscription exists
@@ -296,6 +332,7 @@ no_subscription:
   th: ไม่มีการสมัครสมาชิกที่ใช้งานอยู่ ตั้งค่าการเติมเงินอัตโนมัติรายเดือนเพื่อไม่ให้เครดิตหมด
   cs: Žádné aktivní předplatné. Nastavte měsíční automatické dobíjení, abyste nikdy nedošli kredity.
   sv: Ingen aktiv prenumeration. Konfigurera månadsvis automatisk påfyllning för att aldrig få slut på krediter.
+  he: אין מנוי פעיל. הגדר טעינה אוטומטית חודשית כדי שלעולם לא ייגמרו לך הקרדיטים.
   verified_by_human: []
 setup_subscription:
   context: Button to create new subscription
@@ -319,6 +356,7 @@ setup_subscription:
   th: ตั้งค่าการสมัครสมาชิก
   cs: Nastavit Předplatné
   sv: Konfigurera Prenumeration
+  he: הגדרת מנוי
   verified_by_human: []
 low_balance_topup:
   context: Low balance auto top-up heading
@@ -342,6 +380,7 @@ low_balance_topup:
   th: เติมเงินอัตโนมัติเมื่อยอดคงเหลือต่ำ
   cs: Automatické Dobití při Nízkém Zůstatku
   sv: Automatisk Påfyllning vid Lågt Saldo
+  he: טעינה אוטומטית ביתרה נמוכה
   verified_by_human: []
 low_balance:
   context: Low balance menu item title
@@ -365,6 +404,7 @@ low_balance:
   th: เมื่อยอดคงเหลือต่ำ
   cs: Při Nízkém Zůstatku
   sv: Vid Lågt Saldo
+  he: ביתרה נמוכה
   verified_by_human: []
 low_balance_description:
   context: Low balance auto top-up description
@@ -388,6 +428,7 @@ low_balance_description:
   th: ซื้อเครดิตโดยอัตโนมัติเมื่อยอดคงเหลือของคุณต่ำกว่าเกณฑ์
   cs: Automaticky nakupuje kredity, když váš zůstatek klesne pod prahovou hodnotu.
   sv: Köper automatiskt krediter när ditt saldo faller under en tröskel.
+  he: רכוש קרדיטים באופן אוטומטי כשהיתרה שלך יורדת מתחת לסף מסוים.
   verified_by_human: []
 configure:
   context: Button to configure settings
@@ -411,6 +452,7 @@ configure:
   th: กำหนดค่า
   cs: Konfigurovat
   sv: Konfigurera
+  he: הגדרה
   verified_by_human: []
 buy_credits:
   context: Buy credits page title
@@ -434,6 +476,7 @@ buy_credits:
   th: ซื้อเครดิต
   cs: Koupit Kredity
   sv: Köp Krediter
+  he: קניית קרדיטים
   verified_by_human: []
 buy_credits.payment:
   context: Payment page title for buying credits
@@ -457,6 +500,7 @@ buy_credits.payment:
   th: การชำระเงิน
   cs: Platba
   sv: Betalning
+  he: תשלום
   verified_by_human: []
 buy_credits_description:
   context: Buy credits menu item description
@@ -480,6 +524,7 @@ buy_credits_description:
   th: ซื้อเครดิตเพื่อใช้กับบริการ AI ของ OpenMates
   cs: Kupte si kredity pro použití se službami OpenMates AI
   sv: Köp krediter för att använda med OpenMates AI-tjänster
+  he: קנה קרדיטים לשימוש בשירותי ה-AI של OpenMates
   verified_by_human: []
 buy_credits.confirmation:
   context: Payment confirmation page title
@@ -503,6 +548,7 @@ buy_credits.confirmation:
   th: ซื้อสำเร็จ
   cs: Nákup úspěšný
   sv: Köp lyckat
+  he: הרכישה הצליחה
   verified_by_human: []
 auto_topup:
   context: Auto top-up menu item
@@ -526,6 +572,7 @@ auto_topup:
   th: เติมเงินอัตโนมัติ
   cs: Automatické Dobití
   sv: Automatisk Påfyllning
+  he: טעינה אוטומטית
   verified_by_human: []
 auto_topup.low_balance:
   context: Low balance auto top-up submenu text
@@ -549,6 +596,7 @@ auto_topup.low_balance:
   th: เมื่อยอดคงเหลือต่ำ
   cs: Při Nízkém Zůstatku
   sv: Vid Lågt Saldo
+  he: ביתרה נמוכה
   verified_by_human: []
 auto_topup.monthly:
   context: Monthly subscription submenu text
@@ -572,6 +620,7 @@ auto_topup.monthly:
   th: รายเดือน
   cs: Měsíčně
   sv: Månadsvis
+  he: חודשי
   verified_by_human: []
 auto_topup_description:
   context: Auto top-up menu item description
@@ -595,6 +644,7 @@ auto_topup_description:
   th: รักษายอดคงเหลือเครดิตของคุณโดยอัตโนมัติ
   cs: Automaticky udržujte svůj kreditní zůstatek
   sv: Behåll automatiskt ditt kreditsaldo
+  he: שמור על יתרת הקרדיטים שלך באופן אוטומטי
   verified_by_human: []
 on_low_balance:
   context: Low balance auto top-up menu item
@@ -618,6 +668,7 @@ on_low_balance:
   th: เมื่อยอดคงเหลือต่ำ
   cs: Při Nízkém Zůstatku
   sv: Vid Lågt Saldo
+  he: ביתרה נמוכה
   verified_by_human: []
 monthly:
   context: Monthly subscription menu item
@@ -641,6 +692,7 @@ monthly:
   th: รายเดือน
   cs: Měsíčně
   sv: Månadsvis
+  he: חודשי
   verified_by_human: []
 manage_subscription:
   context: Manage subscription page title
@@ -664,6 +716,7 @@ manage_subscription:
   th: จัดการการสมัครสมาชิก
   cs: Spravovat Předplatné
   sv: Hantera Prenumeration
+  he: ניהול מנוי
   verified_by_human: []
 subscription_coming_soon:
   context: Temporary subscription management message
@@ -687,6 +740,7 @@ subscription_coming_soon:
   th: ฟีเจอร์การจัดการการสมัครสมาชิกจะเปิดให้ใช้งานเร็วๆ นี้ ตอนนี้คุณสามารถยกเลิกการสมัครสมาชิกได้จากหน้าบิลหลัก
   cs: Funkce správy předplatného brzy přijdou. Prozatím můžete zrušit předplatné z hlavní stránky fakturace.
   sv: Funktioner för prenumerationshantering kommer snart. För tillfället kan du avbryta din prenumeration från huvudsidan för fakturering.
+  he: אפשרויות ניהול המנוי יגיעו בקרוב. בינתיים, ניתן לבטל את המנוי מדף החיוב הראשי.
   verified_by_human: []
 low_balance_settings:
   context: Low balance settings page title
@@ -710,6 +764,7 @@ low_balance_settings:
   th: การตั้งค่าการเติมเงินอัตโนมัติเมื่อยอดคงเหลือต่ำ
   cs: Nastavení Automatického Dobití při Nízkém Zůstatku
   sv: Inställningar för Automatisk Påfyllning vid Lågt Saldo
+  he: הגדרות טעינה אוטומטית ביתרה נמוכה
   verified_by_human: []
 enable_low_balance:
   context: Toggle label for enabling low balance auto top-up
@@ -733,6 +788,7 @@ enable_low_balance:
   th: เปิดใช้งานการเติมเงินอัตโนมัติเมื่อยอดคงเหลือต่ำ
   cs: Povolit Automatické Dobití při Nízkém Zůstatku
   sv: Aktivera Automatisk Påfyllning vid Lågt Saldo
+  he: הפעלת טעינה אוטומטית ביתרה נמוכה
   verified_by_human: []
 low_balance_help:
   context: Help text for low balance auto top-up
@@ -756,6 +812,7 @@ low_balance_help:
   th: ซื้อเครดิตโดยอัตโนมัติเมื่อยอดคงเหลือของคุณต่ำกว่าเกณฑ์ ต้องมีวิธีการชำระเงินที่บันทึกไว้
   cs: Automaticky nakupuje kredity, když váš zůstatek klesne pod prahovou hodnotu. Vyžaduje uloženou platební metodu.
   sv: Köper automatiskt krediter när ditt saldo faller under tröskeln. Kräver en sparad betalningsmetod.
+  he: רכישת קרדיטים באופן אוטומטי כשהיתרה יורדת מתחת לסף שנקבע. דורש אמצעי תשלום שמור.
   verified_by_human: []
 threshold:
   context: Threshold setting label
@@ -779,6 +836,7 @@ threshold:
   th: เกณฑ์ยอดคงเหลือ
   cs: Prahová Hodnota Zůstatku
   sv: Saldotröskel
+  he: סף יתרה
   verified_by_human: []
 topup_amount:
   context: Top-up amount setting label
@@ -802,6 +860,7 @@ topup_amount:
   th: จำนวนเงินเติม
   cs: Částka Dobití
   sv: Påfyllningsbelopp
+  he: סכום טעינה
   verified_by_human: []
 currency:
   context: Currency selection label
@@ -825,6 +884,7 @@ currency:
   th: สกุลเงิน
   cs: Měna
   sv: Valuta
+  he: מטבע
   verified_by_human: []
 2fa_code:
   context: 2FA code input label
@@ -848,6 +908,7 @@ currency:
   th: รหัสยืนยันตัวตน 2FA
   cs: Ověřovací Kód 2FA
   sv: 2FA Autentiseringskod
+  he: קוד אימות דו-שלבי (2FA)
   verified_by_human: []
 select_payment_method:
   context: Heading for selecting a payment method
@@ -871,6 +932,7 @@ select_payment_method:
   th: เลือกวิธีการชำระเงิน
   cs: Vybrat Platební Metodu
   sv: Välj Betalningsmetod
+  he: בחירת אמצעי תשלום
   verified_by_human: []
 add_payment_method:
   context: Button to add a new payment method
@@ -894,6 +956,7 @@ add_payment_method:
   th: เพิ่มวิธีการชำระเงิน
   cs: Přidat Platební Metodu
   sv: Lägg till Betalningsmetod
+  he: הוספת אמצעי תשלום
   verified_by_human: []
 buy_now:
   context: Button to proceed with purchase using selected payment method
@@ -917,6 +980,7 @@ buy_now:
   th: ซื้อตอนนี้
   cs: Koupit Nyní
   sv: Köp Nu
+  he: קנה עכשיו
   verified_by_human: []
 processing:
   context: Processing payment state
@@ -940,6 +1004,7 @@ processing:
   th: กำลังดำเนินการ...
   cs: Zpracovávání...
   sv: Bearbetar...
+  he: מעבד...
   verified_by_human: []
 loading_payment_methods:
   context: Loading payment methods state
@@ -963,6 +1028,7 @@ loading_payment_methods:
   th: กำลังโหลดวิธีการชำระเงิน...
   cs: Načítání platebních metod...
   sv: Laddar betalningsmetoder...
+  he: טוען אמצעי תשלום...
   verified_by_human: []
 payment_auth_title:
   context: Title for payment authentication modal
@@ -986,6 +1052,7 @@ payment_auth_title:
   th: ยืนยันการชำระเงิน
   cs: Potvrdit Platbu
   sv: Bekräfta Betalning
+  he: אישור תשלום
   verified_by_human: []
 passkey_authenticating:
   context: Passkey authentication in progress
@@ -1009,6 +1076,7 @@ passkey_authenticating:
   th: กำลังยืนยันตัวตนด้วยพาสคีย์...
   cs: Ověřování pomocí přístupového klíče...
   sv: Autentiserar med passkey...
+  he: מאמת באמצעות מפתח גישה (Passkey)...
   verified_by_human: []
 passkey_prompt:
   context: Prompt to authenticate with passkey
@@ -1032,6 +1100,7 @@ passkey_prompt:
   th: กรุณายืนยันตัวตนด้วยพาสคีย์ของคุณเพื่อยืนยันการชำระเงินนี้
   cs: Pro potvrzení této platby se prosím ověřte pomocí přístupového klíče.
   sv: Vänligen autentisera med din passkey för att bekräfta denna betalning.
+  he: יש לבצע אימות באמצעות מפתח הגישה שלך כדי לאשר את התשלום.
   verified_by_human: []
 authenticate_with_passkey:
   context: Button to authenticate with passkey
@@ -1055,6 +1124,7 @@ authenticate_with_passkey:
   th: ยืนยันตัวตนด้วยพาสคีย์
   cs: Ověřit pomocí Přístupového Klíče
   sv: Autentisera med Passkey
+  he: אימות באמצעות מפתח גישה (Passkey)
   verified_by_human: []
 enter_2fa_code:
   context: Prompt to enter 2FA code
@@ -1078,6 +1148,7 @@ enter_2fa_code:
   th: กรุณากรอกรหัส 2FA ของคุณเพื่อยืนยันการชำระเงินนี้
   cs: Pro potvrzení této platby zadejte prosím svůj kód 2FA.
   sv: Ange din 2FA-kod för att bekräfta denna betalning.
+  he: יש להזין את קוד האימות הדו-שלבי כדי לאשר את התשלום.
   verified_by_human: []
 purchase_successful:
   context: Purchase confirmation page title
@@ -1101,6 +1172,7 @@ purchase_successful:
   th: ซื้อสำเร็จ
   cs: Nákup Úspěšný
   sv: Köp Lyckades
+  he: הרכישה בוצעה בהצלחה
   verified_by_human: []
 credits_added:
   context: Credits added confirmation message
@@ -1124,6 +1196,7 @@ credits_added:
   th: เครดิตของคุณถูกเพิ่มเข้าบัญชีแล้ว
   cs: Vaše kredity byly přidány do vašeho účtu
   sv: Dina krediter har lagts till på ditt konto
+  he: הקרדיטים נוספו לחשבונך
   verified_by_human: []
 gift_card.have_code:
   context: Button to switch to gift card redemption mode
@@ -1147,6 +1220,7 @@ gift_card.have_code:
   th: ฉันมีบัตรของขวัญ
   cs: Mám dárkovou kartu
   sv: Jag har ett presentkort
+  he: יש לי כרטיס מתנה
   verified_by_human: []
 gift_card.enter_code:
   context: Label for gift card code input field
@@ -1170,6 +1244,7 @@ gift_card.enter_code:
   th: ใส่รหัสบัตรของขวัญ
   cs: Zadejte kód dárkové karty
   sv: Ange presentkortskod
+  he: הזנת קוד כרטיס מתנה
   verified_by_human: []
 gift_card.redeem:
   context: Button to redeem gift card code
@@ -1193,6 +1268,7 @@ gift_card.redeem:
   th: ใช้รหัส
   cs: Vyměnit kód
   sv: Lösa in kod
+  he: מימוש קוד
   verified_by_human: []
 gift_card.cancel:
   context: Button to cancel gift card redemption and return to credit selection
@@ -1216,6 +1292,7 @@ gift_card.cancel:
   th: ยกเลิก
   cs: Zrušit
   sv: Avbryt
+  he: ביטול
   verified_by_human: []
 gift_card.success:
   context: Success message after redeeming gift card
@@ -1239,6 +1316,7 @@ gift_card.success:
   th: แลกบัตรของขวัญสำเร็จแล้ว
   cs: Dárková karta byla úspěšně vyměněna
   sv: Presentkortet har lösts in framgångsrikt
+  he: כרטיס המתנה מומש בהצלחה
   verified_by_human: []
 gift_card.error.invalid:
   context: Error message for invalid or already redeemed gift card code
@@ -1262,6 +1340,7 @@ gift_card.error.invalid:
   th: รหัสบัตรของขวัญไม่ถูกต้องหรือถูกใช้ไปแล้ว
   cs: Neplatný kód dárkové karty nebo kód již byl vyměněn
   sv: Ogiltig presentkortskod eller koden har redan lösts in
+  he: קוד כרטיס המתנה אינו תקין או שכבר מומש
   verified_by_human: []
 gift_card.placeholder:
   context: Placeholder text for gift card code input field
@@ -1285,6 +1364,31 @@ gift_card.placeholder:
   th: ใส่รหัสบัตรของขวัญของคุณ
   cs: Zadejte kód vaší dárkové karty
   sv: Ange din presentkortskod
+  he: הזן את קוד כרטיס המתנה שלך
+  verified_by_human: []
+credits_total:
+  context: Label for total credit balance on purchase confirmation screen (e.g. "1,500 credits total")
+  en: credits total
+  de: Credits insgesamt
+  zh: 总积分
+  es: créditos en total
+  fr: crédits au total
+  pt: créditos no total
+  ru: кредитов всего
+  ja: クレジット合計
+  ko: 크레딧 합계
+  it: crediti totali
+  tr: toplam kredi
+  vi: tổng tín dụng
+  id: total kredit
+  pl: kredytów łącznie
+  nl: credits totaal
+  ar: إجمالي الاعتمادات
+  hi: कुल क्रेडिट
+  th: เครดิตทั้งหมด
+  cs: kreditů celkem
+  sv: krediter totalt
+  he: "סה\"כ קרדיטים"
   verified_by_human: []
 done:
   context: Button to close confirmation and return to billing
@@ -1308,6 +1412,7 @@ done:
   th: เสร็จสิ้น
   cs: Hotovo
   sv: Klar
+  he: סיום
   verified_by_human: []
 invoices:
   context: Invoices menu item
@@ -1331,6 +1436,7 @@ invoices:
   th: ใบแจ้งหนี้
   cs: Faktury
   sv: Fakturor
+  he: חשבוניות
   verified_by_human: []
 invoices_description:
   context: Invoices page description
@@ -1354,6 +1460,7 @@ invoices_description:
   th: ดูและดาวน์โหลดใบแจ้งหนี้การชำระเงินของคุณ
   cs: Zobrazit a stáhnout vaše platební faktury
   sv: Visa och ladda ner dina betalningsfakturor
+  he: צפה והורד את חשבוניות התשלום שלך
   verified_by_human: []
 invoices_download:
   context: Invoices download button text
@@ -1377,6 +1484,7 @@ invoices_download:
   th: ดาวน์โหลด
   cs: Stáhnout
   sv: Ladda ner
+  he: הורדה
   verified_by_human: []
 invoices_loading:
   context: Loading message for invoices
@@ -1400,6 +1508,7 @@ invoices_loading:
   th: กำลังโหลดใบแจ้งหนี้...
   cs: Načítání faktur...
   sv: Laddar fakturor...
+  he: טוען חשבוניות...
   verified_by_human: []
 invoices_downloading:
   context: Downloading invoice message
@@ -1423,6 +1532,7 @@ invoices_downloading:
   th: กำลังดาวน์โหลดใบแจ้งหนี้...
   cs: Stahuje fakturu...
   sv: Laddar ner faktura...
+  he: מוריד חשבונית...
   verified_by_human: []
 invoices_download_success:
   context: Success message after downloading invoice
@@ -1446,6 +1556,7 @@ invoices_download_success:
   th: ใบแจ้งหนี้ถูกดาวน์โหลดสำเร็จ
   cs: Faktura byla úspěšně stažena
   sv: Faktura har laddats ner framgångsrikt
+  he: החשבונית הורדה בהצלחה
   verified_by_human: []
 invoices_download_error:
   context: Error message after failing to download invoice
@@ -1469,6 +1580,7 @@ invoices_download_error:
   th: ไม่สามารถโหลดใบแจ้งหนี้ได้ โปรดลองอีกครั้ง.
   cs: Stáhnout fakturu se nezdařilo. Zkuste to znovu.
   sv: Misslyckades med att ladda ner faktura. Försök igen.
+  he: הורדת החשבונית נכשלה. יש לנסות שוב.
   verified_by_human: []
 invoices_refund:
   context: Button text for requesting refund
@@ -1492,6 +1604,7 @@ invoices_refund:
   th: การคืนเงิน
   cs: Náhrada
   sv: Återbetalning
+  he: החזר כספי
   verified_by_human: []
 invoices_refund_tooltip:
   context: Tooltip for refund button
@@ -1515,6 +1628,7 @@ invoices_refund_tooltip:
   th: ขอคืนเงินสำหรับเครดิตที่ยังไม่ได้ใช้ (ภายใน 14 วัน)
   cs: Požádat o náhradu za nevyužité kredity (do 14 dnů)
   sv: Begär återbetalning för oanvända krediter (inom 14 dagar)
+  he: בקש החזר כספי עבור קרדיטים שלא נוצלו (תוך 14 ימים)
   verified_by_human: []
 invoices_refund_processing:
   context: Message shown while processing refund
@@ -1538,6 +1652,7 @@ invoices_refund_processing:
   th: กำลังประมวลผลคำขอคืนเงิน...
   cs: Zpracování žádosti o náhradu...
   sv: Bearbetar återbetalningsbegäran...
+  he: מעבד בקשת החזר כספי...
   verified_by_human: []
 invoices_refund_success:
   context: Success message after refund is processed
@@ -1561,6 +1676,7 @@ invoices_refund_success:
   th: การคืนเงินได้รับการประมวลผลสำเร็จ
   cs: Náhrada byla úspěšně zpracována
   sv: Återbetalningen bearbetades framgångsrikt
+  he: ההחזר הכספי בוצע בהצלחה
   verified_by_human: []
 invoices_refund_error:
   context: Error message after refund fails
@@ -1584,6 +1700,7 @@ invoices_refund_error:
   th: ไม่สามารถประมวลผลการคืนเงินได้ โปรดลองอีกครั้ง
   cs: Zpracování náhrady se nezdařilo. Zkuste to znovu.
   sv: Bearbetning av återbetalning misslyckades. Försök igen.
+  he: עיבוד ההחזר הכספי נכשל. יש לנסות שוב.
   verified_by_human: []
 invoices_refunded_on:
   context: Text shown when invoice has been refunded, followed by the refund date
@@ -1607,6 +1724,7 @@ invoices_refunded_on:
   th: คืนเงินเมื่อ
   cs: Vráceno dne
   sv: Återbetalad den
+  he: הוחזר בתאריך
   verified_by_human: []
 invoices.description:
   context: Invoices page description
@@ -1630,6 +1748,7 @@ invoices.description:
   th: ดูและดาวน์โหลดใบแจ้งหนี้การชำระเงินของคุณ
   cs: Zobrazit a stáhnout vaše platební faktury
   sv: Visa och ladda ner dina betalningsfakturor
+  he: צפה והורד את חשבוניות התשלום שלך
   verified_by_human: []
 invoices.loading:
   context: Loading message for invoices
@@ -1653,6 +1772,7 @@ invoices.loading:
   th: กำลังโหลดใบแจ้งหนี้...
   cs: Načítání faktur...
   sv: Laddar fakturor...
+  he: טוען חשבוניות...
   verified_by_human: []
 invoices.error_loading:
   context: Error message when failing to load invoices
@@ -1676,6 +1796,7 @@ invoices.error_loading:
   th: ไม่สามารถโหลดใบแจ้งหนี้ได้ โปรดลองอีกครั้ง
   cs: Načítání faktur se nezdařilo. Zkuste to znovu.
   sv: Misslyckades med att ladda fakturor. Försök igen.
+  he: טעינת החשבוניות נכשלה. יש לנסות שוב.
   verified_by_human: []
 invoices_no_invoices_title:
   context: Title when no invoices are available
@@ -1699,6 +1820,7 @@ invoices_no_invoices_title:
   th: ยังไม่มีใบแจ้งหนี้
   cs: Zatím žádné faktury
   sv: Inga fakturor än
+  he: אין עדיין חשבוניות
   verified_by_human: []
 invoices_no_invoices_description:
   context: Description when no invoices are available
@@ -1722,6 +1844,7 @@ invoices_no_invoices_description:
   th: ใบแจ้งหนี้ของคุณจะปรากฏที่นี่หลังจากคุณซื้อครั้งแรก
   cs: Vaše faktury se zde zobrazí po prvním nákupu.
   sv: Dina fakturor kommer att visas här efter ditt första köp.
+  he: החשבוניות שלך יופיעו כאן לאחר ביצוע הרכישה הראשונה.
   verified_by_human: []
 invoices.no_invoices_title:
   context: Title when no invoices are available
@@ -1745,6 +1868,7 @@ invoices.no_invoices_title:
   th: ยังไม่มีใบแจ้งหนี้
   cs: Zatím žádné faktury
   sv: Inga fakturor än
+  he: אין עדיין חשבוניות
   verified_by_human: []
 invoices.no_invoices_description:
   context: Description when no invoices are available
@@ -1768,6 +1892,7 @@ invoices.no_invoices_description:
   th: ใบแจ้งหนี้ของคุณจะปรากฏที่นี่หลังจากคุณซื้อครั้งแรก
   cs: Vaše faktury se zde zobrazí po prvním nákupu.
   sv: Dina fakturor kommer att visas här efter ditt första köp.
+  he: החשבוניות שלך יופיעו כאן לאחר ביצוע הרכישה הראשונה.
   verified_by_human: []
 invoices.download:
   context: Download invoice button text
@@ -1791,6 +1916,7 @@ invoices.download:
   th: ดาวน์โหลด
   cs: Stáhnout
   sv: Ladda ner
+  he: הורדה
   verified_by_human: []
 invoices.download_invoice:
   context: Download invoice button tooltip
@@ -1814,6 +1940,7 @@ invoices.download_invoice:
   th: ดาวน์โหลด PDF ใบแจ้งหนี้
   cs: Stáhnout PDF faktury
   sv: Ladda ner faktura PDF
+  he: הורד חשבונית בפורמט PDF
   verified_by_human: []
 invoices_download_invoice:
   context: Download invoice button text
@@ -1837,6 +1964,7 @@ invoices_download_invoice:
   th: ดาวน์โหลดใบแจ้งหนี้
   cs: Stáhnout fakturu
   sv: Ladda ner faktura
+  he: הורד חשבונית
   verified_by_human: []
 invoices.downloading:
   context: Message shown while downloading invoice
@@ -1860,6 +1988,7 @@ invoices.downloading:
   th: กำลังดาวน์โหลดใบแจ้งหนี้...
   cs: Stahování faktury...
   sv: Laddar ner faktura...
+  he: מוריד חשבונית...
   verified_by_human: []
 invoices.download_success:
   context: Success message after downloading invoice
@@ -1883,6 +2012,7 @@ invoices.download_success:
   th: ดาวน์โหลดใบแจ้งหนี้สำเร็จแล้ว
   cs: Faktura byla úspěšně stažena
   sv: Fakturan laddades ner framgångsrikt
+  he: החשבונית הורדה בהצלחה
   verified_by_human: []
 invoices.download_error:
   context: Error message when downloading invoice fails
@@ -1906,6 +2036,7 @@ invoices.download_error:
   th: ไม่สามารถดาวน์โหลดใบแจ้งหนี้ได้ โปรดลองอีกครั้ง
   cs: Stažení faktury se nezdařilo. Zkuste to znovu.
   sv: Misslyckades med att ladda ner fakturan. Försök igen.
+  he: הורדת החשבונית נכשלה. יש לנסות שוב.
   verified_by_human: []
 invoices_gift_card_badge:
   context: Badge label for gift card invoices
@@ -1929,6 +2060,7 @@ invoices_gift_card_badge:
   th: บัตรของขวัญ
   cs: Dárkový Poukaz
   sv: Presentkort
+  he: כרטיס מתנה
   verified_by_human: []
 invoices_download_credit_note:
   context: Button text for downloading credit note
@@ -1952,6 +2084,7 @@ invoices_download_credit_note:
   th: ดาวน์โหลดใบลดหนี้
   cs: Stáhnout Dobropis
   sv: Ladda ner Kreditnota
+  he: הורד חשבונית זיכוי
   verified_by_human: []
 invoices_downloading_credit_note:
   context: Message shown while downloading credit note
@@ -1975,6 +2108,7 @@ invoices_downloading_credit_note:
   th: กำลังดาวน์โหลดใบลดหนี้...
   cs: Stahování dobropisu...
   sv: Laddar ner kreditnota...
+  he: מוריד חשבונית זיכוי...
   verified_by_human: []
 invoices_credit_note_generating:
   context: Message shown while credit note PDF is being generated
@@ -1998,6 +2132,7 @@ invoices_credit_note_generating:
   th: กำลังสร้างใบลดหนี้...
   cs: Generování dobropisu...
   sv: Genererar kreditnota...
+  he: מפיק חשבונית זיכוי...
   verified_by_human: []
 invoices_download_credit_note_success:
   context: Success message after downloading credit note
@@ -2021,6 +2156,7 @@ invoices_download_credit_note_success:
   th: ดาวน์โหลดใบลดหนี้สำเร็จแล้ว
   cs: Dobropis byl úspěšně stažen
   sv: Kreditnotan laddades ner framgångsrikt
+  he: חשבונית הזיכוי הורדה בהצלחה
   verified_by_human: []
 invoices_download_credit_note_error:
   context: Error message when downloading credit note fails
@@ -2044,6 +2180,7 @@ invoices_download_credit_note_error:
   th: ไม่สามารถดาวน์โหลดใบลดหนี้ได้ โปรดลองอีกครั้ง
   cs: Stažení dobropisu se nezdařilo. Zkuste to znovu.
   sv: Misslyckades med att ladda ner kreditnotan. Försök igen.
+  he: הורדת הזיכוי נכשלה. יש לנסות שוב.
   verified_by_human: []
 
 invoices_refund_not_eligible:
@@ -2068,6 +2205,7 @@ invoices_refund_not_eligible:
   th: ใบแจ้งหนี้นี้ไม่สามารถคืนเงินได้
   cs: Tato faktura není způsobilá k náhradě
   sv: Denna faktura är inte berättigad till återbetalning
+  he: חשבונית זו אינה זכאית להחזר
   verified_by_human: []
 
 invoices_refund_not_found:
@@ -2092,6 +2230,7 @@ invoices_refund_not_found:
   th: ไม่พบใบแจ้งหนี้
   cs: Faktura nebyla nalezena
   sv: Fakturan hittades inte
+  he: החשבונית לא נמצאה
   verified_by_human: []
 auto_topup_intro:
   context: Introductory text for auto top-up setup
@@ -2115,6 +2254,7 @@ auto_topup_intro:
   th: ต้องการประหยัดเวลา?<br><strong>พิจารณาเปิดใช้งานการเติมเงินอัตโนมัติ:</strong>
   cs: Chcete ušetřit čas?<br><strong>Zvažte aktivaci automatického dobíjení:</strong>
   sv: Vill du spara tid?<br><strong>Överväg att aktivera automatisk påfyllning:</strong>
+  he: "רוצה לחסוך זמן?<br><strong>כדאי להפעיל טעינה אוטומטית:</strong>"
   verified_by_human: []
 auto_topup_low_balance_description:
   context: Description text for low balance auto top-up option
@@ -2138,6 +2278,7 @@ auto_topup_low_balance_description:
   th: "เมื่อเครดิตต่ำกว่า {lowbalancethreshold}:<br>{credits} เครดิตในราคา {price}"
   cs: "Jakmile kredity klesnou pod {lowbalancethreshold}:<br>{credits} kreditů za {price}."
   sv: "När krediter understiger {lowbalancethreshold}:<br>{credits} krediter för {price}."
+  he: "ברגע שהקרדיטים יורדים מתחת ל-{lowbalancethreshold}:<br>{credits} קרדיטים ב-{price}."
   verified_by_human: []
 auto_topup_monthly_description:
   context: Description text for monthly auto top-up option
@@ -2161,6 +2302,7 @@ auto_topup_monthly_description:
   th: "{credits} เครดิตในราคา {price}"
   cs: "{credits} kreditů za {price}"
   sv: "{credits} krediter för {price}"
+  he: "{credits} קרדיטים ב-{price}"
   verified_by_human: []
 auto_topup_bonus_credits:
   context: Bonus credits text for monthly auto top-up
@@ -2184,6 +2326,7 @@ auto_topup_bonus_credits:
   th: รวม {bonuscredits} เครดิตฟรี!
   cs: Včetně {bonuscredits} bezplatných kreditů!
   sv: Inkl. {bonuscredits} gratis krediter!
+  he: "כולל {bonuscredits} קרדיטים בחינם!"
   verified_by_human: []
 auto_topup_payment_method_error:
   context: Error message when payment method could not be saved
@@ -2207,6 +2350,13 @@ auto_topup_payment_method_error:
   th: ไม่สามารถบันทึกวิธีการชำระเงินได้ การเติมเงินอัตโนมัติรายเดือนไม่พร้อมใช้งาน คุณสามารถตั้งค่านี้ได้ภายหลังในการตั้งค่า
   cs: Platební metodu se nepodařilo uložit. Měsíční automatické dobíjení není k dispozici. Můžete to nastavit později v nastavení.
   sv: Betalningsmetoden kunde inte sparas. Månadsvis automatisk påfyllning är inte tillgänglig. Du kan ställa in detta senare i inställningarna.
+  he: לא ניתן היה לשמור את אמצעי התשלום. טעינה אוטומטית חודשית אינה זמינה. ניתן להגדיר זאת מאוחר יותר בהגדרות.
+  verified_by_human: []
+buy_credits_explainer:
+  context: Short explainer text shown above credit tier options on the Buy Credits page
+  en: Credits are used when you chat with your digital team mates and use app skills.
+  ar: تُستخدم الاعتمادات عند الدردشة مع رفاقك الرقميين واستخدام مهارات التطبيق.
+  he: "הקרדיטים משמשים לצ'אט עם חברי הצוות הדיגיטליים שלך ולשימוש ביכולות האפליקציה."
   verified_by_human: []
 insufficient_credits_error:
   context: Error message when user doesn't have enough credits to complete a request
@@ -2230,6 +2380,7 @@ insufficient_credits_error:
   th: คุณไม่มีเครดิตเพียงพอที่จะดำเนินการคำขอนี้ โปรดซื้อเครดิตเพิ่มเติมหรือเปิดใช้งานการเติมเงินอัตโนมัติด้วยวิธีการชำระเงินที่ถูกต้อง
   cs: Nemáte dostatek kreditů k dokončení tohoto požadavku. Prosím, kupte více kreditů nebo aktivujte automatické dobíjení s platnou platební metodou.
   sv: Du har inte tillräckligt med krediter för att slutföra denna begäran. Vänligen köp fler krediter eller aktivera automatisk påfyllning med en giltig betalningsmetod.
+  he: אין לך מספיק קרדיטים להשלמת הבקשה הזו. יש לרכוש קרדיטים נוספים או להפעיל טעינה אוטומטית עם אמצעי תשלום תקף.
   verified_by_human: []
 auto_topup_settings_help:
   context: Help text about changing auto top-up settings
@@ -2253,9 +2404,29 @@ auto_topup_settings_help:
   th: ในการตั้งค่า/การเรียกเก็บเงิน คุณสามารถเปลี่ยนการตั้งค่าการเติมเงินอัตโนมัติได้ตลอดเวลา
   cs: V Nastavení/Fakturace můžete kdykoli změnit nastavení automatického dobíjení.
   sv: I Inställningar/Fakturering kan du ändra inställningarna för automatisk påfyllning när som helst.
+  he: "ב'הגדרות/חיוב' ניתן לשנות את הגדרות הטעינה האוטומטית בכל עת."
   verified_by_human: []
 invoices_error_loading:
   context: Error message when fetching invoices fails
   en: Error loading invoices
   de: Fehler beim Laden der Rechnungen
+  zh: 加载发票时出错
+  es: Error al cargar las facturas
+  fr: Erreur lors du chargement des factures
+  pt: Erro ao carregar faturas
+  ru: Ошибка загрузки счетов
+  ja: 請求書の読み込みエラー
+  ko: 청구서 로딩 오류
+  it: Errore nel caricamento delle fatture
+  tr: Faturalar yüklenirken hata oluştu
+  vi: Lỗi tải hóa đơn
+  id: Gagal memuat faktur
+  pl: Błąd ładowania faktur
+  nl: Fout bij het laden van facturen
+  ar: خطأ في تحميل الفواتير
+  hi: चालान लोड करने में त्रुटि
+  th: เกิดข้อผิดพลาดในการโหลดใบแจ้งหนี้
+  cs: Chyba při načítání faktur
+  sv: Fel vid laddning av fakturor
+  he: שגיאה בטעינת חשבוניות
   verified_by_human: []

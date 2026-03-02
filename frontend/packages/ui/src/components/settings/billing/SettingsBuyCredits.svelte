@@ -5,7 +5,7 @@ Buy Credits - Credit tier selection
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
-    import { pricingTiers } from '../../../config/pricing';
+    import { pricingTiers, type PricingTier } from '../../../config/pricing';
     import SettingsItem from '../../SettingsItem.svelte';
     import { selectedTierStore } from './SettingsBuyCreditsPayment.svelte';
 
@@ -23,20 +23,20 @@ Buy Credits - Credit tier selection
         const symbols: Record<string, string> = {
             'EUR': '€',
             'USD': '$',
-            'JPY': '¥'
         };
-        const symbol = symbols[currency.toUpperCase()] || '€';
-        return currency.toUpperCase() === 'JPY' ? `${symbol}${amount}` : `${symbol}${amount}`;
+        const symbol = symbols[currency.toUpperCase()] || currency.toUpperCase();
+        return `${symbol}${amount}`;
     }
 
     // Helper to get price for a tier in selected currency
-    function getTierPrice(tier: any): number {
-        const currencyKey = selectedCurrency.toLowerCase() as 'eur' | 'usd' | 'jpy';
+    function getTierPrice(tier: PricingTier): number {
+        const currencyKey = selectedCurrency.toLowerCase() as 'eur' | 'usd';
         return tier.price[currencyKey];
     }
 
     // Navigate to payment view for a specific tier
-    function selectCreditTier(tier: any) {
+    function selectCreditTier(tier: PricingTier) {
+
         const tierIndex = pricingTiers.indexOf(tier);
         // Store the selected tier index
         selectedTierStore.set(tierIndex);
@@ -50,14 +50,26 @@ Buy Credits - Credit tier selection
     }
 </script>
 
+<!-- Explainer: why the user needs credits -->
+<p class="credits-explainer">{$text('settings.billing.buy_credits_explainer')}</p>
+
 <!-- Credit Tier Selection as Menu Items -->
 {#each pricingTiers as tier}
     <SettingsItem
         type="submenu"
-        icon="subsetting_icon subsetting_icon_coins"
-        title={formatCredits(tier.credits)}
+        icon="subsetting_icon coins"
+        title="{formatCredits(tier.credits)} {$text('settings.billing.credits')}"
         subtitle={formatCurrency(getTierPrice(tier), selectedCurrency)}
         onClick={() => selectCreditTier(tier)}
     />
 {/each}
 
+<style>
+    .credits-explainer {
+        font-size: 0.85rem;
+        color: var(--color-text-muted);
+        padding: 12px 16px 4px;
+        margin: 0;
+        line-height: 1.4;
+    }
+</style>

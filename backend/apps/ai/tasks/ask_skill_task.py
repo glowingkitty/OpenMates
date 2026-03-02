@@ -795,6 +795,18 @@ async def _async_process_ai_skill_ask_task(
             logger.error(f"[Task ID: {task_id}] CacheService instance is not available. Cannot proceed with preprocessing credit check.")
             raise RuntimeError("CacheService not available for preprocessing.")
 
+        # Build the preprocessing stream channel so the preprocessor can emit real-time step events.
+        # Channel format: preprocessing_stream::{user_id_hash}
+        # The frontend WebSocket listener subscribes to this channel via user_id_hash.
+        # is_new_chat is True when the chat has no title yet (first message in a new chat).
+        # This drives whether the "Generating chat title..." step is shown.
+        preprocessing_stream_channel = (
+            f"preprocessing_stream::{request_data.user_id_hash}"
+            if request_data.user_id_hash and not request_data.is_external
+            else None
+        )
+        is_new_chat_for_preprocessing = not request_data.chat_has_title
+
         preprocessing_result = await handle_preprocessing(
             request_data=request_data, # This now contains chat_has_title boolean flag from the client
             skill_config=skill_config,
@@ -805,7 +817,9 @@ async def _async_process_ai_skill_ask_task(
             encryption_service=encryption_service_instance, # Passed for reuse
             user_app_settings_and_memories_metadata=user_app_memories_metadata,
             discovered_apps_metadata=discovered_apps_metadata,  # Pass discovered apps for tool preselection
-            user_overrides=user_overrides  # Pass user overrides from @ mentioning syntax
+            user_overrides=user_overrides,  # Pass user overrides from @ mentioning syntax
+            preprocessing_stream_channel=preprocessing_stream_channel,  # Channel for real-time step streaming
+            is_new_chat=is_new_chat_for_preprocessing  # Whether title generation step applies
         )
 
         # --- Cache debug data for preprocessing stage ---
@@ -862,11 +876,12 @@ async def _async_process_ai_skill_ask_task(
                     encryption_service=encryption_service_instance,
                     task_id=task_id,
                     chat_id=request_data.chat_id,
+                    user_id=request_data.user_id,
                     stage="preprocessor",
                     input_data=preprocessor_input,
                     output_data=preprocessor_output,
                 )
-                logger.debug(f"[Task ID: {task_id}] Cached preprocessor debug data (full content)")
+                logger.debug(f"[Task ID: {task_id}] Cached preprocessor debug data (admin only)")
         except Exception as e_debug:
             # Don't fail the task if debug caching fails - just log the error
             logger.warning(f"[Task ID: {task_id}] Failed to cache preprocessor debug data (non-fatal): {e_debug}")
@@ -877,6 +892,17 @@ async def _async_process_ai_skill_ask_task(
     except Exception as e:
         logger.error(f"[Task ID: {task_id}] Error during preprocessing: {e}", exc_info=True)
         raise RuntimeError(f"Preprocessing failed: {e}")
+
+    # --- User override: start focus mode from @focus:app_id:focus_id ---
+    # When the user explicitly mentions exactly one focus mode, set it as active for this request
+    # so the main processor injects the focus prompt and the model runs in that focus.
+    if user_overrides and len(user_overrides.focus_modes) == 1:
+        app_id, focus_id = user_overrides.focus_modes[0]
+        requested_focus_id = f"{app_id}-{focus_id}"
+        request_data.active_focus_id = requested_focus_id
+        logger.info(
+            f"[Task ID: {task_id}] USER_OVERRIDE: Set active_focus_id from @focus to '{requested_focus_id}' for this request."
+        )
 
     # --- Billing preflight validation ---
     # Ensure that we have pricing info configured for the selected provider/model BEFORE we start streaming.
@@ -931,9 +957,15 @@ async def _async_process_ai_skill_ask_task(
     # Title and metadata will be sent via ai_typing_started event below
 
     # --- Notify client that main processing (typing) is starting ---
-    # Note: We now send typing indicator for both successful and harmful content cases
-    # since harmful content gets processed through the stream consumer with a predefined response
-    if preprocessing_result and cache_service_instance:
+    # Note: We send typing indicator for successful and harmful content cases
+    # since harmful content gets processed through the stream consumer with a predefined response.
+    # SKIP for insufficient_credits: these generate a system notice (not an assistant response),
+    # so showing a typing indicator would misleadingly look like a regular assistant is responding.
+    should_send_typing = (
+        preprocessing_result.rejection_reason != "insufficient_credits"
+        and preprocessing_result.rejection_reason != "internal_error_llm_preprocessing_failed"
+    ) if preprocessing_result else True
+    if preprocessing_result and cache_service_instance and should_send_typing:
         try:
             # Use category from preprocessing_result for typing indicator
             typing_category = preprocessing_result.category or "general_knowledge" # Default if category is None
@@ -1125,9 +1157,10 @@ async def _async_process_ai_skill_ask_task(
     aggregated_final_response: str = ""
     revoked_in_consumer = False
     soft_limited_in_consumer = False
+    thinking_content: list = []  # Accumulated thinking chunks from the stream (for debug cache only)
 
     try:
-        aggregated_final_response, revoked_in_consumer, soft_limited_in_consumer = await _consume_main_processing_stream(
+        aggregated_final_response, revoked_in_consumer, soft_limited_in_consumer, thinking_content = await _consume_main_processing_stream(  # type: ignore[assignment]
             task_id=task_id,
             request_data=request_data,
             preprocessing_result=preprocessing_result,
@@ -1190,23 +1223,28 @@ async def _async_process_ai_skill_ask_task(
                 }
                 
                 # Prepare main processor output data with FULL response
+                thinking_text = "".join(thinking_content) if thinking_content else None
                 main_processor_output = {
                     # FULL AI response for debugging
                     "full_response": aggregated_final_response,
                     "response_length": len(aggregated_final_response) if aggregated_final_response else 0,
                     "revoked_in_consumer": revoked_in_consumer,
                     "soft_limited_in_consumer": soft_limited_in_consumer,
+                    # Thinking content from reasoning models (Gemini, Anthropic) — displayed in separate section
+                    "thinking_content": thinking_text,
+                    "thinking_length": len(thinking_text) if thinking_text else 0,
                 }
                 
                 await cache_service_instance.cache_debug_request_entry(
                     encryption_service=encryption_service_instance,
                     task_id=task_id,
                     chat_id=request_data.chat_id,
+                    user_id=request_data.user_id,
                     stage="main_processor",
                     input_data=main_processor_input,
                     output_data=main_processor_output,
                 )
-                logger.info(f"[Task ID: {task_id}] Cached main_processor debug data (full content)")
+                logger.info(f"[Task ID: {task_id}] Cached main_processor debug data (admin only)")
         except Exception as e_debug:
             # Don't fail the task if debug caching fails - log at ERROR level with full traceback
             logger.error(f"[Task ID: {task_id}] Failed to cache main_processor debug data (non-fatal): {e_debug}", exc_info=True)
@@ -1570,6 +1608,63 @@ async def _async_process_ai_skill_ask_task(
             await cache_service_instance.publish_event(postprocessing_channel, postprocessing_payload)
             logger.info(f"[Task ID: {task_id}] Published post-processing results to Redis channel '{postprocessing_channel}'")
 
+            # --- Cache daily inspiration topic suggestions ---
+            # Store the LLM-generated topic suggestions for later use in personalized daily inspiration generation.
+            # These are cached server-side (rolling 50, 24h TTL) and used by the daily generation job/trigger.
+            # Non-fatal: if caching fails, daily inspiration generation will proceed without personalization.
+            if (
+                postprocessing_result.daily_inspiration_topic_suggestions
+                and request_data.user_id
+                and not getattr(request_data, 'is_incognito', False)
+            ):
+                try:
+                    await cache_service_instance.store_inspiration_topic_suggestions(
+                        user_id=request_data.user_id,
+                        new_suggestions=postprocessing_result.daily_inspiration_topic_suggestions,
+                    )
+                    logger.debug(
+                        f"[Task ID: {task_id}] Stored {len(postprocessing_result.daily_inspiration_topic_suggestions)} "
+                        f"daily inspiration topic suggestions for user {request_data.user_id[:8]}..."
+                    )
+                except Exception as e_topics:
+                    # Non-fatal: daily inspiration personalization is a best-effort feature
+                    logger.warning(
+                        f"[Task ID: {task_id}] Failed to cache daily inspiration topic suggestions "
+                        f"(non-fatal, will not affect main response): {e_topics}"
+                    )
+
+            # --- Trigger first-run daily inspiration generation ---
+            # After the first ever paid request, generate 3 inspirations immediately so the
+            # user sees them on their next app open without waiting for the daily job.
+            # Guarded by a first-run flag in cache to prevent re-triggering on every request.
+            if (
+                request_data.user_id
+                and not getattr(request_data, 'is_incognito', False)
+                and cache_service_instance
+                and secrets_manager
+            ):
+                try:
+                    from backend.core.api.app.tasks.daily_inspiration_tasks import trigger_first_run_inspirations
+                    # Resolve the user's UI language so first-run inspirations are generated
+                    # in their preferred locale (phrases + Brave search localisation).
+                    _inspiration_language = (
+                        request_data.user_preferences.get("language", "en")
+                        if request_data.user_preferences else "en"
+                    ) or "en"
+                    await trigger_first_run_inspirations(
+                        user_id=request_data.user_id,
+                        cache_service=cache_service_instance,
+                        secrets_manager=secrets_manager,
+                        task_id=task_id,
+                        language=_inspiration_language,
+                    )
+                except Exception as e_first_run:
+                    # Non-fatal: daily inspiration generation is a best-effort feature
+                    logger.warning(
+                        f"[Task ID: {task_id}] First-run daily inspiration trigger failed "
+                        f"(non-fatal): {e_first_run}"
+                    )
+
         # --- Cache debug data for postprocessor stage ---
         # This caches the last 10 requests for debugging purposes (encrypted, 30-minute TTL)
         # IMPORTANT: Store FULL content to enable proper debugging of the AI decision process
@@ -1604,11 +1699,12 @@ async def _async_process_ai_skill_ask_task(
                     encryption_service=encryption_service_instance,
                     task_id=task_id,
                     chat_id=request_data.chat_id,
+                    user_id=request_data.user_id,
                     stage="postprocessor",
                     input_data=postprocessor_input,
                     output_data=postprocessor_output,
                 )
-                logger.debug(f"[Task ID: {task_id}] Cached postprocessor debug data (full content)")
+                logger.debug(f"[Task ID: {task_id}] Cached postprocessor debug data (admin only)")
         except Exception as e_debug:
             # Don't fail the task if debug caching fails - just log the error
             logger.warning(f"[Task ID: {task_id}] Failed to cache postprocessor debug data (non-fatal): {e_debug}")
@@ -1679,15 +1775,8 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         self.update_state(state='FAILURE', meta={'exc_type': 'ValidationError', 'exc_message': str(e.errors())})
         raise Ignore()
 
-    # Focus mode continuation: reuse the original task's message_id so that streaming
-    # chunks target the same assistant message (the one containing the focus mode embed).
-    # Without this, a new Celery task_id would create a separate message bubble.
-    if request_data.continuation_message_id:
-        logger.info(
-            f"[Task ID: {task_id}] Focus mode continuation — overriding message_id with "
-            f"original task_id: {request_data.continuation_message_id}"
-        )
-        task_id = request_data.continuation_message_id
+    # Focus mode continuation now creates its own assistant message (this task_id).
+    # Client merges "focus activation" + "continuation" into one bubble for display.
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)

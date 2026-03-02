@@ -1,0 +1,72 @@
+signup_funnel_daily:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+
+    date:
+      type: string
+      length: 10
+      note: "[Unique, Indexed] Date in format 'YYYY-MM-DD'."
+
+    # Signup funnel steps — each counter is incremented at the corresponding backend endpoint.
+    # All are daily totals (how many times that step was reached on this day).
+
+    started_basics:
+      type: integer
+      default: 0
+      note: "Invite code validated (first step of signup). Incremented in auth_password.py."
+
+    email_confirmed:
+      type: integer
+      default: 0
+      note: "Email address confirmed via verification link. Incremented in auth_email.py."
+
+    auth_password_setup:
+      type: integer
+      default: 0
+      note: "Password set up successfully. Incremented in auth_password.py."
+
+    auth_passkey_setup:
+      type: integer
+      default: 0
+      note: "Passkey registered successfully. Incremented in auth_passkey.py."
+
+    recovery_key_saved:
+      type: integer
+      default: 0
+      note: "Recovery key acknowledged/saved. Incremented in auth routes."
+
+    reached_payment:
+      type: integer
+      default: 0
+      note: "User reached the payment step of onboarding."
+
+    payment_completed:
+      type: integer
+      default: 0
+      note: "First payment or gift card redemption completed (signup finished)."
+
+    payment_completed_eu:
+      type: integer
+      default: 0
+      note: "Payments completed from EU countries (for VAT/compliance analysis)."
+
+    payment_completed_non_eu:
+      type: integer
+      default: 0
+      note: "Payments completed from non-EU countries."
+
+    auto_topup_setup:
+      type: integer
+      default: 0
+      note: "Auto top-up (subscription) configured during or after signup."
+
+    created_at:
+      type: timestamp
+      note: "Timestamp when record was created."
+
+    updated_at:
+      type: timestamp
+      note: "Timestamp when record was last updated."

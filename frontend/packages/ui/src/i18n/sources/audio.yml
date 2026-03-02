@@ -20,6 +20,7 @@ playback_progress:
   th: ความคืบหน้าของการเล่นเสียง
   cs: Průběh přehrávání zvuku
   sv: Framsteg för ljuduppspelning
+  he: התקדמות השמעת השמע
   verified_by_human: []
 pause:
   context: Button text for pausing audio playback
@@ -43,6 +44,7 @@ pause:
   th: หยุดชั่วคราว
   cs: Pauza
   sv: Paus
+  he: השהיה
   verified_by_human: []
 play:
   context: Button text for playing audio
@@ -66,4 +68,5 @@ play:
   th: เล่น
   cs: Přehrát
   sv: Spela
+  he: הפעלה
   verified_by_human: []

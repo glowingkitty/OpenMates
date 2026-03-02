@@ -36,6 +36,10 @@ from backend.core.api.app.routes import apps_api  # noqa: E402 # Import apps API
 from backend.core.api.app.routes import creators  # noqa: E402 # Import creators router
 from backend.core.api.app.routes import newsletter  # noqa: E402 # Import newsletter router
 from backend.core.api.app.routes import email_block  # noqa: E402 # Import email block router
+from backend.core.api.app.routes import geocode  # noqa: E402 # Import geocode proxy router (avoids browser CORS/425 on Nominatim)
+from backend.core.api.app.routes import default_inspirations  # noqa: E402 # Import default inspirations public endpoint
+from backend.core.api.app.routes import daily_inspirations_api  # noqa: E402 # Import user daily inspirations persistence endpoints
+from backend.core.api.app.routes import analytics_beacon  # noqa: E402 # Import analytics beacon router (privacy-preserving first-party analytics)
 from backend.core.api.app.services.directus import DirectusService  # noqa: E402
 from backend.core.api.app.services.cache import CacheService  # noqa: E402
 from backend.core.api.app.services.metrics import MetricsService  # noqa: E402
@@ -46,6 +50,7 @@ from backend.core.api.app.services.s3.service import S3UploadService  # noqa: E4
 from backend.core.api.app.services.payment.payment_service import PaymentService  # noqa: E402 # Import PaymentService
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService  # noqa: E402 # Import InvoiceNinjaService
 from backend.core.api.app.services.stripe_product_sync import StripeProductSync  # noqa: E402 # Import StripeProductSync
+from backend.core.api.app.services.polar_product_sync import PolarProductSync  # noqa: E402 # Import PolarProductSync
 from backend.core.api.app.services.translations import TranslationService  # noqa: E402 # Import TranslationService for resolving app metadata translations
 from backend.core.api.app.utils.encryption import EncryptionService  # noqa: E402
 from backend.core.api.app.utils.secrets_manager import SecretsManager  # noqa: E402 # Add import for SecretManager
@@ -78,7 +83,8 @@ from backend.core.api.app.routes.websockets import (  # noqa: E402
     listen_for_ai_typing_indicator_events, # Added import
     listen_for_chat_updates, # Added import
     listen_for_user_updates,
-    listen_for_embed_data_events
+    listen_for_embed_data_events,
+    listen_for_preprocessing_streams,  # Real-time preprocessing step events for animated overview
 )
 
 # Load environment variables
@@ -372,7 +378,15 @@ async def lifespan(app: FastAPI):
         cache_service=app.state.cache_service,
         directus_service=app.state.directus_service
     )
-    
+
+    # Initialize WebAnalyticsService — privacy-preserving first-party analytics.
+    # Stores only aggregate counters in Redis; never persists PII.
+    # See docs/analytics.md for architecture and data collected.
+    from backend.core.api.app.services.web_analytics_service import WebAnalyticsService
+    app.state.web_analytics_service = WebAnalyticsService(
+        cache_service=app.state.cache_service
+    )
+
     # Initialize EmailTemplateService (depends on SecretsManager)
     app.state.email_template_service = EmailTemplateService(secrets_manager=app.state.secrets_manager)
     
@@ -487,7 +501,29 @@ async def lifespan(app: FastAPI):
                 logger.info(f"Restored {restored_deliveries} pending delivery entries from disk backup")
         except Exception as e:
             logger.error(f"Error restoring pending deliveries from disk: {e}", exc_info=True)
-    
+
+    # --- Restore daily inspiration cache from disk backup ---
+    # Recovers topic suggestions and paid-request tracking entries that were persisted
+    # during the last graceful shutdown, so personalisation and eligibility state are
+    # immediately available without waiting for users to chat again.
+    if hasattr(app.state, 'cache_service'):
+        try:
+            restored_inspiration = await app.state.cache_service.restore_inspiration_cache_from_disk()
+            if restored_inspiration > 0:
+                logger.info(f"Restored {restored_inspiration} inspiration cache entries from disk backup")
+        except Exception as e:
+            logger.error(f"Error restoring inspiration cache from disk: {e}", exc_info=True)
+
+    # --- Restore web analytics counters from disk backup ---
+    # Web analytics Redis counters are dumped to disk on graceful shutdown so no
+    # data is lost if the container is restarted mid-flush-cycle.
+    if hasattr(app.state, 'web_analytics_service'):
+        try:
+            await app.state.web_analytics_service.restore_from_disk()
+            logger.info("Web analytics counters restored from disk backup (if any)")
+        except Exception as e:
+            logger.error(f"Error restoring web analytics counters from disk: {e}", exc_info=True)
+
     # --- Preload and cache AI processing configuration files ---
     # This ensures base_instructions and mates_configs are ready in cache before first message arrives
     # This optimization prevents disk I/O on every message processing request
@@ -605,6 +641,14 @@ async def lifespan(app: FastAPI):
         logger.info("Ensuring encryption keys exist...")
         await app.state.encryption_service.ensure_keys_exist()
         logger.info("Encryption service initialized successfully.")
+
+        # Start background Vault token auto-renewal loop.
+        # Renews the token every 7 days so it never expires while the API is running.
+        # The 1-year token TTL means 52 renewals before expiry — each renewal resets the clock.
+        app.state.vault_token_renewal_task = asyncio.create_task(
+            app.state.encryption_service.token_renewal_loop(renewal_interval_days=7.0)
+        )
+        logger.info("Started Vault token auto-renewal background task (interval: 7 days)")
         
         # Validate hosting domain against security policies (prevents self-hosting on restricted domains)
         logger.info("Validating hosting domain against security policies...")
@@ -709,6 +753,31 @@ async def lifespan(app: FastAPI):
             except Exception as sync_error:
                 logger.warning(f"Stripe product synchronization encountered an error: {str(sync_error)}")
                 # Don't fail startup, just log the warning
+            # Synchronize Polar products with pricing configuration (only if Polar is available)
+            if app.state.payment_service._polar_provider is not None:
+                logger.info("Initializing Polar Product Sync service...")
+                try:
+                    polar_product_sync = PolarProductSync(app.state.payment_service._polar_provider)
+                    polar_product_id_map = await polar_product_sync.sync_all_products()
+                    if polar_product_id_map:
+                        app.state.payment_service._polar_provider.set_product_id_map(polar_product_id_map)
+                        logger.info(
+                            f"Polar product synchronization complete. "
+                            f"{len(polar_product_id_map)} product(s) mapped."
+                        )
+                    else:
+                        logger.warning(
+                            "Polar product sync returned an empty map. "
+                            "Polar credit purchases will fail until credentials are set in Vault."
+                        )
+                except Exception as polar_sync_err:
+                    logger.warning(
+                        f"Polar product sync encountered an error: {polar_sync_err}. "
+                        f"Non-EU credit purchases may be unavailable."
+                    )
+            else:
+                logger.info("Skipping Polar product sync (Polar provider not initialized).")
+
         else:
             logger.info("Skipping Payment service initialization (payment disabled - self-hosted mode)")
             app.state.stripe_product_sync = None
@@ -789,13 +858,31 @@ async def lifespan(app: FastAPI):
                         demo_chats = await app.state.directus_service.get_items("demo_chats", params)
                         
                         if demo_chats:
-                            # This warms both the list and individual chat data caches
-                            # ARCHITECTURE: demo_chats from Directus have 'id' (UUID), not 'demo_id'
-                            # The display ID (demo-1, demo-2) is generated based on order
+                            # This warms both the list and individual chat data caches.
+                            # ARCHITECTURE: Use the stored slug as the canonical demo ID
+                            # (e.g. 'demo-planning-a-trip'), matching the /v1/demo/chats route.
+                            # The old positional demo-1/demo-2 format has been replaced.
+                            import re as re_module
+
+                            def _slugify(text: str) -> str:
+                                text = text.lower().strip()
+                                text = re_module.sub(r'[^a-z0-9\s-]', '', text)
+                                text = re_module.sub(r'[\s_-]+', '-', text)
+                                text = text.strip('-')
+                                return f"demo-{text}"
+
                             public_demo_chats = []
                             for idx, demo in enumerate(demo_chats):
                                 demo_uuid = demo["id"]  # UUID from Directus
-                                display_id = f"demo-{idx + 1}"  # Generated display ID
+
+                                # Use the stored slug as the stable ID (same logic as the API route).
+                                # Fall back to auto-generating from title for records without a slug.
+                                stored_slug = demo.get("slug") or ""
+                                if not stored_slug:
+                                    fallback_title = demo.get("title") or f"demo-chat-{idx + 1}"
+                                    stored_slug = _slugify(fallback_title)
+                                    logger.debug(f"Cache warm: demo {demo_uuid} has no slug — using generated fallback: {stored_slug}")
+                                display_id = stored_slug  # slug is the canonical display/chat ID
                                 
                                 # Warm translation cache using UUID
                                 translation = await app.state.directus_service.demo_chat.get_demo_chat_translation_by_uuid(demo_uuid, lang)
@@ -823,9 +910,11 @@ async def lifespan(app: FastAPI):
                                     # Get demo_chat_category (target audience: for_everyone or for_developers)
                                     demo_chat_category = demo.get("demo_chat_category", "for_everyone")
 
-                                    # Add to list with cleartext data
+                                    # Add to list with cleartext data.
+                                    # 'demo_id' equals the slug for backwards compat with frontend code.
                                     public_demo_chats.append({
                                         "demo_id": display_id,
+                                        "slug": display_id,
                                         "uuid": demo_uuid,
                                         "title": title or "Demo Chat",
                                         "summary": summary,
@@ -870,6 +959,7 @@ async def lifespan(app: FastAPI):
 
                                     full_chat_data = {
                                         "demo_id": display_id,
+                                        "slug": display_id,
                                         "title": title,
                                         "summary": summary,
                                         "category": category,
@@ -878,14 +968,14 @@ async def lifespan(app: FastAPI):
                                         "content_hash": demo.get("content_hash", ""),
                                         "follow_up_suggestions": follow_up_suggestions,
                                         "chat_data": {
-                                            "chat_id": display_id,  # Use display_id as chat_id for client
+                                            "chat_id": display_id,  # slug is the stable chat_id for the client
                                             "messages": cleartext_messages,
                                             "embeds": cleartext_embeds,
                                             "encryption_mode": "none"
                                         }
                                     }
                                     
-                                    # Store in cache using display_id as key
+                                    # Store in cache using slug as key
                                     await app.state.directus_service.cache.set_demo_chat_data(display_id, lang, full_chat_data)
 
                             # Store list in cache
@@ -964,11 +1054,24 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Redis Pub/Sub listener for embed data events as a background task...")
     app.state.embed_data_listener_task = asyncio.create_task(listen_for_embed_data_events(app))
 
+    logger.info("Starting Redis Pub/Sub listener for preprocessing step events as a background task...")
+    app.state.preprocessing_stream_listener_task = asyncio.create_task(listen_for_preprocessing_streams(app))
+
     yield  # This is where FastAPI serves requests
     
     # Shutdown logic
     logger.info("Shutting down application...")
     
+    # --- Persist web analytics counters to disk before shutdown ---
+    # Flushes in-Redis aggregate counters to a JSON backup file so no pageview/event
+    # data is lost if the container shuts down between two Celery flush cycles.
+    if hasattr(app.state, 'web_analytics_service'):
+        try:
+            await app.state.web_analytics_service.dump_to_disk()
+            logger.info("Web analytics counters persisted to disk for recovery after restart")
+        except Exception as e:
+            logger.error(f"Error persisting web analytics counters to disk during shutdown: {e}", exc_info=True)
+
     # --- Persist pending payment orders to disk before shutdown ---
     # This ensures payment orders survive restarts and can be restored on next startup
     # Critical for preventing payment data loss when webhook arrives after cache is cleared
@@ -1000,6 +1103,18 @@ async def lifespan(app: FastAPI):
                 logger.info(f"Persisted {dumped_deliveries} pending delivery entries to disk for recovery after restart")
         except Exception as e:
             logger.error(f"Error persisting pending deliveries to disk during shutdown: {e}", exc_info=True)
+
+    # --- Persist daily inspiration cache to disk before shutdown ---
+    # Saves topic suggestions and paid-request tracking so personalisation data and
+    # eligibility state survive a server restart (keys are normally Redis-only with
+    # 48–72h TTL and would be lost on restart without this backup).
+    if hasattr(app.state, 'cache_service'):
+        try:
+            dumped_inspiration = await app.state.cache_service.dump_inspiration_cache_to_disk()
+            if dumped_inspiration > 0:
+                logger.info(f"Persisted {dumped_inspiration} inspiration cache entries to disk for recovery after restart")
+        except Exception as e:
+            logger.error(f"Error persisting inspiration cache to disk during shutdown: {e}", exc_info=True)
     
     # Clean up background tasks
     if hasattr(app.state, 'metrics_task'):
@@ -1292,10 +1407,16 @@ def create_app() -> FastAPI:
     # API routers - explicitly included in schema (support API key authentication)
     from backend.core.api.app.routes import tasks_api
     from backend.core.api.app.routes import embeds_api
+    from backend.core.api.app.routes import profile_api
     app.include_router(settings.router, include_in_schema=True)  # Settings endpoints - some endpoints support API key auth
     app.include_router(apps_api.router, include_in_schema=True)  # Apps API router - uses API key authentication for external API access
     app.include_router(tasks_api.router, include_in_schema=True)  # Tasks API router - uses API key authentication for polling long-running tasks
     app.include_router(embeds_api.router, include_in_schema=True)  # Embeds API router - uses API key authentication for downloading embed files (images, etc.)
+    app.include_router(profile_api.router, include_in_schema=True)  # Profile image API - authenticated proxy for AES-encrypted user profile images
+    app.include_router(geocode.router, include_in_schema=False)  # Geocode proxy router - proxies Nominatim requests server-side to avoid browser CORS/TLS 0-RTT issues
+    app.include_router(default_inspirations.router, include_in_schema=False)  # Default inspirations public endpoint - returns published inspirations for DailyInspirationBanner
+    app.include_router(daily_inspirations_api.router, include_in_schema=False)  # User daily inspirations persistence - save/load/mark-opened for authenticated users
+    app.include_router(analytics_beacon.router, include_in_schema=False)  # Analytics beacon - privacy-preserving first-party aggregate analytics (no PII)
     from backend.core.api.app.routes import usage_api
     app.include_router(usage_api.router, include_in_schema=True)  # Usage API router - supports both session and API key auth
     
@@ -1332,14 +1453,43 @@ def create_app() -> FastAPI:
         from backend.core.api.app.services.cache import CacheService
         import json
         
-        # Get discovered apps from app state (already filtered by stage during startup)
-        # This ensures we only return health status for apps that should be included
+        # Build the set of discovered app IDs from two sources:
+        # 1. app.state.discovered_apps_metadata — populated at API startup (stage-filtered)
+        # 2. discovered_apps_metadata_v1 Redis cache — updated by the periodic health check
+        #    task whenever it re-discovers apps. This catches apps whose containers started
+        #    AFTER the API started (e.g. a newly added app-* service), so they appear in
+        #    /v1/health within one health-check cycle (~1 min) without requiring an API restart.
         discovered_app_ids = set()
         if hasattr(request.app.state, 'discovered_apps_metadata'):
             discovered_app_ids = set(request.app.state.discovered_apps_metadata.keys())
-            logger.debug(f"Health check: Filtering apps by discovered_apps_metadata. Found {len(discovered_app_ids)} app(s): {sorted(discovered_app_ids)}")
+            logger.debug(f"Health check: Loaded {len(discovered_app_ids)} app(s) from app.state: {sorted(discovered_app_ids)}")
         else:
-            logger.warning("Health check: discovered_apps_metadata not found in app.state. All apps from cache will be included.")
+            logger.warning("Health check: discovered_apps_metadata not found in app.state.")
+
+        # Supplement with the Redis cache written by the health check task.
+        # This allows newly-started app containers to be picked up without an API restart.
+        try:
+            _cache_service_tmp = CacheService()
+            _cache_client_tmp = await _cache_service_tmp.client
+            if _cache_client_tmp:
+                _cached_meta_json = await _cache_client_tmp.get("discovered_apps_metadata_v1")
+                if _cached_meta_json:
+                    if isinstance(_cached_meta_json, bytes):
+                        _cached_meta_json = _cached_meta_json.decode("utf-8")
+                    _cached_meta = json.loads(_cached_meta_json)
+                    _cached_ids = set(_cached_meta.keys())
+                    _new_ids = _cached_ids - discovered_app_ids
+                    if _new_ids:
+                        logger.info(
+                            f"Health check: Found {len(_new_ids)} additional app(s) in Redis cache "
+                            f"not present in app.state: {sorted(_new_ids)}. Including them."
+                        )
+                    discovered_app_ids |= _cached_ids
+        except Exception as _e:
+            logger.warning(f"Health check: Could not read discovered_apps_metadata_v1 from Redis: {_e}")
+
+        if discovered_app_ids:
+            logger.debug(f"Health check: Filtering apps by combined discovered set ({len(discovered_app_ids)} app(s)): {sorted(discovered_app_ids)}")
         
         # Get provider, app, and external service health status from cache
         providers_health = {}

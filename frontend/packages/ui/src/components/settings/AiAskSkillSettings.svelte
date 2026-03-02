@@ -4,17 +4,29 @@
      Shows:
      - Description of the skill
      - Pricing (starting at cheapest model)
-     - Auto-select toggle (disabled/greyed out - feature coming later)
+     - Default Models section: auto-select toggle + optional simple/complex model dropdowns
      - Available models list with search and sort
+     
+     **Default Models section**:
+     - Auto-select toggle ON (default): both default model preferences are null → auto-selection runs.
+     - Toggle OFF: two dropdowns appear ("Simple requests" and "Complex requests").
+     - Dropdown options: "Auto" first, then models sorted by tier.
+       Simple: economy first, then standard, then premium.
+       Complex: premium first, then standard, then economy.
+     - Selecting a model: (1) optimistic local update via updateProfile() → IndexedDB,
+       (2) server save via POST /v1/settings/ai-model-defaults → Directus + Redis cache.
+       On server failure, notify the user via notificationStore.error().
+     - Priority: @mention override > user default model > ModelSelector auto-selection.
      
      **Data Flow**:
      - Model metadata from modelsMetadata.ts (generated at build time)
-     - User preferences from userProfile store (disabled_ai_models, disabled_ai_servers)
-     - Changes auto-save by updating userProfile store
+     - User preferences from userProfile store (disabled_ai_models, disabled_ai_servers,
+       default_ai_model_simple, default_ai_model_complex)
+     - Changes auto-save by updating userProfile store + backend via REST
 -->
 
 <script lang="ts">
-    import { createEventDispatcher } from 'svelte';
+    import { createEventDispatcher, onDestroy } from 'svelte';
     import { text } from '@repo/ui';
     import { authStore } from '../../stores/authStore';
     import { userProfile, updateProfile } from '../../stores/userProfile';
@@ -23,17 +35,170 @@
     import SettingsItem from '../SettingsItem.svelte';
     import Toggle from '../Toggle.svelte';
     import Icon from '../Icon.svelte';
+    import SearchSortBar from './SearchSortBar.svelte';
+    import { setAppStoreNavList, clearAppStoreNav } from '../../stores/appStoreNavigationStore';
+    import { appSkillsStore } from '../../stores/appSkillsStore';
+    import { notificationStore } from '../../stores/notificationStore';
+    import { getApiUrl, apiEndpoints } from '../../config/api';
     
     const dispatch = createEventDispatcher();
     
     // --- Auth state ---
     let isAuthenticated = $derived($authStore.isAuthenticated);
-    
+
+    // ─── Sibling skill navigation ─────────────────────────────────────────────
+    //
+    // Register the AI app's full skill list so AppDetailsHeader can show prev/next
+    // arrows when the user opens the AI Ask skill page (app_store/ai/skill/ask).
+    // The navigate callback uses the special 'ai/ask' route for this skill and the
+    // standard skill route for all other AI skills.
+    $effect(() => {
+        const aiApp = appSkillsStore.getState().apps['ai'];
+        const skills = aiApp?.skills ?? [];
+        if (skills.length > 1) {
+            setAppStoreNavList(
+                skills.map(s => ({
+                    id: s.id,
+                    name: s.name_translation_key ? $text(s.name_translation_key) : s.id,
+                })),
+                'ask',
+                (targetSkillId) => {
+                    // The AI Ask skill has its own special route; all other AI skills use the generic route
+                    const path =
+                        targetSkillId === 'ask'
+                            ? 'app_store/ai/skill/ask'
+                            : `app_store/ai/skill/${targetSkillId}`;
+                    dispatch('openSettings', {
+                        settingsPath: path,
+                        direction: 'forward',
+                        icon: 'ai',
+                        title: aiApp?.name_translation_key ? $text(aiApp.name_translation_key) : 'ai',
+                    });
+                },
+            );
+        } else {
+            clearAppStoreNav();
+        }
+    });
+
+    onDestroy(() => {
+        clearAppStoreNav();
+    });
+
     // --- State ---
     let searchQuery = $state('');
     let sortBy = $state<'price' | 'performance' | 'new'>('performance');
-    let showSortDropdown = $state(false);
-    
+
+    // ─── Default Models section ──────────────────────────────────────────────
+    //
+    // "Auto-select" is ON when both default preferences are null/undefined.
+    // When toggled OFF, the two dropdowns become visible and each defaults to "Auto" (null).
+    // The format stored/sent is "provider/model_id" (e.g., "anthropic/claude-haiku-4-5-20251001").
+
+    // Read current defaults from profile — null/undefined both mean "Auto"
+    let defaultSimple = $derived($userProfile.default_ai_model_simple ?? null);
+    let defaultComplex = $derived($userProfile.default_ai_model_complex ?? null);
+
+    // Auto-select is ON when BOTH defaults are null (no overrides set)
+    let autoSelectEnabled = $derived(defaultSimple === null && defaultComplex === null);
+
+    // Ordered lists of ai.ask models for each dropdown
+    // Simple dropdown: economy first, then standard, then premium (cheapest models first)
+    let simpleDropdownModels = $derived.by(() => {
+        const tierOrder: Record<string, number> = { economy: 1, standard: 2, premium: 3 };
+        return modelsMetadata
+            .filter(m => m.for_app_skill === 'ai.ask')
+            .sort((a, b) => (tierOrder[a.tier] ?? 2) - (tierOrder[b.tier] ?? 2) || a.name.localeCompare(b.name));
+    });
+
+    // Complex dropdown: premium first, then standard, then economy (best models first)
+    let complexDropdownModels = $derived.by(() => {
+        const tierOrder: Record<string, number> = { premium: 1, standard: 2, economy: 3 };
+        return modelsMetadata
+            .filter(m => m.for_app_skill === 'ai.ask')
+            .sort((a, b) => (tierOrder[a.tier] ?? 2) - (tierOrder[b.tier] ?? 2) || a.name.localeCompare(b.name));
+    });
+
+    /**
+     * Build the "provider/model_id" string for a model entry.
+     * The provider_id in modelsMetadata corresponds to the backend provider identifier.
+     */
+    function modelToValue(model: AIModelMetadata): string {
+        return `${model.provider_id}/${model.id}`;
+    }
+
+    /**
+     * Save default model preferences to IndexedDB (optimistic) + backend (async).
+     * On backend failure: show error notification — no rollback (local is already saved).
+     */
+    async function saveDefaultModels(
+        newSimple: string | null,
+        newComplex: string | null
+    ): Promise<void> {
+        // Optimistic local update
+        updateProfile({
+            default_ai_model_simple: newSimple,
+            default_ai_model_complex: newComplex,
+        });
+
+        // Persist to server for cross-device sync
+        try {
+            const response = await fetch(getApiUrl() + apiEndpoints.settings.aiModelDefaults, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    default_ai_model_simple: newSimple,
+                    default_ai_model_complex: newComplex,
+                }),
+                credentials: 'include',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.error(
+                    `[AiAskSettings] Failed to save default models: ` +
+                    `${response.status} – ${errorData?.detail ?? 'unknown error'}`
+                );
+                notificationStore.error($text('settings.ai_ask.ai_ask_settings.default_models_save_error'));
+            } else {
+                console.debug('[AiAskSettings] Default models saved successfully.');
+            }
+        } catch (err) {
+            console.error('[AiAskSettings] Network error while saving default models:', err);
+            notificationStore.error($text('settings.ai_ask.ai_ask_settings.default_models_save_error'));
+        }
+    }
+
+    /** Toggle the "Auto-select model" switch. */
+    async function handleAutoSelectToggle(): Promise<void> {
+        if (autoSelectEnabled) {
+            // Turning OFF auto-select: both dropdowns now show, both start at "Auto" (null)
+            // No-op: defaults are already null and the toggle UI will flip to show dropdowns.
+            // We do want to persist null→null explicitly so other devices reflect the intent.
+            await saveDefaultModels(null, null);
+        } else {
+            // Turning ON auto-select: reset both defaults to null
+            await saveDefaultModels(null, null);
+        }
+    }
+
+    /** Called when the Simple Requests dropdown changes. */
+    async function handleSimpleChange(event: Event): Promise<void> {
+        const select = event.target as HTMLSelectElement;
+        const value = select.value === '' ? null : select.value;
+        await saveDefaultModels(value, defaultComplex);
+    }
+
+    /** Called when the Complex Requests dropdown changes. */
+    async function handleComplexChange(event: Event): Promise<void> {
+        const select = event.target as HTMLSelectElement;
+        const value = select.value === '' ? null : select.value;
+        await saveDefaultModels(defaultSimple, value);
+    }
+
     // Get AI Ask models only
     let aiAskModels = $derived(
         modelsMetadata.filter(model => model.for_app_skill === 'ai.ask')
@@ -141,25 +306,12 @@
         });
     }
     
-    function handleSortChange(newSort: 'price' | 'performance' | 'new') {
-        sortBy = newSort;
-        showSortDropdown = false;
-    }
-    
-    function toggleSortDropdown() {
-        showSortDropdown = !showSortDropdown;
-    }
-    
-    function closeSortDropdown() {
-        showSortDropdown = false;
-    }
-    
-    // Get sort label for current sort
-    let sortLabel = $derived({
-        price: $text('settings.ai_ask.ai_ask_settings.sort_by_price'),
-        performance: $text('settings.ai_ask.ai_ask_settings.sort_by_performance'),
-        new: $text('settings.ai_ask.ai_ask_settings.sort_by_new')
-    }[sortBy]);
+    // --- Derived sort options (reactive to language changes) ---
+    let sortOptions = $derived([
+        { value: 'performance', label: $text('settings.ai_ask.ai_ask_settings.sort_by_performance') },
+        { value: 'price',       label: $text('settings.ai_ask.ai_ask_settings.sort_by_price') },
+        { value: 'new',         label: $text('settings.ai_ask.ai_ask_settings.sort_by_new') },
+    ]);
 </script>
 
 <div class="ai-ask-settings">
@@ -172,21 +324,21 @@
     <div class="section">
         <SettingsItem 
             type="heading"
-            icon="credits"
+            icon="coins"
             title={$text('settings.ai_ask.ai_ask_settings.pricing')}
         />
         <div class="pricing-content">
             <p class="pricing-label">{$text('settings.ai_ask.ai_ask_settings.pricing_starting_at')}</p>
             <div class="pricing-details">
                 <div class="pricing-row">
-                    <Icon name="credits" type="subsetting" size="24px" noAnimation={true} />
+                    <Icon name="download" type="subsetting" size="24px" noAnimation={true} />
                     <span class="pricing-type">{$text('settings.ai_ask.ai_ask_settings.input_text')}</span>
                     <span class="pricing-value">
                         1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per')} {cheapestPricing.input} {$text('settings.ai_ask.ai_ask_settings.tokens')}
                     </span>
                 </div>
                 <div class="pricing-row">
-                    <Icon name="credits" type="subsetting" size="24px" noAnimation={true} />
+                    <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
                     <span class="pricing-type">{$text('settings.ai_ask.ai_ask_settings.output_text')}</span>
                     <span class="pricing-value">
                         1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per')} {cheapestPricing.output} {$text('settings.ai_ask.ai_ask_settings.tokens')}
@@ -197,32 +349,84 @@
         </div>
     </div>
     
-    <!-- Settings section - only for authenticated users -->
+    <!-- Default Models section - only for authenticated users -->
     {#if isAuthenticated}
         <div class="section">
             <SettingsItem 
                 type="heading"
                 icon="icon_settings"
-                title={$text('settings.ai_ask.ai_ask_settings.settings')}
+                title={$text('settings.ai_ask.ai_ask_settings.default_models')}
             />
             <div class="settings-content">
+                <!-- Auto-select toggle -->
                 <div class="setting-row">
                     <div class="setting-left">
                         <span class="icon icon_search setting-icon"></span>
                         <span class="setting-label">{$text('settings.ai_ask.ai_ask_settings.auto_select_model')}</span>
                     </div>
                     <div class="setting-right">
-                        <Toggle 
-                            checked={true}
-                            disabled={true}
-                            ariaLabel={$text('settings.ai_ask.ai_ask_settings.auto_select_model')}
-                        />
+                        <!-- pointer-events:none wrapper prevents double-toggle on click -->
+                        <div
+                            onclick={handleAutoSelectToggle}
+                            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleAutoSelectToggle(); } }}
+                            role="button"
+                            tabindex="0"
+                            style="cursor: pointer;"
+                        >
+                            <div style="pointer-events: none;">
+                                <Toggle 
+                                    checked={autoSelectEnabled}
+                                    ariaLabel={$text('settings.ai_ask.ai_ask_settings.auto_select_model')}
+                                />
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <p class="setting-description">
-                    <strong>{$text('settings.ai_ask.ai_ask_settings.auto_select_model')}</strong><br/>
                     {$text('settings.ai_ask.ai_ask_settings.auto_select_description')}
                 </p>
+
+                <!-- Default model dropdowns — shown only when auto-select is OFF -->
+                {#if !autoSelectEnabled}
+                    <div class="default-model-dropdowns">
+                        <!-- Simple requests dropdown -->
+                        <div class="model-dropdown-row">
+                            <label class="model-dropdown-label" for="default-simple-select">
+                                {$text('settings.ai_ask.ai_ask_settings.simple_requests')}
+                            </label>
+                            <select
+                                id="default-simple-select"
+                                class="model-select"
+                                value={defaultSimple ?? ''}
+                                onchange={handleSimpleChange}
+                            >
+                                <option value="">{$text('settings.ai_ask.ai_ask_settings.model_auto')}</option>
+                                {#each simpleDropdownModels as model (model.id)}
+                                    <option value={modelToValue(model)}>{model.name}</option>
+                                {/each}
+                            </select>
+                        </div>
+
+                        <!-- Complex requests dropdown -->
+                        <div class="model-dropdown-row">
+                            <label class="model-dropdown-label" for="default-complex-select">
+                                {$text('settings.ai_ask.ai_ask_settings.complex_requests')}
+                            </label>
+                            <select
+                                id="default-complex-select"
+                                class="model-select"
+                                value={defaultComplex ?? ''}
+                                onchange={handleComplexChange}
+                            >
+                                <option value="">{$text('settings.ai_ask.ai_ask_settings.model_auto')}</option>
+                                {#each complexDropdownModels as model (model.id)}
+                                    <option value={modelToValue(model)}>{model.name}</option>
+                                {/each}
+                            </select>
+                        </div>
+                    </div>
+                {/if}
+
                 <p class="setting-note">
                     {$text('settings.ai_ask.ai_ask_settings.manual_select_note')}
                 </p>
@@ -234,66 +438,19 @@
     <div class="section">
         <SettingsItem 
             type="heading"
-            icon="icon_search"
+            icon="skill"
             title={$text('settings.ai_ask.ai_ask_settings.available_models')}
         />
         <p class="models-description">{$text('settings.ai_ask.ai_ask_settings.models_description')}</p>
         
-        <!-- Search and sort controls -->
+        <!-- Search and sort controls — shared SearchSortBar component -->
         <div class="models-controls">
-            <div class="search-container">
-                <span class="icon icon_search search-icon"></span>
-                <input 
-                    type="text" 
-                    class="search-input"
-                    placeholder={$text('settings.ai_ask.ai_ask_settings.search_placeholder')}
-                    bind:value={searchQuery}
-                />
-            </div>
-            <div class="sort-container">
-                <button 
-                    class="sort-button"
-                    onclick={toggleSortDropdown}
-                    aria-expanded={showSortDropdown}
-                >
-                    <span class="icon icon_sort sort-icon"></span>
-                    <span class="sort-label">{sortLabel}</span>
-                </button>
-                {#if showSortDropdown}
-                    <div class="sort-dropdown" role="menu">
-                        <button 
-                            class="sort-option" 
-                            class:active={sortBy === 'price'}
-                            onclick={() => handleSortChange('price')}
-                            role="menuitem"
-                        >
-                            {$text('settings.ai_ask.ai_ask_settings.sort_by_price')}
-                        </button>
-                        <button 
-                            class="sort-option"
-                            class:active={sortBy === 'performance'}
-                            onclick={() => handleSortChange('performance')}
-                            role="menuitem"
-                        >
-                            {$text('settings.ai_ask.ai_ask_settings.sort_by_performance')}
-                        </button>
-                        <button 
-                            class="sort-option"
-                            class:active={sortBy === 'new'}
-                            onclick={() => handleSortChange('new')}
-                            role="menuitem"
-                        >
-                            {$text('settings.ai_ask.ai_ask_settings.sort_by_new')}
-                        </button>
-                    </div>
-                    <!-- Backdrop to close dropdown when clicking outside -->
-                    <button 
-                        class="sort-backdrop" 
-                        onclick={closeSortDropdown}
-                        aria-label="Close sort menu"
-                    ></button>
-                {/if}
-            </div>
+            <SearchSortBar
+                bind:searchQuery
+                bind:sortBy
+                searchPlaceholder={$text('settings.ai_ask.ai_ask_settings.search_placeholder')}
+                {sortOptions}
+            />
         </div>
         
         <!-- Models list -->
@@ -470,6 +627,62 @@
         font-style: italic;
     }
     
+    /* Default model dropdowns */
+    .default-model-dropdowns {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin: 0.75rem 0 0.5rem 0;
+    }
+
+    .model-dropdown-row {
+        display: flex;
+        flex-direction: column;
+        gap: 0.375rem;
+    }
+
+    .model-dropdown-label {
+        font-size: 0.875rem;
+        color: var(--color-grey-60);
+        font-weight: 500;
+    }
+
+    .model-select {
+        appearance: none;
+        -webkit-appearance: none;
+        background-color: var(--color-grey-10);
+        border: 1px solid var(--color-grey-20);
+        border-radius: 8px;
+        padding: 0.625rem 2rem 0.625rem 0.875rem;
+        font-size: 0.9375rem;
+        color: var(--color-grey-100);
+        cursor: pointer;
+        width: 100%;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        transition: border-color 0.15s, background-color 0.15s;
+    }
+
+    .model-select:hover {
+        border-color: var(--color-grey-40);
+    }
+
+    .model-select:focus {
+        outline: none;
+        border-color: var(--color-primary-start);
+    }
+
+    :global(.dark) .model-select {
+        background-color: var(--color-grey-15);
+        border-color: var(--color-grey-25);
+        color: var(--color-grey-90);
+    }
+
+    :global(.dark) .model-select:hover {
+        border-color: var(--color-grey-50);
+    }
+
     /* Models section */
     .models-description {
         margin: 0.5rem 0 1rem 10px;
@@ -477,122 +690,11 @@
         font-size: 0.875rem;
     }
     
+    /* SearchSortBar is a self-contained component — its styles live in SearchSortBar.svelte */
     .models-controls {
-        display: flex;
-        gap: 1rem;
         margin: 0 0 1rem 10px;
     }
-    
-    .search-container {
-        flex: 1;
-        position: relative;
-        display: flex;
-        align-items: center;
-    }
-    
-    .search-icon {
-        position: absolute;
-        left: 12px;
-        width: 18px;
-        height: 18px;
-        color: var(--color-grey-50);
-        pointer-events: none;
-    }
-    
-    .search-input {
-        width: 100%;
-        padding: 0.625rem 0.75rem 0.625rem 40px;
-        font-size: 0.875rem;
-        border: 1px solid var(--color-grey-20);
-        border-radius: 8px;
-        background: var(--color-grey-10);
-        color: var(--color-grey-100);
-        transition: border-color 0.2s, background 0.2s;
-    }
-    
-    .search-input:focus {
-        outline: none;
-        border-color: var(--color-primary);
-        background: var(--color-background);
-    }
-    
-    .search-input::placeholder {
-        color: var(--color-grey-50);
-    }
-    
-    .sort-container {
-        position: relative;
-    }
-    
-    .sort-button {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.625rem 1rem;
-        font-size: 0.875rem;
-        border: 1px solid var(--color-grey-20);
-        border-radius: 8px;
-        background: var(--color-grey-10);
-        color: var(--color-grey-80);
-        cursor: pointer;
-        transition: border-color 0.2s, background 0.2s;
-    }
-    
-    .sort-button:hover {
-        border-color: var(--color-grey-40);
-        background: var(--color-grey-15);
-    }
-    
-    .sort-icon {
-        width: 16px;
-        height: 16px;
-    }
-    
-    .sort-dropdown {
-        position: absolute;
-        top: 100%;
-        right: 0;
-        margin-top: 4px;
-        min-width: 150px;
-        background: var(--color-grey-blue);
-        border: 1px solid var(--color-grey-20);
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        z-index: 100;
-        overflow: hidden;
-    }
-    
-    .sort-option {
-        display: block;
-        width: 100%;
-        padding: 0.75rem 1rem;
-        font-size: 0.875rem;
-        text-align: left;
-        background: transparent;
-        border: none;
-        color: var(--color-grey-80);
-        cursor: pointer;
-        transition: background 0.15s;
-    }
-    
-    .sort-option:hover {
-        background: var(--color-grey-15);
-    }
-    
-    .sort-option.active {
-        color: var(--color-primary);
-        font-weight: 500;
-    }
-    
-    .sort-backdrop {
-        position: fixed;
-        inset: 0;
-        background: transparent;
-        border: none;
-        cursor: default;
-        z-index: 99;
-    }
-    
+
     /* Models list */
     .models-list {
         display: flex;
@@ -677,43 +779,12 @@
         font-size: 0.875rem;
     }
     
-    /* Dark mode */
-    :global(.dark) .search-input {
-        background: var(--color-grey-15);
-        border-color: var(--color-grey-30);
-    }
-    
-    :global(.dark) .search-input:focus {
-        background: var(--color-grey-10);
-    }
-    
-    :global(.dark) .sort-button {
-        background: var(--color-grey-15);
-        border-color: var(--color-grey-30);
-    }
-    
-    :global(.dark) .sort-dropdown {
-        background: var(--color-grey-10);
-        border-color: var(--color-grey-30);
-    }
-    
+    /* Dark mode overrides for model list items */
     :global(.dark) .model-item:hover {
         background: var(--color-grey-15);
     }
     
     :global(.dark) .provider-logo {
         background: var(--color-grey-20);
-    }
-    
-    /* Responsive */
-    @media (max-width: 600px) {
-        .models-controls {
-            flex-direction: column;
-        }
-        
-        .sort-dropdown {
-            right: auto;
-            left: 0;
-        }
     }
 </style>

@@ -530,16 +530,24 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
                 continue
             
             content_input = msg.get("content", "")
-            # Tool content is already plain text (TOON or JSON), not Tiptap JSON
-            plain_text_content = content_input if isinstance(content_input, str) else str(content_input)
+            # Tool content is either plain text (TOON/JSON) or a list of content blocks
+            # (multimodal tool results from skills like images.view / pdf.view that return
+            # image_url blocks directly). Pass lists through unchanged so downstream
+            # provider adapters (Anthropic, Google) can handle the image blocks properly.
+            plain_text_content: Any = (
+                content_input
+                if isinstance(content_input, (str, list))
+                else str(content_input)
+            )
             
             # Check if this tool result has ignore_fields_for_inference metadata
             # If so, filter the results before sending to LLM (to reduce token usage)
             # This ensures follow-up requests also respect the filtering
             # For example, fields like "type", "hash", "meta_url.favicon", "thumbnail.original" 
             # will be removed from tool results in follow-up requests
+            # NOTE: Skip filtering for multimodal list content (image blocks from view skills)
             ignore_fields_for_inference = msg.get("ignore_fields_for_inference")
-            if ignore_fields_for_inference and plain_text_content:
+            if ignore_fields_for_inference and plain_text_content and isinstance(plain_text_content, str):
                 try:
                     # Import filtering function (lazy import to avoid circular dependency)
                     from backend.apps.ai.processing.main_processor import _filter_skill_results_for_llm
@@ -666,14 +674,14 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
                         except Exception:
                             # If both TOON and JSON decode fail, use content as-is
                             logger.warning(
-                                f"Failed to decode tool result content for filtering (TOON and JSON decode failed). "
-                                f"Using content as-is. This may result in higher token usage."
+                                "Failed to decode tool result content for filtering (TOON and JSON decode failed). "
+                                "Using content as-is. This may result in higher token usage."
                             )
                 except ImportError:
                     # If import fails (circular dependency), use content as-is
                     logger.warning(
-                        f"Could not import _filter_skill_results_for_llm for filtering tool results. "
-                        f"Using content as-is. This may result in higher token usage."
+                        "Could not import _filter_skill_results_for_llm for filtering tool results. "
+                        "Using content as-is. This may result in higher token usage."
                     )
                 except Exception as e:
                     # If filtering fails for any reason, use content as-is
@@ -741,21 +749,44 @@ async def call_preprocessing_llm(
         else:
             tool_desc = tool_desc.replace(app_data_placeholder, "No app settings or memories currently have data for this user.")
 
+        # Build the full set of placeholder→value substitutions so we can apply them
+        # consistently to ALL string fields in the tool definition, not just function.description.
+        all_substitutions: Dict[str, str] = {}
         if dynamic_context:
             for key, value in dynamic_context.items():
-                placeholder = f"{{{key}}}"
                 if isinstance(value, list):
                     # Use newline separation for skill/focus lists that include descriptive hints,
                     # comma separation for simple identifier-only lists (categories, etc.)
                     has_hints = any(": " in str(item) for item in value)
                     separator = "\n" if has_hints else ", "
-                    value_str = separator.join(map(str, value))
+                    all_substitutions[key] = separator.join(map(str, value))
                 else:
-                    value_str = str(value)
-                tool_desc = tool_desc.replace(placeholder, value_str)
+                    all_substitutions[key] = str(value)
+
+        for key, value_str in all_substitutions.items():
+            tool_desc = tool_desc.replace(f"{{{key}}}", value_str)
                 
         current_tool_definition["function"]["description"] = tool_desc
         logger.debug(f"[{task_id}] LLM Utils: Preprocessing tool description updated: {tool_desc[:300]}...")
+
+        # Also substitute placeholders in all parameter property descriptions.
+        # Previously only function.description was substituted, meaning placeholders like
+        # {USER_SYSTEM_LANGUAGE} in parameters.properties.title.description were sent to the
+        # LLM as literal strings — giving it contradictory signals and causing it to ignore the
+        # language instruction and default to the conversation language instead of the UI language.
+        if all_substitutions:
+            props = (
+                current_tool_definition
+                .get("function", {})
+                .get("parameters", {})
+                .get("properties", {})
+            )
+            for _prop_name, prop_def in props.items():
+                if isinstance(prop_def.get("description"), str):
+                    desc = prop_def["description"]
+                    for key, value_str in all_substitutions.items():
+                        desc = desc.replace(f"{{{key}}}", value_str)
+                    prop_def["description"] = desc
     else:
         logger.warning(f"[{task_id}] LLM Utils: Preprocessing tool definition issue. Cannot inject dynamic context. Def: {current_tool_definition}")
 
@@ -839,7 +870,21 @@ async def call_preprocessing_llm(
 
         if response.success and response.tool_calls_made:
             for tool_call in response.tool_calls_made:
-                if tool_call.function_name == expected_tool_name:
+                # Some LLM providers (e.g., Groq) may prefix function names with namespaces like "functions."
+                # We match both exact names and names with common prefixes to handle this
+                function_name = tool_call.function_name
+                name_matches = (
+                    function_name == expected_tool_name or 
+                    function_name == f"functions.{expected_tool_name}" or
+                    function_name.endswith(f".{expected_tool_name}")
+                )
+                
+                if name_matches:
+                    if function_name != expected_tool_name:
+                        logger.debug(
+                            f"[{task_id}] Tool call used prefixed name '{function_name}' "
+                            f"instead of expected '{expected_tool_name}'. Accepting as match."
+                        )
                     if tool_call.parsing_error:
                         err_msg = f"Failed to parse arguments for tool '{expected_tool_name}': {tool_call.parsing_error}"
                         return LLMPreprocessingCallResult(error_message=err_msg, raw_provider_response_summary=current_raw_provider_response_summary)
@@ -1136,6 +1181,8 @@ async def call_main_llm_stream(
         if not error_message:
             return False
         # Non-retryable errors: 401 (auth), 400 (bad request) - these won't be fixed by trying another server
+        # EXCEPTION: "thought signature is not valid" is a special 400 that CAN be fixed by stripping
+        # stale thought signatures and retrying (handled separately via _is_thought_signature_error).
         non_retryable_indicators = ["401", "unauthorized", "bad request", "400"]
         if any(indicator.lower() in error_message.lower() for indicator in non_retryable_indicators):
             return False
@@ -1147,6 +1194,138 @@ async def call_main_llm_stream(
             "connection", "api key", "failed to retrieve", "not found", "http error", "timeouterror"
         ]
         return any(indicator.lower() in error_message.lower() for indicator in retryable_indicators)
+
+    def _is_thought_signature_error(error_message: Optional[str]) -> bool:
+        """Check if the error is the Gemini 'Thought signature is not valid' error.
+
+        This error occurs when a multi-turn Gemini session times out and the
+        thought signatures captured during a previous streaming iteration become
+        stale. It arrives as a 400 status (normally non-retryable), but CAN be
+        recovered by stripping the stale thought_signature fields from the message
+        history and retrying the same provider.
+        """
+        if not error_message:
+            return False
+        return "thought signature" in error_message.lower()
+
+    def _strip_thought_signatures_from_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Return a copy of messages with all thought_signature fields removed.
+
+        Gemini 3 thinking models attach a thought_signature to function call
+        parts so they can be validated in multi-turn sessions. When the session
+        times out the signatures become invalid. Stripping them lets the provider
+        treat the function calls as ordinary (non-thinking) history entries.
+        """
+        stripped = []
+        for msg in messages:
+            msg_copy = dict(msg)
+            if "tool_calls" in msg_copy and isinstance(msg_copy["tool_calls"], list):
+                cleaned_tool_calls = []
+                for tc in msg_copy["tool_calls"]:
+                    tc_copy = dict(tc)
+                    tc_copy.pop("thought_signature", None)
+                    cleaned_tool_calls.append(tc_copy)
+                msg_copy["tool_calls"] = cleaned_tool_calls
+            stripped.append(msg_copy)
+        return stripped
+
+    # Flag: have we already stripped thought signatures and retried for this call?
+    # We only do this once to avoid an infinite retry loop.
+    thought_signatures_stripped = False
+
+    async def _retry_with_stripped_thought_signatures(
+        stripped_messages: List[Dict[str, Any]],
+        retry_servers: List[str],
+    ):
+        """
+        Shared helper for ThoughtSigRetry path.
+
+        Called after a Gemini "Thought signature is not valid" error.
+        Iterates over retry_servers (ordered so that OpenRouter comes first,
+        because Google AI Studio and Vertex AI both reject stripped signatures
+        with a *different* error, while OpenRouter handles them correctly).
+
+        Yields paragraphs from the first server that succeeds; logs and
+        continues to the next server on failure.
+
+        Architecture note: thought_signature errors are a Gemini-specific SDK
+        issue where multi-turn thinking sessions time out and the stale
+        signatures become invalid.  Stripping them turns the call into a
+        non-thinking history entry which OpenRouter accepts.  Trying AI Studio
+        or Vertex first is pointless because they reject stripped signatures.
+        """
+        # Re-order so OpenRouter entries come before native Google servers.
+        # This avoids wasting two round-trips (AI Studio → Vertex) that are
+        # known to fail with a *different* error before reaching OpenRouter.
+        openrouter_servers = [s for s in retry_servers if s.split("/", 1)[0] == "openrouter"]
+        other_servers = [s for s in retry_servers if s.split("/", 1)[0] != "openrouter"]
+        ordered_servers = openrouter_servers + other_servers
+
+        if openrouter_servers:
+            logger.info(
+                f"{log_prefix} [ThoughtSigRetry] Re-ordered server list to try OpenRouter first "
+                f"(OpenRouter handles stripped signatures; Google servers reject them). "
+                f"Order: {[s.split('/')[0] for s in ordered_servers]}"
+            )
+
+        for _retry_server_model_id in ordered_servers:
+            _retry_provider_prefix = (
+                _retry_server_model_id.split("/", 1)[0] if "/" in _retry_server_model_id else ""
+            )
+            _retry_actual_model_id = (
+                _retry_server_model_id.split("/", 1)[1] if "/" in _retry_server_model_id else _retry_server_model_id
+            )
+            _retry_client = _get_provider_client(_retry_provider_prefix)
+            if not _retry_client:
+                logger.warning(
+                    f"{log_prefix} [ThoughtSigRetry] No client for '{_retry_server_model_id}'; skipping."
+                )
+                continue
+            _retry_input = {
+                "task_id": task_id,
+                "model_id": _retry_actual_model_id,
+                "messages": stripped_messages,
+                "temperature": temperature,
+                "tools": sanitized_tools,
+                "tool_choice": tool_choice,
+                "stream": True,
+            }
+            try:
+                logger.info(
+                    f"{log_prefix} [ThoughtSigRetry] Retrying '{_retry_server_model_id}' "
+                    f"without thought signatures."
+                )
+                _retry_stream = await _retry_client(secrets_manager=secrets_manager, **_retry_input)
+                if hasattr(_retry_stream, '__aiter__'):
+                    _first_chunk_to = get_first_chunk_timeout_seconds(is_reasoning=is_reasoning_model)
+                    _inter_chunk_to = get_inter_chunk_timeout_seconds(is_reasoning=is_reasoning_model)
+                    _retry_timeout_stream = stream_with_first_chunk_timeout(
+                        _retry_stream, _first_chunk_to, _inter_chunk_to
+                    )
+                    async for _retry_paragraph in aggregate_paragraphs(_retry_timeout_stream):
+                        yield _retry_paragraph
+                    logger.info(
+                        f"{log_prefix} [ThoughtSigRetry] Retry succeeded on '{_retry_server_model_id}'."
+                    )
+                    return
+                else:
+                    logger.warning(
+                        f"{log_prefix} [ThoughtSigRetry] Expected stream but got "
+                        f"{type(_retry_stream)} from '{_retry_server_model_id}'."
+                    )
+                    continue
+            except Exception as _retry_err:
+                logger.error(
+                    f"{log_prefix} [ThoughtSigRetry] Retry on '{_retry_server_model_id}' "
+                    f"failed: {_retry_err}",
+                    exc_info=True,
+                )
+                continue
+        # All retry servers failed
+        logger.error(
+            f"{log_prefix} [ThoughtSigRetry] All servers failed after stripping thought signatures."
+        )
+        yield "The AI service encountered an error while processing your request. Please try again in a moment."
 
     # Helper function to check provider health from cache
     async def _is_provider_unhealthy(provider_id: str) -> bool:
@@ -1308,6 +1487,23 @@ async def call_main_llm_stream(
             logger.error(f"{attempt_log_prefix} Client or stream error: {e}", exc_info=True)
             last_error = error_msg
             
+            # Special case: Gemini "Thought signature is not valid" — stale signatures after a timeout.
+            # Strip thought_signature fields from the message history and retry via shared helper.
+            # This is a 400-class error so is_retryable_error() returns False, but stripping
+            # the signatures turns it into a recoverable situation.
+            # The helper prefers OpenRouter first because Google AI Studio and Vertex both
+            # reject stripped signatures with a different error.
+            if _is_thought_signature_error(error_msg) and not thought_signatures_stripped:
+                logger.warning(
+                    f"{attempt_log_prefix} Gemini thought signature error detected. "
+                    "Stripping stale thought_signature fields and retrying via shared helper."
+                )
+                llm_api_messages = _strip_thought_signatures_from_messages(llm_api_messages)
+                thought_signatures_stripped = True
+                async for _para in _retry_with_stripped_thought_signatures(llm_api_messages, servers_to_try):
+                    yield _para
+                return
+            
             # Check if error is retryable
             if is_retryable_error(error_msg):
                 logger.warning(f"{attempt_log_prefix} Retryable error detected. Will try next server if available.")
@@ -1326,6 +1522,19 @@ async def call_main_llm_stream(
             error_msg = str(e)
             logger.error(f"{attempt_log_prefix} Unexpected error during main LLM stream: {e}", exc_info=True)
             last_error = error_msg
+            
+            # Special case: Gemini "Thought signature is not valid" (same as ValueError block above)
+            # Delegate to the shared helper which prefers OpenRouter first.
+            if _is_thought_signature_error(error_msg) and not thought_signatures_stripped:
+                logger.warning(
+                    f"{attempt_log_prefix} Gemini thought signature error (unexpected exception). "
+                    "Stripping stale thought_signature fields and retrying via shared helper."
+                )
+                llm_api_messages = _strip_thought_signatures_from_messages(llm_api_messages)
+                thought_signatures_stripped = True
+                async for _para in _retry_with_stripped_thought_signatures(llm_api_messages, servers_to_try):
+                    yield _para
+                return
             
             # Check if error is retryable
             if is_retryable_error(error_msg):

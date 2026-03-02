@@ -1,30 +1,6 @@
-# Claude AI Assistant Instructions
+# OpenMates AI Assistant Instructions
 
-This document consolidates all coding standards, guidelines, and instructions for AI assistants working on the OpenMates codebase.
-
----
-
-## Table of Contents
-
-1. [Project Overview](#project-overview)
-2. [Core Principles](#core-principles)
-3. [Frontend Standards (Svelte/TypeScript)](#frontend-standards-sveltetypescript)
-4. [Backend Standards (Python/FastAPI)](#backend-standards-pythonfastapi)
-5. [Linting and Code Quality](#linting-and-code-quality)
-6. [Git Commit Best Practices](#git-commit-best-practices)
-7. [Debugging Backend Issues](#debugging-backend-issues)
-8. [Debugging Frontend Issues (Client Console Logs)](#debugging-frontend-issues-client-console-logs)
-9. [Server Inspection Scripts](#server-inspection-scripts)
-10. [Testing Policy](#testing-policy)
-11. [Documentation Standards](#documentation-standards)
-12. [Logging and Error Handling](#logging-and-error-handling)
-13. [Internationalization (i18n)](#internationalization-i18n)
-14. [Key Files by Domain](#key-files-by-domain)
-15. [Docker Debug Mode](#docker-debug-mode)
-16. [Frontend Development Workflow](#frontend-development-workflow)
-17. [Auto-Commit and Deployment Workflow](#auto-commit-and-deployment-workflow)
-18. [Branch and Server Mapping](#branch-and-server-mapping)
-19. [Admin Debug CLI (Production Debugging)](#admin-debug-cli-production-debugging)
+This document provides essential guidelines for AI assistants working on the OpenMates codebase. For detailed standards, see the linked documentation in each area.
 
 ---
 
@@ -87,28 +63,223 @@ OpenMates/
 - Explain key architecture decisions in comments
 - Link to relevant architecture docs where appropriate
 
+### Unexpected Failures During a Task (CRITICAL)
+
+If you encounter a failure that is **not directly related to the task you were assigned**
+(e.g. a broken feature you didn't touch, a test failing on something outside your scope):
+
+1. **STOP immediately.** Do not attempt to fix it.
+2. **Check git history first** — did your session or a concurrent session recently touch the broken code?
+   ```bash
+   git log -5 -- <file-that-contains-the-broken-code>
+   ```
+3. **If your session did NOT change the broken code:** report it to the user and ask for instructions. Do not attempt a fix.
+4. **If your session DID change the broken code:** revert your change, verify the revert fixes it, then report what happened and ask how to proceed.
+
+**Never spend more than 2 investigation attempts on a problem outside your assigned scope without explicit user approval to continue.**
+
+### Debugging Attempt Limit (CRITICAL)
+
+If you have tried the **same fix approach 2 times** and it has not worked:
+
+- **STOP.**
+- Summarize what you tried, what the symptoms are, and what you suspect the root cause is.
+- Ask the user how to proceed.
+
+Do not keep iterating with minor variations of the same approach (e.g. adding more diagnostic logs, increasing timeouts, trying different selectors for the same missing element). This wastes cycles and can mask the real problem.
+
+### Task Completion Summary (CRITICAL)
+
+**After completing every task (commit, lint, push — all done), end your final response with a structured summary.** Keep it concise — bullet points, not paragraphs. Use "N/A" for sections that don't apply.
+
+```
+## Task Summary
+
+**Commit:** [abc1234](<commit-url>) (or "No commit" if nothing was committed)
+
+**Problems Identified:** <root cause, error messages, symptoms — or "N/A" for feature work>
+
+**User Flow:**
+- Bug fix: 1. User does X → Y happens (expected: Z) / 2. Request reaches <service/endpoint> / 3. Fails at <file:line> because <root cause> / 4. Fix: <what was changed so the flow now works correctly>
+- Feature: 1. User does X / 2. <service/component> handles it by doing Y / 3. User sees/gets Z
+
+**Changes:** <what changed and why, with file:line references>
+
+**Architecture Decisions:** <decision → reasoning → alternatives rejected and why — or "N/A">
+
+**Testing:** <what was tested, how, results>
+
+**Risks:** <what could break, untested edge cases, things to monitor — or "Low risk">
+
+**Impact on Costs:** <only include when changes involve external API calls or services with usage-based pricing or request limits>
+- API(s) affected: <name of API/service>
+- Pricing model: <free tier with limits / pay-per-request / flat rate / etc.>
+- Request limits: <e.g., "500 requests/day free tier" or "10,000/month" — or "unlimited/flat rate">
+- Estimated usage: <how many requests per user action, background job frequency, etc.>
+- Cost risk: <e.g., "Low — well within free tier" / "Medium — could exceed free tier under heavy use" / "High — each request costs $X">
+- Mitigation: <caching strategy, rate limiting, fallback behavior if limit is hit — or "None needed">
+- If no external API calls or usage-limited services are involved: "N/A — no cost-impacting changes"
+```
+
+Rules: be honest about risks, be specific with file references, and always explain _why_ alternatives were rejected (not just list them). For bug fixes, the User Flow section must trace the full path from user action to failure point to fix — make it concrete enough that another developer can verify the fix is correct without reading the code. For the Impact on Costs section, always research the actual pricing/limits of any API you integrate — never guess from training data.
+
+### Auto-Commit After Every Task (CRITICAL)
+
+- **ALWAYS commit and push to `dev` after completing a feature or bug fix** — do not wait for the user to ask.
+- Only add files you actually modified in the current session (never `git add .`).
+- Run the linter and fix all errors before committing.
+- Run the linter (`lint_changed.sh`) and fix all errors before committing — this covers TypeScript, Svelte, and ESLint checks. For significant routing, adapter, or Vite config changes, also run `pnpm build` in `frontend/apps/web_app/` to catch bundler-level errors.
+- **When a commit resolves or attempts to fix a reported issue**, include the issue ID and a short anonymous description in the commit body (no PII — no emails, usernames, or user IDs). See `docs/claude/git-and-deployment.md` → "Issue-Linked Commits" for format.
+- See `docs/claude/git-and-deployment.md` for commit message format and full workflow.
+
+### Research Before Implementing New Apps, Skills, or Features (CRITICAL)
+
+**Before implementing any new app, skill, external API integration, or significant feature, you MUST:**
+
+1. **Search for relevant official documentation** using web search tools — do NOT rely on training data, which may be months or years out of date. Look up:
+   - Current API availability and pricing (free vs. paid tiers)
+   - What the API can actually do (capabilities vs. limitations)
+   - Authentication requirements
+   - Rate limits and terms of service
+
+2. **Read the relevant project docs** — check `docs/apps/` and `docs/architecture/` for any existing research or architecture decisions on the topic.
+
+3. **Ask clarifying questions before writing any code.** Present your findings to the user and ask about:
+   - Whether the API's actual capabilities match what the feature needs
+   - Whether paid API access is acceptable (never assume)
+   - Any ambiguous requirements that could affect design choices
+   - Alternative approaches if the primary option has blockers
+
+4. **Do not start implementation until the user confirms the approach.** Wasted implementation due to a misunderstood API or capability gap is much more costly than a short clarification exchange.
+
+**Example triggers for this rule:**
+
+- Integrating with a third-party API (events, maps, payments, social platforms, etc.)
+- Implementing a new AI skill or tool
+- Adding a new backend app or service
+- Building a feature that touches external data sources
+
+### Privacy Policy Must Be Updated When a New Provider Is Added (CRITICAL)
+
+**Every time a new third-party service provider is integrated** (payment processor, AI provider, hosting, email, analytics, etc.), you **MUST** update the privacy policy across all four files:
+
+1. **`shared/docs/privacy_policy.yml`** — Add the provider entry with `privacy_policy`, `provider_location`, `used_for`, and optionally `data_shared` fields.
+2. **`frontend/packages/ui/src/i18n/sources/legal/privacy.yml`** — Add three keys for the new provider: `<provider>.heading`, `<provider>.description`, and `<provider>.privacy_policy_link`. Each key must include all 20 supported locales (en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv) plus `verified_by_human: []`. Follow the existing section numbering (e.g., if last provider is 3.14, new one is 3.15).
+3. **`frontend/packages/ui/src/legal/buildLegalContent.ts`** — Add a new section block after the last provider section (before "Section 4: Security Measures"), following the pattern of existing sections.
+4. **`frontend/packages/ui/src/config/links.ts`** — Add the provider's privacy policy URL to the `privacyPolicyLinks` object.
+
+**Also update the `lastUpdated` date** in `frontend/packages/ui/src/legal/documents/privacy-policy.ts` → `metadata.lastUpdated` to today's date whenever the privacy policy content changes.
+
 ### Explicit Consent Required for Destructive/External Actions
 
 - **NEVER create pull requests** unless the user explicitly asks for one. No exceptions.
 - **NEVER merge branches** unless the user explicitly asks for it.
+- **NEVER create or publish GitHub releases** unless the user explicitly asks for one — exception: when the user asks to create a PR, also preparing a draft release as part of that workflow is permitted.
+- **NEVER use `git stash`** under any circumstances. Stashes are invisible to the user, easily forgotten, and accumulate silently across sessions. If you have uncommitted changes that would block a git operation, commit them to a WIP branch instead, or ask the user how to proceed.
 - These actions affect production and other developers — they require clear, unambiguous user intent.
+
+### PR to Main — Test Gate (CRITICAL)
+
+Before creating any PR from `dev` to `main`, you **MUST** check whether all tests have passed recently:
+
+1. Read `test-results/last-run.json` (if it exists)
+2. Check the `run_id` timestamp — it must be **within the last 30 minutes**
+3. Check `summary.failed` — it must be **0**
+4. Check `summary.total` — must be **> 0** (a run with zero tests is not valid)
+
+**If any condition is not met, DO NOT create the PR.** Instead, stop and ask the user:
+
+> "The last test run was [X minutes ago / not found / had N failures]. Before creating the PR, should I:
+>
+> 1. Run all tests now (`./scripts/run-tests.sh --all`) and wait for results?
+> 2. Proceed anyway (skipping the test gate)?
+> 3. Something else?"
+
+Wait for an explicit answer before proceeding. Never silently skip this check.
+
+See `docs/claude/testing.md` → "Pre-PR Test Checklist" for the full procedure.
+
+### Dependency Version Verification (CRITICAL)
+
+**NEVER write a version number for any package or Docker image from memory.** LLM training data is outdated — the version you "know" may be months or years old. This applies to ALL dependency types without exception:
+
+| Type             | How to verify                                                        |
+| ---------------- | -------------------------------------------------------------------- |
+| **pip**          | `pip index versions <package>` or web search `<package> pypi latest` |
+| **pnpm/npm**     | `pnpm info <package> version` or web search `<package> npm latest`   |
+| **Docker image** | Check Docker Hub tags via web search `<image> docker hub tags`       |
+
+**Rules:**
+
+- Always look up the version before writing it into any file
+- Use exact pinned versions (e.g., `package==1.2.3`, `"package": "1.2.3"`, `image:1.2.3-slim`)
+- Never use `latest`, `*`, or an unpinned dependency in committed files
+- No exceptions for "well-known" packages — they change too
+
+See `docs/claude/backend-standards.md` → "Package and Dependency Management" and `docs/claude/frontend-standards.md` → "Package and Dependency Management" for full details.
+
+### No Private Infrastructure Details in Committed Files (CRITICAL)
+
+**This is an open-source repository.** Never commit files containing real infrastructure details. ALL of the following must use generic placeholders (e.g., `<YOUR_DOMAIN>`, `<YOUR_EMAIL>`) in any committed file:
+
+- **Domain names** — real project domains, subdomains, or internal hostnames
+- **Email addresses** — ACME emails, personal emails, team emails
+- **SSH keys** — public or private keys
+- **GitHub repository URLs** — org/repo paths that identify the real project
+- **IP addresses** — public or private server IPs
+- **Server usernames** — real usernames used on servers
+- **API keys, tokens, passwords** — even "example" ones that look real
+- **Internal architecture details** — private network layouts, port mappings to specific services
+
+**Template files** (`.example`, cloud-init templates, Caddyfile templates) are fine to commit, but ONLY with `<PLACEHOLDER>` values. Self-hosters should be able to use the templates by filling in their own values.
+
+**If you are unsure whether a value is private:** treat it as private and use a placeholder.
 
 ### Logging Rule
 
 - **Only remove debugging logs after the user confirms the issue is fixed**
 - Do not remove logs assuming you fixed the issue - wait for confirmation
 
+### Issue Resolution
+
+- **After an issue is completed and the user confirms it is fixed**, delete the issue entry so it no longer appears in the list and storage is cleaned (Directus + S3). Use one of:
+  - **Server (preferred):** `docker exec api python /app/backend/scripts/inspect_issue.py <issue_id> --delete --yes`
+  - **Admin Debug API:** `DELETE /v1/admin/debug/issues/<issue_id>` with admin API key
+  - **Admin Debug CLI:** `docker exec api python /app/backend/scripts/admin_debug_cli.py issue-delete <issue_id>`
+
 ### Multiple Assistants (Concurrent Work)
 
 - **Several assistants may work on the codebase at the same time.** File content or git state can change between your turns.
-- **Re-read files before editing** if you haven’t touched them recently — another assistant may have changed them.
+- **Re-read files before editing** if you haven't touched them recently — another assistant may have changed them.
 - **Check git status** before committing; files may already be committed by another assistant. Only add and commit what you actually changed this session.
+- **If the API or a service appears down**, another assistant may be in the middle of rebuilding/restarting Docker containers. Before assuming a real failure, check whether a restart is in progress and wait for it to complete. See the "Service Unavailable During Concurrent Work" section in `docs/claude/debugging.md`.
 
----
+#### Session Coordination (CRITICAL)
 
-## Frontend Standards (Svelte/TypeScript)
+All concurrent sessions coordinate through a shared file: **`.claude/sessions.md`** (gitignored, lives only on the dev server). **You MUST use this file** to avoid duplicate work and conflicts.
 
-### Svelte 5 Requirements (CRITICAL)
+**On session start:**
+
+1. Generate a random 4-char hex session ID: `python3 -c "import secrets; print(secrets.token_hex(2))"`
+2. Register yourself in the Active Sessions table in `.claude/sessions.md`
+
+**Before fixing a Vercel deployment error:**
+
+1. Read `.claude/sessions.md` → check the Vercel Deployment Lock
+2. If another session holds the lock (and it's <5 min old) → **wait and poll every 30s**
+3. If no lock is held → claim the lock, fix the error, then release the lock immediately
+
+**Before rebuilding Docker containers:**
+
+1. Read `.claude/sessions.md` → check the Docker Rebuild Lock
+2. If another session holds the lock → **wait and poll every 30s**
+3. If no lock is held → claim the lock, rebuild, then release the lock immediately
+
+**Lock staleness:** If a lock's `Last updated` is 5+ minutes old, assume the holding session crashed and take over.
+
+See `docs/claude/concurrent-sessions.md` for the full protocol, lock format, and file ownership tracking.
+
+### Svelte 5 (CRITICAL)
 
 **USE SVELTE 5 RUNES ONLY:**
 
@@ -119,1052 +290,170 @@ OpenMates/
 
 **NEVER use `$:` reactive statements** - this is Svelte 4 syntax and must not be used.
 
-### Component Structure
+### Docker Rebuild After Backend Changes (CRITICAL)
 
-```svelte
-<script lang="ts">
-  // Imports first
-  import { onMount } from 'svelte';
+**Every time you modify Python files under `backend/`, you MUST rebuild and restart the affected Docker containers.** The backend runs inside Docker containers — editing files on disk does NOT update the running services. If you skip this step, your changes have no effect.
 
-  // Props interface
-  interface Props {
-    title: string;
-    isVisible?: boolean;
-  }
-
-  // Props with defaults using Svelte 5 runes
-  let { title, isVisible = true }: Props = $props();
-
-  // Local state using Svelte 5 runes
-  let isLoading = $state(false);
-
-  // Derived/computed values using Svelte 5 runes (NOT $:)
-  let displayTitle = $derived(title.toUpperCase());
-</script>
-
-<div class="component-wrapper">
-  {#if isVisible}
-    <h1>{displayTitle}</h1>
-  {/if}
-</div>
-
-<style>
-  .component-wrapper {
-    padding: 1rem;
-    background-color: var(--color-grey-20);
-  }
-</style>
-```
-
-### TypeScript Standards
-
-- Use strict type checking
-- Define interfaces for all props and data structures
-- Use type assertions sparingly
-- Prefer `interface` over `type` for object shapes
-
-### Styling Guidelines
-
-- Use CSS custom properties defined in `frontend/packages/ui/src/styles/theme.css`
-- Follow the existing design system with predefined color variables
-- Reference existing CSS files: `theme.css`, `buttons.css`, `cards.css`, `chat.css`, `fields.css`
-- Create custom CSS only when the existing design system doesn't suffice
-- Follow mobile-first responsive design
-
-### State Management
-
-- Use Svelte stores for global state
-- Prefer local component state when possible
-- Use derived stores for computed values
-- Implement proper store subscriptions and cleanup
-
-### Error Handling
-
-- **NEVER use fallback values to hide errors**
-- Use try-catch blocks for async operations
-- Always log errors with `console.error()` for debugging
-- Display user-friendly error messages to users
-
----
-
-## Backend Standards (Python/FastAPI)
-
-### Python Code Style
-
-- Follow PEP 8 style guidelines
-- Use type hints for all function parameters and return values
-- Use `logger.debug()` or `logger.info()` instead of `print()` statements
-- Add comprehensive docstrings for all functions and classes
-
-### FastAPI Best Practices
-
-- Use dependency injection for database connections and services
-- Implement proper request/response models with Pydantic
-- Use async/await for I/O operations
-- Implement proper error handling with HTTPException
-- Use background tasks for non-critical operations
-
-### Error Handling (CRITICAL)
-
-- **NEVER use fallback values to hide errors** - all errors must be visible
-- **NO silent failures** - if an operation fails, log it and raise an exception
-- Always use proper exception handling with logging
-- Never catch exceptions without logging them
-
-```python
-# ❌ WRONG - hides errors
-try:
-    data = read_file()
-except:
-    data = None
-
-# ✅ CORRECT - errors are visible
-try:
-    data = read_file()
-except Exception as e:
-    logger.error(f"Failed to read file: {e}", exc_info=True)
-    raise
-```
-
-### Database Patterns
-
-- Use repository pattern for data access
-- Implement proper connection pooling
-- Use transactions for multi-step operations
-- Follow database naming conventions (snake_case)
-- Define Directus models in YAML files under `backend/core/directus/schemas/`
-
-### Security Best Practices
-
-- Validate all input data
-- Use environment variables for sensitive configuration
-- Implement proper authentication and authorization
-- Sanitize user inputs
-- Implement rate limiting where appropriate
-
----
-
-## Linting and Code Quality
-
-**ALWAYS run the lint script after making code changes** to verify that your changes haven't introduced any errors.
-
-### Lint Script Usage
-
-The `scripts/lint_changed.sh` script checks uncommitted changes for linting and type errors.
-
-**File type options:**
-
-- `--py` - Python files (.py)
-- `--ts` - TypeScript files (.ts, .tsx)
-- `--svelte` - Svelte files (.svelte)
-- `--css` - CSS files (.css)
-- `--html` - HTML files (.html)
-
-**Targeting options (always use these):**
-
-- `--path <file|dir>` - Limit checks to a specific file or directory (repeatable)
-- `-- <file|dir> ...` - Treat remaining args as target paths
-
-**Examples:**
+**Rebuild only the containers whose code you changed** — not the entire stack. See `docs/claude/backend-standards.md` for the full path-to-container mapping and commands.
 
 ```bash
-./scripts/lint_changed.sh --py --path backend/core/api              # Only Python changes in API
-./scripts/lint_changed.sh --ts --svelte --path frontend/packages/ui # Only UI frontend changes
-./scripts/lint_changed.sh --py --ts --path backend --path frontend/apps/web_app # Mixed changes
-```
-
-### Best Practices
-
-- Always limit checks to the specific files or folders you touched
-- Limit checks to changed file types (don't check TypeScript if you only modified Python)
-- **CRITICAL**: Before every git commit, run the linter on all modified files and fix all errors
-- **CRITICAL**: Only commit when the linter shows NO errors for modified files
-
----
-
-## Git Commit Best Practices
-
-### Commit Message Format
-
-Follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
-
-**Format:** `<type>: <description>`
-
-**Types:**
-
-- `feat`: A new feature
-- `fix`: A bug fix
-- `docs`: Documentation only changes
-- `style`: Formatting changes (no code meaning change)
-- `refactor`: Code change that neither fixes a bug nor adds a feature
-- `perf`: Performance improvement
-- `test`: Adding or correcting tests
-- `build`: Build system or dependency changes
-- `ci`: CI configuration changes
-- `chore`: Other changes that don't modify src or test files
-- `revert`: Reverts a previous commit
-
-**Rules:**
-
-- **Scope**: NEVER add all files (`git add .`). Only add files modified in the current session.
-- **No Co-authors**: NEVER add `--trailer` flags or `Co-authored-by` lines.
-- Use imperative present tense: "change" not "changed"
-- Don't capitalize the first letter of the description
-- No dot (.) at the end of the title
-
-**Example:**
-
-```bash
-feat: add user authentication flow
-
-- Implement JWT token generation and validation
-- Add login and registration endpoints
-- Secure existing API routes with auth middleware
-```
-
-### Pre-commit Checklist
-
-- [ ] Run linter: `./scripts/lint_changed.sh --path <your_changes>`
-- [ ] Fix all linter and type errors
-- [ ] Remove temporary `console.log` or `print` statements (unless permanent)
-- [ ] Only add files changed/created in this chat (no `git add .`)
-
----
-
-## Debugging Backend Issues
-
-**ALWAYS use docker compose terminal commands to check logs** when debugging backend issues.
-
-### Basic Log Commands
-
-```bash
-docker compose --env-file .env -f backend/core/docker-compose.yml logs <service-name>              # View logs
-docker compose --env-file .env -f backend/core/docker-compose.yml logs -f <service-name>          # Follow logs
-docker compose --env-file .env -f backend/core/docker-compose.yml logs --tail=100 <service-name>  # Last 100 lines
-docker compose --env-file .env -f backend/core/docker-compose.yml logs -f -t <service-name>       # With timestamps
-```
-
-### Time-Based Log Filtering
-
-```bash
-# Logs from the last N minutes
-docker compose --env-file .env -f backend/core/docker-compose.yml logs --since 5m api task-worker
-
-# Logs from the last hour
-docker compose --env-file .env -f backend/core/docker-compose.yml logs --since 1h api
-```
-
-### Log Level Filtering
-
-```bash
-# Only errors and warnings
-docker compose --env-file .env -f backend/core/docker-compose.yml logs --tail 500 api | rg -E "ERROR|WARNING|CRITICAL"
-
-# Errors with context
-docker compose --env-file .env -f backend/core/docker-compose.yml logs --since 10m api task-worker | rg -B3 -A3 "ERROR"
-```
-
-### Where to Look First (by Problem Type)
-
-| Problem Type            | Check First                    | Then Check                    |
-| ----------------------- | ------------------------------ | ----------------------------- |
-| AI response issues      | `task-worker`, `app-ai-worker` | `api` (WebSocket logs)        |
-| Login/auth failures     | `api`                          | `cms` (Directus logs)         |
-| Payment issues          | `api`                          | `task-worker` (async jobs)    |
-| Sync/cache issues       | `api` (PHASE1, SYNC_CACHE)     | `cache` (Dragonfly)           |
-| Frontend/client issues  | Loki `{job="client-console"}`  | Browser console (manual)      |
-| WebSocket disconnects   | `api`                          | Loki `{job="client-console"}` |
-| Scheduled task failures | `task-scheduler`               | `task-worker`                 |
-| User data issues        | `cms`, `cms-database`          | `api`                         |
-
-### Quick Debug Commands
-
-```bash
-# Check if AI response updated sync cache
-docker compose --env-file .env -f backend/core/docker-compose.yml logs task-worker --since 5m | rg "SYNC_CACHE_UPDATE.*AI response"
-
-# Monitor Phase 1 sync in real-time
-docker compose --env-file .env -f backend/core/docker-compose.yml logs -f api | rg "PHASE1"
-
-# Trace full request lifecycle for a specific chat
-docker compose --env-file .env -f backend/core/docker-compose.yml logs api task-worker --since 10m | rg -E "chat_id=<ID>|SYNC_CACHE|PHASE1" | head -100
-```
-
-### Rebuilding and Restarting Services
-
-If a container might have outdated code after a simple restart, or if you need to ensure a clean state (including clearing the cache volume), use this full rebuild and restart command:
-
-```bash
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml down && \
-docker volume rm openmates-cache-data && \
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build api cms cms-database cms-setup task-worker task-scheduler app-ai app-code app-web app-videos app-news app-maps app-ai-worker app-web-worker cache vault vault-setup prometheus cadvisor loki promtail grafana && \
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d
-```
-
-### Available Docker Containers
-
-**Core services:** `api`, `cms`, `cms-database`, `cms-setup`, `task-worker`, `task-scheduler`
-
-**App services:** `app-ai`, `app-web`, `app-videos`, `app-news`, `app-maps`, `app-code`, `app-ai-worker`, `app-web-worker`
-
-**Infrastructure:** `cache`, `vault`, `vault-setup`, `prometheus`, `cadvisor`, `loki`, `promtail`, `grafana`
-
----
-
-## Debugging Frontend Issues (Client Console Logs)
-
-**Admin users only** — browser console logs are automatically forwarded to Loki via `clientLogForwarder.ts`. Regular users' logs are **never** collected or stored. This only works when an admin has the app open in their browser.
-
-### Querying Client Logs via Loki
-
-```bash
-# All admin client logs (last 30 min)
-docker exec api python /app/backend/scripts/inspect_frontend_logs.py
-
-# Only errors from the last hour
-docker exec api python /app/backend/scripts/inspect_frontend_logs.py --level error --since 60
-
-# Filter by admin user
-docker exec api python /app/backend/scripts/inspect_frontend_logs.py --user jan41139
-
-# Search log content
-docker exec api python /app/backend/scripts/inspect_frontend_logs.py --search "WebSocket"
-
-# Combine filters
-docker exec api python /app/backend/scripts/inspect_frontend_logs.py --level error --user jan41139 --since 60
-
-# Raw JSON output
-docker exec api python /app/backend/scripts/inspect_frontend_logs.py --json
-
-# Follow mode (poll every 5s, like tail -f)
-docker exec api python /app/backend/scripts/inspect_frontend_logs.py --follow
-```
-
-### Key Loki Labels
-
-| Label        | Values                           | Description           |
-| ------------ | -------------------------------- | --------------------- |
-| `job`        | `client-console`                 | Always this value     |
-| `level`      | `debug`, `info`, `warn`, `error` | Console log level     |
-| `user_email` | Admin username (e.g. `jan41139`) | Which admin's browser |
-| `server_env` | `development`, `production`      | Which environment     |
-| `source`     | `browser`                        | Always this value     |
-
-### How It Works
-
-- `clientLogForwarder.ts` subscribes to `logCollector.onNewLog()`, buffers entries, and POSTs batches every 5s to `POST /v1/admin/client-logs`
-- Only activates when `is_admin === true` (checked on both client and server)
-- Regular users are **never** affected — no logs are collected or sent
-- Log messages are sanitized by `logCollector.ts` before forwarding (API keys, tokens, passwords redacted)
-- Each log entry includes `[tab=<id>] [<pageUrl>]` prefix for multi-tab disambiguation
-
-### Key Files
-
-- Client forwarder: `frontend/packages/ui/src/services/clientLogForwarder.ts`
-- Log collector (with sanitization): `frontend/packages/ui/src/services/logCollector.ts`
-- Backend endpoint: `backend/core/api/app/routes/admin_client_logs.py`
-- Loki push service: `backend/core/api/app/services/loki_push_service.py`
-
----
-
-## Server Inspection Scripts
-
-Use these scripts to inspect server state directly. Run from the repo root.
-
-### Chat, Embed and User Inspection
-
-```bash
-# Inspect a specific chat (cache, storage, Directus)
-docker exec api python /app/backend/scripts/inspect_chat.py <chat_id>
-
-# Inspect a specific demo chat
-docker exec -i api python /app/backend/scripts/inspect_demo_chat.py demo-1
-
-# Inspect a specific embed
-docker exec api python /app/backend/scripts/inspect_embed.py <embed_id>
-
-# Inspect a specific issue report (decrypts all fields, fetches S3 YAML report)
-docker exec api python /app/backend/scripts/inspect_issue.py <issue_id>
-
-# List recent unprocessed issues
-docker exec api python /app/backend/scripts/inspect_issue.py --list
-
-# List issues with search and include processed
-docker exec api python /app/backend/scripts/inspect_issue.py --list --search "login" --include-processed
-
-# Inspect issue without fetching S3 logs (faster)
-docker exec api python /app/backend/scripts/inspect_issue.py <issue_id> --no-logs
-
-# Inspect a specific user by email
-docker exec api python /app/backend/scripts/inspect_user.py <email_address>
-```
-
-### Newsletter Inspection
-
-```bash
-# Summary counts (confirmed, pending, ignored, language breakdown)
-docker exec api python /app/backend/scripts/inspect_newsletter.py
-
-# Show all subscribers with decrypted emails
-docker exec api python /app/backend/scripts/inspect_newsletter.py --show-emails
-
-# Show pending (unconfirmed) subscriptions from cache
-docker exec api python /app/backend/scripts/inspect_newsletter.py --show-pending
-
-# Show monthly subscription timeline
-docker exec api python /app/backend/scripts/inspect_newsletter.py --timeline
-
-# Show everything
-docker exec api python /app/backend/scripts/inspect_newsletter.py --show-emails --show-pending --timeline
-
-# JSON output
-docker exec api python /app/backend/scripts/inspect_newsletter.py --json
-```
-
-### AI Request Debugging
-
-```bash
-# Save all recent AI requests to YAML file
-docker exec -it api python /app/backend/scripts/inspect_last_requests.py
-
-# Filter by specific chat ID
-docker exec -it api python /app/backend/scripts/inspect_last_requests.py --chat-id <chat_id>
-
-# Copy output file to host machine
-docker cp api:/app/backend/scripts/debug_output/last_requests_<timestamp>.yml ./debug_output.yml
-```
-
-### User Debugging
-
-```bash
-# Show user statistics
-docker exec -it api python /app/backend/scripts/show_user_stats.py
-
-# Show all chats for a specific user
-docker exec -it api python /app/backend/scripts/show_user_chats.py <user_id>
-
-# Show most recent user
-docker exec -it api python /app/backend/scripts/show_last_user.py
-```
-
-### Cache Inspection (Dragonfly)
-
-```bash
-# Connect to Dragonfly cache CLI
-docker exec -it cache redis-cli
-
-# Common commands (inside redis-cli):
-KEYS *sync:*    # List sync cache keys
-KEYS *debug:*   # List debug entries
-GET <key>       # Get value for a key
-TTL <key>       # Check time-to-live
-DBSIZE          # Total number of keys
-```
-
-### Celery Task Queue Inspection
-
-```bash
-docker exec -it task-worker celery -A backend.core.api.worker inspect active      # Active tasks
-docker exec -it task-worker celery -A backend.core.api.worker inspect reserved    # Queued tasks
-docker exec -it task-worker celery -A backend.core.api.worker inspect registered  # Registered types
-docker exec -it task-worker celery -A backend.core.api.worker inspect scheduled   # Scheduled tasks
+# Example: rebuild and restart only what changed
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build <container(s)> && \
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d <container(s)>
 ```
 
 ---
 
-## Admin Debug API (Remote Debugging)
+## MANDATORY: Read Sub-Documents Before Working
 
-Remote debugging endpoints when SSH access is unavailable. Requires admin API key.
+**CRITICAL RULE: Before starting ANY task, you MUST determine which sub-documents below apply and READ THEM IN FULL using the Read tool. Do NOT skip this step. Do NOT assume you know the contents. These documents contain project-specific rules that override general knowledge. Failing to read them leads to incorrect code that must be rewritten.**
 
-**IMPORTANT:** On the **dev server** (where we have SSH/docker access), always prefer the [Server Inspection Scripts](#server-inspection-scripts) over these API endpoints. For example, use `docker exec api python /app/backend/scripts/inspect_issue.py <id>` instead of `curl .../admin/debug/issues/<id>`. The scripts provide richer output, decrypt all fields, and fetch S3 reports directly. Reserve the Admin Debug API for **production debugging** or when you don't have shell access.
+### Step 1: Determine which documents to read
 
-**Base URLs:** `https://api.openmates.org` (prod) or `https://api.dev.openmates.org` (dev)
+For EVERY task, scan the trigger conditions below. If ANY condition matches, you MUST read that file before writing any code or making any changes.
 
-### Query Logs
+### Step 2: Read all matching documents
+
+Use the Read tool to load each matching file from `docs/claude/`. Do this BEFORE planning or writing code.
+
+---
+
+### Required Documents by Trigger
+
+#### `docs/claude/frontend-standards.md`
+
+**MUST READ when ANY of these are true:**
+
+- You are editing, creating, or reviewing files under `frontend/`
+- The task involves Svelte components, TypeScript, CSS, or stores
+- You are touching `.svelte`, `.ts`, or `.css` files in the frontend
+
+#### `docs/claude/backend-standards.md`
+
+**MUST READ when ANY of these are true:**
+
+- You are editing, creating, or reviewing files under `backend/`
+- The task involves Python code, FastAPI routes, Pydantic models, or database queries
+- You are touching `.py` files in the backend
+- You are creating or modifying an app skill (includes REST API documentation requirements)
+
+#### `docs/claude/debugging.md`
+
+**MUST READ when ANY of these are true:**
+
+- The user reports a bug, error, or unexpected behavior
+- You need to read Docker logs or troubleshoot a service
+- The task involves investigating why something doesn't work
+- **You need to debug a production issue** (CRITICAL: use Admin Debug CLI, not local docker compose)
+
+> **Default assumption:** All reported issues are on the **dev server**, reported by an **admin**, unless the user explicitly states otherwise.
+
+#### `docs/claude/inspection-scripts.md`
+
+**MUST READ when ANY of these are true:**
+
+- You need to inspect server state (chats, users, issues, cache, AI requests)
+- You need to run diagnostic commands on the running services
+- The user asks you to check or look up data on the server
+- You need to debug production server state remotely (use Admin Debug CLI)
+
+#### `docs/claude/git-and-deployment.md`
+
+**MUST READ when ANY of these are true:**
+
+- You are about to commit, push, or interact with git
+- The task involves deployment, branch management, or PRs
+- You need to understand the branch-to-server mapping
+
+#### `docs/claude/testing.md`
+
+**MUST READ when ANY of these are true:**
+
+- You are creating, modifying, or running tests
+- The user asks you to verify changes with tests
+
+#### `docs/claude/figma-to-code.md`
+
+**MUST READ when ANY of these are true:**
+
+- The user provides a Figma link or references a Figma design
+- The task involves implementing a UI design or matching a visual mockup
+
+#### `docs/claude/i18n.md`
+
+**MUST READ when ANY of these are true:**
+
+- You are adding or modifying user-facing strings (labels, messages, errors shown to users)
+- You are editing translation/i18n files
+
+#### `docs/claude/manage-translations.md`
+
+**MUST READ when ANY of these are true:**
+
+- You are looking for missing translations to fill in
+- You are asked to translate keys for a specific language
+- You need to find which file a translation key lives in
+- You are validating or auditing the translation files
+- You are running `manage_translations.py` or deciding which command to use
+- The user asks about translation completeness, coverage, or statistics for any language
+- The user asks which translations are missing or how many are left
+- The user asks anything about the state of translations (even informational questions)
+
+#### `docs/claude/planning.md`
+
+**MUST READ when ANY of these are true:**
+
+- You are implementing a new feature, significant refactor, or multi-file change
+- The task is non-trivial and requires understanding data flow or component interaction
+- You need to plan before writing code
+
+#### `docs/claude/concurrent-sessions.md`
+
+**MUST READ when ANY of these are true:**
+
+- You are about to check or fix a Vercel deployment error
+- You are about to rebuild or restart Docker containers
+- You are starting a new session (to register yourself)
+- Another assistant's work may conflict with yours (e.g., editing the same files)
+
+#### `docs/claude/add-api.md`
+
+**MUST READ when ANY of these are true:**
+
+- The user asks to integrate a new external API or data provider
+- You are adding a new third-party API connection (events, maps, payments, social, etc.)
+- The user asks to reverse-engineer or scrape a website as a data source
+- You need to build a test script for an API integration
+
+#### `docs/claude/embed-types.md`
+
+**MUST READ when ANY of these are true:**
+
+- You are creating a new embed type (Preview + Fullscreen component pair)
+- You are adding a new `app_id` / `skill_id` to the embed renderer routing
+- You are creating a new direct-type embed renderer class
+- You are modifying how embed cards render in the chat message stream
+
+#### `docs/claude/logging-and-docs.md`
+
+**MUST READ when ANY of these are true:**
+
+- You are adding logging statements or error handling
+- You are updating project documentation
+
+---
+
+## Linting (ALWAYS run before commit)
 
 ```bash
-# Get logs from specific services
-curl -H "Authorization: Bearer <admin-api-key>" \
-  "https://api.openmates.org/v1/admin/debug/logs?services=api,task-worker&lines=50&since_minutes=30"
+# Python changes
+./scripts/lint_changed.sh --py --path backend/
 
-# Search for errors
-curl -H "Authorization: Bearer <admin-api-key>" \
-  "https://api.openmates.org/v1/admin/debug/logs?search=ERROR&since_minutes=60"
+# Frontend changes
+./scripts/lint_changed.sh --ts --svelte --path frontend/packages/ui
+
+# Mixed changes
+./scripts/lint_changed.sh --py --ts --svelte --path backend --path frontend/
 ```
 
-**Allowed services:** `api`, `cms`, `cms-database`, `task-worker`, `task-scheduler`, `app-ai`, `app-web`, `app-videos`, `app-news`, `app-maps`, `app-code`, `app-images`, `app-ai-worker`, `app-web-worker`, `app-images-worker`, `cache`
-
-### Inspect Data
-
-```bash
-# Inspect a chat
-curl -H "Authorization: Bearer <admin-api-key>" \
-  "https://api.openmates.org/v1/admin/debug/inspect/chat/<chat_id>"
-
-# Inspect a user by email
-curl -H "Authorization: Bearer <admin-api-key>" \
-  "https://api.openmates.org/v1/admin/debug/inspect/user/<email>"
-
-# Inspect an embed
-curl -H "Authorization: Bearer <admin-api-key>" \
-  "https://api.openmates.org/v1/admin/debug/inspect/embed/<embed_id>"
-
-# Inspect last AI requests (filter by chat_id optional)
-curl -H "Authorization: Bearer <admin-api-key>" \
-  "https://api.openmates.org/v1/admin/debug/inspect/last-requests?chat_id=<chat_id>"
-```
-
-### Issue Reports
-
-```bash
-# List issues
-curl -H "Authorization: Bearer <admin-api-key>" \
-  "https://api.openmates.org/v1/admin/debug/issues?search=login&include_processed=true"
-
-# Get issue with logs
-curl -H "Authorization: Bearer <admin-api-key>" \
-  "https://api.openmates.org/v1/admin/debug/issues/<issue_id>?include_logs=true"
-
-# Delete issue
-curl -X DELETE -H "Authorization: Bearer <admin-api-key>" \
-  "https://api.openmates.org/v1/admin/debug/issues/<issue_id>"
-```
-
----
-
-## Testing Policy
-
-### Test Creation Consent Requirements
-
-**NEVER create test files without the user's explicit consent.** This applies to:
-
-- Unit tests (pytest, vitest)
-- Integration tests
-- End-to-end tests (Playwright)
-- Test fixtures or mocks
-
-**What to do instead:**
-
-1. When you identify a situation where tests might be valuable, make a **brief natural-language suggestion** describing what the tests could cover
-2. Do NOT include code examples in test suggestions
-3. Wait for the user to explicitly ask you to create the tests before writing any test code
-4. If the user says "yes" or "go ahead", only then create the test files
-
-**Exception - When user explicitly requests TDD:**
-If the user says "use TDD" or explicitly asks to write tests first, follow the full TDD cycle:
-
-1. 🔴 **Red**: Write a failing test that describes the desired behavior
-2. 🟢 **Green**: Write the minimal code to make the test pass
-3. 🔵 **Refactor**: Improve the code while keeping tests green
-
-### What Makes Tests Actually Useful
-
-When creating tests (with consent), ensure they meet these criteria:
-
-#### Good Tests Should:
-
-- **Test behavior, not implementation**: Verify _what_ happens, not _how_
-- **Be independent**: Each test runs in isolation, no shared state
-- **Cover edge cases**: Empty inputs, null values, boundary conditions, error paths
-- **Use descriptive names**: `test_encrypt_message_with_empty_content_returns_empty_encrypted_blob`
-- **Follow AAA pattern**: Arrange → Act → Assert (clearly separated)
-- **Be fast**: Unit tests should run quickly (< 100ms each)
-- **Use meaningful assertions**: Verify the specific behavior you care about
-
-#### Tests to AVOID (Low Value):
-
-- Testing private implementation details that may change
-- Tests that duplicate framework/library tests
-- Mocking so heavily that nothing real is tested
-- Tests that pass with any implementation (too loose assertions)
-- Trivial getter/setter tests with no logic
-
-#### End-to-End Tests Should:
-
-- **Test user journeys**, not individual components
-- **Use stable selectors**: `data-testid` attributes, not CSS classes
-- **Be deterministic**: No flaky timing-dependent assertions
-- **Cover critical paths**: Signup, login, payment, core features
-- **Account for Vercel deployment delay**: After pushing frontend changes, Vercel takes up to **200 seconds** to deploy. E2E tests must wait for the deployment to complete before running against the live URL (e.g., poll the site or add an explicit delay).
-- **Ask the user on unexpected screens**: If a Playwright test encounters a completely unexpected screen (e.g., a different page/layout than anticipated after an action), **stop and ask the user how to proceed** instead of guessing or failing silently.
-
-### Test Location Standards
-
-| Test Type               | Location                                               | Naming               |
-| ----------------------- | ------------------------------------------------------ | -------------------- |
-| Python unit tests       | `backend/apps/<app>/tests/` or `backend/core/*/tests/` | `test_*.py`          |
-| TypeScript unit tests   | `frontend/packages/ui/src/**/__tests__/`               | `*.test.ts`          |
-| Playwright E2E tests    | `frontend/apps/web_app/tests/`                         | `*.spec.ts`          |
-| REST API external tests | `backend/tests/`                                       | `test_rest_api_*.py` |
-
-### Running Tests After Changes
-
-| Change Type            | Run These Tests                                     |
-| ---------------------- | --------------------------------------------------- |
-| Backend API endpoint   | `pytest -s backend/tests/test_rest_api_external.py` |
-| Backend business logic | `pytest backend/apps/<app>/tests/`                  |
-| Frontend component     | `npm run test:unit -- <component>.test.ts`          |
-| Full user flow         | Playwright E2E for that flow                        |
-
-### Test Commands
-
-**Backend:**
-
-```bash
-# Run all external REST API tests
-/OpenMates/.venv/bin/python3 -m pytest -s backend/tests/test_rest_api_external.py
-
-# Run specific skill tests
-/OpenMates/.venv/bin/python3 -m pytest -s backend/tests/test_rest_api_external.py -k ask
-```
-
-**Frontend:**
-
-```bash
-# Run frontend unit tests
-cd frontend/apps/web_app && npm run test:unit
-
-# Run with coverage
-npm run test:unit -- --coverage
-```
-
-**End-to-End (Playwright):**
-
-```bash
-docker compose -f docker-compose.playwright.yml run --rm \
-  -e SIGNUP_TEST_EMAIL_DOMAINS \
-  -e MAILOSAUR_API_KEY \
-  -e PLAYWRIGHT_TEST_BASE_URL \
-  -e PLAYWRIGHT_TEST_FILE="signup-flow.spec.ts" \
-  playwright
-```
-
-### Pre-Commit Test Checklist (When Tests Exist)
-
-- [ ] Tests actually fail when the code is broken (not just passing trivially)
-- [ ] Tests cover the happy path AND at least one error path
-- [ ] Tests don't depend on external services (mock them)
-- [ ] Test names describe the scenario being tested
-- [ ] No `time.sleep()` or arbitrary waits (use proper async/await)
-
----
-
-## Documentation Standards
-
-### Document Structure
-
-Every documentation file MUST include:
-
-1. **Title** (H1) - Clear, descriptive title
-2. **Status Badge** - Implementation status
-3. **Last Updated** - Date of last significant update
-4. **Overview** - Brief description of what the document covers
-
-```markdown
-# Feature Name
-
-> **Status**: ✅ Implemented | ❌ Not Yet Implemented  
-> **Last Updated**: 2024-10-01
-
-Brief overview of what this document describes.
-```
-
-### Code-Documentation Synchronization
-
-#### When Modifying Code
-
-When modifying functions, classes, or modules that are referenced in architecture docs:
-
-1. **Search for references**: `rg "filename.ts" docs/architecture/`
-2. **Update any stale references**: If you renamed, moved, or deleted the referenced code
-3. **Update doc descriptions**: If the behavior changed significantly
-
-#### Documentation Reference Format
-
-Use relative paths with function/class anchors (NOT line numbers, NO copy & pasted code blocks):
-
-- ✅ `[cryptoService.ts#decryptChatData()](../../frontend/packages/ui/src/services/cryptoService.ts)`
-- ❌ `cryptoService.ts:200-250` (line numbers become stale)
-
-#### Critical Architecture Docs to Keep in Sync
-
-- `docs/architecture/sync.md` → Sync and encryption flows
-- `docs/architecture/message_processing.md` → AI message handling
-- `docs/architecture/payment_processing.md` → Billing flows
-
-### DRY Principle for Documentation
-
-**Link Instead of Repeating:**
-
-```markdown
-<!-- ❌ BAD: Repeating details -->
-
-## How Messages Are Processed
-
-The message processing system uses a multi-phase approach...
-
-<!-- ✅ GOOD: Link to canonical source -->
-
-## Message Processing
-
-For details, see [Message Processing Architecture](../architecture/message_processing.md)
-```
-
-### Navigation
-
-Every document MUST end with "Read Next" links to related documentation.
-
----
-
-## Logging and Error Handling
-
-### Backend (Python)
-
-- **Use `logging`**: Always use `logger.debug()` or `logger.info()` instead of `print()`
-- **Initialization**: Use `logger = logging.getLogger(__name__)` at the module level
-- **No Silent Failures**: Never use silent fallbacks. Log errors or raise exceptions.
-
-### Frontend (Svelte/TypeScript)
-
-- **Use `console.log()`**: Preferred for debugging
-- **Error visibility**: Ensure errors are visible in the console
-
-### Correlation IDs
-
-**Always include in logs:**
-
-```python
-logger.info(f"[Task ID: {task_id}] Processing message {message_id} for chat {chat_id}")
-logger.error(f"Error in task {task_id}: {e}", exc_info=True)
-```
-
-### Structured Logging Prefixes
-
-- `[PERF]` - Timing
-- `[TASK]` - Celery tasks
-- `[SYNC]` - Sync operations
-- `[CACHE]` - Cache operations
-- `[ERROR]` - Errors
-
-### Guidelines
-
-- **Keep Logs**: Only remove debugging logs after the user confirms the issue is fixed
-- **Comments**: Add extensive comments explaining complex logic and architectural choices
-- **Cache First**: Update server cache BEFORE Directus/disk to ensure data consistency
-
----
-
-## Internationalization (i18n)
-
-### Guidelines
-
-- **NEVER use hardcoded text** for user-facing strings in frontend or backend
-- **ALWAYS use the translation system** for all user-facing content
-- **Source of Truth**: `.yml` files in `frontend/packages/ui/src/i18n/sources/`
-
-### Adding Translations (CRITICAL - READ CAREFULLY)
-
-**FLAT KEYS ONLY - NEVER USE NESTED YAML STRUCTURES**
-
-Translation files use **dot notation IN THE KEY NAME** as a flat structure. Each translation entry is a top-level key.
-
-```yaml
-# ✅ CORRECT - flat keys with dots in the key name
-button.submit:
-  context: Submit button text
-  en: Submit
-  de: Absenden
-
-button.cancel:
-  context: Cancel button text
-  en: Cancel
-  de: Abbrechen
-
-dialog.title:
-  context: Dialog title
-  en: Confirm Action
-  de: Aktion bestätigen
-```
-
-```yaml
-# ❌ WRONG - nested YAML structure (NEVER DO THIS)
-button:
-  submit:
-    context: Submit button text
-    en: Submit
-    de: Absenden
-  cancel:
-    context: Cancel button text
-    en: Cancel
-    de: Abbrechen
-
-dialog:
-  title:
-    context: Dialog title
-    en: Confirm Action
-    de: Aktion bestätigen
-```
-
-**Why this matters:** Nested structures break the translation build system. The key `button.submit` is looked up as a literal string, not as `button` → `submit`.
-
-### Translation Entry Structure
-
-Every translation entry MUST have this exact structure:
-
-```yaml
-key_name:
-  context: Description of how/where the text is used
-  en: English text
-  de: German translation
-  # ... other languages
-  verified_by_human: []
-```
-
-### Generated Files - DO NOT Commit
-
-The JSON files in `frontend/packages/ui/src/i18n/locales/*.json` are **generated build artifacts** produced by `npm run build:translations`. They are already in `.gitignore`.
-
-- **NEVER edit** the `locales/*.json` files directly — they will be overwritten on the next build
-- **NEVER commit** them to git (even with `git add -f`)
-- **Only edit** the source `.yml` files in `frontend/packages/ui/src/i18n/sources/`
-
-### Adding New Translations - Step by Step
-
-1. Open the appropriate `.yml` file in `frontend/packages/ui/src/i18n/sources/`
-2. Add your new key as a **top-level entry** (not nested under another key)
-3. Include `context`, `en`, and ideally `de` at minimum
-4. Run `npm run build:translations` in `frontend/packages/ui`
-
-### Usage
-
-- **Frontend**: Use the `$text` store: `$text('filename.key_name')` (e.g., `$text('chats.context_menu.download')`)
-- **Backend**: Use `TranslationService` to resolve translations
-- **Metadata**: Use `name_translation_key` instead of hardcoded strings
-
----
-
-## Key Files by Domain
-
-### Authentication & Security
-
-- Login flow: `backend/core/api/app/routes/auth_routes/auth_login.py`
-- Crypto service: `frontend/packages/ui/src/services/cryptoService.ts`
-- Key storage: `frontend/packages/ui/src/services/cryptoKeyStorage.ts`
-
-### Chat & Sync
-
-- Sync architecture: `docs/architecture/sync.md`
-- Phased sync service: `frontend/packages/ui/src/services/PhasedSyncService.ts`
-- Cache warming: `backend/core/api/app/tasks/user_cache_tasks.py`
-- WebSocket handlers: `backend/core/api/app/routes/websockets.py`
-
-### AI Processing
-
-- Message processing: `backend/core/api/app/services/message_processor.py`
-- AI handlers: `backend/apps/ai/handlers/`
-- AI app config: `backend/apps/ai/config.yml`
-
-### Payments & Usage
-
-- Payment processing: `backend/core/api/app/services/payment_service.py`
-- Usage tracking: `backend/core/api/app/services/usage_service.py`
-
-### Frontend Components
-
-- Chat components: `frontend/packages/ui/src/components/chats/`
-- Message components: `frontend/packages/ui/src/components/messages/`
-- App store: `frontend/packages/ui/src/components/apps/`
-
----
-
-## Docker Debug Mode
-
-### Overview
-
-When debugging in Docker Compose environments, debug logging instrumentation must account for containerized execution paths and volume mounts.
-
-### Volume Mount Configuration
-
-Add this mount to services that may execute code with debug instrumentation:
-
-```yaml
-volumes:
-  - ../../.cursor:/app/.cursor
-```
-
-### Log Path in Containers
-
-- **Container path**: `/app/.cursor/debug.log`
-- **Host path**: `{workspace_root}/.cursor/debug.log`
-
-### Non-Blocking Debug Logging
-
-All debug logging instrumentation MUST be wrapped in try-except blocks:
-
-```python
-# #region agent log
-try:
-    import json
-    import os
-    log_path = '/app/.cursor/debug.log'
-    os.makedirs(os.path.dirname(log_path), exist_ok=True)
-    with open(log_path, 'a') as f:
-        f.write(json.dumps({...})+'\n')
-except Exception:
-    pass  # Non-blocking: debug logging failure should not break functionality
-# #endregion
-```
-
-### Verification
-
-After adding volume mounts:
-
-1. Restart affected services: `docker-compose restart <service-name>`
-2. Verify the mount: `docker exec <container-name> ls -la /app/.cursor`
-3. Test debug logging by triggering the instrumented code path
-
----
-
-## Frontend Development Workflow
-
-### No Local Dev Server (CRITICAL)
-
-**DO NOT run `pnpm dev` or `npm run dev`** - there is no local development server running on the server.
-
-**Default deployment workflow:**
-
-1. Make frontend code changes
-2. Run linter to verify changes: `./scripts/lint_changed.sh --ts --svelte --path frontend/`
-3. Commit and push changes to git
-4. The web app is **automatically built and deployed** when changes are pushed
-
-**Only start a dev server if:**
-
-- The user **explicitly and specifically** requests running a local dev server
-- The user says something like "start the dev server" or "run pnpm dev"
-
-**Never assume** a dev server is needed - the CI/CD pipeline handles building and deploying frontend changes automatically.
-
----
-
-## Auto-Commit and Deployment Workflow
-
-**After completing any task**, automatically commit and push to `dev`:
-
-1. Run linter and fix errors
-2. `git add <modified_files>` (never `git add .`)
-3. `git commit -m "<type>: <description>"`
-4. `git push origin dev`
-
-**If backend files were modified** (`.py`, `Dockerfile`, `docker-compose.yml`, config `.yml`), rebuild affected services:
-
-```bash
-# Rebuild specific services
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build <services> && \
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d <services>
-```
-
-| Files Modified                | Services to Rebuild                         |
-| ----------------------------- | ------------------------------------------- |
-| `backend/core/api/`           | `api`                                       |
-| `backend/core/api/app/tasks/` | `api`, `task-worker`, `task-scheduler`      |
-| `backend/apps/<app>/`         | `app-<app>`, `app-<app>-worker` (if exists) |
-| `backend/shared/`             | All services using shared code              |
-| Directus schema files         | `cms`, `cms-setup`                          |
-
----
-
-## Branch and Server Mapping
-
-### Branch → Server Mapping
-
-| Branch | Server      | URL                                                           |
-| ------ | ----------- | ------------------------------------------------------------- |
-| `dev`  | Development | `https://dev.openmates.org` / `https://api.dev.openmates.org` |
-| `main` | Production  | `https://openmates.org` / `https://api.openmates.org`         |
-
-- The **development server** runs the `dev` branch — this is where we work and push changes.
-- The **production server** runs the `main` branch — this is the live server that users interact with.
-
-### Debugging Production Issues
-
-When debugging issues that occur on the **production server**, the code running there may differ from the `dev` branch. To inspect the production code without switching branches, use `git show`.
-
-**IMPORTANT: Always update the local `main` ref from remote first** before inspecting production code. The local `main` ref can be stale since we never switch to it — run `git fetch origin main` to ensure you're viewing the actual production code:
-
-```bash
-# ✅ ALWAYS run this first to update local main ref
-git fetch origin main
-
-# View a specific file as it exists on the main (production) branch
-git show main:backend/core/api/app/routes/settings.py
-
-# View a specific file at a specific line range (pipe through head/tail)
-git show main:backend/core/api/app/routes/settings.py | head -200
-
-# Compare a file between dev and main
-git diff main..dev -- backend/core/api/app/routes/settings.py
-
-# Check what's different between dev and main overall
-git diff main..dev --stat
-
-# View the last few commits on main
-git log main --oneline -10
-```
-
-**Key rules:**
-
-- Always use `git show main:<path>` to check production code — **do NOT switch branches** on the dev server
-- Use the [Admin Debug API](#admin-debug-api-remote-debugging) with the **production base URL** (`https://api.openmates.org`) to inspect production data and logs
-- When a user reports a production issue, first check if the relevant code differs between `dev` and `main`
-
----
-
-## Creating Pull Requests
-
-### Branch Comparison (CRITICAL)
-
-When comparing branches (e.g., for a PR from `dev` to `main`), **ALWAYS use remote refs** (`origin/main`, `origin/dev`) — never local branch refs (`main`, `dev`). Local refs can be stale and produce wildly incorrect commit counts.
-
-```bash
-# ✅ CORRECT - uses remote refs (matches what GitHub sees)
-git rev-list --left-right --count origin/main...origin/dev
-git log origin/main..origin/dev --oneline
-
-# ❌ WRONG - local refs may be stale, inflating commit count
-git log main..dev --oneline
-```
-
-**Always run `git fetch origin` before comparing branches** to ensure remote refs are up to date.
-
-### PR Workflow
-
-1. Run `git fetch origin` to update remote refs
-2. Use `git rev-list --left-right --count origin/main...origin/dev` to verify commit count
-3. Use `git log origin/main..origin/dev` (with `origin/` prefix) for full commit history
-4. Categorize commits and create a comprehensive PR summary
-5. Create the PR via `gh pr create --base main --head dev`
-
----
-
-## Package and Dependency Management
-
-- **Verify Versions**: ALWAYS check for the latest stable version of a package before installing
-- **No Hallucinations**: NEVER assume or hallucinate version numbers. Verify using terminal tools or web search.
-
----
-
-## Admin Debug CLI (Production Debugging)
-
-CLI wrapper (`backend/scripts/admin_debug_cli.py`) for the [Admin Debug API](#admin-debug-api-remote-debugging). **Use this to debug production** from the dev server via `docker exec api`.
-
-**Setup:** Add `SECRET__ADMIN__DEBUG_CLI__API_KEY=sk-api-xxxxx` to `.env`, restart vault-setup, then confirm the new device in Settings > Developers > Devices on production.
-
-**Commands:** `logs`, `issues`, `issue <id>`, `user <email>`, `chat <id>`, `embed <id>`, `requests`. Add `--dev` for dev server, `--json` for raw output.
-
-```bash
-# Examples
-docker exec api python /app/backend/scripts/admin_debug_cli.py logs --services api,task-worker --search "ERROR" --since 30
-docker exec api python /app/backend/scripts/admin_debug_cli.py user someone@example.com
-docker exec api python /app/backend/scripts/admin_debug_cli.py issues
-```
+**CRITICAL**: Before every git commit, run the linter on all modified files and fix all errors. Only commit when the linter shows NO errors.

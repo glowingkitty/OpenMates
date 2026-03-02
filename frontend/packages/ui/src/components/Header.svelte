@@ -447,6 +447,14 @@
         top: 24px;
     }
 
+    /* RTL: pin the subtitle to the right edge of the logo container and
+       right-align the text so it mirrors the LTR layout. */
+    :global([dir="rtl"]) .server-edition {
+        left: auto;
+        right: 4px;
+        text-align: right;
+    }
+
     .nav-links {
         display: flex;
         gap: 1.5rem;

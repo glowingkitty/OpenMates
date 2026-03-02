@@ -20,6 +20,7 @@ search:
   th: ค้นหา
   cs: Hledat
   sv: Sök
+  he: חיפוש
   verified_by_human: []
 filter:
   context: Button text for filtering options
@@ -43,6 +44,7 @@ filter:
   th: ตัวกรอง
   cs: Filtr
   sv: Filtrera
+  he: סינון
   verified_by_human: []
 close:
   context: Modal close button
@@ -66,6 +68,7 @@ close:
   th: ปิด
   cs: Zavřít
   sv: Stäng
+  he: סגירה
   verified_by_human: []
 today:
   context: Chats from today
@@ -89,6 +92,7 @@ today:
   th: วันนี้
   cs: Dnes
   sv: Idag
+  he: היום
   verified_by_human: []
 yesterday:
   context: Chats from yesterday
@@ -112,6 +116,7 @@ yesterday:
   th: เมื่อวาน
   cs: Včera
   sv: Igår
+  he: אתמול
   verified_by_human: []
 previous_7_days:
   context: Chats from the last 7 days
@@ -135,6 +140,7 @@ previous_7_days:
   th: 7 วันที่ผ่านมา
   cs: Posledních 7 dní
   sv: Senaste 7 dagarna
+  he: 7 הימים האחרונים
   verified_by_human: []
 previous_30_days:
   context: Chats from the last 30 days
@@ -158,29 +164,31 @@ previous_30_days:
   th: 30 วันที่ผ่านมา
   cs: Posledních 30 dní
   sv: Senaste 30 dagarna
+  he: 30 הימים האחרונים
   verified_by_human: []
 days_ago:
   context: Chats from {days} days ago
-  en: '{days} days ago'
-  de: '{days} Tage her'
-  zh: '{days} 天前'
-  es: '{days} días atrás'
+  en: "{days} days ago"
+  de: "{days} Tage her"
+  zh: "{days} 天前"
+  es: "{days} días atrás"
   fr: il y a {days} jours
-  pt: '{days} dias atrás'
-  ru: '{days} дней назад'
-  ja: '{days}日前'
-  ko: '{days}일 전'
-  it: '{days} giorni fa'
-  tr: '{days} gün önce'
-  vi: '{days} ngày trước'
-  id: '{days} hari yang lalu'
-  pl: '{days} dni temu'
-  nl: '{days} dagen geleden'
-  ar: 'قبل {days} أيام'
-  hi: '{days} दिन पहले'
-  th: '{days} วันที่แล้ว'
-  cs: 'Před {days} dny'
-  sv: 'För {days} dagar sedan'
+  pt: "{days} dias atrás"
+  ru: "{days} дней назад"
+  ja: "{days}日前"
+  ko: "{days}일 전"
+  it: "{days} giorni fa"
+  tr: "{days} gün önce"
+  vi: "{days} ngày trước"
+  id: "{days} hari yang lalu"
+  pl: "{days} dni temu"
+  nl: "{days} dagen geleden"
+  ar: "قبل {days} أيام"
+  hi: "{days} दिन पहले"
+  th: "{days} วันที่แล้ว"
+  cs: "Před {days} dny"
+  sv: "För {days} dagar sedan"
+  he: "לפני {days} ימים"
   verified_by_human: []
 loading_chats:
   context: Loading message for chat list
@@ -204,6 +212,7 @@ loading_chats:
   th: กำลังโหลดแชท...
   cs: Načítání chatů...
   sv: Laddar chattar...
+  he: "טוען צ'אטים..."
   verified_by_human: []
 no_chats:
   context: Message shown when there are no chats
@@ -227,6 +236,7 @@ no_chats:
   th: ไม่มีแชท
   cs: Žádné chaty
   sv: Inga chattar
+  he: "אין צ'אטים"
   verified_by_human: []
 syncing:
   context: Message shown when syncing data
@@ -250,6 +260,7 @@ syncing:
   th: กำลังซิงค์...
   cs: Synchronizace...
   sv: Synkroniserar...
+  he: מסנכרן...
   verified_by_human: []
 sync_complete:
   context: Message shown when sync is complete
@@ -273,6 +284,31 @@ sync_complete:
   th: ซิงค์เสร็จสิ้น
   cs: Synchronizace dokončena
   sv: Synkronisering slutförd
+  he: הסנכרון הושלם
+  verified_by_human: []
+incognito:
+  context: Group title for incognito chats in the sidebar — these are ephemeral session-only chats
+  en: INCOGNITO
+  de: INKOGNITO
+  zh: 隐私
+  es: INCÓGNITO
+  fr: INCOGNITO
+  pt: INCÓGNITO
+  ru: ИНКОГНИТО
+  ja: シークレット
+  ko: 시크릿
+  it: INCOGNITO
+  tr: GİZLİ
+  vi: ẨN DANH
+  id: PENYAMARAN
+  pl: INCOGNITO
+  nl: INCOGNITO
+  ar: متخفي
+  hi: गुप्त
+  th: ไม่ระบุตัวตน
+  cs: INKOGNITO
+  sv: INKOGNITO
+  he: גלישה בסתר
   verified_by_human: []
 intro:
   context: Group title for intro chats
@@ -296,6 +332,7 @@ intro:
   th: บทนำ
   cs: ÚVOD
   sv: INTRO
+  he: הקדמה
   verified_by_human: []
 examples:
   context: Group title for example chats (community suggestions)
@@ -319,6 +356,7 @@ examples:
   th: ตัวอย่างแชท
   cs: PŘÍKLADY CHATŮ
   sv: EXEMPELCHATTAR
+  he: "צ'אטים לדוגמה"
   verified_by_human: []
 legal:
   context: Group title for legal chats (privacy, terms, imprint)
@@ -342,6 +380,7 @@ legal:
   th: ข้อกฎหมาย
   cs: PRÁVNÍ
   sv: JURIDIK
+  he: משפטי
   verified_by_human: []
 shared_by_others:
   context: Group title for chats shared with the user by others
@@ -365,6 +404,7 @@ shared_by_others:
   th: แชร์โดยผู้อื่น
   cs: SDÍLENO OSTATNÍMI
   sv: DELAT AV ANDRA
+  he: שותפו על ידי אחרים
   verified_by_human: []
 loadMore.button:
   context: Button text for loading all chats
@@ -388,6 +428,7 @@ loadMore.button:
   th: โหลดแชททั้งหมด
   cs: Načíst všechny chaty
   sv: Ladda alla chattar
+  he: "טען את כל הצ'אטים"
   verified_by_human: []
 loadMore.more:
   context: Text shown next to chat count when loading more chats
@@ -411,4 +452,5 @@ loadMore.more:
   th: เพิ่มเติม
   cs: více
   sv: mer
+  he: עוד
   verified_by_human: []

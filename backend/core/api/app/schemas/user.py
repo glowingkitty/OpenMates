@@ -24,6 +24,13 @@ class UserResponse(BaseModel):
     auto_topup_low_balance_threshold: Optional[int] = None # Credit threshold that triggers auto top-up (fixed at 100 credits)
     auto_topup_low_balance_amount: Optional[int] = None # Credits to purchase when threshold crossed
     auto_topup_low_balance_currency: Optional[str] = None # Currency for auto top-up purchases
+    # Refund policy consent — True if user has consented to the limited refund / withdrawal waiver
+    # (set at signup, updated on each purchase). Used by frontend to skip redundant consent screens.
+    has_accepted_refund_policy: bool = False
+    # Storage tracking fields (used for billing display and auto-delete UI)
+    storage_used_bytes: int = 0 # Total S3 storage used in bytes
+    # Auto-deletion settings (privacy)
+    auto_delete_chats_after_days: Optional[int] = None # Days after which chats are auto-deleted (None = never)
 
     class Config:
         json_schema_extra = {

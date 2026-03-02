@@ -290,13 +290,25 @@
     }
   }
 
-  // Add and remove event listeners
+  // Add and remove event listeners.
+  // NOTE: mousedown/touchstart listeners are registered with a short delay to prevent
+  // the same touch that triggered the long-press from immediately closing the menu.
+  // Without this delay, on iPad the touchend that follows the long-press fires a
+  // synthetic touchstart that hits handleClickOutside before the user can interact.
+  // FocusModeContextMenu.svelte uses the same pattern.
+  let clickOutsideTimeout: ReturnType<typeof setTimeout> | null = null;
   onMount(() => {
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('touchstart', handleClickOutside);
+    clickOutsideTimeout = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }, 100);
     document.addEventListener('scroll', handleScroll, true);
 
     return () => {
+      if (clickOutsideTimeout !== null) {
+        clearTimeout(clickOutsideTimeout);
+        clickOutsideTimeout = null;
+      }
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
       document.removeEventListener('scroll', handleScroll, true);

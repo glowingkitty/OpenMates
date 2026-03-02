@@ -161,6 +161,80 @@ export async function sendDeleteDraftImpl(
 }
 
 /**
+ * Send a request to delete an uploaded file that was removed from a message draft
+ * before the message was sent.  This triggers server-side cleanup of:
+ *   - The S3 variant files (original, full, preview) from the chatfiles bucket
+ *   - The upload_files Directus record (deduplication tracking)
+ *   - The user's storage_used_bytes counter (decremented)
+ *
+ * Called when an image/PDF/recording embed is removed from the draft editor and
+ * the file was already fully uploaded to S3 (i.e., cancelUpload() was a no-op
+ * because the upload completed before the user deleted it).
+ *
+ * Fire-and-forget: failures are logged but not thrown so they never block the UI.
+ *
+ * @param embed_id - The embed UUID returned by POST /v1/upload/file (TipTap node attrs.id)
+ * @param chat_id  - The draft chat ID for context/logging (optional)
+ */
+export async function sendDeleteDraftEmbedImpl(
+  _serviceInstance: ChatSynchronizationService,
+  embed_id: string,
+  chat_id?: string,
+): Promise<void> {
+  try {
+    await webSocketService.sendMessage("delete_draft_embed", {
+      embed_id,
+      chat_id: chat_id ?? null,
+    });
+    console.debug(
+      `[ChatSyncService:Senders] Sent delete_draft_embed for embed ${embed_id} (chat ${chat_id ?? "n/a"})`,
+    );
+  } catch (error) {
+    // Non-fatal: the weekly billing reconciliation will correct storage counters.
+    // Orphaned upload_files records will remain in Directus but won't affect functionality.
+    console.error(
+      `[ChatSyncService:Senders] Failed to send delete_draft_embed for embed ${embed_id}:`,
+      error,
+    );
+  }
+}
+
+/**
+ * Send a cancel_pdf_processing WebSocket message.
+ *
+ * Called when the user presses Stop on a PDF embed that is already in 'processing'
+ * status (OCR task is running on the server). The server handler will:
+ *   1. Revoke the Celery OCR task via /internal/pdf/cancel.
+ *   2. Delete S3 files and the Directus upload_files record.
+ *   3. Broadcast draft_embed_deleted to other devices for IndexedDB cleanup.
+ *
+ * Note: client-side node deletion (removing the embed from TipTap) is done by
+ * the caller (Embed.ts cancelpdfupload handler) before calling this function.
+ */
+export async function sendCancelPdfProcessingImpl(
+  _serviceInstance: ChatSynchronizationService,
+  embed_id: string,
+  chat_id?: string,
+): Promise<void> {
+  try {
+    await webSocketService.sendMessage("cancel_pdf_processing", {
+      embed_id,
+      chat_id: chat_id ?? null,
+    });
+    console.debug(
+      `[ChatSyncService:Senders] Sent cancel_pdf_processing for embed ${embed_id} (chat ${chat_id ?? "n/a"})`,
+    );
+  } catch (error) {
+    // Non-fatal: the PDF task will eventually complete or time out, and the embed
+    // record will be cleaned up by the periodic billing reconciliation.
+    console.error(
+      `[ChatSyncService:Senders] Failed to send cancel_pdf_processing for embed ${embed_id}:`,
+      error,
+    );
+  }
+}
+
+/**
  * Send delete chat request to server
  * NOTE: The actual deletion from IndexedDB should be done by the caller (e.g., Chat.svelte)
  * before calling this function. This function only handles server communication.
@@ -273,14 +347,17 @@ export async function sendNewMessageImpl(
     );
 
     // Update message status to 'waiting_for_internet' if it's currently 'sending'
-    // This ensures the UI shows the correct status when offline
+    // This ensures the UI shows the correct status when offline.
+    // IMPORTANT: Use updateMessageStatus() NOT spread→saveMessage(). saveMessage() calls
+    // encryptMessageFields() → getOrGenerateChatKey(), which silently generates a new
+    // random key if the chat key is absent from the in-memory cache, re-encrypting the
+    // message and causing "[Content decryption failed]" on the sender's device.
     if (message.status === "sending") {
       try {
-        const updatedMessage: Message = {
-          ...message,
-          status: "waiting_for_internet",
-        };
-        await chatDB.saveMessage(updatedMessage);
+        await chatDB.updateMessageStatus(
+          message.message_id,
+          "waiting_for_internet",
+        );
 
         // Dispatch event to update UI with new status
         serviceInstance.dispatchEvent(
@@ -883,6 +960,7 @@ export async function sendNewMessageImpl(
     message_history?: Message[];
     encrypted_suggestion_to_delete?: string | null;
     app_settings_memories_metadata?: string[]; // Format: ["code-preferred_technologies", "travel-trips", ...]
+    mentioned_settings_memories_cleartext?: Record<string, unknown[]>; // Cleartext for @memory/@memory-entry mentions so backend does not re-request
     active_focus_id?: string | null; // Plaintext focus mode ID for AI processing (decrypted from E2E encrypted field)
   }
   const payload: SendMessagePayload = {
@@ -911,6 +989,30 @@ export async function sendNewMessageImpl(
       "[ChatSyncService:Senders] Including app settings/memories metadata:",
       appSettingsMemoriesMetadataKeys,
     );
+  }
+
+  // When user mentioned @memory or @memory-entry in the message, send cleartext so the backend
+  // can use it and not request that category again during this request
+  if (!isIncognitoChat && contentForServer) {
+    try {
+      const { extractMentionedSettingsMemoriesCleartext } =
+        await import("./mentionedSettingsMemoriesCleartext");
+      const mentionedCleartext =
+        extractMentionedSettingsMemoriesCleartext(contentForServer);
+      const keys = Object.keys(mentionedCleartext);
+      if (keys.length > 0) {
+        payload.mentioned_settings_memories_cleartext = mentionedCleartext;
+        console.debug(
+          "[ChatSyncService:Senders] Including mentioned settings/memories cleartext for keys:",
+          keys,
+        );
+      }
+    } catch (err) {
+      console.warn(
+        "[ChatSyncService:Senders] Failed to extract mentioned settings/memories cleartext (non-fatal):",
+        err,
+      );
+    }
   }
 
   // Include active focus mode ID for AI processing (if focus mode is active)
@@ -1273,37 +1375,35 @@ export async function sendNewMessageImpl(
       error,
     );
     try {
+      // IMPORTANT: Use updateMessageStatus() NOT getMessage()→spread→saveMessage().
+      // saveMessage() calls encryptMessageFields() → getOrGenerateChatKey(), which
+      // silently generates a new random key if the chat key is absent from the in-memory
+      // cache, re-encrypting the message and causing "[Content decryption failed]" on
+      // the sender's device. updateMessageStatus() patches only the status field in-place
+      // via a raw IndexedDB transaction with no encryption involved.
+      //
+      // The chat_id mismatch guard is preserved via a getMessage() preflight check,
+      // but the actual status write always goes through updateMessageStatus().
       const existingMessage = await chatDB.getMessage(message.message_id);
-      let messageToSave: Message;
 
-      if (existingMessage) {
-        // Ensure we are updating the correct message if found
-        if (existingMessage.chat_id !== message.chat_id) {
-          console.warn(
-            `[ChatSyncService:Senders] Message ${message.message_id} found in DB but with different chat_id (${existingMessage.chat_id}) than expected (${message.chat_id}). Using original message data.`,
-          );
-          messageToSave = { ...message, status: "failed" as const };
-        } else {
-          messageToSave = { ...existingMessage, status: "failed" as const };
-        }
-      } else {
-        // If not found in DB (e.g., was never saved or deleted), use the original message object
+      if (existingMessage && existingMessage.chat_id !== message.chat_id) {
         console.warn(
-          `[ChatSyncService:Senders] Message ${message.message_id} not found in DB during error handling. Saving original with 'failed' status.`,
+          `[ChatSyncService:Senders] Message ${message.message_id} found in DB but with different chat_id (${existingMessage.chat_id}) than expected (${message.chat_id}). Skipping status update to avoid corrupting wrong chat.`,
         );
-        messageToSave = { ...message, status: "failed" as const };
+      } else {
+        // Message found with correct chat_id, or not found yet (updateMessageStatus
+        // is a no-op when the message doesn't exist, which is safe here).
+        await chatDB.updateMessageStatus(message.message_id, "failed");
+        serviceInstance.dispatchEvent(
+          new CustomEvent("messageStatusChanged", {
+            detail: {
+              chatId: message.chat_id,
+              messageId: message.message_id,
+              status: "failed",
+            },
+          }),
+        );
       }
-
-      await chatDB.saveMessage(messageToSave);
-      serviceInstance.dispatchEvent(
-        new CustomEvent("messageStatusChanged", {
-          detail: {
-            chatId: messageToSave.chat_id,
-            messageId: messageToSave.message_id,
-            status: "failed",
-          },
-        }),
-      );
     } catch (dbError) {
       console.error(
         `[ChatSyncService:Senders] Error updating message status to 'failed' in DB for ${message.message_id}:`,
@@ -1434,6 +1534,11 @@ export async function sendCompletedAIResponseImpl(
           role: "system",
           encrypted_content: encryptedFields.encrypted_content,
           created_at: aiMessage.created_at,
+          // Include user_message_id so other devices can link the rejection to its
+          // triggering user message (enables sidebar "Credits needed..." + user preview)
+          user_message_id: aiMessage.user_message_id,
+          // Preserve status so other devices store the correct state (e.g., "waiting_for_user")
+          status: aiMessage.status,
         },
       });
     } else {
@@ -1806,6 +1911,19 @@ export async function sendEncryptedStoragePackage(
     return;
   }
 
+  // CRITICAL: Prevent duplicate sends for the same user message ID.
+  // This guards against ai_typing_started firing twice (e.g. on WebSocket reconnect)
+  // which would generate a new chat key the second time (if encrypted_chat_key isn't
+  // yet persisted to DB), corrupting the chat for all devices on reload.
+  const messageId = data.user_message.message_id;
+  if (serviceInstance.isMessageSyncing(messageId)) {
+    console.info(
+      `[ChatSyncService:Senders] User message ${messageId} is already being synced (encrypted storage package in-flight), skipping duplicate send.`,
+    );
+    return;
+  }
+  serviceInstance.markMessageSyncing(messageId);
+
   try {
     const {
       chat_id,
@@ -2144,11 +2262,17 @@ export async function sendEncryptedStoragePackage(
       "encrypted_chat_metadata",
       metadataPayload,
     );
+
+    // Unmark after successful send so subsequent retries (e.g. from reconnect) are allowed
+    // once the in-flight send is confirmed. The guard above prevents concurrent duplicates.
+    serviceInstance.unmarkMessageSyncing(messageId);
   } catch (error) {
     console.error(
       "[ChatSyncService:Senders] Error sending encrypted storage package:",
       error,
     );
+    // Unmark on error so a legitimate retry can proceed
+    serviceInstance.unmarkMessageSyncing(messageId);
   }
 }
 
@@ -2293,7 +2417,8 @@ export async function sendStoreEmbedImpl(
   embedKeysPayload?: { keys: Array<Record<string, unknown>> },
 ): Promise<void> {
   // Delegate to embedSenders.ts which handles offline queueing in IndexedDB
-  const { sendStoreEmbedImpl: embedSendersImpl } = await import("./embedSenders");
+  const { sendStoreEmbedImpl: embedSendersImpl } =
+    await import("./embedSenders");
   return embedSendersImpl(serviceInstance, payload, embedKeysPayload);
 }
 
@@ -2430,7 +2555,8 @@ export async function sendStoreEmbedKeysImpl(
   },
 ): Promise<void> {
   // Delegate to embedSenders.ts which handles offline awareness
-  const { sendStoreEmbedKeysImpl: embedSendersKeysImpl } = await import("./embedSenders");
+  const { sendStoreEmbedKeysImpl: embedSendersKeysImpl } =
+    await import("./embedSenders");
   return embedSendersKeysImpl(serviceInstance, payload);
 }
 
@@ -2594,6 +2720,124 @@ export async function sendLoadMoreChatsImpl(
   } catch (error) {
     console.error(
       "[ChatSyncService:Senders] Error requesting more chats:",
+      error,
+    );
+  }
+}
+
+// ─── Inspiration chat sync ─────────────────────────────────────────────────
+
+/**
+ * Sync an inspiration-created chat to the server and other devices.
+ *
+ * When a user clicks a daily inspiration banner, a chat is created locally
+ * with a pre-built assistant message. This function sends the encrypted chat
+ * metadata and first message to the server so that:
+ *   1. The chat appears in the phased sync for other devices.
+ *   2. The server's sync cache is populated (so "Continue where you left off"
+ *      works cross-device).
+ *   3. Other connected devices receive a broadcast to show the new chat.
+ *
+ * The server handler broadcasts a `new_chat_message` event to all other devices
+ * of the same user (same shape as normal cross-device chat sync).
+ */
+/**
+ * Embed data to include in the sync_inspiration_chat payload so other devices
+ * can store and decrypt the inspiration video embed immediately without waiting
+ * for a Directus round-trip via request_embed.
+ */
+export interface InspirationEmbedData {
+  embed_id: string;
+  /** Client-encrypted embed content (TOON-encoded video metadata) */
+  encrypted_content: string;
+  /** Client-encrypted embed type (e.g. "video") */
+  encrypted_type: string;
+  /** Client-encrypted text preview (e.g. video title) */
+  encrypted_text_preview: string;
+  /** Embed key wrappers (master + chat) for decryption on other devices */
+  embed_keys: Array<{
+    hashed_embed_id: string;
+    key_type: "master" | "chat";
+    hashed_chat_id: string | null;
+    encrypted_embed_key: string;
+    hashed_user_id: string;
+    created_at: number;
+  }>;
+}
+
+export async function sendSyncInspirationChatImpl(
+  serviceInstance: ChatSynchronizationService,
+  chatId: string,
+  messageId: string,
+  messageContent: string,
+  category: string,
+  encryptedTitle: string,
+  encryptedCategory: string,
+  encryptedContent: string,
+  encryptedChatKey: string,
+  createdAt: number,
+  encryptedFollowUpSuggestions?: string,
+  inspirationEmbed?: InspirationEmbedData,
+): Promise<void> {
+  if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+    console.warn(
+      "[ChatSyncService:Senders] WebSocket not connected — cannot sync inspiration chat.",
+    );
+    return;
+  }
+
+  try {
+    const payload: Record<string, unknown> = {
+      chat_id: chatId,
+      message_id: messageId,
+      content: messageContent,
+      role: "assistant",
+      category,
+      created_at: createdAt,
+      messages_v: 1,
+      title_v: 1,
+      encrypted_title: encryptedTitle,
+      encrypted_category: encryptedCategory,
+      encrypted_content: encryptedContent,
+      encrypted_chat_key: encryptedChatKey,
+    };
+
+    // Include encrypted follow-up suggestions if available so the backend
+    // can persist them to Directus (zero-knowledge — server never decrypts).
+    if (encryptedFollowUpSuggestions) {
+      payload.encrypted_follow_up_suggestions = encryptedFollowUpSuggestions;
+    }
+
+    // Include the inspiration video embed data (encrypted content + key wrappers)
+    // so other devices can store and decrypt the embed immediately when they
+    // receive the new_chat_message broadcast. Without this, the second device
+    // must wait for the store_embed and store_embed_keys WS calls to reach
+    // Directus before request_embed can return the data — a race that often
+    // fails when the user switches devices quickly after opening an inspiration.
+    if (inspirationEmbed) {
+      payload.inspiration_embed = {
+        embed_id: inspirationEmbed.embed_id,
+        encrypted_content: inspirationEmbed.encrypted_content,
+        encrypted_type: inspirationEmbed.encrypted_type,
+        encrypted_text_preview: inspirationEmbed.encrypted_text_preview,
+        embed_keys: inspirationEmbed.embed_keys,
+      };
+    }
+
+    await webSocketService.sendMessage("sync_inspiration_chat", payload);
+    console.info(
+      `[ChatSyncService:Senders] Sent sync_inspiration_chat for chat ${chatId}`,
+      encryptedFollowUpSuggestions
+        ? "(with follow-up suggestions)"
+        : "(no follow-up suggestions)",
+      inspirationEmbed
+        ? `(with embed ${inspirationEmbed.embed_id})`
+        : "(no embed)",
+    );
+  } catch (error) {
+    // Non-fatal — the chat will sync on next phased sync or when user sends a follow-up.
+    console.error(
+      "[ChatSyncService:Senders] Error sending sync_inspiration_chat:",
       error,
     );
   }

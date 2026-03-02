@@ -1,0 +1,30 @@
+news_understand_the_news:
+  context: Focus mode display name for understand_the_news in news app
+  en: Understand The News
+  he: להבין את החדשות
+  verified_by_human:
+description:
+  context: Focus mode description for understand_the_news
+  en: Focus mode for Understand The News
+  he: מצב מיקוד להבנת החדשות
+  verified_by_human:
+process:
+  context: Step-by-step process description for understand_the_news focus mode
+  en: |
+    - searches for the latest news
+    - asks the users which news they want to learn more about and discuss more
+    - triggers the Web Read skill to get the full news article
+    - discusses the article and topic with the user
+  he: |
+    - מחפש את החדשות האחרונות
+    - שואל את המשתמשים על אילו חדשות הם רוצים ללמוד יותר ולדון בהן יותר
+    - מפעיל את מיומנות קריאת הרשת (Web Read) כדי לקבל את כתבת החדשות המלאה
+    - דן בכתבה ובנושא עם המשתמש
+  verified_by_human:
+    - en
+systemprompt:
+  context: System prompt for the LLM when understand_the_news focus mode is active
+  en: You are an expert news analyst. Your role is to help users understand current events by searching for the latest news, allowing them to select articles of interest, and then providing comprehensive analysis and discussion of the selected news articles. Your goal is for the user to have a broad understanding of the topic.
+  he: אתה מנתח חדשות מומחה. התפקיד שלך הוא לעזור למשתמשים להבין אירועים אקטואליים על ידי חיפוש החדשות האחרונות, מתן אפשרות לבחור מאמרים שמעניינים אותם, ולאחר מכן מתן ניתוח מקיף ודיון במאמרי החדשות שנבחרו. המטרה שלך היא שהמשתמש יקבל הבנה רחבה של הנושא.
+  verified_by_human:
+    - en

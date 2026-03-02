@@ -13,11 +13,19 @@ Supports both saved payment methods and new payment form
         subscribe: () => () => {},
         set: () => {},
         update: () => {}
-    } as any;
+    } as Writable<number>;
+
+    // Store to pass purchased credits amount to the confirmation screen.
+    // Set by WebSocket handler when payment_completed arrives, read by SettingsBuyCreditsConfirmation.
+    export const purchasedCreditsStore: Writable<number> = browser ? writable(0) : {
+        subscribe: () => () => {},
+        set: () => {},
+        update: () => {}
+    } as Writable<number>;
 </script>
 
 <script lang="ts">
-    import { createEventDispatcher, onMount } from 'svelte';
+    import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import { text } from '@repo/ui';
     import { pricingTiers } from '../../../config/pricing';
     import Payment from '../../Payment.svelte';
@@ -26,6 +34,7 @@ Supports both saved payment methods and new payment form
     import * as cryptoService from '../../../services/cryptoService';
     import { loadStripe } from '@stripe/stripe-js';
     import PaymentAuth from './PaymentAuth.svelte';
+    import { webSocketService } from '../../../services/websocketService';
 
     const dispatch = createEventDispatcher();
     
@@ -43,10 +52,10 @@ Supports both saved payment methods and new payment form
     
     let selectedCreditsAmount = $derived(tier.credits);
     let selectedPrice = $derived(() => {
-        const currencyKey = selectedCurrency.toLowerCase() as 'eur' | 'usd' | 'jpy';
+        const currencyKey = selectedCurrency.toLowerCase() as 'eur' | 'usd';
         const amount = tier.price[currencyKey];
-        // Convert to cents for decimal currencies, use as-is for JPY
-        return selectedCurrency.toUpperCase() === 'JPY' ? amount : amount * 100;
+        // Convert to cents (EUR and USD both use 2 decimal places)
+        return amount * 100;
     });
 
     // Payment method state
@@ -67,8 +76,17 @@ Supports both saved payment methods and new payment form
     let showPaymentForm = $state(false);
     let showAuthModal = $state(false);
     let authMethods: { has_passkey: boolean; has_2fa: boolean } | null = $state(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let stripe: any = $state(null);
     let isProcessingPayment = $state(false);
+
+    // Dual-provider state for the saved-method flow.
+    // The <Payment> component handles provider detection internally when showPaymentForm is true.
+    // When showing the saved-method list (Stripe-only), we also detect the active provider
+    // so we can show or hide the saved-method UI and the switch-to-Polar button.
+    let detectedProvider: 'stripe' | 'polar' | null = $state(null);
+    // providerOverride: if the user explicitly switches provider from the saved-method view
+    let savedMethodProviderOverride: 'stripe' | 'polar' | null = $state(null);
 
     // Format card brand name
     function formatCardBrand(brand: string): string {
@@ -89,13 +107,83 @@ Supports both saved payment methods and new payment form
         return `${expMonth.toString().padStart(2, '0')}/${expYear.toString().slice(-2)}`;
     }
 
-    // Load payment methods on mount
+    // Track whether we already navigated to confirmation (prevents double-navigation)
+    let hasNavigatedToConfirmation = $state(false);
+
+    /**
+     * WebSocket handler: fires when the backend confirms payment_completed.
+     * Immediately navigates to the confirmation screen with the purchased credits amount,
+     * bypassing the 30-second timeout fallback in Payment.svelte.
+     */
+    function handlePaymentCompleted(payload: { order_id: string; credits_purchased: number; current_credits: number }) {
+        console.debug('[SettingsBuyCreditsPayment] Received payment_completed via WebSocket:', payload);
+        if (hasNavigatedToConfirmation) return; // Prevent duplicate navigation
+        hasNavigatedToConfirmation = true;
+
+        // Store the purchased credits so the confirmation screen can display them
+        purchasedCreditsStore.set(payload.credits_purchased);
+
+        dispatch('openSettings', {
+            settingsPath: 'billing/buy-credits/confirmation',
+            direction: 'forward',
+            icon: 'check',
+            title: $text('settings.billing.purchase_successful')
+        });
+    }
+
+    // Load payment methods on mount — also detect active provider and register WebSocket listener
     onMount(async () => {
-        await checkPaymentMethods();
+        // Listen for payment_completed WebSocket events so we can navigate instantly
+        // instead of waiting for the 30-second timeout in Payment.svelte
+        webSocketService.on('payment_completed', handlePaymentCompleted);
+        await detectProviderAndLoadMethods();
     });
 
-    async function checkPaymentMethods() {
+    // Cleanup WebSocket listener when component is destroyed
+    onDestroy(() => {
+        webSocketService.off('payment_completed', handlePaymentCompleted);
+    });
+
+    /**
+     * Detect the active payment provider from /config, then load saved payment methods
+     * if on Stripe. Polar does not support saved methods (Stripe-only feature).
+     */
+    async function detectProviderAndLoadMethods() {
         isLoadingPaymentMethods = true;
+        try {
+            // Build config URL — append provider_override if the user has explicitly switched
+            let configUrl = getApiEndpoint(apiEndpoints.payments.config);
+            if (savedMethodProviderOverride) {
+                configUrl += `?provider_override=${savedMethodProviderOverride}`;
+            }
+
+            const configResponse = await fetch(configUrl, { credentials: 'include' });
+            if (configResponse.ok) {
+                const config = await configResponse.json();
+                detectedProvider = (config.provider as 'stripe' | 'polar') || 'stripe';
+            } else {
+                // If config fails, assume Stripe (safe default)
+                detectedProvider = 'stripe';
+            }
+
+            // Saved payment methods are Stripe-only
+            if (detectedProvider === 'polar') {
+                hasSavedPaymentMethods = false;
+                showPaymentForm = true;
+                return;
+            }
+
+            await checkPaymentMethods();
+        } catch (error) {
+            console.error('Error detecting provider:', error);
+            detectedProvider = 'stripe';
+            showPaymentForm = true;
+        } finally {
+            isLoadingPaymentMethods = false;
+        }
+    }
+
+    async function checkPaymentMethods() {
         try {
             const response = await fetch(getApiEndpoint(apiEndpoints.payments.listPaymentMethods), {
                 credentials: 'include'
@@ -120,9 +208,22 @@ Supports both saved payment methods and new payment form
             // Fall back to payment form on error
             hasSavedPaymentMethods = false;
             showPaymentForm = true;
-        } finally {
-            isLoadingPaymentMethods = false;
         }
+    }
+
+    /**
+     * Switch from the saved-method Stripe view to Polar.
+     * Resets saved-method state and re-fetches config with override.
+     */
+    async function switchToProvider(newProvider: 'stripe' | 'polar') {
+        savedMethodProviderOverride = newProvider;
+        showPaymentForm = false;
+        hasSavedPaymentMethods = false;
+        paymentMethods = [];
+        selectedPaymentMethodId = null;
+        detectedProvider = null;
+        isLoadingPaymentMethods = true;
+        await detectProviderAndLoadMethods();
     }
 
     // Handle payment method selection
@@ -228,7 +329,10 @@ Supports both saved payment methods and new payment form
             }
 
             if (paymentIntent && paymentIntent.status === 'succeeded') {
-                // Payment successful
+                // Payment successful — store purchased credits for confirmation screen
+                if (hasNavigatedToConfirmation) return; // WebSocket may have already handled this
+                hasNavigatedToConfirmation = true;
+                purchasedCreditsStore.set(selectedCreditsAmount);
                 dispatch('openSettings', {
                     settingsPath: 'billing/buy-credits/confirmation',
                     direction: 'forward',
@@ -246,14 +350,23 @@ Supports both saved payment methods and new payment form
         }
     }
 
-    // Handle payment completion from Payment component (for new payment form)
+    // Handle payment completion from Payment component (for new payment form).
+    // This fires when Payment.svelte's timeout fallback eventually triggers paymentStateChange.
+    // If WebSocket already navigated us, hasNavigatedToConfirmation prevents double-navigation.
     async function handlePaymentComplete(event: CustomEvent<{ state: string, payment_intent_id?: string, isDelayed?: boolean }>) {
         const paymentState = event.detail?.state;
         
         if (paymentState === 'success') {
+            if (hasNavigatedToConfirmation) return; // WebSocket already handled this
+            hasNavigatedToConfirmation = true;
+
             // Refresh payment methods after successful payment
             // The payment method should now be saved and available for future purchases
             await checkPaymentMethods();
+
+            // Store the selected credits amount for the confirmation screen
+            // (WebSocket handler sets this from payload; here we use the locally selected tier)
+            purchasedCreditsStore.set(selectedCreditsAmount);
             
             dispatch('openSettings', {
                 settingsPath: 'billing/buy-credits/confirmation',
@@ -269,8 +382,8 @@ Supports both saved payment methods and new payment form
     <div class="loading-container">
         <p>{$text('settings.billing.loading_payment_methods')}</p>
     </div>
-{:else if hasSavedPaymentMethods && !showPaymentForm}
-    <!-- Show saved payment methods -->
+{:else if hasSavedPaymentMethods && !showPaymentForm && detectedProvider === 'stripe'}
+    <!-- Show saved payment methods (Stripe-only feature) -->
     <div class="payment-methods-container">
         <h3>{$text('settings.billing.select_payment_method')}</h3>
         
@@ -308,6 +421,13 @@ Supports both saved payment methods and new payment form
         >
             {isProcessingPayment ? $text('settings.billing.processing') : $text('settings.billing.buy_now')}
         </button>
+
+        <!-- Switch to Polar for non-EU cards -->
+        <div class="provider-switch-container">
+            <button class="provider-switch-btn" onclick={() => switchToProvider('polar')}>
+                {$text('signup.switch_to_non_eu_card')}
+            </button>
+        </div>
     </div>
 
     {#if showAuthModal && authMethods}
@@ -319,15 +439,19 @@ Supports both saved payment methods and new payment form
         />
     {/if}
 {:else}
-    <!-- Show payment form for new payment method -->
+    <!-- Show payment form for new payment method or Polar provider.
+         Pass savedMethodProviderOverride as initialProviderOverride so the Payment component
+         immediately requests the correct provider (e.g. 'polar' when user clicked non-EU card),
+         instead of re-detecting from geo which could fall back to stripe. -->
     <div class="payment-container">
         <Payment
             purchasePrice={selectedPrice()}
             currency={selectedCurrency}
             credits_amount={selectedCreditsAmount}
-            requireConsent={true}
+            requireConsent={false}
             compact={false}
             disableWebSocketHandlers={true}
+            initialProviderOverride={savedMethodProviderOverride}
             on:paymentStateChange={handlePaymentComplete}
         />
     </div>
@@ -433,14 +557,37 @@ Supports both saved payment methods and new payment form
     }
 
     .payment-container {
-        width: 90%;
-        padding: 0 10px;
+        /* Full width — Polar iframe needs to fill the entire panel.
+           The Payment component handles its own internal layout. */
+        width: 100%;
+        padding: 0;
     }
 
     @media (max-width: 480px) {
-        .payment-container,
         .payment-methods-container {
             padding: 0 5px;
         }
+    }
+
+    /* Provider switch button — shown below saved-method list to switch to Polar */
+    .provider-switch-container {
+        display: flex;
+        justify-content: center;
+        margin-top: 12px;
+    }
+
+    .provider-switch-btn {
+        background: none;
+        border: none;
+        padding: 0;
+        font-size: 13px;
+        color: var(--color-grey-60);
+        cursor: pointer;
+        text-decoration: underline;
+        transition: color 0.15s;
+    }
+
+    .provider-switch-btn:hover {
+        color: var(--color-grey-80);
     }
 </style>

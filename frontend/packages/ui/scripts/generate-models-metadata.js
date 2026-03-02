@@ -7,7 +7,10 @@
 // **Usage**: Run this script during the build process to include model metadata
 // in the frontend bundle. Models are then filtered at runtime based on provider health.
 //
-// Models are included if they have input_types that include 'text' (AI chat models).
+// Models are included if they have input_types defined and are not internal safety-check
+// models. This includes both text-generation models (ai.ask) and image/audio models
+// (images.generate, images.generate_draft, audio.transcribe) so their pricing is
+// displayed correctly in the skill settings UI.
 // At runtime, models are filtered based on provider health checks via the
 // `isProviderHealthy` function from appHealthStore.
 //
@@ -92,34 +95,44 @@ function parseProviderYaml(providerId, filePath) {
     const models = [];
 
     for (const model of providerData.models) {
-      // Only include models that support text input (AI chat models)
-      // This excludes image-only models like Flux for image generation
-      if (
-        !Array.isArray(model.input_types) ||
-        !model.input_types.includes("text")
-      ) {
+      // Skip models without input_types defined — they can't be displayed meaningfully
+      if (!Array.isArray(model.input_types) || model.input_types.length === 0) {
         continue;
       }
 
-      // Only include models that support text input (AI chat models)
-      if (
-        !Array.isArray(model.input_types) ||
-        !model.input_types.includes("text")
-      ) {
+      // Skip internal/safety-check models — they are never shown in the skill settings UI
+      if (model.for_app_skill === "ai.safety_check") {
         continue;
       }
 
-      // Determine tier based on pricing
+      // Determine tier based on pricing.
+      // For token-based models: derive tier from average token cost.
+      // For per-unit models (images, audio): default to "economy" since unit costs are fixed.
       let tier = "standard";
-      if (model.costs) {
+      if (model.tier) {
+        // Explicit tier in YAML overrides cost-based calculation
+        tier = model.tier;
+      } else if (model.costs) {
         const inputCost = model.costs.input_per_million_token?.price || 0;
         const outputCost = model.costs.output_per_million_token?.price || 0;
         const avgCost = (inputCost + outputCost) / 2;
 
-        if (avgCost < 0.5) {
-          tier = "economy";
-        } else if (avgCost > 5) {
-          tier = "premium";
+        if (avgCost > 0) {
+          if (avgCost < 0.5) {
+            tier = "economy";
+          } else if (avgCost > 5) {
+            tier = "premium";
+          }
+        } else if (model.costs.output_per_image) {
+          // Image models — use per-image cost to determine tier
+          const imageCost = model.costs.output_per_image?.price || 0;
+          if (imageCost < 0.05) {
+            tier = "economy";
+          } else if (imageCost > 0.2) {
+            tier = "premium";
+          } else {
+            tier = "standard";
+          }
         }
       }
 
@@ -130,7 +143,11 @@ function parseProviderYaml(providerId, filePath) {
         region: server.region || "US", // Default to US if not specified
       }));
 
-      // Extract pricing information for display
+      // Extract pricing information for display.
+      // Supports three pricing shapes from provider YAML:
+      //   pricing.tokens.{input,output}.per_credit_unit  — token-based (AI ask)
+      //   pricing.per_unit.{credits, unit_name}           — per-image/megapixel
+      //   pricing.per_minute                              — per audio minute
       const pricing = {};
       if (model.pricing?.tokens?.input?.per_credit_unit) {
         pricing.input_tokens_per_credit =
@@ -139,6 +156,15 @@ function parseProviderYaml(providerId, filePath) {
       if (model.pricing?.tokens?.output?.per_credit_unit) {
         pricing.output_tokens_per_credit =
           model.pricing.tokens.output.per_credit_unit;
+      }
+      if (model.pricing?.per_unit) {
+        pricing.per_unit = {
+          credits: model.pricing.per_unit.credits,
+          unit_name: model.pricing.per_unit.unit_name,
+        };
+      }
+      if (model.pricing?.per_minute !== undefined) {
+        pricing.per_minute = model.pricing.per_minute;
       }
 
       const modelMetadata = {
@@ -288,8 +314,8 @@ function generateTypeScript(models) {
 // The mentionSearchService uses isProviderHealthy() to filter out models from
 // unhealthy providers. If health data is unavailable (offline), all models are shown.
 //
-// NOTE: All text-capable models are included here. The \`allow_auto_select\` field
-// in provider YAMLs is for a different feature (automatic model selection by the system).
+// NOTE: All app skill models are included here (text, image, audio). The \`allow_auto_select\`
+// field in provider YAMLs is for a different feature (automatic model selection by the system).
 //
 // **Generated**: ${new Date().toISOString()}
 // **Models included**: ${models.length}
@@ -307,13 +333,28 @@ export interface ModelServerInfo {
 }
 
 /**
+ * Per-unit pricing (e.g., per image or per megapixel).
+ */
+export interface ModelPricingPerUnit {
+    /** Number of credits charged per unit */
+    credits: number;
+    /** Name of the unit (e.g., "image", "megapixel") */
+    unit_name: string;
+}
+
+/**
  * Model pricing information.
+ * Supports token-based, per-unit, and per-minute pricing shapes.
  */
 export interface ModelPricing {
-    /** Number of input tokens per 1 credit */
+    /** Number of input tokens per 1 credit (token-based models) */
     input_tokens_per_credit?: number;
-    /** Number of output tokens per 1 credit */
+    /** Number of output tokens per 1 credit (token-based models) */
     output_tokens_per_credit?: number;
+    /** Per-unit pricing (e.g., credits per image or per megapixel) */
+    per_unit?: ModelPricingPerUnit;
+    /** Credits charged per minute of audio (audio transcription models) */
+    per_minute?: number;
 }
 
 /**
@@ -350,7 +391,7 @@ export interface AIModelMetadata {
     servers?: ModelServerInfo[];
     /** Default server ID for this model */
     default_server?: string;
-    /** Pricing information for credits per token */
+    /** Pricing information (token-based, per-unit, or per-minute depending on model type) */
     pricing?: ModelPricing;
     /** Alternative search terms (e.g., "chatgpt" for OpenAI models) */
     search_aliases?: string[];
@@ -413,13 +454,11 @@ function main() {
 
     if (models.length > 0) {
       console.log(
-        `[generate-models-metadata]   ✓ ${providerId}: ${models.length} text model(s)`,
+        `[generate-models-metadata]   ✓ ${providerId}: ${models.length} model(s)`,
       );
       allModels.push(...models);
     } else {
-      console.log(
-        `[generate-models-metadata]   - ${providerId}: No text models`,
-      );
+      console.log(`[generate-models-metadata]   - ${providerId}: No models`);
     }
   }
 

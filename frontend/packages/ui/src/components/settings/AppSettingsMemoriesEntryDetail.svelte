@@ -20,6 +20,13 @@
     import { text } from '@repo/ui';
     import { appSettingsMemoriesStore, appSettingsMemoriesForApp } from '../../stores/appSettingsMemoriesStore';
     import type { Readable } from 'svelte/store';
+    import {
+        MAX_LENGTH_SHORT,
+        MAX_LENGTH_GENERIC_VALUE,
+        MAX_LENGTH_GENERIC_KEY,
+        getMaxLength,
+        validateMaxLength
+    } from '../../utils/inputValidation';
 
     // Create event dispatcher for navigation
     const dispatch = createEventDispatcher();
@@ -31,9 +38,15 @@
         appId: string;
         categoryId: string;
         entryId: string;
+        readOnly?: boolean;
     }
 
-    let { appId, categoryId, entryId }: Props = $props();
+    let { appId, categoryId, entryId, readOnly = false }: Props = $props();
+
+    // Detect example entries: entryId starts with "example_" (e.g. "example_0")
+    // Example entries are shown read-only with translated text content from the category metadata.
+    let isExample = $derived(entryId.startsWith('example_'));
+    let exampleIndex = $derived(isExample ? parseInt(entryId.replace('example_', ''), 10) : -1);
 
     // Get store state reactively (Svelte 5)
     let storeState = $state(appSkillsStore.getState());
@@ -65,6 +78,14 @@
             }
         }
         return undefined;
+    });
+
+    // For example entries: resolve translated text from category metadata
+    let exampleText = $derived.by(() => {
+        if (!isExample || exampleIndex < 0) return '';
+        const keys = category?.example_translation_keys ?? [];
+        const key = keys[exampleIndex];
+        return key ? $text(key) : '';
     });
 
     // Get schema from category metadata
@@ -131,6 +152,10 @@
         let iconName = iconImage.replace(/\.svg$/, '');
         if (iconName === 'coding') {
             iconName = 'code';
+        }
+        // Handle special case: heart.svg -> health (since the app ID is "health" but icon file is heart.svg)
+        if (iconName === 'heart') {
+            iconName = 'health';
         }
         return iconName;
     }
@@ -224,12 +249,21 @@
     
     /**
      * Validate form fields.
+     * Checks required fields, numeric ranges, and string length limits.
      */
     function validateForm(): string | null {
         if (Object.keys(userInputProperties).length === 0) {
-            if (!formState.itemKey || String(formState.itemKey).trim() === '') {
+            const keyVal = String(formState.itemKey ?? '');
+            if (!keyVal.trim()) {
                 return 'Item key is required';
             }
+            const keyLengthError = validateMaxLength(keyVal, MAX_LENGTH_GENERIC_KEY, 'Key');
+            if (keyLengthError) return keyLengthError;
+
+            const valueVal = String(formState.itemValue ?? '');
+            const valueLengthError = validateMaxLength(valueVal, MAX_LENGTH_GENERIC_VALUE, 'Value');
+            if (valueLengthError) return valueLengthError;
+
             return null;
         }
         
@@ -244,6 +278,34 @@
                 const prop = userInputProperties[fieldName];
                 const fieldLabel = getFieldLabel(fieldName, prop);
                 return `${fieldLabel} is required`;
+            }
+        }
+
+        // Type and length validation for user-input fields only
+        for (const [fieldName, prop] of Object.entries(userInputProperties)) {
+            const value = formState[fieldName];
+            if (value === undefined || value === null || String(value).trim() === '') {
+                continue; // Skip empty optional fields
+            }
+
+            if (prop.type === 'integer' || prop.type === 'number') {
+                const numValue = Number(value);
+                if (isNaN(numValue)) {
+                    return `${getFieldLabel(fieldName, prop)} must be a number`;
+                }
+                if (prop.minimum !== undefined && numValue < prop.minimum) {
+                    return `${getFieldLabel(fieldName, prop)} must be at least ${prop.minimum}`;
+                }
+                if (prop.maximum !== undefined && numValue > prop.maximum) {
+                    return `${getFieldLabel(fieldName, prop)} must be at most ${prop.maximum}`;
+                }
+            } else if (prop.type === 'string' || prop.type === undefined) {
+                if (!prop.enum) {
+                    const strVal = String(value);
+                    const maxLen = getMaxLength(prop);
+                    const lengthError = validateMaxLength(strVal, maxLen, getFieldLabel(fieldName, prop));
+                    if (lengthError) return lengthError;
+                }
             }
         }
         
@@ -382,6 +444,16 @@
             <p>Error: {!app ? 'App not found' : 'Category not found'}</p>
             <button class="back-button" onclick={goBack}>← {$text('settings.app_store.back_to_app')}</button>
         </div>
+    {:else if isExample}
+        <!-- Example Entry View — read-only, no auth or entry lookup needed -->
+        <div class="view-container">
+            <div class="details-section">
+                <div class="detail-row">
+                    <span class="detail-value example-text">{exampleText}</span>
+                </div>
+            </div>
+            <!-- No action buttons for examples -->
+        </div>
     {:else if !isAuthenticated}
         <div class="error">
             <p>{$text('settings.app_settings_memories.authentication_required')}</p>
@@ -440,18 +512,20 @@
                 </div>
             </div>
             
-            <!-- Action buttons -->
-            <div class="action-buttons">
-                <button class="edit-btn" onclick={startEdit} disabled={isDeleting}>
-                    {$text('settings.app_settings_memories.edit')}
-                </button>
-                <button class="delete-btn" onclick={handleDelete} disabled={isDeleting}>
-                    {isDeleting 
-                        ? $text('settings.app_settings_memories.deleting')
-                        : $text('settings.app_settings_memories.delete')
-                    }
-                </button>
-            </div>
+            <!-- Action buttons — only for own (non-read-only) entries -->
+            {#if !readOnly}
+                <div class="action-buttons">
+                    <button class="edit-btn" onclick={startEdit} disabled={isDeleting}>
+                        {$text('settings.app_settings_memories.edit')}
+                    </button>
+                    <button class="delete-btn" onclick={handleDelete} disabled={isDeleting}>
+                        {isDeleting 
+                            ? $text('settings.app_settings_memories.deleting')
+                            : $text('settings.app_settings_memories.delete')
+                        }
+                    </button>
+                </div>
+            {/if}
         </div>
     {:else}
         <!-- Edit Mode -->
@@ -499,12 +573,22 @@
                                     <option value={enumValue}>{enumValue}</option>
                                 {/each}
                             </select>
+                        {:else if prop.multiline}
+                            <textarea
+                                id={fieldName}
+                                bind:value={formState[fieldName]}
+                                placeholder={getFieldLabel(fieldName, prop)}
+                                rows="4"
+                                maxlength={getMaxLength(prop)}
+                                disabled={isSaving}
+                            ></textarea>
                         {:else}
                             <input
                                 id={fieldName}
                                 type="text"
                                 bind:value={formState[fieldName]}
                                 placeholder={getFieldLabel(fieldName, prop)}
+                                maxlength={getMaxLength(prop)}
                                 disabled={isSaving}
                             />
                         {/if}
@@ -521,6 +605,7 @@
                         id="item-key"
                         type="text"
                         bind:value={formState.itemKey}
+                        maxlength={MAX_LENGTH_GENERIC_KEY}
                         disabled={isSaving}
                     />
                 </div>
@@ -531,6 +616,7 @@
                         id="settings-group"
                         type="text"
                         bind:value={formState.settingsGroup}
+                        maxlength={MAX_LENGTH_SHORT}
                         disabled={isSaving}
                     />
                 </div>
@@ -541,6 +627,7 @@
                         id="item-value"
                         bind:value={formState.itemValue}
                         rows="6"
+                        maxlength={MAX_LENGTH_GENERIC_VALUE}
                         disabled={isSaving}
                     ></textarea>
                 </div>
@@ -622,6 +709,13 @@
         font-size: 1rem;
         color: var(--text-primary);
         word-break: break-word;
+    }
+
+    .example-text {
+        font-size: 1rem;
+        color: var(--text-primary);
+        line-height: 1.5;
+        white-space: pre-wrap;
     }
     
     .detail-value-code {

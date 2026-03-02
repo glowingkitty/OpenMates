@@ -63,12 +63,18 @@ class AskSkillRequest(BaseModel):
     active_focus_id: Optional[str] = Field(default=None, description="The ID of the currently active focus, if any.")
     user_preferences: Optional[Dict[str, Any]] = Field(default_factory=dict, description="User-specific preferences.")
     app_settings_memories_metadata: Optional[List[str]] = Field(default=None, description="List of available app settings/memories keys from client in 'app_id-item_type' format (e.g., ['code-preferred_technologies', 'travel-trips']). Client is source of truth since only client can decrypt.")
+    mentioned_settings_memories_cleartext: Optional[Dict[str, Any]] = Field(default=None, description="Cleartext for @memory/@memory-entry mentions (key: app_id:item_key, value: list of entry contents). Backend uses this and does not request those categories again.")
     is_app_settings_memories_continuation: bool = Field(default=False, description="True if this task is a continuation after app settings/memories confirmation/rejection. Prevents infinite loops by skipping pending context storage if data is still missing.")
     is_focus_mode_continuation: bool = Field(default=False, description="True if this task is a continuation after focus mode auto-confirm or rejection. The user message was already persisted before the deferred activation pause.")
     continuation_message_id: Optional[str] = Field(default=None, description="When set, the continuation task reuses this as the AI message_id instead of generating a new one from the Celery task_id. This ensures the continuation response is appended to the same message bubble as the focus mode embed.")
     api_key_hash: Optional[str] = Field(default=None, alias="_api_key_hash", description="SHA-256 hash of the API key for usage tracking.")
     device_hash: Optional[str] = Field(default=None, alias="_device_hash", description="SHA-256 hash of the device for usage tracking.")
     api_key_name: Optional[str] = Field(default=None, alias="_api_key_name", description="Encrypted name of the API key.")
+    # Maps embed_ref (human-readable filename used by the LLM, e.g. "my_photo.jpg") to embed_id UUID.
+    # Built during message history resolution in the WebSocket handler. Forwarded to the AI worker
+    # so skills like images-view can resolve a file_path argument back to the actual embed UUID
+    # for Redis cache lookup — keeping UUIDs invisible to the LLM entirely.
+    embed_file_path_index: Optional[Dict[str, str]] = Field(default=None, description="Maps embed_ref filename → embed_id UUID for server-side skill resolution.")
     
     # Allow populating by name even with aliases
     model_config = {"populate_by_name": True}

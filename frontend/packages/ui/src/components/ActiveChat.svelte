@@ -13,7 +13,7 @@
     import { createEventDispatcher, tick, onMount, onDestroy } from 'svelte'; // Added onDestroy
     import { authStore, logout } from '../stores/authStore'; // Import logout action
     import { panelState } from '../stores/panelStateStore'; // Added import
-    import type { Chat, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase
+    import type { Chat, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
@@ -24,6 +24,7 @@
     import NewsSearchEmbedFullscreen from './embeds/news/NewsSearchEmbedFullscreen.svelte';
     import VideosSearchEmbedFullscreen from './embeds/videos/VideosSearchEmbedFullscreen.svelte';
     import MapsSearchEmbedFullscreen from './embeds/maps/MapsSearchEmbedFullscreen.svelte';
+    import MapsLocationEmbedFullscreen from './embeds/maps/MapsLocationEmbedFullscreen.svelte';
     import CodeEmbedFullscreen from './embeds/code/CodeEmbedFullscreen.svelte';
     import DocsEmbedFullscreen from './embeds/docs/DocsEmbedFullscreen.svelte';
     import SheetEmbedFullscreen from './embeds/sheets/SheetEmbedFullscreen.svelte';
@@ -35,8 +36,17 @@
     import TravelSearchEmbedFullscreen from './embeds/travel/TravelSearchEmbedFullscreen.svelte';
     import TravelPriceCalendarEmbedFullscreen from './embeds/travel/TravelPriceCalendarEmbedFullscreen.svelte';
     import TravelStaysEmbedFullscreen from './embeds/travel/TravelStaysEmbedFullscreen.svelte';
+    import HealthSearchEmbedFullscreen from './embeds/health/HealthSearchEmbedFullscreen.svelte';
+    import ShoppingSearchEmbedFullscreen from './embeds/shopping/ShoppingSearchEmbedFullscreen.svelte';
+    import EventsSearchEmbedFullscreen from './embeds/events/EventsSearchEmbedFullscreen.svelte';
     import ImageGenerateEmbedFullscreen from './embeds/images/ImageGenerateEmbedFullscreen.svelte';
+    import ImageEmbedFullscreen from './embeds/images/ImageEmbedFullscreen.svelte';
+    import MathCalculateEmbedFullscreen from './embeds/math/MathCalculateEmbedFullscreen.svelte';
+    import MathPlotEmbedFullscreen from './embeds/math/MathPlotEmbedFullscreen.svelte';
+    import PDFEmbedFullscreen from './embeds/pdf/PDFEmbedFullscreen.svelte';
+    import RecordingEmbedFullscreen from './embeds/audio/RecordingEmbedFullscreen.svelte';
     import FocusModeContextMenu from './embeds/FocusModeContextMenu.svelte';
+    import { appSkillsStore } from '../stores/appSkillsStore'; // For resolving active focus mode name in header banner
     import { userProfile } from '../stores/userProfile';
     import { 
         isInSignupProcess, 
@@ -80,15 +90,22 @@
     import { incognitoChatService } from '../services/incognitoChatService'; // Import incognito chat service
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
     import { piiVisibilityStore } from '../stores/piiVisibilityStore'; // Import PII visibility store for hide/unhide toggle
+    import { setEmbedPIIState, resetEmbedPIIState } from '../stores/embedPIIStore'; // Update embed PII state for preview/fullscreen components
+    import type { PIIMapping } from '../types/chat'; // PII mapping type
     import { isDesktop } from '../utils/platform'; // Import desktop detection for conditional auto-focus
-    import { getCategoryGradientColors, getFallbackIconForCategory, getValidIconName, getLucideIcon } from '../utils/categoryUtils'; // For resume card category gradient circle
+    import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils'; // For resume card category gradient circle
     import { waitLocale } from 'svelte-i18n'; // Import waitLocale for waiting for translations to load
     import { get } from 'svelte/store'; // Import get to read store values
     import { extractEmbedReferences } from '../services/embedResolver'; // Import for embed navigation
     import { tipTapToCanonicalMarkdown } from '../message_parsing/serializers'; // Import for embed navigation
     import PushNotificationBanner from './PushNotificationBanner.svelte'; // Import push notification banner component
     import { shouldShowPushBanner } from '../stores/pushNotificationStore'; // Import push notification store for banner visibility
+    import DailyInspirationBanner from './DailyInspirationBanner.svelte'; // Daily inspiration carousel above welcome screen
+    import ForkProgressBanner from './chats/ForkProgressBanner.svelte'; // Slim banner shown while a fork is in progress
+    import { forkProgressStore } from '../stores/forkProgressStore'; // Global fork progress — used to show banner on source chat
+    import type { DailyInspiration } from '../stores/dailyInspirationStore'; // Type for inspiration handler
     import { chatListCache } from '../services/chatListCache'; // For invalidating stale 'sending' status in sidebar cache
+    import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
     import type { 
         WebSearchSkillPreviewData,
         VideoTranscriptSkillPreviewData,
@@ -104,16 +121,19 @@
     type HiddenChatFlag = { is_hidden?: boolean | null };
 
     type ChatHistoryRef = {
-        updateMessages: (messages: ChatMessageModel[]) => void;
+        updateMessages: (messages: ChatMessageModel[], isNewChat?: boolean) => void;
         scrollToTop: () => void;
         scrollToBottom: (smooth?: boolean) => void;
         restoreScrollPosition: (messageId: string) => void;
+        scrollToLatestAssistantMessage: () => void;
+        triggerNewChatUserMessageScroll: () => void;
     };
 
     type MessageInputFieldRef = {
         setDraftContent: (chatId: string | undefined, content: TiptapJSON | string | null, version: number, isRemote: boolean) => void;
         setSuggestionText: (text: string) => void;
         setOriginalMarkdown?: (markdown: string) => void;
+        setCurrentChatContext?: (chatId: string | null, content: TiptapJSON | null, version: number) => void;
         focus: () => void;
         getTextContent: () => string;
         clearMessageField: (shouldSaveDraft: boolean, preserveContext?: boolean) => Promise<void>;
@@ -188,6 +208,8 @@
             videoId?: string;
         };
         restoreFromPip?: boolean;
+        /** Child embed to auto-focus when the search fullscreen opens (from inline badge click) */
+        focusChildEmbedId?: string | null;
     } | null;
 
     type EmbedFullscreenEventDetail = {
@@ -202,6 +224,8 @@
             favicon?: string;
             image?: string;
         };
+        /** Child embed to auto-focus when the search fullscreen opens (from inline badge click) */
+        focusChildEmbedId?: string | null;
     };
 
     type AiMessageChunkPayload = {
@@ -222,6 +246,7 @@
         messages?: ChatMessageModel[];
         newMessage?: ChatMessageModel;
         type?: string;
+        messagesUpdated?: boolean;
     };
 
     type SkillPreviewData = WebSearchSkillPreviewData | VideoTranscriptSkillPreviewData;
@@ -329,7 +354,10 @@
 
     type MessageWithAppCards = ChatMessageModel & { appCards?: AppCardEntry[] };
     /** Extended message type with transient embed metadata (not persisted, used for UI state) */
-    type MessageWithEmbedMeta = ChatMessageModel & { _embedErrors?: Set<string> };
+    type MessageWithEmbedMeta = ChatMessageModel & {
+        _embedErrors?: Set<string>;
+        _embedUpdateTimestamp?: number;
+    };
 
     const dispatch = createEventDispatcher();
     
@@ -457,6 +485,43 @@
         language: '',
         lineCount: 0
     });
+
+    // PDF embed fullscreen — triggered by clicking a finished PDF embed (editor or read-only)
+    let showPdfEmbedFullscreen = $state(false);
+    let pdfFullscreenData = $state<{ embedId?: string; filename?: string; pageCount?: number }>({});
+
+    // Recording embed fullscreen — triggered by clicking a finished voice recording embed
+    let showRecordingFullscreen = $state(false);
+    let recordingFullscreenData = $state<{
+        transcript?: string;
+        blobUrl?: string;
+        filename?: string;
+        duration?: string;
+        s3Files?: Record<string, { s3_key: string; size_bytes: number }>;
+        s3BaseUrl?: string;
+        aesKey?: string;
+        aesNonce?: string;
+        embedId?: string;
+        /** Transcription model name (e.g. 'voxtral-mini-2602') */
+        model?: string;
+        /** True when the embed is still in the editor (pre-send), enabling transcript editing */
+        isEditable?: boolean;
+    }>({});
+
+    // Image embed fullscreen — triggered by clicking an in-editor upload embed
+    let showImageEmbedFullscreen = $state(false);
+    let imageEmbedFullscreenData = $state<{
+        src?: string;
+        filename?: string;
+        s3Files?: Record<string, { s3_key: string; width: number; height: number; size_bytes: number; format: string }>;
+        s3BaseUrl?: string;
+        aesKey?: string;
+        aesNonce?: string;
+        isAuthenticated?: boolean;
+        fileSize?: number;
+        fileType?: string;
+        aiDetection?: { ai_generated: number; provider: string } | null;
+    }>({});
 
     // Note: isLoggingOutFromSignup state removed as it was set but never read
 
@@ -669,6 +734,14 @@
                 if (!$panelState.isActivityHistoryOpen && !$isMobileView) {
                     panelState.toggleChats();
                 }
+                // CRITICAL: Clear the chat header state from any previously loaded demo chat
+                // (e.g. "OpenMates | For everyone" header that was visible before login).
+                // The phased sync will load the correct chat after authentication completes;
+                // until then the welcome screen should show no chat header.
+                if (isPublicChat(currentChat?.chat_id ?? '')) {
+                    resetChatHeaderState();
+                    console.debug('[ActiveChat] Cleared demo chat header on login transition');
+                }
             } else if ($isInSignupProcess) {
                 // User is in signup process - ensure login interface stays open
                 console.debug('[ActiveChat] User is in signup process - keeping login interface open');
@@ -753,6 +826,81 @@
         showCodeFullscreen = true;
     }
 
+    function handlePdfFullscreen(event: CustomEvent) {
+        console.debug('[ActiveChat] Received pdffullscreen event:', event.detail);
+        pdfFullscreenData = {
+            embedId: event.detail.embedId,
+            filename: event.detail.filename,
+            pageCount: event.detail.pageCount,
+        };
+        showPdfEmbedFullscreen = true;
+    }
+
+    function handleClosePdfFullscreen() {
+        showPdfEmbedFullscreen = false;
+        pdfFullscreenData = {};
+    }
+
+    function handleImageFullscreen(event: CustomEvent) {
+        console.debug('[ActiveChat] Received imagefullscreen event:', event.detail);
+        imageEmbedFullscreenData = {
+            src: event.detail.src,
+            filename: event.detail.filename,
+            s3Files: event.detail.s3Files,
+            s3BaseUrl: event.detail.s3BaseUrl,
+            aesKey: event.detail.aesKey,
+            aesNonce: event.detail.aesNonce,
+            isAuthenticated: event.detail.isAuthenticated,
+            fileSize: event.detail.fileSize,
+            fileType: event.detail.fileType,
+            aiDetection: event.detail.aiDetection ?? null,
+        };
+        showImageEmbedFullscreen = true;
+    }
+
+    function handleCloseImageEmbedFullscreen() {
+        showImageEmbedFullscreen = false;
+        imageEmbedFullscreenData = {};
+    }
+
+    function handleRecordingFullscreen(event: CustomEvent) {
+        console.debug('[ActiveChat] Received recordingfullscreen event:', event.detail);
+        recordingFullscreenData = {
+            transcript: event.detail.transcript,
+            blobUrl: event.detail.blobUrl,
+            filename: event.detail.filename,
+            duration: event.detail.duration,
+            s3Files: event.detail.s3Files,
+            s3BaseUrl: event.detail.s3BaseUrl,
+            aesKey: event.detail.aesKey,
+            aesNonce: event.detail.aesNonce,
+            embedId: event.detail.embedId,
+            model: event.detail.model,
+            isEditable: event.detail.isEditable === true,
+        };
+        showRecordingFullscreen = true;
+    }
+
+    /**
+     * Handle transcript edits from RecordingEmbedFullscreen (pre-send context).
+     * Fires 'updaterecordingtranscript' CustomEvent on document so MessageInput.svelte
+     * can update the embed node attrs in the TipTap editor.
+     */
+    function handleRecordingTranscriptChange(embedId: string, newTranscript: string) {
+        document.dispatchEvent(
+            new CustomEvent('updaterecordingtranscript', {
+                bubbles: true,
+                composed: true,
+                detail: { embedId, transcript: newTranscript },
+            }),
+        );
+    }
+
+    function handleCloseRecordingFullscreen() {
+        showRecordingFullscreen = false;
+        recordingFullscreenData = {};
+    }
+
     // Normalize embed result arrays for fullscreen components with strict prop types.
     function getWebSearchResults(results?: unknown[]): WebSearchResult[] {
         return Array.isArray(results) ? (results as WebSearchResult[]) : [];
@@ -815,6 +963,17 @@
     // Add state for embed fullscreen
     let showEmbedFullscreen = $state(false);
     let embedFullscreenData = $state<EmbedFullscreenState>(null);
+
+    /**
+     * Direction of the last embed navigation gesture.
+     * Used to drive the directional slide-in animation in UnifiedEmbedFullscreen:
+     *   'next'     → new embed slides in from the right
+     *   'previous' → new embed slides in from the left
+     *   null       → normal scale-up open animation (first open / close → reopen)
+     * Reset to null immediately after the navigation handler resolves so that
+     * subsequent opens from chat history use the default scale animation.
+     */
+    let embedNavigateDirection = $state<'next' | 'previous' | null>(null);
     
     // Debug: Track state changes
     $effect(() => {
@@ -1001,20 +1160,34 @@
     async function handleEmbedFullscreen(event: CustomEvent) {
         console.debug('[ActiveChat] Received embedfullscreen event:', event.detail);
         const detail = event.detail as EmbedFullscreenEventDetail;
-        const { embedId, embedData, decodedContent, embedType, attrs } = detail;
+        const { embedId, embedData, decodedContent, embedType, attrs, focusChildEmbedId } = detail;
+
+        // CRITICAL: Set the URL hash guard BEFORE any async work.
+        //
+        // activeEmbedStore.setActiveEmbed() does two things:
+        //   1. Records a timestamp used by isProgrammaticEmbedHashUpdate() as a 100ms guard window
+        //   2. Writes window.location.hash → fires a hashchange event
+        //
+        // If we call setActiveEmbed() only AFTER the async resolve/decrypt/child-embed work
+        // (which can take 200–600ms for web search with 10 child embeds), the guard window has
+        // already expired by the time the hashchange fires.  handleHashChange() then falls through
+        // to processDeepLink → loadChat() (closes the fullscreen) → handleEmbedDeepLink()
+        // (reopens it), producing the visible open → close → open flickering.
+        //
+        // Moving the call here, synchronously, ensures the guard is live before the hash write,
+        // so the resulting hashchange is blocked immediately.
+        if (embedId) {
+            activeEmbedStore.setActiveEmbed(embedId, currentChat?.chat_id ?? null);
+            console.debug('[ActiveChat] Early URL hash guard set for embed:', embedId, 'chatId:', currentChat?.chat_id);
+        }
         
-        // ALWAYS reload from EmbedStore when embedId is provided to ensure we get the latest data
-        // The embed might have been updated since the preview was rendered (e.g., processing -> finished)
-        // The event's embedData/decodedContent might be stale (captured at render time before skill results arrived)
+        // ALWAYS reload from EmbedStore when embedId is provided to ensure we get the latest data.
+        // The embed might have been updated since the preview was rendered (e.g., processing -> finished).
+        // The event's embedData/decodedContent might be stale (captured at render time before skill results arrived).
         let finalEmbedData = embedData;
         let finalDecodedContent = decodedContent;
         
-        // Skip EmbedStore lookup for preview/stream embeds — these are ephemeral and their
-        // content is passed inline via the event's decodedContent. They have no backing
-        // entry in the EmbedStore. (Legacy path — new embeds use embed: refs.)
-        const isEphemeralEmbed = embedId && (embedId.startsWith('stream:') || embedId.startsWith('preview:'));
-        
-        if (embedId && !isEphemeralEmbed) {
+        if (embedId) {
             try {
                 const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
                 const freshEmbedData = await resolveEmbed(embedId) as EmbedResolverData | null;
@@ -1089,6 +1262,8 @@
                 case 'sheet':
                 case 'sheets-sheet':
                     return 'sheets-sheet';
+                case 'math-plot':
+                    return 'math-plot';
                 default:
                     return t;
             }
@@ -1104,11 +1279,55 @@
             resolvedEmbedType = inferredType;
         }
         
-        // If we already have this embed open, ignore duplicate events (e.g. hashchange deep-link echoes).
-        if (showEmbedFullscreen && embedFullscreenData?.embedId === embedId && embedFullscreenData?.embedType === resolvedEmbedType) {
+        // Secondary type refinement: if the resolved type is still 'app-skill-use' but the
+        // decoded content's own 'type' field reveals a more specific embed type (e.g. 'code',
+        // 'document', 'sheet'), override resolvedEmbedType accordingly.
+        //
+        // This fixes the case where an AI-generated code (or doc/sheet) embed is stored with
+        // embed type 'app-skill-use' (because the server tagged it at the app-skill-use layer)
+        // but the TOON content itself carries 'type: "code"'. Without this override, navigating
+        // to such an embed via the header arrows correctly reaches the embed but renders the
+        // generic app-skill-use fallback (JSON dump) instead of the CodeEmbedFullscreen.
+        //
+        // IMPORTANT: Only refine to known top-level embed types that have their own fullscreen
+        // component. Content sub-types like 'image' (used inside images/generate TOON content to
+        // denote the output format) are NOT valid top-level embed types and must NOT override
+        // 'app-skill-use' — doing so causes the fullscreen branch to be skipped entirely because
+        // no template case handles embedType === 'image'.
+        const validTopLevelEmbedTypes = new Set(['website', 'code-code', 'docs-doc', 'videos-video', 'sheets-sheet', 'maps', 'math-plot']);
+        if (resolvedEmbedType === 'app-skill-use' && finalDecodedContent) {
+            const contentType = typeof finalDecodedContent.type === 'string' ? finalDecodedContent.type : null;
+            if (contentType) {
+                const refinedType = normalizeEmbedType(contentType);
+                if (refinedType && refinedType !== 'app-skill-use' && validTopLevelEmbedTypes.has(refinedType)) {
+                    console.debug('[ActiveChat] Refining embed type from app-skill-use using decoded content type:', {
+                        contentType,
+                        refinedType
+                    });
+                    resolvedEmbedType = refinedType;
+                } else if (refinedType && refinedType !== 'app-skill-use' && !validTopLevelEmbedTypes.has(refinedType)) {
+                    console.debug('[ActiveChat] Skipping embed type refinement: content type is a sub-type, not a top-level embed type:', {
+                        contentType,
+                        refinedType
+                    });
+                }
+            }
+        }
+        
+        // If we already have this embed open with the same child focus target, ignore duplicate
+        // events (e.g. hashchange deep-link echoes). But if focusChildEmbedId differs — meaning
+        // the user clicked a different inline badge that points to a different child result of the
+        // same parent embed — allow the update through so the fullscreen can switch to that child.
+        const alreadyOpenSameChild =
+            showEmbedFullscreen &&
+            embedFullscreenData?.embedId === embedId &&
+            embedFullscreenData?.embedType === resolvedEmbedType &&
+            (embedFullscreenData?.focusChildEmbedId ?? null) === (focusChildEmbedId ?? null);
+        if (alreadyOpenSameChild) {
             console.debug('[ActiveChat] Ignoring duplicate embedfullscreen event for already-open embed:', {
                 embedId,
-                resolvedEmbedType
+                resolvedEmbedType,
+                focusChildEmbedId
             });
             return;
         }
@@ -1261,29 +1480,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             skillId: finalDecodedContent?.skill_id
         });
         
-        // CRITICAL: Set embedFullscreenData first, then showEmbedFullscreen
-        // This ensures both state variables are set before the template evaluates
+        // Set both state variables synchronously in one block so Svelte batches them
+        // into a single reactive update. An intermediate microtask (await Promise.resolve)
+        // between the two assignments previously caused the {#key} block to re-key while
+        // showEmbedFullscreen was still true from a prior embed, triggering spurious
+        // destroy/create cycles (visible as the overlay opening and closing 2–5 times).
         embedFullscreenData = {
             embedId,
             embedData: finalEmbedData,
             decodedContent: finalDecodedContent,
             embedType: resolvedEmbedType,
-            attrs
+            attrs,
+            // Forwarded from EmbedInlineLink when an inline badge references a child embed.
+            // The search fullscreen components use this to auto-open the specific result overlay.
+            focusChildEmbedId: focusChildEmbedId ?? null
         };
-        
-        // Use a microtask to ensure state is fully updated before setting showEmbedFullscreen
-        // This helps with Svelte 5 reactivity
-        await Promise.resolve();
-        
         showEmbedFullscreen = true;
         
-        // Update URL hash with embed ID for sharing/bookmarking
-        if (embedId) {
-            activeEmbedStore.setActiveEmbed(embedId);
-            console.debug('[ActiveChat] Updated URL hash with embed ID:', embedId);
-        }
+        // URL hash was already set at the top of this function (before async work) to ensure
+        // the programmatic-update guard was live before the hashchange fired.  No second call needed.
         
-        console.debug('[ActiveChat] Opening embed fullscreen:', resolvedEmbedType, embedId, 'showEmbedFullscreen:', showEmbedFullscreen, 'embedFullscreenData:', !!embedFullscreenData);
+        console.debug('[ActiveChat] Opening embed fullscreen:', resolvedEmbedType, embedId, 'showEmbedFullscreen:', showEmbedFullscreen, 'embedFullscreenData:', !!embedFullscreenData, 'focusChildEmbedId:', focusChildEmbedId);
     }
     
     // Handler for closing embed fullscreen
@@ -1392,6 +1609,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const previousEmbedId = chatEmbedIds[currentEmbedIndex - 1];
         console.debug('[ActiveChat] Navigating to previous embed:', previousEmbedId, 'from index', currentEmbedIndex, 'to', currentEmbedIndex - 1);
         
+        // Signal slide-from-left animation for the incoming embed
+        embedNavigateDirection = 'previous';
+        
         // Create a synthetic embedfullscreen event to open the previous embed
         // This reuses the existing handleEmbedFullscreen logic
         const event = new CustomEvent('embedfullscreen', {
@@ -1405,6 +1625,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         });
         
         await handleEmbedFullscreen(event);
+        
+        // Reset so subsequent open-from-chat-history uses the default scale animation
+        embedNavigateDirection = null;
     }
     
     /**
@@ -1420,6 +1643,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const nextEmbedId = chatEmbedIds[currentEmbedIndex + 1];
         console.debug('[ActiveChat] Navigating to next embed:', nextEmbedId, 'from index', currentEmbedIndex, 'to', currentEmbedIndex + 1);
         
+        // Signal slide-from-right animation for the incoming embed
+        embedNavigateDirection = 'next';
+        
         // Create a synthetic embedfullscreen event to open the next embed
         // This reuses the existing handleEmbedFullscreen logic
         const event = new CustomEvent('embedfullscreen', {
@@ -1433,6 +1659,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         });
         
         await handleEmbedFullscreen(event);
+        
+        // Reset so subsequent open-from-chat-history uses the default scale animation
+        embedNavigateDirection = null;
     }
     
     // Reference to PiP container for moving iframe
@@ -1592,6 +1821,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     function handleSettingsMemorySuggestionRejected(suggestion: import('../types/apps').SuggestedSettingsMemoryEntry) {
         console.info('[ActiveChat] Settings/memories suggestion rejected:', suggestion.suggested_title);
         // Remove the rejected suggestion from the list
+        settingsMemoriesSuggestions = settingsMemoriesSuggestions.filter(
+            s => !(s.app_id === suggestion.app_id && 
+                   s.item_type === suggestion.item_type && 
+                   s.suggested_title === suggestion.suggested_title)
+        );
+    }
+
+    // Handler for when user opens a suggestion to customize (deep link to create form with prefill)
+    // Removes the suggestion from the list so it does not show twice
+    function handleSettingsMemorySuggestionOpenForCustomize(suggestion: import('../types/apps').SuggestedSettingsMemoryEntry) {
+        console.info('[ActiveChat] Settings/memories suggestion open for customize:', suggestion.suggested_title);
         settingsMemoriesSuggestions = settingsMemoriesSuggestions.filter(
             s => !(s.app_id === suggestion.app_id && 
                    s.item_type === suggestion.item_type && 
@@ -1771,6 +2011,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let isFullscreen = $state(false);
     // $: messages = chatHistoryRef?.messages || []; // Removed, messages will be managed in currentMessages
 
+    // Bounding rect of the active-chat-container element.
+    // Passed to MessageInput so it can compute position:fixed coordinates when
+    // expanding into fullscreen mode on narrow screens.
+    // Updated on container resize (containerWidth changes) and window scroll/resize.
+    let activeChatContainerEl = $state<HTMLElement | null>(null);
+    let containerRect = $state<DOMRect | null>(null);
+
+    /** Update containerRect from the current bounding rect of the container element. */
+    function updateContainerRect() {
+        if (activeChatContainerEl) {
+            containerRect = activeChatContainerEl.getBoundingClientRect();
+        }
+    }
+
     // Add state for message input height using $state
     let messageInputHeight = $state(0);
 
@@ -1784,6 +2038,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let resumeChatTitle = $state<string | null>(null);
     let resumeChatCategory = $state<string | null>(null);
     let resumeChatIcon = $state<string | null>(null);
+    // When the last-opened chat was credits-rejected (no title, waiting_for_user),
+    // show the "Credits needed..." label + user message preview instead of category circle + title.
+    let resumeChatIsCreditsError = $state(false);
+    let resumeChatUserMessagePreview = $state<string | null>(null);
 
     /**
      * Load the last-opened chat from IndexedDB using $userProfile.last_opened.
@@ -1844,17 +2102,53 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Determine if this chat has a real title (plaintext for demo chats, or decrypted)
             const hasTitle = !!(chat.title || decryptedTitle);
 
+            // Always fetch the last message when no title — needed both for the draft-skip
+            // check and for detecting credits-rejection state.
+            // For titled chats we also fetch if we need to check for credits error.
+            const lastMessage = await chatDB.getLastMessageForChat(chat.chat_id);
+
             // Skip draft chats: chats with no title and no messages are drafts.
             // Only show the resume card for chats that have actual content.
-            if (!hasTitle) {
-                const lastMessage = await chatDB.getLastMessageForChat(chat.chat_id);
-                if (!lastMessage) {
-                    console.info(`[ActiveChat] Skipping draft chat (no title, no messages): ${chat.chat_id}`);
-                    return false;
-                }
+            if (!hasTitle && !lastMessage) {
+                console.info(`[ActiveChat] Skipping draft chat (no title, no messages): ${chat.chat_id}`);
+                return false;
             }
 
-            // Use cleartext fields as fallback (demo chats have these set directly)
+            // Detect credits-rejection state: the last message is 'waiting_for_user'.
+            // This happens when the user sent a message but had insufficient credits.
+            // In this case show "Credits needed..." + user message preview instead of
+            // the category circle + title (which would show a misleading "Untitled Chat").
+            const isCreditsError = lastMessage?.status === 'waiting_for_user';
+
+            if (isCreditsError) {
+                // Extract the user message preview from the last message.
+                // The last message could be the system rejection (role:'system') or the user
+                // message itself (role:'user') depending on timing — handle both.
+                let userPreview: string | null = null;
+                if (lastMessage?.role === 'user') {
+                    userPreview = typeof lastMessage.content === 'string' ? lastMessage.content : null;
+                } else if (lastMessage?.role === 'system' && lastMessage.user_message_id) {
+                    try {
+                        const userMsg = await chatDB.getMessage(lastMessage.user_message_id);
+                        if (userMsg?.content) {
+                            userPreview = typeof userMsg.content === 'string' ? userMsg.content : null;
+                        }
+                    } catch {
+                        // Ignore — preview will be null
+                    }
+                }
+
+                resumeChatData = chat;
+                resumeChatTitle = null;
+                resumeChatCategory = null;
+                resumeChatIcon = null;
+                resumeChatIsCreditsError = true;
+                resumeChatUserMessagePreview = userPreview;
+                console.info(`[ActiveChat] Resume chat is credits-error state: ${chat.chat_id}, preview: "${userPreview}"`);
+                return true;
+            }
+
+            // Normal path: use cleartext fields as fallback (demo chats have these set directly)
             const displayTitle = chat.title || decryptedTitle || 'Untitled Chat';
             const displayCategory = chat.category || decryptedCategory || null;
             const displayIcon = chat.icon || decryptedIcon || null;
@@ -1863,6 +2157,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             resumeChatTitle = displayTitle;
             resumeChatCategory = displayCategory;
             resumeChatIcon = displayIcon;
+            resumeChatIsCreditsError = false;
+            resumeChatUserMessagePreview = null;
             console.info(`[ActiveChat] Resume chat loaded: "${displayTitle}" (${chat.chat_id}), category: ${displayCategory}, icon: ${displayIcon}`);
             return true;
         } catch (error) {
@@ -1886,6 +2182,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             resumeChatTitle = null;
             resumeChatCategory = null;
             resumeChatIcon = null;
+            resumeChatIsCreditsError = false;
+            resumeChatUserMessagePreview = null;
             return;
         }
 
@@ -1940,65 +2238,286 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // ─── Progressive AI Status Indicator ─────────────────────────────────
     // Tracks the current phase of the message processing pipeline for the
     // centered status indicator in ChatHistory.
-    // Lifecycle: sending → processing (timed steps) → typing → null (streaming)
+    // Lifecycle: sending → processing (real-time step cards) → typing → null (streaming)
     let processingPhase = $state<ProcessingPhase>(null);
-    // Timers for the timed step progression during the 'processing' phase.
-    // Cleared when transitioning to typing or when the chat changes.
-    let processingStepTimers: ReturnType<typeof setTimeout>[] = [];
     // Whether the current message being processed is for a new chat (no title yet).
-    // Determines which processing steps to show (new chat includes title generation).
+    // Determines the initial spinner text (new chat starts with "Generating chat title...").
     let isNewChatProcessing = $state(false);
+    // Whether we are currently showing the "Generating title..." placeholder in the chat header.
+    // Set to true when a new-chat message is sent; cleared when title/category/icon arrive.
+    let isNewChatGeneratingTitle = $state(false);
+    // Whether the first message on this new chat was rejected due to insufficient credits.
+    // When true: isNewChatGeneratingTitle is false and the banner shows "Not enough credits".
+    // Cleared on next message send or chat switch.
+    let isNewChatCreditsError = $state(false);
+    // Whether the user now has credits again after a credits rejection.
+    // Set to true when isNewChatCreditsError is active and userProfile.credits becomes > 0.
+    // Triggers the system message to switch from "Buy Credits" to "Resend message" mode.
+    // Cleared together with isNewChatCreditsError on resend, follow-up send, or chat switch.
+    let isCreditsRestored = $state(false);
+    // Decrypted chat header metadata for new chats, populated once the server sends title/category/icon.
+    let activeChatDecryptedTitle = $state<string>('');
+    let activeChatDecryptedCategory = $state<string | null>(null);
+    let activeChatDecryptedIcon = $state<string | null>(null);
+    // Decrypted chat summary shown in the header below the title (available after post-processing).
+    let activeChatDecryptedSummary = $state<string | null>(null);
+    // Mate name captured from the mate_selected preprocessing step, used for the
+    // "{Mate} is typing..." spinner text after model_selected arrives.
+    let selectedPreprocessingMateName = $state<string | null>(null);
+    // Timestamp of the last completed preprocessing step card, used to enforce
+    // a minimum display time (~1500ms) before transitioning to the typing phase.
+    let lastStepCardTimestamp = $state(0);
+    // Timestamp when the processing phase overlay first became visible.
+    // Used to enforce a minimum display time before clearing the overlay when
+    // the first streaming chunk (thinking or response) arrives, so users have
+    // enough time to read the step cards (title, mate, model).
+    let processingPhaseStartTimestamp = 0;
+    // Minimum time (ms) the overlay must remain visible once step cards have
+    // appeared before it can be cleared by an incoming chunk.
+    const MIN_OVERLAY_DISPLAY_MS = 2500;
 
     /**
-     * Clear all processing step timers and reset the processing phase.
+     * Clear the processing phase state.
      * Called on chat switch, unmount, error, or when streaming begins.
      */
     function clearProcessingPhase() {
-        for (const timer of processingStepTimers) {
-            clearTimeout(timer);
-        }
-        processingStepTimers = [];
         processingPhase = null;
+        selectedPreprocessingMateName = null;
+        lastStepCardTimestamp = 0;
+        processingPhaseStartTimestamp = 0;
+        // Do NOT clear isNewChatGeneratingTitle / activeChatDecrypted* here —
+        // those are cleared explicitly on chat switch via resetChatHeaderState().
     }
 
     /**
-     * Start the timed progression of processing step messages.
-     * For new chats: "Generating chat title..." → "Selecting optimal mate..." → "Selecting AI model..."
-     * For existing chats: "Analyzing your message..." → "Selecting AI model..."
-     * Each step transitions after ~1.5s. Steps are frontend-only (the backend does all
-     * preprocessing in a single LLM call). Timers are cleared if ai_typing_started arrives early.
+     * Reset the chat header state (new-chat title/category/icon placeholder).
+     * Called when switching to a different chat or starting a fresh new chat.
+     * Must be separate from clearProcessingPhase so that the header remains
+     * visible even after streaming begins (clearProcessingPhase fires early).
+     */
+    function resetChatHeaderState() {
+        isNewChatGeneratingTitle = false;
+        isNewChatCreditsError = false;
+        isCreditsRestored = false;
+        activeChatDecryptedTitle = '';
+        activeChatDecryptedCategory = null;
+        activeChatDecryptedIcon = null;
+        activeChatDecryptedSummary = null;
+    }
+
+    // ─── Credits restoration detection ─────────────────────────────────────────
+    //
+    // When a chat is in the credits-error state (isNewChatCreditsError=true) and the
+    // user's credit balance becomes positive again (via a user_credits_updated WebSocket
+    // event → userProfile store update), we flip isCreditsRestored so the system message
+    // in ChatMessage.svelte can switch from "Buy Credits" to "Resend message" mode.
+    // The effect only ever sets isCreditsRestored to true — clearing happens explicitly
+    // in resetChatHeaderState(), handleResendAfterCreditsRestored(), and handleSendMessage().
+    $effect(() => {
+        const credits = $userProfile.credits;
+        if (isNewChatCreditsError && credits > 0) {
+            isCreditsRestored = true;
+            console.debug('[ActiveChat] Credits restored while credits-error state is active — showing resend UI');
+        }
+    });
+
+    /**
+     * Called when the user clicks "Resend message" in the credits-restored banner.
+     *
+     * Steps:
+     *   1. Remove the system rejection message from both the UI array and IndexedDB.
+     *   2. Reset the original user message status from 'waiting_for_user' → 'sending'.
+     *   3. Reset all credits-error header state so the banner returns to "Creating new chat…".
+     *   4. Start the processing phase indicator.
+     *   5. Re-send the user message via chatSyncService.sendNewMessage().
+     *
+     * After this, the normal AI response flow takes over: the backend processes the
+     * message, generates a title/category/icon, and the chat looks like any other chat.
+     */
+    async function handleResendAfterCreditsRestored() {
+        if (!currentChat) return;
+
+        console.debug('[ActiveChat] handleResendAfterCreditsRestored: starting resend flow');
+
+        // 1. Find and remove the system rejection message
+        const systemMsgIndex = currentMessages.findIndex(
+            m => m.status === 'waiting_for_user' && (m.role === 'system' || m.role === 'assistant')
+        );
+        if (systemMsgIndex !== -1) {
+            const systemMsg = currentMessages[systemMsgIndex];
+            currentMessages = currentMessages.filter((_, i) => i !== systemMsgIndex);
+            chatDB.deleteMessage(systemMsg.message_id).catch(err => {
+                console.warn('[ActiveChat] handleResendAfterCreditsRestored: failed to delete system rejection message from DB:', err);
+            });
+            console.debug('[ActiveChat] handleResendAfterCreditsRestored: removed system rejection message', systemMsg.message_id);
+        }
+
+        // 2. Find the last user message (the one that was originally rejected)
+        const userMsg = [...currentMessages].reverse().find(m => m.role === 'user');
+        if (!userMsg) {
+            console.warn('[ActiveChat] handleResendAfterCreditsRestored: no user message found to resend');
+            return;
+        }
+
+        // 3. Reset user message status to 'sending' in UI and DB
+        const userMsgIndex = currentMessages.findIndex(m => m.message_id === userMsg.message_id);
+        if (userMsgIndex !== -1) {
+            const updatedUserMsg = { ...currentMessages[userMsgIndex], status: 'sending' as const };
+            currentMessages[userMsgIndex] = updatedUserMsg;
+            currentMessages = [...currentMessages];
+            chatDB.updateMessageStatus(userMsg.message_id, 'sending').catch(err => {
+                console.warn('[ActiveChat] handleResendAfterCreditsRestored: failed to update user message status in DB:', err);
+            });
+        }
+
+        // 4. Reset credits-error header state → back to loading shimmer
+        isNewChatCreditsError = false;
+        isCreditsRestored = false;
+        isNewChatGeneratingTitle = true;
+        isNewChatProcessing = true;
+        activeChatDecryptedTitle = '';
+        activeChatDecryptedCategory = null;
+        activeChatDecryptedIcon = null;
+        activeChatDecryptedSummary = null;
+
+        // 5. Start the processing phase indicator
+        processingPhase = {
+            phase: 'sending',
+            statusLines: [$text('enter_message.sending')]
+        };
+
+        // 6. Re-send via WebSocket — identical to the automatic offline-retry path
+        try {
+            await chatSyncService.sendNewMessage(userMsg);
+            console.debug('[ActiveChat] handleResendAfterCreditsRestored: message re-sent successfully', userMsg.message_id);
+        } catch (err) {
+            console.error('[ActiveChat] handleResendAfterCreditsRestored: failed to re-send message:', err);
+        }
+    }
+
+    /**
+     * Clear the processing phase, but only after the overlay has been visible for
+     * at least MIN_OVERLAY_DISPLAY_MS since the processing phase started.
+     * If the minimum time hasn't elapsed yet, schedules a delayed clear.
+     * Always waits one Svelte tick first so the incoming content is already rendered
+     * before the overlay fades out (prevents a blank-screen flash).
+     *
+     * This ensures the step cards (chat title, selected mate, model) are readable
+     * before they disappear, even when the AI responds very quickly.
+     *
+     * @param capturedChatId - The chat_id at the time the chunk arrived.
+     *   Used to avoid stale clears after a chat switch.
+     */
+    function clearProcessingPhaseWhenReady(capturedChatId: string | null) {
+        tick().then(() => {
+            // Abort if the user switched chats in the meantime
+            if (currentChat?.chat_id !== capturedChatId) return;
+
+            // Enforce minimum overlay display time so step cards stay readable.
+            // processingPhaseStartTimestamp is 0 if no step progression started
+            // (e.g., continuation tasks), in which case we clear immediately.
+            if (processingPhaseStartTimestamp > 0) {
+                const elapsed = Date.now() - processingPhaseStartTimestamp;
+                if (elapsed < MIN_OVERLAY_DISPLAY_MS) {
+                    const remainingDelay = MIN_OVERLAY_DISPLAY_MS - elapsed;
+                    console.debug(`[ActiveChat] Delaying overlay clear by ${remainingDelay}ms so step cards stay visible`);
+                    setTimeout(() => {
+                        if (currentChat?.chat_id !== capturedChatId) return;
+                        clearProcessingPhase();
+                        console.debug('[ActiveChat] Processing phase cleared (delayed, min display elapsed)');
+                    }, remainingDelay);
+                    return;
+                }
+            }
+
+            clearProcessingPhase();
+            console.debug('[ActiveChat] Processing phase cleared (first streaming content rendered)');
+        });
+    }
+
+    /**
+     * Start the real-time processing phase.
+     *
+     * Sets the initial spinner text immediately (first expected step).
+     * The actual step cards are populated by preprocessingStep WebSocket events
+     * (dispatched by chatSyncService → handlePreprocessingStepImpl as CustomEvents).
+     *
+     * For new chats: first spinner shows "Generating chat title..."
+     * For existing chats: first spinner shows "Analyzing your message..."
+     *
+     * Steps arrive in a burst after the single preprocessing LLM call resolves.
+     * Non-skipped steps are added as completed cards above the spinner.
+     * If events don't arrive, ai_typing_started still fires and transitions the overlay — same as before.
      */
     function startProcessingStepProgression(isNewChat: boolean) {
-        // Clear any existing timers from a previous message
-        for (const timer of processingStepTimers) {
-            clearTimeout(timer);
-        }
-        processingStepTimers = [];
+        // Set the initial spinner text immediately
+        const initialText = isNewChat
+            ? $text('enter_message.status.generating_title')
+            : $text('enter_message.status.analyzing_message');
 
-        const steps: { text: string; delay: number }[] = isNewChat
-            ? [
-                { text: $text('enter_message.status.generating_title'), delay: 0 },
-                { text: $text('enter_message.status.selecting_mate'), delay: 1500 },
-                { text: $text('enter_message.status.selecting_model'), delay: 3000 },
-              ]
-            : [
-                { text: $text('enter_message.status.analyzing_message'), delay: 0 },
-                { text: $text('enter_message.status.selecting_model'), delay: 1500 },
-              ];
+        // Record when the overlay first became visible so we can enforce a minimum
+        // display time before clearing it when the first streaming chunk arrives.
+        processingPhaseStartTimestamp = Date.now();
 
-        for (const step of steps) {
-            if (step.delay === 0) {
-                // Set the first step immediately
-                processingPhase = { phase: 'processing', statusLines: [step.text], showIcon: true };
-            } else {
-                const timer = setTimeout(() => {
-                    // Only update if still in processing phase (not already transitioned to typing/null)
-                    if (processingPhase?.phase === 'processing') {
-                        processingPhase = { phase: 'processing', statusLines: [step.text], showIcon: true };
-                    }
-                }, step.delay);
-                processingStepTimers.push(timer);
+        processingPhase = {
+            phase: 'processing',
+            statusLines: [initialText],
+            showIcon: true,
+            completedSteps: [],
+        };
+    }
+
+    /**
+     * Apply the typing phase transition to the processing overlay.
+     * Builds status lines from resolved mate/model/provider info and transitions
+     * processingPhase from 'processing' → 'typing'.
+     * Extracted as a named function so it can be called both immediately and after a
+     * minimum display delay (when step cards need time to be read).
+     */
+    function applyTypingPhaseTransition(
+        resolvedCategory: string | undefined,
+        resolvedModelName: string | undefined,
+        resolvedProviderName: string | undefined,
+        resolvedServerRegion: string | undefined,
+    ) {
+        if (resolvedCategory) {
+            const mateName = $text('mates.' + resolvedCategory);
+            const displayModelName = resolvedModelName ? getModelDisplayName(resolvedModelName) : '';
+            const displayProviderName = resolvedProviderName || '';
+            const displayServerRegion = resolvedServerRegion || '';
+
+            // Build region flag for display
+            const getRegionFlag = (region: string): string => {
+                switch (region) {
+                    case 'EU': return '\u{1F1EA}\u{1F1FA}';
+                    case 'US': return '\u{1F1FA}\u{1F1F8}';
+                    case 'APAC': return '\u{1F30F}';
+                    default: return '';
+                }
+            };
+            const regionFlag = displayServerRegion ? getRegionFlag(displayServerRegion) : '';
+
+            const lines: string[] = [
+                $text('enter_message.is_typing').replace('{mate}', mateName)
+            ];
+            // Line 2: model name
+            if (displayModelName) {
+                lines.push(displayModelName);
             }
+            // Line 3: "via {provider} {flag}"
+            if (displayProviderName) {
+                const providerLine = regionFlag ? `via ${displayProviderName} ${regionFlag}` : `via ${displayProviderName}`;
+                lines.push(providerLine);
+            }
+
+            // Carry forward completedSteps from the processing phase so the step cards
+            // (chat title, selected mate, selected model) remain visible during the typing phase.
+            // They only disappear when the overlay clears (first streaming chunk + min display time).
+            const carrySteps = processingPhase?.phase === 'processing'
+                ? processingPhase.completedSteps
+                : (processingPhase?.phase === 'typing' ? processingPhase.completedSteps : []);
+            processingPhase = { phase: 'typing', statusLines: lines, showIcon: true, completedSteps: carrySteps };
+            console.debug('[ActiveChat] Processing phase set to TYPING', { mateName, displayModelName, displayProviderName, displayServerRegion, lineCount: lines.length, completedSteps: carrySteps.length });
         }
     }
 
@@ -2006,6 +2525,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let messageInputHasContent = $state(false);
     // Track live input text for incremental search in new chat suggestions
     let liveInputText = $state('');
+    // Track whether the map location selector is open in MessageInput.
+    // When true, NewChatSuggestions must be hidden (per UX requirement).
+    let messageInputMapsOpen = $state(false);
     
     // Track if user is at bottom of chat (from scrolledToBottom event)
     // Initialize to false to prevent MessageInput from appearing expanded on initial load
@@ -2017,6 +2539,85 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     
     // Track if message input is focused (for showing follow-up suggestions)
     let messageInputFocused = $state(false);
+
+    // Track viewport height for small-screen adjustments (e.g. hide suggestions on short screens).
+    // Initialised at mount and kept in sync via resize listener in onMount below.
+    let viewportHeight = $state(typeof window !== 'undefined' ? window.innerHeight : 800);
+
+    /** Keep viewportHeight reactive on window resize. Registered/cleaned up in onMount. */
+    function handleViewportResize() {
+        viewportHeight = window.innerHeight;
+    }
+
+    // ─── Height-based suggestions overlap detection ──────────────────────────
+    // Reliable DOM-measurement approach: measure whether the new-chat suggestions
+    // (rendered above the message input) would visually overlap the resume-chat
+    // card / welcome greeting below them.
+    //
+    // When overlap would occur we hide suggestions by default and only reveal them
+    // when the message input is focused.  On focus we also hide the daily
+    // inspiration banner + welcome greeting so there is enough room.
+    //
+    // Element refs — bound in the template.
+    let chatSideEl = $state<HTMLElement | null>(null);
+    let welcomeContentEl = $state<HTMLElement | null>(null);
+    let messageInputContainerEl = $state<HTMLElement | null>(null);
+
+    /**
+     * True when the new-chat suggestions would overlap the welcome / resume-chat
+     * content if both were visible simultaneously.
+     *
+     * Recalculated via a ResizeObserver on chatSideEl (see onMount below).
+     * The estimate uses the measured height of the welcome content block plus a
+     * ~140px allowance for the suggestions panel itself.
+     */
+    let suggestionsWouldOverlapWelcome = $state(false);
+
+    // Estimated height the suggestions panel occupies (header + 3 items + margin).
+    // Used as the minimum clearance we require between the welcome block bottom
+    // and the message-input top before we consider the layout "tight".
+    const SUGGESTIONS_APPROX_HEIGHT = 150;
+
+    /**
+     * Re-measure whether suggestions would overlap the welcome content.
+     * Called by the ResizeObserver and whenever relevant state changes.
+     */
+    function recalculateSuggestionsOverlap() {
+        if (!chatSideEl) {
+            suggestionsWouldOverlapWelcome = false;
+            return;
+        }
+
+        const containerRect = chatSideEl.getBoundingClientRect();
+        const containerHeight = containerRect.height;
+
+        // Height of the welcome content block (greeting + resume card).
+        // Falls back to 0 when the element isn't rendered (e.g. hideWelcomeForKeyboard).
+        const welcomeHeight = welcomeContentEl ? welcomeContentEl.getBoundingClientRect().height : 0;
+
+        // Height of just the message input itself (NOT the container, which also holds
+        // NewChatSuggestions). Using messageInputContainerEl here would create a feedback
+        // loop: suggestions visible → container taller → gap smaller → hide suggestions →
+        // container shorter → gap larger → show suggestions → repeat → effect_update_depth_exceeded.
+        // Instead we use messageInputHeight (dispatched by MessageInput) which measures only
+        // the editor/toolbar area, plus a ~60px allowance for padding and action bar.
+        const inputHeight = messageInputHeight + 60;
+
+        // The welcome block is vertically centered (top: 50% + 60px transform).
+        // Approximate its bottom edge position within the container.
+        const welcomeCenter = containerHeight * 0.5 + 60;
+        const welcomeBottom = welcomeCenter + welcomeHeight / 2;
+
+        // Available gap between welcome bottom and the message input top.
+        const inputTop = containerHeight - inputHeight;
+        const availableGap = inputTop - welcomeBottom;
+
+        const wouldOverlap = availableGap < SUGGESTIONS_APPROX_HEIGHT;
+
+        if (wouldOverlap !== suggestionsWouldOverlapWelcome) {
+            suggestionsWouldOverlapWelcome = wouldOverlap;
+        }
+    }
 
     // Track follow-up suggestions for the current chat
     let followUpSuggestions = $state<string[]>([]);
@@ -2050,7 +2651,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // instead of as overlays. This threshold accommodates iPad landscape (1024px+) and wider displays.
     // The chat panel is fixed at 400px, leaving 600+ px for the embed fullscreen content.
     let isUltraWide = $derived(containerWidth >= 1024);
-    
+
+    // Keep containerRect in sync whenever containerWidth changes (i.e., on resize).
+    // Reading containerWidth here registers it as a dependency so the effect re-runs on resize.
+    $effect(() => {
+        if (containerWidth >= 0) updateContainerRect();
+    });
+
     // Force overlay mode: When true, forces the embed fullscreen to use overlay mode even on ultra-wide screens
     // This is toggled by the "minimize chat" button in the chat's top bar when in side-by-side mode
     // User can click this to temporarily hide the chat and show only the embed fullscreen
@@ -2160,27 +2767,34 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // This is used for container-based responsive behavior instead of viewport-based
     let isEffectivelyNarrow = $derived(isNarrow || showSideBySideLayout);
 
-    // Hide the welcome greeting and resume-chat card on mobile when the keyboard is open.
-    // This frees up vertical space so the input area isn't squeezed against the keyboard.
-    let hideWelcomeForKeyboard = $derived(messageInputFocused && isEffectivelyNarrow);
+    // Hide the welcome greeting and resume-chat card when the keyboard is open (mobile) OR
+    // when the suggestions panel would overlap the welcome content and the input is focused.
+    // In both cases the user has signalled intent to type — hiding the greeting frees up
+    // vertical space so the suggestions are visible without collision.
+    let hideWelcomeForKeyboard = $derived(
+        messageInputFocused && (isEffectivelyNarrow || suggestionsWouldOverlapWelcome)
+    );
 
     // Effective chat width: The actual width of the chat area
     // In side-by-side mode, the chat is constrained to 400px regardless of container width
     // This is passed to ChatHistory/ChatMessage for proper responsive behavior
     let effectiveChatWidth = $derived(showSideBySideLayout ? 400 : containerWidth);
 
-    // Debug suggestions visibility
+    // Re-run overlap detection when layout-affecting state changes:
+    // - messageInputHeight changes (keyboard open/close, input grows/shrinks)
+    // - resumeChatData changes (resume card appears/disappears, affecting welcome block height)
+    // - showWelcome changes (welcome content added/removed)
+    // - viewportHeight changes (window resize)
     $effect(() => {
-        console.debug('[ActiveChat] Suggestions visibility check:', {
-            showWelcome,
-            showActionButtons,
-            isAtBottom,
-            messageInputFocused,
-            messageInputHasContent,
-            followUpSuggestionsCount: followUpSuggestions.length,
-            shouldShowFollowUp: showFollowUpSuggestions,
-            shouldShowNewChat: showWelcome && showActionButtons
-        });
+        // Access reactive dependencies explicitly so the effect re-runs on changes
+        void messageInputHeight;
+        void resumeChatData;
+        void showWelcome;
+        void viewportHeight;
+        // chatSideEl must be available (set after mount)
+        if (chatSideEl) {
+            recalculateSuggestionsOverlap();
+        }
     });
 
     // Reactive variable to determine when to show the create chat button using Svelte 5 $derived.
@@ -2190,6 +2804,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
     let currentChat = $state<Chat | null>(null);
     let currentMessages = $state<ChatMessageModel[]>([]); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+
+    // Decrypted active focus mode ID for the current chat (e.g. "jobs-career_insights").
+    // Updated whenever the chat changes or a focus_mode_activated / focusModeDeactivated event fires.
+    // Used to render the "Focus active" header banner in the chat view.
+    let activeFocusId = $state<string | null>(null);
+    // App ID extracted from the active focus ID (e.g. "jobs" from "jobs-career_insights")
+    let activeFocusAppId = $derived(activeFocusId ? activeFocusId.split('-')[0] : null);
+    // Focus mode key within the app (e.g. "career_insights" from "jobs-career_insights")
+    let activeFocusModeKey = $derived(activeFocusId ? activeFocusId.split('-').slice(1).join('-') : null);
+    // Resolved focus mode metadata for the banner name translation
+    let activeFocusModeMetadata = $derived.by(() => {
+        if (!activeFocusAppId || !activeFocusModeKey) return null;
+        const apps = appSkillsStore.getState().apps;
+        const app = apps[activeFocusAppId];
+        return app?.focus_modes?.find(f => f.id === activeFocusModeKey) ?? null;
+    });
     // CRITICAL: Must use $state() for Svelte 5 reactivity - otherwise store subscription updates
     // won't trigger re-evaluation of $derived values that depend on this variable
     let currentTypingStatus = $state<AITypingStatus | null>(null);
@@ -2197,14 +2827,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Thinking/Reasoning state for thinking models (Gemini, Anthropic Claude)
     // Map of task_id -> thinking content, streaming status, and signature metadata
     let thinkingContentByTask = $state<Map<string, { content: string; isStreaming: boolean; signature?: string | null; totalTokens?: number | null }>>(new Map());
-    
-    // Track content prefixes for focus mode continuation streams.
-    // When a continuation task (after focus mode auto-confirm) streams to the same message_id,
-    // the existing message already contains the focus mode embed. The continuation's
-    // full_content_so_far only has the new LLM text. This Map stores the existing embed content
-    // as a prefix keyed by message_id, so it can be prepended to each streaming chunk.
-    // Entries are cleaned up when the final chunk is received.
-    const continuationContentPrefixes = new Map<string, string>();
     
     // ===========================================
     // Embed Navigation Derived States
@@ -2239,6 +2861,30 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Only show when user has explicitly focused the message input (clicked to type)
     let showFollowUpSuggestions = $derived(!showWelcome && messageInputFocused && followUpSuggestions.length > 0);
 
+    // Load and refresh the active focus ID whenever the current chat changes.
+    // Uses chatMetadataCache to decrypt encrypted_active_focus_id from IndexedDB.
+    $effect(() => {
+        const chatId = currentChat?.chat_id;
+        if (!chatId) {
+            activeFocusId = null;
+            return;
+        }
+        // Read asynchronously — use the cached value if available
+        (async () => {
+            try {
+                const { chatMetadataCache } = await import('../services/chatMetadataCache');
+                const metadata = await chatMetadataCache.getDecryptedMetadata(currentChat!);
+                // Only update if the chat hasn't changed since we started loading
+                if (currentChat?.chat_id === chatId) {
+                    activeFocusId = metadata?.activeFocusId ?? null;
+                }
+            } catch (e) {
+                console.warn('[ActiveChat] Could not load active focus ID:', e);
+                activeFocusId = null;
+            }
+        })();
+    });
+
     // PII visibility state: tracks whether current chat has sensitive data and if it's revealed
     // Only show the toggle button when the chat actually contains PII-anonymized messages
     let chatHasPII = $derived.by(() => {
@@ -2252,6 +2898,36 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     });
     let piiRevealed = $derived(currentChat?.chat_id ? (piiRevealedMap.get(currentChat.chat_id) ?? false) : false);
 
+    /**
+     * Cumulative PII mappings from all user messages in the current chat.
+     * Mirrors the same derivation in ChatHistory.svelte so that embed components
+     * (both imperatively-mounted previews via embedPIIStore, and template-bound
+     * fullscreen components via props) receive the same mapping data.
+     */
+    let cumulativePIIMappingsArray = $derived.by(() => {
+        const allMappings: PIIMapping[] = [];
+        for (const msg of currentMessages) {
+            if (msg.role === 'user' && msg.pii_mappings && msg.pii_mappings.length > 0) {
+                allMappings.push(...msg.pii_mappings);
+            }
+        }
+        return allMappings;
+    });
+
+    /**
+     * Keep the global embedPIIStore in sync with the current chat's PII state.
+     * This drives the imperatively-mounted preview components (DocsEmbedPreview,
+     * CodeEmbedPreview, SheetEmbedPreview) which cannot receive reactive props.
+     * Runs whenever the cumulative mappings or the reveal toggle changes.
+     */
+    $effect(() => {
+        if (currentChat?.chat_id) {
+            setEmbedPIIState(cumulativePIIMappingsArray, piiRevealed);
+        } else {
+            resetEmbedPIIState();
+        }
+    });
+
     /** Toggle PII visibility for the current chat */
     function handleTogglePIIVisibility() {
         if (currentChat?.chat_id) {
@@ -2259,9 +2935,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
     
-    // Effect to reload follow-up suggestions when MessageInput is focused but suggestions are empty
-    // This handles the case where suggestions were stored in the database but weren't loaded
-    // in-memory (e.g., after post-processing completes but the event handler didn't fire)
+    // Effect to reload follow-up suggestions when MessageInput is focused but suggestions are empty.
+    // This handles several failure modes on page reload:
+    //   1. Key timing: loadChat ran before loadChatKeysFromDatabase completed, decryption failed
+    //   2. Stale currentChat: a chatUpdated event spread a partial object that cleared encrypted_follow_up_request_suggestions
+    //   3. Post-processing race: event fired but DB write hadn't committed yet at loadChat time
+    //
+    // Strategy: always do a fresh DB read as the authoritative source.
+    // - For cleartext (demo chats): parse from currentChat directly (no DB read needed)
+    // - For real chats: always read from IndexedDB to get the latest version, then decrypt
+    //   This avoids relying on potentially stale in-memory currentChat metadata.
     $effect(() => {
         if (messageInputFocused && !showWelcome && currentChat?.chat_id && followUpSuggestions.length === 0) {
             // CRITICAL: Skip suggestion reload if logout is in progress
@@ -2271,7 +2954,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 return;
             }
 
-            // Check for cleartext suggestions first (demo chats)
+            // Check for cleartext suggestions first (demo chats) — these are always on currentChat
             if (currentChat.follow_up_request_suggestions) {
                 console.debug('[ActiveChat] Loading cleartext follow-up suggestions for demo chat');
                 try {
@@ -2283,60 +2966,51 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 } catch (error) {
                     console.error('[ActiveChat] Failed to parse cleartext follow-up suggestions:', error);
                 }
-            } else if (currentChat.encrypted_follow_up_request_suggestions) {
-                // Try to reload encrypted suggestions for regular chats
-                console.debug('[ActiveChat] MessageInput focused but no suggestions - attempting to reload from database');
-                // Use an IIFE to handle async operations
-                (async () => {
-                    try {
-                        const chatKey = chatDB.getOrGenerateChatKey(currentChat.chat_id);
-                        const { decryptArrayWithChatKey } = await import('../services/cryptoService');
-                        const decryptedSuggestions = await decryptArrayWithChatKey(
-                            currentChat.encrypted_follow_up_request_suggestions, 
-                            chatKey
-                        );
-                        if (decryptedSuggestions && decryptedSuggestions.length > 0) {
-                            followUpSuggestions = decryptedSuggestions;
-                            console.info('[ActiveChat] Reloaded follow-up suggestions on focus:', decryptedSuggestions.length);
-                        }
-                    } catch (error) {
-                        console.error('[ActiveChat] Failed to reload follow-up suggestions on focus:', error);
-                    }
-                })();
             } else {
-                // Try to refresh chat from database in case it was updated
-                console.debug('[ActiveChat] No suggestions in currentChat - checking database');
+                // For all real chats: always do a fresh DB read.
+                // This is the robust path that handles key-timing races (where loadChat ran before
+                // the master key was available to decrypt the chat key), stale currentChat (where a
+                // chatUpdated spread cleared encrypted_follow_up_request_suggestions from memory),
+                // and post-processing races. By reading from IndexedDB at focus time, we use the
+                // most up-to-date data and the chat keys should be fully loaded by now.
+                console.debug('[ActiveChat] MessageInput focused, suggestions empty — reading from IndexedDB');
                 (async () => {
                     try {
                         const freshChat = await chatDB.getChat(currentChat.chat_id);
-                        // Check for cleartext suggestions first (demo chats)
+                        // Check for cleartext suggestions on fresh read (community demo chats)
                         if (freshChat?.follow_up_request_suggestions) {
                             try {
                                 const suggestions = JSON.parse(freshChat.follow_up_request_suggestions);
                                 if (suggestions && suggestions.length > 0) {
                                     followUpSuggestions = suggestions;
                                     currentChat = { ...currentChat, ...freshChat };
-                                    console.info('[ActiveChat] Loaded cleartext follow-up suggestions from fresh database read:', suggestions.length);
+                                    console.info('[ActiveChat] Loaded cleartext follow-up suggestions from fresh DB read:', suggestions.length);
                                 }
                             } catch (parseError) {
-                                console.error('[ActiveChat] Failed to parse cleartext follow-up suggestions:', parseError);
+                                console.error('[ActiveChat] Failed to parse cleartext follow-up suggestions from fresh DB read:', parseError);
                             }
                         } else if (freshChat?.encrypted_follow_up_request_suggestions) {
+                            // Use getOrGenerateChatKey: by the time the user has focused the input,
+                            // loadChatKeysFromDatabase should have completed and the correct key is cached.
                             const chatKey = chatDB.getOrGenerateChatKey(currentChat.chat_id);
                             const { decryptArrayWithChatKey } = await import('../services/cryptoService');
                             const decryptedSuggestions = await decryptArrayWithChatKey(
-                                freshChat.encrypted_follow_up_request_suggestions, 
+                                freshChat.encrypted_follow_up_request_suggestions,
                                 chatKey
                             );
                             if (decryptedSuggestions && decryptedSuggestions.length > 0) {
                                 followUpSuggestions = decryptedSuggestions;
-                                // Also update currentChat to have the latest data
+                                // Sync currentChat so subsequent checks see the field
                                 currentChat = { ...currentChat, ...freshChat };
-                                console.info('[ActiveChat] Loaded follow-up suggestions from fresh database read:', decryptedSuggestions.length);
+                                console.info('[ActiveChat] Loaded follow-up suggestions from fresh DB read on focus:', decryptedSuggestions.length);
+                            } else {
+                                console.debug('[ActiveChat] Fresh DB read returned no decryptable suggestions for', currentChat.chat_id);
                             }
+                        } else {
+                            console.debug('[ActiveChat] No follow-up suggestions found in DB for', currentChat.chat_id);
                         }
                     } catch (error) {
-                        console.error('[ActiveChat] Failed to load suggestions from database on focus:', error);
+                        console.error('[ActiveChat] Failed to load suggestions from DB on focus:', error);
                     }
                 })();
             }
@@ -2403,7 +3077,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // PROGRESSIVE STATUS INDICATOR: The centered overlay (processingPhase) handles:
     //   - "Sending..." → "Generating chat title..." → "Selecting AI model..." → "{Mate} is typing..."
     // The bottom indicator only shows during STREAMING (when processingPhase is null but AI is still typing).
-    // Exception: "Waiting for you..." is always shown at the bottom (not part of the centered flow).
     //
     // Returns an array of lines matching the centered overlay format:
     //   Line 1 (primary):   "{mate} is typing..."
@@ -2413,19 +3086,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // _aiTaskStateTrigger is a top-level reactive variable.
         // Its change will trigger re-evaluation of this derived value.
         void _aiTaskStateTrigger;
-        
-        // Check if there's a message in waiting_for_user state (e.g., insufficient credits, app settings permission)
-        const hasWaitingForUserMessage = currentMessages.some(m => 
-            m.status === 'waiting_for_user' && m.chat_id === currentChat?.chat_id
-        );
-        
-        // Show "Waiting for you..." if chat is paused waiting for user action
-        // This is ALWAYS shown at the bottom (not part of the centered indicator flow)
-        if (hasWaitingForUserMessage) {
-            const result = $text('enter_message.waiting_for_user');
-            console.debug('[ActiveChat] Showing waiting_for_user indicator:', result);
-            return [result]; // Single line
-        }
         
         // When the centered indicator is active (processingPhase is not null),
         // hide the bottom typing indicator to avoid duplicate text.
@@ -2482,16 +3142,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     })());
 
     // Track the current status type for CSS styling (shimmer animation) on the BOTTOM indicator.
-    // Returns: 'typing' | 'waiting_for_user' | null
-    // 'sending' and 'processing' are no longer shown at the bottom — they're in the centered overlay.
+    // Returns: 'typing' | null
+    // 'sending', 'processing', and 'waiting_for_user' are no longer shown at the bottom.
     let typingIndicatorStatusType = $derived.by(() => {
         void _aiTaskStateTrigger;
         
-        // "Waiting for you..." is always shown at the bottom
-        const hasWaitingForUserMessage = currentMessages.some(m => 
-            m.status === 'waiting_for_user' && m.chat_id === currentChat?.chat_id
-        );
-        if (hasWaitingForUserMessage) return 'processing'; // Reuse 'processing' CSS class for shimmer effect
         
         // When centered indicator is active, bottom shows nothing
         if (processingPhase !== null) return null;
@@ -2629,12 +3284,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             previousContentLengthForPersistence = 0;
             newContentLengthForPersistence = newAiMessage.content.length;
             
-            // ─── Progressive AI Status Indicator: Clear centered indicator on first chunk ─────
-            // The assistant response div is now being shown, so fade out the centered overlay.
-            // The bottom typing indicator (in ActiveChat template) will take over for the
-            // "{Mate} is typing..." display while streaming continues.
-            clearProcessingPhase();
-            console.debug('[ActiveChat] Processing phase cleared (first streaming chunk received)');
+            // ─── Progressive AI Status Indicator: Clear after render ─────
+            // Wait until the new assistant message is rendered in the DOM before fading
+            // out the centered overlay. Also enforces a minimum display time so step
+            // cards (title, mate, model) remain readable before disappearing.
+            clearProcessingPhaseWhenReady(chunk.chat_id);
             
             console.log(
                 `[ActiveChat] 🆕 NEW MESSAGE CREATED | ` +
@@ -2650,32 +3304,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const lengthDiff = newLength - previousLength;
             const fallbackModelName = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.modelName : undefined;
             
-            // ─── Focus mode continuation: preserve existing embed content ─────
-            // When a focus mode continuation task streams to the same message_id, the existing
-            // message already has content (the focus mode activation embed). The continuation's
-            // full_content_so_far only contains the new LLM text, not the embed.
-            // Detect this case and capture the existing content as a prefix once,
-            // then prepend it to all subsequent full_content_so_far values.
-            // We check multiple conditions to handle timing races:
-            //   1. Message is 'synced' (normal case: first stream finalized, continuation starts)
-            //   2. Message has any status but contains a focus_mode_activation embed reference
-            //      (race case: continuation starts before/during first stream finalization)
-            if (targetMessage.content && chunk.full_content_so_far && !continuationContentPrefixes.has(chunk.message_id)) {
-                const hasFocusEmbed = targetMessage.content.includes('"type":"focus_mode_activation"') ||
-                                      targetMessage.content.includes('"type": "focus_mode_activation"');
-                if (targetMessage.status === 'synced' || hasFocusEmbed) {
-                    continuationContentPrefixes.set(chunk.message_id, targetMessage.content);
-                    console.debug(`[ActiveChat] Focus mode continuation detected — preserving existing content as prefix (${targetMessage.content.length} chars, status: ${targetMessage.status}) for message ${chunk.message_id}`);
-                }
-            }
-            
             // Only update content if full_content_so_far is not empty,
             // or if it's the first chunk (sequence 1) where it might legitimately start empty.
             if (chunk.full_content_so_far || chunk.sequence === 1) {
-                // CRITICAL: Store AI response as markdown string, not Tiptap JSON
-                // If this is a continuation, prepend the preserved embed content
-                const prefix = continuationContentPrefixes.get(chunk.message_id) || '';
-                targetMessage.content = prefix + (chunk.full_content_so_far || '');
+                // Guard: skip content update if the cumulative content is shorter than what we already
+                // have. This should never happen with correct cumulative streaming, but Gemini
+                // multimodal responses have been observed to produce garbled/corrupted intermediate
+                // chunks (token-ID sequences) whose accumulated length regresses. Skipping them keeps
+                // the displayed text coherent and prevents Tiptap render breakage on mobile.
+                const wouldShrink = newLength > 0 && newLength < previousLength;
+                if (wouldShrink) {
+                    console.warn(
+                        `[ActiveChat] ⚠️ Skipping content regression | seq: ${chunk.sequence} | ` +
+                        `prev_len: ${previousLength} → new_len: ${newLength} (diff: ${lengthDiff})`
+                    );
+                } else {
+                    // CRITICAL: Store AI response as markdown string, not Tiptap JSON
+                    targetMessage.content = chunk.full_content_so_far || '';
+                }
             }
             // If this is a rejection message, update role and status accordingly
             if (chunk.rejection_reason && targetMessage.role !== 'system') {
@@ -2693,6 +3339,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     fallbackModelName: fallbackModelName,
                     finalModelName: targetMessage.model_name
                 });
+            }
+            // Patch category if the message was created before ai_typing_started arrived and the
+            // backend now sends category on every chunk (fix for race condition in issue #5dc543b0).
+            if (chunk.category && !targetMessage.category) {
+                targetMessage.category = chunk.category;
+                console.debug(`[ActiveChat] Patched category on existing message ${targetMessage.message_id}: "${targetMessage.category}"`);
             }
             currentMessages[targetMessageIndex] = targetMessage;
             currentMessages = [...currentMessages]; // New array reference for Svelte reactivity
@@ -2812,12 +3464,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
 
         if (chunk.is_final_chunk) {
-            // Clean up continuation content prefix (if this was a focus mode continuation stream)
-            if (continuationContentPrefixes.has(chunk.message_id)) {
-                continuationContentPrefixes.delete(chunk.message_id);
-                console.debug(`[ActiveChat] Cleaned up continuation content prefix for message ${chunk.message_id}`);
-            }
-            
             console.log(
                 `[ActiveChat] 🏁 FINAL CHUNK PROCESSED | ` +
                 `seq: ${chunk.sequence} | ` +
@@ -2837,6 +3483,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // so the chat shows "Waiting for you..." instead of appearing as a completed response
                 const isRejection = !!chunk.rejection_reason;
                 const finalStatus = isRejection ? 'waiting_for_user' as const : 'synced' as const;
+
+                // If this was a credits rejection on a new chat, transition the header banner
+                // from "Creating new chat..." (loading shimmer) to "Not enough credits" (static).
+                // isNewChatProcessing is still true here — it's only reset on chat switch / new-chat-click.
+                if (isRejection && chunk.rejection_reason === 'insufficient_credits' && isNewChatProcessing) {
+                    isNewChatGeneratingTitle = false;
+                    isNewChatCreditsError = true;
+                    console.debug('[ActiveChat] Credits rejection on new chat — transitioning header to credits error state');
+                }
+                // For rejection messages: invalidate the sidebar cache so the stale
+                // last-message entry is cleared. The chatUpdated dispatch that re-triggers
+                // updateDisplayInfo in Chat.svelte is deferred until AFTER we've populated
+                // the cache with the user message (status: 'waiting_for_user') below —
+                // that way Chat.svelte always sees the correct state on its first read.
+                if (isRejection) {
+                    chatListCache.invalidateLastMessage(chunk.chat_id);
+                }
                 const updatedFinalMessage = {
                     ...finalMessageInArray,
                     status: finalStatus,
@@ -2864,7 +3527,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 }
 
                 // CRITICAL FIX: Also update the corresponding user message status from 'sending' to appropriate status
-                // For rejection messages (e.g., insufficient credits): set to 'waiting_for_user' so the sidebar shows "Waiting for you..."
+                // For rejection messages (e.g., insufficient credits): set to 'waiting_for_user' so the sidebar shows "Credits needed..."
                 // For normal responses: set to 'synced' to prevent infinite "Sending..." state
                 if (chunk.user_message_id) {
                     const userMessageIndex = currentMessages.findIndex(m => m.message_id === chunk.user_message_id);
@@ -2899,11 +3562,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             }
                             console.debug('[ActiveChat] Updated user message status to synced:', updatedUserMessage.message_id);
                             
-                            // CRITICAL: Invalidate the chatListCache last message so the sidebar
-                            // doesn't show stale "Sending..." when reopened on mobile.
-                            // The cache was populated with status:'sending' during sendHandlers.ts,
-                            // and without this invalidation, reopening the sidebar would use the stale cache.
-                            chatListCache.invalidateLastMessage(updatedUserMessage.chat_id);
+                            // CRITICAL: Update the chatListCache so the sidebar shows the correct state.
+                            // For rejection messages (e.g., insufficient credits): cache the USER message
+                            // so the sidebar can display "Credits needed..." + user message content.
+                            // For normal responses: invalidate so the sidebar refreshes from DB.
+                            if (isRejection) {
+                                chatListCache.setLastMessage(updatedUserMessage.chat_id, updatedUserMessage);
+                                // Now that the cache has the user message with status 'waiting_for_user',
+                                // notify the sidebar so Chat.svelte re-runs updateDisplayInfo and sees
+                                // "Credits needed..." + the user message preview.
+                                // This dispatch is intentionally placed AFTER setLastMessage so Chat.svelte
+                                // always hits the populated cache (avoiding the earlier timing race where
+                                // the dispatch fired before the cache was ready).
+                                chatSyncService.dispatchEvent(new CustomEvent('chatUpdated', {
+                                    detail: { chat_id: updatedUserMessage.chat_id, type: 'message_status_changed' }
+                                }));
+                            } else {
+                                chatListCache.invalidateLastMessage(updatedUserMessage.chat_id);
+                            }
                         } catch (error) {
                             console.error('[ActiveChat] Error updating user message status:', error);
                         }
@@ -3032,11 +3708,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.log(`[ActiveChat] 🧠 Created placeholder message for thinking | message_id: ${messageId}`);
             currentMessages = [...currentMessages, placeholderMessage];
             
-            // ─── Progressive AI Status Indicator: Clear centered indicator when thinking starts ─────
-            // The thinking bubble is now visible in the chat, so the centered overlay must fade out.
-            // The bottom typing indicator will take over.
-            clearProcessingPhase();
-            console.debug('[ActiveChat] Processing phase cleared (thinking placeholder created)');
+            // ─── Progressive AI Status Indicator: Clear after render ─────
+            // Wait until the thinking placeholder is rendered in the DOM before fading
+            // out the centered overlay. Also enforces a minimum display time so step
+            // cards (title, mate, model) remain readable before disappearing.
+            clearProcessingPhaseWhenReady(chunk.chat_id);
         }
         
         // Update thinking content map using message_id (same as task_id)
@@ -3262,18 +3938,76 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             window.dispatchEvent(globalChatSelectedEvent);
             console.debug("[ActiveChat] Dispatched globalChatSelected for new chat");
         } else {
-            // This is a message for an existing, already active chat
+            // This is a message for an existing, already active chat.
+            // If there is a credits rejection system message still present (the user is
+            // sending a follow-up instead of clicking "Resend"), remove it first so the
+            // chat looks clean: original user message → new user message → AI response.
+            if (isNewChatCreditsError || isCreditsRestored) {
+                const rejectionIdx = currentMessages.findIndex(
+                    m => m.status === 'waiting_for_user' && (m.role === 'system' || m.role === 'assistant')
+                );
+                if (rejectionIdx !== -1) {
+                    const rejectionMsg = currentMessages[rejectionIdx];
+                    currentMessages = currentMessages.filter((_, i) => i !== rejectionIdx);
+                    chatDB.deleteMessage(rejectionMsg.message_id).catch(err => {
+                        console.warn('[ActiveChat] handleSendMessage: failed to delete credits rejection message from DB:', err);
+                    });
+                    console.debug('[ActiveChat] handleSendMessage: removed credits rejection message before follow-up send', rejectionMsg.message_id);
+                }
+                isNewChatCreditsError = false;
+                isCreditsRestored = false;
+            }
+
             // Ensure we don't duplicate the message if it's already in currentMessages
             if (!currentMessages.some(m => m.message_id === message.message_id)) {
                 currentMessages = [...currentMessages, message];
             }
         }
 
+        // RESILIENCE: Ensure activeChatStore is consistent with currentChat after message send.
+        // After handleNewChatClick clears activeChatStore to null and then a message is sent,
+        // the new-chat branch above should set activeChatStore. But if the existing-chat branch
+        // ran instead (e.g., because currentChat was already set by a prior operation), we may
+        // have activeChatStore=null while currentChat has the correct chat_id. This causes AI
+        // streaming responses to be treated as "background" messages (wrong chat routing) because
+        // chatSyncServiceHandlersAI checks activeChatStore to decide foreground vs background.
+        if (currentChat?.chat_id && activeChatStore.get() !== currentChat.chat_id) {
+            console.warn(`[ActiveChat] handleSendMessage: activeChatStore mismatch after send — ` +
+                `store=${activeChatStore.get()}, currentChat=${currentChat.chat_id}. Fixing.`);
+            activeChatStore.setActiveChat(currentChat.chat_id);
+        }
+
         // ─── Progressive AI Status Indicator: Start with 'sending' phase ─────
         // Determine if this is a new chat (no title yet) to decide which processing
         // steps to show later when ai_task_initiated arrives.
         const chatForNewCheck = newChat || currentChat;
-        isNewChatProcessing = !chatForNewCheck?.title_v || chatForNewCheck.title_v === 0;
+        // A chat is "new" (needs title generation) only if:
+        //   1. Its title_v is 0 or missing (server hasn't generated a title yet), AND
+        //   2. We haven't already received and decrypted a title via a prior WebSocket event.
+        //
+        // The second condition is critical: after the first message the server sends a
+        // title_updated/metadata_updated event which decrypts the title into
+        // activeChatDecryptedTitle — but does NOT reliably update currentChat.title_v to 1
+        // in the local IndexedDB record. On a follow-up message, chatForNewCheck.title_v
+        // is therefore still 0, which incorrectly triggers isNewChatProcessing=true and
+        // overwrites activeChatDecryptedTitle with '' — causing the header to flash back
+        // to the "Creating new chat…" shimmer even though a real title is already shown.
+        // Guarding on activeChatDecryptedTitle prevents this false positive.
+        isNewChatProcessing = (!chatForNewCheck?.title_v || chatForNewCheck.title_v === 0)
+            && !activeChatDecryptedTitle;
+
+        // If this is a new chat, show the "Generating title..." placeholder in the chat header.
+        // This is cleared once the title/category/icon arrive via a title_updated or metadata_updated event.
+        // Also resets any prior credits error state so the banner returns to loading.
+        if (isNewChatProcessing) {
+            isNewChatGeneratingTitle = true;
+            isNewChatCreditsError = false;
+            isCreditsRestored = false;
+            activeChatDecryptedTitle = '';
+            activeChatDecryptedCategory = null;
+            activeChatDecryptedIcon = null;
+            activeChatDecryptedSummary = null;
+        }
         
         // Start the centered status indicator immediately with "Sending..."
         processingPhase = {
@@ -3284,7 +4018,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         if (chatHistoryRef) {
             console.debug("[ActiveChat] handleSendMessage: Updating ChatHistory with messages:", currentMessages);
-            chatHistoryRef.updateMessages(currentMessages);
+            // Pass isNewChatProcessing so ChatHistory can use the extended 2 s scroll
+            // delay for new chats, letting the user see the "Creating new chat…" header
+            // transition before the view scrolls down to the user message.
+            chatHistoryRef.updateMessages(currentMessages, isNewChatProcessing);
         }
         showWelcome = false;
 
@@ -3322,6 +4059,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Clear any active processing phase indicator
         clearProcessingPhase();
+        // Reset the chat header state (new-chat title placeholder) for the fresh chat
+        resetChatHeaderState();
         
         // Generate a new temporary chat ID for the new chat
         temporaryChatId = crypto.randomUUID();
@@ -3454,8 +4193,805 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         console.debug('[ActiveChat] Resume chat loaded and events dispatched');
     }
 
+    /**
+     * Handler for opening the for-everyone intro chat from the new chat screen.
+     * Shown only to non-authenticated users so they can easily get back to the explainer intro (e.g. on mobile).
+     */
+    async function handleOpenIntroChat() {
+        const welcomeDemo = DEMO_CHATS.find((chat) => chat.chat_id === 'demo-for-everyone');
+        if (!welcomeDemo) {
+            console.warn('[ActiveChat] demo-for-everyone not found in DEMO_CHATS');
+            return;
+        }
+        const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
+        const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
+        phasedSyncState.markInitialChatLoaded();
+        activeChatStore.setActiveChat('demo-for-everyone');
+        await loadChat(welcomeChat);
+        const globalSelectEvent = new CustomEvent('globalChatSelected', {
+            bubbles: true,
+            composed: true,
+            detail: { chatId: 'demo-for-everyone' }
+        });
+        window.dispatchEvent(globalSelectEvent);
+        console.debug('[ActiveChat] Loaded demo-for-everyone from intro link');
+    }
+
     // Note: handleDismissResumeChat removed – the resume card is always visible
     // on the new chat screen (user is already in "new chat" mode, no need to dismiss).
+
+    /**
+     * Handler for clicking a Daily Inspiration banner.
+     *
+     * Creates a local-only chat (zero-knowledge: encrypted title + first assistant
+     * message) immediately, without triggering an LLM request. The user can then
+     * read the inspiration and send their own reply to start the actual conversation.
+     *
+     * Steps:
+     *  1. Generate a new chat UUID + chat encryption key
+     *  2. Encrypt the phrase as the chat title
+     *  3. Persist the Chat record to IndexedDB
+     *  4. Build and encrypt a first assistant message containing the phrase
+     *     (and YouTube video embed markdown if a video is attached)
+     *  5. Save the message to IndexedDB
+     *  6. Navigate to the new chat
+     */
+    async function handleStartChatFromInspiration(inspiration: DailyInspiration) {
+        console.info('[ActiveChat] Starting chat from daily inspiration:', inspiration.inspiration_id);
+
+        // Unauthenticated users: open the signup screen (alpha disclaimer step) so they
+        // can register and then start using inspirations.
+        // Same pattern as handleOpenSignupInterface (message-input signup button).
+        if (!$authStore.isAuthenticated) {
+            console.debug('[ActiveChat] Guest clicked inspiration banner – opening signup interface');
+            currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+            isInSignupProcess.set(true);
+            loginInterfaceOpen.set(true);
+            if ($panelState.isActivityHistoryOpen) {
+                panelState.toggleChats();
+            }
+            return;
+        }
+
+        // ── Deduplication: if this inspiration already has an opened chat, navigate
+        //    to it instead of creating a duplicate. Verify the chat still exists in
+        //    IndexedDB first (it may have been pruned or not yet synced).
+        if (inspiration.is_opened && inspiration.opened_chat_id) {
+            const existingChatId = inspiration.opened_chat_id;
+            try {
+                const existingChat = await chatDB.getChat(existingChatId);
+                if (existingChat) {
+                    console.info(
+                        `[ActiveChat] Inspiration ${inspiration.inspiration_id} already opened — navigating to existing chat ${existingChatId}`,
+                    );
+                    phasedSyncState.markInitialChatLoaded();
+                    activeChatStore.setActiveChat(existingChatId);
+                    await loadChat(existingChat);
+
+                    // Warm the embed key cache from IndexedDB so UnifiedEmbedPreview
+                    // can decrypt after navigating back to this chat in the same session.
+                    //
+                    // Without this, if the user navigates away and back, embedKeyCache is
+                    // empty (it's in-memory only). When phase 2/3 sync calls putEncrypted()
+                    // it replaces the cached decrypted entry with an encrypted-only entry.
+                    // The next refetchFromStore() then calls getEmbedKey() → cache miss →
+                    // falls back to IndexedDB, which works. BUT if we call setEmbedKeyInCache()
+                    // now we avoid that extra IndexedDB round-trip and guarantee the key is
+                    // available for immediate use even if IndexedDB is slow or busy.
+                    //
+                    // IMPORTANT: We must pass hashedChatId (not undefined) to getEmbedKey().
+                    // Some inspiration embeds only have a 'chat' key in IDB (no 'master' key).
+                    // getEmbedKey(id, undefined) only tries the master slot first and skips
+                    // chat-type keys when no hashedChatId is provided — so it returns null
+                    // for chat-key-only embeds. Passing the real hashedChatId lets it fall
+                    // through to the matching chat-key entry.
+                    //
+                    // This mirrors the IndexedDB recovery path in the new-chat code below
+                    // (the `embedKeyForWrap` recovery block in the `if (reusedEmbedId)` branch).
+                    if (inspiration.embed_id) {
+                        try {
+                            const { embedStore } = await import('../services/embedStore');
+                            const { computeSHA256 } = await import('../message_parsing/utils');
+                            const cachedKey = embedStore.getEmbedKeyFromCache(inspiration.embed_id);
+                            if (!cachedKey) {
+                                // Compute the hashed chat ID so getEmbedKey() can match
+                                // chat-type key entries in addition to master-type entries.
+                                const hashedExistingChatId = await computeSHA256(existingChatId);
+                                const recoveredKey = await embedStore.getEmbedKey(
+                                    inspiration.embed_id,
+                                    hashedExistingChatId,
+                                );
+                                if (recoveredKey) {
+                                    embedStore.setEmbedKeyInCache(
+                                        inspiration.embed_id,
+                                        recoveredKey,
+                                        hashedExistingChatId,
+                                    );
+                                    console.info(
+                                        `[ActiveChat] ✅ Warmed embed key cache from IndexedDB for dedup path (embed ${inspiration.embed_id})`,
+                                    );
+                                } else {
+                                    console.warn(
+                                        `[ActiveChat] Could not recover embed key for ${inspiration.embed_id} — embed may show error on re-mount`,
+                                    );
+                                }
+                            }
+                        } catch (embedKeyErr) {
+                            // Non-fatal: embed will attempt IndexedDB lookup on its own when it renders
+                            console.warn(
+                                '[ActiveChat] Failed to warm embed key cache in dedup path (non-fatal):',
+                                embedKeyErr,
+                            );
+                        }
+                    }
+
+                    return;
+                }
+                // Chat not found locally — fall through to create a new one.
+                // This can happen on a fresh device where the chat hasn't synced yet.
+                console.info(
+                    `[ActiveChat] Inspiration ${inspiration.inspiration_id} marked as opened but chat ${existingChatId} not found locally — creating new chat`,
+                );
+            } catch (lookupErr) {
+                console.warn(
+                    `[ActiveChat] Error looking up existing inspiration chat ${existingChatId}:`,
+                    lookupErr,
+                );
+                // Fall through to create a new chat
+            }
+        }
+
+        try {
+            const { generateChatKey, encryptWithChatKey } = await import('../services/cryptoService');
+            const { createEmbedReferenceBlock } = await import('../components/enter_message/services/urlMetadataService');
+            const { encode: toonEncode } = await import('@toon-format/toon');
+            const { embedStore } = await import('../services/embedStore');
+            const { generateUUID } = await import('../message_parsing/utils');
+
+            const chatId = crypto.randomUUID();
+            const chatKey = generateChatKey();
+            if (!chatKey) {
+                console.error('[ActiveChat] Failed to generate chat key for inspiration chat');
+                return;
+            }
+
+            // Store chat key so subsequent reads work
+            chatDB.setChatKey(chatId, chatKey);
+
+            const now = Math.floor(Date.now() / 1000);
+            const nowMs = Date.now();
+            const phrase = inspiration.phrase;
+            // Use the concise title for the chat sidebar (falls back to phrase for
+            // older inspirations that don't have a separate title field)
+            const chatTitle = inspiration.title || phrase;
+
+            // Encrypt the chat title (short title for sidebar display)
+            const encryptedTitle = await encryptWithChatKey(chatTitle, chatKey);
+
+            // Build the first assistant message content.
+            // Use the rich assistant_response if available (generated by the LLM to explain
+            // the topic and invite further exploration), falling back to the phrase if not.
+            // If a video is available, create a proper embed with the rich metadata
+            // from the inspiration (title, channel, views, duration, etc.) instead
+            // of just pasting a bare URL. This gives the user a full YouTube embed
+            // card immediately, without waiting for an API call or server round-trip.
+            const firstMessageText = inspiration.assistant_response ?? phrase;
+            let messageContent = firstMessageText;
+            // Track whether we reused a pre-stored inspiration embed (needed for
+            // chat key wrapper creation after the chat and message are created)
+            let reusedEmbedId: string | null = null;
+            // Captured embed data for cross-device sync — populated in the
+            // reusedEmbedId block below, consumed by sendSyncInspirationChat
+            // so other devices receive the embed + keys inline with the broadcast
+            // instead of racing against a Directus round-trip.
+            let inspirationEmbedForSync: import('../services/chatSyncServiceSenders').InspirationEmbedData | undefined;
+            if (inspiration.video) {
+                const video = inspiration.video;
+                const videoUrl = `https://www.youtube.com/watch?v=${video.youtube_id}`;
+
+                // CRITICAL: Reuse the pre-stored inspiration embed if it exists.
+                // persistInspirations() already created and encrypted this embed with an
+                // embed key + master key wrapper and synced it to Directus. Creating a NEW
+                // embed here would abandon the original (with its keys) and produce an
+                // embed that has no server-side key wrappers — causing decryption failures
+                // on other devices. By reusing the existing embed_id we keep the key chain
+                // intact and can add a chat key wrapper below.
+                const existingEmbedId = inspiration.embed_id;
+                const embedId = existingEmbedId || generateUUID();
+
+                if (existingEmbedId) {
+                    reusedEmbedId = existingEmbedId;
+                    console.info(
+                        `[ActiveChat] Reusing pre-stored inspiration embed ${existingEmbedId} (not creating a new one)`,
+                    );
+                } else {
+                    console.info(
+                        `[ActiveChat] No pre-stored embed_id on inspiration — creating new embed ${embedId}`,
+                    );
+                }
+
+                // Format duration if available (e.g. 273 → "4:33")
+                let durationFormatted: string | null = null;
+                if (video.duration_seconds != null) {
+                    const mins = Math.floor(video.duration_seconds / 60);
+                    const secs = video.duration_seconds % 60;
+                    durationFormatted = `${mins}:${secs.toString().padStart(2, '0')}`;
+                }
+
+                // Build the embed content using the same TOON schema as createStaticYouTubeEmbed
+                // but populated with the rich metadata we already have from the inspiration.
+                const embedContent = {
+                    url: videoUrl,
+                    video_id: video.youtube_id,
+                    title: video.title || null,
+                    description: null,
+                    channel_name: video.channel_name || null,
+                    channel_id: null,
+                    channel_thumbnail: null,
+                    thumbnail: video.thumbnail_url || null,
+                    duration_seconds: video.duration_seconds ?? null,
+                    duration_formatted: durationFormatted,
+                    view_count: video.view_count ?? null,
+                    like_count: null,
+                    published_at: video.published_at || null,
+                    fetched_at: new Date().toISOString(),
+                };
+
+                // Encode as TOON for storage efficiency (same as urlMetadataService)
+                let toonContent: string;
+                try {
+                    toonContent = toonEncode(embedContent);
+                } catch {
+                    toonContent = JSON.stringify(embedContent);
+                }
+
+                const embedData = {
+                    embed_id: embedId,
+                    type: 'video',
+                    status: 'finished',
+                    content: toonContent,
+                    text_preview: video.title || 'YouTube Video',
+                    createdAt: nowMs,
+                    updatedAt: nowMs,
+                };
+
+                // Store the embed in EmbedStore (same namespace as regular YouTube embeds).
+                // For reused embeds this overwrites the local copy with up-to-date metadata.
+                try {
+                    await embedStore.put(`embed:${embedId}`, embedData, 'videos-video');
+                    console.info(`[ActiveChat] Stored inspiration video embed in EmbedStore: ${embedId}`);
+                } catch (embedErr) {
+                    console.error('[ActiveChat] Failed to store inspiration embed:', embedErr);
+                }
+
+                // Build the embed reference block and include it in the message content.
+                // The message rendering pipeline uses this JSON block to resolve + display
+                // the embed card inline, exactly like embeds created by the URL metadata service.
+                const embedReference = createEmbedReferenceBlock('video', embedId, videoUrl);
+                messageContent = `${firstMessageText}\n\n${embedReference}`;
+            }
+
+            const encryptedContent = await encryptWithChatKey(messageContent, chatKey);
+
+            // Encrypt category and icon for proper mate display
+            const encryptedCategory = await encryptWithChatKey(inspiration.category, chatKey);
+
+            // Build the Chat object (mirrors the shape used by reminder handler)
+            // IMPORTANT: both title_v and messages_v are set to 1 (not 0) because:
+            // - title_v: 1  → the chat already has a title at creation time. Setting 0 would
+            //   cause follow-up handling to regenerate the title from the user's follow-up text,
+            //   overwriting the original inspiration title.
+            // - messages_v: 1 → the inspiration assistant message is saved to IndexedDB immediately
+            //   below (chatDB.saveMessage). Setting 0 here misrepresents the message count and
+            //   prevents the backend's "request_chat_history" guard from triggering when the Redis
+            //   AI cache is empty (it checks messages_v >= 1 to know history exists somewhere).
+            //   Without history, the AI sees only the follow-up message and responds out of context.
+            // Both values match what sync_inspiration_chat already sends to the server:
+            // chatSyncServiceSenders.ts → sendSyncInspirationChatImpl: messages_v: 1, title_v: 1.
+            const newChat = {
+                chat_id: chatId,
+                title: chatTitle,        // Short title for sidebar display
+                encrypted_title: encryptedTitle,
+                created_at: now,
+                updated_at: now,
+                messages_v: 1,
+                title_v: 1,
+                last_edited_overall_timestamp: now,
+                unread_count: 0,
+                encrypted_category: encryptedCategory,
+                category: inspiration.category,
+            };
+
+            await chatDB.updateChat(newChat as import('../types/chat').Chat);
+
+            // Build and save the first assistant message
+            const messageId = `${chatId.slice(-10)}-${crypto.randomUUID()}`;
+            const assistantMessage = {
+                message_id: messageId,
+                chat_id: chatId,
+                role: 'assistant' as const,
+                content: messageContent,    // Cleartext for local display
+                encrypted_content: encryptedContent,
+                encrypted_category: encryptedCategory,
+                category: inspiration.category,
+                created_at: now,
+                status: 'synced' as const,
+            };
+
+            await chatDB.saveMessage(assistantMessage);
+
+            console.info(`[ActiveChat] Created inspiration chat ${chatId} with message ${messageId}`);
+
+            // ── Add chat key wrapper + update hashed_chat_id in Directus ──
+            // If we reused a pre-stored inspiration embed, associate it with the
+            // newly created chat so the phased sync pipeline (which queries
+            // embed_keys by hashed_chat_id) can deliver the key to other devices.
+            // This is the same pattern used by normal embeds in handleSendEmbedDataImpl().
+            if (reusedEmbedId) {
+                try {
+                    const { computeSHA256 } = await import('../message_parsing/utils');
+                    const {
+                        generateEmbedKey,
+                        wrapEmbedKeyWithChatKey,
+                        wrapEmbedKeyWithMasterKey,
+                        encryptWithEmbedKey,
+                    } = await import('../services/cryptoService');
+                    const {
+                        sendStoreEmbedKeysImpl,
+                        sendStoreEmbedImpl,
+                    } = await import('../services/chatSyncServiceSenders');
+
+                    const profile = await userDB.getUserProfile();
+                    const currentUserId = profile?.user_id || '';
+                    const hashedChatId = await computeSHA256(chatId);
+                    const hashedEmbedId = await computeSHA256(reusedEmbedId);
+                    const hashedMessageId = await computeSHA256(messageId);
+                    const hashedUserId = await computeSHA256(currentUserId);
+
+                    // Retrieve the existing embed key from cache (set by persistInspirations).
+                    // If not in cache (e.g., page reload), first try to recover it from
+                    // IndexedDB via the master key wrapper that persistInspirations stored.
+                    // Only generate a fresh key (and re-encrypt the content) when BOTH the
+                    // memory cache AND IndexedDB are empty — e.g. after clearing browser data.
+                    //
+                    // Why this matters: if we generate a new key while the existing
+                    // encrypted_content in IndexedDB/Directus was written with the old key,
+                    // we write the new key into the cache before completing re-encryption.
+                    // Any embed render that fires in the window between setEmbedKeyInCache()
+                    // and sendStoreEmbedImpl() will try to decrypt old ciphertext with the
+                    // new key → AES-GCM auth tag mismatch → embed shows "Error" status.
+                    let embedKeyForWrap = embedStore.getEmbedKeyFromCache(reusedEmbedId);
+                    let needsReEncrypt = false;
+
+                    if (!embedKeyForWrap) {
+                        // Cache miss (e.g. tab reload wiped the in-memory embedKeyCache).
+                        // Try to unwrap the existing master key wrapper from IndexedDB.
+                        // getEmbedKey() checks IndexedDB and unwraps via the master key —
+                        // if this succeeds we can use the original key and skip re-encryption,
+                        // keeping the already-stored encrypted_content consistent.
+                        console.info(
+                            `[ActiveChat] Embed key not in cache for ${reusedEmbedId} — trying IndexedDB recovery`,
+                        );
+                        const recoveredKey = await embedStore.getEmbedKey(reusedEmbedId, undefined);
+                        if (recoveredKey) {
+                            embedKeyForWrap = recoveredKey;
+                            console.info(
+                                `[ActiveChat] ✅ Recovered embed key from IndexedDB for ${reusedEmbedId} — no re-encryption needed`,
+                            );
+                        } else {
+                            // IndexedDB also empty (e.g., browser data cleared or first-time
+                            // cross-device). Generate a fresh key and re-encrypt the content
+                            // so the new key wrapper and the stored ciphertext are in sync.
+                            console.info(
+                                `[ActiveChat] IndexedDB recovery failed for ${reusedEmbedId} — generating fresh key and re-encrypting`,
+                            );
+                            embedKeyForWrap = generateEmbedKey();
+                            needsReEncrypt = true;
+                        }
+                    }
+
+                    // Create a chat key wrapper (this is what was missing before)
+                    const wrappedChatKey = await wrapEmbedKeyWithChatKey(embedKeyForWrap, chatKey);
+
+                    // Also create/refresh the master key wrapper
+                    const wrappedMasterKey = await wrapEmbedKeyWithMasterKey(embedKeyForWrap);
+
+                    // Cache the embed key for local decryption
+                    embedStore.setEmbedKeyInCache(reusedEmbedId, embedKeyForWrap, undefined);
+
+                    const embedKeyTimestamp = Math.floor(Date.now() / 1000);
+
+                    // Store BOTH key wrappers (master + chat) locally and on server
+                    const embedKeysForStorage: import('../services/embedStore').EmbedKeyEntry[] = [
+                        {
+                            hashed_embed_id: hashedEmbedId,
+                            key_type: 'master',
+                            hashed_chat_id: null,
+                            encrypted_embed_key: wrappedMasterKey,
+                            hashed_user_id: hashedUserId,
+                            created_at: embedKeyTimestamp,
+                        },
+                        {
+                            hashed_embed_id: hashedEmbedId,
+                            key_type: 'chat',
+                            hashed_chat_id: hashedChatId,
+                            encrypted_embed_key: wrappedChatKey,
+                            hashed_user_id: hashedUserId,
+                            created_at: embedKeyTimestamp,
+                        },
+                    ];
+                    await embedStore.storeEmbedKeys(embedKeysForStorage);
+
+                    // Send key wrappers to Directus (the dedup logic on the server will
+                    // skip the master key if it already exists and create the new chat key)
+                    const { chatSyncService: syncService } = await import('../services/chatSyncService');
+                    if (syncService) {
+                        await sendStoreEmbedKeysImpl(syncService, {
+                            keys: embedKeysForStorage,
+                        });
+                    }
+
+                    // Update the embed's hashed_chat_id and hashed_message_id in Directus
+                    // so the phased sync pipeline can discover it when syncing this chat.
+                    // If we also need to re-encrypt (cache miss), include the new encrypted content.
+                    const embedUpdatePayload: Record<string, unknown> = {
+                        embed_id: reusedEmbedId,
+                        hashed_chat_id: hashedChatId,
+                        hashed_message_id: hashedMessageId,
+                        hashed_user_id: hashedUserId,
+                        updated_at: embedKeyTimestamp,
+                    };
+
+                    if (needsReEncrypt && inspiration.video) {
+                        const video = inspiration.video;
+                        const videoUrl = `https://www.youtube.com/watch?v=${video.youtube_id}`;
+                        let durationFmt: string | null = null;
+                        if (video.duration_seconds != null) {
+                            const m = Math.floor(video.duration_seconds / 60);
+                            const s = video.duration_seconds % 60;
+                            durationFmt = `${m}:${s.toString().padStart(2, '0')}`;
+                        }
+                        const embedContentObj = {
+                            url: videoUrl,
+                            video_id: video.youtube_id,
+                            title: video.title || null,
+                            description: null,
+                            channel_name: video.channel_name || null,
+                            channel_id: null,
+                            channel_thumbnail: null,
+                            thumbnail: video.thumbnail_url || null,
+                            duration_seconds: video.duration_seconds ?? null,
+                            duration_formatted: durationFmt,
+                            view_count: video.view_count ?? null,
+                            like_count: null,
+                            published_at: video.published_at || null,
+                            fetched_at: new Date().toISOString(),
+                        };
+                        let toonStr: string;
+                        try {
+                            toonStr = (await import('@toon-format/toon')).encode(embedContentObj);
+                        } catch {
+                            toonStr = JSON.stringify(embedContentObj);
+                        }
+
+                        const encContent = await encryptWithEmbedKey(toonStr, embedKeyForWrap);
+                        const encType = await encryptWithEmbedKey('video', embedKeyForWrap);
+                        const encPreview = await encryptWithEmbedKey(
+                            video.title || 'YouTube Video', embedKeyForWrap,
+                        );
+                        if (encContent) embedUpdatePayload.encrypted_content = encContent;
+                        if (encType) embedUpdatePayload.encrypted_type = encType;
+                        if (encPreview) embedUpdatePayload.encrypted_text_preview = encPreview;
+                    }
+
+                    if (syncService) {
+                        await sendStoreEmbedImpl(
+                            syncService,
+                            embedUpdatePayload as unknown as import('../types/chat').StoreEmbedPayload,
+                        );
+                    }
+
+                    console.info(
+                        `[ActiveChat] ✅ Associated inspiration embed ${reusedEmbedId} with chat ${chatId} ` +
+                        `(added chat key wrapper + updated hashed_chat_id in Directus)` +
+                        (needsReEncrypt ? ' [re-encrypted with fresh key]' : ''),
+                    );
+
+                    // ── Capture embed data for cross-device sync ─────────────────
+                    // Build the encrypted embed payload so sendSyncInspirationChat
+                    // can include it in the broadcast. This lets the receiving
+                    // device store the embed + keys immediately — no Directus
+                    // round-trip required. Without this, a quick device switch
+                    // after opening an inspiration often fails because store_embed
+                    // hasn't reached Directus yet when the second device calls
+                    // request_embed.
+                    try {
+                        // Get or create the encrypted embed fields for the sync payload.
+                        // If needsReEncrypt was true, embedUpdatePayload already has them.
+                        // Otherwise, encrypt the content with the embed key now.
+                        let encEmbedContent = embedUpdatePayload.encrypted_content as string | undefined;
+                        let encEmbedType = embedUpdatePayload.encrypted_type as string | undefined;
+                        let encEmbedPreview = embedUpdatePayload.encrypted_text_preview as string | undefined;
+
+                        if (!encEmbedContent && inspiration.video) {
+                            // Normal path (no re-encrypt needed): encrypt the embed content
+                            // using the original embed key so the receiving device can decrypt.
+                            const video = inspiration.video;
+                            const videoUrl = `https://www.youtube.com/watch?v=${video.youtube_id}`;
+                            let dFmt: string | null = null;
+                            if (video.duration_seconds != null) {
+                                const mn = Math.floor(video.duration_seconds / 60);
+                                const sc = video.duration_seconds % 60;
+                                dFmt = `${mn}:${sc.toString().padStart(2, '0')}`;
+                            }
+                            const embedObj = {
+                                url: videoUrl,
+                                video_id: video.youtube_id,
+                                title: video.title || null,
+                                description: null,
+                                channel_name: video.channel_name || null,
+                                channel_id: null,
+                                channel_thumbnail: null,
+                                thumbnail: video.thumbnail_url || null,
+                                duration_seconds: video.duration_seconds ?? null,
+                                duration_formatted: dFmt,
+                                view_count: video.view_count ?? null,
+                                like_count: null,
+                                published_at: video.published_at || null,
+                                fetched_at: new Date().toISOString(),
+                            };
+                            let tStr: string;
+                            try {
+                                tStr = (await import('@toon-format/toon')).encode(embedObj);
+                            } catch {
+                                tStr = JSON.stringify(embedObj);
+                            }
+
+                            encEmbedContent = await encryptWithEmbedKey(tStr, embedKeyForWrap) ?? undefined;
+                            encEmbedType = await encryptWithEmbedKey('video', embedKeyForWrap) ?? undefined;
+                            encEmbedPreview = await encryptWithEmbedKey(
+                                video.title || 'YouTube Video', embedKeyForWrap,
+                            ) ?? undefined;
+                        }
+
+                        if (encEmbedContent && encEmbedType) {
+                            inspirationEmbedForSync = {
+                                embed_id: reusedEmbedId,
+                                encrypted_content: encEmbedContent,
+                                encrypted_type: encEmbedType,
+                                encrypted_text_preview: encEmbedPreview || '',
+                                embed_keys: embedKeysForStorage,
+                            };
+                            console.info(
+                                `[ActiveChat] Prepared inspiration embed ${reusedEmbedId} for cross-device sync`,
+                            );
+                        }
+                    } catch (embedSyncErr) {
+                        // Non-fatal: second device falls back to request_embed
+                        console.warn(
+                            '[ActiveChat] Failed to prepare embed for cross-device sync (non-fatal):',
+                            embedSyncErr,
+                        );
+                    }
+                } catch (keyErr) {
+                    // Non-fatal: the embed is stored locally and works on this device.
+                    // Other devices can use the request_embed safety net to get the key.
+                    console.error(
+                        '[ActiveChat] Failed to create chat key wrapper for inspiration embed (non-fatal):',
+                        keyErr,
+                    );
+                }
+            }
+
+            // Mark the inspiration as opened — the carousel stays visible but the
+            // next unopened entry becomes the default. Do this before navigating
+            // so the banner updates immediately if the user goes back.
+            const { dailyInspirationStore: inspirationStore } = await import('../stores/dailyInspirationStore');
+            const { markInspirationOpenedInIndexedDB, markInspirationOpenedOnAPI } = await import('../services/dailyInspirationDB');
+
+            // Hashed chat ID used as the opened_chat_id reference
+            const openedChatId = chatId;
+
+            // Update the Svelte store immediately (optimistic update)
+            inspirationStore.markOpened(inspiration.inspiration_id, openedChatId);
+
+            // Persist to IndexedDB and API in the background (non-blocking, non-fatal)
+            markInspirationOpenedInIndexedDB(inspiration.inspiration_id, openedChatId).catch((err: unknown) => {
+                console.error('[ActiveChat] Failed to mark inspiration opened in IndexedDB:', err);
+            });
+            markInspirationOpenedOnAPI(
+                inspiration.inspiration_id,
+                openedChatId,
+                inspiration.video?.youtube_id,
+            ).catch((err: unknown) => {
+                console.error('[ActiveChat] Failed to mark inspiration opened on API:', err);
+            });
+
+            // ── Follow-up suggestions ──────────────────────────────────────────
+            // Use LLM-generated follow-up suggestions stored on the inspiration object.
+            // These are generated at inspiration creation time (same LLM call as
+            // assistant_response), making them specific to the actual topic.
+            // Falls back to a humanised title if the inspiration predates this feature
+            // or if the LLM failed to generate suggestions.
+            let encryptedFollowUpSuggestions: string | null = null;
+            try {
+                const { encryptWithChatKey: encryptSuggestions } = await import('../services/cryptoService');
+
+                // Use LLM suggestions if available; otherwise fall back to a humanised title.
+                const llmSuggestions = inspiration.follow_up_suggestions;
+                const hasSuggestions = Array.isArray(llmSuggestions) && llmSuggestions.length > 0;
+                const topicLabel = inspiration.title
+                    ?? (inspiration.phrase ? inspiration.phrase.split('.')[0] : null)
+                    ?? inspiration.category.replace(/_/g, ' ');
+                const rawSuggestions: string[] = hasSuggestions
+                    ? llmSuggestions!
+                    : [
+                        `Tell me more about ${topicLabel}`,
+                        `What are the practical implications of this?`,
+                        `What should I explore next about ${topicLabel}?`,
+                    ];
+
+                if (!hasSuggestions) {
+                    console.debug(
+                        '[ActiveChat] No LLM follow-up suggestions on inspiration — using fallback for:',
+                        inspiration.inspiration_id,
+                    );
+                }
+
+                const encBlob = await encryptSuggestions(
+                    JSON.stringify(rawSuggestions),
+                    chatKey,
+                );
+                if (encBlob) {
+                    encryptedFollowUpSuggestions = encBlob;
+                    const chatWithSuggestions = {
+                        ...(newChat as import('../types/chat').Chat),
+                        encrypted_follow_up_request_suggestions: encBlob,
+                    };
+                    await chatDB.updateChat(chatWithSuggestions);
+                    // Make suggestions available in the UI immediately
+                    followUpSuggestions = rawSuggestions;
+                    console.debug(
+                        '[ActiveChat] Stored follow-up suggestions for inspiration chat:',
+                        rawSuggestions.length,
+                        hasSuggestions ? '(LLM-generated)' : '(fallback)',
+                    );
+                }
+            } catch (suggErr) {
+                // Non-fatal — suggestions are a nice-to-have
+                console.warn('[ActiveChat] Failed to store follow-up suggestions for inspiration chat:', suggErr);
+            }
+
+            // Navigate to the new chat (same pattern as handleResumeLastChat)
+            phasedSyncState.markInitialChatLoaded();
+            activeChatStore.setActiveChat(chatId);
+            await loadChat(newChat as import('../types/chat').Chat);
+
+            // Notify Chats.svelte sidebar so the new chat appears immediately.
+            // chatListCache.upsertChat inserts the chat at the top of the cached list,
+            // then localChatListChanged triggers Chats.svelte to re-render.
+            chatListCache.upsertChat(newChat as import('../types/chat').Chat);
+            window.dispatchEvent(new CustomEvent('localChatListChanged', {
+                bubbles: true,
+                composed: true,
+                detail: { reason: 'inspiration_chat_created', chatId },
+            }));
+            window.dispatchEvent(new CustomEvent('globalChatSelected', {
+                bubbles: true,
+                composed: true,
+                detail: { chatId },
+            }));
+
+            // ── Cross-device sync ────────────────────────────────────────────────
+            // The chat was created locally (IndexedDB only). Sync it to the server
+            // so that other devices can see it via phased sync or the broadcast.
+            // 1. Update last_opened on the server (resume card on other devices).
+            // 2. Send the encrypted chat + message for cross-device broadcast.
+            try {
+                const { encryptChatKeyWithMasterKey } = await import('../services/cryptoService');
+                const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
+
+                // Notify server of the active chat (updates last_opened in Redis + Directus)
+                chatSyncService.sendSetActiveChat(chatId);
+
+                // Sync the full chat + first message for cross-device visibility.
+                // Include the inspiration embed data + keys so other devices can
+                // store and decrypt the embed immediately without a Directus round-trip.
+                if (encryptedChatKey) {
+                    chatSyncService.sendSyncInspirationChat(
+                        chatId,
+                        messageId,
+                        messageContent,
+                        inspiration.category,
+                        encryptedTitle,
+                        encryptedCategory,
+                        encryptedContent,
+                        encryptedChatKey,
+                        now,
+                        encryptedFollowUpSuggestions ?? undefined,
+                        inspirationEmbedForSync,
+                    );
+                } else {
+                    console.warn('[ActiveChat] Could not encrypt chat key for inspiration chat sync — chat will sync on next phased sync');
+                }
+            } catch (syncErr) {
+                // Non-fatal — chat still works locally, will sync eventually
+                console.warn('[ActiveChat] Failed to sync inspiration chat to server:', syncErr);
+            }
+
+        } catch (err) {
+            console.error('[ActiveChat] Error creating chat from inspiration:', err);
+        }
+    }
+
+    /**
+     * Handler for clicking the video embed area inside a Daily Inspiration banner.
+     *
+     * Opens the video directly in the VideoEmbedFullscreen viewer without first
+     * creating a chat. Works for both authenticated users (embed_id from persistInspirations)
+     * and unauthenticated users (synthetic tmp- embed key, falls back to inline decodedContent).
+     */
+    async function handleInspirationEmbedFullscreen(inspiration: DailyInspiration) {
+        if (!inspiration.video?.youtube_id) {
+            console.debug('[ActiveChat] Inspiration has no video, ignoring embed fullscreen request');
+            return;
+        }
+
+        const storedEmbedId = inspiration.embed_id;
+
+        // For unauthenticated users (or before persistInspirations has run), embed_id is null.
+        // In that case we use a synthetic temporary key based on the youtube_id so
+        // handleEmbedFullscreen can still open the video — it will fall back to the
+        // inline decodedContent we provide below (resolveEmbed returns null for tmp- keys,
+        // which is the intended fallback path).
+        const embedId = storedEmbedId
+            ? `embed:${storedEmbedId}`
+            : `embed:tmp-${inspiration.video.youtube_id}`;
+        const video = inspiration.video;
+        const videoId = video.youtube_id;
+        const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
+        // Format duration if available
+        let durationFormatted: string | undefined;
+        if (video.duration_seconds != null) {
+            const mins = Math.floor(video.duration_seconds / 60);
+            const secs = video.duration_seconds % 60;
+            durationFormatted = `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        const syntheticEvent = new CustomEvent('embedfullscreen', {
+            detail: {
+                embedId,
+                embedData: {
+                    embed_id: storedEmbedId,
+                    type: 'videos-video',
+                    status: 'finished',
+                },
+                // Pass decodedContent inline as a fallback — handleEmbedFullscreen will
+                // re-load from EmbedStore using the real embedId for up-to-date data.
+                decodedContent: {
+                    url: videoUrl,
+                    video_id: videoId,
+                    title: video.title ?? undefined,
+                    channel_name: video.channel_name ?? undefined,
+                    thumbnail: video.thumbnail_url ?? undefined,
+                    duration_seconds: video.duration_seconds ?? undefined,
+                    duration_formatted: durationFormatted,
+                    view_count: video.view_count ?? undefined,
+                    published_at: video.published_at ?? undefined,
+                },
+                embedType: 'videos-video',
+                attrs: {
+                    url: videoUrl,
+                    title: video.title ?? undefined,
+                    videoId,
+                },
+            },
+        });
+
+        console.debug('[ActiveChat] Opening inspiration video in fullscreen:', videoId, 'embedId:', embedId);
+        await handleEmbedFullscreen(syntheticEvent as CustomEvent);
+    }
 
     /**
      * Handler for the share button click.
@@ -3565,6 +5101,130 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
         
         console.debug('[ActiveChat] handleChatUpdated: Processing event for active chat.');
+
+        // ─── Chat Header: decrypt & display title/category/icon when they arrive ───────
+        // When we sent a message for a new chat, isNewChatGeneratingTitle is true and the
+        // chat header shows a "Generating title..." placeholder. Once the server sends the
+        // encrypted title (title_updated) or category/icon (metadata_updated), decrypt and
+        // populate the header — then hide the placeholder.
+        // ─── Incognito chat header: apply plaintext metadata directly ────────────────
+        // Incognito chats don't go through the encryption post-processing pipeline,
+        // so title/category/icon arrive as plaintext fields in the chatUpdated event
+        // dispatched by chatSyncServiceHandlersAI after ai_typing_started.
+        if (isNewChatGeneratingTitle && currentChat?.is_incognito && incomingChatMetadata && detail.type === 'metadata_updated') {
+            const incognitoCategory = incomingChatMetadata.category || null;
+            const incognitoTitle = (typeof incomingChatMetadata.title === 'string' ? incomingChatMetadata.title : '') || '';
+            const rawIncognitoIcon = incomingChatMetadata.icon || null;
+            const incognitoIcon = rawIncognitoIcon ? (rawIncognitoIcon.split(',')[0]?.trim() || null) : null;
+            if (incognitoCategory) {
+                activeChatDecryptedTitle = incognitoTitle;
+                activeChatDecryptedCategory = incognitoCategory;
+                activeChatDecryptedIcon = incognitoIcon;
+                isNewChatGeneratingTitle = false;
+                console.info('[ActiveChat] handleChatUpdated: Incognito chat header ready (plaintext):', incognitoTitle, incognitoCategory, incognitoIcon);
+                if (chatHistoryRef) {
+                    setTimeout(() => {
+                        chatHistoryRef?.triggerNewChatUserMessageScroll();
+                    }, 3000);
+                }
+            }
+        }
+
+        if (isNewChatGeneratingTitle && !currentChat?.is_incognito && incomingChatMetadata && (detail.type === 'title_updated' || detail.type === 'metadata_updated')) {
+            const chatToDecrypt = incomingChatMetadata;
+            console.debug(`[ActiveChat] handleChatUpdated: Decrypting chat header metadata (type=${detail.type})`, chatToDecrypt);
+            try {
+                const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../services/cryptoService');
+                // Safe key retrieval: never generate a new key for an existing chat.
+                // 1. Try in-memory cache first (covers the common case on the sender device).
+                // 2. If absent but encrypted_chat_key is present, decrypt it with the master key.
+                // 3. Only fall back to getOrGenerateChatKey if there truly is no stored key
+                //    (should not happen here, but avoids a silent null dereference).
+                let chatKey: Uint8Array | null = chatDB.getChatKey(incomingChatId);
+                if (!chatKey && chatToDecrypt.encrypted_chat_key) {
+                    try {
+                        const k = await decryptChatKeyWithMasterKey(chatToDecrypt.encrypted_chat_key);
+                        if (k) { chatKey = k; chatDB.setChatKey(incomingChatId, k); }
+                    } catch (keyErr) {
+                        console.error('[ActiveChat] handleChatUpdated: Failed to decrypt chat key from encrypted_chat_key:', keyErr);
+                    }
+                }
+                if (!chatKey) {
+                    // Last resort: key not in cache and no encrypted_chat_key in the event payload.
+                    // This path should only be reached for a brand-new chat on the originating device
+                    // where the key was already generated in memory by handleSendMessage.
+                    chatKey = chatDB.getOrGenerateChatKey(incomingChatId);
+                }
+                if (chatKey) {
+                    let decryptedTitle = activeChatDecryptedTitle;
+                    let decryptedCategory = activeChatDecryptedCategory;
+                    let decryptedIcon = activeChatDecryptedIcon;
+
+                    if (chatToDecrypt.encrypted_title) {
+                        try { decryptedTitle = await decryptWithChatKey(chatToDecrypt.encrypted_title, chatKey) ?? ''; } catch { /* keep previous */ }
+                    }
+                    if (chatToDecrypt.encrypted_category) {
+                        try { decryptedCategory = await decryptWithChatKey(chatToDecrypt.encrypted_category, chatKey); } catch { /* keep previous */ }
+                    }
+                    if (chatToDecrypt.encrypted_icon) {
+                        try { decryptedIcon = await decryptWithChatKey(chatToDecrypt.encrypted_icon, chatKey); } catch { /* keep previous */ }
+                    }
+
+                    activeChatDecryptedTitle = decryptedTitle ?? '';
+                    activeChatDecryptedCategory = decryptedCategory;
+                    activeChatDecryptedIcon = decryptedIcon;
+
+                    // Once we have at least a title, reveal the full card and hide the placeholder.
+                    if (activeChatDecryptedTitle && activeChatDecryptedCategory) {
+                        isNewChatGeneratingTitle = false;
+                        console.info('[ActiveChat] Chat header ready:', activeChatDecryptedTitle, activeChatDecryptedCategory, activeChatDecryptedIcon);
+                        // Scroll the user message to the top of the viewport 3 s after the
+                        // title/category/icon are visible.  This gives the user time to see
+                        // the "Creating new chat…" → generated-title transition before the
+                        // view scrolls down to make room for the AI response.
+                        if (chatHistoryRef) {
+                            setTimeout(() => {
+                                chatHistoryRef?.triggerNewChatUserMessageScroll();
+                            }, 3000);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('[ActiveChat] handleChatUpdated: Failed to decrypt chat header metadata:', err);
+            }
+        }
+
+        // ─── Chat Header: update summary when post-processing completes ─────────────
+        // The summary arrives separately (post_processing_metadata) after the main header
+        // is already shown. Decrypt and display it immediately so the header updates live.
+        if (detail.type === 'post_processing_metadata' && incomingChatMetadata?.encrypted_chat_summary) {
+            try {
+                const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../services/cryptoService');
+                // Safe key retrieval — same pattern as the title_updated handler above.
+                let summaryKey: Uint8Array | null = chatDB.getChatKey(incomingChatId);
+                if (!summaryKey && incomingChatMetadata.encrypted_chat_key) {
+                    try {
+                        const k = await decryptChatKeyWithMasterKey(incomingChatMetadata.encrypted_chat_key);
+                        if (k) { summaryKey = k; chatDB.setChatKey(incomingChatId, k); }
+                    } catch (keyErr) {
+                        console.error('[ActiveChat] handleChatUpdated: Failed to decrypt chat key for summary:', keyErr);
+                    }
+                }
+                if (!summaryKey) {
+                    summaryKey = chatDB.getOrGenerateChatKey(incomingChatId);
+                }
+                if (summaryKey) {
+                    const decryptedSummary = await decryptWithChatKey(incomingChatMetadata.encrypted_chat_summary, summaryKey);
+                    if (decryptedSummary) {
+                        activeChatDecryptedSummary = decryptedSummary;
+                        console.debug('[ActiveChat] Chat header summary updated:', decryptedSummary.substring(0, 60) + '...');
+                    }
+                }
+            } catch (err) {
+                console.error('[ActiveChat] handleChatUpdated: Failed to decrypt chat summary:', err);
+            }
+        }
+
         // let messagesNeedRefresh = false; // No longer relying on this for DB reload within this handler
         // let previousMessagesV = currentChat?.messages_v; // Not needed for direct comparison here anymore
 
@@ -3612,14 +5272,50 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 chatHistoryRef.updateMessages(currentMessages);
             }
             showWelcome = currentMessages.length === 0;
+        } else if (detail.messagesUpdated && currentChat?.chat_id) {
+            // SAFETY NET: messagesUpdated flag is set (e.g. by batch sync) but no inline
+            // messages were provided in the event.  Reload from IndexedDB so the display
+            // never goes stale after a sync writes new/updated messages to the DB.
+            console.debug('[ActiveChat] handleChatUpdated: messagesUpdated=true but no messages in event. Reloading from IndexedDB for chat:', currentChat.chat_id);
+            try {
+                const freshMessages: ChatMessageModel[] = await chatDB.getMessagesForChat(currentChat.chat_id);
+
+                // Preserve any in-flight streaming messages — the DB won't have
+                // the latest streaming content, so keep our local copies.
+                const streamingMessages = currentMessages.filter(m => m.status === 'streaming');
+                if (streamingMessages.length > 0) {
+                    for (const streamingMsg of streamingMessages) {
+                        const idx = freshMessages.findIndex(m => m.message_id === streamingMsg.message_id);
+                        if (idx !== -1) {
+                            freshMessages[idx] = streamingMsg;
+                        } else {
+                            freshMessages.push(streamingMsg);
+                        }
+                    }
+                    console.debug(`[ActiveChat] handleChatUpdated: Preserved ${streamingMessages.length} streaming message(s) during IndexedDB reload`);
+                }
+
+                // Only update if the message set actually changed to avoid unnecessary re-renders
+                const currentIds = currentMessages.map(m => m.message_id).sort().join(',');
+                const freshIds = freshMessages.map(m => m.message_id).sort().join(',');
+                if (currentIds !== freshIds || freshMessages.length !== currentMessages.length) {
+                    console.info(`[ActiveChat] handleChatUpdated: Message set changed after IndexedDB reload (${currentMessages.length} → ${freshMessages.length}). Updating display.`);
+                    currentMessages = freshMessages;
+                    if (chatHistoryRef) {
+                        chatHistoryRef.updateMessages(currentMessages);
+                    }
+                    showWelcome = currentMessages.length === 0;
+                } else {
+                    console.debug('[ActiveChat] handleChatUpdated: IndexedDB reload returned same message set. No display update needed.');
+                }
+            } catch (error) {
+                console.error('[ActiveChat] handleChatUpdated: Failed to reload messages from IndexedDB:', error);
+            }
         } else {
             console.debug('[ActiveChat] handleChatUpdated: No direct message updates (newMessage or incomingMessages) were applied from the event. Full event.detail:', JSON.parse(JSON.stringify(detail)));
             // If currentChat metadata (like title or messages_v) was updated, UI elements bound to currentChat will react.
             // No explicit call to chatHistoryRef.updateMessages if currentMessages array reference hasn't changed.
-            // If messages_v changed and a full refresh is TRULY needed (e.g. server indicates a major desync not covered by specific message events),
-            // that would be a separate, more explicit mechanism or a different event type.
         }
-        // Removed the messages_v based reload from DB here. Updates should come from explicit message data in events.
     }
 
     // Prefixed with underscore as currently unused but kept for potential future use
@@ -3767,13 +5463,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
-    // Update the loadChat function
-    export async function loadChat(chat: Chat) {
-        // Clear any active processing phase indicator from the previous chat
-        clearProcessingPhase();
-        
-        // Clear any leftover continuation content prefixes from the previous chat
-        continuationContentPrefixes.clear();
+     // Update the loadChat function
+     export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean }) {
+         // Clear any active processing phase indicator from the previous chat
+         clearProcessingPhase();
+         // Reset the chat header state when switching to any chat.
+         // For new chats, handleSendMessage will set isNewChatGeneratingTitle=true.
+         // For existing chats, we decrypt title/category/icon below (after currentChat is set).
+         resetChatHeaderState();
+
+         // Ensure the chatNavigationStore has up-to-date prev/next state even when
+         // Chats.svelte (the sidebar) has never been opened. On mobile the sidebar
+         // starts closed, so the store would otherwise have hasPrev=false/hasNext=false
+         // until the user opens the sidebar at least once.
+         updateNavFromCache(chat.chat_id);
         
         // CRITICAL: Close any open fullscreen views when switching chats
         // This ensures fullscreen views don't persist when user switches to a different chat
@@ -3852,9 +5555,153 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 freshChat = chat;
             }
         }
-        currentChat = freshChat || chat; // currentChat is now just metadata
-        
-        // CRITICAL: Clear liveInputText when switching chats to prevent stale search terms
+         currentChat = freshChat || chat; // currentChat is now just metadata
+
+         // ─── Chat Header: restore title/category/icon for all chat types ────────────────
+         // Universal header restoration: handles public/demo, incognito, and regular chats.
+         // isNewChatGeneratingTitle stays false here — it is only set in handleSendMessage
+         // when the user just sent the first message of a brand-new chat.
+         //
+         // Data sources by chat type:
+         //   - Public/demo chats: plaintext chat.title, chat.category, chat.icon (comma-separated)
+         //   - Incognito chats:   plaintext chat.category, chat.icon (title may be absent on new ones)
+         //   - Regular chats:     decrypt encrypted_title, encrypted_category, encrypted_icon;
+         //                        also accept plaintext category/icon as fallback for older chats
+         //
+         // IMPORTANT: freshChat from IndexedDB may be missing encrypted_title/encrypted_category
+         // when the chat was only partially synced (e.g. Phase 1 / load-more chats are built
+         // in-memory from the server payload and never written to IndexedDB — so chatDB.getChat
+         // returns a stale or partial record).  In that case the original `chat` argument from
+         // the sidebar still has the full encrypted metadata from the server.  We merge them so
+         // the header always has the best available data without touching currentChat (messages
+         // and version counters must still come from the DB).
+         const chatForHeader = currentChat
+             ? {
+                   ...currentChat,
+                   encrypted_title: currentChat.encrypted_title ?? chat.encrypted_title,
+                   encrypted_category: currentChat.encrypted_category ?? chat.encrypted_category,
+                   encrypted_icon: currentChat.encrypted_icon ?? chat.encrypted_icon,
+                   encrypted_chat_summary: currentChat.encrypted_chat_summary ?? chat.encrypted_chat_summary,
+                   title: currentChat.title ?? chat.title,
+                   category: currentChat.category ?? chat.category,
+                   icon: currentChat.icon ?? chat.icon,
+               }
+             : currentChat;
+         if (chatForHeader) {
+              if (isPublicChat(chatForHeader.chat_id)) {
+                  // Public chats (demo/legal/community): all metadata is cleartext
+                  const t = typeof chatForHeader.title === 'string' ? chatForHeader.title : '';
+                  const c = chatForHeader.category || null;
+                  // icon is stored as a comma-separated string — use the first icon name only
+                  const rawIcon = chatForHeader.icon || null;
+                  const ic = rawIcon ? (rawIcon.split(',')[0]?.trim() || null) : null;
+                  // summary is also cleartext for public chats
+                  const s = chatForHeader.chat_summary || null;
+                  if (t && c) {
+                      activeChatDecryptedTitle = t;
+                      activeChatDecryptedCategory = c;
+                      activeChatDecryptedIcon = ic;
+                      activeChatDecryptedSummary = s;
+                      console.debug('[ActiveChat] loadChat: Restored chat header for public chat:', t, c, ic);
+                  }
+              } else if (chatForHeader.is_incognito) {
+                  // Incognito chats: category and icon are plaintext; title may be blank on new ones
+                  const t = typeof chatForHeader.title === 'string' ? chatForHeader.title : '';
+                  const c = chatForHeader.category || null;
+                  const rawIcon = chatForHeader.icon || null;
+                  const ic = rawIcon ? (rawIcon.split(',')[0]?.trim() || null) : null;
+                  // Show header whenever we have at least a category (title can be empty early on)
+                  if (c) {
+                      activeChatDecryptedTitle = t;
+                      activeChatDecryptedCategory = c;
+                      activeChatDecryptedIcon = ic;
+                      // Incognito chats do not persist a summary
+                      activeChatDecryptedSummary = null;
+                      console.debug('[ActiveChat] loadChat: Restored chat header for incognito chat:', t, c, ic);
+                  }
+              } else {
+                  // Regular encrypted chats: decrypt encrypted fields.
+                  // We no longer require title_v > 0 because some chats may have category/icon
+                  // set even when title_v is missing or 0 (e.g. received via older sync path).
+                  // Try to decrypt whenever any encrypted metadata (or plaintext fallback) exists.
+                  const hasEncryptedTitle = !!chatForHeader.encrypted_title;
+                  const hasEncryptedCategory = !!chatForHeader.encrypted_category;
+                  const hasPlaintextCategory = !!chatForHeader.category;
+                  if (hasEncryptedTitle || hasEncryptedCategory || hasPlaintextCategory) {
+                      try {
+                          const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../services/cryptoService');
+                          // Safe key retrieval — critical for secondary devices that receive chats
+                          // via phased sync (where the in-memory cache may be cold).
+                          //
+                          // NEVER call getOrGenerateChatKey() directly on an existing chat: if the
+                          // cache is cold it silently generates a NEW random key, causing every
+                          // encrypted header field to decrypt to null → chat header stays hidden.
+                          //
+                          // Correct order:
+                          //   1. Check in-memory cache (fast, covers warm-cache case).
+                          //   2. If absent but encrypted_chat_key present, decrypt it with the
+                          //      master key and populate the cache.
+                          //   3. Only generate a new key if there is genuinely no stored key
+                          //      (brand-new chat created on this device before server confirmed).
+                          let chatKey: Uint8Array | null = chatDB.getChatKey(chatForHeader.chat_id);
+                          if (!chatKey && chatForHeader.encrypted_chat_key) {
+                              try {
+                                  const k = await decryptChatKeyWithMasterKey(chatForHeader.encrypted_chat_key);
+                                  if (k) {
+                                      chatKey = k;
+                                      chatDB.setChatKey(chatForHeader.chat_id, k);
+                                      console.debug('[ActiveChat] loadChat: Recovered chat key from encrypted_chat_key for', chatForHeader.chat_id);
+                                  }
+                              } catch (keyErr) {
+                                  console.error('[ActiveChat] loadChat: Failed to decrypt chat key from encrypted_chat_key:', keyErr);
+                              }
+                          }
+                          if (!chatKey) {
+                              // Genuinely new chat or key unavailable — fall back to generate.
+                              // This should only be reached for chats created on this device
+                              // before the server has stored encrypted_chat_key.
+                              console.warn('[ActiveChat] loadChat: No chat key in cache and no encrypted_chat_key for', chatForHeader.chat_id, '— generating new key (may cause header decryption failure for existing chats)');
+                              chatKey = chatDB.getOrGenerateChatKey(chatForHeader.chat_id);
+                          }
+                          if (chatKey) {
+                              let t = '';
+                              let c: string | null = null;
+                              let ic: string | null = null;
+                              let s: string | null = null;
+                              if (chatForHeader.encrypted_title) {
+                                  try { t = await decryptWithChatKey(chatForHeader.encrypted_title, chatKey) ?? ''; } catch { /* keep blank */ }
+                              }
+                              if (chatForHeader.encrypted_category) {
+                                  try { c = await decryptWithChatKey(chatForHeader.encrypted_category, chatKey); } catch { /* keep null */ }
+                              } else if (chatForHeader.category) {
+                                  // Fallback: plaintext category (older chats or partial sync)
+                                  c = chatForHeader.category;
+                              }
+                              if (chatForHeader.encrypted_icon) {
+                                  try { ic = await decryptWithChatKey(chatForHeader.encrypted_icon, chatKey); } catch { /* keep null */ }
+                              } else if (chatForHeader.icon) {
+                                  // Fallback: plaintext icon (older chats or partial sync)
+                                  ic = chatForHeader.icon.split(',')[0]?.trim() || null;
+                              }
+                              if (chatForHeader.encrypted_chat_summary) {
+                                  try { s = await decryptWithChatKey(chatForHeader.encrypted_chat_summary, chatKey); } catch { /* keep null */ }
+                              }
+                              if (t && c) {
+                                  activeChatDecryptedTitle = t;
+                                  activeChatDecryptedCategory = c;
+                                  activeChatDecryptedIcon = ic;
+                                  activeChatDecryptedSummary = s;
+                                  console.debug('[ActiveChat] loadChat: Restored chat header for existing chat:', t, c, ic);
+                              }
+                          }
+                      } catch (err) {
+                          console.error('[ActiveChat] loadChat: Failed to decrypt header for existing chat:', err);
+                      }
+                  }
+              }
+         }
+
+         // CRITICAL: Clear liveInputText when switching chats to prevent stale search terms
         // This ensures followup suggestions show correctly when switching from a new chat with draft to a demo chat
         liveInputText = '';
         console.debug("[ActiveChat] Cleared liveInputText when switching to chat:", chat.chat_id);
@@ -3892,6 +5739,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Reset scroll position tracking for new chat
         lastSavedMessageId = null;
+        
+        // CRITICAL: Reset thinking state when switching chats.
+        // If the user navigated away while a thinking stream was in progress for this chat,
+        // the thinkingContentByTask map still holds the stale entry with isStreaming=true.
+        // handleAiThinkingComplete is ignored for background chats (different chat_id), so
+        // without this reset the thinking block keeps showing "Thinking..." indefinitely.
+        // The thinking content is persisted to IndexedDB by chatSyncServiceHandlersAI and
+        // will be loaded via msg.original_message?.thinking_content with isStreaming=false.
+        thinkingContentByTask = new Map();
         
         let newMessages: ChatMessageModel[] = [];
         if (currentChat?.chat_id) {
@@ -3949,28 +5805,63 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }
         
-        // CRITICAL: Preserve streaming messages when reloading the SAME chat
-        // During AI streaming, various events (chatUpdated, etc.) can trigger loadChat() calls
-        // which would wipe out the streaming message being rendered in real-time.
-        // We detect if there's an active streaming message for THIS chat and merge it into newMessages.
+        // CRITICAL: Preserve in-flight messages when reloading the SAME chat
+        // During AI streaming or right after sending a message, various events (chatUpdated, etc.)
+        // can trigger loadChat() calls which would wipe out:
+        //   - Streaming messages being rendered in real-time
+        //   - User messages that haven't been persisted to IndexedDB yet (sending/processing)
+        // We detect these active messages for THIS chat and merge them into newMessages.
         const isReloadingSameChat = currentChat?.chat_id === chat.chat_id;
-        const existingStreamingMessages = currentMessages.filter(m => m.status === 'streaming' && m.chat_id === chat.chat_id);
+        const existingInFlightMessages = currentMessages.filter(
+            m => m.chat_id === chat.chat_id && (
+                m.status === 'streaming' ||
+                m.status === 'sending' ||
+                m.status === 'processing'
+            )
+        );
         
-        if (isReloadingSameChat && existingStreamingMessages.length > 0) {
-            console.debug(`[ActiveChat] loadChat: Preserving ${existingStreamingMessages.length} streaming message(s) during reload of same chat ${chat.chat_id}`);
+        if (isReloadingSameChat && existingInFlightMessages.length > 0) {
+            console.debug(`[ActiveChat] loadChat: Preserving ${existingInFlightMessages.length} in-flight message(s) during reload of same chat ${chat.chat_id} (statuses: ${existingInFlightMessages.map(m => m.status).join(', ')})`);
             
-            // Merge streaming messages with messages from database
-            // The database won't have the latest streaming content, so we use our local copy
-            for (const streamingMsg of existingStreamingMessages) {
-                const dbMsgIndex = newMessages.findIndex(m => m.message_id === streamingMsg.message_id);
+            // CRITICAL: If currentMessages consists ONLY of in-flight messages for this chat, it means
+            // handleSendMessage just initialised the view (e.g. after converting a demo chat to a real
+            // chat).  At this point sendHandlers has already copied the demo history into IndexedDB so
+            // any DB read would return demo messages + the new user message — making them appear as
+            // "follow-up" messages to the demo conversation in the UI.
+            //
+            // In this case we skip the DB reload entirely: the in-memory currentMessages set by
+            // handleSendMessage is already correct (only the new user message), and subsequent server
+            // events (ai_response_storage_confirmed, chatUpdated with newMessage, etc.) will append
+            // the AI reply through the normal streaming path.  On reload the DB is the source of
+            // truth and loadChat is called with a clean slate, which is correct behaviour.
+            const allCurrentMessagesAreInFlight = currentMessages.length > 0 &&
+                currentMessages.every(m => m.chat_id === chat.chat_id && (
+                    m.status === 'streaming' ||
+                    m.status === 'sending' ||
+                    m.status === 'processing'
+                ));
+            if (allCurrentMessagesAreInFlight) {
+                console.info(`[ActiveChat] loadChat: currentMessages contains ONLY in-flight message(s) for ${chat.chat_id} — skipping DB reload to prevent demo history bleed-through. Keeping handleSendMessage-initialised view.`);
+                // Return early — skip currentMessages = newMessages below.
+                // We still need to update currentChat metadata so the header/title are correct.
+                currentChat = freshChat ?? chat;
+                // showWelcome should already be false (set by handleSendMessage); ensure it stays that way.
+                showWelcome = false;
+                return;
+            }
+
+            // Normal case: merge in-flight messages with messages from database.
+            // The database may not have these messages yet, or may have stale content.
+            for (const inFlightMsg of existingInFlightMessages) {
+                const dbMsgIndex = newMessages.findIndex(m => m.message_id === inFlightMsg.message_id);
                 if (dbMsgIndex !== -1) {
-                    // Message exists in DB but our streaming version is more up-to-date
-                    newMessages[dbMsgIndex] = streamingMsg;
-                    console.debug(`[ActiveChat] loadChat: Replaced DB message ${streamingMsg.message_id} with streaming version (${streamingMsg.content?.length || 0} chars)`);
+                    // Message exists in DB but our in-flight version is more up-to-date
+                    newMessages[dbMsgIndex] = inFlightMsg;
+                    console.debug(`[ActiveChat] loadChat: Replaced DB message ${inFlightMsg.message_id} with in-flight version (status=${inFlightMsg.status}, ${inFlightMsg.content?.length || 0} chars)`);
                 } else {
-                    // Streaming message not yet in DB - append it
-                    newMessages.push(streamingMsg);
-                    console.debug(`[ActiveChat] loadChat: Appended streaming message ${streamingMsg.message_id} (${streamingMsg.content?.length || 0} chars)`);
+                    // In-flight message not yet in DB - append it
+                    newMessages.push(inFlightMsg);
+                    console.debug(`[ActiveChat] loadChat: Appended in-flight message ${inFlightMsg.message_id} (status=${inFlightMsg.status}, ${inFlightMsg.content?.length || 0} chars)`);
                 }
             }
         }
@@ -4006,6 +5897,64 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
         if (sanitizedCount > 0) {
             console.warn(`[ActiveChat] loadChat: Sanitized ${sanitizedCount} stale message(s) to synced status`);
+        }
+
+        // ─── Restore credits error header and status for chats that were rejected ──
+        // When switching back to a chat that had a credits rejection, the header state
+        // was cleared by resetChatHeaderState(). Detect this by checking if:
+        //   1) The chat has no title/category (backend never sent them due to rejection), AND
+        //   2) There's a system/assistant message with waiting_for_user OR a role='system'
+        //      message whose status was corrupted to 'delivered'/'synced' by phased sync.
+        //
+        // WHY STATUS CORRUPTION HAPPENS: Directus has no status column, so phased sync
+        // messages arrive with no status and prepareMessagesForStorage() assigns 'delivered'
+        // as the default. Previously this overwrote 'waiting_for_user' in IndexedDB (now
+        // fixed in shouldUpdateMessage), but messages already stored with the wrong status
+        // must be repaired here on load.
+        //
+        // Defensive fallback: also detect from a user message with waiting_for_user alone,
+        // for cases where the system message's IDB save failed.
+        if (!activeChatDecryptedTitle && !activeChatDecryptedCategory && newMessages.length > 0) {
+            const hasSystemRejection = newMessages.some(m =>
+                m.status === 'waiting_for_user' && (m.role === 'system' || m.role === 'assistant')
+            );
+            // Detect system messages whose status was corrupted by phased sync:
+            // In a credits-rejected chat (no title/category), a role='system' message must
+            // have been a rejection notice — restore its status to 'waiting_for_user'.
+            const corruptedSystemMessages = !hasSystemRejection
+                ? newMessages.filter(m =>
+                    m.role === 'system' && (m.status === 'delivered' || m.status === 'synced')
+                )
+                : [];
+            // Fallback: detect from user message alone (system message may be missing from IDB)
+            const hasUserWaitingAlone = !hasSystemRejection && corruptedSystemMessages.length === 0 && newMessages.some(m =>
+                m.status === 'waiting_for_user' && m.role === 'user'
+            );
+            if (hasSystemRejection || corruptedSystemMessages.length > 0 || hasUserWaitingAlone) {
+                isNewChatCreditsError = true;
+                // Repair corrupted system message statuses in memory (before assigning to currentMessages)
+                // and persist the fix to IndexedDB so future reloads are also correct.
+                if (corruptedSystemMessages.length > 0) {
+                    for (const msg of corruptedSystemMessages) {
+                        const idx = newMessages.findIndex(m => m.message_id === msg.message_id);
+                        if (idx !== -1) {
+                            newMessages[idx] = { ...newMessages[idx], status: 'waiting_for_user' };
+                            chatDB.saveMessage(newMessages[idx]).catch(error => {
+                                console.error(`[ActiveChat] loadChat: Failed to repair corrupted system message status for ${msg.message_id}:`, error);
+                            });
+                        }
+                    }
+                    console.debug('[ActiveChat] loadChat: Repaired corrupted system message status(es) to waiting_for_user', {
+                        count: corruptedSystemMessages.length,
+                        ids: corruptedSystemMessages.map(m => m.message_id)
+                    });
+                }
+                console.debug('[ActiveChat] loadChat: Restored credits error header for chat with rejection message', {
+                    hasSystemRejection,
+                    corruptedSystemMessagesRepaired: corruptedSystemMessages.length,
+                    hasUserWaitingAlone
+                });
+            }
         }
 
         currentMessages = newMessages;
@@ -4129,9 +6078,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     return;
                 }
                 
+                // When navigating via ChatHeader arrows, always scroll to top so the
+                // banner is visible (user expects to see the chat from the beginning).
+                if (options?.scrollToTop) {
+                    chatHistoryRef.scrollToTop();
+                    console.debug('[ActiveChat] ChatHeader arrow navigation - scrolled to top');
+                    setTimeout(() => {
+                        isAtBottom = false;
+                        console.debug('[ActiveChat] Set isAtBottom=false after ChatHeader arrow scrollToTop');
+                    }, 200);
+                // When coming from a background-chat notification, scroll to the top of the
+                // latest assistant message so the user can read the reply from the beginning.
+                } else if (options?.scrollToLatestResponse) {
+                    chatHistoryRef.scrollToLatestAssistantMessage();
+                    console.debug('[ActiveChat] Notification navigation - scrolled to top of latest assistant message');
+                    setTimeout(() => {
+                        isAtBottom = false;
+                        console.debug('[ActiveChat] Set isAtBottom=false after scrolling to latest assistant message');
+                    }, 200);
                 // For public chats (demo + legal), always scroll to top (user hasn't read them yet)
                 // Also scroll to top for shared chats on non-authenticated devices (they can't reuse scroll position)
-                if (isPublicChat(currentChat.chat_id) || !$authStore.isAuthenticated) {
+                } else if (isPublicChat(currentChat.chat_id) || !$authStore.isAuthenticated) {
                     chatHistoryRef.scrollToTop();
                     console.debug(`[ActiveChat] ${isPublicChat(currentChat.chat_id) ? 'Public chat' : 'Shared chat on non-authenticated device'} - scrolled to top (unread)`);
                     // After scrolling to top, explicitly set isAtBottom to false
@@ -4151,14 +6118,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         console.debug('[ActiveChat] Set isAtBottom=false after restoring scroll position (user was scrolled up)');
                     }, 200); // Wait for scroll restoration to complete
                 } else {
-                    // No saved position - scroll to bottom (newest messages)
-                    // User should see the latest messages, so isAtBottom should be true
-                    chatHistoryRef.scrollToBottom();
-                    // After scrolling to bottom, explicitly set isAtBottom to true
-                    // handleScrollPositionUI will confirm this after scroll completes
+                    // No saved position - scroll to top so the user reads the conversation
+                    // from the beginning (most natural for first-time opening a chat).
+                    // If the user had previously scrolled to the bottom, last_visible_message_id
+                    // would have been saved pointing to the last message, so the restoreScrollPosition
+                    // branch above handles that case — this branch only fires on first open.
+                    chatHistoryRef.scrollToTop();
+                    // After scrolling to top, explicitly set isAtBottom to false
+                    // handleScrollPositionUI will update it if the actual scroll position differs
                     setTimeout(() => {
-                        isAtBottom = true;
-                        console.debug('[ActiveChat] Set isAtBottom=true after scrolling to bottom (no saved position)');
+                        isAtBottom = false;
+                        console.debug('[ActiveChat] Set isAtBottom=false after scrolling to top (no saved position - first open)');
                     }, 200); // Wait for scroll to complete
                 }
             }, 100); // Short wait for messages to render
@@ -4214,9 +6184,84 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // The currentChat object should have been populated with encrypted_draft_md and draft_v
                 // by the time it's passed to this function or fetched by chatDB.getChat().
                 const encryptedDraftMd = currentChat?.encrypted_draft_md;
+                const encryptedDraftPreview = currentChat?.encrypted_draft_preview;
                 const draftVersion = currentChat?.draft_v;
 
-                if (encryptedDraftMd) {
+                // Check if we have draft content via preview even if markdown is empty.
+                // This happens when draft has only embeds (like images) that serialized to empty markdown
+                // but the preview was correctly saved with "[Image]" token.
+                const hasDraftPreview = !!(encryptedDraftPreview && encryptedDraftPreview.trim().length > 0);
+                const hasEmptyMarkdownDraft = encryptedDraftMd === '' || encryptedDraftMd === null || encryptedDraftMd === undefined;
+
+                if (hasEmptyMarkdownDraft && hasDraftPreview) {
+                    // Draft has content (shown as "[Image]" in preview) but markdown is empty
+                    // due to serialization returning "" for embeds without contentRef at save time.
+                    // Load embeds from EmbedStore and reconstruct the TipTap JSON.
+                    console.debug(`[ActiveChat] Draft has empty markdown but preview exists ("${encryptedDraftPreview}") - reconstructing from EmbedStore for chat ${currentChat.chat_id}`);
+                    
+                    try {
+                        // Import EmbedStore and computeSHA256
+                        const { embedStore } = await import('../services/embedStore');
+                        const { computeSHA256 } = await import('../message_parsing/utils');
+                        
+                        const hashedChatId = await computeSHA256(currentChat.chat_id);
+                        const chatEmbeds = await embedStore.getEmbedsByHashedChatId(hashedChatId);
+                        
+                        if (chatEmbeds && chatEmbeds.length > 0) {
+                            // Reconstruct TipTap JSON with embed nodes
+                            const embedNodes = [];
+                            for (const embed of chatEmbeds) {
+                                if (embed.embed_id) {
+                                    embedNodes.push({
+                                        type: 'embed',
+                                        attrs: {
+                                            type: embed.type || 'image',
+                                            contentRef: `embed:${embed.embed_id}`,
+                                        },
+                                    });
+                                }
+                            }
+                            
+                            if (embedNodes.length > 0) {
+                                const draftContentJSON = {
+                                    type: 'doc',
+                                    content: embedNodes,
+                                };
+                                
+                                console.debug(`[ActiveChat] Reconstructed ${embedNodes.length} embed nodes from EmbedStore for chat ${currentChat.chat_id}`);
+                                
+                                if (messageInputFieldRef) {
+                                    setTimeout(() => {
+                                        messageInputFieldRef.setDraftContent(currentChat.chat_id, draftContentJSON, draftVersion || 1, false);
+                                    }, 50);
+                                }
+                            } else {
+                                // No embeds found in store, just set context
+                                if (messageInputFieldRef) {
+                                    setTimeout(() => {
+                                        messageInputFieldRef.setCurrentChatContext(currentChat.chat_id, null, draftVersion || 0);
+                                    }, 50);
+                                }
+                            }
+                        } else {
+                            // No embeds in store, just set context
+                            console.debug(`[ActiveChat] No embeds found in EmbedStore for chat ${currentChat.chat_id}, setting context only`);
+                            if (messageInputFieldRef) {
+                                setTimeout(() => {
+                                    messageInputFieldRef.setCurrentChatContext(currentChat.chat_id, null, draftVersion || 0);
+                                }, 50);
+                            }
+                        }
+                    } catch (error) {
+                        console.error(`[ActiveChat] Error reconstructing draft from EmbedStore:`, error);
+                        // Fallback: just set context
+                        if (messageInputFieldRef) {
+                            setTimeout(() => {
+                                messageInputFieldRef.setCurrentChatContext(currentChat.chat_id, null, draftVersion || 0);
+                            }, 50);
+                        }
+                    }
+                } else if (encryptedDraftMd) {
                     console.debug(`[ActiveChat] Loading current user's encrypted draft for chat ${currentChat.chat_id}, version: ${draftVersion}`);
                     
                     // Decrypt the draft content and convert to TipTap JSON
@@ -4599,11 +6644,30 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         window.addEventListener('openLoginInterface', handleOpenLoginInterface);
         window.addEventListener('openSignupInterface', handleOpenSignupInterface);
         
-        // Add event listener for embed fullscreen events
+        // Add event listener for embed fullscreen events (app-skill-use, code, video, etc.)
+        // This fires via document.dispatchEvent so it works from both editor and read-only messages.
         const embedFullscreenHandler = (event: CustomEvent) => {
             handleEmbedFullscreen(event);
         };
         document.addEventListener('embedfullscreen', embedFullscreenHandler as EventListenerCallback);
+
+        // Add document-level listeners for image/PDF/recording fullscreen events.
+        // These events bubble from TipTap node views (both editor and read-only messages).
+        // The Svelte on:imagefullscreen / on:pdffullscreen / on:recordingfullscreen directives
+        // on <MessageInput> only relay events from the editor context; the document listeners
+        // here catch the same events when they originate from read-only chat messages.
+        const imagefullscreenHandler = (event: Event) => {
+            handleImageFullscreen(event as CustomEvent);
+        };
+        const pdffullscreenHandler = (event: Event) => {
+            handlePdfFullscreen(event as CustomEvent);
+        };
+        const recordingfullscreenHandler = (event: Event) => {
+            handleRecordingFullscreen(event as CustomEvent);
+        };
+        document.addEventListener('imagefullscreen', imagefullscreenHandler);
+        document.addEventListener('pdffullscreen', pdffullscreenHandler);
+        document.addEventListener('recordingfullscreen', recordingfullscreenHandler);
         
         // --- Focus mode event listeners ---
         // Handle focus mode rejection (user clicked during countdown to cancel activation)
@@ -4642,8 +6706,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const { focusId } = event.detail || {};
             console.debug('[ActiveChat] Focus mode deactivated:', focusId);
             handleFocusModeDeactivation(focusId);
+            // Clear the banner state immediately so the header banner disappears
+            activeFocusId = null;
         };
         document.addEventListener('focusModeDeactivated', focusModeDeactivatedHandler as EventListenerCallback);
+        
+        // Listen for focus mode activation events from chatSyncService to update the banner
+        const focusModeActivatedHandler = (event: CustomEvent) => {
+            const { chat_id, focus_id } = event.detail || {};
+            if (chat_id && focus_id && currentChat?.chat_id === chat_id) {
+                console.debug('[ActiveChat] Focus mode activated, updating banner:', focus_id);
+                activeFocusId = focus_id;
+            }
+        };
+        chatSyncService.addEventListener('focusModeActivated', focusModeActivatedHandler as EventListenerCallback);
         
         // Handle focus mode details request (user clicked "Details" in context menu)
         const focusModeDetailsHandler = (event: CustomEvent) => {
@@ -4757,6 +6833,28 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Listen for local chat list changes (dispatched when drafts are saved)
         window.addEventListener('localChatListChanged', handleDraftSaveSync);
+
+        // ─── Preprocessing step: refresh currentChat from DB ──────────────────────────
+        // When a preprocessing step (title_generated, mate_selected) arrives, we fire
+        // localChatListChanged with reason="preprocessing_step". Here we reload the active
+        // chat from the local DB so the header title/category/icon updates immediately.
+        const handlePreprocessingChatRefresh = async (event: Event) => {
+            const detail = (event as CustomEvent).detail;
+            if (detail?.reason !== 'preprocessing_step') return;
+            const targetChatId = detail?.chatId;
+            if (!targetChatId || targetChatId !== currentChat?.chat_id) return;
+
+            try {
+                const freshChat = await chatDB.getChat(targetChatId);
+                if (freshChat) {
+                    currentChat = { ...currentChat, ...freshChat };
+                    console.debug('[ActiveChat] Refreshed currentChat after preprocessing step:', detail.reason, targetChatId);
+                }
+            } catch (err) {
+                console.warn('[ActiveChat] Failed to refresh currentChat after preprocessing step:', err);
+            }
+        };
+        window.addEventListener('localChatListChanged', handlePreprocessingChatRefresh);
         
         // Listen for logout event to clear user chat and load demo chat
         // CRITICAL: This handler must work reliably on mobile, even if component isn't fully initialized
@@ -4860,6 +6958,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             handleNewChatClick();
         };
         window.addEventListener('triggerNewChat', handleTriggerNewChat);
+        
+        // Listen for incognitoChatsDeleted event (when user disables incognito mode).
+        // When incognito is disabled, all incognito chats are deleted from sessionStorage.
+        // If the active chat is an incognito chat, we must reset the view to a new chat —
+        // otherwise the incognito banner remains visible because currentChat.is_incognito is
+        // still true. This handler is the authoritative reset in ActiveChat; the Chats.svelte
+        // chatDeselected path is unreliable after re-login (selectedChatId may be null).
+        const handleIncognitoChatsDeleted = () => {
+            console.debug('[ActiveChat] incognitoChatsDeleted event received - resetting to new chat if needed');
+            if (currentChat?.is_incognito) {
+                console.debug('[ActiveChat] Current chat is incognito — clearing to new chat state after disable');
+                handleNewChatClick();
+            }
+        };
+        window.addEventListener('incognitoChatsDeleted', handleIncognitoChatsDeleted);
         
         // Listen for hiddenChatsLocked and hiddenChatsAutoLocked events - if current chat is hidden, close it and show new chat window
         // This handler works for both manual lock and auto-lock (after inactivity)
@@ -5068,6 +7181,32 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Listen for the dislike/retry prompt from ChatMessage's report-bad-answer flow
         window.addEventListener('setRetryMessage', handleSetRetryMessage);
 
+        // Keep viewportHeight in sync so small-screen logic (e.g. hiding suggestions) is reactive.
+        window.addEventListener('resize', handleViewportResize);
+
+        // ── ResizeObserver for overlap detection ──────────────────────────────
+        // Watches chatSideEl for size changes and recalculates whether the
+        // new-chat suggestions would overlap the welcome / resume-chat content.
+        // This is more reliable than a fixed viewport-height threshold because it
+        // responds to actual DOM layout: varying banner heights, resume card
+        // presence, font size, etc.
+        let overlapObserver: ResizeObserver | null = null;
+        if (chatSideEl) {
+            overlapObserver = new ResizeObserver(() => {
+                recalculateSuggestionsOverlap();
+            });
+            overlapObserver.observe(chatSideEl);
+            // Initial measurement
+            recalculateSuggestionsOverlap();
+        }
+
+        // Keep containerRect in sync with window scroll/resize so the fixed-position
+        // MessageInput fullscreen always stays aligned with the container card.
+        window.addEventListener('scroll', updateContainerRect, { passive: true });
+        window.addEventListener('resize', updateContainerRect, { passive: true });
+        // Initial population of containerRect — activeChatContainerEl is bound by this point.
+        updateContainerRect();
+
         // Add event listeners for both chat updates and message status changes
         const chatUpdateHandler = ((event: CustomEvent) => {
             handleChatUpdated(event);
@@ -5104,11 +7243,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     currentMessages[messageIndex] = updatedMessage;
                     currentMessages = [...currentMessages]; // Trigger reactivity
 
-                    // Save status update to DB (only the user message, not the placeholder)
-                    try {
-                        await chatDB.saveMessage(updatedMessage);
-                    } catch (error) {
-                        console.error('[ActiveChat] Error updating user message status to processing in DB:', error);
+                    // Save status update to DB — skip for incognito chats (messages are stored
+                    // in sessionStorage via incognitoChatService, not in IndexedDB).
+                    if (!currentChat?.is_incognito) {
+                        try {
+                            await chatDB.saveMessage(updatedMessage);
+                        } catch (error) {
+                            console.error('[ActiveChat] Error updating user message status to processing in DB:', error);
+                        }
                     }
 
                     if (chatHistoryRef) {
@@ -5125,12 +7267,36 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }) as EventListenerCallback;
 
-        const aiTaskEndedHandler = ((event: CustomEvent<{ chatId: string }>) => {
+        const aiTaskEndedHandler = ((event: CustomEvent<{ chatId: string; status?: string }>) => {
             if (event.detail.chatId === currentChat?.chat_id) {
                 _aiTaskStateTrigger++;
                 
                 // ─── Progressive AI Status Indicator: Clear on task end (safety fallback) ─────
                 clearProcessingPhase();
+                
+                // ─── Finalize streaming messages on cancellation ─────
+                // When the user cancels an AI task, any assistant message with status='streaming'
+                // must be transitioned to 'synced' immediately. Without this, the message stays
+                // in 'streaming' state in memory and in IndexedDB, causing the chat history to
+                // show an endless loading indicator and the sidebar to show stale state.
+                // We do this for ALL task endings (not just cancellation) as a safety fallback
+                // in case the final-chunk handler missed transitioning the message.
+                let needsUpdate = false;
+                for (let i = 0; i < currentMessages.length; i++) {
+                    const msg = currentMessages[i];
+                    if (msg.role === 'assistant' && msg.status === 'streaming') {
+                        const finalized = { ...msg, status: 'synced' as const };
+                        currentMessages[i] = finalized;
+                        needsUpdate = true;
+                        chatDB.saveMessage(finalized).catch(err => {
+                            console.error(`[ActiveChat] aiTaskEndedHandler: Failed to save finalized message ${msg.message_id}:`, err);
+                        });
+                        console.info(`[ActiveChat] aiTaskEndedHandler: Finalized streaming message ${msg.message_id} → synced (task status: ${event.detail.status ?? 'unknown'})`);
+                    }
+                }
+                if (needsUpdate) {
+                    currentMessages = [...currentMessages];
+                }
                 
                 // FALLBACK: Mark ALL thinking entries as complete when AI task ends
                 // This ensures no thinking state is left in "streaming" mode after the task finishes
@@ -5149,8 +7315,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 });
                 
                 // Force reactivity if we made changes
-                if (hasStreamingThinking) {
-                    thinkingContentByTask = new Map(thinkingContentByTask);
+                if (hasStreamingThinking || needsUpdate) {
+                    if (hasStreamingThinking) {
+                        thinkingContentByTask = new Map(thinkingContentByTask);
+                    }
                     if (chatHistoryRef) {
                         chatHistoryRef.updateMessages(currentMessages);
                     }
@@ -5182,10 +7350,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     currentMessages[messageIndex] = updatedMessage;
                     currentMessages = [...currentMessages];
 
-                    try {
-                        await chatDB.saveMessage(updatedMessage);
-                    } catch (error) {
-                        console.error('[ActiveChat] Error updating user message status to synced in DB:', error);
+                    // Save status update to DB — skip for incognito chats (messages are stored
+                    // in sessionStorage via incognitoChatService, not in IndexedDB).
+                    if (!currentChat?.is_incognito) {
+                        try {
+                            await chatDB.saveMessage(updatedMessage);
+                        } catch (error) {
+                            console.error('[ActiveChat] Error updating user message status to synced in DB:', error);
+                        }
                     }
 
                     if (chatHistoryRef) {
@@ -5203,13 +7375,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // Ensure the centered indicator is cleared (in case it was somehow active)
                     clearProcessingPhase();
                 } else {
-                    // Clear processing step timers and show the typing indicator with mate/model info.
-                    // This replaces the timed steps with the actual mate and model information from the server.
-                    for (const timer of processingStepTimers) {
-                        clearTimeout(timer);
-                    }
-                    processingStepTimers = [];
-                    
+                    // Transition to typing phase with mate/model info from the server.
+                    // This replaces the processing overlay (step cards + spinner) with the typing indicator.
                     // Build the typing phase with resolved text lines:
                     //   Line 1: "{mate} is typing..."
                     //   Line 2: model display name (e.g., "Gemini 3 Flash")
@@ -5235,40 +7402,35 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         resolved: { resolvedCategory, resolvedModelName, resolvedProviderName, resolvedServerRegion },
                         currentProcessingPhase: processingPhase?.phase
                     });
-                    
-                    if (resolvedCategory) {
-                        const mateName = $text('mates.' + resolvedCategory);
-                        const displayModelName = resolvedModelName ? getModelDisplayName(resolvedModelName) : '';
-                        const displayProviderName = resolvedProviderName || '';
-                        const displayServerRegion = resolvedServerRegion || '';
-                        
-                        // Build region flag for display
-                        const getRegionFlag = (region: string): string => {
-                            switch (region) {
-                                case 'EU': return '🇪🇺';
-                                case 'US': return '🇺🇸';
-                                case 'APAC': return '🌏';
-                                default: return '';
-                            }
-                        };
-                        const regionFlag = displayServerRegion ? getRegionFlag(displayServerRegion) : '';
-                        
-                        const lines: string[] = [
-                            $text('enter_message.is_typing').replace('{mate}', mateName)
-                        ];
-                        // Line 2: model name
-                        if (displayModelName) {
-                            lines.push(displayModelName);
+
+                    // ─── Minimum display time for step cards ─────────────────────────────
+                    // When preprocessing step cards are visible (completedSteps > 0), enforce
+                    // a minimum display time of 1500ms before transitioning to the typing phase.
+                    // This ensures users can actually read the accumulated step cards before
+                    // they disappear. The step events arrive in a burst (from one LLM call),
+                    // so without this delay the cards would flash and immediately be replaced.
+                    const hasVisibleStepCards = processingPhase?.phase === 'processing'
+                        && processingPhase.completedSteps.length > 0;
+                    if (hasVisibleStepCards && lastStepCardTimestamp > 0) {
+                        const elapsed = Date.now() - lastStepCardTimestamp;
+                        const MIN_STEP_DISPLAY_MS = 1500;
+                        if (elapsed < MIN_STEP_DISPLAY_MS) {
+                            const remainingDelay = MIN_STEP_DISPLAY_MS - elapsed;
+                            console.debug(`[ActiveChat] Delaying typing transition by ${remainingDelay}ms to show step cards`);
+                            // Capture the current chat_id to avoid stale transitions after chat switch
+                            const transitionChatId = chat_id;
+                            setTimeout(() => {
+                                // Only apply if we're still on the same chat and in processing phase
+                                if (currentChat?.chat_id !== transitionChatId) return;
+                                if (processingPhase?.phase !== 'processing') return;
+                                applyTypingPhaseTransition(resolvedCategory, resolvedModelName, resolvedProviderName, resolvedServerRegion);
+                            }, remainingDelay);
+                            // Skip the immediate transition below
+                            return;
                         }
-                        // Line 3: "via {provider} {flag}"
-                        if (displayProviderName) {
-                            const providerLine = regionFlag ? `via ${displayProviderName} ${regionFlag}` : `via ${displayProviderName}`;
-                            lines.push(providerLine);
-                        }
-                        
-                        processingPhase = { phase: 'typing', statusLines: lines, showIcon: true };
-                        console.debug('[ActiveChat] Processing phase set to TYPING', { mateName, displayModelName, displayProviderName, displayServerRegion, lineCount: lines.length });
                     }
+
+                    applyTypingPhaseTransition(resolvedCategory, resolvedModelName, resolvedProviderName, resolvedServerRegion);
                 }
             }
         }) as EventListenerCallback;
@@ -5308,6 +7470,73 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         chatSyncService.addEventListener('aiTaskEnded', aiTaskEndedHandler);
         chatSyncService.addEventListener('chatDeleted', chatDeletedHandler);
         chatSyncService.addEventListener('messageDeleted', messageDeletedHandler);
+
+        // ─── Real-time preprocessing step events ─────────────────────────────────────────
+        // The backend emits preprocessing_step events (title_generated, mate_selected,
+        // model_selected) after the single preprocessing LLM call resolves.
+        // handlePreprocessingStepImpl in chatSyncServiceHandlersAI.ts dispatches these as
+        // "preprocessingStep" CustomEvents on window. We listen here to update the
+        // processingPhase.completedSteps array with each non-skipped step card.
+        const preprocessingStepHandler = ((event: CustomEvent<PreprocessorStepResult>) => {
+            const step = event.detail;
+            console.debug('[ActiveChat] preprocessingStep event received', step);
+
+            // Only update if we're still in the processing phase (not yet typing or null)
+            if (processingPhase?.phase !== 'processing') return;
+
+            // Skipped steps are silently ignored — no card rendered
+            if (step.skipped) {
+                console.debug('[ActiveChat] Skipping preprocessing step (skipped=true):', step.step);
+                return;
+            }
+
+            // Capture mate name from the mate_selected step for later use in
+            // "{Mate} is typing..." spinner text after model_selected.
+            if (step.step === 'mate_selected' && step.data?.mate_name) {
+                selectedPreprocessingMateName = step.data.mate_name;
+            }
+
+            // Advance the spinner text to the next expected step.
+            // After model_selected (final step), show "{Mate} is typing..." using the
+            // mate name from the earlier mate_selected step (or category fallback).
+            const nextStepText = (() => {
+                switch (step.step) {
+                    case 'title_generated':
+                        return $text('enter_message.status.selecting_mate');
+                    case 'mate_selected':
+                        return $text('enter_message.status.selecting_model');
+                    case 'model_selected': {
+                        // Use the mate name captured from the earlier mate_selected step,
+                        // falling back to category-based mate name from the step data or
+                        // "Analyzing your message..." if no mate info is available yet.
+                        const mateName = selectedPreprocessingMateName
+                            || (step.data?.mate_category ? $text('mates.' + step.data.mate_category) : null);
+                        if (mateName) {
+                            return $text('enter_message.is_typing').replace('{mate}', mateName);
+                        }
+                        return $text('enter_message.status.analyzing_message');
+                    }
+                    default:
+                        return processingPhase.statusLines[0];
+                }
+            })();
+
+            // Record the timestamp of this step card so we can enforce a minimum
+            // display time before transitioning to the typing phase.
+            lastStepCardTimestamp = Date.now();
+
+            // Accumulate this completed step and advance the spinner
+            processingPhase = {
+                phase: 'processing',
+                statusLines: [nextStepText],
+                showIcon: true,
+                completedSteps: [...processingPhase.completedSteps, step],
+            };
+
+            console.debug('[ActiveChat] Processing phase updated with completed step:', step.step, '| completedSteps count:', processingPhase.completedSteps.length);
+        }) as EventListenerCallback;
+
+        window.addEventListener('preprocessingStep', preprocessingStepHandler);
         
         // STREAM INTERRUPTION RECOVERY: When the WebSocket reconnects after a disconnect
         // that interrupted an active AI stream, finalize any streaming messages in the current
@@ -5575,6 +7804,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             chatSyncService.removeEventListener('aiThinkingComplete', handleAiThinkingComplete as EventListenerCallback);
             chatSyncService.removeEventListener('chatDeleted', chatDeletedHandler);
             chatSyncService.removeEventListener('messageDeleted', messageDeletedHandler);
+            window.removeEventListener('preprocessingStep', preprocessingStepHandler);
             chatSyncService.removeEventListener('postProcessingCompleted', handlePostProcessingCompleted as EventListenerCallback);
             chatSyncService.removeEventListener('aiStreamInterrupted', aiStreamInterruptedHandler);
             chatSyncService.removeEventListener('embedUpdated', embedUpdatedHandler);
@@ -5589,21 +7819,36 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             window.removeEventListener('loadDemoChat', handleLoadDemoChat as EventListenerCallback);
             // Remove draft save sync listener
             window.removeEventListener('localChatListChanged', handleDraftSaveSync as EventListenerCallback);
+            // Remove preprocessing step chat refresh listener
+            window.removeEventListener('localChatListChanged', handlePreprocessingChatRefresh as EventListenerCallback);
             if (handleLogoutEvent) {
                 window.removeEventListener('userLoggingOut', handleLogoutEvent as EventListenerCallback);
             }
             window.removeEventListener('triggerNewChat', handleTriggerNewChat as EventListenerCallback);
+            window.removeEventListener('incognitoChatsDeleted', handleIncognitoChatsDeleted as EventListenerCallback);
             window.removeEventListener('hiddenChatsLocked', handleHiddenChatsLocked as EventListenerCallback);
             window.removeEventListener('hiddenChatsAutoLocked', handleHiddenChatsLocked as EventListenerCallback);
             window.removeEventListener('setRetryMessage', handleSetRetryMessage);
             // Remove embed and video PiP fullscreen listeners
             document.removeEventListener('embedfullscreen', embedFullscreenHandler as EventListenerCallback);
             document.removeEventListener('videopip-restore-fullscreen', videoPipRestoreHandler as EventListenerCallback);
+            // Remove image/PDF/recording fullscreen document listeners
+            document.removeEventListener('imagefullscreen', imagefullscreenHandler);
+            document.removeEventListener('pdffullscreen', pdffullscreenHandler);
+            document.removeEventListener('recordingfullscreen', recordingfullscreenHandler);
             // Remove focus mode event listeners
             document.removeEventListener('focusModeRejected', focusModeRejectedHandler as EventListenerCallback);
             document.removeEventListener('focusModeDeactivated', focusModeDeactivatedHandler as EventListenerCallback);
             document.removeEventListener('focusModeDetailsRequested', focusModeDetailsHandler as EventListenerCallback);
             document.removeEventListener('focusModeContextMenu', focusModeContextMenuHandler as EventListenerCallback);
+            chatSyncService.removeEventListener('focusModeActivated', focusModeActivatedHandler as EventListenerCallback);
+            // Remove viewport resize listener
+            window.removeEventListener('resize', handleViewportResize);
+            // Remove container rect update listeners
+            window.removeEventListener('scroll', updateContainerRect);
+            window.removeEventListener('resize', updateContainerRect);
+            // Disconnect overlap ResizeObserver
+            overlapObserver?.disconnect();
         };
     });
 
@@ -5638,6 +7883,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     class:extra-wide={isExtraWide}
     class:side-by-side-active={showSideBySideLayout}
     bind:clientWidth={containerWidth}
+    bind:this={activeChatContainerEl}
 >
     {#if !showChat}
         <!-- Signup status bar - only show during signup process, not on basics or alpha disclaimer steps -->
@@ -5675,19 +7921,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 class:side-by-side-minimizing={sideBySideAnimating && sideBySideAnimationDirection === 'minimize'}
                 class:side-by-side-restoring={sideBySideAnimating && sideBySideAnimationDirection === 'restore'}
             >
-                <!-- Incognito mode banner - shows for incognito chats or new chats when incognito mode is active -->
-                {#if currentChat?.is_incognito || (showWelcome && $incognitoMode)}
-                    <div class="incognito-banner">
-                        <div class="incognito-banner-icon">
-                            <div class="icon settings_size subsetting_icon subsetting_icon_incognito"></div>
-                        </div>
-                        <span class="incognito-banner-text">{$text('settings.incognito')}</span>
-                    </div>
-                {/if}
-                
                 <!-- Left side container for chat history and buttons -->
-                <div class="chat-side">
-                    <div class="top-buttons">
+                <div class="chat-side" bind:this={chatSideEl}>
+                    <!-- Daily Inspiration banners – shown above welcome greeting on new chat screen -->
+                    <!-- Hidden while keyboard is open (same rule as welcome greeting) -->
+                    <!-- Shown to ALL users: defaults for guests, personalized for authenticated users -->
+                    <!-- Rendered FIRST so it appears above the top-buttons row on the welcome screen -->
+                    {#if showWelcome && !hideWelcomeForKeyboard}
+                        <div class="daily-inspiration-area">
+                            <DailyInspirationBanner
+                                onStartChat={handleStartChatFromInspiration}
+                                onEmbedFullscreen={handleInspirationEmbedFullscreen}
+                                containerWidth={effectiveChatWidth}
+                            />
+                        </div>
+                    {/if}
+
+                    <!-- Top action buttons row.
+                         On the welcome screen (showWelcome=true): rendered in normal document flow
+                         below the daily inspiration banner (top-buttons-flow class removes position:absolute).
+                         On the active chat screen (showWelcome=false): absolutely positioned at top. -->
+                    <div class="top-buttons" class:top-buttons-flow={showWelcome}>
                         <!-- Left side buttons -->
                         <div class="left-buttons">
                             {#if createButtonVisible}
@@ -5695,6 +7949,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 <div class="new-chat-button-wrapper new-chat-cta-wrapper">
                                     <button
                                         class="new-chat-cta-button"
+                                        data-action="new-chat"
                                         aria-label={$text('chat.new_chat')}
                                         onclick={handleNewChatClick}
                                         in:fade={{ duration: 300 }}
@@ -5714,7 +7969,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         aria-label={$text('chat.share')}
                                         onclick={handleShareChat}
                                         use:tooltip
-                                        style="margin: 5px;"
                                     >
                                     </button>
                                 </div>
@@ -5725,7 +7979,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     aria-label={$text('header.report_issue')}
                                     onclick={handleReportIssue}
                                     use:tooltip
-                                    style="margin: 5px;"
                                 >
                                 </button>
                             </div>
@@ -5744,7 +7997,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             : $text('chat.pii_show')}
                                         onclick={handleTogglePIIVisibility}
                                         use:tooltip
-                                        style="margin: 5px;"
                                     >
                                     </button>
                                 </div>
@@ -5758,7 +8010,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         aria-label={$text('chat.minimize')}
                                         onclick={handleMinimizeChat}
                                         use:tooltip
-                                        style="margin: 5px;"
                                     >
                                     </button>
                                 </div>
@@ -5785,6 +8036,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     {#if showWelcome && !hideWelcomeForKeyboard}
                         <div
                             class="center-content"
+                            bind:this={welcomeContentEl}
                             transition:fade={{ duration: 300 }}
                         >
                             <div class="team-profile">
@@ -5795,10 +8047,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             <span>{part}</span>{#if index < welcomeHeadingParts.length - 1}<br>{/if}
                                         {/each}
                                     </h2>
-                                    <!-- Subtitle: show "Continue where you left off" when resume chat exists,
-                                         otherwise show the default "What do you need help with?" prompt -->
+                                    <!-- Subtitle: "Continue where you left off" when resume chat, "Back to the intro" above for-everyone card for non-auth, else default prompt -->
                                     {#if resumeChatData}
                                         <p>{$text('chats.resume_last_chat.title')}</p>
+                                    {:else if !$authStore.isAuthenticated}
+                                        <p>{$text('chats.back_to_intro.title')}</p>
                                     {:else}
                                         <p>
                                             {#each welcomePromptParts as part, index}
@@ -5809,16 +8062,53 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 </div>
                             </div>
 
-                            <!-- Resume card: shown below greeting when there's a chat to resume -->
+                            <!-- Resume card: shown below greeting when there's a chat to resume (authenticated users only) -->
                             {#if resumeChatData}
-                                {@const category = resumeChatCategory || 'general_knowledge'}
-                                {@const gradientColors = getCategoryGradientColors(category)}
-                                {@const iconName = getValidIconName(resumeChatIcon || '', category)}
-                                {@const IconComponent = getLucideIcon(iconName)}
                                 {@const ChevronRight = getLucideIcon('chevron-right')}
                                 <button 
                                     class="resume-chat-card"
                                     onclick={handleResumeLastChat}
+                                    type="button"
+                                >
+                                    {#if resumeChatIsCreditsError}
+                                        <!-- Credits-error layout: no category circle, show label + user message preview -->
+                                        <!-- Matches the draft-only-layout design used in Chat.svelte sidebar -->
+                                        <div class="resume-chat-content resume-chat-credits-content">
+                                            <span class="resume-chat-credits-label">{$text('chat.credits_needed')}</span>
+                                            {#if resumeChatUserMessagePreview}
+                                                <span class="resume-chat-credits-preview">{resumeChatUserMessagePreview.slice(0, 60)}</span>
+                                            {/if}
+                                        </div>
+                                    {:else}
+                                        {@const category = resumeChatCategory || 'general_knowledge'}
+                                        {@const gradientColors = getCategoryGradientColors(category)}
+                                        {@const iconName = getValidIconName(resumeChatIcon || '', category)}
+                                        {@const IconComponent = getLucideIcon(iconName)}
+                                        <div 
+                                            class="resume-chat-category-circle"
+                                            style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
+                                        >
+                                            <div class="resume-chat-category-icon">
+                                                <IconComponent size={16} color="white" />
+                                            </div>
+                                        </div>
+                                        <div class="resume-chat-content">
+                                            <span class="resume-chat-title">{resumeChatTitle || 'Untitled Chat'}</span>
+                                        </div>
+                                    {/if}
+                                    <div class="resume-chat-arrow">
+                                        <ChevronRight size={16} color="var(--color-grey-50)" />
+                                    </div>
+                                </button>
+                            <!-- Same card as above, for non-auth: link to for-everyone chat (same design as "last chat" card) -->
+                            {:else if !$authStore.isAuthenticated}
+                                {@const gradientColors = getCategoryGradientColors('openmates_official')}
+                                {@const iconName = getValidIconName('sparkles', 'openmates_official')}
+                                {@const IconComponent = getLucideIcon(iconName)}
+                                {@const ChevronRight = getLucideIcon('chevron-right')}
+                                <button 
+                                    class="resume-chat-card"
+                                    onclick={handleOpenIntroChat}
                                     type="button"
                                 >
                                     <div 
@@ -5830,7 +8120,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         </div>
                                     </div>
                                     <div class="resume-chat-content">
-                                        <span class="resume-chat-title">{resumeChatTitle || 'Untitled Chat'}</span>
+                                        <span class="resume-chat-title">{$text('demo_chats.for_everyone.title')}</span>
                                     </div>
                                     <div class="resume-chat-arrow">
                                         <ChevronRight size={16} color="var(--color-grey-50)" />
@@ -5840,23 +8130,34 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         </div>
                     {/if}
 
-                    <ChatHistory
-                        bind:this={chatHistoryRef}
-                        messageInputHeight={isFullscreen ? 0 : messageInputHeight + 40}
-                        containerWidth={effectiveChatWidth}
-                        currentChatId={currentChat?.chat_id}
-                        {processingPhase}
-                        {thinkingContentByTask}
-                        {settingsMemoriesSuggestions}
-                        {rejectedSuggestionHashes}
-                        onSuggestionAdded={handleSettingsMemorySuggestionAdded}
-                        onSuggestionRejected={handleSettingsMemorySuggestionRejected}
-                        on:messagesChange={handleMessagesChange}
-                        on:chatUpdated={handleChatUpdated}
-                        on:scrollPositionUI={handleScrollPositionUI}
-                        on:scrollPositionChanged={handleScrollPositionChanged}
-                        on:scrolledToBottom={handleScrolledToBottom}
-                    />
+                     <ChatHistory
+                         bind:this={chatHistoryRef}
+                         messageInputHeight={isFullscreen ? 0 : messageInputHeight + 40}
+                         containerWidth={effectiveChatWidth}
+                         currentChatId={currentChat?.chat_id}
+                         {processingPhase}
+                         {thinkingContentByTask}
+                         {settingsMemoriesSuggestions}
+                         {rejectedSuggestionHashes}
+                         chatTitle={activeChatDecryptedTitle}
+                         chatCategory={activeChatDecryptedCategory}
+                         chatIcon={activeChatDecryptedIcon}
+                         chatSummary={activeChatDecryptedSummary}
+                         chatCreatedAt={currentChat && !isPublicChat(currentChat.chat_id) ? (currentChat.created_at ?? null) : null}
+                         {isNewChatGeneratingTitle}
+                         {isNewChatCreditsError}
+                         {isCreditsRestored}
+                         isIncognito={!!currentChat?.is_incognito}
+                         onResend={handleResendAfterCreditsRestored}
+                         onSuggestionAdded={handleSettingsMemorySuggestionAdded}
+                         onSuggestionRejected={handleSettingsMemorySuggestionRejected}
+                         onSuggestionOpenForCustomize={handleSettingsMemorySuggestionOpenForCustomize}
+                         on:messagesChange={handleMessagesChange}
+                         on:chatUpdated={handleChatUpdated}
+                         on:scrollPositionUI={handleScrollPositionUI}
+                         on:scrollPositionChanged={handleScrollPositionChanged}
+                         on:scrolledToBottom={handleScrolledToBottom}
+                     />
 
                     <!-- Scroll-to-top button: visible when not at top and chat has messages -->
                     {#if !showWelcome && !isAtTop}
@@ -5897,22 +8198,31 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         </div>
                     {/if}
 
-                    <div class="message-input-container">
-                        <!-- New chat suggestions when no chat is open and user is at bottom/input active -->
-                        <!-- Show immediately with default suggestions, then swap to user's real suggestions once sync completes -->
-                        <!-- No longer gated behind initialSyncCompleted - NewChatSuggestions handles fallback to defaults -->
-                        {#if showWelcome}
-                            <NewChatSuggestions
-                                messageInputContent={liveInputText}
-                                onSuggestionClick={handleSuggestionClick}
-                            />
-                        {/if}
+                    <div class="message-input-container" bind:this={messageInputContainerEl}>
+                         <!-- New chat suggestions when no chat is open and user is at bottom/input active -->
+                         <!-- Show immediately with default suggestions, then swap to user's real suggestions once sync completes -->
+                         <!-- No longer gated behind initialSyncCompleted - NewChatSuggestions handles fallback to defaults -->
+                         <!-- Hidden while the map location selector is open (messageInputMapsOpen) —
+                              restored automatically when the map is closed and the input is still empty. -->
+                         <!-- Height-based overlap guard: when the suggestions panel would visually
+                              overlap the welcome greeting / resume-chat card below it, hide the
+                              suggestions by default.  They are revealed only when the message input
+                              is focused — at which point the welcome content is also hidden
+                              (hideWelcomeForKeyboard), giving the suggestions room to breathe.
+                              Legacy fallback: also hide on very short screens (≤670px viewport). -->
+                         {#if showWelcome && !messageInputMapsOpen && (!suggestionsWouldOverlapWelcome || messageInputFocused) && (viewportHeight > 670 || messageInputFocused)}
+                             <NewChatSuggestions
+                                 messageInputContent={liveInputText}
+                                 onSuggestionClick={handleSuggestionClick}
+                             />
+                         {/if}
+
 
                         <!-- Banner for non-incognito chats when incognito mode is active -->
                         {#if $incognitoMode && currentChat && !currentChat.is_incognito && !showWelcome}
                             <div class="incognito-mode-applies-banner" transition:fade={{ duration: 200 }}>
                                 <div class="incognito-mode-applies-icon">
-                                    <div class="icon settings_size subsetting_icon subsetting_icon_incognito"></div>
+                                    <div class="icon settings_size subsetting_icon incognito"></div>
                                 </div>
                                 <span class="incognito-mode-applies-text">
                                     {$text('settings.incognito_mode_applies_to_new_chats_only')}
@@ -5924,6 +8234,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <!-- Only shown when: push is supported, permission not decided, user sent first message -->
                         {#if $shouldShowPushBanner && userSentFirstMessage && currentChat}
                             <PushNotificationBanner />
+                        {/if}
+
+                        <!-- Fork progress banner - shown while this chat is being used as a fork source -->
+                        {#if currentChat?.chat_id && $forkProgressStore.status === 'running' && $forkProgressStore.sourceChatId === currentChat.chat_id}
+                            <ForkProgressBanner />
                         {/if}
 
                         <!-- Follow-up suggestions when input is focused -->
@@ -5953,7 +8268,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 bind:this={messageInputFieldRef}
                                 currentChatId={currentChat?.chat_id || temporaryChatId}
                                 showActionButtons={showActionButtons}
+                                activeFocusId={!showWelcome ? activeFocusId : null}
+                                activeFocusAppId={!showWelcome ? activeFocusAppId : null}
+                                activeFocusModeMetadata={!showWelcome ? activeFocusModeMetadata : null}
+                                onFocusPillDeepLink={() => {
+                                    if (activeFocusAppId && activeFocusModeKey) {
+                                        settingsDeepLink.set(`app_store/${activeFocusAppId}/focus/${activeFocusModeKey}`);
+                                        panelState.openSettings();
+                                    }
+                                }}
+                                onFocusPillDeactivate={() => {
+                                    if (activeFocusId) {
+                                        handleFocusModeDeactivation(activeFocusId);
+                                        activeFocusId = null;
+                                    }
+                                }}
+                                isIncognitoMode={!!(currentChat?.is_incognito || (showWelcome && $incognitoMode))}
+                                onIncognitoPillDeactivate={() => {
+                                    incognitoMode.set(false);
+                                }}
                                 on:codefullscreen={handleCodeFullscreen}
+                                on:imagefullscreen={handleImageFullscreen}
+                                on:pdffullscreen={handlePdfFullscreen}
+                                on:recordingfullscreen={handleRecordingFullscreen}
                                 on:sendMessage={handleSendMessage}
                                 on:heightchange={handleInputHeightChange}
                                 on:draftSaved={handleDraftSaved}
@@ -5961,12 +8298,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     const t = (e.detail?.text || '');
                                     console.debug('[ActiveChat] textchange event received:', { text: t, length: t.length });
                                     liveInputText = t;
-                                    messageInputHasContent = t.trim().length > 0; 
+                                    // NOTE: messageInputHasContent is NOT set here from text alone —
+                                    // bind:hasContent below is the authoritative source and correctly
+                                    // accounts for embeds (images, files) even when there is no text.
                                 }}
-                                bind:isFullscreen
-                                bind:hasContent={messageInputHasContent}
-                                bind:isFocused={messageInputFocused}
-                            />
+                                 bind:isFullscreen
+                                 bind:hasContent={messageInputHasContent}
+                                 bind:isFocused={messageInputFocused}
+                                 bind:isMapsOpen={messageInputMapsOpen}
+                                 {containerRect}
+                             />
                         {/if}
                     </div>
                 </div>
@@ -5980,6 +8321,49 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     language={fullscreenCodeData.language}
                     lineCount={fullscreenCodeData.lineCount}
                     onClose={handleCloseCodeFullscreen}
+                />
+            {/if}
+
+            {#if showImageEmbedFullscreen}
+                <ImageEmbedFullscreen
+                    src={imageEmbedFullscreenData.src}
+                    s3BaseUrl={imageEmbedFullscreenData.s3BaseUrl}
+                    files={imageEmbedFullscreenData.s3Files as { preview?: { s3_key: string; width: number; height: number; format: string }; full?: { s3_key: string; width: number; height: number; format: string }; original?: { s3_key: string; width: number; height: number; format: string } } | undefined}
+                    aesKey={imageEmbedFullscreenData.aesKey}
+                    aesNonce={imageEmbedFullscreenData.aesNonce}
+                    filename={imageEmbedFullscreenData.filename}
+                    isAuthenticated={imageEmbedFullscreenData.isAuthenticated}
+                    fileSize={imageEmbedFullscreenData.fileSize}
+                    fileType={imageEmbedFullscreenData.fileType}
+                    aiDetection={imageEmbedFullscreenData.aiDetection}
+                    onClose={handleCloseImageEmbedFullscreen}
+                />
+            {/if}
+
+            {#if showPdfEmbedFullscreen}
+                <PDFEmbedFullscreen
+                    embedId={pdfFullscreenData.embedId}
+                    filename={pdfFullscreenData.filename}
+                    pageCount={pdfFullscreenData.pageCount}
+                    onClose={handleClosePdfFullscreen}
+                />
+            {/if}
+
+            {#if showRecordingFullscreen}
+                <RecordingEmbedFullscreen
+                    transcript={recordingFullscreenData.transcript}
+                    blobUrl={recordingFullscreenData.blobUrl}
+                    filename={recordingFullscreenData.filename}
+                    duration={recordingFullscreenData.duration}
+                    s3Files={recordingFullscreenData.s3Files}
+                    s3BaseUrl={recordingFullscreenData.s3BaseUrl}
+                    aesKey={recordingFullscreenData.aesKey}
+                    aesNonce={recordingFullscreenData.aesNonce}
+                    embedId={recordingFullscreenData.embedId}
+                    model={recordingFullscreenData.model}
+                    isEditable={recordingFullscreenData.isEditable}
+                    onTranscriptChange={handleRecordingTranscriptChange}
+                    onClose={handleCloseRecordingFullscreen}
                 />
             {/if}
             
@@ -6000,7 +8384,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 <!-- Key block forces complete recreation when embed changes -->
                 <!-- This resets internal component state (e.g., selectedWebsite in WebSearchEmbedFullscreen) -->
                 <!-- Without this, switching between same-type embeds would preserve stale child overlay state -->
-                {#key embedFullscreenData.embedId}
+                <!-- Also key on focusChildEmbedId: clicking a different inline badge of the same parent embed
+                     (same embedId, same type) must still re-mount the fullscreen so it opens the correct child. -->
+                {#key `${embedFullscreenData.embedId}:${embedFullscreenData.focusChildEmbedId ?? ''}`}
                 {#if embedFullscreenData.embedType === 'app-skill-use'}
                     {@const skillId = embedFullscreenData.decodedContent?.skill_id || ''}
                     {@const appId = embedFullscreenData.decodedContent?.app_id || ''}
@@ -6017,11 +8403,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
                             errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
                             embedId={embedFullscreenData.embedId}
+                            initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
                             onClose={handleCloseEmbedFullscreen}
                             {hasPreviousEmbed}
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
@@ -6034,11 +8422,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
                             results={getNewsSearchResults(embedFullscreenData.decodedContent?.results)}
                             embedId={embedFullscreenData.embedId}
+                            initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
                             onClose={handleCloseEmbedFullscreen}
                             {hasPreviousEmbed}
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
@@ -6056,6 +8446,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
@@ -6073,6 +8464,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
+                        />
+                    {:else if appId === 'maps' && skillId === 'location'}
+                        <!-- Maps Location Fullscreen -->
+                        <!-- Displays an interactive Leaflet map (or static image) with location details -->
+                        <MapsLocationEmbedFullscreen
+                            lat={typeof embedFullscreenData.decodedContent?.lat === 'number' ? embedFullscreenData.decodedContent.lat : undefined}
+                            lon={typeof embedFullscreenData.decodedContent?.lon === 'number' ? embedFullscreenData.decodedContent.lon : undefined}
+                            zoom={typeof embedFullscreenData.decodedContent?.zoom === 'number' ? embedFullscreenData.decodedContent.zoom : 15}
+                            name={typeof embedFullscreenData.decodedContent?.name === 'string' ? embedFullscreenData.decodedContent.name : undefined}
+                            address={typeof embedFullscreenData.decodedContent?.address === 'string' ? embedFullscreenData.decodedContent.address : undefined}
+                            locationType={typeof embedFullscreenData.decodedContent?.location_type === 'string' ? embedFullscreenData.decodedContent.location_type : undefined}
+                            mapImageUrl={typeof embedFullscreenData.decodedContent?.map_image_url === 'string' ? embedFullscreenData.decodedContent.map_image_url : undefined}
+                            status="finished"
+                            embedId={embedFullscreenData.embedId}
+                            onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
@@ -6086,11 +8500,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
                             errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
                             embedId={embedFullscreenData.embedId}
+                            initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
                             onClose={handleCloseEmbedFullscreen}
                             {hasPreviousEmbed}
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
@@ -6107,6 +8523,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
@@ -6124,11 +8541,68 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasPreviousEmbed}
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
-                            onNavigateNext={handleNavigateNextEmbed}
-                            showChatButton={showChatButtonInFullscreen}
-                            onShowChat={handleShowChat}
-                        />
-                    {:else if appId === 'videos' && skillId === 'get_transcript'}
+                              onNavigateNext={handleNavigateNextEmbed}
+                              navigateDirection={embedNavigateDirection}
+                              showChatButton={showChatButtonInFullscreen}
+                              onShowChat={handleShowChat}
+                          />
+                     {:else if appId === 'health' && skillId === 'search_appointments'}
+                         <!-- Health Search Appointments Fullscreen -->
+                         <HealthSearchEmbedFullscreen
+                             query={embedFullscreenData.decodedContent?.query || ''}
+                             provider={embedFullscreenData.decodedContent?.provider || 'Doctolib'}
+                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
+                             results={Array.isArray(embedFullscreenData.decodedContent?.results) ? embedFullscreenData.decodedContent.results as unknown[] : []}
+                             status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
+                             errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
+                             embedId={embedFullscreenData.embedId}
+                             onClose={handleCloseEmbedFullscreen}
+                             {hasPreviousEmbed}
+                             {hasNextEmbed}
+                             onNavigatePrevious={handleNavigatePreviousEmbed}
+                             onNavigateNext={handleNavigateNextEmbed}
+                             navigateDirection={embedNavigateDirection}
+                             showChatButton={showChatButtonInFullscreen}
+                             onShowChat={handleShowChat}
+                         />
+                     {:else if appId === 'shopping' && skillId === 'search_products'}
+                         <!-- Shopping Search Products Fullscreen -->
+                         <ShoppingSearchEmbedFullscreen
+                             query={embedFullscreenData.decodedContent?.query || ''}
+                             provider={embedFullscreenData.decodedContent?.provider || 'REWE'}
+                             results={Array.isArray(embedFullscreenData.decodedContent?.results) ? embedFullscreenData.decodedContent.results as unknown[] : []}
+                             status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
+                             errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
+                             embedId={embedFullscreenData.embedId}
+                             onClose={handleCloseEmbedFullscreen}
+                             {hasPreviousEmbed}
+                             {hasNextEmbed}
+                             onNavigatePrevious={handleNavigatePreviousEmbed}
+                             onNavigateNext={handleNavigateNextEmbed}
+                             navigateDirection={embedNavigateDirection}
+                             showChatButton={showChatButtonInFullscreen}
+                             onShowChat={handleShowChat}
+                         />
+                     {:else if appId === 'events' && skillId === 'search'}
+                         <!-- Events Search Fullscreen -->
+                         <!-- Results are stored as child embeds (like news/web search) — pass embedIds for loading -->
+                         <EventsSearchEmbedFullscreen
+                             query={embedFullscreenData.decodedContent?.query || ''}
+                             provider={embedFullscreenData.decodedContent?.provider || 'Meetup'}
+                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
+                             status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
+                             embedId={embedFullscreenData.embedId}
+                             initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
+                             onClose={handleCloseEmbedFullscreen}
+                             {hasPreviousEmbed}
+                             {hasNextEmbed}
+                             onNavigatePrevious={handleNavigatePreviousEmbed}
+                             onNavigateNext={handleNavigateNextEmbed}
+                             navigateDirection={embedNavigateDirection}
+                             showChatButton={showChatButtonInFullscreen}
+                             onShowChat={handleShowChat}
+                         />
+                     {:else if appId === 'videos' && skillId === 'get_transcript'}
                         <!-- Video Transcript Fullscreen -->
                         {@const previewData: VideoTranscriptSkillPreviewData = {
                             app_id: 'videos',
@@ -6157,6 +8631,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
@@ -6183,6 +8658,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
@@ -6219,6 +8695,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 {hasNextEmbed}
                                 onNavigatePrevious={handleNavigatePreviousEmbed}
                                 onNavigateNext={handleNavigateNextEmbed}
+                                navigateDirection={embedNavigateDirection}
                                 showChatButton={showChatButtonInFullscreen}
                                 onShowChat={handleShowChat}
                             />
@@ -6248,6 +8725,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
@@ -6272,6 +8750,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
+                        />
+                    {:else if appId === 'math' && skillId === 'calculate'}
+                        <!-- Math Calculate Fullscreen -->
+                        <MathCalculateEmbedFullscreen
+                            query={embedFullscreenData.decodedContent?.query || ''}
+                            results={Array.isArray(embedFullscreenData.decodedContent?.results) ? embedFullscreenData.decodedContent.results as unknown[] : []}
+                            status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
+                            embedId={embedFullscreenData.embedId}
+                            onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
@@ -6305,6 +8800,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
@@ -6315,21 +8811,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {@const codeContent = coerceString(embedFullscreenData.decodedContent?.code ?? embedFullscreenData.attrs?.code, '')}
                         {@const codeLanguage = coerceString(embedFullscreenData.decodedContent?.language ?? embedFullscreenData.attrs?.language, '')}
                         {@const codeFilename = coerceString(embedFullscreenData.decodedContent?.filename ?? embedFullscreenData.attrs?.filename, '')}
-                        {@const codeLineCount = coerceNumber(embedFullscreenData.decodedContent?.lineCount ?? embedFullscreenData.attrs?.lineCount, 0)}
+                        {@const codeLineCount = coerceNumber(embedFullscreenData.decodedContent?.line_count ?? embedFullscreenData.decodedContent?.lineCount ?? embedFullscreenData.attrs?.lineCount, 0)}
                         <CodeEmbedFullscreen 
-                            codeContent={codeContent}
-                            language={codeLanguage}
-                            filename={codeFilename}
-                            lineCount={codeLineCount}
-                            embedId={embedFullscreenData.embedId}
-                            onClose={handleCloseEmbedFullscreen}
-                            {hasPreviousEmbed}
-                            {hasNextEmbed}
-                            onNavigatePrevious={handleNavigatePreviousEmbed}
-                            onNavigateNext={handleNavigateNextEmbed}
-                            showChatButton={showChatButtonInFullscreen}
-                            onShowChat={handleShowChat}
-                        />
+                             codeContent={codeContent}
+                             language={codeLanguage}
+                             filename={codeFilename}
+                             lineCount={codeLineCount}
+                             embedId={embedFullscreenData.embedId}
+                             onClose={handleCloseEmbedFullscreen}
+                             {hasPreviousEmbed}
+                             {hasNextEmbed}
+                             onNavigatePrevious={handleNavigatePreviousEmbed}
+                              onNavigateNext={handleNavigateNextEmbed}
+                              navigateDirection={embedNavigateDirection}
+                              showChatButton={showChatButtonInFullscreen}
+                              onShowChat={handleShowChat}
+                              piiMappings={cumulativePIIMappingsArray}
+                              piiRevealed={piiRevealed}
+                          />
                     {/if}
                 {:else if embedFullscreenData.embedType === 'docs-doc'}
                     <!-- Document Fullscreen -->
@@ -6338,18 +8837,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {@const docTitle = coerceString(embedFullscreenData.decodedContent?.title ?? embedFullscreenData.attrs?.title, '')}
                         {@const docWordCount = coerceNumber(embedFullscreenData.decodedContent?.word_count ?? embedFullscreenData.attrs?.wordCount, 0)}
                         <DocsEmbedFullscreen 
-                            htmlContent={htmlContent}
-                            title={docTitle}
-                            wordCount={docWordCount}
-                            embedId={embedFullscreenData.embedId}
-                            onClose={handleCloseEmbedFullscreen}
-                            {hasPreviousEmbed}
-                            {hasNextEmbed}
-                            onNavigatePrevious={handleNavigatePreviousEmbed}
-                            onNavigateNext={handleNavigateNextEmbed}
-                            showChatButton={showChatButtonInFullscreen}
-                            onShowChat={handleShowChat}
-                        />
+                             htmlContent={htmlContent}
+                             title={docTitle}
+                             wordCount={docWordCount}
+                             embedId={embedFullscreenData.embedId}
+                             onClose={handleCloseEmbedFullscreen}
+                             {hasPreviousEmbed}
+                             {hasNextEmbed}
+                             onNavigatePrevious={handleNavigatePreviousEmbed}
+                              onNavigateNext={handleNavigateNextEmbed}
+                              navigateDirection={embedNavigateDirection}
+                              showChatButton={showChatButtonInFullscreen}
+                              onShowChat={handleShowChat}
+                              piiMappings={cumulativePIIMappingsArray}
+                              piiRevealed={piiRevealed}
+                          />
                     {/if}
                 {:else if embedFullscreenData.embedType === 'sheets-sheet'}
                     <!-- Sheet/Table Fullscreen -->
@@ -6361,19 +8863,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {@const sheetRows = coerceNumber(embedFullscreenData.decodedContent?.row_count ?? embedFullscreenData.decodedContent?.rows ?? embedFullscreenData.attrs?.rows, 0)}
                         {@const sheetCols = coerceNumber(embedFullscreenData.decodedContent?.col_count ?? embedFullscreenData.decodedContent?.cols ?? embedFullscreenData.attrs?.cols, 0)}
                         <SheetEmbedFullscreen 
-                            tableContent={sheetContent}
-                            title={sheetTitle}
-                            rowCount={sheetRows}
-                            colCount={sheetCols}
-                            embedId={embedFullscreenData.embedId}
-                            onClose={handleCloseEmbedFullscreen}
-                            {hasPreviousEmbed}
-                            {hasNextEmbed}
-                            onNavigatePrevious={handleNavigatePreviousEmbed}
-                            onNavigateNext={handleNavigateNextEmbed}
-                            showChatButton={showChatButtonInFullscreen}
-                            onShowChat={handleShowChat}
-                        />
+                             tableContent={sheetContent}
+                             title={sheetTitle}
+                             rowCount={sheetRows}
+                             colCount={sheetCols}
+                             embedId={embedFullscreenData.embedId}
+                             onClose={handleCloseEmbedFullscreen}
+                             {hasPreviousEmbed}
+                             {hasNextEmbed}
+                             onNavigatePrevious={handleNavigatePreviousEmbed}
+                             onNavigateNext={handleNavigateNextEmbed}
+                             navigateDirection={embedNavigateDirection}
+                              showChatButton={showChatButtonInFullscreen}
+                              onShowChat={handleShowChat}
+                              piiMappings={cumulativePIIMappingsArray}
+                              piiRevealed={piiRevealed}
+                         />
                     {/if}
                 {:else if embedFullscreenData.embedType === 'videos-video'}
                     <!-- Video Fullscreen -->
@@ -6418,13 +8923,50 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 {hasPreviousEmbed}
                                 {hasNextEmbed}
                                 onNavigatePrevious={handleNavigatePreviousEmbed}
-                                onNavigateNext={handleNavigateNextEmbed}
-                                showChatButton={showChatButtonInFullscreen}
-                                onShowChat={handleShowChat}
-                                metadata={videoMetadata}
-                            />
+                                 onNavigateNext={handleNavigateNextEmbed}
+                                 navigateDirection={embedNavigateDirection}
+                                 showChatButton={showChatButtonInFullscreen}
+                                 onShowChat={handleShowChat}
+                                 metadata={videoMetadata}
+                             />
                         {/await}
                     {/if}
+                {:else if embedFullscreenData.embedType === 'maps'}
+                    <!-- Maps Location Fullscreen (user-inserted via MapsView picker) -->
+                    <!-- Coordinates / address come from decodedContent (EmbedStore TOON) or attrs fallback.
+                         The attrs fallback is used when the EmbedStore lookup fails (e.g. embed not yet synced). -->
+                    <MapsLocationEmbedFullscreen
+                        lat={typeof embedFullscreenData.decodedContent?.lat === 'number' ? embedFullscreenData.decodedContent.lat : (typeof embedFullscreenData.attrs?.lat === 'number' ? embedFullscreenData.attrs.lat : undefined)}
+                        lon={typeof embedFullscreenData.decodedContent?.lon === 'number' ? embedFullscreenData.decodedContent.lon : (typeof embedFullscreenData.attrs?.lon === 'number' ? embedFullscreenData.attrs.lon : undefined)}
+                        name={typeof embedFullscreenData.decodedContent?.name === 'string' ? embedFullscreenData.decodedContent.name : (typeof embedFullscreenData.attrs?.name === 'string' ? embedFullscreenData.attrs.name : undefined)}
+                        address={typeof embedFullscreenData.decodedContent?.address === 'string' ? embedFullscreenData.decodedContent.address : (typeof embedFullscreenData.attrs?.address === 'string' ? embedFullscreenData.attrs.address : undefined)}
+                        locationType={typeof embedFullscreenData.decodedContent?.location_type === 'string' ? embedFullscreenData.decodedContent.location_type : (typeof embedFullscreenData.attrs?.locationType === 'string' ? embedFullscreenData.attrs.locationType : undefined)}
+                        status="finished"
+                        embedId={embedFullscreenData.embedId}
+                        onClose={handleCloseEmbedFullscreen}
+                        {hasPreviousEmbed}
+                        {hasNextEmbed}
+                        onNavigatePrevious={handleNavigatePreviousEmbed}
+                        onNavigateNext={handleNavigateNextEmbed}
+                        navigateDirection={embedNavigateDirection}
+                        showChatButton={showChatButtonInFullscreen}
+                        onShowChat={handleShowChat}
+                    />
+                {:else if embedFullscreenData.embedType === 'math-plot'}
+                    <!-- Math Plot Fullscreen (direct-type embed rendered from ```plot ... ``` blocks) -->
+                    <MathPlotEmbedFullscreen
+                        plotSpec={typeof embedFullscreenData.decodedContent?.plot_spec === 'string' ? embedFullscreenData.decodedContent.plot_spec : (typeof embedFullscreenData.decodedContent?.['expression'] === 'string' ? embedFullscreenData.decodedContent['expression'] as string : (typeof embedFullscreenData.attrs?.code === 'string' ? embedFullscreenData.attrs.code : ''))}
+                        title={typeof embedFullscreenData.decodedContent?.title === 'string' ? embedFullscreenData.decodedContent.title : (typeof embedFullscreenData.attrs?.title === 'string' ? embedFullscreenData.attrs.title : 'Function Plot')}
+                        embedId={embedFullscreenData.embedId}
+                        onClose={handleCloseEmbedFullscreen}
+                        {hasPreviousEmbed}
+                        {hasNextEmbed}
+                        onNavigatePrevious={handleNavigatePreviousEmbed}
+                        onNavigateNext={handleNavigateNextEmbed}
+                        navigateDirection={embedNavigateDirection}
+                        showChatButton={showChatButtonInFullscreen}
+                        onShowChat={handleShowChat}
+                    />
                 {:else}
                     <!-- Fallback for unknown embed types -->
                     <div class="embed-fullscreen-fallback">
@@ -6841,7 +9383,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     .center-content {
         position: absolute;
-        top: 40%;
+        /*
+         * Center vertically in the space below the daily inspiration banner.
+         * Offset of 60px pushes the content just below the banner midpoint.
+         */
+        top: calc(50% + 60px);
         left: 50%;
         transform: translate(-50%, -50%);
         text-align: center;
@@ -6857,7 +9403,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     /* Adjust welcome content position for narrow containers */
     .active-chat-container.narrow .center-content {
-        top: 30%;
+        top: calc(50% + 60px);
     }
 
     .team-profile {
@@ -6891,16 +9437,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         align-items: center;
         gap: 2px;
         text-align: center;
-        font-size: 0.8rem;
+        font-size: 1rem;
         color: var(--color-grey-60);
-        padding: 6px 12px 4px;
+        padding: 10px 16px 8px;
         font-style: italic;
         /* Gradient background so the text remains readable when positioned over chat messages.
-           Uses the page background color (--color-grey-0) fading from transparent at the top. */
+           Uses the active chat background color (--color-grey-20) fading from transparent at the top
+           to match the chat area background seamlessly. Taller gradient to cover the larger text. */
         background: linear-gradient(
             to bottom,
             transparent 0%,
-            var(--color-grey-0, #fff) 40%
+            var(--color-grey-20) 55%
         );
         position: relative;
         z-index: 1;
@@ -6908,7 +9455,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     
     /* Primary line: "{mate} is typing..." — prominent */
     .typing-indicator .indicator-primary-line {
-        font-size: 0.8rem;
+        font-size: 1rem;
     }
     
     /* Secondary line: "Powered by {model}" — smaller, subtler */
@@ -7012,6 +9559,28 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         overflow: hidden;
     }
 
+    /* Credits-error variant of the resume card content — mirrors Chat.svelte draft-only-layout */
+    .resume-chat-credits-content {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .resume-chat-credits-label {
+        font-size: 14px;
+        color: var(--color-grey-60);
+    }
+
+    .resume-chat-credits-preview {
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--color-grey-90);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+        margin-top: 2px;
+    }
+
     .resume-chat-title {
         font-size: 15px;
         font-weight: 500;
@@ -7106,35 +9675,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     .active-chat-container.dimmed {
         opacity: 0.3;
-    }
-
-    /* Incognito mode banner - full width, 20px height at top of chat */
-    .incognito-banner {
-        width: 100%;
-        height: 20px;
-        background-color: var(--color-grey-30);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        padding: 0 12px;
-        flex-shrink: 0;
-    }
-
-    .incognito-banner-icon {
-        width: 16px;
-        height: 16px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-
-    .incognito-banner-text {
-        font-size: 12px;
-        font-weight: 500;
-        color: var(--color-grey-70);
-        white-space: nowrap;
     }
 
     /* Banner for non-incognito chats when incognito mode is active */
@@ -7307,12 +9847,57 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         z-index: 1;
     }
 
-    /* Adjust top-buttons position on small screens */
+    /*
+     * On the welcome screen the top-buttons row is placed in normal document flow
+     * below the daily inspiration banner (rendered before it in the DOM).
+     * This removes the absolute positioning so buttons appear below the banner
+     * instead of overlapping it.
+     */
+    .top-buttons.top-buttons-flow {
+        position: static;
+        padding: 10px 15px 0;
+        /* Ensure full width to keep justify-content: space-between working */
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Adjust top-buttons position on small screens (absolute mode only) */
     @media (max-width: 730px) {
-        .top-buttons {
+        .top-buttons:not(.top-buttons-flow) {
             top: 10px;
             left: 10px;
         }
+    }
+
+    /*
+     * RTL layout fixes for top-buttons:
+     * - Absolute mode: anchor to the right edge instead of the left.
+     * - Flow mode (welcome screen): reverse the flex row so the buttons
+     *   visually appear on the right / inline-end side of the row.
+     */
+    :global([dir="rtl"]) .top-buttons:not(.top-buttons-flow) {
+        left: auto;
+        right: 15px;
+    }
+
+    @media (max-width: 730px) {
+        :global([dir="rtl"]) .top-buttons:not(.top-buttons-flow) {
+            right: 10px;
+        }
+    }
+
+    :global([dir="rtl"]) .top-buttons.top-buttons-flow {
+        flex-direction: row-reverse;
+    }
+
+    /*
+     * Daily inspiration area wrapper.
+     * No padding — the banner spans edge-to-edge within the chat-side container.
+     * Horizontal padding is handled inside DailyInspirationBanner.svelte's .banner-inner.
+     */
+    .daily-inspiration-area {
+        width: 100%;
+        box-sizing: border-box;
     }
 
     /* Add styles for left and right button containers */
@@ -7340,13 +9925,36 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         display: flex;
         align-items: center;
         justify-content: center;
+        transition: transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        cursor: pointer;
     }
 
-    /* New chat CTA: no extra wrapper background so the pill button stands out */
+    .new-chat-button-wrapper:hover {
+        transform: scale(1.08);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .new-chat-button-wrapper:active {
+        transform: scale(0.95);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    /* New chat CTA: no extra wrapper background so the pill button stands out.
+       Also cancel the wrapper's hover/active scale — the button handles its own scaling. */
     .new-chat-cta-wrapper {
         background-color: transparent;
         box-shadow: none;
         padding: 0;
+    }
+
+    .new-chat-cta-wrapper:hover {
+        transform: scale(1);
+        box-shadow: none;
+    }
+
+    .new-chat-cta-wrapper:active {
+        transform: scale(1);
+        box-shadow: none;
     }
 
     /* New chat button - same CTA color as Send, fully rounded (pill), white icon and text.

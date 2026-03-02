@@ -6,10 +6,12 @@
 
 import logging
 import os
+import time
 import yaml
-from fastapi import APIRouter, HTTPException, Request, Depends
+from fastapi import APIRouter, HTTPException, Request, Depends, Query
+from fastapi.responses import Response
 from typing import Dict, Any, Optional
-from pydantic import BaseModel # Ensure BaseModel is imported for Pydantic models
+from pydantic import BaseModel, Field
 import base64
 import hashlib
 import httpx
@@ -106,6 +108,106 @@ def get_payment_service(request: Request) -> PaymentService:
 
 
 # --- Endpoint Implementations ---
+
+
+# ---------------------------------------------------------------------------
+# Token validation endpoint (used by app-uploads microservice)
+# ---------------------------------------------------------------------------
+
+class ValidateTokenResponse(BaseModel):
+    """Response model for token validation (returned to internal services)."""
+    user_id: str
+    vault_key_id: str
+    username: str
+
+
+@router.get("/validate-token", response_model=ValidateTokenResponse)
+async def validate_token_route(
+    request: Request,
+    cache_service: CacheService = Depends(get_cache_service),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> ValidateTokenResponse:
+    """
+    Validate a user's refresh token and return their user_id and vault_key_id.
+
+    Called by the app-uploads microservice to authenticate upload requests
+    without duplicating auth logic. The refresh token is forwarded from the
+    client's cookie via the X-Refresh-Token header.
+
+    Security:
+    - Protected by INTERNAL_API_SHARED_TOKEN (same as all /internal/* routes).
+    - The refresh token is never logged.
+    - Returns 401 if the token is missing, invalid, or the user is not found.
+    """
+    # Read the refresh token forwarded from the uploads service
+    refresh_token = request.headers.get("X-Refresh-Token")
+    if not refresh_token:
+        logger.warning("[ValidateToken] Missing X-Refresh-Token header in internal request")
+        raise HTTPException(status_code=401, detail="Missing refresh token")
+
+    # Check cache first (same path as auth_dependencies.get_current_user)
+    cached_data = await cache_service.get_user_by_token(refresh_token)
+
+    if cached_data:
+        user_id = cached_data.get("user_id")
+        vault_key_id = cached_data.get("vault_key_id")
+        username = cached_data.get("username", "")
+
+        if not user_id or not vault_key_id:
+            logger.error(
+                f"[ValidateToken] Cached user data missing required fields: "
+                f"user_id={bool(user_id)}, vault_key_id={bool(vault_key_id)}"
+            )
+            raise HTTPException(status_code=401, detail="Invalid or incomplete user session")
+
+        logger.debug(f"[ValidateToken] Token validated from cache for user {user_id[:8]}...")
+        return ValidateTokenResponse(
+            user_id=user_id,
+            vault_key_id=vault_key_id,
+            username=username,
+        )
+
+    # Not in cache — validate token via Directus then fetch user profile
+    # (same flow as auth_dependencies.get_current_user)
+    try:
+        success, token_data = await directus_service.validate_token(refresh_token)
+    except Exception as e:
+        logger.error(f"[ValidateToken] Error validating token against Directus: {e}", exc_info=True)
+        raise HTTPException(status_code=401, detail="Token validation failed")
+
+    if not success or not token_data:
+        logger.warning("[ValidateToken] Token rejected by Directus")
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    user_id = token_data.get("id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token data: Missing user ID")
+
+    # Fetch full user profile for vault_key_id
+    try:
+        profile_success, user_data, profile_message = await directus_service.get_user_profile(user_id)
+    except Exception as e:
+        logger.error(f"[ValidateToken] Error fetching user profile for {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch user profile")
+
+    if not profile_success or not user_data:
+        logger.error(f"[ValidateToken] Could not fetch profile for user {user_id}: {profile_message}")
+        raise HTTPException(status_code=500, detail="Could not fetch user data")
+
+    vault_key_id = user_data.get("vault_key_id")
+    username = user_data.get("username", "")
+
+    if not vault_key_id:
+        logger.error(f"[ValidateToken] vault_key_id missing for user {user_id}")
+        raise HTTPException(status_code=500, detail="User account incomplete: missing encryption key")
+
+    logger.info(f"[ValidateToken] Token validated via Directus for user {user_id[:8]}...")
+    return ValidateTokenResponse(
+        user_id=user_id,
+        vault_key_id=vault_key_id,
+        username=username,
+    )
+
 
 @router.get("/config/provider_model_pricing/{provider_id}/{model_id_suffix}")
 async def get_provider_model_pricing_route(
@@ -352,6 +454,15 @@ async def record_usage_route(
             )
         )
         
+        # Track aggregate usage entry counters (fire-and-forget, non-blocking)
+        # These feed into server_stats_global_daily.usage_entries_created / usage_entries_by_app
+        try:
+            await cache_service.increment_stat("usage_entries_created")
+            if payload.app_id:
+                await cache_service.increment_json_stat("usage_entries_by_app", payload.app_id)
+        except Exception as stats_err:
+            logger.warning(f"Failed to increment usage_entries stats: {stats_err}")
+
         logger.info(f"Usage recorded successfully. Entry ID: {usage_entry_id}")
         return {"status": "success", "usage_entry_id": usage_entry_id}
     except Exception as e:
@@ -370,6 +481,35 @@ class CreditChargePayload(BaseModel):
     usage_details: Optional[Dict[str, Any]] = None
     api_key_hash: Optional[str] = None  # SHA-256 hash of API key for tracking
     device_hash: Optional[str] = None  # SHA-256 hash of device for tracking
+
+@router.get("/billing/balance")
+async def get_user_credit_balance(
+    user_id: str,
+    cache_service: CacheService = Depends(get_cache_service)
+) -> Dict[str, Any]:
+    """
+    Returns the current credit balance for a user.
+
+    Reads from cache (fast, sub-millisecond). Used by app services for
+    pre-flight credit checks before expensive operations (e.g., transcription).
+
+    Returns 0 if user is not found in cache — callers should treat this as
+    "unknown balance" and proceed rather than block on a cache miss.
+    """
+    try:
+        user = await cache_service.get_user_by_id(user_id)
+        if not user or not isinstance(user, dict):
+            logger.debug(f"[InternalAPI] User {user_id} not found in cache for balance check — returning 0")
+            return {"user_id": user_id, "credits": 0, "cached": False}
+        credits = user.get("credits", 0)
+        if not isinstance(credits, int):
+            credits = 0
+        return {"user_id": user_id, "credits": credits, "cached": True}
+    except Exception as e:
+        logger.error(f"[InternalAPI] Error fetching credit balance for user {user_id}: {e}", exc_info=True)
+        # Return 0 rather than 500 — balance check is non-critical, callers must handle gracefully
+        return {"user_id": user_id, "credits": 0, "cached": False}
+
 
 @router.post("/billing/charge")
 async def charge_credits_route(
@@ -407,6 +547,64 @@ async def charge_credits_route(
     except Exception as e:
         logger.error(f"Error charging credits for user {payload.user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error charging credits: {str(e)}")
+
+
+class CreditRefundPayload(BaseModel):
+    """Request model for refunding credits to a user after a failed background task."""
+    user_id: str
+    user_id_hash: str
+    credits: int
+    skill_id: str
+    app_id: str
+    reason: Optional[str] = None
+
+
+@router.post("/billing/refund")
+async def refund_credits_route(
+    payload: CreditRefundPayload,
+    billing_service: BillingService = Depends(get_billing_service)
+) -> Dict[str, Any]:
+    """
+    Refund credits to a user after a failed background task (e.g. PDF OCR failure).
+
+    Called by app workers (e.g. app-pdf-worker) after exhausting all retries.
+    This endpoint is the reverse of /billing/charge:
+    - Adds credits back to the user's cached and persisted balance.
+    - Broadcasts the updated balance to all connected devices.
+
+    Only called for background task failures where credits were already charged
+    before the task began (e.g. PDF OCR charged at upload time).
+    """
+    logger.info(
+        f"Internal API: Refunding {payload.credits} credits for user '{payload.user_id}', "
+        f"app '{payload.app_id}', skill '{payload.skill_id}'. "
+        f"Reason: {(payload.reason or '')[:200]}"
+    )
+
+    if payload.credits <= 0:
+        logger.warning(
+            f"Attempted to refund non-positive credits ({payload.credits}) for user {payload.user_id}. Skipping."
+        )
+        return {"status": "skipped", "reason": "Non-positive credits"}
+
+    try:
+        await billing_service.refund_user_credits(
+            user_id=payload.user_id,
+            credits_to_refund=payload.credits,
+            user_id_hash=payload.user_id_hash,
+            app_id=payload.app_id,
+            skill_id=payload.skill_id,
+            reason=payload.reason or "",
+        )
+        return {
+            "status": "success",
+            "refunded_credits": payload.credits,
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error refunding credits for user {payload.user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error refunding credits: {str(e)}")
 
 
 @router.post("/reprocess-invoice")
@@ -837,6 +1035,349 @@ async def get_issue(
 
 # --- E2E Test Notification Endpoints ---
 
+# ---------------------------------------------------------------------------
+# Upload Service Endpoints
+# ---------------------------------------------------------------------------
+# These endpoints are called by the app-uploads microservice running on a
+# separate VM. They proxy Directus and Vault operations so the upload server
+# never needs direct access to Directus or the main Vault instance.
+#
+# Security:
+#   - Protected by INTERNAL_API_SHARED_TOKEN (same as all /internal/* routes).
+#   - wrap-key only calls Vault Transit ENCRYPT (never decrypt).
+#   - store-record only creates records (never reads user data).
+#   - check-duplicate returns only upload dedup metadata, not user secrets.
+# ---------------------------------------------------------------------------
+
+
+class UploadCheckDuplicateRequest(BaseModel):
+    """Request model for upload deduplication check."""
+    user_id: str = Field(..., description="User ID who uploaded the file")
+    content_hash: str = Field(..., description="SHA-256 hash of the original file content")
+
+
+class UploadCheckDuplicateResponse(BaseModel):
+    """Response model for upload deduplication check."""
+    duplicate: bool = Field(..., description="True if a duplicate record exists")
+    record: Optional[Dict[str, Any]] = Field(None, description="Existing upload record if duplicate")
+
+
+@router.post("/uploads/check-duplicate", response_model=UploadCheckDuplicateResponse)
+async def check_upload_duplicate(
+    payload: UploadCheckDuplicateRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> UploadCheckDuplicateResponse:
+    """
+    Check whether a user has already uploaded a file with the same content hash.
+
+    Called by the app-uploads microservice to avoid re-processing duplicate files.
+    Returns the existing upload record if found, allowing the uploads service to
+    return cached metadata immediately.
+
+    Security: Only returns upload dedup metadata (S3 keys, embed_id, etc.).
+    Does not expose user secrets or Vault data beyond what was originally
+    returned to the uploading client.
+
+    Validation: For any upload that has an embed_id, we verify that the corresponding
+    embed record exists in Directus with status='finished'. If the embed is missing or
+    not finished (e.g. a previous upload failed mid-way after storing the upload_files
+    record but before OCR/processing completed), we discard the stale record and return
+    duplicate=False so the uploads service falls through to a fresh upload + processing run.
+    This prevents the UI from hanging forever on 'Processing…' with no WS event arriving.
+    """
+    log_prefix = f"[UploadDedup] [user:{payload.user_id[:8]}...]"
+    logger.debug(f"{log_prefix} Checking duplicate for hash {payload.content_hash[:16]}...")
+
+    try:
+        params = {
+            "filter[user_id][_eq]": payload.user_id,
+            "filter[content_hash][_eq]": payload.content_hash,
+            "limit": 1,
+        }
+        items = await directus_service.get_items("upload_files", params)
+
+        if not items or len(items) == 0:
+            logger.debug(f"{log_prefix} No duplicate found")
+            return UploadCheckDuplicateResponse(duplicate=False, record=None)
+
+        record = items[0]
+        embed_id = record.get("embed_id")
+        # page_count IS stored on upload_files records (for PDFs) and returned
+        # on dedup hits so the frontend can display the correct page count.
+        # Stale detection applies to all uploads with an embed_id regardless of file type.
+
+        # For any upload with an embed_id, validate that the embed actually exists
+        # in Directus with status='finished'. A stale record with no corresponding
+        # finished embed means a previous upload failed after storing the upload_files
+        # row but before processing completed — returning it as a dedup hit would
+        # leave the frontend stuck on 'Processing…' indefinitely.
+        if embed_id:
+            try:
+                embed_params = {
+                    "filter[embed_id][_eq]": embed_id,
+                    "fields": "embed_id,status",
+                    "limit": 1,
+                }
+                embed_items = await directus_service.get_items("embeds", embed_params)
+                embed_status = embed_items[0].get("status") if embed_items else None
+
+                if embed_status != "finished":
+                    logger.warning(
+                        f"{log_prefix} Stale dedup record detected: upload_files has embed_id={embed_id} "
+                        f"but embed status is {embed_status!r} (expected 'finished'). "
+                        f"Discarding stale record — fresh upload will be performed."
+                    )
+                    # Clean up the stale upload_files record so it won't block future uploads.
+                    try:
+                        await directus_service.delete_item("upload_files", record["id"])
+                        logger.info(f"{log_prefix} Deleted stale upload_files record id={record['id']}")
+                    except Exception as del_err:
+                        logger.warning(f"{log_prefix} Could not delete stale record: {del_err}")
+                    return UploadCheckDuplicateResponse(duplicate=False, record=None)
+
+            except Exception as embed_check_err:
+                # Non-fatal: if embed status check fails, be conservative and treat as stale.
+                logger.warning(
+                    f"{log_prefix} Embed status check failed for {embed_id}: {embed_check_err}. "
+                    f"Treating as stale — fresh upload will be performed."
+                )
+                return UploadCheckDuplicateResponse(duplicate=False, record=None)
+
+        logger.info(f"{log_prefix} Duplicate found: embed_id={embed_id}")
+        return UploadCheckDuplicateResponse(duplicate=True, record=record)
+
+    except Exception as e:
+        logger.error(f"{log_prefix} Dedup check failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Deduplication check failed: {str(e)}")
+
+
+class UploadWrapKeyRequest(BaseModel):
+    """Request model for Vault Transit AES key wrapping."""
+    aes_key_b64: str = Field(..., description="Base64-encoded plaintext AES-256 key to wrap")
+    vault_key_id: str = Field(..., description="User's Vault Transit key name (user_{uuid})")
+
+
+class UploadWrapKeyResponse(BaseModel):
+    """Response model for Vault Transit AES key wrapping."""
+    vault_wrapped_aes_key: str = Field(..., description="Vault-wrapped ciphertext (vault:v1:...)")
+
+
+@router.post("/uploads/wrap-key", response_model=UploadWrapKeyResponse)
+async def wrap_upload_aes_key(
+    payload: UploadWrapKeyRequest,
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+) -> UploadWrapKeyResponse:
+    """
+    Wrap a plaintext AES key using the user's Vault Transit key.
+
+    Called by the app-uploads microservice after encrypting a file with AES-256-GCM.
+    The wrapped key is stored in the embed TOON content so backend skills can later
+    unwrap it via Vault Transit to decrypt the file on demand.
+
+    Security:
+    - This endpoint only calls Vault Transit ENCRYPT (wrapping).
+    - It NEVER calls Vault Transit DECRYPT (unwrapping).
+    - Even if the uploads service is compromised, an attacker can only wrap
+      new keys — they cannot unwrap/decrypt any existing file.
+    - The plaintext AES key travels over the private network between VMs.
+      Ensure the VMs are on a Hetzner private network (vSwitch) or use TLS.
+    """
+    log_prefix = f"[UploadWrapKey] [key:{payload.vault_key_id[:12]}...]"
+    logger.debug(f"{log_prefix} Wrapping AES key via Vault Transit")
+
+    try:
+        # encrypt_with_user_key calls Vault Transit POST /transit/encrypt/{vault_key_id}
+        # Returns (ciphertext, key_version) — we only need the ciphertext for key wrapping.
+        vault_wrapped, _key_version = await encryption_service.encrypt_with_user_key(
+            payload.aes_key_b64, payload.vault_key_id
+        )
+
+        if not vault_wrapped:
+            logger.error(f"{log_prefix} Vault Transit encrypt returned empty result")
+            raise HTTPException(status_code=500, detail="Vault key wrapping failed")
+
+        logger.info(f"{log_prefix} AES key wrapped successfully")
+        return UploadWrapKeyResponse(vault_wrapped_aes_key=vault_wrapped)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"{log_prefix} Vault key wrapping failed: {e}", exc_info=True)
+        raise HTTPException(status_code=503, detail=f"Encryption service unavailable: {str(e)}")
+
+
+class UploadStoreRecordRequest(BaseModel):
+    """Request model for storing an upload record in Directus."""
+    embed_id: str = Field(..., description="UUID used as embed_id in the embed system")
+    user_id: str = Field(..., description="User ID who uploaded the file")
+    content_hash: str = Field(..., description="SHA-256 hash of the original file content")
+    original_filename: str = Field(..., description="Original uploaded filename")
+    content_type: str = Field(..., description="Detected MIME type")
+    file_size_bytes: int = Field(..., description="Original file size in bytes")
+    s3_base_url: str = Field(..., description="S3 base URL for constructing full file URLs")
+    files_metadata: Dict[str, Any] = Field(..., description="Stored file variants metadata")
+    aes_key: str = Field(..., description="Base64 AES-256 key for client-side decryption")
+    aes_nonce: str = Field(..., description="Base64 AES-GCM nonce")
+    vault_wrapped_aes_key: str = Field(..., description="Vault-wrapped AES key for server-side access")
+    malware_scan: str = Field(default="clean", description="ClamAV scan result")
+    ai_detection: Optional[Dict[str, Any]] = Field(None, description="AI-generated detection result")
+    created_at: int = Field(..., description="Unix timestamp of upload")
+    # PDF-specific: number of pages extracted by pymupdf during upload.
+    # Stored so that deduplication responses can return the correct page_count
+    # without re-parsing the PDF on subsequent uploads of the same file.
+    page_count: Optional[int] = Field(None, description="Number of pages (PDFs only)")
+
+
+@router.post("/uploads/store-record")
+async def store_upload_record(
+    payload: UploadStoreRecordRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """
+    Store an upload record in Directus for future deduplication.
+
+    Called by the app-uploads microservice after a successful upload.
+    The record contains all metadata needed to reconstruct the upload response
+    if the same user uploads the same file again (deduplication).
+
+    Security:
+    - This endpoint only CREATES records in the upload_files collection.
+    - It does not read, update, or delete any existing records.
+    - The aes_key stored here is the same one already returned to the client;
+      it is NOT a new secret introduced by this endpoint.
+    """
+    log_prefix = f"[UploadStore] [user:{payload.user_id[:8]}...] [embed:{payload.embed_id[:8]}...]"
+    logger.info(f"{log_prefix} Storing upload record (hash={payload.content_hash[:16]}...)")
+
+    try:
+        record = payload.model_dump()
+        await directus_service.create_item("upload_files", record)
+        logger.info(f"{log_prefix} Upload record stored successfully")
+
+        # Increment the user's storage counter.
+        # This is a best-effort operation — if it fails, the weekly billing job
+        # will reconcile the counter from the upload_files table directly.
+        try:
+            user_data = await directus_service.get_items(
+                'directus_users',
+                params={'filter[id][_eq]': payload.user_id, 'fields': 'storage_used_bytes', 'limit': 1},
+            )
+            current_bytes = 0
+            if user_data and isinstance(user_data, list) and len(user_data) > 0:
+                current_bytes = int(user_data[0].get('storage_used_bytes') or 0)
+            new_bytes = current_bytes + payload.file_size_bytes
+            await directus_service.update_user(payload.user_id, {'storage_used_bytes': new_bytes})
+            logger.info(
+                f"{log_prefix} Storage counter updated: {current_bytes} → {new_bytes} bytes "
+                f"(+{payload.file_size_bytes} bytes)"
+            )
+        except Exception as counter_err:
+            # Non-fatal: weekly billing reconciliation will correct the counter.
+            logger.warning(
+                f"{log_prefix} Failed to update storage counter after upload: {counter_err}. "
+                f"Weekly billing job will reconcile."
+            )
+
+        return {"status": "success", "embed_id": payload.embed_id}
+
+    except Exception as e:
+        # Non-fatal: upload already succeeded (files in S3). Dedup just won't work
+        # for this file. Log the error but don't fail the upload.
+        logger.error(f"{log_prefix} Failed to store upload record: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to store upload record: {str(e)}")
+
+
+class UploadCacheEmbedRequest(BaseModel):
+    """
+    Request model for caching an upload embed in Redis so that app skills
+    (e.g. images-view, pdf-read) can look it up server-side.
+
+    Background: AI-generated embeds are cached in Redis by generate_task.py.
+    User-uploaded embeds were never cached, so images-view / pdf-read raised
+    "Embed not found in cache" when called on uploaded files.  This endpoint
+    bridges that gap by letting the upload server push the embed data into
+    Redis immediately after a successful upload.
+    """
+    embed_id: str = Field(..., description="UUID used as embed_id in the embed system")
+    user_id: str = Field(..., description="User ID who uploaded the file")
+    vault_wrapped_aes_key: str = Field(..., description="Vault-wrapped AES key (vault:v1:... string)")
+    aes_nonce: str = Field(..., description="Base64 AES-GCM nonce")
+    s3_base_url: str = Field(..., description="S3 base URL for constructing full file URLs")
+    files: Dict[str, Any] = Field(..., description="File variants metadata dict (original/full/preview etc.)")
+    content_type: str = Field(..., description="MIME type of the uploaded file (e.g. image/webp)")
+    original_filename: str = Field(..., description="Original uploaded filename")
+    ai_detection: Optional[Dict[str, Any]] = Field(None, description="AI-generated detection result")
+
+
+@router.post("/uploads/cache-embed")
+async def cache_upload_embed(
+    payload: UploadCacheEmbedRequest,
+    cache_service: CacheService = Depends(get_cache_service),
+) -> Dict[str, Any]:
+    """
+    Cache an upload embed in Redis so that app skills (images-view, pdf-read, etc.)
+    can retrieve it server-side.
+
+    Called by the app-uploads microservice immediately after a successful upload,
+    alongside /uploads/store-record.  Without this, skills that call
+    embed_service._lookup_embed_content() would get "Embed not found in cache"
+    because the upload pipeline previously never wrote to Redis.
+
+    The cached data mirrors the structure written by generate_task.py for
+    AI-generated images so that view_skill.py and read_skill.py can decrypt
+    and serve both kinds of embeds identically.
+
+    TTL: 72 hours (259200 s) — same as CHAT_MESSAGES_TTL.
+    """
+    import json as json_lib
+
+    log_prefix = f"[UploadCacheEmbed] [user:{payload.user_id[:8]}...] [embed:{payload.embed_id[:8]}...]"
+    logger.info(f"{log_prefix} Caching upload embed in Redis")
+
+    try:
+        client = await cache_service.client
+        if not client:
+            logger.warning(f"{log_prefix} Redis client not available — skipping embed cache")
+            return {"status": "skipped", "reason": "redis_unavailable"}
+
+        # Build embed data matching the structure expected by embed_service._lookup_embed_content()
+        # and view_skill._lookup_embed_content().  Key fields:
+        #   - vault_wrapped_aes_key: needed by the skill to decrypt S3 files
+        #   - s3_base_url + files: needed to construct download URLs
+        #   - aes_nonce: needed for AES-GCM decryption
+        #   - user_id: stored so the fallback persistence task can re-send if needed
+        embed_data: Dict[str, Any] = {
+            "embed_id": payload.embed_id,
+            "user_id": payload.user_id,
+            "type": "image",  # upload server currently handles images (and PDFs as "pdf")
+            "status": "finished",
+            "filename": payload.original_filename,
+            "content_type": payload.content_type,
+            "files": payload.files,
+            "s3_base_url": payload.s3_base_url,
+            "aes_nonce": payload.aes_nonce,
+            "vault_wrapped_aes_key": payload.vault_wrapped_aes_key,
+            "ai_detection": payload.ai_detection,
+            # skill_id / app_id are not set because this is a user upload, not a skill result
+        }
+        if payload.content_type == "application/pdf":
+            embed_data["type"] = "pdf"
+
+        cache_key = f"embed:{payload.embed_id}"
+        await client.set(cache_key, json_lib.dumps(embed_data), ex=259200)  # 72 hours
+
+        logger.info(f"{log_prefix} Upload embed cached at key '{cache_key}' (72h TTL)")
+        return {"status": "success", "embed_id": payload.embed_id}
+
+    except Exception as e:
+        # Non-fatal: the upload already succeeded (file is in S3 and Directus).
+        # Skills will fail with "not found in cache" rather than the upload itself failing.
+        logger.error(f"{log_prefix} Failed to cache upload embed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to cache upload embed: {str(e)}")
+
+
+# --- E2E Test Notification Endpoints ---
+
 class TestFailureNotificationPayload(BaseModel):
     """Payload for E2E test failure notification."""
     environment: str  # "development" or "production"
@@ -1018,3 +1559,495 @@ async def notify_test_run_summary(
             status_code=500,
             detail=f"Failed to dispatch notifications: {str(e)}"
         )
+
+
+# ---------------------------------------------------------------------------
+# PDF processing trigger endpoint
+# Called by the uploads server after a PDF is stored in S3.
+# Dispatches the background OCR/TOC/screenshot processing Celery task.
+# ---------------------------------------------------------------------------
+
+class PdfProcessPayload(BaseModel):
+    """Payload sent by the uploads server to trigger PDF background processing."""
+    embed_id: str = Field(..., description="Embed ID for the uploaded PDF.")
+    user_id: str = Field(..., description="User ID who uploaded the PDF.")
+    vault_key_id: str = Field(..., description="User's Vault Transit key ID for decryption.")
+    s3_key: str = Field(..., description="S3 key of the encrypted PDF file.")
+    s3_base_url: str = Field(..., description="S3 bucket base URL.")
+    vault_wrapped_aes_key: str = Field(..., description="Vault-wrapped AES key for the PDF.")
+    aes_nonce: str = Field(..., description="Base64 AES-GCM nonce for the PDF.")
+    filename: str = Field(..., description="Original filename of the PDF.")
+    page_count: int = Field(..., description="Number of pages in the PDF.")
+    credits_charged: int = Field(default=0, description="Credits charged upfront (for refund on failure).")
+    user_id_hash: str = Field(default="", description="SHA256 hash of user_id for billing.")
+    chat_id: Optional[str] = Field(None, description="Chat ID (may be available from context).")
+    message_id: Optional[str] = Field(None, description="Message ID (may be available from context).")
+
+
+@router.post("/pdf/process", status_code=202)
+async def trigger_pdf_processing(
+    payload: PdfProcessPayload,
+    cache_service: CacheService = Depends(get_cache_service),
+) -> Dict[str, Any]:
+    """
+    Trigger background PDF processing after a successful upload.
+
+    Called by the uploads microservice (fire-and-forget pattern).
+    Dispatches a Celery task on the app_pdf queue to run:
+      - Mistral OCR
+      - Page screenshot rendering (pymupdf)
+      - TOC and legend detection (Groq)
+      - S3 artefact upload
+      - Embed TOON content delivery to client
+
+    Also stores the Celery task ID in Redis under pdf_task:<embed_id> (TTL 2h)
+    so that a subsequent cancel request can revoke the task.
+
+    Returns 202 Accepted immediately; processing happens in the background.
+    """
+    logger.info(
+        f"[PDF Process] Triggering background processing for embed {payload.embed_id[:8]}... "
+        f"({payload.page_count} pages, user {payload.user_id[:8]}...)"
+    )
+
+    from backend.core.api.app.tasks.celery_config import send_task_validated
+
+    task_result = send_task_validated(
+        task_name="apps.pdf.tasks.process_pdf",
+        kwargs={"arguments": payload.dict()},
+        queue="app_pdf",
+    )
+
+    logger.info(
+        f"[PDF Process] Task dispatched: task_id={task_result.id}, "
+        f"embed_id={payload.embed_id[:8]}..."
+    )
+
+    # Cache the task ID so a cancel request can revoke it.
+    # TTL of 2 hours is generous — OCR tasks typically finish in under 5 minutes.
+    try:
+        await cache_service.set(
+            key=f"pdf_task:{payload.embed_id}",
+            value=task_result.id,
+            ttl=7200,
+        )
+    except Exception as cache_err:
+        # Non-fatal: cancel won't work but OCR will still complete.
+        logger.warning(
+            f"[PDF Process] Failed to cache task ID for embed {payload.embed_id[:8]}: {cache_err}"
+        )
+
+    return {
+        "status": "accepted",
+        "task_id": task_result.id,
+        "embed_id": payload.embed_id,
+        "page_count": payload.page_count,
+    }
+
+
+class PdfCancelPayload(BaseModel):
+    """Payload sent by the WebSocket handler to cancel an in-progress PDF OCR task."""
+    embed_id: str = Field(..., description="Embed ID whose Celery task should be revoked.")
+    user_id: str = Field(..., description="User ID — used for logging and auth verification.")
+
+
+@router.post("/pdf/cancel", status_code=200)
+async def cancel_pdf_processing(
+    payload: PdfCancelPayload,
+    cache_service: CacheService = Depends(get_cache_service),
+) -> Dict[str, Any]:
+    """
+    Cancel an in-progress PDF OCR Celery task.
+
+    Called by the cancel_pdf_processing WebSocket handler when the user presses
+    Stop during OCR processing (status='processing').
+
+    Flow:
+      1. Look up the Celery task ID stored at pdf_task:<embed_id> in Redis.
+      2. If found, revoke the task (with SIGTERM so it terminates cleanly).
+      3. Remove the Redis key so subsequent accidental calls are no-ops.
+
+    Returns 200 even if the task was not found (it may have already completed).
+    The client-side cleanup (delete embed node, deleteDraftEmbed) is handled
+    separately by the WebSocket handler.
+    """
+    logger.info(
+        f"[PDF Cancel] Cancel request for embed {payload.embed_id[:8]}... by user {payload.user_id[:8]}..."
+    )
+
+    # Look up the Celery task ID in Redis.
+    task_id: Optional[str] = None
+    try:
+        task_id = await cache_service.get(f"pdf_task:{payload.embed_id}")
+    except Exception as cache_err:
+        logger.warning(
+            f"[PDF Cancel] Failed to read task ID from cache for embed {payload.embed_id[:8]}: {cache_err}"
+        )
+
+    if not task_id:
+        logger.info(
+            f"[PDF Cancel] No pending task found for embed {payload.embed_id[:8]} — "
+            "task may have already completed or was never started."
+        )
+        return {"status": "not_found", "embed_id": payload.embed_id}
+
+    # Revoke the Celery task so the PDF worker stops processing.
+    # terminate=True sends SIGTERM to the worker process handling this task.
+    try:
+        from backend.core.api.app.tasks.celery_config import app as celery_app
+        celery_app.control.revoke(task_id, terminate=True, signal="SIGTERM")
+        logger.info(
+            f"[PDF Cancel] Revoked Celery task {task_id[:8]}... for embed {payload.embed_id[:8]}..."
+        )
+    except Exception as revoke_err:
+        logger.error(
+            f"[PDF Cancel] Failed to revoke task {task_id[:8]}: {revoke_err}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to revoke PDF processing task: {str(revoke_err)}",
+        )
+
+    # Remove the Redis key — the task is no longer cancellable.
+    try:
+        await cache_service.delete(f"pdf_task:{payload.embed_id}")
+    except Exception as del_err:
+        # Non-fatal — TTL will clean it up.
+        logger.warning(
+            f"[PDF Cancel] Failed to delete cached task ID for embed {payload.embed_id[:8]}: {del_err}"
+        )
+
+    return {
+        "status": "revoked",
+        "task_id": task_id,
+        "embed_id": payload.embed_id,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Content safety rejection tracking endpoint
+# Called by the upload server when SightEngine rejects a chat image or profile
+# image upload for nudity, violence, or gore.  Tracks per-user rejection counts
+# in Redis and deletes accounts that repeatedly upload policy-violating content.
+# ---------------------------------------------------------------------------
+
+class ContentSafetyRejectRequest(BaseModel):
+    """Payload sent by the upload server when SightEngine rejects an image."""
+    user_id: str = Field(..., description="ID of the user who uploaded the rejected image")
+    rejection_reason: str = Field(
+        ..., description="Short reason string from SightEngine (e.g. 'sexual_activity=0.95')"
+    )
+    upload_type: str = Field(
+        default="chat_image",
+        description="'chat_image' or 'profile_image' — separate Redis counters per type"
+    )
+
+
+@router.post("/uploads/content-safety-reject")
+async def content_safety_reject(
+    payload: ContentSafetyRejectRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> Dict[str, Any]:
+    """
+    Track a content safety rejection for a user and delete the account on the 4th violation.
+
+    Called by the app-uploads microservice when SightEngine (nudity-2.0, offensive, gore
+    models) rejects a user-uploaded image.  Mirrors the rejection tracking logic that was
+    previously inline in settings.py's update_profile_image endpoint.
+
+    Rejection counter logic:
+    - Redis key: "{upload_type}_rejects:{user_id}" — separate counter per upload type
+    - TTL: 24 hours (same as the original settings.py implementation)
+    - On 4th rejection (>= 4): delete the user account immediately
+    - Returns "tracked" on normal increments, "account_deleted" when the account is removed
+
+    Security:
+    - Protected by INTERNAL_API_SHARED_TOKEN (same as all /internal/* routes)
+    - Never modifies anything other than the reject counter and optional account deletion
+    """
+    log_prefix = f"[ContentSafetyReject] [user:{payload.user_id[:8]}...] [{payload.upload_type}]"
+    logger.info(
+        f"{log_prefix} Received rejection — reason: {payload.rejection_reason[:80]}"
+    )
+
+    # Redis key uses upload_type as prefix so chat_image and profile_image counters are
+    # tracked independently (the original settings.py used "profile_image_rejects:" only).
+    reject_key = f"{payload.upload_type}_rejects:{payload.user_id}"
+
+    try:
+        # Fetch current reject count from Redis
+        raw = await cache_service.get(reject_key)
+        reject_count = int(raw) if raw else 0
+
+        # Increment and persist with 24-hour TTL
+        reject_count += 1
+        await cache_service.set(reject_key, reject_count, ttl=86400)
+
+        logger.info(f"{log_prefix} Rejection count updated → {reject_count}")
+
+        if reject_count >= 4:
+            # Policy violation threshold reached — delete the account.
+            # We do NOT have the client IP / device fingerprint here (the upload server
+            # doesn't forward them to internal endpoints).  We pass None for those fields
+            # so the deletion is still logged correctly in Directus.
+            logger.warning(
+                f"{log_prefix} Threshold reached (count={reject_count}). "
+                f"Deleting user account."
+            )
+            try:
+                await directus_service.delete_user(
+                    payload.user_id,
+                    deletion_type="policy_violation",
+                    reason=f"repeated_inappropriate_{payload.upload_type}s",
+                    ip_address=None,
+                    device_fingerprint=None,
+                    details={
+                        "reject_count": reject_count,
+                        "upload_type": payload.upload_type,
+                        "timestamp": int(time.time()),
+                    },
+                )
+            except Exception as del_err:
+                logger.error(
+                    f"{log_prefix} Account deletion FAILED: {del_err}", exc_info=True
+                )
+                # Still clean up cache so subsequent requests don't keep incrementing
+                # a now-orphaned counter.  Fall through to return tracked.
+
+            # Clean up cache regardless of deletion success
+            await cache_service.delete_user_cache(payload.user_id)
+            await cache_service.delete(reject_key)
+
+            return {
+                "result": "account_deleted",
+                "reject_count": reject_count,
+            }
+
+        return {
+            "result": "tracked",
+            "reject_count": reject_count,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"{log_prefix} Unexpected error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Content safety rejection tracking failed: {str(e)}",
+        )
+
+
+# ---------------------------------------------------------------------------
+# Profile image processing endpoint
+# Called by the upload server after a profile image is stored in S3.
+# Encrypts the public image URL and updates the user's Directus profile + cache.
+# Does NOT update last_opened (user is past signup when using settings).
+# ---------------------------------------------------------------------------
+
+class ProfileImageProcessRequest(BaseModel):
+    """
+    Payload sent by the upload server after AES-encrypting and uploading a profile image.
+
+    The upload server performs AES-256-GCM encryption locally and uploads the ciphertext
+    to the private S3 bucket before calling this endpoint.  This endpoint then:
+    - Vault-wraps the plaintext AES key (the upload server never touches Vault)
+    - Reads and deletes the old profile_image_s3_key from S3 (to prevent orphaned blobs)
+    - Persists the three new encrypted-image fields to Directus
+    - Updates the Redis cache with the proxy URL for fast UI reads
+    """
+    user_id: str = Field(..., description="ID of the user whose profile image was uploaded")
+    s3_key: str = Field(..., description="S3 object key in the private profile-images bucket (e.g. '{user_id}-{ts}-{rand}.enc')")
+    aes_key_b64: str = Field(..., description="Plaintext AES-256 key (base64) — will be Vault-wrapped; NEVER stored as-is")
+    nonce_b64: str = Field(..., description="AES-GCM nonce (base64, 12 bytes)")
+    target_env: str = Field(default="prod", description="'dev' or 'prod' — selects the correct S3 bucket for old-key deletion")
+
+
+@router.post("/profile-image/process")
+async def process_profile_image(
+    payload: ProfileImageProcessRequest,
+    request: Request,
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> Dict[str, Any]:
+    """
+    Vault-wrap the AES key, clean up old S3 object, persist encrypted profile image fields.
+
+    Called by the app-uploads microservice (POST /v1/upload/profile-image) after
+    AES-256-GCM encrypting the image bytes and uploading the ciphertext to the
+    private S3 profile-images bucket.
+
+    Pipeline:
+    1. Fetch the user's vault_key_id (cache-first, then Directus)
+    2. Read existing profile_image_s3_key from Directus (needed for old-object cleanup)
+    3. Vault-wrap the plaintext AES key using the user's Transit key
+    4. Write profile_image_s3_key, encrypted_profile_image_aes_key, profile_image_aes_nonce
+       to Directus (intentionally NOT updating last_opened)
+    5. Delete the old S3 object from the private bucket (if one existed)
+    6. Update Redis cache with the proxy URL /v1/users/{user_id}/profile-image
+
+    Security:
+    - Protected by INTERNAL_API_SHARED_TOKEN (same as all /internal/* routes)
+    - Plaintext AES key is Vault-wrapped immediately; never stored in plaintext
+    - Old S3 objects are cleaned up to prevent orphaned encrypted blobs
+    """
+    log_prefix = f"[ProfileImageProcess] [user:{payload.user_id[:8]}...]"
+    logger.info(f"{log_prefix} Processing encrypted profile image (s3_key={payload.s3_key})")
+
+    proxy_url = f"/v1/users/{payload.user_id}/profile-image"
+
+    try:
+        # 1. Always fetch profile from Directus to get vault_key_id + existing s3_key for cleanup
+        # (Cache only stores a subset of fields; profile_image_s3_key is not cached)
+        vault_key_id = await cache_service.get_user_vault_key_id(payload.user_id)
+
+        profile_success, user_data, profile_msg = await directus_service.get_user_profile(
+            payload.user_id
+        )
+        if not profile_success or not user_data:
+            logger.error(f"{log_prefix} Could not fetch user profile: {profile_msg}")
+            raise HTTPException(status_code=404, detail="User not found")
+
+        if not vault_key_id:
+            vault_key_id = user_data.get("vault_key_id")
+            if not vault_key_id:
+                logger.error(f"{log_prefix} vault_key_id missing in Directus profile")
+                raise HTTPException(
+                    status_code=500,
+                    detail="User account incomplete: missing encryption key",
+                )
+            # Cache it so future requests skip the Directus round-trip
+            await cache_service.update_user(payload.user_id, {"vault_key_id": vault_key_id})
+
+        # Read old S3 key BEFORE overwriting so we can delete it after a successful write
+        old_s3_key: Optional[str] = user_data.get("profile_image_s3_key")
+        if old_s3_key:
+            logger.debug(f"{log_prefix} Existing profile_image_s3_key will be replaced: {old_s3_key}")
+
+        # 2. Vault-wrap the plaintext AES key using the user's Transit key.
+        # The wrapped (ciphertext) form is what gets stored in Directus.
+        # The plaintext key is never persisted.
+        wrapped_aes_key, _key_version = await encryption_service.encrypt_with_user_key(
+            payload.aes_key_b64, vault_key_id
+        )
+        if not wrapped_aes_key:
+            logger.error(f"{log_prefix} Vault Transit key-wrapping returned empty result")
+            raise HTTPException(status_code=500, detail="AES key wrapping failed")
+
+        # 3. Persist the three new encrypted-image fields to Directus.
+        # Intentionally NOT updating last_opened here.
+        success = await directus_service.update_user(
+            payload.user_id,
+            {
+                "profile_image_s3_key": payload.s3_key,
+                "encrypted_profile_image_aes_key": wrapped_aes_key,
+                "profile_image_aes_nonce": payload.nonce_b64,
+            },
+        )
+        if not success:
+            logger.error(f"{log_prefix} Directus update_user returned failure")
+            raise HTTPException(
+                status_code=500, detail="Failed to persist profile image to user profile"
+            )
+
+        # 4. Delete the old encrypted S3 object (only after a successful Directus write).
+        # Non-fatal: if deletion fails the old blob is orphaned but the new image is live.
+        if old_s3_key:
+            try:
+                s3_service = request.app.state.s3_service
+                await s3_service.delete_file("profile_images_private", old_s3_key)
+                logger.info(f"{log_prefix} Deleted old profile image S3 object: {old_s3_key}")
+            except Exception as e:
+                logger.warning(
+                    f"{log_prefix} Failed to delete old S3 object {old_s3_key}: {e} "
+                    f"(Directus updated successfully — new image is active)"
+                )
+
+        # 5. Update Redis cache with the proxy URL for fast UI reads
+        cache_success = await cache_service.update_user(
+            payload.user_id,
+            {"profile_image_url": proxy_url},
+        )
+        if not cache_success:
+            # Non-fatal: Directus is source of truth; cache refreshes on next login
+            logger.warning(
+                f"{log_prefix} Redis cache update failed (Directus was updated successfully)"
+            )
+
+        logger.info(f"{log_prefix} Encrypted profile image processed successfully → {proxy_url}")
+        return {"status": "ok", "url": proxy_url}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"{log_prefix} Unexpected error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Profile image processing failed: {str(e)}",
+        )
+
+
+# ---------------------------------------------------------------------------
+# S3 file download endpoint (internal, for app containers)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/s3/download")
+async def download_s3_file(
+    request: Request,
+    bucket_key: str = Query(..., description="Bucket config key (e.g. 'chatfiles')"),
+    s3_key: str = Query(..., description="S3 object key"),
+    s3_service: S3UploadService = Depends(get_s3_service),
+):
+    """
+    Download an encrypted file from S3 and return its raw bytes.
+
+    Internal-only endpoint for app containers (app-images, app-audio, app-pdf)
+    that need to fetch encrypted files from the private chatfiles bucket.
+    The chatfiles bucket is private — direct HTTP GET is no longer allowed.
+    This endpoint uses boto3 get_object with server-side credentials.
+
+    Args:
+        bucket_key: Bucket config key (e.g. "chatfiles", "invoices").
+        s3_key: Full S3 object key.
+
+    Returns:
+        Raw bytes of the S3 object (encrypted ciphertext).
+
+    Raises:
+        400: Invalid bucket_key or s3_key.
+        404: File not found in S3.
+        500: Download failed.
+    """
+    from backend.core.api.app.services.s3.config import get_bucket_name
+
+    if not s3_key or not s3_key.strip():
+        raise HTTPException(status_code=400, detail="s3_key is required")
+    if ".." in s3_key or s3_key.startswith("/") or "://" in s3_key:
+        raise HTTPException(status_code=400, detail="Invalid s3_key")
+
+    try:
+        environment = os.getenv("SERVER_ENVIRONMENT", "development")
+        bucket_name = get_bucket_name(bucket_key, environment)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Unknown bucket: {bucket_key}")
+
+    try:
+        content = await s3_service.get_file(bucket_name=bucket_name, object_key=s3_key)
+        if content is None:
+            raise HTTPException(status_code=404, detail=f"File not found: {s3_key}")
+
+        return Response(
+            content=content,
+            media_type="application/octet-stream",
+            headers={"Cache-Control": "no-store"},
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[S3 Download] Failed for {bucket_key}/{s3_key}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"S3 download failed: {str(e)}")

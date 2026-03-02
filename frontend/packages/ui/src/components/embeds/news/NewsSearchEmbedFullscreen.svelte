@@ -68,12 +68,20 @@
     onNavigatePrevious?: () => void;
     /** Handler to navigate to the next embed */
     onNavigateNext?: () => void;
+    /** Direction of navigation ('previous' | 'next') — set transiently during prev/next transitions */
+    navigateDirection?: 'previous' | 'next';
     /** Whether to show the "chat" button to restore chat visibility (ultra-wide forceOverlayMode) */
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button to restore chat visibility */
     onShowChat?: () => void;
+    /**
+     * Child embed ID to auto-open on mount (set when arriving from an inline badge click).
+     * When provided, the fullscreen will immediately open the NewsEmbedFullscreen overlay
+     * for that specific article once results have loaded.
+     */
+    initialChildEmbedId?: string;
   }
-  
+
   let {
     query,
     provider,
@@ -85,8 +93,10 @@
     hasNextEmbed = false,
     onNavigatePrevious,
     onNavigateNext,
+    navigateDirection,
     showChatButton = false,
-    onShowChat
+    onShowChat,
+    initialChildEmbedId
   }: Props = $props();
   
   // Debug: Log what props NewsSearchEmbedFullscreen receives
@@ -105,23 +115,35 @@
   
   // ============================================
   // State: Track which article is shown in fullscreen
+  // Index-based so prev/next can navigate between siblings
   // ============================================
   
-  /** Currently selected article for fullscreen view (null = show search results) */
-  let selectedArticle = $state<NewsSearchResult | null>(null);
+  /** Index of selected article in allNewsResults (-1 = none) */
+  let selectedArticleIndex = $state<number>(-1);
+  
+  /** Flat array of all loaded news results for sibling navigation */
+  let allNewsResults = $state<NewsSearchResult[]>([]);
+
+  /** Guard: prevent the auto-open $effect from firing more than once per mount. */
+  let _autoOpenFired = $state(false);
+  
+  /** Currently selected article (derived from index) */
+  let selectedArticle = $derived(selectedArticleIndex >= 0 ? allNewsResults[selectedArticleIndex] ?? null : null);
   
   // Determine if mobile layout
   let isMobile = $derived(
     typeof window !== 'undefined' && window.innerWidth <= 500
   );
   
-  // Get skill name from translations (matches preview)
-  let skillName = $derived($text('embeds.search'));
-  
   // Get "via {provider}" text from translations
   let viaProvider = $derived(
     `${$text('embeds.via')} ${provider}`
   );
+
+  // Header props for gradient banner
+  // Use the search query as the title so users see what was searched
+  let embedHeaderTitle = $derived(query);
+  let embedHeaderSubtitle = $derived(viaProvider);
   
   /**
    * Transform raw embed content to NewsSearchResult format
@@ -182,8 +204,8 @@
   // share context and properly opens the settings panel (including on mobile).
   
   /**
-   * Handle article click - shows the article in fullscreen mode
-   * Uses NewsEmbedFullscreen for full article view experience
+   * Handle article click - shows the article in fullscreen mode.
+   * Uses index-based selection so prev/next arrows navigate within siblings.
    */
   function handleArticleFullscreen(articleData: NewsSearchResult) {
     console.debug('[NewsSearchEmbedFullscreen] Opening article fullscreen:', {
@@ -191,31 +213,89 @@
       url: articleData.url,
       title: articleData.title
     });
-    selectedArticle = articleData;
+    const idx = allNewsResults.findIndex(r => r.embed_id === articleData.embed_id);
+    if (idx >= 0) {
+      selectedArticleIndex = idx;
+    } else {
+      // Fallback: item not yet in allNewsResults, add it
+      allNewsResults = [articleData];
+      selectedArticleIndex = 0;
+    }
   }
   
   /**
-   * Handle closing the article fullscreen - returns to search results
-   * Called when user clicks minimize button on NewsEmbedFullscreen
+   * Handle closing the article fullscreen.
+   *
+   * When opened via inline badge (initialChildEmbedId set): close the entire
+   * fullscreen immediately — no parent results grid expected.
+   * When opened normally (card click): return to the parent search results grid.
    */
   function handleArticleFullscreenClose() {
-    console.debug('[NewsSearchEmbedFullscreen] Closing article fullscreen, returning to search results');
-    selectedArticle = null;
+    if (initialChildEmbedId) {
+      // Opened via inline badge — skip the parent grid and close completely
+      console.debug('[NewsSearchEmbedFullscreen] Closing article fullscreen (inline badge origin) — closing entire fullscreen');
+      onClose();
+    } else {
+      console.debug('[NewsSearchEmbedFullscreen] Closing article fullscreen, returning to search results');
+      selectedArticleIndex = -1;
+    }
   }
   
+  /** Navigate to the previous sibling article */
+  function handleArticleNavigatePrevious() {
+    if (selectedArticleIndex > 0) selectedArticleIndex -= 1;
+  }
+  
+  /** Navigate to the next sibling article */
+  function handleArticleNavigateNext() {
+    if (selectedArticleIndex < allNewsResults.length - 1) selectedArticleIndex += 1;
+  }
+
   /**
    * Handle closing the entire search fullscreen
    * Called when user closes the main NewsSearchEmbedFullscreen
    */
   function handleMainClose() {
-    // If an article is open, first close it and return to search results
-    if (selectedArticle) {
-      selectedArticle = null;
+    // If an article is open AND we were NOT opened via inline badge,
+    // return to the parent search results grid first.
+    // If opened via inline badge, close the entire fullscreen immediately.
+    if (selectedArticleIndex >= 0 && !initialChildEmbedId) {
+      selectedArticleIndex = -1;
     } else {
-      // Otherwise, close the entire fullscreen
       onClose();
     }
   }
+
+  /**
+   * Auto-open the article overlay for a specific child embed when the fullscreen
+   * is opened via an inline badge click (initialChildEmbedId is set).
+   * Fires at most once per mount (_autoOpenFired guard) to prevent re-opening
+   * after the user closes the child overlay.
+   */
+  $effect(() => {
+    if (!initialChildEmbedId) return;
+    if (_autoOpenFired) return; // fire at most once per mount
+    if (allNewsResults.length === 0) return; // results not yet loaded
+
+    const idx = allNewsResults.findIndex(r => r.embed_id === initialChildEmbedId);
+    if (idx >= 0) {
+      console.debug(
+        '[NewsSearchEmbedFullscreen] Auto-opening article overlay for initialChildEmbedId:',
+        initialChildEmbedId,
+        'at index',
+        idx,
+      );
+      _autoOpenFired = true;
+      handleArticleFullscreen(allNewsResults[idx]);
+    } else {
+      console.warn(
+        '[NewsSearchEmbedFullscreen] initialChildEmbedId not found in loaded results:',
+        initialChildEmbedId,
+        'available embed_ids:',
+        allNewsResults.map(r => r.embed_id),
+      );
+    }
+  });
 </script>
 
 <!-- 
@@ -241,31 +321,25 @@
 <UnifiedEmbedFullscreen
   appId="news"
   skillId="search"
-  title=""
   onClose={handleMainClose}
   currentEmbedId={embedId}
   skillIconName="search"
-  status="finished"
-  {skillName}
-  showStatus={true}
+  embedHeaderTitle={embedHeaderTitle}
+  embedHeaderSubtitle={embedHeaderSubtitle}
   {embedIds}
   childEmbedTransformer={transformToNewsResult}
   legacyResults={resultsProp}
+  onChildrenLoaded={(children) => { allNewsResults = children as NewsSearchResult[]; }}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
   {onNavigateNext}
+  {navigateDirection}
   {showChatButton}
   {onShowChat}
 >
   {#snippet content(ctx)}
     {@const newsResults = getNewsResults(ctx)}
-    
-    <!-- Header with search query and provider - 60px top margin, 40px bottom margin -->
-    <div class="fullscreen-header">
-      <div class="search-query">{query}</div>
-      <div class="search-provider">{viaProvider}</div>
-    </div>
     
     {#if ctx.isLoadingChildren}
       <div class="loading-state">
@@ -298,6 +372,7 @@
 
 <!-- Article fullscreen overlay - rendered ON TOP when an article is selected -->
 <!-- Uses ChildEmbedOverlay for consistent overlay positioning across all search fullscreens -->
+<!-- Sibling navigation: prev/next cycle through all search result articles -->
 {#if selectedArticle}
   <ChildEmbedOverlay>
     <NewsEmbedFullscreen
@@ -308,43 +383,15 @@
       thumbnail={selectedArticle.thumbnail}
       onClose={handleArticleFullscreenClose}
       embedId={selectedArticle.embed_id}
+      hasPreviousEmbed={selectedArticleIndex > 0}
+      hasNextEmbed={selectedArticleIndex < allNewsResults.length - 1}
+      onNavigatePrevious={handleArticleNavigatePrevious}
+      onNavigateNext={handleArticleNavigateNext}
     />
   </ChildEmbedOverlay>
 {/if}
 
 <style>
-  /* ===========================================
-     Fullscreen Header - Query and Provider
-     =========================================== */
-  
-  .fullscreen-header {
-    margin-top: 60px;
-    margin-bottom: 40px;
-    padding: 0 16px;
-    text-align: center;
-  }
-  
-  .search-query {
-    font-size: 24px;
-    font-weight: 600;
-    color: var(--color-font-primary);
-    line-height: 1.3;
-    word-break: break-word;
-    /* Limit to 3 lines with ellipsis */
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  
-  .search-provider {
-    font-size: 16px;
-    color: var(--color-font-secondary);
-    margin-top: 8px;
-  }
-  
   /* ===========================================
      Loading and No Results States
      =========================================== */

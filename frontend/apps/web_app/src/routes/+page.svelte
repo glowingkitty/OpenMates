@@ -42,12 +42,20 @@
 		text,
 		LANGUAGE_CODES,
 		forcedLogoutInProgress,
+		setForcedLogoutInProgress,
+		resetForcedLogoutInProgress,
 		isPublicChat,
 		loadSessionStorageDraft,
 		getAllDraftChatIdsWithDrafts,
-		NEW_CHAT_SENTINEL
+		NEW_CHAT_SENTINEL,
+		loadCommunityDemos,
+		loadDefaultInspirations
 	} from '@repo/ui';
-	import { checkAndClearMasterKeyOnLoad } from '@repo/ui';
+	import {
+		checkAndClearMasterKeyOnLoad,
+		isProgrammaticHashUpdate,
+		isProgrammaticEmbedHashUpdate
+	} from '@repo/ui';
 	import { onMount, onDestroy, untrack } from 'svelte';
 	import { locale, waitLocale } from 'svelte-i18n';
 	import { get } from 'svelte/store';
@@ -122,9 +130,14 @@
 	 * Supports both user chats (from IndexedDB) and demo/legal chats (from static data)
 	 * After loading, immediately clears the URL to prevent sharing chat history
 	 */
-	async function handleChatDeepLink(chatId: string, messageId?: string | null) {
+	async function handleChatDeepLink(
+		chatId: string,
+		messageId?: string | null,
+		scrollToLatestResponse?: boolean,
+		embedId?: string | null
+	) {
 		console.debug(
-			`[+page.svelte] Handling chat deep link for: ${chatId}${messageId ? `, message: ${messageId}` : ''}`
+			`[+page.svelte] Handling chat deep link for: ${chatId}${messageId ? `, message: ${messageId}` : ''}${scrollToLatestResponse ? ' (scroll to latest response)' : ''}${embedId ? `, embed: ${embedId}` : ''}`
 		);
 
 		// If messageId is provided, set it in the highlight store
@@ -174,7 +187,7 @@
 					const translatedChat = translateDemoChat(publicChat);
 					const chat = convertDemoChatToChat(translatedChat);
 
-					activeChat.loadChat(chat);
+					activeChat.loadChat(chat, { scrollToLatestResponse });
 
 					// Dispatch globalChatSelected event so Chats.svelte highlights the chat
 					const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
@@ -190,6 +203,14 @@
 
 					// Keep the URL hash so users can share/bookmark the chat
 					// The activeChatStore.setActiveChat() call above already updated the hash
+
+					// If a combined hash included an embed ID, open it in fullscreen after loading the chat
+					if (embedId) {
+						console.debug(
+							`[+page.svelte] Opening embed ${embedId} after loading public chat ${chatId}`
+						);
+						await handleEmbedDeepLink(embedId);
+					}
 					return;
 				} else if (retries > 0) {
 					const delay = retries > 10 ? 50 : 100;
@@ -236,7 +257,7 @@
 
 				const loadSessionStorageChat = async (retries = 20): Promise<void> => {
 					if (activeChat) {
-						activeChat.loadChat(virtualChat);
+						activeChat.loadChat(virtualChat, { scrollToLatestResponse });
 
 						// Dispatch globalChatSelected event so Chats.svelte highlights the chat
 						const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
@@ -249,6 +270,14 @@
 							`[+page.svelte] Dispatched globalChatSelected for sessionStorage draft chat:`,
 							chatId
 						);
+
+						// If a combined hash included an embed ID, open it in fullscreen
+						if (embedId) {
+							console.debug(
+								`[+page.svelte] Opening embed ${embedId} after loading sessionStorage chat ${chatId}`
+							);
+							await handleEmbedDeepLink(embedId);
+						}
 						return;
 					} else if (retries > 0) {
 						const delay = retries > 10 ? 50 : 100;
@@ -277,7 +306,7 @@
 
 					// Load the chat if activeChat component is ready
 					if (activeChat) {
-						activeChat.loadChat(chat);
+						activeChat.loadChat(chat, { scrollToLatestResponse });
 
 						// Dispatch globalChatSelected event so Chats.svelte highlights the chat
 						const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
@@ -293,6 +322,14 @@
 
 						// Keep the URL hash so users can share/bookmark the chat
 						// The activeChatStore.setActiveChat() call above already updated the hash
+
+						// If a combined hash included an embed ID, open it in fullscreen after the chat loads
+						if (embedId) {
+							console.debug(
+								`[+page.svelte] Opening embed ${embedId} after loading chat ${chatId} from IndexedDB`
+							);
+							await handleEmbedDeepLink(embedId);
+						}
 						return; // Success - exit
 					} else if (retries > 0) {
 						// If activeChat isn't ready yet, wait a bit and retry
@@ -346,22 +383,34 @@
 			);
 			await loadChatFromIndexedDB();
 		} else {
-			// For authenticated users, wait for sync to complete
-			const handlePhasedSyncComplete = async () => {
+			// For authenticated users, we MUST wait for phased sync to complete before loading
+			// the chat. The phased sync (Phase 2+) is responsible for decrypting and caching
+			// chat keys in IndexedDB. If we call loadChat() before that, ActiveChat.loadChat()
+			// will call resetChatHeaderState() (clearing title/category) and then fail to
+			// decrypt the title/category because the chat key isn't cached yet — leaving the
+			// header blank and the title as '' indefinitely.
+			//
+			// IMPORTANT: Do NOT use a timeout fallback here. A premature load (even 1s after
+			// page load) may still beat Phase 2, causing the exact race condition we're fixing.
+			// Instead, check if sync has already completed (e.g., navigating from another page
+			// within the same session) and either load immediately or wait for the event.
+			const syncState = get(phasedSyncState);
+			if (syncState.initialSyncCompleted) {
+				// Sync already done in this session — load immediately
 				console.debug(
-					`[+page.svelte] Phased sync complete, attempting to load deep-linked chat: ${chatId}`
+					`[+page.svelte] Phased sync already complete, loading deep-linked chat immediately: ${chatId}`
 				);
 				await loadChatFromIndexedDB();
-				// Remove the listener after handling
-				chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncComplete);
-			};
-
-			// Register listener for phased sync completion
-			chatSyncService.addEventListener('phasedSyncComplete', handlePhasedSyncComplete);
-
-			// Also try immediately in case sync already completed
-			// (e.g., page reload with URL already set)
-			setTimeout(handlePhasedSyncComplete, 1000);
+			} else {
+				// Sync not yet complete — register event listener and wait
+				// CRITICAL: No setTimeout fallback — a premature load causes missing chat header
+				const handlePhasedSyncComplete = async () => {
+					console.debug(`[+page.svelte] Phased sync complete, loading deep-linked chat: ${chatId}`);
+					await loadChatFromIndexedDB();
+					chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncComplete);
+				};
+				chatSyncService.addEventListener('phasedSyncComplete', handlePhasedSyncComplete);
+			}
 		}
 	}
 
@@ -606,6 +655,7 @@
 		const publicSettings = [
 			'app_store',
 			'appstore', // Alias
+			'mates', // Mates browsing (read-only for unauthenticated users)
 			'interface',
 			'main', // Main settings page
 			'newsletter', // Newsletter settings (for email link actions)
@@ -683,10 +733,47 @@
 	onMount(async () => {
 		console.debug('[+page.svelte] onMount started');
 
+		// Load community demo chats (example chats) on page load so they appear in for-everyone
+		// and for-developers intro chats without requiring the sidebar (Chats) to be opened first.
+		loadCommunityDemos().catch((error) => {
+			console.error('[+page.svelte] Error loading community demos:', error);
+		});
+
+		// Load default Daily Inspirations from server (published entries curated by admin).
+		// Populates dailyInspirationStore only if it is still empty (personalized ones via
+		// WebSocket have priority). Non-fatal — banner stays hidden if server is unreachable.
+		loadDefaultInspirations().catch((error) => {
+			console.error('[+page.svelte] Error loading default inspirations:', error);
+		});
+
 		// CRITICAL: Read and store the ORIGINAL hash value BEFORE anything can modify it
 		// This ensures we can check for hash chat even if welcome chat loading overwrites the hash
 		const originalHash = browser ? window.location.hash : '';
 		console.debug('[+page.svelte] [INIT] Original hash from URL:', originalHash);
+
+		// SHARE-REDIRECT: Detect #share-chat-id={chatId}&key={blob} hash produced by +server.ts
+		// When a user opens /share/chat/{chatId}#key=... directly (fresh browser load),
+		// +server.ts serves OG-tag HTML that redirects to /#share-chat-id={chatId}&key={blob}.
+		// Here we detect that hash and use SvelteKit goto() for client-side navigation to
+		// /share/chat/{chatId}#key={blob} which loads +page.svelte (decrypts + stores the chat).
+		// The encryption key stays in the URL fragment and is never sent to the server.
+		if (browser && originalHash.startsWith('#share-chat-id=')) {
+			const shareChatParams = originalHash.substring('#share-chat-id='.length); // "chatId&key=blob"
+			const ampIndex = shareChatParams.indexOf('&');
+			if (ampIndex !== -1) {
+				const shareChatId = shareChatParams.substring(0, ampIndex);
+				const keyFragment = shareChatParams.substring(ampIndex + 1); // "key=blob" or "key=blob&messageid=..."
+				const shareUrl = `/share/chat/${shareChatId}#${keyFragment}`;
+				console.debug(
+					'[+page.svelte] [SHARE-REDIRECT] Detected share-chat-id hash, navigating to share page:',
+					shareUrl
+				);
+				const { goto } = await import('$app/navigation');
+				await goto(shareUrl);
+				// Navigation handed off to the share page — stop processing this page's onMount
+				return;
+			}
+		}
 
 		// SECURITY: Check if master key should be cleared (if stayLoggedIn was false)
 		// This must happen BEFORE loading user data to ensure key is cleared if needed
@@ -721,7 +808,7 @@
 				console.debug(
 					'[+page.svelte] Resetting forcedLogoutInProgress to false - valid auth data found'
 				);
-				forcedLogoutInProgress.set(false);
+				resetForcedLogoutInProgress();
 			}
 
 			authStore.update((state) => ({
@@ -748,22 +835,40 @@
 				console.debug(
 					'[+page.svelte] Setting forcedLogoutInProgress=true IMMEDIATELY to prevent encrypted chat loading'
 				);
-				forcedLogoutInProgress.set(true);
+				setForcedLogoutInProgress();
 
-				// Show auto-logout notification explaining the user needs "Stay logged in"
+				// Show auto-logout notification with context-appropriate message.
 				// This must be triggered here because checkAuth() will skip its notification
 				// when forcedLogoutInProgress is already true (to prevent duplicate triggers).
 				// Use setTimeout to ensure the notification container is rendered first.
-				setTimeout(() => {
+				setTimeout(async () => {
 					const t = get(text);
-					notificationStore.autoLogout(
-						t('login.auto_logout_notification.message'),
-						undefined,
-						7000,
-						t('login.auto_logout_notification.title')
-					);
+					const { wasStayLoggedIn } = await import('@repo/ui');
+					const wasStorageEvicted = wasStayLoggedIn();
+
+					if (wasStorageEvicted) {
+						// User had stayLoggedIn=true but browser evicted IndexedDB
+						// Show reassuring message that data is safe
+						console.warn(
+							'[+page.svelte] Storage eviction detected: user had stayLoggedIn=true but master key is missing'
+						);
+						notificationStore.autoLogout(
+							t('login.auto_logout_notification.storage_evicted_message'),
+							undefined,
+							10000,
+							t('login.auto_logout_notification.storage_evicted_title')
+						);
+					} else {
+						// Normal case: stayLoggedIn=false, suggest enabling it
+						notificationStore.autoLogout(
+							t('login.auto_logout_notification.message'),
+							undefined,
+							7000,
+							t('login.auto_logout_notification.title')
+						);
+					}
 					console.debug(
-						'[+page.svelte] Showed auto-logout notification for stayLoggedIn=false reload'
+						`[+page.svelte] Showed auto-logout notification (storageEvicted=${wasStorageEvicted})`
 					);
 				}, 500);
 
@@ -772,10 +877,20 @@
 				if (originalHash) {
 					let hashChatId: string | null = null;
 					if (originalHash.startsWith('#chat-id=')) {
-						hashChatId = originalHash.substring('#chat-id='.length);
+						// Extract only the chat ID — stop at '&' to avoid including key= parameters
+						const rawValue = originalHash.substring('#chat-id='.length);
+						const ampPos = rawValue.indexOf('&');
+						hashChatId = ampPos !== -1 ? rawValue.substring(0, ampPos) : rawValue;
 					}
 
-					if (hashChatId && !isPublicChat(hashChatId)) {
+					// SHARE-LINK GUARD: If the hash contains '&key=', this is a share link redirect
+					// from the old +server.ts format (#chat-id={chatId}&key={blob}).
+					// Do NOT clear this hash — it needs to be processed as a share link.
+					// Note: The new +server.ts uses #share-chat-id=... which is handled above (early return).
+					// This guard handles any lingering old-format redirects gracefully.
+					const isShareLinkHash = originalHash.includes('&key=');
+
+					if (hashChatId && !isPublicChat(hashChatId) && !isShareLinkHash) {
 						console.debug(
 							`[+page.svelte] URL hash points to encrypted chat ${hashChatId} - clearing hash and loading demo-for-everyone`
 						);
@@ -884,9 +999,8 @@
 				locale.set(langParam);
 				await waitLocale();
 
-				// Save to localStorage and cookies
+				// Save to localStorage (sole source of truth for language preference)
 				localStorage.setItem('preferredLanguage', langParam);
-				document.cookie = `preferredLanguage=${langParam}; path=/; max-age=31536000; SameSite=Lax`;
 
 				// Update HTML lang attribute
 				document.documentElement.setAttribute('lang', langParam);
@@ -1538,6 +1652,11 @@
 		// These cards are nested deep in message content and can't use Svelte events
 		window.addEventListener('demoChatSelected', handleDemoChatSelected);
 
+		// Listen for ChatHeader arrow navigation events from chatNavigationStore.
+		// These fire when the user clicks prev/next arrows in the chat header banner.
+		// Works even when the sidebar is closed because the store holds the chat list.
+		window.addEventListener('chatHeaderNavigation', handleChatHeaderNavigation);
+
 		// Listen for pending deep link processing after successful login
 		// This handles cases where user opened a deep link while not authenticated
 		const pendingDeepLinkHandlerWrapper = (event: Event) => {
@@ -1576,6 +1695,8 @@
 		}
 		// Remove demo chat selection event listener
 		window.removeEventListener('demoChatSelected', handleDemoChatSelected);
+		// Remove ChatHeader arrow navigation event listener
+		window.removeEventListener('chatHeaderNavigation', handleChatHeaderNavigation);
 		// Note: hashchange, visibilitychange, pagehide, and beforeunload handlers are cleaned up automatically on page unload
 	});
 
@@ -1693,7 +1814,12 @@
 	 */
 	function createDeepLinkHandlers(): DeepLinkHandlers {
 		return {
-			onChat: async (chatId: string, messageId?: string | null) => {
+			onChat: async (
+				chatId: string,
+				messageId?: string | null,
+				scrollToLatestResponse?: boolean,
+				embedId?: string | null
+			) => {
 				// Update originalHashChatId to reflect the new hash (important for sync completion handler)
 				originalHashChatId = chatId;
 
@@ -1701,7 +1827,7 @@
 				isProcessingInitialHash = true;
 				deepLinkProcessed = true; // Mark that a deep link was processed
 
-				await handleChatDeepLink(chatId, messageId);
+				await handleChatDeepLink(chatId, messageId, scrollToLatestResponse, embedId);
 
 				// Reset flag after processing
 				isProcessingInitialHash = false;
@@ -1723,6 +1849,20 @@
 				// Handle the case where no hash is present - load appropriate default chat
 				const isAuth = $authStore.isAuthenticated;
 				console.debug('[+page.svelte] onNoHash: Determining default chat to load', { isAuth });
+
+				// CRITICAL: Do NOT override a new-chat session with demo-for-everyone.
+				// When the user clicks "new chat", handleNewChatClick() in ActiveChat calls
+				// activeChatStore.clearActiveChat() which sets hash to '' and fires a hashchange.
+				// If the programmatic-guard 100ms window has expired (can happen on slow mobile
+				// or when the async import below takes time), onNoHash fires and would call
+				// loadDemoWelcomeChat, overwriting the new-chat state. Guard against this with
+				// the phasedSyncState sentinel that handleNewChatClick sets before clearing the hash.
+				if (get(phasedSyncState).currentActiveChatId === NEW_CHAT_SENTINEL) {
+					console.debug(
+						'[+page.svelte] onNoHash: user is in new-chat mode, skipping default chat load'
+					);
+					return;
+				}
 
 				if (isAuth) {
 					// For authenticated users: try to load last_opened chat, otherwise create new chat
@@ -1747,19 +1887,46 @@
 	 * CRITICAL: Ignores programmatic hash updates to prevent infinite loops
 	 */
 	async function handleHashChange() {
-		// Import the check function
-		const { isProgrammaticHashUpdate, isProgrammaticEmbedHashUpdate } = await import('@repo/ui');
-
-		// Ignore hash changes that we triggered programmatically (prevents infinite loops)
+		// CRITICAL: Check programmatic-update guard SYNCHRONOUSLY before any await.
+		// The previous pattern did `await import('@repo/ui')` first, which takes ~10-50ms
+		// on mobile. By the time isProgrammaticHashUpdate() was called, the 100ms guard
+		// window had already expired, causing programmatic hash clears (from clearActiveChat
+		// in handleNewChatClick) to be treated as real user navigation — triggering
+		// loadDemoWelcomeChat and overwriting the new-chat state just as the user sent a message.
 		if (isProgrammaticHashUpdate() || isProgrammaticEmbedHashUpdate()) {
 			console.debug('[+page.svelte] Ignoring programmatic hash update');
 			return;
 		}
 
-		console.debug('[+page.svelte] Hash changed:', window.location.hash);
+		// CRITICAL: Ignore hash changes that are purely the embed opening on an already-active chat.
+		// When the user clicks an embed, handleEmbedFullscreen() calls
+		// activeEmbedStore.setActiveEmbed(embedId, chatId), which writes
+		// #chat-id=X&embed-id=Y.  The isProgrammaticEmbedHashUpdate() guard above relies on a
+		// 100ms timestamp window; if the async resolveEmbed / decodeToonContent work in
+		// handleEmbedFullscreen takes longer than that, the guard expires BEFORE setActiveEmbed
+		// is called, so the window is already open when the hashchange fires.
+		// In that case we fall through to processDeepLink → onChat → handleChatDeepLink, which
+		// calls loadChat() (closing the embed) and then handleEmbedDeepLink() (reopening it) —
+		// the visible open→close→open glitch.
+		// Fix: if the new hash encodes a chat that is already active AND includes an embed-id,
+		// this is purely the embed opening — not a real navigation.  Skip it entirely.
+		const newHash = window.location.hash;
+		const combinedEmbedMatch = newHash.match(/^#chat-id=([^&]+)&embed-id=(.+)$/);
+		if (combinedEmbedMatch) {
+			const hashChatId = combinedEmbedMatch[1];
+			if ($activeChatStore === hashChatId) {
+				console.debug(
+					'[+page.svelte] Ignoring embed-open hash change for already-active chat:',
+					hashChatId
+				);
+				return;
+			}
+		}
+
+		console.debug('[+page.svelte] Hash changed:', newHash);
 
 		const handlers = createDeepLinkHandlers();
-		await processDeepLink(window.location.hash, handlers);
+		await processDeepLink(newHash, handlers);
 	}
 
 	// Add handler for chatSelected event
@@ -1854,6 +2021,54 @@
 		console.log('[+page.svelte] === handleDemoChatSelected END ===');
 	}
 
+	/**
+	 * Handle chat navigation from ChatHeader prev/next arrows.
+	 * Dispatched by chatNavigationStore.navigatePrev()/navigateNext() as a
+	 * 'chatHeaderNavigation' window event. This works even when the sidebar
+	 * (Chats.svelte) is closed because the store persists the chat list.
+	 *
+	 * The event detail contains { chat, scrollToTop } — we pass scrollToTop
+	 * through to loadChat so the chat always starts scrolled to the top,
+	 * showing the ChatHeader banner.
+	 */
+	async function handleChatHeaderNavigation(event: Event) {
+		const customEvent = event as CustomEvent;
+		const selectedChat: Chat = customEvent.detail?.chat;
+		const scrollToTop: boolean = customEvent.detail?.scrollToTop ?? false;
+
+		if (!selectedChat?.chat_id) {
+			console.warn(
+				'[+page.svelte] chatHeaderNavigation event missing chat data:',
+				customEvent.detail
+			);
+			return;
+		}
+
+		console.debug(
+			'[+page.svelte] ChatHeader arrow navigation to:',
+			selectedChat.chat_id,
+			'scrollToTop:',
+			scrollToTop
+		);
+
+		const loadChatWithRetry = async (retries = 20): Promise<void> => {
+			if (activeChat) {
+				activeChat.loadChat(selectedChat, { scrollToTop });
+				return;
+			} else if (retries > 0) {
+				const delay = retries > 10 ? 50 : 100;
+				await new Promise((resolve) => setTimeout(resolve, delay));
+				return loadChatWithRetry(retries - 1);
+			} else {
+				console.error(
+					'[+page.svelte] activeChat not available for ChatHeader navigation after all retries'
+				);
+			}
+		};
+
+		await loadChatWithRetry();
+	}
+
 	// Reset the active chat UI when the sidebar reports that a chat was deselected (e.g., after deletion)
 	async function handleChatDeselected() {
 		if (activeChat?.resetToNewChat) {
@@ -1942,7 +2157,9 @@
 	.sidebar {
 		/* Fixed positioning relative to viewport */
 		position: fixed;
-		left: 0;
+		/* Logical property: sidebar anchored to the inline-start edge
+		   (left in LTR, right in RTL — so it always sits beside the chat) */
+		inset-inline-start: 0;
 		top: 0;
 		bottom: 0;
 
@@ -1958,7 +2175,7 @@
 		/* Remove scrolling - let internal components handle it */
 		overflow: hidden;
 
-		/* Add more pronounced inner shadow on right side for better visibility */
+		/* LTR: inner shadow on the right edge of the sidebar */
 		box-shadow: inset -6px 0 12px -4px rgba(0, 0, 0, 0.25);
 
 		/* Smooth transition for sidebar reveal/hide */
@@ -1972,10 +2189,20 @@
 	}
 
 	.sidebar.closed {
-		/* Slide sidebar off-screen to the left instead of hiding instantly */
+		/* LTR: slide off-screen to the left (inline-start direction) */
 		transform: translateX(-100%);
 		opacity: 0;
 		visibility: hidden;
+	}
+
+	/* RTL: slide off-screen to the right (inline-start direction is right in RTL) */
+	:global([dir='rtl']) .sidebar.closed {
+		transform: translateX(100%);
+	}
+
+	/* RTL: inner shadow flips to the left edge of the sidebar (its inline-end side) */
+	:global([dir='rtl']) .sidebar {
+		box-shadow: inset 6px 0 12px -4px rgba(0, 0, 0, 0.25);
 	}
 
 	.sidebar-content {
@@ -1987,15 +2214,18 @@
 	.main-content {
 		/* Change from fixed to absolute positioning when in scrollable mode */
 		position: fixed;
-		left: calc(var(--sidebar-width) + var(--sidebar-margin));
+		/* Logical property: offset from the sidebar on the inline-start side.
+		   In LTR this pushes the main area right of the sidebar;
+		   in RTL it pushes it left of the sidebar (which is on the right). */
+		inset-inline-start: calc(var(--sidebar-width) + var(--sidebar-margin));
+		inset-inline-end: 0;
 		top: 0;
-		right: 0;
 		bottom: 0;
 		background-color: var(--color-grey-0);
 		z-index: 10;
 		/* Smooth transitions for width changes (large screens) and slide animations (small screens) */
 		transition:
-			left 0.3s ease,
+			inset-inline-start 0.3s ease,
 			transform 0.3s ease;
 	}
 
@@ -2009,7 +2239,7 @@
 	}
 
 	.main-content.menu-closed {
-		left: var(--sidebar-margin);
+		inset-inline-start: var(--sidebar-margin);
 	}
 
 	/* For Webkit browsers */
@@ -2040,7 +2270,8 @@
 		height: calc(100dvh - 82px);
 		gap: 0px;
 		padding: 10px;
-		padding-right: 20px;
+		/* Logical property: extra breathing room on the inline-end side (right in LTR, left in RTL) */
+		padding-inline-end: 20px;
 		/* Only apply gap transition on larger screens */
 		@media (min-width: 1100px) {
 			transition: gap 0.3s ease;
@@ -2070,20 +2301,20 @@
 	/* Add mobile styles */
 	@media (max-width: 600px) {
 		.chat-container {
-			padding-right: 10px;
+			padding-inline-end: 10px;
 			height: calc(100vh - 75px);
 			height: calc(100dvh - 75px);
 		}
 		.sidebar {
 			width: 100%;
-			/* On mobile, sidebar slides from the left */
+			/* On mobile, sidebar slides from the inline-start edge */
 			/* transform is handled by .sidebar.closed class */
 		}
 
 		.main-content {
 			/* Position main content over the sidebar by default */
-			left: 0;
-			right: 0;
+			inset-inline-start: 0;
+			inset-inline-end: 0;
 			z-index: 20; /* Higher than sidebar to cover it */
 			transform: translateX(0);
 			min-height: unset;
@@ -2091,16 +2322,16 @@
 			transition: transform 0.3s ease;
 		}
 
-		/* figure our css issues related to height */
-
-		/* When menu is open (sidebar visible), slide main content right */
+		/* When menu is open (sidebar visible), slide main content to inline-end
+		   to reveal the sidebar beneath it */
+		/* LTR: sidebar is on the left, slide main content right */
 		.main-content:not(.menu-closed) {
 			transform: translateX(100%);
 		}
 
 		/* When menu is closed, keep main content over sidebar */
 		.main-content.menu-closed {
-			left: 0;
+			inset-inline-start: 0;
 			transform: translateX(0);
 		}
 
@@ -2108,7 +2339,14 @@
 		.main-content.scrollable {
 			transition: none;
 			transform: none;
-			left: 0;
+			inset-inline-start: 0;
+		}
+	}
+
+	/* RTL mobile: sidebar is on the right, so slide main content left to reveal it */
+	@media (max-width: 600px) {
+		:global([dir='rtl']) .main-content:not(.menu-closed) {
+			transform: translateX(-100%);
 		}
 	}
 
@@ -2126,7 +2364,7 @@
 	/* Smooth transition for main content */
 	.main-content {
 		transition:
-			left 0.3s ease,
+			inset-inline-start 0.3s ease,
 			transform 0.3s ease;
 	}
 
@@ -2135,12 +2373,12 @@
 		transition: none;
 	}
 
-	/* Notification container - positioned at top of main-content */
+	/* Notification container - full-width banner at top of viewport */
 	.notification-container {
 		position: fixed;
 		top: 0;
-		left: 0;
-		right: 0;
+		inset-inline-start: 0;
+		inset-inline-end: 0;
 		z-index: 10000; /* High z-index to appear above all content */
 		pointer-events: none; /* Allow clicks to pass through container */
 		display: flex;

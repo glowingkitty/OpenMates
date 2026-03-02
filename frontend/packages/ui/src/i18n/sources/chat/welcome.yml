@@ -20,6 +20,7 @@ hey_guest:
   th: เฮ้!
   cs: Ahoj!
   sv: Hej du!
+  he: "היי!"
   verified_by_human: []
 hey_user:
   context: Welcome greeting in chat for authenticated users with username
@@ -43,6 +44,7 @@ hey_user:
   th: เฮ้ {username}!
   cs: Ahoj {username}!
   sv: Hej {username}!
+  he: "היי {username}!"
   verified_by_human: []
 what_do_you_need_help_with:
   context: Help prompt message in chat
@@ -66,4 +68,5 @@ what_do_you_need_help_with:
   th: คุณต้องการความช่วยเหลือเรื่องอะไร?
   cs: V čem ti mohu pomoci?
   sv: Vad behöver du hjälp med?
+  he: "במה אפשר לעזור לך?"
   verified_by_human: []

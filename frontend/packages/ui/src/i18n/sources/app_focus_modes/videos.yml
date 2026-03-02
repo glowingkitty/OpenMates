@@ -1,0 +1,124 @@
+analyze_video:
+  context: Focus mode name for analyzing YouTube videos in the Videos app
+  en: Analyze video
+  de: Video analysieren
+  zh: 分析视频
+  es: Analizar video
+  fr: Analyser la vidéo
+  pt: Analisar vídeo
+  ru: Анализировать видео
+  ja: 動画を分析
+  ko: 동영상 분석
+  it: Analizza video
+  tr: Video analizi
+  vi: Phân tích video
+  id: Analisis video
+  pl: Analizuj wideo
+  nl: Video analyseren
+  ar: تحليل الفيديو
+  hi: वीडियो का विश्लेषण करें
+  th: วิเคราะห์วิดีโอ
+  cs: Analyzovat video
+  sv: Analysera video
+  he: ניתוח סרטון
+  verified_by_human:
+    - en
+    - de
+analyze_video.description:
+  context: Description for analyze video focus mode in the Videos app
+  en: Analyze, fact-check, and detect bias in videos.
+  de: Videos analysieren, Fakten prüfen, Bias erkennen.
+  zh: 分析视频，核实事实并检测偏见。
+  es: Analiza, verifica hechos y detecta sesgo en videos.
+  fr: Analysez, vérifiez les faits et détectez les biais.
+  pt: Analise, verifique fatos e detecte viés em vídeos.
+  ru: Анализ, проверка фактов и выявление предвзятости.
+  ja: 動画の分析、ファクトチェック、偏向の検出。
+  ko: 동영상 분석, 팩트체크 및 편향 감지.
+  it: Analizza, verifica i fatti e rileva pregiudizi.
+  tr: Videoları analiz edin, doğrulayın, bias bulun.
+  vi: Phân tích, kiểm tra sự thật và phát hiện thiên vị.
+  id: Analisis, cek fakta, dan deteksi bias dalam video.
+  pl: Analizuj, sprawdzaj fakty i wykrywaj stronniczość.
+  nl: Analyseer, controleer feiten en detecteer vooroordelen.
+  ar: حلل وتحقق من الحقائق واكشف التحيز في الفيديوهات.
+  hi: वीडियो का विश्लेषण, तथ्य-जांच और पूर्वाग्रह पहचानें।
+  th: วิเคราะห์ ตรวจสอบข้อเท็จจริง และตรวจจับอคติในวิดีโอ
+  cs: Analyzujte fakta a odhalte zaujatost ve videích.
+  sv: Analysera, faktagranska och identifiera partiskhet.
+  he: ניתוח, בדיקת עובדות וזיהוי הטיות בסרטונים.
+  verified_by_human:
+    - en
+    - de
+analyze_video.how_to_use.1:
+  context: "How-to-use example 1 for the Analyze Video focus mode. Use **word** to highlight key trigger words."
+  en: "**Analyze** this YouTube video for bias and fact-check the main claims: [paste URL]"
+  de: "**Analysiere** dieses YouTube-Video auf Bias und überprüfe die Hauptaussagen: [URL einfügen]"
+  zh: "**分析**这个YouTube视频的偏见并核实主要观点：[粘贴链接]"
+  es: "**Analiza** este video de YouTube por sesgo y verifica los puntos principales: [pega la URL]"
+  fr: "**Analyse** cette vidéo YouTube pour les biais et vérifie les affirmations principales : [coller l'URL]"
+  pt: "**Analise** este vídeo do YouTube por viés e verifique as afirmações principais: [cole a URL]"
+  ru: "**Проанализируй** это видео на YouTube на предвзятость и проверь основные утверждения: [вставь URL]"
+  ja: "このYouTube動画のバイアスを**分析**し、主な主張をファクトチェックして：[URLを貼り付け]"
+  ko: "이 YouTube 영상의 편향을 **분석**하고 주요 주장을 팩트체크해줘: [URL 붙여넣기]"
+  it: "**Analizza** questo video YouTube per bias e verifica le affermazioni principali: [incolla URL]"
+  tr: "Bu YouTube videosunu önyargı için **analiz** et ve ana iddiaları doğrula: [URL yapıştır]"
+  vi: "**Phân tích** video YouTube này về thiên vị và kiểm tra các luận điểm chính: [dán URL]"
+  id: "**Analisis** video YouTube ini untuk bias dan periksa klaim utama: [tempel URL]"
+  pl: "**Analizuj** ten film YouTube pod kątem stronniczości i sprawdź główne twierdzenia: [wklej URL]"
+  nl: "**Analyseer** deze YouTube-video op vooroordelen en controleer de belangrijkste claims: [plak URL]"
+  ar: "**حلل** هذا الفيديو على يوتيوب للتحقق من التحيز ومراجعة الادعاءات الرئيسية: [الصق الرابط]"
+  hi: "इस YouTube वीडियो का पूर्वाग्रह के लिए **विश्लेषण** करें और मुख्य दावों की जांच करें: [URL चिपकाएं]"
+  th: "**วิเคราะห์**วิดีโอ YouTube นี้เพื่อตรวจหาอคติและตรวจสอบข้อเรียกร้องหลัก: [วาง URL]"
+  cs: "**Analyzuj** toto YouTube video na zaujatost a ověř hlavní tvrzení: [vlož URL]"
+  sv: "**Analysera** den här YouTube-videon för partiskhet och faktagranska de viktigaste påståendena: [klistra in URL]"
+  he: "**נתח** את הסרטון הזה ביוטיוב לאיתור הטיות ובדוק את הטענות המרכזיות: [הכנס URL]"
+  verified_by_human: []
+analyze_video.how_to_use.2:
+  context: "How-to-use example 2 for the Analyze Video focus mode. Use **word** to highlight key trigger words."
+  en: "Is this news video **trustworthy**? Check the sources and detect any misleading content: [paste URL]"
+  de: "Ist dieses Nachrichtenvideo **vertrauenswürdig**? Überprüfe die Quellen und erkenne irreführende Inhalte: [URL einfügen]"
+  zh: "这个新闻视频**可信**吗？核查来源并检测误导性内容：[粘贴链接]"
+  es: "¿Es este video de noticias **confiable**? Verifica las fuentes y detecta contenido engañoso: [pega la URL]"
+  fr: "Cette vidéo d'actualité est-elle **fiable** ? Vérifiez les sources et détectez le contenu trompeur : [coller l'URL]"
+  pt: "Este vídeo de notícias é **confiável**? Verifique as fontes e detecte conteúdo enganoso: [cole a URL]"
+  ru: "Насколько это новостное видео **достоверно**? Проверь источники и найди вводящий в заблуждение контент: [вставь URL]"
+  ja: "このニュース動画は**信頼できる**か？ソースを確認し、誤解を招くコンテンツを検出して：[URLを貼り付け]"
+  ko: "이 뉴스 영상은 **신뢰할 수 있나요**? 출처를 확인하고 오해의 소지가 있는 내용을 감지해줘: [URL 붙여넣기]"
+  it: "Questo video di notizie è **affidabile**? Controlla le fonti e rileva contenuti fuorvianti: [incolla URL]"
+  tr: "Bu haber videosu **güvenilir** mi? Kaynakları kontrol et ve yanıltıcı içeriği tespit et: [URL yapıştır]"
+  vi: "Video tin tức này có **đáng tin cậy** không? Kiểm tra nguồn và phát hiện nội dung sai lệch: [dán URL]"
+  id: "Apakah video berita ini **dapat dipercaya**? Periksa sumbernya dan deteksi konten yang menyesatkan: [tempel URL]"
+  pl: "Czy ten film z wiadomościami jest **wiarygodny**? Sprawdź źródła i wykryj mylące treści: [wklej URL]"
+  nl: "Is deze nieuwsvideo **betrouwbaar**? Controleer de bronnen en detecteer misleidende inhoud: [plak URL]"
+  ar: "هل هذا الفيديو الإخباري **موثوق**؟ تحقق من المصادر واكتشف المحتوى المضلل: [الصق الرابط]"
+  hi: "क्या यह न्यूज़ वीडियो **विश्वसनीय** है? स्रोतों की जांच करें और भ्रामक सामग्री का पता लगाएं: [URL चिपकाएं]"
+  th: "วิดีโอข่าวนี้**น่าเชื่อถือ**ไหม? ตรวจสอบแหล่งที่มาและตรวจจับเนื้อหาที่ทำให้เข้าใจผิด: [วาง URL]"
+  cs: "Je toto zpravodajské video **důvěryhodné**? Zkontroluj zdroje a odhal zavádějící obsah: [vlož URL]"
+  sv: "Är det här nyhetsvideot **trovärdigt**? Kontrollera källorna och identifiera vilseledande innehåll: [klistra in URL]"
+  he: "האם הסרטון החדשותי הזה **אמין**? בדוק את המקורות וזהה תוכן מטעה: [הכנס URL]"
+  verified_by_human: []
+analyze_video.how_to_use.3:
+  context: "How-to-use example 3 for the Analyze Video focus mode. Use **word** to highlight key trigger words."
+  en: "**Summarize** this documentary and identify the creator's perspective and any potential biases: [paste URL]"
+  de: "**Fasse** diese Dokumentation zusammen und erkenne die Perspektive des Erstellers und mögliche Biases: [URL einfügen]"
+  zh: "**总结**这部纪录片并识别创作者的观点和潜在偏见：[粘贴链接]"
+  es: "**Resume** este documental e identifica la perspectiva del creador y posibles sesgos: [pega la URL]"
+  fr: "**Résumez** ce documentaire et identifiez la perspective du créateur et les biais potentiels : [coller l'URL]"
+  pt: "**Resuma** este documentário e identifique a perspectiva do criador e possíveis vieses: [cole a URL]"
+  ru: "**Подведи итог** этого документального фильма и определи точку зрения автора и возможные предубеждения: [вставь URL]"
+  ja: "このドキュメンタリーを**要約**し、制作者の視点と潜在的なバイアスを特定して：[URLを貼り付け]"
+  ko: "이 다큐멘터리를 **요약**하고 제작자의 관점과 잠재적 편향을 파악해줘: [URL 붙여넣기]"
+  it: "**Riassumi** questo documentario e identifica la prospettiva del creatore e i possibili bias: [incolla URL]"
+  tr: "Bu belgeseli **özetle** ve yapımcının bakış açısını ve olası önyargıları belirle: [URL yapıştır]"
+  vi: "**Tóm tắt** tài liệu này và xác định quan điểm của người tạo ra nó và những thiên kiến tiềm ẩn: [dán URL]"
+  id: "**Rangkum** dokumenter ini dan identifikasi perspektif kreator serta bias yang mungkin ada: [tempel URL]"
+  pl: "**Podsumuj** ten dokument i zidentyfikuj perspektywę twórcy oraz potencjalne uprzedzenia: [wklej URL]"
+  nl: "**Vat samen** deze documentaire en identificeer het perspectief van de maker en mogelijke vooroordelen: [plak URL]"
+  ar: "**لخص** هذا الفيلم الوثائقي وحدد وجهة نظر المنشئ وأي تحيزات محتملة: [الصق الرابط]"
+  hi: "इस डॉक्यूमेंट्री का **सारांश** बनाएं और निर्माता के दृष्टिकोण और संभावित पूर्वाग्रहों की पहचान करें: [URL चिपकाएं]"
+  th: "**สรุป**สารคดีนี้และระบุมุมมองของผู้สร้างและอคติที่อาจเกิดขึ้น: [วาง URL]"
+  cs: "**Shrň** tento dokument a identifikuj perspektivu tvůrce a případné předsudky: [vlož URL]"
+  sv: "**Sammanfatta** denna dokumentär och identifiera skaparens perspektiv och eventuella partiskheter: [klistra in URL]"
+  he: "**סכם** את הסרטון התיעודי הזה וזהה את נקודת המבט של היוצר ואת ההטיות האפשריות: [הכנס URL]"
+  verified_by_human: []

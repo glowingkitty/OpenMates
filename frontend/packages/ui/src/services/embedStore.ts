@@ -9,6 +9,7 @@
 //
 // This enables offline-first chat sharing: all wrapped keys are pre-stored on server
 
+import { writable } from "svelte/store";
 import { EmbedStoreEntry, EmbedType } from "../message_parsing/types";
 import { computeSHA256, createContentId } from "../message_parsing/utils";
 import { chatDB } from "./db";
@@ -19,7 +20,6 @@ import {
   unwrapEmbedKeyWithChatKey,
   decryptWithEmbedKey,
 } from "./cryptoService";
-
 // Embed store name for IndexedDB
 const EMBEDS_STORE_NAME = "embeds";
 
@@ -31,6 +31,28 @@ const embedCache = new Map<string, EmbedStoreEntry>();
 
 // In-memory cache for unwrapped embed keys (for performance)
 const embedKeyCache = new Map<string, Uint8Array>();
+
+// In-memory index: embed_ref (short slug) → { embedId, appId }.
+// Populated in handleSendEmbedDataImpl() when plaintext TOON arrives from the server.
+// NEVER persisted to IndexedDB — zero-knowledge compliant (slugs like "ryanair-0600"
+// would otherwise reveal content to anyone with DB access).
+// On chat reload the index is rebuilt automatically as embeds are decrypted.
+interface EmbedRefEntry {
+  embedId: string;
+  appId: string | null;
+}
+const embedRefToIdIndex = new Map<string, EmbedRefEntry>();
+
+// Reactive version counter — incremented on every registerEmbedRef() call.
+// EmbedInlineLink.svelte subscribes to this Svelte store so it re-derives
+// effectiveAppId whenever new refs are registered (e.g. after a page-reload
+// cold-start or when a streaming embed arrives after the inline link was
+// already rendered in grey). This eliminates the need for a full TipTap
+// setContent() re-parse just to update the badge colour.
+//
+// Exposed as a Svelte readable store so components can subscribe via $store
+// auto-subscription (in .svelte files) or store.subscribe() (in .ts files).
+export const embedRefIndexVersion = writable(0);
 
 // TOON decoder (lazy-loaded to avoid circular dependencies)
 let toonDecode:
@@ -139,6 +161,9 @@ export class EmbedStore {
         return "docs-doc" as EmbedType;
       case "sheet":
         return "sheets-sheet" as EmbedType;
+      case "pdf":
+        // PDF type comes from server as "pdf" — pass through as-is (no remapping needed)
+        return "pdf" as EmbedType;
       default:
         return type as EmbedType;
     }
@@ -155,9 +180,20 @@ export class EmbedStore {
     content: any,
     type: EmbedType,
   ): Promise<{ app_id?: string; skill_id?: string }> {
-    // Only extract for app_skill_use embeds (handle both hyphen and underscore)
+    // Extract for app_skill_use embeds AND for auto-converted embed types that now
+    // carry an app_id field so they appear in "My Embeds" on the relevant app page.
+    // Auto-converted types: code → "code" app, sheet/sheets-sheet → "sheets" app,
+    // math-plot → "math" app, document/docs-doc → "docs" app.
     const isAppSkillUse = type === "app-skill-use" || type === "app_skill_use";
-    if (!isAppSkillUse) {
+    const isAutoConverted =
+      type === "code" ||
+      type === "code-code" ||
+      type === "sheet" ||
+      type === "sheets-sheet" ||
+      type === "math-plot" ||
+      type === "document" ||
+      type === "docs-doc";
+    if (!isAppSkillUse && !isAutoConverted) {
       return {};
     }
 
@@ -395,9 +431,21 @@ export class EmbedStore {
     // are typically not available yet - metadata will be extracted later when embeds are accessed
     let appMetadata: { app_id?: string; skill_id?: string } = {};
 
+    // Also run metadata extraction for auto-converted embed types (code, sheet, math-plot,
+    // document) which now include app_id/skill_id in their TOON content so they can be
+    // indexed under the correct app in IndexedDB and appear in "My Embeds".
+    const isAutoConvertedType =
+      normalizedType === "code" ||
+      normalizedType === "code-code" ||
+      normalizedType === "sheet" ||
+      normalizedType === "sheets-sheet" ||
+      normalizedType === "math-plot" ||
+      normalizedType === "document" ||
+      normalizedType === "docs-doc";
     if (
       (normalizedType === "app-skill-use" ||
-        normalizedType === "app_skill_use") &&
+        normalizedType === "app_skill_use" ||
+        isAutoConvertedType) &&
       !options?.skipMetadataExtraction
     ) {
       try {
@@ -429,6 +477,18 @@ export class EmbedStore {
               "[EmbedStore] Extracted app metadata from plaintext content:",
               appMetadata,
             );
+            // Also register embed_ref if present (covers finalization path)
+            const embedRefPlain = (decodedContent as Record<string, unknown>)
+              .embed_ref;
+            if (typeof embedRefPlain === "string" && embedRefPlain) {
+              const refEmbedId =
+                encryptedData.embed_id || contentRef.replace("embed:", "");
+              this.registerEmbedRef(
+                embedRefPlain,
+                refEmbedId,
+                appMetadata.app_id ?? null,
+              );
+            }
           }
         } else if (encryptedData.encrypted_content) {
           // Fallback: Try to decrypt content temporarily to extract app_id/skill_id
@@ -446,7 +506,7 @@ export class EmbedStore {
               embedKey,
             );
             if (decryptedContent) {
-              // Decode TOON content to extract app_id and skill_id
+              // Decode TOON content to extract app_id, skill_id, and embed_ref
               const decodedContent =
                 await decodeToonContentLocal(decryptedContent);
               if (decodedContent && typeof decodedContent === "object") {
@@ -464,6 +524,16 @@ export class EmbedStore {
                   "[EmbedStore] Extracted app metadata from decrypted content:",
                   appMetadata,
                 );
+                // Register embed_ref for inline badge resolution on subsequent renders
+                const embedRefEnc = (decodedContent as Record<string, unknown>)
+                  .embed_ref;
+                if (typeof embedRefEnc === "string" && embedRefEnc) {
+                  this.registerEmbedRef(
+                    embedRefEnc,
+                    embedId,
+                    appMetadata.app_id ?? null,
+                  );
+                }
               }
             }
           } else {
@@ -632,6 +702,30 @@ export class EmbedStore {
               "[EmbedStore] ✅ Successfully decrypted embed content from separate fields:",
               embedId,
             );
+            // Re-register embed_ref → embed_id on reload/IDB read.
+            // embed_ref is stored only inside the encrypted TOON content (zero-knowledge).
+            // On page reload the in-memory embedRefToIdIndex is empty; we reconstruct it
+            // here each time content is successfully decrypted from IDB.
+            try {
+              const decoded = await decodeToonContentLocal(decryptedContent);
+              if (decoded && typeof decoded === "object") {
+                const ref = (decoded as Record<string, unknown>).embed_ref;
+                const appId = (decoded as Record<string, unknown>).app_id;
+                if (typeof ref === "string" && ref) {
+                  this.registerEmbedRef(
+                    ref,
+                    embedId,
+                    typeof appId === "string" ? appId : null,
+                  );
+                  console.debug(
+                    `[EmbedStore] Re-registered embed_ref on IDB read: "${ref}" → ${embedId}`,
+                  );
+                }
+              }
+            } catch {
+              // Non-critical: embed_ref registration failure only affects inline badge
+              // resolution; the embed itself will still display correctly.
+            }
           } else {
             console.warn(
               "[EmbedStore] ❌ Failed to decrypt encrypted_content from separate fields - decryptWithEmbedKey returned null",
@@ -669,6 +763,37 @@ export class EmbedStore {
         if (decryptedData) {
           const parsed = JSON.parse(decryptedData);
           embed.content = parsed.content || parsed;
+
+          // Re-register embed_ref on reload so inline embed links (e.g.
+          // [filename](embed:filename)) resolve after the in-memory index is cleared.
+          // The data-field path does not go through getFromSeparateFields(), so we
+          // must register here. embed_ref is stored inside the TOON content as a
+          // top-level field set by sendHandlers.ts at upload time.
+          try {
+            const toonContent = parsed.content || parsed;
+            if (typeof toonContent === "string") {
+              const decoded = await decodeToonContentLocal(toonContent);
+              if (decoded && typeof decoded === "object") {
+                const ref = (decoded as Record<string, unknown>).embed_ref;
+                const appId = (decoded as Record<string, unknown>).app_id;
+                const embedId =
+                  entry.embed_id || contentRef.replace("embed:", "");
+                if (typeof ref === "string" && ref && embedId) {
+                  this.registerEmbedRef(
+                    ref,
+                    embedId,
+                    typeof appId === "string" ? appId : null,
+                  );
+                  console.debug(
+                    `[EmbedStore] Re-registered embed_ref (data-field path) on IDB read: "${ref}" → ${embedId}`,
+                  );
+                }
+              }
+            }
+          } catch {
+            // Non-critical: embed_ref registration failure only affects inline link
+            // resolution; the embed itself will still display correctly.
+          }
         }
       } catch (error) {
         console.debug(
@@ -1667,6 +1792,23 @@ export class EmbedStore {
   }
 
   /**
+   * Get an embed key from the in-memory cache (without IndexedDB lookup).
+   * Returns the raw unwrapped key if it was previously cached by setEmbedKeyInCache(),
+   * or null if not found. Used when we need to re-wrap an existing key with a new wrapper
+   * (e.g., adding a chat key wrapper to an inspiration embed that already has a master key).
+   * @param embedId - The embed ID (without "embed:" prefix)
+   * @param hashedChatId - Optional hashed chat ID for the cache key
+   * @returns The unwrapped embed key or null
+   */
+  getEmbedKeyFromCache(
+    embedId: string,
+    hashedChatId?: string,
+  ): Uint8Array | null {
+    const cacheKey = `${embedId}:${hashedChatId || "master"}`;
+    return embedKeyCache.get(cacheKey) ?? null;
+  }
+
+  /**
    * Clear embed key cache (e.g., on logout)
    */
   clearEmbedKeyCache(): void {
@@ -1761,6 +1903,49 @@ export class EmbedStore {
       return result;
     } catch (error) {
       console.error("[EmbedStore] Error querying embeds by type:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Get all embed IDs stored in IndexedDB.
+   * Used during phased sync to tell the server which embeds the client already
+   * has so the server can skip re-sending them (cross-session deduplication).
+   * Keys are stored as "embed:{uuid}" — we strip the prefix and return only the UUID part.
+   * @returns Array of embed UUID strings
+   */
+  async getAllEmbedIds(): Promise<string[]> {
+    try {
+      const transaction = await chatDB.getTransaction(
+        [EMBEDS_STORE_NAME],
+        "readonly",
+      );
+      const store = transaction.objectStore(EMBEDS_STORE_NAME);
+
+      const allKeys = await new Promise<IDBValidKey[]>((resolve, reject) => {
+        const request = store.getAllKeys();
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      });
+
+      // Keys are "embed:{uuid}" — extract just the UUID portion
+      const embedIds: string[] = [];
+      for (const key of allKeys) {
+        const keyStr = String(key);
+        if (keyStr.startsWith("embed:")) {
+          embedIds.push(keyStr.slice("embed:".length));
+        }
+      }
+
+      console.debug(
+        `[EmbedStore] getAllEmbedIds: found ${embedIds.length} embed(s) in IndexedDB`,
+      );
+      return embedIds;
+    } catch (error) {
+      console.warn(
+        "[EmbedStore] getAllEmbedIds: failed to read embed keys:",
+        error,
+      );
       return [];
     }
   }
@@ -2195,6 +2380,73 @@ export class EmbedStore {
       );
       return null;
     }
+  }
+
+  // ============================================================
+  // embed_ref ↔ embed_id index (zero-knowledge, in-memory only)
+  // ============================================================
+
+  /**
+   * Register an embed_ref → { embedId, appId } mapping.
+   * Called by handleSendEmbedDataImpl() when plaintext TOON arrives from the server
+   * (before it is encrypted and stored). This is the ONLY window in which the plaintext
+   * slug is available, so we must extract it here.
+   *
+   * @param embedRef  Short descriptive slug, e.g. "ryanair-0600-k8D"
+   * @param embedId   UUID of the embed, e.g. "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+   * @param appId     Optional app_id (e.g. "travel") — used to colour the inline badge correctly
+   */
+  registerEmbedRef(
+    embedRef: string,
+    embedId: string,
+    appId?: string | null,
+  ): void {
+    if (!embedRef || !embedId) return;
+    embedRefToIdIndex.set(embedRef, { embedId, appId: appId ?? null });
+    // Increment the reactive version store so any Svelte component that
+    // subscribes to embedRefIndexVersion will automatically re-run and pick
+    // up the new appId — e.g. EmbedInlineLink components that rendered in
+    // grey because this ref wasn't registered yet at their initial render time.
+    embedRefIndexVersion.update((n) => n + 1);
+    console.debug(
+      "[EmbedStore] Registered embed_ref → { embedId, appId }:",
+      embedRef,
+      "→",
+      embedId,
+      appId ? `(appId: ${appId})` : "(no appId)",
+    );
+  }
+
+  /**
+   * Resolve an embed_ref slug to its embed_id UUID.
+   * Returns null if the ref is not yet indexed (e.g., embed not yet arrived).
+   *
+   * @param embedRef  Short descriptive slug, e.g. "ryanair-0600-k8D"
+   * @returns embed_id UUID or null
+   */
+  resolveByRef(embedRef: string): string | null {
+    return embedRefToIdIndex.get(embedRef)?.embedId ?? null;
+  }
+
+  /**
+   * Resolve an embed_ref slug to its app_id string.
+   * Returns null if the ref is not indexed or appId was not registered.
+   * Used by parse_message.ts to set the correct badge gradient/icon.
+   *
+   * @param embedRef  Short descriptive slug, e.g. "ryanair-0600-k8D"
+   * @returns app_id string or null
+   */
+  resolveAppIdByRef(embedRef: string): string | null {
+    return embedRefToIdIndex.get(embedRef)?.appId ?? null;
+  }
+
+  /**
+   * Clear the embed_ref index (e.g., on logout / chat switch).
+   * The index will be rebuilt as embeds arrive in the new session.
+   */
+  clearEmbedRefIndex(): void {
+    embedRefToIdIndex.clear();
+    console.debug("[EmbedStore] Cleared embed_ref index");
   }
 
   /**

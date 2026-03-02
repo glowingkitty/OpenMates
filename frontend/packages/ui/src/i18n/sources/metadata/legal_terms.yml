@@ -20,6 +20,7 @@ title:
   th: ข้อกำหนดและเงื่อนไข | OpenMates
   cs: Obchodní podmínky | OpenMates
   sv: Villkor | OpenMates
+  he: "תנאי שימוש | OpenMates"
   verified_by_human: []
 description:
   context: Description for the terms and conditions page
@@ -43,4 +44,5 @@ description:
   th: เงื่อนไขการให้บริการสำหรับ OpenMates
   cs: Podmínky služby pro OpenMates.
   sv: Servicevillkor för OpenMates.
+  he: תנאי השימוש של OpenMates.
   verified_by_human: []

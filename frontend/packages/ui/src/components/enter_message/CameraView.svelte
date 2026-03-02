@@ -24,8 +24,8 @@
 
     // Logger using console.debug for debugging.
     const logger = {
-        debug: (...args: any[]) => console.debug('[CameraView]', ...args),
-        info: (...args: any[]) => console.info('[CameraView]', ...args)
+        debug: (...args: unknown[]) => console.debug('[CameraView]', ...args),
+        info: (...args: unknown[]) => console.info('[CameraView]', ...args)
     };
 
     // Reference to the fallback file input element.
@@ -208,38 +208,57 @@
         }
     }
 
-    function handleFallbackChange(event: Event) {
-        const target = event.target as HTMLInputElement;
-        if (target.files && target.files.length > 0) {
-            const file = target.files[0];
-            console.debug('[CameraView] Fallback media captured:', file);
-            // Process the captured file as needed.
-        }
-    }
-
     /**
-     * Triggered by the main camera button click.
-     * Now, it directly opens the hidden fallback input (with 'capture' attribute) on mobile.
+     * Handles file selection from the iOS/Android native camera input.
+     * Dispatches 'photocaptured' with a blob so MessageInput can create an image embed,
+     * matching the same flow as the file picker upload path.
      */
-    function onCameraButtonClick() {
-        if (fallbackInput) {
-            fallbackInput.value = "";
-            console.debug('[CameraView] Opening fallback file input');
-            fallbackInput.click();
-        } else {
-            console.error('[CameraView] Fallback file input is not available.');
+    async function handleFallbackChange(event: Event) {
+        const target = event.target as HTMLInputElement;
+        if (!target.files || target.files.length === 0) return;
+
+        const file = target.files[0];
+        console.debug('[CameraView] Native camera file captured:', { name: file.name, type: file.type, size: file.size });
+
+        try {
+            if (file.type.startsWith('video/')) {
+                // Dispatch as a video recorded event so MessageInput can insert a video embed
+                dispatch('videorecorded', { blob: file, duration: '0:00' });
+            } else {
+                // Image — resize for preview and dispatch photocaptured
+                const { previewBlob, previewUrl } = await resizeImage(file);
+                dispatch('photocaptured', {
+                    blob: file,          // Original for uploading
+                    previewBlob,         // Smaller version for preview display
+                    previewUrl           // Object URL for immediate display
+                });
+            }
+        } catch (error) {
+            console.error('[CameraView] Error processing captured media file:', error);
+            // Fallback: dispatch with original file as both blob and previewBlob
+            if (file.type.startsWith('video/')) {
+                dispatch('videorecorded', { blob: file, duration: '0:00' });
+            } else {
+                dispatch('photocaptured', { blob: file, previewBlob: file, previewUrl: URL.createObjectURL(file) });
+            }
         }
+
+        // Reset so the same file can be re-captured if needed
+        target.value = '';
+        dispatch('close');
     }
 </script>
 
 {#if isMobile}
-    <!-- For mobile devices, no extra "Open Camera" button is needed.
-         The camera is triggered directly from MessageInput.svelte. -->
+    <!-- Mobile: hidden file input with camera capture attribute.
+         capture="environment" opens the rear camera (most useful for photos/docs).
+         The camera is triggered from MessageInput.svelte via cameraInput.click(),
+         but this component provides the same fallback for when CameraView is shown directly. -->
     <input
         bind:this={fallbackInput}
         type="file"
         accept="image/*,video/*"
-        capture="user"
+        capture="environment"
         onchange={handleFallbackChange}
         style="display: none;"
     />
@@ -299,11 +318,11 @@
 
 <style>
     .camera-overlay {
+        /* Fill the .message-field container edge-to-edge, matching the MapsView overlay.
+           The message-field grows to 400px when showCamera is true (see MessageInput.svelte
+           containerStyle / showCamera logic), so this overlay will be exactly 400px tall. */
         position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 400px;
+        inset: 0;
         background: #000;
         z-index: 1000;
         display: flex;

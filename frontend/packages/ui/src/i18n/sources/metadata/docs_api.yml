@@ -20,6 +20,7 @@ title:
   th: เอกสาร API | OpenMates
   cs: Dokumentace API | OpenMates
   sv: API-dokumentation | OpenMates
+  he: "תיעוד API | OpenMates"
   verified_by_human: []
 description:
   context: Description for the API documentation page
@@ -43,4 +44,5 @@ description:
   th: เอกสาร API สำหรับการรวม OpenMates เข้ากับแอปพลิเคชันของคุณ ตั้งแต่การสร้าง AI agent หรือ chatbot ของคุณเอง ไปจนถึงการรวม API ที่มีอยู่หลากหลายเข้ากับโปรเจกต์ของคุณได้อย่างง่ายดาย
   cs: Dokumentace API pro integraci OpenMates do vašich aplikací. Od vytváření vlastního AI agenta nebo chatu až po snadnou integraci široké škály existujících API do vašeho projektu.
   sv: API-dokumentation för att integrera OpenMates i dina applikationer. Från att bygga din egen AI-agent eller chatbot till att enkelt integrera ett brett utbud av befintliga API:er i ditt projekt.
+  he: "תיעוד API לשילוב OpenMates באפליקציות שלך. החל מבניית סוכן בינה מלאכותית או צ'אטבוט משלך, ועד לשילוב קל של מגוון רחב של ממשקי API קיימים בפרויקט שלך."
   verified_by_human: []

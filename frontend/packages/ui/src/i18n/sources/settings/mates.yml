@@ -1,0 +1,179 @@
+# Translation keys for the Mates settings page UI
+# Namespace: settings | prefix: mates (from filename)
+# Final key format: settings.mates.<key>
+# Used in SettingsMates.svelte and MateDetails.svelte
+
+mates:
+  context: Mates settings menu item label
+  en: Mates
+  de: Mates
+  zh: 伙伴
+  es: Compañeros
+  fr: Compagnons
+  pt: ""
+  ru: ""
+  ja: メイト
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: رفاق
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: Mates
+  verified_by_human: []
+
+chat_with_mate:
+  context: Button label on mate detail page — clicking opens a new chat with that mate
+  en: "Chat with {mate_name}"
+  de: "Mit {mate_name} chatten"
+  zh: "与 {mate_name} 聊天"
+  es: "Chatear con {mate_name}"
+  fr: "Discuter avec {mate_name}"
+  pt: ""
+  ru: ""
+  ja: "{mate_name} とチャット"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: "الدردشة مع {mate_name}"
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: "צ'אט עם {mate_name}"
+  verified_by_human: []
+
+system_prompt_heading:
+  context: Heading for the system prompt / instructions section on the mate detail page
+  en: Instructions
+  de: Anweisungen
+  zh: 指令
+  es: Instrucciones
+  fr: Instructions
+  pt: ""
+  ru: ""
+  ja: 指示
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: التعليمات
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: הוראות
+  verified_by_human: []
+
+show_full_prompt:
+  context: Button label to reveal the full system prompt text on the mate detail page
+  en: Show full system prompt
+  de: Vollständigen System-Prompt anzeigen
+  zh: 显示完整系统提示
+  es: Mostrar prompt del sistema completo
+  fr: Afficher le prompt système complet
+  pt: ""
+  ru: ""
+  ja: フルシステムプロンプトを表示
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: إظهار موجه النظام الكامل
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: הצג הנחיית מערכת מלאה
+  verified_by_human: []
+
+hide_full_prompt:
+  context: Button label to collapse/hide the full system prompt text on the mate detail page
+  en: Hide full system prompt
+  de: Vollständigen System-Prompt ausblenden
+  zh: 隐藏完整系统提示
+  es: Ocultar prompt del sistema completo
+  fr: Masquer le prompt système complet
+  pt: ""
+  ru: ""
+  ja: フルシステムプロンプトを隠す
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: إخفاء موجه النظام الكامل
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: הסתר הנחיית מערכת מלאה
+  verified_by_human: []
+
+no_description:
+  context: Fallback text shown on a mate detail page when no description is available
+  en: No description available.
+  de: Keine Beschreibung verfügbar.
+  zh: 暂无描述。
+  es: No hay descripción disponible.
+  fr: Aucune description disponible.
+  pt: ""
+  ru: ""
+  ja: 説明はありません。
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: لا يوجد وصف متاح.
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: אין תיאור זמין.
+  verified_by_human: []
+
+mate_not_found:
+  context: Error message shown when a mate ID is not recognized on the mate detail page
+  en: Mate not found.
+  de: Mate nicht gefunden.
+  zh: 未找到伙伴。
+  es: Compañero no encontrado.
+  fr: Compagnon introuvable.
+  pt: ""
+  ru: ""
+  ja: メイトが見つかりません。
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: لم يتم العثور على رفيق.
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ה-Mate לא נמצא.
+  verified_by_human: []

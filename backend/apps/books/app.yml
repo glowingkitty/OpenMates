@@ -8,6 +8,7 @@ settings_and_memories:
   - id: favorite_books
     name_translation_key: books.favorite_books
     description_translation_key: books.favorite_books.description
+    icon_image: book.svg
     type: list
     stage: production
     example_translation_keys:
@@ -39,6 +40,7 @@ settings_and_memories:
   - id: currently_reading
     name_translation_key: books.currently_reading
     description_translation_key: books.currently_reading.description
+    icon_image: book.svg
     type: list
     stage: production
     example_translation_keys:
@@ -67,6 +69,7 @@ settings_and_memories:
   - id: to_read_list
     name_translation_key: books.to_read_list
     description_translation_key: books.to_read_list.description
+    icon_image: task.svg
     type: list
     stage: production
     example_translation_keys:
@@ -109,7 +112,4 @@ focuses:
     name_translation_key: books.book_discussion
     description_translation_key: books.book_discussion.description
     stage: planning
-    process:
-      - ""
-    systemprompt: |
       You are a books expert.

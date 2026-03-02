@@ -140,8 +140,27 @@ class Settings(BaseSettings):
         description="User agent for outgoing requests"
     )
     
-    # Rate limiting (requests per minute per IP, 0 = disabled)
-    rate_limit_per_minute: int = Field(default=60, description="Rate limit per IP (0 = disabled)")
+    # Rate limiting — per IP, per minute, per endpoint group (0 = disabled).
+    # These are enforced by the RateLimitMiddleware in main.py.
+    #
+    # YouTube endpoint (/api/v1/youtube): calls the Google YouTube Data API.
+    # A real user rarely pastes more than 2-3 videos per minute; 10 is generous.
+    rate_limit_youtube_per_minute: int = Field(
+        default=10,
+        description="Rate limit for /api/v1/youtube per IP per minute (0 = disabled)"
+    )
+    # Metadata endpoint (/api/v1/metadata, /api/v1/favicon): fetches website OG tags.
+    # Slightly higher than YouTube since these are cheaper (no paid API behind them).
+    rate_limit_metadata_per_minute: int = Field(
+        default=20,
+        description="Rate limit for /api/v1/metadata and /api/v1/favicon per IP per minute (0 = disabled)"
+    )
+    # Image proxy endpoint (/api/v1/image): proxies/resizes images.
+    # Higher limit because a single page render can legitimately request several images.
+    rate_limit_image_per_minute: int = Field(
+        default=60,
+        description="Rate limit for /api/v1/image per IP per minute (0 = disabled)"
+    )
     
     # Block private/internal IP addresses (SSRF protection)
     block_private_ips: bool = Field(default=True, description="Block requests to private IPs")

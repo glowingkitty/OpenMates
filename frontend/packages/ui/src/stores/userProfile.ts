@@ -45,10 +45,16 @@ export interface UserProfile {
   push_notification_banner_shown?: boolean; // Whether the banner has been shown (persists across devices)
   // AI model preferences for the AI Ask skill
   // Disabled models are excluded from @ mention dropdown and auto-selection
-  disabled_ai_models?: string[]; // Array of disabled model IDs (e.g., ["claude-sonnet-4-5-20250929"])
+  disabled_ai_models?: string[]; // Array of disabled model IDs (e.g., ["claude-sonnet-4-6"])
   // Disabled servers per model - all servers are enabled by default as fallbacks
   // Only explicitly disabled servers are excluded from processing
   disabled_ai_servers?: Record<string, string[]>; // model_id -> array of disabled server IDs
+  // Refund policy consent — true if user has consented to the limited refund / withdrawal waiver
+  // (set at signup, updated on each purchase). Used to skip redundant consent screens in settings.
+  has_accepted_refund_policy?: boolean;
+  // Chat auto-deletion period (null = never delete, positive int = delete after N days)
+  // Managed via Privacy → Auto Deletion → Chats. Persisted to server via POST /v1/settings/auto-delete-chats.
+  auto_delete_chats_after_days?: number | null;
   // Email notification settings (synced with server)
   // Only sends email when user is offline (no active WebSocket connections after 3 retry attempts)
   email_notifications_enabled?: boolean;
@@ -56,6 +62,15 @@ export interface UserProfile {
   email_notification_preferences?: {
     aiResponses: boolean; // Notify when AI completes a response
   };
+  // Incognito mode explainer screen: once the user activates incognito for the first time and
+  // confirms the explainer, we set this flag so the explainer is never shown again.
+  // Stored in IndexedDB only — no backend sync needed (device-local UX preference).
+  incognito_explainer_seen?: boolean;
+  // Default model overrides for AI Ask skill (null = auto-select).
+  // Synced cross-device via Directus + Redis cache via POST /v1/settings/ai-model-defaults.
+  // Format: "provider/model_id" (e.g., "anthropic/claude-haiku-4-5-20251001").
+  default_ai_model_simple?: string | null;
+  default_ai_model_complex?: string | null;
 }
 
 // Default currency is now EUR

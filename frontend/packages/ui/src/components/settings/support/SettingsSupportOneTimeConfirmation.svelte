@@ -15,10 +15,9 @@ Support One-Time Payment Confirmation - Success screen after one-time support pa
         const symbols: Record<string, string> = {
             'EUR': '€',
             'USD': '$',
-            'JPY': '¥'
         };
-        const symbol = symbols[currency.toUpperCase()] || '€';
-        return currency.toUpperCase() === 'JPY' ? `${symbol}${amount}` : `${symbol}${amount}`;
+        const symbol = symbols[currency.toUpperCase()] || currency.toUpperCase();
+        return `${symbol}${amount}`;
     }
 
     // Navigate back to support section

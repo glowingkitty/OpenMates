@@ -98,6 +98,67 @@ function detectUrlsInText(
   return urls;
 }
 
+// =============================================================================
+// Embed Reference Protection for PII Detection
+// =============================================================================
+
+/**
+ * Temporarily replaces embed reference JSON blocks with opaque placeholders so
+ * that the PII anonymizer cannot corrupt embed IDs embedded in them.
+ *
+ * UUID segments can accidentally match PII patterns (e.g. "051-4369" matches the
+ * local phone-number regex). Since embed IDs are machine-generated and not
+ * sensitive data, they must be preserved verbatim across the PII pass.
+ *
+ * Usage pattern:
+ *   const { safeMarkdown, restore } = protectEmbedRefsFromPII(markdown);
+ *   // run PII detection/replacement on safeMarkdown …
+ *   markdown = restore(safeMarkdown); // put embed blocks back
+ *
+ * @param markdown The markdown string that may contain embed reference blocks.
+ * @returns An object with the protected markdown and a restore function.
+ */
+function protectEmbedRefsFromPII(markdown: string): {
+  safeMarkdown: string;
+  restore: (processed: string) => string;
+} {
+  // Map from placeholder token → original embed reference block.
+  const placeholders = new Map<string, string>();
+
+  // Replace every ```json … ``` block that is an embed reference (has embed_id
+  // or embed_ids) with a unique opaque token that cannot trigger PII patterns.
+  const safeMarkdown = markdown.replace(
+    /```json\n([\s\S]*?)\n```/g,
+    (block, content) => {
+      try {
+        const parsed = JSON.parse(content.trim());
+        if ("embed_id" in parsed || "embed_ids" in parsed) {
+          // Use a token that contains no digits or PII-like separators so the
+          // PII detector cannot match anything inside it.
+          const token = `__EMBED_REF_PROTECTED_${placeholders.size}__`;
+          placeholders.set(token, block);
+          return token;
+        }
+      } catch {
+        // Not valid JSON — leave block as-is for normal PII detection.
+      }
+      return block;
+    },
+  );
+
+  const restore = (processed: string): string => {
+    let result = processed;
+    // Use forEach instead of for...of to avoid requiring downlevelIteration on Maps.
+    placeholders.forEach((original, token) => {
+      // Use split+join to avoid regex special-character issues in token names.
+      result = result.split(token).join(original);
+    });
+    return result;
+  };
+
+  return { safeMarkdown, restore };
+}
+
 /**
  * Process all URLs in the message content and convert them to embeds.
  * This is called BEFORE sending a message to ensure URL metadata is fetched
@@ -269,6 +330,15 @@ function resetEditorContent(editor: Editor, shouldKeepFocus?: boolean) {
 }
 
 /**
+ * Guard flag to prevent double-sends on mobile.
+ * Mobile browsers (especially Firefox iOS) can fire click/touchend events in rapid succession,
+ * causing handleSend to be entered twice before the first invocation completes its async work.
+ * This flag blocks re-entry until the first send finishes its critical section
+ * (chat creation + dispatch + WebSocket send).
+ */
+let sendInProgress = false;
+
+/**
  * Handles sending a message via the message input
  *
  * @param editor TipTap editor instance
@@ -289,6 +359,460 @@ export async function handleSend(
     return;
   }
 
+  // CRITICAL: Prevent double-sends. On mobile, rapid taps or touch+click can
+  // fire this function twice before the first async call reaches setHasContent(false).
+  // A double-send during new-chat creation can cause two different chat IDs to be
+  // created, leading to messages being routed to the wrong chat (e.g., the user sees
+  // their message in the "for everyone" intro chat instead of the new chat).
+  if (sendInProgress) {
+    console.warn(
+      "[handleSend] Send already in progress, ignoring duplicate call",
+    );
+    return;
+  }
+  sendInProgress = true;
+
+  // DEFERRED SEND: Detect embeds that are still in-flight.
+  // Instead of blocking with a warning toast, we:
+  //  1. Snapshot the editor state into a PendingSendContext (this function).
+  //  2. Save the message to IndexedDB with status: "waiting_for_upload".
+  //  3. Display it immediately in the chat history for instant visual feedback.
+  //  4. When all blocking embeds finish (notified via window 'embedUploadFinished'),
+  //     MessageInput.svelte re-runs the actual send path automatically.
+  //
+  // Blocking statuses:
+  //  'uploading'   — file upload to S3 in flight; S3 keys not yet returned.
+  //  'transcribing' — audio upload done but transcription pending.
+  // NOT blocking:
+  //  'processing'  — PDF OCR in flight; we send now and backend fills in OCR later via WebSocket.
+  //
+  // We collect blocking embed info (id, label) for progress tracking in the UI.
+  interface BlockingEmbedInfo {
+    id: string;
+    label: string;
+  }
+  const blockingEmbeds: BlockingEmbedInfo[] = [];
+  editor.view.state.doc.descendants((node) => {
+    if (node.type.name === "embed") {
+      const st = node.attrs.status as string | undefined;
+      if (st === "uploading" || st === "transcribing") {
+        const label =
+          (node.attrs.filename as string) ||
+          (node.attrs.type === "recording" ? "Recording" : "Attachment");
+        blockingEmbeds.push({ id: node.attrs.id as string, label });
+      }
+    }
+    return true;
+  });
+
+  if (blockingEmbeds.length > 0) {
+    // -----------------------------------------------------------------------
+    // DEFERRED SEND PATH
+    // We cannot send right now — one or more embeds are still uploading.
+    // Save the message optimistically with status:"waiting_for_upload" and
+    // create a PendingSendContext so MessageInput can fire the actual send
+    // once all embeds report finished via the embedUploadFinished window event.
+    // -----------------------------------------------------------------------
+
+    // Determine / create the chatId exactly as the normal path would.
+    // We must replicate just enough of the chat-id resolution logic here so
+    // the message lands in the right chat.
+    let deferredChatId = currentChatId;
+    const draftStateDeferred = get(draftEditorUIState);
+    if (!deferredChatId && draftStateDeferred.currentChatId) {
+      deferredChatId = draftStateDeferred.currentChatId;
+    } else if (!deferredChatId) {
+      deferredChatId = crypto.randomUUID();
+    }
+
+    // If it's a demo/public chat, allocate a real UUID so the message stores correctly.
+    if (deferredChatId && isPublicChat(deferredChatId)) {
+      deferredChatId = crypto.randomUUID();
+    }
+
+    // Build a stub message payload with status "waiting_for_upload".
+    // Content is empty string for now — the real markdown is serialized at dispatch time.
+    const deferredMessageId = `${deferredChatId.slice(-10)}-${crypto.randomUUID()}`;
+    const deferredMessage: Message = {
+      message_id: deferredMessageId,
+      chat_id: deferredChatId,
+      role: "user",
+      content: "", // Placeholder — overwritten when deferred send fires
+      status: "waiting_for_upload",
+      created_at: Math.floor(Date.now() / 1000),
+      sender_name: "user",
+      encrypted_content: null,
+    };
+
+    // Save stub message to IndexedDB / incognito store so ChatHistory can show it.
+    try {
+      const { incognitoChatService } =
+        await import("../../../services/incognitoChatService");
+      const incognitoChat = await incognitoChatService
+        .getChat(deferredChatId)
+        .catch(() => null);
+      if (incognitoChat) {
+        await incognitoChatService.addMessage(deferredChatId, deferredMessage);
+      } else {
+        // Create chat in IndexedDB if it doesn't exist yet
+        const existingDeferred = await chatDB.getChat(deferredChatId);
+        if (!existingDeferred) {
+          const nowDeferred = Math.floor(Date.now() / 1000);
+          const isIncognito = (
+            await import("../../../stores/incognitoModeStore")
+          ).incognitoMode.get();
+          const newChatForDeferred: import("../../../types/chat").Chat = {
+            chat_id: deferredChatId,
+            encrypted_title: null,
+            messages_v: 1,
+            title_v: 0,
+            draft_v: 0,
+            encrypted_draft_md: null,
+            encrypted_draft_preview: null,
+            last_edited_overall_timestamp: deferredMessage.created_at,
+            unread_count: 0,
+            created_at: nowDeferred,
+            updated_at: nowDeferred,
+            processing_metadata: false,
+            waiting_for_metadata: !isIncognito,
+            is_incognito: isIncognito,
+            source_demo_id: null,
+          };
+          if (isIncognito) {
+            await incognitoChatService.storeChat(newChatForDeferred);
+            await incognitoChatService.addMessage(
+              deferredChatId,
+              deferredMessage,
+            );
+          } else {
+            await chatDB.addChat(newChatForDeferred);
+            await chatDB.saveMessage(deferredMessage);
+          }
+          window.dispatchEvent(
+            new CustomEvent("localChatListChanged", {
+              detail: { chat_id: deferredChatId },
+            }),
+          );
+        } else {
+          await chatDB.saveMessage(deferredMessage);
+        }
+      }
+    } catch (deferredSaveErr) {
+      console.error(
+        "[handleSend] Failed to save deferred message to IndexedDB:",
+        deferredSaveErr,
+      );
+      // Fall through — show in UI optimistically even if IDB write failed
+    }
+
+    // Snapshot ALL embed nodes in the editor (blocking and non-blocking) so we can
+    // reconstruct the final markdown later without needing the live editor.
+    // The upload callbacks in embedHandlers.ts will store finished embed data in
+    // EmbedStore (with contentRef). The deferred sender reads EmbedStore when it fires.
+    const { addPendingSend } =
+      await import("../../../stores/pendingUploadStore");
+    const embedSnapshots = new Map<
+      string,
+      import("../../../stores/pendingUploadStore").DeferredEmbedSnapshot
+    >();
+    editor.view.state.doc.descendants((node) => {
+      if (node.type.name === "embed") {
+        const id = node.attrs.id as string;
+        embedSnapshots.set(id, {
+          embedId: id,
+          embedType: (node.attrs.type as string) || "file",
+          filename: (node.attrs.filename as string) || "Attachment",
+          uploadEmbedId: (node.attrs.uploadEmbedId as string) || null,
+          contentRef: (node.attrs.contentRef as string) || null,
+        });
+      }
+      return true;
+    });
+
+    // Build per-embed progress map for the store.
+    const embedProgressMap = new Map(
+      blockingEmbeds.map((e) => [
+        e.id,
+        {
+          embedId: e.id,
+          status: "uploading" as string,
+          uploadPercent: 0,
+          label: e.label,
+        },
+      ]),
+    );
+
+    // Register in pendingUploadStore.
+    // The editor will be CLEARED after this — the user is free to navigate away.
+    // When all blocking embeds finish (notified via embedUploadFinished), the
+    // deferred sender reconstructs the final markdown from editorSnapshot +
+    // EmbedStore data and sends the message without needing the live editor.
+    addPendingSend({
+      pendingId: `${deferredMessageId}-pending`,
+      chatId: deferredChatId,
+      messageId: deferredMessageId,
+      editorSnapshot: editor.getJSON(),
+      embedSnapshots,
+      blockingEmbedIds: new Set(blockingEmbeds.map((e) => e.id)),
+      embedProgress: embedProgressMap,
+      createdAt: Date.now(),
+      piiExclusions: new Set(activePIIExclusions),
+      partialMarkdown: "",
+    });
+
+    // Optimistically show the stub message in the chat UI immediately.
+    // The message stays at status "waiting_for_upload" until the deferred send fires.
+    dispatch("sendMessage", { message: deferredMessage });
+
+    // CLEAR the editor so the user can navigate to other chats, type new messages,
+    // and interact freely. Upload callbacks in embedHandlers.ts will try to update
+    // TipTap nodes but the nodes won't exist anymore — that's fine, the callbacks
+    // already store embed data in EmbedStore independently.
+    setHasContent(false);
+    editor.commands.clearContent(false);
+    editor.commands.blur();
+
+    console.info(
+      `[handleSend] Deferred send queued for chat ${deferredChatId.slice(-6)}: blocking on ${blockingEmbeds.length} embed(s), editor cleared`,
+    );
+    return; // Exit — the actual send will happen when embedUploadFinished fires
+  }
+
+  // =========================================================================
+  // UPLOADED IMAGE EMBED REGISTRATION
+  // For each 'image' embed that has been successfully uploaded (status: 'finished',
+  // uploadEmbedId present), build a TOON content object and store it in EmbedStore.
+  // This sets contentRef on the node so serializeEmbedToMarkdown can emit a proper
+  // embed reference: ```json\n{"type":"image","embed_id":"..."}\n```
+  // =========================================================================
+  try {
+    const { encode: toonEncode } = await import("@toon-format/toon");
+    const { embedStore } = await import("../../../services/embedStore");
+
+    // Collect nodes that need contentRef set
+    interface UploadedImageNode {
+      attrs: Record<string, unknown>;
+    }
+    const uploadedImageNodes: UploadedImageNode[] = [];
+    editor.view.state.doc.descendants((node) => {
+      if (
+        node.type.name === "embed" &&
+        node.attrs.type === "image" &&
+        node.attrs.status === "finished" &&
+        node.attrs.uploadEmbedId
+      ) {
+        uploadedImageNodes.push({ attrs: { ...node.attrs } });
+      }
+      return true;
+    });
+
+    for (const { attrs } of uploadedImageNodes) {
+      const uploadEmbedId = attrs.uploadEmbedId as string;
+
+      // Build TOON content mirroring the images/generate embed structure so that
+      // existing image crypto utilities (fetchAndDecryptImage) can decrypt and
+      // display the image. The images.view skill also expects this shape.
+      //
+      // embed_ref is set to the filename so that inline embed links like
+      // [camera_1772448256162.jpg](embed:camera_1772448256162.jpg) can be
+      // resolved via embedStore.resolveByRef() — both in the current session
+      // (via the in-memory registerEmbedRef call below) and after reload
+      // (via the cold-load path which reads embed_ref from TOON content).
+      const embedContent = {
+        app_id: "images",
+        skill_id: "upload",
+        type: "image",
+        status: "finished",
+        filename: attrs.filename || null,
+        embed_ref: attrs.filename || null,
+        content_hash: attrs.contentHash || null,
+        s3_base_url: attrs.s3BaseUrl || null,
+        files: attrs.s3Files || null,
+        aes_key: attrs.aesKey || null,
+        aes_nonce: attrs.aesNonce || null,
+        vault_wrapped_aes_key: attrs.vaultWrappedAesKey || null,
+        ai_detection: attrs.aiDetection || null,
+      };
+
+      let toonContent: string;
+      try {
+        toonContent = toonEncode(embedContent);
+      } catch {
+        toonContent = JSON.stringify(embedContent);
+      }
+
+      const now = Date.now();
+      const textPreview = (attrs.filename as string) || "Uploaded image";
+
+      // Store in EmbedStore — will be encrypted and sent with the message payload
+      await embedStore.put(
+        `embed:${uploadEmbedId}`,
+        {
+          embed_id: uploadEmbedId,
+          type: "images-image", // Frontend type for uploaded user images
+          status: "finished",
+          content: toonContent,
+          text_preview: textPreview,
+          createdAt: now,
+          updatedAt: now,
+        },
+        "images-image",
+      );
+
+      // Register the embed_ref → embed_id mapping in the in-memory index so
+      // that inline embed links (e.g. [filename](embed:filename)) resolve
+      // immediately in this session without waiting for a cold-load path.
+      if (attrs.filename) {
+        embedStore.registerEmbedRef(
+          attrs.filename as string,
+          uploadEmbedId,
+          "images",
+        );
+      }
+
+      console.debug(
+        `[handleSend] Registered uploaded image embed ${uploadEmbedId} in EmbedStore`,
+      );
+
+      // Update the embed node's contentRef so the serializer emits a proper embed reference
+      const { state, dispatch } = editor.view;
+      const tr = state.tr;
+      state.doc.descendants((node, nodePos) => {
+        if (
+          node.type.name === "embed" &&
+          node.attrs.uploadEmbedId === uploadEmbedId
+        ) {
+          tr.setNodeMarkup(nodePos, undefined, {
+            ...node.attrs,
+            contentRef: `embed:${uploadEmbedId}`,
+          });
+          return false;
+        }
+        return true;
+      });
+      dispatch(tr);
+    }
+  } catch (embedRegError) {
+    console.error(
+      "[handleSend] Error registering uploaded image embeds:",
+      embedRegError,
+    );
+    // Non-fatal: message will still send but image embeds may not be stored correctly.
+    // Surface the error so it's visible (no silent failures).
+    throw embedRegError;
+  }
+
+  // =========================================================================
+  // AUDIO RECORDING EMBED REGISTRATION
+  // For each 'recording' embed that has been successfully uploaded and
+  // transcribed (status: 'finished', uploadEmbedId present), build a TOON
+  // content object and store it in EmbedStore so the serializer can emit a
+  // proper embed reference: ```json\n{"type":"audio-recording","embed_id":"..."}\n```
+  // The TOON content stores all S3/AES metadata plus the transcript text so
+  // the backend can inject it as context for the LLM.
+  // =========================================================================
+  try {
+    const { encode: toonEncodeAudio } = await import("@toon-format/toon");
+    const { embedStore: audioEmbedStore } =
+      await import("../../../services/embedStore");
+
+    interface UploadedRecordingNode {
+      attrs: Record<string, unknown>;
+    }
+    const uploadedRecordingNodes: UploadedRecordingNode[] = [];
+    editor.view.state.doc.descendants((node) => {
+      if (
+        node.type.name === "embed" &&
+        node.attrs.type === "recording" &&
+        node.attrs.status === "finished" &&
+        node.attrs.uploadEmbedId
+      ) {
+        uploadedRecordingNodes.push({ attrs: { ...node.attrs } });
+      }
+      return true;
+    });
+
+    for (const { attrs } of uploadedRecordingNodes) {
+      const uploadEmbedId = attrs.uploadEmbedId as string;
+
+      // Build TOON content for the audio recording embed.
+      // The backend audio skill (transcribe) expects this shape.
+      // model is included so RecordingRenderer.ts can display "0:42 · voxtral-mini-2602"
+      // in the read-only subtitle when loading from EmbedStore.
+      const embedContent = {
+        app_id: "audio",
+        skill_id: "transcribe",
+        type: "audio-recording",
+        status: "finished",
+        filename: attrs.filename || null,
+        duration: attrs.duration || null,
+        mime_type: attrs.mimeType || null,
+        transcript: attrs.transcript || null,
+        model: (attrs.model as string) || null,
+        s3_base_url: attrs.s3BaseUrl || null,
+        files: attrs.s3Files || null,
+        aes_key: attrs.aesKey || null,
+        aes_nonce: attrs.aesNonce || null,
+        vault_wrapped_aes_key: attrs.vaultWrappedAesKey || null,
+      };
+
+      let toonContent: string;
+      try {
+        toonContent = toonEncodeAudio(embedContent);
+      } catch {
+        toonContent = JSON.stringify(embedContent);
+      }
+
+      const now = Date.now();
+      const textPreview =
+        (attrs.transcript as string) ||
+        (attrs.filename as string) ||
+        "Voice note";
+
+      await audioEmbedStore.put(
+        `embed:${uploadEmbedId}`,
+        {
+          embed_id: uploadEmbedId,
+          type: "audio-recording",
+          status: "finished",
+          content: toonContent,
+          text_preview: textPreview,
+          createdAt: now,
+          updatedAt: now,
+        },
+        "audio-recording",
+      );
+
+      console.debug(
+        `[handleSend] Registered audio recording embed ${uploadEmbedId} in EmbedStore`,
+      );
+
+      // Update the embed node's contentRef so the serializer emits a proper embed reference
+      const { state: recState, dispatch: recDispatch } = editor.view;
+      const recTr = recState.tr;
+      recState.doc.descendants((node, nodePos) => {
+        if (
+          node.type.name === "embed" &&
+          node.attrs.uploadEmbedId === uploadEmbedId
+        ) {
+          recTr.setNodeMarkup(nodePos, undefined, {
+            ...node.attrs,
+            contentRef: `embed:${uploadEmbedId}`,
+          });
+          return false;
+        }
+        return true;
+      });
+      recDispatch(recTr);
+    }
+  } catch (recEmbedRegError) {
+    console.error(
+      "[handleSend] Error registering audio recording embeds:",
+      recEmbedRegError,
+    );
+    throw recEmbedRegError;
+  }
+
   // Get the TipTap editor content as JSON
   const editorContent = editor.getJSON();
   if (
@@ -303,6 +827,11 @@ export async function handleSend(
 
   // Convert to markdown
   let markdown = tipTapToCanonicalMarkdown(editorContent);
+
+  // Strip leading empty lines that were auto-prepended to allow cursor placement
+  // before the first embed node (see ensureLeadingParagraph in embedHandlers.ts).
+  // Leading newlines are meaningless to the LLM and produce an ugly blank first line.
+  markdown = markdown.replace(/^\n+/, "");
 
   // CRITICAL: Process URLs before sending to convert them to proper embeds
   // This ensures that when user types "summarize https://example.com" and presses Enter,
@@ -373,7 +902,14 @@ export async function handleSend(
         personalDataEntries: personalDataForDetection,
       };
 
-      const piiMatches = detectPII(markdown, detectionOptions);
+      // CRITICAL: Protect embed reference blocks (```json {"embed_id":…} ```) from the
+      // PII anonymizer. UUID segments can match PII patterns (e.g. "051-4369" fires the
+      // local phone-number regex), which corrupts embed IDs and causes message sends to
+      // be blocked with "missing embeds". We swap them out for opaque tokens, run PII on
+      // the rest of the markdown, then restore the original blocks afterwards.
+      const { safeMarkdown, restore } = protectEmbedRefsFromPII(markdown);
+
+      const piiMatches = detectPII(safeMarkdown, detectionOptions);
       if (piiMatches.length > 0) {
         console.debug(
           "[handleSend] Detected PII to anonymize:",
@@ -389,12 +925,18 @@ export async function handleSend(
         // and used to restore original values when rendering messages
         piiMappingsForStorage = createPIIMappingsForStorage(piiMatches);
 
-        markdown = replacePIIWithPlaceholders(markdown, piiMatches);
+        markdown = restore(
+          replacePIIWithPlaceholders(safeMarkdown, piiMatches),
+        );
         console.debug(
           "[handleSend] PII anonymization complete, replaced",
           piiMatches.length,
           "sensitive items. Mappings will be stored with message.",
         );
+      } else {
+        // No PII found, but still restore embed blocks (restore is a no-op if none
+        // were protected, so this is always safe).
+        markdown = restore(safeMarkdown);
       }
     } else {
       console.debug(
@@ -971,6 +1513,316 @@ export async function handleSend(
   } catch (error) {
     console.error("Failed to handle message send:", error);
     vibrateMessageField();
+  } finally {
+    // CRITICAL: Always release the send guard, even on error,
+    // so the user can retry sending after a failure.
+    sendInProgress = false;
+  }
+}
+
+// =============================================================================
+// Deferred Send Execution
+// =============================================================================
+
+/**
+ * Execute a deferred send by reconstructing final markdown from the snapshotted
+ * editor JSON + EmbedStore data. This runs WITHOUT a live TipTap editor —
+ * the user may have navigated to a different chat.
+ *
+ * Steps:
+ *  1. Deep-clone the editorSnapshot from the PendingSendContext.
+ *  2. Walk all embed nodes in the snapshot and patch their attrs with the final
+ *     contentRef from EmbedStore (looked up via uploadEmbedId).
+ *  3. Serialize the patched snapshot to markdown via tipTapToCanonicalMarkdown().
+ *  4. Run PII anonymization using the captured piiExclusions.
+ *  5. Run URL processing via processUrlsBeforeSend().
+ *  6. Create message payload and send via chatSyncService.sendNewMessage().
+ *  7. Update the stub message in IndexedDB from "waiting_for_upload" → "sending".
+ *
+ * @param readyCtx The PendingSendContext whose blocking embeds are all finished
+ */
+export async function executeDeferredSend(
+  readyCtx: import("../../../stores/pendingUploadStore").PendingSendContext,
+): Promise<void> {
+  console.info(
+    `[executeDeferredSend] Starting for pending ${readyCtx.pendingId} in chat ${readyCtx.chatId.slice(-6)}`,
+  );
+
+  // -------------------------------------------------------------------------
+  // 1. Deep-clone the snapshot so we can mutate it safely
+  // -------------------------------------------------------------------------
+  const snapshot = JSON.parse(
+    JSON.stringify(readyCtx.editorSnapshot),
+  ) as Record<string, unknown>;
+
+  // -------------------------------------------------------------------------
+  // 2. Walk embed nodes and patch contentRef from EmbedStore
+  // -------------------------------------------------------------------------
+  // The snapshot is a TipTap JSON tree: { type: "doc", content: [...] }
+  // Embed nodes are at any depth: { type: "embed", attrs: { id, type, ... } }
+  interface TipTapNode {
+    type?: string;
+    attrs?: Record<string, unknown>;
+    content?: TipTapNode[];
+  }
+
+  function patchEmbedNodes(nodes: TipTapNode[] | undefined): void {
+    if (!nodes) return;
+    for (const node of nodes) {
+      if (node.type === "embed" && node.attrs) {
+        const embedId = node.attrs.id as string;
+        // Look up the snapshot we captured at send time
+        const snap = readyCtx.embedSnapshots.get(embedId);
+        if (snap) {
+          // The upload handler (embedHandlers.ts) stores finished embed data in
+          // EmbedStore with key `embed:${uploadEmbedId}`. The uploadEmbedId on
+          // the snapshot may have been null at capture time (still uploading), but
+          // by now the upload is done and the TipTap node attrs were updated by
+          // the upload callback. However, the TipTap editor was cleared — so we
+          // need to read uploadEmbedId from the snapshot (if set at capture time)
+          // or from the EmbedStore's embed_id field.
+          //
+          // Strategy: if snap.uploadEmbedId is set, use it directly. Otherwise,
+          // we have a problem because we don't know the server-assigned embed_id.
+          // In practice, for deferred sends the embed was always in "uploading"
+          // status, meaning uploadEmbedId was NOT yet set. But by the time the
+          // upload finishes, _performUpload / _performRecordingUpload stores the
+          // embed in EmbedStore with key `embed:${uploadEmbedId}`. We need a way
+          // to map localEmbedId → uploadEmbedId.
+          //
+          // The embedUploadFinished event only carries localEmbedId. But
+          // _performUpload() also updates the TipTap node with uploadEmbedId.
+          // Since the editor is cleared, that update is a no-op. However, the
+          // embedHandlers code ALSO stores in EmbedStore using the server's
+          // embed_id as key. We need to search EmbedStore for an entry whose
+          // embed_id was created from this localEmbedId.
+          //
+          // BETTER APPROACH: Store the mapping localEmbedId → uploadEmbedId
+          // in the DeferredEmbedSnapshot when the upload finishes. We can update
+          // the snapshot in the pendingUploadStore when markEmbedFinished is called.
+          //
+          // FOR NOW: The uploadEmbedId may already be on the snapshot if the
+          // embed was in "transcribing" (not "uploading") status when the user
+          // pressed Send. For "uploading" embeds, we need the mapping.
+          //
+          // SIMPLEST FIX: embedHandlers.ts already dispatches the
+          // embedUploadFinished event. Before dispatching, we should also update
+          // the DeferredEmbedSnapshot in pendingUploadStore with the
+          // uploadEmbedId. Let's handle this by having the upload callbacks
+          // update the snapshot. But for now, let's try using the snapshot's
+          // uploadEmbedId if available, and fall back to checking contentRef.
+          let contentRef = snap.contentRef;
+
+          if (!contentRef && snap.uploadEmbedId) {
+            contentRef = `embed:${snap.uploadEmbedId}`;
+          }
+
+          if (contentRef) {
+            node.attrs.contentRef = contentRef;
+          }
+        }
+      }
+      // Recurse into children
+      if (node.content) {
+        patchEmbedNodes(node.content);
+      }
+    }
+  }
+
+  patchEmbedNodes((snapshot as TipTapNode).content);
+
+  // -------------------------------------------------------------------------
+  // 3. Serialize to markdown
+  // -------------------------------------------------------------------------
+  let markdown = tipTapToCanonicalMarkdown(snapshot);
+  // Strip leading empty lines (same as normal send path)
+  markdown = markdown.replace(/^\n+/, "");
+
+  // -------------------------------------------------------------------------
+  // 4. Process URLs → embed references
+  // -------------------------------------------------------------------------
+  try {
+    markdown = await processUrlsBeforeSend(markdown);
+  } catch (error) {
+    console.error(
+      "[executeDeferredSend] Error processing URLs before send:",
+      error,
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // 5. PII anonymization
+  // -------------------------------------------------------------------------
+  let piiMappingsForStorage: PIIMappingForStorage[] = [];
+  try {
+    const piiSettings: PIIDetectionSettings = get(personalDataStore.settings);
+    if (piiSettings.masterEnabled) {
+      const disabledCategories = new Set<string>();
+      for (const [category, enabled] of Object.entries(
+        piiSettings.categories,
+      )) {
+        if (!enabled) disabledCategories.add(category);
+      }
+
+      const enabledEntries: PersonalDataEntry[] = get(
+        personalDataStore.enabledEntries,
+      );
+      const personalDataForDetection: PersonalDataForDetection[] =
+        enabledEntries.map((entry) => {
+          const result: PersonalDataForDetection = {
+            id: entry.id,
+            textToHide: entry.textToHide,
+            replaceWith: entry.replaceWith,
+          };
+          if (entry.type === "address" && entry.addressLines) {
+            const additionalTexts: string[] = [];
+            if (entry.addressLines.street)
+              additionalTexts.push(entry.addressLines.street);
+            if (entry.addressLines.city)
+              additionalTexts.push(entry.addressLines.city);
+            result.additionalTexts = additionalTexts;
+          }
+          return result;
+        });
+
+      const detectionOptions: PIIDetectionOptions = {
+        excludedIds: readyCtx.piiExclusions,
+        disabledCategories,
+        personalDataEntries: personalDataForDetection,
+      };
+
+      // Protect embed reference blocks from PII corruption (same reason as in
+      // handleSend: UUID segments can match phone/other PII patterns).
+      const { safeMarkdown: safeMd, restore: restoreMd } =
+        protectEmbedRefsFromPII(markdown);
+
+      const piiMatches = detectPII(safeMd, detectionOptions);
+      if (piiMatches.length > 0) {
+        piiMappingsForStorage = createPIIMappingsForStorage(piiMatches);
+        markdown = restoreMd(replacePIIWithPlaceholders(safeMd, piiMatches));
+        console.debug(
+          `[executeDeferredSend] PII anonymization: replaced ${piiMatches.length} items`,
+        );
+      } else {
+        markdown = restoreMd(safeMd);
+      }
+    }
+  } catch (error) {
+    console.error("[executeDeferredSend] PII anonymization error:", error);
+  }
+
+  // -------------------------------------------------------------------------
+  // 6. Build message payload and update IndexedDB
+  // -------------------------------------------------------------------------
+  const wsStatus = get(websocketStatus);
+  const isConnected = wsStatus.status === "connected";
+  const newStatus: Message["status"] = isConnected
+    ? "sending"
+    : "waiting_for_internet";
+
+  // Update the existing stub message in IndexedDB with real content + new status
+  try {
+    const { incognitoChatService } =
+      await import("../../../services/incognitoChatService");
+    const incognitoChat = await incognitoChatService
+      .getChat(readyCtx.chatId)
+      .catch(() => null);
+
+    const updatedMessage: Partial<Message> & {
+      message_id: string;
+      chat_id: string;
+    } = {
+      message_id: readyCtx.messageId,
+      chat_id: readyCtx.chatId,
+      content: markdown,
+      status: newStatus,
+      pii_mappings:
+        piiMappingsForStorage.length > 0 ? piiMappingsForStorage : undefined,
+    };
+
+    if (incognitoChat) {
+      // For incognito chats, we need to update the message in the incognito store
+      // incognitoChatService doesn't have an updateMessage, so we re-add
+      const existingMessages = await incognitoChatService.getMessagesForChat(
+        readyCtx.chatId,
+      );
+      const existingMsg = existingMessages.find(
+        (m) => m.message_id === readyCtx.messageId,
+      );
+      if (existingMsg) {
+        Object.assign(existingMsg, updatedMessage);
+        await incognitoChatService.addMessage(readyCtx.chatId, existingMsg);
+      }
+    } else {
+      // Regular chat: update the message in IndexedDB
+      const existingMsg = await chatDB.getMessage(readyCtx.messageId);
+      if (existingMsg) {
+        existingMsg.content = markdown;
+        existingMsg.status = newStatus;
+        existingMsg.pii_mappings =
+          piiMappingsForStorage.length > 0 ? piiMappingsForStorage : undefined;
+        await chatDB.saveMessage(existingMsg);
+      }
+    }
+  } catch (dbError) {
+    console.error(
+      "[executeDeferredSend] Failed to update stub message in DB:",
+      dbError,
+    );
+  }
+
+  // Build a full message payload for chatSyncService (it needs all fields)
+  const messagePayload: Message = {
+    message_id: readyCtx.messageId,
+    chat_id: readyCtx.chatId,
+    role: "user",
+    content: markdown,
+    status: newStatus,
+    created_at: Math.floor(readyCtx.createdAt / 1000),
+    sender_name: "user",
+    encrypted_content: null,
+    pii_mappings:
+      piiMappingsForStorage.length > 0 ? piiMappingsForStorage : undefined,
+  };
+
+  // -------------------------------------------------------------------------
+  // 7. Send to backend
+  // -------------------------------------------------------------------------
+  try {
+    // Notify backend about the active chat (it may be a different chat now)
+    await chatSyncService.sendSetActiveChat(readyCtx.chatId);
+    await chatSyncService.sendNewMessage(messagePayload);
+    console.info(
+      `[executeDeferredSend] Deferred message sent for chat ${readyCtx.chatId.slice(-6)}`,
+    );
+  } catch (sendError) {
+    console.error(
+      "[executeDeferredSend] Failed to send deferred message:",
+      sendError,
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // 8. Clear the draft for this chat on all devices
+  // -------------------------------------------------------------------------
+  // The deferred-send path skips clearCurrentDraft() in the normal handleSend()
+  // flow because it returns early (line ~578). We must call it here after the
+  // send completes so that:
+  //   a) The local IndexedDB draft is nulled out.
+  //   b) The 'delete_draft' WebSocket message is sent to the server, which then
+  //      broadcasts 'draft_deleted' to all other logged-in devices.
+  // Without this call, Device B (and any other device) would continue showing
+  // the draft in the chat list even after the message was sent.
+  try {
+    await clearCurrentDraft();
+    console.info(
+      `[executeDeferredSend] Draft cleared for chat ${readyCtx.chatId.slice(-6)}`,
+    );
+  } catch (clearError) {
+    console.error(
+      "[executeDeferredSend] Failed to clear draft after deferred send:",
+      clearError,
+    );
   }
 }
 

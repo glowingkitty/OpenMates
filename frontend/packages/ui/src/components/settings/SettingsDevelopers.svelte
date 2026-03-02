@@ -56,7 +56,7 @@ Developers Settings - API keys management and developer tools
 <div class="developers-container">
     <SettingsItem
         type="submenu"
-        icon="subsetting_icon subsetting_icon_key"
+        icon="subsetting_icon key"
         title={$text('settings.developers_api_keys')}
         subtitleTop={$text('settings.developers_api_keys_description')}
         onClick={navigateToApiKeys}
@@ -64,7 +64,7 @@ Developers Settings - API keys management and developer tools
 
     <SettingsItem
         type="submenu"
-        icon="subsetting_icon subsetting_icon_devices"
+        icon="subsetting_icon devices"
         title={$text('settings.developers_devices_text')}
         subtitleTop={$text('settings.developers_devices_description')}
         onClick={navigateToDevices}
@@ -72,7 +72,7 @@ Developers Settings - API keys management and developer tools
 
     <SettingsItem
         type="submenu"
-        icon="subsetting_icon subsetting_icon_document"
+        icon="subsetting_icon document"
         title={$text('settings.api_docs')}
         subtitleTop=""
         onClick={openApiDocs}

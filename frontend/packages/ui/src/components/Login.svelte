@@ -970,10 +970,10 @@
                 // This handles the race condition where orphaned database cleanup was triggered on page load
                 // (setting these flags to true) but the user then successfully logs in with passkey.
                 // Without this reset, userDB.saveUserData() would throw "Database initialization blocked during logout"
-                const { forcedLogoutInProgress, isLoggingOut } = await import('../stores/signupState');
+                const { forcedLogoutInProgress, isLoggingOut, resetForcedLogoutInProgress } = await import('../stores/signupState');
                 if (get(forcedLogoutInProgress)) {
                     console.debug('[Login] Resetting forcedLogoutInProgress to false - successful passkey login (path 1)');
-                    forcedLogoutInProgress.set(false);
+                    resetForcedLogoutInProgress();
                 }
                 if (get(isLoggingOut)) {
                     console.debug('[Login] Resetting isLoggingOut to false - successful passkey login (path 1)');
@@ -1494,10 +1494,10 @@
                 // This handles the race condition where orphaned database cleanup was triggered on page load
                 // (setting these flags to true) but the user then successfully logs in with passkey.
                 // Without this reset, userDB.saveUserData() would throw "Database initialization blocked during logout"
-                const { forcedLogoutInProgress, isLoggingOut } = await import('../stores/signupState');
+                const { forcedLogoutInProgress, isLoggingOut, resetForcedLogoutInProgress } = await import('../stores/signupState');
                 if (get(forcedLogoutInProgress)) {
                     console.debug('[Login] Resetting forcedLogoutInProgress to false - successful passkey login (path 2)');
-                    forcedLogoutInProgress.set(false);
+                    resetForcedLogoutInProgress();
                 }
                 if (get(isLoggingOut)) {
                     console.debug('[Login] Resetting isLoggingOut to false - successful passkey login (path 2)');
@@ -2632,6 +2632,18 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        transition: transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        cursor: pointer;
+    }
+
+    .report-issue-button-wrapper:hover {
+        transform: scale(1.08);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .report-issue-button-wrapper:active {
+        transform: scale(0.95);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
     }
 
     .report-issue-button {

@@ -20,6 +20,7 @@ ask:
   th: ถาม
   cs: Zeptat se
   sv: Fråga
+  he: שאל
   verified_by_human: [en, de]
 
 ask.description:
@@ -44,11 +45,12 @@ ask.description:
   th: ถามด้วยข้อความ รูปภาพ และสื่ออื่นๆ
   cs: Ptejte se textem, obrázky a dalšími médii.
   sv: Fråga med text, bilder och annat media.
+  he: שאל באמצעות טקסט, תמונות ומדיה נוספת.
   verified_by_human: [en, de]
 
 ask.how_to_use.1:
   context: Example instruction for AI ask skill - general knowledge question
-  en: What are the pros and cons of remote work?
+  en: What are the **pros and cons** of remote work?
   de: Was sind die Vor- und Nachteile von Remote-Arbeit?
   zh: 远程工作的优缺点是什么？
   es: ¿Cuáles son los pros y contras del trabajo remoto?
@@ -68,11 +70,12 @@ ask.how_to_use.1:
   th: ข้อดีและข้อเสียของการทำงานทางไกลคืออะไร?
   cs: Jaké jsou výhody a nevýhody práce na dálku?
   sv: Vilka är fördelarna och nackdelarna med distansarbete?
+  he: "מהם ה**יתרונות והחסרונות** של עבודה מרחוק?"
   verified_by_human: [en, de]
 
 ask.how_to_use.2:
   context: Example instruction for AI ask skill - explain a concept
-  en: Explain quantum computing in simple terms
+  en: "**Explain** quantum computing in simple terms"
   de: Erkläre Quantencomputing in einfachen Worten
   zh: 用简单的语言解释量子计算
   es: Explica la computación cuántica en términos simples
@@ -92,11 +95,12 @@ ask.how_to_use.2:
   th: อธิบายการประมวลผลควอนตัมด้วยคำง่ายๆ
   cs: Vysvětli kvantové počítání jednoduchými slovy
   sv: Förklara kvantdatorer med enkla ord
+  he: "**הסבר** מחשוב קוונטי במונחים פשוטים"
   verified_by_human: [en, de]
 
 ask.how_to_use.3:
   context: Example instruction for AI ask skill - writing help
-  en: Help me write a professional email to my boss about a raise
+  en: "Help me **write** a professional email to my boss about a raise"
   de: Hilf mir, eine professionelle E-Mail an meinen Chef wegen einer Gehaltserhöhung zu schreiben
   zh: 帮我写一封向老板要求加薪的专业邮件
   es: Ayúdame a escribir un email profesional a mi jefe sobre un aumento
@@ -116,4 +120,5 @@ ask.how_to_use.3:
   th: ช่วยเขียนอีเมลอย่างมืออาชีพถึงหัวหน้าเรื่องการขอขึ้นเงินเดือน
   cs: Pomoz mi napsat profesionální email šéfovi o zvýšení platu
   sv: Hjälp mig skriva ett professionellt mejl till min chef om löneförhöjning
+  he: "עזור לי **לכתוב** אימייל מקצועי למנהל שלי בנושא העלאה בשכר"
   verified_by_human: [en, de]

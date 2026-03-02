@@ -20,6 +20,7 @@ enter_fullscreen:
   th: เข้าสู่โหมดเต็มหน้าจอ
   cs: Vstoupit na celou obrazovku
   sv: 'Öppna helskärm'
+  he: מסך מלא
   verified_by_human: []
 exit_fullscreen:
   context: Button text for exiting fullscreen
@@ -43,4 +44,5 @@ exit_fullscreen:
   th: ออกจากโหมดเต็มหน้าจอ
   cs: Opustit celou obrazovku
   sv: 'Stäng helskärm'
+  he: יציאה ממסך מלא
   verified_by_human: []

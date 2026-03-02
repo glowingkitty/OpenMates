@@ -29,7 +29,14 @@
 			content="AI, artificial intelligence, team mates, digital, virtual assistant, automation, productivity, privacy, safety"
 		/>
 		<meta name="author" content="OpenMates Team" />
-		<meta name="robots" content="index, follow" />
+		<!--
+			Default robots tag: noindex for the SPA shell.
+			- The SPA root (/) is a JS app — crawlers can't execute it, so indexing it is useless.
+			- SEO pages (e.g. /demo/chat/[slug]) override this via <svelte:head> with index,follow
+			  on production, or noindex,nofollow on dev/staging.
+			- robots.txt already disallows all crawlers on dev/staging subdomains.
+		-->
+		<meta name="robots" content="noindex, nofollow" />
 		<link rel="canonical" href="https://openmates.org" />
 
 		<!-- Open Graph / Facebook -->

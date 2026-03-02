@@ -26,6 +26,11 @@
   } from '../services/chatSyncServiceHandlersAppSettings';
   import type { SuggestedSettingsMemoryEntry } from '../types/apps';
   
+  // ChatHeader: permanent display-only card shown at the top of new chats (title + category circle)
+  import ChatHeader from './ChatHeader.svelte';
+  // Note: Icon was previously used for preprocessing step cards (now removed).
+  // If Icon is needed elsewhere in future, re-import it.
+
   // Import the permission dialog component and its store for inline rendering
   // The permission dialog is rendered as part of the chat history (scrollable with messages)
   // rather than as a fixed overlay, so users can scroll while the dialog is visible
@@ -38,6 +43,8 @@
   } from '../stores/appSettingsMemoriesPermissionStore';
   import type { PendingPermissionRequest, AppSettingsMemoriesCategory } from '../services/chatSyncServiceHandlersAppSettings';
   import { formatDisplayName, getAppGradient } from '../services/chatSyncServiceHandlersAppSettings';
+  // Note: 'text' from '@repo/ui' was previously used for preprocessing step card labels.
+  // Those step cards have been removed, so the import is no longer needed.
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -93,6 +100,42 @@
     }
     
     return cumulativeMappings;
+  }
+
+  /**
+   * Returns true if the message content (markdown string) contains a focus_mode_activation embed reference.
+   */
+  function hasFocusModeActivationEmbed(content: unknown): boolean {
+    if (typeof content !== 'string') return false;
+    return content.includes('"type":"focus_mode_activation"') || content.includes('"type": "focus_mode_activation"');
+  }
+
+  /**
+   * Merge consecutive assistant messages for display when the previous is a focus mode activation.
+   * Backend stores two messages (focus embed, then continuation text). We show one bubble.
+   */
+  function mergeFocusContinuationForDisplay(incoming: GlobalMessage[]): GlobalMessage[] {
+    const result: GlobalMessage[] = [];
+    for (let i = 0; i < incoming.length; i++) {
+      const prev = result[result.length - 1];
+      const curr = incoming[i];
+      if (
+        prev?.role === 'assistant' &&
+        curr.role === 'assistant' &&
+        hasFocusModeActivationEmbed(prev.content)
+      ) {
+        const prevContent = typeof prev.content === 'string' ? prev.content : '';
+        const currContent = typeof curr.content === 'string' ? curr.content : '';
+        result[result.length - 1] = {
+          ...curr,
+          message_id: prev.message_id,
+          content: prevContent + (prevContent && currContent ? '\n\n' : '') + currContent,
+        };
+      } else {
+        result.push(curr);
+      }
+    }
+    return result;
   }
 
   /**
@@ -185,6 +228,10 @@
       console.warn(`[ChatHistory][parseResponse] content is not a string, got: ${typeof content}`, content);
       return null;
     }
+    // Fast-path: valid app_settings_memories_response JSON always starts with '{'.
+    // Skip JSON.parse entirely for plain-text system messages (e.g. credits rejection)
+    // to avoid noisy parse-failure warnings on every render.
+    if (!content.trimStart().startsWith('{')) return null;
     try {
       const parsed = JSON.parse(content);
       if (parsed.type === 'app_settings_memories_response') {
@@ -378,7 +425,21 @@
     settingsMemoriesSuggestions = [],
     rejectedSuggestionHashes = null,
     onSuggestionAdded = undefined,
-    onSuggestionRejected = undefined
+    onSuggestionRejected = undefined,
+    onSuggestionOpenForCustomize = undefined,
+    // Chat header props: shown at the top of new chats only.
+    // chatTitle / chatCategory / chatIcon are the decrypted metadata once received.
+    // isNewChatGeneratingTitle=true shows the "Generating title..." placeholder instead.
+    chatTitle = '',
+    chatCategory = null,
+    chatIcon = null,
+    chatSummary = null,
+    chatCreatedAt = null,
+    isNewChatGeneratingTitle = false,
+    isNewChatCreditsError = false,
+    isCreditsRestored = false,
+    onResend = undefined,
+    isIncognito = false,
   }: {
     messageInputHeight?: number;
     containerWidth?: number;
@@ -389,6 +450,32 @@
     rejectedSuggestionHashes?: string[] | null; // SHA-256 hashes of rejected suggestions for client-side filtering
     onSuggestionAdded?: (suggestion: SuggestedSettingsMemoryEntry) => void; // Callback when user adds a suggestion
     onSuggestionRejected?: (suggestion: SuggestedSettingsMemoryEntry) => void; // Callback when user rejects a suggestion
+    onSuggestionOpenForCustomize?: (suggestion: SuggestedSettingsMemoryEntry) => void; // Callback when user opens suggestion to customize (deep link to create form)
+    /** Decrypted title to show in the permanent header card (new chats only). */
+    chatTitle?: string;
+    /** Decrypted category (e.g. "technology") for the gradient circle (new chats only). */
+    chatCategory?: string | null;
+    /** Decrypted icon name (e.g. "cpu") for the category circle (new chats only). */
+    chatIcon?: string | null;
+    /** Decrypted chat summary — shown as 14px text below the title if available. */
+    chatSummary?: string | null;
+    /** Unix timestamp in seconds of when the chat was created. Used for the "Started ..." time in the header banner. */
+    chatCreatedAt?: number | null;
+    /** True while the server is still generating the title/category/icon for a new chat.
+     *  Shows the "Creating new chat ..." shimmer placeholder instead of the full card. */
+    isNewChatGeneratingTitle?: boolean;
+    /** True when the first message on this new chat was rejected due to insufficient credits.
+     *  Keeps the header banner visible with a "Not enough credits" state instead of dismissing it. */
+    isNewChatCreditsError?: boolean;
+    /** True when the user now has credits again after a credits rejection.
+     *  Passed through to ChatMessage so the system notice can switch to "Resend message" mode. */
+    isCreditsRestored?: boolean;
+    /** Callback to resend the original message after credits are restored.
+     *  Passed through to ChatMessage; called when the user clicks "Resend message". */
+    onResend?: () => void;
+    /** True when the active chat is an incognito chat.
+     *  Shows the incognito-specific ChatHeader variant immediately (no shimmer needed). */
+    isIncognito?: boolean;
   } = $props();
 
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
@@ -502,6 +589,12 @@
   let lastUserMessageId = $state<string | null>(null);
   let shouldScrollToNewUserMessage = $state(false);
   let isScrolling = $state(false);
+
+  // Track whether the scroll container is at the very top.
+  // Used to conditionally suppress the top gradient fade on .chat-history-container
+  // so the banner (which sits at the top) isn't clipped by the fade when in view.
+  // Starts true since the chat opens scrolled to the top.
+  let isAtTop = $state(true);
   
   // Track whether the user has manually scrolled away during streaming.
   // When true, spacer height updates are frozen to prevent disrupting the user's scroll position.
@@ -512,11 +605,25 @@
     messages.some(m => m.status === 'streaming')
   );
   
-  // Whether to show the centered AI status overlay.
-  // Driven by processingPhase prop from ActiveChat (sending → processing → typing → null).
-  // The overlay shows status text during all phases and adds the AI icon during processing/typing.
-  let showCenteredIndicator = $derived(processingPhase !== null);
+  // NOTE: The centered AI status overlay has been removed. The spacer system directly uses
+  // `processingPhase !== null` to know when AI processing is happening (affects scroll behaviour).
+
+  // Whether to show the chat header card (or its loading placeholder) at the top of the chat.
+  // Only shown for new chats — existing chats opened from the sidebar never show this.
+  // The header is visible as long as any of these are true:
+  //   a) isNewChatGeneratingTitle is true (shimmer placeholder state), or
+  //   b) we have both a title and a category (loaded state), or
+  //   c) isNewChatCreditsError is true (credits error state), or
+  //   d) isIncognito is true (always show the incognito header immediately)
+  let showChatHeader = $derived(isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!(chatTitle && chatCategory));
   
+  // Message ID waiting to be scrolled into view after the new-chat title arrives.
+  // When a message is sent to a brand-new chat we activate the spacer immediately
+  // (so there is room to scroll) but suppress the normal post-send scroll.  Instead
+  // we store the message ID here so triggerNewChatUserMessageScroll() can execute
+  // the scroll 2 s after the title/category/icon have been received.
+  let pendingNewChatScrollMessageId = $state<string | null>(null);
+
   // Whether the streaming spacer should be active.
   // The spacer ensures the scroll position remains valid after the user-message scroll
   // positions the user message near the top of the viewport. Without it, there wouldn't
@@ -608,7 +715,9 @@
   let previousLocale = $state($locale || 'en');
 
   // Add method to update messages
-  export function updateMessages(newMessagesArray: GlobalMessage[]) {
+  // isNewChat: when true, the post-send scroll is delayed by 2 s so the user can
+  // first see the "Creating new chat..." header transition into the generated title.
+  export function updateMessages(newMessagesArray: GlobalMessage[], isNewChat = false) {
     // Check if locale has changed - if so, force re-processing of all messages
     // Use previousLocale to detect changes since currentLocale is $derived
     const newLocale = $locale || 'en';
@@ -628,12 +737,49 @@
 
     const previousMessagesLength = messages.length;
     
+    // Display merge: show focus activation + following assistant as one bubble
+    const mergedForDisplay = mergeFocusContinuationForDisplay(newMessagesArray);
+    
     // Build cumulative PII mappings from all user messages in the incoming array
     // This allows assistant messages to restore PII from any preceding user message
-    const piiMappings = buildCumulativePIIMappings(newMessagesArray);
+    const piiMappings = buildCumulativePIIMappings(mergedForDisplay);
     
-    const newInternalMessages = newMessagesArray.map(newMessage => {
+    const newInternalMessages = mergedForDisplay.map(newMessage => {
         const oldMessage = messages.find(m => m.id === newMessage.message_id);
+        const hasEmbedUpdate = (newMessage as MessageWithEmbedMetadata)._embedUpdateTimestamp !== undefined;
+
+        // PERFORMANCE OPTIMIZATION: Skip G_mapToInternalMessage entirely for messages
+        // whose raw content, status, and metadata have not changed since the last render.
+        //
+        // This is the critical fix for the user-message re-render glitch: every AI streaming
+        // chunk triggers updateMessages() with the full messages array. Without this guard,
+        // G_mapToInternalMessage is called for EVERY message on EVERY chunk, including user
+        // messages with large image embeds. G_mapToInternalMessage calls parse_message →
+        // preprocessTiptapJsonForEmbeds → embed resolver, which fires network requests for
+        // every image embed on every AI response chunk.
+        //
+        // We can safely skip processing when ALL of the following hold:
+        //   1. An existing InternalMessage for this id exists (already processed before)
+        //   2. The locale has not changed (no retranslation needed)
+        //   3. No embed update timestamp is present (no forced embed re-render)
+        //   4. The message is not currently streaming (streaming needs live updates)
+        //   5. The raw content string is identical (nothing actually changed)
+        //   6. The status is identical (status changes must be reflected)
+        //   7. The appCards reference is identical (app cards unchanged)
+        if (
+            oldMessage &&
+            !localeChanged &&
+            !hasEmbedUpdate &&
+            newMessage.status !== 'streaming' &&
+            oldMessage.status === newMessage.status &&
+            oldMessage.appCards === (newMessage as MessageWithEmbedMetadata).appCards &&
+            oldMessage.original_message?.content === newMessage.content
+        ) {
+            // Raw content and status identical — reuse the existing InternalMessage entirely.
+            // This avoids all parsing, embed resolution, and network fetches.
+            return oldMessage;
+        }
+
         const newInternalMessage = G_mapToInternalMessage(newMessage, piiMappings);
 
         // CRITICAL FIX: Skip content optimization for streaming messages AND when locale changes
@@ -643,8 +789,6 @@
         // If an old message exists and its content is identical to the new one,
         // reuse the old content object reference to prevent unnecessary re-renders
         // of the ReadOnlyMessage component. BUT skip this for streaming messages, locale changes, and embed updates.
-        const hasEmbedUpdate = (newMessage as MessageWithEmbedMetadata)._embedUpdateTimestamp !== undefined;
-        
         if (oldMessage &&
             !localeChanged &&
             !hasEmbedUpdate &&
@@ -684,7 +828,27 @@
       const newMessage = newInternalMessages[newInternalMessages.length - 1];
       if (newMessage.role === 'user') {
         lastUserMessageId = newMessage.id;
-        shouldScrollToNewUserMessage = true;
+        if (isNewChat) {
+          // New chat: activate the spacer immediately so there is room to scroll,
+          // but suppress the post-send scroll entirely.  The scroll will fire 2 s
+          // after the title/category/icon arrive via triggerNewChatUserMessageScroll().
+          pendingNewChatScrollMessageId = newMessage.id;
+          isSpacerActive = true;
+          spacerHeight = container?.clientHeight ?? window.innerHeight;
+          if (spacerSafetyTimeout) clearTimeout(spacerSafetyTimeout);
+          spacerSafetyTimeout = setTimeout(() => {
+            if (isSpacerActive) {
+              console.warn('[ChatHistory] Spacer safety timeout (new-chat) — force-deactivating stuck spacer');
+              isSpacerActive = false;
+              spacerHeight = 0;
+              userHasScrolledAway = false;
+              pendingNewChatScrollMessageId = null;
+            }
+            spacerSafetyTimeout = null;
+          }, 60_000);
+        } else {
+          shouldScrollToNewUserMessage = true;
+        }
       }
     }
 
@@ -868,29 +1032,60 @@
     });
   });
 
-  // Handle scrolling to highlighted message from deep link
+  // Handle scrolling to highlighted message from search or deep link.
+  //
+  // The messageHighlightStore is set by handleSearchMessageSnippetClick in Chats.svelte
+  // AFTER the chat is selected, so ChatHistory is already mounting when this effect fires.
+  // We still retry up to 30 times (3 seconds) to account for messages loading from IndexedDB.
+  //
+  // Two-phase scrolling:
+  //   Phase 1 — Scroll the message element into view (message may still be rendering).
+  //   Phase 2 — After a brief delay for the in-message mark highlights to be applied
+  //             (ChatMessage.svelte adds them in a requestAnimationFrame), scroll to the
+  //             first <mark class="search-match"> inside the message so the exact match
+  //             is centered in the viewport, not just the top of the message.
   $effect(() => {
     if (container && $messageHighlightStore) {
       const messageId = $messageHighlightStore;
       
-      // Wait for messages to render
+      // Wait for Svelte to apply pending DOM updates before querying
       tick().then(() => {
+        // Retry loop: messages may still be loading from IndexedDB when this fires.
+        // 30 attempts × 100 ms = up to 3 seconds of patience.
+        const MAX_ATTEMPTS = 30;
         const attemptScroll = (attempts = 0) => {
           const targetMessage = container.querySelector(`[data-message-id="${messageId}"]`);
           
           if (targetMessage) {
             const messageTop = (targetMessage as HTMLElement).offsetTop;
-            // Scroll so the message has 100px offset from top
+            // Phase 1: Scroll so the message has 100px of breathing room from the top
             const scrollPosition = Math.max(0, messageTop - 100);
-            
             container.scrollTo({
               top: scrollPosition,
               behavior: 'smooth'
             });
-            console.debug(`[ChatHistory] Scrolled to highlighted message ${messageId}`);
-          } else if (attempts < 10) {
-            // Message not found yet, try again after a short delay
+            console.debug(`[ChatHistory] Scrolled to highlighted message ${messageId} (attempt ${attempts + 1})`);
+
+            // Phase 2: After two rAF cycles (enough for ChatMessage's own rAF to fire
+            // and apply <mark class="search-match"> nodes), scroll to the first match
+            // element so the exact matched text is visible, not just the message header.
+            // We use two nested requestAnimationFrame calls:
+            //   - First rAF: Svelte/markdown renderer has painted
+            //   - Second rAF: ChatMessage's highlight rAF has fired and marks are in DOM
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                const firstMark = targetMessage.querySelector('mark.search-match');
+                if (firstMark) {
+                  firstMark.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                  console.debug(`[ChatHistory] Scrolled to first search-match mark in message ${messageId}`);
+                }
+              });
+            });
+          } else if (attempts < MAX_ATTEMPTS) {
+            // Message not found yet — messages may still be decrypting from IndexedDB
             setTimeout(() => attemptScroll(attempts + 1), 100);
+          } else {
+            console.warn(`[ChatHistory] Could not find message element for id ${messageId} after ${MAX_ATTEMPTS} attempts`);
           }
         };
         
@@ -926,6 +1121,99 @@
     } else {
       console.warn("[ChatHistory] Container not found");
     }
+  }
+
+  /**
+   * Called by ActiveChat 3 s after the new-chat title/category/icon have been
+   * received and rendered.  Executes the ChatGPT-style scroll so the user
+   * message sits at the top of the viewport with space below for the AI response.
+   *
+   * Uses tick() to ensure the layout is fully settled (chat header fully rendered)
+   * before measuring positions, which prevents the scroll target being miscalculated.
+   *
+   * If no pending message ID exists (e.g. the scroll was already cancelled) this
+   * is a safe no-op.
+   */
+  export function triggerNewChatUserMessageScroll() {
+    const msgId = pendingNewChatScrollMessageId;
+    if (!msgId || !container) return;
+    pendingNewChatScrollMessageId = null;
+
+    isScrolling = true;
+
+    // Wait for Svelte to flush any pending DOM updates (e.g. the chat header card
+    // finishing its transition) before measuring scroll positions.
+    tick().then(() => {
+      if (!container) { isScrolling = false; return; }
+
+      const userMessageElement = container.querySelector(`[data-message-id="${msgId}"]`);
+      if (!userMessageElement) {
+        console.warn('[ChatHistory] triggerNewChatUserMessageScroll: message element not found for', msgId);
+        isScrolling = false;
+        return;
+      }
+
+      const containerRect = container.getBoundingClientRect();
+      const messageRect = userMessageElement.getBoundingClientRect();
+
+      let lineHeight = 24;
+      const paragraph = userMessageElement.querySelector('.ProseMirror p');
+      if (paragraph) {
+        const computed = window.getComputedStyle(paragraph);
+        const parsed = parseFloat(computed.lineHeight);
+        if (!isNaN(parsed) && parsed > 0) lineHeight = parsed;
+      }
+
+      const visiblePortion = lineHeight + 20;
+      const topOfMessage = messageRect.top - containerRect.top + container.scrollTop;
+      const messageHeight = messageRect.height;
+      const scrollTarget = topOfMessage + messageHeight - visiblePortion;
+
+      container.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' });
+
+      // Allow extra time for the smooth scroll animation to complete (it can span
+      // a large distance from the top of the chat to the user message).
+      setTimeout(() => { isScrolling = false; }, 1200);
+    });
+  }
+
+  /**
+   * Scroll to the top of the last assistant message so the user can read the
+   * response from the beginning. Used when navigating from a background-chat
+   * notification where the user hasn't seen the reply yet.
+   *
+   * Shows a small sliver of the preceding user message (≈40px) so context is
+   * clear, then the assistant message starts at the top of the visible area.
+   * Falls back to scrollToBottom() if no assistant message is found.
+   */
+  export function scrollToLatestAssistantMessage() {
+    if (!container) {
+      console.warn("[ChatHistory] Container not found for scrollToLatestAssistantMessage");
+      return;
+    }
+
+    const attemptScroll = (attempts = 0) => {
+      // Find all assistant message wrapper elements by their CSS class
+      // (ChatHistory renders assistant messages with class "message-wrapper assistant")
+      const assistantMessages = container.querySelectorAll('.message-wrapper.assistant');
+      const lastAssistant = assistantMessages[assistantMessages.length - 1] as HTMLElement | undefined;
+
+      if (lastAssistant) {
+        // Scroll so the top of the assistant message is ~40px from the top of the
+        // container – showing a thin sliver of the user message above for context.
+        const scrollPosition = Math.max(0, lastAssistant.offsetTop - 40);
+        container.scrollTo({ top: scrollPosition, behavior: 'auto' });
+        console.debug(`[ChatHistory] Scrolled to top of latest assistant message (offsetTop=${lastAssistant.offsetTop})`);
+      } else if (attempts < 15) {
+        // Messages may not be in the DOM yet – retry after a short delay
+        setTimeout(() => attemptScroll(attempts + 1), 50);
+      } else {
+        console.warn("[ChatHistory] No assistant message found after retries – falling back to scrollToBottom");
+        scrollToBottom();
+      }
+    };
+
+    requestAnimationFrame(() => attemptScroll());
   }
 
   // Scroll position tracking for cross-device sync
@@ -981,6 +1269,9 @@
     
     // Check if scrolled to the very top (within 50px threshold)
     const isAtTopLocal = container.scrollTop < 50;
+    
+    // Update local isAtTop state so the mask-image CSS can toggle without re-rendering
+    isAtTop = isAtTopLocal;
     
     // Dispatch immediate event for UI state changes (button visibility)
     dispatch('scrollPositionUI', { isAtBottom: isAtBottomLocal, isAtTop: isAtTopLocal });
@@ -1185,14 +1476,35 @@
 <div 
     class="chat-history-container" 
     class:empty={displayMessages.length === 0}
+    class:is-at-top={isAtTop}
     bind:this={container}
     onscroll={handleScroll}
 >
+    <!-- Chat header banner: absolutely positioned at the top of the scroll container
+         so it spans the full width regardless of the .chat-history-content max-width.
+         Scrolls naturally with the content because it lives in the scroll container. -->
+    {#if showChatHeader}
+        <div class="chat-header-wrapper">
+            <ChatHeader
+                title={chatTitle}
+                category={chatCategory}
+                icon={chatIcon}
+                summary={chatSummary}
+                {chatCreatedAt}
+                isLoading={isNewChatGeneratingTitle}
+                isCreditsError={isNewChatCreditsError}
+                {isIncognito}
+            />
+        </div>
+    {/if}
+
     {#if showMessages}
         <div class="chat-history-content" 
              class:has-messages={displayMessages.length > 0}
+             class:has-header={showChatHeader}
              transition:fade={{ duration: 100 }} 
              onoutroend={handleOutroEnd}>
+
             {#each displayMessages as msg, msgIndex (msg.id)}
                 <!-- Disable fade/flip animations for streaming and processing messages
                      to prevent visual glitches when content height changes rapidly.
@@ -1225,6 +1537,8 @@
                         messageId={msg.id}
                         userMessageId={msg.original_message?.user_message_id}
                         isFirstMessage={msgIndex === 0}
+                        {isCreditsRestored}
+                        {onResend}
                     />
                 </div>
             {/each}
@@ -1255,6 +1569,7 @@
                         rejectedHashes={rejectedSuggestionHashes}
                         onSuggestionAdded={onSuggestionAdded}
                         onSuggestionRejected={onSuggestionRejected}
+                        onSuggestionOpenForCustomize={onSuggestionOpenForCustomize}
                     />
                 </div>
             {/if}
@@ -1263,41 +1578,6 @@
     
 </div>
 
-<!-- AI Status Overlay: Centered status indicator with progressive phase display.
-     Positioned absolutely over the scroll container via the wrapper.
-     Shows phased status text (Sending -> Processing steps -> Typing) with optional AI icon.
-     The AI icon only appears during processing and typing phases (when showIcon=true).
-     Fades out entirely when the assistant response begins streaming. -->
-{#if showCenteredIndicator && processingPhase}
-    <div class="ai-processing-overlay" transition:fade={{ duration: 200 }}>
-        <div class="ai-status-indicator">
-            <!-- AI icon: only shown when showIcon is true (processing and typing phases) -->
-            {#if processingPhase.phase !== 'sending' && processingPhase.showIcon}
-                <div class="ai-processing-icon" transition:fade={{ duration: 300 }}></div>
-            {/if}
-
-            <!-- Status text: shown during all phases with shimmer animation.
-                 Uses {#key} with absolute positioning so outgoing/incoming text
-                 crossfade in the same spot without shifting the layout. -->
-            <div class="ai-status-text-container">
-                {#key processingPhase.statusLines.join('|')}
-                    <div
-                        class="ai-status-text"
-                        class:phase-sending={processingPhase.phase === 'sending'}
-                        class:phase-processing={processingPhase.phase === 'processing'}
-                        class:phase-typing={processingPhase.phase === 'typing'}
-                        in:fade={{ duration: 200, delay: 150 }}
-                        out:fade={{ duration: 150 }}
-                    >
-                        {#each processingPhase.statusLines as line, index}
-                            <span class={index === 0 ? 'status-primary-line' : index === 1 ? 'status-secondary-line' : 'status-tertiary-line'}>{line}</span>
-                        {/each}
-                    </div>
-                {/key}
-            </div>
-        </div>
-    </div>
-{/if}
 </div>
 
 <style>
@@ -1326,10 +1606,20 @@
        scroll-anchoring algorithm. This fights with our manual scroll management
        and causes unpredictable jumps. We handle scroll position ourselves. */
     overflow-anchor: none;
-    /* Add mask for top and bottom fade effect */
+    /* Fade the bottom edge — always visible to indicate more content below.
+       Top fade is suppressed when at the top (.is-at-top) so the banner is not clipped. */
     mask-image: linear-gradient(to bottom, 
         rgba(0, 0, 0, 0) 0%, 
         rgba(0, 0, 0, 1) 30px, 
+        rgba(0, 0, 0, 1) calc(100% - 30px), 
+        rgba(0, 0, 0, 0) 100%
+    );
+  }
+
+  /* When scrolled to the top, remove the top gradient so the banner edges aren't faded */
+  .chat-history-container.is-at-top {
+    mask-image: linear-gradient(to bottom, 
+        rgba(0, 0, 0, 1) 0%, 
         rgba(0, 0, 0, 1) calc(100% - 30px), 
         rgba(0, 0, 0, 0) 100%
     );
@@ -1360,6 +1650,16 @@
     padding-top: 50px;
     /* Ensure minimum height for proper scrolling when messages exist */
     min-height: 100%;
+  }
+
+  /* When the header banner is showing, push messages below the banner.
+     Banner height: 240px desktop / 190px mobile (matches ChatHeader.svelte dimensions).
+     12px gap between banner bottom and first message.
+     The banner itself is positioned in-flow (not absolute) so the content's padding-top
+     stacks on top of it — we only need the extra padding-top offset removed since
+     the banner already occupies the top space. */
+  .chat-history-content.has-messages.has-header {
+    padding-top: 12px;
   }
 
 
@@ -1397,11 +1697,21 @@
   }
 
   .message-wrapper.user {
-    justify-content: flex-end; /* User messages aligned to the right */
+    /* LTR default: user messages on the right */
+    justify-content: flex-end;
+  }
+
+  /* RTL: user messages sit on the left (inline-start), assistant on the right */
+  :global([dir="rtl"]) .message-wrapper.user {
+    justify-content: flex-start;
   }
 
   .message-wrapper.assistant { /* Assistant messages aligned to the left */
     justify-content: flex-start;
+  }
+
+  :global([dir="rtl"]) .message-wrapper.assistant {
+    justify-content: flex-end;
   }
 
   .message-wrapper.system { /* System messages (e.g., insufficient credits) centered */
@@ -1413,120 +1723,17 @@
     max-width: 900px;
   }
 
-  /* AI Status Overlay: Centered indicator shown during message processing lifecycle.
-     Positioned absolutely over the scroll container (sibling, not child).
-     This ensures it stays visually centered regardless of scroll position. */
-  .ai-processing-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    pointer-events: none;
-    z-index: 10;
-  }
-
-  /* Vertical layout container for the AI icon and status text */
-  .ai-status-indicator {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-  }
-
-  /* AI icon with shimmer animation — shown during processing and typing phases */
-  .ai-processing-icon {
-    width: 56px;
-    height: 56px;
-    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
-    mask-image: url('@openmates/ui/static/icons/ai.svg');
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-    mask-position: center;
-    background: linear-gradient(
-      90deg,
-      var(--color-grey-30, #ccc) 0%,
-      var(--color-grey-30, #ccc) 40%,
-      var(--color-grey-10, #f0f0f0) 50%,
-      var(--color-grey-30, #ccc) 60%,
-      var(--color-grey-30, #ccc) 100%
-    );
-    background-size: 200% 100%;
-    animation: ai-processing-shimmer 1.5s infinite linear;
-  }
-
-  /* Fixed-size container for the status text — prevents layout shifts during crossfade.
-     The inner .ai-status-text is positioned absolutely so old and new text overlap
-     in the same spot during the {#key} transition. */
-  .ai-status-text-container {
-    position: relative;
-    width: 260px;
-    min-height: 3.6em; /* enough for 3 lines: typing + model + provider */
-  }
-
-  /* Status text below the AI icon — shows phase-specific messages.
-     Positioned absolutely within the container to prevent layout jumps during crossfade. */
-  .ai-status-text {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    font-size: 0.85rem;
-    font-style: italic;
-    text-align: center;
-  }
-
-  /* Shimmer text effect for all phases */
-  .ai-status-text.phase-sending,
-  .ai-status-text.phase-processing,
-  .ai-status-text.phase-typing {
-    background: linear-gradient(
-      90deg,
-      var(--color-grey-60) 0%,
-      var(--color-grey-60) 40%,
-      var(--color-grey-40) 50%,
-      var(--color-grey-60) 60%,
-      var(--color-grey-60) 100%
-    );
-    background-size: 200% 100%;
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: transparent;
-    animation: ai-processing-shimmer 1.5s infinite linear;
-  }
-
-  /* Primary line (first line): slightly larger for emphasis */
-  .ai-status-text .status-primary-line {
-    font-size: 0.85rem;
-  }
-
-  /* Secondary line (e.g., model name): smaller, more subtle */
-  .ai-status-text .status-secondary-line {
-    font-size: 0.75rem;
-    opacity: 0.8;
-  }
-
-  /* Tertiary line (e.g., "via Provider 🇺🇸"): even smaller and more subtle */
-  .ai-status-text .status-tertiary-line {
-    font-size: 0.7rem;
-    opacity: 0.65;
-  }
-
-  @keyframes ai-processing-shimmer {
-    0% {
-      background-position: 200% 0;
-    }
-    100% {
-      background-position: -200% 0;
-    }
+  /* Wrapper for the ChatHeader banner at the top of new chats.
+     Positioned in the normal flow of .chat-history-container (outside the max-width content),
+     so it stretches edge-to-edge relative to the full scroll container width.
+     The container has 10px padding on all sides — we cancel it on left/right/top
+     with negative margins so the banner is flush with the scroll container edges. */
+  .chat-header-wrapper {
+    /* Cancel the container's 10px padding on all sides */
+    margin-top: -10px;
+    margin-inline-start: -10px;
+    margin-inline-end: -10px;
+    /* Full width including the cancelled side padding */
+    width: calc(100% + 20px);
   }
 </style>

@@ -3,7 +3,6 @@ Functions for managing Vault access policies.
 """
 
 import logging
-from typing import Dict, Any, Optional
 
 logger = logging.getLogger("vault-setup.policies")
 
@@ -58,6 +57,12 @@ class PolicyManager:
         # Allow token self-lookup (important for token validation)
         path "auth/token/lookup-self" {
           capabilities = ["read"]
+        }
+
+        # Allow token self-renewal (critical for long-running services)
+        # The API background task renews the token every 7 days to prevent expiry.
+        path "auth/token/renew-self" {
+          capabilities = ["update"]
         }
         """
         

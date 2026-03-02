@@ -35,7 +35,8 @@ const {
 	createStepScreenshotter,
 	setToggleChecked,
 	generateTotp,
-	assertNoMissingTranslations
+	assertNoMissingTranslations,
+	getTestAccount,
 } = require('./signup-flow-helpers');
 
 /**
@@ -59,9 +60,7 @@ const {
  * - OPENMATES_TEST_ACCOUNT_OTP_KEY: 2FA secret key for the test account.
  */
 
-const OPENMATES_TEST_ACCOUNT_EMAIL = process.env.OPENMATES_TEST_ACCOUNT_EMAIL;
-const OPENMATES_TEST_ACCOUNT_PASSWORD = process.env.OPENMATES_TEST_ACCOUNT_PASSWORD;
-const OPENMATES_TEST_ACCOUNT_OTP_KEY = process.env.OPENMATES_TEST_ACCOUNT_OTP_KEY;
+const { email: OPENMATES_TEST_ACCOUNT_EMAIL, password: OPENMATES_TEST_ACCOUNT_PASSWORD, otpKey: OPENMATES_TEST_ACCOUNT_OTP_KEY } = getTestAccount();
 
 test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	page,

@@ -1,16 +1,16 @@
-export const SUPPORTED_LOCALES = [
-    'en',
-    'de',
-    'ja',
-    'es',
-    'fr',
-    'zh'] as const;
-export type SupportedLocale = typeof SUPPORTED_LOCALES[number];
+// NOTE: The single source of truth for supported locales is languages.json.
+// This re-export keeps backwards compatibility for any code that imports
+// isValidLocale / SupportedLocale from here.
+import { LANGUAGE_CODES, isLanguageSupported } from "./languages";
 
-declare module 'svelte-i18n' {
-    export type Locale = SupportedLocale;
+export const SUPPORTED_LOCALES = LANGUAGE_CODES as readonly string[];
+export type SupportedLocale = string;
+
+declare module "svelte-i18n" {
+  export type Locale = SupportedLocale;
 }
 
-export function isValidLocale(locale: string): locale is SupportedLocale {
-    return SUPPORTED_LOCALES.includes(locale as SupportedLocale);
-} 
+/** Returns true if the locale code exists in languages.json */
+export function isValidLocale(locale: string): boolean {
+  return isLanguageSupported(locale);
+}

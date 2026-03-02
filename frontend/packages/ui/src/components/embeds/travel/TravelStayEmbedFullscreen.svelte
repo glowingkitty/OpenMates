@@ -68,11 +68,23 @@
     stay: StayData;
     /** Close handler */
     onClose: () => void;
+    /** Whether there is a previous sibling stay to navigate to */
+    hasPreviousEmbed?: boolean;
+    /** Whether there is a next sibling stay to navigate to */
+    hasNextEmbed?: boolean;
+    /** Handler to navigate to the previous stay */
+    onNavigatePrevious?: () => void;
+    /** Handler to navigate to the next stay */
+    onNavigateNext?: () => void;
   }
   
   let {
     stay,
     onClose,
+    hasPreviousEmbed = false,
+    hasNextEmbed = false,
+    onNavigatePrevious,
+    onNavigateNext,
   }: Props = $props();
   
   // Property name
@@ -114,14 +126,6 @@
       ? Math.round(stay.extracted_total_rate)
       : null
   );
-  
-  // Main image URL (prefer original, fallback to thumbnail)
-  let mainImage = $derived.by(() => {
-    if (stay.images && stay.images.length > 0) {
-      return stay.images[0].original_image || stay.images[0].thumbnail;
-    }
-    return stay.thumbnail;
-  });
   
   // All images for gallery
   let allImages = $derived.by(() => {
@@ -177,20 +181,28 @@
   // Nearby places
   let nearbyPlaces = $derived(stay.nearby_places || []);
   
-  // Skill name for bottom bar
-  let skillName = $derived($text('app_skills.travel.search_stays'));
 </script>
 
 <UnifiedEmbedFullscreen
   appId="travel"
   skillId="search_stays"
-  title=""
   {onClose}
   skillIconName="search"
-  status="finished"
-  {skillName}
-  showStatus={false}
+  embedHeaderTitle={$text('app_skills.travel.search_stays')}
+  {hasPreviousEmbed}
+  {hasNextEmbed}
+  {onNavigatePrevious}
+  {onNavigateNext}
 >
+  {#snippet embedHeaderCta()}
+    <!-- Booking CTA - shown in header when booking URL is available -->
+    {#if bookingUrl}
+      <button class="cta-button" onclick={handleBooking}>
+        {$text('embeds.view_on_google_hotels')}
+      </button>
+    {/if}
+  {/snippet}
+
   {#snippet content()}
     <div class="stay-fullscreen">
       <!-- Header: Name + Stars + Rating -->
@@ -257,13 +269,6 @@
           </div>
         {/if}
       </div>
-      
-      <!-- Booking CTA -->
-      {#if bookingUrl}
-        <button class="cta-button" onclick={handleBooking}>
-          {$text('embeds.view_on_google_hotels')}
-        </button>
-      {/if}
       
       <!-- Special Badges -->
       {#if stay.free_cancellation || stay.eco_certified}
@@ -539,9 +544,6 @@
   
   .cta-button {
     display: block;
-    width: 100%;
-    max-width: 320px;
-    margin: 0 auto 24px;
     background-color: var(--color-button-primary);
     color: white;
     border: none;

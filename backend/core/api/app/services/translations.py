@@ -235,10 +235,20 @@ class TranslationService:
                 for k in keys[:-1]:
                     if k not in current:
                         current[k] = {}
+                    elif not isinstance(current[k], dict):
+                        # Collision: a leaf node is being reused as a parent node.
+                        # This can happen when both "foo" and "foo.bar" exist as keys.
+                        # Preserve the existing leaf value under 'text' and convert to a dict.
+                        logger.warning(f"Key collision in namespace '{namespace}': key '{key}' needs '{k}' to be a dict, but it is {type(current[k]).__name__}. Converting to dict.")
+                        current[k] = {}
                     current = current[k]
                 
                 # Set the final value wrapped in { text: ... }
                 last_key = keys[-1]
+                if not isinstance(current, dict):
+                    # Safety: if current somehow ended up as a non-dict, skip this key
+                    logger.warning(f"Cannot set key '{key}' in namespace '{namespace}': current node is {type(current).__name__}, expected dict. Skipping.")
+                    continue
                 current[last_key] = {'text': text_value}
         
         logger.debug(f"Converted JSON structure for '{lang}': top-level keys: {list(json_structure.keys())}")
@@ -286,7 +296,7 @@ class TranslationService:
             logger.error(f"Error loading translations for language '{lang}': {str(e)}")
             # If language file is not found or error occurs, fall back to English
             if lang != "en":
-                logger.info(f"Falling back to English translations")
+                logger.info("Falling back to English translations")
                 return self._load_raw_translations("en")
             else:
                 # If English file is missing, return empty dict

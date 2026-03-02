@@ -1,3 +1,27 @@
+description:
+  context: Short description shown in the interface settings page gradient banner header
+  en: Customize the appearance and language of OpenMates
+  de: Passe Aussehen und Sprache von OpenMates an
+  zh: 自定义OpenMates的外观和语言
+  es: Personaliza la apariencia e idioma de OpenMates
+  fr: Personnalisez l'apparence et la langue d'OpenMates
+  pt: ""
+  ru: ""
+  ja: OpenMatesの外観と言語をカスタマイズする
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: تخصيص مظهر ولغة OpenMates
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: התאמת המראה והשפה של OpenMates
+  verified_by_human: []
 interface:
   context: Interface settings menu item
   en: Interface
@@ -15,11 +39,12 @@ interface:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: واجهة
   hi: ""
   th: ""
   cs: ""
   sv: ""
+  he: ממשק
   verified_by_human: []
 language:
   context: Language settings menu item in interface section
@@ -38,9 +63,185 @@ language:
   id: ""
   pl: ""
   nl: ""
-  ar: ""
+  ar: اللغة
   hi: ""
   th: ""
   cs: ""
   sv: ""
+  he: שפה
+  verified_by_human: []
+
+dark_mode:
+  context: Dark mode settings menu item in interface section — shown as the row title on the sub-page entry
+  en: Dark mode
+  de: Erscheinungsbild
+  zh: 深色模式
+  es: Modo oscuro
+  fr: Mode sombre
+  pt: ""
+  ru: ""
+  ja: ダークモード
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: الوضع الداكن
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: מצב כהה
+  verified_by_human: []
+
+dark_mode.auto:
+  context: "Dark mode option: follows the operating system preference automatically"
+  en: Auto
+  de: Automatisch
+  zh: 自动
+  es: Automático
+  fr: Automatique
+  pt: ""
+  ru: ""
+  ja: 自動
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: تلقائي
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: אוטומטי
+  verified_by_human: []
+
+dark_mode.auto.description:
+  context: Subtitle for the Auto dark mode option — explains it follows device/OS settings
+  en: Follows your device settings
+  de: Folgt den Geräteeinstellungen
+  zh: 跟随设备设置
+  es: Sigue la configuración de tu dispositivo
+  fr: Suit les paramètres de votre appareil
+  pt: ""
+  ru: ""
+  ja: デバイスの設定に従う
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: يتبع إعدادات جهازك
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: בהתאם להגדרות המכשיר שלך
+  verified_by_human: []
+
+dark_mode.light:
+  context: "Dark mode option: always use light mode"
+  en: Light
+  de: Hell
+  zh: 浅色
+  es: Claro
+  fr: Clair
+  pt: ""
+  ru: ""
+  ja: ライト
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ضوء
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: בהיר
+  verified_by_human: []
+
+dark_mode.light.description:
+  context: Subtitle for the Light mode option
+  en: Always use light mode
+  de: Immer hellen Modus verwenden
+  zh: 始终使用浅色模式
+  es: Usar siempre el modo claro
+  fr: Toujours utiliser le mode clair
+  pt: ""
+  ru: ""
+  ja: 常にライトモードを使用
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: استخدم الوضع الفاتح دائماً
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: שימוש קבוע במצב בהיר
+  verified_by_human: []
+
+dark_mode.dark:
+  context: "Dark mode option: always use dark mode"
+  en: Dark
+  de: Dunkel
+  zh: 深色
+  es: Oscuro
+  fr: Sombre
+  pt: ""
+  ru: ""
+  ja: ダーク
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: مظلم
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: כהה
+  verified_by_human: []
+
+dark_mode.dark.description:
+  context: Subtitle for the Dark mode option
+  en: Always use dark mode
+  de: Immer dunklen Modus verwenden
+  zh: 始终使用深色模式
+  es: Usar siempre el modo oscuro
+  fr: Toujours utiliser le mode sombre
+  pt: ""
+  ru: ""
+  ja: 常にダークモードを使用
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: استخدم الوضع الداكن دائماً
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: שימוש קבוע במצב כהה
   verified_by_human: []

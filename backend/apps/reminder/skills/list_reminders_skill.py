@@ -15,6 +15,11 @@ from backend.apps.reminder.utils import format_reminder_time
 logger = logging.getLogger(__name__)
 
 
+class ListRemindersRequest(BaseModel):
+    """Request model for list-reminders skill (REST API documentation)."""
+    status: str = Field(default="pending", description="Filter reminders by status: 'pending' or 'all'")
+
+
 class ReminderInfo(BaseModel):
     """Information about a single reminder for display."""
     reminder_id: str

@@ -20,6 +20,7 @@ writing_styles:
   th: รูปแบบการเขียน
   cs: Styly psaní
   sv: Skrivstilar
+  he: סגנונות כתיבה
   verified_by_human:
     - en
     - de
@@ -45,6 +46,7 @@ writing_styles.description:
   th: วิธีที่คุณเขียนอีเมลในบริบทต่างๆ
   cs: Jak píšete e-maily v různých kontextech.
   sv: Hur du skriver e-post i olika sammanhang.
+  he: איך את/ה כותב/ת אימיילים בהקשרים שונים.
   verified_by_human:
     - en
     - de
@@ -73,6 +75,7 @@ writing_styles.example_1:
   th: ธุรกิจทางการ
   cs: Formální obchodní
   sv: Formell affärs
+  he: עסקי רשמי
   verified_by_human: [en, de]
 
 writing_styles.example_2:
@@ -97,4 +100,5 @@ writing_styles.example_2:
   th: ทีมสบายๆ
   cs: Neformální týmový
   sv: Avslappnat team
+  he: צוותי לא רשמי
   verified_by_human: [en, de]

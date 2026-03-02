@@ -254,6 +254,13 @@ class BaseApp:
             # Placeholder embed IDs from main_processor - allows async skills (e.g., images.generate)
             # to update existing placeholder embeds instead of creating new ones
             placeholder_embed_ids = request_body.get("_placeholder_embed_ids")
+            # User's Vault Transit key ID — injected by main_processor for skills that need
+            # server-side Vault access (e.g. images-view looks up embed crypto details)
+            user_vault_key_id = request_body.get("_user_vault_key_id")
+            # Embed file_path → embed_id UUID index — injected by main_processor for skills that
+            # resolve human-readable filenames (embed_ref) to internal embed UUIDs.
+            # e.g. images-view uses this to look up the embed in Redis by file_path (original filename)
+            file_path_index = request_body.get("_file_path_index")
 
             # Initialize skill instance
             # Extract full_model_reference from skill_definition
@@ -294,7 +301,11 @@ class BaseApp:
                 "external_request": external_request,
                 "chat_id": chat_id,
                 "message_id": message_id,
-                "placeholder_embed_ids": placeholder_embed_ids
+                "placeholder_embed_ids": placeholder_embed_ids,
+                "user_vault_key_id": user_vault_key_id,
+                # file_path_index maps embed_ref filenames → embed UUID for skills like images-view
+                # that resolve the human-readable filename passed by the LLM to the internal embed ID
+                "file_path_index": file_path_index,
             }
             # Remove None values
             skill_kwargs = {k: v for k, v in skill_kwargs.items() if v is not None}
@@ -650,6 +661,32 @@ class BaseApp:
         @self.fastapi_app.get("/health", tags=["App Info"])
         async def health_check():
             return {"status": "ok", "app_id": self.id, "name_translation_key": self.name_translation_key}
+
+    async def get_user_credits(self, user_id: str) -> int:
+        """
+        Fetch the current credit balance for a user via the internal API.
+
+        Used for pre-flight checks before expensive operations (e.g., transcription).
+        Returns 0 on any failure (cache miss, network error) — callers must treat
+        0 as "unknown" and only block when explicitly < minimum required.
+
+        Args:
+            user_id: The authenticated user's ID.
+
+        Returns:
+            Current credit balance as an integer (0 if unknown).
+        """
+        try:
+            response = await self._make_internal_api_request(
+                "GET",
+                "/internal/billing/balance",
+                params={"user_id": user_id}
+            )
+            credits = response.get("credits", 0)
+            return int(credits) if isinstance(credits, (int, float)) else 0
+        except Exception as e:
+            logger.warning(f"[BaseApp] Could not fetch credit balance for user {user_id} (non-fatal): {e}")
+            return 0
 
     async def charge_user_credits(
         self,

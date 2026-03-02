@@ -20,6 +20,7 @@ via:
   th: ''
   cs: ''
   sv: ''
+  he: דרך
   verified_by_human: []
 web:
   context: Used in '(Software is accessible) via Web, Mattermost, Discord & more'
@@ -43,6 +44,7 @@ web:
   th: ''
   cs: ''
   sv: ''
+  he: Web
   verified_by_human: []
 mattermost:
   context: Used in '(Software is accessible) via Web, Mattermost, Discord & more'
@@ -66,6 +68,7 @@ mattermost:
   th: ''
   cs: ''
   sv: ''
+  he: Mattermost
   verified_by_human: []
 discord:
   context: Used in '(Software is accessible) via Web, Mattermost, Discord & more'
@@ -89,6 +92,7 @@ discord:
   th: ''
   cs: ''
   sv: ''
+  he: Discord
   verified_by_human: []
 and_more:
   context: Used in '(Software is accessible) via Web, Mattermost, Discord & more'
@@ -112,4 +116,5 @@ and_more:
   th: ''
   cs: ''
   sv: ''
+  he: ועוד
   verified_by_human: []

@@ -39,11 +39,13 @@ const MESSAGES_STORE_NAME = "messages";
  */
 const STATUS_PRIORITY: Record<string, number> = {
   sending: 1,
+  waiting_for_upload: 1, // Upload in progress, same level as sending
   waiting_for_internet: 1,
   processing: 2,
   streaming: 2,
   waiting_for_user: 2.3, // Higher than streaming/processing, lower than failed - chat paused for user action
   failed: 2.5,
+  delivered: 2.8, // Server received the message, awaiting full sync confirmation
   synced: 3,
 };
 
@@ -52,6 +54,12 @@ const STATUS_PRIORITY: Record<string, number> = {
  *
  * Rules:
  * - Always allow streaming -> streaming updates (content grows over time).
+ * - Never allow synced to overwrite waiting_for_user. 'waiting_for_user' is a
+ *   terminal client-side display state (e.g. credits-rejection, permissions request).
+ *   Phased sync delivers these messages from Directus with status='synced' (the
+ *   server-side storage status), but the client must keep 'waiting_for_user' so
+ *   the Buy Credits button, header banner, and typing indicator suppression remain
+ *   correct after a tab reload.
  * - Otherwise, allow updates only when status priority increases.
  */
 export function shouldUpdateMessage(
@@ -61,6 +69,21 @@ export function shouldUpdateMessage(
   // Streaming chunks must be able to update the same message id.
   if (existing.status === "streaming" && incoming.status === "streaming") {
     return true;
+  }
+
+  // Never overwrite a waiting_for_user message with synced or delivered from phased sync.
+  // 'waiting_for_user' is a terminal client-side display state that the server doesn't
+  // persist — Directus has no status column, so phased sync messages arrive with no status
+  // and prepareMessagesForStorage() assigns 'delivered' as the default. Since 'delivered'
+  // has higher priority (2.8) than 'waiting_for_user' (2.3), the priority check below would
+  // allow the overwrite. This would clobber the client state and hide the Buy Credits button
+  // and the credits-error header after a page reload.
+  // Guard both 'synced' (from chat_message_confirmed events) and 'delivered' (from phased sync).
+  if (
+    existing.status === "waiting_for_user" &&
+    (incoming.status === "synced" || incoming.status === "delivered")
+  ) {
+    return false;
   }
 
   const existingPriority = STATUS_PRIORITY[existing.status] ?? 0;
@@ -467,7 +490,8 @@ export async function saveMessage(
     }
   } catch (checkError) {
     // If check fails, continue anyway (will handle duplicate on put)
-    console.warn(
+    // Downgraded to debug: the retry logic handles this gracefully, no action needed
+    console.debug(
       `[ChatDatabase] Could not check for duplicates for ${message.message_id}:`,
       checkError,
     );
@@ -754,44 +778,27 @@ export async function batchSaveMessages(
   const messagesToSkip = new Set<string>();
   const existingMessagesMap = new Map<string, Message>();
 
-  // First, get all existing messages by their IDs using individual quick transactions.
-  // This avoids the transaction auto-commit issue.
-  // We use a single shared read transaction when possible for better performance,
-  // falling back to individual transactions only if the shared one fails.
-  let sharedReadTransaction: IDBTransaction | null = null;
-  try {
-    sharedReadTransaction = await dbInstance.getTransaction(
-      MESSAGES_STORE_NAME,
-      "readonly",
-    );
-  } catch {
-    // Shared transaction failed — will fall back to per-message transactions below
-    console.debug(
-      `[ChatDatabase] batchSaveMessages: Could not create shared read transaction, will use per-message fallback`,
-    );
-  }
-
+  // Check for existing messages using per-message transactions.
+  //
+  // CRITICAL: A shared IDB transaction CANNOT be used across concurrent async operations.
+  // IDB transactions auto-commit as soon as their event queue drains — i.e. whenever the
+  // JS event loop gets control back between IDB requests. Each getMessage() call awaits
+  // decryptMessageFields() (an async crypto operation) inside its onsuccess callback,
+  // which drains the transaction's queue and triggers auto-commit. Any concurrent call
+  // using the same transaction after that point throws:
+  //   "InvalidStateError: Failed to execute 'objectStore' on 'IDBTransaction':
+  //    The transaction has finished."
+  //
+  // The only safe approach for concurrent async reads is one transaction per operation.
   const existingMessageChecks = await Promise.all(
     validMessages.map(async (message) => {
       try {
-        // Try the shared transaction first; if it's no longer active, create a fresh one
-        let txn = sharedReadTransaction;
-        try {
-          if (txn) {
-            // Test if the shared transaction is still active by accessing its objectStore
-            txn.objectStore(MESSAGES_STORE_NAME);
-          }
-        } catch {
-          txn = null; // Shared transaction expired, fall back
-        }
-
-        if (!txn) {
-          txn = await dbInstance.getTransaction(
-            MESSAGES_STORE_NAME,
-            "readonly",
-          );
-        }
-
+        // Each message gets its own fresh transaction so async decryption inside
+        // getMessage() cannot interfere with sibling calls.
+        const txn = await dbInstance.getTransaction(
+          MESSAGES_STORE_NAME,
+          "readonly",
+        );
         const existingMessage = await getMessage(
           dbInstance,
           message.message_id,
@@ -917,6 +924,251 @@ export async function batchSaveMessages(
 }
 
 /**
+ * Update only the status field of a message in-place, without touching encrypted content.
+ *
+ * WHY THIS EXISTS — THE BUG IT FIXES:
+ * The naive approach of `getMessage() → mutate → saveMessage()` causes silent data
+ * corruption when changing a message status to "synced". `saveMessage()` calls
+ * `encryptMessageFields()`, which calls `getOrGenerateChatKey()`. If the chat key
+ * has been evicted from the in-memory cache (a real race condition during the
+ * new-chat flow), a NEW random key is generated and the message is re-encrypted with
+ * it. But `encrypted_chat_key` on the chat still holds the original key. From that
+ * point forward, decryption fails with "[Content decryption failed]" on the sending
+ * device, while other devices (which only ever see the server-persisted copy encrypted
+ * with the correct original key) work fine.
+ *
+ * THE FIX:
+ * Read the raw IndexedDB record (no decryption), patch only `status`, and write it
+ * back. The encrypted fields are never touched, so no key is ever needed.
+ *
+ * @param dbInstance - Reference to the ChatDatabase instance
+ * @param message_id - The ID of the message to update
+ * @param newStatus - The new status to set
+ * @returns Promise that resolves when the update is complete
+ */
+export async function updateMessageStatus(
+  dbInstance: ChatDatabaseInstance,
+  message_id: string,
+  newStatus: Message["status"],
+): Promise<void> {
+  await dbInstance.init();
+
+  console.debug(
+    `[ChatDatabase] updateMessageStatus: ${message_id} → "${newStatus}" (raw in-place, no re-encryption)`,
+  );
+
+  if (!dbInstance.db) {
+    throw new Error("Database not initialized");
+  }
+
+  return new Promise((resolve, reject) => {
+    // Open a single readwrite transaction that covers the full get→patch→put cycle.
+    // All operations are queued synchronously inside the transaction callbacks, so
+    // the transaction stays alive until oncomplete fires.
+    const tx = (dbInstance.db as IDBDatabase).transaction(
+      MESSAGES_STORE_NAME,
+      "readwrite",
+    );
+    const store = tx.objectStore(MESSAGES_STORE_NAME);
+
+    // Step 1: Read the raw (still-encrypted) record by primary key.
+    const getRequest = store.get(message_id);
+
+    getRequest.onsuccess = () => {
+      const rawRecord = getRequest.result as Message | undefined;
+
+      if (!rawRecord) {
+        // Message doesn't exist yet. This can happen if the confirmation arrives
+        // before the message was saved locally (very rare). Nothing to do.
+        console.warn(
+          `[ChatDatabase] updateMessageStatus: message ${message_id} not found in IndexedDB, skipping status update`,
+        );
+        resolve();
+        return;
+      }
+
+      // Guard: never overwrite 'waiting_for_user' with 'synced' or 'delivered'.
+      // 'waiting_for_user' is a terminal client-side display state (credits rejection,
+      // permissions request). The server doesn't persist this state — Directus has no status
+      // column, so phased sync messages arrive with 'delivered' as default, and
+      // chat_message_confirmed events use 'synced'. Either would clobber the client state
+      // and hide the Buy Credits button / header banner.
+      if (
+        rawRecord.status === "waiting_for_user" &&
+        (newStatus === "synced" || newStatus === "delivered")
+      ) {
+        console.debug(
+          `[ChatDatabase] updateMessageStatus: preserving 'waiting_for_user' for message ${message_id} — skipping ${newStatus} overwrite`,
+        );
+        resolve();
+        return;
+      }
+
+      // Step 2: Patch only the status field. Encrypted fields are untouched.
+      const patched: Message = { ...rawRecord, status: newStatus };
+
+      // Step 3: Write the patched record back using the SAME transaction.
+      // Queueing the put synchronously in the onsuccess callback keeps the
+      // transaction alive — no async gap means no auto-commit.
+      const putRequest = store.put(patched);
+
+      putRequest.onerror = () => {
+        console.error(
+          `[ChatDatabase] updateMessageStatus: put failed for ${message_id}:`,
+          putRequest.error,
+        );
+        // Don't reject here — let tx.onerror handle it to avoid double-rejection.
+      };
+    };
+
+    getRequest.onerror = () => {
+      console.error(
+        `[ChatDatabase] updateMessageStatus: get failed for ${message_id}:`,
+        getRequest.error,
+      );
+      // Let tx.onerror handle the rejection.
+    };
+
+    tx.oncomplete = () => {
+      console.debug(
+        `[ChatDatabase] updateMessageStatus: ✅ status updated to "${newStatus}" for ${message_id}`,
+      );
+      resolve();
+    };
+
+    tx.onerror = () => {
+      console.error(
+        `[ChatDatabase] updateMessageStatus: ❌ transaction error for ${message_id}:`,
+        tx.error,
+      );
+      reject(tx.error);
+    };
+
+    tx.onabort = () => {
+      console.error(
+        `[ChatDatabase] updateMessageStatus: ❌ transaction aborted for ${message_id}`,
+      );
+      reject(
+        new Error(`Transaction aborted for updateMessageStatus(${message_id})`),
+      );
+    };
+  });
+}
+
+/**
+ * Update one or more non-encrypted fields on an existing message without touching
+ * any encrypted content or triggering key operations.
+ *
+ * Use this for writing metadata fields (e.g. thinking_content, thinking_signature,
+ * thinking_token_count, has_thinking) onto an existing message that was already
+ * encrypted and stored. Like updateMessageStatus(), this reads the raw IndexedDB
+ * record, merges only the provided fields, and writes it back — no encryption or
+ * key operations involved.
+ *
+ * NEVER pass encrypted fields (encrypted_content, encrypted_category,
+ * encrypted_sender_name, encrypted_model_name, encrypted_thinking_content) in
+ * `fields` — those must go through the normal saveMessage() encryption path.
+ * This function is for plaintext metadata fields only.
+ *
+ * If the message does not exist yet, a minimal placeholder is created by merging
+ * `fields` with a minimal record seeded from `fallback` (required when the message
+ * may not be in IndexedDB yet, e.g. during early streaming).
+ *
+ * @param dbInstance - Reference to the ChatDatabase instance
+ * @param message_id - The ID of the message to update
+ * @param fields - Partial Message with only the non-encrypted fields to set
+ * @param fallback - Optional minimal record used when the message doesn't exist yet
+ */
+export async function updateMessageRawFields(
+  dbInstance: ChatDatabaseInstance,
+  message_id: string,
+  fields: Partial<Message>,
+  fallback?: Omit<Message, "message_id">,
+): Promise<void> {
+  await dbInstance.init();
+
+  console.debug(
+    `[ChatDatabase] updateMessageRawFields: ${message_id} → patching fields: ${Object.keys(fields).join(", ")} (raw in-place, no re-encryption)`,
+  );
+
+  if (!dbInstance.db) {
+    throw new Error("Database not initialized");
+  }
+
+  return new Promise((resolve, reject) => {
+    const tx = (dbInstance.db as IDBDatabase).transaction(
+      MESSAGES_STORE_NAME,
+      "readwrite",
+    );
+    const store = tx.objectStore(MESSAGES_STORE_NAME);
+
+    const getRequest = store.get(message_id);
+
+    getRequest.onsuccess = () => {
+      const rawRecord = getRequest.result as Message | undefined;
+
+      let patched: Message;
+      if (rawRecord) {
+        // Message already exists — merge fields on top of the existing raw record.
+        // Encrypted fields in rawRecord are preserved untouched.
+        patched = { ...rawRecord, ...fields };
+      } else if (fallback) {
+        // Message doesn't exist yet — create a minimal placeholder from the fallback.
+        patched = { message_id, ...fallback, ...fields };
+      } else {
+        // No existing record and no fallback — nothing we can safely do.
+        console.warn(
+          `[ChatDatabase] updateMessageRawFields: message ${message_id} not found and no fallback provided, skipping`,
+        );
+        resolve();
+        return;
+      }
+
+      const putRequest = store.put(patched);
+      putRequest.onerror = () => {
+        console.error(
+          `[ChatDatabase] updateMessageRawFields: put failed for ${message_id}:`,
+          putRequest.error,
+        );
+      };
+    };
+
+    getRequest.onerror = () => {
+      console.error(
+        `[ChatDatabase] updateMessageRawFields: get failed for ${message_id}:`,
+        getRequest.error,
+      );
+    };
+
+    tx.oncomplete = () => {
+      console.debug(
+        `[ChatDatabase] updateMessageRawFields: ✅ fields updated for ${message_id}`,
+      );
+      resolve();
+    };
+
+    tx.onerror = () => {
+      console.error(
+        `[ChatDatabase] updateMessageRawFields: ❌ transaction error for ${message_id}:`,
+        tx.error,
+      );
+      reject(tx.error);
+    };
+
+    tx.onabort = () => {
+      console.error(
+        `[ChatDatabase] updateMessageRawFields: ❌ transaction aborted for ${message_id}`,
+      );
+      reject(
+        new Error(
+          `Transaction aborted for updateMessageRawFields(${message_id})`,
+        ),
+      );
+    };
+  });
+}
+
+/**
  * Delete a specific message by message_id
  * NOTE: Can be called during init() cleanup, so may need to handle uninitialized DB
  */
@@ -1007,11 +1259,11 @@ export async function cleanupDuplicateMessages(
             continue; // Already processed
           }
 
-          // Check for exact message_id match or content duplicate
-          if (
-            currentMessage.message_id === otherMessage.message_id ||
-            isContentDuplicate(currentMessage, otherMessage)
-          ) {
+          // Only match on exact message_id — content-based matching was removed because it
+          // could falsely delete legitimate messages that happen to share the same encrypted_content
+          // within a time window, shrinking the local count below server count and triggering
+          // perpetual re-sync loops ("DATA INCONSISTENCY DETECTED" on every reload).
+          if (currentMessage.message_id === otherMessage.message_id) {
             duplicates.push(otherMessage);
             processedMessages.add(otherMessage.message_id);
           }
@@ -1022,16 +1274,11 @@ export async function cleanupDuplicateMessages(
             `[ChatDatabase] Found ${duplicates.length} duplicates for message ${currentMessage.message_id} in chat ${chatId}`,
           );
 
-          // Find the message with highest priority status
-          const statusPriority: Record<string, number> = {
-            sending: 1,
-            delivered: 2,
-            synced: 3,
-          };
-
+          // Use the shared STATUS_PRIORITY map (not a local copy) so priority ordering
+          // stays consistent with shouldUpdateMessage() and the rest of the sync pipeline.
           const bestMessage = duplicates.reduce((best, current) => {
-            const bestPriority = statusPriority[best.status] || 0;
-            const currentPriority = statusPriority[current.status] || 0;
+            const bestPriority = STATUS_PRIORITY[best.status] ?? 0;
+            const currentPriority = STATUS_PRIORITY[current.status] ?? 0;
             return currentPriority > bestPriority ? current : best;
           });
 

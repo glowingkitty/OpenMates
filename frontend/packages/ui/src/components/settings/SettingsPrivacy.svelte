@@ -1,6 +1,6 @@
 <!--
 Privacy Settings - Main page for privacy-related settings
-Sections: Anonymization, Device Permissions, Auto Deletion
+Sections: Anonymization, Auto Deletion
 
 Based on Figma design: settings/privacy (node 1895:20576)
 -->
@@ -26,14 +26,14 @@ Based on Figma design: settings/privacy (node 1895:20576)
 
     let hidePersonalDataEnabled = $derived(piiSettings.masterEnabled);
 
-    // ─── Device Permission Toggles ───────────────────────────────────────────
-    // These represent browser permission states — toggling requests/revokes permission
-    let microphoneEnabled = $state(false);
-    let cameraEnabled = $state(false);
-    let locationEnabled = $state(false);
-
     // ─── Location / Maps Toggle ──────────────────────────────────────────────
-    let nearbyByDefault = $state(true);
+    // Read from encrypted personalDataStore so the setting persists across sessions.
+    // impreciseByDefault=true means area mode is the default (privacy-first).
+    let locationSettings = $state({ impreciseByDefault: true });
+    personalDataStore.locationSettings.subscribe((s) => { locationSettings = s; });
+    // nearbyByDefault is the UI-facing toggle:
+    //   checked=true  → "Nearby by default" is ON  → impreciseByDefault=true
+    let nearbyByDefault = $derived(locationSettings.impreciseByDefault);
 
     // ─── Navigation Handlers ─────────────────────────────────────────────────
 
@@ -63,16 +63,13 @@ Based on Figma design: settings/privacy (node 1895:20576)
     }
 </script>
 
-<!-- Privacy Policy Info -->
-<div class="privacy-description">
-    <p class="description-text">
-        {$text('settings.privacy.description')}
-    </p>
+<!-- Privacy Policy Link (description text is shown in the gradient banner header above) -->
+<div class="settings-description">
     <a
-        href="https://openmates.org/privacy"
+        href="/legal/privacy"
         target="_blank"
         rel="noopener noreferrer"
-        class="privacy-link"
+        class="settings-gradient-link"
     >
         {$text('settings.privacy.open_privacy_policy')}
     </a>
@@ -104,41 +101,7 @@ Based on Figma design: settings/privacy (node 1895:20576)
     title={$text('settings.privacy.nearby_by_default')}
     hasToggle={true}
     checked={nearbyByDefault}
-    onClick={() => nearbyByDefault = !nearbyByDefault}
-/>
-
-<!-- ─── Device Permissions Section ────────────────────────────────────────── -->
-<SettingsItem
-    type="heading"
-    icon="desktop"
-    title={$text('settings.privacy.device_permissions')}
-/>
-
-<SettingsItem
-    type="subsubmenu"
-    icon="recordaudio"
-    title={$text('settings.privacy.microphone')}
-    hasToggle={true}
-    checked={microphoneEnabled}
-    onClick={() => microphoneEnabled = !microphoneEnabled}
-/>
-
-<SettingsItem
-    type="subsubmenu"
-    icon="camera"
-    title={$text('settings.privacy.camera')}
-    hasToggle={true}
-    checked={cameraEnabled}
-    onClick={() => cameraEnabled = !cameraEnabled}
-/>
-
-<SettingsItem
-    type="subsubmenu"
-    icon="maps"
-    title={$text('settings.privacy.location')}
-    hasToggle={true}
-    checked={locationEnabled}
-    onClick={() => locationEnabled = !locationEnabled}
+    onClick={() => personalDataStore.updateLocationSettings({ impreciseByDefault: !locationSettings.impreciseByDefault })}
 />
 
 <!-- ─── Auto Deletion Section ─────────────────────────────────────────────── -->
@@ -194,51 +157,9 @@ Based on Figma design: settings/privacy (node 1895:20576)
     title={$text('settings.privacy.auto_deletion.invoices.value')}
 />
 
-<!-- Compliance note -->
-<div class="compliance-note">
+<!-- Compliance note — uses global .settings-note from settings.css -->
+<div class="settings-note">
     <p>{$text('settings.privacy.auto_deletion.compliance_note')}</p>
 </div>
 
-<style>
-    .privacy-description {
-        padding: 10px 16px;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .description-text {
-        font-size: 16px;
-        color: var(--color-grey-100);
-        line-height: 1.5;
-        margin: 0;
-    }
-
-    .privacy-link {
-        font-size: 16px;
-        font-weight: 700;
-        background: var(--gradient-primary);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        text-decoration: none;
-        cursor: pointer;
-    }
-
-    .privacy-link:hover {
-        opacity: 0.8;
-    }
-
-    .compliance-note {
-        padding: 10px 16px;
-    }
-
-    .compliance-note p {
-        font-size: 14px;
-        font-weight: 500;
-        color: var(--color-grey-60);
-        line-height: 1.5;
-        margin: 0;
-        font-style: italic;
-    }
-</style>
+<!-- All styles moved to global settings.css: .settings-description, .settings-gradient-link, .settings-note -->

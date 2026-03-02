@@ -20,6 +20,7 @@ bookmarks:
   th: ที่คั่นหนังสือ
   cs: Záložky
   sv: Bokmärken
+  he: סימניות
   verified_by_human:
     - en
     - de
@@ -45,6 +46,7 @@ bookmarks.description:
   th: เว็บไซต์ที่คุณบุ๊กมาร์กไว้
   cs: Vaše uložené webové stránky
   sv: Dina bokmärkta webbplatser
+  he: האתרים ששמרת בסימניות
   verified_by_human:
     - en
     - de
@@ -70,6 +72,7 @@ favorite_websites:
   th: เว็บไซต์โปรด
   cs: Oblíbené webové stránky
   sv: Favoritwebbplatser
+  he: אתרים מועדפים
   verified_by_human:
     - en
     - de
@@ -95,6 +98,7 @@ favorite_websites.description:
   th: เว็บไซต์โปรดของคุณสำหรับการเข้าถึงอย่างรวดเร็ว
   cs: Vaše oblíbené webové stránky pro rychlý přístup
   sv: Dina favoritwebbplatser för snabb åtkomst
+  he: האתרים המועדפים עליך לגישה מהירה
   verified_by_human:
     - en
     - de
@@ -120,6 +124,7 @@ read_later:
   th: อ่านภายหลัง
   cs: Přečíst později
   sv: Läs senare
+  he: לקרוא אחר כך
   verified_by_human:
     - en
     - de
@@ -145,6 +150,7 @@ read_later.description:
   th: เว็บไซต์และบทความที่บันทึกไว้สำหรับอ่านทีหลัง
   cs: Stránky a články uložené na později
   sv: Webbplatser och artiklar sparade för senare
+  he: אתרים ומאמרים שנשמרו להמשך
   verified_by_human:
     - en
     - de
@@ -173,6 +179,7 @@ bookmarks.example_1:
   th: github.com
   cs: github.com
   sv: github.com
+  he: github.com
   verified_by_human:
     - en
     - de
@@ -198,6 +205,7 @@ bookmarks.example_2:
   th: developer.mozilla.org
   cs: developer.mozilla.org
   sv: developer.mozilla.org
+  he: developer.mozilla.org
   verified_by_human:
     - en
     - de
@@ -223,6 +231,7 @@ bookmarks.example_3:
   th: news.ycombinator.com
   cs: news.ycombinator.com
   sv: news.ycombinator.com
+  he: news.ycombinator.com
   verified_by_human:
     - en
     - de
@@ -248,6 +257,7 @@ favorite_websites.example_1:
   th: reddit.com
   cs: reddit.com
   sv: reddit.com
+  he: reddit.com
   verified_by_human:
     - en
     - de
@@ -273,6 +283,7 @@ favorite_websites.example_2:
   th: medium.com
   cs: medium.com
   sv: medium.com
+  he: medium.com
   verified_by_human:
     - en
     - de
@@ -298,6 +309,7 @@ favorite_websites.example_3:
   th: stackoverflow.com
   cs: stackoverflow.com
   sv: stackoverflow.com
+  he: stackoverflow.com
   verified_by_human:
     - en
     - de
@@ -323,6 +335,7 @@ read_later.example_1:
   th: บทความวิจัย AI ที่น่าสนใจ
   cs: Zajímavý výzkumný článek o AI
   sv: Intressant AI-forskningsartikel
+  he: מאמר מחקר מעניין בנושא בינה מלאכותית
   verified_by_human:
     - en
     - de
@@ -348,6 +361,7 @@ read_later.example_2:
   th: บทความเกี่ยวกับรูปแบบการออกแบบ
   cs: Článek o návrhových vzorech
   sv: Artikel om designmönster
+  he: מאמר על תבניות עיצוב
   verified_by_human:
     - en
     - de
@@ -373,6 +387,7 @@ read_later.example_3:
   th: บทความบล็อกเทคโนโลยี
   cs: Příspěvek na tech blogu
   sv: Teknikblogg-inlägg
+  he: פוסט בבלוג טכנולוגי
   verified_by_human:
     - en
     - de

@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi import WebSocket
 from typing import Dict, Tuple, Optional
 
 logger = logging.getLogger(__name__)

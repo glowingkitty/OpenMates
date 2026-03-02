@@ -177,6 +177,17 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             is_existing_chat = chat_has_title_from_client
             logger.debug(f"Chat {chat_id} not found in DB, using client flag chat_has_title: {chat_has_title_from_client}")
 
+        # SAFETY NET: If the DB already has title_v > 0 but the client sent chat_has_title=False,
+        # the client state is stale (e.g., inspiration chats created before the title_v: 1 fix).
+        # Trust the server's title_v over the client flag to prevent overwriting existing titles.
+        # This protects against any future client-side bug causing the same mismatch.
+        if chat_metadata_from_db and chat_metadata_from_db.get("title_v", 0) > 0 and not chat_has_title_from_client:
+            logger.info(
+                f"Chat {chat_id} has title_v={chat_metadata_from_db.get('title_v')} in DB "
+                f"but client sent chat_has_title=False. Overriding to True to preserve existing title."
+            )
+            chat_has_title_from_client = True
+
         # Validate required fields
         if not message_id or not role or content_plain is None or not created_at:
             logger.error(f"Missing fields in message data from {user_id}/{device_fingerprint_hash}: message_id={message_id}, role={role}, content_exists={content_plain is not None}, timestamp_exists={created_at is not None}")
@@ -186,6 +197,96 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 device_fingerprint_hash
             )
             return
+
+        # ---------------------------------------------------------------------------
+        # IS_FORK FAST PATH
+        # ---------------------------------------------------------------------------
+        # When forkChatService sends fork messages with is_fork=True, we ONLY want to:
+        #   1. Save the plaintext message to the AI cache (so AI has context for follow-ups)
+        #   2. Send chat_message_confirmed back to the client
+        # We do NOT trigger the AI pipeline, delete suggestions, delete drafts, or broadcast.
+        #
+        # Architecture: fork messages are sent individually via chat_message_added with
+        # is_fork=True. The encrypted copy is separately sent via encrypted_chat_metadata
+        # with a message_history array (handled by encrypted_chat_metadata_handler.py).
+        # ---------------------------------------------------------------------------
+        is_fork = payload.get("is_fork", False)
+        if is_fork:
+            logger.info(f"[FORK] Processing fork message {message_id} for chat {chat_id} — caching for AI context only")
+
+            # Fetch vault key (needed for server-side encryption before cache storage)
+            fork_vault_key_id = await cache_service.get_user_vault_key_id(user_id)
+            if not fork_vault_key_id:
+                try:
+                    fork_profile_result = await directus_service.get_user_profile(user_id)
+                    if fork_profile_result and fork_profile_result[1]:
+                        fork_vault_key_id = fork_profile_result[1].get("vault_key_id")
+                        if fork_vault_key_id:
+                            await cache_service.update_user(user_id, {"vault_key_id": fork_vault_key_id})
+                except Exception as e_fork_vault:
+                    logger.error(f"[FORK] Failed to fetch vault key for fork message {message_id}: {e_fork_vault}", exc_info=True)
+
+            if not fork_vault_key_id:
+                logger.error(f"[FORK] No vault key available for fork message {message_id}, skipping AI cache")
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Fork cache failed: vault key not found.", "chat_id": chat_id, "message_id": message_id}},
+                    user_id, device_fingerprint_hash
+                )
+                return
+
+            # Encrypt the plaintext content with vault key for AI cache storage
+            try:
+                fork_content_str = content_plain if isinstance(content_plain, str) else str(content_plain)
+                fork_encrypted_content, _ = await encryption_service.encrypt_with_user_key(
+                    fork_content_str, fork_vault_key_id
+                )
+            except Exception as e_fork_enc:
+                logger.error(f"[FORK] Failed to encrypt fork message {message_id} for cache: {e_fork_enc}", exc_info=True)
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Fork cache failed: encryption error.", "chat_id": chat_id, "message_id": message_id}},
+                    user_id, device_fingerprint_hash
+                )
+                return
+
+            # Save to AI cache (same path as normal messages — gives AI context for follow-ups)
+            fork_sender_name = "user" if role == "user" else "assistant"
+            fork_msg_for_cache = MessageInCache(
+                id=message_id,
+                chat_id=chat_id,
+                role=role,
+                category=None,
+                sender_name=fork_sender_name,
+                encrypted_content=fork_encrypted_content,
+                created_at=int(created_at) if created_at else int(datetime.now(timezone.utc).timestamp()),
+                status="delivered"
+            )
+            fork_version_result = await cache_service.save_chat_message_and_update_versions(
+                user_id=user_id,
+                chat_id=chat_id,
+                message_data=fork_msg_for_cache
+            )
+            if not fork_version_result:
+                logger.error(f"[FORK] Failed to save fork message {message_id} to AI cache for chat {chat_id}")
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Fork cache failed: cache write error.", "chat_id": chat_id, "message_id": message_id}},
+                    user_id, device_fingerprint_hash
+                )
+                return
+
+            # Confirm to client (client waits for this before marking the message as synced)
+            await manager.broadcast_to_user_specific_event(
+                user_id=user_id,
+                event_name="chat_message_confirmed",
+                payload={
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "temp_id": message_payload_from_client.get("temp_id"),
+                    "new_messages_v": fork_version_result["messages_v"],
+                    "new_last_edited_overall_timestamp": fork_version_result["last_edited_overall_timestamp"],
+                }
+            )
+            logger.info(f"[FORK] Fork message {message_id} cached for AI context in chat {chat_id}. No AI pipeline triggered.")
+            return  # Early exit — skip suggestion deletion, draft deletion, broadcast, AI
 
         # DELETE NEW CHAT SUGGESTION if user clicked one before sending this message
         # This ensures used suggestions are removed from the pool on both client and server
@@ -436,27 +537,27 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 else:
                     logger.debug(f"Draft version not found in chat versions for chat {chat_id} (already deleted or never existed)")
                 
-                # CRITICAL FIX: ALWAYS broadcast draft deletion to other devices when a message is sent
+                # CRITICAL FIX: ALWAYS broadcast draft deletion to other devices when a message is sent.
                 # This ensures consistent state across all user devices, even if the draft was never
                 # stored on the server (e.g., server cache expired, or draft was only saved locally).
                 # Other devices might have a locally cached draft that needs to be cleared.
-                # Previously, this only broadcasted if cache_delete_success or version_delete_success,
-                # which caused stale drafts to persist on other devices when the server had no draft to delete.
-                try:
-                    await manager.broadcast_to_user(
-                        message={
-                            "type": "draft_deleted",
-                            "payload": {"chat_id": chat_id}
-                        },
-                        user_id=user_id,
-                        exclude_device_hash=device_fingerprint_hash
-                    )
-                    logger.info(f"Broadcasted draft_deleted event for chat {chat_id} to other user devices after message send")
-                except Exception as e_broadcast:
-                    logger.warning(f"Failed to broadcast draft_deleted for chat {chat_id}: {e_broadcast}")
+                # The broadcast is intentionally OUTSIDE the inner try/except so that if it throws,
+                # the failure propagates to the outer except (logged as a warning) rather than being
+                # silently swallowed — making broadcast failures visible in logs.
+                await manager.broadcast_to_user(
+                    message={
+                        "type": "draft_deleted",
+                        "payload": {"chat_id": chat_id}
+                    },
+                    user_id=user_id,
+                    exclude_device_hash=device_fingerprint_hash
+                )
+                logger.info(f"Broadcasted draft_deleted event for chat {chat_id} to other user devices after message send")
             except Exception as e_draft_delete:
-                logger.warning(f"Error deleting draft from cache for chat {chat_id} after message send: {e_draft_delete}")
-                # Non-critical error - draft will expire via TTL or be overwritten by client delete_draft message
+                # Non-critical error — draft will expire via TTL or be overwritten by the client's
+                # subsequent delete_draft WebSocket message. The reconnect reconciliation
+                # (get_draft_versions) also acts as a fallback for devices that come back online later.
+                logger.warning(f"Error during draft cache deletion or broadcast for chat {chat_id} after message send: {e_draft_delete}")
         else:
             logger.debug(f"Skipping draft deletion for incognito chat {chat_id} - drafts are not saved for incognito chats")
 
@@ -766,7 +867,26 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         logger.debug(f"Preparing to invoke AI for chat {chat_id} after user message {message_id}")
         
         message_history_for_ai: List[AIHistoryMessage] = []
-        
+
+        # Shared deduplication counter and accumulated index for embed_ref resolution.
+        # A single dict is reused across all resolve_embed_references_in_content calls
+        # within this handler so that:
+        # (a) duplicate filenames across messages get consistent unique suffixes
+        # (b) all embed_ref → embed_id mappings are collected in one place and
+        #     forwarded to the AI task via AskSkillRequest.embed_file_path_index.
+        _seen_embed_refs: Dict[str, int] = {}
+        _embed_file_path_index: Dict[str, str] = {}
+
+        # When the current user message is saved to cache before history is loaded (the
+        # normal fast-path), it appears in the history loop AND would be resolved again
+        # as "current message" below.  Resolving the same embed twice through the shared
+        # seen_embed_refs counter assigns a "(2)" suffix to the second occurrence, causing
+        # the LLM to receive TWO TOON blocks for the same image and call images.view twice.
+        #
+        # To prevent this: if the history loop already resolved the current message (matched
+        # by message_id), we record that resolved content here and skip the second resolution.
+        _current_message_resolved_in_history: Optional[str] = None
+
         # Check if client provided chat history (for cache miss or stale cache scenarios)
         # For incognito chats OR duplicated demo chats, client MUST provide full history
         # (no server-side caching for these new/temp chats)
@@ -816,11 +936,13 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                             directus_service=directus_service,
                             encryption_service=encryption_service
                         )
-                        resolved_hist_content = await embed_service.resolve_embed_references_in_content(
+                        resolved_hist_content, _msg_fp_index = await embed_service.resolve_embed_references_in_content(
                             content=hist_content,
                             user_vault_key_id=user_vault_key_id,
-                            log_prefix=f"[Chat {chat_id}]"
+                            log_prefix=f"[Chat {chat_id}]",
+                            seen_embed_refs=_seen_embed_refs,
                         )
+                        _embed_file_path_index.update(_msg_fp_index)
                     except Exception as e_resolve:
                         logger.warning(f"Failed to resolve embed references in client-provided message for chat {chat_id}: {e_resolve}. Using original content.")
                         # Continue with original content if resolution fails
@@ -951,11 +1073,29 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                                     directus_service=directus_service,
                                     encryption_service=encryption_service
                                 )
-                                resolved_content = await embed_service.resolve_embed_references_in_content(
+                                resolved_content, _msg_fp_index = await embed_service.resolve_embed_references_in_content(
                                     content=decrypted_content,
                                     user_vault_key_id=user_vault_key_id,
-                                    log_prefix=f"[Chat {chat_id}]"
+                                    log_prefix=f"[Chat {chat_id}]",
+                                    seen_embed_refs=_seen_embed_refs,
                                 )
+                                _embed_file_path_index.update(_msg_fp_index)
+
+                                # If this history entry IS the current user message (matched by
+                                # message_id), record its already-resolved content so we can reuse
+                                # it below instead of resolving the same message a second time.
+                                # Re-resolving after the seen_embed_refs counter was already updated
+                                # would assign "(2)" suffixes to the same embed_refs, creating
+                                # duplicate file_path_index entries → duplicate LLM TOON blocks →
+                                # skills like images.view called once per duplicate entry.
+                                if msg_cache_data.get("id") == message_id:
+                                    _current_message_resolved_in_history = resolved_content
+                                    logger.debug(
+                                        f"[Chat {chat_id}] Current message {message_id} was resolved "
+                                        f"as part of history — will reuse resolved content to avoid "
+                                        f"duplicate embed_ref suffixes."
+                                    )
+
                                 # Log if any embed references were found but not resolved
                                 if "```json" in decrypted_content and "```json" in resolved_content:
                                     logger.debug(
@@ -1075,24 +1215,58 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         )
                         return  # Stop processing until client provides history
                     else:
-                        # New chat - no history exists, proceed with empty history
-                        logger.info(f"New chat {chat_id} has no cached history (expected). Proceeding with empty history.")
+                        # "New chat" per messages_v > 1 check, but DB shows messages_v >= 1 meaning
+                        # at least one message was already persisted (e.g. inspiration chats which
+                        # have an initial assistant message created client-side before any AI call).
+                        # In this case the Redis AI cache is empty because the initial message was
+                        # never processed by the AI pipeline — so it was never added to the cache.
+                        # We must request history from the client so the AI has proper context.
+                        db_messages_v = chat_metadata_from_db.get("messages_v", 0) if chat_metadata_from_db else 0
+                        if db_messages_v >= 1:
+                            logger.info(
+                                f"Chat {chat_id} has empty AI cache but DB shows messages_v={db_messages_v}. "
+                                f"Pre-existing messages (e.g. inspiration intro) exist that were never AI-cached. "
+                                f"Requesting full history from client."
+                            )
+                            await manager.send_personal_message(
+                                {
+                                    "type": "request_chat_history",
+                                    "payload": {
+                                        "chat_id": chat_id,
+                                        "reason": "cache_miss_pre_existing_messages",
+                                        "message": "Please resend your message with full chat history included"
+                                    }
+                                },
+                                user_id,
+                                device_fingerprint_hash
+                            )
+                            return  # Stop processing until client provides history with context
+                        else:
+                            # Genuinely new chat — no history exists anywhere, proceed with empty history
+                            logger.info(f"New chat {chat_id} has no cached history (expected). Proceeding with empty history.")
             
             # Ensure the current message (which triggered the AI) is the last one in the history.
-            current_message_in_history = any(
-                m.content == content_plain and 
-                m.created_at == client_timestamp_unix and 
-                m.role == role # Check role instead of sender_name for "user"
-                for m in message_history_for_ai
-            )
-
-            if not current_message_in_history:
-                logger.debug(f"Current user message {message_id} not found in history. Appending it now.")
-                
-                # CRITICAL FIX: Resolve embed references in the current message content
-                # The content_plain may contain embed references like {"type": "code", "embed_id": "..."}
-                # These need to be replaced with actual embed content for the AI to understand
-                resolved_current_content = content_plain
+            # IMPORTANT: We first resolve the current message's embeds so we can accurately detect
+            # whether a resolved version of this message is already in the history. Without resolving
+            # first, the check would compare raw embed references (e.g. ```json{"embed_id":"..."}```)
+            # against already-resolved TOON blocks, causing a false "not found" result and a duplicate
+            # unresolved entry being appended.
+            #
+            # DEDUP GUARD: If the current message was already resolved as part of the history loop
+            # above (normal path: message was saved to cache before history was loaded), reuse that
+            # resolved content directly.  Re-resolving it here would advance the shared
+            # seen_embed_refs counter a second time, turning "image.jpg" into "image.jpg (2)" for
+            # the same embed, creating two file_path_index entries for the same image embed_id and
+            # causing skills like images.view to be called twice for the same image.
+            resolved_current_content = content_plain
+            if _current_message_resolved_in_history is not None:
+                # Already resolved in the history loop — reuse without touching seen_embed_refs.
+                resolved_current_content = _current_message_resolved_in_history
+                logger.debug(
+                    f"[Chat {chat_id}] Reusing pre-resolved current message {message_id} "
+                    f"(already processed in history loop) to avoid duplicate embed_ref entries."
+                )
+            else:
                 try:
                     from backend.core.api.app.services.embed_service import EmbedService
                     embed_service = EmbedService(
@@ -1100,20 +1274,34 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         directus_service=directus_service,
                         encryption_service=encryption_service
                     )
-                    resolved_current_content = await embed_service.resolve_embed_references_in_content(
+                    resolved_current_content, _current_file_path_index = await embed_service.resolve_embed_references_in_content(
                         content=content_plain,
-                        chat_id=chat_id,
-                        user_id=user_id,
-                        encryption_service=encryption_service,
-                        user_vault_key_id=user_vault_key_id
+                        user_vault_key_id=user_vault_key_id,
+                        log_prefix=f"[Chat {chat_id}]",
+                        seen_embed_refs=_seen_embed_refs
                     )
+                    _embed_file_path_index.update(_current_file_path_index)
                     if resolved_current_content != content_plain:
                         logger.info(f"Resolved embed references in current user message {message_id}. "
                                    f"Original length: {len(content_plain)}, Resolved length: {len(resolved_current_content)}")
                 except Exception as e_resolve:
                     logger.warning(f"Failed to resolve embed references in current message {message_id}: {e_resolve}. Using original content.")
                     resolved_current_content = content_plain
-                
+
+            # Check if this message (raw or resolved) is already present in the history.
+            # We match on timestamp + role, and also compare content against both the raw
+            # content_plain and the resolved version to handle all cases:
+            # - Message was already added with resolved toon content (from cache/client path)
+            # - Message was already added with raw content (edge case)
+            current_message_in_history = any(
+                m.created_at == client_timestamp_unix and
+                m.role == role and
+                (m.content == content_plain or m.content == resolved_current_content)
+                for m in message_history_for_ai
+            )
+
+            if not current_message_in_history:
+                logger.debug(f"Current user message {message_id} not found in history. Appending it now.")
                 message_history_for_ai.append(
                     AIHistoryMessage(
                         role=role, # Current message's role
@@ -1145,8 +1333,10 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         active_focus_id_for_ai: Optional[str] = None
         # mate_id_for_ask_request: Optional[str] = None # Mate ID is determined by preprocessor
 
-        # Get decrypted focus_id from client for AI processing
-        active_focus_id_for_ai = message_payload_from_client.get("active_focus_id")
+        # Get decrypted focus_id from client for AI processing.
+        # The frontend sends active_focus_id at the top level of the payload (not inside "message"),
+        # so check both locations for forward-compatibility.
+        active_focus_id_for_ai = payload.get("active_focus_id") or message_payload_from_client.get("active_focus_id")
         
         if not active_focus_id_for_ai:
             logger.debug(f"No active_focus_id provided by client for chat {chat_id}. AI will use default focus.")
@@ -1184,7 +1374,22 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             user_system_language = user_data_for_prefs.get("language", "en")
             user_preferences_dict["language"] = user_system_language
             logger.debug(f"Including user system language '{user_system_language}' in AI request for user {user_id}")
+            # Include user's default model preferences (cross-device synced via Directus + Redis cache).
+            # The preprocessor uses these to override auto-selection when no @mention is present.
+            default_model_simple = user_data_for_prefs.get("default_ai_model_simple")
+            if default_model_simple:
+                user_preferences_dict["default_ai_model_simple"] = default_model_simple
+                logger.debug(f"Including default simple model '{default_model_simple}' in AI request for user {user_id}")
+            default_model_complex = user_data_for_prefs.get("default_ai_model_complex")
+            if default_model_complex:
+                user_preferences_dict["default_ai_model_complex"] = default_model_complex
+                logger.debug(f"Including default complex model '{default_model_complex}' in AI request for user {user_id}")
         
+        mentioned_settings_memories_cleartext = message_payload_from_client.get("mentioned_settings_memories_cleartext")
+        if mentioned_settings_memories_cleartext is not None and not isinstance(mentioned_settings_memories_cleartext, dict):
+            mentioned_settings_memories_cleartext = None
+            logger.warning("mentioned_settings_memories_cleartext is not a dict, ignoring")
+
         ai_request_payload = AskSkillRequestSchema(
             chat_id=chat_id,
             message_id=message_id,
@@ -1196,7 +1401,9 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             mate_id=None, # Let preprocessor determine the mate unless a specific one is tied to the chat
             active_focus_id=active_focus_id_for_ai,
             user_preferences=user_preferences_dict,
-            app_settings_memories_metadata=app_settings_memories_metadata_from_client  # Client-provided metadata (source of truth)
+            app_settings_memories_metadata=app_settings_memories_metadata_from_client,  # Client-provided metadata (source of truth)
+            mentioned_settings_memories_cleartext=mentioned_settings_memories_cleartext,  # Cleartext for @memory mentions so backend does not re-request
+            embed_file_path_index=_embed_file_path_index if _embed_file_path_index else None,  # Maps embed_ref (filename) → embed_id UUID for skill resolution
         )
         logger.debug(f"Constructed AskSkillRequest with {len(message_history_for_ai)} messages in history")
 

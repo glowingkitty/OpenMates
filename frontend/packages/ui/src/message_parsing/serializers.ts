@@ -86,8 +86,18 @@ export function markdownToTipTap(markdown: string): any {
 }
 
 /**
- * Create clipboard data for embed nodes
- * Generates both text/markdown representation and JSON payload for rich copy/paste
+ * Create clipboard data for embed nodes.
+ *
+ * The payload carries enough metadata to:
+ *  1. Re-insert the TipTap embed node with its contentRef so the embed resolver
+ *     can decrypt and render it from IndexedDB (cross-chat works because embed keys
+ *     are wrapped under the user master key, not per-chat).
+ *  2. Provide lightweight inlineContent metadata (title, url, app_id, etc.) that
+ *     the embed renderer can use while the full decrypt is in progress.
+ *
+ * The contentRef ("embed:{embed_id}") is the canonical key.  The embed data itself
+ * stays in the user's IndexedDB and is never written to the clipboard — clipboard
+ * only carries the reference + lightweight metadata.
  */
 export function createEmbedClipboardData(
   attrs: EmbedNodeAttributes,
@@ -100,13 +110,32 @@ export function createEmbedClipboardData(
     filename: attrs.filename,
     contentRef: attrs.contentRef,
     contentHash: attrs.contentHash,
-    inlineContent: undefined, // Will be filled during implementation with actual content
+    // Lightweight metadata for preview rendering while the full embed resolves.
+    // Only non-sensitive fields are included — no encrypted content or AES keys.
+    inlineContent: {
+      app_id: attrs.app_id,
+      skill_id: attrs.skill_id,
+      title: attrs.title,
+      url: attrs.url,
+      description: attrs.description,
+      favicon: attrs.favicon,
+      image: attrs.image,
+      query: attrs.query,
+      provider: attrs.provider,
+      lineCount: attrs.lineCount,
+      wordCount: attrs.wordCount,
+    },
   };
 }
 
 /**
- * Parse clipboard JSON data back to embed attributes
- * Used when pasting embeds to reconstruct the node properly
+ * Parse clipboard JSON data back to embed attributes.
+ * Used when pasting embeds to reconstruct the TipTap node.
+ *
+ * The reconstructed node has status="finished" because clipboard data only
+ * captures completed embeds (processing/error embeds are not copyable).
+ * The contentRef ("embed:{embed_id}") allows the embed renderer to resolve
+ * the full content from IndexedDB.
  */
 export function parseEmbedClipboardData(
   data: EmbedClipboardData,
@@ -119,7 +148,299 @@ export function parseEmbedClipboardData(
     contentHash: data.contentHash,
     language: data.language,
     filename: data.filename,
+    // Restore inlineContent metadata fields so the preview renders while resolving
+    ...(data.inlineContent ?? {}),
   };
+}
+
+/**
+ * Encode embed JSON into an HTML string that can be stored in the text/html
+ * clipboard entry.  The JSON is placed in a hidden <meta> tag so it survives
+ * the round-trip through Safari's clipboard (Safari allows text/html but
+ * silently drops non-allowlisted MIME types like application/x-openmates-embed).
+ *
+ * The paste handler reads text/html, locates the meta tag, and extracts the JSON.
+ * The visible body of the HTML is the human-readable plain-text so that pasting
+ * into a rich-text editor still produces readable content.
+ *
+ * @internal
+ */
+function _buildEmbedHtml(json: string, plainText: string): string {
+  // Encode JSON in a data attribute to survive HTML sanitisation.
+  // Base64 avoids issues with quotes/angle-brackets in the JSON value.
+  const b64 =
+    typeof btoa !== "undefined" ? btoa(unescape(encodeURIComponent(json))) : "";
+  const escapedText = plainText
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  return `<html><head><meta name="x-openmates-embed" content="${b64}"></head><body><pre>${escapedText}</pre></body></html>`;
+}
+
+/**
+ * Write an embed node to the system clipboard using three MIME types:
+ *   - "application/x-openmates-embed": structured JSON for in-app paste on Chromium/Firefox
+ *   - "text/html": hidden JSON in a <meta> tag for in-app paste on Safari
+ *   - "text/plain": human-readable fallback for pasting outside OpenMates
+ *
+ * When pasted inside OpenMates MessageInput, the embed reference is detected
+ * (via application/x-openmates-embed on Chromium/Firefox, or text/html meta tag
+ * on Safari) and re-inserted as a live embed card (resolved from IndexedDB via
+ * contentRef). When pasted in an external app, only the text/plain value is used.
+ *
+ * **Safari clipboard gesture token compatibility:**
+ * Safari requires that navigator.clipboard.write() is called synchronously within
+ * a user-gesture handler. Any await before the clipboard call causes the gesture
+ * token to expire. This function accepts a Promise<string> for plainText — when
+ * ClipboardItem is available, it is constructed synchronously with the promise as
+ * the blob value, so navigator.clipboard.write() is called immediately without
+ * awaiting. Safari 13.1+ and all modern Chromium/Firefox support Promise<Blob> in
+ * ClipboardItem constructors.
+ *
+ * Call sites should pass `Promise.resolve(text)` when the text is already known,
+ * or a pending Promise<string> from an async content-resolution call that was
+ * started (but not awaited) before calling this function. The caller should
+ * independently await the content promise to know when the copy is complete.
+ *
+ * Falls back in order:
+ *   1. ClipboardItem.write() with Promise<Blob> values — called synchronously,
+ *      supports Safari gesture token + triple MIME (custom MIME silently dropped
+ *      on Safari but text/html carries the JSON via meta tag)
+ *   2. navigator.clipboard.writeText() plain text only (after promise resolves)
+ *   3. document.execCommand('copy') via hidden textarea
+ *
+ * @param attrs          - TipTap embed node attributes
+ * @param plainTextPromise - Promise resolving to human-readable text for text/plain
+ *                           (e.g. code content, transcript text, video URL)
+ */
+export async function writeEmbedToClipboard(
+  attrs: EmbedNodeAttributes,
+  plainTextPromise: string | Promise<string>,
+): Promise<void> {
+  const clipboardData = createEmbedClipboardData(attrs);
+  const json = JSON.stringify(clipboardData);
+
+  // Normalise: wrap plain strings in a resolved promise so all paths below
+  // can treat the value uniformly.
+  const textPromise: Promise<string> =
+    typeof plainTextPromise === "string"
+      ? Promise.resolve(plainTextPromise)
+      : plainTextPromise;
+
+  // Attempt 1: ClipboardItem with all three MIME types (Chromium / Firefox).
+  //
+  // The ClipboardItem constructor is called synchronously (within the user
+  // gesture), and navigator.clipboard.write() is also called synchronously.
+  // The actual blob content resolves asynchronously, which Safari allows —
+  // the gesture token is captured at the navigator.clipboard.write() call,
+  // not when the blob promise resolves.
+  //
+  // Three MIME types are written:
+  //  - text/plain:  human-readable content (all browsers)
+  //  - text/html:   hidden JSON in <meta name="x-openmates-embed"> (Safari in-app paste)
+  //  - application/x-openmates-embed:  raw JSON (Chromium/Firefox in-app paste)
+  //
+  // Safari rejects ClipboardItem entirely when a non-allowlisted MIME type is
+  // present (e.g. application/x-openmates-embed), so we fall through to Attempt 2.
+  if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+    const textBlobPromise = textPromise.then(
+      (t) => new Blob([t], { type: "text/plain" }),
+    );
+    const htmlBlobPromise = textPromise.then(
+      (t) => new Blob([_buildEmbedHtml(json, t)], { type: "text/html" }),
+    );
+    const embedBlobPromise = textPromise.then(
+      () => new Blob([json], { type: "application/x-openmates-embed" }),
+    );
+
+    try {
+      // navigator.clipboard.write() is called synchronously here — no await before this point.
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "text/plain": textBlobPromise,
+          "text/html": htmlBlobPromise,
+          "application/x-openmates-embed": embedBlobPromise,
+        }),
+      ]);
+      console.debug(
+        "[writeEmbedToClipboard] Copied via ClipboardItem (triple MIME, promise-based)",
+      );
+      return;
+    } catch {
+      // Attempt 1 failed — likely Safari rejecting application/x-openmates-embed.
+      // Fall through to Attempt 2: Safari-safe MIMEs only (text/html carries JSON via meta tag).
+    }
+
+    // Attempt 2: text/html + text/plain only (Safari-safe).
+    // The embed JSON is embedded in the text/html meta tag so the paste handler
+    // can still reconstruct the embed card via Path B (meta tag extraction).
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "text/plain": textBlobPromise,
+          "text/html": htmlBlobPromise,
+        }),
+      ]);
+      console.debug(
+        "[writeEmbedToClipboard] Copied via ClipboardItem (Safari-safe: text/html + text/plain)",
+      );
+      return;
+    } catch (err) {
+      // ClipboardItem entirely unsupported — fall through to writeText.
+      console.warn(
+        "[writeEmbedToClipboard] ClipboardItem.write failed (both attempts), trying writeText:",
+        err,
+      );
+    }
+  }
+
+  // Attempts 2 + 3 require the resolved text value.
+  const plainText = await textPromise;
+  await _writeTextWithFallback(plainText, "[writeEmbedToClipboard]");
+}
+
+/**
+ * Write multiple embed references to the clipboard (for message-level copy
+ * when a message contains one or more embeds).
+ *
+ * text/plain:                    the full message text (markdown, may contain embed blocks)
+ * application/x-openmates-embed: JSON array of EmbedClipboardData, one per embed in the message
+ *
+ * When pasted inside OpenMates MessageInput, the paste handler reads the JSON array
+ * and inserts each embed node before inserting the surrounding message text.
+ *
+ * Uses the same Promise<Blob> ClipboardItem pattern as writeEmbedToClipboard for
+ * Safari gesture-token compatibility — see that function's doc for full details.
+ *
+ * @param embedAttrs       - Array of TipTap embed node attributes for all embeds in the message
+ * @param messageTextPromise - Promise resolving to the full message text (markdown), used as text/plain
+ */
+export async function writeMessageWithEmbedsToClipboard(
+  embedAttrs: EmbedNodeAttributes[],
+  messageTextPromise: string | Promise<string>,
+): Promise<void> {
+  // Normalise string → resolved promise so all paths below are uniform.
+  const textPromise: Promise<string> =
+    typeof messageTextPromise === "string"
+      ? Promise.resolve(messageTextPromise)
+      : messageTextPromise;
+
+  if (embedAttrs.length === 0) {
+    // No embeds — plain text copy with same Safari-compatible fallback chain.
+    // Still need to wait for the text to resolve before writing.
+    const messageText = await textPromise;
+    await _writeTextWithFallback(
+      messageText,
+      "[writeMessageWithEmbedsToClipboard]",
+    );
+    return;
+  }
+
+  const clipboardItems = embedAttrs.map(createEmbedClipboardData);
+  const json = JSON.stringify(clipboardItems);
+
+  // Attempt 1: ClipboardItem with all three MIME types (Chromium / Firefox).
+  // See writeEmbedToClipboard for full explanation of the gesture-token and
+  // two-attempt Safari strategy.
+  if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+    const textBlobPromise = textPromise.then(
+      (t) => new Blob([t], { type: "text/plain" }),
+    );
+    const htmlBlobPromise = textPromise.then(
+      (t) => new Blob([_buildEmbedHtml(json, t)], { type: "text/html" }),
+    );
+    const embedBlobPromise = textPromise.then(
+      () => new Blob([json], { type: "application/x-openmates-embed" }),
+    );
+
+    try {
+      // navigator.clipboard.write() called synchronously — no await before this point.
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "text/plain": textBlobPromise,
+          "text/html": htmlBlobPromise,
+          "application/x-openmates-embed": embedBlobPromise,
+        }),
+      ]);
+      console.debug(
+        "[writeMessageWithEmbedsToClipboard] Copied via ClipboardItem (triple MIME, promise-based)",
+      );
+      return;
+    } catch {
+      // Attempt 1 failed — likely Safari rejecting application/x-openmates-embed.
+    }
+
+    // Attempt 2: text/html + text/plain only (Safari-safe).
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "text/plain": textBlobPromise,
+          "text/html": htmlBlobPromise,
+        }),
+      ]);
+      console.debug(
+        "[writeMessageWithEmbedsToClipboard] Copied via ClipboardItem (Safari-safe: text/html + text/plain)",
+      );
+      return;
+    } catch (err) {
+      console.warn(
+        "[writeMessageWithEmbedsToClipboard] ClipboardItem.write failed (both attempts), falling back:",
+        err,
+      );
+    }
+  }
+
+  // Attempts 2 + 3: writeText → execCommand fallback (same as writeEmbedToClipboard).
+  const messageText = await textPromise;
+  await _writeTextWithFallback(
+    messageText,
+    "[writeMessageWithEmbedsToClipboard]",
+  );
+}
+
+/**
+ * Write plain text to the clipboard with a Safari-compatible fallback chain:
+ *   1. navigator.clipboard.writeText (may fail on Safari after async awaits)
+ *   2. document.execCommand('copy') via hidden textarea (no gesture token needed)
+ *
+ * @internal Used by writeEmbedToClipboard and writeMessageWithEmbedsToClipboard
+ */
+async function _writeTextWithFallback(
+  text: string,
+  logPrefix: string,
+): Promise<void> {
+  // Attempt 1: navigator.clipboard.writeText
+  try {
+    await navigator.clipboard.writeText(text);
+    console.debug(`${logPrefix} Copied via navigator.clipboard.writeText`);
+    return;
+  } catch (err) {
+    console.warn(
+      `${logPrefix} navigator.clipboard.writeText failed (gesture token likely expired), trying execCommand fallback:`,
+      err,
+    );
+  }
+
+  // Attempt 2: document.execCommand('copy') — works on Safari even after async ops
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.style.position = "fixed";
+  textArea.style.left = "-9999px";
+  textArea.style.top = "0";
+  textArea.style.opacity = "0";
+  textArea.setAttribute("readonly", "");
+  document.body.appendChild(textArea);
+  try {
+    textArea.select();
+    const success = document.execCommand("copy");
+    if (success) {
+      console.debug(`${logPrefix} Copied via execCommand fallback`);
+      return;
+    }
+    throw new Error("execCommand copy returned false");
+  } finally {
+    document.body.removeChild(textArea);
+  }
 }
 
 /**
@@ -186,6 +507,17 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       return `\`\`\`${languagePrefix}${pathSuffix}\n${codeContent}\n\`\`\``;
 
     case "docs-doc":
+      // Check if this is a proper embed with embed_id (stored in EmbedStore)
+      if (attrs.contentRef?.startsWith("embed:")) {
+        const embed_id = attrs.contentRef.replace("embed:", "");
+        const embedRef = JSON.stringify(
+          { type: "docs-doc", embed_id },
+          null,
+          2,
+        );
+        return `\`\`\`json\n${embedRef}\n\`\`\``;
+      }
+      // Legacy/preview mode: Serialize as document_html block
       let docResult = "```document_html\n";
       if (attrs.title) {
         docResult += `<!-- title: "${attrs.title}" -->\n`;
@@ -203,6 +535,76 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       tableResult += "|----------|----------|\n";
       tableResult += "| Data     | Data     |";
       return tableResult;
+
+    case "image":
+      // User-uploaded images: serialized as embed references when contentRef is set
+      // (contentRef is set by handleSend after storing TOON content in EmbedStore)
+      if (attrs.contentRef?.startsWith("embed:")) {
+        const embed_id = attrs.contentRef.replace("embed:", "");
+        const embedRef = JSON.stringify({ type: "image", embed_id }, null, 2);
+        return `\`\`\`json\n${embedRef}\n\`\`\``;
+      }
+      // No contentRef yet (e.g. still uploading, or legacy static image) — omit
+      return "";
+
+    case "maps":
+      // Map location embeds: serialized as embed references pointing to EmbedStore.
+      // The TOON content (lat/lon/address/etc.) was stored by insertMap() in embedHandlers.ts.
+      // The backend parses this block to inject location context into the LLM prompt.
+      if (attrs.contentRef?.startsWith("embed:")) {
+        const embed_id = attrs.contentRef.replace("embed:", "");
+        const embedRef = JSON.stringify(
+          { type: "location", embed_id },
+          null,
+          2,
+        );
+        return `\`\`\`json\n${embedRef}\n\`\`\``;
+      }
+      // No contentRef — embed was not stored (e.g. storage failed). Omit silently.
+      return "";
+
+    case "recording":
+      // Audio recording embeds: serialized as embed references pointing to EmbedStore.
+      // The TOON content (S3 keys, AES key, transcript) was stored by handleSend()
+      // in sendHandlers.ts after the recording was uploaded and transcribed.
+      // The backend uses the transcript for LLM context and the S3 reference for
+      // future audio skill processing.
+      if (attrs.contentRef?.startsWith("embed:")) {
+        const embed_id = attrs.contentRef.replace("embed:", "");
+        const embedRef = JSON.stringify(
+          { type: "audio-recording", embed_id },
+          null,
+          2,
+        );
+        return `\`\`\`json\n${embedRef}\n\`\`\``;
+      }
+      // No contentRef — either still uploading/transcribing (should not happen at
+      // send time as handleSend blocks on uploading embeds) or demo mode (no upload).
+      return "";
+
+    case "pdf":
+      // PDF embeds: serialized as embed references when a contentRef is set.
+      // contentRef is set by insertPdf() / embedHandlers.ts once the server-side
+      // OCR pipeline completes and the backend sends a WebSocket embed_update event.
+      // The backend parses this block to inject the extracted PDF text as LLM context.
+      // When status is 'processing' (OCR in flight), we still emit a reference —
+      // the backend will provide the content once OCR finishes.
+      if (attrs.contentRef?.startsWith("embed:")) {
+        const embed_id = attrs.contentRef.replace("embed:", "");
+        const embedRef = JSON.stringify({ type: "pdf", embed_id }, null, 2);
+        return `\`\`\`json\n${embedRef}\n\`\`\``;
+      }
+      // No contentRef yet (OCR not done). Emit a placeholder reference using the
+      // uploadEmbedId so the backend can still reference the PDF in the message.
+      if (attrs.uploadEmbedId) {
+        const embedRef = JSON.stringify(
+          { type: "pdf", embed_id: attrs.uploadEmbedId },
+          null,
+          2,
+        );
+        return `\`\`\`json\n${embedRef}\n\`\`\``;
+      }
+      return "";
 
     default:
       // Check if this is a group type that can be handled by a group handler

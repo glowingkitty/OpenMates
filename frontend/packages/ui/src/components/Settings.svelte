@@ -31,7 +31,7 @@ changes to the documentation (to keep the documentation up to date).
 </script>
 
 <script lang="ts">
-    import { onMount, createEventDispatcher } from 'svelte';
+    import { onMount, createEventDispatcher, tick } from 'svelte';
     import { fly, fade, slide } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
     import { authStore, isCheckingAuth, logout } from '../stores/authStore'; // Import logout action
@@ -40,6 +40,8 @@ changes to the documentation (to keep the documentation up to date).
     import { tooltip } from '../actions/tooltip';
     import { isInSignupProcess, isLoggingOut, showSignupFooter } from '../stores/signupState';
     import { userProfile, updateProfile } from '../stores/userProfile';
+    import { getProfileImageBlobUrl } from '../services/profileImageService';
+    import { getApiUrl } from '../config/api';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
     import { webSocketService } from '../services/websocketService';
     import { notificationStore } from '../stores/notificationStore'; // Import notification store for payment notifications
@@ -52,74 +54,20 @@ changes to the documentation (to keep the documentation up to date).
     // Import modular components
     import SettingsFooter from './settings/SettingsFooter.svelte';
     import CurrentSettingsPage from './settings/CurrentSettingsPage.svelte';
-    
-    // Import all settings components
-    import SettingsInterface from './settings/SettingsInterface.svelte';
-    import SettingsUsage from './settings/SettingsUsage.svelte';
-    import SettingsBilling from './settings/SettingsBilling.svelte';
-    import SettingsAppStore from './settings/SettingsAppStore.svelte';
-    import SettingsAllApps from './settings/SettingsAllApps.svelte';
-    import AppDetailsWrapper from './settings/AppDetailsWrapper.svelte';
-    import SettingsShared from './settings/SettingsShared.svelte';
-    import SettingsDevelopers from './settings/SettingsDevelopers.svelte';
-    import SettingsApiKeys from './settings/developers/SettingsApiKeys.svelte';
-    import SettingsDevices from './settings/developers/SettingsDevices.svelte';
-    import SettingsServer from './settings/SettingsServer.svelte';
     import SettingsItem from './SettingsItem.svelte';
-    import SettingsLanguage from './settings/interface/SettingsLanguage.svelte';
-    import SettingsTimezone from './settings/account/SettingsTimezone.svelte';
-    import SettingsIncognitoInfo from './settings/incognito/SettingsIncognitoInfo.svelte';
-    import SettingsSoftwareUpdate from './settings/server/SettingsSoftwareUpdate.svelte';
-    import SettingsCommunitySuggestions from './settings/server/SettingsCommunitySuggestions.svelte';
-    import SettingsStats from './settings/server/SettingsStats.svelte';
-    import SettingsGiftCardGenerator from './settings/server/SettingsGiftCardGenerator.svelte';
+    import AppDetailsHeader from './settings/AppDetailsHeader.svelte';
+    import SettingsMainHeader from './settings/SettingsMainHeader.svelte';
+    
+    // Import all settings route definitions and the dynamic wrapper components
+    import { baseSettingsViews, AppDetailsWrapper, MateDetailsWrapper } from './settings/settingsRoutes';
+    import { matesMetadata } from '../data/matesMetadata';
     import { appSkillsStore } from '../stores/appSkillsStore';
-    
-    // Import billing sub-components
-    import SettingsBuyCredits from './settings/billing/SettingsBuyCredits.svelte';
-    import SettingsBuyCreditsPayment from './settings/billing/SettingsBuyCreditsPayment.svelte';
-    import SettingsBuyCreditsConfirmation from './settings/billing/SettingsBuyCreditsConfirmation.svelte';
-    import SettingsRedeemGiftCard from './settings/billing/SettingsRedeemGiftCard.svelte';
-    import SettingsAutoTopUp from './settings/billing/SettingsAutoTopUp.svelte';
-    import SettingsLowBalanceAutotopup from './settings/billing/autotopup/SettingsLowBalanceAutotopup.svelte';
-    import SettingsMonthlyAutotopup from './settings/billing/autotopup/SettingsMonthlyAutotopup.svelte';
-    import SettingsInvoices from './settings/billing/SettingsInvoices.svelte';
-    
-    // Import gift cards components
-    import SettingsGiftCards from './settings/giftcards/SettingsGiftCards.svelte';
-    import SettingsGiftCardsRedeem from './settings/giftcards/SettingsGiftCardsRedeem.svelte';
-    import SettingsGiftCardsRedeemed from './settings/giftcards/SettingsGiftCardsRedeemed.svelte';
-    import SettingsGiftCardsBuy from './settings/giftcards/SettingsGiftCardsBuy.svelte';
-    import SettingsGiftCardsBuyPayment from './settings/giftcards/SettingsGiftCardsBuyPayment.svelte';
-    import SettingsGiftCardsPurchaseConfirmation from './settings/giftcards/SettingsGiftCardsPurchaseConfirmation.svelte';
-    
-    // Import share settings component
-    import SettingsShare from './settings/share/SettingsShare.svelte';
-    // Import tip settings component
-    import SettingsTip from './settings/tip/SettingsTip.svelte';
-    // Import newsletter settings component
-    import SettingsNewsletter from './settings/SettingsNewsletter.svelte';
-    // Import support settings component
-    import SettingsSupport from './settings/SettingsSupport.svelte';
-    import SettingsSupportOneTime from './settings/support/SettingsSupportOneTime.svelte';
-    import SettingsSupportMonthly from './settings/support/SettingsSupportMonthly.svelte';
-    // Import report issue settings component
-    import SettingsReportIssue from './settings/SettingsReportIssue.svelte';
-    // Import chat settings components
-    import SettingsChat from './settings/SettingsChat.svelte';
-    import SettingsChatNotifications from './settings/chat/SettingsChatNotifications.svelte';
+    import { modelsMetadata } from '../data/modelsMetadata';
+    import { providersMetadata, findProviderByName } from '../data/providersMetadata';
+    import { getProviderIconUrl } from '../data/providerIcons';
     
     // Import the normal store instead of the derived one that was causing the error
     import { settingsNavigationStore } from '../stores/settingsNavigationStore';
-
-    // Import privacy settings components
-    import SettingsPrivacy from './settings/SettingsPrivacy.svelte';
-    import SettingsHidePersonalData from './settings/privacy/SettingsHidePersonalData.svelte';
-    import SettingsAddName from './settings/privacy/SettingsAddName.svelte';
-    import SettingsAddAddress from './settings/privacy/SettingsAddAddress.svelte';
-    import SettingsAddBirthday from './settings/privacy/SettingsAddBirthday.svelte';
-    import SettingsAddCustomEntry from './settings/privacy/SettingsAddCustomEntry.svelte';
-    import SettingsAutoDeletion from './settings/privacy/SettingsAutoDeletion.svelte';
     
 
     // Create event dispatcher for forwarding events to parent components
@@ -130,9 +78,8 @@ changes to the documentation (to keep the documentation up to date).
 
     // Props using Svelte 5 runes
     // Note: isLoggedIn prop is available but not currently used in this component
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let { isLoggedIn }: { isLoggedIn?: boolean } = $props();
-    // Suppress unused variable warning - prop may be used in future
-    void isLoggedIn;
     
     // State for toggles and menu visibility
     let isMenuVisible = $state(false);
@@ -158,96 +105,19 @@ changes to the documentation (to keep the documentation up to date).
     let profileContainer: HTMLElement | undefined = $state();
     let profileContainerWrapper: HTMLElement | undefined = $state(); // Add reference for the wrapper
 
+    /**
+     * Scroll position memory for the "All Apps" page only.
+     * When the user opens an app from the All Apps list and then presses back,
+     * we restore the scroll offset so they don't have to scroll down again.
+     * All other settings navigation always scrolls to top.
+     */
+    let allAppsScrollPosition = $state<number>(0);
+
     // Get help link from routes
     // Note: Help button is currently commented out in template (line ~1452)
     // const baseHelpLink = getWebsiteUrl(routes.docs.userGuide_settings || '/docs/userguide/settings');
     // let currentHelpLink = $state(baseHelpLink);
 
-    // Import account and security settings components
-    import SettingsAccount from './settings/SettingsAccount.svelte';
-    import SettingsSecurity from './settings/SettingsSecurity.svelte';
-    import SettingsPasskeys from './settings/SettingsPasskeys.svelte';
-    import SettingsPassword from './settings/security/SettingsPassword.svelte';
-    import SettingsTwoFactorAuth from './settings/security/SettingsTwoFactorAuth.svelte';
-    import SettingsRecoveryKey from './settings/security/SettingsRecoveryKey.svelte';
-    import SettingsEmail from './settings/account/SettingsEmail.svelte';
-    import SettingsDeleteAccount from './settings/account/SettingsDeleteAccount.svelte';
-    import SettingsExportAccount from './settings/account/SettingsExportAccount.svelte'; // GDPR Article 20 - Data Portability
-    
-    // Define base settingsViews map for component mapping
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const baseSettingsViews: Record<string, any> = {
-        // Privacy settings — anonymization, device permissions, auto deletion
-        'privacy': SettingsPrivacy,
-        'privacy/hide-personal-data': SettingsHidePersonalData,
-        'privacy/hide-personal-data/add-name': SettingsAddName,
-        'privacy/hide-personal-data/add-address': SettingsAddAddress,
-        'privacy/hide-personal-data/add-birthday': SettingsAddBirthday,
-        'privacy/hide-personal-data/add-custom': SettingsAddCustomEntry,
-        // Auto-deletion period editing — one component, three routes (category determined from path)
-        'privacy/auto-deletion/chats': SettingsAutoDeletion,
-        'privacy/auto-deletion/files': SettingsAutoDeletion,
-        'privacy/auto-deletion/usage_data': SettingsAutoDeletion,
-        // 'user': SettingsUser,
-        'usage': SettingsUsage,
-        'chat': SettingsChat,
-        'chat/notifications': SettingsChatNotifications,
-        'billing': SettingsBilling,
-        'billing/buy-credits': SettingsBuyCredits,
-        'billing/buy-credits/payment': SettingsBuyCreditsPayment,
-        'billing/buy-credits/confirmation': SettingsBuyCreditsConfirmation,
-        'billing/redeem-giftcard': SettingsRedeemGiftCard,
-        'billing/auto-topup': SettingsAutoTopUp,
-        'billing/auto-topup/low-balance': SettingsLowBalanceAutotopup,
-        'billing/auto-topup/monthly': SettingsMonthlyAutotopup,
-        'billing/invoices': SettingsInvoices,
-        'gift_cards': SettingsGiftCards,
-        'gift_cards/redeem': SettingsGiftCardsRedeem,
-        'gift_cards/redeemed': SettingsGiftCardsRedeemed,
-        'gift_cards/buy': SettingsGiftCardsBuy,
-        'gift_cards/buy/payment': SettingsGiftCardsBuyPayment,
-        'gift_cards/buy/confirmation': SettingsGiftCardsPurchaseConfirmation,
-        'app_store': SettingsAppStore,
-        'app_store/all': SettingsAllApps,
-        // 'mates': SettingsMates,
-        'shared': SettingsShared,
-        // 'messengers': SettingsMessengers,
-        'developers': SettingsDevelopers,
-        'developers/api-keys': SettingsApiKeys,
-        'developers/devices': SettingsDevices,
-        'interface': SettingsInterface,
-        'server': SettingsServer,
-        'server/software-update': SettingsSoftwareUpdate,
-        'server/community-suggestions': SettingsCommunitySuggestions,
-        'server/stats': SettingsStats,
-        'server/gift-cards': SettingsGiftCardGenerator,
-        'interface/language': SettingsLanguage,
-        'incognito/info': SettingsIncognitoInfo,
-        'account': SettingsAccount,
-        'account/timezone': SettingsTimezone,
-        'account/email': SettingsEmail,
-        'account/security': SettingsSecurity,
-        'account/security/passkeys': SettingsPasskeys,
-        'account/security/password': SettingsPassword,
-        'account/security/2fa': SettingsTwoFactorAuth,
-        'account/security/recovery-key': SettingsRecoveryKey,
-        'account/export': SettingsExportAccount, // GDPR Article 20 - Data Portability
-        'account/delete': SettingsDeleteAccount, // Alias for account/delete-account (maps to account/delete_account after normalization)
-        // 'server/software-update': SettingsSoftwareUpdate,
-        // Share chat settings - allows users to share the current chat
-        'shared/share': SettingsShare,
-        // Tip creator settings - allows users to tip creators
-        'shared/tip': SettingsTip,
-        // Newsletter settings - allows anyone to subscribe to newsletter
-        'newsletter': SettingsNewsletter,
-        // Support settings - allows users to support the project
-        'support': SettingsSupport,
-        'support/one-time': SettingsSupportOneTime,
-        'support/monthly': SettingsSupportMonthly,
-        // Report issue settings - allows users (including non-authenticated) to report issues
-        'report_issue': SettingsReportIssue
-    };
-    
     /**
      * Dynamically build settingsViews including app detail routes and nested sub-routes.
      * This creates:
@@ -269,11 +139,23 @@ changes to the documentation (to keep the documentation up to date).
             const appRoute = `app_store/${appId}`;
             views[appRoute] = AppDetailsWrapper;
             
-            // Add skill detail routes
+            // Add skill detail routes and their provider sub-routes
             if (app.skills && app.skills.length > 0) {
                 for (const skill of app.skills) {
                     const skillRoute = `app_store/${appId}/skill/${skill.id}`;
                     views[skillRoute] = AppDetailsWrapper;
+
+                    // Register provider sub-routes for each provider listed on this skill
+                    // skill.providers is an array of display name strings (e.g. ["Anthropic", "Google"])
+                    if (skill.providers && skill.providers.length > 0) {
+                        for (const providerName of skill.providers) {
+                            const providerMeta = findProviderByName(providerName);
+                            if (providerMeta) {
+                                const providerRoute = `app_store/${appId}/skill/${skill.id}/provider/${providerMeta.id}`;
+                                views[providerRoute] = AppDetailsWrapper;
+                            }
+                        }
+                    }
                 }
             }
             
@@ -296,6 +178,11 @@ changes to the documentation (to keep the documentation up to date).
                     views[createRoute] = AppDetailsWrapper;
                 }
             }
+        }
+        
+        // Add mates detail routes dynamically (mates/{mateId})
+        for (const mate of matesMetadata) {
+            views[`mates/${mate.id}`] = MateDetailsWrapper;
         }
         
         return views;
@@ -348,21 +235,24 @@ changes to the documentation (to keep the documentation up to date).
             }
             
             // For non-authenticated users, include interface settings (top-level and nested), 
-            // app store (including app details), share chat (for sharing demo chats), newsletter, support, and report issue
-            // App store is read-only for non-authenticated users (browse only, no modifications)
+            // app store (including app details), mates (browse only), share chat (for sharing demo chats),
+            // newsletter, support, report issue, and the pricing overview page.
+            // App store and mates are read-only for non-authenticated users (browse only, no modifications)
             if (!isAuthenticated) {
-                if (key === 'interface' || key === 'interface/language' ||
+                if (key === 'interface' || key.startsWith('interface/') ||
                     key === 'app_store' || key.startsWith('app_store/') ||
+                    key === 'mates' || key.startsWith('mates/') ||
                     key === 'shared/share' || key === 'newsletter' ||
                     key === 'support' || key.startsWith('support/') ||
-                    key === 'report_issue' || key === 'account/delete') {
+                    key === 'report_issue' || key === 'account/delete' ||
+                    key === 'pricing') {
                     filtered[key] = component;
                 }
             } else {
-                // For authenticated users, include all non-server settings, or include server settings if user is admin
-                // Shared settings (including nested share chat) are available for authenticated users
+                // For authenticated users, include all non-server settings, or include server settings if user is admin.
+                // Exclude 'pricing' — authenticated users have the full 'billing' section instead.
                 // Admin status is read from userProfile.is_admin (synced during login, no separate API call needed)
-                if (!key.startsWith('server') || $userProfile.is_admin) {
+                if (key !== 'pricing' && (!key.startsWith('server') || $userProfile.is_admin)) {
                     filtered[key] = component;
                 }
             }
@@ -373,6 +263,9 @@ changes to the documentation (to keep the documentation up to date).
 
     // Track navigation path parts for breadcrumb-style navigation
     let navigationPath: string[] = $state([]);
+    // Track the path we navigated from (e.g., 'app_store/all' when opening an app from All Apps).
+    // Used to ensure back navigation returns to the correct parent view.
+    let cameFromPath = $state<string | null>(null);
     let breadcrumbLabel = $state($text('settings.settings'));
     let fullBreadcrumbLabel = $state('');
     let navButtonElement: HTMLElement | undefined = $state();
@@ -477,6 +370,11 @@ changes to the documentation (to keep the documentation up to date).
                 // This is the base app_store route - add "App Store" translation
                 const translationKey = 'settings.app_store';
                 pathLabels.push($text(translationKey));
+                // If we navigated here from "All Apps", inject "All Apps" into the breadcrumb
+                // so the trail reads: Settings / App Store / All Apps / {App Name}
+                if (cameFromPath === 'app_store/all') {
+                    pathLabels.push($text('settings.app_store.show_all_apps'));
+                }
             } else if (pathString.startsWith('app_store/') && pathString !== 'app_store/all') {
                 const pathParts = pathString.replace('app_store/', '').split('/');
                 const appId = pathParts[0];
@@ -560,8 +458,29 @@ changes to the documentation (to keep the documentation up to date).
     let showSettingsIcon = $derived(true);
     
     let username = $derived($userProfile.username || '');
-    let profile_image_url = $derived($userProfile.profile_image_url);
     let isInSignupMode = $derived($isInSignupProcess);
+
+    /**
+     * Resolved blob URL (or legacy https:// URL) for the user's profile image.
+     * Since the new profile images are served by an authenticated API endpoint,
+     * we cannot use a direct URL in `<img>` or CSS `background-image` — the browser
+     * won't send credentials. This effect fetches via the profileImageService
+     * (which handles both legacy public URLs and new proxy paths) and stores a
+     * displayable blob URL.
+     */
+    let resolvedProfileImageBlobUrl = $state<string | null>(null);
+
+    $effect(() => {
+        const url = $userProfile.profile_image_url;
+        const userId = $userProfile.user_id;
+        if (!url || !userId) {
+            resolvedProfileImageBlobUrl = null;
+            return;
+        }
+        getProfileImageBlobUrl(url, getApiUrl(), userId).then((resolved) => {
+            resolvedProfileImageBlobUrl = resolved;
+        });
+    });
 
     // State to track active submenu view
     let activeSettingsView = $state('main');
@@ -569,9 +488,26 @@ changes to the documentation (to keep the documentation up to date).
     let direction = $state('forward');
     let activeSubMenuIcon = $state('');
     let activeSubMenuTitleKey = $state(''); // Store the translation key
+    let activeSubMenuTitleRaw = $state(''); // Raw title (used when no translation key, e.g. model name)
+    // SVG path for provider icon (e.g. "icons/anthropic.svg") — set when on a model detail page
+    let activeSubMenuProviderIconSvg = $state('');
     
-    // Reactive translation of the submenu title
-    let activeSubMenuTitle = $derived(activeSubMenuTitleKey ? $text(activeSubMenuTitleKey) : '');
+    // Reactive translation of the submenu title — falls back to raw title when no key
+    let activeSubMenuTitle = $derived(activeSubMenuTitleKey ? $text(activeSubMenuTitleKey) : activeSubMenuTitleRaw);
+    
+    // True when the header should show a provider icon (model or provider detail pages)
+    let isModelDetailPage = $derived(
+        activeSettingsView.startsWith('app_store/') &&
+        (
+            /^app_store\/[^/]+\/skill\/[^/]+\/model\/[^/]+$/.test(activeSettingsView) ||
+            /^app_store\/[^/]+\/skill\/[^/]+\/provider\/[^/]+$/.test(activeSettingsView)
+        )
+    );
+
+    // True when the header should show a mate profile image (mate detail pages)
+    let isMateDetailPage = $derived(
+        activeSettingsView.startsWith('mates/') && activeSettingsView !== 'mates'
+    );
     
     // Track if we're in an app store sub-page (not the main app_store or 'all' page)
     // This is used to render the app icon properly in the header
@@ -580,15 +516,270 @@ changes to the documentation (to keep the documentation up to date).
         activeSettingsView !== 'app_store' && 
         activeSettingsView !== 'app_store/all'
     );
-    
+
+    /**
+     * True when we're on the TOP-LEVEL app details page (app_store/{appId} only,
+     * NOT deeper sub-pages like skill/focus/settings_memories).
+     * Explicitly excludes 'app_store/all' which is the "Show all apps" list view —
+     * that page uses the normal submenu-info header, NOT the gradient AppDetailsHeader banner.
+     * When true the AppDetailsHeader banner takes over the header area, so:
+     *   - The normal settings-header becomes transparent with white text
+     *   - The submenu-info block is hidden (the banner shows it instead)
+     */
+    let isAppTopLevelPage = $derived(
+        activeSettingsView !== 'app_store/all' &&
+        /^app_store\/[^/]+$/.test(activeSettingsView)
+    );
+
+    /**
+     * True when we're on a skill, focus, or settings/memories sub-page
+     * (but NOT model detail pages, which have their own provider-icon header treatment).
+     * When true the AppDetailsHeader banner shows the sub-item (skill/focus/memory) name
+     * instead of the top-level app description + capability counts.
+     */
+    let isAppSubPage = $derived(
+        /^app_store\/[^/]+\/(skill|focus|settings_memories)\//.test(activeSettingsView) &&
+        !isModelDetailPage
+    );
+
+    /**
+     * True when any gradient banner (top-level or sub-page) should be visible.
+     * Used to suppress the normal submenu-info header and shrink the settings-header.
+     */
+    let isAnyAppBannerPage = $derived(isAppTopLevelPage || isAppSubPage);
+
+    /**
+     * True when the user is on a standard settings sub-page (Privacy, Billing, Usage, etc.)
+     * that should receive the gradient banner treatment.
+     * Excludes: main view, app store pages (handled by AppDetailsHeader in app mode),
+     * mate detail pages (have their own header treatment), model detail pages.
+     */
+    let isStandardSubPage = $derived(
+        activeSettingsView !== 'main' &&
+        !isAnyAppBannerPage &&
+        !isMateDetailPage &&
+        !isModelDetailPage
+    );
+
+    /**
+     * True when ANY gradient banner should be visible (app store OR standard sub-page).
+     * Used to suppress the normal submenu-info block and shrink the settings-header.
+     */
+    let isAnyBannerPage = $derived(isAnyAppBannerPage || isStandardSubPage);
+
+    /**
+     * Description translation keys for standard settings pages.
+     * These are displayed in the gradient banner for the corresponding route.
+     * Keys without a description are intentionally absent (banner shows title only).
+     */
+    const settingsPageDescriptionKeys: Record<string, string> = {
+        'pricing': 'settings.pricing.description',
+        'privacy': 'settings.privacy.description',
+        'usage': 'settings.usage.description',
+        'billing': 'settings.billing.description',
+        'account': 'settings.account.description',
+        'interface': 'settings.interface.description',
+        'support': 'settings.support.description',
+        'developers': 'settings.developers_description',
+        'mates': 'settings.mates.description',
+        'chat': 'settings.chat.description',
+        'security': 'settings.security.description',
+        'newsletter': 'settings.newsletter.description',
+        'server': 'settings.server.description',
+        'report_issue': 'settings.report_issue.description',
+        'shared': 'settings.shared.description',
+        'gift_cards': 'settings.gift_cards.description',
+        'app_store': 'settings.app_store.description',
+    };
+
+    /**
+     * The description string for the currently active standard settings sub-page banner.
+     * Uses the top-level segment of the path for lookup (e.g. 'billing' for 'billing/buy-credits').
+     * Returns empty string when no description key is registered.
+     */
+    let activeSubMenuDescription = $derived.by(() => {
+        if (!isStandardSubPage) return '';
+        // Use the top-level path segment for description lookup
+        const topSegment = activeSettingsView.split('/')[0];
+        const key = settingsPageDescriptionKeys[topSegment];
+        return key ? $text(key) : '';
+    });
+
+    /**
+     * Aggregate capability stats for the App Store header banner.
+     * Shows total apps, skills, focus modes, and settings & memory types across all apps.
+     * Only computed when the app_store page is active to avoid unnecessary work.
+     */
+    let appStoreHeaderStats = $derived.by(() => {
+        if (activeSettingsView !== 'app_store' && activeSettingsView !== 'app_store/all') return [];
+        const allApps = Object.values(appSkillsStore.getState().apps);
+        const totalApps = allApps.length;
+        const totalSkills = allApps.reduce((sum, app) => sum + (app.skills?.length ?? 0), 0);
+        const totalFocusModes = allApps.reduce((sum, app) => sum + (app.focus_modes?.length ?? 0), 0);
+        const totalMemories = allApps.reduce((sum, app) => sum + (app.settings_and_memories?.length ?? 0), 0);
+        return [
+            { count: totalApps,      iconClass: 'apps' },
+            { count: totalSkills,    iconClass: 'skill' },
+            { count: totalFocusModes, iconClass: 'focus' },
+            { count: totalMemories,  iconClass: 'memory' },
+        ];
+    });
+
+    /**
+     * Data needed to render the AppDetailsHeader for sub-pages (skill/focus/memories).
+     * Returns the parent appId and the item-specific data (name, typeLabel, description).
+     * Returns null when not on a sub-page.
+     */
+    let subPageBannerData = $derived.by((): {
+        appId: string;
+        itemName: string;
+        itemTypeLabel: string;
+        description: string;
+        /** Icon name (without .svg) for the item-specific icon shown in AppDetailsHeader */
+        iconName?: string;
+        /** Icon gradient type for the item-specific icon */
+        iconType?: 'skill' | 'focus' | 'memory';
+    } | null => {
+        if (!isAppSubPage) return null;
+
+        // Parse the route: app_store/{appId}/{type}/{itemId}
+        const match = activeSettingsView.match(
+            /^app_store\/([^/]+)\/(skill|focus|settings_memories)\/([^/]+)/
+        );
+        if (!match) return null;
+
+        const [, appId, type, itemId] = match;
+        const apps = appSkillsStore.getState().apps;
+        const appMeta = apps[appId];
+        if (!appMeta) return null;
+
+        if (type === 'skill') {
+            const skill = appMeta.skills.find(s => s.id === itemId);
+            if (!skill) return null;
+            // Derive icon name from skill's icon_image (strip .svg); fall back to app icon
+            const rawIcon = skill.icon_image || appMeta.icon_image;
+            const iconName = rawIcon ? rawIcon.replace(/\.svg$/, '').trim() : undefined;
+            return {
+                appId,
+                itemName: skill.name_translation_key ? $text(skill.name_translation_key) : itemId,
+                itemTypeLabel: $text('settings.app_store.skill'),
+                description: skill.description_translation_key
+                    ? $text(skill.description_translation_key)
+                    : '',
+                iconName,
+                iconType: 'skill',
+            };
+        }
+
+        if (type === 'focus') {
+            const focus = appMeta.focus_modes.find(f => f.id === itemId);
+            if (!focus) return null;
+            const rawIcon = focus.icon_image || appMeta.icon_image;
+            const iconName = rawIcon ? rawIcon.replace(/\.svg$/, '').trim() : undefined;
+            return {
+                appId,
+                itemName: focus.name_translation_key ? $text(focus.name_translation_key) : itemId,
+                itemTypeLabel: $text('settings.app_store.focus_mode'),
+                description: focus.description_translation_key
+                    ? $text(focus.description_translation_key)
+                    : '',
+                iconName,
+                iconType: 'focus',
+            };
+        }
+
+        if (type === 'settings_memories') {
+            const cat = appMeta.settings_and_memories.find(c => c.id === itemId);
+            if (!cat) return null;
+            const rawIcon = cat.icon_image || appMeta.icon_image;
+            const iconName = rawIcon ? rawIcon.replace(/\.svg$/, '').trim() : undefined;
+            return {
+                appId,
+                itemName: cat.name_translation_key ? $text(cat.name_translation_key) : itemId,
+                itemTypeLabel: $text('settings.app_store.settings_memories'),
+                description: cat.description_translation_key
+                    ? $text(cat.description_translation_key)
+                    : '',
+                iconName,
+                iconType: 'memory',
+            };
+        }
+
+        return null;
+    });
+
+    /**
+     * The app ID for the current top-level app page, e.g. "audio".
+     * Also used for sub-pages when subPageBannerData is active.
+     */
+    let currentAppId = $derived(
+        isAppTopLevelPage ? activeSettingsView.replace('app_store/', '') :
+        isAppSubPage ? (subPageBannerData?.appId ?? '') :
+        ''
+    );
+
+    /** AppMetadata for the current top-level or sub-page, used by AppDetailsHeader */
+    let currentAppMetadata = $derived(
+        currentAppId ? appSkillsStore.getState().apps[currentAppId] : undefined
+    );
+
+    /**
+     * Current scroll position of .settings-content-wrapper.
+     * Updated on scroll events and passed to AppDetailsHeader for the collapse animation.
+     */
+    let contentScrollTop = $state(0);
+
+    /** Reset scroll tracking on every navigation (the banner components start expanded).
+     *  We reset whenever the active view changes (banner or not). */
+    $effect(() => {
+        // Access activeSettingsView to trigger the effect on navigation changes.
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        activeSettingsView;
+        contentScrollTop = 0;
+    });
+
+    function handleContentScroll(e: Event) {
+        // Track scroll for all banner pages: app store pages, standard sub-pages, and main
+        if (isAnyBannerPage || activeSettingsView === 'main') {
+            contentScrollTop = (e.target as HTMLElement).scrollTop;
+        }
+    }
+
     // Add reference for content height calculation
     let menuItemsCount = $state(0);
 
     // Function to set active settings view with transitions
-    function handleOpenSettings(event: { detail: { settingsPath: string; direction: string; icon: string; title: string } } | CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string }>) {
+    async function handleOpenSettings(event: { detail: { settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string } } | CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string }>) {
         const detail = 'detail' in event ? event.detail : event;
-        let { settingsPath, direction: newDirection, icon } = detail;
+        let { settingsPath, direction: newDirection, icon, cameFrom } = detail;
         direction = newDirection;
+
+        // --- Scroll position memory (All Apps only) ---
+        // Save the scroll offset when leaving "All Apps" going forward, so pressing
+        // back restores the position. All other pages always scroll to top on navigation.
+        if (newDirection === 'forward' && activeSettingsView === 'app_store/all' && settingsContentElement) {
+            allAppsScrollPosition = settingsContentElement.scrollTop;
+        }
+        
+        // Track the originating path so back navigation can return to it.
+        // Only set when explicitly provided (e.g., navigating from 'app_store/all').
+        // When navigating backward through an intermediate app_store page, cameFrom is passed
+        // explicitly to preserve the chain, so we accept it from both directions.
+        if (cameFrom) {
+            cameFromPath = cameFrom;
+        } else if (newDirection === 'backward') {
+            // Clear cameFromPath when arriving at the destination that was the cameFrom source,
+            // or when leaving the app_store section entirely (back to app_store root or main).
+            const isReturningToSource = settingsPath === cameFromPath;
+            const isLeavingAppStore = settingsPath === 'app_store' || !settingsPath.startsWith('app_store');
+            if (isReturningToSource || isLeavingAppStore) {
+                cameFromPath = null;
+            }
+            // Otherwise (e.g., going from skill → app details), cameFromPath is preserved
+        } else if (newDirection === 'forward' && !cameFrom) {
+            // Forward navigation without explicit cameFrom clears the previous source
+            cameFromPath = null;
+        }
 
         // Reset active account ID
         activeAccountId = null;
@@ -648,17 +839,34 @@ changes to the documentation (to keep the documentation up to date).
                     } else if (iconName === 'coding') {
                         // coding.svg -> code (app ID is "code", icon file is "coding.svg")
                         iconName = 'code';
+                    } else if (iconName === 'heart') {
+                        // heart.svg -> health (app ID is "health", icon file is "heart.svg")
+                        iconName = 'health';
                     }
                     activeSubMenuIcon = iconName;
                 } else {
                     activeSubMenuIcon = appId;
                 }
                 
+                // Reset provider icon state — will be re-set below if this is a model detail page
+                activeSubMenuProviderIconSvg = '';
+                activeSubMenuTitleRaw = '';
+                
                 // Check if this is a model detail route (app_store/{appId}/skill/{skillId}/model/{modelId})
-                if (pathParts.length === 5 && pathParts[1] === 'skill' && pathParts[3] === 'model') {
-                    // Model detail route - use the title from the event (model name)
-                    // The title is passed from AiAskSkillSettings when clicking a model
-                    activeSubMenuTitleKey = ''; // Title is set from event detail.title
+                if (pathParts.length === 5 && pathParts[1] === 'skill' && pathParts[3] === 'provider') {
+                    // Provider detail route — show provider icon and provider name in header
+                    const providerId = pathParts[4];
+                    const providerMeta = providersMetadata[providerId];
+                    activeSubMenuProviderIconSvg = providerMeta?.logo_svg ?? '';
+                    activeSubMenuTitleKey = ''; // No translation key — use raw title (provider name)
+                    activeSubMenuTitleRaw = detail.title ?? (providerMeta?.name ?? providerId);
+                } else if (pathParts.length === 5 && pathParts[1] === 'skill' && pathParts[3] === 'model') {
+                    // Model detail route — show provider icon and model name in header
+                    const modelId = pathParts[4];
+                    const modelMeta = modelsMetadata.find(m => m.id === modelId);
+                    activeSubMenuProviderIconSvg = modelMeta?.logo_svg ?? '';
+                    activeSubMenuTitleKey = ''; // No translation key — use raw title (model name)
+                    activeSubMenuTitleRaw = detail.title ?? (modelMeta?.name ?? modelId);
                 } else if (pathParts.length === 3 && pathParts[1] === 'skill') {
                     // Skill route (app_store/{appId}/skill/{skillId})
                     const skillId = pathParts[2];
@@ -707,8 +915,24 @@ changes to the documentation (to keep the documentation up to date).
                 activeSubMenuIcon = icon || appId;
                 activeSubMenuTitleKey = `apps.${appId}`;
             }
+        } else if (settingsPath.startsWith('mates/') && settingsPath !== 'mates') {
+            // Mate detail route: mates/{mateId}
+            // Show the mate's profile image (via mate-profile CSS class) and the mate's name.
+            const mateId = settingsPath.replace('mates/', '').split('/')[0];
+            const mate = matesMetadata.find(m => m.id === mateId);
+            activeSubMenuProviderIconSvg = '';
+            activeSubMenuTitleRaw = '';
+            // Use mate-profile CSS class approach: icon = mate id so CSS .mate-profile.{id} renders
+            activeSubMenuIcon = mateId;
+            if (mate?.name_translation_key) {
+                activeSubMenuTitleKey = mate.name_translation_key;
+            } else {
+                activeSubMenuTitleKey = `mates.${mateId}`;
+            }
         } else {
             // For other routes, use the provided icon and build translation key from path
+            activeSubMenuProviderIconSvg = '';
+            activeSubMenuTitleRaw = '';
             activeSubMenuIcon = icon || '';
             // Store the translation key instead of the translated text
             // Special handling for security sub-routes - skip "security" segment in translation key
@@ -726,6 +950,23 @@ changes to the documentation (to keep the documentation up to date).
             } else if (settingsPath === 'shared/share') {
                 // Special case: 'shared/share' uses 'settings.share' (share is at root level, not nested)
                 activeSubMenuTitleKey = 'settings.share';
+            } else if (settingsPath.startsWith('account/storage/')) {
+                // Storage category sub-pages: account/storage/<category>
+                // Use the storage category label keys (e.g. storage_category_images)
+                // instead of the auto-generated settings.account.storage.<category> key which doesn't exist.
+                const storageCategoryKeyMap: Record<string, string> = {
+                    images:   'settings.storage.storage_category_images',
+                    videos:   'settings.storage.storage_category_videos',
+                    audio:    'settings.storage.storage_category_audio',
+                    pdf:      'settings.storage.storage_category_pdf',
+                    code:     'settings.storage.storage_category_code',
+                    docs:     'settings.storage.storage_category_docs',
+                    sheets:   'settings.storage.storage_category_sheets',
+                    archives: 'settings.storage.storage_category_archives',
+                    other:    'settings.storage.storage_category_other',
+                };
+                const storageCategory = settingsPath.split('/').pop() ?? '';
+                activeSubMenuTitleKey = storageCategoryKeyMap[storageCategory] ?? 'settings.storage.storage_category_other';
             } else {
                 // Build the translation key from the path
                 const translationKeyParts = settingsPath.split('/').map(segment => segment.replace(/-/g, '_'));
@@ -761,17 +1002,29 @@ changes to the documentation (to keep the documentation up to date).
             profileContainer.classList.add('submenu-active');
         }
         
-        // Scroll to the top of the settings content
+        // Wait for the DOM to update with the new page content before scrolling.
+        await tick();
         if (settingsContentElement) {
-            settingsContentElement.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
+            if (newDirection === 'backward' && settingsPath === 'app_store/all' && allAppsScrollPosition > 0) {
+                // Restore the All Apps scroll position so the user lands back where they were.
+                // Instant scroll (no animation) feels like returning, not jumping.
+                settingsContentElement.scrollTo({
+                    top: allAppsScrollPosition,
+                    behavior: 'instant'
+                });
+                allAppsScrollPosition = 0;
+            } else {
+                // All other navigation (forward or backward) always scrolls to top.
+                settingsContentElement.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            }
         }
     }
 
     // Enhanced back navigation - handle both main and nested views
-    function backToMainView(event?: MouseEvent) {
+    async function backToMainView(event?: MouseEvent) {
         // Prevent event bubbling to avoid closing the menu
         if (event) {
             event.stopPropagation();
@@ -796,6 +1049,8 @@ changes to the documentation (to keep the documentation up to date).
                     profileContainer.classList.remove('submenu-active');
                 }
                 
+                // Wait for DOM to update, then scroll to top
+                await tick();
                 if (settingsContentElement) {
                     settingsContentElement.scrollTop = 0;
                 }
@@ -814,6 +1069,10 @@ changes to the documentation (to keep the documentation up to date).
                     // This is the entry detail route - go back to the category page
                     previousPath = `app_store/${appId}/settings_memories/${pathParts[2]}`;
                     previousPathSegments = ['app_store', appId, 'settings_memories', pathParts[2]];
+                } else if (pathParts.length === 5 && pathParts[1] === 'skill' && pathParts[3] === 'model') {
+                    // Model detail route - go back to the skill settings page
+                    previousPath = `app_store/${appId}/skill/${pathParts[2]}`;
+                    previousPathSegments = ['app_store', appId, 'skill', pathParts[2]];
                 } else if (pathParts.length === 4 && pathParts[1] === 'settings_memories' && pathParts[3] === 'create') {
                     // This is the create entry route - go back to the category page
                     previousPath = `app_store/${appId}/settings_memories/${pathParts[2]}`;
@@ -823,10 +1082,34 @@ changes to the documentation (to keep the documentation up to date).
                     previousPath = `app_store/${appId}`;
                     previousPathSegments = ['app_store', appId];
                 } else {
-                    // Regular app details page - go back one level normally
-                    previousPath = navigationPath.slice(0, -1).join('/');
-                    previousPathSegments = navigationPath.slice(0, -1);
+                    // Regular app details page — if we arrived from "All Apps", go back there.
+                    // Otherwise, go back one level normally (to app_store root).
+                    if (cameFromPath === 'app_store/all') {
+                        previousPath = 'app_store/all';
+                        previousPathSegments = ['app_store', 'all'];
+                    } else {
+                        previousPath = navigationPath.slice(0, -1).join('/');
+                        previousPathSegments = navigationPath.slice(0, -1);
+                    }
                 }
+            } else if (navigationPath.join('/') === 'incognito/info') {
+                // 'incognito/info' is the only incognito route — there is no bare 'incognito' route.
+                // Pressing back should return to the main settings page, not try to navigate to
+                // a non-existent 'incognito' route.
+                direction = 'backward';
+                activeSettingsView = 'main';
+                showSubmenuInfo = false;
+                navButtonLeft = false;
+                navigationPath = [];
+                breadcrumbLabel = $text('settings.settings');
+                if (profileContainer) {
+                    profileContainer.classList.remove('submenu-active');
+                }
+                await tick();
+                if (settingsContentElement) {
+                    settingsContentElement.scrollTop = 0;
+                }
+                return;
             } else {
                 // For non-app_store routes, go back one level normally
                 previousPath = navigationPath.slice(0, -1).join('/');
@@ -858,6 +1141,9 @@ changes to the documentation (to keep the documentation up to date).
                         } else if (iconName === 'coding') {
                             // coding.svg -> code (app ID is "code", icon file is "coding.svg")
                             iconName = 'code';
+                        } else if (iconName === 'heart') {
+                            // heart.svg -> health (app ID is "health", icon file is "heart.svg")
+                            iconName = 'health';
                         }
                         icon = iconName;
                     } else {
@@ -912,14 +1198,20 @@ changes to the documentation (to keep the documentation up to date).
                     icon = 'calendar';
                 } else if (previousPath === 'app_store') {
                     icon = 'app_store';
+                } else if (previousPath === 'app_store/all') {
+                    // "All Apps" view — use the app icon and the "Show all apps" translation
+                    icon = 'app';
+                    title = $text('settings.app_store.show_all_apps');
                 }
                 // For other nested paths (like account/security), icon is already set to last segment above
                 
-                // Build the translation key for the previous view's title
-                const translationKeyParts = previousPathSegments.map(segment => segment.replace(/-/g, '_'));
-                const titleKey = `settings.${translationKeyParts.join('.')}`;
-                const translatedTitle = $text(titleKey);
-                title = translatedTitle;
+                if (!title) {
+                    // Build the translation key for the previous view's title
+                    const translationKeyParts = previousPathSegments.map(segment => segment.replace(/-/g, '_'));
+                    const titleKey = `settings.${translationKeyParts.join('.')}`;
+                    const translatedTitle = $text(titleKey);
+                    title = translatedTitle;
+                }
             }
             
             direction = 'backward';
@@ -928,7 +1220,12 @@ changes to the documentation (to keep the documentation up to date).
                     settingsPath: previousPath,
                     direction: 'backward',
                     icon: icon,
-                    title: title
+                    title: title,
+                    // Preserve cameFromPath when going backward to an intermediate app page
+                    // so the breadcrumb and next back step still reference the original source.
+                    cameFrom: (previousPath.startsWith('app_store/') && previousPath !== 'app_store/all' && cameFromPath)
+                        ? cameFromPath
+                        : undefined
                 }
             }));
         } else {
@@ -944,21 +1241,15 @@ changes to the documentation (to keep the documentation up to date).
                 profileContainer.classList.remove('submenu-active');
             }
             
-            // Scroll to top when going back to main view
+            // Wait for the DOM to update with the main view content before scrolling.
+            await tick();
             if (settingsContentElement) {
-                settingsContentElement.scrollTo({
-                    top: 0,
-                    behavior: 'smooth'
-                });
+                settingsContentElement.scrollTo({ top: 0, behavior: 'smooth' });
             }
         }
     }
 
     // No more docking/undocking - we use two separate containers instead
-   
-    // Track when profile container should be hidden (after transform animation completes)
-    let hideOriginalProfile = $state(false);
-    let hideProfileTimeout: ReturnType<typeof setTimeout> | null = null;
    
     // Handler for profile click to show menu
     function toggleMenu() {
@@ -972,32 +1263,9 @@ changes to the documentation (to keep the documentation up to date).
         } else {
             panelState.closeSettings();
         }
-        
-        // Clear any existing timeout
-        if (hideProfileTimeout) {
-            clearTimeout(hideProfileTimeout);
-            hideProfileTimeout = null;
-        }
-        
-        if (isMenuVisible) {
-            // Delay hiding the original profile until after transform animation (400ms)
-            // This allows it to move to its position first, then hide
-            hideProfileTimeout = setTimeout(() => {
-                hideOriginalProfile = true;
-            }, 400);
-        } else {
-            // Show immediately when menu closes
-            hideOriginalProfile = false;
-        }
 
         // If menu is being closed, reset scroll position and view state
         if (!isMenuVisible && settingsContentElement) {
-        	// Reset profile visibility immediately when closing via toggleMenu
-        	hideOriginalProfile = false;
-        	if (hideProfileTimeout) {
-        		clearTimeout(hideProfileTimeout);
-        		hideProfileTimeout = null;
-        	}
         	
         	// Reset the active view to main when closing the menu
         	activeSettingsView = 'main';
@@ -1015,13 +1283,12 @@ changes to the documentation (to keep the documentation up to date).
         		profileContainer.classList.remove('submenu-active');
         	}
 
-        	// Reset scroll position
+        	// Reset scroll position and clear the All Apps scroll memory so a
+        	// stale position doesn't persist into the next time the menu is opened.
+        	allAppsScrollPosition = 0;
         	setTimeout(() => {
         		settingsContentElement.scrollTop = 0;
         	}, 300);
-        } else if (isMenuVisible) {
-        	// Menu is opening - original profile container will animate to its position
-        	// The duplicate profile container in settings will fade in
         }
     }
 
@@ -1035,8 +1302,12 @@ changes to the documentation (to keep the documentation up to date).
                 teamEnabled.set(isTeamEnabled);
                 break;
             case 'incognito':
-                // Store handles the toggle and deletion of incognito chats
-                incognitoMode.toggle();
+                // No-op: CurrentSettingsPage.svelte manages incognito state directly.
+                // When disabling: it calls incognitoMode.set(false) before dispatching this event.
+                // When enabling: it navigates to the info screen; SettingsIncognitoInfo.svelte
+                // calls incognitoMode.set(true) on confirmation.
+                // Calling incognitoMode.toggle() here would double-toggle and immediately
+                // reverse the state that CurrentSettingsPage just set.
                 break;
             case 'guest':
                 isGuestEnabled = !isGuestEnabled;
@@ -1083,12 +1354,6 @@ changes to the documentation (to keep the documentation up to date).
     			settingsMenuVisible.set(false);
     			// CRITICAL: Also close via panelState to keep state in sync
     			panelState.closeSettings();
-    			// Reset profile visibility so it shows again
-    			hideOriginalProfile = false;
-    			if (hideProfileTimeout) {
-    				clearTimeout(hideProfileTimeout);
-    				hideProfileTimeout = null;
-    			}
     		}
     	}
     }
@@ -1128,6 +1393,44 @@ changes to the documentation (to keep the documentation up to date).
         updateMobileState();
         window.addEventListener('resize', handleResize);
         document.addEventListener('click', handleClickOutside);
+
+        // Listen for programmatic close requests from child components
+        // (e.g., SettingsIncognitoInfo calls this after activating incognito mode).
+        // This is more reliable than setting stores because it calls toggleMenu()
+        // directly, which properly syncs all three visibility sources
+        // (isMenuVisible, settingsMenuVisible store, panelState).
+        const handleCloseSettingsMenu = () => {
+            if (isMenuVisible) {
+                toggleMenu();
+            }
+        };
+        window.addEventListener('closeSettingsMenu', handleCloseSettingsMenu);
+
+        // Listen for requests to re-open the settings panel — dispatched by SettingsReportIssue
+        // after the DOM element picker captures or cancels. Symmetric to closeSettingsMenu.
+        // If the event carries a returnTo path (e.g. 'report_issue'), navigate there after
+        // opening because toggleMenu() resets activeSettingsView to 'main' when closing.
+        const handleOpenSettingsMenu = (e: Event) => {
+            const returnTo = (e as CustomEvent<{ returnTo?: string }>).detail?.returnTo;
+            if (!isMenuVisible) {
+                toggleMenu();
+            }
+            // Navigate to the requested sub-page after the panel opens.
+            // Use a short delay to let the panel visibility change settle before navigating.
+            if (returnTo && returnTo !== 'main') {
+                setTimeout(() => {
+                    handleOpenSettings(new CustomEvent('openSettings', {
+                        detail: {
+                            settingsPath: returnTo,
+                            direction: 'forward',
+                            icon: returnTo,
+                            title: ''
+                        }
+                    }));
+                }, 50);
+            }
+        };
+        window.addEventListener('openSettingsMenu', handleOpenSettingsMenu);
         
         // Add listener for language changes
         languageChangeHandler = () => {
@@ -1161,15 +1464,18 @@ changes to the documentation (to keep the documentation up to date).
             console.debug('[Settings] Received payment_completed notification via WebSocket:', payload);
             
             // CRITICAL: Suppress notifications during signup - Payment.svelte already handles them
-            // Only show notification if user is not in signup process
-            if (!$isInSignupProcess) {
+            // Also suppress when user is on the buy-credits payment/confirmation flow,
+            // because SettingsBuyCreditsPayment.svelte handles the WebSocket event directly
+            // and navigates to the confirmation screen (showing duplicate toasts is confusing).
+            const isOnBuyCreditsPath = activeSettingsView.startsWith('billing/buy-credits');
+            if (!$isInSignupProcess && !isOnBuyCreditsPath) {
                 // Show success notification popup (using Notification.svelte component)
                 notificationStore.success(
                     `Payment completed! ${payload.credits_purchased.toLocaleString()} credits have been added to your account.`,
                     5000
                 );
             } else {
-                console.debug('[Settings] Suppressing payment_completed notification during signup');
+                console.debug('[Settings] Suppressing payment_completed notification (signup=%s, buyCreditsPath=%s)', $isInSignupProcess, isOnBuyCreditsPath);
             }
             
             // Always update credits in user profile if available (even during signup)
@@ -1205,6 +1511,8 @@ changes to the documentation (to keep the documentation up to date).
         return () => {
             window.removeEventListener('resize', handleResize);
             document.removeEventListener('click', handleClickOutside);
+            window.removeEventListener('closeSettingsMenu', handleCloseSettingsMenu);
+            window.removeEventListener('openSettingsMenu', handleOpenSettingsMenu);
             window.removeEventListener('language-changed', languageChangeHandler);
             webSocketService.off('user_credits_updated', handleCreditUpdate);
             webSocketService.off('user_admin_status_updated', handleAdminStatusUpdate);
@@ -1288,17 +1596,11 @@ changes to the documentation (to keep the documentation up to date).
                  	if (settingsContentElement) {
                  		settingsContentElement.scrollTop = 0;
                  	}
-                    // Close the settings menu visually
+                 	// Close the settings menu visually
                  	isMenuVisible = false;
                  	settingsMenuVisible.set(false);
                  	// CRITICAL: Also close via panelState to keep state in sync
                  	panelState.closeSettings();
-                 	// Reset profile visibility so it shows again
-                 	hideOriginalProfile = false;
-                 	if (hideProfileTimeout) {
-                 		clearTimeout(hideProfileTimeout);
-                 		hideProfileTimeout = null;
-                 	}
                     // Small delay to allow settings menu to close visually and state to clear
                  	await new Promise(resolve => setTimeout(resolve, 200)); // Slightly longer to ensure state is cleared
                 },
@@ -1348,20 +1650,22 @@ changes to the documentation (to keep the documentation up to date).
         if ($settingsDeepLink) {
             const settingsPath = $settingsDeepLink;
             
-            // For non-authenticated users, only allow app_store, interface, share settings, newsletter, support, report_issue, and account deletion
+            // For non-authenticated users, only allow app_store, interface, share settings, newsletter, support, report_issue, account deletion, and mates
             // Share settings are allowed so users can share demo chats
             // Newsletter is allowed so anyone can subscribe
             // Support is allowed so anyone can sponsor the project
             // Report issue is allowed so anyone can report bugs/issues
             // Account deletion is allowed for uncompleted accounts via email link
+            // Mates is allowed so unauthenticated users (e.g. example/public chat) can open mate settings deep links
             if (!$authStore.isAuthenticated) {
-                const allowedPaths = ['app_store', 'interface', 'interface/language', 'shared/share', 'newsletter', 'support', 'report_issue', 'account/delete'];
+                const allowedPaths = ['app_store', 'interface', 'interface/language', 'shared/share', 'newsletter', 'support', 'report_issue', 'account/delete', 'mates'];
                 const isAllowedPath = allowedPaths.includes(settingsPath) ||
                                      settingsPath.startsWith('app_store/') ||
                                      settingsPath.startsWith('interface/') ||
                                      settingsPath.startsWith('shared/share') ||
                                      settingsPath.startsWith('support/') ||
-                                     settingsPath.startsWith('account/delete/');
+                                     settingsPath.startsWith('account/delete/') ||
+                                     settingsPath.startsWith('mates/');
                 
                 if (!isAllowedPath) {
                     // Clear the deep link if path is not allowed for non-authenticated users
@@ -1383,15 +1687,11 @@ changes to the documentation (to keep the documentation up to date).
             if (!isMenuVisible) {
                 isMenuVisible = true;
                 settingsMenuVisible.set(true);
-
-                // Delay hiding the original profile until after transform animation (400ms)
-                // This ensures it moves to its position first, then hides, matching manual toggle
-                if (hideProfileTimeout) {
-                    clearTimeout(hideProfileTimeout);
-                }
-                hideProfileTimeout = setTimeout(() => {
-                    hideOriginalProfile = true;
-                }, 400);
+                // CRITICAL: Record the programmatic open time so handleClickOutside doesn't
+                // immediately close the panel on mobile. On mobile, the tap that triggers a
+                // deep link (e.g. badge click) bubbles to document and fires handleClickOutside
+                // within milliseconds. The 300ms grace period prevents this race condition.
+                lastProgrammaticOpenTime = Date.now();
 
                 // Force z-index update to ensure proper overlay on mobile
                 setTimeout(() => {
@@ -1414,6 +1714,27 @@ changes to the documentation (to keep the documentation up to date).
                 let translationKey;
                 if (settingsPath === 'shared/share') {
                     translationKey = 'settings.share';
+            } else if (settingsPath === 'incognito/info') {
+                // Incognito info page: use the incognito icon and the top-level "Incognito" title.
+                // The path 'incognito/info' would otherwise auto-generate 'settings.incognito.info'
+                // which does not exist in translations.
+                activeSubMenuIcon = 'incognito';
+                activeSubMenuTitleKey = 'settings.incognito';
+            } else if (settingsPath.startsWith('account/storage/')) {
+                    // Storage category pages use the storage_category_* keys in storage.yml
+                    const deepLinkStorageCategoryKeyMap: Record<string, string> = {
+                        images:   'settings.storage.storage_category_images',
+                        videos:   'settings.storage.storage_category_videos',
+                        audio:    'settings.storage.storage_category_audio',
+                        pdf:      'settings.storage.storage_category_pdf',
+                        code:     'settings.storage.storage_category_code',
+                        docs:     'settings.storage.storage_category_docs',
+                        sheets:   'settings.storage.storage_category_sheets',
+                        archives: 'settings.storage.storage_category_archives',
+                        other:    'settings.storage.storage_category_other',
+                    };
+                    const deepLinkCategory = settingsPath.split('/').pop() ?? '';
+                    translationKey = deepLinkStorageCategoryKeyMap[deepLinkCategory] ?? 'settings.storage.storage_category_other';
                 } else {
                     const translationKeyParts = settingsPath.split('/').map(segment => segment.replace(/-/g, '_'));
                     translationKey = `settings.${translationKeyParts.join('.')}`;
@@ -1486,12 +1807,6 @@ changes to the documentation (to keep the documentation up to date).
     	// If store value changes from true to false and our local state is still true
     	if (!$settingsMenuVisible && isMenuVisible) {
     		isMenuVisible = false;
-    		// Reset profile visibility so it shows again
-    		hideOriginalProfile = false;
-    		if (hideProfileTimeout) {
-    			clearTimeout(hideProfileTimeout);
-    			hideProfileTimeout = null;
-    		}
    
     		// Remove mobile overlay class when closing
     		const menuElement = document.querySelector('.settings-menu');
@@ -1529,15 +1844,6 @@ changes to the documentation (to keep the documentation up to date).
     		// Record the programmatic open time so handleClickOutside doesn't immediately close
     		// the panel on mobile (where the same tap event bubbles to document)
     		lastProgrammaticOpenTime = Date.now();
-   
-            // Delay hiding the original profile until after transform animation (400ms)
-            // This ensures it moves to its position first, then hides, matching manual toggle
-            if (hideProfileTimeout) {
-                clearTimeout(hideProfileTimeout);
-            }
-            hideProfileTimeout = setTimeout(() => {
-                hideOriginalProfile = true;
-            }, 400);
 
     		// Add mobile overlay class when opening on mobile
     		setTimeout(() => {
@@ -1565,7 +1871,7 @@ changes to the documentation (to keep the documentation up to date).
     	<div
     		class="profile-container"
     		class:menu-open={isMenuVisible}
-    		class:hidden={hideOriginalProfile}
+    		data-action={isMenuVisible ? 'close-settings' : 'open-settings'}
     		onclick={toggleMenu}
     		onkeydown={e => e.key === 'Enter' && toggleMenu()}
     		role="button"
@@ -1580,11 +1886,13 @@ changes to the documentation (to keep the documentation up to date).
                     <div class="clickable-icon" class:icon_settings={!isMenuVisible} class:icon_user={isMenuVisible}></div>
                 </div>
             {:else}
-                <div
-                    class="profile-picture"
-                    style={profile_image_url ? `background-image: url(${profile_image_url})` : ''}
-                >
-                    {#if !profile_image_url}
+                <!-- Use resolvedProfileImageBlobUrl (fetched with credentials) so the
+                     new encrypted proxy endpoint works. Legacy https:// URLs are also
+                     passed through by the profileImageService unchanged. -->
+                <div class="profile-picture" class:profile-picture-img={!!resolvedProfileImageBlobUrl}>
+                    {#if resolvedProfileImageBlobUrl}
+                        <img class="profile-picture-avatar" src={resolvedProfileImageBlobUrl} alt="Profile" />
+                    {:else}
                         <div class="default-user-icon"></div>
                     {/if}
                 </div>
@@ -1616,7 +1924,14 @@ changes to the documentation (to keep the documentation up to date).
     onkeydown={(e) => e.stopPropagation()}
     role="presentation"
 >
-    <div class="settings-header" class:submenu-active={activeSettingsView !== 'main' && showSubmenuInfo} onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="presentation">
+    <div
+        class="settings-header"
+        class:submenu-active={activeSettingsView !== 'main' && showSubmenuInfo && !isAnyBannerPage}
+        class:app-top-level={isAnyBannerPage || activeSettingsView === 'main'}
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => e.stopPropagation()}
+        role="presentation"
+    >
         <div class="header-content">
             {#if !hideNavButton}
                 <button
@@ -1646,25 +1961,111 @@ changes to the documentation (to keep the documentation up to date).
             </a> -->
         </div>
         
-        {#if activeSettingsView !== 'main' && showSubmenuInfo}
+        {#if activeSettingsView !== 'main' && showSubmenuInfo && !isAnyBannerPage}
             <div
                 class="submenu-info"
                 class:reduced-padding={hideNavButton}
                 transition:slide={{ duration: 300, easing: cubicOut }}
             >
-                <!-- Replace this with SettingsItem component -->
-                <!-- Use iconType="app" for app store sub-pages to render proper app-style icon -->
-                <SettingsItem
-                    type="heading"
-                    icon={activeSubMenuIcon}
-                    title={activeSubMenuTitle}
-                    iconType={isAppStoreSubPage ? 'app' : 'default'}
-                />
+                {#if isModelDetailPage && activeSubMenuProviderIconSvg}
+                    <!-- Model detail page: show provider icon + model name instead of app icon -->
+                    <div class="model-detail-header-item">
+                        <div class="model-detail-provider-icon">
+                            <img
+                                src={getProviderIconUrl(activeSubMenuProviderIconSvg)}
+                                alt=""
+                                class="model-detail-provider-img"
+                            />
+                        </div>
+                        <strong class="model-detail-title">{activeSubMenuTitle}</strong>
+                    </div>
+                {:else if isMateDetailPage}
+                    <!-- Mate detail page: show the mate's circular profile image + name.
+                         Uses the same .mate-profile CSS class system as the chat header
+                         (mates.css sets background-image per mate id class). -->
+                    <div class="mate-detail-header-item">
+                        <div class="mate-profile {activeSubMenuIcon} mate-profile-header"></div>
+                        <strong class="model-detail-title">{activeSubMenuTitle}</strong>
+                    </div>
+                {:else}
+                    <!-- Use iconType="app" for app store sub-pages to render proper app-style icon -->
+                    <!-- Focus mode details pages now use the same icon+title header as skills -->
+                    <SettingsItem
+                        type="heading"
+                        icon={activeSubMenuIcon}
+                        title={activeSubMenuTitle}
+                        iconType={isAppStoreSubPage ? 'app' : 'default'}
+                    />
+                {/if}
             </div>
         {/if}
     </div>
     
-    <div class="settings-content-wrapper" bind:this={settingsContentElement} onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="presentation">
+    <!-- Main settings page gradient banner — shown only on the root settings menu.
+         Displays the user's avatar + username and a clickable credits count.
+         Placed outside the content-wrapper so sticky positioning works correctly. -->
+    {#if activeSettingsView === 'main'}
+        <SettingsMainHeader
+            {username}
+            profileImageUrl={resolvedProfileImageBlobUrl ?? ''}
+            isAuthenticated={$authStore.isAuthenticated}
+            credits={$userProfile.credits ?? 0}
+            {paymentEnabled}
+            scrollTop={contentScrollTop}
+            onBillingClick={() => handleOpenSettings({ detail: { settingsPath: 'billing', direction: 'forward', icon: 'billing', title: $text('settings.billing') } } as CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string }>)}
+        />
+    {/if}
+
+    <!-- App details gradient banner — shown on:
+         1. app_store/{appId} top-level pages (full description + capability counts)
+         2. app_store/{appId}/skill|focus|settings_memories/{itemId} sub-pages
+            (same gradient, but shows item name + type label instead of description/counts)
+         Placed outside the content-wrapper so it's not clipped by the slider's overflow:hidden.
+         sticky positioning works here because this element is a direct flex child of .settings-menu. -->
+    {#if isAnyAppBannerPage && currentAppMetadata}
+        <AppDetailsHeader
+            appId={currentAppId}
+            app={currentAppMetadata}
+            scrollTop={contentScrollTop}
+            breadcrumbLabel={breadcrumbLabel}
+            fullBreadcrumbLabel={fullBreadcrumbLabel}
+            onBack={() => backToMainView()}
+            subItem={subPageBannerData ? {
+                name: subPageBannerData.itemName,
+                typeLabel: subPageBannerData.itemTypeLabel,
+                description: subPageBannerData.description,
+                iconName: subPageBannerData.iconName,
+                iconType: subPageBannerData.iconType,
+            } : undefined}
+        />
+    {/if}
+
+    <!-- Standard settings sub-page gradient banner — shown on Privacy, Billing, Usage, etc.
+         Uses the openmates gradient with the page icon and title.
+         Placed outside the content-wrapper for the same sticky-positioning reason. -->
+    {#if isStandardSubPage}
+        <AppDetailsHeader
+            scrollTop={contentScrollTop}
+            breadcrumbLabel={breadcrumbLabel}
+            fullBreadcrumbLabel={fullBreadcrumbLabel}
+            onBack={() => backToMainView()}
+            settingsPage={{
+                title: activeSubMenuTitle,
+                icon: activeSubMenuIcon,
+                description: activeSubMenuDescription,
+                stats: appStoreHeaderStats,
+            }}
+        />
+    {/if}
+
+    <div
+        class="settings-content-wrapper"
+        bind:this={settingsContentElement}
+        onscroll={handleContentScroll}
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => e.stopPropagation()}
+        role="presentation"
+    >
         <!-- Show settings menu for both authenticated and non-authenticated users -->
         <!-- For non-authenticated users, only language settings are available -->
         <CurrentSettingsPage
@@ -1677,13 +2078,25 @@ changes to the documentation (to keep the documentation up to date).
             {settingsViews}
             {isMenuVisible}
             {paymentEnabled}
+            showProfileHeader={false}
             bind:isIncognitoEnabled
             bind:isGuestEnabled
             bind:isOfflineEnabled
             bind:menuItemsCount
             on:openSettings={handleOpenSettings}
+            on:navigateBack={() => backToMainView()}
             on:quickSettingClick={handleQuickSettingClick}
             on:logout={handleLogout}
+            on:chatSelected={(e) => {
+                // Forward chatSelected event from sub-pages (e.g. SettingsUsage) to +page.svelte
+                dispatch('chatSelected', e.detail);
+            }}
+            on:closeSettings={() => {
+                // Close settings when a sub-page (e.g. SettingsUsage) requests it
+                isMenuVisible = false;
+                settingsMenuVisible.set(false);
+                panelState.closeSettings();
+            }}
         />
 
         <!-- Show footer for both authenticated and non-authenticated users -->
@@ -1701,12 +2114,6 @@ changes to the documentation (to keep the documentation up to date).
                 settingsMenuVisible.set(false);
                 // CRITICAL: Also close via panelState to keep state in sync
                 panelState.closeSettings();
-                // Reset profile visibility so it shows again
-                hideOriginalProfile = false;
-                if (hideProfileTimeout) {
-                    clearTimeout(hideProfileTimeout);
-                    hideProfileTimeout = null;
-                }
             }}
         />
     </div>
@@ -1716,7 +2123,8 @@ changes to the documentation (to keep the documentation up to date).
     .profile-container-wrapper {
         position: fixed;
         top: 8px;
-        right: 10px;
+        /* Logical property: avatar pinned to inline-end corner (top-right in LTR, top-left in RTL) */
+        inset-inline-end: 10px;
         width: 50px;
         height: 50px;
         z-index: 1005;
@@ -1727,43 +2135,34 @@ changes to the documentation (to keep the documentation up to date).
         position: absolute;
         top: 8px;
         /* Use calc to ensure it doesn't extend beyond viewport */
-        left: calc(100% - 67px); /* 57px width + 10px margin */
-        right: auto;
+        inset-inline-start: calc(100% - 67px); /* 57px width + 10px margin */
+        inset-inline-end: auto;
     }
 
     .profile-container {
         position: absolute;
         top: 0;
-        right: 0;
+        /* Logical property: anchored to inline-end corner */
+        inset-inline-end: 0;
         width: 50px;
         height: 50px;
         border-radius: 50%;
         cursor: pointer;
-        transition: transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
+        /* Fade out when menu opens, fade in when menu closes */
+        transition: opacity 0.2s ease;
         opacity: 1;
     }
 
-    .profile-container.hidden {
+    .profile-container.menu-open {
         opacity: 0;
         pointer-events: none;
-        /* No transition - hide instantly to match docked profile appearance */
-        transition: transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
-    }
-
-    .profile-container.menu-open {
-    	transform: translate(-265px, 110px);
-    }
-
-    @media (max-width: 730px) {
-        .profile-container.menu-open {
-            transform: translate(-255px, 110px);
-        }
     }
    
     .close-icon-container {
         position: absolute;
         top: 0;
-        right: 0;
+        /* Logical property: anchored to inline-end corner */
+        inset-inline-end: 0;
         width: 50px;
         height: 50px;
         display: flex;
@@ -1810,6 +2209,19 @@ changes to the documentation (to keep the documentation up to date).
         justify-content: center;
     }
     
+    /* When a profile image blob URL is available, clip <img> to the circle */
+    .profile-picture-img {
+        overflow: hidden;
+    }
+
+    .profile-picture-avatar {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+        display: block;
+    }
+
     .language-icon-container {
         background-color: var(--color-grey-20);
         display: flex;
@@ -1853,7 +2265,8 @@ changes to the documentation (to keep the documentation up to date).
     @media (max-width: 1100px) {
         .settings-menu {
             position: fixed;
-            right: 20px;
+            /* Logical property: panel anchored to inline-end edge (right in LTR, left in RTL) */
+            inset-inline-end: 20px;
             top: 65px;
             bottom: 18px;
             height: auto;
@@ -1879,7 +2292,7 @@ changes to the documentation (to keep the documentation up to date).
 
     @media (max-width: 730px) {
         .settings-menu {
-            right: 10px;
+            inset-inline-end: 10px;
             bottom: 10px;
         }
     }
@@ -1890,13 +2303,15 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     .settings-header,
-    .settings-content-wrapper {
+    .settings-content-wrapper,
+    :global(.app-details-header) {
         opacity: 0;
         transition: opacity 0.3s ease 0s;
     }
 
     .settings-menu.visible .settings-header,
-    .settings-menu.visible .settings-content-wrapper {
+    .settings-menu.visible .settings-content-wrapper,
+    .settings-menu.visible :global(.app-details-header) {
         opacity: 1;
         transition: opacity 0.3s ease 0.15s;
     }
@@ -1925,6 +2340,27 @@ changes to the documentation (to keep the documentation up to date).
         padding-bottom: 20px; /* Space for submenu info */
         transition: padding-bottom 0.3s ease; /* Smooth padding transition */
     }
+
+    /*
+     * When the app top-level page is active, the AppDetailsHeader inside the
+     * content wrapper takes full ownership of the header area — it contains its
+     * own back arrow, breadcrumb, and close button on the gradient.
+     *
+     * We completely hide the normal .settings-header (collapse to 0 height) so
+     * there's no double-header and the gradient banner appears right at the top.
+     * We use height + overflow rather than display:none so the opacity transition
+     * still works cleanly when switching pages.
+     */
+    .settings-header.app-top-level {
+        height: 0 !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        border-bottom: none !important;
+        box-shadow: none !important;
+        overflow: hidden;
+        transition: height 0.2s ease, padding 0.2s ease;
+    }
+
 
     .nav-button {
         all: unset;
@@ -1974,6 +2410,65 @@ changes to the documentation (to keep the documentation up to date).
         padding-top: 10px;
     }
 
+    /* Model detail header: provider icon + model name */
+    .model-detail-header-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 4px 16px 4px 12px;
+    }
+
+    /* Mate detail header: circular profile image + mate name */
+    .mate-detail-header-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 4px 16px 4px 12px;
+    }
+
+    /*
+     * Size the mate profile image in the settings header.
+     * The base .mate-profile class (mates.css) sets 60px — we want 38px here
+     * to match the model provider icon size and suppress the AI badge pseudo-elements.
+     */
+    :global(.mate-profile.mate-profile-header) {
+        width: 38px;
+        height: 38px;
+        flex-shrink: 0;
+    }
+
+    :global(.mate-profile.mate-profile-header::before),
+    :global(.mate-profile.mate-profile-header::after) {
+        display: none;
+    }
+
+    .model-detail-provider-icon {
+        flex-shrink: 0;
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        background: var(--color-grey-10);
+        overflow: hidden;
+    }
+
+    .model-detail-provider-img {
+        width: 28px;
+        height: 28px;
+        object-fit: contain;
+    }
+
+    .model-detail-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-grey-100);
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
 
     .settings-content-wrapper {
         display: flex;

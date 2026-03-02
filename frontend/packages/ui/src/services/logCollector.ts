@@ -185,7 +185,10 @@ class LogCollectorService {
 
     const formatLog = (log: ConsoleLogEntry): string => {
       const date = new Date(log.timestamp);
-      const timestamp = date.toISOString().replace("T", " ").slice(0, 19);
+      // Include milliseconds (.slice(0, 23)) to match action history format
+      // and enable precise cross-correlation with backend logs.
+      // Format: "2024-01-15 14:32:01.456"
+      const timestamp = date.toISOString().replace("T", " ").slice(0, 23);
       const level = log.level.toUpperCase().padEnd(5);
       return `[${timestamp}] ${level} ${log.message}`;
     };

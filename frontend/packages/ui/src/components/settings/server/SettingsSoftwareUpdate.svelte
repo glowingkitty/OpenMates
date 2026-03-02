@@ -77,7 +77,7 @@ component:
     <div in:fade={{ duration: 300 }}>
         <SettingsItem 
             type="heading"
-            icon="subsetting_icon subsetting_icon_download"
+            icon="subsetting_icon download"
             subtitleTop={subtitleText}
             title={softwareVersion}
         />

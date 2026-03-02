@@ -23,12 +23,17 @@ Usage:
 
 Options:
     --no-logs           Skip fetching the full YAML report from S3
-    --full-logs         Show all log lines (by default only warnings/errors with context are shown)
+    --full-logs         Show all data untruncated: all log lines AND full text fields (description,
+                        device info, IndexedDB, etc.). Output can be very long — pipe to a file or
+                        use grep to filter. By default only warnings/errors are shown in logs and
+                        long fields are truncated to a readable summary.
     --json              Output as JSON instead of formatted text
     --list              List recent issues (most recent first)
     --list-limit N      Number of issues to list (default: 20)
     --search TEXT       Search issues by title/description (used with --list)
     --include-processed Include processed issues in --list results
+    --delete            Delete the issue (Directus + S3). Use after confirming the issue is fixed.
+    --yes               Skip confirmation when using --delete (required for non-interactive use)
 """
 
 import asyncio
@@ -185,7 +190,7 @@ async def list_issues(
 
     params: Dict[str, Any] = {
         'fields': '*',
-        'sort': '-created_at',
+        'sort': '-timestamp',
         'limit': limit
     }
 
@@ -289,6 +294,127 @@ async def decrypt_issue_fields(
         decrypted['device_info'] = None
 
     return decrypted
+
+
+async def get_screenshot_presigned_url(
+    encryption_service: EncryptionService,
+    s3_service: S3UploadService,
+    issue: Dict[str, Any],
+    expiration: int = 7 * 24 * 3600,
+) -> Optional[str]:
+    """
+    Decrypt the screenshot S3 key and generate a fresh pre-signed URL.
+
+    The screenshot PNG is stored unencrypted in the issue_logs bucket so it can be
+    viewed directly — only the S3 key itself is encrypted in Directus.
+
+    Args:
+        encryption_service: EncryptionService instance
+        s3_service: S3UploadService instance (initialized)
+        issue: Raw issue dictionary from Directus
+        expiration: Pre-signed URL expiry in seconds (default: 7 days)
+
+    Returns:
+        Pre-signed URL string, or None if no screenshot or on error
+    """
+    if not issue.get('encrypted_screenshot_s3_key'):
+        return None
+
+    try:
+        # Decrypt the S3 object key
+        screenshot_s3_key = await encryption_service.decrypt_issue_report_data(
+            issue['encrypted_screenshot_s3_key']
+        )
+        if not screenshot_s3_key:
+            script_logger.warning("Failed to decrypt screenshot S3 key (returned None)")
+            return None
+
+        # Get environment-specific bucket name
+        environment = os.getenv('SERVER_ENVIRONMENT', 'development')
+        bucket_name = get_bucket_name('issue_logs', environment)
+
+        # Generate a fresh pre-signed URL (7 days by default)
+        presigned_url = s3_service.generate_presigned_url(
+            bucket_name=bucket_name,
+            file_key=screenshot_s3_key,
+            expiration=expiration
+        )
+        script_logger.debug(f"Generated pre-signed URL for screenshot: {screenshot_s3_key}")
+        return presigned_url
+
+    except Exception as e:
+        script_logger.error(f"Error generating screenshot pre-signed URL: {e}", exc_info=True)
+        return None
+
+
+async def delete_issue(
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+    s3_service: Optional[S3UploadService],
+    issue_id: str,
+    issue: Optional[Dict[str, Any]],
+) -> tuple[bool, str]:
+    """
+    Delete an issue from Directus and S3.
+
+    Deletes both the YAML report (encrypted) and the screenshot PNG (unencrypted)
+    from the issue_logs S3 bucket, then removes the Directus record.
+
+    Args:
+        directus_service: DirectusService instance (must support admin for delete_item)
+        encryption_service: EncryptionService instance
+        s3_service: S3UploadService instance (can be None; S3 delete is skipped if unavailable)
+        issue_id: The issue ID to delete
+        issue: Raw issue dict from Directus (must be loaded already)
+
+    Returns:
+        Tuple of (success: bool, message: str)
+    """
+    if not issue:
+        return False, f"Issue not found: {issue_id}"
+
+    deleted_from_s3 = False
+
+    # Delete YAML report from S3 if key exists
+    if issue.get("encrypted_issue_report_yaml_s3_key") and s3_service:
+        try:
+            s3_object_key = await encryption_service.decrypt_issue_report_data(
+                issue["encrypted_issue_report_yaml_s3_key"]
+            )
+            if s3_object_key:
+                await s3_service.delete_file(bucket_key="issue_logs", file_key=s3_object_key)
+                deleted_from_s3 = True
+                script_logger.info(f"Deleted S3 YAML file for issue {issue_id}: {s3_object_key}")
+        except Exception as e:
+            script_logger.warning(f"Failed to delete S3 YAML file for issue {issue_id}: {e}")
+
+    # Delete screenshot PNG from S3 if key exists
+    if issue.get("encrypted_screenshot_s3_key") and s3_service:
+        try:
+            screenshot_s3_key = await encryption_service.decrypt_issue_report_data(
+                issue["encrypted_screenshot_s3_key"]
+            )
+            if screenshot_s3_key:
+                await s3_service.delete_file(bucket_key="issue_logs", file_key=screenshot_s3_key)
+                script_logger.info(f"Deleted S3 screenshot for issue {issue_id}: {screenshot_s3_key}")
+        except Exception as e:
+            script_logger.warning(f"Failed to delete S3 screenshot for issue {issue_id}: {e}")
+
+    # Delete from Directus (admin required)
+    try:
+        success = await directus_service.delete_item("issues", issue_id, admin_required=True)
+        if not success:
+            return False, "Failed to delete issue from database"
+    except Exception as e:
+        script_logger.error(f"Error deleting issue from Directus: {e}", exc_info=True)
+        return False, str(e)
+
+    msg = f"Issue {issue_id} deleted successfully"
+    if deleted_from_s3:
+        msg += " (Directus + S3)"
+    else:
+        msg += " (Directus only)"
+    return True, msg
 
 
 async def fetch_s3_report(
@@ -478,17 +604,27 @@ def format_list_output(
 
             # Status indicator
             status_emoji = "✅" if processed else "🔴"
+            
+            # Admin indicator
+            is_from_admin = issue.get('is_from_admin', False) or False
+            admin_indicator = " 👑" if is_from_admin else ""
 
             lines.append("")
-            lines.append(f"  {i:3}. {status_emoji} [{issue_id[:8]}...]  {created_at}")
+            lines.append(f"  {i:3}. {status_emoji} [{issue_id[:8]}...]{admin_indicator}  {created_at}")
             lines.append(f"       Title:     {truncate_string(title, 70)}")
             lines.append(f"       Email:     {truncate_string(email, 50)}")
             lines.append(f"       Reported:  {timestamp}")
             lines.append(f"       Processed: {processed}")
+            if is_from_admin:
+                lines.append("       From:      Admin User")
 
             # Show if S3 report exists
             has_s3 = "✓" if issue.get('encrypted_issue_report_yaml_s3_key') else "✗"
             lines.append(f"       S3 Report: {has_s3}")
+
+            # Show if screenshot exists
+            has_screenshot = "✓" if issue.get('encrypted_screenshot_s3_key') else "✗"
+            lines.append(f"       Screenshot: {has_screenshot}")
 
     lines.append("")
     lines.append("=" * 100)
@@ -502,21 +638,27 @@ def format_detail_output(
     issue: Optional[Dict[str, Any]],
     decrypted: Dict[str, Optional[str]],
     s3_report: Optional[Dict[str, Any]],
-    full_logs: bool = False
+    full_logs: bool = False,
+    screenshot_presigned_url: Optional[str] = None
 ) -> str:
     """
     Format the issue inspection results as human-readable text.
 
     By default, log sections (console logs and docker compose logs) are filtered to show
-    only WARNING/ERROR/CRITICAL lines with 3 lines of surrounding context. Use full_logs=True
-    to show all log lines unfiltered.
+    only WARNING/ERROR/CRITICAL lines with 3 lines of surrounding context, and long text
+    fields (description, device info, IndexedDB) are truncated for readability.
+
+    Use full_logs=True (--full-logs flag) to:
+    - Show all log lines unfiltered
+    - Show all text fields untruncated
+    Output can be very long — pipe to a file or use grep to filter.
 
     Args:
         issue_id: The issue ID
         issue: Raw issue metadata from Directus
         decrypted: Dictionary of decrypted field values
         s3_report: Parsed YAML report from S3 (or None)
-        full_logs: If True, show all log lines; if False, filter to errors/warnings only
+        full_logs: If True, show all data untruncated; if False, show summary with truncation
 
     Returns:
         Formatted string for display
@@ -532,6 +674,23 @@ def format_detail_output(
     lines.append(f"Generated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     lines.append("=" * 100)
 
+    # Mode banner
+    if full_logs:
+        lines.append("")
+        lines.append(
+            "  ⚠  --full-logs enabled: full untruncated output follows "
+            "(may be very long — pipe to a file or use grep to filter)"
+        )
+    else:
+        lines.append("")
+        lines.append(
+            "  ℹ  Summary mode: some fields are truncated and logs are filtered to errors/warnings only."
+        )
+        lines.append(
+            "     Use --full-logs for complete untruncated output "
+            "(warning: can be very long — consider piping to a file or using grep)."
+        )
+
     # ===================== ISSUE METADATA =====================
     lines.append("")
     lines.append("-" * 100)
@@ -543,12 +702,21 @@ def format_detail_output(
     else:
         # Core metadata (cleartext fields)
         lines.append(f"  Title:             {issue.get('title', 'N/A')}")
-        lines.append(f"  Description:       {truncate_string(issue.get('description', 'N/A'), 200)}")
+        desc_raw = issue.get('description', 'N/A') or 'N/A'
+        if full_logs:
+            lines.append(f"  Description:       {desc_raw}")
+        else:
+            lines.append(f"  Description:       {truncate_string(desc_raw, 200)}")
         lines.append("")
         lines.append(f"  Timestamp:         {format_timestamp(issue.get('timestamp'))}")
         lines.append(f"  Created At:        {format_timestamp(issue.get('created_at'))}")
         lines.append(f"  Updated At:        {format_timestamp(issue.get('updated_at'))}")
         lines.append(f"  Processed:         {issue.get('processed', False) or False}")
+        lines.append(f"  From Admin:        {issue.get('is_from_admin', False) or False}")
+        if issue.get('reported_by_user_id'):
+            lines.append(f"  Reporter User ID:  {issue.get('reported_by_user_id')}")
+        else:
+            lines.append("  Reporter User ID:  (unauthenticated)")
         lines.append("")
 
         # Encrypted fields presence check
@@ -558,6 +726,7 @@ def format_detail_output(
             ('encrypted_estimated_location', 'Estimated Location'),
             ('encrypted_device_info', 'Device Info'),
             ('encrypted_issue_report_yaml_s3_key', 'S3 Report Key'),
+            ('encrypted_screenshot_s3_key', 'Screenshot S3 Key'),
         ]
 
         lines.append("  Encrypted Fields Present:")
@@ -600,13 +769,29 @@ def format_detail_output(
         # Device info
         device_info = decrypted.get('device_info')
         if device_info:
-            lines.append(f"  💻 Device Info:        {truncate_string(device_info, 200)}")
+            if full_logs:
+                lines.append(f"  💻 Device Info:        {device_info}")
+            else:
+                lines.append(f"  💻 Device Info:        {truncate_string(device_info, 200)}")
         else:
             lines.append("  💻 Device Info:        N/A (not provided)")
 
+        # Screenshot — display a fresh pre-signed URL so Claude/admin can view the image directly.
+        # The URL is generated by the caller (main()) and passed in as screenshot_presigned_url.
+        # It expires in 7 days.
+        if screenshot_presigned_url:
+            lines.append("")
+            lines.append("  🖼  SCREENSHOT (pre-signed URL, valid 7 days from now):")
+            lines.append(f"      {screenshot_presigned_url}")
+        elif issue.get('encrypted_screenshot_s3_key'):
+            lines.append("  🖼  SCREENSHOT:         S3 key exists but pre-signed URL generation failed")
+        else:
+            lines.append("  🖼  SCREENSHOT:         N/A (not attached)")
+
     # ===================== FULL DESCRIPTION =====================
-    # Show full description if it's longer than the truncated version above
-    if issue and issue.get('description') and len(issue.get('description', '')) > 200:
+    # In summary mode: show full description in its own section if it was truncated above.
+    # In full-logs mode: already shown in full inline above, skip this section.
+    if not full_logs and issue and issue.get('description') and len(issue.get('description', '')) > 200:
         lines.append("")
         lines.append("-" * 100)
         lines.append("FULL DESCRIPTION")
@@ -654,7 +839,11 @@ def format_detail_output(
             if tech_details.get('chat_or_embed_url'):
                 lines.append(f"    URL:              {tech_details.get('chat_or_embed_url')}")
             if tech_details.get('device_info'):
-                lines.append(f"    Device Info:      {truncate_string(str(tech_details.get('device_info')), 200)}")
+                device_info_str = str(tech_details.get('device_info'))
+                if full_logs:
+                    lines.append(f"    Device Info:      {device_info_str}")
+                else:
+                    lines.append(f"    Device Info:      {truncate_string(device_info_str, 200)}")
 
         # Console logs section
         logs = report.get('logs', {})
@@ -730,9 +919,39 @@ def format_detail_output(
             lines.append("  " + "-" * 60)
             if isinstance(indexeddb, dict):
                 for key, value in indexeddb.items():
-                    lines.append(f"    {key}: {truncate_string(str(value), 150)}")
+                    value_str = str(value)
+                    if full_logs:
+                        lines.append(f"    {key}: {value_str}")
+                    else:
+                        lines.append(f"    {key}: {truncate_string(value_str, 150)}")
             else:
-                lines.append(f"    {truncate_string(str(indexeddb), 300)}")
+                indexeddb_str = str(indexeddb)
+                if full_logs:
+                    lines.append(f"    {indexeddb_str}")
+                else:
+                    lines.append(f"    {truncate_string(indexeddb_str, 300)}")
+
+        # User action history section (last 20 interactions: button names / navigation only)
+        # NO user-typed text content is ever included — only developer-authored labels.
+        # This shows the sequence of interactions that led up to the reported issue,
+        # making it easy to reproduce the user flow without reading chat messages.
+        action_history = report.get('action_history')
+        if action_history:
+            lines.append("")
+            lines.append("  USER ACTION HISTORY (button names / navigation — no typed text):")
+            lines.append("  " + "-" * 60)
+            for action_line in str(action_history).split('\n'):
+                lines.append(f"    {action_line}")
+
+        # Screenshot pre-signed URL from YAML report
+        # (also shown in DECRYPTED FIELDS above from a freshly generated URL)
+        screenshot_url_in_yaml = report.get('screenshot_presigned_url')
+        if screenshot_url_in_yaml:
+            lines.append("")
+            lines.append("  SCREENSHOT URL (from YAML report — may have expired):")
+            lines.append("  " + "-" * 60)
+            lines.append(f"    {screenshot_url_in_yaml}")
+            lines.append("    Note: Use the pre-signed URL in DECRYPTED FIELDS for a fresh 7-day link.")
 
         # Last messages HTML section (rendered HTML of last user message + assistant response)
         last_messages_html = report.get('last_messages_html')
@@ -744,6 +963,41 @@ def format_detail_output(
             # Show full HTML content since it's useful for debugging rendering
             for html_line in html_text.split('\n'):
                 lines.append(f"    {html_line}")
+
+        # Picked element HTML — outerHTML of the DOM element the user tapped via the element
+        # picker overlay. Captures the exact broken UI element for layout/rendering debugging.
+        picked_element_html = report.get('picked_element_html')
+        if picked_element_html:
+            lines.append("")
+            lines.append("  PICKED ELEMENT HTML (element selected via element picker overlay):")
+            lines.append("  " + "-" * 60)
+            for html_line in str(picked_element_html).split('\n'):
+                lines.append(f"    {html_line}")
+
+        # Active chat sidebar HTML — outerHTML of the active Chat.svelte entry at submit time.
+        # Captures title, status label, typing indicator, and category icon state.
+        active_chat_sidebar_html = report.get('active_chat_sidebar_html')
+        if active_chat_sidebar_html:
+            lines.append("")
+            lines.append("  ACTIVE CHAT SIDEBAR HTML (sidebar entry state at submit time):")
+            lines.append("  " + "-" * 60)
+            for html_line in str(active_chat_sidebar_html).split('\n'):
+                lines.append(f"    {html_line}")
+
+        # Runtime debug state — WS connection, online status, AI typing, pending uploads, sync.
+        # Stored as a JSON string or dict in the YAML report depending on serialization round-trip.
+        runtime_debug_state = report.get('runtime_debug_state')
+        if runtime_debug_state:
+            lines.append("")
+            lines.append("  RUNTIME DEBUG STATE (WS, online, AI typing, pending uploads, sync):")
+            lines.append("  " + "-" * 60)
+            if isinstance(runtime_debug_state, dict):
+                import json as _json_local
+                state_text = _json_local.dumps(runtime_debug_state, indent=2, default=str)
+            else:
+                state_text = str(runtime_debug_state)
+            for state_line in state_text.split('\n'):
+                lines.append(f"    {state_line}")
 
     # Footer
     lines.append("")
@@ -759,7 +1013,8 @@ def format_detail_json(
     issue_id: str,
     issue: Optional[Dict[str, Any]],
     decrypted: Dict[str, Optional[str]],
-    s3_report: Optional[Dict[str, Any]]
+    s3_report: Optional[Dict[str, Any]],
+    screenshot_presigned_url: Optional[str] = None
 ) -> str:
     """
     Format the issue inspection results as JSON.
@@ -793,7 +1048,10 @@ def format_detail_json(
         'generated_at': datetime.now().isoformat(),
         'issue_metadata': issue,
         'decrypted_fields': censored_decrypted,
-        's3_report': censored_s3_report
+        's3_report': censored_s3_report,
+        # Fresh 7-day pre-signed URL for the screenshot PNG (if attached).
+        # Load this URL directly to view the screenshot image.
+        'screenshot_presigned_url': screenshot_presigned_url
     }
 
     return json.dumps(output, indent=2, default=str)
@@ -846,7 +1104,21 @@ async def main():
     parser.add_argument(
         '--full-logs',
         action='store_true',
-        help='Show all log lines unfiltered (by default only warnings/errors with context are shown)'
+        help=(
+            'Show all data untruncated: full log lines (not just errors/warnings) AND full text '
+            'fields (description, device info, IndexedDB, etc.). '
+            'Output can be very long — consider piping to a file or using grep to filter.'
+        )
+    )
+    parser.add_argument(
+        '--delete',
+        action='store_true',
+        help='Delete the issue (Directus + S3). Use after confirming the issue is fixed.'
+    )
+    parser.add_argument(
+        '--yes',
+        action='store_true',
+        help='Skip confirmation when using --delete (required for non-interactive use)'
     )
 
     args = parser.parse_args()
@@ -854,6 +1126,10 @@ async def main():
     # Validate arguments
     if not args.list and not args.issue_id:
         parser.error("Either provide an issue_id or use --list to list recent issues")
+    if args.delete and args.list:
+        parser.error("Cannot use --delete with --list")
+    if args.delete and not args.issue_id:
+        parser.error("--delete requires an issue_id")
 
     # Initialize services
     cache_service = CacheService()
@@ -913,34 +1189,94 @@ async def main():
                 print(format_list_output(issues, decrypted_list))
 
         else:
-            # ===================== DETAIL MODE =====================
-            script_logger.info(f"Inspecting issue: {args.issue_id}")
-
+            # ===================== DETAIL MODE (or DELETE) =====================
             # 1. Fetch issue metadata
             issue = await get_issue(directus_service, args.issue_id)
+
+            if args.delete:
+                # Delete flow: confirm then delete from S3 and Directus
+                if not issue:
+                    script_logger.error(f"Issue not found: {args.issue_id}")
+                    sys.exit(1)
+                if not args.yes:
+                    if sys.stdin.isatty():
+                        try:
+                            reply = input(f"Delete issue {args.issue_id}? [y/N]: ").strip().lower()
+                            if reply != "y" and reply != "yes":
+                                script_logger.info("Delete cancelled.")
+                                sys.exit(0)
+                        except (EOFError, KeyboardInterrupt):
+                            script_logger.info("Delete cancelled.")
+                            sys.exit(0)
+                    else:
+                        script_logger.error("Use --yes to confirm deletion (required when not running interactively).")
+                        sys.exit(1)
+                # Init S3 if issue has any S3 key (YAML report or screenshot)
+                if issue.get("encrypted_issue_report_yaml_s3_key") or issue.get("encrypted_screenshot_s3_key"):
+                    try:
+                        await secrets_manager.initialize()
+                        s3_service = S3UploadService(secrets_manager=secrets_manager)
+                        await s3_service.initialize()
+                    except Exception as e:
+                        script_logger.warning(f"S3 init failed; will delete from Directus only: {e}")
+                success, message = await delete_issue(
+                    directus_service, encryption_service, s3_service, args.issue_id, issue
+                )
+                if success:
+                    script_logger.info(message)
+                else:
+                    script_logger.error(message)
+                    sys.exit(1)
+                return
+
+            # Inspect flow
+            script_logger.info(f"Inspecting issue: {args.issue_id}")
 
             # 2. Decrypt fields
             decrypted: Dict[str, Optional[str]] = {}
             if issue:
                 decrypted = await decrypt_issue_fields(encryption_service, issue)
 
-            # 3. Fetch S3 report (if not skipped and issue has an S3 key)
+            # 3. Fetch S3 report and generate screenshot pre-signed URL (if applicable)
             s3_report = None
-            if not args.no_logs and issue and issue.get('encrypted_issue_report_yaml_s3_key'):
-                script_logger.info("Fetching S3 YAML report...")
+            screenshot_presigned_url: Optional[str] = None
+            needs_s3 = (
+                (not args.no_logs and issue and issue.get('encrypted_issue_report_yaml_s3_key'))
+                or (issue and issue.get('encrypted_screenshot_s3_key'))
+            )
+            if needs_s3:
+                script_logger.info("Initializing S3 service for report/screenshot...")
                 try:
                     await secrets_manager.initialize()
                     s3_service = S3UploadService(secrets_manager=secrets_manager)
                     await s3_service.initialize()
-                    s3_report = await fetch_s3_report(encryption_service, s3_service, issue)
+
+                    # Fetch YAML report (unless --no-logs)
+                    if not args.no_logs and issue and issue.get('encrypted_issue_report_yaml_s3_key'):
+                        script_logger.info("Fetching S3 YAML report...")
+                        s3_report = await fetch_s3_report(encryption_service, s3_service, issue)
+
+                    # Generate fresh 7-day pre-signed URL for the screenshot PNG
+                    if issue and issue.get('encrypted_screenshot_s3_key'):
+                        script_logger.info("Generating screenshot pre-signed URL...")
+                        screenshot_presigned_url = await get_screenshot_presigned_url(
+                            encryption_service, s3_service, issue
+                        )
                 except Exception as e:
                     script_logger.warning(f"Failed to initialize S3 service: {e}")
 
             # 4. Format and output results
             if args.json:
-                print(format_detail_json(args.issue_id, issue, decrypted, s3_report))
+                print(format_detail_json(
+                    args.issue_id, issue, decrypted, s3_report,
+                    screenshot_presigned_url=screenshot_presigned_url
+                ))
             else:
-                print(format_detail_output(args.issue_id, issue, decrypted, s3_report, full_logs=args.full_logs))
+                print(format_detail_output(
+                    args.issue_id, issue, decrypted, s3_report,
+                    full_logs=args.full_logs,
+                    screenshot_presigned_url=screenshot_presigned_url
+                ))
 
     except Exception as e:
         script_logger.error(f"Error during inspection: {e}", exc_info=True)

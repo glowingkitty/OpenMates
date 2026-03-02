@@ -284,14 +284,7 @@
         display: flex;
         flex-direction: column;
         border-bottom: 1px solid var(--color-grey-30);
-        position: relative;
         min-height: 30px;
-    }
-
-    .header-content {
-        width: 100%;
-        position: relative;
-        transition: all 0.3s ease;
     }
 
     .settings-header.submenu-active {
@@ -396,33 +389,4 @@
         font-size: 16px; /* Adjust icon size */
     }
 
-    /* Styles for dimming the active chat container (These should be in Settings.svelte) */
-    /*
-    :global(.active-chat-container) {
-        transition: opacity 0.3s ease;
-    }
-
-    :global(.active-chat-container.dimmed) {
-        opacity: 0.3;
-    }
-    */
-
-    /* Styles for adjusting chat container margin when settings is open (These should be in Settings.svelte) */
-    /*
-    :global(.chat-container) {
-        transition: gap 0.3s ease;
-    }
-
-    @media (min-width: 1100px) {
-        :global(.chat-container.menu-open) {
-            gap: 20px;
-        }
-    }
-
-    @media (max-width: 1099px) {
-        :global(.chat-container.menu-open) {
-            gap: 0px;
-        }
-    }
-    */
 </style>

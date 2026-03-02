@@ -34,8 +34,9 @@ URLS_CONFIG = load_urls_config()
 
 # Buckets that need CORS settings
 CORS_ENABLED_BUCKETS = [
-    'openmates-profile-images', 
-    'dev-openmates-profile-images',
+    # Private profile images — AES-256-GCM encrypted, served via API proxy
+    'openmates-profile-images-private',
+    'dev-openmates-profile-images-private',
     'openmates-chatfiles',
     'dev-openmates-chatfiles',
     'openmates-invoices',
@@ -44,13 +45,16 @@ CORS_ENABLED_BUCKETS = [
 
 # S3 bucket configurations
 BUCKETS = {
-    'profile_images': {
-        'name': 'openmates-profile-images',
-        'dev_name': 'dev-openmates-profile-images',
-        'allowed_types': ['image/jpeg', 'image/png', 'image/webp'],
-        'max_size': 300 * 1024,  # 300KB
-        'access': 'public-read',
-        'lifecycle_policy': None,  # No auto-delete
+    # Private encrypted profile images bucket.
+    # All profile image uploads go here: bytes are AES-256-GCM encrypted before storage.
+    # Served via GET /v1/users/{user_id}/profile-image (authenticated API proxy).
+    'profile_images_private': {
+        'name': 'openmates-profile-images-private',
+        'dev_name': 'dev-openmates-profile-images-private',
+        'allowed_types': ['application/octet-stream'],  # Encrypted blobs are always octet-stream
+        'max_size': 300 * 1024,  # 300KB (same limit as unencrypted, with AES-GCM overhead ~16 bytes)
+        'access': 'private',
+        'lifecycle_policy': None,  # No auto-delete (cleanup is manual: old key deleted on re-upload)
     },
     'invoices': {
         'name': 'openmates-invoices',
@@ -65,11 +69,14 @@ BUCKETS = {
         'dev_name': 'dev-openmates-chatfiles',
         'allowed_types': ['*/*'],  # Allow all file types
         'max_size': 500 * 1024 * 1024,  # 500MB
-        'access': 'public-read',
+        'access': 'private',
         'lifecycle_policy': None,  # No auto-delete
-        # Aggressive caching: encrypted blobs are content-addressed (unique S3 key per upload)
-        # and never modified in place, so browsers can cache them indefinitely.
-        'cache_control': 'public, max-age=31536000, immutable',
+        # Cache-Control for presigned URL responses: encrypted blobs are content-addressed
+        # (unique S3 key per upload) and never modified in place, so browsers can cache them.
+        # Changed from 'public' to 'private' because files are now served via presigned URLs
+        # from a private bucket — 'private' tells CDNs not to cache shared copies, while
+        # still allowing the user's browser to cache for 1 year.
+        'cache_control': 'private, max-age=31536000, immutable',
     },
     'userdata_backups': {
         'name': 'openmates-userdata-backups',
@@ -98,8 +105,10 @@ BUCKETS = {
     'issue_logs': {
         'name': 'openmates-issue-logs',
         'dev_name': 'dev-openmates-issue-logs',
-        'allowed_types': ['application/octet-stream'],  # Encrypted logs
-        'max_size': 10 * 1024 * 1024,  # 10MB per log file
+        # Allow encrypted YAML logs (application/octet-stream) and plain PNG screenshots.
+        # Screenshots are stored unencrypted so admins/LLMs can view them via pre-signed URL.
+        'allowed_types': ['application/octet-stream', 'image/png'],
+        'max_size': 10 * 1024 * 1024,  # 10MB per log file / screenshot
         'access': 'private',
         'lifecycle_policy': 365,  # 1 year auto-delete (in days)
     }

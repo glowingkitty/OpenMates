@@ -23,6 +23,7 @@ preferred_tech:
   th: เทคโนโลยีที่ชื่นชอบ
   cs: Preferované technologie
   sv: Föredragna teknologier
+  he: טכנולוגיות מועדפות
   verified_by_human:
     - en
     - de
@@ -48,6 +49,7 @@ preferred_tech.description:
   th: ภาษาและเฟรมเวิร์กที่คุณชอบ
   cs: Vaše preferované jazyky a frameworky.
   sv: Dina föredragna språk och ramverk.
+  he: השפות והפריימוורקים המועדפים עליך.
   verified_by_human:
     - en
     - de
@@ -73,6 +75,7 @@ projects:
   th: โครงการ
   cs: Projekty
   sv: Projekt
+  he: פרויקטים
   verified_by_human:
     - en
     - de
@@ -98,6 +101,7 @@ projects.description:
   th: โครงการของคุณ (กำลังดำเนินการ วางแผน หรือเสร็จสิ้น)
   cs: Vaše projekty (aktivní, plánované nebo dokončené)
   sv: Dina projekt (aktiva, planerade eller avslutade)
+  he: הפרויקטים שלך (פעילים, מתוכננים או שהושלמו)
   verified_by_human:
     - en
     - de
@@ -123,6 +127,7 @@ want_to_learn:
   th: อยากเรียนรู้
   cs: Chci se naučit
   sv: Vill lära mig
+  he: רוצה ללמוד
   verified_by_human:
     - en
     - de
@@ -148,6 +153,7 @@ want_to_learn.description:
   th: เทคโนโลยีและทักษะที่คุณต้องการเรียนรู้
   cs: Technologie a dovednosti, které se chcete naučit
   sv: Teknologier och färdigheter du vill lära dig
+  he: טכנולוגיות ומיומנויות שברצונך ללמוד
   verified_by_human:
     - en
     - de
@@ -176,6 +182,7 @@ preferred_tech.example_1:
   th: Python
   cs: Python
   sv: Python
+  he: Python
   verified_by_human:
     - en
     - de
@@ -201,6 +208,7 @@ preferred_tech.example_2:
   th: TypeScript
   cs: TypeScript
   sv: TypeScript
+  he: TypeScript
   verified_by_human:
     - en
     - de
@@ -226,6 +234,7 @@ preferred_tech.example_3:
   th: Svelte
   cs: Svelte
   sv: Svelte
+  he: Svelte
   verified_by_human:
     - en
     - de
@@ -251,6 +260,7 @@ projects.example_1:
   th: เว็บไซต์ส่วนตัว
   cs: Osobní web
   sv: Personlig webbplats
+  he: אתר אישי
   verified_by_human:
     - en
     - de
@@ -276,6 +286,7 @@ projects.example_2:
   th: แอปมือถือ
   cs: Mobilní aplikace
   sv: Mobilapp
+  he: אפליקציה לנייד
   verified_by_human:
     - en
     - de
@@ -301,6 +312,7 @@ projects.example_3:
   th: แบ็กเอนด์ API
   cs: API backend
   sv: API-backend
+  he: API backend
   verified_by_human:
     - en
     - de
@@ -326,6 +338,7 @@ want_to_learn.example_1:
   th: Rust
   cs: Rust
   sv: Rust
+  he: Rust
   verified_by_human:
     - en
     - de
@@ -351,6 +364,7 @@ want_to_learn.example_2:
   th: การเรียนรู้ของเครื่อง
   cs: Strojové učení
   sv: Maskininlärning
+  he: למידת מכונה
   verified_by_human:
     - en
     - de
@@ -376,6 +390,7 @@ want_to_learn.example_3:
   th: Kubernetes
   cs: Kubernetes
   sv: Kubernetes
+  he: Kubernetes
   verified_by_human:
     - en
     - de

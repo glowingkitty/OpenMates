@@ -23,15 +23,14 @@ Buy Gift Cards - Credit tier selection for purchasing gift cards
         const symbols: Record<string, string> = {
             'EUR': '€',
             'USD': '$',
-            'JPY': '¥'
         };
-        const symbol = symbols[currency.toUpperCase()] || '€';
-        return currency.toUpperCase() === 'JPY' ? `${symbol}${amount}` : `${symbol}${amount}`;
+        const symbol = symbols[currency.toUpperCase()] || currency.toUpperCase();
+        return `${symbol}${amount}`;
     }
 
     // Helper to get price for a tier in selected currency
     function getTierPrice(tier: any): number {
-        const currencyKey = selectedCurrency.toLowerCase() as 'eur' | 'usd' | 'jpy';
+        const currencyKey = selectedCurrency.toLowerCase() as 'eur' | 'usd';
         return tier.price[currencyKey];
     }
 
@@ -58,7 +57,7 @@ Buy Gift Cards - Credit tier selection for purchasing gift cards
 {#each pricingTiers as tier}
     <SettingsItem
         type="submenu"
-        icon="subsetting_icon subsetting_icon_coins"
+        icon="subsetting_icon coins"
         title={formatCredits(tier.credits)}
         subtitle={formatCurrency(getTierPrice(tier), selectedCurrency)}
         onClick={() => selectGiftCardTier(tier)}

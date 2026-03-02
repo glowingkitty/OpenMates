@@ -14,7 +14,6 @@
 -->
 
 <script lang="ts">
-  // @ts-ignore - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   
   /**
@@ -49,6 +48,8 @@
     customStatusText?: string;
     /** Optional snippet rendered before the title text (e.g., a small category circle for chat embeds) */
     titleIcon?: import('svelte').Snippet;
+    /** Optional snippet rendered between the app icon and the status text (e.g., a play button for audio embeds) */
+    actionButton?: import('svelte').Snippet;
   }
   
   let {
@@ -65,8 +66,15 @@
     faviconIsCircular = false,
     showSkillIcon = true,
     customStatusText,
-    titleIcon
+    titleIcon,
+    actionButton
   }: Props = $props();
+
+  // Silence lint for props that exist in the interface for API consistency
+  // but are not directly used in the template. skillId is used by data attributes
+  // in parent components; taskId is reserved for future cancellation logic.
+  // Use $effect to suppress Svelte 5 "state_referenced_locally" warning for reactive props.
+  $effect(() => { void skillId; void taskId; });
   
   // Status text from translations or custom text
   let statusText = $derived(() => {
@@ -175,6 +183,11 @@
         <span class="status-value" class:processing-shimmer={status === 'processing'}>{statusText()}</span>
       {/if}
     </div>
+    
+    <!-- Optional action button on the right (e.g., play/pause for audio embeds) -->
+    {#if actionButton}
+      {@render actionButton()}
+    {/if}
     
     <!-- Stop button (only when processing) -->
     {#if status === 'processing'}
@@ -293,6 +306,23 @@
   .basic-infos-bar .skill-icon[data-skill-icon="focus"] {
     -webkit-mask-image: url('@openmates/ui/static/icons/insight.svg');
     mask-image: url('@openmates/ui/static/icons/insight.svg');
+  }
+
+  .basic-infos-bar .skill-icon[data-skill-icon="pin"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/pin.svg');
+    mask-image: url('@openmates/ui/static/icons/pin.svg');
+  }
+
+  .basic-infos-bar .skill-icon[data-skill-icon="table"],
+  .basic-infos-bar .skill-icon[data-skill-icon="sheet"],
+  .basic-infos-bar .skill-icon[data-skill-icon="sheets"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/sheets.svg');
+    mask-image: url('@openmates/ui/static/icons/sheets.svg');
+  }
+
+  .basic-infos-bar .skill-icon[data-skill-icon="event"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/event.svg');
+    mask-image: url('@openmates/ui/static/icons/event.svg');
   }
   
   /* Status text container */

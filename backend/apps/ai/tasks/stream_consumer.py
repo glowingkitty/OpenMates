@@ -50,6 +50,13 @@ _TOOL_CALL_XML_PATTERN = re.compile(
     re.DOTALL | re.IGNORECASE
 )
 
+# Regex pattern to detect garbled number sequences in aggregated responses.
+# Gemini multimodal responses sometimes emit raw token-ID / attention-index sequences
+# that arrive in small chunks (passing the per-chunk heuristic) but form long runs
+# like "-213,222,237-238,241,243-245,247,..." once aggregated.
+# Matches 200+ consecutive characters of digits, commas, hyphens, spaces, and newlines.
+_GARBLED_NUMBER_SEQUENCE_PATTERN = re.compile(r'[\d,\-\s\n]{200,}')
+
 def _strip_tool_call_xml_from_text(text: str) -> str:
     """
     Strip <tool_call>...</tool_call> XML blocks from text content.
@@ -273,14 +280,15 @@ async def _update_chat_metadata(
     user_vault_key_id: str,
     task_id: str,
     log_prefix: str,
-    model_name: Optional[str] = None
+    model_name: Optional[str] = None,
+    rejection_reason: Optional[str] = None,
 ) -> None:
     """Update chat metadata and save assistant response to cache.
-    
+
     CRITICAL: This function NOW updates messages_v in Directus.
     This ensures Directus reflects the actual message count and prevents version drift
     during multi-device race conditions.
-    
+
     Args:
         request_data: The AI skill request data
         category: The mate category for this response
@@ -294,6 +302,9 @@ async def _update_chat_metadata(
         task_id: The AI task ID (also the message ID for the assistant's response)
         log_prefix: Logging prefix for this task
         model_name: The AI model name used for the response
+        rejection_reason: If set, forwarded to _save_to_cache_and_publish so the
+            persisted event is broadcast with the correct role/status for system
+            rejection messages (e.g. "insufficient_credits").
     """
     # 1. Increment messages_v atomically via cache HINCRBY (same mechanism as system_message_handler)
     # This prevents race conditions where system messages and AI responses compete for version numbers.
@@ -349,7 +360,8 @@ async def _update_chat_metadata(
             new_messages_v, cache_service,  # Pass the NEW version, cache will use it explicitly
             encryption_service, user_vault_key_id,
             content_markdown, log_prefix,
-            model_name=model_name
+            model_name=model_name,
+            rejection_reason=rejection_reason,
         )
 
 
@@ -424,10 +436,11 @@ async def _save_to_cache_and_publish(
     user_vault_key_id: str,
     content_markdown: str,
     log_prefix: str,
-    model_name: Optional[str] = None
+    model_name: Optional[str] = None,
+    rejection_reason: Optional[str] = None,
 ) -> None:
     """Save message to cache and publish persistence event.
-    
+
     Args:
         request_data: The AI skill request data
         task_id: The AI task ID (also the message ID for the assistant's response)
@@ -440,6 +453,13 @@ async def _save_to_cache_and_publish(
         content_markdown: The response content as markdown (to be encrypted for cache)
         log_prefix: Logging prefix for this task
         model_name: The AI model name used for the response
+        rejection_reason: If set, this is a system rejection message (e.g.
+            "insufficient_credits"). The persisted event is sent with
+            role="system" / status="waiting_for_user" so the client renders it
+            as a system notice rather than an assistant bubble.  Without this fix
+            the broadcast always used role="assistant" / status="synced", which
+            overwrote the correct values the stream final-chunk handler had
+            already applied to the in-memory message.
     """
     try:
         from backend.core.api.app.schemas.chat import MessageInCache
@@ -457,16 +477,27 @@ async def _save_to_cache_and_publish(
             # Don't cache if encryption fails
             return
         
+        # Determine role/status for this message.
+        # CRITICAL FIX: rejection messages (e.g. insufficient_credits) must be broadcast
+        # as role="system" / status="waiting_for_user" so the client renders them as system
+        # notices rather than assistant bubbles.  Previously this always used "assistant" /
+        # "synced", which overwrote the correct values the stream final-chunk handler had
+        # already applied to the in-memory message on the active device.
+        # NOTE: The server cache (MessageInCache) only accepts a limited set of statuses;
+        # "waiting_for_user" is a client-only status, so we store "synced" in cache but
+        # send "waiting_for_user" in the client-facing event payload.
+        cache_role = "system" if rejection_reason else "assistant"
+
         # Store encrypted markdown content in cache (server-side encrypted with encryption_key_user_server)
         ai_message_for_cache = MessageInCache(
             id=task_id,
             chat_id=request_data.chat_id,
-            role="assistant",
+            role=cache_role,
             category=category,
             sender_name=None,  # Assistant doesn't have a sender_name
             encrypted_content=encrypted_content_for_cache,  # Server-side encrypted content
             created_at=timestamp,
-            status="synced",
+            status="synced",  # Server cache only accepts "synced" — client-only statuses excluded
             model_name=model_name  # Ensure model_name is in cache object if schema supports it
         )
         
@@ -477,8 +508,27 @@ async def _save_to_cache_and_publish(
             explicit_messages_v=messages_version
         )
         
-        logger.info(f"{log_prefix} Saved assistant message to cache for chat {request_data.chat_id} with explicit version {messages_version}.")
+        logger.info(f"{log_prefix} Saved {'rejection' if rejection_reason else 'assistant'} message to cache for chat {request_data.chat_id} with explicit version {messages_version}.")
         
+        # Build the client-facing message dict.
+        # For rejection messages: role="system", status="waiting_for_user", plus rejection_reason.
+        # The frontend chat_message_added handler reads these to store the message correctly
+        # and to avoid overwriting the stream final-chunk handler's correct in-memory values.
+        client_role = "system" if rejection_reason else "assistant"
+        client_status = "waiting_for_user" if rejection_reason else "synced"
+        client_message: dict = {
+            "message_id": task_id,
+            "chat_id": request_data.chat_id,
+            "role": client_role,
+            "category": category,
+            "content": content_markdown,  # Send markdown content to client
+            "created_at": timestamp,
+            "status": client_status,
+            "model_name": model_name,  # CRITICAL: Send model_name to client for encryption/storage
+        }
+        if rejection_reason:
+            client_message["rejection_reason"] = rejection_reason
+
         # Publish persistence event
         persisted_event_payload = {
             "type": "ai_message_persisted",
@@ -486,16 +536,7 @@ async def _save_to_cache_and_publish(
             "chat_id": request_data.chat_id,
             "user_id_uuid": request_data.user_id,
             "user_id_hash": request_data.user_id_hash,
-            "message": {
-                "message_id": task_id,
-                "chat_id": request_data.chat_id,
-                "role": "assistant",
-                "category": category,
-                "content": content_markdown,  # Send markdown content to client
-                "created_at": timestamp,
-                "status": "synced",
-                "model_name": model_name  # CRITICAL: Send model_name to client for encryption/storage
-            },
+            "message": client_message,
             "versions": {"messages_v": messages_version},
             "last_edited_overall_timestamp": timestamp
         }
@@ -515,11 +556,22 @@ async def _handle_normal_billing(
     preprocessing_result: PreprocessingResult,
     request_data: AskSkillRequest,
     task_id: str,
-    log_prefix: str
+    log_prefix: str,
+    cumulative_input_tokens: Optional[int] = None,
+    cumulative_output_tokens: Optional[int] = None,
+    tool_inference_iterations: int = 0,
 ) -> Dict[str, Any]:
     """
     Handle billing for normal processing flow.
     Returns usage information for Redis publishing.
+
+    When tool use is involved the LLM is called multiple times. In that case
+    cumulative_input_tokens / cumulative_output_tokens contain the sum across
+    all iterations (emitted via the __cumulative_llm_usage__ sentinel from
+    handle_main_processing).  We use those totals for billing so every iteration
+    is charged, not just the last one.  Falls back to the single-iteration
+    token counts from the usage metadata object when no sentinel was received
+    (i.e. no tool calls were made).
     """
     # Extract token counts and provider name based on usage type
     user_input_tokens = None
@@ -576,6 +628,21 @@ async def _handle_normal_billing(
 
     logger.info(f"{log_prefix} Determined provider_name for billing: {provider_name}")
 
+    # Override per-iteration token counts with cumulative totals when tool calls were made.
+    # The cumulative values are populated by the __cumulative_llm_usage__ sentinel emitted
+    # from handle_main_processing and cover ALL LLM iterations in this turn.
+    # When no tool calls occurred the sentinel is not emitted and we fall back to the
+    # single-iteration counts already extracted from the usage metadata object above.
+    if cumulative_input_tokens is not None:
+        logger.info(
+            f"{log_prefix} Using cumulative token totals for billing "
+            f"(tool_iterations={tool_inference_iterations}): "
+            f"input {input_tokens} → {cumulative_input_tokens}, "
+            f"output {output_tokens} → {cumulative_output_tokens}"
+        )
+        input_tokens = cumulative_input_tokens
+        output_tokens = cumulative_output_tokens or 0
+
     # Get pricing configuration
     pricing_config = celery_config.config_manager.get_provider_config(provider_name)
     if not pricing_config:
@@ -626,6 +693,7 @@ async def _handle_normal_billing(
         "external_request": request_data.is_external,
         "server_provider": preprocessing_result.server_provider_name,
         "server_region": preprocessing_result.server_region,
+        "tool_inference_iterations": tool_inference_iterations,
     }
 
     await _charge_credits(task_id, request_data, credits_charged, usage_details, log_prefix)
@@ -647,7 +715,7 @@ async def _generate_fake_stream_for_harmful_content(
     directus_service: Optional[DirectusService] = None,
     encryption_service: Optional[EncryptionService] = None,
     user_vault_key_id: Optional[str] = None
-) -> tuple[str, bool, bool]:
+) -> tuple[str, bool, bool, list]:
     """Generate fake stream for harmful content with predefined response."""
     log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _generate_fake_stream_for_harmful_content:"
     logger.info(f"{log_prefix} Generating fake stream for harmful content.")
@@ -658,7 +726,7 @@ async def _generate_fake_stream_for_harmful_content(
     # Check for revocation
     if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
         logger.warning(f"{log_prefix} Task was revoked before starting fake stream.")
-        return "", True, False
+        return "", True, False, []
     
     redis_channel = f"chat_stream::{request_data.chat_id}"
     
@@ -740,7 +808,7 @@ async def _generate_fake_stream_for_harmful_content(
             logger.warning(f"{log_prefix} Harmful content message was still published to client successfully via Redis stream")
     
     logger.info(f"{log_prefix} Fake stream generation completed. Response length: {len(predefined_response)}.")
-    return predefined_response, False, False
+    return predefined_response, False, False, []
 
 async def _generate_fake_stream_for_simple_message(
     task_id: str,
@@ -752,7 +820,7 @@ async def _generate_fake_stream_for_simple_message(
     encryption_service: Optional[EncryptionService] = None,
     user_vault_key_id: Optional[str] = None,
     rejection_reason: Optional[str] = None
-) -> tuple[str, bool, bool]:
+) -> tuple[str, bool, bool, list]:
     """Generate a simple fake stream for non-processing cases (e.g., insufficient credits)."""
     log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _generate_fake_stream_for_simple_message:"
     logger.info(f"{log_prefix} Generating simple fake stream.")
@@ -763,7 +831,7 @@ async def _generate_fake_stream_for_simple_message(
     # Check for revocation
     if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
         logger.warning(f"{log_prefix} Task was revoked before starting fake stream.")
-        return "", True, False
+        return "", True, False, []
 
     redis_channel = f"chat_stream::{request_data.chat_id}"
 
@@ -837,7 +905,8 @@ async def _generate_fake_stream_for_simple_message(
                 user_vault_key_id=user_vault_key_id,
                 task_id=task_id,
                 log_prefix=log_prefix,
-                model_name=None  # Model name not applicable for simple/error messages
+                model_name=None,  # Model name not applicable for simple/error messages
+                rejection_reason=rejection_reason,  # Forward so the persisted event has correct role/status
             )
             logger.info(f"{log_prefix} Simple message response saved to cache for future follow-up context.")
         except Exception as e:
@@ -847,7 +916,7 @@ async def _generate_fake_stream_for_simple_message(
             logger.warning(f"{log_prefix} Error message was still published to client successfully via Redis stream")
 
     logger.info(f"{log_prefix} Simple fake stream generation completed. Response length: {len(message_text)}.")
-    return message_text, False, False
+    return message_text, False, False, []
 
 async def _validate_paragraph_urls(
     paragraph: str,
@@ -913,11 +982,11 @@ async def _consume_main_processing_stream(
     cache_service: Optional[CacheService],
     secrets_manager: Optional[SecretsManager] = None,
     always_include_skills: Optional[List[str]] = None,  # Skills to ALWAYS include regardless of preprocessing
-) -> tuple[str, bool, bool]:
+) -> tuple[str, bool, bool, list]:
     """
     Consumes the async stream from handle_main_processing, aggregates the response,
     and publishes chunks to Redis Pub/Sub.
-    Returns aggregated response, and boolean flags for revocation and soft limit.
+    Returns aggregated response, boolean flags for revocation and soft limit, and thinking content list.
     """
     final_response_chunks = []
     log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _consume_main_processing_stream:"
@@ -933,6 +1002,13 @@ async def _consume_main_processing_stream(
     # Track if we filtered out fake tool calls (LLM attempted to use unavailable tools)
     # This is used at the end to show a generic fallback message if the response would be empty
     fake_tool_calls_filtered = False
+    
+    # Track if the current multi-chunk code block has language 'toon' and needs content-based
+    # validation at closing fence. 'toon' blocks can be either:
+    # a) Fake tool calls (contain "tool:", "tool_code", or '"tool":' patterns) → filter out
+    # b) Real code that the LLM mislabelled as 'toon' (e.g. YAML, Python) → deliver to user
+    # We defer the decision until the closing fence when we have the full content.
+    toon_pending_validation = False
 
     # Track embed IDs that failed during skill execution (received from main_processor)
     # Their embed references will be stripped from the final message content before persistence
@@ -943,7 +1019,7 @@ async def _consume_main_processing_stream(
     if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
         logger.warning(f"{log_prefix} Task was revoked before starting main processing stream.")
         was_revoked_during_stream = True
-        return "", was_revoked_during_stream, was_soft_limited_during_stream
+        return "", was_revoked_during_stream, was_soft_limited_during_stream, []
 
     # Check if this is a harmful content case that should be handled with a predefined response
     if not preprocessing_result.can_proceed and preprocessing_result.rejection_reason in ["harmful_or_illegal_detected", "misuse_detected"]:
@@ -1028,6 +1104,16 @@ async def _consume_main_processing_stream(
 
     stream_chunk_count = 0
     usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]] = None
+
+    # Cumulative token totals from all LLM iterations in this turn (set via sentinel dict
+    # emitted by handle_main_processing just before the final usage metadata object).
+    # When tool calls are involved the LLM is called multiple times; these totals capture
+    # every call so we can bill the user for the true API cost rather than only the last
+    # iteration.  Falls back to the single-iteration usage object when absent (no tool use).
+    cumulative_input_tokens: Optional[int] = None
+    cumulative_output_tokens: Optional[int] = None
+    tool_inference_iterations: int = 0
+
     redis_channel_name = f"chat_stream::{request_data.chat_id}"
     thinking_channel_name = f"chat_stream_thinking::{request_data.chat_id}"  # Separate channel for thinking content
     tool_calls_info: Optional[List[Dict[str, Any]]] = None  # Track tool calls for code block generation
@@ -1075,6 +1161,11 @@ async def _consume_main_processing_stream(
     in_document_block = False
     # Title extracted from <!-- title: "..." --> comment in document HTML content
     current_document_title: Optional[str] = None
+
+    # Math plot block tracking: ```plot ... ``` fences produce math-plot embeds (type="math-plot").
+    # This flag is set when the language is "plot" and controls which embed service methods are
+    # called during streaming and finalization. The expression is accumulated and stored at close.
+    in_plot_block = False
 
     # Table/sheet embed tracking: detect markdown tables (|...|) and convert to embeds.
     # Tables don't have explicit delimiters like code blocks (```). Instead, they are
@@ -1134,6 +1225,21 @@ async def _consume_main_processing_stream(
                 awaiting_focus_mode_confirmation = True
                 focus_id = chunk.get("focus_id", "unknown")
                 logger.info(f"{log_prefix} Awaiting focus mode confirmation for '{focus_id}'. Task will complete — continuation handled by auto-confirm or rejection.")
+                continue
+
+            # Check for cumulative LLM usage sentinel (emitted by handle_main_processing
+            # just before the final usage metadata object when tool use occurred).
+            # This captures the sum of tokens across ALL LLM iterations in this turn so
+            # billing uses the true total instead of only the last iteration's tokens.
+            if isinstance(chunk, dict) and "__cumulative_llm_usage__" in chunk:
+                cumulative_input_tokens = chunk.get("total_input_tokens")
+                cumulative_output_tokens = chunk.get("total_output_tokens")
+                tool_inference_iterations = chunk.get("tool_inference_iterations", 0)
+                logger.info(
+                    f"{log_prefix} Received cumulative LLM usage sentinel: "
+                    f"input={cumulative_input_tokens}, output={cumulative_output_tokens}, "
+                    f"tool_iterations={tool_inference_iterations}"
+                )
                 continue
             
             # Handle UnifiedStreamChunk for thinking models (Gemini, Anthropic)
@@ -1230,6 +1336,25 @@ async def _consume_main_processing_stream(
                 # Skip empty chunks after stripping (the entire chunk might have been a tool_call block)
                 if not chunk:
                     continue
+
+                # Guard: detect garbled / non-human-readable content before publishing.
+                # Observed with Gemini multimodal responses where the model occasionally streams
+                # what appears to be raw token-ID sequences or internal representations instead of
+                # natural language text (e.g. "-213,222,237-238,241,..."). These chunks degrade the
+                # user experience and can break frontend Tiptap rendering on some mobile browsers.
+                #
+                # Heuristic: if a chunk is longer than 200 chars and has fewer than 2% alphabetic
+                # characters, treat it as garbled and drop it with a warning.
+                if len(chunk) > 200:
+                    alpha_count = sum(1 for c in chunk if c.isalpha())
+                    alpha_ratio = alpha_count / len(chunk)
+                    if alpha_ratio < 0.02:
+                        logger.warning(
+                            f"{log_prefix} Dropping garbled chunk (seq ~{stream_chunk_count + 1}, "
+                            f"len={len(chunk)}, alpha_ratio={alpha_ratio:.3f}): "
+                            f"preview={repr(chunk[:80])}"
+                        )
+                        continue
                 
                 # Code block detection and embed creation
                 # Detect code block opening: ```language or ```language:filename
@@ -1448,10 +1573,52 @@ async def _consume_main_processing_stream(
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
                                 
+                                # Check if this is a math plot block (```plot ... ```)
+                                is_plot_block = current_code_language.lower() == 'plot' if current_code_language else False
+                                
                                 # Check if this is a document_html block
                                 is_document_html = current_code_language.lower() == 'document_html' if current_code_language else False
                                 
-                                if is_document_html:
+                                if is_plot_block:
+                                    # Create math-plot embed placeholder and finalize immediately
+                                    embed_data = await embed_service.create_plot_embed_placeholder(
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        
+                                        # Update with the full expression and finalize
+                                        await embed_service.update_plot_embed_content(
+                                            embed_id=current_code_embed_id,
+                                            expression=code_content,
+                                            chat_id=request_data.chat_id,
+                                            user_id=request_data.user_id,
+                                            user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id,
+                                            status="finished",
+                                            log_prefix=log_prefix
+                                        )
+                                        
+                                        # Replace plot block with embed reference in chunk
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created and finalized math-plot embed {current_code_embed_id} (expr len={len(code_content)})")
+                                        
+                                        # Reset state
+                                        in_code_block = False
+                                        in_plot_block = False
+                                        current_code_language = ""
+                                        current_code_filename = None
+                                        current_code_content = ""
+                                        current_code_embed_id = None
+                                elif is_document_html:
                                     # Extract title from <!-- title: "..." --> comment
                                     import re
                                     doc_title = None
@@ -1578,24 +1745,38 @@ async def _consume_main_processing_stream(
                             current_code_content = '\n'.join(content_lines_after_fence)
                         
                         # HARDENING: Check for suspicious languages that indicate fake tool calls
-                        # These should NEVER be shown to users as code blocks
-                        is_suspicious_language = current_code_language and current_code_language.lower() in ('tool_code', 'toon')
-                        if is_suspicious_language:
-                            logger.warning(
-                                f"{log_prefix} [FAKE_TOOL_CALL_DETECTED] Multi-chunk code block started with "
-                                f"suspicious language '{current_code_language}'. This indicates the LLM is trying "
-                                f"to fake a tool call. Will replace with fallback message when code block closes."
-                            )
-                            # Mark this as a suspicious code block - we'll accumulate content
-                            # and replace with fallback message when closing fence is found
-                            # Don't create an embed for suspicious languages
+                        # 'tool_code' is ALWAYS a fake tool call — never a valid programming language.
+                        # 'toon' MIGHT be a fake tool call, but could also be real code that the LLM
+                        # mislabelled (since 'toon' is our internal encoding format visible in context).
+                        # For 'toon', we defer the decision to closing fence when we have full content.
+                        is_definitely_suspicious = current_code_language and current_code_language.lower() == 'tool_code'
+                        is_toon_needs_validation = current_code_language and current_code_language.lower() == 'toon'
+                        if is_definitely_suspicious or is_toon_needs_validation:
+                            if is_toon_needs_validation:
+                                toon_pending_validation = True
+                                logger.info(
+                                    f"{log_prefix} [TOON_PENDING_VALIDATION] Multi-chunk code block started with "
+                                    f"language 'toon'. Will accumulate content and check at closing fence "
+                                    f"whether this is a fake tool call or real code."
+                                )
+                            else:
+                                logger.warning(
+                                    f"{log_prefix} [FAKE_TOOL_CALL_DETECTED] Multi-chunk code block started with "
+                                    f"suspicious language '{current_code_language}'. This indicates the LLM is trying "
+                                    f"to fake a tool call. Will replace with fallback message when code block closes."
+                                )
+                            # Don't create an embed yet — accumulate content and decide at closing fence
                             chunk = ""  # Don't emit opening fence
                             continue  # Skip embed creation, just track the content
                         
                         # Create embed placeholder (only for non-suspicious languages)
-                        # Document_html blocks get document embeds; all others get code embeds
+                        # Plot blocks get math-plot embeds; document_html blocks get document embeds;
+                        # all others get code embeds.
+                        is_plot_block_multi = current_code_language.lower() == 'plot' if current_code_language else False
                         is_document_html = current_code_language.lower() == 'document_html' if current_code_language else False
-                        if is_document_html:
+                        if is_plot_block_multi:
+                            in_plot_block = True
+                        elif is_document_html:
                             in_document_block = True
                             current_document_title = None
                             # Try to extract title from initial content
@@ -1610,7 +1791,26 @@ async def _consume_main_processing_stream(
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
                                 
-                                if is_document_html:
+                                if is_plot_block_multi:
+                                    # Create math-plot embed placeholder (expression arrives in subsequent chunks)
+                                    embed_data = await embed_service.create_plot_embed_placeholder(
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        
+                                        # Replace opening fence with embed reference immediately
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created math-plot embed placeholder {current_code_embed_id}")
+                                elif is_document_html:
                                     # Create document embed placeholder
                                     embed_data = await embed_service.create_document_embed_placeholder(
                                         chat_id=request_data.chat_id,
@@ -1722,21 +1922,35 @@ async def _consume_main_processing_stream(
                         # Without this, a bare ``` followed by "toon" in the next chunk would
                         # create an embed placeholder before the closing-fence filter catches it,
                         # leaving an orphaned embed reference in the message.
-                        is_suspicious_language = current_code_language and current_code_language.lower() in ('tool_code', 'toon')
-                        if is_suspicious_language:
-                            logger.warning(
-                                f"{log_prefix} [FAKE_TOOL_CALL_DETECTED] Code block language '{current_code_language}' "
-                                f"resolved after bare fence is suspicious (fake tool call). "
-                                f"Will accumulate content and filter at closing fence."
-                            )
-                            # Don't create an embed - just track content and wait for closing fence
+                        # 'tool_code' is ALWAYS suspicious. 'toon' needs content-based validation
+                        # at closing fence (it could be real code mislabelled by the LLM).
+                        is_definitely_suspicious = current_code_language and current_code_language.lower() == 'tool_code'
+                        is_toon_needs_validation = current_code_language and current_code_language.lower() == 'toon'
+                        if is_definitely_suspicious or is_toon_needs_validation:
+                            if is_toon_needs_validation:
+                                toon_pending_validation = True
+                                logger.info(
+                                    f"{log_prefix} [TOON_PENDING_VALIDATION] Code block language 'toon' "
+                                    f"resolved after bare fence. Will accumulate content and check at "
+                                    f"closing fence whether this is a fake tool call or real code."
+                                )
+                            else:
+                                logger.warning(
+                                    f"{log_prefix} [FAKE_TOOL_CALL_DETECTED] Code block language '{current_code_language}' "
+                                    f"resolved after bare fence is suspicious (fake tool call). "
+                                    f"Will accumulate content and filter at closing fence."
+                                )
+                            # Don't create an embed yet - accumulate content and decide at closing fence
                             chunk = ""
                             continue
 
                         # Now create the embed placeholder with the extracted (or empty) language
-                        # Check if this is a document_html block (language resolved after bare fence)
+                        # Check if this is a plot or document_html block (language resolved after bare fence)
+                        is_plot_block_post_bare = current_code_language.lower() == 'plot' if current_code_language else False
                         is_document_html = current_code_language.lower() == 'document_html' if current_code_language else False
-                        if is_document_html:
+                        if is_plot_block_post_bare:
+                            in_plot_block = True
+                        elif is_document_html:
                             in_document_block = True
                             current_document_title = None
                             # Try to extract title from initial content
@@ -1751,7 +1965,26 @@ async def _consume_main_processing_stream(
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
                                 
-                                if is_document_html:
+                                if is_plot_block_post_bare:
+                                    # Create math-plot embed placeholder (expression will arrive in subsequent chunks)
+                                    embed_data = await embed_service.create_plot_embed_placeholder(
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        
+                                        # Replace opening fence with embed reference immediately
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created math-plot embed placeholder {current_code_embed_id} (language resolved after bare fence)")
+                                elif is_document_html:
                                     embed_data = await embed_service.create_document_embed_placeholder(
                                         chat_id=request_data.chat_id,
                                         message_id=request_data.message_id,
@@ -1834,8 +2067,36 @@ async def _consume_main_processing_stream(
                         current_code_content += code_chunk_content
                         
                         # HARDENING: Check if this was a suspicious code block (fake tool call)
-                        # If so, output fallback message instead of the code block
-                        is_suspicious_language = current_code_language and current_code_language.lower() in ('tool_code', 'toon')
+                        # 'tool_code' is ALWAYS a fake tool call.
+                        # 'toon' needs content-based validation: only filter if it contains
+                        # tool call patterns ('"tool":', 'tool_code', 'tool:').
+                        # If 'toon' block has real code content, treat it as a normal code block.
+                        is_tool_code_language = current_code_language and current_code_language.lower() == 'tool_code'
+                        
+                        # Content-based check for toon blocks: only flag as fake if content
+                        # actually contains tool call patterns (matching the single-chunk check)
+                        is_toon_fake_tool = False
+                        if toon_pending_validation and current_code_language and current_code_language.lower() == 'toon':
+                            if ('"tool":' in current_code_content
+                                    or 'tool_code' in current_code_content
+                                    or 'tool:' in current_code_content.lower()):
+                                is_toon_fake_tool = True
+                                logger.warning(
+                                    f"{log_prefix} [TOON_VALIDATED_AS_FAKE] Toon block content contains "
+                                    f"tool call patterns — confirmed as fake tool call. "
+                                    f"Content length: {len(current_code_content)} chars."
+                                )
+                            else:
+                                # This toon block is real code, NOT a fake tool call.
+                                # The LLM mislabelled it (likely mimicking toon encoding seen in context).
+                                # We'll handle it as a normal code block below.
+                                toon_pending_validation = False
+                                logger.info(
+                                    f"{log_prefix} [TOON_VALIDATED_AS_REAL_CODE] Toon block does NOT contain "
+                                    f"tool call patterns — treating as real code block. "
+                                    f"Content length: {len(current_code_content)} chars. "
+                                    f"Will create embed and deliver to user."
+                                )
                         
                         # Also check for JSON-like fake tool calls in content
                         is_json_fake_tool = False
@@ -1851,7 +2112,7 @@ async def _consume_main_processing_stream(
                                 except (json.JSONDecodeError, Exception):
                                     pass
                         
-                        if is_suspicious_language or is_json_fake_tool:
+                        if is_tool_code_language or is_toon_fake_tool or is_json_fake_tool:
                             # Determine the fake tool name for logging
                             if fake_tool_name_from_content:
                                 fake_tool_name = fake_tool_name_from_content
@@ -1900,8 +2161,8 @@ async def _consume_main_processing_stream(
                                         f"orphaned embed {current_code_embed_id}: {e}"
                                     )
                             
-                            # Set the flag so we know we filtered fake tool calls
-                            # This is used at the end to show a fallback if response is empty
+                            # Reset toon_pending_validation and set filtered flag
+                            toon_pending_validation = False
                             fake_tool_calls_filtered = True
                             
                             # Reset state - silently drop this content
@@ -1914,13 +2175,89 @@ async def _consume_main_processing_stream(
                             # Set chunk to empty and skip to next iteration
                             chunk = ""
                             continue
-                        # Finalize embed (only for real code/document blocks, not fake tool calls)
+                        
+                        # TOON RECOVERY: If toon_pending_validation is True but we reached here,
+                        # the toon block was validated as real code. Create embed retroactively
+                        # and finalize it with the accumulated content.
+                        if toon_pending_validation and not current_code_embed_id:
+                            toon_pending_validation = False
+                            if directus_service and encryption_service and user_vault_key_id:
+                                try:
+                                    from backend.core.api.app.services.embed_service import EmbedService
+                                    embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                    
+                                    # Create code embed placeholder and finalize immediately
+                                    # Use empty language since 'toon' is not a real language
+                                    embed_data = await embed_service.create_code_embed_placeholder(
+                                        language="",
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        filename=current_code_filename,
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        
+                                        # Finalize with full content
+                                        await embed_service.update_code_embed_content(
+                                            embed_id=current_code_embed_id,
+                                            code_content=current_code_content,
+                                            chat_id=request_data.chat_id,
+                                            user_id=request_data.user_id,
+                                            user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id,
+                                            status="finished",
+                                            log_prefix=log_prefix
+                                        )
+                                        
+                                        logger.info(
+                                            f"{log_prefix} [TOON_RECOVERED] Created and finalized code embed "
+                                            f"{current_code_embed_id} for toon block validated as real code "
+                                            f"({len(current_code_content)} chars)"
+                                        )
+                                        
+                                        # Inject embed reference into the response chunk
+                                        # (same pattern as normal multi-chunk code block finalization)
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                except Exception as e:
+                                    logger.error(
+                                        f"{log_prefix} [TOON_RECOVERED] Error creating embed for "
+                                        f"toon-validated code block: {e}", exc_info=True
+                                    )
+                                finally:
+                                    # Always reset state after toon recovery attempt
+                                    in_code_block = False
+                                    current_code_language = ""
+                                    current_code_filename = None
+                                    current_code_content = ""
+                                    current_code_embed_id = None
+                        # Finalize embed (only for real code/document/plot blocks, not fake tool calls)
                         elif current_code_embed_id and directus_service and encryption_service and user_vault_key_id:
                             try:
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
                                 
-                                if in_document_block:
+                                if in_plot_block:
+                                    # Finalize math-plot embed with the accumulated expression
+                                    await embed_service.update_plot_embed_content(
+                                        embed_id=current_code_embed_id,
+                                        expression=current_code_content,
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="finished",
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    logger.info(f"{log_prefix} Finalized math-plot embed {current_code_embed_id} with expr len={len(current_code_content)}")
+                                elif in_document_block:
                                     # Finalize document embed with accumulated HTML content
                                     # Try to extract title if not already found
                                     if not current_document_title:
@@ -1958,8 +2295,9 @@ async def _consume_main_processing_stream(
                             except Exception as e:
                                 logger.error(f"{log_prefix} Error finalizing embed: {e}", exc_info=True)
                         
-                            # Reset state (only for real code/document blocks - fake tool calls already reset above)
+                            # Reset state (only for real code/document/plot blocks - fake tool calls already reset above)
                             in_code_block = False
+                            in_plot_block = False
                             in_document_block = False
                             current_document_title = None
                             current_code_language = ""
@@ -2161,8 +2499,13 @@ async def _consume_main_processing_stream(
                 # This ensures paragraph-by-paragraph streaming and embed placeholders show up right away
                 if cache_service:
                     current_full_content = "".join(final_response_chunks)
+                    # Include category on every intermediate chunk so the frontend can assign the
+                    # correct mate to the message immediately, regardless of whether ai_typing_started
+                    # has been received yet (race condition fix for Bug #5dc543b0).
                     payload = _create_redis_payload(
-                        task_id, request_data, current_full_content, stream_chunk_count, model_name=stream_model_name
+                        task_id, request_data, current_full_content, stream_chunk_count,
+                        model_name=stream_model_name,
+                        category=preprocessing_result.category or "general_knowledge",
                     )
                     
                     # CRITICAL: Always log chunk publishing for debugging (but less verbose)
@@ -2279,6 +2622,44 @@ async def _consume_main_processing_stream(
 
     aggregated_response = "".join(final_response_chunks)
 
+    # Post-aggregation sweep: strip garbled number sequences from the final response.
+    # The per-chunk garbled filter (above) catches large individual chunks, but Gemini
+    # multimodal responses sometimes emit raw token-ID / attention-index sequences in
+    # small chunks (< 200 chars each) that individually pass the per-chunk heuristic.
+    # Once aggregated, these form long runs like "-213,222,237-238,241,243-245,247,..."
+    # that are clearly non-human-readable. We detect and strip them here.
+    #
+    # Pattern: 200+ consecutive characters consisting only of digits, commas, hyphens,
+    # spaces, and newlines — with at most 2% alphabetic characters in the matched span.
+    # This is conservative enough to avoid false positives on normal numbered lists or
+    # CSV data the user might have asked for (those have labels/headers mixed in).
+    if aggregated_response:
+        garbled_matches = list(_GARBLED_NUMBER_SEQUENCE_PATTERN.finditer(aggregated_response))
+        if garbled_matches:
+            # Verify each match is truly garbled (very low alpha ratio) before stripping
+            cleaned = aggregated_response
+            total_stripped = 0
+            for match in reversed(garbled_matches):  # Reverse to preserve indices
+                span = match.group()
+                alpha_count = sum(1 for c in span if c.isalpha())
+                alpha_ratio = alpha_count / len(span) if len(span) > 0 else 0
+                if alpha_ratio < 0.02:
+                    logger.warning(
+                        f"{log_prefix} Post-aggregation garbled sweep: stripping {len(span)} chars "
+                        f"at position {match.start()}-{match.end()} "
+                        f"(alpha_ratio={alpha_ratio:.4f}): preview={repr(span[:80])}"
+                    )
+                    cleaned = cleaned[:match.start()] + cleaned[match.end():]
+                    total_stripped += len(span)
+            if total_stripped > 0:
+                # Clean up any resulting double-whitespace or leading/trailing whitespace
+                aggregated_response = re.sub(r'\n{3,}', '\n\n', cleaned).strip()
+                final_response_chunks = [aggregated_response]
+                logger.info(
+                    f"{log_prefix} Post-aggregation garbled sweep: removed {total_stripped} chars total, "
+                    f"response reduced from {len(cleaned) + total_stripped} to {len(aggregated_response)} chars"
+                )
+
     # Ensure we never complete with an empty assistant message on server-side failures.
     # This avoids clients sending an "ai_response_completed" payload without encrypted_content,
     # and ensures the user always sees a retryable error message when all providers fail.
@@ -2366,7 +2747,7 @@ async def _consume_main_processing_stream(
         logger.info(f"{log_prefix} Task completing without response - awaiting user permission for app settings/memories. No final marker will be sent.")
         # Return early - no message processing needed
         # The client will receive the permission request via WebSocket and show the dialog
-        return "", False, False
+        return "", False, False, []
     
     # Handle the case where we're awaiting focus mode confirmation (deferred activation).
     # Unlike app_settings, the focus mode case has embed content (the focus mode activation
@@ -2657,7 +3038,10 @@ async def _consume_main_processing_stream(
     if should_bill:
         try:
             billing_info = await _handle_normal_billing(
-                usage, preprocessing_result, request_data, task_id, log_prefix
+                usage, preprocessing_result, request_data, task_id, log_prefix,
+                cumulative_input_tokens=cumulative_input_tokens,
+                cumulative_output_tokens=cumulative_output_tokens,
+                tool_inference_iterations=tool_inference_iterations,
             )
         except Exception as e:
             # CRITICAL: Don't let billing errors prevent the final chunk from being sent
@@ -2778,4 +3162,4 @@ async def _consume_main_processing_stream(
     # when the final marker is received. The WebSocket handler has access to
     # ConnectionManager.is_user_active() for accurate offline detection.
             
-    return aggregated_response, was_revoked_during_stream, was_soft_limited_during_stream
+    return aggregated_response, was_revoked_during_stream, was_soft_limited_during_stream, thinking_buffer

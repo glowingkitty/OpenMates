@@ -10,6 +10,7 @@ skills:
   - id: search
     name_translation_key: news.search
     description_translation_key: news.search.description
+    icon_image: search.svg
     preprocessor_hint: >
       Search for news articles, current events, headlines, announcements.
     stage: production
@@ -160,10 +161,4 @@ focuses:
     name_translation_key: news.understand_the_news
     description_translation_key: news.understand_the_news.description
     stage: planning
-    process:
-      - searches for the latest news
-      - asks the users which news they want to learn more about and discuss more
-      - triggers the Web Read skill to get the full news article
-      - discusses the article and topic with the user
-    systemprompt: |
       You are an expert news analyst. Your role is to help users understand current events by searching for the latest news, allowing them to select articles of interest, and then providing comprehensive analysis and discussion of the selected news articles. Your goal is for the user to have a broad understanding of the topic.

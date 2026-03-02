@@ -48,6 +48,8 @@
     onNavigatePrevious?: () => void;
     /** Handler to navigate to the next embed */
     onNavigateNext?: () => void;
+    /** Direction of navigation ('previous' | 'next') — set transiently during prev/next transitions */
+    navigateDirection?: 'previous' | 'next';
     /** Whether to show the "chat" button */
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button */
@@ -62,7 +64,9 @@
     triggerAt,
     targetType,
     isRepeating = false,
-    message,
+    // message is accepted by Props but not used in the template — intentional
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    message: _message,
     emailNotificationWarning,
     error,
     onClose,
@@ -71,6 +75,7 @@
     hasNextEmbed = false,
     onNavigatePrevious,
     onNavigateNext,
+    navigateDirection,
     showChatButton = false,
     onShowChat,
     onReminderCancelled
@@ -80,9 +85,6 @@
   let isCancelling = $state(false);
   let cancelError = $state<string | undefined>(undefined);
   let isCancelled = $state(false);
-  
-  // Build skill name for BasicInfosBar
-  let skillName = $derived($text('apps.reminder.skills.set_reminder'));
   
   // Build status text
   let statusText = $derived.by(() => {
@@ -166,17 +168,15 @@
   appId="reminder"
   skillId="set-reminder"
   {skillIconName}
-  {skillName}
-  showStatus={true}
-  customStatusText={statusText}
-  showSkillIcon={false}
-  title=""
+  embedHeaderTitle={$text('apps.reminder.skills.set_reminder')}
+  embedHeaderSubtitle={statusText}
   {onClose}
   currentEmbedId={embedId}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
   {onNavigateNext}
+  {navigateDirection}
   {showChatButton}
   {onShowChat}
 >

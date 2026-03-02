@@ -1,0 +1,65 @@
+web_analytics_daily:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+
+    date:
+      type: string
+      length: 10
+      note: "[Unique, Indexed] Date in format 'YYYY-MM-DD'."
+
+    # Core traffic counters
+    page_loads:
+      type: integer
+      default: 0
+      note: "Total page load events recorded on this day."
+
+    unique_visits_approx:
+      type: integer
+      default: 0
+      note: "Approximate unique visits via HyperLogLog (~0.81% error). Not exact, not PII."
+
+    # Geographic distribution (JSON: {"DE": 500, "US": 300, "unknown": 50})
+    countries:
+      type: json
+      note: "Country code distribution as JSON object. ISO 3166-1 alpha-2 keys."
+
+    # Device breakdown (JSON: {"mobile": 300, "desktop": 500, "tablet": 20})
+    devices:
+      type: json
+      note: "Device class distribution: mobile / tablet / desktop."
+
+    # Browser distribution (JSON: {"Chrome 120": 400, "Firefox 121": 100, ...})
+    browsers:
+      type: json
+      note: "Browser family + major version distribution."
+
+    # Operating system distribution (JSON: {"Windows": 300, "macOS": 200, ...})
+    os_families:
+      type: json
+      note: "OS family distribution. Raw UA string never stored."
+
+    # Referrer domain distribution (JSON: {"google.com": 200, "(direct)": 400, ...})
+    referrer_domains:
+      type: json
+      note: "Referrer domain distribution. Full URL never stored."
+
+    # Screen class distribution (JSON: {"lg": 400, "md": 150, "sm": 50, "xl": 200})
+    screen_classes:
+      type: json
+      note: "Screen width class distribution from client beacon."
+
+    # Session duration buckets (JSON: {"<30s": 100, "2m-5m": 80, "1h+": 20, ...})
+    session_duration_buckets:
+      type: json
+      note: "Session duration distribution from client beacon + WebSocket disconnect."
+
+    created_at:
+      type: timestamp
+      note: "Timestamp when record was created."
+
+    updated_at:
+      type: timestamp
+      note: "Timestamp when record was last updated by Celery flush task."

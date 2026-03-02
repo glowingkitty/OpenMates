@@ -22,6 +22,7 @@ Invoices Settings - View and download past invoices
         is_gift_card?: boolean;  // Whether this invoice is for a gift card purchase
         refunded_at?: string | null;  // ISO timestamp when refund was processed (null if not refunded)
         refund_status?: string | null;  // Status of refund: 'none', 'pending', 'completed', 'failed'
+        currency?: string | null;  // ISO currency code lowercase (e.g. "usd", "eur"). Null for legacy invoices.
     }
 
     let isLoading = $state(false);
@@ -50,19 +51,30 @@ Invoices Settings - View and download past invoices
         return credits.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     }
 
-    // Format amount from cents to EUR (e.g., 200 -> "2.00 EUR")
-    function formatAmount(amountStr: string): string {
+    // Zero-decimal currencies where amount is NOT in cents but in whole units.
+    // For these currencies we skip the /100 conversion and show no decimal places.
+    const ZERO_DECIMAL_CURRENCIES = new Set([
+        'jpy', 'krw', 'vnd', 'clp', 'gnf', 'mga', 'pyg', 'rwf', 'ugx', 'xaf', 'xof'
+    ]);
+
+    // Format amount from smallest currency unit to display string with currency code.
+    // Uses the invoice's actual currency if available, falls back to "eur" for legacy invoices.
+    function formatAmount(amountStr: string, currency?: string | null): string {
         try {
-            // Parse amount as number (it's stored as cents)
-            const amountInCents = parseInt(amountStr, 10);
-            if (isNaN(amountInCents)) {
-                return amountStr; // Return as-is if parsing fails
+            const amountInSmallest = parseInt(amountStr, 10);
+            if (isNaN(amountInSmallest)) {
+                return amountStr;
             }
-            // Convert cents to EUR and format with 2 decimal places
-            const amountInEur = (amountInCents / 100).toFixed(2);
-            return `${amountInEur} EUR`;
+            const curr = (currency || 'eur').toLowerCase();
+            const isZeroDecimal = ZERO_DECIMAL_CURRENCIES.has(curr);
+
+            // Convert to display amount
+            const displayAmount = isZeroDecimal ? amountInSmallest : amountInSmallest / 100;
+            const decimals = isZeroDecimal ? 0 : 2;
+
+            return `${displayAmount.toFixed(decimals)} ${curr.toUpperCase()}`;
         } catch {
-            return amountStr; // Return as-is if formatting fails
+            return amountStr;
         }
     }
 
@@ -529,7 +541,7 @@ Invoices Settings - View and download past invoices
     <div class="error-message">{errorMessage}</div>
     <SettingsItem
         type="quickaction"
-        icon="subsetting_icon subsetting_icon_reload"
+        icon="subsetting_icon reload"
         title={$text('login.retry')}
         onClick={fetchInvoices}
     />
@@ -559,7 +571,7 @@ Invoices Settings - View and download past invoices
                             {/if}
                         </div>
                         <div class="invoice-details">
-                            <span class="invoice-amount">{formatAmount(invoice.amount)}</span>
+                            <span class="invoice-amount">{formatAmount(invoice.amount, invoice.currency)}</span>
                             <span class="invoice-credits">
                                 {formatCredits(invoice.credits_purchased)} {$text('settings.billing.credits')}
                             </span>

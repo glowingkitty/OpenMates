@@ -33,15 +33,14 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
         const symbols: Record<string, string> = {
             'EUR': '€',
             'USD': '$',
-            'JPY': '¥'
         };
-        const symbol = symbols[currency.toUpperCase()] || '€';
-        return currency.toUpperCase() === 'JPY' ? `${symbol}${amount}` : `${symbol}${amount}`;
+        const symbol = symbols[currency.toUpperCase()] || currency.toUpperCase();
+        return `${symbol}${amount}`;
     }
-    
+
     // Helper to get price for a tier in the configured currency
     function getTierPrice(tier: any): number {
-        const currencyKey = lowBalanceCurrency.toLowerCase() as 'eur' | 'usd' | 'jpy';
+        const currencyKey = lowBalanceCurrency.toLowerCase() as 'eur' | 'usd';
         return tier.price[currencyKey];
     }
 
@@ -189,7 +188,6 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
             <select id="currency" bind:value={lowBalanceCurrency} disabled={isLoading}>
                 <option value="EUR">EUR (€)</option>
                 <option value="USD">USD ($)</option>
-                <option value="JPY">JPY (¥)</option>
             </select>
         </div>
 

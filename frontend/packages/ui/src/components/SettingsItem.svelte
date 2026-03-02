@@ -3,6 +3,7 @@
     import ModifyButton from './buttons/ModifyButton.svelte';
     import Icon from './Icon.svelte';
     import { getCategoryGradientColors, getLucideIcon, getFallbackIconForCategory } from '../utils/categoryUtils';
+    import type { Snippet } from 'svelte';
 
     // Props using Svelte 5 runes
     let { 
@@ -50,7 +51,7 @@
         iconType?: 'default' | 'app' | 'category';
         category?: string | undefined;
         categoryIcon?: string | undefined;
-        children?: any;
+        children?: Snippet | undefined;
     } = $props();
 
     // Backward-compat: `subtitle` is an alias for `subtitleTop`, without mutating props.
@@ -58,7 +59,6 @@
 
     // Computed values
     let isClickable = $derived(onClick !== undefined);
-    let isSubmenuWithoutModify = $derived(type === 'submenu' && !hasModifyButton);
     let hasAnySubtitle = $derived(displaySubtitleTop || subtitleBottom);
     let iconClass = $derived(type === 'quickaction' || type === 'subsubmenu' ? 
         `icon settings_size subsetting_icon ${icon}` : `icon settings_size ${icon}`);
@@ -78,8 +78,8 @@
         event.stopPropagation();
         
         if (!disabled) {
-            // Don't mutate the checked prop directly - let the parent control it
-            // Just trigger the onClick callback which will update the parent's state
+            // Let the parent's onClick update state (e.g. currentLanguage),
+            // which flows back down as the checked prop.
             if (isClickable && onClick) {
                 onClick();
             }
@@ -123,7 +123,8 @@
 
 -->
 
-{#if isClickable}
+<!-- Single unified template — clickable vs non-clickable is handled via conditional attributes -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div 
     class="menu-item"
     class:clickable={isClickable}
@@ -134,15 +135,14 @@
     class:subsubmenu={type === 'subsubmenu'}
     class:nested={type === 'nested'}
     class:has-nested-items={hasNestedItems}
-    onclick={handleItemClick}
-    onkeydown={(e) => !disabled && handleKeydown(e, () => handleItemClick(e))}
-    role="menuitem"
-    tabindex={disabled ? -1 : 0}
+    onclick={isClickable ? handleItemClick : undefined}
+    onkeydown={isClickable ? (e) => !disabled && handleKeydown(e, () => handleItemClick(e)) : undefined}
+    role={isClickable ? 'menuitem' : 'presentation'}
+    tabindex={isClickable ? (disabled ? -1 : 0) : undefined}
 >
     <div class="menu-item-content">
         <div class="menu-item-left">
-            <!-- Main icon - width and size preserved -->
-            <!-- Use Icon component with type="app" for app icons to render proper app-style icon -->
+            <!-- Icon rendering: app icon, category gradient circle, or default mask icon -->
             {#if iconType === 'app'}
                 <div class="app-icon-wrapper">
                     <Icon 
@@ -169,13 +169,12 @@
                 </div>
             {:else}
                 <div class="icon-container">
-                    <div class={iconClass}>
-                    </div>
+                    <div class={iconClass}></div>
                 </div>
             {/if}
             
-                <div class="text-and-nested-container">
-                    <div class="text-container" class:has-title={!!title} class:has-subtitle={hasAnySubtitle} class:heading-text={type === 'heading'}>
+            <div class="text-and-nested-container">
+                <div class="text-container" class:has-title={!!title} class:has-subtitle={hasAnySubtitle} class:heading-text={type === 'heading'}>
                     <!-- Top subtitle if present -->
                     {#if displaySubtitleTop}
                         <div class="menu-subtitle-top">{displaySubtitleTop}</div>
@@ -232,6 +231,7 @@
             <!-- Toggle if present -->
             {#if hasToggle}
                 <div 
+                    onmousedown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                     onclick={handleToggleClick}
                     onkeydown={(e) => handleKeydown(e, () => handleToggleClick(e))}
                     role="button" 
@@ -239,7 +239,7 @@
                     class="toggle-container"
                 >
                     <Toggle 
-                        bind:checked
+                        checked={checked}
                         name={title || displaySubtitleTop?.toLowerCase?.() || ''}
                         ariaLabel={`Toggle ${(title || displaySubtitleTop || '').toLowerCase()} mode`}
                         disabled={disabled}
@@ -262,143 +262,6 @@
         </div>
     </div>
 </div>
-{:else}
-<div 
-    class="menu-item"
-    class:clickable={isClickable}
-    class:disabled={disabled}
-    class:heading={type === 'heading'}
-    class:submenu={type === 'submenu'}
-    class:quickaction={type === 'quickaction'}
-    class:subsubmenu={type === 'subsubmenu'}
-    class:nested={type === 'nested'}
-    class:has-nested-items={hasNestedItems}
-    role="presentation"
->
-    <div class="menu-item-content">
-        <div class="menu-item-left">
-            <!-- Main icon - width and size preserved -->
-            <!-- Use Icon component with type="app" for app icons to render proper app-style icon -->
-            {#if iconType === 'app'}
-                <div class="app-icon-wrapper">
-                    <Icon 
-                        name={icon}
-                        type="app"
-                        size="38px"
-                        className="app-icon-main no-fade"
-                        borderColor="#ffffff"
-                    />
-                </div>
-            {:else if iconType === 'category' && category}
-                {@const gradientColors = getCategoryGradientColors(category)}
-                {@const iconName = categoryIcon || getFallbackIconForCategory(category)}
-                {@const IconComponent = getLucideIcon(iconName)}
-                <div class="category-circle-wrapper">
-                    <div 
-                        class="category-circle" 
-                        style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
-                    >
-                        <div class="category-icon">
-                            <IconComponent size={16} color="white" />
-                        </div>
-                    </div>
-                </div>
-            {:else}
-                <div class="icon-container">
-                    <div class={iconClass}>
-                    </div>
-                </div>
-            {/if}
-            
-            <div class="text-and-nested-container">
-                <div class="text-container" class:has-title={!!title} class:has-subtitle={hasAnySubtitle} class:heading-text={type === 'heading'}>
-                    <!-- Top subtitle if present -->
-                    {#if subtitleTop}
-                        <div class="menu-subtitle-top">{subtitleTop}</div>
-                    {/if}
-                    
-                    <!-- Main title -->
-                    {#if title}
-                        <div class="menu-title">
-                            {#if type === 'heading'}
-                                <strong>{title}</strong>
-                            {:else}
-                                {title}
-                            {/if}
-                        </div>
-                    {/if}
-                    
-                    <!-- Bottom subtitle if present -->
-                    {#if subtitleBottom}
-                        <div class="menu-subtitle-bottom">{subtitleBottom}</div>
-                    {/if}
-                    
-                    <!-- Credits display if enabled -->
-                    {#if showCredits && creditAmount !== undefined}
-                        <div class="menu-credits">
-                            {creditAmount} {creditCurrency || 'credits'}
-                        </div>
-                    {/if}
-                </div>
-                
-                <!-- Nested content if present -->
-                {#if hasNestedItems && children}
-                    <div class="nested-content">
-                        {@render children()}
-                    </div>
-                {/if}
-            </div>
-        </div>
-        
-        <div class="menu-item-right">
-            <!-- App icons if present -->
-            {#if appIcons && appIcons.length > 0}
-                <div class="app-icons-container">
-                    {#each appIcons.slice(0, maxVisibleIcons || 3) as appIcon}
-                        <div class="app-icon" class:app={appIcon.type === 'app'} class:provider={appIcon.type === 'provider'}>
-                            {appIcon.name}
-                        </div>
-                    {/each}
-                    {#if appIcons.length > (maxVisibleIcons || 3)}
-                        <div class="app-icon more">+{appIcons.length - (maxVisibleIcons || 3)}</div>
-                    {/if}
-                </div>
-            {/if}
-            
-            <!-- Toggle if present -->
-            {#if hasToggle}
-                <div 
-                    onclick={handleToggleClick}
-                    onkeydown={(e) => handleKeydown(e, () => handleToggleClick(e))}
-                    role="button" 
-                    tabindex="0"
-                    class="toggle-container"
-                >
-                    <Toggle 
-                        bind:checked
-                        name={title || subtitleTop.toLowerCase()}
-                        ariaLabel={`Toggle ${(title || subtitleTop).toLowerCase()} mode`}
-                        disabled={disabled}
-                    />
-                </div>
-            {/if}
-            
-            <!-- Modify button if explicitly enabled -->
-            {#if hasModifyButton}
-                <div
-                    onclick={handleModifyClick}
-                    onkeydown={(e) => handleKeydown(e, () => handleModifyClick(e))}
-                    role="button"
-                    tabindex="0"
-                    class="modify-button-container"
-                >
-                    <ModifyButton />
-                </div>
-            {/if}
-        </div>
-    </div>
-</div>
-{/if}
 
 <style>
     .menu-item {
@@ -442,7 +305,8 @@
     .icon-container {
         width: 44px;
         height: 44px;
-        margin-right: 12px;
+        /* Logical property: gap between icon and text label (after icon in reading direction) */
+        margin-inline-end: 12px;
         flex-shrink: 0;
         display: flex;
         align-items: center;
@@ -453,7 +317,7 @@
     .app-icon-wrapper {
         width: 44px;
         height: 44px;
-        margin-right: 12px;
+        margin-inline-end: 12px;
         flex-shrink: 0;
         display: flex;
         align-items: center;
@@ -464,7 +328,7 @@
     .category-circle-wrapper {
         width: 44px;
         height: 44px;
-        margin-right: 12px;
+        margin-inline-end: 12px;
         flex-shrink: 0;
         display: flex;
         align-items: center;
@@ -516,7 +380,8 @@
     .menu-title {
         font-size: 16px;
         color: var(--color-grey-100);
-        text-align: left;
+        /* Use logical alignment: left in LTR, right in RTL */
+        text-align: start;
         display: -webkit-box;
         -webkit-line-clamp: 3;
         line-clamp: 3;
@@ -533,7 +398,7 @@
     .menu-subtitle-bottom {
         font-size: 14px;
         color: var(--color-grey-60);
-        text-align: left;
+        text-align: start;
     }
 
     .menu-credits {
@@ -544,7 +409,8 @@
 
     .nested-content {
         margin-top: 8px;
-        padding-left: 36px;
+        /* Logical property: indent nested items from the inline-start side */
+        padding-inline-start: 36px;
     }
 
     .menu-item-right {

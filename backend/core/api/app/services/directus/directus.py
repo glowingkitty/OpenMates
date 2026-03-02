@@ -31,7 +31,11 @@ from backend.core.api.app.services.directus.analytics_methods import AnalyticsMe
 from backend.core.api.app.services.directus.embed_methods import EmbedMethods # Import EmbedMethods class
 from backend.core.api.app.services.directus.demo_chat_methods import DemoChatMethods # Import DemoChatMethods class
 from backend.core.api.app.services.directus.admin_methods import AdminMethods # Import AdminMethods class
+
 from backend.core.api.app.services.directus.health_event_methods import HealthEventMethods # Import HealthEventMethods class
+from backend.core.api.app.services.directus.user_daily_inspiration_methods import UserDailyInspirationMethods # Import UserDailyInspirationMethods class
+from backend.core.api.app.services.directus.daily_inspiration_pool_methods import DailyInspirationPoolMethods  # Pool of cleartext inspirations for default selection
+from backend.core.api.app.services.directus.daily_inspiration_defaults_methods import DailyInspirationDefaultsMethods  # Daily-selected top 3 per language
 from backend.core.api.app.services.directus.user.user_creation import create_user
 from backend.core.api.app.services.directus.user.user_authentication import login_user, login_user_with_lookup_hash, logout_user, logout_all_sessions, refresh_token
 from backend.core.api.app.services.directus.user.user_lookup import get_user_by_hashed_email, get_total_users_count, get_active_users_since, get_completed_signups_count, get_user_fields_direct, authenticate_user_by_lookup_hash, add_user_lookup_hash, get_user_by_subscription_id
@@ -91,6 +95,10 @@ class DirectusService:
         self.demo_chat = DemoChatMethods(self) # Initialize DemoChatMethods
         self.admin = AdminMethods(self) # Initialize AdminMethods
         self.health_event = HealthEventMethods(self) # Initialize HealthEventMethods for historical health tracking
+
+        self.user_daily_inspiration = UserDailyInspirationMethods(self) # User-specific received daily inspirations
+        self.inspiration_pool = DailyInspirationPoolMethods(self)  # Cleartext pool of inspirations for default selection
+        self.inspiration_defaults = DailyInspirationDefaultsMethods(self)  # Daily-selected top 3 per language
         
         # Initialize server stats service
         from backend.core.api.app.services.server_stats_service import ServerStatsService

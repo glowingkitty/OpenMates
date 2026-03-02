@@ -2,8 +2,8 @@
 # Shared utilities and models for Anthropic implementations
 
 import logging
-from typing import Dict, Any, List, Optional, Union
-from pydantic import BaseModel, Field
+from typing import Dict, Any, List, Optional, Tuple, Union
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +97,7 @@ def _prepare_system_with_caching(system_prompt: str) -> Union[str, List[Dict[str
         return system_prompt
 
 
-def _prepare_messages_with_caching(messages: List[Dict[str, str]]) -> List[Dict[str, Any]]:
+def _prepare_messages_with_caching(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Prepare messages with selective caching for content over threshold"""
     anthropic_messages = []
     
@@ -105,11 +105,69 @@ def _prepare_messages_with_caching(messages: List[Dict[str, str]]) -> List[Dict[
         role = msg.get("role", "user")
         content = msg.get("content", "")
         
-        # Handle tool responses - convert to user message with tool result
+        # Handle tool responses — convert to Anthropic's tool_result format.
+        # Anthropic requires tool results as a user-role message containing a
+        # tool_result block, not a top-level "tool" role.
+        # Content can be either:
+        #   - str: plain text (TOON/JSON) — wrap directly
+        #   - list: multimodal blocks (image_url + text from view skills) — convert each block
         if role == "tool":
+            tool_call_id = msg.get("tool_call_id", "")
+            
+            # Build the inner content for the tool_result block
+            if isinstance(content, list):
+                # Multimodal content from skills like images.view / pdf.view
+                # Convert OpenAI image_url blocks → Anthropic image source blocks
+                anthropic_tool_content: List[Dict[str, Any]] = []
+                for block in content:
+                    block_type = block.get("type", "")
+                    if block_type == "text":
+                        anthropic_tool_content.append({
+                            "type": "text",
+                            "text": block.get("text", "")
+                        })
+                    elif block_type == "image_url":
+                        image_url_data = block.get("image_url", {})
+                        url = image_url_data.get("url", "")
+                        # Expect data URI: "data:<mime>;base64,<data>"
+                        if url.startswith("data:") and ";base64," in url:
+                            header, b64_data = url.split(";base64,", 1)
+                            mime_type = header[len("data:"):]  # e.g. "image/webp"
+                            anthropic_tool_content.append({
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": mime_type,
+                                    "data": b64_data,
+                                }
+                            })
+                        else:
+                            # Non-data URL — fall back to text description
+                            logger.warning(
+                                f"[anthropic_shared] image_url block has non-data URL "
+                                f"(not supported by Anthropic): {url[:60]}"
+                            )
+                            anthropic_tool_content.append({
+                                "type": "text",
+                                "text": f"[image: {url[:60]}]"
+                            })
+                    else:
+                        logger.warning(
+                            f"[anthropic_shared] Unknown content block type in tool result: {block_type}"
+                        )
+            else:
+                # Plain-text tool result — Anthropic accepts a plain string here
+                anthropic_tool_content = [{"type": "text", "text": str(content) if content else ""}]
+            
             anthropic_messages.append({
                 "role": "user",
-                "content": f"Tool result: {content}"
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": tool_call_id,
+                        "content": anthropic_tool_content,
+                    }
+                ]
             })
             continue
         
@@ -136,7 +194,7 @@ def _prepare_messages_with_caching(messages: List[Dict[str, str]]) -> List[Dict[
     return anthropic_messages
 
 
-def _prepare_messages_for_anthropic(messages: List[Dict[str, str]]) -> (Optional[Union[str, List[Dict[str, Any]]]], List[Dict[str, Any]]):
+def _prepare_messages_for_anthropic(messages: List[Dict[str, Any]]) -> Tuple[Optional[Union[str, List[Dict[str, Any]]]], List[Dict[str, Any]]]:
     """Prepare messages for Anthropic API with caching support"""
     system_prompt = None
     processed_messages = list(messages)

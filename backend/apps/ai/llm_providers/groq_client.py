@@ -95,8 +95,8 @@ def _parse_tool_calls_from_choice(choice: Dict[str, Any]) -> Optional[List[Parse
     parsed_calls = []
     for tc in tool_calls:
         function_data = tc.get("function", {})
-        function_name = function_data.get("name", "")
-        function_args_raw = function_data.get("arguments", "{}")
+        function_name = function_data.get("name") or ""
+        function_args_raw = function_data.get("arguments") or "{}"
         
         # Parse JSON arguments
         function_args_parsed = {}
@@ -246,8 +246,8 @@ async def _invoke_groq_direct_api(
                                     
                                     current_tool_call_id = tc_delta.id
                                     if hasattr(tc_delta, 'function'):
-                                        current_tool_function_name = tc_delta.function.name if hasattr(tc_delta.function, 'name') else None
-                                        current_tool_function_args_buffer = tc_delta.function.arguments if hasattr(tc_delta.function, 'arguments') else ""
+                                        current_tool_function_name = (tc_delta.function.name if hasattr(tc_delta.function, 'name') else None) or ""
+                                        current_tool_function_args_buffer = (tc_delta.function.arguments if hasattr(tc_delta.function, 'arguments') else None) or ""
                                 elif hasattr(tc_delta, 'function') and current_tool_function_name:
                                     # Continue accumulating arguments
                                     if hasattr(tc_delta.function, 'arguments'):

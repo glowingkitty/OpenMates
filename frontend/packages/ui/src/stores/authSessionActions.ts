@@ -27,12 +27,19 @@ import { loginInterfaceOpen } from "./uiStateStore"; // Import loginInterfaceOpe
 import { activeChatStore } from "./activeChatStore"; // Import activeChatStore to navigate to demo-for-everyone on logout
 import { clearSignupData, clearIncompleteSignupData } from "./signupStore"; // Import signup cleanup functions
 import { clearAllSessionStorageDrafts } from "../services/drafts/sessionStorageDraftService"; // Import sessionStorage draft cleanup
-import { isLoggingOut, forcedLogoutInProgress } from "./signupState"; // Import isLoggingOut and forcedLogoutInProgress to track logout state
+import {
+  isLoggingOut,
+  forcedLogoutInProgress,
+  setForcedLogoutInProgress,
+  resetForcedLogoutInProgress,
+} from "./signupState"; // Import isLoggingOut and forcedLogoutInProgress to track logout state
 import { phasedSyncState } from "./phasedSyncStateStore"; // Import phased sync state to reset on login
 import { text } from "../i18n/translations"; // Import text store for translations
 import { chatListCache } from "../services/chatListCache"; // Import chatListCache to clear stale chat data on session expiry
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage"; // Import to clear shared chat keys on session expiry
 import { clientLogForwarder } from "../services/clientLogForwarder"; // Import admin console log forwarder
+import { appSettingsMemoriesStore } from "./appSettingsMemoriesStore"; // Import to pre-load entries for @ mention dropdown
+import { applyServerDarkMode } from "./theme"; // Apply server dark mode preference on session restore
 
 // Import core auth state and related flags
 import {
@@ -83,19 +90,36 @@ export async function checkAuth(
     let data: SessionCheckResult;
 
     try {
-      response = await fetch(getApiEndpoint(apiEndpoints.auth.session), {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          Origin: window.location.origin,
-        },
-        body: JSON.stringify({
-          deviceSignals: deviceSignals || {},
-          session_id: getSessionId(), // Include session_id for device fingerprinting
-        }),
-        credentials: "include",
-      });
+      // Use a 10-second AbortController timeout so that if the server is overloaded
+      // (accepts TCP but never responds), the fetch aborts and hits the offline-first
+      // catch block below instead of hanging indefinitely — which would leave
+      // isAuthenticated=false and prevent IndexedDB chats from loading.
+      const authAbortController = new AbortController();
+      const authTimeoutId = setTimeout(() => {
+        console.warn(
+          "[AuthSessionActions] Session check timed out after 10s — server may be overloaded, switching to offline-first mode",
+        );
+        authAbortController.abort();
+      }, 10000);
+
+      try {
+        response = await fetch(getApiEndpoint(apiEndpoints.auth.session), {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            Origin: window.location.origin,
+          },
+          body: JSON.stringify({
+            deviceSignals: deviceSignals || {},
+            session_id: getSessionId(), // Include session_id for device fingerprinting
+          }),
+          credentials: "include",
+          signal: authAbortController.signal,
+        });
+      } finally {
+        clearTimeout(authTimeoutId);
+      }
 
       // Check if response is OK (status 200-299)
       // If not OK, treat as network/server error and be optimistic
@@ -109,7 +133,7 @@ export async function checkAuth(
       data = await response.json();
       console.debug("Session check response:", data);
     } catch (fetchError) {
-      // Network error, timeout, or non-OK response - be optimistic
+      // Network error, timeout, AbortError, or non-OK response - be optimistic
       console.warn(
         "[AuthSessionActions] Network error or non-OK response during auth check (offline-first):",
         fetchError,
@@ -170,13 +194,9 @@ export async function checkAuth(
         );
       }
 
-      // CRITICAL: Prevent duplicate forced logout triggers if already in progress
-      if (get(forcedLogoutInProgress)) {
-        console.debug(
-          "[AuthSessionActions] Forced logout already in progress, skipping duplicate trigger",
-        );
-        return false;
-      }
+      // Track whether forcedLogoutInProgress was already set (e.g. by +page.svelte onMount)
+      // If so, we still need to proceed with cleanup — but skip duplicate notifications and flag-setting.
+      const alreadyForcedLogout = get(forcedLogoutInProgress);
 
       const masterKey = await cryptoService.getKeyFromStorage(); // Use getKeyFromStorage (now async)
       if (!masterKey) {
@@ -188,10 +208,16 @@ export async function checkAuth(
         // This prevents race conditions where other components try to load/decrypt encrypted chats
         // that can no longer be decrypted (because master key is missing).
         // This flag is checked in chat loading and decryption code to skip those operations.
-        forcedLogoutInProgress.set(true);
-        console.debug(
-          "[AuthSessionActions] Set forcedLogoutInProgress to true - blocking encrypted chat loading",
-        );
+        if (!alreadyForcedLogout) {
+          setForcedLogoutInProgress();
+          console.debug(
+            "[AuthSessionActions] Set forcedLogoutInProgress to true - blocking encrypted chat loading",
+          );
+        } else {
+          console.debug(
+            "[AuthSessionActions] forcedLogoutInProgress already true (set by +page.svelte) - proceeding with cleanup",
+          );
+        }
 
         // CRITICAL: Navigate to demo-for-everyone IMMEDIATELY (synchronously) BEFORE auth state changes
         // This ensures any component reading activeChatStore will see demo-for-everyone, not the old chat
@@ -210,15 +236,36 @@ export async function checkAuth(
           isInitialized: true,
         }));
 
-        // Show notification that user was logged out with hint about "Stay logged in"
-        // This is triggered when user logged in without "Stay logged in" and page was reloaded
-        const $text = get(text);
-        notificationStore.autoLogout(
-          $text("login.auto_logout_notification.message"),
-          undefined, // No secondary message needed
-          7000, // Show for 7 seconds so user can read the hint
-          $text("login.auto_logout_notification.title"),
-        );
+        // Show notification with context-appropriate message — but only if we haven't already
+        // shown one (when +page.svelte sets the flag, it shows its own notification via setTimeout)
+        if (!alreadyForcedLogout) {
+          const $text = get(text);
+          const { wasStayLoggedIn } =
+            await import("../services/cryptoKeyStorage");
+          const wasStorageEvicted = wasStayLoggedIn();
+
+          if (wasStorageEvicted) {
+            // User had stayLoggedIn=true but browser evicted IndexedDB (e.g. iOS Safari storage pressure)
+            // Show reassuring message that data is safe
+            console.warn(
+              "[AuthSessionActions] Storage eviction detected: user had stayLoggedIn=true but master key is missing from IndexedDB",
+            );
+            notificationStore.autoLogout(
+              $text("login.auto_logout_notification.storage_evicted_message"),
+              undefined,
+              10000, // Show for 10 seconds — this is unexpected, give user more time to read
+              $text("login.auto_logout_notification.storage_evicted_title"),
+            );
+          } else {
+            // Normal case: user had stayLoggedIn=false, key was in memory and lost on page reload
+            notificationStore.autoLogout(
+              $text("login.auto_logout_notification.message"),
+              undefined,
+              7000, // Show for 7 seconds so user can read the hint
+              $text("login.auto_logout_notification.title"),
+            );
+          }
+        }
 
         // CRITICAL: Set isLoggingOut flag to true BEFORE navigating to demo-for-everyone
         // This ensures ActiveChat component knows we're explicitly logging out and should clear shared chats
@@ -247,7 +294,7 @@ export async function checkAuth(
             // CRITICAL: Reset flags AFTER database deletion completes (in logout()'s background IIFE)
             // This ensures forcedLogoutInProgress stays true during the entire deletion process
             isLoggingOut.set(false);
-            forcedLogoutInProgress.set(false);
+            resetForcedLogoutInProgress();
             console.debug(
               "[AuthSessionActions] Reset logout flags after server cleanup and DB deletion",
             );
@@ -256,7 +303,7 @@ export async function checkAuth(
           console.error("[AuthSessionActions] Logout failed:", err);
           // Reset logout flags even if logout fails
           isLoggingOut.set(false);
-          forcedLogoutInProgress.set(false);
+          resetForcedLogoutInProgress();
         });
 
         deleteSessionId(); // Remove session_id on forced logout
@@ -273,7 +320,7 @@ export async function checkAuth(
         console.debug(
           "[AuthSessionActions] Resetting forcedLogoutInProgress to false - auth succeeded with valid master key",
         );
-        forcedLogoutInProgress.set(false);
+        resetForcedLogoutInProgress();
       }
       if (get(isLoggingOut)) {
         console.debug(
@@ -415,10 +462,75 @@ export async function checkAuth(
         const userLanguage = data.user.language || defaultProfile.language;
         const userDarkMode = data.user.darkmode ?? defaultProfile.darkmode;
 
-        if (userLanguage && userLanguage !== get(locale)) {
+        // ── Language reconciliation ──────────────────────────────────────
+        // The user's localStorage may have a different language than the
+        // server (e.g. user changed language in settings but the API call
+        // failed silently, or the language was auto-detected at signup from
+        // the browser locale and never corrected). If the user explicitly
+        // chose a language locally (stored in localStorage.preferredLanguage),
+        // push it to the server so they stay in sync.
+        const localPreferredLanguage =
+          typeof localStorage !== "undefined"
+            ? localStorage.getItem("preferredLanguage")
+            : null;
+
+        if (
+          localPreferredLanguage &&
+          localPreferredLanguage !== userLanguage &&
+          data.user.language // only reconcile if server has a stored language
+        ) {
+          console.info(
+            `[AuthSessionActions] Language mismatch: server="${userLanguage}", local="${localPreferredLanguage}" — pushing local preference to server`,
+          );
+          // Apply local preference immediately
+          locale.set(localPreferredLanguage);
+          // Push to server in background (non-blocking)
+          import("../config/api")
+            .then(({ getApiEndpoint }) => {
+              const endpoint = getApiEndpoint("settings.user.language");
+              if (endpoint) {
+                fetch(endpoint, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  credentials: "include",
+                  body: JSON.stringify({
+                    language: localPreferredLanguage,
+                  }),
+                })
+                  .then((resp) => {
+                    if (resp.ok) {
+                      console.info(
+                        `[AuthSessionActions] Successfully synced local language "${localPreferredLanguage}" to server`,
+                      );
+                    } else {
+                      console.warn(
+                        `[AuthSessionActions] Failed to sync language to server: ${resp.status}`,
+                      );
+                    }
+                  })
+                  .catch((err) => {
+                    console.warn(
+                      "[AuthSessionActions] Error syncing language to server:",
+                      err,
+                    );
+                  });
+              }
+            })
+            .catch(() => {
+              /* non-fatal */
+            });
+        } else if (userLanguage && userLanguage !== get(locale)) {
           console.debug(`Applying user language from session: ${userLanguage}`);
           locale.set(userLanguage);
         }
+
+        // Use reconciled language (local takes priority if it differs)
+        const effectiveLanguage =
+          localPreferredLanguage &&
+          localPreferredLanguage !== userLanguage &&
+          data.user.language
+            ? localPreferredLanguage
+            : userLanguage;
 
         updateProfile({
           username: data.user.username,
@@ -430,7 +542,7 @@ export async function checkAuth(
           last_opened: data.user.last_opened,
           consent_privacy_and_apps_default_settings: consent_privacy,
           consent_mates_default_settings: consent_mates,
-          language: userLanguage,
+          language: effectiveLanguage,
           darkmode: userDarkMode,
           // Low balance auto top-up fields
           auto_topup_low_balance_enabled:
@@ -441,7 +553,15 @@ export async function checkAuth(
             data.user.auto_topup_low_balance_amount,
           auto_topup_low_balance_currency:
             data.user.auto_topup_low_balance_currency,
+          // Refund policy consent — used to skip redundant consent screens in settings
+          has_accepted_refund_policy:
+            data.user.has_accepted_refund_policy ?? false,
         });
+        // Apply server dark mode preference to the theme store.
+        // applyServerDarkMode is a no-op when the user already has a local
+        // manual preference in localStorage, so local choices always win.
+        applyServerDarkMode(userDarkMode);
+
         // Start admin console log forwarding on session restore if user is admin.
         // This ensures log forwarding resumes after page refresh without requiring re-login.
         // Only admin users have logs forwarded - regular users are never affected.
@@ -454,6 +574,19 @@ export async function checkAuth(
       } catch (dbError) {
         console.error("Failed to save user data to database:", dbError);
       }
+
+      // Pre-load all settings/memories entries from IndexedDB so they are immediately
+      // available when the user types @ in the message editor.
+      // Without this, the @ mention dropdown shows no settings_memory results because
+      // the store is empty until the user manually opens the Settings panel.
+      // Non-blocking: errors here must never prevent login from completing.
+      appSettingsMemoriesStore.loadEntries().catch((err) => {
+        console.warn(
+          "[AuthSessionActions] Failed to pre-load settings/memories entries (non-fatal):",
+          err,
+        );
+      });
+
       return true;
     } else {
       // Handle Server Explicitly Saying User Is Not Logged In
@@ -899,12 +1032,18 @@ export function setAuthenticatedState(): void {
     "Setting authentication state to authenticated after successful login",
   );
 
-  // CRITICAL: Reset phased sync state on login so syncing indicator shows
-  // This is needed because non-auth users have initialSyncCompleted=true (to prevent loading flash)
-  // When they log in, we need to reset so the real sync can show progress
-  phasedSyncState.reset();
+  // CRITICAL: Reset phased sync state on login so syncing indicator shows.
+  // This is needed because non-auth users have initialSyncCompleted=true (to prevent loading flash).
+  // When they log in, we need to reset so the real sync can show progress.
+  //
+  // We use resetForLogin() (NOT reset()) to preserve userMadeExplicitChoice and
+  // currentActiveChatId. The user may have clicked "new chat" before the login
+  // WebSocket response arrived; calling reset() wipes those flags, causing the
+  // Phase 1 sync handler to auto-open the old last_opened chat over the user's
+  // explicit choice (race condition: issue 3a991b5c).
+  phasedSyncState.resetForLogin();
   console.debug(
-    "Reset phased sync state for new login - syncing indicator will show",
+    "Reset phased sync state for new login (preserving user navigation choices) - syncing indicator will show",
   );
 
   authStore.update((state) => ({

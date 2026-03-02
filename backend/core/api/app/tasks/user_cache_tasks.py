@@ -138,8 +138,8 @@ async def _warm_cache_phase_one(
 
     hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
     
-    # OPTIMIZATION: Fetch new chat suggestions AND chat details in parallel
-    # This reduces Phase 1 latency by running both Directus queries concurrently
+    # OPTIMIZATION: Fetch new chat suggestions, daily inspirations, AND chat details in parallel
+    # This reduces Phase 1 latency by running all three Directus queries concurrently
     async def fetch_suggestions():
         """Fetch and cache new chat suggestions."""
         try:
@@ -156,7 +156,30 @@ async def _warm_cache_phase_one(
         except Exception as e:
             logger.error(f"Error caching new chat suggestions in Phase 1 for user {user_id}: {e}", exc_info=True)
             return None
-    
+
+    async def fetch_and_cache_inspirations():
+        """Fetch daily inspirations from Directus and warm the Phase 1 sync cache."""
+        try:
+            # user_daily_inspiration.get_user_inspirations uses raw user_id (hashes internally)
+            inspirations = await directus_service.user_daily_inspiration.get_user_inspirations(
+                user_id=user_id, limit=10
+            )
+            if inspirations:
+                await cache_service.set_daily_inspirations_sync(hashed_user_id, inspirations)
+                logger.info(
+                    f"User {user_id}: Cached {len(inspirations)} daily inspirations "
+                    f"(sync) in Phase 1 cache warming"
+                )
+            else:
+                logger.info(f"User {user_id}: No daily inspirations found to cache in Phase 1")
+            return inspirations
+        except Exception as e:
+            logger.error(
+                f"Error caching daily inspirations in Phase 1 for user {user_id}: {e}",
+                exc_info=True,
+            )
+            return None
+
     async def fetch_chat_details():
         """Fetch chat details for the target chat."""
         if not target_immediate_chat_id:
@@ -169,9 +192,10 @@ async def _warm_cache_phase_one(
             logger.error(f"Error fetching chat details for {target_immediate_chat_id}: {e}", exc_info=True)
             return None
     
-    # Run both queries in parallel using asyncio.gather
-    suggestions_result, full_data = await asyncio.gather(
+    # Run all three queries in parallel using asyncio.gather
+    suggestions_result, _inspirations_result, full_data = await asyncio.gather(
         fetch_suggestions(),
+        fetch_and_cache_inspirations(),
         fetch_chat_details()
     )
     
@@ -840,7 +864,8 @@ def delete_user_account_task(
     reason: str = "User requested account deletion",
     ip_address: str = None,
     device_fingerprint: str = None,
-    refund_invoices: bool = True
+    refund_invoices: bool = True,
+    email_encryption_key: str = None,
 ):
     """
     Asynchronously delete user account and all associated data.
@@ -859,6 +884,7 @@ def delete_user_account_task(
         ip_address: IP address of deletion request
         device_fingerprint: Device fingerprint of deletion request
         refund_invoices: Whether to auto-refund eligible purchases from last 14 days
+        email_encryption_key: Client-side email encryption key for sending refund confirmation emails
     """
     task_id = self.request.id
     logger.info(f"[TASK] delete_user_account started for user {user_id}, task_id={task_id}")
@@ -874,7 +900,8 @@ def delete_user_account_task(
             ip_address=ip_address,
             device_fingerprint=device_fingerprint,
             refund_invoices=refund_invoices,
-            task_id=task_id
+            task_id=task_id,
+            email_encryption_key=email_encryption_key,
         ))
         return result
     except Exception as e:
@@ -893,7 +920,8 @@ async def _async_delete_user_account(
     ip_address: Optional[str],
     device_fingerprint: Optional[str],
     refund_invoices: bool,
-    task_id: str
+    task_id: str,
+    email_encryption_key: Optional[str] = None,
 ) -> bool:
     """
     Async implementation of account deletion following priority order from architecture.
@@ -1011,12 +1039,19 @@ async def _async_delete_user_account(
         # This would cancel subscription and delete customer - marked as TODO
         
         # 9. Auto-refund processing (if enabled)
+        # Calls the actual payment provider API (Stripe/Polar) to return money,
+        # deducts credits, updates Directus, and optionally dispatches the credit
+        # note email task (only when email_encryption_key is available).
         if refund_invoices:
             try:
-                # Get invoices from last 14 days
+                import os
+                from backend.core.api.app.services.payment.payment_service import PaymentService
+                from backend.core.api.app.utils.secrets_manager import SecretsManager
+
+                # Get invoices from last 14 days that are eligible for refund
                 now = datetime.now(timezone.utc)
                 fourteen_days_ago = now - timedelta(days=14)
-                
+
                 invoices = await directus_service.get_items(
                     "invoices",
                     params={
@@ -1025,14 +1060,258 @@ async def _async_delete_user_account(
                             "date": {"_gte": fourteen_days_ago.isoformat()},
                             "refunded_at": {"_null": True},
                             "is_gift_card": {"_eq": False}
-                        }
+                        },
+                        "fields": "*"
                     }
                 )
-                
-                # Process refunds - Note: Full refund processing requires PaymentService
-                # This is a simplified version - full implementation would process actual refunds
+
+                if not invoices:
+                    invoices = []
+
                 logger.info(f"[DELETE_ACCOUNT] Found {len(invoices)} eligible invoices for refund for user {user_id}")
-                # TODO: Implement actual refund processing via PaymentService
+
+                if invoices:
+                    # Initialize PaymentService for making actual refund API calls
+                    secrets_manager = SecretsManager()
+                    await secrets_manager.initialize()
+                    payment_service = PaymentService(secrets_manager=secrets_manager)
+                    is_dev = os.getenv("SERVER_ENVIRONMENT", "development").lower() == "development"
+                    await payment_service.initialize(is_production=not is_dev)
+
+                    refund_success_count = 0
+                    refund_fail_count = 0
+
+                    for invoice in invoices:
+                        invoice_id = invoice.get("id", "unknown")
+                        order_id = invoice.get("order_id", "")
+                        invoice_provider = invoice.get("provider")  # "stripe", "polar", or None (legacy)
+                        provider_order_id = invoice.get("provider_order_id")  # Polar Order UUID
+                        encrypted_amount = invoice.get("encrypted_amount")
+                        encrypted_credits = invoice.get("encrypted_credits_purchased")
+                        vault_key_id = None
+
+                        # Resolve vault_key_id for decryption
+                        user_data = await cache_service.get_user_by_id(user_id)
+                        if user_data:
+                            vault_key_id = user_data.get("vault_key_id")
+
+                        if not encrypted_amount or not vault_key_id:
+                            logger.warning(
+                                f"[DELETE_ACCOUNT] Skipping refund for invoice {invoice_id}: "
+                                f"missing encrypted_amount or vault_key_id"
+                            )
+                            refund_fail_count += 1
+                            continue
+
+                        try:
+                            refund_amount_cents = int(
+                                await encryption_service.decrypt_with_user_key(encrypted_amount, vault_key_id)
+                            )
+                        except Exception as decrypt_err:
+                            logger.error(
+                                f"[DELETE_ACCOUNT] Cannot decrypt amount for invoice {invoice_id}: {decrypt_err}"
+                            )
+                            refund_fail_count += 1
+                            continue
+
+                        # Determine the provider-specific order ID to refund against
+                        # For Polar: use provider_order_id (the Polar Order UUID)
+                        # For Stripe: use order_id (the PaymentIntent ID like 'pi_...')
+                        if invoice_provider == "polar":
+                            refund_order_id = provider_order_id
+                            if not refund_order_id:
+                                # Fallback: look up the Order UUID via Polar API
+                                # (handles the race where order.paid arrived before invoice was created)
+                                logger.warning(
+                                    f"[DELETE_ACCOUNT] Polar invoice {invoice_id} missing provider_order_id, "
+                                    f"attempting Polar API lookup by checkout_id={order_id}"
+                                )
+                                try:
+                                    resolved_uuid = await payment_service.get_polar_order_uuid_by_checkout_id(order_id)
+                                    if resolved_uuid:
+                                        refund_order_id = resolved_uuid
+                                        logger.info(
+                                            f"[DELETE_ACCOUNT] Resolved Polar order UUID {resolved_uuid} "
+                                            f"for invoice {invoice_id}"
+                                        )
+                                    else:
+                                        logger.error(
+                                            f"[DELETE_ACCOUNT] Polar invoice {invoice_id} missing provider_order_id "
+                                            f"and API lookup failed, cannot refund"
+                                        )
+                                        refund_fail_count += 1
+                                        continue
+                                except Exception as lookup_exc:
+                                    logger.error(
+                                        f"[DELETE_ACCOUNT] Polar API lookup failed for invoice {invoice_id}: {lookup_exc}"
+                                    )
+                                    refund_fail_count += 1
+                                    continue
+                        else:
+                            refund_order_id = order_id
+
+                        if not refund_order_id:
+                            logger.warning(
+                                f"[DELETE_ACCOUNT] Invoice {invoice_id} has no order ID, cannot refund"
+                            )
+                            refund_fail_count += 1
+                            continue
+
+                        # Call the payment provider API to actually return money
+                        logger.info(
+                            f"[DELETE_ACCOUNT] Refunding invoice {invoice_id}: "
+                            f"{refund_amount_cents} cents via {invoice_provider or 'auto-detect'} "
+                            f"(order: {refund_order_id})"
+                        )
+                        try:
+                            refund_result = await payment_service.refund_payment(
+                                payment_intent_id=refund_order_id,
+                                amount=refund_amount_cents,
+                                provider=invoice_provider,
+                                reason="customer_request",
+                            )
+                        except Exception as refund_api_err:
+                            logger.error(
+                                f"[DELETE_ACCOUNT] Refund API call failed for invoice {invoice_id}: {refund_api_err}",
+                                exc_info=True
+                            )
+                            refund_fail_count += 1
+                            continue
+
+                        if not refund_result:
+                            logger.error(f"[DELETE_ACCOUNT] Refund returned None for invoice {invoice_id}")
+                            refund_fail_count += 1
+                            continue
+
+                        # Mark invoice as refunded in Directus
+                        try:
+                            await directus_service.update_item("invoices", invoice_id, {
+                                "refund_status": "completed",
+                                "refunded_at": now.isoformat(),
+                            })
+                        except Exception as update_err:
+                            logger.error(
+                                f"[DELETE_ACCOUNT] Failed to update Directus refund status for "
+                                f"invoice {invoice_id}: {update_err}"
+                            )
+
+                        # Deduct credits proportionally
+                        credits_to_deduct = 0
+                        credits_purchased_for_invoice = 0
+                        try:
+                            credits_purchased_for_invoice = int(
+                                await encryption_service.decrypt_with_user_key(encrypted_credits, vault_key_id)
+                            )
+                            current_credits = int((await cache_service.get_user_by_id(user_id) or {}).get("credits", 0))
+                            credits_to_deduct = min(credits_purchased_for_invoice, current_credits)
+                            if credits_to_deduct > 0:
+                                await cache_service.update_user_credits(user_id, -credits_to_deduct)
+                                logger.info(
+                                    f"[DELETE_ACCOUNT] Deducted {credits_to_deduct} credits for "
+                                    f"refunded invoice {invoice_id}"
+                                )
+                        except Exception as credit_err:
+                            logger.error(
+                                f"[DELETE_ACCOUNT] Failed to deduct credits for invoice {invoice_id}: {credit_err}"
+                            )
+
+                        # Record in Invoice Ninja — only for Stripe/Revolut (not Polar MoR)
+                        if invoice_provider != "polar":
+                            try:
+                                from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
+                                ninja_service = InvoiceNinjaService()
+                                refund_amount_decimal = refund_amount_cents / 100.0
+                                ninja_service.process_refund_transaction(
+                                    user_hash=user_id_hash,
+                                    external_order_id=order_id,
+                                    invoice_id=invoice_id,
+                                    customer_firstname="User",
+                                    customer_lastname=user_id_hash[:8],
+                                    customer_account_id=user_id_hash[:12],
+                                    customer_country_code="XX",
+                                    refund_amount_value=refund_amount_decimal,
+                                    currency_code=invoice.get("currency", "eur"),
+                                    refund_date=now.strftime("%Y-%m-%d"),
+                                    payment_processor=invoice_provider or "stripe",
+                                    custom_credit_note_number=f"CN-DELETE-{invoice_id[:8]}",
+                                )
+                                logger.info(
+                                    f"[DELETE_ACCOUNT] Recorded refund in Invoice Ninja for invoice {invoice_id}"
+                                )
+                            except Exception as ninja_err:
+                                logger.error(
+                                    f"[DELETE_ACCOUNT] Invoice Ninja recording failed for "
+                                    f"invoice {invoice_id}: {ninja_err}",
+                                    exc_info=True
+                                )
+                        else:
+                            logger.info(
+                                f"[DELETE_ACCOUNT] Skipping Invoice Ninja for Polar refund "
+                                f"(invoice {invoice_id}): Polar is MoR."
+                            )
+
+                        # Dispatch credit note email task if encryption key is available
+                        # (email_encryption_key is zero-knowledge and only available when
+                        # the user is present in the browser during deletion)
+                        if email_encryption_key:
+                            try:
+                                from backend.core.api.app.tasks.celery_config import app as celery_app
+                                from backend.core.api.app.services.email.config_loader import load_email_config
+
+                                email_config = load_email_config()
+                                invoice_number = invoice.get("invoice_number", "")
+                                currency = invoice.get("currency", "eur")
+
+                                celery_app.send_task(
+                                    name="app.tasks.email_tasks.credit_note_email_task.process_credit_note_and_send_email",
+                                    kwargs={
+                                        "invoice_id": invoice_id,
+                                        "user_id": user_id,
+                                        "order_id": order_id,
+                                        "refund_amount_cents": refund_amount_cents,
+                                        "unused_credits": credits_to_deduct,
+                                        "total_credits": credits_purchased_for_invoice,
+                                        "currency": currency,
+                                        "referenced_invoice_number": invoice_number,
+                                        "sender_addressline1": email_config.get("sender_addressline1", ""),
+                                        "sender_addressline2": email_config.get("sender_addressline2", ""),
+                                        "sender_addressline3": email_config.get("sender_addressline3", ""),
+                                        "sender_country": email_config.get("sender_country", ""),
+                                        "sender_email": email_config.get("sender_email", ""),
+                                        "sender_vat": email_config.get("sender_vat", ""),
+                                        "email_encryption_key": email_encryption_key,
+                                        "provider": invoice_provider,
+                                    },
+                                    queue="email"
+                                )
+                                logger.info(
+                                    f"[DELETE_ACCOUNT] Dispatched credit note email task for invoice {invoice_id}"
+                                )
+                            except Exception as email_task_err:
+                                logger.error(
+                                    f"[DELETE_ACCOUNT] Failed to dispatch credit note email task for "
+                                    f"invoice {invoice_id}: {email_task_err}",
+                                    exc_info=True
+                                )
+                        else:
+                            logger.info(
+                                f"[DELETE_ACCOUNT] No email_encryption_key provided, "
+                                f"skipping credit note email for invoice {invoice_id}"
+                            )
+
+                        refund_success_count += 1
+
+                    # Clean up payment service connections
+                    try:
+                        await payment_service.close()
+                    except Exception:
+                        pass
+
+                    logger.info(
+                        f"[DELETE_ACCOUNT] Refund processing complete for user {user_id}: "
+                        f"{refund_success_count} succeeded, {refund_fail_count} failed"
+                    )
+
             except Exception as e:
                 logger.error(f"[DELETE_ACCOUNT] Error processing refunds for user {user_id}: {e}", exc_info=True)
         

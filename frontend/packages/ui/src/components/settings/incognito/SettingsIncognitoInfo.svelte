@@ -13,15 +13,31 @@ changes to the documentation (to keep the documentation up to date).
     import { text } from '@repo/ui';
     import { createEventDispatcher } from 'svelte';
     import { incognitoMode } from '../../../stores/incognitoModeStore';
+    import { updateProfile } from '../../../stores/userProfile';
 
     const dispatch = createEventDispatcher();
 
-    // Activate incognito mode, navigate back to main settings, close settings menu, and trigger new chat
+    /**
+     * Activate incognito mode, close the settings menu, and start a new incognito chat.
+     *
+     * Settings.svelte has THREE sources of truth for menu visibility (isMenuVisible,
+     * settingsMenuVisible store, panelState). Setting stores from here is unreliable
+     * because Svelte 5 effect ordering can cause the menu to re-open.
+     *
+     * Instead, we dispatch a 'closeSettingsMenu' window event that Settings.svelte
+     * listens for and handles by calling toggleMenu() — the only function that
+     * properly syncs all three visibility sources.
+     */
     async function handleActivate() {
+        // Mark explainer as seen so it won't show again on future activations.
+        // This persists to IndexedDB via updateProfile (device-local preference).
+        updateProfile({ incognito_explainer_seen: true });
+
         // Activate incognito mode
         await incognitoMode.set(true);
         
-        // Navigate back to main settings
+        // Navigate back to main settings (in case user wants to re-open settings later,
+        // they'll land on the main page rather than the incognito info sub-page)
         dispatch('openSettings', {
             settingsPath: 'main',
             direction: 'backward',
@@ -29,21 +45,18 @@ changes to the documentation (to keep the documentation up to date).
             title: ''
         });
         
-        // Close settings menu by dispatching close event
-        // This ensures the settings menu closes before creating the new chat
         if (typeof window !== 'undefined') {
-            // Wait a bit for the navigation animation to complete
-            await new Promise(resolve => setTimeout(resolve, 300));
+            // Brief delay to let the navigation animation start
+            await new Promise(resolve => setTimeout(resolve, 150));
             
-            // Close settings menu
-            const { settingsMenuVisible } = await import('../../Settings.svelte');
-            settingsMenuVisible.set(false);
+            // Close settings menu via window event — this calls toggleMenu() in
+            // Settings.svelte which properly syncs all three visibility sources
+            window.dispatchEvent(new CustomEvent('closeSettingsMenu'));
             
-            // Wait a bit more for the menu to close
-            await new Promise(resolve => setTimeout(resolve, 200));
+            // Wait for the menu close animation to complete
+            await new Promise(resolve => setTimeout(resolve, 350));
             
-            // Dispatch event to trigger new chat creation
-            // This allows the user to immediately start a new incognito chat
+            // Trigger new incognito chat creation
             window.dispatchEvent(new CustomEvent('triggerNewChat'));
         }
     }
@@ -52,7 +65,7 @@ changes to the documentation (to keep the documentation up to date).
 <div class="incognito-info-container">
     <div class="info-header">
         <div class="info-icon">
-            <div class="icon settings_size subsetting_icon subsetting_icon_incognito"></div>
+            <div class="icon settings_size subsetting_icon incognito"></div>
         </div>
         <h2 class="info-title">{$text('settings.incognito')}</h2>
     </div>
@@ -104,7 +117,7 @@ changes to the documentation (to keep the documentation up to date).
     </div>
 
     <div class="info-footer">
-        <button onclick={handleActivate}>
+        <button data-testid="incognito-activate-button" onclick={handleActivate}>
             {$text('settings.incognito_explainer_understood')}
         </button>
     </div>

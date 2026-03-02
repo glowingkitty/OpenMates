@@ -10,6 +10,7 @@
 	import '@repo/ui/src/styles/icons.css';
 	import '@repo/ui/src/styles/auth.css';
 	import '@repo/ui/src/styles/markdown.css';
+	import '@repo/ui/src/styles/settings.css';
 	// KaTeX CSS is imported via markdown.css
 	import {
 		// components
@@ -17,6 +18,7 @@
 		OfflineBanner,
 		// Config
 		loadMetaTags,
+		getApiEndpoint,
 		// Stores
 		theme,
 		initializeTheme,
@@ -50,6 +52,67 @@
 
 		await waitLocale();
 		loaded = true;
+
+		// =====================================================================
+		// Privacy-preserving first-party analytics beacon
+		// =====================================================================
+		// Fires a single lightweight POST to our own API on every page load.
+		// No cookies, no third-party scripts, no PII — only aggregate counters
+		// stored server-side. See docs/analytics.md for the full design.
+		// =====================================================================
+		if (browser) {
+			// Determine screen size class from viewport width (matches backend buckets)
+			const w = window.innerWidth;
+			const sc = w < 640 ? 'sm' : w < 1024 ? 'md' : w < 1440 ? 'lg' : 'xl';
+
+			// Record connect time for session duration calculation on pagehide
+			const pageLoadTime = Date.now();
+
+			// Helper: send beacon, ignore errors silently
+			// NOTE: We intentionally use 'text/plain' as the Blob content-type instead of
+			// 'application/json'. 'text/plain' is a CORS-safelisted content-type, which means
+			// the browser sends the beacon as a "simple request" with no CORS preflight.
+			// Using 'application/json' would trigger a preflight, and the server responds with
+			// Access-Control-Allow-Origin: * (wildcard) — which the browser rejects when the
+			// request also carries cookies. The backend accepts and parses the JSON body
+			// regardless of the declared content-type.
+			const sendBeacon = (payload: object) => {
+				try {
+					navigator.sendBeacon(
+						getApiEndpoint('/v1/analytics/beacon'),
+						new Blob([JSON.stringify(payload)], { type: 'text/plain' })
+					);
+				} catch {
+					// Analytics failures must never affect the user experience
+				}
+			};
+
+			// Fire page view beacon immediately.
+			// Include document.referrer so the backend can attribute the real external
+			// origin (e.g. Google, direct) instead of reading the HTTP Referer header,
+			// which always contains the app's own URL when fired from within a SPA.
+			const ref = document.referrer || '';
+			sendBeacon({ t: 'pv', p: window.location.pathname, sc, r: ref });
+
+			// Fire session duration beacon on page hide (tab close, navigation away)
+			window.addEventListener(
+				'pagehide',
+				() => {
+					const elapsed = (Date.now() - pageLoadTime) / 1000; // seconds
+					// Bucket client-side so the payload is a short label, not a raw number
+					let bucket: string;
+					if (elapsed < 30) bucket = '<30s';
+					else if (elapsed < 120) bucket = '30s-2m';
+					else if (elapsed < 300) bucket = '2m-5m';
+					else if (elapsed < 900) bucket = '5m-15m';
+					else if (elapsed < 1800) bucket = '15m-30m';
+					else if (elapsed < 3600) bucket = '30m-1h';
+					else bucket = '1h+';
+					sendBeacon({ t: 'sd', d: bucket });
+				},
+				{ once: true }
+			);
+		}
 
 		// Load meta tags after translations are ready
 		await loadMetaTags();
@@ -91,7 +154,10 @@
 			const vv = window.visualViewport;
 			if (vv && Math.abs(vv.scale - 1) < 0.01) return; // Already at 1x, no reset needed
 			// Temporarily set a strict viewport to force zoom reset
-			vp.setAttribute('content', 'width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1');
+			vp.setAttribute(
+				'content',
+				'width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1'
+			);
 			requestAnimationFrame(() => {
 				// Restore the original viewport content on the next frame
 				vp.setAttribute('content', original);
@@ -188,13 +254,24 @@
 	});
 </script>
 
+<!--
+	Rendering strategy:
+	  - `{@render children()}` is called unconditionally so SEO routes (inside the
+	    (seo) layout group) emit their full HTML server-side for crawlers to index.
+	  - MetaTags and OfflineBanner are SPA-specific; they only mount after `loaded`
+	    (= after waitLocale() + initializeTheme() run in onMount), preventing FOUC.
+	  - The SPA root (/) has ssr=false so its children render empty on the server;
+	    the `{#if loaded}` on SPA-specific children preserves existing behaviour.
+	  - The `<main>` wrapper is always present; on SPA routes it's empty until
+	    hydration completes (same as before — the SPA mounts into the Svelte body div).
+-->
 {#if loaded}
 	<MetaTags />
 	<OfflineBanner />
-	<main>
-		{@render children()}
-	</main>
 {/if}
+<main>
+	{@render children()}
+</main>
 
 <style>
 	/* Apply background color to the body */

@@ -20,6 +20,7 @@ search:
   th: ค้นหา
   cs: Hledat
   sv: Sök
+  he: חיפוש
   verified_by_human:
     - en
     - de
@@ -45,13 +46,14 @@ search.description:
   th: ค้นหาเว็บ
   cs: Hledat na webu.
   sv: Sök på webben.
+  he: חיפוש באינטרנט.
   verified_by_human:
     - en
     - de
 
 search.how_to_use.1:
   context: Example instruction for web search skill - product search
-  en: Search for the best noise-cancelling headphones 2026
+  en: "**Search** for the best noise-cancelling headphones 2026"
   de: Suche die besten Noise-Cancelling-Kopfhörer 2026
   zh: 搜索2026年最好的降噪耳机
   es: Busca los mejores auriculares con cancelación de ruido 2026
@@ -71,11 +73,12 @@ search.how_to_use.1:
   th: ค้นหาหูฟังตัดเสียงรบกวนที่ดีที่สุดปี 2026
   cs: Vyhledej nejlepší sluchátka s potlačením hluku 2026
   sv: Sök efter de bästa brusreducerande hörlurarna 2026
+  he: "**חפש** את האוזניות מבטלות הרעשים הטובות ביותר לשנת 2026"
   verified_by_human: [en, de]
 
 search.how_to_use.2:
   context: Example instruction for web search skill - reviews
-  en: Find reviews of the new iPhone
+  en: "**Find** reviews of the new iPhone"
   de: Finde Bewertungen zum neuen iPhone
   zh: 查找新iPhone的评测
   es: Encuentra reseñas del nuevo iPhone
@@ -95,11 +98,12 @@ search.how_to_use.2:
   th: ค้นหารีวิว iPhone ใหม่
   cs: Najdi recenze nového iPhonu
   sv: Hitta recensioner av nya iPhone
+  he: "**מצא** ביקורות על האייפון החדש"
   verified_by_human: [en, de]
 
 search.how_to_use.3:
   context: Example instruction for web search skill - lifestyle
-  en: Search for healthy meal prep ideas for beginners
+  en: "**Search** for healthy meal prep ideas for beginners"
   de: Suche nach gesunden Meal-Prep-Ideen für Anfänger
   zh: 搜索适合初学者的健康备餐创意
   es: Busca ideas de preparación de comidas saludables para principiantes
@@ -119,6 +123,7 @@ search.how_to_use.3:
   th: ค้นหาไอเดียเตรียมอาหารเพื่อสุขภาพสำหรับมือใหม่
   cs: Vyhledej nápady na zdravé jídlo pro začátečníky
   sv: Sök efter hälsosamma måltidsidéer för nybörjare
+  he: "**חפש** רעיונות להכנת ארוחות בריאות למתחילים"
   verified_by_human: [en, de]
 
 read:
@@ -143,6 +148,7 @@ read:
   th: อ่าน
   cs: Číst
   sv: Läsa
+  he: קריאה
   verified_by_human:
     - en
     - de
@@ -168,13 +174,14 @@ read.description:
   th: เรียกดูเว็บไซต์ วิจัยหัวข้อ
   cs: Procházejte weby, zkoumejte témata.
   sv: Bläddra på webbplatser, forska ämnen.
+  he: גלישה באתרים, מחקר נושאים ועוד.
   verified_by_human:
     - en
     - de
 
 read.how_to_use.1:
   context: Example instruction for web read skill - summarize article
-  en: "Read this article and summarize it: https://example.com/article"
+  en: "**Read** this article and summarize it: https://example.com/article"
   de: "Lies diesen Artikel und fasse ihn zusammen: https://example.com/article"
   zh: "阅读这篇文章并总结: https://example.com/article"
   es: "Lee este artículo y resúmelo: https://example.com/article"
@@ -194,11 +201,12 @@ read.how_to_use.1:
   th: "อ่านบทความนี้และสรุป: https://example.com/article"
   cs: "Přečti tento článek a shrň ho: https://example.com/article"
   sv: "Läs den här artikeln och sammanfatta: https://example.com/article"
+  he: "**קרא** את המאמר הזה וסכם אותו: https://example.com/article"
   verified_by_human: [en, de]
 
 read.how_to_use.2:
   context: Example instruction for web read skill - extract specific info from URL
-  en: "What does Amazon say about their return policy? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
+  en: "What does **Amazon** say about their return policy? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
   de: "Was sagt Amazon über ihre Rückgabebedingungen? https://www.amazon.de/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
   zh: "亚马逊的退货政策是什么？ https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
   es: "¿Qué dice Amazon sobre su política de devoluciones? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
@@ -218,11 +226,12 @@ read.how_to_use.2:
   th: "Amazon พูดอะไรเกี่ยวกับนโยบายการคืนสินค้า? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
   cs: "Co říká Amazon o své politice vrácení? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
   sv: "Vad säger Amazon om sin returpolicy? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
+  he: "מה **אמזון** אומרים על מדיניות ההחזרות שלהם? https://www.amazon.com/gp/help/customer/display.html?nodeId=GKM69DUUYKQWKCES"
   verified_by_human: [en, de]
 
 read.how_to_use.3:
   context: Example instruction for web read skill - research from Wikipedia
-  en: Read the Wikipedia page about the Roman Empire and give me key facts
+  en: "**Read** the Wikipedia page about the Roman Empire and give me key facts"
   de: Lies den Wikipedia-Artikel über das Römische Reich und nenne mir die wichtigsten Fakten
   zh: 阅读维基百科关于罗马帝国的页面并告诉我关键事实
   es: Lee la página de Wikipedia sobre el Imperio Romano y dame los datos clave
@@ -242,4 +251,5 @@ read.how_to_use.3:
   th: อ่านหน้าวิกิพีเดียเกี่ยวกับจักรวรรดิโรมันและบอกข้อเท็จจริงสำคัญ
   cs: Přečti stránku Wikipedie o Římské říši a dej mi klíčová fakta
   sv: Läs Wikipedia-sidan om Romarriket och ge mig de viktigaste fakta
+  he: "**קרא** את דף הוויקיפדיה על האימפריה הרומית ותן לי עובדות מרכזיות"
   verified_by_human: [en, de]

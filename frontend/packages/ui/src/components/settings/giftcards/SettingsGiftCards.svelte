@@ -28,7 +28,7 @@ Gift Cards Settings - Main menu for gift card operations
 <!-- Redeem Gift Card Menu Item -->
 <SettingsItem
     type="submenu"
-    icon="subsetting_icon subsetting_icon_coins"
+    icon="subsetting_icon coins"
     title={$text('settings.gift_cards.redeem')}
     onClick={() => navigateToSubview('redeem')}
 />
@@ -36,7 +36,7 @@ Gift Cards Settings - Main menu for gift card operations
 <!-- View Redeemed Gift Cards Menu Item -->
 <SettingsItem
     type="submenu"
-    icon="subsetting_icon subsetting_icon_coins"
+    icon="subsetting_icon coins"
     title={$text('settings.gift_cards.redeemed')}
     onClick={() => navigateToSubview('redeemed')}
 />
@@ -44,7 +44,7 @@ Gift Cards Settings - Main menu for gift card operations
 <!-- Buy Gift Card Menu Item -->
 <SettingsItem
     type="submenu"
-    icon="subsetting_icon subsetting_icon_coins"
+    icon="subsetting_icon coins"
     title={$text('settings.gift_cards.buy')}
     onClick={() => navigateToSubview('buy')}
 />

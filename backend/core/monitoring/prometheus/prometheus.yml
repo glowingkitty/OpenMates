@@ -1,7 +1,7 @@
 global:
-  scrape_interval: 5s
-  scrape_timeout: 4s
-  evaluation_interval: 5s
+  scrape_interval: 30s
+  scrape_timeout: 10s
+  evaluation_interval: 30s
 
 alerting:
   alertmanagers:
@@ -21,8 +21,9 @@ scrape_configs:
     metrics_path: /metrics
     static_configs:
       - targets: ["api:8000"]
-      
+
   - job_name: "cadvisor"
-    scrape_interval: 5s
+    scrape_interval: 60s
+    scrape_timeout: 10s
     static_configs:
       - targets: ["cadvisor:8080"]

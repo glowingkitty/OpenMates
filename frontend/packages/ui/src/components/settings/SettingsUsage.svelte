@@ -3,7 +3,7 @@ Usage Settings - View usage statistics and export usage data
 -->
 
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onMount, createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { apiEndpoints, getApiEndpoint } from '../../config/api';
     import SettingsItem from '../SettingsItem.svelte';
@@ -15,6 +15,16 @@ Usage Settings - View usage statistics and export usage data
     import Icon from '../Icon.svelte';
     import { decryptWithMasterKey, getKeyFromStorage, decryptChatKeyWithMasterKey, decryptWithChatKey } from '../../services/cryptoService';
     import { appsMetadata } from '../../data/appsMetadata';
+    import { getAllDraftAudioChatIds } from '../../stores/draftAudioChatStore';
+    import { embedStore } from '../../services/embedStore';
+    import { messageHighlightStore } from '../../stores/messageHighlightStore';
+    import { activeChatStore } from '../../stores/activeChatStore';
+    import { computeSHA256 } from '../../message_parsing/utils';
+
+    const dispatch = createEventDispatcher<{
+        chatSelected: { chat: Chat };
+        closeSettings: void;
+    }>();
 
     // Usage entry interface
     interface UsageEntry {
@@ -34,6 +44,7 @@ Usage Settings - View usage statistics and export usage data
         credits_response?: number; // Credit cost for response tokens
         server_provider?: string; // Server provider display name (e.g., "AWS Bedrock")
         server_region?: string; // Server region (e.g., "EU", "US")
+        tool_inference_iterations?: number | null; // Extra LLM calls from tool use (0 = no tools). Cleartext.
         chat_id?: string | null; // Cleartext - for matching with IndexedDB
         message_id?: string | null; // Cleartext - for matching with IndexedDB
         api_key_hash?: string | null; // SHA-256 hash of the API key that created this usage entry
@@ -135,7 +146,15 @@ Usage Settings - View usage statistics and export usage data
     let overviewChatEntries: UsageEntry[] = $state([]); // All entries for the selected chat
     let isLoadingOverviewEntries = $state(false);
     let overviewSelectedEntry: UsageEntry | null = $state(null); // Selected entry for detail view (level 2)
-    
+
+    // "Open message" / "Open embed" button state for level-2 detail view.
+    // Populated by a $effect that runs when overviewSelectedEntry changes.
+    // null = still checking or no navigable target found (button is hidden).
+    interface OpenMessageTarget { type: 'message'; chat: Chat; }
+    interface OpenEmbedTarget { type: 'embed'; embedId: string; embedType: string; }
+    type OpenTarget = OpenMessageTarget | OpenEmbedTarget;
+    let openTarget: OpenTarget | null = $state(null);
+
     // Chat metadata cache for usage display
     let chatMetadataMap = $state<Map<string, { chat: Chat | null; metadata: DecryptedChatMetadata | null; isDeleted?: boolean }>>(new Map());
     
@@ -154,6 +173,11 @@ Usage Settings - View usage statistics and export usage data
     
     // Track if hidden chats are unlocked (reactive state)
     let hiddenChatsUnlocked = $state(false);
+
+    // Set of chat_ids that were pre-allocated for audio recordings in new (not yet sent) chats.
+    // Populated from localStorage on mount. Used to distinguish "Unsent draft" from "Deleted chat"
+    // when a usage entry's chat_id is not found in the Directus chats collection (is_deleted=true).
+    let draftAudioChatIds = $state<Set<string>>(new Set());
 
     // Format credits with dots as thousand separators
     function formatCredits(credits: number): string {
@@ -958,6 +982,7 @@ Usage Settings - View usage statistics and export usage data
                 icon: icon || null,
                 summary: null,
                 draftPreview: null,
+                activeFocusId: null,
                 lastDecrypted: Date.now(),
             };
         } catch (error) {
@@ -1257,6 +1282,63 @@ Usage Settings - View usage statistics and export usage data
         return { title, subtitle };
     }
 
+    /**
+     * Navigate to the message or embed identified by openTarget.
+     * - "message": opens the chat via chatSelected event chain + globalChatSelected, then
+     *              scrolls to the message via messageHighlightStore. Closes settings.
+     * - "embed": dispatches an embedfullscreen event (ActiveChat handles loading the data).
+     *            Closes settings so the embed is visible.
+     */
+    function handleOpenTarget(): void {
+        if (!openTarget) return;
+
+        if (openTarget.type === 'message') {
+            const { chat } = openTarget;
+            const messageId = overviewSelectedEntry?.message_id;
+            if (!messageId) return;
+
+            // Update the active chat store (updates URL hash, sidebar highlight)
+            activeChatStore.setActiveChat(chat.chat_id);
+
+            // Dispatch Svelte event upward so +page.svelte calls activeChat.loadChat()
+            // (mirrors the SettingsFooter.svelte navigation pattern)
+            dispatch('chatSelected', { chat });
+
+            // Dispatch global window event so Chats.svelte marks the chat active in sidebar
+            window.dispatchEvent(new CustomEvent('globalChatSelected', { detail: { chat } }));
+
+            // Close the settings panel so the chat is visible
+            dispatch('closeSettings');
+
+            // Scroll to and highlight the specific message after the chat has had time to load
+            setTimeout(() => {
+                messageHighlightStore.set(messageId);
+            }, 300);
+
+        } else if (openTarget.type === 'embed') {
+            const { embedId, embedType } = openTarget;
+
+            // Close settings so the embed fullscreen is visible
+            dispatch('closeSettings');
+
+            // ActiveChat listens on document for 'embedfullscreen' and loads fresh data itself.
+            // Small delay so the settings panel starts closing before the embed opens.
+            setTimeout(() => {
+                document.dispatchEvent(new CustomEvent('embedfullscreen', {
+                    bubbles: true,
+                    cancelable: true,
+                    detail: {
+                        embedId,
+                        embedType,
+                        attrs: {},
+                        embedData: null,
+                        decodedContent: null,
+                    },
+                }));
+            }, 50);
+        }
+    }
+
     // Fetch summaries when the active tab actually changes after the initial load.
     // We explicitly track the last tab to avoid double-fetching when hasInitialized flips to true.
     let lastFetchedTab = $state<UsageTab | null>(null);
@@ -1302,6 +1384,59 @@ Usage Settings - View usage statistics and export usage data
         }
     });
 
+    // Resolve "Open message" / "Open embed" target when the level-2 detail entry changes.
+    // We check IndexedDB so the button is only shown when the data is actually accessible.
+    // The check is async so openTarget is reset to null immediately on entry change.
+    $effect(() => {
+        const entry = overviewSelectedEntry;
+        // Reset immediately so the button disappears while checking
+        openTarget = null;
+
+        if (!entry || !entry.message_id) return;
+
+        const messageId = entry.message_id;
+        const isAiAsk = entry.app_id === 'ai' && entry.skill_id === 'ask';
+
+        if (isAiAsk) {
+            // For AI Ask: check if the source message exists in IndexedDB
+            chatDB.getMessage(messageId).then((msg) => {
+                // Only update if the user hasn't navigated away to a different entry
+                if (overviewSelectedEntry?.message_id !== messageId) return;
+                if (!msg) return;
+
+                // Fetch the chat object so we can dispatch globalChatSelected
+                const chatId = entry.chat_id;
+                if (!chatId) return;
+
+                chatDB.getChat(chatId).then((chat) => {
+                    if (overviewSelectedEntry?.message_id !== messageId) return;
+                    if (!chat) return;
+                    openTarget = { type: 'message', chat };
+                }).catch(() => { /* chat not in local DB — button stays hidden */ });
+            }).catch(() => { /* message not found — button stays hidden */ });
+        } else if (entry.app_id && entry.skill_id) {
+            // For app skills: look for an embed with matching hashed_message_id
+            const appId = entry.app_id;
+            const skillId = entry.skill_id;
+
+            computeSHA256(messageId).then((hashedMsgId) => {
+                return embedStore.getEmbedsByAppAndSkill(appId, skillId).then((embeds) => {
+                    if (overviewSelectedEntry?.message_id !== messageId) return;
+                    const match = embeds.find((e) => e.hashed_message_id === hashedMsgId);
+                    if (!match) return;
+
+                    // embedId is the contentRef (e.g. "embed:abc123"), strip the prefix for the event
+                    const embedId = match.contentRef.startsWith('embed:')
+                        ? match.contentRef.slice('embed:'.length)
+                        : match.contentRef;
+                    // Use app_id+skill_id to build a recognisable embed type string
+                    const embedType = `${appId}-${skillId}`;
+                    openTarget = { type: 'embed', embedId, embedType };
+                });
+            }).catch(() => { /* hash or embed lookup failed — button stays hidden */ });
+        }
+    });
+
     // Process and group usage data for display
     const processedUsage = $derived.by(() => {
         console.log('Processing usage entries:', {
@@ -1335,6 +1470,10 @@ Usage Settings - View usage statistics and export usage data
     });
 
     onMount(() => {
+        // Load draft audio chat IDs from localStorage so we can display "Unsent draft" instead of
+        // "Deleted chat" for usage entries linked to recordings that were never sent.
+        draftAudioChatIds = getAllDraftAudioChatIds();
+
         // Load initial data based on default tab (overview)
         const initialLoad = activeTab === 'overview' 
             ? fetchDailyOverview(loadedDays)
@@ -1369,7 +1508,6 @@ Usage Settings - View usage statistics and export usage data
             {$text('settings.usage.export')}
         </button>
     </div>
-    <p class="header-description">{$text('settings.usage.description')}</p>
 </div>
 
 <!-- Category tabs - simple clickable icons -->
@@ -1421,7 +1559,7 @@ Usage Settings - View usage statistics and export usage data
     <div class="error-message">{errorMessage}</div>
         <SettingsItem
             type="quickaction"
-            icon="subsetting_icon subsetting_icon_reload"
+            icon="subsetting_icon reload"
             title={$text('login.retry')}
             onClick={() => fetchUsageSummaries(activeTab, loadedMonths)}
         />
@@ -1549,21 +1687,48 @@ Usage Settings - View usage statistics and export usage data
                             <span class="entry-detail-value">{selEntry.output_tokens.toLocaleString()}</span>
                         </div>
                     {/if}
+                    <!-- Tool inference iterations hint (only shown when tool use occurred, i.e. > 0) -->
+                    <!-- This tells the user why their token count is higher than expected:        -->
+                    <!-- the AI called one or more app skills and re-processed the full context    -->
+                    <!-- after receiving each result, adding an extra LLM call per skill round.   -->
+                    <!-- FAQ: https://openmates.app/faq#tool-inference (do NOT show URL in UI)   -->
+                    {#if selEntry.tool_inference_iterations != null && selEntry.tool_inference_iterations > 0}
+                        <div class="entry-detail-row">
+                            <span class="entry-detail-label">{$text('settings.usage.tool_iterations_label')}</span>
+                            <span class="entry-detail-value entry-detail-value--hint">
+                                {selEntry.tool_inference_iterations}
+                                <span class="entry-detail-hint">{$text('settings.usage.tool_iterations_hint')}</span>
+                            </span>
+                        </div>
+                    {/if}
                 </div>
+
+                <!-- "Open message" / "Open result" button — only shown when the target exists in IndexedDB -->
+                {#if openTarget}
+                    <button onclick={handleOpenTarget}>
+                        <div class="clickable-icon icon_{openTarget.type === 'message' ? 'message-circle' : 'external-link'}"></div>
+                        <span>
+                            {openTarget.type === 'message'
+                                ? $text('settings.usage.open_message')
+                                : $text('settings.usage.open_embed')}
+                        </span>
+                    </button>
+                {/if}
             </div>
         {/each}
     {:else if overviewSelectedChatId}
         <!-- LEVEL 1: Chat entries list (all skill uses for this chat) -->
+        {@const isOverviewIncognito = overviewSelectedChatId === 'incognito'}
         {@const chatCached = chatMetadataMap.get(overviewSelectedChatId)}
         {@const chatMeta = chatCached?.metadata}
         {@const chatObj = chatCached?.chat}
         {@const chatIsHidden = chatObj ? ((chatObj as any).is_hidden_candidate || (chatObj as any).is_hidden) : false}
-        {@const chatCanShow = !chatIsHidden || (chatIsHidden && hiddenChatsUnlocked)}
+        {@const chatCanShow = !isOverviewIncognito && (!chatIsHidden || (chatIsHidden && hiddenChatsUnlocked))}
         {@const chatCategory = chatCanShow ? (chatMeta?.category || null) : null}
-        {@const chatIconName = chatCanShow ? (chatMeta?.icon || (chatCategory ? getFallbackIconForCategory(chatCategory) : 'help-circle')) : 'help-circle'}
+        {@const chatIconName = isOverviewIncognito ? 'incognito' : (chatCanShow ? (chatMeta?.icon || (chatCategory ? getFallbackIconForCategory(chatCategory) : 'help-circle')) : 'help-circle')}
         {@const chatGradient = chatCanShow && chatCategory ? getCategoryGradientColors(chatCategory) : null}
-        {@const ChatIcon = getLucideIcon(chatIconName)}
-        {@const chatTitle = chatCanShow ? (chatMeta?.title || chatObj?.title || 'Chat') : 'Chat'}
+        {@const ChatIcon = isOverviewIncognito ? null : getLucideIcon(chatIconName)}
+        {@const chatTitle = isOverviewIncognito ? $text('settings.usage.incognito_chat') : (chatCanShow ? (chatMeta?.title || chatObj?.title || 'Chat') : 'Chat')}
         
         <div class="usage-detail-view">
             <button 
@@ -1579,14 +1744,24 @@ Usage Settings - View usage statistics and export usage data
             
             <div class="detail-header">
                 <div class="detail-icon-wrapper">
-                    <div 
-                        class="chat-usage-icon-circle" 
-                        style={chatGradient ? `background: linear-gradient(135deg, ${chatGradient.start}, ${chatGradient.end})` : 'background: #cccccc'}
-                    >
-                        <div class="chat-usage-icon">
-                            <ChatIcon size={16} color="white" />
+                    {#if isOverviewIncognito}
+                        <div class="chat-usage-icon-circle" style="background: #555555;">
+                            <div class="chat-usage-icon">
+                                <div class="icon icon_incognito" style="width: 16px; height: 16px; filter: brightness(0) invert(1);"></div>
+                            </div>
                         </div>
-                    </div>
+                    {:else}
+                        <div 
+                            class="chat-usage-icon-circle" 
+                            style={chatGradient ? `background: linear-gradient(135deg, ${chatGradient.start}, ${chatGradient.end})` : 'background: #cccccc'}
+                        >
+                            <div class="chat-usage-icon">
+                                {#if ChatIcon}
+                                    <ChatIcon size={16} color="white" />
+                                {/if}
+                            </div>
+                        </div>
+                    {/if}
                 </div>
                 <div class="detail-title-wrapper">
                     <h3 class="detail-title">{chatTitle}</h3>
@@ -1677,14 +1852,16 @@ Usage Settings - View usage statistics and export usage data
                                 {@const cached = chatMetadataMap.get(item.chat_id)}
                                 {@const metadata = cached?.metadata}
                                 {@const chat = cached?.chat}
+                                {@const isIncognitoChat = item.chat_id === 'incognito'}
                                 {@const isDeletedChat = cached?.isDeleted === true || item.is_deleted === true}
+                                {@const isUnsentDraft = isDeletedChat && item.chat_id != null && draftAudioChatIds.has(item.chat_id)}
                                 {@const isHiddenChat = chat ? ((chat as any).is_hidden_candidate || (chat as any).is_hidden) : false}
-                                {@const canShowDetails = !isDeletedChat && (!isHiddenChat || (isHiddenChat && hiddenChatsUnlocked))}
+                                {@const canShowDetails = !isIncognitoChat && !isDeletedChat && (!isHiddenChat || (isHiddenChat && hiddenChatsUnlocked))}
                                 {@const category = canShowDetails ? (metadata?.category || null) : null}
-                                {@const iconName = canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : (isDeletedChat ? 'trash-2' : 'help-circle')}
+                                {@const iconName = isIncognitoChat ? 'incognito' : (canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : (isDeletedChat ? 'trash-2' : 'help-circle'))}
                                 {@const gradientColors = canShowDetails && category ? getCategoryGradientColors(category) : null}
-                                {@const IconComponent = isDeletedChat ? null : getLucideIcon(iconName)}
-                                {@const title = isDeletedChat ? $text('settings.usage.deleted_chat') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat')}
+                                {@const IconComponent = (isDeletedChat || isIncognitoChat) ? null : getLucideIcon(iconName)}
+                                {@const title = isIncognitoChat ? $text('settings.usage.incognito_chat') : (isUnsentDraft ? $text('settings.usage.unsent_draft') : (isDeletedChat ? $text('settings.usage.deleted_chat') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat')))}
                                 
                                 <button
                                     type="button"
@@ -1696,7 +1873,20 @@ Usage Settings - View usage statistics and export usage data
                                     }}
                                 >
                                     <div class="chat-usage-icon-wrapper">
-                                        {#if isDeletedChat}
+                                        {#if isIncognitoChat}
+                                            <div class="chat-usage-icon-circle" style="background: #555555;">
+                                                <div class="chat-usage-icon">
+                                                    <div class="icon icon_incognito" style="width: 14px; height: 14px; filter: brightness(0) invert(1);"></div>
+                                                </div>
+                                            </div>
+                                        {:else if isUnsentDraft}
+                                            <!-- Unsent draft: mic icon, purple gradient background -->
+                                            <div class="chat-usage-icon-circle" style="background: linear-gradient(135deg, #6B8DD6, #8E37D7);">
+                                                <div class="chat-usage-icon">
+                                                    <div class="clickable-icon icon_recordaudio" style="width: 14px; height: 14px; background: white;"></div>
+                                                </div>
+                                            </div>
+                                        {:else if isDeletedChat}
                                             <div class="chat-usage-icon-circle deleted-icon-circle">
                                                 <div class="chat-usage-icon">
                                                     <div class="clickable-icon icon_delete" style="width: 14px; height: 14px;"></div>
@@ -1716,7 +1906,7 @@ Usage Settings - View usage statistics and export usage data
                                         {/if}
                                     </div>
                                     <div class="overview-item-content">
-                                        <div class="overview-item-title" class:deleted-text={isDeletedChat}>{title}</div>
+                                        <div class="overview-item-title" class:deleted-text={isDeletedChat && !isUnsentDraft}>{title}</div>
                                         <div class="overview-item-subtitle">{item.entry_count} {item.entry_count === 1 ? 'request' : 'requests'}</div>
                                     </div>
                                     <div class="overview-item-credits">
@@ -1775,27 +1965,38 @@ Usage Settings - View usage statistics and export usage data
         </button>
         
         {#if selectedChatId}
+            {@const isSelectedIncognito = selectedChatId === 'incognito'}
             {@const selectedChatMetadata = chatMetadataMap.get(selectedChatId)}
             {@const selectedChat = selectedChatMetadata?.chat}
             {@const selectedMetadata = selectedChatMetadata?.metadata}
             {@const selectedIsHiddenChat = selectedChat ? ((selectedChat as any).is_hidden_candidate || (selectedChat as any).is_hidden) : false}
-            {@const selectedCanShowDetails = !selectedIsHiddenChat || (selectedIsHiddenChat && hiddenChatsUnlocked)}
+            {@const selectedCanShowDetails = !isSelectedIncognito && (!selectedIsHiddenChat || (selectedIsHiddenChat && hiddenChatsUnlocked))}
             {@const selectedCategory = selectedCanShowDetails ? (selectedMetadata?.category || null) : null}
-            {@const selectedIconName = selectedCanShowDetails ? (selectedMetadata?.icon || (selectedCategory ? getFallbackIconForCategory(selectedCategory) : 'help-circle')) : 'help-circle'}
+            {@const selectedIconName = isSelectedIncognito ? 'incognito' : (selectedCanShowDetails ? (selectedMetadata?.icon || (selectedCategory ? getFallbackIconForCategory(selectedCategory) : 'help-circle')) : 'help-circle')}
             {@const selectedGradientColors = selectedCanShowDetails && selectedCategory ? getCategoryGradientColors(selectedCategory) : null}
-            {@const SelectedIconComponent = getLucideIcon(selectedIconName)}
-            {@const selectedTitle = selectedCanShowDetails ? (selectedMetadata?.title || selectedChat?.title || 'Chat') : 'Chat'}
+            {@const SelectedIconComponent = isSelectedIncognito ? null : getLucideIcon(selectedIconName)}
+            {@const selectedTitle = isSelectedIncognito ? $text('settings.usage.incognito_chat') : (selectedCanShowDetails ? (selectedMetadata?.title || selectedChat?.title || 'Chat') : 'Chat')}
             
             <div class="detail-header">
                 <div class="detail-icon-wrapper">
-                    <div 
-                        class="detail-icon-circle" 
-                        style={selectedGradientColors ? `background: linear-gradient(135deg, ${selectedGradientColors.start}, ${selectedGradientColors.end})` : 'background: #cccccc'}
-                    >
-                        <div class="detail-icon">
-                            <SelectedIconComponent size={20} color="white" />
+                    {#if isSelectedIncognito}
+                        <div class="detail-icon-circle" style="background: #555555;">
+                            <div class="detail-icon">
+                                <div class="icon icon_incognito" style="width: 20px; height: 20px; filter: brightness(0) invert(1);"></div>
+                            </div>
                         </div>
-                    </div>
+                    {:else}
+                        <div 
+                            class="detail-icon-circle" 
+                            style={selectedGradientColors ? `background: linear-gradient(135deg, ${selectedGradientColors.start}, ${selectedGradientColors.end})` : 'background: #cccccc'}
+                        >
+                            <div class="detail-icon">
+                                {#if SelectedIconComponent}
+                                    <SelectedIconComponent size={20} color="white" />
+                                {/if}
+                            </div>
+                        </div>
+                    {/if}
                 </div>
                 <div class="detail-info">
                     <h3>{selectedTitle}</h3>
@@ -2033,14 +2234,16 @@ Usage Settings - View usage statistics and export usage data
                         {@const chat = summary.chat}
                         {@const metadata = summary.metadata}
                         {@const cachedEntry = chatMetadataMap.get(summary.chat_id)}
+                        {@const isIncognitoChat = summary.chat_id === 'incognito'}
                         {@const isDeletedChat = cachedEntry?.isDeleted === true}
+                        {@const isUnsentDraft = isDeletedChat && draftAudioChatIds.has(summary.chat_id)}
                         {@const isHiddenChat = chat ? ((chat as any).is_hidden_candidate || (chat as any).is_hidden) : false}
-                        {@const canShowDetails = !isDeletedChat && (!isHiddenChat || (isHiddenChat && hiddenChatsUnlocked))}
+                        {@const canShowDetails = !isIncognitoChat && !isDeletedChat && (!isHiddenChat || (isHiddenChat && hiddenChatsUnlocked))}
                         {@const category = canShowDetails ? (metadata?.category || null) : null}
-                        {@const iconName = canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : (isDeletedChat ? 'trash-2' : 'help-circle')}
+                        {@const iconName = isIncognitoChat ? 'incognito' : (canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : (isDeletedChat ? 'trash-2' : 'help-circle'))}
                         {@const gradientColors = canShowDetails && category ? getCategoryGradientColors(category) : null}
-                        {@const IconComponent = isDeletedChat ? null : getLucideIcon(iconName)}
-                        {@const title = isDeletedChat ? $text('settings.usage.deleted_chat') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat')}
+                        {@const IconComponent = (isDeletedChat || isIncognitoChat) ? null : getLucideIcon(iconName)}
+                        {@const title = isIncognitoChat ? $text('settings.usage.incognito_chat') : (isUnsentDraft ? $text('settings.usage.unsent_draft') : (isDeletedChat ? $text('settings.usage.deleted_chat') : (canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat')))}
                         
                         <button
                             type="button"
@@ -2054,7 +2257,20 @@ Usage Settings - View usage statistics and export usage data
                             aria-label={$text('settings.usage.view_chat_details')}
                         >
                             <div class="chat-usage-icon-wrapper">
-                                {#if isDeletedChat}
+                                {#if isIncognitoChat}
+                                    <div class="chat-usage-icon-circle" style="background: #555555;">
+                                        <div class="chat-usage-icon">
+                                            <div class="icon icon_incognito" style="width: 14px; height: 14px; filter: brightness(0) invert(1);"></div>
+                                        </div>
+                                    </div>
+                                {:else if isUnsentDraft}
+                                    <!-- Unsent draft: mic icon, purple gradient background -->
+                                    <div class="chat-usage-icon-circle" style="background: linear-gradient(135deg, #6B8DD6, #8E37D7);">
+                                        <div class="chat-usage-icon">
+                                            <div class="clickable-icon icon_recordaudio" style="width: 14px; height: 14px; background: white;"></div>
+                                        </div>
+                                    </div>
+                                {:else if isDeletedChat}
                                     <div class="chat-usage-icon-circle deleted-icon-circle">
                                         <div class="chat-usage-icon">
                                             <div class="clickable-icon icon_delete" style="width: 14px; height: 14px;"></div>
@@ -2074,7 +2290,7 @@ Usage Settings - View usage statistics and export usage data
                                 {/if}
                             </div>
                             <div class="chat-usage-content">
-                                <div class="chat-usage-title" class:deleted-text={isDeletedChat}>{title}</div>
+                                <div class="chat-usage-title" class:deleted-text={isDeletedChat && !isUnsentDraft}>{title}</div>
                             </div>
                             <div class="chat-usage-credits">
                                 <span class="credits-amount">{formatCredits(summary.totalCredits)}</span>
@@ -2311,6 +2527,7 @@ Usage Settings - View usage statistics and export usage data
     }
 
     .tab-icon-button {
+        /* Reset all global button styles that make tabs too wide */
         background: none;
         border: none;
         cursor: pointer;
@@ -2322,6 +2539,11 @@ Usage Settings - View usage statistics and export usage data
         transition: all 0.2s ease;
         flex-shrink: 0;
         opacity: 0.5;
+        /* Override global button.css values */
+        min-width: unset;
+        height: unset;
+        filter: none;
+        margin-right: 0;
     }
 
     .tab-icon-button:hover {
@@ -2705,6 +2927,7 @@ Usage Settings - View usage statistics and export usage data
         color: var(--color-grey-80);
     }
 
+
     .detail-header {
         display: flex;
         align-items: center;
@@ -3016,6 +3239,19 @@ Usage Settings - View usage statistics and export usage data
         font-size: 12px;
         color: var(--color-grey-50);
         font-weight: 400;
+    }
+
+    /* Tool iteration hint: subtle secondary text shown after the iteration count */
+    .entry-detail-value--hint {
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 6px;
+    }
+
+    .entry-detail-hint {
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--color-grey-50);
     }
 
     /* Deleted chat styles */

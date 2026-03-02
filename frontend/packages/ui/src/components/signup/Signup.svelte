@@ -44,6 +44,7 @@
     import { notificationStore } from '../../stores/notificationStore'; // Import notification store for payment failure notifications
     import { pricingTiers } from '../../config/pricing'; // Import pricing tiers to get price for purchased credits
     import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // Import phased sync state to mark sync completed after signup
+    import { createOnboardingChat, hasOnboardingChat } from '../../services/onboardingChatService'; // Import onboarding chat creation
 
     // Dynamic imports for step contents
     import ConfirmEmailTopContent from './steps/confirmemail/ConfirmEmailTopContent.svelte';
@@ -304,7 +305,7 @@
                 // Find the tier to get the correct price
                 const tier = pricingTiers.find(t => t.credits === selectedCreditsAmount);
                 if (tier) {
-                    const currencyKey = selectedCurrency.toLowerCase() as 'eur' | 'usd' | 'jpy';
+                    const currencyKey = selectedCurrency.toLowerCase() as 'eur' | 'usd';
                     selectedPrice = tier.price[currencyKey] || tier.price.eur;
                     console.debug(`[Signup] Updated selectedPrice from tier: ${selectedPrice} ${selectedCurrency}`);
                 }
@@ -952,13 +953,37 @@
                 paymentState = 'idle';
             }, 500);
         } else if (paymentState === 'success') { // Add success handling
-            console.debug("Payment successful, saving payment method...");
+            const paymentProvider = event.detail.provider || 'stripe';
+            console.debug(`[Signup] Payment successful via provider: ${paymentProvider}`);
             console.debug(`[Signup] Using selectedCreditsAmount: ${selectedCreditsAmount}, selectedPrice: ${selectedPrice}`);
             
             // Reset payment method save status
             paymentMethodSaved = false;
             paymentMethodSaveError = null;
             
+            // Credits will be updated via WebSocket 'user_credits_updated' event from backend
+            // The listener set up in onMount will handle the update automatically
+            // If WebSocket is not connected, ensure it's connected to receive the update
+            if (!webSocketService.isConnected()) {
+                console.debug("[Signup] WebSocket not connected, attempting to connect to receive credit updates...");
+                webSocketService.connect().catch(error => {
+                    console.warn("[Signup] Failed to connect WebSocket after payment:", error);
+                    // Continue anyway - credits will update when WebSocket connects or on next sync
+                });
+            }
+
+            // Polar does not support saved payment methods — they act as Merchant of Record
+            // and own the payment relationship. Auto top-up requires a stored card, so skip
+            // the auto top-up step entirely for Polar users and go straight to completion.
+            if (paymentProvider === 'polar') {
+                console.debug("[Signup] Polar payment — skipping save-payment-method and auto top-up step");
+                setTimeout(() => {
+                    goToStep(STEP_COMPLETION);
+                }, 500);
+                return;
+            }
+            
+            // Stripe flow: save payment method then show auto top-up step
             // Save payment_intent_id for later subscription creation
             paymentIntentId = event.detail.payment_intent_id;
             
@@ -1034,19 +1059,7 @@
                 );
             }
             
-            // Credits will be updated via WebSocket 'user_credits_updated' event from backend
-            // The listener set up in onMount will handle the update automatically
-            // If WebSocket is not connected, ensure it's connected to receive the update
-            if (!webSocketService.isConnected()) {
-                console.debug("[Signup] WebSocket not connected, attempting to connect to receive credit updates...");
-                webSocketService.connect().catch(error => {
-                    console.warn("[Signup] Failed to connect WebSocket after payment:", error);
-                    // Continue anyway - credits will update when WebSocket connects or on next sync
-                });
-            }
-            
-            // After payment success, go to auto top-up step
-            // Only proceed if payment method was saved successfully (or if user wants to skip)
+            // After payment success (Stripe), go to auto top-up step
             setTimeout(() => {
                 goToStep(STEP_AUTO_TOP_UP);
             }, 500); // Short delay for smooth transition
@@ -1104,6 +1117,38 @@
         phasedSyncState.markSyncCompleted();
         console.debug("[Signup] Marked phased sync as completed after signup (new user has no chats to sync)");
 
+        // Create the onboarding chat with Suki's pre-activated welcome focus mode.
+        // Uses hasOnboardingChat() as a guard against duplicate creation on page reload.
+        // This is fire-and-forget — a failure here must not block signup completion.
+        //
+        // After creation, the chat is auto-opened on ALL devices (mobile + desktop) by
+        // setting it as the active chat via activeChatStore. This is a one-time action
+        // that only runs during signup, never on subsequent page loads.
+        try {
+            const alreadyExists = await hasOnboardingChat();
+            if (!alreadyExists) {
+                const username = $signupStore.username || '';
+                const onboardingChatId = await createOnboardingChat(username);
+                if (onboardingChatId) {
+                    // Auto-open is handled by the localChatListChanged event dispatched from
+                    // onboardingChatService.createOnboardingChat() with autoOpen: true.
+                    // Chats.svelte picks this up and sets _chatIdToSelectAfterUpdate, which
+                    // triggers handleChatClick → chatSelected → loadChat() without touching
+                    // the URL hash (avoids the programmatic hash update guard).
+                    console.debug(`[Signup] Created onboarding chat ${onboardingChatId} — auto-open dispatched via localChatListChanged`);
+                } else {
+                    console.warn("[Signup] createOnboardingChat returned null — onboarding chat was not created");
+                }
+            } else {
+                console.debug("[Signup] Onboarding chat already exists — skipping creation");
+            }
+        } catch (error) {
+            // Non-fatal: log but do not block signup completion
+            console.error("[Signup] Failed to create onboarding chat:", error);
+        }
+
+        // Open sidebar on desktop so the user sees the chat list.
+        // On mobile, the chat will open in the main area via activeChatStore.
         if (window.innerWidth >= MOBILE_BREAKPOINT) {
             isMenuOpen.set(true);
         }
