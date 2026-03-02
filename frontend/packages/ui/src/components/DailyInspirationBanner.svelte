@@ -68,8 +68,19 @@
   let inspirations = $state<DailyInspiration[]>([]);
   let currentIndex = $state(0);
 
-  // Track which inspiration_ids we have already sent a `viewed` WS event for
+  // Track which inspiration_ids we have already sent a `viewed` WS event for.
+  // An entry is added as soon as the banner is visible in the viewport AND the
+  // inspiration is the currently displayed carousel slide — this ensures each
+  // unique inspiration is counted toward tomorrow's replacement quota even if
+  // the user never clicks it (passive view tracking).
   let viewedIds = $state(new Set<string>());
+
+  // Whether the banner wrapper is currently intersecting the viewport.
+  // Set by the IntersectionObserver mounted in onMount.
+  let isBannerVisible = $state(false);
+
+  // Reference to the outer wrapper element — used as the IntersectionObserver target.
+  let bannerWrapperEl = $state<HTMLElement | null>(null);
 
   // ─── Subscribe to store ─────────────────────────────────────────────────────
 
@@ -79,6 +90,52 @@
   });
 
   onDestroy(unsubscribe);
+
+  // ─── Passive view tracking via IntersectionObserver ─────────────────────────
+  //
+  // Goal: mark an inspiration as "viewed" as soon as the user can actually see
+  // it — regardless of whether they click it.  This feeds the daily generation
+  // job's "how many new ones to create tomorrow" counter.
+  //
+  // Approach:
+  //   1. An IntersectionObserver watches the outer wrapper element. When it
+  //      enters the viewport (≥50 % visible), isBannerVisible becomes true.
+  //   2. A reactive $effect watches (isBannerVisible + current). Whenever both
+  //      are truthy and the current inspiration hasn't been reported yet, it
+  //      sends the `inspiration_viewed` WS event and records the ID in viewedIds.
+  //   3. Carousel navigation: currentIndex changes → current changes → the effect
+  //      re-runs → the newly-shown inspiration is reported (if the banner is
+  //      still in view).
+
+  // Attach / detach the IntersectionObserver whenever the wrapper element is
+  // mounted or unmounted (Svelte 5 $effect re-runs when bannerWrapperEl changes).
+  $effect(() => {
+    if (typeof IntersectionObserver === 'undefined') return;
+    if (!bannerWrapperEl) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        isBannerVisible = entry?.isIntersecting ?? false;
+      },
+      { threshold: 0.5 },
+    );
+
+    observer.observe(bannerWrapperEl);
+    return () => observer.disconnect();
+  });
+
+  // Fire `inspiration_viewed` whenever the current inspiration becomes visible.
+  $effect(() => {
+    if (!isBannerVisible) return;
+    if (!current) return;
+    const id = current.inspiration_id;
+    if (viewedIds.has(id)) return;
+
+    // Mark before sending to prevent duplicate sends if the effect re-runs quickly
+    viewedIds = new Set([...viewedIds, id]);
+    sendViewedEvent(id);
+  });
 
   // ─── Derived values ─────────────────────────────────────────────────────────
 
@@ -235,8 +292,10 @@
 </script>
 
 {#if inspirations.length > 0 && current}
-  <!-- Outer wrapper for fade-in animation and full-width layout -->
-  <div class="daily-inspiration-wrapper">
+  <!-- Outer wrapper for fade-in animation and full-width layout.
+       bind:this lets the IntersectionObserver target this element to detect
+       when the banner enters the viewport for passive view tracking. -->
+  <div class="daily-inspiration-wrapper" bind:this={bannerWrapperEl}>
 
     <!--
       Banner card: div[role=button] avoids nested-button HTML validation errors

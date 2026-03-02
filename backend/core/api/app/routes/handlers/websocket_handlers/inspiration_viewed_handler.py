@@ -1,9 +1,13 @@
 # backend/core/api/app/routes/handlers/websocket_handlers/inspiration_viewed_handler.py
 # WebSocket handler for the `inspiration_viewed` client→server message.
 #
-# When the user's browser reports that a Daily Inspiration banner became visible,
-# the client sends an `inspiration_viewed` message with the inspiration_id.
-# This handler records the view in cache for the daily generation job to use.
+# The client sends this message as soon as a Daily Inspiration banner becomes
+# visible in the viewport (≥50% intersection via IntersectionObserver), and also
+# when the carousel advances to a new slide while the banner is already visible.
+# A user who passively scrolls past all 3 inspirations without clicking any will
+# still have all 3 counted, resulting in all 3 being replaced the next cycle.
+# The client deduplicates per session: each inspiration_id is reported at most
+# once even if the user scrolls away and back.
 #
 # Message format (client → server):
 #   { "type": "inspiration_viewed", "payload": { "inspiration_id": "<uuid>" } }
