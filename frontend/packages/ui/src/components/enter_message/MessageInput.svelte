@@ -1251,11 +1251,18 @@
  
     /**
      * Inline style for the message-field div.
-     * In maps/camera overlay: fixed height 400px (highest priority — also applies in fullscreen).
      * In narrow fullscreen (<1024px, containerRect available): position:fixed covering the chat card,
      *   leaving 20px visible at top so the user can tap outside to dismiss.
      * In fullscreen (fallback, no containerRect yet): height 65dvh.
+     * In maps/camera overlay open (non-fullscreen only): fixed height 400px.
      * Default: auto height, max 350px.
+     *
+     * IMPORTANT: In fullscreen mode, we always use an explicit pixel height (never `height: auto`)
+     * so that Svelte transitions on absolutely-positioned children (e.g. MapsView's slide transition)
+     * can correctly measure the container height via getComputedStyle. With `height: auto` on a
+     * `position: fixed` element, getComputedStyle may return `0px` synchronously before the browser
+     * has performed a layout pass, causing the slide animation to animate to 0 height and Leaflet
+     * to initialise in a zero-height container (making the map invisible).
      */
     let messagePanelStyle = $derived((() => {
         // Fullscreen checks run first so that opening maps/camera while the field
@@ -1263,14 +1270,18 @@
         // use `position:absolute; inset:0` and fill whatever height the field has,
         // so they work correctly inside a fullscreen container too.
         if (isFullscreen && containerRect && typeof window !== 'undefined') {
-            // Narrow/medium mode: cover the chat card, leaving 20px visible at top
-            // so the user can still tap outside to dismiss. Uses position:fixed anchored to
-            // containerRect so it works correctly even when sidebars are open.
+            // Cover the chat card, leaving 20px visible at top so the user can still tap
+            // outside to dismiss. Uses position:fixed anchored to containerRect so it works
+            // correctly even when sidebars are open.
             // max-width:none overrides .message-input-container > * { max-width: 629px }.
+            // Use an explicit pixel height (containerRect.height - 20) instead of `height:auto`
+            // so that Svelte transitions on child overlays (MapsView, CameraView) can measure
+            // the container height correctly via getComputedStyle before the browser layout pass.
             const top    = containerRect.top + 20;
             const bottom = window.innerHeight - containerRect.bottom;
             const left   = containerRect.left;
             const right  = window.innerWidth - containerRect.right;
+            const height = containerRect.height - 20;
             return [
                 'position: fixed',
                 `left: ${left}px`,
@@ -1278,7 +1289,7 @@
                 `right: ${right}px`,
                 `bottom: ${bottom}px`,
                 'width: auto',
-                'height: auto',
+                `height: ${height}px`,
                 'max-height: none',
                 'max-width: none',
                 'z-index: 200',
