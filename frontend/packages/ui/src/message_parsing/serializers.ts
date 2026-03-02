@@ -162,42 +162,76 @@ export function parseEmbedClipboardData(
  * and re-inserted as a live embed card (resolved from IndexedDB via contentRef).
  * When pasted in an external app, only the text/plain value is used.
  *
- * Falls back in order:
- *   1. ClipboardItem.write() with dual MIME types (Chromium, Firefox 87+)
- *   2. navigator.clipboard.writeText() plain text only
- *   3. document.execCommand('copy') via hidden textarea — works on Safari when
- *      the user-gesture token has expired (which happens after async awaits)
+ * **Safari clipboard gesture token compatibility:**
+ * Safari requires that navigator.clipboard.write() is called synchronously within
+ * a user-gesture handler. Any await before the clipboard call causes the gesture
+ * token to expire. This function accepts a Promise<string> for plainText — when
+ * ClipboardItem is available, it is constructed synchronously with the promise as
+ * the blob value, so navigator.clipboard.write() is called immediately without
+ * awaiting. Safari 13.1+ and all modern Chromium/Firefox support Promise<Blob> in
+ * ClipboardItem constructors.
  *
- * @param attrs      - TipTap embed node attributes
- * @param plainText  - Human-readable text to write as the text/plain fallback
- *                     (e.g. code content, transcript text, video URL)
+ * Call sites should pass `Promise.resolve(text)` when the text is already known,
+ * or a pending Promise<string> from an async content-resolution call that was
+ * started (but not awaited) before calling this function. The caller should
+ * independently await the content promise to know when the copy is complete.
+ *
+ * Falls back in order:
+ *   1. ClipboardItem.write() with Promise<Blob> values — called synchronously,
+ *      supports Safari gesture token + dual MIME (custom MIME ignored on Safari)
+ *   2. navigator.clipboard.writeText() plain text only (after promise resolves)
+ *   3. document.execCommand('copy') via hidden textarea
+ *
+ * @param attrs          - TipTap embed node attributes
+ * @param plainTextPromise - Promise resolving to human-readable text for text/plain
+ *                           (e.g. code content, transcript text, video URL)
  */
 export async function writeEmbedToClipboard(
   attrs: EmbedNodeAttributes,
-  plainText: string,
+  plainTextPromise: string | Promise<string>,
 ): Promise<void> {
   const clipboardData = createEmbedClipboardData(attrs);
   const json = JSON.stringify(clipboardData);
 
-  // Attempt 1: ClipboardItem with dual MIME types (preferred — enables in-app paste)
-  // NOTE: Safari rejects custom MIME types like "application/x-openmates-embed",
-  // so this path typically only succeeds on Chromium/Firefox.
+  // Normalise: wrap plain strings in a resolved promise so all paths below
+  // can treat the value uniformly.
+  const textPromise: Promise<string> =
+    typeof plainTextPromise === "string"
+      ? Promise.resolve(plainTextPromise)
+      : plainTextPromise;
+
+  // Attempt 1: ClipboardItem with Promise<Blob> values.
+  //
+  // The ClipboardItem constructor is called synchronously (within the user
+  // gesture), and navigator.clipboard.write() is also called synchronously.
+  // The actual blob content resolves asynchronously, which Safari allows —
+  // the gesture token is captured at the navigator.clipboard.write() call,
+  // not when the blob promise resolves.
+  //
+  // Safari rejects unknown MIME types, so "application/x-openmates-embed" will
+  // be silently dropped on Safari; the "text/plain" entry still succeeds.
   if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
     try {
+      const textBlobPromise = textPromise.then(
+        (t) => new Blob([t], { type: "text/plain" }),
+      );
+      const embedBlobPromise = textPromise.then(
+        () => new Blob([json], { type: "application/x-openmates-embed" }),
+      );
+
+      // navigator.clipboard.write() is called synchronously here — no await before this point.
       await navigator.clipboard.write([
         new ClipboardItem({
-          "text/plain": new Blob([plainText], { type: "text/plain" }),
-          "application/x-openmates-embed": new Blob([json], {
-            type: "application/x-openmates-embed",
-          }),
+          "text/plain": textBlobPromise,
+          "application/x-openmates-embed": embedBlobPromise,
         }),
       ]);
       console.debug(
-        "[writeEmbedToClipboard] Copied via ClipboardItem (dual MIME)",
+        "[writeEmbedToClipboard] Copied via ClipboardItem (dual MIME, promise-based)",
       );
       return;
     } catch (err) {
-      // ClipboardItem write failed — common on Safari which rejects custom MIME types
+      // ClipboardItem write failed — fall through to writeText
       console.warn(
         "[writeEmbedToClipboard] ClipboardItem.write failed, trying writeText:",
         err,
@@ -205,7 +239,8 @@ export async function writeEmbedToClipboard(
     }
   }
 
-  // Attempt 2 + 3: writeText → execCommand fallback
+  // Attempts 2 + 3 require the resolved text value.
+  const plainText = await textPromise;
   await _writeTextWithFallback(plainText, "[writeEmbedToClipboard]");
 }
 
@@ -219,15 +254,26 @@ export async function writeEmbedToClipboard(
  * When pasted inside OpenMates MessageInput, the paste handler reads the JSON array
  * and inserts each embed node before inserting the surrounding message text.
  *
- * @param embedAttrs  - Array of TipTap embed node attributes for all embeds in the message
- * @param messageText - The full message text (markdown), used as the text/plain value
+ * Uses the same Promise<Blob> ClipboardItem pattern as writeEmbedToClipboard for
+ * Safari gesture-token compatibility — see that function's doc for full details.
+ *
+ * @param embedAttrs       - Array of TipTap embed node attributes for all embeds in the message
+ * @param messageTextPromise - Promise resolving to the full message text (markdown), used as text/plain
  */
 export async function writeMessageWithEmbedsToClipboard(
   embedAttrs: EmbedNodeAttributes[],
-  messageText: string,
+  messageTextPromise: string | Promise<string>,
 ): Promise<void> {
+  // Normalise string → resolved promise so all paths below are uniform.
+  const textPromise: Promise<string> =
+    typeof messageTextPromise === "string"
+      ? Promise.resolve(messageTextPromise)
+      : messageTextPromise;
+
   if (embedAttrs.length === 0) {
-    // No embeds — plain text copy with same Safari-compatible fallback chain
+    // No embeds — plain text copy with same Safari-compatible fallback chain.
+    // Still need to wait for the text to resolve before writing.
+    const messageText = await textPromise;
     await _writeTextWithFallback(
       messageText,
       "[writeMessageWithEmbedsToClipboard]",
@@ -238,19 +284,26 @@ export async function writeMessageWithEmbedsToClipboard(
   const clipboardItems = embedAttrs.map(createEmbedClipboardData);
   const json = JSON.stringify(clipboardItems);
 
-  // Attempt 1: ClipboardItem with dual MIME types
+  // Attempt 1: ClipboardItem with Promise<Blob> values (synchronous write for Safari).
+  // See writeEmbedToClipboard for full explanation of the gesture-token strategy.
   if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
     try {
+      const textBlobPromise = textPromise.then(
+        (t) => new Blob([t], { type: "text/plain" }),
+      );
+      const embedBlobPromise = textPromise.then(
+        () => new Blob([json], { type: "application/x-openmates-embed" }),
+      );
+
+      // navigator.clipboard.write() called synchronously — no await before this point.
       await navigator.clipboard.write([
         new ClipboardItem({
-          "text/plain": new Blob([messageText], { type: "text/plain" }),
-          "application/x-openmates-embed": new Blob([json], {
-            type: "application/x-openmates-embed",
-          }),
+          "text/plain": textBlobPromise,
+          "application/x-openmates-embed": embedBlobPromise,
         }),
       ]);
       console.debug(
-        "[writeMessageWithEmbedsToClipboard] Copied via ClipboardItem (dual MIME)",
+        "[writeMessageWithEmbedsToClipboard] Copied via ClipboardItem (dual MIME, promise-based)",
       );
       return;
     } catch (err) {
@@ -261,7 +314,8 @@ export async function writeMessageWithEmbedsToClipboard(
     }
   }
 
-  // Attempt 2 + 3: writeText → execCommand fallback (same as writeEmbedToClipboard)
+  // Attempts 2 + 3: writeText → execCommand fallback (same as writeEmbedToClipboard).
+  const messageText = await textPromise;
   await _writeTextWithFallback(
     messageText,
     "[writeMessageWithEmbedsToClipboard]",

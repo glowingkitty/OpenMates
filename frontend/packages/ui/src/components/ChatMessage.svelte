@@ -1219,40 +1219,58 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
                         selectedNode.attrs.type?.startsWith('code-code');
     if (menuType === 'code' && selectedNode.type.name === 'embed' && isCodeEmbed) {
       const embedId = getEmbedIdFromNode(selectedNode);
+      // Snapshot inline attrs for fallback (used when no embedId or resolve fails)
+      const inlineCode = selectedNode.attrs?.code || '';
+      const inlineLanguage = selectedNode.attrs?.language || 'text';
+      const inlineFilename = selectedNode.attrs?.filename;
 
       try {
-        let code = selectedNode.attrs?.code || '';
-        let language = selectedNode.attrs?.language || 'text';
-        let filename = selectedNode.attrs?.filename;
+        if (action === 'copy') {
+          // Build content promise that resolves the embed if possible, falling back to inline attrs.
+          // The promise is constructed WITHOUT await so writeEmbedToClipboard can call
+          // navigator.clipboard.write() synchronously (Safari gesture-token compatibility).
+          const codePromise: Promise<string> = embedId
+            ? import('../services/embedResolver').then(({ resolveEmbed, decodeToonContent }) =>
+                resolveEmbed(embedId).then(async (embedData) => {
+                  if (embedData?.content) {
+                    const decoded = await decodeToonContent(embedData.content);
+                    return decoded?.code || inlineCode;
+                  }
+                  return inlineCode;
+                })
+              )
+            : Promise.resolve(inlineCode);
 
-        // Prefer resolving the embed by ID when available (source of truth)
-        if (embedId) {
-          const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
-          const embedData = await resolveEmbed(embedId);
-          if (embedData?.content) {
-            const decodedContent = await decodeToonContent(embedData.content);
-            code = decodedContent?.code || code;
-            language = decodedContent?.language || language;
-            filename = decodedContent?.filename || filename;
-          }
-        }
+          // Initiate clipboard write immediately (synchronous within the gesture context).
+          const copyDone = writeEmbedToClipboard(snapshotAttrs, codePromise);
 
-        switch (action) {
-          case 'copy': {
-            if (!code) break;
-            // Write embed reference (for in-app paste) + code text (for external paste)
-            await writeEmbedToClipboard(snapshotAttrs, code);
+          // Await resolution to show notification; rethrow errors to the outer catch.
+          const code = await codePromise;
+          await copyDone;
+          if (code) {
             const { notificationStore } = await import('../stores/notificationStore');
             notificationStore.success('Code copied to clipboard');
-            break;
           }
-          case 'download': {
-            if (!code) break;
+        } else if (action === 'download') {
+          // Download does not need the gesture-token trick — just resolve normally.
+          let code = inlineCode;
+          let language = inlineLanguage;
+          let filename = inlineFilename;
+          if (embedId) {
+            const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
+            const embedData = await resolveEmbed(embedId);
+            if (embedData?.content) {
+              const decoded = await decodeToonContent(embedData.content);
+              code = decoded?.code || code;
+              language = decoded?.language || language;
+              filename = decoded?.filename || filename;
+            }
+          }
+          if (code) {
             const { downloadCodeFile } = await import('../services/zipExportService');
             await downloadCodeFile(code, language, filename);
             const { notificationStore } = await import('../stores/notificationStore');
             notificationStore.success('Code file downloaded successfully');
-            break;
           }
         }
       } catch (error) {
@@ -1278,38 +1296,45 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       }
 
       try {
-        const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
-        const embedData = await resolveEmbed(embedId);
-        if (!embedData?.content) {
-          // No embed data found — clean up state so the menu closes properly
-          console.warn('[ChatMessage] No embed data found for web search embed, cannot copy');
-          showMenu = false;
-          selectedNode = null;
-          return;
-        }
-
-        const decodedContent = await decodeToonContent(embedData.content);
-        const query = decodedContent?.query || '';
-        const provider = decodedContent?.provider || 'Brave Search';
-        const results = decodedContent?.results || [];
-
         if (action === 'copy') {
-          let yaml = `query: "${query}"\n`;
-          yaml += `provider: "${provider}"\n`;
-          yaml += `results:\n`;
+          // Build the YAML text promise without awaiting — enables synchronous
+          // navigator.clipboard.write() call for Safari gesture-token compatibility.
+          const yamlPromise: Promise<string> = import('../services/embedResolver').then(
+            ({ resolveEmbed, decodeToonContent }) =>
+              resolveEmbed(embedId).then(async (embedData) => {
+                if (!embedData?.content) {
+                  console.warn('[ChatMessage] No embed data found for web search embed, cannot copy');
+                  return '';
+                }
+                const decodedContent = await decodeToonContent(embedData.content);
+                const query = decodedContent?.query || '';
+                const provider = decodedContent?.provider || 'Brave Search';
+                const results = decodedContent?.results || [];
 
-          results.forEach((result: any) => {
-            yaml += `  - title: "${(result.title || '').replace(/"/g, '\\"')}"\n`;
-            yaml += `    url: "${(result.url || '').replace(/"/g, '\\"')}"\n`;
-            if (result.snippet) {
-              yaml += `    snippet: "${String(result.snippet).replace(/"/g, '\\"')}"\n`;
-            }
-          });
+                let yaml = `query: "${query}"\n`;
+                yaml += `provider: "${provider}"\n`;
+                yaml += `results:\n`;
+                results.forEach((result: any) => {
+                  yaml += `  - title: "${(result.title || '').replace(/"/g, '\\"')}"\n`;
+                  yaml += `    url: "${(result.url || '').replace(/"/g, '\\"')}"\n`;
+                  if (result.snippet) {
+                    yaml += `    snippet: "${String(result.snippet).replace(/"/g, '\\"')}"\n`;
+                  }
+                });
+                return yaml;
+              })
+          );
 
-          // Write embed reference (for in-app paste) + YAML text (for external paste)
-          await writeEmbedToClipboard(snapshotAttrs, yaml);
-          const { notificationStore } = await import('../stores/notificationStore');
-          notificationStore.success('Copied to clipboard');
+          // Initiate clipboard write immediately (synchronous within the gesture context).
+          const copyDone = writeEmbedToClipboard(snapshotAttrs, yamlPromise);
+
+          // Await both to surface errors and show notification.
+          const yaml = await yamlPromise;
+          await copyDone;
+          if (yaml) {
+            const { notificationStore } = await import('../stores/notificationStore');
+            notificationStore.success('Copied to clipboard');
+          }
         }
       } catch (error) {
         console.error('[ChatMessage] Error handling web search action:', error);
@@ -1334,86 +1359,78 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       }
 
       try {
-        // Load embed data to get transcript content
-        const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
-        const embedData = await resolveEmbed(embedId);
-        if (!embedData?.content) {
-          console.warn('[ChatMessage] No embed data found for video transcript');
-          showMenu = false;
-          selectedNode = null;
-          return;
-        }
-
-        const decodedContent = await decodeToonContent(embedData.content);
-        const results = decodedContent.results || [];
-        const firstResult = results[0] || {};
-        const videoTitle = firstResult.metadata?.title || firstResult.url || 'Video Transcript';
-
-        switch (action) {
-          case 'copy':
-            // Copy transcript as formatted markdown
-            const transcriptText = results
-              .filter((r: any) => r.transcript)
-              .map((r: any) => {
-                let content = '';
-                if (r.metadata?.title) {
-                  content += `# ${r.metadata.title}\n\n`;
+        if (action === 'copy') {
+          // Build transcript text promise without awaiting — Safari gesture-token fix.
+          const transcriptPromise: Promise<string> = import('../services/embedResolver').then(
+            ({ resolveEmbed, decodeToonContent }) =>
+              resolveEmbed(embedId).then(async (embedData) => {
+                if (!embedData?.content) {
+                  console.warn('[ChatMessage] No embed data found for video transcript');
+                  return '';
                 }
-                if (r.url) {
-                  content += `Source: ${r.url}\n\n`;
-                }
-                if (r.word_count) {
-                  content += `Word count: ${r.word_count.toLocaleString()}\n\n`;
-                }
-                content += r.transcript || '';
-                return content;
+                const decodedContent = await decodeToonContent(embedData.content);
+                const results = decodedContent.results || [];
+                return results
+                  .filter((r: any) => r.transcript)
+                  .map((r: any) => {
+                    let content = '';
+                    if (r.metadata?.title) content += `# ${r.metadata.title}\n\n`;
+                    if (r.url) content += `Source: ${r.url}\n\n`;
+                    if (r.word_count) content += `Word count: ${r.word_count.toLocaleString()}\n\n`;
+                    content += r.transcript || '';
+                    return content;
+                  })
+                  .join('\n\n---\n\n');
               })
-              .join('\n\n---\n\n');
-            
-            if (transcriptText) {
-              // Write embed reference (for in-app paste) + transcript text (for external paste)
-              await writeEmbedToClipboard(snapshotAttrs, transcriptText);
-              const { notificationStore } = await import('../stores/notificationStore');
-              notificationStore.success('Transcript copied to clipboard');
-            }
-            break;
+          );
 
-          case 'download':
-            // Download transcript as markdown file
-            const downloadText = results
-              .filter((r: any) => r.transcript)
-              .map((r: any) => {
-                let content = '';
-                if (r.metadata?.title) {
-                  content += `# ${r.metadata.title}\n\n`;
-                }
-                if (r.url) {
-                  content += `Source: ${r.url}\n\n`;
-                }
-                if (r.word_count) {
-                  content += `Word count: ${r.word_count.toLocaleString()}\n\n`;
-                }
-                content += r.transcript || '';
-                return content;
-              })
-              .join('\n\n---\n\n');
-            
-            if (downloadText) {
-              const blob = new Blob([downloadText], { type: 'text/markdown' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `${videoTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_transcript.md`;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              URL.revokeObjectURL(url);
-            }
-            break;
+          // Initiate clipboard write immediately (synchronous within the gesture context).
+          const copyDone = writeEmbedToClipboard(snapshotAttrs, transcriptPromise);
 
-          case 'share':
-            // Handled by generic share handler above
-            break;
+          const transcriptText = await transcriptPromise;
+          await copyDone;
+          if (transcriptText) {
+            const { notificationStore } = await import('../stores/notificationStore');
+            notificationStore.success('Transcript copied to clipboard');
+          }
+        } else if (action === 'download') {
+          // Download does not need the gesture-token trick — resolve normally.
+          const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
+          const embedData = await resolveEmbed(embedId);
+          if (!embedData?.content) {
+            console.warn('[ChatMessage] No embed data found for video transcript');
+            showMenu = false;
+            selectedNode = null;
+            return;
+          }
+          const decodedContent = await decodeToonContent(embedData.content);
+          const results = decodedContent.results || [];
+          const firstResult = results[0] || {};
+          const videoTitle = firstResult.metadata?.title || firstResult.url || 'Video Transcript';
+          const downloadText = results
+            .filter((r: any) => r.transcript)
+            .map((r: any) => {
+              let content = '';
+              if (r.metadata?.title) content += `# ${r.metadata.title}\n\n`;
+              if (r.url) content += `Source: ${r.url}\n\n`;
+              if (r.word_count) content += `Word count: ${r.word_count.toLocaleString()}\n\n`;
+              content += r.transcript || '';
+              return content;
+            })
+            .join('\n\n---\n\n');
+          if (downloadText) {
+            const blob = new Blob([downloadText], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${videoTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_transcript.md`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }
+        } else if (action === 'share') {
+          // Handled by generic share handler above
         }
       } catch (error) {
         console.error('[ChatMessage] Error handling video transcript action:', error);
@@ -1427,8 +1444,10 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       
       switch (action) {
         case 'copy':
-          // Copy video URL to clipboard
-          // Write embed reference (for in-app paste) + URL (for external paste)
+          // Copy video URL to clipboard.
+          // videoUrl is already known — no async resolution needed.
+          // writeEmbedToClipboard accepts a plain string; it wraps it in a resolved
+          // promise internally, so the ClipboardItem is still constructed synchronously.
           if (videoUrl) {
             try {
               await writeEmbedToClipboard(snapshotAttrs, videoUrl);
@@ -1464,103 +1483,228 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       }
 
       try {
-        const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
-        const embedData = await resolveEmbed(embedId);
-        if (!embedData?.content) {
-          console.warn('[ChatMessage] No embed data found for app-skill-use embed:', embedId);
-          showMenu = false;
-          selectedNode = null;
-          return;
-        }
-        const decodedContent = typeof embedData.content === 'string'
-          ? await decodeToonContent(embedData.content)
-          : embedData.content as Record<string, unknown>;
-        if (!decodedContent) {
-          console.warn('[ChatMessage] Failed to decode content for embed:', embedId);
-          showMenu = false;
-          selectedNode = null;
-          return;
-        }
+        if (action === 'copy') {
+          // --- Safari gesture-token-safe copy path ---
+          //
+          // For ALL copy actions in this block we follow the same pattern:
+          //   1. Build a Promise<string> that resolves the embed content WITHOUT awaiting it.
+          //   2. Call writeEmbedToClipboard(attrs, promise) SYNCHRONOUSLY — this calls
+          //      navigator.clipboard.write() before any await, preserving Safari's gesture token.
+          //   3. Await the content promise and the copy promise to surface errors + show notification.
+          //
+          // The content-extraction logic is identical to the old await-based code — it is just
+          // wrapped in a .then() chain instead of being awaited inline.
 
-        // --- Images: download original image with prompt-based filename and metadata ---
-        if (selectedAppId === 'images' && action === 'download') {
-          const files = decodedContent.files as { original?: { s3_key: string; format?: string } } | undefined;
-          const s3BaseUrl = decodedContent.s3_base_url as string | undefined;
-          const aesKey = decodedContent.aes_key as string | undefined;
-          const aesNonce = decodedContent.aes_nonce as string | undefined;
-          const imagePrompt = decodedContent.prompt as string | undefined;
-          const imageModel = decodedContent.model as string | undefined;
-          const imageGeneratedAt = decodedContent.generated_at as string | undefined;
+          // Snapshot appId/skillId for use inside the promise (these may change after await)
+          const appId = selectedAppId;
+          const skillId = selectedSkillId;
 
-          if (files?.original?.s3_key && s3BaseUrl && aesKey && aesNonce) {
-            try {
-              const { fetchAndDecryptImage } = await import('./embeds/images/imageEmbedCrypto');
-              const { generateImageFilename, embedPngMetadata } = await import('./embeds/images/imageDownloadUtils');
-              const blob = await fetchAndDecryptImage(
-                s3BaseUrl,
-                files.original.s3_key,
-                aesKey,
-                aesNonce
-              );
-              const ext = files.original.format || 'png';
-              
-              // Embed PNG tEXt metadata (prompt, model, software) for file manager visibility
-              let downloadBlob: Blob = blob;
-              if (ext === 'png') {
-                const arrayBuffer = await blob.arrayBuffer();
-                const metadataBytes = embedPngMetadata(arrayBuffer, {
-                  prompt: imagePrompt,
-                  model: imageModel,
-                  software: 'OpenMates',
-                  generatedAt: imageGeneratedAt
-                });
-                // Copy into a plain ArrayBuffer to satisfy BlobPart typing
-                const ab = new ArrayBuffer(metadataBytes.byteLength);
-                new Uint8Array(ab).set(metadataBytes);
-                downloadBlob = new Blob([ab], { type: 'image/png' });
-              }
-              
-              const filename = generateImageFilename(imagePrompt, ext);
-              
-              const url = URL.createObjectURL(downloadBlob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = filename;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              URL.revokeObjectURL(url);
-              const { notificationStore } = await import('../stores/notificationStore');
-              notificationStore.success('Image downloaded');
-            } catch (err) {
-              console.error('[ChatMessage] Error downloading image:', err);
-              const { notificationStore } = await import('../stores/notificationStore');
-              notificationStore.error('Failed to download image');
-            }
-          } else {
-            const { notificationStore } = await import('../stores/notificationStore');
-            notificationStore.error('Original image not available');
+          const contentPromise: Promise<string> = import('../services/embedResolver').then(
+            ({ resolveEmbed, decodeToonContent }) =>
+              resolveEmbed(embedId).then(async (embedData): Promise<string> => {
+                if (!embedData?.content) {
+                  console.warn('[ChatMessage] No embed data found for app-skill-use embed (copy):', embedId);
+                  return '';
+                }
+                const decodedContent: Record<string, unknown> = typeof embedData.content === 'string'
+                  ? await decodeToonContent(embedData.content)
+                  : embedData.content as Record<string, unknown>;
+                if (!decodedContent) {
+                  console.warn('[ChatMessage] Failed to decode content for embed (copy):', embedId);
+                  return '';
+                }
+
+                // --- Docs: strip HTML to plain text ---
+                if (appId === 'docs') {
+                  const htmlContent = (decodedContent.html as string) || '';
+                  const tempDiv = document.createElement('div');
+                  tempDiv.innerHTML = htmlContent;
+                  return tempDiv.textContent || tempDiv.innerText || '';
+                }
+
+                // --- Sheets: convert markdown table to CSV ---
+                if (appId === 'sheets') {
+                  const tableContent = (decodedContent.code as string) || (decodedContent.table as string) || '';
+                  if (!tableContent) return '';
+                  const lines = tableContent.split('\n').filter((l: string) => l.trim() && !l.trim().match(/^[\s|:-]+$/));
+                  return lines.map((line: string) =>
+                    line.split('|')
+                      .map((cell: string) => cell.trim())
+                      .filter((cell: string) => cell !== '')
+                      .map((cell: string) => `"${cell.replace(/"/g, '""')}"`)
+                      .join(',')
+                  ).join('\n');
+                }
+
+                // --- Web Read / News Read: article text ---
+                if ((appId === 'web' || appId === 'news') && skillId === 'read') {
+                  const results = (decodedContent.results as Array<{ markdown?: string; title?: string; url?: string }>) || [];
+                  const textParts = results.map(r => {
+                    let part = '';
+                    if (r.title) part += `# ${r.title}\n\n`;
+                    if (r.url) part += `Source: ${r.url}\n\n`;
+                    if (r.markdown) part += r.markdown;
+                    return part;
+                  }).filter(Boolean);
+                  return textParts.join('\n\n---\n\n');
+                }
+
+                // --- Math Calculate ---
+                if (appId === 'math' && skillId === 'calculate') {
+                  interface CalculateResult { expression?: string; result?: string; result_type?: string; mode?: string; steps?: string[]; error?: string; }
+                  const query = (decodedContent.query as string) || '';
+                  const results = (decodedContent.results as CalculateResult[]) || [];
+                  const lines: string[] = [];
+                  if (query) lines.push(`Expression: ${query}`);
+                  for (const r of results) {
+                    if (r.expression && r.expression !== query) lines.push(`  ${r.expression}`);
+                    if (r.result) lines.push(`= ${r.result}${r.result_type ? ` (${r.result_type})` : ''}`);
+                    if (r.error) lines.push(`Error: ${r.error}`);
+                    if (r.steps && r.steps.length > 0) lines.push(...r.steps.map((s, i) => `  Step ${i + 1}: ${s}`));
+                  }
+                  return lines.join('\n') || query;
+                }
+
+                // --- Math Plot ---
+                if (appId === 'math' && skillId === 'plot') {
+                  // plot_spec is the canonical field; expression is the legacy name before rename
+                  const plotSpec = (decodedContent.plot_spec as string) || (decodedContent.expression as string) || '';
+                  const title = (decodedContent.title as string) || '';
+                  const lines: string[] = [];
+                  if (title) lines.push(`Plot: ${title}`);
+                  if (plotSpec) lines.push(plotSpec);
+                  return lines.join('\n') || plotSpec;
+                }
+
+                // --- Generic fallback: build readable text from scalar fields ---
+                // Produces a readable plain-text representation of decodedContent so every
+                // embed type gets a working Copy button automatically.
+                const SKIP_KEYS = new Set([
+                  'aes_key', 'aes_nonce', 's3_key', 's3_base_url', 'iv',
+                  'thumbnail_s3_key', 'screenshot_s3_keys', 'thumbnail_url',
+                ]);
+                const TITLE_KEYS = ['title', 'query', 'name', 'prompt', 'expression', 'plot_spec'];
+
+                const titleLines: string[] = [];
+                for (const key of TITLE_KEYS) {
+                  const v = decodedContent[key];
+                  if (typeof v === 'string' && v.trim()) {
+                    titleLines.push(`${key}: ${v.trim()}`);
+                  }
+                }
+                const bodyLines: string[] = [];
+                for (const [key, val] of Object.entries(decodedContent)) {
+                  if (SKIP_KEYS.has(key)) continue;
+                  if (TITLE_KEYS.includes(key)) continue;
+                  if (typeof val === 'string' && val.trim()) {
+                    bodyLines.push(`${key}: ${val.trim()}`);
+                  } else if (typeof val === 'number') {
+                    bodyLines.push(`${key}: ${val}`);
+                  }
+                }
+                const allLines = [...titleLines, ...bodyLines];
+                return allLines.join('\n') || JSON.stringify(decodedContent, null, 2);
+              })
+          );
+
+          // Initiate clipboard write SYNCHRONOUSLY (preserves Safari gesture token).
+          const copyDone = writeEmbedToClipboard(snapshotAttrs, contentPromise);
+
+          // Now await content + copy completion to surface errors and show notification.
+          const plainText = await contentPromise;
+          await copyDone;
+
+          const { notificationStore } = await import('../stores/notificationStore');
+          if (plainText) {
+            notificationStore.success('Copied to clipboard');
           }
-        }
+        } else {
+          // --- Non-copy actions: download etc. (no gesture-token requirement) ---
+          // Resolve embed data sequentially — these actions don't touch the clipboard.
+          const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
+          const embedData = await resolveEmbed(embedId);
+          if (!embedData?.content) {
+            console.warn('[ChatMessage] No embed data found for app-skill-use embed:', embedId);
+            showMenu = false;
+            selectedNode = null;
+            return;
+          }
+          const decodedContent = typeof embedData.content === 'string'
+            ? await decodeToonContent(embedData.content)
+            : embedData.content as Record<string, unknown>;
+          if (!decodedContent) {
+            console.warn('[ChatMessage] Failed to decode content for embed:', embedId);
+            showMenu = false;
+            selectedNode = null;
+            return;
+          }
 
-        // --- Docs: copy (plain text) or download (docx) ---
-        else if (selectedAppId === 'docs') {
-          const htmlContent = (decodedContent.html as string) || '';
-          const docTitle = (decodedContent.title as string) || '';
-          const docFilename = (decodedContent.filename as string) || docTitle || 'document';
+          // --- Images: download original image with prompt-based filename and metadata ---
+          if (selectedAppId === 'images' && action === 'download') {
+            const files = decodedContent.files as { original?: { s3_key: string; format?: string } } | undefined;
+            const s3BaseUrl = decodedContent.s3_base_url as string | undefined;
+            const aesKey = decodedContent.aes_key as string | undefined;
+            const aesNonce = decodedContent.aes_nonce as string | undefined;
+            const imagePrompt = decodedContent.prompt as string | undefined;
+            const imageModel = decodedContent.model as string | undefined;
+            const imageGeneratedAt = decodedContent.generated_at as string | undefined;
 
-          if (action === 'copy') {
-            // Strip HTML to plain text
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = htmlContent;
-            const plainText = tempDiv.textContent || tempDiv.innerText || '';
-            if (plainText) {
-              // Write embed reference (for in-app paste) + plain text (for external paste)
-              await writeEmbedToClipboard(snapshotAttrs, plainText);
+            if (files?.original?.s3_key && s3BaseUrl && aesKey && aesNonce) {
+              try {
+                const { fetchAndDecryptImage } = await import('./embeds/images/imageEmbedCrypto');
+                const { generateImageFilename, embedPngMetadata } = await import('./embeds/images/imageDownloadUtils');
+                const blob = await fetchAndDecryptImage(
+                  s3BaseUrl,
+                  files.original.s3_key,
+                  aesKey,
+                  aesNonce
+                );
+                const ext = files.original.format || 'png';
+                
+                // Embed PNG tEXt metadata (prompt, model, software) for file manager visibility
+                let downloadBlob: Blob = blob;
+                if (ext === 'png') {
+                  const arrayBuffer = await blob.arrayBuffer();
+                  const metadataBytes = embedPngMetadata(arrayBuffer, {
+                    prompt: imagePrompt,
+                    model: imageModel,
+                    software: 'OpenMates',
+                    generatedAt: imageGeneratedAt
+                  });
+                  // Copy into a plain ArrayBuffer to satisfy BlobPart typing
+                  const ab = new ArrayBuffer(metadataBytes.byteLength);
+                  new Uint8Array(ab).set(metadataBytes);
+                  downloadBlob = new Blob([ab], { type: 'image/png' });
+                }
+                
+                const filename = generateImageFilename(imagePrompt, ext);
+                
+                const url = URL.createObjectURL(downloadBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                const { notificationStore } = await import('../stores/notificationStore');
+                notificationStore.success('Image downloaded');
+              } catch (err) {
+                console.error('[ChatMessage] Error downloading image:', err);
+                const { notificationStore } = await import('../stores/notificationStore');
+                notificationStore.error('Failed to download image');
+              }
+            } else {
               const { notificationStore } = await import('../stores/notificationStore');
-              notificationStore.success('Document copied to clipboard');
+              notificationStore.error('Original image not available');
             }
-          } else if (action === 'download') {
+          }
+
+          // --- Docs: download (docx) ---
+          else if (selectedAppId === 'docs' && action === 'download') {
+            const htmlContent = (decodedContent.html as string) || '';
+            const docTitle = (decodedContent.title as string) || '';
+            const docFilename = (decodedContent.filename as string) || docTitle || 'document';
             try {
               const { asBlob } = await import('html-docx-js-typescript');
               const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${docTitle}</title></head><body>${htmlContent}</body></html>`;
@@ -1581,31 +1725,11 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
               notificationStore.error('Failed to download document');
             }
           }
-        }
 
-        // --- Sheets: copy (CSV or markdown) or download (CSV) ---
-        else if (selectedAppId === 'sheets') {
-          const tableContent = (decodedContent.code as string) || (decodedContent.table as string) || '';
-          const sheetTitle = (decodedContent.title as string) || 'table';
-
-          if (action === 'copy') {
-            // Copy as CSV format for easy pasting into spreadsheet apps
-            if (tableContent) {
-              // Convert markdown table to CSV
-              const lines = tableContent.split('\n').filter((l: string) => l.trim() && !l.trim().match(/^[\s|:-]+$/));
-              const csv = lines.map((line: string) =>
-                line.split('|')
-                  .map((cell: string) => cell.trim())
-                  .filter((cell: string) => cell !== '')
-                  .map((cell: string) => `"${cell.replace(/"/g, '""')}"`)
-                  .join(',')
-              ).join('\n');
-              // Write embed reference (for in-app paste) + CSV text (for external paste)
-              await writeEmbedToClipboard(snapshotAttrs, csv);
-              const { notificationStore } = await import('../stores/notificationStore');
-              notificationStore.success('Table copied as CSV');
-            }
-          } else if (action === 'download') {
+          // --- Sheets: download (CSV) ---
+          else if (selectedAppId === 'sheets' && action === 'download') {
+            const tableContent = (decodedContent.code as string) || (decodedContent.table as string) || '';
+            const sheetTitle = (decodedContent.title as string) || 'table';
             if (tableContent) {
               const lines = tableContent.split('\n').filter((l: string) => l.trim() && !l.trim().match(/^[\s|:-]+$/));
               const csv = lines.map((line: string) =>
@@ -1627,130 +1751,6 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
               const { notificationStore } = await import('../stores/notificationStore');
               notificationStore.success('Table downloaded as CSV');
             }
-          }
-        }
-
-        // --- Web Read: copy article text ---
-        else if (selectedAppId === 'web' && selectedSkillId === 'read' && action === 'copy') {
-          const results = (decodedContent.results as Array<{ markdown?: string; title?: string; url?: string }>) || [];
-          const textParts = results.map(r => {
-            let part = '';
-            if (r.title) part += `# ${r.title}\n\n`;
-            if (r.url) part += `Source: ${r.url}\n\n`;
-            if (r.markdown) part += r.markdown;
-            return part;
-          }).filter(Boolean);
-          if (textParts.length > 0) {
-            // Write embed reference (for in-app paste) + article text (for external paste)
-            await writeEmbedToClipboard(snapshotAttrs, textParts.join('\n\n---\n\n'));
-            const { notificationStore } = await import('../stores/notificationStore');
-            notificationStore.success('Article copied to clipboard');
-          }
-        }
-
-        // --- News Read: copy article text ---
-        else if (selectedAppId === 'news' && selectedSkillId === 'read' && action === 'copy') {
-          const results = (decodedContent.results as Array<{ markdown?: string; title?: string; url?: string }>) || [];
-          const textParts = results.map(r => {
-            let part = '';
-            if (r.title) part += `# ${r.title}\n\n`;
-            if (r.url) part += `Source: ${r.url}\n\n`;
-            if (r.markdown) part += r.markdown;
-            return part;
-          }).filter(Boolean);
-          if (textParts.length > 0) {
-            // Write embed reference (for in-app paste) + article text (for external paste)
-            await writeEmbedToClipboard(snapshotAttrs, textParts.join('\n\n---\n\n'));
-            const { notificationStore } = await import('../stores/notificationStore');
-            notificationStore.success('Article copied to clipboard');
-          }
-        }
-
-        // --- Math Calculate: copy expression + results as plain text ---
-        else if (selectedAppId === 'math' && selectedSkillId === 'calculate' && action === 'copy') {
-          interface CalculateResult { expression?: string; result?: string; result_type?: string; mode?: string; steps?: string[]; error?: string; }
-          const query = (decodedContent.query as string) || '';
-          const results = (decodedContent.results as CalculateResult[]) || [];
-          const lines: string[] = [];
-          if (query) lines.push(`Expression: ${query}`);
-          for (const r of results) {
-            if (r.expression && r.expression !== query) lines.push(`  ${r.expression}`);
-            if (r.result) lines.push(`= ${r.result}${r.result_type ? ` (${r.result_type})` : ''}`);
-            if (r.error) lines.push(`Error: ${r.error}`);
-            if (r.steps && r.steps.length > 0) lines.push(...r.steps.map((s, i) => `  Step ${i + 1}: ${s}`));
-          }
-          const plainText = lines.join('\n') || query;
-          if (plainText) {
-            await writeEmbedToClipboard(snapshotAttrs, plainText);
-            const { notificationStore } = await import('../stores/notificationStore');
-            notificationStore.success('Result copied to clipboard');
-          }
-        }
-
-        // --- Math Plot: copy function expressions as plain text ---
-        else if (selectedAppId === 'math' && selectedSkillId === 'plot' && action === 'copy') {
-          // plot_spec is the canonical field; expression is the legacy name before rename
-          const plotSpec = (decodedContent.plot_spec as string) || (decodedContent.expression as string) || '';
-          const title = (decodedContent.title as string) || '';
-          const lines: string[] = [];
-          if (title) lines.push(`Plot: ${title}`);
-          if (plotSpec) lines.push(plotSpec);
-          const plainText = lines.join('\n') || plotSpec;
-          if (plainText) {
-            await writeEmbedToClipboard(snapshotAttrs, plainText);
-            const { notificationStore } = await import('../stores/notificationStore');
-            notificationStore.success('Plot copied to clipboard');
-          }
-        }
-
-        // --- Generic fallback: copy any embed whose type has no specific handler ---
-        // Produces a readable plain-text representation of decodedContent so every
-        // embed type gets a working Copy button automatically. Specific handlers above
-        // produce better-formatted output; this catches everything else.
-        else if (action === 'copy') {
-          // Build a human-readable text from the most useful string fields.
-          // Strategy: prefer known "title-like" and "content-like" keys, then
-          // fall back to serialising all string/number scalars as "key: value" lines,
-          // skipping encryption keys, S3 artefacts, and other non-human fields.
-          const SKIP_KEYS = new Set([
-            'aes_key', 'aes_nonce', 's3_key', 's3_base_url', 'iv',
-            'thumbnail_s3_key', 'screenshot_s3_keys', 'thumbnail_url',
-          ]);
-          const TITLE_KEYS = ['title', 'query', 'name', 'prompt', 'expression', 'plot_spec'];
-
-          // Collect title lines first (ordered)
-          const titleLines: string[] = [];
-          for (const key of TITLE_KEYS) {
-            const v = decodedContent[key];
-            if (typeof v === 'string' && v.trim()) {
-              titleLines.push(`${key}: ${v.trim()}`);
-            }
-          }
-
-          // Then collect remaining scalar fields
-          const bodyLines: string[] = [];
-          for (const [key, val] of Object.entries(decodedContent)) {
-            if (SKIP_KEYS.has(key)) continue;
-            if (TITLE_KEYS.includes(key)) continue; // already in titleLines
-            if (typeof val === 'string' && val.trim()) {
-              bodyLines.push(`${key}: ${val.trim()}`);
-            } else if (typeof val === 'number') {
-              bodyLines.push(`${key}: ${val}`);
-            }
-          }
-
-          const allLines = [...titleLines, ...bodyLines];
-          const plainText = allLines.join('\n');
-
-          if (plainText) {
-            await writeEmbedToClipboard(snapshotAttrs, plainText);
-            const { notificationStore } = await import('../stores/notificationStore');
-            notificationStore.success('Copied to clipboard');
-          } else {
-            // Last resort: copy a JSON representation
-            await writeEmbedToClipboard(snapshotAttrs, JSON.stringify(decodedContent, null, 2));
-            const { notificationStore } = await import('../stores/notificationStore');
-            notificationStore.success('Copied to clipboard');
           }
         }
       } catch (error) {
@@ -1782,29 +1782,32 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
         case 'copy': {
           // Use snapshotAttrs (captured at function start) — selectedNode is nulled
           // by the EmbedContextMenu onClose before this async path completes.
+          //
+          // Safari gesture-token pattern: build a Promise<string> for the content,
+          // call writeEmbedToClipboard IMMEDIATELY (no await before it), then await
+          // to surface errors and show a notification.
           const embedType = snapshotAttrs?.type as string | undefined;
           const contentRef = snapshotAttrs?.contentRef as string | undefined;
           const embedId = contentRef?.startsWith('embed:') ? contentRef.replace('embed:', '') : null;
 
           if (embedId) {
-            try {
-              const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
-              const embedData = await resolveEmbed(embedId);
-              const decodedContent = embedData?.content
-                ? (typeof embedData.content === 'string'
-                    ? await decodeToonContent(embedData.content)
-                    : embedData.content as Record<string, unknown>)
-                : null;
+            // Build content promise without awaiting.
+            const contentPromise: Promise<string> = import('../services/embedResolver').then(
+              ({ resolveEmbed, decodeToonContent }) =>
+                resolveEmbed(embedId).then(async (embedData): Promise<string> => {
+                  const decodedContent = embedData?.content
+                    ? (typeof embedData.content === 'string'
+                        ? await decodeToonContent(embedData.content)
+                        : embedData.content as Record<string, unknown>)
+                    : null;
 
-              let plainText = '';
+                  if (!decodedContent) return '';
 
-              if (decodedContent) {
-                if (embedType === 'sheets-sheet' || embedType === 'sheets-sheet-group') {
-                  // Convert markdown table to CSV
-                  const tableContent = (decodedContent.code as string) || (decodedContent.table as string) || '';
-                  if (tableContent) {
+                  if (embedType === 'sheets-sheet' || embedType === 'sheets-sheet-group') {
+                    const tableContent = (decodedContent.code as string) || (decodedContent.table as string) || '';
+                    if (!tableContent) return '';
                     const lines = tableContent.split('\n').filter((l: string) => l.trim() && !l.trim().match(/^[\s|:-]+$/));
-                    plainText = lines.map((line: string) =>
+                    return lines.map((line: string) =>
                       line.split('|')
                         .map((cell: string) => cell.trim())
                         .filter((cell: string) => cell !== '')
@@ -1812,33 +1815,37 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
                         .join(',')
                     ).join('\n');
                   }
-                } else if (embedType === 'docs-doc') {
-                  // Strip HTML to plain text
-                  const htmlContent = (decodedContent.html as string) || '';
-                  if (htmlContent) {
+                  if (embedType === 'docs-doc') {
+                    const htmlContent = (decodedContent.html as string) || '';
+                    if (!htmlContent) return '';
                     const tempDiv = document.createElement('div');
                     tempDiv.innerHTML = htmlContent;
-                    plainText = tempDiv.textContent || tempDiv.innerText || '';
+                    return tempDiv.textContent || tempDiv.innerText || '';
                   }
-                } else if (embedType === 'code-code' || embedType?.startsWith('code-')) {
-                  // Code content
-                  plainText = (decodedContent.code as string) || (decodedContent.content as string) || '';
-                } else {
+                  if (embedType === 'code-code' || embedType?.startsWith('code-')) {
+                    return (decodedContent.code as string) || (decodedContent.content as string) || '';
+                  }
                   // Generic: extract readable scalar fields, skip internal keys
                   const SKIP_KEYS = new Set(['aes_key', 'aes_nonce', 's3_key', 's3_base_url', 'iv', 'thumbnail_s3_key', 'screenshot_s3_keys', 'thumbnail_url']);
-                  plainText = Object.entries(decodedContent)
+                  return Object.entries(decodedContent)
                     .filter(([k, v]) => !SKIP_KEYS.has(k) && (typeof v === 'string' || typeof v === 'number'))
                     .map(([k, v]) => `${k}: ${v}`)
                     .join('\n');
-                }
-              }
+                })
+            );
+
+            try {
+              // Initiate clipboard write SYNCHRONOUSLY (preserves Safari gesture token).
+              const copyDone = writeEmbedToClipboard(snapshotAttrs, contentPromise);
+
+              const plainText = await contentPromise;
+              await copyDone;
 
               if (plainText) {
-                await writeEmbedToClipboard(snapshotAttrs, plainText);
                 const { notificationStore } = await import('../stores/notificationStore');
                 notificationStore.success('Copied to clipboard');
               } else {
-                // Fallback: legacy embeds may have url or src (not in EmbedNodeAttributes type)
+                // Fallback: legacy embeds may have url or src
                 const legacyUrl = (snapshotAttrs as unknown as Record<string, unknown>).url as string | undefined;
                 if (legacyUrl) {
                   await writeEmbedToClipboard(snapshotAttrs, legacyUrl);
@@ -1852,7 +1859,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
               notificationStore.error('Failed to copy');
             }
           } else {
-            // Legacy embeds with no contentRef: copy url if available
+            // Legacy embeds with no contentRef: copy url if available.
+            // Already known synchronously — no gesture-token issue.
             const legacyUrl = (snapshotAttrs as unknown as Record<string, unknown>).url as string | undefined;
             if (legacyUrl) {
               await writeEmbedToClipboard(snapshotAttrs, legacyUrl);
