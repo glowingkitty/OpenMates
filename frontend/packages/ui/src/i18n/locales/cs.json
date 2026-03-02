@@ -901,7 +901,7 @@
       "search": {
         "text": "Hledat",
         "description": {
-          "text": "Hledejte meetupy, konference a místní akce."
+          "text": "Najděte meetupy, konference a místní akce."
         },
         "how_to_use": {
           "1": {
@@ -1071,7 +1071,7 @@
       "calculate": {
         "text": "Vypočítat",
         "description": {
-          "text": "Vyhodnoťte výrazy, řešte rovnice a počítejte derivace nebo integrály."
+          "text": "Řešte rovnice a počítejte derivace nebo integrály."
         }
       }
     },
@@ -1540,7 +1540,7 @@
       "search": {
         "text": "Hledat",
         "description": {
-          "text": "Hledejte události, meetupy a konference ve vašem okolí."
+          "text": "Najděte meetupy, konference a místní akce."
         }
       }
     },
@@ -2011,7 +2011,7 @@
         "text": "Zobrazit"
       },
       "fork": {
-        "text": "Rozvětvit konverzaci"
+        "text": "Rozvětvit"
       }
     },
     "hidden_chats": {
@@ -2955,6 +2955,9 @@
     },
     "view_on_google_hotels": {
       "text": "Zobrazit na Google Hotels"
+    },
+    "view_on_meetup": {
+      "text": "Zobrazit na Meetup"
     },
     "loading_map": {
       "text": "Načítání mapy..."
@@ -4504,6 +4507,21 @@
       "ai_ask_settings": {
         "description": {
           "text": "Položte otázku pomocí textu, obrázků a dalších médií."
+        },
+        "default_models": {
+          "text": "Výchozí modely"
+        },
+        "simple_requests": {
+          "text": "Jednoduché dotazy"
+        },
+        "complex_requests": {
+          "text": "Složité dotazy"
+        },
+        "model_auto": {
+          "text": "Automaticky"
+        },
+        "default_models_save_error": {
+          "text": "Nepodařilo se uložit předvolbu výchozího modelu. Zkuste to prosím znovu."
         }
       },
       "ai_ask_model_details": {
@@ -4519,6 +4537,9 @@
       }
     },
     "app_store": {
+      "description": {
+        "text": "Procházejte a spravujte aplikace, které mohou vaši mates používat."
+      },
       "text": "App Store",
       "no_apps_available": {
         "text": "Nejsou k dispozici žádné aplikace."
@@ -4573,8 +4594,17 @@
         "title": {
           "text": "Dovednosti"
         },
+        "section_description": {
+          "text": "Stačí požádat své spoluhráče, aby udělali jednu z těchto věcí:"
+        },
         "how_to_use": {
           "text": "Jak používat"
+        },
+        "how_to_use_prefix": {
+          "text": "Stačí se zeptat spoluhráčů na něco takového:"
+        },
+        "how_to_use_mention": {
+          "text": "Nebo zmíněte @{skillname}\nve své zprávě a explicitně spusťte dovednost."
         },
         "description": {
           "text": "Popis"
@@ -4664,6 +4694,18 @@
         "title": {
           "text": "Režimy zaměření"
         },
+        "section_description": {
+          "text": "Požádejte své spoluhráče o vedení soustředěných rozhovorů za účelem dosažení cíle:"
+        },
+        "how_to_use_prefix": {
+          "text": "Stačí se zeptat spoluhráčů na něco takového:"
+        },
+        "how_to_use_mention": {
+          "text": "Nebo zmíněte @{focusname}\nve své zprávě a explicitně aktivujte režim zaměření."
+        },
+        "instructions_overview": {
+          "text": "Přehled toho, co bude dělat režim zaměření:"
+        },
         "description": {
           "text": "Popis"
         },
@@ -4692,6 +4734,9 @@
       "settings_memories": {
         "title": {
           "text": "Nastavení a vzpomínky"
+        },
+        "section_description": {
+          "text": "Vaši spoluhráči vás mohou požádat o tyto podrobnosti, aby vám dávali ještě lepší odpovědi. Vy vždy kontrolujete, co sdílíte a kdy:"
         },
         "subtitle": {
           "text": "{count} kategorií k dispozici"

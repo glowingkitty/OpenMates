@@ -901,7 +901,7 @@
       "search": {
         "text": "Ara",
         "description": {
-          "text": "Buluşmalar, konferanslar ve yerel etkinlikler arayın."
+          "text": "Meetup, konferans ve yerel etkinlikleri bulun."
         },
         "how_to_use": {
           "1": {
@@ -1071,7 +1071,7 @@
       "calculate": {
         "text": "Hesapla",
         "description": {
-          "text": "İfadeleri değerlendirin, denklemleri çözün ve türev veya integralleri hesaplayın."
+          "text": "Denklemleri çözün, türev ve integralleri hesaplayın."
         }
       }
     },
@@ -1540,7 +1540,7 @@
       "search": {
         "text": "Ara",
         "description": {
-          "text": "Yakınındaki etkinlikleri, meetupları ve konferansları ara."
+          "text": "Yakınındaki meetup, konferans ve etkinlikleri bul."
         }
       }
     },
@@ -2011,7 +2011,7 @@
         "text": "Gizlemeyi kaldır"
       },
       "fork": {
-        "text": "Konuşmayı çatalla"
+        "text": "Çatalla"
       }
     },
     "hidden_chats": {
@@ -2949,6 +2949,9 @@
     },
     "view_on_google_hotels": {
       "text": "Google Hotels'de görüntüle"
+    },
+    "view_on_meetup": {
+      "text": "Meetup'ta görüntüle"
     },
     "loading_map": {
       "text": "Harita yükleniyor..."
@@ -4498,6 +4501,21 @@
       "ai_ask_settings": {
         "description": {
           "text": "Metin, resim ve diğer medya kullanarak bir soru sorun."
+        },
+        "default_models": {
+          "text": "Varsayılan modeller"
+        },
+        "simple_requests": {
+          "text": "Basit istekler"
+        },
+        "complex_requests": {
+          "text": "Karmaşık istekler"
+        },
+        "model_auto": {
+          "text": "Otomatik"
+        },
+        "default_models_save_error": {
+          "text": "Varsayılan model tercihi kaydedilemedi. Lütfen tekrar deneyin."
         }
       },
       "ai_ask_model_details": {
@@ -4513,6 +4531,9 @@
       }
     },
     "app_store": {
+      "description": {
+        "text": "Mates'in kullanabileceği uygulamaları gözden geçir ve yönet."
+      },
       "text": "App Store",
       "no_apps_available": {
         "text": "Kullanılabilir uygulama yok."
@@ -4567,8 +4588,17 @@
         "title": {
           "text": "Beceriler"
         },
+        "section_description": {
+          "text": "Matelerinizden şunlardan herhangi birini yapmasını isteyin:"
+        },
         "how_to_use": {
           "text": "Nasıl kullanılır"
+        },
+        "how_to_use_prefix": {
+          "text": "Matelerinize şöyle bir şey sorun:"
+        },
+        "how_to_use_mention": {
+          "text": "Veya beceriyi açıkça tetiklemek için mesajınızda @{skillname}\nifadesini kullanın."
         },
         "description": {
           "text": "Açıklama"
@@ -4658,6 +4688,18 @@
         "title": {
           "text": "Odak modları"
         },
+        "section_description": {
+          "text": "Matelerinizden bir hedefe ulaşmak için odaklı konuşmalar yapmalarını isteyin:"
+        },
+        "how_to_use_prefix": {
+          "text": "Matelerinize şöyle bir şey sorun:"
+        },
+        "how_to_use_mention": {
+          "text": "Veya odak modunu açıkça tetiklemek için mesajınızda @{focusname}\nifadesini kullanın."
+        },
+        "instructions_overview": {
+          "text": "Odak modunun neler yapacağına genel bir bakış:"
+        },
         "description": {
           "text": "Açıklama"
         },
@@ -4686,6 +4728,9 @@
       "settings_memories": {
         "title": {
           "text": "Ayarlar ve anılar"
+        },
+        "section_description": {
+          "text": "Mateleriniz sizi daha iyi yanıtlamak için bu ayrıntıları sizden isteyebilir. Ne zaman ve ne paylaşacağınız her zaman sizin kontrolünüzde:"
         },
         "subtitle": {
           "text": "{count} kategori mevcut"

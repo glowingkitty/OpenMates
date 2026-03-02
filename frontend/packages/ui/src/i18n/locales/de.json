@@ -901,7 +901,7 @@
       "search": {
         "text": "Suche",
         "description": {
-          "text": "Suche nach Meetups, Konferenzen und lokalen Veranstaltungen."
+          "text": "Meetups, Konferenzen und lokale Events finden."
         },
         "how_to_use": {
           "1": {
@@ -1071,7 +1071,7 @@
       "calculate": {
         "text": "Berechnen",
         "description": {
-          "text": "Ausdrücke auswerten, Gleichungen lösen und Ableitungen oder Integrale berechnen."
+          "text": "Gleichungen lösen, Ableitungen und Integrale berechnen."
         }
       }
     },
@@ -1550,7 +1550,7 @@
       "search": {
         "text": "Suche",
         "description": {
-          "text": "Suche nach Veranstaltungen, Meetups und Konferenzen in deiner Nähe."
+          "text": "Meetups, Konferenzen und Events in der Nähe finden."
         }
       }
     },
@@ -2059,7 +2059,7 @@
         "text": "Einblenden"
       },
       "fork": {
-        "text": "Konversation verzweigen"
+        "text": "Verzweigen"
       }
     },
     "hidden_chats": {
@@ -3376,6 +3376,9 @@
     },
     "view_on_google_hotels": {
       "text": "Auf Google Hotels ansehen"
+    },
+    "view_on_meetup": {
+      "text": "Auf Meetup ansehen"
     },
     "loading_map": {
       "text": "Karte wird geladen..."
@@ -6063,6 +6066,21 @@
         "manual_select_note": {
           "text": "Sie können jederzeit ein Modell manuell mit @Erwähnung im Chat auswählen."
         },
+        "default_models": {
+          "text": "Standardmodelle"
+        },
+        "simple_requests": {
+          "text": "Einfache Anfragen"
+        },
+        "complex_requests": {
+          "text": "Komplexe Anfragen"
+        },
+        "model_auto": {
+          "text": "Automatisch"
+        },
+        "default_models_save_error": {
+          "text": "Standardmodell konnte nicht gespeichert werden. Bitte versuche es erneut."
+        },
         "available_models": {
           "text": "Verfügbare Modelle"
         },
@@ -6255,7 +6273,7 @@
     },
     "app_store": {
       "description": {
-        "text": "Apps und Skills für Ihren KI-Assistenten durchsuchen und verwalten"
+        "text": "Apps durchsuchen und verwalten, die deine Mates nutzen können."
       },
       "text": "App Store",
       "no_apps_available": {
@@ -6311,8 +6329,17 @@
         "title": {
           "text": "Fähigkeiten"
         },
+        "section_description": {
+          "text": "Bitte deine Mates einfach, eines dieser Dinge zu tun:"
+        },
         "how_to_use": {
           "text": "So verwendest du es"
+        },
+        "how_to_use_prefix": {
+          "text": "Frag deine Mates einfach so etwas wie:"
+        },
+        "how_to_use_mention": {
+          "text": "Oder erwähne @{skillname}\nin deiner Nachricht, um den Skill explizit auszulösen."
         },
         "description": {
           "text": "Beschreibung"
@@ -6402,6 +6429,18 @@
         "title": {
           "text": "Fokusmodi"
         },
+        "section_description": {
+          "text": "Bitte deine Mates, fokussierte Gespräche zu führen, um ein Ziel zu erreichen:"
+        },
+        "how_to_use_prefix": {
+          "text": "Frag deine Mates einfach so etwas wie:"
+        },
+        "how_to_use_mention": {
+          "text": "Oder erwähne @{focusname}\nin deiner Nachricht, um den Fokusmodus explizit zu aktivieren."
+        },
+        "instructions_overview": {
+          "text": "Eine Übersicht darüber, was der Fokusmodus tun wird:"
+        },
         "description": {
           "text": "Beschreibung"
         },
@@ -6430,6 +6469,9 @@
       "settings_memories": {
         "title": {
           "text": "Einstellungen & Erinnerungen"
+        },
+        "section_description": {
+          "text": "Deine Mates können diese Details von dir anfordern, um dir noch bessere Antworten zu geben. Dabei behältst du immer die Kontrolle darüber, was du teilst und wann:"
         },
         "subtitle": {
           "text": "{count} Kategorien verfügbar"

@@ -901,7 +901,7 @@
       "search": {
         "text": "Tìm kiếm",
         "description": {
-          "text": "Tìm kiếm meetup, hội nghị và sự kiện địa phương."
+          "text": "Tìm meetup, hội nghị và sự kiện địa phương."
         },
         "how_to_use": {
           "1": {
@@ -1071,7 +1071,7 @@
       "calculate": {
         "text": "Tính toán",
         "description": {
-          "text": "Đánh giá biểu thức, giải phương trình và tính đạo hàm hoặc tích phân."
+          "text": "Giải phương trình và tính đạo hàm hoặc tích phân."
         }
       }
     },
@@ -1540,7 +1540,7 @@
       "search": {
         "text": "Tìm kiếm",
         "description": {
-          "text": "Tìm kiếm sự kiện, meetup và hội nghị gần bạn."
+          "text": "Tìm meetup, hội nghị và sự kiện địa phương."
         }
       }
     },
@@ -2011,7 +2011,7 @@
         "text": "Bỏ ẩn"
       },
       "fork": {
-        "text": "Phân nhánh cuộc trò chuyện"
+        "text": "Phân nhánh"
       }
     },
     "hidden_chats": {
@@ -2949,6 +2949,9 @@
     },
     "view_on_google_hotels": {
       "text": "Xem trên Google Hotels"
+    },
+    "view_on_meetup": {
+      "text": "Xem trên Meetup"
     },
     "loading_map": {
       "text": "Đang tải bản đồ..."
@@ -4498,6 +4501,21 @@
       "ai_ask_settings": {
         "description": {
           "text": "Đặt câu hỏi, sử dụng văn bản, hình ảnh và phương tiện khác."
+        },
+        "default_models": {
+          "text": "Mô hình mặc định"
+        },
+        "simple_requests": {
+          "text": "Yêu cầu đơn giản"
+        },
+        "complex_requests": {
+          "text": "Yêu cầu phức tạp"
+        },
+        "model_auto": {
+          "text": "Tự động"
+        },
+        "default_models_save_error": {
+          "text": "Không thể lưu tùy chọn mô hình mặc định. Vui lòng thử lại."
         }
       },
       "ai_ask_model_details": {
@@ -4513,6 +4531,9 @@
       }
     },
     "app_store": {
+      "description": {
+        "text": "Duyệt và quản lý các ứng dụng mà mates của bạn có thể sử dụng."
+      },
       "text": "App Store",
       "no_apps_available": {
         "text": "Không có ứng dụng nào có sẵn."
@@ -4567,8 +4588,17 @@
         "title": {
           "text": "Kỹ năng"
         },
+        "section_description": {
+          "text": "Chỉ cần yêu cầu bạn đồng hành của bạn làm bất kỳ điều nào trong số này:"
+        },
         "how_to_use": {
           "text": "Cách sử dụng"
+        },
+        "how_to_use_prefix": {
+          "text": "Chỉ cần hỏi bạn đồng hành của bạn điều gì đó như:"
+        },
+        "how_to_use_mention": {
+          "text": "Hoặc đề cập @{skillname}\ntrong tin nhắn của bạn để kích hoạt kỹ năng một cách rõ ràng."
         },
         "description": {
           "text": "Mô tả"
@@ -4658,6 +4688,18 @@
         "title": {
           "text": "Chế độ tập trung"
         },
+        "section_description": {
+          "text": "Yêu cầu bạn đồng hành của bạn có những cuộc trò chuyện tập trung để đạt được mục tiêu:"
+        },
+        "how_to_use_prefix": {
+          "text": "Chỉ cần hỏi bạn đồng hành của bạn điều gì đó như:"
+        },
+        "how_to_use_mention": {
+          "text": "Hoặc đề cập @{focusname}\ntrong tin nhắn của bạn để kích hoạt chế độ tập trung một cách rõ ràng."
+        },
+        "instructions_overview": {
+          "text": "Tổng quan về những gì chế độ tập trung sẽ làm:"
+        },
         "description": {
           "text": "Mô tả"
         },
@@ -4686,6 +4728,9 @@
       "settings_memories": {
         "title": {
           "text": "Cài đặt và ký ức"
+        },
+        "section_description": {
+          "text": "Bạn đồng hành của bạn có thể yêu cầu những chi tiết này để cung cấp phản hồi tốt hơn. Bạn luôn kiểm soát những gì bạn chia sẻ và khi nào:"
         },
         "subtitle": {
           "text": "{count} danh mục có sẵn"

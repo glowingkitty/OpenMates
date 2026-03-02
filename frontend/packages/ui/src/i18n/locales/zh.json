@@ -1071,7 +1071,7 @@
       "calculate": {
         "text": "计算",
         "description": {
-          "text": "评估表达式、求解方程并计算导数或积分。"
+          "text": "解方程，计算导数和积分。"
         }
       }
     },
@@ -1540,7 +1540,7 @@
       "search": {
         "text": "搜索",
         "description": {
-          "text": "搜索附近的活动、聚会和会议。"
+          "text": "发现本地聚会、会议和活动。"
         }
       }
     },
@@ -2011,7 +2011,7 @@
         "text": "取消隐藏"
       },
       "fork": {
-        "text": "派生对话"
+        "text": "派生"
       }
     },
     "hidden_chats": {
@@ -3287,6 +3287,9 @@
     },
     "view_on_google_hotels": {
       "text": "在 Google Hotels 上查看"
+    },
+    "view_on_meetup": {
+      "text": "在 Meetup 上查看"
     },
     "loading_map": {
       "text": "正在加载地图..."
@@ -5592,6 +5595,21 @@
       "ai_ask_settings": {
         "description": {
           "text": "使用文本、图像和其他媒体提问。"
+        },
+        "default_models": {
+          "text": "默认模型"
+        },
+        "simple_requests": {
+          "text": "简单请求"
+        },
+        "complex_requests": {
+          "text": "复杂请求"
+        },
+        "model_auto": {
+          "text": "自动"
+        },
+        "default_models_save_error": {
+          "text": "保存默认模型偏好失败，请重试。"
         }
       },
       "ai_ask_model_details": {
@@ -5608,7 +5626,7 @@
     },
     "app_store": {
       "description": {
-        "text": "浏览和管理您的 AI 助手的应用和技能"
+        "text": "浏览和管理你的伙伴可以使用的应用。"
       },
       "text": "App Store",
       "no_apps_available": {
@@ -5664,8 +5682,17 @@
         "title": {
           "text": "技能"
         },
+        "section_description": {
+          "text": "只需请求你的伙伴执行以下任一操作："
+        },
         "how_to_use": {
           "text": "如何使用"
+        },
+        "how_to_use_prefix": {
+          "text": "只需向你的伙伴提问，例如："
+        },
+        "how_to_use_mention": {
+          "text": "或在消息中提及 @{skillname}\n以明确触发该技能。"
         },
         "description": {
           "text": "描述"
@@ -5755,6 +5782,18 @@
         "title": {
           "text": "专注模式"
         },
+        "section_description": {
+          "text": "请求你的伙伴进行有针对性的对话以达成目标："
+        },
+        "how_to_use_prefix": {
+          "text": "只需向你的伙伴提问，例如："
+        },
+        "how_to_use_mention": {
+          "text": "或在消息中提及 @{focusname}\n以明确触发该专注模式。"
+        },
+        "instructions_overview": {
+          "text": "关于专注模式将执行的操作概述："
+        },
         "description": {
           "text": "描述"
         },
@@ -5783,6 +5822,9 @@
       "settings_memories": {
         "title": {
           "text": "设置和记忆"
+        },
+        "section_description": {
+          "text": "你的伙伴可以向你请求这些详细信息，以便给你提供更好的回答。同时，你始终控制自己分享的内容和时间："
         },
         "subtitle": {
           "text": "{count} 个类别可用"

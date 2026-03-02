@@ -30,6 +30,8 @@
     import { text } from '@repo/ui';
     import { setAppStoreNavList, clearAppStoreNav } from '../../stores/appStoreNavigationStore';
     import { onDestroy } from 'svelte';
+    import { pendingMentionStore } from '../../stores/pendingMentionStore';
+    import { panelState } from '../../stores/panelStateStore';
     
     // Create event dispatcher for navigation
     const dispatch = createEventDispatcher();
@@ -280,6 +282,16 @@
             title: providerMeta.name,
         });
     }
+
+    /**
+     * Insert the skill @mention into the message input and close settings.
+     * Uses pendingMentionStore with "@skill:{appId}:{skillId}" syntax.
+     * MessageInput.svelte watches this store and renders it as a styled mention chip.
+     */
+    function insertSkillMention() {
+        pendingMentionStore.set(`@skill:${appId}:${skillId}`);
+        panelState.closeSettings();
+    }
 </script>
 
 <div class="skill-details">
@@ -324,8 +336,9 @@
                     </div>
                 </div>
                 <!-- "Or mention @SkillName in your message..." footer -->
+                <!-- Clicking the @mention inserts it into the message input (same as "Chat with this mate") -->
                 <p class="how-to-use-mention">
-                    {$text('settings.app_store.skills.how_to_use_mention').split('{skillname}')[0]}<span class="mention-name">@{skillMentionDisplayName}</span>{$text('settings.app_store.skills.how_to_use_mention').split('{skillname}')[1]}
+                    {$text('settings.app_store.skills.how_to_use_mention').split('{skillname}')[0]}<button type="button" class="mention-name" onclick={insertSkillMention}>{skillMentionDisplayName}</button>{$text('settings.app_store.skills.how_to_use_mention').split('{skillname}')[1]}
                 </p>
             </div>
         {/if}
@@ -555,10 +568,25 @@
         white-space: pre-line;
     }
 
-    /* The @mention name rendered in accent color */
+    /* The @mention name — styled as an inline clickable button */
     .how-to-use-mention .mention-name {
-        color: var(--color-primary-start);
+        display: inline;
+        padding: 0;
+        margin: 0;
+        border: none;
+        background: none;
+        font: inherit;
+        font-size: inherit;
         font-weight: 600;
+        line-height: inherit;
+        color: var(--color-primary-start);
+        cursor: pointer;
+        text-decoration: underline dotted;
+        text-underline-offset: 2px;
+    }
+
+    .how-to-use-mention .mention-name:hover {
+        text-decoration: underline solid;
     }
     
     .how-to-use-scroll-container {
@@ -612,31 +640,31 @@
         background: var(--color-grey-10);
         border: 1px solid var(--color-grey-20);
         border-radius: 12px;
-        /* Use CSS grid so the closing quote anchors to the bottom-left */
+        /* Opening quote top-left, text spans middle, closing quote bottom-right */
         display: grid;
         grid-template-areas:
-            "text open"
-            "close .";
-        grid-template-columns: 1fr auto;
-        grid-template-rows: 1fr auto;
+            "open text"
+            ".    close";
+        grid-template-columns: auto 1fr;
+        grid-template-rows: auto 1fr;
         gap: 0.4rem;
     }
 
-    /* Opening quote — top-right */
+    /* Opening quote — top-LEFT */
     .quote-open {
         grid-area: open;
         align-self: start;
-        justify-self: end;
+        justify-self: start;
         color: var(--color-grey-40);
         opacity: 0.5;
         flex-shrink: 0;
     }
 
-    /* Closing quote — bottom-left, rotated 180° to face the other direction */
+    /* Closing quote — bottom-RIGHT, rotated 180° to face the other direction */
     .quote-close {
         grid-area: close;
         align-self: end;
-        justify-self: start;
+        justify-self: end;
         color: var(--color-grey-40);
         opacity: 0.5;
         flex-shrink: 0;
@@ -650,7 +678,7 @@
         line-height: 1.5;
         color: var(--color-grey-100);
         word-break: break-word;
-        align-self: center;
+        align-self: start;
     }
 
     /* Highlighted trigger words (from **word** syntax in i18n) */

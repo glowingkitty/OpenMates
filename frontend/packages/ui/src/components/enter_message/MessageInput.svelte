@@ -21,6 +21,7 @@
     import { pendingNotificationReplyStore } from '../../stores/pendingNotificationReplyStore';
     import { pendingMentionStore } from '../../stores/pendingMentionStore';
     import { getMatesById } from '../../data/matesMetadata';
+    import { appSkillsStore } from '../../stores/appSkillsStore';
     import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
     import { authStore } from '../../stores/authStore'; // Import auth store to check authentication status
     import { userProfile } from '../../stores/userProfile'; // Import user profile to check credit balance
@@ -3783,8 +3784,49 @@
                         editor.commands.insertContent(mention + ' ');
                     }
                 } else {
-                    // Not a mate mention — insert as plain text (future mention types)
-                    editor.commands.insertContent(mention + ' ');
+                    // Skill or focus mode mention — render as a styled GenericMention chip.
+                    // Syntax: "@skill:{appId}:{skillId}" or "@focus:{appId}:{focusModeId}"
+                    const skillMatch = mention.match(/^@skill:([^:]+):(.+)$/);
+                    const focusMatch = mention.match(/^@focus:([^:]+):(.+)$/);
+
+                    if (skillMatch || focusMatch) {
+                        const isSkill = !!skillMatch;
+                        const matchGroups = (skillMatch || focusMatch)!;
+                        const targetAppId = matchGroups[1];
+                        const targetItemId = matchGroups[2];
+                        const apps = appSkillsStore.getState().apps;
+                        const app = apps[targetAppId];
+
+                        if (app) {
+                            // Build mentionDisplayName matching mentionSearchService format:
+                            // "AppName-ItemName" e.g. "Code-Get-Docs" or "Jobs-Career-Insights"
+                            const capitalizeWords = (s: string) =>
+                                s.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join('-');
+                            const appDisplay = capitalizeWords(targetAppId);
+                            const itemDisplay = capitalizeWords(targetItemId.replace(/_/g, '-'));
+                            const displayName = `${appDisplay}-${itemDisplay}`;
+
+                            editor
+                                .chain()
+                                .focus()
+                                .setGenericMention({
+                                    mentionType: isSkill ? 'skill' : 'focus_mode',
+                                    displayName,
+                                    mentionSyntax: mention,
+                                    colorStart: app.icon_colorgradient?.start,
+                                    colorEnd: app.icon_colorgradient?.end,
+                                })
+                                .insertContent(' ')
+                                .run();
+                        } else {
+                            // App not found in metadata — fall back to plain text
+                            console.warn('[MessageInput] Unknown app in pendingMentionStore:', targetAppId);
+                            editor.commands.insertContent(mention + ' ');
+                        }
+                    } else {
+                        // Unknown mention format — insert as plain text
+                        editor.commands.insertContent(mention + ' ');
+                    }
                 }
 
                 hasContent = true;

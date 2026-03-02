@@ -901,7 +901,7 @@
       "search": {
         "text": "Pesquisar",
         "description": {
-          "text": "Pesquise meetups, conferências e eventos locais."
+          "text": "Encontre meetups, conferências e eventos locais."
         },
         "how_to_use": {
           "1": {
@@ -1071,7 +1071,7 @@
       "calculate": {
         "text": "Calcular",
         "description": {
-          "text": "Avalie expressões, resolva equações e calcule derivadas ou integrais."
+          "text": "Resolva equações e calcule derivadas ou integrais."
         }
       }
     },
@@ -1540,7 +1540,7 @@
       "search": {
         "text": "Pesquisar",
         "description": {
-          "text": "Pesquise eventos, meetups e conferências perto de você."
+          "text": "Encontre meetups, conferências e eventos locais."
         }
       }
     },
@@ -2011,7 +2011,7 @@
         "text": "Reexibir"
       },
       "fork": {
-        "text": "Bifurcar conversa"
+        "text": "Bifurcar"
       }
     },
     "hidden_chats": {
@@ -2949,6 +2949,9 @@
     },
     "view_on_google_hotels": {
       "text": "Ver no Google Hotels"
+    },
+    "view_on_meetup": {
+      "text": "Ver no Meetup"
     },
     "loading_map": {
       "text": "Carregando mapa..."
@@ -4498,6 +4501,21 @@
       "ai_ask_settings": {
         "description": {
           "text": "Faça uma pergunta, usando texto, imagens e outros meios."
+        },
+        "default_models": {
+          "text": "Modelos padrão"
+        },
+        "simple_requests": {
+          "text": "Solicitações simples"
+        },
+        "complex_requests": {
+          "text": "Solicitações complexas"
+        },
+        "model_auto": {
+          "text": "Automático"
+        },
+        "default_models_save_error": {
+          "text": "Falha ao salvar a preferência de modelo padrão. Por favor, tente novamente."
         }
       },
       "ai_ask_model_details": {
@@ -4513,6 +4531,9 @@
       }
     },
     "app_store": {
+      "description": {
+        "text": "Navegue e gerencie os apps que seus mates podem usar."
+      },
       "text": "App Store",
       "no_apps_available": {
         "text": "Nenhum aplicativo disponível."
@@ -4567,8 +4588,17 @@
         "title": {
           "text": "Habilidades"
         },
+        "section_description": {
+          "text": "Apenas peça aos seus companheiros para fazer qualquer uma dessas coisas:"
+        },
         "how_to_use": {
           "text": "Como usar"
+        },
+        "how_to_use_prefix": {
+          "text": "Apenas pergunte aos seus companheiros algo como:"
+        },
+        "how_to_use_mention": {
+          "text": "Ou mencione @{skillname}\nna sua mensagem para acionar a habilidade explicitamente."
         },
         "description": {
           "text": "Descrição"
@@ -4658,6 +4688,18 @@
         "title": {
           "text": "Modos de foco"
         },
+        "section_description": {
+          "text": "Peça aos seus companheiros para terem conversas focadas para alcançar um objetivo:"
+        },
+        "how_to_use_prefix": {
+          "text": "Apenas pergunte aos seus companheiros algo como:"
+        },
+        "how_to_use_mention": {
+          "text": "Ou mencione @{focusname}\nna sua mensagem para ativar o modo de foco explicitamente."
+        },
+        "instructions_overview": {
+          "text": "Uma visão geral do que o modo de foco fará:"
+        },
         "description": {
           "text": "Descrição"
         },
@@ -4686,6 +4728,9 @@
       "settings_memories": {
         "title": {
           "text": "Configurações e memórias"
+        },
+        "section_description": {
+          "text": "Seus companheiros podem solicitar esses detalhes de você para dar respostas ainda melhores. Você mantém o controle sobre o que compartilha e quando:"
         },
         "subtitle": {
           "text": "{count} categorias disponíveis"

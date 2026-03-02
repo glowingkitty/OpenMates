@@ -907,7 +907,7 @@
       "search": {
         "text": "Search",
         "description": {
-          "text": "Search for meetups, conferences and local events."
+          "text": "Find meetups, conferences and local events."
         },
         "how_to_use": {
           "1": {
@@ -1077,7 +1077,7 @@
       "calculate": {
         "text": "Calculate",
         "description": {
-          "text": "Evaluate expressions, solve equations, and compute derivatives or integrals."
+          "text": "Solve equations and compute derivatives or integrals."
         }
       }
     },
@@ -1556,7 +1556,7 @@
       "search": {
         "text": "Search",
         "description": {
-          "text": "Search for events, meetups and conferences near you."
+          "text": "Find local meetups, conferences and events."
         }
       }
     },
@@ -2065,7 +2065,7 @@
         "text": "Unhide"
       },
       "fork": {
-        "text": "Fork Conversation"
+        "text": "Fork"
       }
     },
     "hidden_chats": {
@@ -3436,6 +3436,9 @@
     },
     "view_on_google_hotels": {
       "text": "View on Google Hotels"
+    },
+    "view_on_meetup": {
+      "text": "View on Meetup"
     },
     "loading_map": {
       "text": "Loading map..."
@@ -6432,6 +6435,21 @@
         "manual_select_note": {
           "text": "You can always manually select a model using @mention in the chat."
         },
+        "default_models": {
+          "text": "Default Models"
+        },
+        "simple_requests": {
+          "text": "Simple requests"
+        },
+        "complex_requests": {
+          "text": "Complex requests"
+        },
+        "model_auto": {
+          "text": "Auto"
+        },
+        "default_models_save_error": {
+          "text": "Failed to save default model preference. Please try again."
+        },
         "available_models": {
           "text": "Available Models"
         },
@@ -6624,7 +6642,7 @@
     },
     "app_store": {
       "description": {
-        "text": "Browse and manage apps and skills for your AI assistant"
+        "text": "Browse & manage the apps your mates can use."
       },
       "text": "App Store",
       "no_apps_available": {
@@ -6680,8 +6698,17 @@
         "title": {
           "text": "Skills"
         },
+        "section_description": {
+          "text": "Just ask your mates to do any of these things:"
+        },
         "how_to_use": {
           "text": "How to use"
+        },
+        "how_to_use_prefix": {
+          "text": "Just ask your mates something like:"
+        },
+        "how_to_use_mention": {
+          "text": "Or mention @{skillname}\nin your message to trigger the skill explicitly."
         },
         "description": {
           "text": "Description"
@@ -6771,6 +6798,18 @@
         "title": {
           "text": "Focus Modes"
         },
+        "section_description": {
+          "text": "Ask your mates to have focused conversations to reach a goal:"
+        },
+        "how_to_use_prefix": {
+          "text": "Just ask your mates something like:"
+        },
+        "how_to_use_mention": {
+          "text": "Or mention @{focusname}\nin your message to trigger the focus mode explicitly."
+        },
+        "instructions_overview": {
+          "text": "An overview, over what the focus mode will do:"
+        },
         "description": {
           "text": "Description"
         },
@@ -6799,6 +6838,9 @@
       "settings_memories": {
         "title": {
           "text": "Settings & Memories"
+        },
+        "section_description": {
+          "text": "Your mates can request these details from you, to give you even better responses. While you stay in control over what you share & when:"
         },
         "subtitle": {
           "text": "{count} categories available"

@@ -901,7 +901,7 @@
       "search": {
         "text": "検索",
         "description": {
-          "text": "ミートアップ、カンファレンス、地域イベントを検索する。"
+          "text": "ミートアップ、会議、地域イベントを探す。"
         },
         "how_to_use": {
           "1": {
@@ -1071,7 +1071,7 @@
       "calculate": {
         "text": "計算する",
         "description": {
-          "text": "式を評価し、方程式を解き、導関数や積分を計算する。"
+          "text": "方程式を解き、導関数や積分を計算する。"
         }
       }
     },
@@ -1540,7 +1540,7 @@
       "search": {
         "text": "検索",
         "description": {
-          "text": "近くのイベント、ミートアップ、カンファレンスを検索。"
+          "text": "近くのミートアップ、カンファレンス、イベントを探す。"
         }
       }
     },
@@ -2011,7 +2011,7 @@
         "text": "再表示"
       },
       "fork": {
-        "text": "会話を分岐"
+        "text": "分岐"
       }
     },
     "hidden_chats": {
@@ -3287,6 +3287,9 @@
     },
     "view_on_google_hotels": {
       "text": "Google Hotelsで見る"
+    },
+    "view_on_meetup": {
+      "text": "Meetupで見る"
     },
     "loading_map": {
       "text": "地図を読み込み中..."
@@ -5592,6 +5595,21 @@
       "ai_ask_settings": {
         "description": {
           "text": "テキスト、画像、その他のメディアを使って質問してください。"
+        },
+        "default_models": {
+          "text": "デフォルトモデル"
+        },
+        "simple_requests": {
+          "text": "シンプルなリクエスト"
+        },
+        "complex_requests": {
+          "text": "複雑なリクエスト"
+        },
+        "model_auto": {
+          "text": "自動"
+        },
+        "default_models_save_error": {
+          "text": "デフォルトモデルの設定を保存できませんでした。もう一度お試しください。"
         }
       },
       "ai_ask_model_details": {
@@ -5608,7 +5626,7 @@
     },
     "app_store": {
       "description": {
-        "text": "AIアシスタントのアプリとスキルを閲覧・管理する"
+        "text": "mates が使えるアプリを閲覧・管理する。"
       },
       "text": "App Store",
       "no_apps_available": {
@@ -5664,8 +5682,17 @@
         "title": {
           "text": "スキル"
         },
+        "section_description": {
+          "text": "mates に次のことをお願いするだけです："
+        },
         "how_to_use": {
           "text": "使い方"
+        },
+        "how_to_use_prefix": {
+          "text": "mates に次のようなことを聞いてみてください："
+        },
+        "how_to_use_mention": {
+          "text": "またはメッセージで @{skillname}\nと書いて、スキルを明示的にトリガーしてください。"
         },
         "description": {
           "text": "説明"
@@ -5755,6 +5782,18 @@
         "title": {
           "text": "フォーカスモード"
         },
+        "section_description": {
+          "text": "mates に目標を達成するための集中した会話をお願いしてください："
+        },
+        "how_to_use_prefix": {
+          "text": "mates に次のようなことを聞いてみてください："
+        },
+        "how_to_use_mention": {
+          "text": "またはメッセージで @{focusname}\nと書いて、フォーカスモードを明示的にトリガーしてください。"
+        },
+        "instructions_overview": {
+          "text": "フォーカスモードが行うことの概要："
+        },
         "description": {
           "text": "説明"
         },
@@ -5783,6 +5822,9 @@
       "settings_memories": {
         "title": {
           "text": "設定と記憶"
+        },
+        "section_description": {
+          "text": "mates はより良い回答を提供するためにこれらの詳細を求めることがあります。何をいつ共有するかはあなたが決めます："
         },
         "subtitle": {
           "text": "{count} のカテゴリが利用可能"

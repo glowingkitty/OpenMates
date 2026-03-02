@@ -24,6 +24,8 @@
     import { text } from '@repo/ui';
     import { setAppStoreNavList, clearAppStoreNav } from '../../stores/appStoreNavigationStore';
     import { onDestroy } from 'svelte';
+    import { pendingMentionStore } from '../../stores/pendingMentionStore';
+    import { panelState } from '../../stores/panelStateStore';
     
     // Create event dispatcher for navigation
     const dispatch = createEventDispatcher();
@@ -200,6 +202,16 @@
             title: app?.name_translation_key ? $text(app.name_translation_key) : appId
         });
     }
+
+    /**
+     * Insert the focus mode @mention into the message input and close settings.
+     * Uses pendingMentionStore with "@focus:{appId}:{focusModeId}" syntax.
+     * MessageInput.svelte watches this store and renders it as a styled mention chip.
+     */
+    function insertFocusMention() {
+        pendingMentionStore.set(`@focus:${appId}:${focusModeId}`);
+        panelState.closeSettings();
+    }
 </script>
 
 <div class="focus-mode-details">
@@ -242,8 +254,9 @@
                     </div>
                 </div>
                 <!-- "Or mention @FocusModeName in your message..." footer -->
+                <!-- Clicking the @mention inserts it into the message input (same as "Chat with this mate") -->
                 <p class="how-to-use-mention">
-                    {$text('settings.app_store.focus_modes.how_to_use_mention').split('{focusname}')[0]}<span class="mention-name">@{focusMentionDisplayName}</span>{$text('settings.app_store.focus_modes.how_to_use_mention').split('{focusname}')[1]}
+                    {$text('settings.app_store.focus_modes.how_to_use_mention').split('{focusname}')[0]}<button type="button" class="mention-name" onclick={insertFocusMention}>{focusMentionDisplayName}</button>{$text('settings.app_store.focus_modes.how_to_use_mention').split('{focusname}')[1]}
                 </p>
             </div>
         {/if}
@@ -255,7 +268,7 @@
         <div class="section">
             <SettingsItem 
                 type="heading"
-                icon="ai"
+                icon="systemprompt"
                 title={$text('settings.app_store.focus_modes.system_prompt')}
             />
             {#if hasInstructions}
@@ -277,20 +290,26 @@
                 {#if focusModeSystemPrompt}
                     {#if showFullPrompt}
                         <div class="instructions-block">
-                            <svg class="quote-icon quote-icon-top" width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Opening quote — top-left corner (absolute inside block) -->
+                            <svg class="prompt-quote prompt-quote-open" width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                                 <path d="M15 3a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.717-3.35 3 3 0 012.259-2.47C11.952 37.416 15 33.606 15 26.998v-3H6a6 6 0 01-5.985-5.549L0 17.998V9A5.999 5.999 0 016 3h9zm27 0a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.716-3.35 2.998 2.998 0 012.258-2.47C38.952 37.416 42 33.606 42 26.998v-3h-9a6 6 0 01-5.985-5.549l-.015-.45V9A5.999 5.999 0 0133 3h9z" fill="currentColor"/>
                             </svg>
                             <p class="instructions-text">{focusModeSystemPrompt}</p>
+                            <!-- Closing quote — bottom-right corner, rotated 180° -->
+                            <svg class="prompt-quote prompt-quote-close" width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <path d="M15 3a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.717-3.35 3 3 0 012.259-2.47C11.952 37.416 15 33.606 15 26.998v-3H6a6 6 0 01-5.985-5.549L0 17.998V9A5.999 5.999 0 016 3h9zm27 0a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.716-3.35 2.998 2.998 0 012.258-2.47C38.952 37.416 42 33.606 42 26.998v-3h-9a6 6 0 01-5.985-5.549l-.015-.45V9A5.999 5.999 0 0133 3h9z" fill="currentColor"/>
+                            </svg>
                         </div>
                     {/if}
+                    <!-- Toggle styled as a hyperlink with a highlighted <mark> label -->
                     <button
                         type="button"
                         class="instructions-toggle"
                         onclick={() => (showFullPrompt = !showFullPrompt)}
                     >
-                        {showFullPrompt
+                        <mark class="toggle-mark">{showFullPrompt
                             ? $text('settings.app_store.focus_modes.show_less')
-                            : $text('settings.app_store.focus_modes.show_full_instruction')}
+                            : $text('settings.app_store.focus_modes.show_full_instruction')}</mark>
                     </button>
                 {/if}
             {:else}
@@ -377,27 +396,30 @@
         border: 1px solid var(--color-grey-20);
         border-radius: 12px;
         display: grid;
+        /* Opening quote top-left, text spans middle, closing quote bottom-right */
         grid-template-areas:
-            "text open"
-            "close .";
-        grid-template-columns: 1fr auto;
-        grid-template-rows: 1fr auto;
+            "open text"
+            ".    close";
+        grid-template-columns: auto 1fr;
+        grid-template-rows: auto 1fr;
         gap: 0.4rem;
     }
 
+    /* Opening quote — top-LEFT */
     .quote-open {
         grid-area: open;
         align-self: start;
-        justify-self: end;
+        justify-self: start;
         color: var(--color-grey-40);
         opacity: 0.5;
         flex-shrink: 0;
     }
 
+    /* Closing quote — bottom-RIGHT, rotated 180° to face the other direction */
     .quote-close {
         grid-area: close;
         align-self: end;
-        justify-self: start;
+        justify-self: end;
         color: var(--color-grey-40);
         opacity: 0.5;
         flex-shrink: 0;
@@ -411,7 +433,7 @@
         line-height: 1.5;
         color: var(--color-grey-100);
         word-break: break-word;
-        align-self: center;
+        align-self: start;
     }
 
     /* Highlighted trigger words (from **word** syntax in i18n) */
@@ -431,10 +453,25 @@
         white-space: pre-line;
     }
 
-    /* The @mention name rendered in accent color */
+    /* The @mention name — styled as an inline clickable button */
     .how-to-use-mention .mention-name {
-        color: var(--color-primary-start);
+        display: inline;
+        padding: 0;
+        margin: 0;
+        border: none;
+        background: none;
+        font: inherit;
+        font-size: inherit;
         font-weight: 600;
+        line-height: inherit;
+        color: var(--color-primary-start);
+        cursor: pointer;
+        text-decoration: underline dotted;
+        text-underline-offset: 2px;
+    }
+
+    .how-to-use-mention .mention-name:hover {
+        text-decoration: underline solid;
     }
 
     /* "An overview, over what the focus mode will do:" label */
@@ -475,17 +512,19 @@
         line-height: 1.5;
     }
 
-    /* System prompt block — quote-style card with regular (non-monospace) text */
+    /* System prompt block — quote-style card with opening and closing quote marks */
     .instructions-block {
         position: relative;
         margin-top: 0.75rem;
-        padding: 1rem 1.25rem 1rem 2.5rem;
+        /* pad: top leaves room for quote icon, bottom-right leaves room for closing quote */
+        padding: 2rem 2.5rem 2rem 2.5rem;
         background: var(--color-grey-10, #f5f5f5);
         border-radius: 12px;
         border: 1px solid var(--color-grey-20);
     }
 
-    .quote-icon {
+    /* Opening quote — top-left corner of the prompt block */
+    .prompt-quote-open {
         position: absolute;
         top: 10px;
         left: 12px;
@@ -494,6 +533,19 @@
         color: var(--color-grey-50);
         opacity: 0.6;
         pointer-events: none;
+    }
+
+    /* Closing quote — bottom-right corner of the prompt block, rotated 180° */
+    .prompt-quote-close {
+        position: absolute;
+        bottom: 10px;
+        right: 12px;
+        width: 20px;
+        height: 20px;
+        color: var(--color-grey-50);
+        opacity: 0.6;
+        pointer-events: none;
+        transform: rotate(180deg);
     }
 
     /* Full system prompt text — regular body text (not monospace) */
@@ -507,24 +559,33 @@
         word-break: break-word;
         color: var(--color-grey-100);
     }
-    
-    /* Toggle button for showing/hiding the full system prompt */
+
+    /* Toggle button — styled as a plain hyperlink with a <mark> highlight */
     .instructions-toggle {
         display: block;
         margin-top: 0.75rem;
         margin-left: 10px;
-        padding: 0.35rem 0.6rem;
+        padding: 0;
         font-size: 0.875rem;
-        color: var(--color-primary, #0066cc);
         background: transparent;
         border: none;
         cursor: pointer;
-        border-radius: 4px;
         font-weight: 500;
+        text-align: left;
     }
-    
-    .instructions-toggle:hover {
-        text-decoration: underline;
+
+    /* <mark> inside toggle — highlight style */
+    .toggle-mark {
+        background: var(--color-primary-start, #5856d6);
+        color: #fff;
+        border-radius: 3px;
+        padding: 1px 5px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .instructions-toggle:hover .toggle-mark {
+        opacity: 0.85;
     }
     
     .no-instructions {

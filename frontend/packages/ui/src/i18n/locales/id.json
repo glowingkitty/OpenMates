@@ -901,7 +901,7 @@
       "search": {
         "text": "Cari",
         "description": {
-          "text": "Cari meetup, konferensi, dan acara lokal."
+          "text": "Temukan meetup, konferensi, dan acara lokal."
         },
         "how_to_use": {
           "1": {
@@ -1071,7 +1071,7 @@
       "calculate": {
         "text": "Hitung",
         "description": {
-          "text": "Evaluasi ekspresi, selesaikan persamaan, dan hitung turunan atau integral."
+          "text": "Selesaikan persamaan dan hitung turunan atau integral."
         }
       }
     },
@@ -1540,7 +1540,7 @@
       "search": {
         "text": "Cari",
         "description": {
-          "text": "Cari acara, meetup, dan konferensi di dekat Anda."
+          "text": "Temukan meetup, konferensi, dan acara lokal."
         }
       }
     },
@@ -2011,7 +2011,7 @@
         "text": "Tampilkan"
       },
       "fork": {
-        "text": "Cabangkan percakapan"
+        "text": "Cabangkan"
       }
     },
     "hidden_chats": {
@@ -2949,6 +2949,9 @@
     },
     "view_on_google_hotels": {
       "text": "Lihat di Google Hotels"
+    },
+    "view_on_meetup": {
+      "text": "Lihat di Meetup"
     },
     "loading_map": {
       "text": "Memuat peta..."
@@ -4498,6 +4501,21 @@
       "ai_ask_settings": {
         "description": {
           "text": "Ajukan pertanyaan, menggunakan teks, gambar, dan media lainnya."
+        },
+        "default_models": {
+          "text": "Model default"
+        },
+        "simple_requests": {
+          "text": "Permintaan sederhana"
+        },
+        "complex_requests": {
+          "text": "Permintaan kompleks"
+        },
+        "model_auto": {
+          "text": "Otomatis"
+        },
+        "default_models_save_error": {
+          "text": "Gagal menyimpan preferensi model default. Silakan coba lagi."
         }
       },
       "ai_ask_model_details": {
@@ -4513,6 +4531,9 @@
       }
     },
     "app_store": {
+      "description": {
+        "text": "Jelajahi dan kelola aplikasi yang dapat digunakan oleh mates Anda."
+      },
       "text": "App Store",
       "no_apps_available": {
         "text": "Tidak ada aplikasi yang tersedia."
@@ -4567,8 +4588,17 @@
         "title": {
           "text": "Keterampilan"
         },
+        "section_description": {
+          "text": "Cukup minta teman-teman Anda melakukan salah satu hal berikut:"
+        },
         "how_to_use": {
           "text": "Cara menggunakan"
+        },
+        "how_to_use_prefix": {
+          "text": "Cukup tanyakan kepada teman-teman Anda sesuatu seperti:"
+        },
+        "how_to_use_mention": {
+          "text": "Atau sebutkan @{skillname}\ndalam pesan Anda untuk memicu keterampilan secara eksplisit."
         },
         "description": {
           "text": "Deskripsi"
@@ -4658,6 +4688,18 @@
         "title": {
           "text": "Mode Fokus"
         },
+        "section_description": {
+          "text": "Minta teman-teman Anda untuk berdiskusi secara terfokus guna mencapai tujuan:"
+        },
+        "how_to_use_prefix": {
+          "text": "Cukup tanyakan kepada teman-teman Anda sesuatu seperti:"
+        },
+        "how_to_use_mention": {
+          "text": "Atau sebutkan @{focusname}\ndalam pesan Anda untuk memicu mode fokus secara eksplisit."
+        },
+        "instructions_overview": {
+          "text": "Gambaran umum tentang apa yang akan dilakukan mode fokus:"
+        },
         "description": {
           "text": "Deskripsi"
         },
@@ -4686,6 +4728,9 @@
       "settings_memories": {
         "title": {
           "text": "Pengaturan dan memori"
+        },
+        "section_description": {
+          "text": "Teman-teman Anda dapat meminta detail ini untuk memberikan jawaban yang lebih baik. Anda selalu mengontrol apa yang Anda bagikan dan kapan:"
         },
         "subtitle": {
           "text": "{count} kategori tersedia"

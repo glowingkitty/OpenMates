@@ -901,7 +901,7 @@
       "search": {
         "text": "Buscar",
         "description": {
-          "text": "Busca meetups, conferencias y eventos locales."
+          "text": "Encuentra meetups, conferencias y eventos locales."
         },
         "how_to_use": {
           "1": {
@@ -1071,7 +1071,7 @@
       "calculate": {
         "text": "Calcular",
         "description": {
-          "text": "Evalúa expresiones, resuelve ecuaciones y calcula derivadas o integrales."
+          "text": "Resuelve ecuaciones y calcula derivadas o integrales."
         }
       }
     },
@@ -1540,7 +1540,7 @@
       "search": {
         "text": "Buscar",
         "description": {
-          "text": "Busca eventos, meetups y conferencias cerca de ti."
+          "text": "Encuentra meetups, conferencias y eventos locales."
         }
       }
     },
@@ -2011,7 +2011,7 @@
         "text": "Mostrar"
       },
       "fork": {
-        "text": "Bifurcar conversación"
+        "text": "Bifurcar"
       }
     },
     "hidden_chats": {
@@ -3287,6 +3287,9 @@
     },
     "view_on_google_hotels": {
       "text": "Ver en Google Hotels"
+    },
+    "view_on_meetup": {
+      "text": "Ver en Meetup"
     },
     "loading_map": {
       "text": "Cargando mapa..."
@@ -5725,6 +5728,21 @@
       "ai_ask_settings": {
         "description": {
           "text": "Haz una pregunta, usando texto, imágenes y otros medios."
+        },
+        "default_models": {
+          "text": "Modelos predeterminados"
+        },
+        "simple_requests": {
+          "text": "Solicitudes simples"
+        },
+        "complex_requests": {
+          "text": "Solicitudes complejas"
+        },
+        "model_auto": {
+          "text": "Auto"
+        },
+        "default_models_save_error": {
+          "text": "No se pudo guardar la preferencia de modelo predeterminado. Por favor, inténtalo de nuevo."
         }
       },
       "ai_ask_model_details": {
@@ -5741,7 +5759,7 @@
     },
     "app_store": {
       "description": {
-        "text": "Navega y gestiona aplicaciones y habilidades para tu asistente de IA"
+        "text": "Navega y gestiona las apps que tus compañeros pueden usar."
       },
       "text": "App Store",
       "no_apps_available": {
@@ -5797,8 +5815,17 @@
         "title": {
           "text": "Habilidades"
         },
+        "section_description": {
+          "text": "Solo pídele a tus compañeros que hagan cualquiera de estas cosas:"
+        },
         "how_to_use": {
           "text": "Cómo usar"
+        },
+        "how_to_use_prefix": {
+          "text": "Solo pregúntale a tus compañeros algo como:"
+        },
+        "how_to_use_mention": {
+          "text": "O menciona @{skillname}\nen tu mensaje para activar la habilidad explícitamente."
         },
         "description": {
           "text": "Descripción"
@@ -5888,6 +5915,18 @@
         "title": {
           "text": "Modos de enfoque"
         },
+        "section_description": {
+          "text": "Pídele a tus compañeros que tengan conversaciones enfocadas para alcanzar un objetivo:"
+        },
+        "how_to_use_prefix": {
+          "text": "Solo pregúntale a tus compañeros algo como:"
+        },
+        "how_to_use_mention": {
+          "text": "O menciona @{focusname}\nen tu mensaje para activar el modo de enfoque explícitamente."
+        },
+        "instructions_overview": {
+          "text": "Una descripción general de lo que hará el modo de enfoque:"
+        },
         "description": {
           "text": "Descripción"
         },
@@ -5916,6 +5955,9 @@
       "settings_memories": {
         "title": {
           "text": "Configuración y recuerdos"
+        },
+        "section_description": {
+          "text": "Tus compañeros pueden pedirte estos detalles para darte respuestas aún mejores. Tú siempre tienes el control sobre qué compartes y cuándo:"
         },
         "subtitle": {
           "text": "{count} categorías disponibles"

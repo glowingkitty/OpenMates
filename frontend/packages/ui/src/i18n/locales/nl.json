@@ -901,7 +901,7 @@
       "search": {
         "text": "Zoeken",
         "description": {
-          "text": "Zoek naar meetups, conferenties en lokale evenementen."
+          "text": "Vind meetups, conferenties en lokale evenementen."
         },
         "how_to_use": {
           "1": {
@@ -1071,7 +1071,7 @@
       "calculate": {
         "text": "Berekenen",
         "description": {
-          "text": "Evalueer uitdrukkingen, los vergelijkingen op en bereken afgeleiden of integralen."
+          "text": "Los vergelijkingen op en bereken afgeleiden/integralen."
         }
       }
     },
@@ -1540,7 +1540,7 @@
       "search": {
         "text": "Zoeken",
         "description": {
-          "text": "Zoek naar evenementen, meetups en conferenties bij jou in de buurt."
+          "text": "Vind meetups, conferenties en lokale evenementen."
         }
       }
     },
@@ -2011,7 +2011,7 @@
         "text": "Zichtbaar maken"
       },
       "fork": {
-        "text": "Gesprek vertakken"
+        "text": "Vertakken"
       }
     },
     "hidden_chats": {
@@ -2949,6 +2949,9 @@
     },
     "view_on_google_hotels": {
       "text": "Bekijken op Google Hotels"
+    },
+    "view_on_meetup": {
+      "text": "Bekijken op Meetup"
     },
     "loading_map": {
       "text": "Kaart laden..."
@@ -4498,6 +4501,21 @@
       "ai_ask_settings": {
         "description": {
           "text": "Stel een vraag, met tekst, afbeeldingen en andere media."
+        },
+        "default_models": {
+          "text": "Standaardmodellen"
+        },
+        "simple_requests": {
+          "text": "Eenvoudige verzoeken"
+        },
+        "complex_requests": {
+          "text": "Complexe verzoeken"
+        },
+        "model_auto": {
+          "text": "Automatisch"
+        },
+        "default_models_save_error": {
+          "text": "Kan de voorkeur voor het standaardmodel niet opslaan. Probeer het opnieuw."
         }
       },
       "ai_ask_model_details": {
@@ -4513,6 +4531,9 @@
       }
     },
     "app_store": {
+      "description": {
+        "text": "Blader door en beheer de apps die jouw mates kunnen gebruiken."
+      },
       "text": "App Store",
       "no_apps_available": {
         "text": "Geen apps beschikbaar."
@@ -4567,8 +4588,17 @@
         "title": {
           "text": "Vaardigheden"
         },
+        "section_description": {
+          "text": "Vraag je maatjes gewoon om een van deze dingen te doen:"
+        },
         "how_to_use": {
           "text": "Hoe te gebruiken"
+        },
+        "how_to_use_prefix": {
+          "text": "Vraag je maatjes gewoon iets als:"
+        },
+        "how_to_use_mention": {
+          "text": "Of vermeld @{skillname}\nin je bericht om de vaardigheid expliciet te activeren."
         },
         "description": {
           "text": "Beschrijving"
@@ -4658,6 +4688,18 @@
         "title": {
           "text": "Focusmodi"
         },
+        "section_description": {
+          "text": "Vraag je maatjes om gerichte gesprekken te voeren om een doel te bereiken:"
+        },
+        "how_to_use_prefix": {
+          "text": "Vraag je maatjes gewoon iets als:"
+        },
+        "how_to_use_mention": {
+          "text": "Of vermeld @{focusname}\nin je bericht om de focusmodus expliciet te activeren."
+        },
+        "instructions_overview": {
+          "text": "Een overzicht van wat de focusmodus zal doen:"
+        },
         "description": {
           "text": "Beschrijving"
         },
@@ -4686,6 +4728,9 @@
       "settings_memories": {
         "title": {
           "text": "Instellingen en herinneringen"
+        },
+        "section_description": {
+          "text": "Je maatjes kunnen om deze details vragen om je nog betere antwoorden te geven. Jij blijft altijd in controle over wat je deelt en wanneer:"
         },
         "subtitle": {
           "text": "{count} categorieën beschikbaar"

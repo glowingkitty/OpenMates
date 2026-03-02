@@ -901,7 +901,7 @@
       "search": {
         "text": "Rechercher",
         "description": {
-          "text": "Recherchez des meetups, des conférences et des événements locaux."
+          "text": "Trouvez des meetups, conférences et événements locaux."
         },
         "how_to_use": {
           "1": {
@@ -1071,7 +1071,7 @@
       "calculate": {
         "text": "Calculer",
         "description": {
-          "text": "Évaluez des expressions, résolvez des équations et calculez des dérivées ou des intégrales."
+          "text": "Résolvez des équations, dérivées et intégrales."
         }
       }
     },
@@ -1540,7 +1540,7 @@
       "search": {
         "text": "Rechercher",
         "description": {
-          "text": "Recherche des événements, meetups et conférences près de chez vous."
+          "text": "Trouvez des meetups, conférences et événements locaux."
         }
       }
     },
@@ -2011,7 +2011,7 @@
         "text": "Afficher"
       },
       "fork": {
-        "text": "Bifurquer la conversation"
+        "text": "Bifurquer"
       }
     },
     "hidden_chats": {
@@ -3287,6 +3287,9 @@
     },
     "view_on_google_hotels": {
       "text": "Voir sur Google Hotels"
+    },
+    "view_on_meetup": {
+      "text": "Voir sur Meetup"
     },
     "loading_map": {
       "text": "Chargement de la carte..."
@@ -5682,6 +5685,21 @@
       "ai_ask_settings": {
         "description": {
           "text": "Posez une question, en utilisant du texte, des images et d'autres médias."
+        },
+        "default_models": {
+          "text": "Modèles par défaut"
+        },
+        "simple_requests": {
+          "text": "Requêtes simples"
+        },
+        "complex_requests": {
+          "text": "Requêtes complexes"
+        },
+        "model_auto": {
+          "text": "Auto"
+        },
+        "default_models_save_error": {
+          "text": "Impossible d'enregistrer la préférence du modèle par défaut. Veuillez réessayer."
         }
       },
       "ai_ask_model_details": {
@@ -5698,7 +5716,7 @@
     },
     "app_store": {
       "description": {
-        "text": "Parcourez et gérez les applications et compétences de votre assistant IA"
+        "text": "Parcourez et gérez les apps que vos mates peuvent utiliser."
       },
       "text": "App Store",
       "no_apps_available": {
@@ -5754,8 +5772,17 @@
         "title": {
           "text": "Compétences"
         },
+        "section_description": {
+          "text": "Demandez simplement à vos compagnons de faire l'une de ces choses :"
+        },
         "how_to_use": {
           "text": "Comment utiliser"
+        },
+        "how_to_use_prefix": {
+          "text": "Demandez simplement à vos compagnons quelque chose comme :"
+        },
+        "how_to_use_mention": {
+          "text": "Ou mentionnez @{skillname}\ndans votre message pour déclencher explicitement la compétence."
         },
         "description": {
           "text": "Description"
@@ -5845,6 +5872,18 @@
         "title": {
           "text": "Modes de concentration"
         },
+        "section_description": {
+          "text": "Demandez à vos compagnons d'avoir des conversations ciblées pour atteindre un objectif :"
+        },
+        "how_to_use_prefix": {
+          "text": "Demandez simplement à vos compagnons quelque chose comme :"
+        },
+        "how_to_use_mention": {
+          "text": "Ou mentionnez @{focusname}\ndans votre message pour déclencher explicitement le mode de concentration."
+        },
+        "instructions_overview": {
+          "text": "Un aperçu de ce que fera le mode de concentration :"
+        },
         "description": {
           "text": "Description"
         },
@@ -5873,6 +5912,9 @@
       "settings_memories": {
         "title": {
           "text": "Paramètres et souvenirs"
+        },
+        "section_description": {
+          "text": "Vos compagnons peuvent vous demander ces informations pour vous donner de meilleures réponses. Vous gardez le contrôle sur ce que vous partagez et quand :"
         },
         "subtitle": {
           "text": "{count} catégories disponibles"

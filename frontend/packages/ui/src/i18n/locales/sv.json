@@ -901,7 +901,7 @@
       "search": {
         "text": "Sök",
         "description": {
-          "text": "Sök efter meetups, konferenser och lokala evenemang."
+          "text": "Hitta meetups, konferenser och lokala evenemang."
         },
         "how_to_use": {
           "1": {
@@ -1071,7 +1071,7 @@
       "calculate": {
         "text": "Beräkna",
         "description": {
-          "text": "Utvärdera uttryck, lös ekvationer och beräkna derivator eller integraler."
+          "text": "Lös ekvationer och beräkna derivator eller integraler."
         }
       }
     },
@@ -1540,7 +1540,7 @@
       "search": {
         "text": "Sök",
         "description": {
-          "text": "Sök efter evenemang, meetups och konferenser nära dig."
+          "text": "Hitta meetups, konferenser och lokala evenemang."
         }
       }
     },
@@ -2011,7 +2011,7 @@
         "text": "Visa igen"
       },
       "fork": {
-        "text": "Förgrena konversation"
+        "text": "Förgrena"
       }
     },
     "hidden_chats": {
@@ -2991,6 +2991,9 @@
     },
     "view_on_google_hotels": {
       "text": "Visa på Google Hotels"
+    },
+    "view_on_meetup": {
+      "text": "Visa på Meetup"
     },
     "loading_map": {
       "text": "Laddar karta..."
@@ -4522,6 +4525,21 @@
       "ai_ask_settings": {
         "description": {
           "text": "Ställ en fråga med text, bilder och andra medier."
+        },
+        "default_models": {
+          "text": "Standardmodeller"
+        },
+        "simple_requests": {
+          "text": "Enkla förfrågningar"
+        },
+        "complex_requests": {
+          "text": "Komplexa förfrågningar"
+        },
+        "model_auto": {
+          "text": "Automatiskt"
+        },
+        "default_models_save_error": {
+          "text": "Det gick inte att spara standardmodellens inställning. Försök igen."
         }
       },
       "ai_ask_model_details": {
@@ -4537,6 +4555,9 @@
       }
     },
     "app_store": {
+      "description": {
+        "text": "Bläddra bland och hantera de appar dina mates kan använda."
+      },
       "text": "App Store",
       "no_apps_available": {
         "text": "Inga appar tillgängliga."
@@ -4591,8 +4612,17 @@
         "title": {
           "text": "Färdigheter"
         },
+        "section_description": {
+          "text": "Be bara dina kompisar att göra någon av dessa saker:"
+        },
         "how_to_use": {
           "text": "Hur man använder"
+        },
+        "how_to_use_prefix": {
+          "text": "Fråga bara dina kompisar något liknande:"
+        },
+        "how_to_use_mention": {
+          "text": "Eller nämn @{skillname}\ni ditt meddelande för att utlösa kompetensen explicit."
         },
         "description": {
           "text": "Beskrivning"
@@ -4682,6 +4712,18 @@
         "title": {
           "text": "Fok lägen"
         },
+        "section_description": {
+          "text": "Be dina kompisar att ha fokuserade samtal för att nå ett mål:"
+        },
+        "how_to_use_prefix": {
+          "text": "Fråga bara dina kompisar något liknande:"
+        },
+        "how_to_use_mention": {
+          "text": "Eller nämn @{focusname}\ni ditt meddelande för att utlösa fokusläget explicit."
+        },
+        "instructions_overview": {
+          "text": "En översikt över vad fokusläget kommer att göra:"
+        },
         "description": {
           "text": "Beskrivning"
         },
@@ -4710,6 +4752,9 @@
       "settings_memories": {
         "title": {
           "text": "Inställningar och minnen"
+        },
+        "section_description": {
+          "text": "Dina kompisar kan be om dessa uppgifter för att ge dig ännu bättre svar. Du har alltid kontroll över vad du delar och när:"
         },
         "subtitle": {
           "text": "{count} kategorier tillgängliga"

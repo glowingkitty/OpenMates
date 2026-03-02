@@ -901,7 +901,7 @@
       "search": {
         "text": "Cerca",
         "description": {
-          "text": "Cerca meetup, conferenze ed eventi locali."
+          "text": "Trova meetup, conferenze ed eventi locali."
         },
         "how_to_use": {
           "1": {
@@ -1071,7 +1071,7 @@
       "calculate": {
         "text": "Calcola",
         "description": {
-          "text": "Valuta espressioni, risolvi equazioni e calcola derivate o integrali."
+          "text": "Risolvi equazioni e calcola derivate o integrali."
         }
       }
     },
@@ -1540,7 +1540,7 @@
       "search": {
         "text": "Cerca",
         "description": {
-          "text": "Cerca eventi, meetup e conferenze vicino a te."
+          "text": "Trova meetup, conferenze ed eventi locali."
         }
       }
     },
@@ -2011,7 +2011,7 @@
         "text": "Mostra"
       },
       "fork": {
-        "text": "Biforca conversazione"
+        "text": "Biforca"
       }
     },
     "hidden_chats": {
@@ -2949,6 +2949,9 @@
     },
     "view_on_google_hotels": {
       "text": "Vedi su Google Hotels"
+    },
+    "view_on_meetup": {
+      "text": "Vedi su Meetup"
     },
     "loading_map": {
       "text": "Caricamento mappa..."
@@ -4498,6 +4501,21 @@
       "ai_ask_settings": {
         "description": {
           "text": "Fai una domanda, usando testo, immagini e altri media."
+        },
+        "default_models": {
+          "text": "Modelli predefiniti"
+        },
+        "simple_requests": {
+          "text": "Richieste semplici"
+        },
+        "complex_requests": {
+          "text": "Richieste complesse"
+        },
+        "model_auto": {
+          "text": "Automatico"
+        },
+        "default_models_save_error": {
+          "text": "Impossibile salvare la preferenza del modello predefinito. Per favore riprova."
         }
       },
       "ai_ask_model_details": {
@@ -4513,6 +4531,9 @@
       }
     },
     "app_store": {
+      "description": {
+        "text": "Sfoglia e gestisci le app che i tuoi mates possono usare."
+      },
       "text": "App Store",
       "no_apps_available": {
         "text": "Nessuna app disponibile."
@@ -4567,8 +4588,17 @@
         "title": {
           "text": "Abilità"
         },
+        "section_description": {
+          "text": "Chiedi semplicemente ai tuoi compagni di fare una di queste cose:"
+        },
         "how_to_use": {
           "text": "Come usare"
+        },
+        "how_to_use_prefix": {
+          "text": "Chiedi semplicemente ai tuoi compagni qualcosa come:"
+        },
+        "how_to_use_mention": {
+          "text": "Oppure menziona @{skillname}\nnel tuo messaggio per attivare esplicitamente la competenza."
         },
         "description": {
           "text": "Descrizione"
@@ -4658,6 +4688,18 @@
         "title": {
           "text": "Modalità di focus"
         },
+        "section_description": {
+          "text": "Chiedi ai tuoi compagni di avere conversazioni mirate per raggiungere un obiettivo:"
+        },
+        "how_to_use_prefix": {
+          "text": "Chiedi semplicemente ai tuoi compagni qualcosa come:"
+        },
+        "how_to_use_mention": {
+          "text": "Oppure menziona @{focusname}\nnel tuo messaggio per attivare esplicitamente la modalità di focus."
+        },
+        "instructions_overview": {
+          "text": "Una panoramica di cosa farà la modalità di focus:"
+        },
         "description": {
           "text": "Descrizione"
         },
@@ -4686,6 +4728,9 @@
       "settings_memories": {
         "title": {
           "text": "Impostazioni e ricordi"
+        },
+        "section_description": {
+          "text": "I tuoi compagni possono chiederti questi dettagli per darti risposte ancora migliori. Tu mantieni sempre il controllo su cosa condividi e quando:"
         },
         "subtitle": {
           "text": "{count} categorie disponibili"

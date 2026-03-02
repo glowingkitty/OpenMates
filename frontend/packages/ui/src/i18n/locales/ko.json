@@ -901,7 +901,7 @@
       "search": {
         "text": "검색",
         "description": {
-          "text": "밋업, 컨퍼런스, 로컬 이벤트를 검색하세요."
+          "text": "밋업, 컨퍼런스, 로컬 이벤트를 찾아보세요."
         },
         "how_to_use": {
           "1": {
@@ -1071,7 +1071,7 @@
       "calculate": {
         "text": "계산하기",
         "description": {
-          "text": "식을 평가하고 방정식을 풀고 미분 또는 적분을 계산하세요."
+          "text": "방정식을 풀고 미분 또는 적분을 계산하세요."
         }
       }
     },
@@ -1540,7 +1540,7 @@
       "search": {
         "text": "검색",
         "description": {
-          "text": "근처의 이벤트, 밋업, 컨퍼런스를 검색하세요."
+          "text": "근처 밋업, 컨퍼런스, 이벤트를 찾으세요."
         }
       }
     },
@@ -2011,7 +2011,7 @@
         "text": "숨기기 해제"
       },
       "fork": {
-        "text": "대화 포크"
+        "text": "포크"
       }
     },
     "hidden_chats": {
@@ -2949,6 +2949,9 @@
     },
     "view_on_google_hotels": {
       "text": "Google Hotels에서 보기"
+    },
+    "view_on_meetup": {
+      "text": "Meetup에서 보기"
     },
     "loading_map": {
       "text": "지도 로딩 중..."
@@ -4498,6 +4501,21 @@
       "ai_ask_settings": {
         "description": {
           "text": "텍스트, 이미지 및 기타 미디어를 사용하여 질문하세요."
+        },
+        "default_models": {
+          "text": "기본 모델"
+        },
+        "simple_requests": {
+          "text": "간단한 요청"
+        },
+        "complex_requests": {
+          "text": "복잡한 요청"
+        },
+        "model_auto": {
+          "text": "자동"
+        },
+        "default_models_save_error": {
+          "text": "기본 모델 설정을 저장하지 못했습니다. 다시 시도해 주세요."
         }
       },
       "ai_ask_model_details": {
@@ -4513,6 +4531,9 @@
       }
     },
     "app_store": {
+      "description": {
+        "text": "mates가 사용할 수 있는 앱을 탐색하고 관리하세요."
+      },
       "text": "App Store",
       "no_apps_available": {
         "text": "사용 가능한 앱이 없습니다."
@@ -4567,8 +4588,17 @@
         "title": {
           "text": "스킬"
         },
+        "section_description": {
+          "text": "메이트에게 다음 중 하나를 해달라고 요청하세요:"
+        },
         "how_to_use": {
           "text": "사용 방법"
+        },
+        "how_to_use_prefix": {
+          "text": "메이트에게 이런 식으로 물어보세요:"
+        },
+        "how_to_use_mention": {
+          "text": "또는 메시지에서 @{skillname}\n을 언급하여 스킬을 명시적으로 트리거하세요."
         },
         "description": {
           "text": "설명"
@@ -4658,6 +4688,18 @@
         "title": {
           "text": "포커스 모드"
         },
+        "section_description": {
+          "text": "목표를 달성하기 위해 집중적인 대화를 해달라고 메이트에게 요청하세요:"
+        },
+        "how_to_use_prefix": {
+          "text": "메이트에게 이런 식으로 물어보세요:"
+        },
+        "how_to_use_mention": {
+          "text": "또는 메시지에서 @{focusname}\n을 언급하여 포커스 모드를 명시적으로 트리거하세요."
+        },
+        "instructions_overview": {
+          "text": "포커스 모드가 수행할 작업 개요:"
+        },
         "description": {
           "text": "설명"
         },
@@ -4686,6 +4728,9 @@
       "settings_memories": {
         "title": {
           "text": "설정 및 메모리"
+        },
+        "section_description": {
+          "text": "메이트가 더 나은 응답을 제공하기 위해 이 세부 정보를 요청할 수 있습니다. 공유할 내용과 시기는 항상 당신이 결정합니다:"
         },
         "subtitle": {
           "text": "{count}개의 카테고리 사용 가능"

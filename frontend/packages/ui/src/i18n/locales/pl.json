@@ -901,7 +901,7 @@
       "search": {
         "text": "Szukaj",
         "description": {
-          "text": "Szukaj spotkań, konferencji i lokalnych wydarzeń."
+          "text": "Znajdź meetupy, konferencje i lokalne wydarzenia."
         },
         "how_to_use": {
           "1": {
@@ -1071,7 +1071,7 @@
       "calculate": {
         "text": "Oblicz",
         "description": {
-          "text": "Ewaluuj wyrażenia, rozwiązuj równania i obliczaj pochodne lub całki."
+          "text": "Rozwiązuj równania i obliczaj pochodne lub całki."
         }
       }
     },
@@ -1540,7 +1540,7 @@
       "search": {
         "text": "Szukaj",
         "description": {
-          "text": "Szukaj wydarzeń, meetupów i konferencji w pobliżu."
+          "text": "Znajdź meetupy, konferencje i lokalne wydarzenia."
         }
       }
     },
@@ -2011,7 +2011,7 @@
         "text": "Odkryj"
       },
       "fork": {
-        "text": "Rozwidl rozmowę"
+        "text": "Rozwidl"
       }
     },
     "hidden_chats": {
@@ -2949,6 +2949,9 @@
     },
     "view_on_google_hotels": {
       "text": "Zobacz na Google Hotels"
+    },
+    "view_on_meetup": {
+      "text": "Zobacz na Meetup"
     },
     "loading_map": {
       "text": "Ładowanie mapy..."
@@ -4498,6 +4501,21 @@
       "ai_ask_settings": {
         "description": {
           "text": "Zadaj pytanie, używając tekstu, obrazów i innych mediów."
+        },
+        "default_models": {
+          "text": "Domyślne modele"
+        },
+        "simple_requests": {
+          "text": "Proste zapytania"
+        },
+        "complex_requests": {
+          "text": "Złożone zapytania"
+        },
+        "model_auto": {
+          "text": "Automatycznie"
+        },
+        "default_models_save_error": {
+          "text": "Nie udało się zapisać preferencji modelu domyślnego. Spróbuj ponownie."
         }
       },
       "ai_ask_model_details": {
@@ -4513,6 +4531,9 @@
       }
     },
     "app_store": {
+      "description": {
+        "text": "Przeglądaj i zarządzaj aplikacjami, z których mogą korzystać twoi mates."
+      },
       "text": "App Store",
       "no_apps_available": {
         "text": "Brak dostępnych aplikacji."
@@ -4567,8 +4588,17 @@
         "title": {
           "text": "Umiejętności"
         },
+        "section_description": {
+          "text": "Po prostu poproś swoich towarzyszy, aby zrobili jedno z tych rzeczy:"
+        },
         "how_to_use": {
           "text": "Jak używać"
+        },
+        "how_to_use_prefix": {
+          "text": "Po prostu zapytaj swoich towarzyszy o coś takiego:"
+        },
+        "how_to_use_mention": {
+          "text": "Lub wspomnij @{skillname}\nw swojej wiadomości, aby jawnie uruchomić umiejętność."
         },
         "description": {
           "text": "Opis"
@@ -4658,6 +4688,18 @@
         "title": {
           "text": "Tryby skupienia"
         },
+        "section_description": {
+          "text": "Poproś swoich towarzyszy o prowadzenie skupionych rozmów w celu osiągnięcia celu:"
+        },
+        "how_to_use_prefix": {
+          "text": "Po prostu zapytaj swoich towarzyszy o coś takiego:"
+        },
+        "how_to_use_mention": {
+          "text": "Lub wspomnij @{focusname}\nw swojej wiadomości, aby jawnie uruchomić tryb skupienia."
+        },
+        "instructions_overview": {
+          "text": "Przegląd tego, co zrobi tryb skupienia:"
+        },
         "description": {
           "text": "Opis"
         },
@@ -4686,6 +4728,9 @@
       "settings_memories": {
         "title": {
           "text": "Ustawienia i wspomnienia"
+        },
+        "section_description": {
+          "text": "Twoi towarzysze mogą poprosić o te szczegóły, aby dawać Ci jeszcze lepsze odpowiedzi. Ty zawsze kontrolujesz, co udostępniasz i kiedy:"
         },
         "subtitle": {
           "text": "{count} kategorie dostępne"
