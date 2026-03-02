@@ -1092,6 +1092,24 @@ changes to the documentation (to keep the documentation up to date).
                         previousPathSegments = navigationPath.slice(0, -1);
                     }
                 }
+            } else if (navigationPath.join('/') === 'incognito/info') {
+                // 'incognito/info' is the only incognito route — there is no bare 'incognito' route.
+                // Pressing back should return to the main settings page, not try to navigate to
+                // a non-existent 'incognito' route.
+                direction = 'backward';
+                activeSettingsView = 'main';
+                showSubmenuInfo = false;
+                navButtonLeft = false;
+                navigationPath = [];
+                breadcrumbLabel = $text('settings.settings');
+                if (profileContainer) {
+                    profileContainer.classList.remove('submenu-active');
+                }
+                await tick();
+                if (settingsContentElement) {
+                    settingsContentElement.scrollTop = 0;
+                }
+                return;
             } else {
                 // For non-app_store routes, go back one level normally
                 previousPath = navigationPath.slice(0, -1).join('/');
@@ -1696,7 +1714,13 @@ changes to the documentation (to keep the documentation up to date).
                 let translationKey;
                 if (settingsPath === 'shared/share') {
                     translationKey = 'settings.share';
-                } else if (settingsPath.startsWith('account/storage/')) {
+            } else if (settingsPath === 'incognito/info') {
+                // Incognito info page: use the incognito icon and the top-level "Incognito" title.
+                // The path 'incognito/info' would otherwise auto-generate 'settings.incognito.info'
+                // which does not exist in translations.
+                activeSubMenuIcon = 'incognito';
+                activeSubMenuTitleKey = 'settings.incognito';
+            } else if (settingsPath.startsWith('account/storage/')) {
                     // Storage category pages use the storage_category_* keys in storage.yml
                     const deepLinkStorageCategoryKeyMap: Record<string, string> = {
                         images:   'settings.storage.storage_category_images',
