@@ -447,27 +447,27 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 else:
                     logger.debug(f"Draft version not found in chat versions for chat {chat_id} (already deleted or never existed)")
                 
-                # CRITICAL FIX: ALWAYS broadcast draft deletion to other devices when a message is sent
+                # CRITICAL FIX: ALWAYS broadcast draft deletion to other devices when a message is sent.
                 # This ensures consistent state across all user devices, even if the draft was never
                 # stored on the server (e.g., server cache expired, or draft was only saved locally).
                 # Other devices might have a locally cached draft that needs to be cleared.
-                # Previously, this only broadcasted if cache_delete_success or version_delete_success,
-                # which caused stale drafts to persist on other devices when the server had no draft to delete.
-                try:
-                    await manager.broadcast_to_user(
-                        message={
-                            "type": "draft_deleted",
-                            "payload": {"chat_id": chat_id}
-                        },
-                        user_id=user_id,
-                        exclude_device_hash=device_fingerprint_hash
-                    )
-                    logger.info(f"Broadcasted draft_deleted event for chat {chat_id} to other user devices after message send")
-                except Exception as e_broadcast:
-                    logger.warning(f"Failed to broadcast draft_deleted for chat {chat_id}: {e_broadcast}")
+                # The broadcast is intentionally OUTSIDE the inner try/except so that if it throws,
+                # the failure propagates to the outer except (logged as a warning) rather than being
+                # silently swallowed — making broadcast failures visible in logs.
+                await manager.broadcast_to_user(
+                    message={
+                        "type": "draft_deleted",
+                        "payload": {"chat_id": chat_id}
+                    },
+                    user_id=user_id,
+                    exclude_device_hash=device_fingerprint_hash
+                )
+                logger.info(f"Broadcasted draft_deleted event for chat {chat_id} to other user devices after message send")
             except Exception as e_draft_delete:
-                logger.warning(f"Error deleting draft from cache for chat {chat_id} after message send: {e_draft_delete}")
-                # Non-critical error - draft will expire via TTL or be overwritten by client delete_draft message
+                # Non-critical error — draft will expire via TTL or be overwritten by the client's
+                # subsequent delete_draft WebSocket message. The reconnect reconciliation
+                # (get_draft_versions) also acts as a fallback for devices that come back online later.
+                logger.warning(f"Error during draft cache deletion or broadcast for chat {chat_id} after message send: {e_draft_delete}")
         else:
             logger.debug(f"Skipping draft deletion for incognito chat {chat_id} - drafts are not saved for incognito chats")
 

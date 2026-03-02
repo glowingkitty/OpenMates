@@ -1783,6 +1783,29 @@ export async function executeDeferredSend(
       sendError,
     );
   }
+
+  // -------------------------------------------------------------------------
+  // 8. Clear the draft for this chat on all devices
+  // -------------------------------------------------------------------------
+  // The deferred-send path skips clearCurrentDraft() in the normal handleSend()
+  // flow because it returns early (line ~578). We must call it here after the
+  // send completes so that:
+  //   a) The local IndexedDB draft is nulled out.
+  //   b) The 'delete_draft' WebSocket message is sent to the server, which then
+  //      broadcasts 'draft_deleted' to all other logged-in devices.
+  // Without this call, Device B (and any other device) would continue showing
+  // the draft in the chat list even after the message was sent.
+  try {
+    await clearCurrentDraft();
+    console.info(
+      `[executeDeferredSend] Draft cleared for chat ${readyCtx.chatId.slice(-6)}`,
+    );
+  } catch (clearError) {
+    console.error(
+      "[executeDeferredSend] Failed to clear draft after deferred send:",
+      clearError,
+    );
+  }
 }
 
 /**

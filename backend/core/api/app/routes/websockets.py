@@ -1733,6 +1733,23 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload
                 )
+
+            elif message_type == "get_draft_versions":
+                # Lightweight reconnect-reconciliation request.
+                # Client sends a list of {chat_id, client_draft_v} for all chats that have
+                # a locally-stored draft (draft_v > 0). Server looks up current Redis draft_v
+                # for each and responds with "draft_versions_response". The client clears any
+                # local draft whose server draft_v == 0 (draft was deleted on another device
+                # while this device was offline).
+                from .handlers.websocket_handlers.get_draft_versions_handler import handle_get_draft_versions
+                await handle_get_draft_versions(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
             elif message_type == "delete_draft_embed":
                 # Deletes an uploaded file (image/PDF/recording) that was removed from
                 # the message draft before being sent.  Cleans up S3 files, the
