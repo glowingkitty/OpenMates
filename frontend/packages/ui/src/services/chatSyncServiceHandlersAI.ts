@@ -3221,9 +3221,23 @@ export async function handleSendEmbedDataImpl(
           throw new Error("Failed to wrap embed_key with master key");
         }
 
-        const chatKey = chatDB.getOrGenerateChatKey(embedData.chat_id);
+        // CRITICAL: Use getChatKey (NOT getOrGenerateChatKey) to prevent silently
+        // generating a random throwaway key when the chat key is transiently absent
+        // from the in-memory cache. This race condition occurs on brand-new chats when
+        // multiple embeds finalize concurrently before the chat key is loaded into cache.
+        // Throwing here is safe: the embed is simply not stored in IDB, and the renderer's
+        // _decryptionFailed recovery path will re-request it from the server once the
+        // chat key is warmed up. A silent wrong-key-wrap permanently corrupts the embed
+        // (AES-GCM auth tag fails on every future reload because the stored wrapped key
+        // was encrypted with the wrong key — decryption always returns null).
+        // See: chatSyncServiceHandlersChatUpdates.ts:625 for the identical guard on messages.
+        const chatKey = chatDB.getChatKey(embedData.chat_id);
         if (!chatKey) {
-          throw new Error("Failed to get chat key for wrapping embed_key");
+          throw new Error(
+            `[ChatSyncService:AI] Chat key not in cache for chat ${embedData.chat_id} — ` +
+              `refusing to generate throwaway key. Embed ${embedData.embed_id} will be ` +
+              `re-requested by the renderer after the chat key is available.`,
+          );
         }
         wrappedChatKey = await wrapEmbedKeyWithChatKey(embedKey, chatKey);
 
