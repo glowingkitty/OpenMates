@@ -439,6 +439,7 @@
     isNewChatCreditsError = false,
     isCreditsRestored = false,
     onResend = undefined,
+    isIncognito = false,
   }: {
     messageInputHeight?: number;
     containerWidth?: number;
@@ -472,6 +473,9 @@
     /** Callback to resend the original message after credits are restored.
      *  Passed through to ChatMessage; called when the user clicks "Resend message". */
     onResend?: () => void;
+    /** True when the active chat is an incognito chat.
+     *  Shows the incognito-specific ChatHeader variant immediately (no shimmer needed). */
+    isIncognito?: boolean;
   } = $props();
 
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
@@ -608,9 +612,10 @@
   // Only shown for new chats — existing chats opened from the sidebar never show this.
   // The header is visible as long as any of these are true:
   //   a) isNewChatGeneratingTitle is true (shimmer placeholder state), or
-  //   b) isNewChatCreditsError is true (credits rejection state — keeps banner mounted), or
-  //   c) the title + category have been received (full card state)
-  let showChatHeader = $derived(isNewChatGeneratingTitle || isNewChatCreditsError || !!(chatTitle && chatCategory));
+  //   b) we have both a title and a category (loaded state), or
+  //   c) isNewChatCreditsError is true (credits error state), or
+  //   d) isIncognito is true (always show the incognito header immediately)
+  let showChatHeader = $derived(isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!(chatTitle && chatCategory));
   
   // Message ID waiting to be scrolled into view after the new-chat title arrives.
   // When a message is sent to a brand-new chat we activate the spacer immediately
@@ -1488,6 +1493,7 @@
                 {chatCreatedAt}
                 isLoading={isNewChatGeneratingTitle}
                 isCreditsError={isNewChatCreditsError}
+                {isIncognito}
             />
         </div>
     {/if}

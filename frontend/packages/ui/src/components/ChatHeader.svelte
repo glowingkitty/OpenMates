@@ -59,6 +59,9 @@
     isLoading = false,
     isCreditsError = false,
     chatCreatedAt = null,
+    /** When true, renders the incognito-specific variant: fixed dark gradient, anonym icon,
+     *  and "Incognito Mode" as the title. Overrides all other visual states. */
+    isIncognito = false,
   }: {
     title?: string;
     category?: string | null;
@@ -69,6 +72,7 @@
      *  Replaces the "Creating new chat..." shimmer with a static "Not enough credits" state. */
     isCreditsError?: boolean;
     chatCreatedAt?: number | null;
+    isIncognito?: boolean;
   } = $props();
 
   // ─── Relative-time ticker ──────────────────────────────────────────────────
@@ -159,9 +163,13 @@
 
   // ─── Derived state ─────────────────────────────────────────────────────────
 
-  /** Gradient background style for the banner. Uses primary gradient while loading or
-   *  showing a credits error; category gradient once fully loaded. */
+  /** Gradient background style for the banner. Incognito gets a fixed dark privacy gradient;
+   *  loading/credits-error gets the primary gradient; loaded state uses the category gradient. */
   let bannerStyle = $derived.by(() => {
+    if (isIncognito) {
+      // Fixed dark privacy-themed gradient for incognito chats
+      return 'background: linear-gradient(135deg, #1a1a2e 0%, #2d2d44 50%, #1e1e35 100%)';
+    }
     if (isLoading || isCreditsError || !category) {
       // Processing state or credits error: use the primary gradient from theme.css
       return 'background: var(--color-primary)';
@@ -178,8 +186,9 @@
     return getLucideIcon(iconName);
   });
 
-  /** Whether the loaded state should be shown (transition from processing → loaded). */
-  let isLoaded = $derived(!isLoading && !!title && !!category);
+  /** Whether the loaded state should be shown (transition from processing → loaded).
+   *  For incognito chats, this is always true — there's no loading phase. */
+  let isLoaded = $derived(isIncognito || (!isLoading && !!title && !!category));
 
   /** Whether to show the summary with its expand animation. */
   let showSummary = $derived(isLoaded && !!summary);
@@ -262,7 +271,7 @@
   style={bannerStyle}
 >
   <!-- ── Processing state: AI icon + "Creating new chat ..." with shimmer ── -->
-  {#if isLoading && !isCreditsError}
+  {#if isLoading && !isCreditsError && !isIncognito}
     <div class="processing-content">
       <div class="processing-ai-icon"></div>
       <span class="processing-text">{$text('chat.creating_new_chat')}</span>
@@ -273,15 +282,32 @@
        Shown when the first message on a new chat was rejected due to 0 credits.
        Same blue background as the loading state but no shimmer animation.
        Stays visible until the user sends another message or switches chat. -->
-  {#if isCreditsError}
+  {#if isCreditsError && !isIncognito}
     <div class="processing-content credits-error-content">
       <div class="processing-ai-icon credits-error-icon"></div>
       <span class="credits-error-text">{$text('chat.header.not_enough_credits')}</span>
     </div>
   {/if}
 
+  <!-- ── Incognito state: anonym icon + "Incognito Mode" label ──
+       Shown immediately when isIncognito=true. Uses the anonym.svg mask icon and
+       a fixed dark privacy gradient (set via bannerStyle). No shimmer, no summary. -->
+  {#if isIncognito}
+    <!-- Large decorative anonym icons at left and right edges -->
+    <div class="deco-icon deco-icon-left incognito-deco-icon"></div>
+    <div class="deco-icon deco-icon-right incognito-deco-icon"></div>
+
+    <div class="loaded-content">
+      <!-- Anonym icon (38×38px) using CSS mask -->
+      <div class="incognito-header-icon"></div>
+
+      <!-- "Incognito Mode" title -->
+      <span class="loaded-title">{$text('settings.incognito_mode_active')}</span>
+    </div>
+  {/if}
+
   <!-- ── Loaded state: category icon + title + summary + time ── -->
-  {#if isLoaded}
+  {#if isLoaded && !isIncognito}
     <!-- Large decorative icons at left and right edges (126×126px, 0.4 opacity).
          Animate in from below: translateY(50px) → translateY(0), opacity 0 → 0.4. -->
     {#if IconComponent}
@@ -542,6 +568,50 @@
     text-align: center;
     margin-top: 2px;
     animation: fadeIn 0.4s ease-out 0.15s both;
+  }
+
+  /* ─── Incognito header icon (38×38px) — uses anonym.svg via CSS mask ─── */
+
+  .incognito-header-icon {
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    -webkit-mask-image: url('@openmates/ui/static/icons/anonym.svg');
+    mask-image: url('@openmates/ui/static/icons/anonym.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    background-color: rgba(255, 255, 255, 0.9);
+  }
+
+  /* ─── Incognito decorative large icons at banner edges (126×126px) ────── */
+
+  .incognito-deco-icon {
+    -webkit-mask-image: url('@openmates/ui/static/icons/anonym.svg');
+    mask-image: url('@openmates/ui/static/icons/anonym.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    background-color: rgba(255, 255, 255, 0.15);
+    /* Override the decoIconEnter animation to end at a lower opacity */
+    animation: incognitoDecoEnter 0.6s ease-out 0.1s both;
+  }
+
+  @keyframes incognitoDecoEnter {
+    from {
+      opacity: 0;
+      transform: translateY(50px) rotate(var(--deco-rotate, 0deg));
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) rotate(var(--deco-rotate, 0deg));
+    }
   }
 
   /* ─── Large decorative icons (126×126px) at banner edges ─────────────── */

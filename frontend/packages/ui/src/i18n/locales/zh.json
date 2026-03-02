@@ -2583,6 +2583,9 @@
     "purchase_confirmation": {
       "text": "购买确认"
     },
+    "purchase_confirmation_polar": {
+      "text": "购买确认（确认编号 {invoice_id}）"
+    },
     "support_contribution_confirmation": {
       "text": "感谢您支持 OpenMates（收据 {receipt_id}）"
     },
@@ -4031,6 +4034,9 @@
     },
     "invoice_number": {
       "text": "发票号码"
+    },
+    "confirmation_number": {
+      "text": "确认编号"
     },
     "date_of_issue": {
       "text": "开具日期"
@@ -6492,6 +6498,9 @@
     },
     "incognito_explainer_warning_personal_info": {
       "text": "强烈建议不要在隐身聊天中包含任何个人信息、敏感数据或机密详情。"
+    },
+    "incognito_mode_active": {
+      "text": "隐身模式"
     },
     "incognito_mode_applies_to_new_chats_only": {
       "text": "隐身模式仅适用于新聊天。不适用于此聊天。"

@@ -2672,6 +2672,9 @@
     "purchase_confirmation": {
       "text": "Kaufbestätigung"
     },
+    "purchase_confirmation_polar": {
+      "text": "Kaufbestätigung (Bestätigung {invoice_id})"
+    },
     "support_contribution_confirmation": {
       "text": "Danke für deine Unterstützung (Beleg {receipt_id})"
     },
@@ -4228,6 +4231,9 @@
     },
     "invoice_number": {
       "text": "Rechnungsnummer"
+    },
+    "confirmation_number": {
+      "text": "Bestätigungsnummer"
     },
     "date_of_issue": {
       "text": "Ausstellungsdatum"
@@ -7233,6 +7239,9 @@
     },
     "incognito_explainer_warning_personal_info": {
       "text": "Es wird dringend empfohlen, keine persönlichen Informationen, sensiblen Daten oder vertraulichen Details in Inkognito-Chats einzufügen."
+    },
+    "incognito_mode_active": {
+      "text": "Inkognito-Modus"
     },
     "incognito_mode_applies_to_new_chats_only": {
       "text": "Inkognito-Modus gilt nur für neue Chats. Nicht für diesen Chat."

@@ -149,6 +149,14 @@
         onFocusPillDeepLink?: () => void;
         /** Called after the 1-second deactivation timer elapses (no undo). */
         onFocusPillDeactivate?: () => void;
+        /**
+         * Incognito pill props — passed from ActiveChat when an incognito chat is active.
+         * The pill is rendered inside the message-field alongside the focus pill.
+         * isIncognitoMode=true shows the pill; toggle calls onIncognitoPillDeactivate.
+         */
+        isIncognitoMode?: boolean;
+        /** Called when user clicks the toggle on the incognito pill to disable incognito mode. */
+        onIncognitoPillDeactivate?: () => void;
     }
     let { 
         currentChatId = undefined,
@@ -162,7 +170,9 @@
         activeFocusAppId = null,
         activeFocusModeMetadata = null,
         onFocusPillDeepLink = undefined,
-        onFocusPillDeactivate = undefined
+        onFocusPillDeactivate = undefined,
+        isIncognitoMode = false,
+        onIncognitoPillDeactivate = undefined
     }: Props = $props();
 
     // --- Refs ---
@@ -194,6 +204,10 @@
     // Derived: pill is visible when focus is active AND we are not in the middle of fading away.
     // Once deactivation fires (timer elapses), activeFocusId becomes null upstream, hiding the pill.
     let showFocusPill = $derived(!!activeFocusId);
+
+    // --- Incognito Pill State ---
+    // Visible when the current chat is an incognito chat. Toggle calls onIncognitoPillDeactivate.
+    let showIncognitoPill = $derived(!!isIncognitoMode);
 
     // Icon name derived from the focus mode metadata (strip ".svg" suffix).
     let focusPillIconName = $derived(
@@ -230,6 +244,14 @@
      */
     function handleFocusPillClick() {
         onFocusPillDeepLink?.();
+    }
+
+    /**
+     * Handle click on the incognito pill toggle: immediately disable incognito mode.
+     * Unlike the focus pill, there is no countdown — the toggle is a direct on/off switch.
+     */
+    function handleIncognitoPillToggle() {
+        onIncognitoPillDeactivate?.();
     }
 
     // Location precision setting — read from personalDataStore (persisted, encrypted).
@@ -3850,7 +3872,7 @@
     <div
         class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''}"
         class:drag-over={isDragging}
-        class:has-focus-pill={showFocusPill}
+        class:has-focus-pill={showFocusPill || showIncognitoPill}
         style={containerStyle}
         ondragover={handleDragOver}
         ondragleave={handleDragLeave}
@@ -3900,6 +3922,32 @@
                     <Toggle
                         checked={!focusPillDeactivating}
                         on:change={handleFocusPillToggle}
+                    />
+                </div>
+            </div>
+        {/if}
+
+        <!-- Incognito mode pill: shown when the active chat is an incognito chat.
+             Same position and structure as the focus pill. The toggle immediately
+             disables incognito mode (no countdown — toggle is a direct on/off switch).
+             Uses a fixed dark privacy gradient distinct from category gradients. -->
+        {#if showIncognitoPill}
+            <div
+                class="focus-pill incognito-pill"
+                transition:fade={{ duration: 200 }}
+            >
+                <!-- Left side: anonym icon + "Incognito Mode" label (non-interactive display) -->
+                <div class="focus-pill-body incognito-pill-body" aria-label={$text('settings.incognito_mode_active')}>
+                    <span class="focus-pill-icon incognito-pill-icon" aria-hidden="true"></span>
+                    <span class="focus-pill-label">{$text('settings.incognito_mode_active')}</span>
+                </div>
+                <!-- Toggle: immediately disables incognito mode -->
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <div class="focus-pill-toggle" onclick={(e) => e.stopPropagation()}>
+                    <Toggle
+                        checked={true}
+                        on:change={handleIncognitoPillToggle}
                     />
                 </div>
             </div>

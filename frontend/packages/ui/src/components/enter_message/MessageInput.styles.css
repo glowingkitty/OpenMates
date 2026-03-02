@@ -262,6 +262,44 @@
   cursor: pointer;
 }
 
+/* Incognito pill: inherits the focus-pill layout but uses a fixed dark privacy gradient
+   and the anonym.svg icon instead of a per-app gradient and focus icon. */
+.incognito-pill {
+  background: linear-gradient(
+    135deg,
+    #1a1a2e 0%,
+    #2d2d44 50%,
+    #1e1e35 100%
+  ) !important;
+  --focus-pill-gradient: none; /* prevent any inherited CSS variable from overriding */
+}
+
+/* Incognito pill body: non-interactive display (no deep-link action) */
+.incognito-pill-body {
+  cursor: default !important;
+}
+
+.incognito-pill-body:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Anonym icon using CSS mask-image pointing to anonym.svg */
+.incognito-pill-icon {
+  display: block;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  background-color: white;
+  -webkit-mask-image: url("@openmates/ui/static/icons/anonym.svg");
+  mask-image: url("@openmates/ui/static/icons/anonym.svg");
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
 /* Scrollable area */
 .scrollable-content {
   flex-grow: 1;

@@ -2583,6 +2583,9 @@
     "purchase_confirmation": {
       "text": "Confirmación de compra"
     },
+    "purchase_confirmation_polar": {
+      "text": "Confirmación de compra (Confirmación {invoice_id})"
+    },
     "support_contribution_confirmation": {
       "text": "Gracias por apoyar a OpenMates (Recibo {receipt_id})"
     },
@@ -4068,6 +4071,9 @@
     },
     "invoice_number": {
       "text": "Número de factura"
+    },
+    "confirmation_number": {
+      "text": "Número de confirmación"
     },
     "date_of_issue": {
       "text": "Fecha de emisión"
@@ -6628,6 +6634,9 @@
     },
     "incognito_explainer_warning_personal_info": {
       "text": "Se recomienda encarecidamente no incluir información personal, datos sensibles o detalles confidenciales en los chats incógnitos."
+    },
+    "incognito_mode_active": {
+      "text": "Modo incógnito"
     },
     "incognito_mode_applies_to_new_chats_only": {
       "text": "El modo incógnito se aplica solo a chats nuevos. No a este chat."

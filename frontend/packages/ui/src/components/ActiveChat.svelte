@@ -5107,7 +5107,30 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // chat header shows a "Generating title..." placeholder. Once the server sends the
         // encrypted title (title_updated) or category/icon (metadata_updated), decrypt and
         // populate the header — then hide the placeholder.
-        if (isNewChatGeneratingTitle && incomingChatMetadata && (detail.type === 'title_updated' || detail.type === 'metadata_updated')) {
+        // ─── Incognito chat header: apply plaintext metadata directly ────────────────
+        // Incognito chats don't go through the encryption post-processing pipeline,
+        // so title/category/icon arrive as plaintext fields in the chatUpdated event
+        // dispatched by chatSyncServiceHandlersAI after ai_typing_started.
+        if (isNewChatGeneratingTitle && currentChat?.is_incognito && incomingChatMetadata && detail.type === 'metadata_updated') {
+            const incognitoCategory = incomingChatMetadata.category || null;
+            const incognitoTitle = (typeof incomingChatMetadata.title === 'string' ? incomingChatMetadata.title : '') || '';
+            const rawIncognitoIcon = incomingChatMetadata.icon || null;
+            const incognitoIcon = rawIncognitoIcon ? (rawIncognitoIcon.split(',')[0]?.trim() || null) : null;
+            if (incognitoCategory) {
+                activeChatDecryptedTitle = incognitoTitle;
+                activeChatDecryptedCategory = incognitoCategory;
+                activeChatDecryptedIcon = incognitoIcon;
+                isNewChatGeneratingTitle = false;
+                console.info('[ActiveChat] handleChatUpdated: Incognito chat header ready (plaintext):', incognitoTitle, incognitoCategory, incognitoIcon);
+                if (chatHistoryRef) {
+                    setTimeout(() => {
+                        chatHistoryRef?.triggerNewChatUserMessageScroll();
+                    }, 3000);
+                }
+            }
+        }
+
+        if (isNewChatGeneratingTitle && !currentChat?.is_incognito && incomingChatMetadata && (detail.type === 'title_updated' || detail.type === 'metadata_updated')) {
             const chatToDecrypt = incomingChatMetadata;
             console.debug(`[ActiveChat] handleChatUpdated: Decrypting chat header metadata (type=${detail.type})`, chatToDecrypt);
             try {
@@ -7220,11 +7243,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     currentMessages[messageIndex] = updatedMessage;
                     currentMessages = [...currentMessages]; // Trigger reactivity
 
-                    // Save status update to DB (only the user message, not the placeholder)
-                    try {
-                        await chatDB.saveMessage(updatedMessage);
-                    } catch (error) {
-                        console.error('[ActiveChat] Error updating user message status to processing in DB:', error);
+                    // Save status update to DB — skip for incognito chats (messages are stored
+                    // in sessionStorage via incognitoChatService, not in IndexedDB).
+                    if (!currentChat?.is_incognito) {
+                        try {
+                            await chatDB.saveMessage(updatedMessage);
+                        } catch (error) {
+                            console.error('[ActiveChat] Error updating user message status to processing in DB:', error);
+                        }
                     }
 
                     if (chatHistoryRef) {
@@ -7324,10 +7350,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     currentMessages[messageIndex] = updatedMessage;
                     currentMessages = [...currentMessages];
 
-                    try {
-                        await chatDB.saveMessage(updatedMessage);
-                    } catch (error) {
-                        console.error('[ActiveChat] Error updating user message status to synced in DB:', error);
+                    // Save status update to DB — skip for incognito chats (messages are stored
+                    // in sessionStorage via incognitoChatService, not in IndexedDB).
+                    if (!currentChat?.is_incognito) {
+                        try {
+                            await chatDB.saveMessage(updatedMessage);
+                        } catch (error) {
+                            console.error('[ActiveChat] Error updating user message status to synced in DB:', error);
+                        }
                     }
 
                     if (chatHistoryRef) {
@@ -7891,21 +7921,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 class:side-by-side-minimizing={sideBySideAnimating && sideBySideAnimationDirection === 'minimize'}
                 class:side-by-side-restoring={sideBySideAnimating && sideBySideAnimationDirection === 'restore'}
             >
-                <!-- Incognito mode banner - shows for incognito chats (when not on welcome screen) or on welcome screen when incognito mode is active -->
-                <!-- IMPORTANT: Condition must be mutually exclusive with the "applies to new chats only" banner below.
-                     Banner 2 shows when: $incognitoMode && currentChat && !currentChat.is_incognito && !showWelcome
-                     This banner shows when: (currentChat.is_incognito && !showWelcome) || (showWelcome && $incognitoMode)
-                     These two are mutually exclusive: banner 2 requires !showWelcome && !is_incognito,
-                     banner 1 requires is_incognito || showWelcome — never both true simultaneously. -->
-                {#if (currentChat?.is_incognito && !showWelcome) || (showWelcome && $incognitoMode)}
-                    <div class="incognito-banner">
-                        <div class="incognito-banner-icon">
-                            <div class="icon settings_size subsetting_icon incognito"></div>
-                        </div>
-                        <span class="incognito-banner-text">{$text('settings.incognito')}</span>
-                    </div>
-                {/if}
-                
                 <!-- Left side container for chat history and buttons -->
                 <div class="chat-side" bind:this={chatSideEl}>
                     <!-- Daily Inspiration banners – shown above welcome greeting on new chat screen -->
@@ -8115,33 +8130,34 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         </div>
                     {/if}
 
-                    <ChatHistory
-                        bind:this={chatHistoryRef}
-                        messageInputHeight={isFullscreen ? 0 : messageInputHeight + 40}
-                        containerWidth={effectiveChatWidth}
-                        currentChatId={currentChat?.chat_id}
-                        {processingPhase}
-                        {thinkingContentByTask}
-                        {settingsMemoriesSuggestions}
-                        {rejectedSuggestionHashes}
-                        chatTitle={activeChatDecryptedTitle}
-                        chatCategory={activeChatDecryptedCategory}
-                        chatIcon={activeChatDecryptedIcon}
-                        chatSummary={activeChatDecryptedSummary}
-                        chatCreatedAt={currentChat && !isPublicChat(currentChat.chat_id) ? (currentChat.created_at ?? null) : null}
-                        {isNewChatGeneratingTitle}
-                        {isNewChatCreditsError}
-                        {isCreditsRestored}
-                        onResend={handleResendAfterCreditsRestored}
-                        onSuggestionAdded={handleSettingsMemorySuggestionAdded}
-                        onSuggestionRejected={handleSettingsMemorySuggestionRejected}
-                        onSuggestionOpenForCustomize={handleSettingsMemorySuggestionOpenForCustomize}
-                        on:messagesChange={handleMessagesChange}
-                        on:chatUpdated={handleChatUpdated}
-                        on:scrollPositionUI={handleScrollPositionUI}
-                        on:scrollPositionChanged={handleScrollPositionChanged}
-                        on:scrolledToBottom={handleScrolledToBottom}
-                    />
+                     <ChatHistory
+                         bind:this={chatHistoryRef}
+                         messageInputHeight={isFullscreen ? 0 : messageInputHeight + 40}
+                         containerWidth={effectiveChatWidth}
+                         currentChatId={currentChat?.chat_id}
+                         {processingPhase}
+                         {thinkingContentByTask}
+                         {settingsMemoriesSuggestions}
+                         {rejectedSuggestionHashes}
+                         chatTitle={activeChatDecryptedTitle}
+                         chatCategory={activeChatDecryptedCategory}
+                         chatIcon={activeChatDecryptedIcon}
+                         chatSummary={activeChatDecryptedSummary}
+                         chatCreatedAt={currentChat && !isPublicChat(currentChat.chat_id) ? (currentChat.created_at ?? null) : null}
+                         {isNewChatGeneratingTitle}
+                         {isNewChatCreditsError}
+                         {isCreditsRestored}
+                         isIncognito={!!currentChat?.is_incognito}
+                         onResend={handleResendAfterCreditsRestored}
+                         onSuggestionAdded={handleSettingsMemorySuggestionAdded}
+                         onSuggestionRejected={handleSettingsMemorySuggestionRejected}
+                         onSuggestionOpenForCustomize={handleSettingsMemorySuggestionOpenForCustomize}
+                         on:messagesChange={handleMessagesChange}
+                         on:chatUpdated={handleChatUpdated}
+                         on:scrollPositionUI={handleScrollPositionUI}
+                         on:scrollPositionChanged={handleScrollPositionChanged}
+                         on:scrolledToBottom={handleScrolledToBottom}
+                     />
 
                     <!-- Scroll-to-top button: visible when not at top and chat has messages -->
                     {#if !showWelcome && !isAtTop}
@@ -8266,6 +8282,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         handleFocusModeDeactivation(activeFocusId);
                                         activeFocusId = null;
                                     }
+                                }}
+                                isIncognitoMode={!!(currentChat?.is_incognito || (showWelcome && $incognitoMode))}
+                                onIncognitoPillDeactivate={() => {
+                                    incognitoMode.set(false);
                                 }}
                                 on:codefullscreen={handleCodeFullscreen}
                                 on:imagefullscreen={handleImageFullscreen}
@@ -9655,35 +9675,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     .active-chat-container.dimmed {
         opacity: 0.3;
-    }
-
-    /* Incognito mode banner - full width, 20px height at top of chat */
-    .incognito-banner {
-        width: 100%;
-        height: 20px;
-        background-color: var(--color-grey-30);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        padding: 0 12px;
-        flex-shrink: 0;
-    }
-
-    .incognito-banner-icon {
-        width: 16px;
-        height: 16px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-
-    .incognito-banner-text {
-        font-size: 12px;
-        font-weight: 500;
-        color: var(--color-grey-70);
-        white-space: nowrap;
     }
 
     /* Banner for non-incognito chats when incognito mode is active */

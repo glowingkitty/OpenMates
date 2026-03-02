@@ -2583,6 +2583,9 @@
     "purchase_confirmation": {
       "text": "購入確認"
     },
+    "purchase_confirmation_polar": {
+      "text": "購入確認（確認番号 {invoice_id}）"
+    },
     "support_contribution_confirmation": {
       "text": "OpenMates へのご支援ありがとうございます（領収書 {receipt_id}）"
     },
@@ -4031,6 +4034,9 @@
     },
     "invoice_number": {
       "text": "請求書番号"
+    },
+    "confirmation_number": {
+      "text": "確認番号"
     },
     "date_of_issue": {
       "text": "発行日"
@@ -6492,6 +6498,9 @@
     },
     "incognito_explainer_warning_personal_info": {
       "text": "シークレットチャットには、個人情報、機密データ、または機密の詳細を含めないことを強くお勧めします。"
+    },
+    "incognito_mode_active": {
+      "text": "シークレットモード"
     },
     "incognito_mode_applies_to_new_chats_only": {
       "text": "シークレットモードは新しいチャットにのみ適用されます。このチャットには適用されません。"

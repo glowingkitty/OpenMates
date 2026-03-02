@@ -5790,6 +5790,9 @@
     "incognito_explainer_warning_personal_info": {
       "text": "يُنصح بشدة بعدم تضمين أي معلومات شخصية أو بيانات حساسة أو تفاصيل سرية في الدردشات المتخفية."
     },
+    "incognito_mode_active": {
+      "text": "وضع التصفح المتخفي"
+    },
     "incognito_mode_applies_to_new_chats_only": {
       "text": "ينطبق وضع التصفح المتخفي على الدردشات الجديدة فقط، وليس على هذه الدردشة."
     },

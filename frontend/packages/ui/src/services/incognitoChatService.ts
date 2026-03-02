@@ -160,7 +160,16 @@ class IncognitoChatService {
   }
 
   /**
-   * Delete all incognito chats (called when incognito mode is disabled)
+   * Delete all incognito chats (called when incognito mode is disabled).
+   *
+   * Order matters: clear in-memory maps FIRST, then clear sessionStorage.
+   * This prevents any concurrent persistToSessionStorage call (triggered by a
+   * racing WebSocket event) from re-persisting the now-deleted chats — because
+   * persistToSessionStorage reads from this.chats, which is already empty.
+   *
+   * NOTE: The caller (incognitoModeStore.setMethod) is responsible for dispatching
+   * 'incognitoChatsDeleted' after this completes. Do NOT dispatch it here to avoid
+   * double-firing the event.
    */
   async deleteAllChats(): Promise<void> {
     this.chats.clear();
@@ -189,6 +198,12 @@ class IncognitoChatService {
         group_key: "incognito",
         encrypted_title: chat.encrypted_title,
         title: chat.title,
+        // Plaintext category and icon: set from the ai_typing_started payload once
+        // the server returns metadata for the new chat. Stored here so the sidebar
+        // and chat header can show the correct icon/category on page reload within
+        // the same session.
+        category: chat.category,
+        icon: chat.icon,
         created_at: chat.created_at,
         updated_at: chat.updated_at,
         last_edited_overall_timestamp: chat.last_edited_overall_timestamp,

@@ -454,6 +454,30 @@ incognito_explainer_warning_personal_info:
   sv: ""
   he: "מומלץ מאוד לא לכלול מידע אישי, נתונים רגישים או פרטים חסויים בצ'אטים במצב גלישה בסתר."
   verified_by_human: []
+incognito_mode_active:
+  context: Label for incognito mode when it is active — used in chat header and message input pill
+  en: Incognito Mode
+  de: Inkognito-Modus
+  zh: 隐身模式
+  es: Modo incógnito
+  fr: Mode incognito
+  pt: ""
+  ru: ""
+  ja: シークレットモード
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: وضع التصفح المتخفي
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: מצב גלישה בסתר
+  verified_by_human: []
 incognito_mode_applies_to_new_chats_only:
   context: Banner message shown for non-incognito chats when incognito mode is active
   en: Incognito Mode applies to new chats only. Not this chat.
@@ -2665,7 +2689,7 @@ server_stats.total_users:
   th: ผู้ใช้ทั้งหมด
   cs: Celkem uživatelů
   sv: Totalt antal användare
-  he: "סה\"כ משתמשים"
+  he: 'סה"כ משתמשים'
 server_stats.total_users_sub:
   en: Non-admin users
   de: Nicht-Admin-Benutzer
