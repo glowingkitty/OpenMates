@@ -28,6 +28,7 @@
     import { userDB } from '../../../services/userDB';
     import { embedStore } from '../../../services/embedStore';
     import { decodeToonContent } from '../../../services/embedResolver';
+    import { embedPreviewRegistry } from '../../../services/embedPreviewRegistry';
     // PII detection service is dynamically imported where needed (restorePIIInText in community share)
     
     // Define interface for embed context to avoid 'any'
@@ -45,21 +46,6 @@
     interface EmbedWindow extends Window {
         __embedShareContext?: EmbedContext | null;
     }
-    
-    // Import embed preview components
-    import WebSearchEmbedPreview from '../../embeds/web/WebSearchEmbedPreview.svelte';
-    import NewsSearchEmbedPreview from '../../embeds/news/NewsSearchEmbedPreview.svelte';
-    import VideosSearchEmbedPreview from '../../embeds/videos/VideosSearchEmbedPreview.svelte';
-    import MapsSearchEmbedPreview from '../../embeds/maps/MapsSearchEmbedPreview.svelte';
-    import VideoTranscriptEmbedPreview from '../../embeds/videos/VideoTranscriptEmbedPreview.svelte';
-    import WebsiteEmbedPreview from '../../embeds/web/WebsiteEmbedPreview.svelte';
-    import VideoEmbedPreview from '../../embeds/videos/VideoEmbedPreview.svelte';
-    import CodeEmbedPreview from '../../embeds/code/CodeEmbedPreview.svelte';
-    import ReminderEmbedPreview from '../../embeds/reminder/ReminderEmbedPreview.svelte';
-    import TravelSearchEmbedPreview from '../../embeds/travel/TravelSearchEmbedPreview.svelte';
-    import TravelPriceCalendarEmbedPreview from '../../embeds/travel/TravelPriceCalendarEmbedPreview.svelte';
-    import ImageGenerateEmbedPreview from '../../embeds/images/ImageGenerateEmbedPreview.svelte';
-    import SheetEmbedPreview from '../../embeds/sheets/SheetEmbedPreview.svelte';
     
     /**
      * Portal action to render element at body level
@@ -137,6 +123,13 @@
      * Returns a promise that resolves to component and props, or null if not available
      * This matches the pattern used in AppEmbedsPanel.svelte
      */
+    /**
+     * Load and render the embed preview component using the shared embedPreviewRegistry.
+     *
+     * The registry is the single source of truth for (appId, skillId / embedType) → component.
+     * Adding a new embed type only requires registering it in embedPreviewRegistry.ts — this
+     * function automatically picks it up without any changes here.
+     */
     async function loadEmbedPreview(): Promise<{ component: Component; props: Record<string, unknown> } | null> {
         if (!embedContext || !embedContext.embed_id) {
             return null;
@@ -152,229 +145,31 @@
             
             if (!embedData || !embedData.content) {
                 console.warn('[SettingsShare] No embed content available for preview');
-                return;
+                return null;
             }
             
             // Decode the content
             const decodedContent = await decodeToonContent(embedData.content);
             if (!decodedContent) {
                 console.warn('[SettingsShare] Failed to decode embed content');
-                return;
-            }
-            
-            // Get app_id and skill_id from embed data or decoded content
-            const embedAppId = embedData.app_id || decodedContent.app_id || '';
-            const skillId = embedData.skill_id || decodedContent.skill_id || '';
-            const status =
-                embedData.status === 'processing' || embedData.status === 'finished' || embedData.status === 'error'
-                    ? embedData.status
-                    : 'finished';
-            
-            console.debug('[SettingsShare] Rendering embed preview:', { embedId, appId: embedAppId, skillId, status });
-            
-            // Determine which component to use based on app_id and skill_id
-            // This matches the logic from AppEmbedsPanel and AppSkillUseRenderer
-            if (embedAppId === 'web' && skillId === 'search') {
-                return {
-                    component: WebSearchEmbedPreview,
-                    props: {
-                        id: embedId,
-                        query: decodedContent.query || '',
-                        provider: decodedContent.provider || 'Brave Search',
-                        status: status,
-                        results: decodedContent.results || [],
-                        isMobile: false,
-                        onFullscreen: () => {} // No-op for share preview
-                    }
-                };
-            } else if (embedAppId === 'news' && skillId === 'search') {
-                return {
-                    component: NewsSearchEmbedPreview,
-                    props: {
-                        id: embedId,
-                        query: decodedContent.query || '',
-                        provider: decodedContent.provider || 'Brave Search',
-                        status: status,
-                        results: decodedContent.results || [],
-                        isMobile: false,
-                        onFullscreen: () => {}
-                    }
-                };
-            } else if (embedAppId === 'videos' && skillId === 'search') {
-                return {
-                    component: VideosSearchEmbedPreview,
-                    props: {
-                        id: embedId,
-                        query: decodedContent.query || '',
-                        provider: decodedContent.provider || 'Brave Search',
-                        status: status,
-                        results: decodedContent.results || [],
-                        isMobile: false,
-                        onFullscreen: () => {}
-                    }
-                };
-            } else if (embedAppId === 'maps' && skillId === 'search') {
-                return {
-                    component: MapsSearchEmbedPreview,
-                    props: {
-                        id: embedId,
-                        query: decodedContent.query || '',
-                        provider: decodedContent.provider || 'Brave Search',
-                        status: status,
-                        results: decodedContent.results || [],
-                        isMobile: false,
-                        onFullscreen: () => {}
-                    }
-                };
-            } else if (embedAppId === 'videos' && (skillId === 'get_transcript' || skillId === 'get-transcript')) {
-                return {
-                    component: VideoTranscriptEmbedPreview,
-                    props: {
-                        id: embedId,
-                        results: decodedContent.results || [],
-                        status: status,
-                        isMobile: false,
-                        onFullscreen: () => {}
-                    }
-                };
-            } else if (embedData.type === 'website' || embedContext.type === 'website') {
-                // Website embed - use WebsiteEmbedPreview
-                return {
-                    component: WebsiteEmbedPreview,
-                    props: {
-                        id: embedId,
-                        url: decodedContent.url || embedContext.url || '',
-                        title: decodedContent.title || embedContext.title || '',
-                        description: decodedContent.description || '',
-                        image: decodedContent.image || '',
-                        isMobile: false,
-                        onFullscreen: () => {}
-                    }
-                };
-            } else if (embedData.type === 'video' || embedContext.type === 'video') {
-                // Video embed - pass all metadata from decodedContent
-                return {
-                    component: VideoEmbedPreview,
-                    props: {
-                        id: embedId,
-                        url: decodedContent.url || embedContext.url || '',
-                        title: decodedContent.title || embedContext.title || '',
-                        status: status,
-                        isMobile: false,
-                        onFullscreen: () => {},
-                        // Metadata from decodedContent (loaded from IndexedDB)
-                        channelName: decodedContent.channel_name,
-                        channelId: decodedContent.channel_id,
-                        channelThumbnail: decodedContent.channel_thumbnail,
-                        thumbnail: decodedContent.thumbnail,
-                        durationSeconds: decodedContent.duration_seconds,
-                        durationFormatted: decodedContent.duration_formatted,
-                        viewCount: decodedContent.view_count,
-                        likeCount: decodedContent.like_count,
-                        publishedAt: decodedContent.published_at,
-                        videoId: decodedContent.video_id
-                    }
-                };
-            } else if (embedData.type === 'code' || embedData.type === 'code-block' || embedData.type === 'code-code') {
-                // Code embed
-                return {
-                    component: CodeEmbedPreview,
-                    props: {
-                        id: embedId,
-                        codeContent: decodedContent.code || decodedContent.content || '',
-                        language: decodedContent.language || embedContext?.language || 'text',
-                        filename: decodedContent.filename || embedContext?.filename,
-                        lineCount: decodedContent.lineCount || embedContext?.lineCount || 0,
-                        status,
-                        isMobile: false,
-                        onFullscreen: () => {}
-                    }
-                };
-            } else if (embedAppId === 'travel' && (skillId === 'search_connections' || skillId === 'search-connections')) {
-                // Travel search connections embed
-                return {
-                    component: TravelSearchEmbedPreview,
-                    props: {
-                        id: embedId,
-                        query: decodedContent.query || '',
-                        provider: decodedContent.provider || 'Google',
-                        status: status,
-                        results: decodedContent.results || [],
-                        isMobile: false,
-                        onFullscreen: () => {}
-                    }
-                };
-            } else if (embedAppId === 'travel' && (skillId === 'price_calendar' || skillId === 'price-calendar')) {
-                // Travel price calendar embed
-                return {
-                    component: TravelPriceCalendarEmbedPreview,
-                    props: {
-                        id: embedId,
-                        query: decodedContent.query || '',
-                        status: status,
-                        results: decodedContent.results || [],
-                        isMobile: false,
-                        onFullscreen: () => {}
-                    }
-                };
-            } else if (embedAppId === 'images' && (skillId === 'generate' || skillId === 'generate_draft')) {
-                // Image generate embed
-                return {
-                    component: ImageGenerateEmbedPreview,
-                    props: {
-                        id: embedId,
-                        skillId: skillId as 'generate' | 'generate_draft',
-                        prompt: decodedContent.prompt || '',
-                        model: decodedContent.model || '',
-                        s3BaseUrl: decodedContent.s3_base_url || '',
-                        files: decodedContent.files || undefined,
-                        aesKey: decodedContent.aes_key || '',
-                        aesNonce: decodedContent.aes_nonce || '',
-                        status: status,
-                        error: decodedContent.error as string | undefined,
-                        isMobile: false,
-                        onFullscreen: () => {}
-                    }
-                };
-            } else if (embedAppId === 'sheets' && skillId === 'sheet') {
-                // Sheet/table embed
-                return {
-                    component: SheetEmbedPreview,
-                    props: {
-                        id: embedId,
-                        title: decodedContent.title || '',
-                        rowCount: decodedContent.row_count || 0,
-                        colCount: decodedContent.col_count || 0,
-                        tableContent: decodedContent.table_content || decodedContent.content || '',
-                        status: status,
-                        isMobile: false,
-                        onFullscreen: () => {}
-                    }
-                };
-            } else if (embedAppId === 'reminder' && (skillId === 'set_reminder' || skillId === 'set-reminder')) {
-                // Reminder embed
-                return {
-                    component: ReminderEmbedPreview,
-                    props: {
-                        id: embedId,
-                        reminderId: decodedContent.reminder_id,
-                        triggerAtFormatted: decodedContent.trigger_at_formatted,
-                        triggerAt: decodedContent.trigger_at,
-                        targetType: decodedContent.target_type,
-                        isRepeating: decodedContent.is_repeating || false,
-                        message: decodedContent.message,
-                        emailNotificationWarning: decodedContent.email_notification_warning,
-                        status: status,
-                        error: decodedContent.error,
-                        isMobile: false,
-                        onFullscreen: () => {}
-                    }
-                };
-            } else {
-                console.warn('[SettingsShare] No preview component for embed type:', { appId: embedAppId, skillId, type: embedData.type });
-                // Return null if no component available
                 return null;
             }
+
+            console.debug('[SettingsShare] Delegating to embedPreviewRegistry for:', {
+                embedId,
+                app_id: embedData.app_id || decodedContent.app_id,
+                skill_id: embedData.skill_id || decodedContent.skill_id,
+                type: embedData.type,
+            });
+
+            // onFullscreen is a no-op in the share preview — there is no active chat to
+            // dispatch the fullscreen event to from within the settings panel.
+            return await embedPreviewRegistry.resolve({
+                embedId,
+                embedData: embedData as unknown as Record<string, unknown>,
+                decodedContent: decodedContent as Record<string, unknown>,
+                onFullscreen: () => {},
+            });
         } catch (error) {
             console.error('[SettingsShare] Error loading embed preview:', error);
             return null;
@@ -2364,6 +2159,27 @@
         color: var(--color-grey-80);
         text-transform: uppercase;
         letter-spacing: 0.5px;
+    }
+
+    /*
+     * Scale the embed card to fit inside the settings panel.
+     * Embed preview cards render at their native 300×200px size. The settings
+     * panel is ~280px wide, so we shrink the card proportionally using CSS
+     * transform while preserving a natural document height via the height trick.
+     *
+     * Scale = container_width / card_width = 280 / 300 ≈ 0.93
+     * Scaled height = card_height * scale = 200 * 0.93 ≈ 186px
+     *
+     * transform-origin: top left so the card aligns to the left edge of the
+     * container rather than scaling around the centre.
+     */
+    .embed-preview-content {
+        width: 300px;                       /* native card width */
+        transform: scale(0.93);
+        transform-origin: top left;
+        height: 186px;                      /* = 200px * 0.93, collapses excess whitespace */
+        overflow: hidden;
+        border-radius: 12px;
     }
 
     .embed-info {
