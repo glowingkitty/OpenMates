@@ -82,6 +82,14 @@ Standards for modifying frontend code in `frontend/` - Svelte 5 components, Type
 
 ---
 
+## Module Boundaries
+
+- **Stores** must NOT import from other stores' internal modules. Use barrel exports (e.g., import from `authStore.ts`, not `authSessionActions.ts`).
+- **Shared components** live in `frontend/packages/ui/src/components/`. If you find the same component logic in 2+ app-specific files, extract it.
+- **Shared services/utils** live in `frontend/packages/ui/src/services/` and `src/utils/`. Search there before writing new utility functions.
+
+---
+
 ## Error Handling
 
 - **NEVER use fallback values to hide errors**
@@ -103,7 +111,6 @@ Standards for modifying frontend code in `frontend/` - Svelte 5 components, Type
 2. Run linter to verify changes: `./scripts/lint_changed.sh --ts --svelte --path frontend/`
 3. Commit and push changes to git
 4. The web app is **automatically built and deployed** when changes are pushed
-5. **CRITICAL: Wait for and verify the Vercel deployment succeeded** — do NOT assume the push means a successful deployment. See `docs/claude/git-and-deployment.md` → "Vercel Deployment Check" for the full procedure. Fix any build errors and re-push until the status shows "● Ready".
 
 **Only start a dev server if:**
 

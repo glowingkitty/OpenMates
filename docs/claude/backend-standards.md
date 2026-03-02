@@ -119,6 +119,53 @@ except Exception as e:
     raise
 ```
 
+### Error Context Enrichment
+
+When logging errors, always include identifiers that help debugging:
+
+```python
+# ❌ Insufficient context
+except Exception as e:
+    logger.error(f"Failed: {e}")
+
+# ✅ Actionable context
+except Exception as e:
+    logger.error(
+        f"Failed to fetch results from {provider} "
+        f"for query='{query[:50]}' request_id={request_id}: {e}",
+        exc_info=True
+    )
+```
+
+Always include: what operation failed, relevant identifiers (request_id, provider, user context), and the original error.
+
+---
+
+## Constants — No Magic Values
+
+Never use raw strings or numbers in logic. Extract to named constants:
+
+```python
+# ❌ Magic values
+if len(results) > 50:
+    results = results[:50]
+
+# ✅ Named constant
+MAX_RESULTS_PER_REQUEST = 50
+if len(results) > MAX_RESULTS_PER_REQUEST:
+    results = results[:MAX_RESULTS_PER_REQUEST]
+```
+
+Module-level constants for single-file use. Shared constants → dedicated config/constants module.
+
+---
+
+## Module Boundaries
+
+- **Skills** must NOT import from other skills. Shared logic → `BaseSkill`, `base_app.py`, or `backend/shared/`.
+- **Providers** (`backend/shared/providers/`) must NOT depend on skill-specific code — they are pure API wrappers.
+- If you find yourself copying a function from one skill to another, move it to `BaseSkill` or `backend/shared/python_utils/` instead.
+
 ---
 
 ## Database Patterns
