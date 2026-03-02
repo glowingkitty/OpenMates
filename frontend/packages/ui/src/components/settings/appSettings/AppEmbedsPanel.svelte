@@ -25,6 +25,10 @@
     import TravelSearchEmbedPreview from '../../../components/embeds/travel/TravelSearchEmbedPreview.svelte';
     import TravelPriceCalendarEmbedPreview from '../../../components/embeds/travel/TravelPriceCalendarEmbedPreview.svelte';
     import ImageGenerateEmbedPreview from '../../../components/embeds/images/ImageGenerateEmbedPreview.svelte';
+    // Auto-converted embed preview components (embeds generated from assistant response text)
+    import SheetEmbedPreview from '../../../components/embeds/sheets/SheetEmbedPreview.svelte';
+    import MathPlotEmbedPreview from '../../../components/embeds/math/MathPlotEmbedPreview.svelte';
+    import DocsEmbedPreview from '../../../components/embeds/docs/DocsEmbedPreview.svelte';
 
     // Use $props() for component props in Svelte 5
     interface Props {
@@ -241,6 +245,14 @@
                 return;
             }
 
+            // Determine the correct embedType for the fullscreen event.
+            // Auto-converted embeds (code, sheet, math-plot, document) use their own type
+            // string so the fullscreen handler can route them to the correct component.
+            // Skill embeds use 'app-skill-use'.
+            const rawType = embedEntry.type || '';
+            const autoConvertedTypes = ['code', 'code-code', 'sheet', 'sheets-sheet', 'math-plot', 'document', 'docs-doc'];
+            const eventEmbedType = autoConvertedTypes.includes(rawType) ? rawType : 'app-skill-use';
+
             // Dispatch the same event that embed renderers use
             // This will be handled by the global fullscreen handler (if available)
             const event = new CustomEvent('embedfullscreen', {
@@ -248,7 +260,7 @@
                     embedId: embedId,
                     embedData: embedData,
                     decodedContent: decodedContent,
-                    embedType: 'app-skill-use',
+                    embedType: eventEmbedType,
                     attrs: {
                         type: embedEntry.type,
                         contentRef: embedEntry.contentRef,
@@ -492,6 +504,58 @@
                         aesNonce: decodedContent.aes_nonce || embedData?.aes_nonce || '',
                         status: status,
                         error: decodedContent.error || embedData?.error || '',
+                        isMobile: false,
+                        onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry)
+                    }
+                };
+            }
+
+            // ── Auto-converted embed types ─────────────────────────────────────────
+            // These embeds are generated directly from assistant response text (not from
+            // skill execution) but now carry app_id so they appear in the correct app's
+            // "My Embeds" section.
+
+            // Sheets app: table/sheet embeds (from markdown tables in AI responses)
+            if (embedAppId === 'sheets' || embedType === 'sheet' || embedType === 'sheets-sheet') {
+                return {
+                    component: SheetEmbedPreview,
+                    props: {
+                        id: embedId,
+                        status: (status as 'processing' | 'finished' | 'error') || 'finished',
+                        title: decodedContent.title || '',
+                        rowCount: decodedContent.row_count || 0,
+                        colCount: decodedContent.col_count || 0,
+                        tableContent: decodedContent.table || '',
+                        isMobile: false,
+                        onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry)
+                    }
+                };
+            }
+
+            // Math app: math-plot embeds (from ```plot blocks in AI responses)
+            if (embedAppId === 'math' || embedType === 'math-plot') {
+                return {
+                    component: MathPlotEmbedPreview,
+                    props: {
+                        id: embedId,
+                        status: (status as 'processing' | 'finished' | 'error' | 'cancelled') || 'finished',
+                        plotSpec: decodedContent.plot_spec || decodedContent.expression || '',
+                        isMobile: false,
+                        onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry)
+                    }
+                };
+            }
+
+            // Docs app: document embeds (from ```document_html blocks in AI responses)
+            if (embedAppId === 'docs' || embedType === 'document' || embedType === 'docs-doc') {
+                return {
+                    component: DocsEmbedPreview,
+                    props: {
+                        id: embedId,
+                        status: (status as 'processing' | 'finished' | 'error') || 'finished',
+                        title: decodedContent.title || '',
+                        wordCount: decodedContent.word_count || 0,
+                        htmlContent: decodedContent.html || '',
                         isMobile: false,
                         onFullscreen: () => openEmbedFullscreen(embedId, embedData, embedEntry)
                     }

@@ -168,9 +168,20 @@ export class EmbedStore {
     content: any,
     type: EmbedType,
   ): Promise<{ app_id?: string; skill_id?: string }> {
-    // Only extract for app_skill_use embeds (handle both hyphen and underscore)
+    // Extract for app_skill_use embeds AND for auto-converted embed types that now
+    // carry an app_id field so they appear in "My Embeds" on the relevant app page.
+    // Auto-converted types: code → "code" app, sheet/sheets-sheet → "sheets" app,
+    // math-plot → "math" app, document/docs-doc → "docs" app.
     const isAppSkillUse = type === "app-skill-use" || type === "app_skill_use";
-    if (!isAppSkillUse) {
+    const isAutoConverted =
+      type === "code" ||
+      type === "code-code" ||
+      type === "sheet" ||
+      type === "sheets-sheet" ||
+      type === "math-plot" ||
+      type === "document" ||
+      type === "docs-doc";
+    if (!isAppSkillUse && !isAutoConverted) {
       return {};
     }
 
@@ -408,9 +419,21 @@ export class EmbedStore {
     // are typically not available yet - metadata will be extracted later when embeds are accessed
     let appMetadata: { app_id?: string; skill_id?: string } = {};
 
+    // Also run metadata extraction for auto-converted embed types (code, sheet, math-plot,
+    // document) which now include app_id/skill_id in their TOON content so they can be
+    // indexed under the correct app in IndexedDB and appear in "My Embeds".
+    const isAutoConvertedType =
+      normalizedType === "code" ||
+      normalizedType === "code-code" ||
+      normalizedType === "sheet" ||
+      normalizedType === "sheets-sheet" ||
+      normalizedType === "math-plot" ||
+      normalizedType === "document" ||
+      normalizedType === "docs-doc";
     if (
       (normalizedType === "app-skill-use" ||
-        normalizedType === "app_skill_use") &&
+        normalizedType === "app_skill_use" ||
+        isAutoConvertedType) &&
       !options?.skipMetadataExtraction
     ) {
       try {

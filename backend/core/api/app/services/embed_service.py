@@ -422,9 +422,13 @@ class EmbedService:
             # Generate embed_id for placeholder
             embed_id = str(uuid.uuid4())
 
-            # Create minimal placeholder content with language and filename
+            # Create minimal placeholder content with language and filename.
+            # app_id and skill_id are included so the frontend can index this embed
+            # under the "code" app in IndexedDB, making it visible in My Embeds.
             placeholder_content = {
                 "type": "code",
+                "app_id": "code",
+                "skill_id": "code",
                 "language": language or "",
                 "code": "",  # Empty initially, will be updated as code streams
                 "filename": filename,
@@ -555,9 +559,13 @@ class EmbedService:
             # Create updated content with new code
             # Calculate line count for display (count all lines including empty ones)
             line_count = code_content.count('\n') + 1 if code_content else 0
-            
+
+            # app_id / skill_id are preserved across updates so the embed remains
+            # visible in My Embeds under the "code" app after finalization.
             updated_content = {
                 "type": "code",
+                "app_id": "code",
+                "skill_id": "code",
                 "language": language,
                 "code": code_content,
                 "filename": filename,
@@ -669,9 +677,13 @@ class EmbedService:
 
             embed_id = str(uuid.uuid4())
 
-            # Placeholder content — table markdown will be accumulated as rows stream
+            # Placeholder content — table markdown will be accumulated as rows stream.
+            # app_id and skill_id are included so the frontend can index this embed
+            # under the "sheets" app in IndexedDB, making it visible in My Embeds.
             placeholder_content = {
                 "type": "sheet",
+                "app_id": "sheets",
+                "skill_id": "sheet",
                 "table": "",           # Raw markdown table, accumulated row by row
                 "title": title or "",
                 "status": "processing",
@@ -782,8 +794,12 @@ class EmbedService:
                     except Exception:
                         title = ""
 
+            # app_id / skill_id are preserved across updates so the embed remains
+            # visible in My Embeds under the "sheets" app after finalization.
             updated_content = {
                 "type": "sheet",
+                "app_id": "sheets",
+                "skill_id": "sheet",
                 "table": table_content,
                 "title": title or "",
                 "status": status,
@@ -880,9 +896,13 @@ class EmbedService:
 
             embed_id = str(uuid.uuid4())
 
-            # Placeholder content — plot_spec will be filled in when the closing fence arrives
+            # Placeholder content — plot_spec will be filled in when the closing fence arrives.
+            # app_id and skill_id are included so the frontend can index this embed
+            # under the "math" app in IndexedDB, making it visible in My Embeds.
             placeholder_content = {
                 "type": "math-plot",
+                "app_id": "math",
+                "skill_id": "plot",
                 "plot_spec": "",   # Raw expression from the plot block, filled in at finalization
                 "status": "processing",
             }
@@ -975,8 +995,12 @@ class EmbedService:
                 logger.warning(f"{log_prefix} Math-plot embed {embed_id} not found in cache, cannot update")
                 return False
 
+            # app_id / skill_id are preserved across updates so the embed remains
+            # visible in My Embeds under the "math" app after finalization.
             updated_content = {
                 "type": "math-plot",
+                "app_id": "math",
+                "skill_id": "plot",
                 "plot_spec": expression,
                 "status": status,
             }
@@ -1072,9 +1096,13 @@ class EmbedService:
             # Generate embed_id for placeholder
             embed_id = str(uuid.uuid4())
 
-            # Create minimal placeholder content for document embed
+            # Create minimal placeholder content for document embed.
+            # app_id and skill_id are included so the frontend can index this embed
+            # under the "docs" app in IndexedDB, making it visible in My Embeds.
             placeholder_content = {
                 "type": "document",
+                "app_id": "docs",
+                "skill_id": "document",
                 "html": "",  # Empty initially, will be updated as HTML streams
                 "title": title,
                 "status": "processing",
@@ -1202,9 +1230,13 @@ class EmbedService:
             text_content = re.sub(r'<[^>]+>', ' ', html_content)
             word_count = len(text_content.split()) if text_content.strip() else 0
 
-            # Create updated content with new HTML
+            # Create updated content with new HTML.
+            # app_id / skill_id are preserved across updates so the embed remains
+            # visible in My Embeds under the "docs" app after finalization.
             updated_content = {
                 "type": "document",
+                "app_id": "docs",
+                "skill_id": "document",
                 "html": html_content,
                 "title": title,
                 "status": status,
