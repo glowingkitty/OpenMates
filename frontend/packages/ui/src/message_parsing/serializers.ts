@@ -227,7 +227,7 @@ export async function writeEmbedToClipboard(
       ? Promise.resolve(plainTextPromise)
       : plainTextPromise;
 
-  // Attempt 1: ClipboardItem with Promise<Blob> values.
+  // Attempt 1: ClipboardItem with all three MIME types (Chromium / Firefox).
   //
   // The ClipboardItem constructor is called synchronously (within the user
   // gesture), and navigator.clipboard.write() is also called synchronously.
@@ -238,20 +238,22 @@ export async function writeEmbedToClipboard(
   // Three MIME types are written:
   //  - text/plain:  human-readable content (all browsers)
   //  - text/html:   hidden JSON in <meta name="x-openmates-embed"> (Safari in-app paste)
-  //  - application/x-openmates-embed:  raw JSON (Chromium/Firefox in-app paste;
-  //                 Safari silently drops this but the text/html path covers it)
+  //  - application/x-openmates-embed:  raw JSON (Chromium/Firefox in-app paste)
+  //
+  // Safari rejects ClipboardItem entirely when a non-allowlisted MIME type is
+  // present (e.g. application/x-openmates-embed), so we fall through to Attempt 2.
   if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
-    try {
-      const textBlobPromise = textPromise.then(
-        (t) => new Blob([t], { type: "text/plain" }),
-      );
-      const htmlBlobPromise = textPromise.then(
-        (t) => new Blob([_buildEmbedHtml(json, t)], { type: "text/html" }),
-      );
-      const embedBlobPromise = textPromise.then(
-        () => new Blob([json], { type: "application/x-openmates-embed" }),
-      );
+    const textBlobPromise = textPromise.then(
+      (t) => new Blob([t], { type: "text/plain" }),
+    );
+    const htmlBlobPromise = textPromise.then(
+      (t) => new Blob([_buildEmbedHtml(json, t)], { type: "text/html" }),
+    );
+    const embedBlobPromise = textPromise.then(
+      () => new Blob([json], { type: "application/x-openmates-embed" }),
+    );
 
+    try {
       // navigator.clipboard.write() is called synchronously here — no await before this point.
       await navigator.clipboard.write([
         new ClipboardItem({
@@ -264,10 +266,29 @@ export async function writeEmbedToClipboard(
         "[writeEmbedToClipboard] Copied via ClipboardItem (triple MIME, promise-based)",
       );
       return;
+    } catch {
+      // Attempt 1 failed — likely Safari rejecting application/x-openmates-embed.
+      // Fall through to Attempt 2: Safari-safe MIMEs only (text/html carries JSON via meta tag).
+    }
+
+    // Attempt 2: text/html + text/plain only (Safari-safe).
+    // The embed JSON is embedded in the text/html meta tag so the paste handler
+    // can still reconstruct the embed card via Path B (meta tag extraction).
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "text/plain": textBlobPromise,
+          "text/html": htmlBlobPromise,
+        }),
+      ]);
+      console.debug(
+        "[writeEmbedToClipboard] Copied via ClipboardItem (Safari-safe: text/html + text/plain)",
+      );
+      return;
     } catch (err) {
-      // ClipboardItem write failed — fall through to writeText
+      // ClipboardItem entirely unsupported — fall through to writeText.
       console.warn(
-        "[writeEmbedToClipboard] ClipboardItem.write failed, trying writeText:",
+        "[writeEmbedToClipboard] ClipboardItem.write failed (both attempts), trying writeText:",
         err,
       );
     }
@@ -318,22 +339,21 @@ export async function writeMessageWithEmbedsToClipboard(
   const clipboardItems = embedAttrs.map(createEmbedClipboardData);
   const json = JSON.stringify(clipboardItems);
 
-  // Attempt 1: ClipboardItem with Promise<Blob> values (synchronous write for Safari).
-  // See writeEmbedToClipboard for full explanation of the gesture-token strategy.
-  // Three MIME types: text/plain (readable), text/html (Safari in-app JSON via meta tag),
-  // application/x-openmates-embed (Chromium/Firefox in-app JSON).
+  // Attempt 1: ClipboardItem with all three MIME types (Chromium / Firefox).
+  // See writeEmbedToClipboard for full explanation of the gesture-token and
+  // two-attempt Safari strategy.
   if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
-    try {
-      const textBlobPromise = textPromise.then(
-        (t) => new Blob([t], { type: "text/plain" }),
-      );
-      const htmlBlobPromise = textPromise.then(
-        (t) => new Blob([_buildEmbedHtml(json, t)], { type: "text/html" }),
-      );
-      const embedBlobPromise = textPromise.then(
-        () => new Blob([json], { type: "application/x-openmates-embed" }),
-      );
+    const textBlobPromise = textPromise.then(
+      (t) => new Blob([t], { type: "text/plain" }),
+    );
+    const htmlBlobPromise = textPromise.then(
+      (t) => new Blob([_buildEmbedHtml(json, t)], { type: "text/html" }),
+    );
+    const embedBlobPromise = textPromise.then(
+      () => new Blob([json], { type: "application/x-openmates-embed" }),
+    );
 
+    try {
       // navigator.clipboard.write() called synchronously — no await before this point.
       await navigator.clipboard.write([
         new ClipboardItem({
@@ -346,9 +366,25 @@ export async function writeMessageWithEmbedsToClipboard(
         "[writeMessageWithEmbedsToClipboard] Copied via ClipboardItem (triple MIME, promise-based)",
       );
       return;
+    } catch {
+      // Attempt 1 failed — likely Safari rejecting application/x-openmates-embed.
+    }
+
+    // Attempt 2: text/html + text/plain only (Safari-safe).
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "text/plain": textBlobPromise,
+          "text/html": htmlBlobPromise,
+        }),
+      ]);
+      console.debug(
+        "[writeMessageWithEmbedsToClipboard] Copied via ClipboardItem (Safari-safe: text/html + text/plain)",
+      );
+      return;
     } catch (err) {
       console.warn(
-        "[writeMessageWithEmbedsToClipboard] ClipboardItem.write failed, falling back:",
+        "[writeMessageWithEmbedsToClipboard] ClipboardItem.write failed (both attempts), falling back:",
         err,
       );
     }

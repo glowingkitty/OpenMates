@@ -1312,9 +1312,9 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
                 const provider = decodedContent?.provider || 'Brave Search';
                 const results = decodedContent?.results || [];
 
-                let md = `**Query:**\n"${query}"\n\n`;
-                md += `**Provider:**\n${provider}\n\n`;
-                md += `**Results:**\n`;
+                let md = `*Query:*\n"${query}"\n\n`;
+                md += `*Provider:*\n${provider}\n\n`;
+                md += `*Results:*\n`;
                 results.forEach((result: any) => {
                   if (result.url) md += `- ${result.url}\n`;
                 });
@@ -1541,7 +1541,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
                   const textParts = results.map(r => {
                     let part = '';
                     if (r.title) part += `# ${r.title}\n\n`;
-                    if (r.url) part += `**Source:** ${r.url}\n\n`;
+                    if (r.url) part += `*Source:* ${r.url}\n\n`;
                     if (r.markdown) part += r.markdown;
                     return part;
                   }).filter(Boolean);
@@ -1555,9 +1555,9 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
                   const query = (decodedContent.query as string) || '';
                   const provider = (decodedContent.provider as string) || '';
                   const results = (decodedContent.results as Array<{ url?: string; title?: string }>) || [];
-                  let md = `**Query:**\n"${query}"\n\n`;
-                  if (provider) md += `**Provider:**\n${provider}\n\n`;
-                  md += `**Results:**\n`;
+                  let md = `*Query:*\n"${query}"\n\n`;
+                  if (provider) md += `*Provider:*\n${provider}\n\n`;
+                  md += `*Results:*\n`;
                   results.forEach((r: any) => {
                     if (r.url) md += `- ${r.url}\n`;
                   });
