@@ -218,7 +218,7 @@ async def find_video_candidates(
             count=BRAVE_RESULTS_PER_QUERY,
             country=country,
             search_lang=search_lang,
-            safesearch="moderate",
+            safesearch="strict",  # Strict safe search — filters adult/explicit content at source
             sanitize_output=False,  # No LLM sanitization needed for internal use
         )
     except Exception as e:
@@ -235,11 +235,20 @@ async def find_video_candidates(
 
     # Filter to YouTube-only and extract structured candidates
     candidates: List[Dict[str, Any]] = []
+    skipped_not_family_friendly = 0
     for result in raw_results:
         url = result.get("url", "")
         youtube_id = _extract_youtube_id(url)
         if not youtube_id:
             continue  # Not a YouTube video — skip
+
+        # Option 2: Reject videos that Brave explicitly marks as not family-friendly.
+        # Brave's `family_friendly` field defaults to True when absent, so we only
+        # skip results where it is explicitly False. Combined with safesearch="strict"
+        # at the query level, this gives us a two-layer content filter.
+        if result.get("family_friendly") is False:
+            skipped_not_family_friendly += 1
+            continue
 
         # Extract Brave-provided thumbnail
         thumbnail_url: Optional[str] = None
@@ -268,6 +277,12 @@ async def find_video_candidates(
                 "duration_seconds": None,  # Will be filled by YouTube enrichment
                 "published_at": published_at,
             }
+        )
+
+    if skipped_not_family_friendly > 0:
+        logger.info(
+            f"[DailyInspiration] Filtered out {skipped_not_family_friendly} non-family-friendly "
+            f"video(s) from Brave results for '{topic_phrase}'"
         )
 
     if not candidates:

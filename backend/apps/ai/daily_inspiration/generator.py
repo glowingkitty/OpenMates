@@ -43,6 +43,62 @@ _OPENMATES_TOPIC_KEYWORDS = [
     "open mate",
 ]
 
+# Lowercase substrings that identify sensitive/harmful topic suggestions.
+# Topics touching drugs, explicit sexual content, or graphic violence are excluded
+# from the inspiration pipeline so the feature stays educational and family-friendly.
+# These are intentionally broad to catch edge cases (e.g. "crystal meth synthesis",
+# "drug cartel violence", "explicit sex scene breakdown").
+_SENSITIVE_TOPIC_KEYWORDS = [
+    # Drugs / substance abuse
+    "drug",
+    "cocaine",
+    "heroin",
+    "methamphetamine",
+    "meth ",
+    " meth",
+    "fentanyl",
+    "opioid",
+    "opiate",
+    "marijuana",
+    "cannabis",
+    "weed ",
+    " weed",
+    "lsd ",
+    " lsd",
+    "psychedelic drug",
+    "substance abuse",
+    "drug trafficking",
+    "drug cartel",
+    "narco",
+    # Explicit sexual content
+    "pornograph",
+    "porn ",
+    " porn",
+    "explicit sex",
+    "sex tape",
+    "onlyfans",
+    "adult content",
+    "nsfw",
+    "erotic",
+    # Graphic violence / weapons
+    "graphic violence",
+    "gore ",
+    " gore",
+    "snuff",
+    "torture",
+    "beheading",
+    "mass shooting",
+    "school shooting",
+    "bomb making",
+    "how to make a bomb",
+    "how to make explosives",
+    "weapon synthesis",
+    # Self-harm
+    "suicide method",
+    "how to commit suicide",
+    "self-harm method",
+]
+
 
 def _is_openmates_topic(phrase: str) -> bool:
     """
@@ -53,6 +109,19 @@ def _is_openmates_topic(phrase: str) -> bool:
     """
     lower = phrase.lower()
     return any(kw in lower for kw in _OPENMATES_TOPIC_KEYWORDS)
+
+
+def _is_sensitive_topic(phrase: str) -> bool:
+    """
+    Return True if a topic suggestion phrase touches drugs, explicit sexual content,
+    or graphic violence and should be excluded from the inspiration pipeline.
+
+    Uses substring matching (case-insensitive) with intentionally broad keywords
+    to catch edge cases. False positives (e.g. a legitimate topic filtered out)
+    are acceptable — the user's other topic suggestions or generic fallbacks are used instead.
+    """
+    lower = phrase.lower()
+    return any(kw in lower for kw in _SENSITIVE_TOPIC_KEYWORDS)
 
 
 # Available chat categories (must match frontend categoryUtils.ts)
@@ -157,6 +226,13 @@ def _build_tool_definition(language: str) -> Dict[str, Any]:
                 "'Roman roads lasted 2,000 years. Modern ones barely survive 20 — why?'. "
                 "IMPORTANT: Each slot must use a different video (no duplicates). "
                 "Select videos that are educational, engaging, and family-friendly. "
+                "PROHIBITED CONTENT — ABSOLUTE RULE: NEVER select videos or write content related to "
+                "any of the following categories: illegal drugs or recreational drug use, explicit sexual "
+                "content or pornography, graphic violence or gore, self-harm or suicide methods, or "
+                "instructions for making weapons or explosives. If the best available video touches any "
+                "of these topics, skip it and select the next best educational candidate instead. "
+                "If no suitable candidate exists for a slot, omit that slot rather than using "
+                "inappropriate content. "
                 "CRITICAL — NO COMMERCIAL PROMOTION: Inspirations must NEVER promote, advertise, or "
                 "recommend specific products, brands, apps, or commercial services. Do NOT write phrases "
                 "or assistant messages that read like marketing copy, product reviews, or endorsements. "
@@ -335,6 +411,10 @@ def _build_generation_prompt(
             "4. Write exactly 3 follow-up conversation starters (max 10 words each) the user "
             "could send. They must be specific to the topic — not generic. "
             "Frame them as user messages (questions or commands).\n\n"
+            "PROHIBITED CONTENT — ABSOLUTE RULE: NEVER select videos or write content related to "
+            "illegal drugs or drug use, explicit sexual content or pornography, graphic violence or "
+            "gore, self-harm or suicide methods, or weapons/explosives instructions. If a candidate "
+            "video touches these topics, skip it entirely and use the next best option. "
             "IMPORTANT: Do NOT write content that promotes, advertises, or recommends specific "
             "products, brands, apps, or commercial services. All phrases and messages must be "
             "educational and curiosity-driven. "
@@ -386,13 +466,18 @@ async def generate_inspirations(
     if topic_suggestions:
         # Deduplicate while preserving order (dict.fromkeys keeps first occurrence)
         unique_pool = list(dict.fromkeys(topic_suggestions))
-        # Remove any suggestions that reference OpenMates
-        filtered_pool = [p for p in unique_pool if not _is_openmates_topic(p)]
+        # Remove any suggestions that reference OpenMates or touch sensitive content
+        # (drugs, explicit sexual content, graphic violence) to keep inspirations
+        # educational and family-friendly.
+        filtered_pool = [
+            p for p in unique_pool
+            if not _is_openmates_topic(p) and not _is_sensitive_topic(p)
+        ]
         excluded = len(unique_pool) - len(filtered_pool)
         if excluded > 0:
             logger.info(
-                f"[DailyInspiration][{task_id}] Excluded {excluded} OpenMates-related "
-                f"topic suggestion(s) from inspiration generation"
+                f"[DailyInspiration][{task_id}] Excluded {excluded} topic suggestion(s) "
+                f"(OpenMates-related or sensitive content) from inspiration generation"
             )
         # Randomly sample up to `count` phrases from the filtered 3-day pool
         sample_size = min(count, len(filtered_pool))
@@ -438,10 +523,11 @@ async def generate_inspirations(
         return []
 
     # Step 3: Single LLM call to generate all inspiration items.
-    # Also filter OpenMates references from the topic_suggestions context passed to the LLM,
-    # so the model never sees them as inspiration seeds even indirectly.
+    # Filter OpenMates references and sensitive topics from the topic_suggestions context
+    # passed to the LLM, so the model never sees them as inspiration seeds even indirectly.
     filtered_topic_suggestions = [
-        p for p in topic_suggestions if not _is_openmates_topic(p)
+        p for p in topic_suggestions
+        if not _is_openmates_topic(p) and not _is_sensitive_topic(p)
     ]
     messages = _build_generation_prompt(
         filtered_topic_suggestions, video_candidates_per_slot, count, language=language,
