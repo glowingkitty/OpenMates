@@ -27,9 +27,11 @@
    */
 
   import { onDestroy } from 'svelte';
+  import { get } from 'svelte/store';
   import { text } from '@repo/ui';
   import { getCategoryGradientColors } from '../utils/categoryUtils';
   import { dailyInspirationStore, type DailyInspiration } from '../stores/dailyInspirationStore';
+  import { authStore } from '../stores/authStore';
   import VideoEmbedPreview from './embeds/videos/VideoEmbedPreview.svelte';
 
   // ─── Lucide icons ────────────────────────────────────────────────────────────
@@ -276,9 +278,12 @@
 
   /**
    * Send `inspiration_viewed` message to backend via WebSocket.
+   * Only sent for authenticated users — guests have no WebSocket connection
+   * and there is nothing to track server-side for them.
    * Errors are logged but never swallowed silently.
    */
   async function sendViewedEvent(inspirationId: string) {
+    if (!get(authStore).isAuthenticated) return;
     try {
       const { webSocketService } = await import('../services/websocketService');
       await webSocketService.sendMessage('inspiration_viewed', {
