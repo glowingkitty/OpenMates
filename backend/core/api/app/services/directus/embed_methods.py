@@ -518,6 +518,39 @@ class EmbedMethods:
             logger.error(f"Error checking for existing embed_key: {e}", exc_info=True)
             return []
 
+    async def update_embed_key(self, key_id: str, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Update an existing embed_key entry in Directus by its Directus item ID.
+
+        Used by store_embed_keys_handler to upsert key wrappers when re-encryption
+        produces a new embed key (key B) while Directus still holds wrappers for the
+        old key (key A). Without this, content encrypted with key B is permanently
+        unreadable because the key wrappers still point to key A.
+
+        Args:
+            key_id: The Directus item UUID (id field) of the embed_key record.
+            update_data: Fields to update (typically just {"encrypted_embed_key": "..."}).
+
+        Returns:
+            Updated embed_key dictionary if successful, None otherwise.
+        """
+        logger.debug(f"Updating embed_key with Directus id: {key_id}")
+        try:
+            url = f"{self.directus_service.base_url}/items/embed_keys/{key_id}"
+            token = await self.directus_service.ensure_auth_token()
+            if not token:
+                logger.error(f"Failed to get auth token for embed_key update: {key_id}")
+                return None
+            headers = {"Authorization": f"Bearer {token}"}
+            response = await self.directus_service._client.patch(url, json=update_data, headers=headers)
+            response.raise_for_status()
+            updated_key = response.json().get('data')
+            logger.info(f"Successfully updated embed_key {key_id}")
+            return updated_key
+        except Exception as e:
+            logger.error(f"Error updating embed_key {key_id}: {e}", exc_info=True)
+            return None
+
     async def create_embed_key(self, embed_key_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         Create a new embed_key entry in Directus.

@@ -209,6 +209,18 @@ export function clearProcessedEmbedsTracking(): void {
   processedFinalizedEmbeds.clear();
 }
 
+/**
+ * Remove a single embed from the processed-embeds set.
+ *
+ * Called by AppSkillUseRenderer before issuing a `request_embed` after a
+ * decryption failure. Without this, the fresh `send_embed_data` response from
+ * the server would be silently dropped by `isEmbedAlreadyProcessed`, preventing
+ * re-encryption and re-storage of the embed with a valid key.
+ */
+export function unmarkEmbedAsProcessed(embedId: string): void {
+  processedFinalizedEmbeds.delete(embedId);
+}
+
 // --- AI Task and Stream Event Handler Implementations ---
 
 export function handleAITaskInitiatedImpl(

@@ -21,6 +21,7 @@ import {
   decodeToonContent,
 } from "../../../../services/embedResolver";
 import { chatSyncService } from "../../../../services/chatSyncService";
+import { unmarkEmbedAsProcessed } from "../../../../services/chatSyncServiceHandlersAI";
 import { embedStore } from "../../../../services/embedStore";
 import { mount, unmount } from "svelte";
 import WebSearchEmbedPreview from "../../../embeds/web/WebSearchEmbedPreview.svelte";
@@ -107,6 +108,12 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           });
         };
         chatSyncService.addEventListener("embedUpdated", decryptRetryHandler);
+        // CRITICAL: Remove this embed from the processed-embeds set before requesting
+        // fresh data. If the embed was processed in this session (e.g., during live
+        // generation), `isEmbedAlreadyProcessed` would silently drop the incoming
+        // `send_embed_data` response, preventing re-encryption with the new key.
+        unmarkEmbedAsProcessed(embedId);
+
         // Request fresh embed data from the server (includes embed_keys for re-decryption).
         try {
           const { webSocketService } =

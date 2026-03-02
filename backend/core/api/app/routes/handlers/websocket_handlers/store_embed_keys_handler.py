@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any
 from fastapi import WebSocket
 
 from backend.core.api.app.services.cache import CacheService
@@ -67,7 +67,7 @@ async def handle_store_embed_keys(
                 created_at = key_data.get("created_at")
 
                 if not hashed_embed_id or not key_type or not encrypted_embed_key or not hashed_user_id:
-                    logger.warning(f"Invalid key entry in store_embed_keys payload: missing required fields")
+                    logger.warning("Invalid key entry in store_embed_keys payload: missing required fields")
                     failed_count += 1
                     continue
 
@@ -80,27 +80,62 @@ async def handle_store_embed_keys(
                 if key_type == "chat":
                     hashed_chat_id = key_data.get("hashed_chat_id")
                     if not hashed_chat_id:
-                        logger.warning(f"Missing hashed_chat_id for key_type='chat' in store_embed_keys payload")
+                        logger.warning("Missing hashed_chat_id for key_type='chat' in store_embed_keys payload")
                         failed_count += 1
                         continue
                 else:
                     # For master key type, hashed_chat_id should be null
                     hashed_chat_id = None
 
-                # Check for existing key to avoid duplicates
-                # This handles race conditions where both send_embed_data and embed_update handlers
-                # might try to store keys for the same embed
+                # Check for existing key to upsert rather than blindly create.
+                #
+                # WHY UPSERT (not skip): When a decryption failure triggers embed
+                # re-encryption (AppSkillUseRenderer._decryptionFailed recovery), the
+                # client generates a NEW embed key (key B) and re-encrypts the content.
+                # store_embed also upserts the encrypted_content in Directus.
+                # However, the old code here would find the existing key-A wrappers and
+                # skip writing key-B wrappers — leaving Directus with a permanent mismatch
+                # (content encrypted with B, keys wrap A). Every future session would fail
+                # to decrypt. The fix: if wrappers already exist, UPDATE the
+                # encrypted_embed_key field with the new value instead of skipping.
                 existing_keys = await directus_service.embed.get_embed_keys_by_embed_id_and_type(
                     hashed_embed_id, key_type, hashed_chat_id
                 )
                 
                 if existing_keys and len(existing_keys) > 0:
-                    logger.debug(
-                        f"Skipping duplicate embed_key: key_type={key_type}, "
-                        f"hashed_embed_id={hashed_embed_id[:16]}..., already exists"
+                    existing_key = existing_keys[0]
+                    existing_key_id = existing_key.get("id")
+                    existing_encrypted_key = existing_key.get("encrypted_embed_key")
+
+                    if existing_encrypted_key == encrypted_embed_key:
+                        # Exact same key wrapper — true duplicate, nothing to do.
+                        logger.debug(
+                            f"Skipping identical embed_key (no change): key_type={key_type}, "
+                            f"hashed_embed_id={hashed_embed_id[:16]}..."
+                        )
+                        created_count += 1
+                        continue
+
+                    # Different key value → the embed was re-encrypted; update the wrapper.
+                    logger.info(
+                        f"Upserting embed_key (re-encryption detected): key_type={key_type}, "
+                        f"hashed_embed_id={hashed_embed_id[:16]}..., Directus id={existing_key_id}"
                     )
-                    # Count as success since key already exists
-                    created_count += 1
+                    updated_key = await directus_service.embed.update_embed_key(
+                        existing_key_id, {"encrypted_embed_key": encrypted_embed_key}
+                    )
+                    if updated_key:
+                        created_count += 1
+                        logger.debug(
+                            f"Successfully upserted embed_key: key_type={key_type}, "
+                            f"hashed_embed_id={hashed_embed_id[:16]}..."
+                        )
+                    else:
+                        failed_count += 1
+                        logger.error(
+                            f"Failed to upsert embed_key: key_type={key_type}, "
+                            f"hashed_embed_id={hashed_embed_id[:16]}..."
+                        )
                     continue
                 
                 # Create embed_key entry in Directus
