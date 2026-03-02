@@ -148,6 +148,31 @@
             <button class="back-button" onclick={goBack}>← Back to App Store</button>
         </div>
     {:else}
+        <!-- Skills section - only show if skills exist -->
+        {#if skills.length > 0}
+            <div class="section">
+                <SettingsItem 
+                    type="heading"
+                    icon="skill"
+                    title={$text('settings.app_store.skills.title')}
+                />
+                <p class="section-description">{$text('settings.app_store.skills.section_description')}</p>
+                <div class="items-scroll-container">
+                    <div class="items-scroll">
+                        {#each skills as skill (skill.id)}
+                            {@const skillApp = skillToAppMetadata(skill, appId, app)}
+                            <AppStoreCard
+                                app={skillApp}
+                                cardIconType="skill"
+                                skillProviders={skill.providers}
+                                onSelect={() => handleSkillSelect(skill.id)}
+                            />
+                        {/each}
+                    </div>
+                </div>
+            </div>
+        {/if}
+
         <!-- Settings & Memories section - always show cards for each category -->
         {#if memoryFields.length > 0}
             <div class="section">
@@ -176,31 +201,6 @@
                                 app={categoryApp}
                                 cardIconType="memory"
                                 onSelect={() => handleSettingsMemoriesCategorySelect(category.id)}
-                            />
-                        {/each}
-                    </div>
-                </div>
-            </div>
-        {/if}
-        
-        <!-- Skills section - only show if skills exist -->
-        {#if skills.length > 0}
-            <div class="section">
-                <SettingsItem 
-                    type="heading"
-                    icon="skill"
-                    title={$text('settings.app_store.skills.title')}
-                />
-                <p class="section-description">{$text('settings.app_store.skills.section_description')}</p>
-                <div class="items-scroll-container">
-                    <div class="items-scroll">
-                        {#each skills as skill (skill.id)}
-                            {@const skillApp = skillToAppMetadata(skill, appId, app)}
-                            <AppStoreCard
-                                app={skillApp}
-                                cardIconType="skill"
-                                skillProviders={skill.providers}
-                                onSelect={() => handleSkillSelect(skill.id)}
                             />
                         {/each}
                     </div>

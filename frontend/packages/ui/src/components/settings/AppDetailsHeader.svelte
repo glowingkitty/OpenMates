@@ -385,16 +385,16 @@
               <span class="cap-icon skill-icon"></span>
             </div>
           {/if}
-          {#if focusCount > 0}
-            <div class="cap-item">
-              <span class="cap-num">{focusCount}</span>
-              <span class="cap-icon focus-icon"></span>
-            </div>
-          {/if}
           {#if memoryCount > 0}
             <div class="cap-item">
               <span class="cap-num">{memoryCount}</span>
               <span class="cap-icon memories-icon"></span>
+            </div>
+          {/if}
+          {#if focusCount > 0}
+            <div class="cap-item">
+              <span class="cap-num">{focusCount}</span>
+              <span class="cap-icon focus-icon"></span>
             </div>
           {/if}
         </div>

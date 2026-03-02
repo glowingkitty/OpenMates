@@ -977,6 +977,7 @@ div.clickable-icon {
   background: var(--color-primary);
   &::before {
     background-image: url("@openmates/ui/static/icons/insight.svg");
+    filter: brightness(0) invert(1);
   }
 }
 
