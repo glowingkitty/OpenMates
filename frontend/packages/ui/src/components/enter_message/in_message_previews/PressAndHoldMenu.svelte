@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+    import { createEventDispatcher, onMount } from 'svelte';
     import { _ } from 'svelte-i18n'; // Import translation function
 
     // Props using Svelte 5 $props()
@@ -11,6 +11,12 @@
         isYouTube?: boolean;
         originalUrl?: string | undefined;
         hideDelete?: boolean;
+        /**
+         * When true, shows the "Paste as text" menu option.
+         * Only shown in MessageInput context for text-based embeds
+         * (website, video URL, code/text, and completed audio recordings).
+         */
+        showPasteAsText?: boolean;
     }
     let { 
         x = 0,
@@ -19,11 +25,12 @@
         type = 'default',
         isYouTube = false,
         originalUrl = undefined,
-        hideDelete = false
+        hideDelete = false,
+        showPasteAsText = false
     }: Props = $props();
 
     const dispatch: {
-        (e: 'close' | 'delete' | 'download' | 'view' | 'copy' | 'share'): void;
+        (e: 'close' | 'delete' | 'download' | 'view' | 'copy' | 'share' | 'pasteastext'): void;
     } = createEventDispatcher();
     let menuElement = $state<HTMLDivElement>();
 
@@ -77,6 +84,18 @@
         style="--menu-x: {x}px; --menu-y: {y}px;"
         bind:this={menuElement}
     >
+        {#if showPasteAsText}
+            <!-- Paste as text: replaces the embed with its plain text content in the message input.
+                 Only shown for text-based embeds (website, video URL, code, and completed audio recordings).
+                 Appears above Delete to make it easy to reach. -->
+            <button 
+                class="menu-item pasteastext"
+                onclick={(event) => handleMenuItemClick('pasteastext', event)}
+            >
+                <div class="clickable-icon icon_text"></div>
+                {$_('enter_message.press_and_hold_menu.paste_as_text')}
+            </button>
+        {/if}
         {#if !hideDelete}
             <button 
                 class="menu-item delete"

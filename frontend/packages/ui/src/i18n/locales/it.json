@@ -3233,6 +3233,9 @@
       "view": {
         "text": "Visualizza"
       },
+      "paste_as_text": {
+        "text": "Incolla come testo"
+      },
       "copied_to_clipboard": {
         "text": "Copiato negli appunti"
       }

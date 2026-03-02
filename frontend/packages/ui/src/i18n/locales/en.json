@@ -3831,6 +3831,9 @@
       "view": {
         "text": "View"
       },
+      "paste_as_text": {
+        "text": "Paste as text"
+      },
       "copied_to_clipboard": {
         "text": "Copied to clipboard"
       }

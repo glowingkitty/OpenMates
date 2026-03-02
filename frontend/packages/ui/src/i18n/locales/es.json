@@ -3602,6 +3602,9 @@
       "view": {
         "text": "Ver"
       },
+      "paste_as_text": {
+        "text": "Pegar como texto"
+      },
       "copied_to_clipboard": {
         "text": "Copiado al portapapeles"
       }

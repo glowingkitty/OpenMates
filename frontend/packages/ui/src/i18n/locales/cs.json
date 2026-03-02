@@ -3239,6 +3239,9 @@
       "view": {
         "text": "Zobrazit"
       },
+      "paste_as_text": {
+        "text": "Vložit jako text"
+      },
       "copied_to_clipboard": {
         "text": "Zkopírováno do schránky"
       }

@@ -3233,6 +3233,9 @@
       "view": {
         "text": "Xem"
       },
+      "paste_as_text": {
+        "text": "Dán dưới dạng văn bản"
+      },
       "copied_to_clipboard": {
         "text": "Đã sao chép vào clipboard"
       }

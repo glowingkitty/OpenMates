@@ -3233,6 +3233,9 @@
       "view": {
         "text": "Bekijken"
       },
+      "paste_as_text": {
+        "text": "Plakken als tekst"
+      },
       "copied_to_clipboard": {
         "text": "Gekopieerd naar klembord"
       }

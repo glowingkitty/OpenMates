@@ -3571,6 +3571,9 @@
       "view": {
         "text": "查看"
       },
+      "paste_as_text": {
+        "text": "粘贴为文本"
+      },
       "copied_to_clipboard": {
         "text": "已复制"
       }

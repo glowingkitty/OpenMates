@@ -114,6 +114,7 @@
         removePendingSend,
         findPendingSendByEmbedId,
     } from '../../stores/pendingUploadStore';
+    import { embedStore } from '../../services/embedStore';
 
     const dispatch = createEventDispatcher();
 
@@ -2912,7 +2913,188 @@
         await insertMap(editor, previewData);
         hasContent = true;
     }
+    /**
+     * Determines whether the currently selected embed supports "Paste as text".
+     *
+     * Returns true for text-based embeds only:
+     * - Website embeds (menuType === 'web' or node.type === 'website'/'web')
+     * - Video URL embeds (isYouTube or node.attrs.type === 'video')
+     * - Code/text embeds (node.attrs.type starts with 'code')
+     * - Recording embeds that have a completed transcript
+     *
+     * Never shows for image, PDF, location, or other binary embeds.
+     */
+    let showPasteAsText = $derived((() => {
+        if (!selectedNode) return false;
+        const attrs = selectedNode.node?.attrs ?? {};
+        const nodeTypeName: string = selectedNode.node?.type?.name ?? '';
+
+        // Website or YouTube video URL embeds: menuType === 'web' or isYouTube flag
+        if (menuType === 'web' || attrs.isYouTube) return true;
+
+        // Any embed with a type attribute of 'video' (non-YouTube video URLs)
+        if (attrs.type === 'video') return true;
+
+        // Code or text embeds (pasted text or code files)
+        // type is 'code-code' for pasted code, or nodeTypeName may reflect other types
+        if (typeof attrs.type === 'string' && attrs.type.startsWith('code')) return true;
+
+        // Recording embeds: only show when transcript is available (status === 'finished')
+        if (attrs.type === 'recording' && attrs.status === 'finished' && attrs.transcript) return true;
+
+        // Suppress linting warning about unused variable
+        void nodeTypeName;
+
+        return false;
+    })());
+
+    /**
+     * Extracts plain text from a text-based embed node.
+     *
+     * - Website/video URL: returns the URL string
+     * - Code embed with preview: returns inline code from node.attrs.code
+     * - Code embed with embed: fetches from EmbedStore and returns the code content
+     * - Recording: returns the transcript text
+     *
+     * Returns null if the text cannot be determined.
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async function getEmbedTextContent(node: any): Promise<string | null> {
+        const attrs = node.attrs ?? {};
+
+        // Recording embed: use the transcript directly
+        if (attrs.type === 'recording') {
+            return (attrs.transcript as string) || null;
+        }
+
+        // Website or video URL embed: return the URL
+        if (menuType === 'web' || attrs.isYouTube || attrs.type === 'video' || attrs.type === 'website') {
+            if (attrs.isYouTube && attrs.videoId) {
+                return `https://www.youtube.com/watch?v=${attrs.videoId}`;
+            }
+            return (attrs.url as string) || (attrs.src as string) || null;
+        }
+
+        // Code embed: return inline code (preview mode) or fetch from EmbedStore
+        if (typeof attrs.type === 'string' && attrs.type.startsWith('code')) {
+            // Preview mode: code is stored inline in the node attributes
+            const contentRef = attrs.contentRef as string | null;
+            if (contentRef?.startsWith('preview:code:') && attrs.code) {
+                return attrs.code as string;
+            }
+            // Authenticated mode: fetch from EmbedStore by contentRef
+            if (contentRef?.startsWith('embed:')) {
+                try {
+                    const embedData = await embedStore.get(contentRef);
+                    if (embedData) {
+                        // TOON-decoded data has a 'code' or 'content' field
+                        return (embedData.code as string) || (embedData.content as string) || null;
+                    }
+                } catch (err) {
+                    console.error('[MessageInput] Failed to fetch embed text content from EmbedStore:', err);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Handle "Paste as text" action from the PressAndHoldMenu.
+     *
+     * Extracts the text content from the selected embed, deletes the embed node
+     * (including its server/IndexedDB records), and inserts the plain text at
+     * the same position in the message input.
+     */
+    async function handlePasteAsText() {
+        if (!selectedNode || !editor || editor.isDestroyed) {
+            showMenu = false;
+            isMenuInteraction = false;
+            selectedNode = null;
+            selectedEmbedId = null;
+            return;
+        }
+
+        const { node, pos } = selectedNode;
+        const attrs = node.attrs ?? {};
+
+        try {
+            // Extract text content before deleting the embed
+            const textContent = await getEmbedTextContent(node);
+
+            if (!textContent) {
+                console.warn('[MessageInput] Paste as text: no text content found for embed', attrs);
+                showMenu = false;
+                isMenuInteraction = false;
+                selectedNode = null;
+                selectedEmbedId = null;
+                return;
+            }
+
+            console.info('[MessageInput] Paste as text: replacing embed with text', {
+                type: attrs.type,
+                textLength: textContent.length,
+                preview: textContent.substring(0, 50)
+            });
+
+            // For recording embeds, delete the server-side audio file (same as delete action)
+            if (attrs.type === 'recording') {
+                if (attrs.id) {
+                    const { cancelUpload: cancelUp } = await import('./embedHandlers');
+                    cancelUp(attrs.id);
+                }
+                if (attrs.id && (attrs.uploadEmbedId || attrs.id)) {
+                    const { deleteDraftEmbed } = await import('./embedHandlers');
+                    deleteDraftEmbed(attrs.uploadEmbedId ?? attrs.id);
+                }
+            }
+
+            // For code embeds in EmbedStore, we don't need to explicitly delete —
+            // they will be garbage collected as draft embeds are not tied to sent messages.
+            // However for consistency, if there's an uploadEmbedId, delete from server.
+            if (typeof attrs.type === 'string' && attrs.type.startsWith('code')) {
+                if (attrs.id) {
+                    const { cancelUpload: cancelUp } = await import('./embedHandlers');
+                    cancelUp(attrs.id);
+                }
+            }
+
+            // Delete the embed node from the editor
+            editor
+                .chain()
+                .focus()
+                .deleteRange({ from: pos, to: pos + node.nodeSize })
+                .run();
+
+            // Insert the text at the same position (the deletion shifted content,
+            // so we use the same pos which now points to where the embed was)
+            // Use insertContentAt to place the text exactly where the embed was
+            editor.commands.insertContentAt(pos, textContent);
+
+            await tick();
+            hasContent = !isContentEmptyExceptMention(editor);
+
+            // Rebuild originalMarkdown so the draft reflects the text replacement
+            updateOriginalMarkdown(editor);
+            lastEditorUpdateText = editor.getText();
+            triggerSaveDraft(currentChatId);
+
+            console.debug('[MessageInput] Paste as text: embed replaced with text successfully');
+        } catch (err) {
+            console.error('[MessageInput] Paste as text failed:', err);
+        } finally {
+            showMenu = false;
+            isMenuInteraction = false;
+            selectedNode = null;
+            selectedEmbedId = null;
+        }
+    }
+
     async function handleMenuAction(action: string) {
+        if (action === 'pasteastext') {
+            await handlePasteAsText();
+            return;
+        }
         await handleMenuActionTrigger(action, selectedNode, editor, dispatch, selectedEmbedId);
         showMenu = false; isMenuInteraction = false; selectedNode = null; selectedEmbedId = null;
         if (action === 'delete') {
@@ -3590,7 +3772,7 @@
         {/if}
  
         {#if showMenu}
-            <PressAndHoldMenu x={menuX} y={menuY} show={showMenu} type={menuType} isYouTube={selectedNode?.node?.attrs?.isYouTube || false} on:close={() => { showMenu = false; isMenuInteraction = false; selectedNode = null; selectedEmbedId = null; }} on:delete={() => handleMenuAction('delete')} on:download={() => handleMenuAction('download')} on:view={() => handleMenuAction('view')} on:copy={() => handleMenuAction('copy')} />
+            <PressAndHoldMenu x={menuX} y={menuY} show={showMenu} type={menuType} isYouTube={selectedNode?.node?.attrs?.isYouTube || false} showPasteAsText={showPasteAsText} on:close={() => { showMenu = false; isMenuInteraction = false; selectedNode = null; selectedEmbedId = null; }} on:delete={() => handleMenuAction('delete')} on:download={() => handleMenuAction('download')} on:view={() => handleMenuAction('view')} on:copy={() => handleMenuAction('copy')} on:pasteastext={() => handleMenuAction('pasteastext')} />
         {/if}
 
         {#if $recordingState.showRecordAudioUI}

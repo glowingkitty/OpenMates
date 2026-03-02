@@ -3233,6 +3233,9 @@
       "view": {
         "text": "عرض"
       },
+      "paste_as_text": {
+        "text": "لصق كنص"
+      },
       "copied_to_clipboard": {
         "text": "تم النسخ إلى الحافظة"
       }

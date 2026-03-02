@@ -3233,6 +3233,9 @@
       "view": {
         "text": "Zobacz"
       },
+      "paste_as_text": {
+        "text": "Wklej jako tekst"
+      },
       "copied_to_clipboard": {
         "text": "Skopiowano do schowka"
       }

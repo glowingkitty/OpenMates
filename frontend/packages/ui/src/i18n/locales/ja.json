@@ -3571,6 +3571,9 @@
       "view": {
         "text": "表示"
       },
+      "paste_as_text": {
+        "text": "テキストとして貼り付け"
+      },
       "copied_to_clipboard": {
         "text": "クリップボードにコピーしました"
       }

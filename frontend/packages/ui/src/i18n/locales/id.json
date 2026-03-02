@@ -3233,6 +3233,9 @@
       "view": {
         "text": "Lihat"
       },
+      "paste_as_text": {
+        "text": "Tempel sebagai teks"
+      },
       "copied_to_clipboard": {
         "text": "Disalin ke clipboard"
       }

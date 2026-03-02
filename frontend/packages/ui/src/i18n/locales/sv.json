@@ -3275,6 +3275,9 @@
       "view": {
         "text": "Visa"
       },
+      "paste_as_text": {
+        "text": "Klistra in som text"
+      },
       "copied_to_clipboard": {
         "text": "Kopierat till urklipp"
       }

@@ -3233,6 +3233,9 @@
       "view": {
         "text": "보기"
       },
+      "paste_as_text": {
+        "text": "텍스트로 붙여넣기"
+      },
       "copied_to_clipboard": {
         "text": "클립보드에 복사됨"
       }

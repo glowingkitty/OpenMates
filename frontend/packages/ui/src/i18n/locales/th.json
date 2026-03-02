@@ -3239,6 +3239,9 @@
       "view": {
         "text": "ดู"
       },
+      "paste_as_text": {
+        "text": "วางเป็นข้อความ"
+      },
       "copied_to_clipboard": {
         "text": "คัดลอกไปยังคลิปบอร์ดแล้ว"
       }
