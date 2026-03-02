@@ -1652,6 +1652,43 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             notificationStore.success('Article copied to clipboard');
           }
         }
+
+        // --- Math Calculate: copy expression + results as plain text ---
+        else if (selectedAppId === 'math' && selectedSkillId === 'calculate' && action === 'copy') {
+          interface CalculateResult { expression?: string; result?: string; result_type?: string; mode?: string; steps?: string[]; error?: string; }
+          const query = (decodedContent.query as string) || '';
+          const results = (decodedContent.results as CalculateResult[]) || [];
+          const lines: string[] = [];
+          if (query) lines.push(`Expression: ${query}`);
+          for (const r of results) {
+            if (r.expression && r.expression !== query) lines.push(`  ${r.expression}`);
+            if (r.result) lines.push(`= ${r.result}${r.result_type ? ` (${r.result_type})` : ''}`);
+            if (r.error) lines.push(`Error: ${r.error}`);
+            if (r.steps && r.steps.length > 0) lines.push(...r.steps.map((s, i) => `  Step ${i + 1}: ${s}`));
+          }
+          const plainText = lines.join('\n') || query;
+          if (plainText) {
+            await writeEmbedToClipboard(selectedNode.attrs, plainText);
+            const { notificationStore } = await import('../stores/notificationStore');
+            notificationStore.success('Result copied to clipboard');
+          }
+        }
+
+        // --- Math Plot: copy function expressions as plain text ---
+        else if (selectedAppId === 'math' && selectedSkillId === 'plot' && action === 'copy') {
+          // plot_spec is the canonical field; expression is the legacy name before rename
+          const plotSpec = (decodedContent.plot_spec as string) || (decodedContent.expression as string) || '';
+          const title = (decodedContent.title as string) || '';
+          const lines: string[] = [];
+          if (title) lines.push(`Plot: ${title}`);
+          if (plotSpec) lines.push(plotSpec);
+          const plainText = lines.join('\n') || plotSpec;
+          if (plainText) {
+            await writeEmbedToClipboard(selectedNode.attrs, plainText);
+            const { notificationStore } = await import('../stores/notificationStore');
+            notificationStore.success('Plot copied to clipboard');
+          }
+        }
       } catch (error) {
         console.error('[ChatMessage] Error handling app-skill-use action:', error);
         const { notificationStore } = await import('../stores/notificationStore');
@@ -1907,7 +1944,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           (selectedAppId === 'docs') ||
           (selectedAppId === 'sheets') ||
           (selectedAppId === 'web' && selectedSkillId === 'read') ||
-          (selectedAppId === 'news' && selectedSkillId === 'read')
+          (selectedAppId === 'news' && selectedSkillId === 'read') ||
+          (selectedAppId === 'math')
         )}
         {@const showDownloadAction = !isFocusMode && (
           menuType === 'code' || menuType === 'video-transcript' || menuType === 'pdf' ||
