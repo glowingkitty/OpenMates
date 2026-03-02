@@ -1297,9 +1297,10 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
       try {
         if (action === 'copy') {
-          // Build the YAML text promise without awaiting — enables synchronous
+          // Build the markdown text promise without awaiting — enables synchronous
           // navigator.clipboard.write() call for Safari gesture-token compatibility.
-          const yamlPromise: Promise<string> = import('../services/embedResolver').then(
+          // Format: bold labels + bullet-point URLs so it reads well in any text editor.
+          const mdPromise: Promise<string> = import('../services/embedResolver').then(
             ({ resolveEmbed, decodeToonContent }) =>
               resolveEmbed(embedId).then(async (embedData) => {
                 if (!embedData?.content) {
@@ -1311,27 +1312,23 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
                 const provider = decodedContent?.provider || 'Brave Search';
                 const results = decodedContent?.results || [];
 
-                let yaml = `query: "${query}"\n`;
-                yaml += `provider: "${provider}"\n`;
-                yaml += `results:\n`;
+                let md = `**Query:**\n"${query}"\n\n`;
+                md += `**Provider:**\n${provider}\n\n`;
+                md += `**Results:**\n`;
                 results.forEach((result: any) => {
-                  yaml += `  - title: "${(result.title || '').replace(/"/g, '\\"')}"\n`;
-                  yaml += `    url: "${(result.url || '').replace(/"/g, '\\"')}"\n`;
-                  if (result.snippet) {
-                    yaml += `    snippet: "${String(result.snippet).replace(/"/g, '\\"')}"\n`;
-                  }
+                  if (result.url) md += `- ${result.url}\n`;
                 });
-                return yaml;
+                return md.trimEnd();
               })
           );
 
           // Initiate clipboard write immediately (synchronous within the gesture context).
-          const copyDone = writeEmbedToClipboard(snapshotAttrs, yamlPromise);
+          const copyDone = writeEmbedToClipboard(snapshotAttrs, mdPromise);
 
           // Await both to surface errors and show notification.
-          const yaml = await yamlPromise;
+          const md = await mdPromise;
           await copyDone;
-          if (yaml) {
+          if (md) {
             const { notificationStore } = await import('../stores/notificationStore');
             notificationStore.success('Copied to clipboard');
           }
@@ -1522,31 +1519,49 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
                   return tempDiv.textContent || tempDiv.innerText || '';
                 }
 
-                // --- Sheets: convert markdown table to CSV ---
+                // --- Sheets: convert markdown table to TSV (tab-separated values) ---
+                // TSV pastes directly into Excel/Google Sheets as individual cells
+                // (comma-separated CSV would require the "Import" dialog on most apps).
                 if (appId === 'sheets') {
                   const tableContent = (decodedContent.code as string) || (decodedContent.table as string) || '';
                   if (!tableContent) return '';
+                  // Filter out separator rows (---|---|---) and empty lines
                   const lines = tableContent.split('\n').filter((l: string) => l.trim() && !l.trim().match(/^[\s|:-]+$/));
                   return lines.map((line: string) =>
                     line.split('|')
                       .map((cell: string) => cell.trim())
                       .filter((cell: string) => cell !== '')
-                      .map((cell: string) => `"${cell.replace(/"/g, '""')}"`)
-                      .join(',')
+                      .join('\t')
                   ).join('\n');
                 }
 
-                // --- Web Read / News Read: article text ---
+                // --- Web Read / News Read: article markdown with source URLs ---
                 if ((appId === 'web' || appId === 'news') && skillId === 'read') {
                   const results = (decodedContent.results as Array<{ markdown?: string; title?: string; url?: string }>) || [];
                   const textParts = results.map(r => {
                     let part = '';
                     if (r.title) part += `# ${r.title}\n\n`;
-                    if (r.url) part += `Source: ${r.url}\n\n`;
+                    if (r.url) part += `**Source:** ${r.url}\n\n`;
                     if (r.markdown) part += r.markdown;
                     return part;
                   }).filter(Boolean);
                   return textParts.join('\n\n---\n\n');
+                }
+
+                // --- Videos/News Search: query + provider + bullet-point URLs ---
+                // Same format as web search (handled in the separate menuType='web' block above,
+                // but videos/news search reach this block via selectedAppId/selectedSkillId).
+                if ((appId === 'videos' || appId === 'news') && skillId === 'search') {
+                  const query = (decodedContent.query as string) || '';
+                  const provider = (decodedContent.provider as string) || '';
+                  const results = (decodedContent.results as Array<{ url?: string; title?: string }>) || [];
+                  let md = `**Query:**\n"${query}"\n\n`;
+                  if (provider) md += `**Provider:**\n${provider}\n\n`;
+                  md += `**Results:**\n`;
+                  results.forEach((r: any) => {
+                    if (r.url) md += `- ${r.url}\n`;
+                  });
+                  return md.trimEnd();
                 }
 
                 // --- Math Calculate ---
@@ -1726,30 +1741,31 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             }
           }
 
-          // --- Sheets: download (CSV) ---
+          // --- Sheets: download (TSV) ---
+          // Tab-separated format: pastes directly as separate cells in Excel / Google Sheets.
+          // File extension is .tsv; most spreadsheet apps recognise it without an import dialog.
           else if (selectedAppId === 'sheets' && action === 'download') {
             const tableContent = (decodedContent.code as string) || (decodedContent.table as string) || '';
             const sheetTitle = (decodedContent.title as string) || 'table';
             if (tableContent) {
               const lines = tableContent.split('\n').filter((l: string) => l.trim() && !l.trim().match(/^[\s|:-]+$/));
-              const csv = lines.map((line: string) =>
+              const tsv = lines.map((line: string) =>
                 line.split('|')
                   .map((cell: string) => cell.trim())
                   .filter((cell: string) => cell !== '')
-                  .map((cell: string) => `"${cell.replace(/"/g, '""')}"`)
-                  .join(',')
+                  .join('\t')
               ).join('\n');
-              const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+              const blob = new Blob([tsv], { type: 'text/tab-separated-values;charset=utf-8;' });
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
               a.href = url;
-              a.download = `${sheetTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.csv`;
+              a.download = `${sheetTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.tsv`;
               document.body.appendChild(a);
               a.click();
               document.body.removeChild(a);
               URL.revokeObjectURL(url);
               const { notificationStore } = await import('../stores/notificationStore');
-              notificationStore.success('Table downloaded as CSV');
+              notificationStore.success('Table downloaded');
             }
           }
         }
@@ -2086,10 +2102,10 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
       {#if showMenu}
         {@const isFocusMode = menuType === 'focusMode'}
-        // Copy is available for all finished embeds outside focus mode.
-        // Each embed type has a specific handler in handleMenuAction; unknown types
-        // fall back to a generic decodedContent serializer so every future embed
-        // automatically gets a working Copy button without any extra wiring.
+        <!-- Copy is available for all finished embeds outside focus mode.
+             Each embed type has a specific handler in handleMenuAction; unknown types
+             fall back to a generic decodedContent serializer so every future embed
+             automatically gets a working Copy button without any extra wiring. -->
         {@const showCopyAction = !isFocusMode}
         {@const showDownloadAction = !isFocusMode && (
           menuType === 'code' || menuType === 'video-transcript' || menuType === 'pdf' ||
