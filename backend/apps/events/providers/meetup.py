@@ -233,9 +233,9 @@ def search_events(
     end_date: Optional[str] = None,
     event_type: Optional[str] = None,
     radius_miles: float = 25.0,
-    count: int = 20,
+    count: int = 10,
     proxy_url: Optional[str] = None,
-) -> List[Dict[str, Any]]:
+) -> Tuple[List[Dict[str, Any]], int]:
     """
     Search Meetup.com for events matching the given criteria.
 
@@ -253,17 +253,21 @@ def search_events(
         end_date:     ISO 8601 datetime with timezone offset (same format)
         event_type:   "PHYSICAL", "ONLINE", or None (both)
         radius_miles: Search radius in miles (default 25, ~40 km)
-        count:        Maximum number of events to return (1–50)
+        count:        Maximum number of events to return (default 10, max 50)
         proxy_url:    Optional HTTP proxy URL (e.g. Webshare rotating residential).
                       Format: "http://user:pass@p.webshare.io:80"
                       When provided, all requests are routed through this proxy
                       to avoid Meetup IP-based rate limiting.
 
     Returns:
-        List of normalised event dicts. Each dict contains:
+        Tuple of:
+          - List of normalised event dicts. Each dict contains:
             id, provider, title, description, url, date_start, date_end,
             timezone, event_type, venue (or None), organizer, rsvp_count,
             is_paid, fee (or None), image_url (always None — not available on gql2)
+          - total_count: Total number of matching events on Meetup (may exceed the
+            returned list if count < totalCount). Useful for informing the user that
+            more events exist beyond the requested count.
 
     Raises:
         RuntimeError: On HTTP or GraphQL errors
@@ -359,7 +363,7 @@ def search_events(
         total_count,
     )
 
-    return [_normalise_event(edge.get("node", {})) for edge in edges]
+    return ([_normalise_event(edge.get("node", {})) for edge in edges], total_count)
 
 
 async def search_events_async(
@@ -372,9 +376,9 @@ async def search_events_async(
     end_date: Optional[str] = None,
     event_type: Optional[str] = None,
     radius_miles: float = 25.0,
-    count: int = 20,
+    count: int = 10,
     proxy_url: Optional[str] = None,
-) -> List[Dict[str, Any]]:
+) -> Tuple[List[Dict[str, Any]], int]:
     """
     Async implementation of event search using httpx.AsyncClient.
 
@@ -384,9 +388,24 @@ async def search_events_async(
     that occurred with the synchronous requests library.
 
     Args:
-        proxy_url: Optional HTTP proxy URL (e.g. "http://user:pass@p.webshare.io:80").
-                   Typically a Webshare rotating residential proxy URL.
-                   httpx correctly passes credentials in the CONNECT tunnel for HTTPS targets.
+        keywords:     Search keyword(s), e.g. "AI", "Python", "hackathon"
+        lat:          Latitude of search centre (required)
+        lon:          Longitude of search centre (required)
+        city:         City display name (optional)
+        country:      ISO 3166-1 alpha-2 country code (optional)
+        start_date:   ISO 8601 datetime string
+        end_date:     ISO 8601 datetime string
+        event_type:   "PHYSICAL", "ONLINE", or None (both)
+        radius_miles: Search radius in miles (default 25)
+        count:        Maximum number of events to return (default 10, max 50)
+        proxy_url:    Optional HTTP proxy URL (e.g. "http://user:pass@p.webshare.io:80").
+                      Typically a Webshare rotating residential proxy URL.
+                      httpx correctly passes credentials in the CONNECT tunnel for HTTPS targets.
+
+    Returns:
+        Tuple of:
+          - List of normalised event dicts (same schema as search_events())
+          - total_count: Total number of matching events on Meetup (may exceed returned list)
     """
     count = max(1, min(count, 50))
 
@@ -474,7 +493,7 @@ async def search_events_async(
         total_count,
     )
 
-    return [_normalise_event(edge.get("node", {})) for edge in edges]
+    return ([_normalise_event(edge.get("node", {})) for edge in edges], total_count)
 
 
 # ---------------------------------------------------------------------------

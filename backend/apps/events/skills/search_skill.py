@@ -207,7 +207,7 @@ class SearchSkill(BaseSkill):
         request_id: Any,
         secrets_manager: SecretsManager,  # noqa: ARG002 — required by BaseSkill helper signature
         proxy_url: Optional[str] = None,
-    ) -> Tuple[Any, List[Dict[str, Any]], Optional[str]]:
+    ) -> Tuple[Any, List[Dict[str, Any]], Optional[str], int]:
         """
         Process a single event search request.
 
@@ -222,11 +222,13 @@ class SearchSkill(BaseSkill):
                              Passed through to meetup_provider.search_events_async().
 
         Returns:
-            Tuple of (request_id, results_list, error_or_None)
+            Tuple of (request_id, results_list, error_or_None, total_available)
+            where total_available is the total count of matching events on Meetup
+            (may exceed the returned list if count < totalCount).
         """
         query = req.get("query") or req.get("q")
         if not query:
-            return (request_id, [], "Missing 'query' parameter")
+            return (request_id, [], "Missing 'query' parameter", 0)
 
         # --- Resolve location ---
         lat: Optional[float] = req.get("lat")
@@ -240,7 +242,7 @@ class SearchSkill(BaseSkill):
                 lat = float(lat)
                 lon = float(lon)
             except (TypeError, ValueError) as exc:
-                return (request_id, [], f"Invalid lat/lon values: {exc}")
+                return (request_id, [], f"Invalid lat/lon values: {exc}", 0)
         else:
             location_str = req.get("location", "").strip()
             if not location_str:
@@ -248,18 +250,19 @@ class SearchSkill(BaseSkill):
                     request_id,
                     [],
                     "Missing 'location' parameter. Provide a city name or explicit lat/lon.",
+                    0,
                 )
             try:
                 lat, lon, city, country = meetup_provider.resolve_location(location_str)
             except ValueError as exc:
-                return (request_id, [], f"Location resolution failed: {exc}")
+                return (request_id, [], f"Location resolution failed: {exc}", 0)
 
         # --- Optional parameters ---
         start_date: Optional[str] = req.get("start_date")
         end_date: Optional[str] = req.get("end_date")
         event_type: Optional[str] = req.get("event_type")
         radius_miles: float = float(req.get("radius_miles", 25.0))
-        count: int = int(req.get("count", 20))
+        count: int = int(req.get("count", 10))
 
         # Validate event_type
         if event_type and event_type not in ("PHYSICAL", "ONLINE"):
@@ -280,7 +283,7 @@ class SearchSkill(BaseSkill):
         )
 
         try:
-            events = await meetup_provider.search_events_async(
+            events, total_available = await meetup_provider.search_events_async(
                 keywords=query,
                 lat=lat,
                 lon=lon,
@@ -296,11 +299,11 @@ class SearchSkill(BaseSkill):
         except (RuntimeError, ValueError) as exc:
             error_msg = f"Meetup search failed for query {query!r}: {exc}"
             logger.error(error_msg, exc_info=True)
-            return (request_id, [], error_msg)
+            return (request_id, [], error_msg, 0)
         except Exception as exc:
             error_msg = f"Unexpected error searching events for query {query!r}: {exc}"
             logger.error(error_msg, exc_info=True)
-            return (request_id, [], error_msg)
+            return (request_id, [], error_msg, 0)
 
         # Add a 'type' field and content hash for UI rendering consistency
         results: List[Dict[str, Any]] = []
@@ -311,14 +314,15 @@ class SearchSkill(BaseSkill):
             results.append(result)
 
         logger.info(
-            "Event search (id=%s) complete: %d results for query=%r location=(%.4f, %.4f)",
+            "Event search (id=%s) complete: %d results (totalAvailable=%d) for query=%r location=(%.4f, %.4f)",
             request_id,
             len(results),
+            total_available,
             query,
             lat,
             lon,
         )
-        return (request_id, results, None)
+        return (request_id, results, None, total_available)
 
     # ------------------------------------------------------------------
     # Public execute() — called by BaseApp/route handler
@@ -407,12 +411,38 @@ class SearchSkill(BaseSkill):
             proxy_url=proxy_url,
         )
 
-        # Group by request ID
-        grouped_results, errors = self._group_results_by_request_id(
-            results=results,
-            requests=validated_requests,
-            logger=logger,
-        )
+        # Group by request ID — handle 4-tuples (request_id, items, error, total_available).
+        # The base helper expects 3-tuples, so we process manually here to preserve total_available.
+        grouped_results: List[Dict[str, Any]] = []
+        errors: List[str] = []
+        request_order = {req.get("id"): i for i, req in enumerate(validated_requests or [])}
+
+        for result in results:
+            if isinstance(result, Exception):
+                error_msg = f"Unexpected error processing request: {str(result)}"
+                logger.error(error_msg, exc_info=True)
+                errors.append(error_msg)
+                continue
+
+            # 4-tuple: (request_id, items, error, total_available)
+            request_id, items, error, total_available = result
+
+            if error:
+                errors.append(error)
+                grouped_results.append({
+                    "id": request_id,
+                    "results": [],
+                    "error": error,
+                    "total_available": 0,
+                })
+            else:
+                grouped_results.append({
+                    "id": request_id,
+                    "results": items,
+                    "total_available": total_available,
+                })
+
+        grouped_results.sort(key=lambda x: request_order.get(x["id"], 999))
 
         # Build final response
         response = self._build_response_with_errors(

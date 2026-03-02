@@ -370,6 +370,72 @@ async def _publish_skill_status(
         )
 
 
+def _validate_skill_provider(
+    provider: Optional[str],
+    app_id: str,
+    skill_id: str,
+    discovered_apps_metadata: Dict[str, AppYAML],
+    log_prefix: str,
+) -> Optional[str]:
+    """
+    Validate a provider value against the skill's known providers list from app.yml.
+
+    If the provider is not in the skill's providers list (or is None/empty), returns
+    the first valid provider from the skill definition. This prevents LLM hallucination
+    (e.g. returning 'Brave Search' for the events skill that only supports 'Meetup').
+
+    Args:
+        provider:                 Provider string from LLM output or metadata (may be wrong)
+        app_id:                   App identifier (e.g. 'events', 'web', 'maps')
+        skill_id:                 Skill identifier (e.g. 'search')
+        discovered_apps_metadata: Full app metadata dict from which skill providers are read
+        log_prefix:               Log prefix for debug/warning messages
+
+    Returns:
+        A valid provider string, or the original provider if the skill has no providers
+        list defined (in which case we cannot validate).
+    """
+    app_metadata = discovered_apps_metadata.get(app_id)
+    if not app_metadata:
+        return provider
+
+    skill_providers: Optional[List[str]] = None
+    for skill_def in (app_metadata.skills or []):
+        if skill_def.id == skill_id:
+            skill_providers = skill_def.providers
+            break
+
+    if not skill_providers:
+        # No providers list in app.yml — cannot validate, return as-is
+        return provider
+
+    if provider in skill_providers:
+        return provider
+
+    # Provider is invalid (hallucinated or wrong) — override with the first valid one
+    correct_provider = skill_providers[0]
+    if provider:
+        logger.warning(
+            "%s Provider %r is not in the skill's providers list %r for %s.%s — "
+            "overriding with %r",
+            log_prefix,
+            provider,
+            skill_providers,
+            app_id,
+            skill_id,
+            correct_provider,
+        )
+    else:
+        logger.debug(
+            "%s No provider set for %s.%s — defaulting to %r",
+            log_prefix,
+            app_id,
+            skill_id,
+            correct_provider,
+        )
+    return correct_provider
+
+
 async def _charge_skill_credits(
     task_id: str,
     request_data: AskSkillRequest,
@@ -1824,12 +1890,20 @@ async def handle_main_processing(
                                     if key != "id":
                                         request_metadata[key] = value
                                 
-                                # Provider from request or fallback (for search skills)
-                                if "provider" not in request_metadata and skill_id == "search":
-                                    if app_id == "maps":
-                                        request_metadata["provider"] = "Google Maps"
-                                    else:
-                                        request_metadata["provider"] = "Brave Search"
+                                # Provider from request or fallback (for search skills).
+                                # Validate against the skill's known providers list to prevent
+                                # LLM hallucination (e.g. 'Brave Search' for the events skill).
+                                raw_provider = request_metadata.get("provider")
+                                if raw_provider is not None or skill_id == "search":
+                                    validated_provider = _validate_skill_provider(
+                                        provider=raw_provider,
+                                        app_id=app_id,
+                                        skill_id=skill_id,
+                                        discovered_apps_metadata=discovered_apps_metadata,
+                                        log_prefix=log_prefix,
+                                    )
+                                    if validated_provider is not None:
+                                        request_metadata["provider"] = validated_provider
                                 
                                 # Add request ID for later matching
                                 # ALWAYS auto-generate 1-indexed IDs - ignore any LLM-provided IDs
@@ -1927,18 +2001,19 @@ async def handle_main_processing(
                                         metadata[key] = value
                                 logger.debug(f"{log_prefix} INLINE: Extracted metadata from direct args: {list(metadata.keys())}")
                             
-                            # Provider fallback for search skills
-                            if "provider" not in metadata and skill_id == "search":
-                                if app_id == "maps":
-                                    metadata["provider"] = "Google Maps"
-                                elif app_id == "web":
-                                    metadata["provider"] = "Brave Search"
-                                elif app_id == "news":
-                                    metadata["provider"] = "Brave Search"
-                                elif app_id == "videos":
-                                    metadata["provider"] = "Brave Search"
-                                else:
-                                    metadata["provider"] = "Brave Search"  # Default fallback
+                            # Provider validation for search skills.
+                            # Validates the provider (from LLM args or absent) against the skill's
+                            # known providers list in app.yml to prevent LLM hallucination.
+                            if skill_id == "search" or "provider" in metadata:
+                                validated_provider = _validate_skill_provider(
+                                    provider=metadata.get("provider"),
+                                    app_id=app_id,
+                                    skill_id=skill_id,
+                                    discovered_apps_metadata=discovered_apps_metadata,
+                                    log_prefix=log_prefix,
+                                )
+                                if validated_provider is not None:
+                                    metadata["provider"] = validated_provider
                             
                             # Log final metadata for debugging
                             metadata_summary = ", ".join([f"{k}={v}" for k, v in metadata.items()])
@@ -2552,18 +2627,27 @@ async def handle_main_processing(
                                 if isinstance(first_request, dict) and "query" in first_request:
                                     metadata["query"] = first_request["query"]
                             
-                            # Direct provider
+                            # Extract provider from LLM args (direct or nested), then validate
+                            # against the skill's known providers list to prevent hallucination.
+                            raw_provider: Optional[str] = None
                             if "provider" in parsed_args:
-                                metadata["provider"] = parsed_args["provider"]
-                            # Nested provider
+                                raw_provider = parsed_args["provider"]
                             elif "requests" in parsed_args and isinstance(parsed_args["requests"], list) and len(parsed_args["requests"]) > 0:
                                 first_request = parsed_args["requests"][0]
                                 if isinstance(first_request, dict) and "provider" in first_request:
-                                    metadata["provider"] = first_request["provider"]
-                            
-                            # Default provider for web search
-                            if skill_id == "search" and "provider" not in metadata:
-                                metadata["provider"] = "Brave Search"
+                                    raw_provider = first_request["provider"]
+
+                            # Validate provider (covers fallback + hallucination correction)
+                            if skill_id == "search" or raw_provider is not None:
+                                validated_provider = _validate_skill_provider(
+                                    provider=raw_provider,
+                                    app_id=app_id,
+                                    skill_id=skill_id,
+                                    discovered_apps_metadata=discovered_apps_metadata,
+                                    log_prefix=log_prefix,
+                                )
+                                if validated_provider is not None:
+                                    metadata["provider"] = validated_provider
 
                             # Create placeholder embed (fallback path)
                             placeholder_embed_data = await embed_service.create_processing_embed_placeholder(
@@ -3573,12 +3657,18 @@ async def handle_main_processing(
                                                     if key != "id":  # Skip id field
                                                         single_request_metadata[key] = value
                                     
-                                    # Add provider fallback for search skills
-                                    if "provider" not in single_request_metadata and skill_id == "search":
-                                        if app_id == "maps":
-                                            single_request_metadata["provider"] = "Google Maps"
-                                        else:
-                                            single_request_metadata["provider"] = "Brave Search"
+                                    # Validate/set provider for search skills against skill's known
+                                    # providers list to prevent LLM hallucination.
+                                    if skill_id == "search" or "provider" in single_request_metadata:
+                                        validated_provider = _validate_skill_provider(
+                                            provider=single_request_metadata.get("provider"),
+                                            app_id=app_id,
+                                            skill_id=skill_id,
+                                            discovered_apps_metadata=discovered_apps_metadata,
+                                            log_prefix=log_prefix,
+                                        )
+                                        if validated_provider is not None:
+                                            single_request_metadata["provider"] = validated_provider
                                     
                                     # DEBUG: Log what's being passed to update_embed_with_results
                                     if results and len(results) > 0:

@@ -20,8 +20,7 @@ skills:
       When the user mentions a city or location, default to PHYSICAL (in-person) events.
       When the user explicitly asks for online or virtual events, use ONLINE filter.
       Always limit results to 10 (default) unless the user explicitly requests more.
-      IMPORTANT: Call this skill EXACTLY ONCE with a single focused query. Do NOT retry
-      with broader or alternative queries if results are empty or if there is a provider error.
+      Do NOT retry with broader or alternative queries if results are empty or if there is a provider error.
       Do NOT fall back to web.search after this skill returns an error — report the
       error to the user instead.
     stage: production
@@ -47,6 +46,11 @@ skills:
     tool_schema:
       type: object
       properties:
+        provider:
+          type: string
+          description: "The event provider to use. Only 'Meetup' is supported."
+          enum:
+            - "Meetup"
         requests:
           type: array
           description: |

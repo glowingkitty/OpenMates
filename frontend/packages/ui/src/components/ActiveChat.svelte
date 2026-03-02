@@ -8572,6 +8572,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                              embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
                              status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
                              embedId={embedFullscreenData.embedId}
+                             initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
                              onClose={handleCloseEmbedFullscreen}
                              {hasPreviousEmbed}
                              {hasNextEmbed}

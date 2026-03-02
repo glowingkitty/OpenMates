@@ -100,6 +100,12 @@
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button */
     onShowChat?: () => void;
+    /**
+     * Child embed ID to auto-open on mount (set when arriving from an inline badge click).
+     * When provided, the fullscreen will immediately open the EventEmbedFullscreen overlay
+     * for that specific event once results have loaded.
+     */
+    initialChildEmbedId?: string;
   }
 
   let {
@@ -115,7 +121,8 @@
     onNavigateNext,
     navigateDirection,
     showChatButton = false,
-    onShowChat
+    onShowChat,
+    initialChildEmbedId
   }: Props = $props();
 
   // ── Local state ─────────────────────────────────────────────────────────────
@@ -155,14 +162,42 @@
    */
   let allEvents = $state<EventResult[]>([]);
 
+  /** Guard: prevent the auto-open $effect from firing more than once per mount. */
+  let _autoOpenFired = $state(false);
+
   /** Open an event's detail fullscreen overlay. */
   function handleEventClick(index: number) {
     selectedEventIndex = index;
   }
 
-  /** Close the event overlay (back to results grid). */
+  /**
+   * Close the event overlay.
+   *
+   * When opened via inline badge (initialChildEmbedId set): close the entire
+   * fullscreen immediately — no parent results grid needed.
+   * When opened normally (card click): return to the results grid.
+   */
   function handleEventClose() {
-    selectedEventIndex = -1;
+    if (initialChildEmbedId) {
+      // Opened via inline badge — skip the grid and close the entire fullscreen
+      console.debug('[EventsSearchEmbedFullscreen] Closing event overlay (inline badge origin) — closing entire fullscreen');
+      onClose();
+    } else {
+      console.debug('[EventsSearchEmbedFullscreen] Closing event overlay, returning to events grid');
+      selectedEventIndex = -1;
+    }
+  }
+
+  /**
+   * Handle closing the entire events search fullscreen.
+   * If a child overlay is open (and was NOT from an inline badge), close it first.
+   */
+  function handleMainClose() {
+    if (selectedEventIndex >= 0 && !initialChildEmbedId) {
+      selectedEventIndex = -1;
+    } else {
+      onClose();
+    }
   }
 
   /** Navigate to the previous event in the overlay. */
@@ -183,6 +218,37 @@
   let selectedEvent = $derived(
     selectedEventIndex >= 0 ? allEvents[selectedEventIndex] : undefined
   );
+
+  /**
+   * Auto-open the event overlay for a specific child embed when the fullscreen
+   * is opened via an inline badge click (initialChildEmbedId is set).
+   * Fires at most once per mount (_autoOpenFired guard) to prevent re-opening
+   * after the user closes the child overlay.
+   */
+  $effect(() => {
+    if (!initialChildEmbedId) return;
+    if (_autoOpenFired) return; // fire at most once per mount
+    if (allEvents.length === 0) return; // results not yet loaded
+
+    const idx = allEvents.findIndex(e => e.embed_id === initialChildEmbedId);
+    if (idx >= 0) {
+      console.debug(
+        '[EventsSearchEmbedFullscreen] Auto-opening event overlay for initialChildEmbedId:',
+        initialChildEmbedId,
+        'at index',
+        idx,
+      );
+      _autoOpenFired = true;
+      handleEventClick(idx);
+    } else {
+      console.warn(
+        '[EventsSearchEmbedFullscreen] initialChildEmbedId not found in loaded results:',
+        initialChildEmbedId,
+        'available embed_ids:',
+        allEvents.map(e => e.embed_id),
+      );
+    }
+  });
 
   // ── Child embed transformer ──────────────────────────────────────────────────
   /**
@@ -278,7 +344,7 @@
 <UnifiedEmbedFullscreen
   appId="events"
   skillId="search"
-  onClose={onClose}
+  onClose={handleMainClose}
   currentEmbedId={embedId}
   skillIconName="search"
   embedHeaderTitle={embedHeaderTitle}
