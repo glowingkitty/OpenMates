@@ -1069,6 +1069,13 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   async function handleMenuAction(action: string) {
     if (!selectedNode) return;
 
+    // Snapshot node attrs immediately. The EmbedContextMenu onClose callback fires as soon
+    // as a menu button is clicked (before this async function resolves), which sets
+    // selectedNode = null. All async paths below must use this snapshot instead of
+    // accessing selectedNode.attrs after any await to avoid "Cannot read properties of null".
+    // Cast via unknown so TypeScript accepts it as EmbedNodeAttributes across all call sites.
+    const snapshotAttrs = selectedNode.attrs as unknown as import('../message_parsing/types').EmbedNodeAttributes;
+
     // Legacy node handlers removed - now using unified embed system
     // Actions are handled directly below
 
@@ -1234,7 +1241,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           case 'copy': {
             if (!code) break;
             // Write embed reference (for in-app paste) + code text (for external paste)
-            await writeEmbedToClipboard(selectedNode.attrs, code);
+            await writeEmbedToClipboard(snapshotAttrs, code);
             const { notificationStore } = await import('../stores/notificationStore');
             notificationStore.success('Code copied to clipboard');
             break;
@@ -1300,7 +1307,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           });
 
           // Write embed reference (for in-app paste) + YAML text (for external paste)
-          await writeEmbedToClipboard(selectedNode.attrs, yaml);
+          await writeEmbedToClipboard(snapshotAttrs, yaml);
           const { notificationStore } = await import('../stores/notificationStore');
           notificationStore.success('Copied to clipboard');
         }
@@ -1365,7 +1372,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             
             if (transcriptText) {
               // Write embed reference (for in-app paste) + transcript text (for external paste)
-              await writeEmbedToClipboard(selectedNode.attrs, transcriptText);
+              await writeEmbedToClipboard(snapshotAttrs, transcriptText);
               const { notificationStore } = await import('../stores/notificationStore');
               notificationStore.success('Transcript copied to clipboard');
             }
@@ -1424,7 +1431,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           // Write embed reference (for in-app paste) + URL (for external paste)
           if (videoUrl) {
             try {
-              await writeEmbedToClipboard(selectedNode.attrs, videoUrl);
+              await writeEmbedToClipboard(snapshotAttrs, videoUrl);
               const { notificationStore } = await import('../stores/notificationStore');
               notificationStore.success('Video URL copied to clipboard');
             } catch (error) {
@@ -1549,7 +1556,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             const plainText = tempDiv.textContent || tempDiv.innerText || '';
             if (plainText) {
               // Write embed reference (for in-app paste) + plain text (for external paste)
-              await writeEmbedToClipboard(selectedNode.attrs, plainText);
+              await writeEmbedToClipboard(snapshotAttrs, plainText);
               const { notificationStore } = await import('../stores/notificationStore');
               notificationStore.success('Document copied to clipboard');
             }
@@ -1594,7 +1601,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
                   .join(',')
               ).join('\n');
               // Write embed reference (for in-app paste) + CSV text (for external paste)
-              await writeEmbedToClipboard(selectedNode.attrs, csv);
+              await writeEmbedToClipboard(snapshotAttrs, csv);
               const { notificationStore } = await import('../stores/notificationStore');
               notificationStore.success('Table copied as CSV');
             }
@@ -1635,7 +1642,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           }).filter(Boolean);
           if (textParts.length > 0) {
             // Write embed reference (for in-app paste) + article text (for external paste)
-            await writeEmbedToClipboard(selectedNode.attrs, textParts.join('\n\n---\n\n'));
+            await writeEmbedToClipboard(snapshotAttrs, textParts.join('\n\n---\n\n'));
             const { notificationStore } = await import('../stores/notificationStore');
             notificationStore.success('Article copied to clipboard');
           }
@@ -1653,7 +1660,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           }).filter(Boolean);
           if (textParts.length > 0) {
             // Write embed reference (for in-app paste) + article text (for external paste)
-            await writeEmbedToClipboard(selectedNode.attrs, textParts.join('\n\n---\n\n'));
+            await writeEmbedToClipboard(snapshotAttrs, textParts.join('\n\n---\n\n'));
             const { notificationStore } = await import('../stores/notificationStore');
             notificationStore.success('Article copied to clipboard');
           }
@@ -1674,7 +1681,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           }
           const plainText = lines.join('\n') || query;
           if (plainText) {
-            await writeEmbedToClipboard(selectedNode.attrs, plainText);
+            await writeEmbedToClipboard(snapshotAttrs, plainText);
             const { notificationStore } = await import('../stores/notificationStore');
             notificationStore.success('Result copied to clipboard');
           }
@@ -1690,7 +1697,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           if (plotSpec) lines.push(plotSpec);
           const plainText = lines.join('\n') || plotSpec;
           if (plainText) {
-            await writeEmbedToClipboard(selectedNode.attrs, plainText);
+            await writeEmbedToClipboard(snapshotAttrs, plainText);
             const { notificationStore } = await import('../stores/notificationStore');
             notificationStore.success('Plot copied to clipboard');
           }
@@ -1736,12 +1743,12 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           const plainText = allLines.join('\n');
 
           if (plainText) {
-            await writeEmbedToClipboard(selectedNode.attrs, plainText);
+            await writeEmbedToClipboard(snapshotAttrs, plainText);
             const { notificationStore } = await import('../stores/notificationStore');
             notificationStore.success('Copied to clipboard');
           } else {
             // Last resort: copy a JSON representation
-            await writeEmbedToClipboard(selectedNode.attrs, JSON.stringify(decodedContent, null, 2));
+            await writeEmbedToClipboard(snapshotAttrs, JSON.stringify(decodedContent, null, 2));
             const { notificationStore } = await import('../stores/notificationStore');
             notificationStore.success('Copied to clipboard');
           }
@@ -1773,10 +1780,10 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           break;
 
         case 'copy': {
-          // Direct-type embeds store their content in EmbedStore via contentRef.
-          // Resolve and format per embed type; fall back to url/src for legacy embeds.
-          const embedType = selectedNode.attrs?.type as string | undefined;
-          const contentRef = selectedNode.attrs?.contentRef as string | undefined;
+          // Use snapshotAttrs (captured at function start) — selectedNode is nulled
+          // by the EmbedContextMenu onClose before this async path completes.
+          const embedType = snapshotAttrs?.type as string | undefined;
+          const contentRef = snapshotAttrs?.contentRef as string | undefined;
           const embedId = contentRef?.startsWith('embed:') ? contentRef.replace('embed:', '') : null;
 
           if (embedId) {
@@ -1827,24 +1834,29 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
               }
 
               if (plainText) {
-                await writeEmbedToClipboard(selectedNode.attrs, plainText);
+                await writeEmbedToClipboard(snapshotAttrs, plainText);
                 const { notificationStore } = await import('../stores/notificationStore');
                 notificationStore.success('Copied to clipboard');
-              } else if (selectedNode.attrs?.url || selectedNode.attrs?.src) {
-                // Fallback to URL/src if no content could be extracted
-                await writeEmbedToClipboard(selectedNode.attrs, selectedNode.attrs.url || selectedNode.attrs.src);
-                const { notificationStore } = await import('../stores/notificationStore');
-                notificationStore.success('Copied to clipboard');
+              } else {
+                // Fallback: legacy embeds may have url or src (not in EmbedNodeAttributes type)
+                const legacyUrl = (snapshotAttrs as unknown as Record<string, unknown>).url as string | undefined;
+                if (legacyUrl) {
+                  await writeEmbedToClipboard(snapshotAttrs, legacyUrl);
+                  const { notificationStore } = await import('../stores/notificationStore');
+                  notificationStore.success('Copied to clipboard');
+                }
               }
             } catch (err) {
               console.error('[ChatMessage] Error copying direct-type embed:', err);
               const { notificationStore } = await import('../stores/notificationStore');
               notificationStore.error('Failed to copy');
             }
-          } else if (selectedNode.attrs?.url || selectedNode.attrs?.src) {
-            // Legacy embeds with no contentRef: copy url/src directly
-            const fallbackText = selectedNode.attrs.url || selectedNode.attrs.src;
-            await writeEmbedToClipboard(selectedNode.attrs, fallbackText);
+          } else {
+            // Legacy embeds with no contentRef: copy url if available
+            const legacyUrl = (snapshotAttrs as unknown as Record<string, unknown>).url as string | undefined;
+            if (legacyUrl) {
+              await writeEmbedToClipboard(snapshotAttrs, legacyUrl);
+            }
           }
           break;
         }
