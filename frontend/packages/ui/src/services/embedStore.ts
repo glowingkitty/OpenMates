@@ -751,6 +751,37 @@ export class EmbedStore {
         if (decryptedData) {
           const parsed = JSON.parse(decryptedData);
           embed.content = parsed.content || parsed;
+
+          // Re-register embed_ref on reload so inline embed links (e.g.
+          // [filename](embed:filename)) resolve after the in-memory index is cleared.
+          // The data-field path does not go through getFromSeparateFields(), so we
+          // must register here. embed_ref is stored inside the TOON content as a
+          // top-level field set by sendHandlers.ts at upload time.
+          try {
+            const toonContent = parsed.content || parsed;
+            if (typeof toonContent === "string") {
+              const decoded = await decodeToonContentLocal(toonContent);
+              if (decoded && typeof decoded === "object") {
+                const ref = (decoded as Record<string, unknown>).embed_ref;
+                const appId = (decoded as Record<string, unknown>).app_id;
+                const embedId =
+                  entry.embed_id || contentRef.replace("embed:", "");
+                if (typeof ref === "string" && ref && embedId) {
+                  this.registerEmbedRef(
+                    ref,
+                    embedId,
+                    typeof appId === "string" ? appId : null,
+                  );
+                  console.debug(
+                    `[EmbedStore] Re-registered embed_ref (data-field path) on IDB read: "${ref}" → ${embedId}`,
+                  );
+                }
+              }
+            }
+          } catch {
+            // Non-critical: embed_ref registration failure only affects inline link
+            // resolution; the embed itself will still display correctly.
+          }
         }
       } catch (error) {
         console.debug(

@@ -612,12 +612,19 @@ export async function handleSend(
       // Build TOON content mirroring the images/generate embed structure so that
       // existing image crypto utilities (fetchAndDecryptImage) can decrypt and
       // display the image. The images.view skill also expects this shape.
+      //
+      // embed_ref is set to the filename so that inline embed links like
+      // [camera_1772448256162.jpg](embed:camera_1772448256162.jpg) can be
+      // resolved via embedStore.resolveByRef() — both in the current session
+      // (via the in-memory registerEmbedRef call below) and after reload
+      // (via the cold-load path which reads embed_ref from TOON content).
       const embedContent = {
         app_id: "images",
         skill_id: "upload",
         type: "image",
         status: "finished",
         filename: attrs.filename || null,
+        embed_ref: attrs.filename || null,
         content_hash: attrs.contentHash || null,
         s3_base_url: attrs.s3BaseUrl || null,
         files: attrs.s3Files || null,
@@ -651,6 +658,17 @@ export async function handleSend(
         },
         "images-image",
       );
+
+      // Register the embed_ref → embed_id mapping in the in-memory index so
+      // that inline embed links (e.g. [filename](embed:filename)) resolve
+      // immediately in this session without waiting for a cold-load path.
+      if (attrs.filename) {
+        embedStore.registerEmbedRef(
+          attrs.filename as string,
+          uploadEmbedId,
+          "images",
+        );
+      }
 
       console.debug(
         `[handleSend] Registered uploaded image embed ${uploadEmbedId} in EmbedStore`,

@@ -2201,6 +2201,49 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
 
+      // On first load (live generation), the TOON content stored in IDB is a
+      // processing placeholder that has no embed_id yet. When the finalized
+      // send_embed_data WS event arrives, the IDB entry is updated with the real
+      // embed_id, but this component instance is already mounted and won't
+      // re-render automatically. Register a one-shot 'embedUpdated' listener so
+      // we re-call renderImageViewComponent with the fresh data once it arrives.
+      if (!originalEmbedId && embedId) {
+        const imageViewRetryHandler = (event: Event) => {
+          const customEvent = event as CustomEvent<{ embed_id: string }>;
+          if (customEvent.detail?.embed_id !== embedId) return;
+          chatSyncService.removeEventListener(
+            "embedUpdated",
+            imageViewRetryHandler,
+          );
+          // Re-run the full render() so renderImageViewComponent is called again
+          // with the updated decodedContent (which will now have a real embed_id).
+          // We resolve fresh embedData + decodedContent via re-render().
+          resolveEmbed(embedId)
+            .then(async (freshEmbedData) => {
+              const freshDecoded = freshEmbedData?.content
+                ? await decodeToonContent(freshEmbedData.content)
+                : null;
+              this.renderImageViewComponent(
+                attrs,
+                freshEmbedData,
+                freshDecoded,
+                content,
+              );
+            })
+            .catch((err) => {
+              console.error(
+                "[AppSkillUseRenderer] Error in imageViewRetryHandler re-render:",
+                err,
+              );
+            });
+        };
+        chatSyncService.addEventListener("embedUpdated", imageViewRetryHandler);
+        console.debug(
+          "[AppSkillUseRenderer] ImageView embed has no embed_id yet, waiting for embedUpdated:",
+          embedId,
+        );
+      }
+
       console.debug(
         "[AppSkillUseRenderer] Mounted ImageViewEmbedPreview component:",
         {
