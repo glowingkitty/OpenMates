@@ -1689,6 +1689,57 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             notificationStore.success('Plot copied to clipboard');
           }
         }
+
+        // --- Generic fallback: copy any embed whose type has no specific handler ---
+        // Produces a readable plain-text representation of decodedContent so every
+        // embed type gets a working Copy button automatically. Specific handlers above
+        // produce better-formatted output; this catches everything else.
+        else if (action === 'copy') {
+          // Build a human-readable text from the most useful string fields.
+          // Strategy: prefer known "title-like" and "content-like" keys, then
+          // fall back to serialising all string/number scalars as "key: value" lines,
+          // skipping encryption keys, S3 artefacts, and other non-human fields.
+          const SKIP_KEYS = new Set([
+            'aes_key', 'aes_nonce', 's3_key', 's3_base_url', 'iv',
+            'thumbnail_s3_key', 'screenshot_s3_keys', 'thumbnail_url',
+          ]);
+          const TITLE_KEYS = ['title', 'query', 'name', 'prompt', 'expression', 'plot_spec'];
+
+          // Collect title lines first (ordered)
+          const titleLines: string[] = [];
+          for (const key of TITLE_KEYS) {
+            const v = decodedContent[key];
+            if (typeof v === 'string' && v.trim()) {
+              titleLines.push(`${key}: ${v.trim()}`);
+            }
+          }
+
+          // Then collect remaining scalar fields
+          const bodyLines: string[] = [];
+          for (const [key, val] of Object.entries(decodedContent)) {
+            if (SKIP_KEYS.has(key)) continue;
+            if (TITLE_KEYS.includes(key)) continue; // already in titleLines
+            if (typeof val === 'string' && val.trim()) {
+              bodyLines.push(`${key}: ${val.trim()}`);
+            } else if (typeof val === 'number') {
+              bodyLines.push(`${key}: ${val}`);
+            }
+          }
+
+          const allLines = [...titleLines, ...bodyLines];
+          const plainText = allLines.join('\n');
+
+          if (plainText) {
+            await writeEmbedToClipboard(selectedNode.attrs, plainText);
+            const { notificationStore } = await import('../stores/notificationStore');
+            notificationStore.success('Copied to clipboard');
+          } else {
+            // Last resort: copy a JSON representation
+            await writeEmbedToClipboard(selectedNode.attrs, JSON.stringify(decodedContent, null, 2));
+            const { notificationStore } = await import('../stores/notificationStore');
+            notificationStore.success('Copied to clipboard');
+          }
+        }
       } catch (error) {
         console.error('[ChatMessage] Error handling app-skill-use action:', error);
         const { notificationStore } = await import('../stores/notificationStore');
@@ -1938,15 +1989,11 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
       {#if showMenu}
         {@const isFocusMode = menuType === 'focusMode'}
-        {@const showCopyAction = !isFocusMode && (
-          menuType === 'code' || menuType === 'video' || menuType === 'video-transcript' || menuType === 'web' ||
-          /* App-skill-use embeds that support copy (matching fullscreen onCopy capability) */
-          (selectedAppId === 'docs') ||
-          (selectedAppId === 'sheets') ||
-          (selectedAppId === 'web' && selectedSkillId === 'read') ||
-          (selectedAppId === 'news' && selectedSkillId === 'read') ||
-          (selectedAppId === 'math')
-        )}
+        // Copy is available for all finished embeds outside focus mode.
+        // Each embed type has a specific handler in handleMenuAction; unknown types
+        // fall back to a generic decodedContent serializer so every future embed
+        // automatically gets a working Copy button without any extra wiring.
+        {@const showCopyAction = !isFocusMode}
         {@const showDownloadAction = !isFocusMode && (
           menuType === 'code' || menuType === 'video-transcript' || menuType === 'pdf' ||
           /* App-skill-use embeds that support download (matching fullscreen onDownload capability) */
