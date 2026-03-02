@@ -159,6 +159,29 @@ invoice_number:
   cs: ""
   sv: ""
   verified_by_human: []
+confirmation_number:
+  context: Confirmation number label — used on Polar (non-EU) payment confirmation PDFs instead of "Invoice number"
+  en: Confirmation number
+  de: Bestätigungsnummer
+  zh: 确认编号
+  es: Número de confirmación
+  fr: Numéro de confirmation
+  pt: ""
+  ru: ""
+  ja: 確認番号
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  verified_by_human: []
 date_of_issue:
   context: Date of issue label
   en: Date of issue

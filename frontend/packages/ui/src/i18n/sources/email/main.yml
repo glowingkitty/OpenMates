@@ -1277,7 +1277,7 @@ you_can_see_the_new_privacy_policy:
   he: "ניתן לראות את מדיניות הפרטיות החדשה בכתובת <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>"
   verified_by_human: []
 purchase_confirmation:
-  context: Email subject & header for purchase confirmation
+  context: Email subject & header for purchase confirmation (Stripe/Revolut — EU invoices)
   en: Purchase confirmation (Invoice {invoice_id})
   de: Kaufbestätigung
   zh: 购买确认
@@ -1299,6 +1299,30 @@ purchase_confirmation:
   cs: ""
   sv: ""
   he: "אישור רכישה (חשבונית {invoice_id})"
+  verified_by_human: []
+purchase_confirmation_polar:
+  context: Email subject for Polar (non-EU) payment confirmations — uses "Confirmation" instead of "Invoice" since Polar is the MoR and issues the actual invoice
+  en: Purchase confirmation (Confirmation {invoice_id})
+  de: Kaufbestätigung (Bestätigung {invoice_id})
+  zh: 购买确认（确认编号 {invoice_id}）
+  es: Confirmación de compra (Confirmación {invoice_id})
+  fr: Confirmation d'achat (Confirmation {invoice_id})
+  pt: ""
+  ru: ""
+  ja: 購入確認（確認番号 {invoice_id}）
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
   verified_by_human: []
 support_contribution_confirmation:
   context: Email subject & header for support contribution confirmation
@@ -1706,7 +1730,7 @@ milestone_count:
   th: ""
   cs: ""
   sv: ""
-  he: "סה\"כ משתמשים"
+  he: 'סה"כ משתמשים'
   verified_by_human: []
 milestone_message:
   context: Message about platform growth in milestone email
@@ -1826,7 +1850,7 @@ newsletter_subscriber_count:
   th: ""
   cs: ""
   sv: ""
-  he: "סה\"כ מנויים לניוזלטר"
+  he: 'סה"כ מנויים לניוזלטר'
   verified_by_human: []
 newsletter_milestone_message:
   context: Message about newsletter growth in milestone email
@@ -2495,15 +2519,15 @@ email_body_someone_accessed_my_account_from_new_device:
     שלום.
     מישהו ניגש לחשבון שלי ללא רשותי!
     להלן הפרטים:
-    
+
     זמן התחברות: {login_time}
     מכשיר: {device_type}
     מערכת הפעלה: {operating_system}
     מיקום: {city}, {country}
     אימייל החשבון: {account_email}
-    
+
     אנא עזרו לי לאבטח את החשבון שלי.
-    
+
     תודה.
   verified_by_human: []
 email_body_someone_accessed_my_account_recovery_key:
@@ -2547,11 +2571,11 @@ email_body_someone_accessed_my_account_recovery_key:
     שלום.
     מישהו ניגש לחשבון שלי ללא רשותי באמצעות מפתח השחזור שלי!
     להלן הפרטים:
-    
+
     זמן התחברות: {login_time}
-    
+
     אנא עזרו לי לאבטח את החשבון שלי.
-    
+
     תודה.
   verified_by_human: []
 security_alert_backup_code_was_used:
@@ -2951,13 +2975,13 @@ email_body_someone_accessed_my_account_backup_code:
     שלום.
     מישהו ניגש לחשבון שלי ללא רשותי!
     להלן הפרטים:
-    
+
     זמן התחברות: {login_time}
     קוד גיבוי ששימש: {backup_code}
     אימייל החשבון: {account_email}
-    
+
     אנא עזרו לי לאבטח את החשבון שלי.
-    
+
     תודה.
   verified_by_human: []
 your_email_address_was_changed:
@@ -4615,7 +4639,7 @@ storage_billing_failed_1.body:
   fr: "Vous avez {storage_gb} Go de fichiers stockés sur OpenMates, ce qui nécessite {credits_needed} crédits par semaine. Nous n'avons pas pu facturer votre compte cette semaine car votre solde de crédits est trop faible."
   ja: "OpenMatesに{storage_gb} GBのファイルを保存しており、週{credits_needed}クレジットが必要です。クレジット残高が不足しているため、今週の請求ができませんでした。"
   zh: "您在 OpenMates 存储了 {storage_gb} GB 的文件，每周需要 {credits_needed} 个积分。由于您的积分余额不足，本周无法扣费。"
-  he: "יש לך {storage_gb} ג\"ב של קבצים המאוחסנים ב-OpenMates, הדורשים {credits_needed} קרדיטים בשבוע. לא הצלחנו לחייב את חשבונך השבוע מכיוון שיתרת הקרדיטים שלך נמוכה מדי."
+  he: 'יש לך {storage_gb} ג"ב של קבצים המאוחסנים ב-OpenMates, הדורשים {credits_needed} קרדיטים בשבוע. לא הצלחנו לחייב את חשבונך השבוע מכיוון שיתרת הקרדיטים שלך נמוכה מדי.'
   verified_by_human: []
 storage_billing_failed_1.action:
   context: Call-to-action text in first storage billing failure email
@@ -4655,7 +4679,7 @@ storage_billing_failed_2.body:
   fr: "C'est votre deuxième paiement de stockage manqué. Vous avez {storage_gb} Go stockés sur OpenMates nécessitant {credits_needed} crédits par semaine, mais votre solde est toujours trop faible."
   ja: "2回目のストレージ支払いの未払いです。OpenMatesに{storage_gb} GBを保存しており、週{credits_needed}クレジットが必要ですが、残高がまだ不足しています。"
   zh: "这是您第二次错过存储付款。您在 OpenMates 存储了 {storage_gb} GB，每周需要 {credits_needed} 个积分，但您的余额仍然不足。"
-  he: "זהו התשלום השני על האחסון שלא בוצע. יש לך {storage_gb} ג\"ב מאוחסנים ב-OpenMates הדורשים {credits_needed} קרדיטים בשבוע, אך היתרה שלך עדיין נמוכה מדי."
+  he: 'זהו התשלום השני על האחסון שלא בוצע. יש לך {storage_gb} ג"ב מאוחסנים ב-OpenMates הדורשים {credits_needed} קרדיטים בשבוע, אך היתרה שלך עדיין נמוכה מדי.'
   verified_by_human: []
 storage_billing_failed_2.action:
   context: Call-to-action text in second storage billing failure email
@@ -4695,7 +4719,7 @@ storage_billing_failed_3.body:
   fr: "Votre paiement de stockage a échoué 3 fois. Vous avez {storage_gb} Go stockés sur OpenMates nécessitant {credits_needed} crédits par semaine. Si le paiement échoue à nouveau la semaine prochaine, tous vos fichiers téléchargés seront définitivement supprimés."
   ja: "ストレージ支払いが3回失敗しました。OpenMatesに{storage_gb} GBを保存しており、週{credits_needed}クレジットが必要です。来週も支払いが失敗すると、アップロードしたすべてのファイルが永久に削除されます。"
   zh: "您的存储付款已连续失败 3 次。您在 OpenMates 存储了 {storage_gb} GB，每周需要 {credits_needed} 个积分。如果下周付款再次失败，您上传的所有文件将被永久删除。"
-  he: "התשלום על האחסון שלך נכשל 3 פעמים. יש לך {storage_gb} ג\"ב מאוחסנים ב-OpenMates הדורשים {credits_needed} קרדיטים בשבוע. אם התשלום ייכשל שוב בשבוע הבא, כל הקבצים שהעלית יימחקו לצמיתות."
+  he: 'התשלום על האחסון שלך נכשל 3 פעמים. יש לך {storage_gb} ג"ב מאוחסנים ב-OpenMates הדורשים {credits_needed} קרדיטים בשבוע. אם התשלום ייכשל שוב בשבוע הבא, כל הקבצים שהעלית יימחקו לצמיתות.'
   verified_by_human: []
 storage_billing_failed_3.action:
   context: Urgent call-to-action text in final warning storage billing failure email

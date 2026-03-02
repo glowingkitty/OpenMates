@@ -150,7 +150,12 @@ class InvoiceTemplateService(BasePDFTemplateService):
         
         # Fix invoice details alignment to match other elements
         # Calculate dynamic width based on text length
-        invoice_number_text = self.t["invoices_and_credit_notes"]["invoice_number"]["text"] + ":"
+        # For Polar payment confirmations use "Confirmation number" — Polar is the MoR and
+        # issues the actual tax invoice; our document is just a payment confirmation, not an invoice.
+        if document_type == "payment_confirmation":
+            invoice_number_text = self.t.get("invoices_and_credit_notes", {}).get("confirmation_number", {}).get("text", "Confirmation number") + ":"
+        else:
+            invoice_number_text = self.t["invoices_and_credit_notes"]["invoice_number"]["text"] + ":"
         date_issue_text = self.t["invoices_and_credit_notes"]["date_of_issue"]["text"] + ":"
         date_due_text = self.t["invoices_and_credit_notes"]["date_due"]["text"] + ":"
         

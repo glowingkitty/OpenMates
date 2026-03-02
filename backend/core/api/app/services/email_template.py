@@ -330,7 +330,10 @@ class EmailTemplateService:
                     else:
                         subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 elif template == "purchase-confirmation":
-                    subject_key = "email.purchase_confirmation"
+                    # Use Polar-specific subject key for payment confirmations (non-EU / Polar as MoR).
+                    # These are not invoices, so we say "Confirmation" instead of "Invoice".
+                    is_payment_confirmation = context.get("document_type") == "payment_confirmation"
+                    subject_key = "email.purchase_confirmation_polar" if is_payment_confirmation else "email.purchase_confirmation"
                     if "invoice_id" in context:
                         # Get the translation template
                         subject_template = self.translation_service.get_nested_translation(subject_key, lang, {})

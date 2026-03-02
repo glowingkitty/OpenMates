@@ -728,6 +728,7 @@ async def _async_process_invoice_and_send_email(
         email_context = {
             "darkmode": user_darkmode,
             "invoice_id": invoice_number,  # Use invoice_id instead of account_id for email template
+            "document_type": document_type,  # "payment_confirmation" for Polar, "invoice" for Stripe/Revolut
             "refund_deep_link_url": refund_deep_link_url,  # Deep link URL for refund button (for variable processor)
             "refund_link": refund_deep_link_url,  # Set refund_link directly to ensure it's used in email template
             "customer_portal_url": customer_portal_url  # Pass management link to email
