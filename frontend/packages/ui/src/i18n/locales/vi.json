@@ -274,6 +274,17 @@
         "text": "Nghiên cứu",
         "description": {
           "text": "Nghiên cứu một chủ đề từ nhiều góc độ."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Nghiên cứu **biến đổi khí hậu** và tác động kinh tế lên các thành phố ven biển vào năm 2050"
+          },
+          "2": {
+            "text": "Ưu và nhược điểm của thu nhập cơ bản toàn cầu là gì? Cho tôi xem các góc nhìn khác nhau"
+          },
+          "3": {
+            "text": "Điều tra **nguyên nhân** của sự trỗi dậy của thời trang nhanh và hậu quả môi trường"
+          }
         }
       },
       "deep_web_research": {
@@ -4635,7 +4646,7 @@
         },
         "model_detail": {
           "model_info": {
-            "text": "Thông tin mô hình"
+            "text": "Chi tiết"
           },
           "origin": {
             "text": "Nguồn gốc"
@@ -6846,7 +6857,7 @@
       "text": "Đăng ký"
     },
     "version_title": {
-      "text": "v0.4 alpha"
+      "text": "v0.5 alpha"
     },
     "domain_not_allowed": {
       "text": "Tên miền e-mail không được phép."

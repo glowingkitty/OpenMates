@@ -274,6 +274,17 @@
         "text": "Ricerca",
         "description": {
           "text": "Ricerca un argomento da più angolazioni."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Ricerca il **cambiamento climatico** e il suo impatto economico sulle città costiere entro il 2050"
+          },
+          "2": {
+            "text": "Quali sono i **pro e contro** del reddito di base universale? Mostrami diverse prospettive"
+          },
+          "3": {
+            "text": "Indaga le **cause** del boom del fast fashion e le sue conseguenze ambientali"
+          }
         }
       },
       "deep_web_research": {
@@ -4635,7 +4646,7 @@
         },
         "model_detail": {
           "model_info": {
-            "text": "Informazioni sul modello"
+            "text": "Dettagli"
           },
           "origin": {
             "text": "Origine"
@@ -6849,7 +6860,7 @@
       "text": "Registrati"
     },
     "version_title": {
-      "text": "v0.4 alpha"
+      "text": "v0.5 alpha"
     },
     "domain_not_allowed": {
       "text": "Dominio e-mail non consentito."

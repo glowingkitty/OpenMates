@@ -274,6 +274,17 @@
         "text": "Investigación",
         "description": {
           "text": "Investiga un tema desde múltiples ángulos."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Investiga el **cambio climático** y su impacto económico en ciudades costeras para 2050"
+          },
+          "2": {
+            "text": "¿Cuáles son los **pros y contras** del ingreso básico universal? Muéstrame diferentes perspectivas"
+          },
+          "3": {
+            "text": "Investiga las **causas** detrás del auge de la moda rápida y sus consecuencias ambientales"
+          }
         }
       },
       "deep_web_research": {
@@ -5862,7 +5873,7 @@
         },
         "model_detail": {
           "model_info": {
-            "text": "Información del modelo"
+            "text": "Detalles"
           },
           "origin": {
             "text": "Origen"
@@ -8372,7 +8383,7 @@
       "text": "Registrarse"
     },
     "version_title": {
-      "text": "v0.4 alfa"
+      "text": "v0.5 alfa"
     },
     "domain_not_allowed": {
       "text": "Dominio de correo electrónico no permitido."

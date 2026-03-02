@@ -274,6 +274,17 @@
         "text": "Araştırma",
         "description": {
           "text": "Bir konuyu birden fazla açıdan araştırın."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**İklim değişikliği** ve 2050'ye kadar kıyı şehirleri üzerindeki ekonomik etkisini araştır"
+          },
+          "2": {
+            "text": "Evrensel temel gelirin **artıları ve eksileri** nelerdir? Farklı perspektifler göster"
+          },
+          "3": {
+            "text": "Hızlı modanın yükselişinin **nedenlerini** ve çevresel sonuçlarını araştır"
+          }
         }
       },
       "deep_web_research": {
@@ -4635,7 +4646,7 @@
         },
         "model_detail": {
           "model_info": {
-            "text": "Model bilgisi"
+            "text": "Ayrıntılar"
           },
           "origin": {
             "text": "Köken"
@@ -6846,7 +6857,7 @@
       "text": "Kayıt ol"
     },
     "version_title": {
-      "text": "v0.4 alfa"
+      "text": "v0.5 alfa"
     },
     "domain_not_allowed": {
       "text": "E-posta etki alanına izin verilmiyor."

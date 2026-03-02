@@ -24,27 +24,27 @@ sign_up:
   verified_by_human: []
 version_title:
   context: Version title on alpha disclaimer page
-  en: v0.4 alpha
-  de: v0.4 alpha
-  zh: v0.4 测试版
-  es: v0.4 alfa
-  fr: v0.4 alpha
-  pt: v0.4 alfa
-  ru: v0.4 альфа
-  ja: v0.4 アルファ
-  ko: v0.4 알파
-  it: v0.4 alpha
-  tr: v0.4 alfa
-  vi: v0.4 alpha
-  id: v0.4 alpha
-  pl: v0.4 alpha
-  nl: v0.4 alpha
-  ar: v0.4 ألفا
-  hi: v0.4 अल्फा
-  th: v0.4 อัลฟา
-  cs: v0.4 alpha
+  en: v0.5 alpha
+  de: v0.5 alpha
+  zh: v0.5 测试版
+  es: v0.5 alfa
+  fr: v0.5 alpha
+  pt: v0.5 alfa
+  ru: v0.5 альфа
+  ja: v0.5 アルファ
+  ko: v0.5 알파
+  it: v0.5 alpha
+  tr: v0.5 alfa
+  vi: v0.5 alpha
+  id: v0.5 alpha
+  pl: v0.5 alpha
+  nl: v0.5 alpha
+  ar: v0.5 ألفا
+  hi: v0.5 अल्फा
+  th: v0.5 อัลฟา
+  cs: v0.5 alpha
   sv: ""
-  he: v0.4 אלפא
+  he: v0.5 אלפא
   verified_by_human: []
 domain_not_allowed:
   context: Error message shown when the domain is not allowed to sign up
@@ -5112,7 +5112,7 @@ total_per_month:
   th: รวมต่อเดือน
   cs: Celkem za měsíc
   sv: Totalt per månad
-  he: "סה\"כ לחודש"
+  he: 'סה"כ לחודש'
   verified_by_human: []
 month:
   context: Time unit for monthly subscription
@@ -5352,7 +5352,7 @@ vat_info:
   th: ""
   cs: ""
   sv: ""
-  he: "לא נגבה מע\"מ בהתאם ל-§19 UStG (תקנת עסקים קטנים)."
+  he: 'לא נגבה מע"מ בהתאם ל-§19 UStG (תקנת עסקים קטנים).'
   verified_by_human: []
 card_number:
   context: Placeholder text for card number input field for card payments

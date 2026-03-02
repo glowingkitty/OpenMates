@@ -274,6 +274,17 @@
         "text": "Badania",
         "description": {
           "text": "Zbadaj temat z wielu perspektyw."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Zbadaj **zmiany klimatyczne** i ich ekonomiczny wpływ na nadmorskie miasta do 2050 roku"
+          },
+          "2": {
+            "text": "Jakie są **zalety i wady** powszechnego dochodu podstawowego? Pokaż mi różne perspektywy"
+          },
+          "3": {
+            "text": "Zbadaj **przyczyny** wzrostu popularności fast fashion i jej konsekwencje środowiskowe"
+          }
         }
       },
       "deep_web_research": {
@@ -4635,7 +4646,7 @@
         },
         "model_detail": {
           "model_info": {
-            "text": "Informacje o modelu"
+            "text": "Szczegóły"
           },
           "origin": {
             "text": "Pochodzenie"
@@ -6846,7 +6857,7 @@
       "text": "Zarejestruj się"
     },
     "version_title": {
-      "text": "v0.4 alpha"
+      "text": "v0.5 alpha"
     },
     "domain_not_allowed": {
       "text": "Domena e-mail niedozwolona."

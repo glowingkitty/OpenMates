@@ -274,6 +274,17 @@
         "text": "Recherche",
         "description": {
           "text": "Ein Thema aus mehreren Blickwinkeln recherchieren."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Recherchiere **Klimawandel** und seine wirtschaftlichen Folgen für Küstenstädte bis 2050"
+          },
+          "2": {
+            "text": "Was sind die **Vor- und Nachteile** des bedingungslosen Grundeinkommens? Zeig mir verschiedene Perspektiven"
+          },
+          "3": {
+            "text": "Untersuche die **Ursachen** des Aufstiegs der Fast Fashion und deren Umweltfolgen"
+          }
         }
       },
       "deep_web_research": {
@@ -6111,7 +6122,7 @@
           "text": "Zurück zu Modellen"
         },
         "model_info": {
-          "text": "Modellinformationen"
+          "text": "Details"
         },
         "origin": {
           "text": "Herkunft"
@@ -6376,7 +6387,7 @@
         },
         "model_detail": {
           "model_info": {
-            "text": "Modellinformationen"
+            "text": "Details"
           },
           "origin": {
             "text": "Herkunft"
@@ -9226,7 +9237,7 @@
       "text": "Registrieren"
     },
     "version_title": {
-      "text": "v0.4 alpha"
+      "text": "v0.5 alpha"
     },
     "domain_not_allowed": {
       "text": "E-Mail-Domain nicht erlaubt."

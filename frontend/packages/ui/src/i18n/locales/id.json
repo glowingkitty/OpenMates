@@ -274,6 +274,17 @@
         "text": "Penelitian",
         "description": {
           "text": "Teliti topik dari berbagai sudut pandang."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Teliti **perubahan iklim** dan dampak ekonominya pada kota pesisir pada 2050"
+          },
+          "2": {
+            "text": "Apa **pro dan kontra** pendapatan dasar universal? Tunjukkan berbagai perspektif"
+          },
+          "3": {
+            "text": "Selidiki **penyebab** kebangkitan fast fashion dan dampak lingkungannya"
+          }
         }
       },
       "deep_web_research": {
@@ -4635,7 +4646,7 @@
         },
         "model_detail": {
           "model_info": {
-            "text": "Informasi model"
+            "text": "Detail"
           },
           "origin": {
             "text": "Asal"
@@ -6846,7 +6857,7 @@
       "text": "Daftar"
     },
     "version_title": {
-      "text": "v0.4 alpha"
+      "text": "v0.5 alpha"
     },
     "domain_not_allowed": {
       "text": "Domain e-mail tidak diizinkan."

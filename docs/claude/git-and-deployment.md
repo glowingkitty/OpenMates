@@ -75,68 +75,13 @@ Issue: 7f3a2c1d — WebSocket dropped after sending a message with an embed
 2. `git add <modified_files>` (never `git add .`)
 3. `git commit -m "<type>: <description>"`
 4. `git push origin dev`
-5. **If frontend files or `.yml` files were modified**, verify the Vercel deployment succeeded (see below)
-
-### Vercel Deployment Check (Frontend and YML Files)
-
-**CRITICAL:** After pushing frontend changes (`frontend/` files) **or any `.yml` files** (which can affect the build pipeline), ALWAYS verify the Vercel build passes. Do NOT assume a push means a successful deployment. Vercel deployments take **up to 200 seconds** (typically 2-3 minutes) to build and go live.
-
-**Step-by-step procedure:**
-
-```bash
-# 1. WAIT for Vercel to pick up the push and build (~150 seconds)
-#    Do NOT try to check immediately — the build needs time.
-sleep 150
-
-# 2. Check the latest deployment status:
-vercel ls open-mates-webapp 2>&1 | head -5
-
-# 3. Verify the latest entry shows "● Ready" (not "● Building" or "● Error")
-#    - If "● Ready": Deployment succeeded. Proceed with testing.
-#    - If "● Building": Wait another 30-60 seconds and re-check.
-#    - If "● Error": Check the session lock FIRST, then fix if no one else is on it.
-```
-
-**If the status is "Error" — Concurrent Session Check (CRITICAL):**
-
-Before attempting to fix a Vercel build error, you **MUST** check the session coordination file to avoid duplicate fixes:
-
-1. **Read `.claude/sessions.md`** → check the **Vercel Deployment Lock** section
-2. **If `Status: IN_PROGRESS`** and `Last updated` is less than 5 minutes old:
-   - Another session is already fixing this error. **Do NOT attempt your own fix.**
-   - Wait 30 seconds, re-read the file, and check again.
-   - Repeat until the lock is released or becomes stale (5+ min without update).
-   - Once released, re-check `vercel ls` — the error should now be fixed.
-3. **If `Status: NONE`** (or stale lock ≥5 min old):
-   - **Claim the lock** — update the file with your session ID, the error description, and current timestamp.
-   - Get build logs: `vercel inspect --logs <deployment-url> 2>&1 | tail -80`
-   - Fix the error, commit, push.
-   - **Update the `Last updated` timestamp** at each step while you hold the lock.
-   - After confirming "Ready", **release the lock immediately** (set Status back to NONE).
-
-See `docs/claude/concurrent-sessions.md` for the full lock protocol.
-
-**Key rules:**
-
-- **Always wait ~150 seconds** before checking — checking too early wastes time and gives misleading results
-- **Never curl the site** to check if deployment is ready — use `vercel ls` which shows the actual build status
-- **Always check the session lock before fixing errors** — another session may already be on it
-- **Only run E2E tests** (Playwright) after confirming "● Ready" status
-- **Do NOT mark a task as complete** until the deployment status is "● Ready" — a successful push is not enough
-
-**Triggers — always run this check after pushing any of the following:**
-
-- Files under `frontend/` (Svelte components, TypeScript, CSS, stores, etc.)
-- Any `.yml` files (Vercel config, GitHub Actions, or other pipeline config)
-
-See `docs/claude/debugging.md` → "Vercel Deployment Verification" for full details and common error patterns.
 
 **If backend files were modified** (`.py`, `Dockerfile`, `docker-compose.yml`, config `.yml`), rebuild affected services.
 
 **Concurrent Session Check (CRITICAL):** Before rebuilding, check the Docker Rebuild Lock in `.claude/sessions.md`:
 
 1. Read `.claude/sessions.md` → check the **Docker Rebuild Lock** section
-2. If another session holds the lock → wait 30s, re-read, repeat (same protocol as Vercel)
+2. If another session holds the lock → wait 30s, re-read, repeat
 3. If no lock is held → claim the lock with the services you're rebuilding
 4. Rebuild and restart, then **release the lock immediately**
 
@@ -309,12 +254,12 @@ OpenMates uses **semantic versioning** in the format `vMAJOR.MINOR.PATCH-phase`:
 | Beta   | `v1.0.0-beta`  | Core features complete; usable for a wider audience; known bugs being fixed             |
 | Stable | `v1.0.0`       | Production-ready; all major user flows work reliably                                    |
 
-**Current phase:** Alpha — the app is currently at **v0.4 alpha** (user-facing version string). The next release tag should be `v0.5.0-alpha` (or a patch like `v0.4.1-alpha` for fix-only releases).
+**Current phase:** Alpha — the app is currently at **v0.5 alpha** (user-facing version string). The next release tag should be `v0.6.0-alpha` (or a patch like `v0.5.1-alpha` for fix-only releases).
 
 **How to bump the version:**
 
-- **Patch** (`v0.4.0-alpha` → `v0.4.1-alpha`): bug fixes only, no new features
-- **Minor** (`v0.4.x-alpha` → `v0.5.0-alpha`): new features added or significant changes
+- **Patch** (`v0.5.0-alpha` → `v0.5.1-alpha`): bug fixes only, no new features
+- **Minor** (`v0.5.x-alpha` → `v0.6.0-alpha`): new features added or significant changes
 - **Major / phase change** (`v0.x-alpha` → `v1.0.0-beta`): when core user flows are stable and the app is ready for a broader audience — **always confirm with the user before doing this**
 
 **How to determine the next version:**

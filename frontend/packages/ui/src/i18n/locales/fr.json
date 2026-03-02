@@ -274,6 +274,17 @@
         "text": "Recherche",
         "description": {
           "text": "Rechercher un sujet sous plusieurs angles."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Recherche le **changement climatique** et son impact économique sur les villes côtières d'ici 2050"
+          },
+          "2": {
+            "text": "Quels sont les **avantages et inconvénients** du revenu universel de base ? Montre-moi différentes perspectives"
+          },
+          "3": {
+            "text": "Enquête sur les **causes** de l'essor de la fast fashion et ses conséquences environnementales"
+          }
         }
       },
       "deep_web_research": {
@@ -5819,7 +5830,7 @@
         },
         "model_detail": {
           "model_info": {
-            "text": "Informations sur le modèle"
+            "text": "Détails"
           },
           "origin": {
             "text": "Origine"
@@ -8317,7 +8328,7 @@
       "text": "S'inscrire"
     },
     "version_title": {
-      "text": "v0.4 alpha"
+      "text": "v0.5 alpha"
     },
     "domain_not_allowed": {
       "text": "Domaine e-mail non autorisé."

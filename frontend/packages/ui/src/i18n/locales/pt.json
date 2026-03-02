@@ -274,6 +274,17 @@
         "text": "Pesquisa",
         "description": {
           "text": "Pesquisar um tema de múltiplos ângulos."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Pesquise a **mudança climática** e seu impacto econômico nas cidades costeiras até 2050"
+          },
+          "2": {
+            "text": "Quais são os **prós e contras** da renda básica universal? Mostre-me diferentes perspectivas"
+          },
+          "3": {
+            "text": "Investigue as **causas** por trás do crescimento da moda rápida e suas consequências ambientais"
+          }
         }
       },
       "deep_web_research": {
@@ -4635,7 +4646,7 @@
         },
         "model_detail": {
           "model_info": {
-            "text": "Informações do modelo"
+            "text": "Detalhes"
           },
           "origin": {
             "text": "Origem"
@@ -6846,7 +6857,7 @@
       "text": "Cadastrar"
     },
     "version_title": {
-      "text": "v0.4 alfa"
+      "text": "v0.5 alfa"
     },
     "domain_not_allowed": {
       "text": "Domínio de e-mail não permitido."

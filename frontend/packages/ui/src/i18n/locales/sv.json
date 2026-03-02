@@ -274,6 +274,17 @@
         "text": "Forskning",
         "description": {
           "text": "Undersök ett ämne från flera vinklar."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Undersök **klimatförändringen** och dess ekonomiska påverkan på kuststäder till 2050"
+          },
+          "2": {
+            "text": "Vilka är **för- och nackdelarna** med universell basinkomst? Visa mig olika perspektiv"
+          },
+          "3": {
+            "text": "Undersök **orsakerna** till snabbmodets framväxt och dess miljökonsekvenser"
+          }
         }
       },
       "deep_web_research": {
@@ -4659,7 +4670,7 @@
         },
         "model_detail": {
           "model_info": {
-            "text": "Modellinformation"
+            "text": "Detaljer"
           },
           "origin": {
             "text": "Ursprung"

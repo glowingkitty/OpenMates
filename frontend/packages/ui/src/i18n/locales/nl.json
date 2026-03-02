@@ -274,6 +274,17 @@
         "text": "Onderzoek",
         "description": {
           "text": "Onderzoek een onderwerp vanuit meerdere hoeken."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Onderzoek **klimaatverandering** en de economische impact op kuststeden in 2050"
+          },
+          "2": {
+            "text": "Wat zijn de **voor- en nadelen** van een universeel basisinkomen? Toon me verschillende perspectieven"
+          },
+          "3": {
+            "text": "Onderzoek de **oorzaken** achter de opkomst van fast fashion en de milieugevolgen"
+          }
         }
       },
       "deep_web_research": {
@@ -4635,7 +4646,7 @@
         },
         "model_detail": {
           "model_info": {
-            "text": "Modelinformatie"
+            "text": "Details"
           },
           "origin": {
             "text": "Origine"
@@ -6846,7 +6857,7 @@
       "text": "Registreren"
     },
     "version_title": {
-      "text": "v0.4 alpha"
+      "text": "v0.5 alpha"
     },
     "domain_not_allowed": {
       "text": "E-maildomein niet toegestaan."

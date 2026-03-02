@@ -274,6 +274,17 @@
         "text": "Výzkum",
         "description": {
           "text": "Prozkoumejte téma z více úhlů pohledu."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Prozkoumej **změny klimatu** a jejich ekonomický dopad na pobřežní města do roku 2050"
+          },
+          "2": {
+            "text": "Jaké jsou **klady a zápory** univerzálního základního příjmu? Ukáže mi různé perspektivy"
+          },
+          "3": {
+            "text": "Prozkoumej **příčiny** vzestupu rychlé módy a její environmentální důsledky"
+          }
         }
       },
       "deep_web_research": {
@@ -4641,7 +4652,7 @@
         },
         "model_detail": {
           "model_info": {
-            "text": "Informace o modelu"
+            "text": "Podrobnosti"
           },
           "origin": {
             "text": "Původ"
@@ -6852,7 +6863,7 @@
       "text": "Registrovat"
     },
     "version_title": {
-      "text": "v0.4 alpha"
+      "text": "v0.5 alpha"
     },
     "domain_not_allowed": {
       "text": "E-mailová doména není povolena."
