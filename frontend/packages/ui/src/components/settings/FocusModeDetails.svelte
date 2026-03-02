@@ -256,7 +256,7 @@
                 <!-- "Or mention @FocusModeName in your message..." footer -->
                 <!-- Clicking the @mention inserts it into the message input (same as "Chat with this mate") -->
                 <p class="how-to-use-mention">
-                    {$text('settings.app_store.focus_modes.how_to_use_mention').split('{focusname}')[0]}<button type="button" class="mention-name" onclick={insertFocusMention}>{focusMentionDisplayName}</button>{$text('settings.app_store.focus_modes.how_to_use_mention').split('{focusname}')[1]}
+                    {$text('settings.app_store.focus_modes.how_to_use_mention').split('{focusname}')[0]}<button type="button" class="mention-name" onclick={insertFocusMention}>@{focusMentionDisplayName}</button>{$text('settings.app_store.focus_modes.how_to_use_mention').split('{focusname}')[1]}
                 </p>
             </div>
         {/if}
@@ -301,16 +301,14 @@
                             </svg>
                         </div>
                     {/if}
-                    <!-- Toggle styled as a hyperlink with a highlighted <mark> label -->
+                    <!-- Toggle styled as a plain text link (same style as mention-name) -->
                     <button
                         type="button"
                         class="instructions-toggle"
                         onclick={() => (showFullPrompt = !showFullPrompt)}
-                    >
-                        <mark class="toggle-mark">{showFullPrompt
+                    >{showFullPrompt
                             ? $text('settings.app_store.focus_modes.show_less')
-                            : $text('settings.app_store.focus_modes.show_full_instruction')}</mark>
-                    </button>
+                            : $text('settings.app_store.focus_modes.show_full_instruction')}</button>
                 {/if}
             {:else}
                 <div class="no-instructions">
@@ -453,7 +451,7 @@
         white-space: pre-line;
     }
 
-    /* The @mention name — styled as an inline clickable button */
+    /* The @mention name — styled as an inline clickable text link (no underline) */
     .how-to-use-mention .mention-name {
         display: inline;
         padding: 0;
@@ -466,12 +464,12 @@
         line-height: inherit;
         color: var(--color-primary-start);
         cursor: pointer;
-        text-decoration: underline dotted;
-        text-underline-offset: 2px;
+        text-decoration: none;
     }
 
     .how-to-use-mention .mention-name:hover {
-        text-decoration: underline solid;
+        text-decoration: none;
+        opacity: 0.8;
     }
 
     /* "An overview, over what the focus mode will do:" label */
@@ -560,32 +558,25 @@
         color: var(--color-grey-100);
     }
 
-    /* Toggle button — styled as a plain hyperlink with a <mark> highlight */
+    /* Toggle button — styled as a plain text link, same style as .mention-name */
     .instructions-toggle {
-        display: block;
+        display: inline;
         margin-top: 0.75rem;
         margin-left: 10px;
         padding: 0;
         font-size: 0.875rem;
-        background: transparent;
+        background: none;
         border: none;
         cursor: pointer;
-        font-weight: 500;
-        text-align: left;
-    }
-
-    /* <mark> inside toggle — highlight style */
-    .toggle-mark {
-        background: var(--color-primary-start, #5856d6);
-        color: #fff;
-        border-radius: 3px;
-        padding: 1px 5px;
-        font-size: 0.875rem;
         font-weight: 600;
+        text-align: left;
+        color: var(--color-primary-start);
+        text-decoration: none;
     }
 
-    .instructions-toggle:hover .toggle-mark {
-        opacity: 0.85;
+    .instructions-toggle:hover {
+        opacity: 0.8;
+        text-decoration: none;
     }
     
     .no-instructions {

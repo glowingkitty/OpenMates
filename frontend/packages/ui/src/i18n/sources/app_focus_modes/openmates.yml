@@ -28,7 +28,7 @@ welcome.description:
   en: Discover OpenMates and find the right tools.
   de: Entdecke OpenMates und finde die richtigen Tools.
   zh: 探索 OpenMates，找到适合您的工具。
-  es: Descubre OpenMates y las herramientas para ti.
+  es: Descubre OpenMates y encuentra las herramientas para ti.
   fr: Découvrez OpenMates et les bons outils.
   pt: Descubra o OpenMates e as ferramentas certas.
   ru: Откройте для себя OpenMates и нужные инструменты.
@@ -47,3 +47,75 @@ welcome.description:
   sv: Utforska OpenMates och hitta rätt verktyg.
   he: גלו את OpenMates ומצאו את הכלים המתאימים.
   verified_by_human: [en]
+welcome.how_to_use.1:
+  context: "How-to-use example 1 for the OpenMates Welcome focus mode. Use **word** to highlight key trigger words."
+  en: "**What can you do?** Show me everything OpenMates is capable of"
+  de: "**Was kannst du tun?** Zeig mir alles, wozu OpenMates fähig ist"
+  zh: "**你能做什么？** 向我展示 OpenMates 的所有功能"
+  es: "**¿Qué puedes hacer?** Muéstrame todo lo que OpenMates puede hacer"
+  fr: "**Que peux-tu faire ?** Montre-moi tout ce dont OpenMates est capable"
+  pt: "**O que você pode fazer?** Mostre-me tudo que o OpenMates é capaz de fazer"
+  ru: "**Что ты умеешь?** Покажи мне всё, на что способен OpenMates"
+  ja: "**何ができる？** OpenMates のすべての機能を教えて"
+  ko: "**무엇을 할 수 있나요?** OpenMates가 할 수 있는 모든 것을 보여주세요"
+  it: "**Cosa puoi fare?** Mostrami tutto ciò di cui OpenMates è capace"
+  tr: "**Ne yapabilirsin?** OpenMates'in yapabildiği her şeyi göster bana"
+  vi: "**Bạn có thể làm gì?** Cho tôi xem mọi thứ OpenMates có thể làm"
+  id: "**Apa yang bisa kamu lakukan?** Tunjukkan semua yang bisa dilakukan OpenMates"
+  pl: "**Co potrafisz?** Pokaż mi wszystko, do czego zdolny jest OpenMates"
+  nl: "**Wat kun je doen?** Laat me zien waartoe OpenMates allemaal in staat is"
+  ar: "**ماذا يمكنك أن تفعل؟** أرني كل ما يستطيع OpenMates القيام به"
+  hi: "**आप क्या कर सकते हैं?** मुझे दिखाएं कि OpenMates क्या-क्या कर सकता है"
+  th: "**คุณทำอะไรได้บ้าง?** แสดงทุกสิ่งที่ OpenMates ทำได้ให้ฉันดูหน่อย"
+  cs: "**Co umíš?** Ukaž mi vše, co OpenMates dokáže"
+  sv: "**Vad kan du göra?** Visa mig allt OpenMates klarar av"
+  he: "**מה אתה יכול לעשות?** הראה לי את כל מה ש-OpenMates מסוגל לעשות"
+  verified_by_human: []
+welcome.how_to_use.2:
+  context: "How-to-use example 2 for the OpenMates Welcome focus mode. Use **word** to highlight key trigger words."
+  en: "I need help with **research** — which focus mode or skill is best for that?"
+  de: "Ich brauche Hilfe bei der **Recherche** — welcher Fokusmodus oder welche Fähigkeit ist dafür am besten?"
+  zh: "我需要**研究**方面的帮助——哪种专注模式或技能最适合？"
+  es: "Necesito ayuda con la **investigación** — ¿qué modo de enfoque o habilidad es mejor para eso?"
+  fr: "J'ai besoin d'aide pour la **recherche** — quel mode de focus ou quelle compétence est le mieux pour ça ?"
+  pt: "Preciso de ajuda com **pesquisa** — qual modo de foco ou habilidade é melhor para isso?"
+  ru: "Мне нужна помощь с **исследованиями** — какой фокус-режим или навык лучше всего подходит для этого?"
+  ja: "**リサーチ**に関して助けが必要です — それに最適なフォーカスモードやスキルは何ですか？"
+  ko: "**조사**에 도움이 필요해요 — 어떤 포커스 모드나 스킬이 가장 좋을까요?"
+  it: "Ho bisogno di aiuto con la **ricerca** — quale modalità focus o competenza è migliore per questo?"
+  tr: "**Araştırma** konusunda yardıma ihtiyacım var — bunun için en iyi odak modu veya beceri hangisi?"
+  vi: "Tôi cần trợ giúp về **nghiên cứu** — chế độ tập trung hoặc kỹ năng nào là tốt nhất cho điều đó?"
+  id: "Saya butuh bantuan untuk **penelitian** — mode fokus atau keterampilan mana yang terbaik untuk itu?"
+  pl: "Potrzebuję pomocy przy **badaniach** — który tryb skupienia lub umiejętność jest do tego najlepsza?"
+  nl: "Ik heb hulp nodig bij **onderzoek** — welke focusmodus of vaardigheid is daarvoor het beste?"
+  ar: "أحتاج مساعدة في **البحث** — ما وضع التركيز أو المهارة الأفضل لذلك؟"
+  hi: "मुझे **शोध** में मदद चाहिए — उसके लिए कौन सा फोकस मोड या स्किल सबसे अच्छा है?"
+  th: "ฉันต้องการความช่วยเหลือเรื่อง**การวิจัย** — โหมดโฟกัสหรือทักษะไหนดีที่สุดสำหรับสิ่งนั้น?"
+  cs: "Potřebuji pomoc s **výzkumem** — který fokusní režim nebo dovednost je na to nejlepší?"
+  sv: "Jag behöver hjälp med **forskning** — vilket fokusläge eller vilken färdighet är bäst för det?"
+  he: "אני צריך עזרה ב**מחקר** — איזה מצב מיקוד או מיומנות הכי טובה לכך?"
+  verified_by_human: []
+welcome.how_to_use.3:
+  context: "How-to-use example 3 for the OpenMates Welcome focus mode. Use **word** to highlight key trigger words."
+  en: "**Recommend** the best tools for planning my next trip abroad"
+  de: "**Empfehle** mir die besten Tools für die Planung meiner nächsten Auslandsreise"
+  zh: "**推荐**规划我下一次出境旅行的最佳工具"
+  es: "**Recomienda** las mejores herramientas para planificar mi próximo viaje al extranjero"
+  fr: "**Recommandez** les meilleurs outils pour planifier mon prochain voyage à l'étranger"
+  pt: "**Recomende** as melhores ferramentas para planejar minha próxima viagem ao exterior"
+  ru: "**Порекомендуй** лучшие инструменты для планирования моей следующей поездки за рубеж"
+  ja: "次の海外旅行を計画するための最適なツールを**おすすめして**"
+  ko: "다음 해외 여행 계획을 위한 최고의 도구를 **추천해줘**"
+  it: "**Consiglia** i migliori strumenti per pianificare il mio prossimo viaggio all'estero"
+  tr: "Bir sonraki yurt dışı gezim için en iyi araçları **öner**"
+  vi: "**Đề xuất** những công cụ tốt nhất để lên kế hoạch chuyến đi nước ngoài tiếp theo của tôi"
+  id: "**Rekomendasikan** alat terbaik untuk merencanakan perjalanan luar negeri saya berikutnya"
+  pl: "**Poleć** najlepsze narzędzia do planowania mojej następnej podróży zagranicznej"
+  nl: "**Aanbevelen** de beste tools voor het plannen van mijn volgende buitenlandse reis"
+  ar: "**أوصِ** بأفضل الأدوات لتخطيط رحلتي الخارجية القادمة"
+  hi: "मेरी अगली विदेश यात्रा की योजना बनाने के लिए सर्वोत्तम टूल की **सिफारिश करें**"
+  th: "**แนะนำ**เครื่องมือที่ดีที่สุดสำหรับการวางแผนการเดินทางต่างประเทศครั้งต่อไปของฉัน"
+  cs: "**Doporuč** nejlepší nástroje pro plánování mé příští cesty do zahraničí"
+  sv: "**Rekommendera** de bästa verktygen för att planera min nästa utlandsresa"
+  he: '**המלץ** על הכלים הטובים ביותר לתכנון הטיול שלי לחו"ל'
+  verified_by_human: []

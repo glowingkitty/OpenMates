@@ -301,54 +301,67 @@
             <button class="back-button" onclick={goBack}>← {$text('settings.app_store.back_to_app')}</button>
         </div>
     {:else}
-        <!-- How to use section - horizontal scrollable example instructions -->
-        {#if howToUseExamples.length > 0}
-            <div class="section how-to-use-section">
-                <SettingsItem 
-                    type="heading"
-                    icon="skill"
-                    title={$text('settings.app_store.skills.how_to_use')}
-                />
-                <!-- "Just ask your mates something like:" prefix -->
-                <p class="how-to-use-prefix">{$text('settings.app_store.skills.how_to_use_prefix')}</p>
-                <div class="how-to-use-scroll-container">
-                    <div class="how-to-use-scroll">
-                        {#each howToUseExamples as example}
-                            <div
-                                class="how-to-use-card"
-                                style="--highlight-color: var(--color-app-{appId}-start, var(--color-primary-start))"
-                            >
-                                <!-- Opening quote — top-right corner -->
-                                <svg class="quote-icon quote-open" width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                    <path d="M15 3a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.717-3.35 3 3 0 012.259-2.47C11.952 37.416 15 33.606 15 26.998v-3H6a6 6 0 01-5.985-5.549L0 17.998V9A5.999 5.999 0 016 3h9zm27 0a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.716-3.35 2.998 2.998 0 012.258-2.47C38.952 37.416 42 33.606 42 26.998v-3h-9a6 6 0 01-5.985-5.549l-.015-.45V9A5.999 5.999 0 0133 3h9z" fill="currentColor"/>
-                                </svg>
-
-                                <!-- How-to-use text with **word** highlight support -->
-                                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                                <p class="how-to-use-text">{@html parseHighlightedText(example)}</p>
-
-                                <!-- Closing quote — bottom-left corner (flipped 180°) -->
-                                <svg class="quote-icon quote-close" width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                    <path d="M15 3a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.716-3.35 2.998 2.998 0 012.258-2.47C38.952 37.416 42 33.606 42 26.998v-3h-9a6 6 0 01-5.985-5.549l-.015-.45V9A5.999 5.999 0 0133 3h9z" fill="currentColor"/>
-                                </svg>
-                            </div>
-                        {/each}
-                    </div>
-                </div>
-                <!-- "Or mention @SkillName in your message..." footer -->
-                <!-- Clicking the @mention inserts it into the message input (same as "Chat with this mate") -->
-                <p class="how-to-use-mention">
-                    {$text('settings.app_store.skills.how_to_use_mention').split('{skillname}')[0]}<button type="button" class="mention-name" onclick={insertSkillMention}>{skillMentionDisplayName}</button>{$text('settings.app_store.skills.how_to_use_mention').split('{skillname}')[1]}
-                </p>
-            </div>
-        {/if}
-        
         {#if hasModels}
             <!-- 
                 Multi-model skill: show a clickable model list instead of flat Providers + Pricing.
                 Each model row navigates to its detail page with pricing breakdown.
                 This matches the UI pattern used by the AI Ask skill.
+                Pricing section shown first (at top), then How to Use, then Models list.
             -->
+
+            <!-- Pricing section first — always visible at top -->
+            <div class="section">
+                <SettingsItem
+                    type="heading"
+                    icon="coins"
+                    title={$text('settings.app_store.skills.pricing')}
+                />
+                <div class="content">
+                    {#if Array.isArray(formattedPricing)}
+                        {#each formattedPricing as pricingLine}
+                            <p class="pricing">{pricingLine}</p>
+                        {/each}
+                    {:else}
+                        <p class="pricing">{formattedPricing}</p>
+                    {/if}
+                </div>
+            </div>
+
+            <!-- How to use section (after pricing) -->
+            {#if howToUseExamples.length > 0}
+                <div class="section how-to-use-section">
+                    <SettingsItem
+                        type="heading"
+                        icon="skill"
+                        title={$text('settings.app_store.skills.how_to_use')}
+                    />
+                    <p class="how-to-use-prefix">{$text('settings.app_store.skills.how_to_use_prefix')}</p>
+                    <div class="how-to-use-scroll-container">
+                        <div class="how-to-use-scroll">
+                            {#each howToUseExamples as example}
+                                <div
+                                    class="how-to-use-card"
+                                    style="--highlight-color: var(--color-app-{appId}-start, var(--color-primary-start))"
+                                >
+                                    <svg class="quote-icon quote-open" width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                        <path d="M15 3a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.717-3.35 3 3 0 012.259-2.47C11.952 37.416 15 33.606 15 26.998v-3H6a6 6 0 01-5.985-5.549L0 17.998V9A5.999 5.999 0 016 3h9zm27 0a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.716-3.35 2.998 2.998 0 012.258-2.47C38.952 37.416 42 33.606 42 26.998v-3h-9a6 6 0 01-5.985-5.549l-.015-.45V9A5.999 5.999 0 0133 3h9z" fill="currentColor"/>
+                                    </svg>
+                                    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                                    <p class="how-to-use-text">{@html parseHighlightedText(example)}</p>
+                                    <svg class="quote-icon quote-close" width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                        <path d="M15 3a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.716-3.35 2.998 2.998 0 012.258-2.47C38.952 37.416 42 33.606 42 26.998v-3h-9a6 6 0 01-5.985-5.549l-.015-.45V9A5.999 5.999 0 0133 3h9z" fill="currentColor"/>
+                                    </svg>
+                                </div>
+                            {/each}
+                        </div>
+                    </div>
+                    <p class="how-to-use-mention">
+                        {$text('settings.app_store.skills.how_to_use_mention').split('{skillname}')[0]}<button type="button" class="mention-name" onclick={insertSkillMention}>@{skillMentionDisplayName}</button>{$text('settings.app_store.skills.how_to_use_mention').split('{skillname}')[1]}
+                    </p>
+                </div>
+            {/if}
+
+            <!-- Models list (below pricing and how-to-use) -->
             <div class="section">
                 <SettingsItem 
                     type="heading"
@@ -383,10 +396,72 @@
             </div>
         {:else}
             <!-- 
-                Single-pricing skill: keep original Providers + Pricing display.
+                Single-pricing skill: Pricing first, then How to Use, then Providers.
             -->
-            
-            <!-- Providers section -->
+
+            <!-- Pricing section - always show first, even if free -->
+            <div class="section">
+                <SettingsItem 
+                    type="heading"
+                    icon="coins"
+                    title={$text('settings.app_store.skills.pricing')}
+                />
+                <div class="content">
+                    {#if Array.isArray(formattedPricing)}
+                        <!-- Token pricing: display each line separately -->
+                        {#each formattedPricing as pricingLine}
+                            <p class="pricing">{pricingLine}</p>
+                        {/each}
+                    {:else}
+                        <!-- Other pricing types: single line -->
+                        <p class="pricing">{formattedPricing}</p>
+                    {/if}
+                </div>
+            </div>
+
+            <!-- How to use section (after pricing) - horizontal scrollable example instructions -->
+            {#if howToUseExamples.length > 0}
+                <div class="section how-to-use-section">
+                    <SettingsItem 
+                        type="heading"
+                        icon="skill"
+                        title={$text('settings.app_store.skills.how_to_use')}
+                    />
+                    <!-- "Just ask your mates something like:" prefix -->
+                    <p class="how-to-use-prefix">{$text('settings.app_store.skills.how_to_use_prefix')}</p>
+                    <div class="how-to-use-scroll-container">
+                        <div class="how-to-use-scroll">
+                            {#each howToUseExamples as example}
+                                <div
+                                    class="how-to-use-card"
+                                    style="--highlight-color: var(--color-app-{appId}-start, var(--color-primary-start))"
+                                >
+                                    <!-- Opening quote — top-right corner -->
+                                    <svg class="quote-icon quote-open" width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                        <path d="M15 3a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.717-3.35 3 3 0 012.259-2.47C11.952 37.416 15 33.606 15 26.998v-3H6a6 6 0 01-5.985-5.549L0 17.998V9A5.999 5.999 0 016 3h9zm27 0a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.716-3.35 2.998 2.998 0 012.258-2.47C38.952 37.416 42 33.606 42 26.998v-3h-9a6 6 0 01-5.985-5.549l-.015-.45V9A5.999 5.999 0 0133 3h9z" fill="currentColor"/>
+                                    </svg>
+
+                                    <!-- How-to-use text with **word** highlight support -->
+                                    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                                    <p class="how-to-use-text">{@html parseHighlightedText(example)}</p>
+
+                                    <!-- Closing quote — bottom-left corner (flipped 180°) -->
+                                    <svg class="quote-icon quote-close" width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                        <path d="M15 3a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.716-3.35 2.998 2.998 0 012.258-2.47C38.952 37.416 42 33.606 42 26.998v-3h-9a6 6 0 01-5.985-5.549l-.015-.45V9A5.999 5.999 0 0133 3h9z" fill="currentColor"/>
+                                    </svg>
+                                </div>
+                            {/each}
+                        </div>
+                    </div>
+                    <!-- "Or mention @SkillName in your message..." footer -->
+                    <!-- Clicking the @mention inserts it into the message input (same as "Chat with this mate") -->
+                    <p class="how-to-use-mention">
+                        {$text('settings.app_store.skills.how_to_use_mention').split('{skillname}')[0]}<button type="button" class="mention-name" onclick={insertSkillMention}>@{skillMentionDisplayName}</button>{$text('settings.app_store.skills.how_to_use_mention').split('{skillname}')[1]}
+                    </p>
+                </div>
+            {/if}
+
+            <!-- Providers section (below pricing and how-to-use) -->
             {#if skill.providers && skill.providers.length > 0}
                 <div class="section">
                     <SettingsItem 
@@ -398,7 +473,7 @@
                         {#each skill.providers as providerName}
                             {@const providerMeta = findProviderByName(providerName)}
                             {#if providerMeta}
-                                <!-- Provider is in metadata — render as clickable row -->
+                                <!-- Provider is in metadata — render as clickable row with provider logo -->
                                 <div
                                     class="provider-item provider-item--clickable"
                                     role="button"
@@ -419,8 +494,15 @@
                                     <span class="provider-chevron">›</span>
                                 </div>
                             {:else}
-                                <!-- Provider not in metadata — render as plain non-clickable row -->
+                                <!-- Provider not in metadata — render as plain non-clickable row with server icon -->
                                 <div class="provider-item">
+                                    <div class="provider-icon">
+                                        <img
+                                            src="/icons/server.svg"
+                                            alt={providerName}
+                                            class="provider-logo provider-logo--server"
+                                        />
+                                    </div>
                                     <div class="provider-info">
                                         <span class="provider-name">{providerName}</span>
                                     </div>
@@ -430,26 +512,6 @@
                     </div>
                 </div>
             {/if}
-            
-            <!-- Pricing section - always show, even if free -->
-            <div class="section">
-                <SettingsItem 
-                    type="heading"
-                    icon="coins"
-                    title={$text('settings.app_store.skills.pricing')}
-                />
-                <div class="content">
-                    {#if Array.isArray(formattedPricing)}
-                        <!-- Token pricing: display each line separately -->
-                        {#each formattedPricing as pricingLine}
-                            <p class="pricing">{pricingLine}</p>
-                        {/each}
-                    {:else}
-                        <!-- Other pricing types: single line -->
-                        <p class="pricing">{formattedPricing}</p>
-                    {/if}
-                </div>
-            </div>
         {/if}
     {/if}
 </div>
@@ -536,6 +598,11 @@
         color: var(--color-grey-40);
         line-height: 1;
     }
+
+    /* Server icon for providers not in metadata — apply subtle color tint */
+    .provider-logo--server {
+        filter: invert(0.4) sepia(1) saturate(3) hue-rotate(200deg);
+    }
     
     .pricing {
         font-weight: 500;
@@ -568,7 +635,7 @@
         white-space: pre-line;
     }
 
-    /* The @mention name — styled as an inline clickable button */
+    /* The @mention name — styled as an inline clickable text link (no underline) */
     .how-to-use-mention .mention-name {
         display: inline;
         padding: 0;
@@ -581,12 +648,12 @@
         line-height: inherit;
         color: var(--color-primary-start);
         cursor: pointer;
-        text-decoration: underline dotted;
-        text-underline-offset: 2px;
+        text-decoration: none;
     }
 
     .how-to-use-mention .mention-name:hover {
-        text-decoration: underline solid;
+        text-decoration: none;
+        opacity: 0.8;
     }
     
     .how-to-use-scroll-container {

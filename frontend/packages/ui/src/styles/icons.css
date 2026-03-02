@@ -163,6 +163,12 @@
 .subsetting_icon.user {
   --icon-mask-image: url("@openmates/ui/static/icons/user.svg");
 }
+.subsetting_icon.systemprompt {
+  --icon-mask-image: url("@openmates/ui/static/icons/systemprompt.svg");
+}
+.subsetting_icon.provider {
+  --icon-mask-image: url("@openmates/ui/static/icons/provider.svg");
+}
 
 /* Modify icon for subsubmenu items */
 .clickable-icon.icon_modify {
@@ -1119,6 +1125,15 @@ div.clickable-icon {
 
   &::before {
     background-image: url("@openmates/ui/static/icons/skill.svg");
+    background-size: 55%;
+  }
+}
+
+.icon.systemprompt {
+  background: var(--color-primary);
+
+  &::before {
+    background-image: url("@openmates/ui/static/icons/systemprompt.svg");
     background-size: 55%;
   }
 }
