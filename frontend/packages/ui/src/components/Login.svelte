@@ -3,10 +3,8 @@
     import { text } from '@repo/ui';
     import AppIconGrid from './AppIconGrid.svelte';
     import { createEventDispatcher } from 'svelte';
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- login may be used by child components via module scope
     import { authStore, isCheckingAuth, needsDeviceVerification, deviceVerificationType, deviceVerificationReason, login, checkAuth, logout } from '../stores/authStore'; // Import login and checkAuth functions
     import { currentSignupStep, isInSignupProcess, STEP_ALPHA_DISCLAIMER, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath, STEP_PAYMENT } from '../stores/signupState';
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- clearIncompleteSignupData may be used by child event handlers
     import { clearIncompleteSignupData, clearSignupData } from '../stores/signupStore';
     import { requireInviteCode } from '../stores/signupRequirements';
     import { get } from 'svelte/store';
@@ -48,7 +46,6 @@
     let password = $state('');
     let isLoading = $state(false);
     let showTfaView = $state(false); // State to control 2FA view visibility
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- read by child components via bind:
     let tfaErrorMessage = $state<string | null>(null); // State for 2FA error messages
     let verifyDeviceErrorMessage = $state<string | null>(null); // State for device verification errors
     let stayLoggedIn = $state(false); // New state for "Stay logged in" checkbox
@@ -56,9 +53,7 @@
     // New state variables for multi-step login flow using $state (Svelte 5 runes mode)
     type LoginStep = 'email' | 'password' | 'passkey' | 'security_key' | 'recovery_key' | 'backup_code';
     let currentLoginStep = $state<LoginStep>('email'); // Start with email-only step
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- updated by lookup event handlers, read by child steps
     let availableLoginMethods = $state<string[]>([]); // Will be populated from server response
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- updated by lookup event, read by password step
     let preferredLoginMethod = $state('password'); // Default to password
     let tfaAppName = $state<string | null>(null); // Will be populated from lookup response
     let tfaEnabled = $state(true); // Default to true for security (prevents user enumeration)
@@ -67,7 +62,6 @@
     
     // Conditional UI (passkey autofill) state
     let conditionalUIAbortController: AbortController | null = null; // For cancelling conditional UI passkey request
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- set by conditional UI check, may be used in future UI hint
     let isConditionalUISupported = $state(false); // Track if browser supports conditional UI
     
     // Helper function to safely cast string to LoginStep
@@ -110,7 +104,6 @@
 
     // Add email validation state using $state (Svelte 5 runes mode)
     let emailError = $state('');
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- set by validation effects, controls warning display
     let showEmailWarning = $state(false);
     let isEmailValidationPending = $state(false);
     let loginFailedWarning = $state(false);
@@ -225,7 +218,6 @@
     }
 
     // Add debounce helper
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic debounce requires any for rest params
     function debounce<T extends (...args: any[]) => void>(
         fn: T,
         delay: number
@@ -289,7 +281,6 @@
     let hasValidEmail = $derived(email && !emailError && !isEmailValidationPending);
     
     // Update helper for form validation to be false by default using $derived (Svelte 5 runes mode)
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in the template to enable/disable the submit button
     let isFormValid = $derived(hasValidEmail && 
                      password && 
                      !loginFailedWarning);
@@ -575,15 +566,12 @@
                 challenge: initiateData.challenge.substring(0, 20) + '...'
             });
             
-            // eslint-disable-next-line no-undef -- PublicKeyCredentialRequestOptions is a browser WebAuthn DOM type
             const publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions = {
                 challenge: challenge,
                 rpId: initiateData.rp.id,
                 timeout: initiateData.timeout,
-                // eslint-disable-next-line no-undef -- UserVerificationRequirement is a browser WebAuthn DOM type
                 userVerification: initiateData.userVerification as UserVerificationRequirement,
                 allowCredentials: initiateData.allowCredentials?.length > 0 
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- credential data from server is untyped
                     ? initiateData.allowCredentials.map((cred: any) => ({
                         type: cred.type,
                         id: base64UrlToArrayBuffer(cred.id),
@@ -596,14 +584,12 @@
                             first: prfEvalFirstBuffer
                         }
                     }
-                // eslint-disable-next-line no-undef -- AuthenticationExtensionsClientInputs is a browser WebAuthn DOM type
                 } as AuthenticationExtensionsClientInputs
             };
             
             console.log('[Login] WebAuthn request options prepared:', {
                 rpId: publicKeyCredentialRequestOptions.rpId,
                 hasExtensions: !!publicKeyCredentialRequestOptions.extensions,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any -- PRF is not in standard TS WebAuthn types
                 hasPrfExtension: !!(publicKeyCredentialRequestOptions.extensions as any)?.prf,
                 allowCredentialsCount: publicKeyCredentialRequestOptions.allowCredentials?.length || 0
             });
@@ -615,7 +601,6 @@
                     publicKey: publicKeyCredentialRequestOptions,
                     signal: passkeyLoginAbortController?.signal
                 }) as PublicKeyCredential;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error is typed as any for .name access compatibility
             } catch (error: any) {
                 // Handle expected cancellations first (don't log as errors)
                 if (error.name === 'AbortError') {
@@ -659,12 +644,11 @@
             
             const response = assertion.response as AuthenticatorAssertionResponse;
             
-             // Step 4: Check PRF extension support
-             const clientExtensionResults = assertion.getClientExtensionResults();
-             console.log('[Login] Client extension results:', clientExtensionResults);
-             // eslint-disable-next-line @typescript-eslint/no-explicit-any -- PRF extension results are not in standard TS WebAuthn types
-             const prfResults = clientExtensionResults?.prf as any;
-             console.log('[Login] PRF results:', prfResults);
+            // Step 4: Check PRF extension support
+            const clientExtensionResults = assertion.getClientExtensionResults();
+            console.log('[Login] Client extension results:', clientExtensionResults);
+            const prfResults = clientExtensionResults?.prf as any;
+            console.log('[Login] PRF results:', prfResults);
             
             // Check if PRF is enabled and has results
             // Note: Some authenticators may return PRF results even if enabled is false/undefined
@@ -1044,7 +1028,6 @@
                 inSignupFlow: inSignupFlow
             });
             
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error is typed as any for .name access compatibility
         } catch (error: any) {
             console.error('Error during passkey login:', error);
             if (error.name === 'AbortError') {
@@ -1144,12 +1127,10 @@
             
             console.log('[Login] Conditional UI: preparing WebAuthn options');
             
-            // eslint-disable-next-line no-undef -- PublicKeyCredentialRequestOptions is a browser WebAuthn DOM type
             const publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions = {
                 challenge: challenge,
                 rpId: initiateData.rp.id,
                 timeout: initiateData.timeout,
-                // eslint-disable-next-line no-undef -- UserVerificationRequirement is a browser WebAuthn DOM type
                 userVerification: initiateData.userVerification as UserVerificationRequirement,
                 // Empty allowCredentials enables discoverable credential discovery
                 allowCredentials: [],
@@ -1159,7 +1140,6 @@
                             first: prfEvalFirstBuffer
                         }
                     }
-                // eslint-disable-next-line no-undef -- AuthenticationExtensionsClientInputs is a browser WebAuthn DOM type
                 } as AuthenticationExtensionsClientInputs
             };
             
@@ -1177,7 +1157,6 @@
                     mediation: 'conditional',
                     signal: conditionalUIAbortController?.signal
                 }) as PublicKeyCredential;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error is typed as any for .name access compatibility
             } catch (error: any) {
                 if (error.name === 'AbortError') {
                     console.log('[Login] Conditional UI passkey request was cancelled');
@@ -1214,7 +1193,6 @@
             // Reset abort controller after successful processing so it can be restarted if needed
             conditionalUIAbortController = null;
             
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error is typed as any for .name access compatibility
         } catch (error: any) {
             if (error.name === 'AbortError') {
                 console.log('[Login] Conditional UI request aborted');
@@ -1239,7 +1217,6 @@
      */
     async function processPasskeyAssertion(
         assertion: PublicKeyCredential, 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server initiate response is untyped
         initiateData: any,
         cryptoService: typeof import('../services/cryptoService')
     ) {
@@ -1248,12 +1225,11 @@
             
             const response = assertion.response as AuthenticatorAssertionResponse;
             
-             // Check PRF extension support
-             const clientExtensionResults = assertion.getClientExtensionResults();
-             console.log('[Login] Client extension results:', clientExtensionResults);
-             // eslint-disable-next-line @typescript-eslint/no-explicit-any -- PRF extension results are not in standard TS WebAuthn types
-             const prfResults = clientExtensionResults?.prf as any;
-             console.log('[Login] PRF results:', prfResults);
+            // Check PRF extension support
+            const clientExtensionResults = assertion.getClientExtensionResults();
+            console.log('[Login] Client extension results:', clientExtensionResults);
+            const prfResults = clientExtensionResults?.prf as any;
+            console.log('[Login] PRF results:', prfResults);
             
             // Validate PRF extension results
             if (!prfResults) {
@@ -1573,7 +1549,6 @@
                 inSignupFlow: inSignupFlow
             });
             
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error is typed as any for .name access compatibility
         } catch (error: any) {
             console.error('[Login] Error processing passkey assertion:', error);
             
@@ -1931,39 +1906,6 @@
 
     // Derive the main view from the signup process state. This is more robust against race conditions using $derived (Svelte 5 runes mode)
     let currentView = $derived($isInSignupProcess ? 'signup' : 'login');
-
-    // Delay mounting the Signup component until the login view has faded out.
-    //
-    // Why: When switching to signup, the login view (containing an email <input>) fades out
-    // over ~400ms. During this overlap both views are in the DOM, so browser extensions like
-    // Bitwarden detect the email field and show an overlay — even though the user only sees
-    // the alpha disclaimer. By deferring the Signup mount until after the login view is gone
-    // we ensure no email input exists in the DOM while the disclaimer is visible.
-    //
-    // The delay (420ms) matches the login content-area fade-out duration (400ms) plus a small
-    // buffer. When leaving signup, we unmount immediately so the login view can render fresh.
-    const SIGNUP_MOUNT_DELAY_MS = 420;
-    let signupMounted = $state(false);
-    let signupMountTimer: ReturnType<typeof setTimeout> | null = null;
-
-    $effect(() => {
-        if ($isInSignupProcess) {
-            // Don't re-queue a mount if already mounted or a timer is pending
-            if (!signupMounted && !signupMountTimer) {
-                signupMountTimer = setTimeout(() => {
-                    signupMounted = true;
-                    signupMountTimer = null;
-                }, SIGNUP_MOUNT_DELAY_MS);
-            }
-        } else {
-            // Leaving signup: cancel any pending mount and unmount immediately
-            if (signupMountTimer) {
-                clearTimeout(signupMountTimer);
-                signupMountTimer = null;
-            }
-            signupMounted = false;
-        }
-    });
     
     // Determine if tabs should be visible
     // Tabs should only be visible on login screen or during alpha disclaimer and basics steps
@@ -1981,13 +1923,9 @@
     
     // Store references to Signup component's internal handlers
     // These will be set up to call Signup's handlers when invoked
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- reserved for future direct handler access if needed
     let signupCloseToDemo: (() => Promise<void>) | null = null;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- reserved for future direct handler access if needed
     let signupStepFromNav: ((event: { step: string }) => void) | null = null;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- reserved for future direct handler access if needed
     let signupSkip: (() => void) | null = null;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- reserved for future direct handler access if needed
     let signupLogout: (() => Promise<void>) | null = null;
     
     // Handlers for SignupNav - these call the callbacks passed to Signup
@@ -2190,14 +2128,11 @@
                 {/if}
                 {#if isPolicyViolationLockout || isAccountDeleted}
                     <div class="content-area" in:fade={{ duration: 400 }}>
-                        <!-- eslint-disable-next-line svelte/no-at-html-tags -- i18n translations are server-controlled and trusted -->
                         <h1><mark>{@html $text('login.login')}</mark></h1>
-                        <!-- eslint-disable-next-line svelte/no-at-html-tags -- i18n translations are server-controlled and trusted -->
                         <h2>{@html $text('login.to_chat_to_your')}<br><mark>{@html $text('login.digital_team_mates')}</mark></h2>
                         
                         <div class="form-container">
                             <p class="violation-message">
-                                <!-- eslint-disable-next-line svelte/no-at-html-tags -- i18n translations are server-controlled and trusted -->
                                 {@html $text('settings.your_account_got_deleted')}
                             </p>
                         </div>
@@ -2224,9 +2159,7 @@
                             </div>
                         {/if}
                         
-                        <!-- eslint-disable-next-line svelte/no-at-html-tags -- i18n translations are server-controlled and trusted -->
                         <h1><mark>{@html $text('login.login')}</mark></h1>
-                        <!-- eslint-disable-next-line svelte/no-at-html-tags -- i18n translations are server-controlled and trusted -->
                         <h2>{@html $text('login.to_chat_to_your')}<br><mark>{@html $text('login.digital_team_mates')}</mark></h2>
 
                         <div class="form-container">
@@ -2267,12 +2200,10 @@
                                 </div>
                             {:else if $isCheckingAuth && !serverConnectionError}
                                 <div class="checking-auth" in:fade={{ duration: 200 }}>
-                                    <!-- eslint-disable-next-line svelte/no-at-html-tags -- i18n translations are server-controlled and trusted -->
                                     <p>{@html $text('login.loading')}</p>
                                 </div>
                             {:else if serverConnectionError}
                                 <div class="connection-error" in:fade={{ duration: 200 }}>
-                                    <!-- eslint-disable-next-line svelte/no-at-html-tags -- i18n translations are server-controlled and trusted -->
                                     <p>{@html $text('login.cant_connect_to_server')}</p>
                                     <button 
                                         class="retry-button"
@@ -2372,7 +2303,7 @@
                                                     // Reset account recovery mode when going back to email
                                                     isInAccountRecoveryMode = false;
                                                 }}
-                                                on:switchToBackupCode={() => {
+                                                on:switchToBackupCode={(e) => {
                                                     // Handle switch to backup code
                                                     currentLoginStep = 'backup_code';
                                                 }}
@@ -2510,23 +2441,17 @@
                                 </button>
                             </div>
                         {/if}
-                        <!-- Only mount Signup after the login view (containing an email input) has
-                             fully faded out. This prevents browser password managers (e.g. Bitwarden)
-                             from detecting the login email field and showing an overlay while the
-                             alpha disclaimer is visible. See signupMounted $effect above. -->
-                        {#if signupMounted}
-                            <Signup 
-                                onswitchToLogin={switchToLogin}
-                                bind:selectedAppName={signupSelectedAppName}
-                                bind:is_admin={signupIsAdmin}
-                                bind:isInviteCodeValidated={signupIsInviteCodeValidated}
-                                bind:showSkip={signupShowSkip}
-                                bind:onSignupNavBack
-                                bind:onSignupNavStep
-                                bind:onSignupNavSkip
-                                bind:onSignupNavLogout
-                            />
-                        {/if}
+                        <Signup 
+                            onswitchToLogin={switchToLogin}
+                            bind:selectedAppName={signupSelectedAppName}
+                            bind:is_admin={signupIsAdmin}
+                            bind:isInviteCodeValidated={signupIsInviteCodeValidated}
+                            bind:showSkip={signupShowSkip}
+                            bind:onSignupNavBack
+                            bind:onSignupNavStep
+                            bind:onSignupNavSkip
+                            bind:onSignupNavLogout
+                        />
                         <!-- Removed stray </button> here -->
                     </div>
                 {/if} <!-- This closes the main #if / :else if / :else block -->
