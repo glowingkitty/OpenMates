@@ -252,17 +252,6 @@
   }
 
   /**
-   * Sync allNewsResults when news results change.
-   * Must be done in $effect (not inline in template) to avoid rendering the
-   * assignment expression as DOM text, which causes [object Object] output.
-   */
-  function syncNewsResults(newsResults: NewsSearchResult[]) {
-    if (newsResults.length > 0 && newsResults !== allNewsResults) {
-      allNewsResults = newsResults;
-    }
-  }
-  
-  /**
    * Handle closing the entire search fullscreen
    * Called when user closes the main NewsSearchEmbedFullscreen
    */
@@ -350,8 +339,10 @@
 >
   {#snippet content(ctx)}
     {@const newsResults = getNewsResults(ctx)}
-    <!-- Sync allNewsResults for sibling navigation via helper (NOT inline assignment, which renders as DOM text) -->
-    {syncNewsResults(newsResults)}
+    <!-- Sync allNewsResults whenever results change (enables index-based sibling navigation) -->
+    {#if newsResults.length > 0 && newsResults !== allNewsResults}
+      {allNewsResults = newsResults}
+    {/if}
     
     {#if ctx.isLoadingChildren}
       <div class="loading-state">
