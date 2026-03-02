@@ -168,13 +168,14 @@ export async function createOnboardingChat(
       `[OnboardingChat] Created onboarding chat ${chatId} with welcome message ${messageId}`,
     );
 
-    // Dispatch event so the chat list updates.
-    // Include chat_id so Chats.svelte can do an incremental update and
-    // _chatIdToSelectAfterUpdate can be set for auto-selection if needed.
+    // Dispatch event so the chat list updates and auto-opens the chat.
+    // autoOpen: true tells Chats.svelte to set _chatIdToSelectAfterUpdate,
+    // which triggers handleChatClick → chatSelected → loadChat() without
+    // touching the URL hash (avoids the programmatic hash guard).
     if (typeof window !== "undefined") {
       window.dispatchEvent(
         new CustomEvent("localChatListChanged", {
-          detail: { chat_id: chatId },
+          detail: { chat_id: chatId, autoOpen: true },
         }),
       );
     }

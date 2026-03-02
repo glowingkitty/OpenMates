@@ -1229,7 +1229,7 @@ let _chatUpdatedFlushPending = false;
 	 * without waiting for server round-trip
 	 */
 	const handleLocalChatListChanged = async (event: Event) => {
-		const customEvent = event as CustomEvent<{ chat_id?: string; draftDeleted?: boolean; sharedChatAdded?: boolean }>;
+		const customEvent = event as CustomEvent<{ chat_id?: string; draftDeleted?: boolean; sharedChatAdded?: boolean; autoOpen?: boolean }>;
 		console.debug('[Chats] Local chat list changed event received:', customEvent.detail);
 		
 		// Invalidate caches for the specific chat if provided, to ensure fresh preview data
@@ -1286,6 +1286,11 @@ let _chatUpdatedFlushPending = false;
 						// Keep global cache in sync so subsequent refreshes don't "miss" the new chat
 						chatListCache.upsertChat(updatedChat);
 						console.debug('[Chats] Updated chat list incrementally from local draft change:', { chatId });
+						// Auto-open the chat if requested (e.g., onboarding chat after signup).
+						// Sets _chatIdToSelectAfterUpdate so it fires after the derived list re-renders.
+						if (customEvent.detail?.autoOpen) {
+							_chatIdToSelectAfterUpdate = chatId;
+						}
 						return;
 					}
 				} catch (error) {

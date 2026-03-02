@@ -1130,20 +1130,12 @@
                 const username = $signupStore.username || '';
                 const onboardingChatId = await createOnboardingChat(username);
                 if (onboardingChatId) {
-                    console.debug(`[Signup] Created onboarding chat ${onboardingChatId} for new user`);
-
-                    // Auto-open the onboarding chat on all devices (one-time, only after signup).
-                    // activeChatStore.setActiveChat() updates the URL hash and notifies Chats.svelte,
-                    // which dispatches chatSelected → +page.svelte calls loadChat() → ActiveChat.svelte
-                    // sets currentChat so the user sees the chat and can reply to it directly.
-                    try {
-                        const { activeChatStore } = await import('../../stores/activeChatStore');
-                        activeChatStore.setActiveChat(onboardingChatId);
-                        console.debug(`[Signup] Auto-opened onboarding chat ${onboardingChatId}`);
-                    } catch (openError) {
-                        // Non-fatal: chat was created, user can click it manually
-                        console.warn("[Signup] Failed to auto-open onboarding chat:", openError);
-                    }
+                    // Auto-open is handled by the localChatListChanged event dispatched from
+                    // onboardingChatService.createOnboardingChat() with autoOpen: true.
+                    // Chats.svelte picks this up and sets _chatIdToSelectAfterUpdate, which
+                    // triggers handleChatClick → chatSelected → loadChat() without touching
+                    // the URL hash (avoids the programmatic hash update guard).
+                    console.debug(`[Signup] Created onboarding chat ${onboardingChatId} — auto-open dispatched via localChatListChanged`);
                 } else {
                     console.warn("[Signup] createOnboardingChat returned null — onboarding chat was not created");
                 }

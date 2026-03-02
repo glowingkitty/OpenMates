@@ -96,6 +96,7 @@ function getFallbackIconForCategory(category: string): string {
     cooking_food: "utensils",
     activism: "trending-up",
     general_knowledge: "help-circle",
+    onboarding_support: "compass",
   };
 
   return categoryIcons[category] || "help-circle";
@@ -907,11 +908,46 @@ export async function handleAITypingStartedImpl( // Changed to async
       return;
     }
 
-    // Skip metadata processing for incognito chats (they don't go through post-processing)
+    // For incognito chats, skip server-side post-processing (no encryption pipeline),
+    // but still apply the plaintext metadata (title, category, icon) from the payload
+    // so the chat header can be shown immediately after the first message.
     if (isIncognitoChat) {
       console.debug(
-        `[ChatSyncService:AI] Skipping metadata processing for incognito chat ${payload.chat_id}`,
+        `[ChatSyncService:AI] Incognito chat ${payload.chat_id}: applying plaintext metadata and dispatching aiTypingStarted`,
       );
+
+      // Apply plaintext title/category/icon from the ai_typing_started payload.
+      // For new incognito chats the server sends these fields so the UI can display
+      // the header without any encryption round-trip.
+      const hasMetadata =
+        payload.category && (payload.icon_names?.length ?? 0) > 0;
+
+      if (hasMetadata) {
+        const metaUpdates: Partial<import("../types/chat").Chat> = {
+          category: payload.category,
+          icon: payload.icon_names?.[0] ?? null,
+          ...(payload.title ? { title: payload.title } : {}),
+        };
+
+        // Persist to sessionStorage and dispatch 'incognitoChatsUpdated'
+        await incognitoChatService.updateChat(payload.chat_id, metaUpdates);
+
+        // Dispatch a chatUpdated event with metadata_updated type so ActiveChat's
+        // handleChatUpdated can pick up the plaintext fields and reveal the header.
+        const updatedChat = await incognitoChatService.getChat(payload.chat_id);
+        if (updatedChat) {
+          serviceInstance.dispatchEvent(
+            new CustomEvent("chatUpdated", {
+              detail: {
+                chat_id: payload.chat_id,
+                chat: updatedChat,
+                type: "metadata_updated",
+              },
+            }),
+          );
+        }
+      }
+
       // CRITICAL: Still dispatch the typing event so the UI transitions to the typing phase
       serviceInstance.dispatchEvent(
         new CustomEvent("aiTypingStarted", { detail: payload }),
@@ -2024,8 +2060,31 @@ export async function handleRequestChatHistoryImpl(
     // and chat_has_title: true prevents the backend from regenerating/overwriting it.
     const chatHasTitle = (chat?.title_v ?? 0) > 0;
 
-    // Resend the message with full history
-    const resendPayload = {
+    // Decrypt active_focus_id so the AI uses the correct focus mode system prompt on resend.
+    // Without this, the onboarding chat (and any other focus-mode chat) would receive the
+    // default Suki system prompt instead of the focus-mode-specific one (e.g. openmates-welcome).
+    let activeFocusId: string | null = null;
+    if (chat?.encrypted_active_focus_id) {
+      try {
+        const chatKey = chatDB.getChatKey(payload.chat_id);
+        if (chatKey) {
+          const { decryptWithChatKey } = await import("./cryptoService");
+          activeFocusId = await decryptWithChatKey(
+            chat.encrypted_active_focus_id,
+            chatKey,
+          );
+        }
+      } catch (e) {
+        console.warn(
+          "[ChatSyncService:AI] Failed to decrypt active_focus_id for resend (AI will use default focus):",
+          e,
+        );
+      }
+    }
+
+    // Build resend payload. active_focus_id goes at top-level (matches sendNewMessageImpl
+    // in chatSyncServiceSenders.ts) so the backend reads it from payload.get("active_focus_id").
+    const resendPayload: Record<string, unknown> = {
       chat_id: payload.chat_id,
       message: {
         message_id: latestUserMessage.message_id,
@@ -2036,10 +2095,18 @@ export async function handleRequestChatHistoryImpl(
         chat_has_title: chatHasTitle,
         message_history: messageHistory, // Include full history
       },
+      // Include encrypted_chat_key for device-sync broadcast (mirrors normal send path)
+      encrypted_chat_key: chat?.encrypted_chat_key ?? null,
     };
 
+    // Only include active_focus_id when it could be decrypted (non-null)
+    if (activeFocusId) {
+      resendPayload.active_focus_id = activeFocusId;
+    }
+
     console.info(
-      `[ChatSyncService:AI] Resending message with ${messageHistory.length} historical messages`,
+      `[ChatSyncService:AI] Resending message with ${messageHistory.length} historical messages` +
+        (activeFocusId ? ` (focus: ${activeFocusId})` : ""),
     );
 
     // Import webSocketService

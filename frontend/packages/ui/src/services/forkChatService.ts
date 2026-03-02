@@ -13,13 +13,18 @@
 //   4. Re-encrypt every message field with the new key.
 //   5. Copy category + icon from source chat (decrypt with source key, re-encrypt with new key).
 //   6. Save the new chat + all copied messages in one IndexedDB transaction.
-//   7. Sync to the server via two parallel paths:
-//      a. chat_message_added with plaintext content + is_fork:true flag → server AI cache
-//         (so AI has context on the first follow-up message)
-//      b. encrypted_chat_metadata with message_history (encrypted) + chat metadata → Directus
-//         (permanent encrypted persistence of all messages + title/category/icon)
+//   7. Sync to the server via encrypted_chat_metadata:
+//      - message_history (encrypted) + chat metadata → Directus
+//        (permanent encrypted persistence of all messages + title/category/icon)
 //   8. Update forkProgressStore throughout to drive UI.
 //   9. On completion: fire a "fork complete" notification that opens the new chat.
+//
+// AI context on first follow-up:
+//   The forked chat has no server-side AI cache. When the user sends their first
+//   follow-up message, the backend sends request_chat_history, and the client
+//   responds with all messages from IndexedDB (including active_focus_id). This
+//   is the same recovery mechanism used by all client-created chats (inspiration,
+//   onboarding, etc.) — no proactive plaintext sync is needed.
 //
 // Background processing:
 //   The caller can navigate away freely while the fork runs. The operation is
@@ -223,16 +228,7 @@ async function runForkAsync(
   }
 
   // Step 6: Re-encrypt all messages with the new chat key in batches.
-  // We also preserve the plaintext content for the AI cache sync (step 8a).
   const reencryptedMessages: Message[] = [];
-  const plaintextMessages: Array<{
-    message_id: string;
-    role: string;
-    content: string;
-    created_at: number;
-    sender_name?: string;
-    category?: string;
-  }> = [];
 
   const newChatSuffix = newChatId.slice(-10);
   let processed = 0;
@@ -249,23 +245,6 @@ async function runForkAsync(
         newChatKey,
       );
       reencryptedMessages.push(reencrypted);
-
-      // Capture plaintext for AI cache sync (content is already decrypted
-      // since getMessagesForChat decrypts all messages from IndexedDB)
-      if (sourceMsg.content) {
-        const contentStr =
-          typeof sourceMsg.content === "string"
-            ? sourceMsg.content
-            : JSON.stringify(sourceMsg.content);
-        plaintextMessages.push({
-          message_id: newMessageId,
-          role: sourceMsg.role ?? "user",
-          content: contentStr,
-          created_at: sourceMsg.created_at ?? nowTimestamp,
-          sender_name: sourceMsg.sender_name,
-          category: sourceMsg.category,
-        });
-      }
     }
 
     processed += batch.length;
@@ -285,24 +264,15 @@ async function runForkAsync(
   // Step 8: Save all re-encrypted messages
   await chatDB.batchSaveMessages(reencryptedMessages);
 
-  // Step 9a: Sync fork messages to the server AI cache via chat_message_added
-  //          with is_fork:true. The backend handles this path by caching the
-  //          messages (plaintext) for future AI context lookups, without
-  //          triggering the AI pipeline.
+  // Step 9: Sync fork messages + metadata to the server via encrypted_chat_metadata.
+  //         This provides permanent encrypted storage in Directus, and also
+  //         stores the chat metadata (title, category, icon) server-side so
+  //         that other devices can sync the forked chat correctly.
   //
-  //          This ensures that when the user sends a follow-up message to the
-  //          forked chat, the AI has the full conversation history as context.
-  await syncForkPlaintextToAICache(
-    newChatId,
-    encryptedNewChatKey,
-    plaintextMessages,
-    nowTimestamp,
-  );
-
-  // Step 9b: Sync fork messages + metadata to the server via encrypted_chat_metadata.
-  //          This provides permanent encrypted storage in Directus, and also
-  //          stores the chat metadata (title, category, icon) server-side so
-  //          that other devices can sync the forked chat correctly.
+  //         AI context on first follow-up is handled by the request_chat_history
+  //         mechanism: the backend detects an empty AI cache for this chat and
+  //         asks the client for history. The client responds with all IndexedDB
+  //         messages + active_focus_id via handleRequestChatHistoryImpl.
   syncForkEncryptedToStorage(
     newChatId,
     encryptedNewChatKey,
@@ -411,82 +381,6 @@ async function reencryptMessage(
 // ---------------------------------------------------------------------------
 // Server sync helpers
 // ---------------------------------------------------------------------------
-
-/**
- * Sync fork messages to the server's AI cache via chat_message_added with
- * is_fork:true. The backend recognises this flag and caches the plaintext
- * messages for AI context lookups without triggering the AI pipeline.
- *
- * This must be done before the user sends their first follow-up message so
- * the AI has the full conversation history available as context.
- *
- * If offline, this step is skipped — when the user eventually sends a message,
- * the sendNewMessage flow will include the local messages as chat_history
- * because the server will have no cache for this chat and will issue a
- * request_chat_history event.
- */
-async function syncForkPlaintextToAICache(
-  newChatId: string,
-  encryptedChatKey: string,
-  plaintextMessages: Array<{
-    message_id: string;
-    role: string;
-    content: string;
-    created_at: number;
-    sender_name?: string;
-    category?: string;
-  }>,
-  nowTimestamp: number,
-): Promise<void> {
-  const isConnected = get(websocketStatus).status === "connected";
-  if (!isConnected || plaintextMessages.length === 0) {
-    console.info(
-      `[ForkChatService] AI cache sync skipped — ` +
-        `${!isConnected ? "offline" : "no plaintext messages"}`,
-    );
-    return;
-  }
-
-  console.info(
-    `[ForkChatService] Syncing ${plaintextMessages.length} messages to AI cache via chat_message_added (is_fork:true)`,
-  );
-
-  const SEND_BATCH = 5;
-  for (let i = 0; i < plaintextMessages.length; i += SEND_BATCH) {
-    const batch = plaintextMessages.slice(i, i + SEND_BATCH);
-    for (const msg of batch) {
-      try {
-        await webSocketService.sendMessage("chat_message_added", {
-          chat_id: newChatId,
-          message: {
-            message_id: msg.message_id,
-            role: msg.role,
-            content: msg.content,
-            created_at: msg.created_at,
-            sender_name: msg.sender_name,
-            category: msg.category,
-          },
-          encrypted_chat_key: encryptedChatKey,
-          is_fork: true,
-          // Signal that this chat already has a title set (prevents
-          // the server from treating it as a brand-new chat that needs
-          // preprocessing for title/category/icon generation)
-          chat_has_title: true,
-        });
-      } catch (err) {
-        // Non-fatal: AI cache sync failure does not block the fork.
-        // The server will issue request_chat_history on the first follow-up.
-        console.warn(
-          `[ForkChatService] AI cache sync failed for message ${msg.message_id}:`,
-          err,
-        );
-      }
-    }
-    await yieldToEventLoop();
-  }
-
-  console.info("[ForkChatService] AI cache sync complete");
-}
 
 /**
  * Sync the fork's encrypted messages and chat metadata to the server via a

@@ -28,6 +28,7 @@ export const CATEGORY_GRADIENTS: Record<
   cooking_food: { start: "#FD8450", end: "#F42C2D" },
   activism: { start: "#F53D00", end: "#F56200" },
   general_knowledge: { start: "#DE1E66", end: "#FF763B" },
+  onboarding_support: { start: "#6364FF", end: "#9B6DFF" }, // Suki's purple gradient (matches matesMetadata.ts)
 };
 
 /**
@@ -51,6 +52,7 @@ export const CATEGORY_FALLBACK_ICONS: Record<string, string> = {
   cooking_food: "utensils",
   activism: "trending-up",
   general_knowledge: "help-circle",
+  onboarding_support: "compass", // Suki's compass icon (matches matesMetadata.ts)
 };
 
 /**

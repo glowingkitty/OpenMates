@@ -1333,8 +1333,10 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         active_focus_id_for_ai: Optional[str] = None
         # mate_id_for_ask_request: Optional[str] = None # Mate ID is determined by preprocessor
 
-        # Get decrypted focus_id from client for AI processing
-        active_focus_id_for_ai = message_payload_from_client.get("active_focus_id")
+        # Get decrypted focus_id from client for AI processing.
+        # The frontend sends active_focus_id at the top level of the payload (not inside "message"),
+        # so check both locations for forward-compatibility.
+        active_focus_id_for_ai = payload.get("active_focus_id") or message_payload_from_client.get("active_focus_id")
         
         if not active_focus_id_for_ai:
             logger.debug(f"No active_focus_id provided by client for chat {chat_id}. AI will use default focus.")
