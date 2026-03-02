@@ -154,13 +154,39 @@ export function parseEmbedClipboardData(
 }
 
 /**
- * Write an embed node to the system clipboard using dual MIME types:
- *   - "application/x-openmates-embed": structured JSON for in-app paste detection
+ * Encode embed JSON into an HTML string that can be stored in the text/html
+ * clipboard entry.  The JSON is placed in a hidden <meta> tag so it survives
+ * the round-trip through Safari's clipboard (Safari allows text/html but
+ * silently drops non-allowlisted MIME types like application/x-openmates-embed).
+ *
+ * The paste handler reads text/html, locates the meta tag, and extracts the JSON.
+ * The visible body of the HTML is the human-readable plain-text so that pasting
+ * into a rich-text editor still produces readable content.
+ *
+ * @internal
+ */
+function _buildEmbedHtml(json: string, plainText: string): string {
+  // Encode JSON in a data attribute to survive HTML sanitisation.
+  // Base64 avoids issues with quotes/angle-brackets in the JSON value.
+  const b64 =
+    typeof btoa !== "undefined" ? btoa(unescape(encodeURIComponent(json))) : "";
+  const escapedText = plainText
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  return `<html><head><meta name="x-openmates-embed" content="${b64}"></head><body><pre>${escapedText}</pre></body></html>`;
+}
+
+/**
+ * Write an embed node to the system clipboard using three MIME types:
+ *   - "application/x-openmates-embed": structured JSON for in-app paste on Chromium/Firefox
+ *   - "text/html": hidden JSON in a <meta> tag for in-app paste on Safari
  *   - "text/plain": human-readable fallback for pasting outside OpenMates
  *
  * When pasted inside OpenMates MessageInput, the embed reference is detected
- * and re-inserted as a live embed card (resolved from IndexedDB via contentRef).
- * When pasted in an external app, only the text/plain value is used.
+ * (via application/x-openmates-embed on Chromium/Firefox, or text/html meta tag
+ * on Safari) and re-inserted as a live embed card (resolved from IndexedDB via
+ * contentRef). When pasted in an external app, only the text/plain value is used.
  *
  * **Safari clipboard gesture token compatibility:**
  * Safari requires that navigator.clipboard.write() is called synchronously within
@@ -178,7 +204,8 @@ export function parseEmbedClipboardData(
  *
  * Falls back in order:
  *   1. ClipboardItem.write() with Promise<Blob> values — called synchronously,
- *      supports Safari gesture token + dual MIME (custom MIME ignored on Safari)
+ *      supports Safari gesture token + triple MIME (custom MIME silently dropped
+ *      on Safari but text/html carries the JSON via meta tag)
  *   2. navigator.clipboard.writeText() plain text only (after promise resolves)
  *   3. document.execCommand('copy') via hidden textarea
  *
@@ -208,12 +235,18 @@ export async function writeEmbedToClipboard(
   // the gesture token is captured at the navigator.clipboard.write() call,
   // not when the blob promise resolves.
   //
-  // Safari rejects unknown MIME types, so "application/x-openmates-embed" will
-  // be silently dropped on Safari; the "text/plain" entry still succeeds.
+  // Three MIME types are written:
+  //  - text/plain:  human-readable content (all browsers)
+  //  - text/html:   hidden JSON in <meta name="x-openmates-embed"> (Safari in-app paste)
+  //  - application/x-openmates-embed:  raw JSON (Chromium/Firefox in-app paste;
+  //                 Safari silently drops this but the text/html path covers it)
   if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
     try {
       const textBlobPromise = textPromise.then(
         (t) => new Blob([t], { type: "text/plain" }),
+      );
+      const htmlBlobPromise = textPromise.then(
+        (t) => new Blob([_buildEmbedHtml(json, t)], { type: "text/html" }),
       );
       const embedBlobPromise = textPromise.then(
         () => new Blob([json], { type: "application/x-openmates-embed" }),
@@ -223,11 +256,12 @@ export async function writeEmbedToClipboard(
       await navigator.clipboard.write([
         new ClipboardItem({
           "text/plain": textBlobPromise,
+          "text/html": htmlBlobPromise,
           "application/x-openmates-embed": embedBlobPromise,
         }),
       ]);
       console.debug(
-        "[writeEmbedToClipboard] Copied via ClipboardItem (dual MIME, promise-based)",
+        "[writeEmbedToClipboard] Copied via ClipboardItem (triple MIME, promise-based)",
       );
       return;
     } catch (err) {
@@ -286,10 +320,15 @@ export async function writeMessageWithEmbedsToClipboard(
 
   // Attempt 1: ClipboardItem with Promise<Blob> values (synchronous write for Safari).
   // See writeEmbedToClipboard for full explanation of the gesture-token strategy.
+  // Three MIME types: text/plain (readable), text/html (Safari in-app JSON via meta tag),
+  // application/x-openmates-embed (Chromium/Firefox in-app JSON).
   if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
     try {
       const textBlobPromise = textPromise.then(
         (t) => new Blob([t], { type: "text/plain" }),
+      );
+      const htmlBlobPromise = textPromise.then(
+        (t) => new Blob([_buildEmbedHtml(json, t)], { type: "text/html" }),
       );
       const embedBlobPromise = textPromise.then(
         () => new Blob([json], { type: "application/x-openmates-embed" }),
@@ -299,11 +338,12 @@ export async function writeMessageWithEmbedsToClipboard(
       await navigator.clipboard.write([
         new ClipboardItem({
           "text/plain": textBlobPromise,
+          "text/html": htmlBlobPromise,
           "application/x-openmates-embed": embedBlobPromise,
         }),
       ]);
       console.debug(
-        "[writeMessageWithEmbedsToClipboard] Copied via ClipboardItem (dual MIME, promise-based)",
+        "[writeMessageWithEmbedsToClipboard] Copied via ClipboardItem (triple MIME, promise-based)",
       );
       return;
     } catch (err) {

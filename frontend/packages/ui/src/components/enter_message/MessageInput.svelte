@@ -1346,15 +1346,46 @@
                 // Handle paste events at the ProseMirror level to intercept before default handling
                 handlePaste: (view, event, slice) => {
                     // ── Embed paste detection (highest priority) ───────────────────────
-                    // Check for application/x-openmates-embed MIME type written by
-                    // writeEmbedToClipboard() or writeMessageWithEmbedsToClipboard().
+                    // Two detection paths:
+                    //
+                    // Path A (Chromium / Firefox): "application/x-openmates-embed" MIME
+                    //   type written by writeEmbedToClipboard(). Contains the full embed
+                    //   JSON directly.
+                    //
+                    // Path B (Safari): Safari silently drops non-allowlisted MIME types,
+                    //   so "application/x-openmates-embed" is never written. Instead we
+                    //   embed the JSON in a hidden <meta name="x-openmates-embed"> tag
+                    //   inside the "text/html" clipboard entry (which Safari does allow).
+                    //   We decode the base64 content attribute to recover the JSON.
                     //
                     // Single embed copy: JSON is an EmbedClipboardData object.
                     // Message copy (with embeds): JSON is an EmbedClipboardData array.
                     // In both cases we insert embed node(s) into the editor and prevent
                     // default paste. For message copy we also let the text flow through
                     // by re-triggering a plain-text paste after the embeds.
-                    const embedJson = event.clipboardData?.getData('application/x-openmates-embed');
+
+                    // Try Path A first (Chromium/Firefox).
+                    let embedJson = event.clipboardData?.getData('application/x-openmates-embed') || '';
+
+                    // Try Path B (Safari) if Path A gave nothing.
+                    if (!embedJson) {
+                        const htmlContent = event.clipboardData?.getData('text/html') || '';
+                        if (htmlContent) {
+                            // Look for <meta name="x-openmates-embed" content="...">
+                            const metaMatch = htmlContent.match(/<meta\s[^>]*name="x-openmates-embed"[^>]*content="([^"]*)"[^>]*>/i)
+                                          || htmlContent.match(/<meta\s[^>]*content="([^"]*)"[^>]*name="x-openmates-embed"[^>]*>/i);
+                            if (metaMatch) {
+                                try {
+                                    // Decode base64 → UTF-8 JSON
+                                    embedJson = decodeURIComponent(escape(atob(metaMatch[1])));
+                                    console.debug('[MessageInput] Extracted embed JSON from text/html meta tag (Safari path)');
+                                } catch (decodeErr) {
+                                    console.warn('[MessageInput] Failed to decode embed JSON from meta tag:', decodeErr);
+                                }
+                            }
+                        }
+                    }
+
                     if (embedJson) {
                         event.preventDefault();
                         event.stopPropagation();
