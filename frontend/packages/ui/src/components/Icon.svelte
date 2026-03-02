@@ -371,6 +371,7 @@
     --icon-url-open: url('@openmates/ui/static/icons/open.svg');
     --icon-url-openai: url('@openmates/ui/static/icons/openai.svg');
     --icon-url-openmates: url('@openmates/ui/static/icons/mate.svg');
+    --icon-url-openrouter: url('@openmates/ui/static/icons/openrouter.svg');
     --icon-url-opencollective: url('@openmates/ui/static/icons/opencollective.svg');
     --icon-url-opensource: url('@openmates/ui/static/icons/opensource.svg');
     --icon-url-otp-auth: url('@openmates/ui/static/icons/otp-auth.svg');

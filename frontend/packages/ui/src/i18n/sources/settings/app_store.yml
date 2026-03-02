@@ -1712,28 +1712,28 @@ skills.models:
   he: מודלים
   verified_by_human: []
 skills.model_detail.model_info:
-  context: Section heading for model information on the skill model detail page
-  en: Model Information
-  de: Modellinformationen
-  zh: 模型信息
-  es: Información del modelo
-  fr: Informations sur le modèle
-  pt: Informações do modelo
-  ru: Информация о модели
-  ja: モデル情報
-  ko: 모델 정보
-  it: Informazioni sul modello
-  tr: Model bilgisi
-  vi: Thông tin mô hình
-  id: Informasi model
-  pl: Informacje o modelu
-  nl: Modelinformatie
-  ar: معلومات النموذج
-  hi: मॉडल जानकारी
-  th: ข้อมูลโมเดล
-  cs: Informace o modelu
-  sv: Modellinformation
-  he: מידע על המודל
+  context: Section heading for model details on the skill model detail page
+  en: Details
+  de: Details
+  zh: 详情
+  es: Detalles
+  fr: Détails
+  pt: Detalhes
+  ru: Подробности
+  ja: 詳細
+  ko: 세부 정보
+  it: Dettagli
+  tr: Ayrıntılar
+  vi: Chi tiết
+  id: Detail
+  pl: Szczegóły
+  nl: Details
+  ar: التفاصيل
+  hi: विवरण
+  th: รายละเอียด
+  cs: Podrobnosti
+  sv: Detaljer
+  he: פרטים
   verified_by_human: []
 skills.model_detail.origin:
   context: Label for model origin/provider country on skill model detail page

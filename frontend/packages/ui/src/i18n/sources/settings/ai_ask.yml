@@ -314,11 +314,11 @@ ai_ask_model_details.back_to_models:
   verified_by_human: []
 
 ai_ask_model_details.model_info:
-  context: Section heading for model information
-  en: Model Information
-  de: Modellinformationen
-  ar: معلومات النموذج
-  he: מידע על המודל
+  context: Section heading for model details
+  en: Details
+  de: Details
+  ar: التفاصيل
+  he: פרטים
   verified_by_human: []
 
 ai_ask_model_details.origin:

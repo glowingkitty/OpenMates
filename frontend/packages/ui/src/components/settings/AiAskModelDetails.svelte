@@ -234,7 +234,7 @@
         <div class="section">
             <SettingsItem 
                 type="heading"
-                icon="icon_info"
+                icon="insight"
                 title={$text('settings.ai_ask.ai_ask_model_details.model_info')}
             />
             <div class="info-content">
@@ -292,13 +292,13 @@
             <div class="section">
                 <SettingsItem 
                     type="heading"
-                    icon="credits"
+                    icon="coins"
                     title={$text('settings.ai_ask.ai_ask_model_details.pricing')}
                 />
                 <div class="pricing-content">
                     {#if model.pricing.input_tokens_per_credit}
                         <div class="pricing-row">
-                            <Icon name="credits" type="subsetting" size="24px" noAnimation={true} />
+                            <Icon name="download" type="subsetting" size="24px" noAnimation={true} />
                             <span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.text_input')}</span>
                             <span class="pricing-value">
                                 1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per')} {model.pricing.input_tokens_per_credit} {$text('settings.ai_ask.ai_ask_settings.tokens')}
@@ -307,7 +307,7 @@
                     {/if}
                     {#if model.pricing.output_tokens_per_credit}
                         <div class="pricing-row">
-                            <Icon name="credits" type="subsetting" size="24px" noAnimation={true} />
+                            <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
                             <span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.text_output')}</span>
                             <span class="pricing-value">
                                 1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per')} {model.pricing.output_tokens_per_credit} {$text('settings.ai_ask.ai_ask_settings.tokens')}

@@ -190,7 +190,7 @@
         <div class="section">
             <SettingsItem
                 type="heading"
-                icon="question"
+                icon="insight"
                 title={$text('settings.app_store.skills.model_detail.model_info')}
             />
             <div class="info-content">

@@ -1923,6 +1923,14 @@ div.clickable-icon {
   }
 }
 
+.icon.provider-openrouter {
+  &::before {
+    background-image: url("@openmates/ui/static/icons/openrouter.svg");
+    background-size: 55%;
+    filter: unset;
+  }
+}
+
 .icon-wrapper {
   display: flex;
   align-items: center;
