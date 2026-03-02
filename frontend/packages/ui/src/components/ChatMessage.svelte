@@ -23,6 +23,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   import { uint8ArrayToUrlSafeBase64 } from '../services/cryptoService';
   import type { AppSettingsMemoriesResponseContent, AppSettingsMemoriesResponseCategory } from '../services/chatSyncServiceHandlersAppSettings';
   import { appSkillsStore } from '../stores/appSkillsStore';
+  import { writeEmbedToClipboard, writeMessageWithEmbedsToClipboard } from '../message_parsing/serializers';
   
   // Define types for message content parts
   type AppCardData = {
@@ -810,15 +811,22 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
    * Copies the full message content to clipboard, or selected text if available.
    * Respects PII visibility state: when PII is hidden, placeholders are used
    * instead of original values in the copied content.
+   *
+   * When copying a full message (not a text selection), if the message contains embeds,
+   * the clipboard also carries structured embed reference data
+   * ("application/x-openmates-embed" MIME type) alongside the text.
+   * This allows pasting the message into MessageInput and having the embeds rendered
+   * as live embed cards rather than plain markdown text.
    */
   async function handleCopyMessage() {
     try {
       let contentToCopy: string;
       const selection = window.getSelection();
+      const isCopyingSelection = selectable && selection && selection.toString().length > 0;
       
       // If there's a selection and it's within this message, copy only the selection
-      if (selectable && selection && selection.toString().length > 0) {
-        contentToCopy = selection.toString();
+      if (isCopyingSelection) {
+        contentToCopy = selection!.toString();
         console.debug('[ChatMessage] Copying selected text');
       } else {
         // original_message.content has PLACEHOLDERS (raw from DB).
@@ -837,12 +845,49 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           console.debug('[ChatMessage] Copying message with placeholders (hidden mode)');
         }
       }
-        
-      await navigator.clipboard.writeText(contentToCopy);
+      
+      if (isCopyingSelection) {
+        // Plain text copy for selections — no embed reference needed
+        await navigator.clipboard.writeText(contentToCopy);
+      } else {
+        // Full message copy: extract embed node attributes from the TipTap document
+        // so the clipboard carries structured embed references alongside the text.
+        // The ReadOnlyMessage component renders the TipTap doc; we parse the markdown
+        // to extract embed nodes without depending on the DOM.
+        let embedAttrs: import('../message_parsing/types').EmbedNodeAttributes[] = [];
+        try {
+          const { parse_message } = await import('../message_parsing/parse_message');
+          const rawMarkdown = typeof original_message?.content === 'string'
+            ? original_message.content
+            : '';
+          if (rawMarkdown) {
+            const tiptapDoc = parse_message(rawMarkdown, 'read', { unifiedParsingEnabled: true });
+            // Walk the TipTap document to collect embed nodes
+            const collectEmbeds = (nodes: any[]): void => {
+              for (const node of nodes ?? []) {
+                if (node.type === 'embed' && node.attrs?.contentRef?.startsWith('embed:')) {
+                  embedAttrs.push(node.attrs);
+                }
+                if (node.content) collectEmbeds(node.content);
+              }
+            };
+            collectEmbeds(tiptapDoc?.content ?? []);
+          }
+        } catch (parseErr) {
+          // Non-critical: if parsing fails, fall back to plain text copy
+          console.warn('[ChatMessage] Failed to extract embed nodes for clipboard:', parseErr);
+          embedAttrs = [];
+        }
+
+        // Write embed references + message text to clipboard using dual-MIME ClipboardItem.
+        // When pasted inside OpenMates MessageInput, the paste handler reads the embed
+        // JSON and re-inserts the embed nodes. When pasted externally, text/plain is used.
+        await writeMessageWithEmbedsToClipboard(embedAttrs, contentToCopy);
+      }
       
       const { notificationStore } = await import('../stores/notificationStore');
       notificationStore.success(
-        selectable && selection && selection.toString().length > 0
+        isCopyingSelection
           ? 'Selected text copied to clipboard'
           : 'Message copied to clipboard'
       );
@@ -1188,7 +1233,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
         switch (action) {
           case 'copy': {
             if (!code) break;
-            await navigator.clipboard.writeText(code);
+            // Write embed reference (for in-app paste) + code text (for external paste)
+            await writeEmbedToClipboard(selectedNode.attrs, code);
             const { notificationStore } = await import('../stores/notificationStore');
             notificationStore.success('Code copied to clipboard');
             break;
@@ -1247,7 +1293,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             }
           });
 
-          await navigator.clipboard.writeText(yaml);
+          // Write embed reference (for in-app paste) + YAML text (for external paste)
+          await writeEmbedToClipboard(selectedNode.attrs, yaml);
           const { notificationStore } = await import('../stores/notificationStore');
           notificationStore.success('Copied to clipboard');
         }
@@ -1311,7 +1358,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
               .join('\n\n---\n\n');
             
             if (transcriptText) {
-              await navigator.clipboard.writeText(transcriptText);
+              // Write embed reference (for in-app paste) + transcript text (for external paste)
+              await writeEmbedToClipboard(selectedNode.attrs, transcriptText);
               const { notificationStore } = await import('../stores/notificationStore');
               notificationStore.success('Transcript copied to clipboard');
             }
@@ -1367,9 +1415,10 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       switch (action) {
         case 'copy':
           // Copy video URL to clipboard
+          // Write embed reference (for in-app paste) + URL (for external paste)
           if (videoUrl) {
             try {
-              await navigator.clipboard.writeText(videoUrl);
+              await writeEmbedToClipboard(selectedNode.attrs, videoUrl);
               const { notificationStore } = await import('../stores/notificationStore');
               notificationStore.success('Video URL copied to clipboard');
             } catch (error) {
@@ -1493,7 +1542,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             tempDiv.innerHTML = htmlContent;
             const plainText = tempDiv.textContent || tempDiv.innerText || '';
             if (plainText) {
-              await navigator.clipboard.writeText(plainText);
+              // Write embed reference (for in-app paste) + plain text (for external paste)
+              await writeEmbedToClipboard(selectedNode.attrs, plainText);
               const { notificationStore } = await import('../stores/notificationStore');
               notificationStore.success('Document copied to clipboard');
             }
@@ -1537,7 +1587,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
                   .map((cell: string) => `"${cell.replace(/"/g, '""')}"`)
                   .join(',')
               ).join('\n');
-              await navigator.clipboard.writeText(csv);
+              // Write embed reference (for in-app paste) + CSV text (for external paste)
+              await writeEmbedToClipboard(selectedNode.attrs, csv);
               const { notificationStore } = await import('../stores/notificationStore');
               notificationStore.success('Table copied as CSV');
             }
@@ -1577,7 +1628,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             return part;
           }).filter(Boolean);
           if (textParts.length > 0) {
-            await navigator.clipboard.writeText(textParts.join('\n\n---\n\n'));
+            // Write embed reference (for in-app paste) + article text (for external paste)
+            await writeEmbedToClipboard(selectedNode.attrs, textParts.join('\n\n---\n\n'));
             const { notificationStore } = await import('../stores/notificationStore');
             notificationStore.success('Article copied to clipboard');
           }
@@ -1594,7 +1646,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             return part;
           }).filter(Boolean);
           if (textParts.length > 0) {
-            await navigator.clipboard.writeText(textParts.join('\n\n---\n\n'));
+            // Write embed reference (for in-app paste) + article text (for external paste)
+            await writeEmbedToClipboard(selectedNode.attrs, textParts.join('\n\n---\n\n'));
             const { notificationStore } = await import('../stores/notificationStore');
             notificationStore.success('Article copied to clipboard');
           }
@@ -1625,7 +1678,9 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           break;
         case 'copy':
           if (selectedNode.attrs?.url || selectedNode.attrs?.src) {
-            navigator.clipboard.writeText(selectedNode.attrs.url || selectedNode.attrs.src);
+            const fallbackText = selectedNode.attrs.url || selectedNode.attrs.src;
+            // Write embed reference (for in-app paste) + URL/src (for external paste)
+            await writeEmbedToClipboard(selectedNode.attrs, fallbackText);
           }
           break;
       }

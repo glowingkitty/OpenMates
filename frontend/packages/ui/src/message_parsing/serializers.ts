@@ -86,8 +86,18 @@ export function markdownToTipTap(markdown: string): any {
 }
 
 /**
- * Create clipboard data for embed nodes
- * Generates both text/markdown representation and JSON payload for rich copy/paste
+ * Create clipboard data for embed nodes.
+ *
+ * The payload carries enough metadata to:
+ *  1. Re-insert the TipTap embed node with its contentRef so the embed resolver
+ *     can decrypt and render it from IndexedDB (cross-chat works because embed keys
+ *     are wrapped under the user master key, not per-chat).
+ *  2. Provide lightweight inlineContent metadata (title, url, app_id, etc.) that
+ *     the embed renderer can use while the full decrypt is in progress.
+ *
+ * The contentRef ("embed:{embed_id}") is the canonical key.  The embed data itself
+ * stays in the user's IndexedDB and is never written to the clipboard — clipboard
+ * only carries the reference + lightweight metadata.
  */
 export function createEmbedClipboardData(
   attrs: EmbedNodeAttributes,
@@ -100,13 +110,32 @@ export function createEmbedClipboardData(
     filename: attrs.filename,
     contentRef: attrs.contentRef,
     contentHash: attrs.contentHash,
-    inlineContent: undefined, // Will be filled during implementation with actual content
+    // Lightweight metadata for preview rendering while the full embed resolves.
+    // Only non-sensitive fields are included — no encrypted content or AES keys.
+    inlineContent: {
+      app_id: attrs.app_id,
+      skill_id: attrs.skill_id,
+      title: attrs.title,
+      url: attrs.url,
+      description: attrs.description,
+      favicon: attrs.favicon,
+      image: attrs.image,
+      query: attrs.query,
+      provider: attrs.provider,
+      lineCount: attrs.lineCount,
+      wordCount: attrs.wordCount,
+    },
   };
 }
 
 /**
- * Parse clipboard JSON data back to embed attributes
- * Used when pasting embeds to reconstruct the node properly
+ * Parse clipboard JSON data back to embed attributes.
+ * Used when pasting embeds to reconstruct the TipTap node.
+ *
+ * The reconstructed node has status="finished" because clipboard data only
+ * captures completed embeds (processing/error embeds are not copyable).
+ * The contentRef ("embed:{embed_id}") allows the embed renderer to resolve
+ * the full content from IndexedDB.
  */
 export function parseEmbedClipboardData(
   data: EmbedClipboardData,
@@ -119,7 +148,104 @@ export function parseEmbedClipboardData(
     contentHash: data.contentHash,
     language: data.language,
     filename: data.filename,
+    // Restore inlineContent metadata fields so the preview renders while resolving
+    ...(data.inlineContent ?? {}),
   };
+}
+
+/**
+ * Write an embed node to the system clipboard using dual MIME types:
+ *   - "application/x-openmates-embed": structured JSON for in-app paste detection
+ *   - "text/plain": human-readable fallback for pasting outside OpenMates
+ *
+ * When pasted inside OpenMates MessageInput, the embed reference is detected
+ * and re-inserted as a live embed card (resolved from IndexedDB via contentRef).
+ * When pasted in an external app, only the text/plain value is used.
+ *
+ * Falls back to navigator.clipboard.writeText() if ClipboardItem is not supported
+ * (e.g. some older browsers / HTTP contexts).
+ *
+ * @param attrs      - TipTap embed node attributes
+ * @param plainText  - Human-readable text to write as the text/plain fallback
+ *                     (e.g. code content, transcript text, video URL)
+ */
+export async function writeEmbedToClipboard(
+  attrs: EmbedNodeAttributes,
+  plainText: string,
+): Promise<void> {
+  const clipboardData = createEmbedClipboardData(attrs);
+  const json = JSON.stringify(clipboardData);
+
+  if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "text/plain": new Blob([plainText], { type: "text/plain" }),
+          "application/x-openmates-embed": new Blob([json], {
+            type: "application/x-openmates-embed",
+          }),
+        }),
+      ]);
+      return;
+    } catch (err) {
+      // ClipboardItem write failed (e.g. permissions denied) — fall back to writeText
+      console.warn(
+        "[writeEmbedToClipboard] ClipboardItem.write failed, falling back to writeText:",
+        err,
+      );
+    }
+  }
+
+  // Fallback: write plain text only (external paste will still work)
+  await navigator.clipboard.writeText(plainText);
+}
+
+/**
+ * Write multiple embed references to the clipboard (for message-level copy
+ * when a message contains one or more embeds).
+ *
+ * text/plain:                    the full message text (markdown, may contain embed blocks)
+ * application/x-openmates-embed: JSON array of EmbedClipboardData, one per embed in the message
+ *
+ * When pasted inside OpenMates MessageInput, the paste handler reads the JSON array
+ * and inserts each embed node before inserting the surrounding message text.
+ *
+ * @param embedAttrs  - Array of TipTap embed node attributes for all embeds in the message
+ * @param messageText - The full message text (markdown), used as the text/plain value
+ */
+export async function writeMessageWithEmbedsToClipboard(
+  embedAttrs: EmbedNodeAttributes[],
+  messageText: string,
+): Promise<void> {
+  if (embedAttrs.length === 0) {
+    // No embeds — plain text copy
+    await navigator.clipboard.writeText(messageText);
+    return;
+  }
+
+  const clipboardItems = embedAttrs.map(createEmbedClipboardData);
+  const json = JSON.stringify(clipboardItems);
+
+  if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "text/plain": new Blob([messageText], { type: "text/plain" }),
+          "application/x-openmates-embed": new Blob([json], {
+            type: "application/x-openmates-embed",
+          }),
+        }),
+      ]);
+      return;
+    } catch (err) {
+      console.warn(
+        "[writeMessageWithEmbedsToClipboard] ClipboardItem.write failed, falling back to writeText:",
+        err,
+      );
+    }
+  }
+
+  await navigator.clipboard.writeText(messageText);
 }
 
 /**

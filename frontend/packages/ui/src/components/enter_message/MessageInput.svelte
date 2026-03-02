@@ -50,7 +50,7 @@
     
     // Unified parser imports
     import { parse_message } from '../../message_parsing/parse_message';
-    import { tipTapToCanonicalMarkdown } from '../../message_parsing/serializers';
+    import { tipTapToCanonicalMarkdown, parseEmbedClipboardData } from '../../message_parsing/serializers';
     import { isDesktop } from '../../utils/platform';
     
     // URL metadata service - creates proper embeds with embed_id for LLM context
@@ -1334,6 +1334,59 @@
             editorProps: {
                 // Handle paste events at the ProseMirror level to intercept before default handling
                 handlePaste: (view, event, slice) => {
+                    // ── Embed paste detection (highest priority) ───────────────────────
+                    // Check for application/x-openmates-embed MIME type written by
+                    // writeEmbedToClipboard() or writeMessageWithEmbedsToClipboard().
+                    //
+                    // Single embed copy: JSON is an EmbedClipboardData object.
+                    // Message copy (with embeds): JSON is an EmbedClipboardData array.
+                    // In both cases we insert embed node(s) into the editor and prevent
+                    // default paste. For message copy we also let the text flow through
+                    // by re-triggering a plain-text paste after the embeds.
+                    const embedJson = event.clipboardData?.getData('application/x-openmates-embed');
+                    if (embedJson) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        try {
+                            const parsed = JSON.parse(embedJson);
+                            // Normalise: single object → wrap in array
+                            const embedDataList = Array.isArray(parsed) ? parsed : [parsed];
+
+                            for (const embedData of embedDataList) {
+                                const attrs = parseEmbedClipboardData(embedData);
+                                editor.commands.insertContent([
+                                    { type: 'embed', attrs },
+                                    { type: 'text', text: ' ' },
+                                ]);
+                            }
+
+                            // For message-copy (array), also paste the accompanying text so
+                            // any prose around the embeds is preserved. We deliberately skip
+                            // this for single-embed copy (the user only wanted the card).
+                            if (Array.isArray(parsed)) {
+                                const msgText = event.clipboardData?.getData('text/plain');
+                                if (msgText) {
+                                    // Strip embed markdown blocks from the text to avoid
+                                    // double-representation — the live cards already carry the content.
+                                    const strippedText = msgText
+                                        .replace(/```json[\s\S]*?```/g, '')
+                                        .trim();
+                                    if (strippedText) {
+                                        editor.commands.insertContent(strippedText + ' ');
+                                    }
+                                }
+                            }
+
+                            editor.commands.focus('end');
+                            hasContent = !isContentEmptyExceptMention(editor);
+                            console.debug('[MessageInput] Pasted embed(s) from clipboard:', embedDataList.length);
+                        } catch (err) {
+                            console.warn('[MessageInput] Failed to parse embed clipboard data, falling through to default paste:', err);
+                            // Fall through — allow the default paste to handle it
+                        }
+                        return true;
+                    }
+
                     const text = event.clipboardData?.getData('text/plain');
                     
                     if (text) {
