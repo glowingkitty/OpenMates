@@ -611,7 +611,7 @@ changes to the documentation (to keep the documentation up to date).
      * Only computed when the app_store page is active to avoid unnecessary work.
      */
     let appStoreHeaderStats = $derived.by(() => {
-        if (activeSettingsView !== 'app_store') return [];
+        if (activeSettingsView !== 'app_store' && activeSettingsView !== 'app_store/all') return [];
         const allApps = Object.values(appSkillsStore.getState().apps);
         const totalApps = allApps.length;
         const totalSkills = allApps.reduce((sum, app) => sum + (app.skills?.length ?? 0), 0);
