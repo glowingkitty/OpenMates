@@ -531,15 +531,36 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             # Supports both text-to-image and image-to-image via the same endpoint.
             # Reference images are passed as inline_data Parts alongside the text prompt.
             # Pricing stays at flat 200 credits even with reference images (input cost negligible).
+            #
+            # Server fallback chain:
+            #   1. Google AI Studio (API key, known US region) — primary
+            #   2. Google Vertex AI (service account, global endpoint) — fallback
             model_id = model_ref.split("/")[-1] if "/" in model_ref else model_ref
-            image_bytes = await generate_image_google(
-                prompt=prompt,
-                secrets_manager=task._secrets_manager,
-                aspect_ratio=aspect_ratio,
-                model_id=model_id,
-                reference_image_bytes_list=reference_image_bytes_list or None,
-                reference_image_mime_types=reference_image_mime_types or None,
-            )
+            try:
+                image_bytes = await generate_image_google(
+                    prompt=prompt,
+                    secrets_manager=task._secrets_manager,
+                    aspect_ratio=aspect_ratio,
+                    model_id=model_id,
+                    reference_image_bytes_list=reference_image_bytes_list or None,
+                    reference_image_mime_types=reference_image_mime_types or None,
+                    use_vertex=False,  # Primary: AI Studio (known US location)
+                )
+            except Exception as ai_studio_err:
+                logger.warning(
+                    f"{log_prefix} AI Studio failed for Gemini image generation "
+                    f"({type(ai_studio_err).__name__}: {ai_studio_err}). "
+                    "Retrying with Vertex AI (global endpoint) as fallback..."
+                )
+                image_bytes = await generate_image_google(
+                    prompt=prompt,
+                    secrets_manager=task._secrets_manager,
+                    aspect_ratio=aspect_ratio,
+                    model_id=model_id,
+                    reference_image_bytes_list=reference_image_bytes_list or None,
+                    reference_image_mime_types=reference_image_mime_types or None,
+                    use_vertex=True,  # Fallback: Vertex AI (global endpoint)
+                )
             actual_model = f"Google {model_id}"
             display_model_id = model_id
 
