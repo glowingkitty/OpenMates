@@ -167,14 +167,19 @@
 </span>
 
 <style>
-  /* Outer wrapper — inline so it flows naturally within paragraph text */
+  /* Outer wrapper — true inline so it flows naturally within paragraph text.
+   *
+   * Using display:inline (not inline-flex) is critical for multi-line wrapping:
+   * - inline-flex creates a single rectangular box, so the badge vertically
+   *   centres inside the whole text height when text wraps to 2+ lines.
+   * - display:inline lets the browser treat badge + text as a normal inline
+   *   flow: the badge sits on the first line, and wrapped text continues
+   *   on subsequent lines at the same colour, all part of the same click target.
+   */
   .embed-inline-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
+    display: inline;
     cursor: pointer;
     text-decoration: none;
-    vertical-align: middle;
     /* Slight lift on hover to indicate interactivity */
     transition: opacity 0.15s ease;
     user-select: none;
@@ -185,7 +190,9 @@
   }
 
   /* 20 px circular gradient badge — mirrors .app-icon-circle from BasicInfosBar.svelte
-     but scaled down (61 px → 20 px, keeping the same shape/icon ratio) */
+     but scaled down (61 px → 20 px, keeping the same shape/icon ratio).
+     inline-flex + vertical-align:middle keeps it aligned to the text midline
+     on the first line while text can wrap freely beneath it. */
   .embed-inline-badge {
     display: inline-flex;
     align-items: center;
@@ -194,7 +201,8 @@
     height: 20px;
     min-width: 20px;
     border-radius: 50%;
-    flex-shrink: 0;
+    vertical-align: middle;
+    margin-right: 3px;
   }
 
   /* Scale down the icon_rounded icon inside the small badge.
@@ -223,6 +231,9 @@
 
   /* Display text — solid colour link.
    *
+   * display:inline so it participates in normal text flow and wraps naturally
+   * across lines, staying the same colour throughout.
+   *
    * Default (light mode): use START colour (darker stop of the gradient,
    *   better contrast against light backgrounds).
    * Dark mode override:   use END colour   (brighter stop of the gradient,
@@ -233,9 +244,10 @@
    * the specific app. The .has-app-color guard keeps the fallback colour
    * active for unknown apps. */
   .embed-inline-text {
+    display: inline;
     font-size: inherit;
     font-weight: 500;
-    line-height: 1;
+    line-height: inherit;
     color: var(--color-grey-60);
   }
 
