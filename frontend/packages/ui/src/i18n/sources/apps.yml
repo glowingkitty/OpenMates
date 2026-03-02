@@ -1464,28 +1464,28 @@ events.search:
   verified_by_human: [en, de]
 events.search.description:
   context: Description for search skill in Events app
-  en: Search for events, meetups and conferences near you.
-  de: Suche nach Veranstaltungen, Meetups und Konferenzen in deiner Nähe.
-  zh: 搜索附近的活动、聚会和会议。
-  es: Busca eventos, meetups y conferencias cerca de ti.
-  fr: Recherche des événements, meetups et conférences près de chez vous.
-  pt: Pesquise eventos, meetups e conferências perto de você.
-  ru: Найдите события, митапы и конференции рядом с вами.
-  ja: 近くのイベント、ミートアップ、カンファレンスを検索。
-  ko: 근처의 이벤트, 밋업, 컨퍼런스를 검색하세요.
-  it: Cerca eventi, meetup e conferenze vicino a te.
-  tr: Yakınındaki etkinlikleri, meetupları ve konferansları ara.
-  vi: Tìm kiếm sự kiện, meetup và hội nghị gần bạn.
-  id: Cari acara, meetup, dan konferensi di dekat Anda.
-  pl: Szukaj wydarzeń, meetupów i konferencji w pobliżu.
-  nl: Zoek naar evenementen, meetups en conferenties bij jou in de buurt.
-  ar: ابحث عن الأحداث واللقاءات والمؤتمرات بالقرب منك.
-  hi: अपने पास इवेंट, मीटअप और सम्मेलन खोजें।
-  th: ค้นหากิจกรรม meetup และการประชุมใกล้คุณ
-  cs: Hledejte události, meetupy a konference ve vašem okolí.
-  sv: Sök efter evenemang, meetups och konferenser nära dig.
-  he: חפש אירועים, מיטאפים וכנסים קרוב אליך.
-  verified_by_human: [en, de]
+  en: Find local meetups, conferences and events.
+  de: Meetups, Konferenzen und Events in der Nähe finden.
+  zh: 发现本地聚会、会议和活动。
+  es: Encuentra meetups, conferencias y eventos locales.
+  fr: Trouvez des meetups, conférences et événements locaux.
+  pt: Encontre meetups, conferências e eventos locais.
+  ru: Найдите митапы, конференции и события рядом.
+  ja: 近くのミートアップ、カンファレンス、イベントを探す。
+  ko: 근처 밋업, 컨퍼런스, 이벤트를 찾으세요.
+  it: Trova meetup, conferenze ed eventi locali.
+  tr: Yakınındaki meetup, konferans ve etkinlikleri bul.
+  vi: Tìm meetup, hội nghị và sự kiện địa phương.
+  id: Temukan meetup, konferensi, dan acara lokal.
+  pl: Znajdź meetupy, konferencje i lokalne wydarzenia.
+  nl: Vind meetups, conferenties en lokale evenementen.
+  ar: اعثر على لقاءات ومؤتمرات وأحداث محلية.
+  hi: स्थानीय मीटअप, कॉन्फ्रेंस और इवेंट खोजें।
+  th: ค้นหา meetup การประชุม และกิจกรรมใกล้ๆ
+  cs: Najděte meetupy, konference a místní akce.
+  sv: Hitta meetups, konferenser och lokala evenemang.
+  he: מצא מפגשים, כנסים ואירועים מקומיים.
+  verified_by_human: []
 reminder:
   context: App name for the Reminder app
   en: Reminder
