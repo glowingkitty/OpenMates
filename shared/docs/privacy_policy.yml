@@ -80,9 +80,11 @@ providers:
     provider_location: US
     used_for:
       - videos get transcript skill (when users request video transcripts)
+      - health get appointments skill (when users search for appointments)
+      - events search skill (when users search for events)
     data_shared:
-      - URLs of YouTube videos for which transcripts are requested (Webshare sees which videos you request transcripts for)
-      - Note: Webshare acts as a proxy service, routing requests to YouTube. All data is shared without user identifiers - Webshare does not know which specific user requested each transcript
+      - request URLs routed to external services (YouTube, Doctolib, Meetup, etc.)
+      - Note: All data is shared without user identifiers - Webshare does not know which specific user made each request
   google:
     privacy_policy: https://policies.google.com/privacy
     provider_location: US

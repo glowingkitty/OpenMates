@@ -168,6 +168,17 @@
         "text": "Carrière-inzichten",
         "description": {
           "text": "Vind de juiste carrière op basis van je sterktes."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Ik ben een **softwareontwikkelaar** met een burn-out — help me alternatieve carrières te verkennen"
+          },
+          "2": {
+            "text": "Ik hou van **creatief werk** en probleemoplossing — welke carrières passen bij mijn vaardigheden?"
+          },
+          "3": {
+            "text": "Ik wil **van sector veranderen** van financiën naar technologie — hoe moet ik beginnen?"
+          }
         }
       }
     },
@@ -190,6 +201,17 @@
         "text": "Welkom",
         "description": {
           "text": "Ontdek OpenMates en vind de juiste tools."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**Wat kun je doen?** Laat me zien waartoe OpenMates allemaal in staat is"
+          },
+          "2": {
+            "text": "Ik heb hulp nodig bij **onderzoek** — welke focusmodus of vaardigheid is daarvoor het beste?"
+          },
+          "3": {
+            "text": "**Aanbevelen** de beste tools voor het plannen van mijn volgende buitenlandse reis"
+          }
         }
       }
     },
@@ -254,6 +276,17 @@
         "text": "Video analyseren",
         "description": {
           "text": "Analyseer, controleer feiten en detecteer vooroordelen."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**Analyseer** deze YouTube-video op vooroordelen en controleer de belangrijkste claims: [plak URL]"
+          },
+          "2": {
+            "text": "Is deze nieuwsvideo **betrouwbaar**? Controleer de bronnen en detecteer misleidende inhoud: [plak URL]"
+          },
+          "3": {
+            "text": "**Vat samen** deze documentaire en identificeer het perspectief van de maker en mogelijke vooroordelen: [plak URL]"
+          }
         }
       }
     },
@@ -3678,10 +3711,10 @@
       },
       "webshare": {
         "heading": {
-          "text": "3.11 Webshare (Video Transcript Service)"
+          "text": "3.11 Webshare"
         },
         "description": {
-          "text": "We gebruiken Webshare als dienst van derden voor het ophalen van YouTube-videotranscripten in de webapplicatie. Wanneer u de functie voor het ophalen van videotranscripten gebruikt, worden de URL's van de YouTube-video's waarvoor u transcripten aanvraagt, via Webshare naar YouTube doorgestuurd. Webshare ziet voor welke video's u transcripten aanvraagt, maar alle gegevens worden gedeeld zonder gebruikersidentificatoren - Webshare weet niet welke specifieke gebruiker elk transcript heeft aangevraagd. Deze gegevensdeling vindt alleen plaats wanneer u actief de functie voor het ophalen van videotranscripten gebruikt."
+          "text": "We gebruiken Webshare als dienst van derden voor het doen van netwerkaanvragen aan externe diensten in de webapplicatie. Wanneer u de functies voor het ophalen van videotranscripten, het ophalen van gezondheidsafspraken of het zoeken naar evenementen gebruikt, worden de relevante verzoek-URL's via Webshare naar de respectieve diensten doorgestuurd. Webshare ziet welke URL's worden aangevraagd, maar alle gegevens worden gedeeld zonder gebruikersidentificatoren — Webshare weet niet welke specifieke gebruiker elk verzoek heeft ingediend. Deze gegevensdeling vindt alleen plaats wanneer u deze functies actief gebruikt."
         },
         "privacy_policy_link": {
           "text": "Privacybeleid van Webshare"

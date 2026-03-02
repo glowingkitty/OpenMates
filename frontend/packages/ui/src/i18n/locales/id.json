@@ -168,6 +168,17 @@
         "text": "Wawasan karier",
         "description": {
           "text": "Temukan karier yang tepat berdasarkan kekuatan Anda."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Saya **pengembang perangkat lunak** yang merasa kelelahan — bantu saya menjelajahi karier alternatif"
+          },
+          "2": {
+            "text": "Saya suka **pekerjaan kreatif** dan pemecahan masalah — karier apa yang sesuai dengan keterampilan saya?"
+          },
+          "3": {
+            "text": "Saya ingin **berpindah industri** dari keuangan ke teknologi — bagaimana cara memulainya?"
+          }
         }
       }
     },
@@ -190,6 +201,17 @@
         "text": "Selamat datang",
         "description": {
           "text": "Jelajahi OpenMates dan temukan alat yang tepat."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**Apa yang bisa kamu lakukan?** Tunjukkan semua yang bisa dilakukan OpenMates"
+          },
+          "2": {
+            "text": "Saya butuh bantuan untuk **penelitian** — mode fokus atau keterampilan mana yang terbaik untuk itu?"
+          },
+          "3": {
+            "text": "**Rekomendasikan** alat terbaik untuk merencanakan perjalanan luar negeri saya berikutnya"
+          }
         }
       }
     },
@@ -254,6 +276,17 @@
         "text": "Analisis video",
         "description": {
           "text": "Analisis, cek fakta, dan deteksi bias dalam video."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**Analisis** video YouTube ini untuk bias dan periksa klaim utama: [tempel URL]"
+          },
+          "2": {
+            "text": "Apakah video berita ini **dapat dipercaya**? Periksa sumbernya dan deteksi konten yang menyesatkan: [tempel URL]"
+          },
+          "3": {
+            "text": "**Rangkum** dokumenter ini dan identifikasi perspektif kreator serta bias yang mungkin ada: [tempel URL]"
+          }
         }
       }
     },
@@ -3678,10 +3711,10 @@
       },
       "webshare": {
         "heading": {
-          "text": "3.11 Webshare (Layanan Transkrip Video)"
+          "text": "3.11 Webshare"
         },
         "description": {
-          "text": "Kami menggunakan Webshare sebagai layanan pihak ketiga untuk mengambil transkrip video YouTube di aplikasi web. Saat Anda menggunakan fitur mendapatkan transkrip video, URL video YouTube yang Anda minta transkripnya diarahkan melalui Webshare ke YouTube. Webshare melihat video mana yang Anda minta transkripnya, tetapi semua data dibagikan tanpa pengenal pengguna - Webshare tidak tahu pengguna spesifik mana yang meminta setiap transkrip. Berbagi data ini hanya terjadi ketika Anda secara aktif menggunakan fitur mendapatkan transkrip video."
+          "text": "Kami menggunakan Webshare sebagai layanan pihak ketiga untuk membuat permintaan jaringan ke layanan eksternal di aplikasi web. Saat Anda menggunakan fitur mendapatkan transkrip video, mendapatkan janji kesehatan, atau mencari acara, URL permintaan yang relevan diarahkan melalui Webshare ke layanan masing-masing. Webshare melihat URL mana yang diminta, tetapi semua data dibagikan tanpa pengenal pengguna — Webshare tidak tahu pengguna spesifik mana yang membuat setiap permintaan. Berbagi data ini hanya terjadi ketika Anda secara aktif menggunakan fitur-fitur ini."
         },
         "privacy_policy_link": {
           "text": "Kebijakan Privasi Webshare"

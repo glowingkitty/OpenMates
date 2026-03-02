@@ -168,6 +168,17 @@
         "text": "Wgląd w karierę",
         "description": {
           "text": "Znajdź karierę dopasowaną do swoich mocnych stron."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Jestem **programistą** i czuję się wypalony — pomóż mi odkryć alternatywne ścieżki kariery"
+          },
+          "2": {
+            "text": "Uwielbiam **pracę twórczą** i rozwiązywanie problemów — jakie kariery pasują do moich umiejętności?"
+          },
+          "3": {
+            "text": "Chcę **zmienić branżę** z finansów na technologię — jak powinienem zacząć?"
+          }
         }
       }
     },
@@ -190,6 +201,17 @@
         "text": "Witamy",
         "description": {
           "text": "Odkryj OpenMates i znajdź odpowiednie narzędzia."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**Co potrafisz?** Pokaż mi wszystko, do czego zdolny jest OpenMates"
+          },
+          "2": {
+            "text": "Potrzebuję pomocy przy **badaniach** — który tryb skupienia lub umiejętność jest do tego najlepsza?"
+          },
+          "3": {
+            "text": "**Poleć** najlepsze narzędzia do planowania mojej następnej podróży zagranicznej"
+          }
         }
       }
     },
@@ -254,6 +276,17 @@
         "text": "Analizuj wideo",
         "description": {
           "text": "Analizuj, sprawdzaj fakty i wykrywaj stronniczość."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**Analizuj** ten film YouTube pod kątem stronniczości i sprawdź główne twierdzenia: [wklej URL]"
+          },
+          "2": {
+            "text": "Czy ten film z wiadomościami jest **wiarygodny**? Sprawdź źródła i wykryj mylące treści: [wklej URL]"
+          },
+          "3": {
+            "text": "**Podsumuj** ten dokument i zidentyfikuj perspektywę twórcy oraz potencjalne uprzedzenia: [wklej URL]"
+          }
         }
       }
     },
@@ -3678,10 +3711,10 @@
       },
       "webshare": {
         "heading": {
-          "text": "3.11 Webshare (Serwis Transkrypcji Wideo)"
+          "text": "3.11 Webshare"
         },
         "description": {
-          "text": "Używamy Webshare jako usługi firm zewnętrznych do pobierania transkrypcji filmów YouTube w aplikacji internetowej. Gdy używasz funkcji pobierania transkrypcji filmów, adresy URL filmów YouTube, dla których żądasz transkrypcji, są kierowane przez Webshare do YouTube. Webshare widzi, dla których filmów żądasz transkrypcji, ale wszystkie dane są udostępniane bez identyfikatorów użytkownika - Webshare nie wie, który konkretny użytkownik zażądał każdej transkrypcji. To udostępnianie danych następuje tylko wtedy, gdy aktywnie używasz funkcji pobierania transkrypcji filmów."
+          "text": "Używamy Webshare jako usługi firm zewnętrznych do wykonywania żądań sieciowych do zewnętrznych usług w aplikacji internetowej. Gdy używasz funkcji pobierania transkrypcji filmów, pobierania wizyt zdrowotnych lub wyszukiwania wydarzeń, odpowiednie adresy URL żądań są kierowane przez Webshare do odpowiednich usług. Webshare widzi, które adresy URL są żądane, ale wszystkie dane są udostępniane bez identyfikatorów użytkownika — Webshare nie wie, który konkretny użytkownik wysłał każde żądanie. To udostępnianie danych następuje tylko wtedy, gdy aktywnie używasz tych funkcji."
         },
         "privacy_policy_link": {
           "text": "Polityka Prywatności Webshare"

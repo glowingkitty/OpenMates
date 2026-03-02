@@ -168,6 +168,17 @@
         "text": "Karriere-Einblicke",
         "description": {
           "text": "Finde die passende Karriere anhand deiner Stärken."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Ich bin **Softwareentwickler** und fühle mich ausgebrannt — hilf mir, Alternativen zu erkunden"
+          },
+          "2": {
+            "text": "Ich liebe **kreative Arbeit** und Problemlösung — welche Karrieren passen zu meinen Fähigkeiten?"
+          },
+          "3": {
+            "text": "Ich möchte von der **Finanzbranche** in die Technologiebranche wechseln — wie soll ich anfangen?"
+          }
         }
       }
     },
@@ -190,6 +201,17 @@
         "text": "Willkommen",
         "description": {
           "text": "Entdecke OpenMates und finde die richtigen Tools."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**Was kannst du tun?** Zeig mir alles, wozu OpenMates fähig ist"
+          },
+          "2": {
+            "text": "Ich brauche Hilfe bei der **Recherche** — welcher Fokusmodus oder welche Fähigkeit ist dafür am besten?"
+          },
+          "3": {
+            "text": "**Empfehle** mir die besten Tools für die Planung meiner nächsten Auslandsreise"
+          }
         }
       }
     },
@@ -254,6 +276,17 @@
         "text": "Video analysieren",
         "description": {
           "text": "Videos analysieren, Fakten prüfen, Bias erkennen."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**Analysiere** dieses YouTube-Video auf Bias und überprüfe die Hauptaussagen: [URL einfügen]"
+          },
+          "2": {
+            "text": "Ist dieses Nachrichtenvideo **vertrauenswürdig**? Überprüfe die Quellen und erkenne irreführende Inhalte: [URL einfügen]"
+          },
+          "3": {
+            "text": "**Fasse** diese Dokumentation zusammen und erkenne die Perspektive des Erstellers und mögliche Biases: [URL einfügen]"
+          }
         }
       }
     },
@@ -4748,10 +4781,10 @@
       },
       "webshare": {
         "heading": {
-          "text": "3.11 Webshare (Video-Transkript-Dienst)"
+          "text": "3.11 Webshare"
         },
         "description": {
-          "text": "Wir verwenden Webshare als Drittanbieterdienst zum Abrufen von YouTube-Video-Transkripten in der Webanwendung. Wenn Sie die Funktion \"Videos Transkript abrufen\" verwenden, werden die URLs der YouTube-Videos, für die Sie Transkripte anfordern, über Webshare zu YouTube weitergeleitet. Webshare sieht, für welche Videos Sie Transkripte anfordern, aber alle Daten werden ohne Benutzerkennungen geteilt - Webshare weiß nicht, welcher spezifische Benutzer jedes Transkript angefordert hat. Diese Datenweitergabe erfolgt nur, wenn Sie aktiv die Funktion \"Videos Transkript abrufen\" verwenden."
+          "text": "Wir verwenden Webshare als Drittanbieter-Dienst für Netzwerkanfragen an externe Dienste in der Webanwendung. Wenn Sie die Funktionen Videos Transkript abrufen, Gesundheit Termine suchen oder Veranstaltungen suchen verwenden, werden die entsprechenden Anfrage-URLs über Webshare an die jeweiligen Dienste weitergeleitet. Webshare sieht, welche URLs angefragt werden, aber alle Daten werden ohne Benutzerkennungen geteilt — Webshare weiß nicht, welcher spezifische Benutzer jede Anfrage gestellt hat. Diese Datenweitergabe erfolgt nur, wenn Sie diese Funktionen aktiv verwenden."
         },
         "privacy_policy_link": {
           "text": "Webshare Datenschutzerklärung"

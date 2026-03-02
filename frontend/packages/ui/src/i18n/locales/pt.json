@@ -168,6 +168,17 @@
         "text": "Insights de carreira",
         "description": {
           "text": "Encontre a carreira certa com base em suas forças."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Sou **desenvolvedor de software** e me sinto esgotado — ajude-me a explorar carreiras alternativas"
+          },
+          "2": {
+            "text": "Amo **trabalho criativo** e resolução de problemas — quais carreiras combinam com minhas habilidades?"
+          },
+          "3": {
+            "text": "Quero **mudar de setor** das finanças para a tecnologia — como devo começar?"
+          }
         }
       }
     },
@@ -190,6 +201,17 @@
         "text": "Bem-vindo",
         "description": {
           "text": "Descubra o OpenMates e as ferramentas certas."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**O que você pode fazer?** Mostre-me tudo que o OpenMates é capaz de fazer"
+          },
+          "2": {
+            "text": "Preciso de ajuda com **pesquisa** — qual modo de foco ou habilidade é melhor para isso?"
+          },
+          "3": {
+            "text": "**Recomende** as melhores ferramentas para planejar minha próxima viagem ao exterior"
+          }
         }
       }
     },
@@ -254,6 +276,17 @@
         "text": "Analisar vídeo",
         "description": {
           "text": "Analise, verifique fatos e detecte viés em vídeos."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**Analise** este vídeo do YouTube por viés e verifique as afirmações principais: [cole a URL]"
+          },
+          "2": {
+            "text": "Este vídeo de notícias é **confiável**? Verifique as fontes e detecte conteúdo enganoso: [cole a URL]"
+          },
+          "3": {
+            "text": "**Resuma** este documentário e identifique a perspectiva do criador e possíveis vieses: [cole a URL]"
+          }
         }
       }
     },
@@ -3678,10 +3711,10 @@
       },
       "webshare": {
         "heading": {
-          "text": "3.11 Webshare (Serviço de Transcrição de Vídeo)"
+          "text": "3.11 Webshare"
         },
         "description": {
-          "text": "Usamos Webshare como serviço de terceiros para buscar transcrições de vídeos do YouTube no aplicativo web. Quando você usa a função de obter transcrição de vídeos, as URLs dos vídeos do YouTube para os quais você solicita transcrições são roteadas através do Webshare para o YouTube. Webshare vê para quais vídeos você solicita transcrições, mas todos os dados são compartilhados sem identificadores de usuário - Webshare não sabe qual usuário específico solicitou cada transcrição. Este compartilhamento de dados ocorre apenas quando você usa ativamente a função de obter transcrição de vídeos."
+          "text": "Usamos Webshare como serviço de terceiros para fazer solicitações de rede a serviços externos no aplicativo web. Quando você usa as funções de obter transcrição de vídeos, obter consultas de saúde ou pesquisar eventos, os URLs de solicitação relevantes são roteados através do Webshare para os respectivos serviços. Webshare vê quais URLs são solicitados, mas todos os dados são compartilhados sem identificadores de usuário — Webshare não sabe qual usuário específico fez cada solicitação. Este compartilhamento de dados ocorre apenas quando você usa ativamente essas funções."
         },
         "privacy_policy_link": {
           "text": "Política de Privacidade da Webshare"

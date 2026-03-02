@@ -171,6 +171,17 @@
         },
         "description": {
           "text": "Find the right career based on your strengths."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "I'm a **software developer** feeling burned out — help me explore alternative careers"
+          },
+          "2": {
+            "text": "I love **creative work** and problem-solving — what careers match my skills?"
+          },
+          "3": {
+            "text": "I want to **switch industries** from finance to tech — how should I start?"
+          }
         }
       }
     },
@@ -193,6 +204,17 @@
         "text": "Welcome",
         "description": {
           "text": "Discover OpenMates and find the right tools."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**What can you do?** Show me everything OpenMates is capable of"
+          },
+          "2": {
+            "text": "I need help with **research** — which focus mode or skill is best for that?"
+          },
+          "3": {
+            "text": "**Recommend** the best tools for planning my next trip abroad"
+          }
         }
       }
     },
@@ -260,6 +282,17 @@
         "text": "Analyze video",
         "description": {
           "text": "Analyze, fact-check, and detect bias in videos."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**Analyze** this YouTube video for bias and fact-check the main claims: [paste URL]"
+          },
+          "2": {
+            "text": "Is this news video **trustworthy**? Check the sources and detect any misleading content: [paste URL]"
+          },
+          "3": {
+            "text": "**Summarize** this documentary and identify the creator's perspective and any potential biases: [paste URL]"
+          }
         }
       }
     },
@@ -4943,10 +4976,10 @@
       },
       "webshare": {
         "heading": {
-          "text": "3.11 Webshare (Video Transcript Service)"
+          "text": "3.11 Webshare"
         },
         "description": {
-          "text": "We use Webshare as a third-party service for fetching YouTube video transcripts in the web application. When you use the videos get transcript skill, the URLs of YouTube videos you request transcripts for are routed through Webshare to YouTube. Webshare sees which videos you request transcripts for, but all data is shared without user identifiers - Webshare does not know which specific user requested each transcript. This data sharing only occurs when you actively use the videos get transcript skill."
+          "text": "We use Webshare as a third-party service for making network requests to external services in the web application. When you use the videos get transcript, health get appointments, or events search skills, the relevant request URLs are routed through Webshare to the respective services. Webshare sees which URLs are requested, but all data is shared without user identifiers — Webshare does not know which specific user made each request. This data sharing only occurs when you actively use these skills."
         },
         "privacy_policy_link": {
           "text": "Webshare Privacy Policy"

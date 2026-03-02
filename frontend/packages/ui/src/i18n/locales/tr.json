@@ -168,6 +168,17 @@
         "text": "Kariyer öngörüleri",
         "description": {
           "text": "Güçlü yönlerinize göre doğru kariyer yolunu bulun."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**Yazılım geliştirici** olarak tükenmişlik hissediyorum — alternatif kariyer yollarını keşfetmeme yardım et"
+          },
+          "2": {
+            "text": "**Yaratıcı çalışmayı** ve problem çözmeyi seviyorum — hangi kariyer yolları becerilerimle uyuşuyor?"
+          },
+          "3": {
+            "text": "Finans sektöründen teknolojiye **geçiş yapmak** istiyorum — nasıl başlamalıyım?"
+          }
         }
       }
     },
@@ -190,6 +201,17 @@
         "text": "Hoş Geldiniz",
         "description": {
           "text": "OpenMates'i keşfedin ve doğru araçları bulun."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**Ne yapabilirsin?** OpenMates'in yapabildiği her şeyi göster bana"
+          },
+          "2": {
+            "text": "**Araştırma** konusunda yardıma ihtiyacım var — bunun için en iyi odak modu veya beceri hangisi?"
+          },
+          "3": {
+            "text": "Bir sonraki yurt dışı gezim için en iyi araçları **öner**"
+          }
         }
       }
     },
@@ -254,6 +276,17 @@
         "text": "Video analizi",
         "description": {
           "text": "Videoları analiz edin, doğrulayın, bias bulun."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Bu YouTube videosunu önyargı için **analiz** et ve ana iddiaları doğrula: [URL yapıştır]"
+          },
+          "2": {
+            "text": "Bu haber videosu **güvenilir** mi? Kaynakları kontrol et ve yanıltıcı içeriği tespit et: [URL yapıştır]"
+          },
+          "3": {
+            "text": "Bu belgeseli **özetle** ve yapımcının bakış açısını ve olası önyargıları belirle: [URL yapıştır]"
+          }
         }
       }
     },
@@ -3678,10 +3711,10 @@
       },
       "webshare": {
         "heading": {
-          "text": "3.11 Webshare (Video Transkript Servisi)"
+          "text": "3.11 Webshare"
         },
         "description": {
-          "text": "Web uygulamasında YouTube video transkriptlerini almak için bir üçüncü taraf hizmet olarak Webshare kullanıyoruz. Video transkript alma özelliğini kullandığınızda, transkript istediğiniz YouTube videolarının URL'leri Webshare üzerinden YouTube'a yönlendirilir. Webshare hangi videolar için transkript istediğinizi görür, ancak tüm veriler kullanıcı tanımlayıcıları olmadan paylaşılır - Webshare hangi belirli kullanıcının her transkripti istediğini bilmez. Bu veri paylaşımı yalnızca video transkript alma özelliğini aktif olarak kullandığınızda gerçekleşir."
+          "text": "Web uygulamasında harici hizmetlere ağ istekleri yapmak için bir üçüncü taraf hizmet olarak Webshare kullanıyoruz. Video transkript alma, sağlık randevusu alma veya etkinlik arama özelliklerini kullandığınızda, ilgili istek URL'leri Webshare üzerinden ilgili hizmetlere yönlendirilir. Webshare hangi URL'lerin istendiğini görür, ancak tüm veriler kullanıcı tanımlayıcıları olmadan paylaşılır — Webshare hangi belirli kullanıcının her isteği yaptığını bilmez. Bu veri paylaşımı yalnızca bu özellikleri aktif olarak kullandığınızda gerçekleşir."
         },
         "privacy_policy_link": {
           "text": "Webshare Gizlilik Politikası"

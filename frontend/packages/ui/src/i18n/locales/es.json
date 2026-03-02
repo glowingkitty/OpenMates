@@ -168,6 +168,17 @@
         "text": "Perspectivas profesionales",
         "description": {
           "text": "Encuentra la carrera ideal según tus fortalezas."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Soy **desarrollador de software** y me siento agotado — ayúdame a explorar carreras alternativas"
+          },
+          "2": {
+            "text": "Me encanta el **trabajo creativo** y resolver problemas — ¿qué carreras se adaptan a mis habilidades?"
+          },
+          "3": {
+            "text": "Quiero **cambiar de industria** de finanzas a tecnología — ¿cómo debería empezar?"
+          }
         }
       }
     },
@@ -189,7 +200,18 @@
       "welcome": {
         "text": "Bienvenido",
         "description": {
-          "text": "Descubre OpenMates y las herramientas para ti."
+          "text": "Descubre OpenMates y encuentra las herramientas para ti."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**¿Qué puedes hacer?** Muéstrame todo lo que OpenMates puede hacer"
+          },
+          "2": {
+            "text": "Necesito ayuda con la **investigación** — ¿qué modo de enfoque o habilidad es mejor para eso?"
+          },
+          "3": {
+            "text": "**Recomienda** las mejores herramientas para planificar mi próximo viaje al extranjero"
+          }
         }
       }
     },
@@ -254,6 +276,17 @@
         "text": "Analizar video",
         "description": {
           "text": "Analiza, verifica hechos y detecta sesgo en videos."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**Analiza** este video de YouTube por sesgo y verifica los puntos principales: [pega la URL]"
+          },
+          "2": {
+            "text": "¿Es este video de noticias **confiable**? Verifica las fuentes y detecta contenido engañoso: [pega la URL]"
+          },
+          "3": {
+            "text": "**Resume** este documental e identifica la perspectiva del creador y posibles sesgos: [pega la URL]"
+          }
         }
       }
     },
@@ -4588,10 +4621,10 @@
       },
       "webshare": {
         "heading": {
-          "text": "3.11 Webshare (Servicio de Transcripción de Video)"
+          "text": "3.11 Webshare"
         },
         "description": {
-          "text": "Utilizamos Webshare como servicio de terceros para obtener transcripciones de videos de YouTube en la aplicación web. Cuando utiliza la función de obtener transcripción de videos, las URL de los videos de YouTube para los que solicita transcripciones se enrutan a través de Webshare a YouTube. Webshare ve para qué videos solicita transcripciones, pero todos los datos se comparten sin identificadores de usuario: Webshare no sabe qué usuario específico solicitó cada transcripción. Este intercambio de datos solo ocurre cuando utiliza activamente la función de obtener transcripción de videos."
+          "text": "Utilizamos Webshare como servicio de terceros para realizar solicitudes de red a servicios externos en la aplicación web. Cuando utiliza las funciones de obtener transcripción de videos, obtener citas de salud o buscar eventos, las URLs de solicitud relevantes se enrutan a través de Webshare a los servicios correspondientes. Webshare ve qué URLs se solicitan, pero todos los datos se comparten sin identificadores de usuario — Webshare no sabe qué usuario específico realizó cada solicitud. Este intercambio de datos solo ocurre cuando utiliza activamente estas funciones."
         },
         "privacy_policy_link": {
           "text": "Política de privacidad de Webshare"

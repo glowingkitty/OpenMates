@@ -168,6 +168,17 @@
         "text": "Kariérní postřehy",
         "description": {
           "text": "Najděte kariéru na základě vašich silných stránek."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Jsem **softwarový vývojář** a cítím se vyhořelý — pomož mi prozkoumat alternativní kariéry"
+          },
+          "2": {
+            "text": "Miluji **kreativní práci** a řešení problémů — jaké kariéry odpovídají mým dovednostem?"
+          },
+          "3": {
+            "text": "Chci **přejít do jiného odvětví** z finančnictví do technologií — jak bych měl začít?"
+          }
         }
       }
     },
@@ -190,6 +201,17 @@
         "text": "Vítejte",
         "description": {
           "text": "Prozkoumejte OpenMates a najděte správné nástroje."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**Co umíš?** Ukaž mi vše, co OpenMates dokáže"
+          },
+          "2": {
+            "text": "Potřebuji pomoc s **výzkumem** — který fokusní režim nebo dovednost je na to nejlepší?"
+          },
+          "3": {
+            "text": "**Doporuč** nejlepší nástroje pro plánování mé příští cesty do zahraničí"
+          }
         }
       }
     },
@@ -254,6 +276,17 @@
         "text": "Analyzovat video",
         "description": {
           "text": "Analyzujte fakta a odhalte zaujatost ve videích."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**Analyzuj** toto YouTube video na zaujatost a ověř hlavní tvrzení: [vlož URL]"
+          },
+          "2": {
+            "text": "Je toto zpravodajské video **důvěryhodné**? Zkontroluj zdroje a odhal zavádějící obsah: [vlož URL]"
+          },
+          "3": {
+            "text": "**Shrň** tento dokument a identifikuj perspektivu tvůrce a případné předsudky: [vlož URL]"
+          }
         }
       }
     },
@@ -3684,10 +3717,10 @@
       },
       "webshare": {
         "heading": {
-          "text": "3.11 Webshare (Služba přepisu videa)"
+          "text": "3.11 Webshare"
         },
         "description": {
-          "text": "Používáme Webshare jako službu třetí strany pro získávání přepisů videí YouTube v webové aplikaci. Když používáte funkci získání přepisu videa, URL videí YouTube, pro která požadujete přepisy, jsou směrována přes Webshare na YouTube. Webshare vidí, pro která videa požadujete přepisy, ale všechna data jsou sdílena bez identifikátorů uživatelů - Webshare neví, který konkrétní uživatel požádal o každý přepis. Toto sdílení dat nastává pouze tehdy, když aktivně používáte funkci získání přepisu videa."
+          "text": "Používáme Webshare jako službu třetí strany pro síťové požadavky na externí služby v webové aplikaci. Když používáte funkce získání přepisu videa, získání zdravotních schůzek nebo vyhledávání událostí, příslušné adresy URL požadavků jsou směrovány přes Webshare k příslušným službám. Webshare vidí, které adresy URL jsou požadovány, ale všechna data jsou sdílena bez identifikátorů uživatelů — Webshare neví, který konkrétní uživatel podal každý požadavek. Toto sdílení dat nastává pouze tehdy, když aktivně používáte tyto funkce."
         },
         "privacy_policy_link": {
           "text": "Zásady ochrany osobních údajů Webshare"

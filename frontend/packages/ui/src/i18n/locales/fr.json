@@ -168,6 +168,17 @@
         "text": "Perspectives de carrière",
         "description": {
           "text": "Trouvez la carrière idéale selon vos forces."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Je suis **développeur logiciel** et je me sens épuisé — aidez-moi à explorer des carrières alternatives"
+          },
+          "2": {
+            "text": "J'adore le **travail créatif** et la résolution de problèmes — quelles carrières correspondent à mes compétences ?"
+          },
+          "3": {
+            "text": "Je veux **changer de secteur** de la finance à la technologie — comment dois-je commencer ?"
+          }
         }
       }
     },
@@ -190,6 +201,17 @@
         "text": "Bienvenue",
         "description": {
           "text": "Découvrez OpenMates et les bons outils."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**Que peux-tu faire ?** Montre-moi tout ce dont OpenMates est capable"
+          },
+          "2": {
+            "text": "J'ai besoin d'aide pour la **recherche** — quel mode de focus ou quelle compétence est le mieux pour ça ?"
+          },
+          "3": {
+            "text": "**Recommandez** les meilleurs outils pour planifier mon prochain voyage à l'étranger"
+          }
         }
       }
     },
@@ -254,6 +276,17 @@
         "text": "Analyser la vidéo",
         "description": {
           "text": "Analysez, vérifiez les faits et détectez les biais."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**Analyse** cette vidéo YouTube pour les biais et vérifie les affirmations principales : [coller l'URL]"
+          },
+          "2": {
+            "text": "Cette vidéo d'actualité est-elle **fiable** ? Vérifiez les sources et détectez le contenu trompeur : [coller l'URL]"
+          },
+          "3": {
+            "text": "**Résumez** ce documentaire et identifiez la perspective du créateur et les biais potentiels : [coller l'URL]"
+          }
         }
       }
     },
@@ -4582,10 +4615,10 @@
       },
       "webshare": {
         "heading": {
-          "text": "3.11 Webshare (Service de transcription vidéo)"
+          "text": "3.11 Webshare"
         },
         "description": {
-          "text": "Nous utilisons Webshare comme service tiers pour récupérer les transcriptions de vidéos YouTube dans l'application web. Lorsque vous utilisez la fonction d'obtention de transcription de vidéos, les URL des vidéos YouTube pour lesquelles vous demandez des transcriptions sont acheminées via Webshare vers YouTube. Webshare voit pour quelles vidéos vous demandez des transcriptions, mais toutes les données sont partagées sans identifiants d'utilisateur - Webshare ne sait pas quel utilisateur spécifique a demandé chaque transcription. Ce partage de données ne se produit que lorsque vous utilisez activement la fonction d'obtention de transcription de vidéos."
+          "text": "Nous utilisons Webshare comme service tiers pour effectuer des requêtes réseau vers des services externes dans l'application web. Lorsque vous utilisez les fonctions d'obtention de transcription vidéo, d'obtention de rendez-vous santé ou de recherche d'événements, les URL de requête correspondantes sont acheminées via Webshare vers les services respectifs. Webshare voit quelles URL sont demandées, mais toutes les données sont partagées sans identifiants d'utilisateur — Webshare ne sait pas quel utilisateur spécifique a effectué chaque demande. Ce partage de données ne se produit que lorsque vous utilisez activement ces fonctions."
         },
         "privacy_policy_link": {
           "text": "Politique de confidentialité de Webshare"

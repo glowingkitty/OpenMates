@@ -168,6 +168,17 @@
         "text": "Karriärinsikter",
         "description": {
           "text": "Hitta rätt karriär baserat på dina styrkor."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Jag är **mjukvaruutvecklare** och känner mig utbränd — hjälp mig utforska alternativa karriärer"
+          },
+          "2": {
+            "text": "Jag älskar **kreativt arbete** och problemlösning — vilka karriärer matchar mina färdigheter?"
+          },
+          "3": {
+            "text": "Jag vill **byta bransch** från finans till teknik — hur ska jag börja?"
+          }
         }
       }
     },
@@ -190,6 +201,17 @@
         "text": "Välkommen",
         "description": {
           "text": "Utforska OpenMates och hitta rätt verktyg."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**Vad kan du göra?** Visa mig allt OpenMates klarar av"
+          },
+          "2": {
+            "text": "Jag behöver hjälp med **forskning** — vilket fokusläge eller vilken färdighet är bäst för det?"
+          },
+          "3": {
+            "text": "**Rekommendera** de bästa verktygen för att planera min nästa utlandsresa"
+          }
         }
       }
     },
@@ -254,6 +276,17 @@
         "text": "Analysera video",
         "description": {
           "text": "Analysera, faktagranska och identifiera partiskhet."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**Analysera** den här YouTube-videon för partiskhet och faktagranska de viktigaste påståendena: [klistra in URL]"
+          },
+          "2": {
+            "text": "Är det här nyhetsvideot **trovärdigt**? Kontrollera källorna och identifiera vilseledande innehåll: [klistra in URL]"
+          },
+          "3": {
+            "text": "**Sammanfatta** denna dokumentär och identifiera skaparens perspektiv och eventuella partiskheter: [klistra in URL]"
+          }
         }
       }
     },
@@ -3705,10 +3738,10 @@
       },
       "webshare": {
         "heading": {
-          "text": "3.11 Webshare (Videoavskriftstjänst)"
+          "text": "3.11 Webshare"
         },
         "description": {
-          "text": "Vi använder Webshare som en tredjepartstjänst för att hämta YouTube-videoavskrifter i webbapplikationen. När du använder funktionen för att hämta videoavskrifter dirigeras URL:erna för YouTube-videor som du begär avskrifter för via Webshare till YouTube. Webshare ser vilka videor du begär avskrifter för, men all data delas utan användaridentifierare - Webshare vet inte vilken specifik användare som begärde varje avskrift. Denna datadelning sker endast när du aktivt använder funktionen för att hämta videoavskrifter."
+          "text": "Vi använder Webshare som en tredjepartstjänst för att göra nätverksförfrågningar till externa tjänster i webbapplikationen. När du använder funktionerna för att hämta videoavskrifter, hämta hälsomöten eller söka efter evenemang dirigeras de relevanta förfrågnings-URL:erna via Webshare till respektive tjänster. Webshare ser vilka URL:er som begärs, men all data delas utan användaridentifierare — Webshare vet inte vilken specifik användare som gjorde varje begäran. Denna datadelning sker endast när du aktivt använder dessa funktioner."
         },
         "privacy_policy_link": {
           "text": "Webshare integritetspolicy"

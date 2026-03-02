@@ -168,6 +168,17 @@
         "text": "Approfondimenti sulla carriera",
         "description": {
           "text": "Trova la carriera giusta per i tuoi punti di forza."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Sono uno **sviluppatore software** esausto — aiutami a esplorare carriere alternative"
+          },
+          "2": {
+            "text": "Amo il **lavoro creativo** e la risoluzione dei problemi — quali carriere si adattano alle mie competenze?"
+          },
+          "3": {
+            "text": "Voglio **cambiare settore** dalla finanza alla tecnologia — da dove dovrei iniziare?"
+          }
         }
       }
     },
@@ -190,6 +201,17 @@
         "text": "Benvenuto",
         "description": {
           "text": "Scopri OpenMates e gli strumenti giusti per te."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**Cosa puoi fare?** Mostrami tutto ciò di cui OpenMates è capace"
+          },
+          "2": {
+            "text": "Ho bisogno di aiuto con la **ricerca** — quale modalità focus o competenza è migliore per questo?"
+          },
+          "3": {
+            "text": "**Consiglia** i migliori strumenti per pianificare il mio prossimo viaggio all'estero"
+          }
         }
       }
     },
@@ -254,6 +276,17 @@
         "text": "Analizza video",
         "description": {
           "text": "Analizza, verifica i fatti e rileva pregiudizi."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**Analizza** questo video YouTube per bias e verifica le affermazioni principali: [incolla URL]"
+          },
+          "2": {
+            "text": "Questo video di notizie è **affidabile**? Controlla le fonti e rileva contenuti fuorvianti: [incolla URL]"
+          },
+          "3": {
+            "text": "**Riassumi** questo documentario e identifica la prospettiva del creatore e i possibili bias: [incolla URL]"
+          }
         }
       }
     },
@@ -3678,10 +3711,10 @@
       },
       "webshare": {
         "heading": {
-          "text": "3.11 Webshare (Servizio di Trascrizione Video)"
+          "text": "3.11 Webshare"
         },
         "description": {
-          "text": "Utilizziamo Webshare come servizio di terze parti per recuperare le trascrizioni dei video di YouTube nell'applicazione web. Quando utilizzi la funzione di ottenere trascrizione video, gli URL dei video di YouTube per i quali richiedi trascrizioni vengono instradati tramite Webshare a YouTube. Webshare vede per quali video richiedi trascrizioni, ma tutti i dati sono condivisi senza identificatori utente - Webshare non sa quale utente specifico ha richiesto ogni trascrizione. Questa condivisione dei dati si verifica solo quando utilizzi attivamente la funzione di ottenere trascrizione video."
+          "text": "Utilizziamo Webshare come servizio di terze parti per effettuare richieste di rete a servizi esterni nell'applicazione web. Quando utilizzi le funzioni di ottenere trascrizione video, ottenere appuntamenti sanitari o ricerca di eventi, gli URL delle richieste pertinenti vengono instradati tramite Webshare ai rispettivi servizi. Webshare vede quali URL vengono richiesti, ma tutti i dati sono condivisi senza identificatori utente — Webshare non sa quale utente specifico ha effettuato ciascuna richiesta. Questa condivisione dei dati si verifica solo quando utilizzi attivamente queste funzioni."
         },
         "privacy_policy_link": {
           "text": "Informativa sulla Privacy di Webshare"

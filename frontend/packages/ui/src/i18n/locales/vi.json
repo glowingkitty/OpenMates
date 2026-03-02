@@ -168,6 +168,17 @@
         "text": "Thông tin chi tiết về nghề nghiệp",
         "description": {
           "text": "Tìm nghề nghiệp phù hợp dựa trên thế mạnh của bạn."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Tôi là **nhà phát triển phần mềm** cảm thấy kiệt sức — giúp tôi khám phá các nghề nghiệp thay thế"
+          },
+          "2": {
+            "text": "Tôi thích **công việc sáng tạo** và giải quyết vấn đề — những nghề nghiệp nào phù hợp với kỹ năng của tôi?"
+          },
+          "3": {
+            "text": "Tôi muốn **chuyển ngành** từ tài chính sang công nghệ — tôi nên bắt đầu như thế nào?"
+          }
         }
       }
     },
@@ -190,6 +201,17 @@
         "text": "Chào mừng",
         "description": {
           "text": "Khám phá OpenMates và tìm công cụ phù hợp."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**Bạn có thể làm gì?** Cho tôi xem mọi thứ OpenMates có thể làm"
+          },
+          "2": {
+            "text": "Tôi cần trợ giúp về **nghiên cứu** — chế độ tập trung hoặc kỹ năng nào là tốt nhất cho điều đó?"
+          },
+          "3": {
+            "text": "**Đề xuất** những công cụ tốt nhất để lên kế hoạch chuyến đi nước ngoài tiếp theo của tôi"
+          }
         }
       }
     },
@@ -254,6 +276,17 @@
         "text": "Phân tích video",
         "description": {
           "text": "Phân tích, kiểm tra sự thật và phát hiện thiên vị."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**Phân tích** video YouTube này về thiên vị và kiểm tra các luận điểm chính: [dán URL]"
+          },
+          "2": {
+            "text": "Video tin tức này có **đáng tin cậy** không? Kiểm tra nguồn và phát hiện nội dung sai lệch: [dán URL]"
+          },
+          "3": {
+            "text": "**Tóm tắt** tài liệu này và xác định quan điểm của người tạo ra nó và những thiên kiến tiềm ẩn: [dán URL]"
+          }
         }
       }
     },
@@ -3678,10 +3711,10 @@
       },
       "webshare": {
         "heading": {
-          "text": "3.11 Webshare (Dịch vụ Bản ghi Video)"
+          "text": "3.11 Webshare"
         },
         "description": {
-          "text": "Chúng tôi sử dụng Webshare như một dịch vụ bên thứ ba để lấy bản ghi video YouTube trong ứng dụng web. Khi bạn sử dụng tính năng lấy bản ghi video, URL của các video YouTube mà bạn yêu cầu bản ghi sẽ được định tuyến qua Webshare đến YouTube. Webshare thấy bạn yêu cầu bản ghi cho video nào, nhưng tất cả dữ liệu được chia sẻ mà không có định danh người dùng - Webshare không biết người dùng cụ thể nào đã yêu cầu mỗi bản ghi. Việc chia sẻ dữ liệu này chỉ xảy ra khi bạn tích cực sử dụng tính năng lấy bản ghi video."
+          "text": "Chúng tôi sử dụng Webshare như một dịch vụ bên thứ ba để thực hiện các yêu cầu mạng đến các dịch vụ bên ngoài trong ứng dụng web. Khi bạn sử dụng các tính năng lấy bản ghi video, lấy lịch hẹn sức khỏe hoặc tìm kiếm sự kiện, các URL yêu cầu liên quan sẽ được định tuyến qua Webshare đến các dịch vụ tương ứng. Webshare thấy URL nào được yêu cầu, nhưng tất cả dữ liệu được chia sẻ mà không có định danh người dùng — Webshare không biết người dùng cụ thể nào đã thực hiện mỗi yêu cầu. Việc chia sẻ dữ liệu này chỉ xảy ra khi bạn tích cực sử dụng các tính năng này."
         },
         "privacy_policy_link": {
           "text": "Chính sách Bảo mật của Webshare"
