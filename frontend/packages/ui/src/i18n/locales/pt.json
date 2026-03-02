@@ -3678,10 +3678,10 @@
       },
       "webshare": {
         "heading": {
-          "text": "3.11 Webshare (Proxy de Transcrição de Vídeo)"
+          "text": "3.11 Webshare (Serviço de Transcrição de Vídeo)"
         },
         "description": {
-          "text": "Usamos Webshare como serviço proxy para buscar transcrições de vídeos do YouTube no aplicativo web. Quando você usa a função de obter transcrição de vídeos, as URLs dos vídeos do YouTube para os quais você solicita transcrições são roteadas através do proxy Webshare para o YouTube. Webshare vê para quais vídeos você solicita transcrições, mas todos os dados são compartilhados sem identificadores de usuário - Webshare não sabe qual usuário específico solicitou cada transcrição. Este compartilhamento de dados ocorre apenas quando você usa ativamente a função de obter transcrição de vídeos."
+          "text": "Usamos Webshare como serviço de terceiros para buscar transcrições de vídeos do YouTube no aplicativo web. Quando você usa a função de obter transcrição de vídeos, as URLs dos vídeos do YouTube para os quais você solicita transcrições são roteadas através do Webshare para o YouTube. Webshare vê para quais vídeos você solicita transcrições, mas todos os dados são compartilhados sem identificadores de usuário - Webshare não sabe qual usuário específico solicitou cada transcrição. Este compartilhamento de dados ocorre apenas quando você usa ativamente a função de obter transcrição de vídeos."
         },
         "privacy_policy_link": {
           "text": "Política de Privacidade da Webshare"

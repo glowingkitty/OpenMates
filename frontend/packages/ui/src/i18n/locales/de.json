@@ -4748,10 +4748,10 @@
       },
       "webshare": {
         "heading": {
-          "text": "3.11 Webshare (Video-Transkript-Proxy)"
+          "text": "3.11 Webshare (Video-Transkript-Dienst)"
         },
         "description": {
-          "text": "Wir verwenden Webshare als Proxy-Dienst zum Abrufen von YouTube-Video-Transkripten in der Webanwendung. Wenn Sie die Funktion \"Videos Transkript abrufen\" verwenden, werden die URLs der YouTube-Videos, für die Sie Transkripte anfordern, über den Webshare-Proxy zu YouTube weitergeleitet. Webshare sieht, für welche Videos Sie Transkripte anfordern, aber alle Daten werden ohne Benutzerkennungen geteilt - Webshare weiß nicht, welcher spezifische Benutzer jedes Transkript angefordert hat. Diese Datenweitergabe erfolgt nur, wenn Sie aktiv die Funktion \"Videos Transkript abrufen\" verwenden."
+          "text": "Wir verwenden Webshare als Drittanbieterdienst zum Abrufen von YouTube-Video-Transkripten in der Webanwendung. Wenn Sie die Funktion \"Videos Transkript abrufen\" verwenden, werden die URLs der YouTube-Videos, für die Sie Transkripte anfordern, über Webshare zu YouTube weitergeleitet. Webshare sieht, für welche Videos Sie Transkripte anfordern, aber alle Daten werden ohne Benutzerkennungen geteilt - Webshare weiß nicht, welcher spezifische Benutzer jedes Transkript angefordert hat. Diese Datenweitergabe erfolgt nur, wenn Sie aktiv die Funktion \"Videos Transkript abrufen\" verwenden."
         },
         "privacy_policy_link": {
           "text": "Webshare Datenschutzerklärung"

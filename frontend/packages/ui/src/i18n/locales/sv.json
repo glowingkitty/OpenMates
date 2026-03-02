@@ -3705,10 +3705,10 @@
       },
       "webshare": {
         "heading": {
-          "text": "3.11 Webshare (Videoavskriftsproxy)"
+          "text": "3.11 Webshare (Videoavskriftstjänst)"
         },
         "description": {
-          "text": "Vi använder Webshare som en proxytjänst för att hämta YouTube-videoavskrifter i webbapplikationen. När du använder funktionen för att hämta videoavskrifter dirigeras URL:erna för YouTube-videor som du begär avskrifter för via Webshare-proxyn till YouTube. Webshare ser vilka videor du begär avskrifter för, men all data delas utan användaridentifierare - Webshare vet inte vilken specifik användare som begärde varje avskrift. Denna datadelning sker endast när du aktivt använder funktionen för att hämta videoavskrifter."
+          "text": "Vi använder Webshare som en tredjepartstjänst för att hämta YouTube-videoavskrifter i webbapplikationen. När du använder funktionen för att hämta videoavskrifter dirigeras URL:erna för YouTube-videor som du begär avskrifter för via Webshare till YouTube. Webshare ser vilka videor du begär avskrifter för, men all data delas utan användaridentifierare - Webshare vet inte vilken specifik användare som begärde varje avskrift. Denna datadelning sker endast när du aktivt använder funktionen för att hämta videoavskrifter."
         },
         "privacy_policy_link": {
           "text": "Webshare integritetspolicy"

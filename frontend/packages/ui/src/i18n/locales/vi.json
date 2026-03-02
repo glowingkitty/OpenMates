@@ -3678,10 +3678,10 @@
       },
       "webshare": {
         "heading": {
-          "text": "3.11 Webshare (Proxy Bản ghi Video)"
+          "text": "3.11 Webshare (Dịch vụ Bản ghi Video)"
         },
         "description": {
-          "text": "Chúng tôi sử dụng Webshare như một dịch vụ proxy để lấy bản ghi video YouTube trong ứng dụng web. Khi bạn sử dụng tính năng lấy bản ghi video, URL của các video YouTube mà bạn yêu cầu bản ghi sẽ được định tuyến qua proxy Webshare đến YouTube. Webshare thấy bạn yêu cầu bản ghi cho video nào, nhưng tất cả dữ liệu được chia sẻ mà không có định danh người dùng - Webshare không biết người dùng cụ thể nào đã yêu cầu mỗi bản ghi. Việc chia sẻ dữ liệu này chỉ xảy ra khi bạn tích cực sử dụng tính năng lấy bản ghi video."
+          "text": "Chúng tôi sử dụng Webshare như một dịch vụ bên thứ ba để lấy bản ghi video YouTube trong ứng dụng web. Khi bạn sử dụng tính năng lấy bản ghi video, URL của các video YouTube mà bạn yêu cầu bản ghi sẽ được định tuyến qua Webshare đến YouTube. Webshare thấy bạn yêu cầu bản ghi cho video nào, nhưng tất cả dữ liệu được chia sẻ mà không có định danh người dùng - Webshare không biết người dùng cụ thể nào đã yêu cầu mỗi bản ghi. Việc chia sẻ dữ liệu này chỉ xảy ra khi bạn tích cực sử dụng tính năng lấy bản ghi video."
         },
         "privacy_policy_link": {
           "text": "Chính sách Bảo mật của Webshare"

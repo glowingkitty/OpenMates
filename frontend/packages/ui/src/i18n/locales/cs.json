@@ -3684,10 +3684,10 @@
       },
       "webshare": {
         "heading": {
-          "text": "3.11 Webshare (Proxy pro přepis videa)"
+          "text": "3.11 Webshare (Služba přepisu videa)"
         },
         "description": {
-          "text": "Používáme Webshare jako proxy službu pro získávání přepisů videí YouTube v webové aplikaci. Když používáte funkci získání přepisu videa, URL videí YouTube, pro která požadujete přepisy, jsou směrována přes proxy Webshare na YouTube. Webshare vidí, pro která videa požadujete přepisy, ale všechna data jsou sdílena bez identifikátorů uživatelů - Webshare neví, který konkrétní uživatel požádal o každý přepis. Toto sdílení dat nastává pouze tehdy, když aktivně používáte funkci získání přepisu videa."
+          "text": "Používáme Webshare jako službu třetí strany pro získávání přepisů videí YouTube v webové aplikaci. Když používáte funkci získání přepisu videa, URL videí YouTube, pro která požadujete přepisy, jsou směrována přes Webshare na YouTube. Webshare vidí, pro která videa požadujete přepisy, ale všechna data jsou sdílena bez identifikátorů uživatelů - Webshare neví, který konkrétní uživatel požádal o každý přepis. Toto sdílení dat nastává pouze tehdy, když aktivně používáte funkci získání přepisu videa."
         },
         "privacy_policy_link": {
           "text": "Zásady ochrany osobních údajů Webshare"

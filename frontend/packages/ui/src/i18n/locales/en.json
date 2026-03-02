@@ -4943,10 +4943,10 @@
       },
       "webshare": {
         "heading": {
-          "text": "3.11 Webshare (Video Transcript Proxy)"
+          "text": "3.11 Webshare (Video Transcript Service)"
         },
         "description": {
-          "text": "We use Webshare as a proxy service for fetching YouTube video transcripts in the web application. When you use the videos get transcript skill, the URLs of YouTube videos you request transcripts for are routed through Webshare proxy to YouTube. Webshare sees which videos you request transcripts for, but all data is shared without user identifiers - Webshare does not know which specific user requested each transcript. This data sharing only occurs when you actively use the videos get transcript skill."
+          "text": "We use Webshare as a third-party service for fetching YouTube video transcripts in the web application. When you use the videos get transcript skill, the URLs of YouTube videos you request transcripts for are routed through Webshare to YouTube. Webshare sees which videos you request transcripts for, but all data is shared without user identifiers - Webshare does not know which specific user requested each transcript. This data sharing only occurs when you actively use the videos get transcript skill."
         },
         "privacy_policy_link": {
           "text": "Webshare Privacy Policy"

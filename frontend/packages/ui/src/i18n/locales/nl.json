@@ -3678,10 +3678,10 @@
       },
       "webshare": {
         "heading": {
-          "text": "3.11 Webshare (Video Transcript Proxy)"
+          "text": "3.11 Webshare (Video Transcript Service)"
         },
         "description": {
-          "text": "We gebruiken Webshare als proxyservice voor het ophalen van YouTube-videotranscripten in de webapplicatie. Wanneer u de functie voor het ophalen van videotranscripten gebruikt, worden de URL's van de YouTube-video's waarvoor u transcripten aanvraagt, via de Webshare-proxy naar YouTube doorgestuurd. Webshare ziet voor welke video's u transcripten aanvraagt, maar alle gegevens worden gedeeld zonder gebruikersidentificatoren - Webshare weet niet welke specifieke gebruiker elk transcript heeft aangevraagd. Deze gegevensdeling vindt alleen plaats wanneer u actief de functie voor het ophalen van videotranscripten gebruikt."
+          "text": "We gebruiken Webshare als dienst van derden voor het ophalen van YouTube-videotranscripten in de webapplicatie. Wanneer u de functie voor het ophalen van videotranscripten gebruikt, worden de URL's van de YouTube-video's waarvoor u transcripten aanvraagt, via Webshare naar YouTube doorgestuurd. Webshare ziet voor welke video's u transcripten aanvraagt, maar alle gegevens worden gedeeld zonder gebruikersidentificatoren - Webshare weet niet welke specifieke gebruiker elk transcript heeft aangevraagd. Deze gegevensdeling vindt alleen plaats wanneer u actief de functie voor het ophalen van videotranscripten gebruikt."
         },
         "privacy_policy_link": {
           "text": "Privacybeleid van Webshare"

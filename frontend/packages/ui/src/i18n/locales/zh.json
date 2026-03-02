@@ -4551,10 +4551,10 @@
       },
       "webshare": {
         "heading": {
-          "text": "3.11 Webshare（视频转录代理）"
+          "text": "3.11 Webshare（视频转录服务）"
         },
         "description": {
-          "text": "我们在 Web 应用程序中使用 Webshare 作为代理服务来获取 YouTube 视频转录。当您使用视频获取转录功能时，您请求转录的 YouTube 视频的 URL 会通过 Webshare 代理路由到 YouTube。Webshare 会看到您请求转录的视频，但所有数据都是在没有用户标识符的情况下共享的 - Webshare 不知道哪个特定用户请求了每个转录。这种数据共享仅在您主动使用视频获取转录功能时发生。"
+          "text": "我们在 Web 应用程序中使用 Webshare 作为第三方服务来获取 YouTube 视频转录。当您使用视频获取转录功能时，您请求转录的 YouTube 视频的 URL 会通过 Webshare 路由到 YouTube。Webshare 会看到您请求转录的视频，但所有数据都是在没有用户标识符的情况下共享的 - Webshare 不知道哪个特定用户请求了每个转录。这种数据共享仅在您主动使用视频获取转录功能时发生。"
         },
         "privacy_policy_link": {
           "text": "Webshare 隐私政策"

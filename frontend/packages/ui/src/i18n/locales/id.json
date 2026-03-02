@@ -3678,10 +3678,10 @@
       },
       "webshare": {
         "heading": {
-          "text": "3.11 Webshare (Proxy Transkrip Video)"
+          "text": "3.11 Webshare (Layanan Transkrip Video)"
         },
         "description": {
-          "text": "Kami menggunakan Webshare sebagai layanan proxy untuk mengambil transkrip video YouTube di aplikasi web. Saat Anda menggunakan fitur mendapatkan transkrip video, URL video YouTube yang Anda minta transkripnya diarahkan melalui proxy Webshare ke YouTube. Webshare melihat video mana yang Anda minta transkripnya, tetapi semua data dibagikan tanpa pengenal pengguna - Webshare tidak tahu pengguna spesifik mana yang meminta setiap transkrip. Berbagi data ini hanya terjadi ketika Anda secara aktif menggunakan fitur mendapatkan transkrip video."
+          "text": "Kami menggunakan Webshare sebagai layanan pihak ketiga untuk mengambil transkrip video YouTube di aplikasi web. Saat Anda menggunakan fitur mendapatkan transkrip video, URL video YouTube yang Anda minta transkripnya diarahkan melalui Webshare ke YouTube. Webshare melihat video mana yang Anda minta transkripnya, tetapi semua data dibagikan tanpa pengenal pengguna - Webshare tidak tahu pengguna spesifik mana yang meminta setiap transkrip. Berbagi data ini hanya terjadi ketika Anda secara aktif menggunakan fitur mendapatkan transkrip video."
         },
         "privacy_policy_link": {
           "text": "Kebijakan Privasi Webshare"

@@ -3678,10 +3678,10 @@
       },
       "webshare": {
         "heading": {
-          "text": "3.11 Webshare (Video Transkript Proxy)"
+          "text": "3.11 Webshare (Video Transkript Servisi)"
         },
         "description": {
-          "text": "Web uygulamasında YouTube video transkriptlerini almak için bir proxy hizmeti olarak Webshare kullanıyoruz. Video transkript alma özelliğini kullandığınızda, transkript istediğiniz YouTube videolarının URL'leri Webshare proxy üzerinden YouTube'a yönlendirilir. Webshare hangi videolar için transkript istediğinizi görür, ancak tüm veriler kullanıcı tanımlayıcıları olmadan paylaşılır - Webshare hangi belirli kullanıcının her transkripti istediğini bilmez. Bu veri paylaşımı yalnızca video transkript alma özelliğini aktif olarak kullandığınızda gerçekleşir."
+          "text": "Web uygulamasında YouTube video transkriptlerini almak için bir üçüncü taraf hizmet olarak Webshare kullanıyoruz. Video transkript alma özelliğini kullandığınızda, transkript istediğiniz YouTube videolarının URL'leri Webshare üzerinden YouTube'a yönlendirilir. Webshare hangi videolar için transkript istediğinizi görür, ancak tüm veriler kullanıcı tanımlayıcıları olmadan paylaşılır - Webshare hangi belirli kullanıcının her transkripti istediğini bilmez. Bu veri paylaşımı yalnızca video transkript alma özelliğini aktif olarak kullandığınızda gerçekleşir."
         },
         "privacy_policy_link": {
           "text": "Webshare Gizlilik Politikası"
