@@ -18,10 +18,12 @@
 -->
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { onMount } from 'svelte';
+    import { onMount, createEventDispatcher } from 'svelte';
     import { settingsDeepLink } from '../../../stores/settingsDeepLinkStore';
     import { startFork } from '../../../services/forkChatService';
     import { forkProgressStore, isForkRunning } from '../../../stores/forkProgressStore';
+
+    const dispatch = createEventDispatcher();
 
     // ---------------------------------------------------------------------------
     // Props
@@ -100,6 +102,22 @@
         const current = forkProgressStore.getSnapshot();
         if (current.status === 'running' || current.status === 'complete') {
             started = true;
+        }
+    });
+
+    // ---------------------------------------------------------------------------
+    // Auto-navigate back when fork completes
+    // When the fork finishes successfully, close the fork panel so the user
+    // is not left stuck in it. We navigate back to the main settings menu
+    // (same pattern as SettingsServer.svelte / SettingsInterface.svelte).
+    // ---------------------------------------------------------------------------
+
+    $effect(() => {
+        if (forkState.status === 'complete' && started) {
+            // Small delay so the user sees "100%" for a moment before the panel closes
+            setTimeout(() => {
+                dispatch('navigateBack');
+            }, 800);
         }
     });
 

@@ -546,6 +546,11 @@ div.clickable-icon {
   mask-image: url("@openmates/ui/static/icons/ai.svg");
 }
 
+.clickable-icon.icon_planning {
+  -webkit-mask-image: url("@openmates/ui/static/icons/planning.svg");
+  mask-image: url("@openmates/ui/static/icons/planning.svg");
+}
+
 .help-button {
   width: 24px;
   height: 24px;

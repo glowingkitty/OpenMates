@@ -270,7 +270,7 @@
                 disabled={disableFork}
                 onclick={(event) => handleAction('fork', event)}
             >
-                <div class="clickable-icon icon_fork"></div>
+                <div class="clickable-icon icon_planning"></div>
                 {$text('chats.context_menu.fork')}
             </button>
         {/if}

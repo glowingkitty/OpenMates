@@ -1918,28 +1918,28 @@ search.results_label:
   verified_by_human: []
 
 context_menu.fork:
-  context: Message context menu option to fork the conversation from this message onwards (creates a copy of the chat up to and including this message)
-  en: Fork Conversation
-  de: Konversation verzweigen
-  zh: 派生对话
-  es: Bifurcar conversación
-  fr: Bifurquer la conversation
-  pt: Bifurcar conversa
-  ru: Разветвить беседу
-  ja: 会話を分岐
-  ko: 대화 포크
-  it: Biforca conversazione
-  tr: Konuşmayı çatalla
-  vi: Phân nhánh cuộc trò chuyện
-  id: Cabangkan percakapan
-  pl: Rozwidl rozmowę
-  nl: Gesprek vertakken
-  ar: تفريع المحادثة
-  hi: बातचीत को फोर्क करें
-  th: แยกการสนทนา
-  cs: Rozvětvit konverzaci
-  sv: Förgrena konversation
-  he: פיצול שיחה
+  context: Message context menu option to fork the conversation from this message onwards (creates a copy of the chat up to and including this message) — short label, 1-2 words max
+  en: Fork
+  de: Verzweigen
+  zh: 派生
+  es: Bifurcar
+  fr: Bifurquer
+  pt: Bifurcar
+  ru: Разветвить
+  ja: 分岐
+  ko: 포크
+  it: Biforca
+  tr: Çatalla
+  vi: Phân nhánh
+  id: Cabangkan
+  pl: Rozwidl
+  nl: Vertakken
+  ar: تفريع
+  hi: फोर्क करें
+  th: แยก
+  cs: Rozvětvit
+  sv: Förgrena
+  he: פיצול
   verified_by_human: []
 
 fork.title:

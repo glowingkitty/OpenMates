@@ -198,6 +198,96 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             )
             return
 
+        # ---------------------------------------------------------------------------
+        # IS_FORK FAST PATH
+        # ---------------------------------------------------------------------------
+        # When forkChatService sends fork messages with is_fork=True, we ONLY want to:
+        #   1. Save the plaintext message to the AI cache (so AI has context for follow-ups)
+        #   2. Send chat_message_confirmed back to the client
+        # We do NOT trigger the AI pipeline, delete suggestions, delete drafts, or broadcast.
+        #
+        # Architecture: fork messages are sent individually via chat_message_added with
+        # is_fork=True. The encrypted copy is separately sent via encrypted_chat_metadata
+        # with a message_history array (handled by encrypted_chat_metadata_handler.py).
+        # ---------------------------------------------------------------------------
+        is_fork = payload.get("is_fork", False)
+        if is_fork:
+            logger.info(f"[FORK] Processing fork message {message_id} for chat {chat_id} — caching for AI context only")
+
+            # Fetch vault key (needed for server-side encryption before cache storage)
+            fork_vault_key_id = await cache_service.get_user_vault_key_id(user_id)
+            if not fork_vault_key_id:
+                try:
+                    fork_profile_result = await directus_service.get_user_profile(user_id)
+                    if fork_profile_result and fork_profile_result[1]:
+                        fork_vault_key_id = fork_profile_result[1].get("vault_key_id")
+                        if fork_vault_key_id:
+                            await cache_service.update_user(user_id, {"vault_key_id": fork_vault_key_id})
+                except Exception as e_fork_vault:
+                    logger.error(f"[FORK] Failed to fetch vault key for fork message {message_id}: {e_fork_vault}", exc_info=True)
+
+            if not fork_vault_key_id:
+                logger.error(f"[FORK] No vault key available for fork message {message_id}, skipping AI cache")
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Fork cache failed: vault key not found.", "chat_id": chat_id, "message_id": message_id}},
+                    user_id, device_fingerprint_hash
+                )
+                return
+
+            # Encrypt the plaintext content with vault key for AI cache storage
+            try:
+                fork_content_str = content_plain if isinstance(content_plain, str) else str(content_plain)
+                fork_encrypted_content, _ = await encryption_service.encrypt_with_user_key(
+                    fork_content_str, fork_vault_key_id
+                )
+            except Exception as e_fork_enc:
+                logger.error(f"[FORK] Failed to encrypt fork message {message_id} for cache: {e_fork_enc}", exc_info=True)
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Fork cache failed: encryption error.", "chat_id": chat_id, "message_id": message_id}},
+                    user_id, device_fingerprint_hash
+                )
+                return
+
+            # Save to AI cache (same path as normal messages — gives AI context for follow-ups)
+            fork_sender_name = "user" if role == "user" else "assistant"
+            fork_msg_for_cache = MessageInCache(
+                id=message_id,
+                chat_id=chat_id,
+                role=role,
+                category=None,
+                sender_name=fork_sender_name,
+                encrypted_content=fork_encrypted_content,
+                created_at=int(created_at) if created_at else int(datetime.now(timezone.utc).timestamp()),
+                status="delivered"
+            )
+            fork_version_result = await cache_service.save_chat_message_and_update_versions(
+                user_id=user_id,
+                chat_id=chat_id,
+                message_data=fork_msg_for_cache
+            )
+            if not fork_version_result:
+                logger.error(f"[FORK] Failed to save fork message {message_id} to AI cache for chat {chat_id}")
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Fork cache failed: cache write error.", "chat_id": chat_id, "message_id": message_id}},
+                    user_id, device_fingerprint_hash
+                )
+                return
+
+            # Confirm to client (client waits for this before marking the message as synced)
+            await manager.broadcast_to_user_specific_event(
+                user_id=user_id,
+                event_name="chat_message_confirmed",
+                payload={
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "temp_id": message_payload_from_client.get("temp_id"),
+                    "new_messages_v": fork_version_result["messages_v"],
+                    "new_last_edited_overall_timestamp": fork_version_result["last_edited_overall_timestamp"],
+                }
+            )
+            logger.info(f"[FORK] Fork message {message_id} cached for AI context in chat {chat_id}. No AI pipeline triggered.")
+            return  # Early exit — skip suggestion deletion, draft deletion, broadcast, AI
+
         # DELETE NEW CHAT SUGGESTION if user clicked one before sending this message
         # This ensures used suggestions are removed from the pool on both client and server
         # Skip for incognito chats (they don't use suggestions)

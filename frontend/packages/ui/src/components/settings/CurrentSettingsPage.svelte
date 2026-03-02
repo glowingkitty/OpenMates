@@ -156,9 +156,13 @@
         }
     }
     
+    // Routes that are accessible only via deep link (e.g. from the chat context menu)
+    // and must NOT appear in the settings nav sidebar.
+    const DEEPLINK_ONLY_VIEWS = new Set(['fork']);
+
     // Add function to filter out nested views from main menu
     function isTopLevelView(key: string): boolean {
-        return !key.includes('/');
+        return !key.includes('/') && !DEEPLINK_ONLY_VIEWS.has(key);
     }
 
     function handleLogout() {
