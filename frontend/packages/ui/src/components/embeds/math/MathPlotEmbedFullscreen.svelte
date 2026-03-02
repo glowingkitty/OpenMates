@@ -12,6 +12,7 @@
 
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import katex from 'katex';
 
   interface Props {
     /** Raw plot specification string (function definitions) */
@@ -71,6 +72,68 @@
     else if (typeof c.expression === 'string') localPlotSpec = c.expression;
     if (typeof c.title === 'string') localTitle = c.title;
   }
+
+  // ── LaTeX rendering (mirrors MathPlotEmbedPreview) ──────────────────────────
+
+  /**
+   * Extract non-empty, non-comment lines from the plot spec for LaTeX display.
+   * Shown above the interactive plot, just like the preview card shows formulas.
+   */
+  let formulaLines = $derived(
+    plotSpec
+      .split('\n')
+      .map((l: string) => l.trim())
+      .filter((l: string) => l && !l.startsWith('#'))
+  );
+
+  /**
+   * Converts a pseudo-code function definition to a LaTeX string for KaTeX.
+   * Mirrors the same logic in MathPlotEmbedPreview.svelte.
+   */
+  function toLatex(line: string): string {
+    let s = line;
+    s = s.replace(/\\/g, '');
+    const mathFns = [
+      'sin', 'cos', 'tan', 'cot', 'sec', 'csc',
+      'arcsin', 'arccos', 'arctan',
+      'sinh', 'cosh', 'tanh',
+      'exp', 'log', 'ln',
+      'abs', 'sign',
+      'floor', 'ceil',
+    ];
+    for (const fn of mathFns) {
+      s = s.replace(new RegExp(`(?<![a-zA-Z])(${fn})\\(`, 'g'), `\\${fn}(`);
+    }
+    s = s.replace(/\\sqrt\(([^)]*)\)/g, '\\sqrt{$1}');
+    s = s.replace(/\\abs\(([^)]*)\)/g, '|$1|');
+    s = s.replace(/\^(\([^)]+\))/g, (_, inner) => `^{${inner.slice(1, -1)}}`);
+    s = s.replace(/(\w)\s*\*\s*(\w)/g, '$1 \\cdot $2');
+    s = s.replace(/\*/g, ' \\cdot ');
+    s = s.replace(/(?<![a-zA-Z])pi(?![a-zA-Z])/g, '\\pi');
+    s = s.replace(/(?<![a-zA-Z])e(?![a-zA-Z(])/g, '\\mathrm{e}');
+    return s;
+  }
+
+  /**
+   * Render a formula line as KaTeX HTML.
+   * Falls back to the raw line text if KaTeX throws (e.g. invalid LaTeX).
+   */
+  function renderFormula(line: string): { html: string; isKatex: boolean } {
+    try {
+      const latex = toLatex(line);
+      const html = katex.renderToString(latex, {
+        throwOnError: true,
+        displayMode: true,   // display mode for fullscreen — centered, larger
+        output: 'html',
+      });
+      return { html, isKatex: true };
+    } catch {
+      return { html: line, isKatex: false };
+    }
+  }
+
+  /** Pre-rendered formula HTML strings for each formula line. */
+  let renderedFormulas = $derived(formulaLines.map(renderFormula));
 
   // ── Plot rendering ───────────────────────────────────────────────────────────
   function parsePlotSpec(spec: string): { fn: string }[] {
@@ -182,17 +245,28 @@
       {:else if !plotSpec}
         <div class="loading-state"><p>Loading plot...</p></div>
       {:else}
+        <!-- Function formulas rendered as LaTeX — shown above the interactive plot -->
+        {#if renderedFormulas.length > 0}
+          <div class="functions-header">
+            <div class="formula-list">
+              {#each renderedFormulas as formula}
+                <div class="formula-line" class:katex-rendered={formula.isKatex}>
+                  {#if formula.isKatex}
+                    <!-- KaTeX-rendered LaTeX formula (displayMode = centered) -->
+                    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                    {@html formula.html}
+                  {:else}
+                    <!-- Fallback: raw line in monospace when KaTeX can't parse -->
+                    <code>{formula.html}</code>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
         <!-- Interactive plot container - function-plot renders an SVG here -->
         <div class="plot-container" bind:this={plotContainer}></div>
-
-        <!-- Function list below the graph -->
-        <div class="functions-list">
-          {#each plotSpec.split('\n').filter(l => l.trim() && !l.startsWith('#')) as fn}
-            <div class="function-item">
-              <code>{fn.trim()}</code>
-            </div>
-          {/each}
-        </div>
       {/if}
     </div>
   {/snippet}
@@ -233,23 +307,44 @@
     }
   }
 
-  /* ── Functions list ──────────────────────────────────────────────────────── */
+  /* ── Function formulas header (above the plot) ───────────────────────────── */
 
-  .functions-list {
+  .functions-header {
+    background: var(--color-grey-10, #f5f5f5);
+    border-radius: 12px;
+    padding: 16px 20px;
+    border: 1px solid var(--color-grey-20, #e5e5e5);
+  }
+
+  .formula-list {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    align-items: center;
   }
 
-  .function-item {
-    background: var(--color-grey-10, #f5f5f5);
-    border-radius: 8px;
-    padding: 10px 14px;
+  .formula-line {
+    width: 100%;
+    color: var(--color-grey-100);
+    font-size: 16px;
+    text-align: center;
+    overflow-x: auto;
   }
 
-  .function-item code {
+  /* KaTeX display-mode formulas: let KaTeX control sizing */
+  .formula-line.katex-rendered :global(.katex-display) {
+    margin: 0;
+  }
+
+  .formula-line :global(.katex) {
+    font-size: 18px;
+    color: var(--color-grey-100);
+  }
+
+  /* Fallback monospace for non-KaTeX lines */
+  .formula-line code {
     font-family: 'Courier New', Courier, monospace;
-    font-size: 14px;
+    font-size: 15px;
     color: var(--color-grey-100);
   }
 
@@ -285,10 +380,8 @@
     line-height: 1.4;
   }
 
-  /* ── Skill icon ──────────────────────────────────────────────────────────── */
-
-  :global(.unified-embed-fullscreen-overlay .skill-icon[data-skill-icon="math"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/math.svg');
-    mask-image: url('@openmates/ui/static/icons/math.svg');
-  }
+  /* ── Skill icon ─────────────────────────────────────────────────────────────
+     The math skill icon mask-image is defined globally in EmbedHeader.svelte
+     via the [data-skill-icon="math"] rule — no local override needed here.
+     ──────────────────────────────────────────────────────────────────────── */
 </style>
