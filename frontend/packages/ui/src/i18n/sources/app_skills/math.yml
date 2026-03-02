@@ -30,25 +30,25 @@ calculate:
   verified_by_human: []
 calculate.description:
   context: Description for the calculate skill in Math app
-  en: Evaluate expressions, solve equations, and compute derivatives or integrals.
-  de: Ausdrücke auswerten, Gleichungen lösen und Ableitungen oder Integrale berechnen.
-  zh: 评估表达式、求解方程并计算导数或积分。
-  es: Evalúa expresiones, resuelve ecuaciones y calcula derivadas o integrales.
-  fr: Évaluez des expressions, résolvez des équations et calculez des dérivées ou des intégrales.
-  pt: Avalie expressões, resolva equações e calcule derivadas ou integrais.
-  ru: Вычисляйте выражения, решайте уравнения и находите производные или интегралы.
-  ja: 式を評価し、方程式を解き、導関数や積分を計算する。
-  ko: 식을 평가하고 방정식을 풀고 미분 또는 적분을 계산하세요.
-  it: Valuta espressioni, risolvi equazioni e calcola derivate o integrali.
-  tr: İfadeleri değerlendirin, denklemleri çözün ve türev veya integralleri hesaplayın.
-  vi: Đánh giá biểu thức, giải phương trình và tính đạo hàm hoặc tích phân.
-  id: Evaluasi ekspresi, selesaikan persamaan, dan hitung turunan atau integral.
-  pl: Ewaluuj wyrażenia, rozwiązuj równania i obliczaj pochodne lub całki.
-  nl: Evalueer uitdrukkingen, los vergelijkingen op en bereken afgeleiden of integralen.
-  ar: قيّم التعابير وحل المعادلات واحسب المشتقات أو التكاملات.
-  hi: भाव का मूल्यांकन करें, समीकरण हल करें और अवकलज या समाकल की गणना करें।
-  th: ประเมินนิพจน์ แก้สมการ และคำนวณอนุพันธ์หรืออินทิกรัล
-  cs: Vyhodnoťte výrazy, řešte rovnice a počítejte derivace nebo integrály.
-  sv: Utvärdera uttryck, lös ekvationer och beräkna derivator eller integraler.
-  he: חשב ביטויים, פתור משוואות וחשב נגזרות או אינטגרלים.
+  en: Solve equations and compute derivatives or integrals.
+  de: Gleichungen lösen, Ableitungen und Integrale berechnen.
+  zh: 解方程，计算导数和积分。
+  es: Resuelve ecuaciones y calcula derivadas o integrales.
+  fr: Résolvez des équations, dérivées et intégrales.
+  pt: Resolva equações e calcule derivadas ou integrais.
+  ru: Решайте уравнения, производные и интегралы.
+  ja: 方程式を解き、導関数や積分を計算する。
+  ko: 방정식을 풀고 미분 또는 적분을 계산하세요.
+  it: Risolvi equazioni e calcola derivate o integrali.
+  tr: Denklemleri çözün, türev ve integralleri hesaplayın.
+  vi: Giải phương trình và tính đạo hàm hoặc tích phân.
+  id: Selesaikan persamaan dan hitung turunan atau integral.
+  pl: Rozwiązuj równania i obliczaj pochodne lub całki.
+  nl: Los vergelijkingen op en bereken afgeleiden/integralen.
+  ar: حل المعادلات واحسب المشتقات أو التكاملات.
+  hi: समीकरण हल करें और अवकलज या समाकल की गणना करें।
+  th: แก้สมการและคำนวณอนุพันธ์หรืออินทิกรัล
+  cs: Řešte rovnice a počítejte derivace nebo integrály.
+  sv: Lös ekvationer och beräkna derivator eller integraler.
+  he: פתור משוואות וחשב נגזרות או אינטגרלים.
   verified_by_human: []

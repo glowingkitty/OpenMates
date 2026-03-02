@@ -353,6 +353,7 @@
     --icon-url-maps: url('@openmates/ui/static/icons/maps.svg');
     --icon-url-math: url('@openmates/ui/static/icons/math.svg');
     --icon-url-mattermost: url('@openmates/ui/static/icons/mattermost.svg');
+    --icon-url-meetup: url('@openmates/ui/static/icons/meetup.svg');
     --icon-url-menu: url('@openmates/ui/static/icons/menu.svg');
     --icon-url-meta: url('@openmates/ui/static/icons/meta.svg');
     --icon-url-microsoft-authenticator: url('@openmates/ui/static/icons/microsoft-authenticator.svg');

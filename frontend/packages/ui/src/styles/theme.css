@@ -316,6 +316,15 @@
     var(--color-app-videos-end) 90.06%
   );
 
+  /* App/Music */
+  --color-app-music-start: #ae2a39;
+  --color-app-music-end: #78000e;
+  --color-app-music: linear-gradient(
+    135deg,
+    var(--color-app-music-start) 9.04%,
+    var(--color-app-music-end) 90.06%
+  );
+
   /* App/Audio */
   --color-app-audio-start: #00c7a0;
   --color-app-audio-end: #2b3d39;

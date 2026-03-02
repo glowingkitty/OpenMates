@@ -27,30 +27,28 @@ search:
 
 search.description:
   context: Description for search skill in Events app
-  en: Search for meetups, conferences and local events.
-  de: Suche nach Meetups, Konferenzen und lokalen Veranstaltungen.
+  en: Find meetups, conferences and local events.
+  de: Meetups, Konferenzen und lokale Events finden.
   zh: 搜索聚会、会议和本地活动。
-  es: Busca meetups, conferencias y eventos locales.
-  fr: Recherchez des meetups, des conférences et des événements locaux.
-  pt: Pesquise meetups, conferências e eventos locais.
+  es: Encuentra meetups, conferencias y eventos locales.
+  fr: Trouvez des meetups, conférences et événements locaux.
+  pt: Encontre meetups, conferências e eventos locais.
   ru: Ищите встречи, конференции и местные мероприятия.
-  ja: ミートアップ、カンファレンス、地域イベントを検索する。
-  ko: 밋업, 컨퍼런스, 로컬 이벤트를 검색하세요.
-  it: Cerca meetup, conferenze ed eventi locali.
-  tr: Buluşmalar, konferanslar ve yerel etkinlikler arayın.
-  vi: Tìm kiếm meetup, hội nghị và sự kiện địa phương.
-  id: Cari meetup, konferensi, dan acara lokal.
-  pl: Szukaj spotkań, konferencji i lokalnych wydarzeń.
-  nl: Zoek naar meetups, conferenties en lokale evenementen.
-  ar: ابحث عن اللقاءات والمؤتمرات والفعاليات المحلية.
+  ja: ミートアップ、会議、地域イベントを探す。
+  ko: 밋업, 컨퍼런스, 로컬 이벤트를 찾아보세요.
+  it: Trova meetup, conferenze ed eventi locali.
+  tr: Meetup, konferans ve yerel etkinlikleri bulun.
+  vi: Tìm meetup, hội nghị và sự kiện địa phương.
+  id: Temukan meetup, konferensi, dan acara lokal.
+  pl: Znajdź meetupy, konferencje i lokalne wydarzenia.
+  nl: Vind meetups, conferenties en lokale evenementen.
+  ar: ابحث عن لقاءات ومؤتمرات وأحداث محلية.
   hi: मीटअप, कॉन्फ्रेंस और स्थानीय इवेंट खोजें।
-  th: ค้นหา meetup การประชุม และกิจกรรมในท้องถิ่น
-  cs: Hledejte meetupy, konference a místní akce.
-  sv: Sök efter meetups, konferenser och lokala evenemang.
-  he: חיפוש מפגשים, כנסים ואירועים מקומיים.
-  verified_by_human:
-    - en
-    - de
+  th: ค้นหา meetup การประชุม และกิจกรรมท้องถิ่น
+  cs: Najděte meetupy, konference a místní akce.
+  sv: Hitta meetups, konferenser och lokala evenemang.
+  he: מצא מפגשים, כנסים ואירועים מקומיים.
+  verified_by_human: []
 
 search.how_to_use.1:
   context: Example instruction for events search skill - topic-based meetup
