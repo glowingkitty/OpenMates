@@ -1406,6 +1406,40 @@ changes to the documentation (to keep the documentation up to date).
         };
         window.addEventListener('closeSettingsMenu', handleCloseSettingsMenu);
 
+        // Listen for forced close during forced logout (e.g., missing master key).
+        // Unlike closeSettingsMenu (toggle), this unconditionally closes AND resets
+        // the view to 'main' so the user never lands on an auth-only sub-page.
+        const handleForceCloseSettings = () => {
+            if (isMenuVisible) {
+                // Close and sync all visibility sources
+                isMenuVisible = false;
+                settingsMenuVisible.set(false);
+                panelState.closeSettings();
+
+                // Reset to main settings page — mirrors toggleMenu() close logic
+                activeSettingsView = 'main';
+                navigationPath = [];
+                breadcrumbLabel = $text('settings.settings');
+                showSubmenuInfo = false;
+                navButtonLeft = false;
+                hideNavButton = false;
+                allAppsScrollPosition = 0;
+
+                if (profileContainer) {
+                    profileContainer.classList.remove('submenu-active');
+                }
+                const menuElement = document.querySelector('.settings-menu');
+                if (menuElement) {
+                    menuElement.classList.remove('mobile-overlay');
+                }
+                if (settingsContentElement) {
+                    settingsContentElement.scrollTop = 0;
+                }
+                console.debug('[Settings] Force-closed settings and reset to main page (forced logout)');
+            }
+        };
+        window.addEventListener('forceCloseSettings', handleForceCloseSettings);
+
         // Listen for requests to re-open the settings panel — dispatched by SettingsReportIssue
         // after the DOM element picker captures or cancels. Symmetric to closeSettingsMenu.
         // If the event carries a returnTo path (e.g. 'report_issue'), navigate there after
@@ -1512,6 +1546,7 @@ changes to the documentation (to keep the documentation up to date).
             window.removeEventListener('resize', handleResize);
             document.removeEventListener('click', handleClickOutside);
             window.removeEventListener('closeSettingsMenu', handleCloseSettingsMenu);
+            window.removeEventListener('forceCloseSettings', handleForceCloseSettings);
             window.removeEventListener('openSettingsMenu', handleOpenSettingsMenu);
             window.removeEventListener('language-changed', languageChangeHandler);
             webSocketService.off('user_credits_updated', handleCreditUpdate);
@@ -1812,6 +1847,25 @@ changes to the documentation (to keep the documentation up to date).
     		const menuElement = document.querySelector('.settings-menu');
     		if (menuElement) {
     			menuElement.classList.remove('mobile-overlay');
+    		}
+
+    		// CRITICAL: Reset settings view to main page when externally closed (e.g., forced logout)
+    		// This prevents users from landing on an auth-only sub-page next time they open settings.
+    		// Mirrors the reset logic in toggleMenu() when the menu is closed.
+    		activeSettingsView = 'main';
+    		navigationPath = [];
+    		breadcrumbLabel = $text('settings.settings');
+    		showSubmenuInfo = false;
+    		navButtonLeft = false;
+    		hideNavButton = false;
+    		allAppsScrollPosition = 0;
+
+    		if (profileContainer) {
+    			profileContainer.classList.remove('submenu-active');
+    		}
+
+    		if (settingsContentElement) {
+    			settingsContentElement.scrollTop = 0;
     		}
    
     		// Don't call toggleMenu again, just update state

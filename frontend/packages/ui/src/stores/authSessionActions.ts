@@ -275,6 +275,17 @@ export async function checkAuth(
           "[AuthSessionActions] Set isLoggingOut to true for missing master key logout",
         );
 
+        // CRITICAL: Close the settings menu and reset to main page during forced logout.
+        // This prevents users from being stuck in an auth-only settings sub-page (e.g. account/security)
+        // after being forced out. Dispatches a window event that Settings.svelte listens to,
+        // avoiding circular module dependencies from importing the component directly.
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("forceCloseSettings"));
+          console.debug(
+            "[AuthSessionActions] Dispatched forceCloseSettings event on forced logout",
+          );
+        }
+
         // Trigger server logout and local data cleanup
         // Database deletion is handled by the logout() function's background IIFE
         // CRITICAL: Do NOT reset forcedLogoutInProgress until AFTER database deletion completes
