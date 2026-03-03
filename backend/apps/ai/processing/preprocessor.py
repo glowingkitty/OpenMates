@@ -38,10 +38,254 @@ from backend.apps.ai.utils.model_selector import ModelSelector
 # This module protects against invisible Unicode characters used to embed hidden instructions
 from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
 
+# Import AIHistoryMessage for type-safe onboarding trigger detection
+from backend.core.api.app.schemas.chat import AIHistoryMessage
+
 # Import ConfigManager for model provider resolution
 from backend.core.api.app.utils.config_manager import config_manager
 
 logger = logging.getLogger(__name__)
+
+ONBOARDING_SUPPORT_CATEGORY = "onboarding_support"
+USER_ROLE = "user"
+
+# ---------------------------------------------------------------------------
+# Onboarding trigger phrases — multilingual (all 20 supported locales).
+#
+# When NONE of these phrases appear (case-insensitive) in any user message in
+# the chat history, we remove 'onboarding_support' from the category list so
+# the preprocessing LLM cannot mis-route general questions to the onboarding
+# mate.
+#
+# Three tiers of phrases:
+#   1. Brand names (language-agnostic): "openmates", "openmate", "openmates.org"
+#   2. Self-referential platform phrases per language: "this app", "your features", etc.
+#   3. Onboarding-intent phrases per language: "get started", "how does this work", etc.
+#
+# casefold() is used for matching, so all entries here MUST be lowercase.
+# Keep sorted by language code for maintainability.
+# ---------------------------------------------------------------------------
+ONBOARDING_TRIGGER_PHRASES: tuple[str, ...] = (
+    # --- Brand names (language-agnostic) ---
+    "openmates",
+    "openmate",
+    "open mates",
+    "open mate",
+    "openmates.org",
+
+    # --- ar (Arabic) ---
+    "هذا التطبيق",          # this app
+    "هذه المنصة",           # this platform
+    "ميزاتكم",             # your features
+    "كيف أبدأ",            # how do I start
+    "كيف يعمل هذا",        # how does this work
+    "ما الذي يمكنك فعله",   # what can you do
+
+    # --- cs (Czech) ---
+    "tato aplikace",       # this app
+    "tato platforma",      # this platform
+    "vaše funkce",         # your features
+    "jak začít",           # how to start
+    "jak to funguje",      # how does this work
+    "co umíš",             # what can you do
+
+    # --- de (German) ---
+    "diese app",           # this app
+    "diese plattform",     # this platform
+    "diese anwendung",     # this application
+    "deine funktionen",    # your features (informal)
+    "eure funktionen",     # your features (informal plural)
+    "ihre funktionen",     # your features (formal)
+    "wie funktioniert das hier",  # how does this work here
+    "wie fange ich an",    # how do I start
+    "was kannst du",       # what can you do
+
+    # --- en (English) ---
+    "this app",
+    "this platform",
+    "this application",
+    "your features",
+    "your platform",
+    "your app",
+    "get started",
+    "how does this work",
+    "what can you do",
+    "how do i use this",
+    "what is this",
+
+    # --- es (Spanish) ---
+    "esta aplicación",     # this app
+    "esta plataforma",     # this platform
+    "esta app",            # this app (colloquial)
+    "tus funciones",       # your features (informal)
+    "sus funciones",       # your features (formal)
+    "cómo empezar",        # how to start
+    "cómo funciona esto",  # how does this work
+    "qué puedes hacer",    # what can you do
+
+    # --- fr (French) ---
+    "cette application",   # this app
+    "cette plateforme",    # this platform
+    "cette appli",         # this app (colloquial)
+    "vos fonctionnalités", # your features (formal)
+    "tes fonctionnalités", # your features (informal)
+    "comment commencer",   # how to start
+    "comment ça marche",   # how does this work
+    "qu'est-ce que tu peux faire",  # what can you do
+
+    # --- hi (Hindi) ---
+    "यह ऐप",              # this app
+    "यह प्लेटफ़ॉर्म",       # this platform
+    "आपकी सुविधाएं",       # your features
+    "कैसे शुरू करें",       # how to start
+    "यह कैसे काम करता है",  # how does this work
+    "आप क्या कर सकते हैं",  # what can you do
+
+    # --- id (Indonesian) ---
+    "aplikasi ini",        # this app
+    "platform ini",        # this platform
+    "fitur kamu",          # your features (informal)
+    "fitur anda",          # your features (formal)
+    "cara memulai",        # how to start
+    "bagaimana ini bekerja",  # how does this work
+    "apa yang bisa kamu lakukan",  # what can you do
+
+    # --- it (Italian) ---
+    "questa app",          # this app
+    "questa applicazione", # this application
+    "questa piattaforma",  # this platform
+    "le tue funzionalità", # your features (informal)
+    "le vostre funzionalità",  # your features (formal)
+    "come iniziare",       # how to start
+    "come funziona",       # how does this work
+    "cosa puoi fare",      # what can you do
+
+    # --- ja (Japanese) ---
+    "このアプリ",           # this app
+    "このプラットフォーム",    # this platform
+    "あなたの機能",         # your features
+    "使い方",              # how to use
+    "始め方",              # how to start
+    "何ができる",           # what can you do
+    "どう使う",            # how to use
+
+    # --- ko (Korean) ---
+    "이 앱",               # this app
+    "이 플랫폼",           # this platform
+    "기능이 뭐야",          # what are the features
+    "어떻게 시작",          # how to start
+    "어떻게 사용",          # how to use
+    "뭘 할 수 있",          # what can you do
+
+    # --- nl (Dutch) ---
+    "deze app",            # this app
+    "dit platform",        # this platform
+    "deze applicatie",     # this application
+    "jouw functies",       # your features (informal)
+    "uw functies",         # your features (formal)
+    "hoe begin ik",        # how do I start
+    "hoe werkt dit",       # how does this work
+    "wat kun je",          # what can you do
+
+    # --- pl (Polish) ---
+    "ta aplikacja",        # this app
+    "ta platforma",        # this platform
+    "twoje funkcje",       # your features (informal)
+    "wasze funkcje",       # your features (formal plural)
+    "jak zacząć",          # how to start
+    "jak to działa",       # how does this work
+    "co potrafisz",        # what can you do
+
+    # --- pt (Portuguese) ---
+    "este app",            # this app
+    "esta aplicação",      # this application
+    "esta plataforma",     # this platform
+    "este aplicativo",     # this app (Brazilian)
+    "suas funcionalidades",  # your features
+    "como começar",        # how to start
+    "como funciona isso",  # how does this work
+    "o que você pode fazer",  # what can you do
+
+    # --- ru (Russian) ---
+    "это приложение",      # this app
+    "эта платформа",       # this platform
+    "ваши функции",        # your features (formal)
+    "твои функции",        # your features (informal)
+    "как начать",          # how to start
+    "как это работает",    # how does this work
+    "что ты умеешь",       # what can you do
+    "что вы умеете",       # what can you do (formal)
+
+    # --- sv (Swedish) ---
+    "den här appen",       # this app
+    "den här plattformen", # this platform
+    "denna app",           # this app (formal)
+    "dina funktioner",     # your features
+    "hur börjar jag",      # how do I start
+    "hur fungerar det här",  # how does this work
+    "vad kan du",          # what can you do
+
+    # --- th (Thai) ---
+    "แอปนี้",              # this app
+    "แพลตฟอร์มนี้",         # this platform
+    "ฟีเจอร์ของคุณ",        # your features
+    "เริ่มต้นยังไง",         # how to start
+    "ใช้งานยังไง",          # how to use
+    "ทำอะไรได้บ้าง",        # what can you do
+
+    # --- tr (Turkish) ---
+    "bu uygulama",         # this app
+    "bu platform",         # this platform
+    "özellikleriniz",      # your features (formal)
+    "özelliklerin",        # your features (informal)
+    "nasıl başlarım",      # how do I start
+    "bu nasıl çalışıyor",  # how does this work
+    "ne yapabilirsin",     # what can you do
+
+    # --- vi (Vietnamese) ---
+    "ứng dụng này",        # this app
+    "nền tảng này",        # this platform
+    "tính năng của bạn",   # your features
+    "bắt đầu như thế nào", # how to start
+    "cái này hoạt động thế nào",  # how does this work
+    "bạn có thể làm gì",  # what can you do
+
+    # --- zh (Chinese) ---
+    "这个应用",            # this app (simplified)
+    "这个平台",            # this platform (simplified)
+    "這個應用",            # this app (traditional)
+    "這個平台",            # this platform (traditional)
+    "你的功能",            # your features
+    "怎么开始",            # how to start (simplified)
+    "怎麼開始",            # how to start (traditional)
+    "这个怎么用",          # how to use this (simplified)
+    "這個怎麼用",          # how to use this (traditional)
+    "你能做什么",          # what can you do (simplified)
+    "你能做什麼",          # what can you do (traditional)
+)
+
+
+def _contains_onboarding_trigger_in_user_history(message_history: List[AIHistoryMessage]) -> bool:
+    """
+    Return True when any user-authored message contains a phrase that suggests
+    the user might be asking about the OpenMates platform itself.
+
+    Uses a multilingual phrase list covering brand names, self-referential
+    platform phrases, and onboarding-intent phrases in all 20 supported locales.
+    """
+    for message in message_history:
+        if message.role != USER_ROLE:
+            continue
+
+        content = message.content
+        if not isinstance(content, str):
+            continue
+
+        normalized_content = content.casefold()
+        if any(trigger in normalized_content for trigger in ONBOARDING_TRIGGER_PHRASES):
+            return True
+
+    return False
 
 
 async def translate_chat_title(
@@ -925,6 +1169,29 @@ async def handle_preprocessing(
         )
         available_categories_list.append(f"general_knowledge: {fallback_desc}")
         available_categories_list = sorted(available_categories_list)
+
+    # Hard guard for onboarding routing reliability:
+    # if no user-authored message in the current chat history mentions OpenMates/OpenMate,
+    # remove onboarding_support from selectable categories before prompting the LLM.
+    has_onboarding_trigger = _contains_onboarding_trigger_in_user_history(request_data.message_history)
+    if not has_onboarding_trigger:
+        onboarding_prefix = f"{ONBOARDING_SUPPORT_CATEGORY}:"
+        filtered_categories = [
+            category_entry
+            for category_entry in available_categories_list
+            if not category_entry.startswith(onboarding_prefix)
+        ]
+        if len(filtered_categories) != len(available_categories_list):
+            available_categories_list = filtered_categories
+            logger.info(
+                f"{log_prefix} Removed '{ONBOARDING_SUPPORT_CATEGORY}' from CATEGORIES_LIST "
+                "because no onboarding trigger terms were found in user chat history."
+            )
+    else:
+        logger.debug(
+            f"{log_prefix} Keeping '{ONBOARDING_SUPPORT_CATEGORY}' in CATEGORIES_LIST "
+            "because onboarding trigger terms were found in user chat history."
+        )
 
     # Build a set of bare category IDs (e.g. {"science", "finance", ...}) for validation.
     # The LLM is prompted with the full "id: description" strings (available_categories_list)
