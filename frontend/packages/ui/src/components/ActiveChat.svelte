@@ -44,6 +44,8 @@
     import MathCalculateEmbedFullscreen from './embeds/math/MathCalculateEmbedFullscreen.svelte';
     import MathPlotEmbedFullscreen from './embeds/math/MathPlotEmbedFullscreen.svelte';
     import PDFEmbedFullscreen from './embeds/pdf/PDFEmbedFullscreen.svelte';
+    import PdfReadEmbedFullscreen from './embeds/pdf/PdfReadEmbedFullscreen.svelte';
+    import PdfSearchEmbedFullscreen from './embeds/pdf/PdfSearchEmbedFullscreen.svelte';
     import RecordingEmbedFullscreen from './embeds/audio/RecordingEmbedFullscreen.svelte';
     import FocusModeContextMenu from './embeds/FocusModeContextMenu.svelte';
     import { appSkillsStore } from '../stores/appSkillsStore'; // For resolving active focus mode name in header banner
@@ -490,6 +492,27 @@
     let showPdfEmbedFullscreen = $state(false);
     let pdfFullscreenData = $state<{ embedId?: string; filename?: string; pageCount?: number }>({});
 
+    // PDF read fullscreen — triggered by clicking a finished pdf.read skill embed
+    let showPdfReadFullscreen = $state(false);
+    let pdfReadFullscreenData = $state<{
+        embedId?: string;
+        filename?: string;
+        pagesReturned?: number[];
+        pagesSkipped?: number[];
+        textContent?: string;
+    }>({});
+
+    // PDF search fullscreen — triggered by clicking a finished pdf.search skill embed
+    let showPdfSearchFullscreen = $state(false);
+    let pdfSearchFullscreenData = $state<{
+        embedId?: string;
+        filename?: string;
+        query?: string;
+        totalMatches?: number;
+        truncated?: boolean;
+        matches?: Array<{ page_num?: number; match_text?: string; context?: string; char_offset?: number }>;
+    }>({});
+
     // Recording embed fullscreen — triggered by clicking a finished voice recording embed
     let showRecordingFullscreen = $state(false);
     let recordingFullscreenData = $state<{
@@ -839,6 +862,41 @@
     function handleClosePdfFullscreen() {
         showPdfEmbedFullscreen = false;
         pdfFullscreenData = {};
+    }
+
+    function handlePdfReadFullscreen(event: CustomEvent) {
+        console.debug('[ActiveChat] Received pdfreadfullscreen event:', event.detail);
+        pdfReadFullscreenData = {
+            embedId: event.detail.embedId,
+            filename: event.detail.filename,
+            pagesReturned: event.detail.pagesReturned,
+            pagesSkipped: event.detail.pagesSkipped,
+            textContent: event.detail.textContent,
+        };
+        showPdfReadFullscreen = true;
+    }
+
+    function handleClosePdfReadFullscreen() {
+        showPdfReadFullscreen = false;
+        pdfReadFullscreenData = {};
+    }
+
+    function handlePdfSearchFullscreen(event: CustomEvent) {
+        console.debug('[ActiveChat] Received pdfsearchfullscreen event:', event.detail);
+        pdfSearchFullscreenData = {
+            embedId: event.detail.embedId,
+            filename: event.detail.filename,
+            query: event.detail.query,
+            totalMatches: event.detail.totalMatches,
+            truncated: event.detail.truncated,
+            matches: event.detail.matches,
+        };
+        showPdfSearchFullscreen = true;
+    }
+
+    function handleClosePdfSearchFullscreen() {
+        showPdfSearchFullscreen = false;
+        pdfSearchFullscreenData = {};
     }
 
     function handleImageFullscreen(event: CustomEvent) {
@@ -6665,8 +6723,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const recordingfullscreenHandler = (event: Event) => {
             handleRecordingFullscreen(event as CustomEvent);
         };
+        const pdfreadfullscreenHandler = (event: Event) => {
+            handlePdfReadFullscreen(event as CustomEvent);
+        };
+        const pdfsearchfullscreenHandler = (event: Event) => {
+            handlePdfSearchFullscreen(event as CustomEvent);
+        };
         document.addEventListener('imagefullscreen', imagefullscreenHandler);
         document.addEventListener('pdffullscreen', pdffullscreenHandler);
+        document.addEventListener('pdfreadfullscreen', pdfreadfullscreenHandler);
+        document.addEventListener('pdfsearchfullscreen', pdfsearchfullscreenHandler);
         document.addEventListener('recordingfullscreen', recordingfullscreenHandler);
         
         // --- Focus mode event listeners ---
@@ -7835,6 +7901,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Remove image/PDF/recording fullscreen document listeners
             document.removeEventListener('imagefullscreen', imagefullscreenHandler);
             document.removeEventListener('pdffullscreen', pdffullscreenHandler);
+            document.removeEventListener('pdfreadfullscreen', pdfreadfullscreenHandler);
+            document.removeEventListener('pdfsearchfullscreen', pdfsearchfullscreenHandler);
             document.removeEventListener('recordingfullscreen', recordingfullscreenHandler);
             // Remove focus mode event listeners
             document.removeEventListener('focusModeRejected', focusModeRejectedHandler as EventListenerCallback);
@@ -8346,6 +8414,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     filename={pdfFullscreenData.filename}
                     pageCount={pdfFullscreenData.pageCount}
                     onClose={handleClosePdfFullscreen}
+                />
+            {/if}
+
+            {#if showPdfReadFullscreen}
+                <PdfReadEmbedFullscreen
+                    embedId={pdfReadFullscreenData.embedId}
+                    filename={pdfReadFullscreenData.filename}
+                    pagesReturned={pdfReadFullscreenData.pagesReturned}
+                    pagesSkipped={pdfReadFullscreenData.pagesSkipped}
+                    textContent={pdfReadFullscreenData.textContent}
+                    onClose={handleClosePdfReadFullscreen}
+                />
+            {/if}
+
+            {#if showPdfSearchFullscreen}
+                <PdfSearchEmbedFullscreen
+                    embedId={pdfSearchFullscreenData.embedId}
+                    filename={pdfSearchFullscreenData.filename}
+                    query={pdfSearchFullscreenData.query}
+                    totalMatches={pdfSearchFullscreenData.totalMatches}
+                    truncated={pdfSearchFullscreenData.truncated}
+                    matches={pdfSearchFullscreenData.matches}
+                    onClose={handleClosePdfSearchFullscreen}
                 />
             {/if}
 

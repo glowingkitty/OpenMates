@@ -2144,6 +2144,64 @@ export class AppSkillUseRenderer implements EmbedRenderer {
   }
 
   /**
+   * Dispatch 'pdfreadfullscreen' so ActiveChat mounts PdfReadEmbedFullscreen.
+   * Carries the skill-use embed ID + extracted text content.
+   */
+  private openPdfReadFullscreen(
+    embedId: string,
+    filename: string,
+    pagesReturned: number[],
+    pagesSkipped: number[],
+    textContent: string,
+  ): void {
+    const event = new CustomEvent("pdfreadfullscreen", {
+      detail: {
+        embedId,
+        filename,
+        pagesReturned,
+        pagesSkipped,
+        textContent,
+      },
+      bubbles: true,
+    });
+    document.dispatchEvent(event);
+    console.debug(
+      "[AppSkillUseRenderer] Dispatched pdfreadfullscreen:",
+      embedId,
+    );
+  }
+
+  /**
+   * Dispatch 'pdfsearchfullscreen' so ActiveChat mounts PdfSearchEmbedFullscreen.
+   * Carries the skill-use embed ID + search query + matches.
+   */
+  private openPdfSearchFullscreen(
+    embedId: string,
+    filename: string,
+    query: string,
+    totalMatches: number | undefined,
+    truncated: boolean,
+    matches: any[],
+  ): void {
+    const event = new CustomEvent("pdfsearchfullscreen", {
+      detail: {
+        embedId,
+        filename,
+        query,
+        totalMatches,
+        truncated,
+        matches,
+      },
+      bubbles: true,
+    });
+    document.dispatchEvent(event);
+    console.debug(
+      "[AppSkillUseRenderer] Dispatched pdfsearchfullscreen:",
+      embedId,
+    );
+  }
+
+  /**
    * Render images/view skill embed using ImageViewEmbedPreview component.
    * On fullscreen click, opens the original uploaded image's fullscreen viewer.
    */
@@ -2450,6 +2508,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           filename,
           pageCount,
           pages,
+          originalEmbedId,
           status: status as "processing" | "finished" | "error",
           error,
           taskId,
@@ -2483,7 +2542,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
   /**
    * Render pdf/read skill embed using PdfReadEmbedPreview component.
-   * On fullscreen click, opens the original uploaded PDF's fullscreen viewer.
+   * On fullscreen click, dispatches 'pdfreadfullscreen' to open PdfReadEmbedFullscreen
+   * which shows the full extracted text content.
    */
   private renderPdfReadComponent(
     attrs: EmbedNodeAttributes,
@@ -2515,6 +2575,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const filename = decodedContent?.filename || "";
     const pageCount = decodedContent?.page_count ?? undefined;
 
+    // Extract text content from results[0].content (the actual extracted text)
+    const textContent =
+      decodedContent?.results?.[0]?.content || decodedContent?.content || "";
+
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
@@ -2533,8 +2597,15 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     try {
       const embedId = attrs.contentRef?.replace("embed:", "") || "";
 
+      // On fullscreen click: dispatch pdfreadfullscreen to open PdfReadEmbedFullscreen
       const handleFullscreen = () => {
-        this.openPdfUploadFullscreen(originalEmbedId);
+        this.openPdfReadFullscreen(
+          embedId,
+          filename,
+          pagesReturned,
+          pagesSkipped,
+          textContent,
+        );
       };
 
       const component = mount(PdfReadEmbedPreview, {
@@ -2545,14 +2616,12 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           pagesReturned,
           pagesSkipped,
           pageCount,
+          textContent,
           status: status as "processing" | "finished" | "error",
           error,
           taskId,
           isMobile: false,
-          onFullscreen:
-            status === "finished" && originalEmbedId
-              ? handleFullscreen
-              : undefined,
+          onFullscreen: status === "finished" ? handleFullscreen : undefined,
         },
       });
 
@@ -2566,6 +2635,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           pagesReturned,
           pagesSkipped,
           filename,
+          hasTextContent: !!textContent,
         },
       );
     } catch (error) {
@@ -2579,7 +2649,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
   /**
    * Render pdf/search skill embed using PdfSearchEmbedPreview component.
-   * On fullscreen click, opens the original uploaded PDF's fullscreen viewer.
+   * On fullscreen click, dispatches 'pdfsearchfullscreen' to open PdfSearchEmbedFullscreen
+   * which shows all search matches with context and highlighted keywords.
    */
   private renderPdfSearchComponent(
     attrs: EmbedNodeAttributes,
@@ -2608,6 +2679,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const filename = decodedContent?.filename || "";
     const pageCount = decodedContent?.page_count ?? undefined;
 
+    // Extract matches array from results[0].matches
+    const matches: any[] =
+      decodedContent?.results?.[0]?.matches || decodedContent?.matches || [];
+
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
@@ -2626,8 +2701,16 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     try {
       const embedId = attrs.contentRef?.replace("embed:", "") || "";
 
+      // On fullscreen click: dispatch pdfsearchfullscreen to open PdfSearchEmbedFullscreen
       const handleFullscreen = () => {
-        this.openPdfUploadFullscreen(originalEmbedId);
+        this.openPdfSearchFullscreen(
+          embedId,
+          filename,
+          query,
+          totalMatches,
+          truncated,
+          matches,
+        );
       };
 
       const component = mount(PdfSearchEmbedPreview, {
@@ -2643,10 +2726,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           error,
           taskId,
           isMobile: false,
-          onFullscreen:
-            status === "finished" && originalEmbedId
-              ? handleFullscreen
-              : undefined,
+          onFullscreen: status === "finished" ? handleFullscreen : undefined,
         },
       });
 
@@ -2659,6 +2739,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           originalEmbedId,
           query,
           totalMatches,
+          matchCount: matches.length,
           filename,
         },
       );

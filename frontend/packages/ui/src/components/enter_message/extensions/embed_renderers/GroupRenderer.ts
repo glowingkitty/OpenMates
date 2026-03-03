@@ -1099,18 +1099,27 @@ export class GroupRenderer implements EmbedRenderer {
         return;
       }
 
-      // Handle pdf.read skill — opens original uploaded PDF fullscreen on click
+      // Handle pdf.read skill — dispatches pdfreadfullscreen to open PdfReadEmbedFullscreen
       if (appId === "pdf" && skillId === "read") {
-        const originalEmbedId = decodedContent?.embed_id || "";
         const filename = decodedContent?.filename || "";
         const pagesReturned: number[] = decodedContent?.pages_returned || [];
         const pagesSkipped: number[] = decodedContent?.pages_skipped || [];
         const pageCount: number | undefined =
           decodedContent?.page_count ?? undefined;
+        // Extract text content from results[0].content
+        const textContent =
+          decodedContent?.results?.[0]?.content ||
+          decodedContent?.content ||
+          "";
 
         const handlePdfReadFullscreen = () => {
-          if (!originalEmbedId) return;
-          this.openPdfUploadFullscreen(originalEmbedId);
+          this.openPdfReadFullscreen(
+            embedId,
+            filename,
+            pagesReturned,
+            pagesSkipped,
+            textContent,
+          );
         };
 
         const component = mount(PdfReadEmbedPreview, {
@@ -1121,13 +1130,12 @@ export class GroupRenderer implements EmbedRenderer {
             pagesReturned,
             pagesSkipped,
             pageCount,
+            textContent,
             status: status as "processing" | "finished" | "error",
             error: decodedContent?.error || "",
             isMobile: false,
             onFullscreen:
-              status === "finished" && originalEmbedId
-                ? handlePdfReadFullscreen
-                : undefined,
+              status === "finished" ? handlePdfReadFullscreen : undefined,
           },
         });
         mountedComponents.set(target, component);
@@ -1154,6 +1162,7 @@ export class GroupRenderer implements EmbedRenderer {
             filename,
             pages,
             pageCount,
+            originalEmbedId,
             status: status as "processing" | "finished" | "error",
             error: decodedContent?.error || "",
             isMobile: false,
@@ -1167,18 +1176,28 @@ export class GroupRenderer implements EmbedRenderer {
         return;
       }
 
-      // Handle pdf.search skill — opens original uploaded PDF fullscreen on click
+      // Handle pdf.search skill — dispatches pdfsearchfullscreen to open PdfSearchEmbedFullscreen
       if (appId === "pdf" && skillId === "search") {
-        const originalEmbedId = decodedContent?.embed_id || "";
         const filename = decodedContent?.filename || "";
         const searchQuery = decodedContent?.query || query || "";
         const totalMatches: number | undefined =
           decodedContent?.total_matches ?? undefined;
         const truncated: boolean = decodedContent?.truncated ?? false;
+        // Extract matches array from results[0].matches
+        const matches: any[] =
+          decodedContent?.results?.[0]?.matches ||
+          decodedContent?.matches ||
+          [];
 
         const handlePdfSearchFullscreen = () => {
-          if (!originalEmbedId) return;
-          this.openPdfUploadFullscreen(originalEmbedId);
+          this.openPdfSearchFullscreen(
+            embedId,
+            filename,
+            searchQuery,
+            totalMatches,
+            truncated,
+            matches,
+          );
         };
 
         const component = mount(PdfSearchEmbedPreview, {
@@ -1193,9 +1212,7 @@ export class GroupRenderer implements EmbedRenderer {
             error: decodedContent?.error || "",
             isMobile: false,
             onFullscreen:
-              status === "finished" && originalEmbedId
-                ? handlePdfSearchFullscreen
-                : undefined,
+              status === "finished" ? handlePdfSearchFullscreen : undefined,
           },
         });
         mountedComponents.set(target, component);
@@ -1344,6 +1361,58 @@ export class GroupRenderer implements EmbedRenderer {
         err,
       );
     }
+  }
+
+  /**
+   * Dispatch 'pdfreadfullscreen' so ActiveChat mounts PdfReadEmbedFullscreen.
+   * Carries the skill-use embed ID + extracted text content.
+   */
+  private openPdfReadFullscreen(
+    embedId: string,
+    filename: string,
+    pagesReturned: number[],
+    pagesSkipped: number[],
+    textContent: string,
+  ): void {
+    const event = new CustomEvent("pdfreadfullscreen", {
+      detail: {
+        embedId,
+        filename,
+        pagesReturned,
+        pagesSkipped,
+        textContent,
+      },
+      bubbles: true,
+    });
+    document.dispatchEvent(event);
+    console.debug("[GroupRenderer] Dispatched pdfreadfullscreen:", embedId);
+  }
+
+  /**
+   * Dispatch 'pdfsearchfullscreen' so ActiveChat mounts PdfSearchEmbedFullscreen.
+   * Carries the skill-use embed ID + search query + matches.
+   */
+  private openPdfSearchFullscreen(
+    embedId: string,
+    filename: string,
+    query: string,
+    totalMatches: number | undefined,
+    truncated: boolean,
+    matches: any[],
+  ): void {
+    const event = new CustomEvent("pdfsearchfullscreen", {
+      detail: {
+        embedId,
+        filename,
+        query,
+        totalMatches,
+        truncated,
+        matches,
+      },
+      bubbles: true,
+    });
+    document.dispatchEvent(event);
+    console.debug("[GroupRenderer] Dispatched pdfsearchfullscreen:", embedId);
   }
 
   /**
