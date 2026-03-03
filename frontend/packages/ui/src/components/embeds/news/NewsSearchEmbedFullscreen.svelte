@@ -41,6 +41,10 @@
     favicon_url?: string;
     thumbnail?: string;
     description?: string;
+    /** Extra snippets from backend TOON (pipe-delimited string or array) */
+    extra_snippets?: string | string[];
+    /** Page age from Brave Search (relative string like "2 weeks ago") */
+    page_age?: string;
   }
   
   /**
@@ -146,21 +150,49 @@
   let embedHeaderSubtitle = $derived(viaProvider);
   
   /**
+   * Extract nested or flat field value from decoded child content.
+   * Supports both flattened TOON fields (e.g. meta_url_favicon) and nested fields.
+   */
+  function getNestedField(obj: Record<string, unknown>, ...paths: string[]): string | undefined {
+    for (const path of paths) {
+      if (path.includes('.')) {
+        const parts = path.split('.');
+        let value: unknown = obj;
+        for (const part of parts) {
+          if (value && typeof value === 'object' && part in (value as Record<string, unknown>)) {
+            value = (value as Record<string, unknown>)[part];
+          } else {
+            value = undefined;
+            break;
+          }
+        }
+        if (typeof value === 'string' && value) return value;
+      } else {
+        const value = obj[path];
+        if (typeof value === 'string' && value) return value;
+      }
+    }
+    return undefined;
+  }
+
+  /**
    * Transform raw embed content to NewsSearchResult format
    * Used by UnifiedEmbedFullscreen's childEmbedTransformer
    */
   function transformToNewsResult(embedId: string, content: Record<string, unknown>): NewsSearchResult {
-    // Handle nested meta_url and thumbnail objects
-    const metaUrl = content.meta_url as Record<string, string> | undefined;
-    const thumbnail = content.thumbnail as Record<string, string> | undefined;
+    const faviconUrl = getNestedField(content, 'meta_url.favicon', 'favicon_url', 'meta_url_favicon');
+    const thumbnailUrl = getNestedField(content, 'thumbnail.original', 'thumbnail', 'thumbnail_original', 'image');
+    const pageAge = (content.age as string) || (content.page_age as string) || undefined;
     
     return {
       embed_id: embedId,
       title: content.title as string | undefined,
       url: content.url as string,
-      favicon_url: (content.favicon_url as string) || metaUrl?.favicon,
-      thumbnail: thumbnail?.original,
-      description: (content.description as string) || (content.snippet as string)
+      favicon_url: faviconUrl,
+      thumbnail: thumbnailUrl,
+      description: (content.description as string) || (content.snippet as string),
+      extra_snippets: content.extra_snippets as string | string[] | undefined,
+      page_age: pageAge
     };
   }
   
@@ -176,9 +208,11 @@
         embed_id: `legacy-${i}`,
         title: r.title as string | undefined,
         url: r.url as string,
-        favicon_url: (r.favicon_url as string) || metaUrl?.favicon,
-        thumbnail: thumbnail?.original,
-        description: (r.description as string) || (r.snippet as string)
+        favicon_url: (r.favicon_url as string) || (r.meta_url_favicon as string) || metaUrl?.favicon,
+        thumbnail: (r.thumbnail_original as string) || thumbnail?.original,
+        description: (r.description as string) || (r.snippet as string),
+        extra_snippets: r.extra_snippets as string | string[] | undefined,
+        page_age: (r.age as string) || (r.page_age as string) || undefined
       };
     });
   }
@@ -381,6 +415,8 @@
       description={selectedArticle.description}
       favicon={selectedArticle.favicon_url}
       thumbnail={selectedArticle.thumbnail}
+      extra_snippets={selectedArticle.extra_snippets}
+      dataDate={selectedArticle.page_age}
       onClose={handleArticleFullscreenClose}
       embedId={selectedArticle.embed_id}
       hasPreviousEmbed={selectedArticleIndex > 0}
@@ -434,4 +470,3 @@
     margin: 0 auto;
   }
 </style>
-
