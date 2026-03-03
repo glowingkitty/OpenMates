@@ -4,6 +4,19 @@ icon_image: |
   heart.svg
 category: personal
 last_updated: "2025-11-12"
+# Embed type definitions — single source of truth for frontend embed routing.
+embed_types:
+  - id: search_appointments
+    category: app-skill-use
+    skill_id: search_appointments
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    preview_component: health/HealthSearchEmbedPreview.svelte
+    fullscreen_component: health/HealthSearchEmbedFullscreen.svelte
+    icon: heart
+    gradient_var: "--color-app-health"
+    i18n_namespace: embeds.health.search_appointments
 settings_and_memories:
   - id: appointments
     name_translation_key: health.appointments

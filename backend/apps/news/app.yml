@@ -6,6 +6,24 @@ category: personal
 last_updated: "2025-11-26"
 settings_and_memories: []
 instructions: []
+# Embed type definitions — single source of truth for frontend embed routing.
+embed_types:
+  - id: search
+    category: app-skill-use
+    skill_id: search
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: website
+    child_frontend_type: web-website
+    groupable: true
+    preview_component: news/NewsSearchEmbedPreview.svelte
+    fullscreen_component: news/NewsSearchEmbedFullscreen.svelte
+    child_preview_component: news/NewsEmbedPreview.svelte
+    child_fullscreen_component: news/NewsEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-news"
+    i18n_namespace: embeds.news.search
 skills:
   - id: search
     name_translation_key: news.search

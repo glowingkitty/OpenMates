@@ -16,6 +16,7 @@ import {
 } from "../demo_chats/communityDemoStore";
 import { EmbedNodeAttributes } from "../message_parsing/types";
 import { generateUUID } from "../message_parsing/utils";
+import { normalizeEmbedType } from "../data/embedRegistry.generated";
 import { authStore } from "../stores/authState";
 import { get } from "svelte/store";
 
@@ -387,19 +388,10 @@ export async function embedDataToNodeAttributes(
  * @returns EmbedNodeType for TipTap
  */
 function mapEmbedTypeToNodeType(embedType: string): string {
-  const typeMap: Record<string, string> = {
-    app_skill_use: "app-skill-use", // New type for app skill results
-    website: "web-website",
-    video: "videos-video", // YouTube and other video embeds
-    place: "maps-place",
-    event: "maps-event",
-    code: "code-code",
-    sheet: "sheets-sheet",
-    document: "docs-doc",
-    file: "file",
-  };
-
-  return typeMap[embedType] || embedType;
+  // Uses the auto-generated EMBED_TYPE_NORMALIZATION_MAP from app.yml definitions.
+  // To add a new type mapping, add an embed_types entry to the relevant app.yml
+  // and rebuild — do NOT add manual entries here.
+  return normalizeEmbedType(embedType);
 }
 
 /**

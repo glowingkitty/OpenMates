@@ -4,6 +4,51 @@ icon_image: |
   travel.svg
 category: personal
 last_updated: "2025-11-12"
+# Embed type definitions — single source of truth for frontend embed routing.
+embed_types:
+  - id: search_connections
+    category: app-skill-use
+    skill_id: search_connections
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: connection
+    child_frontend_type: travel-connection
+    groupable: true
+    preview_component: travel/TravelSearchEmbedPreview.svelte
+    fullscreen_component: travel/TravelSearchEmbedFullscreen.svelte
+    child_preview_component: travel/TravelConnectionEmbedPreview.svelte
+    child_fullscreen_component: travel/TravelConnectionEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-travel"
+    i18n_namespace: embeds.travel.search_connections
+  - id: search_stays
+    category: app-skill-use
+    skill_id: search_stays
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: stay
+    child_frontend_type: travel-stay
+    groupable: false
+    preview_component: travel/TravelStaysEmbedPreview.svelte
+    fullscreen_component: travel/TravelStaysEmbedFullscreen.svelte
+    child_preview_component: travel/TravelStayEmbedPreview.svelte
+    child_fullscreen_component: travel/TravelStayEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-travel"
+    i18n_namespace: embeds.travel.search_stays
+  - id: price_calendar
+    category: app-skill-use
+    skill_id: price_calendar
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    preview_component: travel/TravelPriceCalendarEmbedPreview.svelte
+    fullscreen_component: travel/TravelPriceCalendarEmbedFullscreen.svelte
+    icon: calendar
+    gradient_var: "--color-app-travel"
+    i18n_namespace: embeds.travel.price_calendar
 settings_and_memories:
   # Trips: Planned or past trips with destination and dates
   - id: trips

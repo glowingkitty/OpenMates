@@ -11,10 +11,24 @@ icon_image: |
 category: productivity
 stage: production
 
-# Embed types produced by this app
+# Legacy embed descriptions (kept for documentation)
 embeds:
   - id: doc_embed
     description_embed: Rich document preview with formatted HTML content (reports, articles, letters, etc.)
+# Embed type definitions — single source of truth for frontend embed routing.
+embed_types:
+  # Document — direct-type, auto-detected from ```document_html``` blocks by stream_consumer.py
+  - id: doc
+    category: direct
+    frontend_type: docs-doc
+    backend_type: document
+    has_children: false
+    groupable: true
+    preview_component: docs/DocsEmbedPreview.svelte
+    fullscreen_component: docs/DocsEmbedFullscreen.svelte
+    icon: docs
+    gradient_var: "--color-app-docs"
+    i18n_namespace: embeds.docs.doc
 
 # Instructions injected into the AI system prompt when this app is available
 # These are loaded dynamically by the main processor based on app discovery

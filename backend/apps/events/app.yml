@@ -6,6 +6,24 @@ category: personal
 last_updated: "2026-03-02"
 settings_and_memories: []
 instructions: []
+# Embed type definitions — single source of truth for frontend embed routing.
+embed_types:
+  - id: search
+    category: app-skill-use
+    skill_id: search
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: event
+    child_frontend_type: events-event
+    groupable: false
+    preview_component: events/EventsSearchEmbedPreview.svelte
+    fullscreen_component: events/EventsSearchEmbedFullscreen.svelte
+    child_preview_component: events/EventEmbedPreview.svelte
+    child_fullscreen_component: events/EventEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-events"
+    i18n_namespace: embeds.events.search
 skills:
   - id: search
     name_translation_key: events.search

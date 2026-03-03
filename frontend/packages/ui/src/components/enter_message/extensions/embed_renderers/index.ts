@@ -1,4 +1,10 @@
 // Embed renderer registry - handles all embed types including groups
+//
+// Auto-populated from the generated EMBED_RENDERER_MAP (sourced from app.yml embed_types).
+// To add a new embed type renderer, add an embed_types entry to the relevant app.yml
+// and rebuild — do NOT add manual entries to this file.
+//
+// Architecture: docs/architecture/embeds.md
 
 import { GroupRenderer } from "./GroupRenderer";
 import { ImageRenderer } from "./ImageRenderer";
@@ -8,51 +14,46 @@ import { AppSkillUseRenderer } from "./AppSkillUseRenderer";
 import { FocusModeActivationRenderer } from "./FocusModeActivationRenderer";
 import { MapLocationRenderer } from "./MapLocationRenderer";
 import { MathPlotRenderer } from "./MathPlotRenderer";
-import type { EmbedRendererRegistry } from "./types";
+import type { EmbedRenderer, EmbedRendererRegistry } from "./types";
+import { EMBED_RENDERER_MAP } from "../../../../data/embedRegistry.generated";
 
 /**
- * Registry of all embed renderers
- * Includes individual renderers and generic group renderer
+ * Map from renderer class identifier (string in generated registry) to actual renderer instance.
+ * Renderer classes are instantiated once and shared across all embed types that use them.
  */
-export const embedRenderers: EmbedRendererRegistry = {
-  // App skill use renderer (web search, code generation, etc.)
-  "app-skill-use": new AppSkillUseRenderer(),
-  // Focus mode activation indicator (countdown + activated state)
-  "focus-mode-activation": new FocusModeActivationRenderer(),
-  // App skill use group renderer (multiple search requests in horizontal scrollable group)
-  "app-skill-use-group": new GroupRenderer(),
-  // Use GroupRenderer for all website embeds (individual and grouped)
-  "web-website": new GroupRenderer(),
-  "web-website-group": new GroupRenderer(),
-  // Use GroupRenderer for video embeds (individual and grouped)
-  "videos-video": new GroupRenderer(),
-  "videos-video-group": new GroupRenderer(),
-  // Use GroupRenderer for code embeds (individual and grouped)
-  "code-code": new GroupRenderer(),
-  "code-code-group": new GroupRenderer(),
-  "docs-doc": new GroupRenderer(),
-  "docs-doc-group": new GroupRenderer(),
-  // Use GroupRenderer for sheet/table embeds (individual and grouped)
-  "sheets-sheet": new GroupRenderer(),
-  "sheets-sheet-group": new GroupRenderer(),
-  // Use GroupRenderer for travel connection embeds (individual and grouped)
-  "travel-connection": new GroupRenderer(),
-  "travel-connection-group": new GroupRenderer(),
-  // Image renderer for static images and SVGs (used in legal documents)
-  image: new ImageRenderer(),
-  // PDF upload embed renderer — mounts PDFEmbedPreview in the editor
-  pdf: new PdfRenderer(),
-  // Audio recording embed renderer — mounts RecordingEmbedPreview in the editor
-  recording: new RecordingRenderer(),
-  // Map location embed renderer — mounts MapsLocationEmbedPreview in the editor
-  maps: new MapLocationRenderer(),
-  // Math plot embed renderer — mounts MathPlotEmbedPreview in the editor (direct-type)
-  "math-plot": new MathPlotRenderer(),
+const rendererInstances: Record<string, EmbedRenderer> = {
+  GroupRenderer: new GroupRenderer(),
+  AppSkillUseRenderer: new AppSkillUseRenderer(),
+  FocusModeActivationRenderer: new FocusModeActivationRenderer(),
+  ImageRenderer: new ImageRenderer(),
+  PdfRenderer: new PdfRenderer(),
+  RecordingRenderer: new RecordingRenderer(),
+  MapLocationRenderer: new MapLocationRenderer(),
+  MathPlotRenderer: new MathPlotRenderer(),
 };
 
 /**
+ * Registry of all embed renderers, built from the auto-generated EMBED_RENDERER_MAP.
+ * Each entry maps a frontend embed type string to its renderer instance.
+ */
+export const embedRenderers: EmbedRendererRegistry = Object.fromEntries(
+  Object.entries(EMBED_RENDERER_MAP)
+    .map(([embedType, rendererName]) => {
+      const instance = rendererInstances[rendererName];
+      if (!instance) {
+        console.warn(
+          `[embed-renderers] Unknown renderer "${rendererName}" for type "${embedType}"`,
+        );
+        return null;
+      }
+      return [embedType, instance];
+    })
+    .filter((entry): entry is [string, EmbedRenderer] => entry !== null),
+);
+
+/**
  * Get renderer for a specific embed type
- * @param embedType - The embed type (e.g., 'web', 'website-group')
+ * @param embedType - The embed type (e.g., 'web-website', 'app-skill-use-group')
  * @returns The renderer instance or null if not found
  */
 export function getEmbedRenderer(embedType: string) {

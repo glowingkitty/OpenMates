@@ -12,6 +12,7 @@
 import { writable } from "svelte/store";
 import { EmbedStoreEntry, EmbedType } from "../message_parsing/types";
 import { computeSHA256, createContentId } from "../message_parsing/utils";
+import { normalizeEmbedType as registryNormalizeEmbedType } from "../data/embedRegistry.generated";
 import { chatDB } from "./db";
 import {
   encryptWithMasterKey,
@@ -146,27 +147,10 @@ export interface EmbedKeyEntry {
 
 export class EmbedStore {
   private normalizeEmbedType(type: string): EmbedType {
-    // Normalize server embed types to the UI embed types used throughout the frontend.
-    // This prevents mismatches like "app_skill_use" vs "app-skill-use" and "code" vs "code-code".
-    switch (type) {
-      case "app_skill_use":
-        return "app-skill-use" as EmbedType;
-      case "website":
-        return "web-website" as EmbedType;
-      case "video":
-        return "videos-video" as EmbedType;
-      case "code":
-        return "code-code" as EmbedType;
-      case "document":
-        return "docs-doc" as EmbedType;
-      case "sheet":
-        return "sheets-sheet" as EmbedType;
-      case "pdf":
-        // PDF type comes from server as "pdf" — pass through as-is (no remapping needed)
-        return "pdf" as EmbedType;
-      default:
-        return type as EmbedType;
-    }
+    // Uses the auto-generated EMBED_TYPE_NORMALIZATION_MAP from app.yml definitions.
+    // To add a new type mapping, add an embed_types entry to the relevant app.yml
+    // and rebuild — do NOT add manual entries here.
+    return registryNormalizeEmbedType(type) as EmbedType;
   }
 
   /**

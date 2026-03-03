@@ -64,6 +64,38 @@ settings_and_memories:
           description: Optional notes about why this was saved
       required:
         - url
+# Embed type definitions — single source of truth for frontend embed routing.
+# Read by generate-embed-registry.js to auto-generate TypeScript routing files.
+embed_types:
+  # Web search results — composite embed with child website embeds
+  - id: search
+    category: app-skill-use
+    skill_id: search
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: website
+    child_frontend_type: web-website
+    groupable: true
+    preview_component: web/WebSearchEmbedPreview.svelte
+    fullscreen_component: web/WebSearchEmbedFullscreen.svelte
+    child_preview_component: web/WebsiteEmbedPreview.svelte
+    child_fullscreen_component: web/WebsiteEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-web"
+    i18n_namespace: embeds.web.search
+  # Web read — single-page content extraction
+  - id: read
+    category: app-skill-use
+    skill_id: read
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    preview_component: web/WebReadEmbedPreview.svelte
+    fullscreen_component: web/WebReadEmbedFullscreen.svelte
+    icon: web
+    gradient_var: "--color-app-web"
+    i18n_namespace: embeds.web.read
 instructions:
   # This instruction is ALWAYS loaded when web app is available (no category filter)
   # It provides guidance on using web-search and web-read skills

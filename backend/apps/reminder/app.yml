@@ -4,6 +4,19 @@ icon_image: reminder.svg
 category: productivity
 last_updated: "2026-02-04"
 
+# Embed type definitions — single source of truth for frontend embed routing.
+embed_types:
+  - id: set_reminder
+    category: app-skill-use
+    skill_id: set-reminder
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    preview_component: reminder/ReminderEmbedPreview.svelte
+    fullscreen_component: reminder/ReminderEmbedFullscreen.svelte
+    icon: reminder
+    gradient_var: "--color-app-reminder"
+    i18n_namespace: embeds.reminder.set_reminder
 instructions:
   - instruction: |
       **Reminder Skills**

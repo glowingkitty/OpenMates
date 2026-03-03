@@ -22,6 +22,20 @@
 #     This means the LLM never sees raw UUIDs, AES keys, S3 keys, or Vault ciphertexts.
 #     This mirrors the images.view pattern.
 
+# Embed type definitions — single source of truth for frontend embed routing.
+embed_types:
+  # PDF upload — direct-type, created by file upload flow
+  - id: pdf
+    category: direct
+    frontend_type: pdf
+    backend_type: pdf
+    has_children: false
+    preview_component: pdf/PDFEmbedPreview.svelte
+    fullscreen_component: pdf/PDFEmbedFullscreen.svelte
+    icon: pdf
+    gradient_var: "--color-app-pdf"
+    i18n_namespace: embeds.pdf.view
+
 name_translation_key: pdf
 description_translation_key: pdf.description
 icon_image: |

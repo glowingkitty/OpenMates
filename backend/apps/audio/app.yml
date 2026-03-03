@@ -4,6 +4,19 @@ icon_image: |
   audio.svg
 category: communication
 last_updated: "2026-02-20"
+# Embed type definitions — single source of truth for frontend embed routing.
+embed_types:
+  # Audio recording — direct-type, created by voice recording flow
+  - id: recording
+    category: direct
+    frontend_type: recording
+    backend_type: audio-recording
+    has_children: false
+    preview_component: audio/RecordingEmbedPreview.svelte
+    fullscreen_component: audio/RecordingEmbedFullscreen.svelte
+    icon: audio
+    gradient_var: "--color-app-audio"
+    i18n_namespace: embeds.audio.recording
 skills:
   - id: transcribe
     name_translation_key: app_skills.audio.transcribe

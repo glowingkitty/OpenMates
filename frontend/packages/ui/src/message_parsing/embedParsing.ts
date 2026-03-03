@@ -4,34 +4,20 @@
 
 import { EmbedNodeAttributes } from "./types";
 import { EMBED_PATTERNS, generateUUID, CodeBlockStateMachine } from "./utils";
+import { normalizeEmbedType } from "../data/embedRegistry.generated";
 
 /**
- * Map embed reference type from server to EmbedNodeType
+ * Map embed reference type from server to EmbedNodeType.
+ *
+ * Uses the auto-generated EMBED_TYPE_NORMALIZATION_MAP from app.yml definitions.
+ * To add a new type mapping, add an embed_types entry to the relevant app.yml
+ * and rebuild — do NOT add manual entries here.
+ *
  * @param embedType - Server embed type (app_skill_use, website, code, etc.)
  * @returns EmbedNodeType for TipTap
  */
 function mapEmbedReferenceType(embedType: string): string {
-  const typeMap: Record<string, string> = {
-    app_skill_use: "app-skill-use", // New type for app skill results
-    focus_mode_activation: "focus-mode-activation", // Focus mode activation indicator
-    website: "web-website",
-    video: "videos-video", // YouTube and other video embeds
-    place: "maps-place",
-    event: "maps-event",
-    // User-pinned map location (sent as {"type":"location","embed_id":"..."} by the client)
-    location: "maps",
-    code: "code-code",
-    sheet: "sheets-sheet",
-    document: "docs-doc",
-    file: "file",
-    // Audio recording embeds: serialized as "audio-recording" by sendHandlers/serializers,
-    // but the TipTap node type and renderer are registered as "recording".
-    "audio-recording": "recording",
-    // Math plot embeds: auto-detected from ```plot ... ``` code blocks by stream_consumer.py
-    "math-plot": "math-plot",
-  };
-
-  return typeMap[embedType] || embedType;
+  return normalizeEmbedType(embedType);
 }
 
 /**

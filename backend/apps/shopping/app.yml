@@ -15,6 +15,22 @@ icon_image: |
   shopping.svg
 category: lifestyle
 last_updated: "2026-02-22"
+# Embed type definitions — single source of truth for frontend embed routing.
+embed_types:
+  - id: search_products
+    category: app-skill-use
+    skill_id: search_products
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: website
+    child_frontend_type: web-website
+    groupable: false
+    preview_component: shopping/ShoppingSearchEmbedPreview.svelte
+    fullscreen_component: shopping/ShoppingSearchEmbedFullscreen.svelte
+    icon: shopping
+    gradient_var: "--color-app-shopping"
+    i18n_namespace: embeds.shopping.search_products
 skills:
   # -----------------------------------------------------------------------
   # Search Products — search REWE online shop for products with live prices

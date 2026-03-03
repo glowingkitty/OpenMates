@@ -8,6 +8,42 @@ last_updated: "2026-01-17"
 # crypto flows that cannot be executed via a stateless REST call. Hide the entire app
 # from the public /docs so the API reference does not show unusable endpoints.
 expose_in_api: false
+# Embed type definitions — single source of truth for frontend embed routing.
+embed_types:
+  - id: generate
+    category: app-skill-use
+    skill_id: generate
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    preview_component: images/ImageGenerateEmbedPreview.svelte
+    fullscreen_component: images/ImageGenerateEmbedFullscreen.svelte
+    icon: image
+    gradient_var: "--color-app-images"
+    i18n_namespace: embeds.images.generate
+  - id: generate_draft
+    category: app-skill-use
+    skill_id: generate_draft
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    # Reuses the same components as generate
+    preview_component: images/ImageGenerateEmbedPreview.svelte
+    fullscreen_component: images/ImageGenerateEmbedFullscreen.svelte
+    icon: image
+    gradient_var: "--color-app-images"
+    i18n_namespace: embeds.images.generate
+  # User-uploaded image (direct-type, inserted by file upload flow)
+  - id: image
+    category: direct
+    frontend_type: image
+    backend_type: image
+    has_children: false
+    preview_component: images/ImageEmbedPreview.svelte
+    fullscreen_component: images/ImageEmbedFullscreen.svelte
+    icon: image
+    gradient_var: "--color-app-images"
+    i18n_namespace: embeds.images.view
 settings_and_memories:
   # Preferred styles: Image styles and aesthetics the user prefers
   - id: preferred_styles
