@@ -139,6 +139,19 @@ settings_and_memories:
         - ask_clarifying_questions
         - provide_proactive_suggestions
 
+# Model aliases: shortcuts like @best and @fast that resolve to specific models.
+# These appear in the @ mention dropdown as quick-select options.
+# Plan: later add tokens_per_second field to provider YAMLs for auto-selection.
+model_aliases:
+  - id: best
+    # Hardcoded: Claude Opus 4.6 — the most capable model available
+    model_id: claude-opus-4-6
+    icon: crown
+  - id: fast
+    # Hardcoded: Qwen 3 256b via Cerebras — the fastest inference available
+    model_id: qwen3-235b-a22b-2507
+    icon: lightning
+
 skills:
   - id: ask
     name_translation_key: ai.ask

@@ -372,7 +372,7 @@
         const target = event.target as HTMLElement;
 
         // Climb up to find the mention span (click may land on child node)
-        const mentionEl = target.closest('.ai-model-mention, .mate-mention, .generic-mention') as HTMLElement | null;
+        const mentionEl = target.closest('.best-model-mention, .ai-model-mention, .mate-mention, .generic-mention') as HTMLElement | null;
         if (!mentionEl) return;
 
         event.preventDefault();
@@ -380,8 +380,25 @@
 
         let deepLinkPath: string | null = null;
 
+        // --- Best-model alias mention (e.g., @Best, @Fast) ---
+        if (mentionEl.classList.contains('best-model-mention')) {
+            // Deep link to the resolved model's settings page
+            // The category attribute tells us which alias (best/fast)
+            const category = mentionEl.getAttribute('data-category');
+            if (category) {
+                // Map alias to resolved model ID for deep link
+                const aliasModelMap: Record<string, string> = {
+                    'best': 'claude-opus-4-6',
+                    'fast': 'qwen3-235b-a22b-2507',
+                };
+                const resolvedModelId = aliasModelMap[category];
+                if (resolvedModelId) {
+                    deepLinkPath = `app_store/ai/skill/ask/model/${resolvedModelId}`;
+                }
+            }
+        }
         // --- AI model mention ---
-        if (mentionEl.classList.contains('ai-model-mention')) {
+        else if (mentionEl.classList.contains('ai-model-mention')) {
             const modelId = mentionEl.getAttribute('data-model-id');
             if (modelId) {
                 deepLinkPath = `app_store/ai/skill/ask/model/${modelId}`;
@@ -1319,6 +1336,26 @@
     /* Ensure mate mentions are still clickable */
     :global(.read-only-message .mate-mention) {
         cursor: pointer;
+    }
+
+    /* Best-model alias mention styling (@Best, @Fast) - gold/orange gradient */
+    :global(.read-only-message .best-model-mention) {
+        display: inline;
+        background: linear-gradient(
+            135deg,
+            #f6d365 0%,
+            #fda085 100%
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    :global(.read-only-message .best-model-mention:hover) {
+        opacity: 0.8;
     }
 
     /* AI Model mention styling - uses AI app gradient for consistent look */

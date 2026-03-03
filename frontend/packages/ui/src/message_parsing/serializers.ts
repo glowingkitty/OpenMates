@@ -637,6 +637,13 @@ function serializeParagraph(node: any): string {
         content: child.attrs?.url || "",
         isBlockEmbed: false,
       });
+    } else if (child.type === "bestModelMention") {
+      // Handle best-model alias mention nodes - serialize to backend format
+      // @best-model:best or @best-model:fast
+      serializedParts.push({
+        content: `@best-model:${child.attrs?.category || "best"}`,
+        isBlockEmbed: false,
+      });
     } else if (child.type === "aiModelMention") {
       // Handle AI model mention nodes - serialize to backend format
       console.info(
