@@ -1628,53 +1628,28 @@ async def handle_preprocessing(
     model_selection_reason: Optional[str] = None
     filtered_cn_models = china_related
 
-    # --- Resolve @best-model:{category} to actual model ID ---
-    # If the user used @best-model:coding (or similar), resolve it to the top-ranked model
-    # in that category from the leaderboard, then treat it like a regular @ai-model override.
+    # --- Resolve @best-model:{alias} to actual model ID ---
+    # Model aliases like @best-model:best and @best-model:fast resolve to hardcoded model IDs.
+    # Plan: later derive these dynamically from tokens_per_second in provider YAMLs.
+    # See docs/architecture/model-aliases.md for design rationale.
+    MODEL_ALIAS_TO_MODEL_ID = {
+        "best": "claude-opus-4-6",
+        "fast": "qwen3-235b-a22b-2507",
+    }
     if user_overrides and user_overrides.best_model_category and not user_overrides.model_id:
         best_category = user_overrides.best_model_category
-        logger.info(
-            f"{log_prefix} BEST_MODEL: Resolving @best-model:{best_category} to top-ranked model"
-        )
-        try:
-            from backend.core.api.app.tasks.leaderboard_tasks import get_best_model_for_category, get_leaderboard_data
-
-            leaderboard_data = await get_leaderboard_data()
-            if leaderboard_data:
-                best_entry = get_best_model_for_category(
-                    leaderboard_data=leaderboard_data,
-                    category=best_category,
-                    exclude_cn=china_related,
-                )
-                if best_entry:
-                    resolved_model_id = best_entry.get("model_id")
-                    resolved_provider = best_entry.get("provider_id")
-                    if resolved_model_id and resolved_provider:
-                        user_overrides.model_id = resolved_model_id
-                        user_overrides.model_provider = None  # Will be resolved from config
-                        logger.info(
-                            f"{log_prefix} BEST_MODEL: Resolved @best-model:{best_category} -> "
-                            f"{resolved_provider}/{resolved_model_id} "
-                            f"(composite_score={best_entry.get('composite_score')})"
-                        )
-                    else:
-                        logger.warning(
-                            f"{log_prefix} BEST_MODEL: Top model entry missing model_id or provider_id. "
-                            f"Entry: {best_entry}. Falling back to auto-selection."
-                        )
-                else:
-                    logger.warning(
-                        f"{log_prefix} BEST_MODEL: No models found for category '{best_category}'. "
-                        f"Falling back to auto-selection."
-                    )
-            else:
-                logger.warning(
-                    f"{log_prefix} BEST_MODEL: No leaderboard data available. "
-                    f"Falling back to auto-selection."
-                )
-        except Exception as e:
+        resolved_model_id = MODEL_ALIAS_TO_MODEL_ID.get(best_category)
+        if resolved_model_id:
+            user_overrides.model_id = resolved_model_id
+            user_overrides.model_provider = None  # Will be resolved from config via find_provider_for_model
+            logger.info(
+                f"{log_prefix} BEST_MODEL: Resolved @best-model:{best_category} -> "
+                f"{resolved_model_id} (hardcoded alias)"
+            )
+        else:
             logger.warning(
-                f"{log_prefix} BEST_MODEL: Failed to resolve @best-model:{best_category}: {e}. "
+                f"{log_prefix} BEST_MODEL: Unknown alias '{best_category}'. "
+                f"Known aliases: {list(MODEL_ALIAS_TO_MODEL_ID.keys())}. "
                 f"Falling back to auto-selection."
             )
 

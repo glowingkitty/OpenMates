@@ -349,9 +349,10 @@ function convertNodeToTiptap(node: Node): any {
     }
 
     // Check for any mention types in the text
-    // Supported: @ai-model:, @mate:, @skill:, @focus:, @memory:, @memory-entry:
+    // Supported: @ai-model:, @best-model:, @mate:, @skill:, @focus:, @memory:, @memory-entry:
     if (
       text.includes("@ai-model:") ||
+      text.includes("@best-model:") ||
       text.includes("@mate:") ||
       text.includes("@skill:") ||
       text.includes("@focus:") ||

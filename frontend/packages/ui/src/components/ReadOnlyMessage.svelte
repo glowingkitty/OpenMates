@@ -7,6 +7,7 @@
     import { MateNode } from '../components/enter_message/extensions/MateNode';
     import { AIModelMentionNode } from '../components/enter_message/extensions/AIModelMentionNode';
     import { GenericMentionNode } from '../components/enter_message/extensions/GenericMentionNode';
+    import { BestModelMentionNode } from '../components/enter_message/extensions/BestModelMentionNode';
     import { EmbedInlineNode } from '../components/enter_message/extensions/EmbedInlineNode';
     import { SourceQuoteNode } from '../components/enter_message/extensions/SourceQuoteNode';
     import { MarkdownExtensions } from '../components/enter_message/extensions/MarkdownExtensions';
@@ -602,6 +603,7 @@
             Embed,
             MateNode,
             AIModelMentionNode, // For @ai-model:id mentions (displays as @Claude-4.5-Opus)
+            BestModelMentionNode, // For @best-model:best, @best-model:fast alias mentions
             GenericMentionNode, // For @skill:, @focus:, @memory: mentions
             EmbedInlineNode, // For inline [text](embed:ref) links produced by the LLM
             SourceQuoteNode, // For > [quoted text](embed:ref) verified source quotes
