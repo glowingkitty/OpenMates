@@ -56,11 +56,20 @@ export const SourceQuoteNode = Node.create<SourceQuoteNodeOptions>({
     };
   },
 
-  // HTML parsing — lets TipTap reconstruct the node from saved HTML if needed
+  // HTML parsing — lets TipTap reconstruct the node from saved HTML if needed.
+  // getAttrs reads back the data-* attributes written by renderHTML() so that
+  // attributes survive ProseMirror DOM-based reconciliation (e.g. setContent).
   parseHTML() {
     return [
       {
         tag: 'div[data-type="source-quote"]',
+        getAttrs(element: HTMLElement) {
+          return {
+            quoteText: element.getAttribute("data-quote-text") ?? "",
+            embedRef: element.getAttribute("data-embed-ref") ?? "",
+            appId: element.getAttribute("data-app-id") || null,
+          };
+        },
       },
     ];
   },
@@ -82,7 +91,10 @@ export const SourceQuoteNode = Node.create<SourceQuoteNodeOptions>({
 
   // Vanilla DOM NodeView using Svelte 5 mount/unmount
   addNodeView() {
-    return ({ node }) => {
+    return (nodeViewProps) => {
+      // Use let so the update() callback can track the latest node for
+      // attribute comparison across successive updates.
+      let node = nodeViewProps.node;
       const dom = document.createElement("div");
       dom.setAttribute("data-type", "source-quote");
       dom.setAttribute("contenteditable", "false");
@@ -112,7 +124,22 @@ export const SourceQuoteNode = Node.create<SourceQuoteNodeOptions>({
         update(updatedNode) {
           // Only handle updates to this node type
           if (updatedNode.type.name !== "sourceQuote") return false;
+
+          // Skip expensive unmount/remount if attributes are identical.
+          // This prevents the brief empty-DOM flash when setContent() is
+          // called but the source quote data hasn't actually changed.
+          const attrsMatch =
+            updatedNode.attrs.quoteText === node.attrs.quoteText &&
+            updatedNode.attrs.embedRef === node.attrs.embedRef &&
+            updatedNode.attrs.appId === node.attrs.appId;
+          if (attrsMatch) {
+            // Keep reference in sync for next comparison
+            node = updatedNode;
+            return true;
+          }
+
           // Attributes changed — re-mount with new props
+          node = updatedNode;
           if (svelteInstance) {
             try {
               unmount(svelteInstance);
