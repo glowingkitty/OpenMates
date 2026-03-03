@@ -2911,8 +2911,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // This lets us replace (not append) on first real chunk and avoid persisting placeholders.
     let thinkingPlaceholderMessageIds = $state<Set<string>>(new Set());
 
-    const THINKING_PLACEHOLDER_CONTENT = 'Let me think about that...';
-
     function isThinkingModel(modelName?: string | null, providerName?: string | null): boolean {
         const normalizedModel = (modelName || '').toLowerCase();
         const normalizedProvider = (providerName || '').toLowerCase();
@@ -2924,6 +2922,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     function ensureThinkingPlaceholder(messageId: string, chatId: string, category?: string, modelName?: string) {
+        // Translated placeholder text for user-facing display
+        const placeholderText = $text('chat.thinking.placeholder');
+
         const existingMessage = currentMessages.find(m => m.message_id === messageId);
         if (!existingMessage) {
             const placeholderMessage: ChatMessageModel = {
@@ -2936,6 +2937,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 status: 'streaming',
                 created_at: Math.floor(Date.now() / 1000),
                 encrypted_content: '',
+                // Set thinking fields directly on the message so the ThinkingSection
+                // renders immediately even before the thinkingContentByTask prop
+                // propagates to ChatHistory (Svelte 5 props update in the next
+                // render cycle, but updateMessages runs imperatively).
+                thinking_content: placeholderText,
+                has_thinking: true,
             };
             currentMessages = [...currentMessages, placeholderMessage];
             clearProcessingPhaseWhenReady(chatId);
@@ -2943,7 +2950,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         if (!thinkingContentByTask.has(messageId)) {
             thinkingContentByTask.set(messageId, {
-                content: THINKING_PLACEHOLDER_CONTENT,
+                content: placeholderText,
                 isStreaming: true,
             });
             thinkingContentByTask = new Map(thinkingContentByTask);
@@ -2953,9 +2960,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         nextPlaceholderIds.add(messageId);
         thinkingPlaceholderMessageIds = nextPlaceholderIds;
 
-        if (chatHistoryRef) {
-            chatHistoryRef.updateMessages(currentMessages);
-        }
+        // Use tick() so the thinkingContentByTask prop has propagated to
+        // ChatHistory by the time it processes the new messages array.
+        // Without this, the imperative updateMessages runs before Svelte
+        // delivers the updated prop, causing the ThinkingSection to not
+        // render on the first frame.
+        tick().then(() => {
+            if (chatHistoryRef) {
+                chatHistoryRef.updateMessages(currentMessages);
+            }
+        });
     }
     
     // ===========================================
@@ -3610,8 +3624,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // Attach thinking metadata to the final message so it persists across devices.
                 const thinkingEntry = thinkingContentByTask.get(chunk.message_id);
                 const hasOnlyPlaceholderThinking =
-                    thinkingPlaceholderMessageIds.has(chunk.message_id) &&
-                    thinkingEntry?.content === THINKING_PLACEHOLDER_CONTENT;
+                    thinkingPlaceholderMessageIds.has(chunk.message_id);
                 const finalThinkingContent = hasOnlyPlaceholderThinking
                     ? finalMessageInArray.thinking_content
                     : (thinkingEntry?.content || finalMessageInArray.thinking_content);
@@ -3863,7 +3876,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const incomingChunk = chunk.content || '';
         const hasIncomingThinkingText = incomingChunk.trim().length > 0;
         const newContent = hasPlaceholder
-            ? (hasIncomingThinkingText ? incomingChunk : THINKING_PLACEHOLDER_CONTENT)
+            ? (hasIncomingThinkingText ? incomingChunk : (existing?.content || ''))
             : (existing?.content || '') + incomingChunk;
 
         if (hasPlaceholder && hasIncomingThinkingText) {
@@ -3909,7 +3922,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Mark thinking as complete (no longer streaming)
         const existing = thinkingContentByTask.get(messageId);
         if (existing) {
-            if (thinkingPlaceholderMessageIds.has(messageId) && existing.content === THINKING_PLACEHOLDER_CONTENT) {
+            if (thinkingPlaceholderMessageIds.has(messageId)) {
                 thinkingContentByTask.delete(messageId);
                 thinkingContentByTask = new Map(thinkingContentByTask);
 
@@ -7478,7 +7491,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // This ensures no thinking state is left in "streaming" mode after the task finishes
                 let hasStreamingThinking = false;
                 thinkingContentByTask.forEach((entry, taskId) => {
-                    if (thinkingPlaceholderMessageIds.has(taskId) && entry.content === THINKING_PLACEHOLDER_CONTENT) {
+                    if (thinkingPlaceholderMessageIds.has(taskId)) {
                         thinkingContentByTask.delete(taskId);
                         const nextPlaceholderIds = new Set(thinkingPlaceholderMessageIds);
                         nextPlaceholderIds.delete(taskId);

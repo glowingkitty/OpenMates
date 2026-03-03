@@ -31,6 +31,7 @@
     import { tick } from 'svelte';
     import ReadOnlyMessage from './ReadOnlyMessage.svelte';
     import { parse_message } from '../message_parsing/parse_message';
+    import { text } from '@repo/ui'; // For i18n translations
     
     // Props using Svelte 5 runes mode
     let {
@@ -46,9 +47,9 @@
     // DOM ref for the preview scroll container — used to auto-scroll to bottom
     let previewEl = $state<HTMLDivElement | null>(null);
     
-    // Generate summary text for collapsed state
+    // Generate summary text for collapsed state (i18n)
     const collapsedSummary = $derived(
-        isStreaming ? 'Thinking...' : 'Thought process'
+        isStreaming ? $text('chat.thinking.header_streaming') : $text('chat.thinking.header_done')
     );
     
     // Parse thinking content for display (plain markdown, no embeds)
@@ -124,13 +125,13 @@
             class="thinking-header"
             onclick={toggleExpanded}
             aria-expanded={isExpanded}
-            aria-label={isExpanded ? 'Collapse thought process' : 'Expand thought process'}
+            aria-label={isExpanded ? $text('chat.thinking.collapse') : $text('chat.thinking.expand')}
         >
-            <!-- Reasoning icon with shimmer during streaming -->
-            <div class="thinking-icon" class:shimmer={isStreaming}></div>
+            <!-- Reasoning icon -->
+            <div class="thinking-icon"></div>
             
-            <!-- Summary text with shimmer during streaming -->
-            <span class="thinking-summary" class:shimmer={isStreaming}>{collapsedSummary}</span>
+            <!-- Summary text -->
+            <span class="thinking-summary">{collapsedSummary}</span>
             
             <!-- Dropdown icon that rotates when expanded -->
             <div class="expand-icon" class:rotated={isExpanded}></div>
@@ -292,42 +293,10 @@
         transition: background-color 0.15s ease;
     }
     
-    /* Shimmer animation for streaming state */
-    .thinking-icon.shimmer {
-        background: linear-gradient(
-            90deg,
-            var(--color-grey-70) 0%,
-            var(--color-grey-70) 30%,
-            var(--color-grey-50) 50%,
-            var(--color-grey-70) 70%,
-            var(--color-grey-70) 100%
-        );
-        background-size: 200% 100%;
-        animation: shimmer 1.5s infinite linear;
-        /* Preserve mask while animating background */
-    }
-    
     .thinking-summary {
         flex: 1;
         font-weight: 500;
         transition: color 0.15s ease;
-    }
-    
-    /* Shimmer animation for summary text during streaming */
-    .thinking-summary.shimmer {
-        background: linear-gradient(
-            90deg,
-            var(--color-grey-70) 0%,
-            var(--color-grey-70) 30%,
-            var(--color-grey-50) 50%,
-            var(--color-grey-70) 70%,
-            var(--color-grey-70) 100%
-        );
-        background-size: 200% 100%;
-        background-clip: text;
-        -webkit-background-clip: text;
-        color: transparent;
-        animation: shimmer 1.5s infinite linear;
     }
     
     /* Dropdown expand icon using mask-image */
@@ -416,16 +385,6 @@
         opacity: 0.85;
     }
     
-    /* Shimmer animation keyframes */
-    @keyframes shimmer {
-        0% {
-            background-position: 200% 0;
-        }
-        100% {
-            background-position: -200% 0;
-        }
-    }
-
     /* Spinning border gradient — rotates @property angle for smooth conic animation.
      * Falls back gracefully in browsers without @property support (the gradient just
      * doesn't animate, showing a static tint instead). */
