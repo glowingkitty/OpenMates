@@ -1118,7 +1118,7 @@
         try {
             const { encryptWithChatKey } = await import('../services/cryptoService');
             const { webSocketService } = await import('../services/websocketService');
-            const importedChatSyncService = (await import('../services/chatSyncService')).default;
+            const { chatSyncService: importedChatSyncService } = await import('../services/chatSyncService');
             
             // Generate message ID (format: last 10 chars of chat_id + uuid)
             const chatIdSuffix = chatId.slice(-10);
@@ -2907,6 +2907,56 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Thinking/Reasoning state for thinking models (Gemini, Anthropic Claude)
     // Map of task_id -> thinking content, streaming status, and signature metadata
     let thinkingContentByTask = $state<Map<string, { content: string; isStreaming: boolean; signature?: string | null; totalTokens?: number | null }>>(new Map());
+    // Tracks message IDs that currently show synthetic thinking placeholder text.
+    // This lets us replace (not append) on first real chunk and avoid persisting placeholders.
+    let thinkingPlaceholderMessageIds = $state<Set<string>>(new Set());
+
+    const THINKING_PLACEHOLDER_CONTENT = 'Let me think about that...';
+
+    function isThinkingModel(modelName?: string | null, providerName?: string | null): boolean {
+        const normalizedModel = (modelName || '').toLowerCase();
+        const normalizedProvider = (providerName || '').toLowerCase();
+        return (
+            normalizedModel.includes('gemini') ||
+            normalizedModel.includes('claude') ||
+            normalizedProvider.includes('anthropic')
+        );
+    }
+
+    function ensureThinkingPlaceholder(messageId: string, chatId: string, category?: string, modelName?: string) {
+        const existingMessage = currentMessages.find(m => m.message_id === messageId);
+        if (!existingMessage) {
+            const placeholderMessage: ChatMessageModel = {
+                message_id: messageId,
+                chat_id: chatId,
+                role: 'assistant',
+                category,
+                model_name: modelName,
+                content: '',
+                status: 'streaming',
+                created_at: Math.floor(Date.now() / 1000),
+                encrypted_content: '',
+            };
+            currentMessages = [...currentMessages, placeholderMessage];
+            clearProcessingPhaseWhenReady(chatId);
+        }
+
+        if (!thinkingContentByTask.has(messageId)) {
+            thinkingContentByTask.set(messageId, {
+                content: THINKING_PLACEHOLDER_CONTENT,
+                isStreaming: true,
+            });
+            thinkingContentByTask = new Map(thinkingContentByTask);
+        }
+
+        const nextPlaceholderIds = new Set(thinkingPlaceholderMessageIds);
+        nextPlaceholderIds.add(messageId);
+        thinkingPlaceholderMessageIds = nextPlaceholderIds;
+
+        if (chatHistoryRef) {
+            chatHistoryRef.updateMessages(currentMessages);
+        }
+    }
     
     // ===========================================
     // Embed Navigation Derived States
@@ -3559,6 +3609,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                 // Attach thinking metadata to the final message so it persists across devices.
                 const thinkingEntry = thinkingContentByTask.get(chunk.message_id);
+                const hasOnlyPlaceholderThinking =
+                    thinkingPlaceholderMessageIds.has(chunk.message_id) &&
+                    thinkingEntry?.content === THINKING_PLACEHOLDER_CONTENT;
+                const finalThinkingContent = hasOnlyPlaceholderThinking
+                    ? finalMessageInArray.thinking_content
+                    : (thinkingEntry?.content || finalMessageInArray.thinking_content);
+                const finalThinkingSignature = hasOnlyPlaceholderThinking
+                    ? finalMessageInArray.thinking_signature
+                    : (thinkingEntry?.signature || finalMessageInArray.thinking_signature);
+                const finalThinkingTokenCount = hasOnlyPlaceholderThinking
+                    ? finalMessageInArray.thinking_token_count
+                    : (thinkingEntry?.totalTokens ?? finalMessageInArray.thinking_token_count);
                 // For rejection messages (e.g., insufficient credits), keep 'waiting_for_user' status
                 // so the chat shows "Waiting for you..." instead of appearing as a completed response
                 const isRejection = !!chunk.rejection_reason;
@@ -3586,10 +3648,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // Preserve role as 'system' for rejection messages
                     role: isRejection ? 'system' as const : finalMessageInArray.role,
                     model_name: finalModelName, // Explicitly preserve/set model_name
-                    thinking_content: thinkingEntry?.content || finalMessageInArray.thinking_content,
-                    thinking_signature: thinkingEntry?.signature || finalMessageInArray.thinking_signature,
-                    thinking_token_count: thinkingEntry?.totalTokens ?? finalMessageInArray.thinking_token_count,
-                    has_thinking: !!(thinkingEntry?.content || finalMessageInArray.thinking_content)
+                    thinking_content: finalThinkingContent,
+                    thinking_signature: finalThinkingSignature,
+                    thinking_token_count: finalThinkingTokenCount,
+                    has_thinking: !!finalThinkingContent
                 };
 
                 console.debug(`[ActiveChat] Final chunk - preserving model_name: "${finalModelName}" for message ${chunk.message_id}`, {
@@ -3797,7 +3859,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Update thinking content map using message_id (same as task_id)
         const existing = thinkingContentByTask.get(messageId);
-        const newContent = (existing?.content || '') + (chunk.content || '');
+        const hasPlaceholder = thinkingPlaceholderMessageIds.has(messageId);
+        const incomingChunk = chunk.content || '';
+        const hasIncomingThinkingText = incomingChunk.trim().length > 0;
+        const newContent = hasPlaceholder
+            ? (hasIncomingThinkingText ? incomingChunk : THINKING_PLACEHOLDER_CONTENT)
+            : (existing?.content || '') + incomingChunk;
+
+        if (hasPlaceholder && hasIncomingThinkingText) {
+            const nextPlaceholderIds = new Set(thinkingPlaceholderMessageIds);
+            nextPlaceholderIds.delete(messageId);
+            thinkingPlaceholderMessageIds = nextPlaceholderIds;
+        }
         
         thinkingContentByTask.set(messageId, {
             content: newContent,
@@ -3836,6 +3909,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Mark thinking as complete (no longer streaming)
         const existing = thinkingContentByTask.get(messageId);
         if (existing) {
+            if (thinkingPlaceholderMessageIds.has(messageId) && existing.content === THINKING_PLACEHOLDER_CONTENT) {
+                thinkingContentByTask.delete(messageId);
+                thinkingContentByTask = new Map(thinkingContentByTask);
+
+                const nextPlaceholderIds = new Set(thinkingPlaceholderMessageIds);
+                nextPlaceholderIds.delete(messageId);
+                thinkingPlaceholderMessageIds = nextPlaceholderIds;
+
+                if (chatHistoryRef) {
+                    chatHistoryRef.updateMessages(currentMessages);
+                }
+                return;
+            }
+
             thinkingContentByTask.set(messageId, {
                 content: existing.content,
                 isStreaming: false,
@@ -5828,6 +5915,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // The thinking content is persisted to IndexedDB by chatSyncServiceHandlersAI and
         // will be loaded via msg.original_message?.thinking_content with isStreaming=false.
         thinkingContentByTask = new Map();
+        thinkingPlaceholderMessageIds = new Set();
         
         let newMessages: ChatMessageModel[] = [];
         if (currentChat?.chat_id) {
@@ -7390,6 +7478,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // This ensures no thinking state is left in "streaming" mode after the task finishes
                 let hasStreamingThinking = false;
                 thinkingContentByTask.forEach((entry, taskId) => {
+                    if (thinkingPlaceholderMessageIds.has(taskId) && entry.content === THINKING_PLACEHOLDER_CONTENT) {
+                        thinkingContentByTask.delete(taskId);
+                        const nextPlaceholderIds = new Set(thinkingPlaceholderMessageIds);
+                        nextPlaceholderIds.delete(taskId);
+                        thinkingPlaceholderMessageIds = nextPlaceholderIds;
+                        hasStreamingThinking = true;
+                        return;
+                    }
+
                     if (entry.isStreaming) {
                         hasStreamingThinking = true;
                         thinkingContentByTask.set(taskId, {
@@ -7415,7 +7512,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }) as EventListenerCallback;
 
         const aiTypingStartedHandler = (async (event: CustomEvent) => {
-            const { chat_id, user_message_id, category, model_name, provider_name, server_region, is_continuation } = event.detail;
+            const { chat_id, user_message_id, message_id, category, model_name, provider_name, server_region, is_continuation } = event.detail;
             console.log('[ActiveChat] aiTypingStartedHandler fired', { 
                 chat_id, 
                 currentChatId: currentChat?.chat_id,
@@ -7430,6 +7527,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 } : null
             });
             if (chat_id === currentChat?.chat_id) {
+                if (message_id && isThinkingModel(model_name, provider_name)) {
+                    ensureThinkingPlaceholder(message_id, chat_id, category, model_name);
+                }
+
                 const messageIndex = currentMessages.findIndex(m => m.message_id === user_message_id);
                 // Update user message status to synced from both 'processing' and 'waiting_for_user'
                 // (waiting_for_user is set when paused for app settings permission or credit issues)
@@ -7706,8 +7807,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // Only update the specific message that contains this embed
                     // For now, update all streaming/assistant messages to be safe
                     if (msg.message_id === message_id || msg.status === 'streaming' || msg.role === 'assistant') {
-                        const updated: typeof msg = {
-                            ...msg,
+                        const updated: MessageWithEmbedMeta = {
+                            ...(msg as MessageWithEmbedMeta),
                             // Add a timestamp to force content re-processing
                             _embedUpdateTimestamp: Date.now()
                         };
