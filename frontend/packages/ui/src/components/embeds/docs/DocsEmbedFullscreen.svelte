@@ -53,6 +53,7 @@
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import type { PIIMapping } from '../../../types/chat';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
+  import { hydrateEmbedLinks } from '../../../utils/embedLinkUtils';
   
   /**
    * Props for document embed fullscreen
@@ -239,6 +240,28 @@
 
   // CSS class for injected spacers so we can identify and remove them
   const SPACER_CLASS = 'doc-page-break-spacer';
+
+  // ── Embed inline link hydration ────────────────────────────
+  // After the document HTML renders, find placeholder spans and mount
+  // EmbedInlineLink Svelte components into them for interactivity.
+  $effect(() => {
+    // Depend on sanitizedHtml so we re-hydrate when content changes
+    void sanitizedHtml;
+    if (!contentEl) return;
+    // Use requestAnimationFrame to ensure the DOM has been updated with @html
+    const raf = requestAnimationFrame(() => {
+      if (!contentEl) return;
+      embedLinkCleanup = hydrateEmbedLinks(contentEl);
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      if (embedLinkCleanup) {
+        embedLinkCleanup();
+        embedLinkCleanup = undefined;
+      }
+    };
+  });
+  let embedLinkCleanup: (() => void) | undefined;
 
   $effect(() => {
     if (!contentEl || !sanitizedHtml) {

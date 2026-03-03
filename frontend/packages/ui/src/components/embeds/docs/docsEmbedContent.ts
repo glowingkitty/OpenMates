@@ -1,7 +1,9 @@
 // Document embed content parsing utilities
 // Handles parsing, sanitization, and preview extraction for document_html embeds
+// Tests: (none yet)
 
 import DOMPurify, { type Config } from "dompurify";
+import { convertEmbedAnchorsToSpans } from "../../../utils/embedLinkUtils";
 
 /**
  * DOMPurify configuration for document HTML sanitization
@@ -111,6 +113,9 @@ const SANITIZE_CONFIG: Config = {
     "class",
     "lang",
     "dir",
+    // Inline embed link placeholder attributes (set by convertEmbedAnchorsToSpans)
+    "data-embed-ref",
+    "data-display-text",
   ],
   // Force all links to open in new tab
   ADD_ATTR: ["target"],
@@ -131,8 +136,14 @@ const SANITIZE_CONFIG: Config = {
 export function sanitizeDocumentHtml(html: string): string {
   if (!html) return "";
 
+  // Pre-process: convert <a href="embed:..."> links to placeholder <span> elements
+  // BEFORE DOMPurify runs, because DOMPurify strips the non-standard "embed:" protocol.
+  // The placeholder spans use data attributes (data-embed-ref, data-display-text) that
+  // are in the ALLOWED_ATTR list, so DOMPurify preserves them.
+  const preprocessed = convertEmbedAnchorsToSpans(html);
+
   // Sanitize with DOMPurify (RETURN_TRUSTED_TYPE: false ensures string return)
-  const sanitized = DOMPurify.sanitize(html, SANITIZE_CONFIG) as string;
+  const sanitized = DOMPurify.sanitize(preprocessed, SANITIZE_CONFIG) as string;
 
   // Post-process: ensure all <a> tags have target="_blank" and rel="noopener noreferrer"
   // This prevents tab-napping attacks from links in documents
