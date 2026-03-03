@@ -301,6 +301,10 @@ skills:
                 description: Safe search level
                 enum: ["off", "moderate", "strict"]
                 default: "moderate"
+              filter_tabloids:
+                type: boolean
+                description: "Filter out tabloid/boulevard media sources (e.g., BILD, Daily Mail, TMZ, The Sun) from results. Enabled by default for quality results. Set to false ONLY if the user explicitly asks for tabloid sources."
+                default: true
             required:
               - query
       required:

@@ -170,6 +170,10 @@ skills:
                 description: Filter by freshness - "pd" (past 24 hours), "pw" (past week), "pm" (past month), "py" (past year). Defaults to "pw" (past week) to prioritize recent news content.
                 enum: ["pd", "pw", "pm", "py"]
                 default: "pw"
+              filter_tabloids:
+                type: boolean
+                description: "Filter out tabloid/boulevard media sources (e.g., BILD, Daily Mail, TMZ, The Sun) from results. Enabled by default for quality news. Set to false ONLY if the user explicitly asks for tabloid sources."
+                default: true
             required:
               - query
       required:
