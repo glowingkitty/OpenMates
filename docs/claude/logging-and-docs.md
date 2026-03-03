@@ -34,6 +34,41 @@ logger.error(f"Error in task {task_id}: {e}", exc_info=True)
 - `[CACHE]` - Cache operations
 - `[ERROR]` - Errors
 
+### User ID Tagging (CRITICAL)
+
+**Every log statement that relates to a user action MUST include `user_id={full_uuid}`** in the message body. This enables the `inspect_user_logs.py` script to build cross-service timelines by grep-matching `user_id=<uuid>` across all log sources.
+
+**Format:** `user_id={user_id}` — always the full UUID, never truncated.
+
+```python
+# Correct — full user_id in message body
+logger.info(f"[PERF] Message received, user_id={user_id}, chat_id={chat_id}")
+logger.info(f"Token refreshed for user_id={user_id}")
+logger.warning(f"Rate limit exceeded for user_id={user_id}")
+
+# Wrong — truncated user_id (breaks grep matching)
+logger.info(f"Token refreshed for user {user_id[:6]}")
+
+# Wrong — no user_id at all (invisible to timeline script)
+logger.info("WebSocket connection established")
+
+# Wrong — user_id only as extra/structured field (Loki text search won't find it)
+logger.info("Token refreshed", extra={"user_id": user_id})
+```
+
+**Where this applies:**
+
+- All WebSocket handler log lines (message received, AI dispatch, errors)
+- Authentication events (login, logout, token refresh, session validation)
+- Task worker processing (message processing, embed resolution)
+- Usage tracking and rate limiting
+- Any error that is tied to a specific user action
+
+**Where this does NOT apply:**
+
+- System-level logs with no user context (health checks, scheduler ticks, startup)
+- Compliance logs (these already have `user_id` as a Loki label — no need to duplicate in message body)
+
 ### Guidelines
 
 - **Keep Logs**: Only remove debugging logs after the user confirms the issue is fixed

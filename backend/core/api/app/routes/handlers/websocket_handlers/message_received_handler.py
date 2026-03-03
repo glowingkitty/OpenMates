@@ -54,7 +54,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
     # Extract message_id safely for logging (before message_payload_from_client is assigned)
     message_payload_temp = payload.get("message")
     message_id_for_log = message_payload_temp.get("message_id") if isinstance(message_payload_temp, dict) else "unknown"
-    logger.info(f"[PERF] Message handler started for chat_id={payload.get('chat_id')}, message_id={message_id_for_log}")
+    logger.info(f"[PERF] Message handler started for user_id={user_id}, chat_id={payload.get('chat_id')}, message_id={message_id_for_log}")
     
     try:
         chat_id = payload.get("chat_id")
@@ -435,7 +435,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 code_extract_time = time.time() - code_extract_start
                 
                 if extracted_code_embeds:
-                    logger.info(f"[PERF] Code block extraction took {code_extract_time:.3f}s, extracted {len(extracted_code_embeds)} embeds from user message {message_id}")
+                    logger.info(f"[PERF] Code block extraction took {code_extract_time:.3f}s, extracted {len(extracted_code_embeds)} embeds from user message {message_id} for user_id={user_id}")
                     
             except Exception as e_code_extract:
                 logger.error(f"Error extracting code blocks from user message {message_id}: {e_code_extract}", exc_info=True)
@@ -458,7 +458,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 user_vault_key_id
             )
             encrypt_time = time.time() - encrypt_start
-            logger.info(f"[PERF] Message encryption took {encrypt_time:.3f}s for message {message_id}")
+            logger.info(f"[PERF] Message encryption took {encrypt_time:.3f}s for message {message_id}, user_id={user_id}")
             logger.debug(f"Encrypted message content for cache using user vault key: {user_vault_key_id}")
         except Exception as e_encrypt:
             logger.error(f"Failed to encrypt message content for cache: {e_encrypt}", exc_info=True)
@@ -496,7 +496,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 message_data=message_for_cache
             )
             cache_save_time = time.time() - cache_save_start
-            logger.info(f"[PERF] Cache save took {cache_save_time:.3f}s for message {message_id}")
+            logger.info(f"[PERF] Cache save took {cache_save_time:.3f}s for message {message_id}, user_id={user_id}")
 
             if not version_update_result:
                 logger.error(f"Failed to save message {message_id} to cache or update versions for chat {chat_id}. User: {user_id}")
@@ -1015,7 +1015,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 cache_fetch_start = time.time()
                 cached_messages_str_list = await cache_service.get_ai_messages_history(user_id, chat_id) # Fetches all vault-encrypted messages
                 cache_fetch_time = time.time() - cache_fetch_start
-                logger.info(f"[PERF] Cache fetch for AI history took {cache_fetch_time:.3f}s, found {len(cached_messages_str_list) if cached_messages_str_list else 0} messages")
+                logger.info(f"[PERF] Cache fetch for AI history took {cache_fetch_time:.3f}s, found {len(cached_messages_str_list) if cached_messages_str_list else 0} messages for user_id={user_id}, chat_id={chat_id}")
                 
                 if cached_messages_str_list:
                     logger.info(f"Found {len(cached_messages_str_list)} encrypted messages in AI cache for chat {chat_id}. Loading in chronological order (oldest first).")
@@ -1317,7 +1317,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             logger.debug(f"Final AI message history for chat {chat_id} has {len(message_history_for_ai)} messages.")
             
             history_time = time.time() - history_start
-            logger.info(f"[PERF] Message history construction took {history_time:.3f}s, final history has {len(message_history_for_ai)} messages")
+            logger.info(f"[PERF] Message history construction took {history_time:.3f}s, final history has {len(message_history_for_ai)} messages for user_id={user_id}, chat_id={chat_id}")
 
         except Exception as e_hist:
             logger.error(f"Failed to construct message history for AI for chat {chat_id}: {e_hist}", exc_info=True)
@@ -1473,8 +1473,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 # AskSkillResponse contains task_id
                 ai_task_id = response_data.get("task_id")
                 ai_call_time = time.time() - ai_call_start
-                logger.info(f"[PERF] AI app call took {ai_call_time:.3f}s, Task ID: {ai_task_id} for chat {chat_id}, message {message_id}")
-                logger.info(f"AI app ask skill executed successfully. Task ID: {ai_task_id} for chat {chat_id}, message {message_id}")
+                logger.info(f"[PERF] AI app call took {ai_call_time:.3f}s, Task ID: {ai_task_id} for user_id={user_id}, chat_id={chat_id}, message_id={message_id}")
+                logger.info(f"AI app ask skill executed successfully. Task ID: {ai_task_id} for user_id={user_id}, chat_id={chat_id}, message_id={message_id}")
 
             # Mark this chat as having an active AI task
             if ai_task_id:
@@ -1531,11 +1531,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # --- END AI SKILL INVOCATION ---
         
         handler_total_time = time.time() - handler_start_time
-        logger.info(f"[PERF] Message handler completed in {handler_total_time:.3f}s for chat_id={chat_id}, message_id={message_id}")
+        logger.info(f"[PERF] Message handler completed in {handler_total_time:.3f}s for user_id={user_id}, chat_id={chat_id}, message_id={message_id}")
 
     except Exception as e: # This is the outer try-except for the whole handler
         handler_total_time = time.time() - handler_start_time
-        logger.error(f"[PERF] Message handler failed after {handler_total_time:.3f}s for chat_id={payload.get('chat_id') if payload else 'unknown'}: {e}", exc_info=True)
+        logger.error(f"[PERF] Message handler failed after {handler_total_time:.3f}s for user_id={user_id}, chat_id={payload.get('chat_id') if payload else 'unknown'}: {e}", exc_info=True)
         logger.error(f"Error in handle_message_received (new message) from {user_id}/{device_fingerprint_hash}: {e}", exc_info=True)
         try:
             await manager.send_personal_message(

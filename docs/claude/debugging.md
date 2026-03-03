@@ -91,6 +91,32 @@ Issue source?
 
 ---
 
+## When Logs Don't Explain It: Ask the User
+
+After exhausting available server-side tools (logs, Admin CLI, Loki, Firecrawl) and the root cause is still unclear, **explicitly tell the user what information would help and state the hypothesis it would confirm or rule out.** Don't say "I can't figure it out" — name what's missing.
+
+**Framing rule:** Be specific. Don't ask generically for "more context." Say what you're looking for and why:
+
+> _"I need your browser and OS — this layout issue could be Safari-specific. If it also breaks in Chrome, that rules out the browser as the cause."_
+
+**Common gaps — information Claude cannot access without the user:**
+
+| What to ask for                                                                   | Relevant when                                       |
+| --------------------------------------------------------------------------------- | --------------------------------------------------- |
+| Browser name + version, OS, device type                                           | Any frontend/UI/rendering bug                       |
+| Network context (Wi-Fi, mobile, VPN, corporate proxy)                             | WebSocket drops, timeouts, connection failures      |
+| Does it reproduce in incognito? After hard refresh? Every time or intermittently? | Narrowing cache/storage vs. code bug                |
+| When did you first notice this? Did anything change around that time?             | Distinguishing regression from pre-existing issue   |
+| Were multiple tabs or devices open?                                               | Sync, cache, or session-state bugs                  |
+| UI language setting                                                               | Any text, layout, or display bug                    |
+| What exactly did you type or attach?                                              | AI response quality bugs, embed resolution failures |
+
+This list is not exhaustive — use judgment based on the symptom. The goal is to surface the single most likely missing variable, not to run through every item above.
+
+**For regular user reports:** these questions must go to the admin (who can relay them), not directly to the user.
+
+---
+
 ## CRITICAL: Production vs Development Debugging
 
 **ALWAYS determine which server the issue is on FIRST.** The `dev` branch runs on the development server; the `main` branch runs on production. These are completely separate environments.
@@ -268,16 +294,19 @@ sudo systemctl reload caddy
 
 ### Where to Look First (by Problem Type)
 
-| Problem Type            | Check First                    | Then Check                    |
-| ----------------------- | ------------------------------ | ----------------------------- |
-| AI response issues      | `task-worker`, `app-ai-worker` | `api` (WebSocket logs)        |
-| Login/auth failures     | `api`                          | `cms` (Directus logs)         |
-| Payment issues          | `api`                          | `task-worker` (async jobs)    |
-| Sync/cache issues       | `api` (PHASE1, SYNC_CACHE)     | `cache` (Dragonfly)           |
-| Frontend/client issues  | Loki `{job="client-console"}`  | Browser console (manual)      |
-| WebSocket disconnects   | `api`                          | Loki `{job="client-console"}` |
-| Scheduled task failures | `task-scheduler`               | `task-worker`                 |
-| User data issues        | `cms`, `cms-database`          | `api`                         |
+| Problem Type             | Check First                    | Then Check                    |
+| ------------------------ | ------------------------------ | ----------------------------- |
+| AI response issues       | `task-worker`, `app-ai-worker` | `api` (WebSocket logs)        |
+| Login/auth failures      | `api`                          | `cms` (Directus logs)         |
+| Payment issues           | `api`                          | `task-worker` (async jobs)    |
+| Sync/cache issues        | `api` (PHASE1, SYNC_CACHE)     | `cache` (Dragonfly)           |
+| Frontend/client issues   | Loki `{job="client-console"}`  | Browser console (manual)      |
+| WebSocket disconnects    | `api`                          | Loki `{job="client-console"}` |
+| Scheduled task failures  | `task-scheduler`               | `task-worker`                 |
+| User data issues         | `cms`, `cms-database`          | `api`                         |
+| **User-specific issues** | **`inspect_user_logs.py`**     | Specific service logs above   |
+
+> **Tip:** For any issue tied to a specific user, start with `inspect_user_logs.py <email>` to get a cross-service timeline. This is faster than manually querying multiple services. See [Inspection Scripts → User Activity Timeline](./inspection-scripts.md#user-activity-timeline-cross-service-logs).
 
 ### Debugging Embed Resolution Failures
 

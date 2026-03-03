@@ -307,7 +307,7 @@ async def get_session(
 
         # Step 8: If token expires soon, refresh it
         if expires_soon:
-            logger.info(f"Token expires soon for user {user_id[:6]}, refreshing...")
+            logger.info(f"Token expires soon for user_id={user_id}, refreshing...")
             success, auth_data, _ = await directus_service.refresh_token(refresh_token)
 
             if success and auth_data.get("cookies"):
@@ -379,11 +379,11 @@ async def get_session(
                     await cache_service.set_user(user_data, refresh_token=new_refresh_token, ttl=cache_ttl)
                     # Update refresh_token variable so Step 9 uses the NEW token, not the old rotated one
                     refresh_token = new_refresh_token
-                    logger.info(f"Token refreshed successfully for user {user_id[:6]}... with stay_logged_in={stay_logged_in}, cache_ttl={cache_ttl}s, new token_expiry={user_data['token_expiry']}")
+                    logger.info(f"Token refreshed successfully for user_id={user_id} with stay_logged_in={stay_logged_in}, cache_ttl={cache_ttl}s")
                 else:
-                    logger.warning(f"No new refresh token in response for user {user_id[:6]}")
+                    logger.warning(f"No new refresh token in response for user_id={user_id}")
             else:
-                logger.error(f"Failed to refresh token for user {user_id[:6]}")
+                logger.error(f"Failed to refresh token for user_id={user_id}")
                 # If refresh fails, treat session as invalid
                 return SessionResponse(success=False, message="Session expired", token_refresh_needed=True, require_invite_code=require_invite_code)
         
@@ -401,7 +401,7 @@ async def get_session(
         await cache_service.set_user(user_data, refresh_token=refresh_token, ttl=cache_ttl)
         
         # Step 10: Return successful session validation
-        logger.info(f"Session valid for user {user_id[:6]}. Returning user data.")
+        logger.info(f"Session valid for user_id={user_id}. Returning user data.")
         return SessionResponse(
             success=True,
             message="Session valid",
