@@ -35,6 +35,37 @@ from toon_format import decode, encode
 
 logger = logging.getLogger(__name__)
 
+# Standard error message shown to users when all providers fail.
+# Defined once to ensure consistency across all error paths.
+STANDARDIZED_USER_ERROR_MESSAGE = (
+    "The AI service encountered an error while processing your request. "
+    "Please try again in a moment."
+)
+
+
+class AllServersFailedError(Exception):
+    """Raised when all configured servers for a model fail during an LLM call.
+
+    This exception is used instead of yielding an error string so that the
+    caller (main_processor) can catch it and attempt model-level fallback
+    before showing an error to the user.
+
+    Attributes:
+        model_id: The model ID that failed across all its servers.
+        attempted_servers: List of server model IDs that were tried.
+        last_error: The last error message from the final server attempt.
+    """
+
+    def __init__(self, model_id: str, attempted_servers: List[str], last_error: Optional[str] = None):
+        self.model_id = model_id
+        self.attempted_servers = attempted_servers
+        self.last_error = last_error
+        super().__init__(
+            f"All {len(attempted_servers)} server(s) failed for model '{model_id}'. "
+            f"Attempted: {', '.join(attempted_servers)}. Last error: {last_error}"
+        )
+
+
 def _is_reasoning_model(model_id: str) -> bool:
     if not model_id or "/" not in model_id:
         return False
@@ -1325,7 +1356,11 @@ async def call_main_llm_stream(
         logger.error(
             f"{log_prefix} [ThoughtSigRetry] All servers failed after stripping thought signatures."
         )
-        yield "The AI service encountered an error while processing your request. Please try again in a moment."
+        raise AllServersFailedError(
+            original_model_id,
+            [s for s in servers_to_try],
+            "All servers failed after stripping thought signatures"
+        )
 
     # Helper function to check provider health from cache
     async def _is_provider_unhealthy(provider_id: str) -> bool:
@@ -1349,6 +1384,12 @@ async def call_main_llm_stream(
     # Try each server in order until one succeeds
     attempted_servers = []
     last_error = None
+    # Track whether any content has been yielded to the consumer.
+    # If no content was yielded, we raise AllServersFailedError so the caller
+    # (main_processor) can attempt model-level fallback.
+    # If content was already partially yielded, we can't un-yield it, so we
+    # yield a sentinel error marker instead.
+    _any_content_yielded = False
     
     for server_model_id in servers_to_try:
         attempted_servers.append(server_model_id)
@@ -1426,11 +1467,13 @@ async def call_main_llm_stream(
             )
             logger.error(f"{attempt_log_prefix} {err_msg}")
             last_error = err_msg
-            # If this is the last server to try, yield error
+            # If this is the last server to try, signal failure
             if len(attempted_servers) >= len(servers_to_try):
-                # Use standardized user-friendly error message - technical details are logged but not shown to user
                 logger.error(f"{log_prefix} Technical error (not shown to user): Model provider for '{server_model_id}' not supported. Available: {', '.join(sorted(PROVIDER_CLIENT_REGISTRY.keys()))}")
-                yield "The AI service encountered an error while processing your request. Please try again in a moment."
+                if _any_content_yielded:
+                    yield STANDARDIZED_USER_ERROR_MESSAGE
+                else:
+                    raise AllServersFailedError(original_model_id, attempted_servers, last_error)
             continue
 
         try:
@@ -1455,6 +1498,7 @@ async def call_main_llm_stream(
                         inter_chunk_timeout_seconds
                     )
                     async for paragraph in aggregate_paragraphs(timeout_stream):
+                        _any_content_yielded = True
                         yield paragraph
                     # Successfully completed - return from function
                     return
@@ -1467,19 +1511,23 @@ async def call_main_llm_stream(
                         logger.warning(f"{attempt_log_prefix} Timeout error detected. Will try next server if available.")
                         continue
                     else:
-                        # Use standardized user-friendly error message - technical details are logged but not shown to user
                         logger.error(f"{attempt_log_prefix} Technical timeout error (not shown to user): {timeout_err}")
-                        yield "The AI service encountered an error while processing your request. Please try again in a moment."
+                        if _any_content_yielded:
+                            yield STANDARDIZED_USER_ERROR_MESSAGE
+                        else:
+                            raise AllServersFailedError(original_model_id, attempted_servers, last_error)
                         return
             else:
                 error_msg = f"Expected a stream but did not receive one. Response type: {type(raw_chunk_stream)}"
                 logger.error(f"{attempt_log_prefix} {error_msg}")
                 last_error = error_msg
-                # If this is the last server to try, yield error
+                # If this is the last server to try, signal failure
                 if len(attempted_servers) >= len(servers_to_try):
-                    # Use standardized user-friendly error message - technical details are logged but not shown to user
                     logger.error(f"{attempt_log_prefix} Technical stream error (not shown to user): Expected a stream but received {type(raw_chunk_stream)}")
-                    yield "The AI service encountered an error while processing your request. Please try again in a moment."
+                    if _any_content_yielded:
+                        yield STANDARDIZED_USER_ERROR_MESSAGE
+                    else:
+                        raise AllServersFailedError(original_model_id, attempted_servers, last_error)
                 continue
 
         except (ValueError, IOError) as e:
@@ -1513,9 +1561,11 @@ async def call_main_llm_stream(
             else:
                 # Non-retryable error - fail immediately
                 logger.warning(f"{attempt_log_prefix} Non-retryable error detected. Not trying fallback servers.")
-                # Use standardized user-friendly error message - technical details are logged but not shown to user
                 logger.error(f"{attempt_log_prefix} Technical error (not shown to user): {e}")
-                yield "The AI service encountered an error while processing your request. Please try again in a moment."
+                if _any_content_yielded:
+                    yield STANDARDIZED_USER_ERROR_MESSAGE
+                else:
+                    raise AllServersFailedError(original_model_id, attempted_servers, last_error) from e
                 return
                 
         except Exception as e:
@@ -1545,16 +1595,20 @@ async def call_main_llm_stream(
             else:
                 # Non-retryable error - fail immediately
                 logger.warning(f"{attempt_log_prefix} Non-retryable error detected. Not trying fallback servers.")
-                # Use standardized user-friendly error message - technical details are logged but not shown to user
                 logger.error(f"{attempt_log_prefix} Technical unexpected error (not shown to user): {e}")
-                yield "The AI service encountered an error while processing your request. Please try again in a moment."
+                if _any_content_yielded:
+                    yield STANDARDIZED_USER_ERROR_MESSAGE
+                else:
+                    raise AllServersFailedError(original_model_id, attempted_servers, last_error) from e
                 return
     
-    # All servers failed
+    # All servers failed — raise so the caller (main_processor) can try the next model
     error_summary = f"All {len(servers_to_try)} server(s) failed. Attempted servers: {', '.join(attempted_servers)}. Last error: {last_error}"
     logger.error(f"{log_prefix} {error_summary}")
-    # Use standardized user-friendly error message - technical details are logged but not shown to user
-    yield "The AI service encountered an error while processing your request. Please try again in a moment."
+    if _any_content_yielded:
+        yield STANDARDIZED_USER_ERROR_MESSAGE
+    else:
+        raise AllServersFailedError(original_model_id, attempted_servers, last_error)
 
 
 def log_main_llm_stream_aggregated_output(task_id: str, aggregated_response: str, error_message: Optional[str] = None):

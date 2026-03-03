@@ -28,10 +28,8 @@ models:
       - id: "openai"
         name: "OpenAI API"
         region: "US" # Server region for UI display
-      - id: "openrouter"
-        name: "OpenRouter API"
-        model_id: "openai/gpt-5.2" # OpenRouter model identifier
-        region: "US" # Server region for UI display
+      # OpenRouter removed — OpenAI models should only use OpenAI's own infrastructure.
+      # If OpenAI API fails, model fallback in main_processor handles it.
     pricing: # Model-specific base pricing
       tokens:
         input:

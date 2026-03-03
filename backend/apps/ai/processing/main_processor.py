@@ -15,7 +15,12 @@ from toon_format import encode
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.apps.ai.processing.preprocessor import PreprocessingResult
 from backend.apps.ai.utils.mate_utils import MateConfig
-from backend.apps.ai.utils.llm_utils import call_main_llm_stream, truncate_message_history_to_token_budget
+from backend.apps.ai.utils.llm_utils import (
+    call_main_llm_stream,
+    truncate_message_history_to_token_budget,
+    AllServersFailedError,
+    STANDARDIZED_USER_ERROR_MESSAGE,
+)
 from backend.apps.ai.utils.stream_utils import aggregate_paragraphs
 from backend.apps.ai.llm_providers.mistral_client import ParsedMistralToolCall, MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata, ParsedGoogleToolCall
@@ -1805,7 +1810,12 @@ async def handle_main_processing(
         # showing the "processing" state to users before skill execution starts
         inline_placeholder_embeds: Dict[str, Dict[str, Any]] = {}
         
-        async for chunk in aggregate_paragraphs(llm_stream):
+        # Flag set when AllServersFailedError is caught during stream consumption.
+        # When set, the outer loop will attempt the next model in the fallback list.
+        _stream_all_servers_failed = False
+        _stream_all_servers_error: Optional[AllServersFailedError] = None
+        try:
+          async for chunk in aggregate_paragraphs(llm_stream):
             if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata)):
                 usage = chunk
                 # Accumulate token counts from every LLM call in this turn.
@@ -2141,6 +2151,39 @@ async def handle_main_processing(
                     current_turn_text_buffer.append(chunk)
             else:
                 logger.warning(f"{log_prefix} Received unexpected chunk type from stream: {type(chunk)}")
+        except AllServersFailedError as asf_err:
+            # All servers for the current model failed before yielding any content.
+            # Try the next model in the fallback list instead of showing an error.
+            _stream_all_servers_failed = True
+            _stream_all_servers_error = asf_err
+            logger.warning(
+                f"{log_prefix} MODEL_FALLBACK: AllServersFailedError during stream consumption "
+                f"for model '{models_to_try[current_model_index]}': {asf_err}. "
+                f"Will attempt next model if available."
+            )
+
+        # === MODEL FALLBACK AFTER STREAM FAILURE ===
+        # If all servers failed for the current model during stream consumption,
+        # try the next model in the fallback list before giving up.
+        if _stream_all_servers_failed:
+            current_model_index += 1
+            if current_model_index < len(models_to_try):
+                next_model = models_to_try[current_model_index]
+                logger.warning(
+                    f"{log_prefix} MODEL_FALLBACK: Switching to fallback model #{current_model_index + 1}: "
+                    f"{next_model} (previous model failed: {_stream_all_servers_error})"
+                )
+                # Reset iteration state and continue the outer for loop
+                # to retry with the next model on the same iteration
+                continue
+            else:
+                # All models exhausted — yield standardized error to user
+                logger.error(
+                    f"{log_prefix} MODEL_FALLBACK: All {len(models_to_try)} models exhausted. "
+                    f"Last error: {_stream_all_servers_error}"
+                )
+                yield STANDARDIZED_USER_ERROR_MESSAGE
+                break
 
         final_buffered_text_for_turn = "".join(current_turn_text_buffer)
 

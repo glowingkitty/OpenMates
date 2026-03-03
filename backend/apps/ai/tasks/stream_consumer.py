@@ -23,7 +23,7 @@ from backend.apps.ai.processing.preprocessor import PreprocessingResult
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 from backend.apps.ai.utils.mate_utils import MateConfig
 from backend.apps.ai.processing.main_processor import handle_main_processing, INTERNAL_API_BASE_URL, INTERNAL_API_SHARED_TOKEN
-from backend.apps.ai.utils.llm_utils import log_main_llm_stream_aggregated_output
+from backend.apps.ai.utils.llm_utils import log_main_llm_stream_aggregated_output, STANDARDIZED_USER_ERROR_MESSAGE
 from backend.shared.python_utils.billing_utils import calculate_total_credits, calculate_real_and_charged_costs
 from backend.apps.ai.llm_providers.mistral_client import MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata
@@ -1188,7 +1188,7 @@ async def _consume_main_processing_stream(
     log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _consume_main_processing_stream:"
     logger.info(f"{log_prefix} Starting to consume stream from main_processor.")
 
-    standardized_error_message = "The AI service encountered an error while processing your request. Please try again in a moment."
+    standardized_error_message = STANDARDIZED_USER_ERROR_MESSAGE
 
     # Local flags for interruption status
     was_revoked_during_stream = False
@@ -1270,7 +1270,7 @@ async def _consume_main_processing_stream(
         # Use a user-friendly error message instead of exposing technical details
         # The technical error is logged but not shown to the user
         logger.warning(f"{log_prefix} Technical preprocessing error (not shown to user): {preprocessing_result.error_message}")
-        message_text = "The AI service encountered an error while processing your request. Please try again in a moment."
+        message_text = STANDARDIZED_USER_ERROR_MESSAGE
         return await _generate_fake_stream_for_simple_message(
             task_id=task_id,
             request_data=request_data,
