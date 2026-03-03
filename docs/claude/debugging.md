@@ -505,15 +505,23 @@ vercel env pull --cwd frontend/apps/web_app
 | Build succeeds but app blank | Client-side JS error (not a Vercel issue)                    | Use Firecrawl or browser console logs via Loki                  |
 | `BUILDING` state stuck       | Vercel infra issue or very large build                       | Wait 5 min, then check `vercel ls`; if still stuck, redeploy    |
 
-### Redeploying
+### Fixing Deployment Failures
+
+**CRITICAL: Do NOT run `vercel build` or `vercel deploy` locally.** The correct workflow is:
+
+1. Use `vercel logs <url>` to identify the build/runtime error
+2. Fix the code locally (TypeScript error, missing import, config issue, etc.)
+3. Commit and push to `dev` (or `main`) — the Vercel GitHub integration auto-deploys on push
+4. Monitor the new deployment: `vercel ls --cwd frontend/apps/web_app`
+
+Running `vercel build` locally uses a different environment (no Vercel env vars, different Node version, no monorepo root detection) and produces misleading results. If you need to verify a build locally, use `pnpm build` in `frontend/apps/web_app/` instead — that uses the same Turbo pipeline Vercel runs.
+
+**Manual redeploy** (only when the auto-deploy didn't trigger or Vercel infra glitched):
 
 ```bash
-# Trigger a fresh deployment of the current branch state
 vercel --cwd frontend/apps/web_app --prod   # production (main)
 vercel --cwd frontend/apps/web_app           # preview (dev)
 ```
-
-**Note:** Normally, pushing to `dev`/`main` triggers deployment automatically via the Vercel GitHub integration. Manual redeploy is only needed when the automatic deploy failed or you need to force a rebuild.
 
 ---
 
