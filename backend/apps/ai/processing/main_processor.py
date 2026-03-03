@@ -1446,6 +1446,42 @@ async def handle_main_processing(
     # that no longer exist, causing the client to re-request them on every page load.
     failed_embed_ids: set[str] = set()
     
+    # --- Yield debug metadata for the inspection script ---
+    # This provides the full system prompt, tool definitions, and truncated message history
+    # to the stream consumer, which passes it back to ask_skill_task for debug caching.
+    # Only the first + last 3 messages are included to keep the debug entry manageable.
+    DEBUG_MSG_HISTORY_HEAD = 1  # First message (usually system context or first user message)
+    DEBUG_MSG_HISTORY_TAIL = 3  # Last 3 messages (most recent context)
+    if len(current_message_history) <= DEBUG_MSG_HISTORY_HEAD + DEBUG_MSG_HISTORY_TAIL:
+        debug_message_history = current_message_history
+    else:
+        debug_message_history = (
+            current_message_history[:DEBUG_MSG_HISTORY_HEAD]
+            + [{"__truncated__": True, "omitted_messages": len(current_message_history) - DEBUG_MSG_HISTORY_HEAD - DEBUG_MSG_HISTORY_TAIL}]
+            + current_message_history[-DEBUG_MSG_HISTORY_TAIL:]
+        )
+    
+    # Build concise tool summaries (name + first 120 chars of description)
+    TOOL_DESCRIPTION_PREVIEW_LENGTH = 120
+    debug_tool_summaries = []
+    for tool in available_tools_for_llm:
+        func = tool.get("function", {})
+        desc = func.get("description", "")
+        debug_tool_summaries.append({
+            "name": func.get("name", "unknown"),
+            "description_preview": desc[:TOOL_DESCRIPTION_PREVIEW_LENGTH] + ("..." if len(desc) > TOOL_DESCRIPTION_PREVIEW_LENGTH else ""),
+        })
+    
+    yield {
+        "__debug_metadata__": True,
+        "system_prompt": full_system_prompt,
+        "system_prompt_char_count": len(full_system_prompt),
+        "available_tools": debug_tool_summaries,
+        "available_tools_count": len(available_tools_for_llm),
+        "message_history_sent_to_llm": debug_message_history,
+        "message_history_total_count": len(current_message_history),
+    }
+    
     # --- End of existing logic ---
 
     # --- User-requested focus mode: bypass LLM + countdown ---
@@ -3149,6 +3185,10 @@ async def handle_main_processing(
                 #      (which reads embed_ref from the result dict if already present)
                 # Generating slugs in two places would produce different random suffixes → ref mismatch.
                 _composite_skill_ids = {"search", "places_search", "events_search", "search_connections", "search_stays"}
+                # Skills whose results contain text-heavy content worth quoting verbatim.
+                # A single source_quote_hint is added at the group level (not per result)
+                # to remind the LLM it can use > [exact text](embed:ref) blockquote syntax.
+                _QUOTABLE_SKILL_IDS = {"search"}
                 if skill_id in _composite_skill_ids and not is_async_skill and not is_multimodal_result:
                     try:
                         from backend.core.api.app.services.embed_service import EmbedService as _EmbedSvc
@@ -3199,15 +3239,30 @@ async def handle_main_processing(
                         json_lines = json_before.split('\n')
                         logger.info(f"{log_prefix} === TOON CONVERSION DEBUG (chat history) ===")
                         logger.info(f"{log_prefix} Original JSON structure (first 15 lines, {len(json_before)} chars total):")
+                        # Source quote hint — added once per tool result group for quotable
+                        # skills (web-search, news-search).  Tells the LLM it can use the
+                        # > [verbatim text](embed:ref) blockquote syntax to cite sources.
+                        # Placed at the wrapper level so it costs ~30 tokens total, not per result.
+                        _sq_hint = (
+                            "When citing specific facts from these results, quote the exact "
+                            "text using: > [verbatim text from title, description, or "
+                            "extra_snippets](embed:the_result's_embed_ref)"
+                        ) if skill_id in _QUOTABLE_SKILL_IDS else None
+
                         if len(results_with_refs) == 1:
                             # Single result - flatten and encode full result as TOON for chat history
                             flattened_result = _flatten_for_toon_tabular(results_with_refs[0])
+                            if _sq_hint:
+                                flattened_result["source_quote_hint"] = _sq_hint
                             tool_result_content_str = encode(flattened_result)
                         else:
                             # Multiple results - flatten each result, then combine and encode as TOON
                             # Flattening enables TOON to use tabular format for uniform objects
                             flattened_results = [_flatten_for_toon_tabular(result) for result in results_with_refs]
-                            tool_result_content_str = encode({"results": flattened_results, "count": len(results_with_refs)})
+                            toon_wrapper: Dict[str, Any] = {"results": flattened_results, "count": len(results_with_refs)}
+                            if _sq_hint:
+                                toon_wrapper["source_quote_hint"] = _sq_hint
+                            tool_result_content_str = encode(toon_wrapper)
                         
                         logger.debug(f"{log_prefix} TOON conversion (chat history) length={len(tool_result_content_str)} chars")
                         
