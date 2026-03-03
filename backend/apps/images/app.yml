@@ -21,6 +21,28 @@ embed_types:
     icon: image
     gradient_var: "--color-app-images"
     i18n_namespace: embeds.images.generate
+    content_fields:
+      - name: prompt
+        type: string
+        required: true
+      - name: model
+        type: string
+        required: true
+      - name: aspect_ratio
+        type: string
+      - name: s3_base_url
+        type: string
+        required: true
+      - name: files
+        type: object
+        required: true
+        description: "Record of file variants with S3 keys"
+      - name: aes_key
+        type: string
+        required: true
+      - name: aes_nonce
+        type: string
+        required: true
   - id: generate_draft
     category: app-skill-use
     skill_id: generate_draft
@@ -33,6 +55,25 @@ embed_types:
     icon: image
     gradient_var: "--color-app-images"
     i18n_namespace: embeds.images.generate
+    content_fields:
+      - name: prompt
+        type: string
+        required: true
+      - name: model
+        type: string
+        required: true
+      - name: s3_base_url
+        type: string
+        required: true
+      - name: files
+        type: object
+        required: true
+      - name: aes_key
+        type: string
+        required: true
+      - name: aes_nonce
+        type: string
+        required: true
   # User-uploaded image (direct-type, inserted by file upload flow)
   - id: image
     category: direct
@@ -44,6 +85,19 @@ embed_types:
     icon: image
     gradient_var: "--color-app-images"
     i18n_namespace: embeds.images.view
+    content_fields:
+      - name: filename
+        type: string
+      - name: s3_base_url
+        type: string
+      - name: files
+        type: object
+      - name: aes_key
+        type: string
+      - name: aes_nonce
+        type: string
+      - name: content_hash
+        type: string
 settings_and_memories:
   # Preferred styles: Image styles and aesthetics the user prefers
   - id: preferred_styles

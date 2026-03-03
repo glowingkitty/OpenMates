@@ -329,6 +329,131 @@ function buildGroupableTypes(allEmbedTypes) {
 }
 
 /**
+ * Map a YAML field type to a TypeScript type string.
+ *
+ * @param {string} yamlType - The YAML type (string, number, boolean, array, object)
+ * @returns {string} TypeScript type annotation
+ */
+function mapFieldType(yamlType) {
+  switch (yamlType) {
+    case "string":
+      return "string";
+    case "number":
+      return "number";
+    case "boolean":
+      return "boolean";
+    case "array":
+      return "unknown[]";
+    case "object":
+      return "Record<string, unknown>";
+    default:
+      return "unknown";
+  }
+}
+
+/**
+ * Convert a kebab-case or snake_case embed type ID to PascalCase for TypeScript interface names.
+ * Examples: "web-website" → "WebWebsite", "code_code" → "CodeCode", "focus-mode-activation" → "FocusModeActivation"
+ *
+ * @param {string} str - Input string
+ * @returns {string} PascalCase string
+ */
+function toPascalCase(str) {
+  return str
+    .split(/[-_]/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join("");
+}
+
+/**
+ * Build TypeScript interface declarations from content_fields definitions in embed types.
+ * Each embed type with content_fields produces an interface like:
+ *   export interface CodeCodeEmbedContent { language: string; code: string; ... }
+ *
+ * Child content fields (from composite embeds) produce a separate interface.
+ *
+ * @param {Array<Object>} allEmbedTypes - All embed type definitions
+ * @returns {{ interfaces: string[], interfaceCount: number }}
+ */
+function buildContentTypeInterfaces(allEmbedTypes) {
+  const interfaces = [];
+  let count = 0;
+
+  for (const def of allEmbedTypes) {
+    // Generate interface for the main embed type's content_fields
+    if (Array.isArray(def.content_fields) && def.content_fields.length > 0) {
+      const typeName =
+        def.category === "app-skill-use" && def.app_id && def.skill_id
+          ? toPascalCase(`${def.app_id}-${def.skill_id}`)
+          : def.frontend_type
+            ? toPascalCase(def.frontend_type)
+            : toPascalCase(def.id);
+
+      const interfaceName = `${typeName}EmbedContent`;
+      const lines = [];
+      lines.push(
+        `/** Content fields for ${def.app_id || ""}:${def.id || def.frontend_type} embeds (finished state). */`,
+      );
+      lines.push(`export interface ${interfaceName} {`);
+
+      // Always include base fields present in all embeds
+      lines.push(`  /** App identifier */`);
+      lines.push(`  app_id: string;`);
+      lines.push(`  /** Skill identifier */`);
+      lines.push(`  skill_id: string;`);
+      lines.push(`  /** Embed status */`);
+      lines.push(`  status: string;`);
+
+      for (const field of def.content_fields) {
+        const tsType = mapFieldType(field.type);
+        const optional = field.required ? "" : "?";
+        if (field.description) {
+          lines.push(`  /** ${field.description} */`);
+        }
+        lines.push(`  ${field.name}${optional}: ${tsType};`);
+      }
+
+      // Allow additional dynamic fields (TOON content is loosely typed)
+      lines.push(`  [key: string]: unknown;`);
+      lines.push(`}`);
+      interfaces.push(lines.join("\n"));
+      count++;
+    }
+
+    // Generate interface for child content fields (composite embeds)
+    if (
+      Array.isArray(def.child_content_fields) &&
+      def.child_content_fields.length > 0 &&
+      def.child_frontend_type
+    ) {
+      const childTypeName = toPascalCase(def.child_frontend_type);
+      const interfaceName = `${childTypeName}EmbedContent`;
+      const lines = [];
+      lines.push(
+        `/** Content fields for ${def.child_frontend_type} child embeds. */`,
+      );
+      lines.push(`export interface ${interfaceName} {`);
+
+      for (const field of def.child_content_fields) {
+        const tsType = mapFieldType(field.type);
+        const optional = field.required ? "" : "?";
+        if (field.description) {
+          lines.push(`  /** ${field.description} */`);
+        }
+        lines.push(`  ${field.name}${optional}: ${tsType};`);
+      }
+
+      lines.push(`  [key: string]: unknown;`);
+      lines.push(`}`);
+      interfaces.push(lines.join("\n"));
+      count++;
+    }
+  }
+
+  return { interfaces, interfaceCount: count };
+}
+
+/**
  * Generate the TypeScript output file.
  *
  * @param {Object} maps - All generated maps
@@ -342,6 +467,7 @@ function generateTypeScript(maps) {
     rendererMap,
     embedMetadataMap,
     groupableTypes,
+    contentTypeInterfaces,
     totalCount,
   } = maps;
 
@@ -478,6 +604,27 @@ function generateTypeScript(maps) {
   );
   lines.push(``);
 
+  // Content Type Contracts — TypeScript interfaces generated from content_fields in app.yml
+  if (contentTypeInterfaces && contentTypeInterfaces.interfaces.length > 0) {
+    lines.push(
+      `// ── Content Type Contracts ─────────────────────────────────────────────`,
+    );
+    lines.push(
+      `// Generated from content_fields and child_content_fields in app.yml.`,
+    );
+    lines.push(
+      `// Use these interfaces for type-safe access to decoded embed content.`,
+    );
+    lines.push(
+      `// Example: const content = decodedContent as WebSearchEmbedContent;`,
+    );
+    lines.push(``);
+    for (const iface of contentTypeInterfaces.interfaces) {
+      lines.push(iface);
+      lines.push(``);
+    }
+  }
+
   // Utility function: normalizeEmbedType
   lines.push(`/**`);
   lines.push(
@@ -559,6 +706,13 @@ function main() {
   const rendererMap = buildRendererMap(allEmbedTypes);
   const embedMetadataMap = buildEmbedMetadataMap(allEmbedTypes);
   const groupableTypes = buildGroupableTypes(allEmbedTypes);
+  const contentTypeInterfaces = buildContentTypeInterfaces(allEmbedTypes);
+
+  if (contentTypeInterfaces.interfaceCount > 0) {
+    console.log(
+      `[generate-embed-registry] Generated ${contentTypeInterfaces.interfaceCount} content type interface(s)`,
+    );
+  }
 
   // Generate TypeScript
   const tsCode = generateTypeScript({
@@ -568,6 +722,7 @@ function main() {
     rendererMap,
     embedMetadataMap,
     groupableTypes,
+    contentTypeInterfaces,
     totalCount: allEmbedTypes.length,
   });
 

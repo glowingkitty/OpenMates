@@ -29,6 +29,15 @@ embed_types:
     icon: docs
     gradient_var: "--color-app-docs"
     i18n_namespace: embeds.docs.doc
+    content_fields:
+      - name: html
+        type: string
+        required: true
+      - name: title
+        type: string
+      - name: word_count
+        type: number
+        required: true
 
 # Instructions injected into the AI system prompt when this app is available
 # These are loaded dynamically by the main processor based on app discovery

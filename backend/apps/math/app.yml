@@ -31,6 +31,13 @@ embed_types:
     icon: math
     gradient_var: "--color-app-math"
     i18n_namespace: embeds.math.calculate
+    content_fields:
+      - name: results
+        type: array
+        required: true
+      - name: result_count
+        type: number
+        required: true
   # Math plot — direct-type, auto-detected from ```plot``` code blocks by stream_consumer.py
   - id: plot
     category: direct
@@ -42,6 +49,10 @@ embed_types:
     icon: function
     gradient_var: "--color-app-math"
     i18n_namespace: embeds.math.plot
+    content_fields:
+      - name: plot_spec
+        type: string
+        required: true
 skills:
   # -----------------------------------------------------------------------
   # Calculate — evaluate expressions with guaranteed numerical/symbolic accuracy

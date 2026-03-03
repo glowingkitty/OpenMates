@@ -21,6 +21,19 @@ embed_types:
     icon: sheets
     gradient_var: "--color-app-sheets"
     i18n_namespace: embeds.sheets.sheet
+    content_fields:
+      - name: table
+        type: string
+        required: true
+        description: "Raw markdown table content"
+      - name: title
+        type: string
+      - name: row_count
+        type: number
+        required: true
+      - name: col_count
+        type: number
+        required: true
 
   # Focus mode activation indicator
   - id: focus_mode_activation
@@ -35,3 +48,10 @@ embed_types:
     icon: focus
     gradient_var: "--color-app-ai"
     i18n_namespace: embeds.ai.focus_mode_activation
+    content_fields:
+      - name: focus_id
+        type: string
+        required: true
+      - name: focus_mode_name
+        type: string
+        required: true

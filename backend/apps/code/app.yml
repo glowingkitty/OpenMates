@@ -169,6 +169,16 @@ embed_types:
     icon: library
     gradient_var: "--color-app-code"
     i18n_namespace: embeds.code.get_docs
+    content_fields:
+      - name: library
+        type: string
+        required: true
+      - name: results
+        type: array
+        required: true
+      - name: result_count
+        type: number
+        required: true
   # Code block — direct-type, auto-detected from ``` code blocks by stream_consumer.py
   - id: code
     category: direct
@@ -181,6 +191,18 @@ embed_types:
     icon: coding
     gradient_var: "--color-app-code"
     i18n_namespace: embeds.code.code
+    content_fields:
+      - name: language
+        type: string
+        required: true
+      - name: code
+        type: string
+        required: true
+      - name: filename
+        type: string
+      - name: line_count
+        type: number
+        required: true
 skills:
   - id: get_docs
     name_translation_key: code.get_docs

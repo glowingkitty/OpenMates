@@ -8,7 +8,7 @@
 // To add a new embed type, add an entry to the relevant app.yml
 // under the embed_types section, then rebuild.
 //
-// Generated: 2026-03-03T09:57:47.265Z
+// Generated: 2026-03-03T10:27:30.400Z
 // Total embed types: 26
 
 /**
@@ -385,6 +385,207 @@ export const EMBED_GROUPABLE_TYPES: string[] = [
   "videos-video",
   "web-website"
 ];
+
+// ── Content Type Contracts ─────────────────────────────────────────────
+// Generated from content_fields and child_content_fields in app.yml.
+// Use these interfaces for type-safe access to decoded embed content.
+// Example: const content = decodedContent as WebSearchEmbedContent;
+
+/** Content fields for code:get_docs embeds (finished state). */
+export interface CodeGetDocsEmbedContent {
+  /** App identifier */
+  app_id: string;
+  /** Skill identifier */
+  skill_id: string;
+  /** Embed status */
+  status: string;
+  library: string;
+  results: unknown[];
+  result_count: number;
+  [key: string]: unknown;
+}
+
+/** Content fields for code:code embeds (finished state). */
+export interface CodeCodeEmbedContent {
+  /** App identifier */
+  app_id: string;
+  /** Skill identifier */
+  skill_id: string;
+  /** Embed status */
+  status: string;
+  language: string;
+  code: string;
+  filename?: string;
+  line_count: number;
+  [key: string]: unknown;
+}
+
+/** Content fields for docs:doc embeds (finished state). */
+export interface DocsDocEmbedContent {
+  /** App identifier */
+  app_id: string;
+  /** Skill identifier */
+  skill_id: string;
+  /** Embed status */
+  status: string;
+  html: string;
+  title?: string;
+  word_count: number;
+  [key: string]: unknown;
+}
+
+/** Content fields for images:generate embeds (finished state). */
+export interface ImagesGenerateEmbedContent {
+  /** App identifier */
+  app_id: string;
+  /** Skill identifier */
+  skill_id: string;
+  /** Embed status */
+  status: string;
+  prompt: string;
+  model: string;
+  aspect_ratio?: string;
+  s3_base_url: string;
+  /** Record of file variants with S3 keys */
+  files: Record<string, unknown>;
+  aes_key: string;
+  aes_nonce: string;
+  [key: string]: unknown;
+}
+
+/** Content fields for images:generate_draft embeds (finished state). */
+export interface ImagesGenerateDraftEmbedContent {
+  /** App identifier */
+  app_id: string;
+  /** Skill identifier */
+  skill_id: string;
+  /** Embed status */
+  status: string;
+  prompt: string;
+  model: string;
+  s3_base_url: string;
+  files: Record<string, unknown>;
+  aes_key: string;
+  aes_nonce: string;
+  [key: string]: unknown;
+}
+
+/** Content fields for images:image embeds (finished state). */
+export interface ImageEmbedContent {
+  /** App identifier */
+  app_id: string;
+  /** Skill identifier */
+  skill_id: string;
+  /** Embed status */
+  status: string;
+  filename?: string;
+  s3_base_url?: string;
+  files?: Record<string, unknown>;
+  aes_key?: string;
+  aes_nonce?: string;
+  content_hash?: string;
+  [key: string]: unknown;
+}
+
+/** Content fields for math:calculate embeds (finished state). */
+export interface MathCalculateEmbedContent {
+  /** App identifier */
+  app_id: string;
+  /** Skill identifier */
+  skill_id: string;
+  /** Embed status */
+  status: string;
+  results: unknown[];
+  result_count: number;
+  [key: string]: unknown;
+}
+
+/** Content fields for math:plot embeds (finished state). */
+export interface MathPlotEmbedContent {
+  /** App identifier */
+  app_id: string;
+  /** Skill identifier */
+  skill_id: string;
+  /** Embed status */
+  status: string;
+  plot_spec: string;
+  [key: string]: unknown;
+}
+
+/** Content fields for web:search embeds (finished state). */
+export interface WebSearchEmbedContent {
+  /** App identifier */
+  app_id: string;
+  /** Skill identifier */
+  skill_id: string;
+  /** Embed status */
+  status: string;
+  query: string;
+  provider?: string;
+  result_count: number;
+  /** Pipe-delimited child embed IDs (TOON tabular format) */
+  embed_ids?: string;
+  [key: string]: unknown;
+}
+
+/** Content fields for web-website child embeds. */
+export interface WebWebsiteEmbedContent {
+  url: string;
+  title: string;
+  description: string;
+  page_age?: string;
+  /** Favicon URL (flattened from meta_url.favicon) */
+  meta_url_favicon?: string;
+  /** Thumbnail URL (flattened from thumbnail.original) */
+  thumbnail_original?: string;
+  /** Pipe-delimited additional context snippets */
+  extra_snippets?: string;
+  language?: string;
+  [key: string]: unknown;
+}
+
+/** Content fields for web:read embeds (finished state). */
+export interface WebReadEmbedContent {
+  /** App identifier */
+  app_id: string;
+  /** Skill identifier */
+  skill_id: string;
+  /** Embed status */
+  status: string;
+  url: string;
+  results: unknown[];
+  result_count: number;
+  [key: string]: unknown;
+}
+
+/** Content fields for sheets:sheet embeds (finished state). */
+export interface SheetsSheetEmbedContent {
+  /** App identifier */
+  app_id: string;
+  /** Skill identifier */
+  skill_id: string;
+  /** Embed status */
+  status: string;
+  /** Raw markdown table content */
+  table: string;
+  title?: string;
+  row_count: number;
+  col_count: number;
+  [key: string]: unknown;
+}
+
+/** Content fields for ai:focus_mode_activation embeds (finished state). */
+export interface FocusModeActivationEmbedContent {
+  /** App identifier */
+  app_id: string;
+  /** Skill identifier */
+  skill_id: string;
+  /** Embed status */
+  status: string;
+  focus_id: string;
+  focus_mode_name: string;
+  [key: string]: unknown;
+}
 
 /**
  * Normalize a server/backend embed type string to its frontend equivalent.
