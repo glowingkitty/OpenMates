@@ -68,6 +68,17 @@ _SOURCE_QUOTE_PATTERN = re.compile(
 # Maximum number of quotes to verify per response to avoid excessive latency
 _MAX_QUOTES_TO_VERIFY = 10
 
+# Regex pattern to detect non-blockquote inline embed links: [display text](embed:ref)
+# Negative lookbehind ensures we skip source-quote blockquotes (handled by _SOURCE_QUOTE_PATTERN).
+# Group 1 = display text, Group 2 = embed_ref slug.
+_INLINE_EMBED_LINK_PATTERN = re.compile(
+    r'(?<!^>\s)\[([^\]]+)\]\(embed:([^)]+)\)'
+)
+
+# Regex to detect embed_ref-like display text — domain.tld-XYZ or slug-XYZ patterns
+# where XYZ is a 2-4 character alphanumeric random suffix.
+_EMBED_REF_SUFFIX_PATTERN = re.compile(r'-[a-zA-Z0-9]{2,4}$')
+
 def _strip_tool_call_xml_from_text(text: str) -> str:
     """
     Strip <tool_call>...</tool_call> XML blocks from text content.
@@ -281,6 +292,230 @@ async def _verify_and_strip_bad_quotes(
         return modified
 
     return aggregated_response
+
+
+def _is_bad_embed_display_text(display_text: str, embed_ref: str) -> bool:
+    """
+    Detect whether the LLM used the embed_ref slug (or a fragment of it) as the
+    visible display text in an inline embed link.
+
+    Returns True when the display text is NOT a proper human-readable description
+    but instead one of these anti-patterns:
+      1. Exact match: display == embed_ref  (e.g. "macrumors.com-MvT")
+      2. Suffix only: display == random suffix  (e.g. "MvT")
+      3. Domain-with-suffix: display looks like "domain.tld-XYZ"
+      4. Bare domain: display == embed_ref minus suffix  (e.g. "macrumors.com")
+
+    The function is intentionally conservative — it only flags clearly bad patterns.
+    A display text like "New MacBook Pro" would never match any of these.
+    """
+    dt = display_text.strip()
+    ref = embed_ref.strip()
+
+    if not dt or not ref:
+        return False
+
+    # 1. Exact match — display IS the full embed_ref
+    if dt == ref:
+        return True
+
+    # 2. Suffix only — display is just the random 2-4 char code at the end
+    suffix_match = _EMBED_REF_SUFFIX_PATTERN.search(ref)
+    if suffix_match:
+        suffix_without_dash = suffix_match.group(0)[1:]  # strip leading "-"
+        if dt == suffix_without_dash:
+            return True
+
+        # 3. Domain-with-suffix — display looks like "domain.tld-XYZ" (has a dot + ends
+        #    with the same random suffix as the embed_ref)
+        if '.' in dt and _EMBED_REF_SUFFIX_PATTERN.search(dt):
+            # Strip suffix from both and compare the base
+            dt_base = _EMBED_REF_SUFFIX_PATTERN.sub('', dt)
+            ref_base = _EMBED_REF_SUFFIX_PATTERN.sub('', ref)
+            if dt_base == ref_base:
+                return True
+
+        # 4. Bare domain — display is the embed_ref with the suffix stripped
+        ref_base = _EMBED_REF_SUFFIX_PATTERN.sub('', ref)
+        if dt == ref_base:
+            return True
+
+    return False
+
+
+async def _fix_bad_embed_display_text(
+    aggregated_response: str,
+    tool_calls_info: Optional[List[Dict[str, Any]]],
+    cache_service: Optional[CacheService],
+    directus_service: Optional[DirectusService],
+    encryption_service: Optional[EncryptionService],
+    user_vault_key_id: Optional[str],
+    log_prefix: str = "",
+) -> str:
+    """
+    Post-streaming safety check: scan the response for inline embed links
+    where the LLM used the embed_ref slug (or a domain-suffix fragment) as the
+    visible display text instead of a descriptive title.
+
+    For each bad link found:
+      1. Look up the child embed's stored title → use it as the replacement.
+      2. If title lookup fails → strip the random suffix so at least the domain
+         is shown (e.g. "macrumors.com" instead of "macrumors.com-MvT").
+
+    Returns the (potentially modified) aggregated_response.
+    """
+    if not aggregated_response or not cache_service or not encryption_service or not user_vault_key_id:
+        return aggregated_response
+
+    # Find all inline embed links (skip blockquote source-quotes)
+    # We use finditer on the full response but exclude lines starting with ">"
+    all_matches = list(_INLINE_EMBED_LINK_PATTERN.finditer(aggregated_response))
+    if not all_matches:
+        return aggregated_response
+
+    # Filter out matches that are inside blockquote lines (source quotes)
+    bad_links: List[Dict[str, Any]] = []
+    for match in all_matches:
+        display_text = match.group(1)
+        embed_ref = match.group(2)
+
+        # Check if this match is on a blockquote line (starts with ">")
+        line_start = aggregated_response.rfind('\n', 0, match.start()) + 1
+        line_prefix = aggregated_response[line_start:match.start()].lstrip()
+        if line_prefix.startswith('>'):
+            continue  # Skip source quotes
+
+        if _is_bad_embed_display_text(display_text, embed_ref):
+            bad_links.append({
+                "match": match,
+                "display_text": display_text,
+                "embed_ref": embed_ref,
+                "full_match": match.group(0),
+            })
+
+    if not bad_links:
+        return aggregated_response
+
+    logger.info(
+        f"{log_prefix} [EMBED_DISPLAY_FIX] Found {len(bad_links)} inline embed link(s) "
+        f"with bad display text"
+    )
+
+    # Build embed_ref → title map from child embeds.
+    # We need to load parent embeds and their children to find the title for each ref.
+    embed_ref_to_title: Dict[str, str] = {}
+    try:
+        all_embed_ids: List[str] = []
+
+        # Collect parent embed_ids from JSON code blocks in the response
+        json_block_pattern = re.compile(
+            r'```json\s*\n\s*\{[^}]*"embed_id"\s*:\s*"([^"]+)"[^}]*\}\s*\n\s*```'
+        )
+        for m in json_block_pattern.finditer(aggregated_response):
+            embed_id = m.group(1)
+            if embed_id:
+                all_embed_ids.append(embed_id)
+
+        # Also collect from tool_calls_info
+        if tool_calls_info:
+            for tc in tool_calls_info:
+                eid = tc.get("embed_id")
+                if eid:
+                    all_embed_ids.append(eid)
+                eids = tc.get("embed_ids")
+                if isinstance(eids, list):
+                    all_embed_ids.extend(eids)
+
+        all_embed_ids = list(set(all_embed_ids))
+
+        if all_embed_ids:
+            from backend.core.api.app.services.embed_service import EmbedService
+            embed_service = EmbedService(
+                cache_service=cache_service,
+                directus_service=directus_service,
+                encryption_service=encryption_service
+            )
+            from toon_format import decode
+
+            for parent_id in all_embed_ids:
+                try:
+                    parent_toon = await embed_service._get_cached_embed_toon(
+                        parent_id, user_vault_key_id, log_prefix
+                    )
+                    if not parent_toon:
+                        continue
+
+                    parent_decoded = decode(parent_toon)
+                    if not isinstance(parent_decoded, dict):
+                        continue
+
+                    # Get child embed IDs
+                    child_ids_raw = parent_decoded.get("embed_ids")
+                    child_ids: List[str] = []
+                    if isinstance(child_ids_raw, str):
+                        child_ids = [cid.strip() for cid in child_ids_raw.split("|") if cid.strip()]
+                    elif isinstance(child_ids_raw, list):
+                        child_ids = child_ids_raw
+
+                    for child_id in child_ids:
+                        try:
+                            child_toon = await embed_service._get_cached_embed_toon(
+                                child_id, user_vault_key_id, log_prefix
+                            )
+                            if not child_toon:
+                                continue
+                            child_decoded = decode(child_toon)
+                            if isinstance(child_decoded, dict):
+                                child_ref = child_decoded.get("embed_ref")
+                                child_title = child_decoded.get("title", "")
+                                if child_ref and child_title:
+                                    embed_ref_to_title[child_ref] = child_title
+                        except Exception:
+                            continue
+
+                except Exception as e:
+                    logger.debug(
+                        f"{log_prefix} [EMBED_DISPLAY_FIX] Error loading embed {parent_id}: {e}"
+                    )
+                    continue
+
+    except Exception as e:
+        logger.warning(
+            f"{log_prefix} [EMBED_DISPLAY_FIX] Error building embed_ref→title map: {e}"
+        )
+
+    # Apply fixes — replace bad display text with title or cleaned domain
+    modified = aggregated_response
+    replacements_made = 0
+
+    # Process in reverse order to preserve match positions after replacements
+    for link_info in reversed(bad_links):
+        embed_ref = link_info["embed_ref"]
+        old_display = link_info["display_text"]
+        full_match = link_info["full_match"]
+
+        # Try to find the title from the embed data
+        new_display = embed_ref_to_title.get(embed_ref)
+
+        if not new_display:
+            # Fallback: strip the random suffix to show just the domain/base
+            new_display = _EMBED_REF_SUFFIX_PATTERN.sub('', embed_ref)
+
+        if new_display and new_display != old_display:
+            new_link = f"[{new_display}](embed:{embed_ref})"
+            modified = modified.replace(full_match, new_link, 1)
+            replacements_made += 1
+            logger.info(
+                f"{log_prefix} [EMBED_DISPLAY_FIX] Fixed: [{old_display}] → [{new_display}] "
+                f"(embed_ref: {embed_ref})"
+            )
+
+    if replacements_made > 0:
+        logger.info(
+            f"{log_prefix} [EMBED_DISPLAY_FIX] Fixed {replacements_made} bad embed display text(s)"
+        )
+
+    return modified
 
 
 def _create_redis_payload(
@@ -3188,6 +3423,45 @@ async def _consume_main_processing_stream(
             # Don't fail the response if quote verification fails
             logger.error(
                 f"{log_prefix} [QUOTE_VERIFY] Error during quote verification: {e}",
+                exc_info=True
+            )
+
+    # --- Embed Display Text Safety Fix ---
+    # Deterministic post-processing: detect inline embed links where the LLM used
+    # the embed_ref slug (e.g. "macrumors.com-MvT") as the visible display text
+    # instead of a human-readable description.  Replaces bad display text with the
+    # result's stored title, or strips the random suffix as a fallback.
+    # Runs after quote verification, before disclaimer injection.
+    if aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
+        try:
+            display_fixed_response = await _fix_bad_embed_display_text(
+                aggregated_response=aggregated_response,
+                tool_calls_info=tool_calls_info,
+                cache_service=cache_service,
+                directus_service=directus_service,
+                encryption_service=encryption_service,
+                user_vault_key_id=user_vault_key_id,
+                log_prefix=log_prefix,
+            )
+            if display_fixed_response != aggregated_response:
+                aggregated_response = display_fixed_response
+                final_response_chunks = [aggregated_response]
+
+                # Publish the corrected response to the client
+                if cache_service:
+                    display_fix_payload = _create_redis_payload(
+                        task_id, request_data, aggregated_response, stream_chunk_count + 3,
+                        is_final=False, model_name=stream_model_name
+                    )
+                    await _publish_to_redis(
+                        cache_service, redis_channel_name, display_fix_payload, log_prefix,
+                        f"Published response with fixed embed display text "
+                        f"(length: {len(aggregated_response)})"
+                    )
+        except Exception as e:
+            # Don't fail the response if display text fix fails
+            logger.error(
+                f"{log_prefix} [EMBED_DISPLAY_FIX] Error during display text fix: {e}",
                 exc_info=True
             )
 

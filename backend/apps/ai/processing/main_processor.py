@@ -3292,11 +3292,24 @@ async def handle_main_processing(
                             "extra_snippets](embed:the_result's_embed_ref)"
                         ) if skill_id in _QUOTABLE_SKILL_IDS else None
 
+                        # Embed ref display-text hint — added once per tool result group
+                        # for ALL composite skills.  Reinforces that the display text in
+                        # [text](embed:ref) links must be a human-readable description
+                        # (e.g. the result's title), NEVER the embed_ref slug or its suffix.
+                        # Placed at the wrapper level (~40 tokens total, not per result).
+                        _ref_hint = (
+                            "IMPORTANT — inline link display text: when writing "
+                            "[text](embed:ref), use the result's title or a short "
+                            "description as 'text'. NEVER use the embed_ref itself, "
+                            "its domain-suffix, or the random code as display text."
+                        )
+
                         if len(results_with_refs) == 1:
                             # Single result - flatten and encode full result as TOON for chat history
                             flattened_result = _flatten_for_toon_tabular(results_with_refs[0])
                             if _sq_hint:
                                 flattened_result["source_quote_hint"] = _sq_hint
+                            flattened_result["embed_ref_hint"] = _ref_hint
                             tool_result_content_str = encode(flattened_result)
                         else:
                             # Multiple results - flatten each result, then combine and encode as TOON
@@ -3305,6 +3318,7 @@ async def handle_main_processing(
                             toon_wrapper: Dict[str, Any] = {"results": flattened_results, "count": len(results_with_refs)}
                             if _sq_hint:
                                 toon_wrapper["source_quote_hint"] = _sq_hint
+                            toon_wrapper["embed_ref_hint"] = _ref_hint
                             tool_result_content_str = encode(toon_wrapper)
                         
                         logger.debug(f"{log_prefix} TOON conversion (chat history) length={len(tool_result_content_str)} chars")
