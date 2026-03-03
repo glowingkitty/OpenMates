@@ -21,6 +21,7 @@
   import { embedStore } from '../../../services/embedStore';
   import 'leaflet/dist/leaflet.css';
   import type { Map as LeafletMap, TileLayer } from 'leaflet';
+  import { copyToClipboard } from '../../../utils/clipboardUtils';
   
   /** Segment data within a leg */
   interface SegmentData {
@@ -553,7 +554,8 @@
       }
       
       const textContent = lines.join('\n').trim();
-      await navigator.clipboard.writeText(textContent);
+      const clipResult = await copyToClipboard(textContent);
+      if (!clipResult.success) throw new Error(clipResult.error || 'Copy failed');
       console.debug('[TravelConnectionEmbedFullscreen] Copied flight details to clipboard');
       notificationStore.success($text('embeds.copied_to_clipboard'));
     } catch (error) {

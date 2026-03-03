@@ -15,6 +15,7 @@
     import { onDestroy, createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { submittedIssueIdStore } from '../../stores/reportIssueStore';
+    import { copyToClipboard } from '../../utils/clipboardUtils';
 
     const dispatch = createEventDispatcher();
 
@@ -38,9 +39,11 @@
     async function handleCopyIssueId() {
         if (!issueId) return;
         try {
-            await navigator.clipboard.writeText(issueId);
-            issueIdCopied = true;
-            setTimeout(() => { issueIdCopied = false; }, 2000);
+            const result = await copyToClipboard(issueId);
+            if (result.success) {
+                issueIdCopied = true;
+                setTimeout(() => { issueIdCopied = false; }, 2000);
+            }
         } catch {
             // Clipboard API unavailable — silently ignore.
         }

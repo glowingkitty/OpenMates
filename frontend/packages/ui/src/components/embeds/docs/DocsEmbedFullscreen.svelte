@@ -52,6 +52,7 @@
   } from './docsEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import type { PIIMapping } from '../../../types/chat';
+  import { copyToClipboard } from '../../../utils/clipboardUtils';
   
   /**
    * Props for document embed fullscreen
@@ -343,7 +344,8 @@
         ? restorePIIInText(htmlContent, piiMappings)
         : replacePIIOriginalsWithPlaceholders(htmlContent, piiMappings);
       const plainText = stripHtmlTags(contentToCopy);
-      await navigator.clipboard.writeText(plainText);
+      const clipResult = await copyToClipboard(plainText);
+      if (!clipResult.success) throw new Error(clipResult.error || 'Copy failed');
       console.debug('[DocsEmbedFullscreen] Copied document text to clipboard');
       notificationStore.success('Document copied to clipboard');
     } catch (error) {

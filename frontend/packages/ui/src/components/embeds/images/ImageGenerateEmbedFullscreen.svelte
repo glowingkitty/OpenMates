@@ -19,6 +19,7 @@
   import { generateImageFilename, embedPngMetadata } from './imageDownloadUtils';
   import { modelsMetadata } from '../../../data/modelsMetadata';
   import { getProviderIconUrl } from '../../../data/providerIcons';
+  import { copyToClipboard } from '../../../utils/clipboardUtils';
   
   /**
    * Props for image generate embed fullscreen
@@ -269,7 +270,8 @@
   async function handleCopyPrompt() {
     if (!prompt) return;
     try {
-      await navigator.clipboard.writeText(prompt);
+      const clipResult = await copyToClipboard(prompt);
+      if (!clipResult.success) throw new Error(clipResult.error || 'Copy failed');
       showCopied = true;
       setTimeout(() => { showCopied = false; }, 1500);
     } catch (err) {

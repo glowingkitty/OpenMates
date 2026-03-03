@@ -3,6 +3,7 @@ import type { Editor } from "@tiptap/core";
 // import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { getLanguageFromFilename } from "./utils"; // Assuming utils are accessible
 import { cancelUpload, deleteDraftEmbed } from "./embedHandlers";
+import { copyToClipboard } from "../../utils/clipboardUtils";
 
 // Define a type for the selected node state if not already defined globally
 export interface SelectedNodeState {
@@ -185,7 +186,9 @@ export async function handleMenuAction(
 
       if (urlToCopy) {
         try {
-          await navigator.clipboard.writeText(urlToCopy);
+          const clipResult = await copyToClipboard(urlToCopy);
+          if (!clipResult.success)
+            throw new Error(clipResult.error || "Copy failed");
           // Provide visual feedback
           const element = document.getElementById(`embed-${selectedEmbedId}`); // Use the passed embedId
           if (element) {

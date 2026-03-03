@@ -22,6 +22,7 @@
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
+  import { copyToClipboard } from '../../../utils/clipboardUtils';
 
   interface SearchMatch {
     page_num?: number;
@@ -194,7 +195,8 @@
         if (pg) lines.push(`[${pg}] ${ctx}`);
         else lines.push(ctx);
       }
-      await navigator.clipboard.writeText(lines.join('\n'));
+      const clipResult = await copyToClipboard(lines.join('\n'));
+      if (!clipResult.success) throw new Error(clipResult.error || 'Copy failed');
       const { notificationStore } = await import('../../../stores/notificationStore');
       notificationStore.success('Copied to clipboard');
     } catch (err) {

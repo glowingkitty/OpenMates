@@ -4,6 +4,7 @@
 import { EmbedNodeAttributes, EmbedType, EmbedClipboardData } from "./types";
 import { groupHandlerRegistry } from "./groupHandlers";
 import { parseMarkdownToTiptap } from "../components/enter_message/utils/markdownParser";
+import { copyToClipboard } from "../utils/clipboardUtils";
 
 /**
  * Convert TipTap document JSON to canonical markdown format for sending
@@ -299,8 +300,9 @@ export async function writeEmbedToClipboard(
   }
 
   // Attempts 2 + 3 require the resolved text value.
+  // Falls back through writeText → execCommand via the unified ClipboardService.
   const plainText = await textPromise;
-  await _writeTextWithFallback(plainText, "[writeEmbedToClipboard]");
+  await copyToClipboard(plainText);
 }
 
 /**
@@ -330,13 +332,10 @@ export async function writeMessageWithEmbedsToClipboard(
       : messageTextPromise;
 
   if (embedAttrs.length === 0) {
-    // No embeds — plain text copy with same Safari-compatible fallback chain.
-    // Still need to wait for the text to resolve before writing.
+    // No embeds — plain text copy via the unified ClipboardService
+    // (writeText → execCommand fallback chain).
     const messageText = await textPromise;
-    await _writeTextWithFallback(
-      messageText,
-      "[writeMessageWithEmbedsToClipboard]",
-    );
+    await copyToClipboard(messageText);
     return;
   }
 
@@ -394,57 +393,9 @@ export async function writeMessageWithEmbedsToClipboard(
     }
   }
 
-  // Attempts 2 + 3: writeText → execCommand fallback (same as writeEmbedToClipboard).
+  // writeText → execCommand fallback via the unified ClipboardService.
   const messageText = await textPromise;
-  await _writeTextWithFallback(
-    messageText,
-    "[writeMessageWithEmbedsToClipboard]",
-  );
-}
-
-/**
- * Write plain text to the clipboard with a Safari-compatible fallback chain:
- *   1. navigator.clipboard.writeText (may fail on Safari after async awaits)
- *   2. document.execCommand('copy') via hidden textarea (no gesture token needed)
- *
- * @internal Used by writeEmbedToClipboard and writeMessageWithEmbedsToClipboard
- */
-async function _writeTextWithFallback(
-  text: string,
-  logPrefix: string,
-): Promise<void> {
-  // Attempt 1: navigator.clipboard.writeText
-  try {
-    await navigator.clipboard.writeText(text);
-    console.debug(`${logPrefix} Copied via navigator.clipboard.writeText`);
-    return;
-  } catch (err) {
-    console.warn(
-      `${logPrefix} navigator.clipboard.writeText failed (gesture token likely expired), trying execCommand fallback:`,
-      err,
-    );
-  }
-
-  // Attempt 2: document.execCommand('copy') — works on Safari even after async ops
-  const textArea = document.createElement("textarea");
-  textArea.value = text;
-  textArea.style.position = "fixed";
-  textArea.style.left = "-9999px";
-  textArea.style.top = "0";
-  textArea.style.opacity = "0";
-  textArea.setAttribute("readonly", "");
-  document.body.appendChild(textArea);
-  try {
-    textArea.select();
-    const success = document.execCommand("copy");
-    if (success) {
-      console.debug(`${logPrefix} Copied via execCommand fallback`);
-      return;
-    }
-    throw new Error("execCommand copy returned false");
-  } finally {
-    document.body.removeChild(textArea);
-  }
+  await copyToClipboard(messageText);
 }
 
 /**

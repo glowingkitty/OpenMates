@@ -37,6 +37,7 @@
 	import { searchStore, openSearch, closeSearch, setSearchQuery, setSearching } from '../../stores/searchStore';
 	import { navigateToSettings } from '../../stores/settingsNavigationStore';
 	import { messageHighlightStore, searchTextHighlightStore } from '../../stores/messageHighlightStore';
+	import { copyToClipboard } from '../../utils/clipboardUtils';
 
 	// --- Category circle imports (used by the sticky active-chat pin) ---
 	import { getCategoryGradientColors, getFallbackIconForCategory, getLucideIcon } from '../../utils/categoryUtils';
@@ -3005,19 +3006,10 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
             const yamlString = convertObjectToYamlString(yamlData);
             const codeBlock = `\`\`\`yaml\n${yamlString}\n\`\`\``;
 
-            // Copy to clipboard
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(codeBlock);
-            } else {
-                // Fallback for older browsers
-                const textArea = document.createElement('textarea');
-                textArea.value = codeBlock;
-                textArea.style.position = 'fixed';
-                textArea.style.opacity = '0';
-                document.body.appendChild(textArea);
-                textArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textArea);
+            // Copy via unified ClipboardService (writeText → execCommand fallback chain)
+            const clipResult = await copyToClipboard(codeBlock);
+            if (!clipResult.success) {
+                throw new Error(clipResult.error || 'Failed to copy to clipboard');
             }
 
             console.debug('[Chats] Bulk copy completed:', chatObjects.length, 'chats');

@@ -27,6 +27,7 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { videoIframeStore } from '../../../stores/videoIframeStore';
   import { text } from '@repo/ui';
+  import { copyToClipboard } from '../../../utils/clipboardUtils';
   
   // Import VideoMetadata type from preview component
   import type { VideoMetadata } from './VideoEmbedPreview.svelte';
@@ -416,7 +417,8 @@
   async function handleCopy() {
     try {
       if (url) {
-        await navigator.clipboard.writeText(url);
+        const clipResult = await copyToClipboard(url);
+        if (!clipResult.success) throw new Error(clipResult.error || 'Copy failed');
         console.debug('[VideoEmbedFullscreen] Copied video URL to clipboard');
         // Show success notification
         const { notificationStore } = await import('../../../stores/notificationStore');

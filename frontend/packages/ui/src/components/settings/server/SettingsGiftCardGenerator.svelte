@@ -14,6 +14,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
     import { fade } from 'svelte/transition';
     import QRCodeSVG from 'qrcode-svg';
     import { onMount } from 'svelte';
+    import { copyToClipboard } from '../../../utils/clipboardUtils';
 
     // --- Constants ---
     const QR_CODE_SIZE = 200;
@@ -237,7 +238,8 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
     async function copySignupLink(code: string, index: number, isActive: boolean) {
         try {
             const link = buildSignupLink(code);
-            await navigator.clipboard.writeText(link);
+            const clipResult = await copyToClipboard(link);
+            if (!clipResult.success) throw new Error(clipResult.error || 'Copy failed');
             if (isActive) {
                 copiedActiveIndex = index;
                 setTimeout(() => {
@@ -258,7 +260,8 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
     async function copyAllCodes() {
         try {
             const allLinks = generatedCodes.map(c => buildSignupLink(c.code)).join('\n');
-            await navigator.clipboard.writeText(allLinks);
+            const allClipResult = await copyToClipboard(allLinks);
+            if (!allClipResult.success) throw new Error(allClipResult.error || 'Copy failed');
             copiedAll = true;
             notificationStore.success($text('settings.server.gift_cards.copied'));
             setTimeout(() => {

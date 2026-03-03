@@ -22,6 +22,7 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   import { notificationStore } from '../../../stores/notificationStore';
+  import { copyToClipboard } from '../../../utils/clipboardUtils';
 
   /**
    * Props for maps location embed fullscreen
@@ -138,7 +139,8 @@
   async function handleCopyOsmUrl() {
     if (!osmUrl) return;
     try {
-      await navigator.clipboard.writeText(osmUrl);
+      const clipResult = await copyToClipboard(osmUrl);
+      if (!clipResult.success) throw new Error(clipResult.error || 'Copy failed');
       console.debug('[MapsLocationEmbedFullscreen] Copied OSM URL:', osmUrl);
       notificationStore.success($text('embeds.copied_to_clipboard'), 3000);
     } catch (err) {

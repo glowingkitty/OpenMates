@@ -33,6 +33,7 @@
   } from './sheetEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import type { PIIMapping } from '../../../types/chat';
+  import { copyToClipboard } from '../../../utils/clipboardUtils';
   
   /**
    * Props for sheet embed fullscreen
@@ -228,7 +229,8 @@
   async function handleCopy() {
     try {
       const tsv = tableToTSV(parsedTable.headers, displayRows);
-      await navigator.clipboard.writeText(tsv);
+      const clipResult = await copyToClipboard(tsv);
+      if (!clipResult.success) throw new Error(clipResult.error || 'Copy failed');
       console.debug('[SheetEmbedFullscreen] Copied table as TSV to clipboard');
       notificationStore.success('Table copied — paste into Excel or Google Sheets');
     } catch (error) {

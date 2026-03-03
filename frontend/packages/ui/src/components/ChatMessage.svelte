@@ -24,6 +24,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   import type { AppSettingsMemoriesResponseContent, AppSettingsMemoriesResponseCategory } from '../services/chatSyncServiceHandlersAppSettings';
   import { appSkillsStore } from '../stores/appSkillsStore';
   import { writeEmbedToClipboard, writeMessageWithEmbedsToClipboard } from '../message_parsing/serializers';
+  import { copyToClipboard } from '../utils/clipboardUtils';
   
   // Define types for message content parts
   type AppCardData = {
@@ -847,8 +848,10 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       }
       
       if (isCopyingSelection) {
-        // Plain text copy for selections — no embed reference needed
-        await navigator.clipboard.writeText(contentToCopy);
+        // Plain text copy for selections — no embed reference needed.
+        // Uses the unified ClipboardService (writeText → execCommand fallback).
+        const clipResult = await copyToClipboard(contentToCopy);
+        if (!clipResult.success) throw new Error(clipResult.error || 'Copy failed');
       } else {
         // Full message copy: extract embed node attributes from the TipTap document
         // so the clipboard carries structured embed references alongside the text.

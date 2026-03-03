@@ -28,6 +28,7 @@
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
+  import { copyToClipboard } from '../../../utils/clipboardUtils';
 
   interface Props {
     /** The skill-use embed's own ID (used by UnifiedEmbedFullscreen for updates) */
@@ -178,7 +179,8 @@
   async function handleCopy(): Promise<void> {
     if (!localTextContent) return;
     try {
-      await navigator.clipboard.writeText(localTextContent);
+      const clipResult = await copyToClipboard(localTextContent);
+      if (!clipResult.success) throw new Error(clipResult.error || 'Copy failed');
       const { notificationStore } = await import('../../../stores/notificationStore');
       notificationStore.success('Copied to clipboard');
       console.debug('[PdfReadEmbedFullscreen] Copied text to clipboard');

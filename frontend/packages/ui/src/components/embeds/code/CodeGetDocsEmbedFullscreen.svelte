@@ -25,6 +25,7 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import type { CodeGetDocsSkillPreviewData, CodeGetDocsResult } from '../../../types/appSkills';
   import { text } from '@repo/ui';
+  import { copyToClipboard } from '../../../utils/clipboardUtils';
   
   /**
    * Props for code get docs embed fullscreen
@@ -345,7 +346,8 @@
         content += `---\n\n`;
         content += documentation;
         
-        await navigator.clipboard.writeText(content);
+        const clipResult = await copyToClipboard(content);
+        if (!clipResult.success) throw new Error(clipResult.error || 'Copy failed');
         console.debug('[CodeGetDocsEmbedFullscreen] Copied documentation to clipboard');
         // Show success notification
         const { notificationStore } = await import('../../../stores/notificationStore');
