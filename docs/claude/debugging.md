@@ -464,6 +464,59 @@ Note: `appsMetadata.ts` is gitignored — it is regenerated automatically by the
 
 ---
 
+## Debugging Vercel Deployment Issues (Frontend)
+
+The frontend (`frontend/apps/web_app/`) deploys to Vercel automatically on push. The Vercel CLI is installed on the dev server and the project is already linked (`frontend/apps/web_app/.vercel/`). **Always run Vercel CLI commands from the web_app directory.**
+
+### When to Use
+
+Use Vercel CLI when:
+
+- A frontend push to `dev` or `main` results in a failed or broken deployment
+- The app loads locally but fails on the Vercel-hosted URL
+- You need to check build logs, environment variables, or deployment status
+
+### Quick Reference
+
+```bash
+# List recent deployments (shows status: READY, ERROR, BUILDING)
+vercel ls --cwd frontend/apps/web_app
+
+# Inspect a specific deployment (build config, routes, aliases, duration)
+vercel inspect <deployment-url> --cwd frontend/apps/web_app
+
+# View build and runtime logs for a deployment
+vercel logs <deployment-url> --cwd frontend/apps/web_app
+
+# List environment variables (check for missing vars causing build failures)
+vercel env ls --cwd frontend/apps/web_app
+
+# Pull current env vars locally (useful to reproduce build failures)
+vercel env pull --cwd frontend/apps/web_app
+```
+
+### Common Failure Modes
+
+| Symptom                      | Likely Cause                                                 | How to Diagnose                                                 |
+| ---------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------- |
+| Deployment status `ERROR`    | Build failure (TypeScript, adapter, missing dep)             | `vercel logs <url>` — look for the first error                  |
+| App shows 404 on routes      | SvelteKit adapter misconfiguration or `vercel.json` rewrites | `vercel inspect <url>` — check routes; review `vercel.json`     |
+| Runtime crash (500)          | Missing env var or edge function error                       | `vercel logs <url>` — check for `ReferenceError` or `undefined` |
+| Build succeeds but app blank | Client-side JS error (not a Vercel issue)                    | Use Firecrawl or browser console logs via Loki                  |
+| `BUILDING` state stuck       | Vercel infra issue or very large build                       | Wait 5 min, then check `vercel ls`; if still stuck, redeploy    |
+
+### Redeploying
+
+```bash
+# Trigger a fresh deployment of the current branch state
+vercel --cwd frontend/apps/web_app --prod   # production (main)
+vercel --cwd frontend/apps/web_app           # preview (dev)
+```
+
+**Note:** Normally, pushing to `dev`/`main` triggers deployment automatically via the Vercel GitHub integration. Manual redeploy is only needed when the automatic deploy failed or you need to force a rebuild.
+
+---
+
 ## Browser-Based Debugging with Firecrawl
 
 Use Firecrawl to **reproduce bugs and verify fixes** on `https://app.dev.openmates.org`. Use it for frontend/UI issues where "what the user sees" is the key question. For production or backend-only bugs, use the Admin Debug CLI and logs instead.

@@ -423,6 +423,7 @@ Use the Read tool to load each matching file from `docs/claude/`. Do this BEFORE
 - You need to read Docker logs or troubleshoot a service
 - The task involves investigating why something doesn't work
 - **You need to debug a production issue** (CRITICAL: use Admin Debug CLI, not local docker compose)
+- A Vercel deployment failed or the frontend is broken after a push
 
 > **Default assumption:** All reported issues are on the **dev server**, reported by an **admin**, unless the user explicitly states otherwise.
 
