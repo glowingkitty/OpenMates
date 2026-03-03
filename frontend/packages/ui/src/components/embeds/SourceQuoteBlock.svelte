@@ -133,6 +133,13 @@
   /* ── Source Quote Block ────────────────────────────────────────────────── */
 
   .source-quote-block {
+    /* Reset global button styles from buttons.css that bleed into this
+       component via the bare `button` selector. Without these resets the
+       quote block gets height: 41px, 25px padding, scale-on-hover, a
+       drop-shadow, and the orange primary background — hiding the text. */
+    all: unset;
+
+    /* Re-apply the styles we actually want */
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -144,15 +151,26 @@
     cursor: pointer;
     transition: background-color 0.15s ease, box-shadow 0.15s ease;
     user-select: none;
+    /* Ensure the button is full-width block-level */
+    width: 100%;
+    box-sizing: border-box;
+    text-align: left;
+    font: inherit;
+    color: inherit;
   }
 
   .source-quote-block:hover {
     background-color: var(--color-background-secondary, #f0f2f4);
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    /* Override global button:hover scale */
+    scale: none;
   }
 
   .source-quote-block:active {
     background-color: var(--color-background-tertiary, #f8f9fa);
+    /* Override global button:active scale */
+    scale: none;
+    filter: none;
   }
 
   /* ── Quoted text ─────────────────────────────────────────────────────── */
