@@ -39,6 +39,10 @@ export function tipTapToCanonicalMarkdown(doc: any): string {
         lines.push(serializeBlockquote(node));
         break;
 
+      case "sourceQuote":
+        lines.push(serializeSourceQuote(node));
+        break;
+
       default:
         // For unknown nodes, try to extract text content
         lines.push(extractTextContent(node));
@@ -768,6 +772,20 @@ function serializeBlockquote(node: any): string {
     .split("\n")
     .map((line) => `> ${line}`)
     .join("\n");
+}
+
+/**
+ * Serialize sourceQuote node back to the original markdown syntax:
+ *   > [quoted text](embed:embed_ref)
+ *
+ * This round-trips correctly: the markdown parser will produce a blockquote
+ * containing a link with href="embed:ref", which convertEmbedLinks converts
+ * to embedInline, which convertSourceQuotes then converts back to sourceQuote.
+ */
+function serializeSourceQuote(node: any): string {
+  const quoteText = node.attrs?.quoteText || "";
+  const embedRef = node.attrs?.embedRef || "";
+  return `> [${quoteText}](embed:${embedRef})`;
 }
 
 /**

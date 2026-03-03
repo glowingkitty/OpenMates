@@ -8,9 +8,11 @@
     import { AIModelMentionNode } from '../components/enter_message/extensions/AIModelMentionNode';
     import { GenericMentionNode } from '../components/enter_message/extensions/GenericMentionNode';
     import { EmbedInlineNode } from '../components/enter_message/extensions/EmbedInlineNode';
+    import { SourceQuoteNode } from '../components/enter_message/extensions/SourceQuoteNode';
     import { MarkdownExtensions } from '../components/enter_message/extensions/MarkdownExtensions';
     import { parseMarkdownToTiptap, isMarkdownContent } from '../components/enter_message/utils/markdownParser';
     import { parse_message } from '../message_parsing/parse_message';
+    import { applyIncrementalUpdate } from '../message_parsing/streamingDocDiff';
     import { createEventDispatcher } from 'svelte';
     import { contentCache } from '../utils/contentCache';
     import { locale } from 'svelte-i18n';
@@ -131,6 +133,15 @@
     // causing the container height to collapse to 0px before re-expanding.
     // We preserve the previous height as min-height to prevent this visual glitch.
     let preservedMinHeight = $state<number | null>(null);
+
+    // STREAMING DEBOUNCE: Limit content update frequency during streaming.
+    // Streaming chunks arrive every ~30-50ms but DOM updates are expensive.
+    // We debounce to at most once per STREAMING_DEBOUNCE_MS to reduce CPU usage
+    // while keeping the UI responsive. The last pending content is always applied
+    // when the timer fires, so no content is ever lost.
+    const STREAMING_DEBOUNCE_MS = 80;
+    let streamingDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let pendingStreamContent: any = null;
 
     // Logger for debugging
     const logger = {
@@ -576,6 +587,7 @@
             AIModelMentionNode, // For @ai-model:id mentions (displays as @Claude-4.5-Opus)
             GenericMentionNode, // For @skill:, @focus:, @memory: mentions
             EmbedInlineNode, // For inline [text](embed:ref) links produced by the LLM
+            SourceQuoteNode, // For > [quoted text](embed:ref) verified source quotes
             ...MarkdownExtensions, // Spread the array of markdown extensions
         ];
         
@@ -859,25 +871,105 @@
     // Track previous locale to detect changes
     let previousLocale = $state($locale || 'en');
     
-    // STREAMING FIX: Clear preserved min-height when streaming ends
-    // This allows the container to properly resize for subsequent renders
+    // STREAMING FIX: When streaming ends, flush any pending debounced content and clear min-height.
+    // This ensures the final content is rendered and the container resizes properly.
     $effect(() => {
-        if (!isStreaming && preservedMinHeight !== null) {
-            // Use a small delay to allow the final content to render before releasing min-height
-            // This prevents any final frame flicker when the streaming completes
-            const cleanup = setTimeout(() => {
-                // Clear both the reactive state AND the inline DOM style
-                preservedMinHeight = null;
-                if (editorElement) {
-                    editorElement.style.minHeight = '';
-                }
-            }, 100);
+        if (!isStreaming) {
+            // Flush any pending debounced streaming content
+            if (streamingDebounceTimer) {
+                clearTimeout(streamingDebounceTimer);
+                streamingDebounceTimer = null;
+            }
+            if (pendingStreamContent && editor && !editor.isDestroyed) {
+                const processed = processContent(pendingStreamContent);
+                pendingStreamContent = null;
+                // Use full setContent() for the final render to ensure clean state
+                editor.commands.setContent(processed, { emitUpdate: false });
+                applyPIIDecorations(editor);
+            }
             
-            return () => clearTimeout(cleanup);
+            // Clear preserved min-height after final content renders
+            if (preservedMinHeight !== null) {
+                const cleanup = setTimeout(() => {
+                    preservedMinHeight = null;
+                    if (editorElement) {
+                        editorElement.style.minHeight = '';
+                    }
+                }, 100);
+                
+                return () => clearTimeout(cleanup);
+            }
         }
     });
     
     // Reactive statement to update Tiptap editor when 'content' prop OR locale changes using $effect (Svelte 5 runes mode)
+    /**
+     * Apply a content update to the editor.
+     * During streaming: uses incremental ProseMirror diff to preserve NodeViews.
+     * Otherwise: uses setContent() for full replacement.
+     *
+     * @param processedContent - Pre-processed TipTap JSON content
+     * @param streaming - Whether this is a streaming update
+     * @param forceFullReplace - Force setContent() even during streaming (locale/embed updates)
+     */
+    function applyContentUpdate(processedContent: any, streaming: boolean, forceFullReplace: boolean) {
+        if (!editor || editor.isDestroyed) return;
+        
+        if (streaming && !forceFullReplace) {
+            // STREAMING PATH: Use incremental ProseMirror updates to avoid destroying NodeViews.
+            // This preserves mounted Svelte embed components across streaming chunks,
+            // eliminating the visual flicker caused by setContent()'s nuclear teardown.
+            
+            // Preserve current height as safety net
+            if (editorElement) {
+                const currentHeight = editorElement.offsetHeight;
+                if (currentHeight > 0) {
+                    editorElement.style.minHeight = `${currentHeight}px`;
+                    preservedMinHeight = currentHeight;
+                }
+            }
+            
+            // Try incremental update first
+            const result = applyIncrementalUpdate(editor, processedContent);
+            
+            if (!result.applied) {
+                // Incremental update failed — fall back to setContent()
+                // This should be rare but handles edge cases gracefully
+                logger.debug('Incremental update failed, falling back to setContent()');
+                editor.commands.setContent(processedContent, { emitUpdate: false });
+            }
+        } else {
+            // NON-STREAMING PATH: Use setContent() for locale changes, embed updates,
+            // and non-streaming content changes. These are infrequent and benefit from
+            // full re-render to ensure all NodeViews pick up new state.
+            
+            // Preserve current height SYNCHRONOUSLY before content replacement
+            if (streaming && editorElement) {
+                const currentHeight = editorElement.offsetHeight;
+                if (currentHeight > 0) {
+                    editorElement.style.minHeight = `${currentHeight}px`;
+                    preservedMinHeight = currentHeight;
+                }
+            }
+            
+            // Full content replacement
+            editor.commands.setContent(processedContent, { emitUpdate: false });
+        }
+        
+        // Re-apply PII decorations after content update
+        applyPIIDecorations(editor);
+        
+        // Update min-height to match actual rendered content
+        if (streaming && editorElement) {
+            requestAnimationFrame(() => {
+                if (!editorElement) return;
+                const newHeight = editorElement.scrollHeight;
+                editorElement.style.minHeight = `${newHeight}px`;
+                preservedMinHeight = newHeight;
+            });
+        }
+    }
+
     $effect(() => {
         // Include $locale in the effect to trigger re-processing on language change
         const currentLocale = $locale || 'en';
@@ -890,64 +982,55 @@
         
         if (localeChanged) {
             previousLocale = currentLocale;
-            // Clear cache for this component's content
-            // The cache is already cleared globally, but ensure we don't use stale cache
         }
         
         if (editor && content) {
-            // Always re-process content when locale changes to ensure translations are updated
-            // The processContent function uses $text() which depends on the current locale
-            const newProcessedContent = processContent(content);
+            // For streaming content changes, debounce to limit update frequency.
+            // Streaming chunks arrive every ~30-50ms but parsing + DOM updates are expensive.
+            // We buffer the latest content and apply at most once per STREAMING_DEBOUNCE_MS.
+            if (isStreaming && !localeChanged && !hasEmbedUpdate) {
+                // Store raw content for debounced processing
+                pendingStreamContent = content;
+                
+                // If no timer is running, start one
+                if (!streamingDebounceTimer) {
+                    streamingDebounceTimer = setTimeout(() => {
+                        streamingDebounceTimer = null;
+                        if (!editor || editor.isDestroyed || !pendingStreamContent) return;
+                        
+                        const processed = processContent(pendingStreamContent);
+                        pendingStreamContent = null;
+                        
+                        // Check if content actually changed
+                        const currentJson = editor.getJSON();
+                        if (JSON.stringify(currentJson) !== JSON.stringify(processed)) {
+                            applyContentUpdate(processed, true, false);
+                        }
+                    }, STREAMING_DEBOUNCE_MS);
+                }
+                
+                // Cleanup: clear timer when effect re-runs or component destroys
+                return () => {
+                    if (streamingDebounceTimer) {
+                        clearTimeout(streamingDebounceTimer);
+                        streamingDebounceTimer = null;
+                    }
+                };
+            }
             
-            // Compare processed content to detect changes (including translation updates)
+            // NON-STREAMING or FORCED path: process immediately
+            const newProcessedContent = processContent(content);
             const currentEditorContent = editor.getJSON();
             const contentChanged = JSON.stringify(currentEditorContent) !== JSON.stringify(newProcessedContent);
             
-            // Force update if locale changed, embed update occurred, or content actually changed
-            // Embed updates require re-render even if parsed content is identical, because:
-            // - The embed NodeViews need to call resolveEmbed() again
-            // - Embed keys may now be available in cache for decryption
             if (contentChanged || localeChanged || hasEmbedUpdate) {
                 if (hasEmbedUpdate) {
                     logger.debug('Forcing re-render due to embed update at:', _embedUpdateTimestamp);
                 }
-                // STREAMING FIX: Preserve current height SYNCHRONOUSLY before content replacement
-                // CRITICAL: We must set min-height directly on the DOM element BEFORE calling setContent()
-                // because Svelte's reactive updates are batched and happen asynchronously.
-                // If we used reactive state, setContent() would execute before the style is applied,
-                // causing the visual collapse we're trying to prevent.
-                if (isStreaming && editorElement) {
-                    const currentHeight = editorElement.offsetHeight;
-                    if (currentHeight > 0) {
-                        // Apply min-height SYNCHRONOUSLY via direct DOM manipulation
-                        // This ensures the height constraint is in place before TipTap clears the content
-                        editorElement.style.minHeight = `${currentHeight}px`;
-                        // Also update the reactive state for consistency (used when streaming ends)
-                        preservedMinHeight = currentHeight;
-                    }
-                }
                 
-                // Now safely replace content - the min-height prevents visual collapse
-                editor.commands.setContent(newProcessedContent, { emitUpdate: false });
-                
-                // Re-apply PII decorations after content update
-                applyPIIDecorations(editor);
-                
-                // STREAMING FIX: After content renders, update min-height to match actual content.
-                // Always track the real height to prevent both collapse AND stale over-sizing.
-                // The pre-setContent min-height above prevents the brief visual collapse during
-                // the TipTap DOM rebuild; here we reconcile to the actual rendered height.
-                if (isStreaming && editorElement) {
-                    requestAnimationFrame(() => {
-                        if (!editorElement) return;
-                        const newHeight = editorElement.scrollHeight;
-                        // Always update min-height to match the actual content.
-                        // This prevents stale min-height from keeping the container stretched
-                        // when embed groups are rebuilt at a different height.
-                        editorElement.style.minHeight = `${newHeight}px`;
-                        preservedMinHeight = newHeight;
-                    });
-                }
+                // During streaming but with locale/embed update: use full replacement
+                const forceFullReplace = localeChanged || !!hasEmbedUpdate;
+                applyContentUpdate(newProcessedContent, isStreaming, forceFullReplace);
             }
         } else if (editor && !content) {
             // Handle case where content becomes null/undefined after editor initialization
@@ -982,6 +1065,12 @@
             editor.view.dom.removeEventListener('click', handleMentionClick as EventListener);
             // Clear any pending touch timers
             clearTouchTimer();
+            // Clear streaming debounce timer
+            if (streamingDebounceTimer) {
+                clearTimeout(streamingDebounceTimer);
+                streamingDebounceTimer = null;
+            }
+            pendingStreamContent = null;
             editor.destroy();
             editor = null;
         }

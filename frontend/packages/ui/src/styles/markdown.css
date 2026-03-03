@@ -186,6 +186,14 @@
   margin-bottom: 0;
 }
 
+/* Source Quote Blocks (verified quotes from embed sources) */
+/* The .source-quote-node wrapper is the TipTap atom node container.
+   All visual styling lives inside SourceQuoteBlock.svelte (scoped).
+   This class only handles spacing in the message flow. */
+.source-quote-node {
+  margin: 8px 0;
+}
+
 /* Tables */
 .markdown-table {
   border-collapse: collapse;

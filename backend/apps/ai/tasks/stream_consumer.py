@@ -57,6 +57,17 @@ _TOOL_CALL_XML_PATTERN = re.compile(
 # Matches 200+ consecutive characters of digits, commas, hyphens, spaces, and newlines.
 _GARBLED_NUMBER_SEQUENCE_PATTERN = re.compile(r'[\d,\-\s\n]{200,}')
 
+# Regex pattern to detect source quotes in blockquotes.
+# Matches lines like: > [quoted text](embed:some-ref-k8D)
+# Group 1 = quoted text, Group 2 = embed_ref slug.
+_SOURCE_QUOTE_PATTERN = re.compile(
+    r'^>\s*\[([^\]]+)\]\(embed:([^)]+)\)\s*$',
+    re.MULTILINE
+)
+
+# Maximum number of quotes to verify per response to avoid excessive latency
+_MAX_QUOTES_TO_VERIFY = 10
+
 def _strip_tool_call_xml_from_text(text: str) -> str:
     """
     Strip <tool_call>...</tool_call> XML blocks from text content.
@@ -87,6 +98,190 @@ def _strip_tool_call_xml_from_text(text: str) -> str:
         logger.debug(f"Stripped <tool_call> XML from text. Original: {len(text)} chars, cleaned: {len(cleaned)} chars")
     
     return cleaned
+
+
+async def _verify_and_strip_bad_quotes(
+    aggregated_response: str,
+    tool_calls_info: Optional[List[Dict[str, Any]]],
+    cache_service: Optional[CacheService],
+    directus_service: Optional[DirectusService],
+    encryption_service: Optional[EncryptionService],
+    user_vault_key_id: Optional[str],
+    log_prefix: str = "",
+) -> str:
+    """
+    Post-streaming quote verification: scan the response for source quotes
+    (> [text](embed:ref)), verify each against the referenced embed's content,
+    and strip any quotes that cannot be found in the source.
+
+    Returns the (potentially modified) aggregated_response.
+    """
+    if not aggregated_response or not cache_service or not encryption_service or not user_vault_key_id:
+        return aggregated_response
+
+    # Find all source quotes in the response
+    matches = list(_SOURCE_QUOTE_PATTERN.finditer(aggregated_response))
+    if not matches:
+        return aggregated_response
+
+    if len(matches) > _MAX_QUOTES_TO_VERIFY:
+        logger.info(
+            f"{log_prefix} [QUOTE_VERIFY] Found {len(matches)} quotes, "
+            f"only verifying first {_MAX_QUOTES_TO_VERIFY}"
+        )
+        matches = matches[:_MAX_QUOTES_TO_VERIFY]
+
+    logger.info(f"{log_prefix} [QUOTE_VERIFY] Verifying {len(matches)} source quote(s)")
+
+    # Build embed_ref → embed_id map from the response's JSON embed reference blocks
+    # and from tool_calls_info
+    embed_ref_to_id: Dict[str, str] = {}
+    all_embed_ids: List[str] = []
+
+    # Collect parent embed_ids from JSON code blocks in the response
+    json_block_pattern = re.compile(
+        r'```json\s*\n\s*(\{[^}]*"embed_id"\s*:\s*"([^"]+)"[^}]*\})\s*\n\s*```'
+    )
+    for m in json_block_pattern.finditer(aggregated_response):
+        embed_id = m.group(2)
+        if embed_id:
+            all_embed_ids.append(embed_id)
+
+    # Also collect from tool_calls_info
+    if tool_calls_info:
+        for tc in tool_calls_info:
+            eid = tc.get("embed_id")
+            if eid:
+                all_embed_ids.append(eid)
+            eids = tc.get("embed_ids")
+            if isinstance(eids, list):
+                all_embed_ids.extend(eids)
+
+    # De-duplicate
+    all_embed_ids = list(set(all_embed_ids))
+
+    # For each parent embed_id, load its child embeds and extract embed_ref
+    from backend.core.api.app.services.embed_service import EmbedService
+    embed_service = EmbedService(
+        cache_service=cache_service,
+        directus_service=directus_service,
+        encryption_service=encryption_service
+    )
+
+    for parent_id in all_embed_ids:
+        try:
+            # Load parent embed to get child_embed_ids
+            parent_toon = await embed_service._get_cached_embed_toon(
+                parent_id, user_vault_key_id, log_prefix
+            )
+            if not parent_toon:
+                continue
+
+            from toon_format import decode
+            parent_decoded = decode(parent_toon)
+            if not isinstance(parent_decoded, dict):
+                continue
+
+            # Check if parent itself has an embed_ref
+            parent_ref = parent_decoded.get("embed_ref")
+            if parent_ref:
+                embed_ref_to_id[parent_ref] = parent_id
+
+            # Get child embed IDs (pipe-delimited string or list)
+            child_ids_raw = parent_decoded.get("embed_ids")
+            child_ids: List[str] = []
+            if isinstance(child_ids_raw, str):
+                child_ids = [cid.strip() for cid in child_ids_raw.split("|") if cid.strip()]
+            elif isinstance(child_ids_raw, list):
+                child_ids = child_ids_raw
+
+            # Load each child embed to get its embed_ref
+            for child_id in child_ids:
+                try:
+                    child_toon = await embed_service._get_cached_embed_toon(
+                        child_id, user_vault_key_id, log_prefix
+                    )
+                    if not child_toon:
+                        continue
+                    child_decoded = decode(child_toon)
+                    if isinstance(child_decoded, dict):
+                        child_ref = child_decoded.get("embed_ref")
+                        if child_ref:
+                            embed_ref_to_id[child_ref] = child_id
+                except Exception:
+                    continue
+
+        except Exception as e:
+            logger.debug(f"{log_prefix} [QUOTE_VERIFY] Error loading embed {parent_id}: {e}")
+            continue
+
+    if not embed_ref_to_id:
+        logger.debug(f"{log_prefix} [QUOTE_VERIFY] No embed_ref→id map built, skipping verification")
+        return aggregated_response
+
+    logger.debug(
+        f"{log_prefix} [QUOTE_VERIFY] Built embed_ref map with {len(embed_ref_to_id)} entries: "
+        f"{list(embed_ref_to_id.keys())[:5]}..."
+    )
+
+    # Verify each quote
+    bad_quote_lines: List[str] = []
+    for match in matches:
+        quoted_text = match.group(1)
+        embed_ref = match.group(2)
+        full_line = match.group(0)
+
+        embed_id = embed_ref_to_id.get(embed_ref)
+        if not embed_id:
+            logger.info(
+                f"{log_prefix} [QUOTE_VERIFY] embed_ref '{embed_ref}' not found in map — "
+                f"cannot verify, keeping quote"
+            )
+            continue
+
+        try:
+            is_valid = await embed_service.verify_quote_in_embed(
+                embed_id=embed_id,
+                quoted_text=quoted_text,
+                user_vault_key_id=user_vault_key_id,
+                log_prefix=log_prefix
+            )
+            if is_valid:
+                logger.debug(
+                    f"{log_prefix} [QUOTE_VERIFY] ✓ Quote verified in embed {embed_ref}: "
+                    f"'{quoted_text[:60]}...'"
+                )
+            else:
+                logger.warning(
+                    f"{log_prefix} [QUOTE_VERIFY] ✗ Quote NOT found in embed {embed_ref}: "
+                    f"'{quoted_text[:60]}...'"
+                )
+                bad_quote_lines.append(full_line)
+        except Exception as e:
+            logger.warning(
+                f"{log_prefix} [QUOTE_VERIFY] Error verifying quote for {embed_ref}: {e}"
+            )
+            # Don't strip on error — keep the quote
+            continue
+
+    # Strip bad quotes from the response
+    if bad_quote_lines:
+        modified = aggregated_response
+        for line in bad_quote_lines:
+            # Remove the bad quote line and any surrounding empty lines
+            modified = modified.replace(line, "")
+
+        # Clean up any resulting triple+ newlines
+        modified = re.sub(r'\n{3,}', '\n\n', modified)
+
+        logger.info(
+            f"{log_prefix} [QUOTE_VERIFY] Stripped {len(bad_quote_lines)} unverified quote(s) "
+            f"from response"
+        )
+        return modified
+
+    return aggregated_response
+
 
 def _create_redis_payload(
     task_id: str,
@@ -2942,6 +3137,45 @@ async def _consume_main_processing_stream(
             logger.info(
                 f"{log_prefix} Stripped {stripped_count} failed embed reference(s) from message content. "
                 f"Failed embed IDs: {failed_embed_ids}"
+            )
+
+    # --- Source Quote Verification ---
+    # Verify that quoted text in > [text](embed:ref) blockquotes actually appears
+    # in the referenced embed's source content. Strips unverified quotes silently
+    # to prevent the LLM from presenting fabricated quotations as sourced facts.
+    # This runs after failed embed stripping (so we don't verify quotes for failed embeds)
+    # and before disclaimer injection (so the disclaimer appends to the corrected text).
+    if aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
+        try:
+            verified_response = await _verify_and_strip_bad_quotes(
+                aggregated_response=aggregated_response,
+                tool_calls_info=tool_calls_info,
+                cache_service=cache_service,
+                directus_service=directus_service,
+                encryption_service=encryption_service,
+                user_vault_key_id=user_vault_key_id,
+                log_prefix=log_prefix,
+            )
+            if verified_response != aggregated_response:
+                aggregated_response = verified_response
+                final_response_chunks = [aggregated_response]
+
+                # Publish the corrected response to the client
+                if cache_service:
+                    quote_corrected_payload = _create_redis_payload(
+                        task_id, request_data, aggregated_response, stream_chunk_count + 2,
+                        is_final=False, model_name=stream_model_name
+                    )
+                    await _publish_to_redis(
+                        cache_service, redis_channel_name, quote_corrected_payload, log_prefix,
+                        f"Published response with stripped unverified quotes "
+                        f"(length: {len(aggregated_response)})"
+                    )
+        except Exception as e:
+            # Don't fail the response if quote verification fails
+            logger.error(
+                f"{log_prefix} [QUOTE_VERIFY] Error during quote verification: {e}",
+                exc_info=True
             )
 
     # --- Hardcoded Advice Disclaimer Injection ---
