@@ -19,6 +19,7 @@ import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
 import {
   resolveEmbed,
   decodeToonContent,
+  isEmbedKnownError,
 } from "../../../../services/embedResolver";
 import { chatSyncService } from "../../../../services/chatSyncService";
 import { unmarkEmbedAsProcessed } from "../../../../services/chatSyncServiceHandlersAI";
@@ -138,7 +139,11 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       // the embed renders with an empty decodedContent and stays stuck on the skeleton forever
       // because renderImageViewComponent (and similar) won't call resolveAndUpdateImageViewProps
       // when originalEmbedId is empty (fix for issue #5dc543b0 — images view never shows image).
-      if (!embedData && attrs.status === "finished") {
+      if (
+        !embedData &&
+        attrs.status === "finished" &&
+        !isEmbedKnownError(embedId)
+      ) {
         const retryHandler = (event: Event) => {
           const customEvent = event as CustomEvent<{ embed_id: string }>;
           if (customEvent.detail?.embed_id !== embedId) return;
@@ -205,8 +210,21 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const skillId =
       decodedContent?.skill_id || embedData?.skill_id || attrsSkillId;
 
-    // Determine status - prefer embedData status, then attrs.status, then 'processing'
-    const status = embedData?.status || attrs.status || "processing";
+    // Determine status - prefer embedData status, then check knownErrorEmbeds (for error embeds
+    // that are intentionally never persisted to IndexedDB), then attrs.status, then 'processing'.
+    // Without the knownErrorEmbeds check, error embeds show as "Completed" because:
+    // 1. embedData is null (error embeds are never stored by design)
+    // 2. attrs.status is 'finished' (set by the AI stream before the error signal arrived)
+    // 3. The error guard below never fires, and the card renders with 0 results as "Completed"
+    const statusEmbedId = attrs.contentRef?.replace("embed:", "") || "";
+    const isKnownError = statusEmbedId
+      ? isEmbedKnownError(statusEmbedId)
+      : false;
+    const status =
+      embedData?.status ||
+      (isKnownError ? "error" : null) ||
+      attrs.status ||
+      "processing";
 
     // CRITICAL: Skip rendering error embeds - they should be hidden from users
     // Failed skill executions should not be shown in the user experience
