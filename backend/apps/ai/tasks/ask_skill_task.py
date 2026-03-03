@@ -857,8 +857,11 @@ async def _async_process_ai_skill_ask_task(
                     # Discovered apps metadata
                     "discovered_apps_count": len(discovered_apps_metadata) if discovered_apps_metadata else 0,
                     "discovered_app_ids": list(discovered_apps_metadata.keys()) if discovered_apps_metadata else [],
-                    # Base instructions keys (not full content to save space, but track what was used)
+                    # Base instructions: include full preprocessor tool definitions for debugging
+                    # (the tool description contains the rendered system prompt for preprocessing)
                     "base_instructions_keys": list(base_instructions.keys()) if base_instructions else [],
+                    "preprocessor_tool_definition": base_instructions.get("preprocess_request_tool") if base_instructions else None,
+                    "preprocessor_fast_tool_definition": base_instructions.get("fast_preprocess_request_tool") if base_instructions else None,
                     # App settings and memories metadata from client (what's available to choose from)
                     # Raw format from client: ["code-preferred_technologies", "travel-trips", ...]
                     "app_settings_memories_metadata_from_client": request_data.app_settings_memories_metadata,
@@ -1160,7 +1163,7 @@ async def _async_process_ai_skill_ask_task(
     thinking_content: list = []  # Accumulated thinking chunks from the stream (for debug cache only)
 
     try:
-        aggregated_final_response, revoked_in_consumer, soft_limited_in_consumer, thinking_content = await _consume_main_processing_stream(  # type: ignore[assignment]
+        aggregated_final_response, revoked_in_consumer, soft_limited_in_consumer, thinking_content, main_processor_debug_metadata = await _consume_main_processing_stream(  # type: ignore[assignment]
             task_id=task_id,
             request_data=request_data,
             preprocessing_result=preprocessing_result,
@@ -1201,6 +1204,7 @@ async def _async_process_ai_skill_ask_task(
                         }
                 
                 # Prepare main processor input data with FULL preprocessing result
+                # and debug metadata from main_processor (system prompt, tools, message history)
                 main_processor_input = {
                     "chat_id": request_data.chat_id,
                     "task_id": task_id,
@@ -1220,6 +1224,16 @@ async def _async_process_ai_skill_ask_task(
                     "always_include_skills": skill_config.always_include_skills if skill_config else None,
                     "user_vault_key_id": user_vault_key_id,
                     "mates_count": len(all_mates_configs) if all_mates_configs else 0,
+                    # --- Debug metadata from main_processor (P0/P1/P2 enrichment) ---
+                    # Full system prompt sent to the LLM (the most important missing piece for debugging)
+                    "system_prompt": main_processor_debug_metadata.get("system_prompt") if main_processor_debug_metadata else None,
+                    "system_prompt_char_count": main_processor_debug_metadata.get("system_prompt_char_count", 0) if main_processor_debug_metadata else 0,
+                    # Tool names and description previews available to the LLM
+                    "available_tools": main_processor_debug_metadata.get("available_tools") if main_processor_debug_metadata else None,
+                    "available_tools_count": main_processor_debug_metadata.get("available_tools_count", 0) if main_processor_debug_metadata else 0,
+                    # Truncated message history (first + last 3 messages) sent to the LLM
+                    "message_history_sent_to_llm": main_processor_debug_metadata.get("message_history_sent_to_llm") if main_processor_debug_metadata else None,
+                    "message_history_sent_to_llm_total": main_processor_debug_metadata.get("message_history_total_count", 0) if main_processor_debug_metadata else 0,
                 }
                 
                 # Prepare main processor output data with FULL response

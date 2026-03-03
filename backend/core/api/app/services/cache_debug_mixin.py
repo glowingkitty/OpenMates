@@ -1,19 +1,19 @@
 # backend/core/api/app/services/cache_debug_mixin.py
 # 
 # Cache mixin for storing debug information about AI request processing.
-# Stores the last 50 admin user requests globally with complete input/output 
+# Stores the last 20 admin user requests globally with complete input/output 
 # data for each processor stage (pre-processor, main-processor, post-processor).
 #
 # ARCHITECTURE:
 # - Only caches requests from admin users (is_admin = True)
-# - Uses a Redis list to store the last 50 admin request entries (circular buffer)
+# - Uses a Redis list to store the last 20 admin request entries (circular buffer)
 # - Each entry is encrypted server-side with a system-level Vault key
 # - Auto-expires after 72 hours for extended debugging capability
 # - Entries include chat_id and user_id for filtering in the inspection script
 #
 # CACHE STRUCTURE:
 # - Key: "debug:admin_requests" (admin-only global list)
-# - Value: List of encrypted JSON entries (max 50)
+# - Value: List of encrypted JSON entries (max 20)
 # - Each entry contains:
 #   - task_id: Celery task ID
 #   - chat_id: Chat ID for filtering
@@ -47,7 +47,9 @@ logger = logging.getLogger(__name__)
 DEBUG_REQUEST_TTL_ADMIN = 259200  # 72 hours in seconds
 
 # Maximum number of admin debug requests to store (circular buffer)
-MAX_DEBUG_REQUESTS_ADMIN = 50
+# Reduced from 50 to 20 to accommodate richer debug data per entry
+# (full system prompts, tool definitions, message history) without excessive memory usage
+MAX_DEBUG_REQUESTS_ADMIN = 20
 
 # Redis key for the admin debug requests list
 DEBUG_REQUESTS_KEY = "debug:admin_requests"
@@ -57,7 +59,7 @@ class DebugCacheMixin:
     """
     Mixin for caching debug information about AI request processing.
     
-    This mixin provides methods for storing and retrieving the last 50 admin
+    This mixin provides methods for storing and retrieving the last 20 admin
     request processing debug entries, including complete input/output data
     for each processor stage.
     
