@@ -2,21 +2,25 @@
 """
 Script to inspect chat data including metadata, messages, embeds, embed keys, usage entries, and cache status.
 
-This script:
-1. Takes a chat ID as argument
-2. Fetches chat metadata from Directus
-3. Fetches all messages for the chat from Directus
-4. Fetches all embeds for the chat from Directus
-5. Fetches embed encryption keys from embed_keys collection (shows key_type: 'chat' vs 'master')
-6. Fetches all usage entries (credit usage) for the chat from Directus
-7. Checks Redis cache status for the chat and its components
+This script provides deep chat inspection including:
+1. Chat metadata from Directus
+2. Messages with optional per-message embed content summaries (--decrypt)
+3. Embeds with encryption key completeness
+4. Embed encryption keys (chat-type vs master-type)
+5. Usage entries (credit usage)
+6. Redis cache status
+7. Encryption health dashboard (--decrypt)
 
 Embed Keys Architecture:
 - key_type='chat': AES(embed_key, chat_key) - for shared chat access
 - key_type='master': AES(embed_key, master_key) - for owner cross-chat access
 
+Architecture context: See docs/architecture/embed-encryption.md
+Tests: None (inspection script, not production code)
+
 Usage:
     docker exec -it api python /app/backend/scripts/inspect_chat.py <chat_id>
+    docker exec -it api python /app/backend/scripts/inspect_chat.py <chat_id> --decrypt
     docker exec -it api python /app/backend/scripts/inspect_chat.py abc12345-6789-0123-4567-890123456789
 
 Options:
@@ -25,6 +29,7 @@ Options:
     --usage-limit N     Limit number of usage entries to display (default: 20)
     --json              Output as JSON instead of formatted text
     --no-cache          Skip cache checks (faster if Redis is down)
+    --decrypt           Decrypt embeds and show per-message content summaries + encryption health
 """
 
 import asyncio
@@ -34,7 +39,7 @@ import logging
 import sys
 import json
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 
 # Add the backend directory to the Python path
 sys.path.insert(0, '/app/backend')
@@ -57,6 +62,10 @@ script_logger.setLevel(logging.INFO)
 logging.getLogger('httpx').setLevel(logging.WARNING)
 logging.getLogger('httpcore').setLevel(logging.WARNING)
 logging.getLogger('backend').setLevel(logging.WARNING)
+
+# --- Constants ---
+MAX_EMBED_SUMMARY_QUERY_LEN = 50
+MAX_EMBED_SUMMARY_DISPLAY = 5
 
 
 def format_timestamp(ts: Optional[int]) -> str:
@@ -305,6 +314,333 @@ async def get_chat_usage_entries(directus_service: DirectusService, chat_id: str
         return []
 
 
+async def resolve_vault_key_id(
+    directus_service: DirectusService,
+    hashed_user_id: str
+) -> Optional[str]:
+    """
+    Resolve a hashed_user_id to a vault_key_id via user_passkeys lookup.
+
+    Two-step process:
+    1. hashed_user_id -> user_id (via user_passkeys table)
+    2. user_id -> vault_key_id (via Directus users API)
+
+    Args:
+        directus_service: DirectusService instance
+        hashed_user_id: SHA256 hash of the user_id
+
+    Returns:
+        vault_key_id string or None if not resolvable
+    """
+    try:
+        user_id = await directus_service.get_user_id_from_hashed_user_id(hashed_user_id)
+        if not user_id:
+            script_logger.debug("Could not resolve hashed_user_id to user_id")
+            return None
+
+        user_data = await directus_service.get_user_fields_direct(user_id, ["vault_key_id"])
+        if user_data:
+            return user_data.get("vault_key_id")
+        return None
+    except Exception as e:
+        script_logger.debug(f"Error resolving vault_key_id: {e}")
+        return None
+
+
+async def decrypt_and_decode_toon(
+    encryption_service: EncryptionService,
+    encrypted_content: str,
+    vault_key_id: str
+) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+    """
+    Decrypt Vault-encrypted content and TOON-decode it.
+
+    Args:
+        encryption_service: EncryptionService instance
+        encrypted_content: The Vault-encrypted ciphertext
+        vault_key_id: The user's Vault transit key ID
+
+    Returns:
+        Tuple of (decoded_dict, error_message). On success error_message is None.
+    """
+    try:
+        plaintext = await encryption_service.decrypt_with_user_key(encrypted_content, vault_key_id)
+        if not plaintext:
+            return None, "Decryption returned None"
+    except Exception as e:
+        return None, f"Decryption failed: {e}"
+
+    try:
+        from toon_format import decode
+        decoded = decode(plaintext)
+        if isinstance(decoded, dict):
+            return decoded, None
+        return None, f"TOON decoded to {type(decoded).__name__}, expected dict"
+    except Exception as e:
+        # Might be JSON instead of TOON (legacy embeds)
+        try:
+            decoded = json.loads(plaintext)
+            if isinstance(decoded, dict):
+                return decoded, None
+            return None, f"JSON decoded to {type(decoded).__name__}, expected dict"
+        except Exception:
+            return None, f"TOON decode failed: {e}"
+
+
+def _describe_toon_value(value: Any) -> str:
+    """
+    Produce a type+size description for a single TOON field value.
+    Does NOT expose actual content — only structural info.
+
+    Args:
+        value: The decoded TOON field value
+
+    Returns:
+        String like "str(142)", "list(5)", "dict(3 keys)", "int", "bool", "null"
+    """
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return f"bool({value})"
+    if isinstance(value, int):
+        return f"int({value})"
+    if isinstance(value, float):
+        return f"float({value})"
+    if isinstance(value, str):
+        return f"str({len(value)})"
+    if isinstance(value, list):
+        return f"list({len(value)})"
+    if isinstance(value, dict):
+        return f"dict({len(value)} keys)"
+    return f"{type(value).__name__}"
+
+
+def build_embed_summary_line(
+    embed_id: str,
+    decoded: Optional[Dict[str, Any]],
+    embed_raw: Optional[Dict[str, Any]] = None
+) -> str:
+    """
+    Build a one-line summary for an embed, suitable for per-message display.
+
+    Format: embed-<short_id>: <type> [<app_id>.<skill_id>] status=<status> results=<N> query="<q>"
+
+    Args:
+        embed_id: The embed ID
+        decoded: Decoded TOON dict (None if decryption failed or not attempted)
+        embed_raw: Raw embed record from Directus (used as fallback for status)
+
+    Returns:
+        One-line summary string
+    """
+    short_id = embed_id[:8] if embed_id else "unknown"
+
+    if decoded:
+        embed_type = decoded.get('type', 'unknown')
+        app_id = decoded.get('app_id', '')
+        skill_id = decoded.get('skill_id', '')
+        status = decoded.get('status', embed_raw.get('status', 'N/A') if embed_raw else 'N/A')
+        query = decoded.get('query', '')
+        result_count = decoded.get('result_count')
+        embed_ids = decoded.get('embed_ids')
+
+        parts = [f"embed-{short_id}: {embed_type}"]
+
+        if app_id or skill_id:
+            parts.append(f"[{app_id}.{skill_id}]")
+
+        parts.append(f"status={status}")
+
+        if result_count is not None:
+            parts.append(f"results={result_count}")
+        elif embed_ids and isinstance(embed_ids, list):
+            parts.append(f"children={len(embed_ids)}")
+
+        if query:
+            truncated_query = query[:MAX_EMBED_SUMMARY_QUERY_LEN]
+            if len(query) > MAX_EMBED_SUMMARY_QUERY_LEN:
+                truncated_query += "..."
+            parts.append(f'query="{truncated_query}"')
+
+        return " ".join(parts)
+    else:
+        # Fallback: use raw embed data
+        status = embed_raw.get('status', 'N/A') if embed_raw else 'N/A'
+        has_content = bool(embed_raw.get('encrypted_content')) if embed_raw else False
+        return f"embed-{short_id}: (encrypted, not decoded) status={status} content={'present' if has_content else 'missing'}"
+
+
+async def decrypt_chat_embeds(
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+    embeds: List[Dict[str, Any]],
+    vault_key_id: str
+) -> Dict[str, Optional[Dict[str, Any]]]:
+    """
+    Decrypt and TOON-decode all embeds for a chat, returning a mapping by embed_id.
+
+    Args:
+        directus_service: DirectusService instance
+        encryption_service: EncryptionService instance
+        embeds: List of embed records from Directus
+        vault_key_id: The user's Vault transit key ID
+
+    Returns:
+        Dictionary mapping embed_id -> decoded_dict (or None if decryption failed)
+    """
+    decoded_by_id: Dict[str, Optional[Dict[str, Any]]] = {}
+
+    for embed in embeds:
+        embed_id = embed.get('embed_id', '')
+        encrypted_content = embed.get('encrypted_content')
+        if encrypted_content and embed_id:
+            decoded, error = await decrypt_and_decode_toon(
+                encryption_service, encrypted_content, vault_key_id
+            )
+            if error:
+                script_logger.debug(f"Failed to decode embed {embed_id[:8]}: {error}")
+            decoded_by_id[embed_id] = decoded
+        elif embed_id:
+            decoded_by_id[embed_id] = None
+
+    return decoded_by_id
+
+
+def build_encryption_health(
+    chat_metadata: Optional[Dict[str, Any]],
+    messages: List[Dict[str, Any]],
+    embeds: List[Dict[str, Any]],
+    embed_keys_by_embed: Dict[str, Dict[str, int]],
+    vault_key_id: Optional[str]
+) -> Dict[str, Any]:
+    """
+    Build an encryption health dashboard for the chat.
+
+    Checks:
+    - Chat key presence (encrypted_chat_key)
+    - Title/summary/tags encryption status
+    - Per-message encrypted_content completeness
+    - Embed key completeness (master vs chat keys)
+    - Vault key info
+
+    Args:
+        chat_metadata: Chat metadata from Directus
+        messages: List of messages from Directus
+        embeds: List of embeds from Directus
+        embed_keys_by_embed: Dict mapping hashed_embed_id -> {'chat': count, 'master': count}
+        vault_key_id: The user's vault_key_id (or None if unresolvable)
+
+    Returns:
+        Dictionary with encryption health metrics and anomalies
+    """
+    health: Dict[str, Any] = {
+        'vault_key': {
+            'present': vault_key_id is not None,
+            'key_id': vault_key_id[:12] + '...' if vault_key_id else None,
+        },
+        'chat_key': {
+            'present': False,
+            'encrypted_chat_key_len': 0,
+        },
+        'encrypted_fields': {},
+        'messages': {
+            'total': len(messages),
+            'with_encrypted_content': 0,
+            'without_encrypted_content': 0,
+            'missing_content_ids': [],
+        },
+        'embeds': {
+            'total': len(embeds),
+            'parent_count': 0,
+            'child_count': 0,
+            'parents_with_master_key': 0,
+            'parents_with_chat_key': 0,
+            'parents_missing_all_keys': 0,
+            'missing_key_embed_ids': [],
+        },
+        'anomalies': [],
+    }
+
+    if chat_metadata:
+        chat_key_val = chat_metadata.get('encrypted_chat_key')
+        health['chat_key']['present'] = bool(chat_key_val)
+        health['chat_key']['encrypted_chat_key_len'] = len(chat_key_val) if chat_key_val else 0
+
+        # Check encrypted fields
+        field_checks = [
+            ('encrypted_title', 'title'),
+            ('encrypted_chat_summary', 'summary'),
+            ('encrypted_chat_tags', 'tags'),
+            ('encrypted_icon', 'icon'),
+            ('encrypted_category', 'category'),
+        ]
+        for field_key, label in field_checks:
+            val = chat_metadata.get(field_key)
+            health['encrypted_fields'][label] = {
+                'present': bool(val),
+                'length': len(val) if val else 0,
+            }
+
+        if not chat_key_val:
+            health['anomalies'].append("Chat key (encrypted_chat_key) is MISSING — embeds cannot be decrypted via chat key path")
+
+    # Message completeness
+    max_missing_ids_to_track = 10
+    for msg in messages:
+        if msg.get('encrypted_content'):
+            health['messages']['with_encrypted_content'] += 1
+        else:
+            health['messages']['without_encrypted_content'] += 1
+            if len(health['messages']['missing_content_ids']) < max_missing_ids_to_track:
+                msg_id = msg.get('id', 'unknown')
+                health['messages']['missing_content_ids'].append(str(msg_id)[:12])
+
+    if health['messages']['without_encrypted_content'] > 0:
+        health['anomalies'].append(
+            f"{health['messages']['without_encrypted_content']} message(s) missing encrypted_content"
+        )
+
+    # Embed key completeness
+    for embed in embeds:
+        embed_id = embed.get('embed_id', '')
+        parent_embed_id = embed.get('parent_embed_id')
+        if parent_embed_id:
+            health['embeds']['child_count'] += 1
+            continue  # Child embeds inherit keys from parent
+
+        health['embeds']['parent_count'] += 1
+        hashed_embed_id = hashlib.sha256(embed_id.encode()).hexdigest() if embed_id else None
+
+        if hashed_embed_id and hashed_embed_id in embed_keys_by_embed:
+            key_info = embed_keys_by_embed[hashed_embed_id]
+            if key_info.get('master', 0) > 0:
+                health['embeds']['parents_with_master_key'] += 1
+            if key_info.get('chat', 0) > 0:
+                health['embeds']['parents_with_chat_key'] += 1
+        else:
+            health['embeds']['parents_missing_all_keys'] += 1
+            health['embeds']['missing_key_embed_ids'].append(embed_id[:12] if embed_id else 'unknown')
+
+    if health['embeds']['parents_missing_all_keys'] > 0:
+        health['anomalies'].append(
+            f"{health['embeds']['parents_missing_all_keys']} parent embed(s) missing ALL encryption keys"
+        )
+
+    parents_missing_master = health['embeds']['parent_count'] - health['embeds']['parents_with_master_key']
+    if parents_missing_master > 0:
+        health['anomalies'].append(
+            f"{parents_missing_master} parent embed(s) missing master key (owner cross-chat access broken)"
+        )
+
+    parents_missing_chat = health['embeds']['parent_count'] - health['embeds']['parents_with_chat_key']
+    if parents_missing_chat > 0:
+        health['anomalies'].append(
+            f"{parents_missing_chat} parent embed(s) missing chat key (shared access broken)"
+        )
+
+    return health
+
+
 async def check_cache_status(cache_service: CacheService, chat_id: str) -> Dict[str, Any]:
     """
     Check Redis cache status for a chat and its components.
@@ -447,7 +783,9 @@ def format_output_text(
     cache_info: Dict[str, Any],
     messages_limit: int,
     embeds_limit: int,
-    usage_limit: int
+    usage_limit: int,
+    decoded_embeds: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
+    encryption_health: Optional[Dict[str, Any]] = None,
 ) -> str:
     """
     Format the inspection results as human-readable text.
@@ -463,6 +801,8 @@ def format_output_text(
         messages_limit: Limit for messages display
         embeds_limit: Limit for embeds display
         usage_limit: Limit for usage entries display
+        decoded_embeds: Dict mapping embed_id -> decoded TOON dict (if --decrypt was used)
+        encryption_health: Encryption health dashboard data (if --decrypt was used)
         
     Returns:
         Formatted string for display
@@ -636,6 +976,27 @@ def format_output_text(
             # Show if model name is present (for assistant messages)
             if msg.get('encrypted_model_name'):
                 lines.append("       Model: ✓ (encrypted)")
+            
+            # Show per-message embed summaries (improvement B)
+            if decoded_embeds is not None:
+                # Find embeds for this message by hashed_message_id
+                msg_id_raw = msg.get('id', '')
+                hashed_msg_id = hashlib.sha256(str(msg_id_raw).encode()).hexdigest() if msg_id_raw else None
+                
+                if hashed_msg_id:
+                    msg_embeds = [
+                        e for e in embeds
+                        if e.get('hashed_message_id') == hashed_msg_id
+                    ]
+                    if msg_embeds:
+                        lines.append(f"       Embeds ({len(msg_embeds)}):")
+                        for me in msg_embeds[:MAX_EMBED_SUMMARY_DISPLAY]:
+                            me_id = me.get('embed_id', '')
+                            me_decoded = decoded_embeds.get(me_id)
+                            summary = build_embed_summary_line(me_id, me_decoded, me)
+                            lines.append(f"         • {summary}")
+                        if len(msg_embeds) > MAX_EMBED_SUMMARY_DISPLAY:
+                            lines.append(f"         ... and {len(msg_embeds) - MAX_EMBED_SUMMARY_DISPLAY} more embed(s)")
         
         if len(messages) > messages_limit:
             lines.append(f"\n  ... and {len(messages) - messages_limit} more message(s)")
@@ -793,6 +1154,77 @@ def format_output_text(
         if len(usage_entries) > usage_limit:
             lines.append(f"\n  ... and {len(usage_entries) - usage_limit} more usage entry(ies)")
     
+    # ===================== ENCRYPTION HEALTH (improvement G) =====================
+    if encryption_health is not None:
+        lines.append("")
+        lines.append("-" * 100)
+        lines.append("ENCRYPTION HEALTH DASHBOARD")
+        lines.append("-" * 100)
+        
+        # Vault key
+        vk = encryption_health.get('vault_key', {})
+        if vk.get('present'):
+            lines.append(f"  ✅ Vault Key: {vk.get('key_id', 'N/A')}")
+        else:
+            lines.append("  ❌ Vault Key: NOT RESOLVABLE (user may not have passkeys)")
+        
+        # Chat key
+        ck = encryption_health.get('chat_key', {})
+        if ck.get('present'):
+            lines.append(f"  ✅ Chat Key: present ({ck.get('encrypted_chat_key_len', 0)} chars)")
+        else:
+            lines.append("  ❌ Chat Key: MISSING")
+        
+        # Encrypted fields
+        ef = encryption_health.get('encrypted_fields', {})
+        lines.append("")
+        lines.append("  Chat Encrypted Fields:")
+        for label, info in ef.items():
+            marker = "✓" if info.get('present') else "✗"
+            size = f" ({info.get('length', 0)} chars)" if info.get('present') else ""
+            lines.append(f"    {marker} {label}{size}")
+        
+        # Messages
+        msg_health = encryption_health.get('messages', {})
+        total_msgs = msg_health.get('total', 0)
+        with_content = msg_health.get('with_encrypted_content', 0)
+        without_content = msg_health.get('without_encrypted_content', 0)
+        lines.append("")
+        lines.append(f"  Messages: {with_content}/{total_msgs} have encrypted_content")
+        if without_content > 0:
+            missing_ids = msg_health.get('missing_content_ids', [])
+            lines.append(f"  ⚠️  {without_content} message(s) missing encrypted_content")
+            if missing_ids:
+                lines.append(f"     Missing IDs: {', '.join(missing_ids[:5])}")
+                if len(missing_ids) > 5:
+                    lines.append(f"     ... and {len(missing_ids) - 5} more")
+        
+        # Embeds
+        emb_health = encryption_health.get('embeds', {})
+        parent_count = emb_health.get('parent_count', 0)
+        child_count = emb_health.get('child_count', 0)
+        with_master = emb_health.get('parents_with_master_key', 0)
+        with_chat = emb_health.get('parents_with_chat_key', 0)
+        missing_all = emb_health.get('parents_missing_all_keys', 0)
+        lines.append("")
+        lines.append(f"  Embed Keys: {parent_count} parent embeds, {child_count} child embeds (inherit)")
+        lines.append(f"    Master keys: {with_master}/{parent_count}")
+        lines.append(f"    Chat keys:   {with_chat}/{parent_count}")
+        if missing_all > 0:
+            missing_ids = emb_health.get('missing_key_embed_ids', [])
+            lines.append(f"    ❌ {missing_all} parent(s) missing ALL keys: {', '.join(missing_ids[:5])}")
+        
+        # Anomalies
+        anomalies = encryption_health.get('anomalies', [])
+        if anomalies:
+            lines.append("")
+            lines.append("  ⚠️  Anomalies:")
+            for a in anomalies:
+                lines.append(f"    • {a}")
+        else:
+            lines.append("")
+            lines.append("  ✅ No encryption anomalies detected")
+    
     # ===================== CACHE STATUS =====================
     lines.append("")
     lines.append("-" * 100)
@@ -896,7 +1328,9 @@ def format_output_json(
     embeds: List[Dict[str, Any]],
     embed_keys_by_embed: Dict[str, Dict[str, int]],
     usage_entries: List[Dict[str, Any]],
-    cache_info: Dict[str, Any]
+    cache_info: Dict[str, Any],
+    decoded_embeds: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
+    encryption_health: Optional[Dict[str, Any]] = None,
 ) -> str:
     """
     Format the inspection results as JSON.
@@ -909,6 +1343,8 @@ def format_output_json(
         embed_keys_by_embed: Dict mapping hashed_embed_id -> {'chat': count, 'master': count}
         usage_entries: List of usage entries from Directus
         cache_info: Cache status information
+        decoded_embeds: Dict mapping embed_id -> decoded TOON dict (if --decrypt)
+        encryption_health: Encryption health dashboard data (if --decrypt)
         
     Returns:
         JSON string
@@ -917,7 +1353,7 @@ def format_output_json(
     total_chat_keys = sum(k.get('chat', 0) for k in embed_keys_by_embed.values())
     total_master_keys = sum(k.get('master', 0) for k in embed_keys_by_embed.values())
     
-    output = {
+    output: Dict[str, Any] = {
         'chat_id': chat_id,
         'generated_at': datetime.now().isoformat(),
         'chat_metadata': chat_metadata,
@@ -941,6 +1377,28 @@ def format_output_json(
         },
         'cache': cache_info
     }
+    
+    # Add decoded embed summaries if available (improvement B)
+    if decoded_embeds is not None:
+        embed_summaries = {}
+        for embed_id, decoded in decoded_embeds.items():
+            if decoded:
+                embed_summaries[embed_id] = {
+                    'field_inventory': {k: _describe_toon_value(v) for k, v in decoded.items()},
+                    'key_metadata': {
+                        k: decoded[k] for k in ['app_id', 'skill_id', 'status', 'type',
+                                                  'query', 'provider', 'result_count']
+                        if k in decoded
+                    },
+                    'summary': build_embed_summary_line(embed_id, decoded),
+                }
+            else:
+                embed_summaries[embed_id] = None
+        output['decoded_embeds'] = embed_summaries
+    
+    # Add encryption health if available (improvement G)
+    if encryption_health is not None:
+        output['encryption_health'] = encryption_health
     
     return json.dumps(output, indent=2, default=str)
 
@@ -982,6 +1440,11 @@ async def main():
         '--no-cache',
         action='store_true',
         help='Skip cache checks (faster if Redis is unavailable)'
+    )
+    parser.add_argument(
+        '--decrypt',
+        action='store_true',
+        help='Decrypt embeds and show per-message content summaries + encryption health dashboard'
     )
     
     args = parser.parse_args()
@@ -1030,10 +1493,45 @@ async def main():
         if not args.no_cache:
             cache_info = await check_cache_status(cache_service, args.chat_id)
         
-        # 7. Format and output results
+        # 7. Decrypt embed content and build encryption health (if --decrypt)
+        decoded_embeds: Optional[Dict[str, Optional[Dict[str, Any]]]] = None
+        encryption_health: Optional[Dict[str, Any]] = None
+        vault_key_id: Optional[str] = None
+        
+        if args.decrypt and chat_metadata:
+            hashed_user_id = chat_metadata.get('hashed_user_id')
+            if hashed_user_id:
+                vault_key_id = await resolve_vault_key_id(directus_service, hashed_user_id)
+                if vault_key_id:
+                    script_logger.info(f"Resolved vault_key_id: {vault_key_id[:12]}...")
+                    decoded_embeds = await decrypt_chat_embeds(
+                        directus_service, encryption_service, embeds, vault_key_id
+                    )
+                    decode_success = sum(1 for v in decoded_embeds.values() if v is not None)
+                    script_logger.info(
+                        f"Decoded {decode_success}/{len(decoded_embeds)} embeds"
+                    )
+                else:
+                    script_logger.warning(
+                        "Could not resolve vault_key_id — "
+                        "user may not have passkeys registered"
+                    )
+                    decoded_embeds = {}
+            else:
+                script_logger.warning("Chat has no hashed_user_id — cannot decrypt")
+                decoded_embeds = {}
+        
+        if args.decrypt:
+            encryption_health = build_encryption_health(
+                chat_metadata, messages, embeds, embed_keys_by_embed, vault_key_id
+            )
+        
+        # 8. Format and output results
         if args.json:
             output = format_output_json(
-                args.chat_id, chat_metadata, messages, embeds, embed_keys_by_embed, usage_entries, cache_info
+                args.chat_id, chat_metadata, messages, embeds,
+                embed_keys_by_embed, usage_entries, cache_info,
+                decoded_embeds, encryption_health,
             )
         else:
             output = format_output_text(
@@ -1046,7 +1544,9 @@ async def main():
                 cache_info,
                 args.messages_limit,
                 args.embeds_limit,
-                args.usage_limit
+                args.usage_limit,
+                decoded_embeds,
+                encryption_health,
             )
         
         print(output)

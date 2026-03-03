@@ -3,6 +3,8 @@
  *
  * These utilities are exposed to the global window object for debugging via the browser console.
  * They allow inspecting IndexedDB chat data, messages, and sync status.
+ * For admin users, embed inspection includes a privacy-safe field inventory
+ * (field names, types, sizes — no actual content values) and anomaly detection.
  *
  * Usage in browser console (all read-only):
  *   await window.inspectChat('chat-id')    - Generate copyable inspection report (recommended)
@@ -10,6 +12,7 @@
  *   await window.debugAllChats()           - List all chats with consistency check
  *   await window.debugGetMessage('msg-id') - Get raw message data
  *
+ * Architecture context: See docs/architecture/embed-encryption.md
  * IMPORTANT: These utilities are for development/debugging only.
  * They should not be used in production code paths.
  */
@@ -20,6 +23,10 @@ const CHATS_STORE = "chats";
 const MESSAGES_STORE = "messages";
 const EMBEDS_STORE = "embeds";
 const EMBED_KEYS_STORE = "embed_keys";
+
+// Field inventory constants
+const MAX_FIELD_INVENTORY_ITEMS = 30;
+const MAX_ANOMALIES_PER_EMBED = 5;
 
 /**
  * Compute SHA256 hash of a string
@@ -110,6 +117,184 @@ async function getStoreCount(
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result || 0);
   });
+}
+
+// ============================================================================
+// PRIVACY-SAFE FIELD INVENTORY (improvement C)
+// ============================================================================
+
+/**
+ * Check if the current user is an admin.
+ * Uses dynamic import to avoid circular dependencies.
+ */
+async function isCurrentUserAdmin(): Promise<boolean> {
+  try {
+    const { get } = await import("svelte/store");
+    const { userProfile } = await import("../stores/userProfile");
+    const profile = get(userProfile);
+    return profile?.is_admin === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Describe a value's type and size without exposing actual content.
+ * Only structural info: "str(142)", "list(5)", "dict(3 keys)", "int(42)", "bool(true)", "null"
+ */
+function describeValue(value: unknown): string {
+  if (value === null || value === undefined) return "null";
+  if (typeof value === "boolean") return `bool(${value})`;
+  if (typeof value === "number")
+    return Number.isInteger(value) ? `int(${value})` : `float(${value})`;
+  if (typeof value === "string") return `str(${value.length})`;
+  if (Array.isArray(value)) return `list(${value.length})`;
+  if (typeof value === "object")
+    return `dict(${Object.keys(value as Record<string, unknown>).length} keys)`;
+  return typeof value;
+}
+
+/**
+ * Build a privacy-safe field inventory from decoded TOON content.
+ * Shows field names, types, and sizes — NO actual content values
+ * (except for key metadata fields like app_id, skill_id, status).
+ */
+function buildFieldInventory(decoded: Record<string, unknown>): {
+  keyMetadata: Record<string, unknown>;
+  fieldTypes: Record<string, string>;
+  totalFields: number;
+} {
+  const keyMetadataFields = [
+    "app_id",
+    "skill_id",
+    "status",
+    "type",
+    "query",
+    "provider",
+    "result_count",
+    "language",
+    "filename",
+    "title",
+  ];
+
+  const keyMetadata: Record<string, unknown> = {};
+  for (const field of keyMetadataFields) {
+    if (field in decoded) {
+      keyMetadata[field] = decoded[field];
+    }
+  }
+
+  const fieldTypes: Record<string, string> = {};
+  let count = 0;
+  for (const [key, value] of Object.entries(decoded)) {
+    if (count >= MAX_FIELD_INVENTORY_ITEMS) break;
+    fieldTypes[key] = describeValue(value);
+    count++;
+  }
+
+  return {
+    keyMetadata,
+    fieldTypes,
+    totalFields: Object.keys(decoded).length,
+  };
+}
+
+/**
+ * Detect anomalies in decoded embed content.
+ * Returns a list of warning strings.
+ */
+function detectEmbedAnomalies(
+  decoded: Record<string, unknown>,
+  embed: Record<string, unknown>,
+): string[] {
+  const anomalies: string[] = [];
+
+  // Stale status check
+  const status = decoded.status as string | undefined;
+  if (status && status !== "finished" && status !== "activated") {
+    anomalies.push(`status="${status}" (expected "finished")`);
+  }
+
+  // result_count vs embed_ids mismatch
+  const embedIds = decoded.embed_ids;
+  const resultCount = decoded.result_count;
+  if (Array.isArray(embedIds) && resultCount !== undefined) {
+    const count =
+      typeof resultCount === "number"
+        ? resultCount
+        : parseInt(String(resultCount), 10);
+    if (!isNaN(count) && count !== embedIds.length) {
+      anomalies.push(
+        `result_count=${count} but embed_ids has ${embedIds.length} entries`,
+      );
+    }
+  }
+
+  // Missing chat key on embed (checked from IndexedDB embed record)
+  if (!embed.encrypted_content && !embed.content && !embed.data) {
+    anomalies.push("Embed has no content (encrypted, plaintext, or data)");
+  }
+
+  // Missing expected fields for app_skill_use type
+  const embedType = (decoded.type as string) || (embed.type as string);
+  if (embedType === "app_skill_use") {
+    if (!decoded.app_id)
+      anomalies.push("Missing app_id on app_skill_use embed");
+    if (!decoded.skill_id)
+      anomalies.push("Missing skill_id on app_skill_use embed");
+  }
+
+  return anomalies.slice(0, MAX_ANOMALIES_PER_EMBED);
+}
+
+/**
+ * Format field inventory and anomalies as text lines for a report.
+ */
+function formatFieldInventoryLines(
+  inventory: {
+    keyMetadata: Record<string, unknown>;
+    fieldTypes: Record<string, string>;
+    totalFields: number;
+  },
+  anomalies: string[],
+): string[] {
+  const lines: string[] = [];
+
+  // Key metadata values (safe to show)
+  const metaEntries = Object.entries(inventory.keyMetadata);
+  if (metaEntries.length > 0) {
+    lines.push("         Key Metadata:");
+    for (const [key, value] of metaEntries) {
+      const display =
+        typeof value === "string" && value.length > 60
+          ? value.substring(0, 57) + "..."
+          : String(value ?? "null");
+      lines.push(`           ${key.padEnd(20)} = ${display}`);
+    }
+  }
+
+  // Field types (privacy-safe)
+  lines.push(`         Fields (${inventory.totalFields} total):`);
+  const typeEntries = Object.entries(inventory.fieldTypes);
+  for (const [key, typeDesc] of typeEntries) {
+    if (key in inventory.keyMetadata) continue; // Already shown above
+    lines.push(`           ${key.padEnd(20)} : ${typeDesc}`);
+  }
+  if (inventory.totalFields > MAX_FIELD_INVENTORY_ITEMS) {
+    lines.push(
+      `           ... and ${inventory.totalFields - MAX_FIELD_INVENTORY_ITEMS} more fields`,
+    );
+  }
+
+  // Anomalies
+  if (anomalies.length > 0) {
+    lines.push("         Anomalies:");
+    for (const a of anomalies) {
+      lines.push(`           * ${a}`);
+    }
+  }
+
+  return lines;
 }
 
 // ============================================================================
@@ -777,6 +962,68 @@ export async function inspectChat(
       lines.push("");
       lines.push(`    ... and ${chatEmbeds.length - showCount} more embeds`);
     }
+
+    // Admin-only: decode embeds and show field inventory (improvement C)
+    const isAdmin = await isCurrentUserAdmin();
+    if (isAdmin) {
+      lines.push("");
+      lines.push(thinSeparator);
+      lines.push("EMBED FIELD INVENTORY (admin-only, privacy-safe)");
+      lines.push(thinSeparator);
+
+      try {
+        const { resolveEmbed, decodeToonContent } =
+          await import("./embedResolver");
+        let decodedCount = 0;
+        let failedCount = 0;
+        const allAnomalies: string[] = [];
+
+        for (let i = 0; i < Math.min(showCount, chatEmbeds.length); i++) {
+          const embed = chatEmbeds[i];
+          const embedId =
+            (embed.embed_id as string) || (embed.contentRef as string);
+          if (!embedId) continue;
+
+          const resolved = await resolveEmbed(embedId);
+          if (resolved?.content) {
+            try {
+              const decoded = await decodeToonContent(resolved.content);
+              if (decoded && typeof decoded === "object") {
+                decodedCount++;
+                const decodedObj = decoded as Record<string, unknown>;
+                const inventory = buildFieldInventory(decodedObj);
+                const anomalies = detectEmbedAnomalies(decodedObj, embed);
+                allAnomalies.push(...anomalies);
+
+                lines.push("");
+                lines.push(
+                  `    ${(i + 1).toString().padStart(2)}. embed-${truncate(embedId, 12)}:`,
+                );
+                lines.push(...formatFieldInventoryLines(inventory, anomalies));
+              } else {
+                failedCount++;
+              }
+            } catch {
+              failedCount++;
+            }
+          } else {
+            failedCount++;
+          }
+        }
+
+        lines.push("");
+        lines.push(
+          `  Summary: ${decodedCount} decoded, ${failedCount} failed/unavailable`,
+        );
+        if (allAnomalies.length > 0) {
+          lines.push(`  Total anomalies found: ${allAnomalies.length}`);
+        } else {
+          lines.push("  No anomalies detected");
+        }
+      } catch (e) {
+        lines.push(`  Error generating field inventory: ${e}`);
+      }
+    }
   } else {
     lines.push("");
     lines.push("  No embeds found for this chat");
@@ -1055,20 +1302,56 @@ export async function inspectEmbed(
             if (otherFields.length > 0) {
               lines.push(`    other fields:     ${otherFields.join(", ")}`);
             }
+
+            // Admin-only: privacy-safe field inventory + anomaly detection (improvement C)
+            const isAdmin = await isCurrentUserAdmin();
+            if (isAdmin) {
+              const decodedObj = decoded as Record<string, unknown>;
+              const inventory = buildFieldInventory(decodedObj);
+              const anomalies = detectEmbedAnomalies(decodedObj, embed || {});
+
+              lines.push("");
+              lines.push("  FIELD INVENTORY (admin-only, privacy-safe):");
+              lines.push(`    Total fields: ${inventory.totalFields}`);
+
+              // Field type descriptions
+              for (const [key, typeDesc] of Object.entries(
+                inventory.fieldTypes,
+              )) {
+                if (key in inventory.keyMetadata) continue;
+                lines.push(`    ${key.padEnd(22)} : ${typeDesc}`);
+              }
+              if (inventory.totalFields > MAX_FIELD_INVENTORY_ITEMS) {
+                lines.push(
+                  `    ... and ${inventory.totalFields - MAX_FIELD_INVENTORY_ITEMS} more fields`,
+                );
+              }
+
+              if (anomalies.length > 0) {
+                lines.push("");
+                lines.push("  ANOMALIES:");
+                for (const a of anomalies) {
+                  lines.push(`    * ${a}`);
+                }
+              } else {
+                lines.push("");
+                lines.push("  No anomalies detected");
+              }
+            }
           } else {
-            lines.push("  ⚠️ Could not decode TOON content");
+            lines.push("  Could not decode TOON content");
           }
         } catch (decodeError) {
-          lines.push(`  ⚠️ Error decoding content: ${decodeError}`);
+          lines.push(`  Error decoding content: ${decodeError}`);
         }
       } else {
-        lines.push("  ⚠️ Resolved embed has no content field");
+        lines.push("  Resolved embed has no content field");
       }
     } else {
-      lines.push(`  ✗ Could not resolve embed`);
+      lines.push(`  Could not resolve embed`);
     }
   } catch (e) {
-    lines.push(`  ⚠️ Error resolving embed: ${e}`);
+    lines.push(`  Error resolving embed: ${e}`);
   }
 
   // Footer
