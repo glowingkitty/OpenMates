@@ -1,6 +1,7 @@
 # backend/shared/python_schemas/embed_status.py
 # Embed Status State Machine — canonical definition of valid embed statuses and transitions.
 # Architecture: docs/architecture/embeds.md — "Embed State Machine" section
+# Tests: frontend/packages/ui/src/data/__tests__/embedRegistry.test.ts (state machine parity checks)
 # Tests: backend/tests/test_embed_status.py (planned)
 #
 # This module is the single source of truth for embed status values and valid transitions.

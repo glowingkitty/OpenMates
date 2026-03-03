@@ -6,6 +6,7 @@
  * backend/shared/python_schemas/embed_status.py and must stay in sync.
  *
  * Architecture: docs/architecture/embeds.md — "Embed State Machine" section
+ * Tests: frontend/packages/ui/src/data/__tests__/embedRegistry.test.ts
  *
  * State diagram:
  *     (initial) ──► PROCESSING ──► FINISHED
