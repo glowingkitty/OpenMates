@@ -33,7 +33,7 @@ embeds:
 
     status:
       type: string
-      note: "Status of embed: 'processing' | 'finished' | 'error'"
+      note: "Status of embed: 'processing' | 'finished' | 'error' | 'cancelled'. See backend/shared/python_schemas/embed_status.py for valid transitions."
 
     hashed_user_id:
       type: string

@@ -39,7 +39,8 @@ export interface EmbedNodeAttributes {
   type: EmbedType;
 
   // Processing status (including error state for failed decryption/loading)
-  status: "processing" | "finished" | "error";
+  // See embedStateMachine.ts for the canonical status type and valid transitions
+  status: "processing" | "finished" | "error" | "cancelled";
 
   // Content reference: stream:<uuid> during generation, cid:sha256:<hash> when finished, null for web embeds
   contentRef: string | null;

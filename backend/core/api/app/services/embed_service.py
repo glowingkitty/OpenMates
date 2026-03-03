@@ -16,6 +16,10 @@ from toon_format import encode, decode
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
+from backend.shared.python_schemas.embed_status import (
+    EmbedStatus,
+    validate_embed_transition,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -2873,11 +2877,11 @@ class EmbedService:
             True if event was published successfully, False otherwise
         """
         try:
-            # CRITICAL: Deduplication check - prevent sending duplicate "finished" events
-            # If check_cache_status is True, verify the embed isn't already finalized
-            if check_cache_status and status == "finished":
+            # STATE MACHINE: Validate transition before sending to client.
+            # Uses the embed state machine (backend/shared/python_schemas/embed_status.py)
+            # to enforce valid transitions and prevent duplicate finalization events.
+            if check_cache_status:
                 try:
-                    # Get raw cached embed JSON to check status (status is metadata, not encrypted)
                     cache_key = f"embed:{embed_id}"
                     client = await self.cache_service.client
                     if client:
@@ -2885,17 +2889,22 @@ class EmbedService:
                         if embed_json:
                             import json as json_lib
                             cached_embed_data = json_lib.loads(embed_json)
-                            current_status = cached_embed_data.get("status", "processing")
-                            if current_status == "finished":
+                            current_status = cached_embed_data.get("status", EmbedStatus.PROCESSING.value)
+                            if not validate_embed_transition(
+                                current=current_status,
+                                target=status,
+                                embed_id=embed_id,
+                                log_prefix=f"{log_prefix} [EMBED_STATE_MACHINE]"
+                            ):
                                 logger.warning(
-                                    f"{log_prefix} [EMBED_EVENT] ⚠️ DUPLICATE PREVENTION: Skipping send_embed_data for already-finalized embed {embed_id} "
-                                    f"(current_status={current_status}, attempted_status={status}). "
-                                    f"This indicates update_code_embed_content or update_embed_with_results was called multiple times."
+                                    f"{log_prefix} [EMBED_EVENT] Blocked invalid transition: "
+                                    f"'{current_status}' → '{status}' for embed {embed_id}. "
+                                    f"This prevents duplicate or out-of-order status events."
                                 )
-                                return False  # Skip sending duplicate event
+                                return False
                 except Exception as e:
                     # If cache check fails, log but continue (don't block the send)
-                    logger.debug(f"{log_prefix} [EMBED_EVENT] Could not check cache status for deduplication: {e}, proceeding with send")
+                    logger.debug(f"{log_prefix} [EMBED_EVENT] Could not check cache status for state validation: {e}, proceeding with send")
             
             # Auto-calculate text_length_chars if not provided
             # For text-based embeds: code, table, document, app_skill_use
@@ -3479,3 +3488,103 @@ class EmbedService:
             logger.warning(
                 f"Failed to schedule embed fallback persistence for {embed_id}: {e}"
             )
+
+    # ─── Source Quote Verification ──────────────────────────────────────────
+    # Verifies that quoted text from an LLM response actually exists in the
+    # referenced embed's source content. Used by stream_consumer.py post-processing
+    # to enforce accurate quoting.
+    # See docs/architecture/embeds.md for the embed content model.
+
+    # Fields in embed TOON content that contain quotable text, ordered by priority
+    _QUOTABLE_TOON_FIELDS = (
+        "title", "description", "extra_snippets", "markdown", "html",
+        "code", "table", "transcript",
+    )
+
+    async def verify_quote_in_embed(
+        self,
+        embed_id: str,
+        quoted_text: str,
+        user_vault_key_id: str,
+        log_prefix: str = "",
+    ) -> bool:
+        """
+        Check whether `quoted_text` appears (case-insensitive substring) in the
+        textual content of the embed identified by `embed_id`.
+
+        For composite embeds (web/news search) that have child embeds, the search
+        is performed on the parent embed's own content only — the caller should
+        resolve the correct child embed_id from the embed_ref before calling.
+
+        Args:
+            embed_id: UUID of the embed to search within.
+            quoted_text: The exact text the LLM claims comes from this embed.
+            user_vault_key_id: Vault key for decrypting the embed cache.
+            log_prefix: Logging prefix.
+
+        Returns:
+            True if `quoted_text` was found in the embed content, False otherwise.
+        """
+        if not quoted_text or not embed_id:
+            return False
+
+        toon_str = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+        if not toon_str:
+            logger.warning(
+                f"{log_prefix} [QUOTE_VERIFY] Embed {embed_id} not in cache — "
+                f"cannot verify quote, treating as unverifiable"
+            )
+            # If the embed is no longer in cache, we can't verify — don't flag as wrong
+            return True
+
+        try:
+            decoded = decode(toon_str)
+        except Exception as e:
+            logger.warning(f"{log_prefix} [QUOTE_VERIFY] Failed to decode TOON for {embed_id}: {e}")
+            return True  # Can't verify — don't penalise
+
+        quote_lower = quoted_text.lower().strip()
+        if not quote_lower:
+            return False
+
+        # Search through all quotable fields
+        searchable_text = self._extract_searchable_text(decoded)
+        return quote_lower in searchable_text.lower()
+
+    @classmethod
+    def _extract_searchable_text(cls, decoded: Any) -> str:
+        """
+        Extract all searchable text from a decoded TOON embed content dict.
+        Handles both flat dicts and nested results arrays (web-read, composite embeds).
+
+        Returns a single concatenated string of all quotable content.
+        """
+        if not isinstance(decoded, dict):
+            return str(decoded) if decoded else ""
+
+        parts: list[str] = []
+
+        # Collect text from top-level quotable fields
+        for field in cls._QUOTABLE_TOON_FIELDS:
+            val = decoded.get(field)
+            if isinstance(val, str) and val:
+                # extra_snippets is pipe-delimited
+                if field == "extra_snippets":
+                    parts.extend(val.split("|"))
+                else:
+                    parts.append(val)
+
+        # Handle nested results array (web-read, multi-result embeds)
+        results = decoded.get("results")
+        if isinstance(results, list):
+            for item in results:
+                if isinstance(item, dict):
+                    for field in cls._QUOTABLE_TOON_FIELDS:
+                        val = item.get(field)
+                        if isinstance(val, str) and val:
+                            if field == "extra_snippets":
+                                parts.extend(val.split("|"))
+                            else:
+                                parts.append(val)
+
+        return " ".join(parts)

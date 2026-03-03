@@ -98,6 +98,7 @@
     import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils'; // For resume card category gradient circle
     import { waitLocale } from 'svelte-i18n'; // Import waitLocale for waiting for translations to load
     import { get } from 'svelte/store'; // Import get to read store values
+    import { searchTextHighlightStore } from '../stores/messageHighlightStore'; // For source quote text highlighting in embed fullscreen
     import { extractEmbedReferences } from '../services/embedResolver'; // Import for embed navigation
     import { tipTapToCanonicalMarkdown } from '../message_parsing/serializers'; // Import for embed navigation
     import PushNotificationBanner from './PushNotificationBanner.svelte'; // Import push notification banner component
@@ -212,6 +213,8 @@
         restoreFromPip?: boolean;
         /** Child embed to auto-focus when the search fullscreen opens (from inline badge click) */
         focusChildEmbedId?: string | null;
+        /** Quote text to highlight in the fullscreen content (from source quote block click) */
+        highlightQuoteText?: string | null;
     } | null;
 
     type EmbedFullscreenEventDetail = {
@@ -228,6 +231,8 @@
         };
         /** Child embed to auto-focus when the search fullscreen opens (from inline badge click) */
         focusChildEmbedId?: string | null;
+        /** Quote text to highlight in the fullscreen content (from source quote block click) */
+        highlightQuoteText?: string | null;
     };
 
     type AiMessageChunkPayload = {
@@ -1001,6 +1006,7 @@
     /**
      * Normalize unknown status values into a supported embed status.
      * This guards against loosely typed decodedContent fields.
+     * Canonical definition: services/embedStateMachine.ts normalizeEmbedStatus()
      */
     function normalizeEmbedStatus(value: unknown): 'processing' | 'finished' | 'error' | 'cancelled' {
         if (value === 'processing' || value === 'finished' || value === 'error' || value === 'cancelled') {
@@ -1218,7 +1224,7 @@
     async function handleEmbedFullscreen(event: CustomEvent) {
         console.debug('[ActiveChat] Received embedfullscreen event:', event.detail);
         const detail = event.detail as EmbedFullscreenEventDetail;
-        const { embedId, embedData, decodedContent, embedType, attrs, focusChildEmbedId } = detail;
+        const { embedId, embedData, decodedContent, embedType, attrs, focusChildEmbedId, highlightQuoteText } = detail;
 
         // CRITICAL: Set the URL hash guard BEFORE any async work.
         //
@@ -1551,9 +1557,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             attrs,
             // Forwarded from EmbedInlineLink when an inline badge references a child embed.
             // The search fullscreen components use this to auto-open the specific result overlay.
-            focusChildEmbedId: focusChildEmbedId ?? null
+            focusChildEmbedId: focusChildEmbedId ?? null,
+            // Forwarded from SourceQuoteBlock when a verified source quote is clicked.
+            // The fullscreen uses this to scroll to and highlight the quoted text.
+            highlightQuoteText: highlightQuoteText ?? null
         };
         showEmbedFullscreen = true;
+        
+        // If this was triggered by a source quote click, set the search highlight store
+        // so UnifiedEmbedFullscreen's existing highlight mechanism scrolls to + highlights
+        // the quoted text within the embed content. This is cleared on fullscreen close.
+        if (highlightQuoteText) {
+            searchTextHighlightStore.set(highlightQuoteText);
+        }
         
         // URL hash was already set at the top of this function (before async work) to ensure
         // the programmatic-update guard was live before the hashchange fired.  No second call needed.
@@ -1578,6 +1594,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             } else if (videoState.isPipMode) {
                 console.debug('[ActiveChat] Video in PiP mode - keeping video playing');
             }
+        }
+        
+        // Clear source quote highlight if it was set (from SourceQuoteBlock click).
+        // Only clear if the highlight was set by this feature (not by the search bar).
+        if (embedFullscreenData?.highlightQuoteText) {
+            searchTextHighlightStore.set(null);
         }
         
         showEmbedFullscreen = false;

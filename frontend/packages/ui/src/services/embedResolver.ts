@@ -92,7 +92,8 @@ async function initToonDecoder() {
 interface EmbedData {
   embed_id: string;
   type: string; // Decrypted type (client-side only)
-  status: "processing" | "finished" | "error";
+  // See embedStateMachine.ts for the canonical status type and valid transitions
+  status: "processing" | "finished" | "error" | "cancelled";
   content: string; // TOON-encoded string
   text_preview?: string;
   embed_ids?: string[]; // For composite embeds (app_skill_use)

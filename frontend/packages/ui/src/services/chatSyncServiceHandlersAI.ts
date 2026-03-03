@@ -2171,6 +2171,31 @@ export async function handleEmbedUpdateImpl(
     // Get the existing embed (from memory cache or IndexedDB)
     const existingEmbed = await embedStore.get(embedRef);
     if (existingEmbed) {
+      // STATE MACHINE: Validate transition before applying the status change
+      if (existingEmbed.status) {
+        try {
+          const {
+            validateEmbedTransition,
+            normalizeEmbedStatus: normalizeStatus,
+          } = await import("./embedStateMachine");
+          const incomingStatus = normalizeStatus(payload.status);
+          if (
+            !validateEmbedTransition(
+              existingEmbed.status,
+              incomingStatus,
+              payload.embed_id,
+            )
+          ) {
+            console.warn(
+              `[ChatSyncService:AI] embed_update: Blocked invalid transition ` +
+                `'${existingEmbed.status}' → '${incomingStatus}' for embed ${payload.embed_id}. Skipping.`,
+            );
+            return;
+          }
+        } catch {
+          // Non-blocking: proceed if state machine import fails
+        }
+      }
       // Check if this embed needs encryption + key storage
       // Processing embeds have plaintext content and only in-memory keys
       const wasProcessing = !existingEmbed.encrypted_content;
@@ -2650,6 +2675,40 @@ export async function handleSendEmbedDataImpl(
         value,
       );
     }
+  }
+
+  // STATE MACHINE: Validate transition from current status (if embed exists in memory)
+  // Uses the embed state machine to prevent invalid transitions and duplicate events.
+  // See: frontend/packages/ui/src/services/embedStateMachine.ts
+  try {
+    const { validateEmbedTransition, normalizeEmbedStatus: normalizeStatus } =
+      await import("./embedStateMachine");
+    const { embedStore: stateCheckStore } = await import("./embedStore");
+    const stateCheckRef = `embed:${embedData.embed_id}`;
+    const existingEntry = await stateCheckStore.get(stateCheckRef);
+    if (existingEntry?.status) {
+      const currentStatus = existingEntry.status;
+      const incomingStatus = normalizeStatus(embedData.status);
+      if (
+        !validateEmbedTransition(
+          currentStatus,
+          incomingStatus,
+          embedData.embed_id,
+        )
+      ) {
+        console.warn(
+          `[ChatSyncService:AI] [EMBED_STATE_MACHINE] Blocked invalid transition: ` +
+            `'${currentStatus}' → '${incomingStatus}' for embed ${embedData.embed_id}. Skipping event.`,
+        );
+        return;
+      }
+    }
+  } catch (stateErr) {
+    // Non-blocking: if state check fails, proceed with the event (backwards compatible)
+    console.debug(
+      `[ChatSyncService:AI] State machine check failed (non-blocking):`,
+      stateErr,
+    );
   }
 
   try {
