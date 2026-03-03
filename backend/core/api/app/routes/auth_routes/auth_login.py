@@ -21,6 +21,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_compliance_service, get_encryption_service
 )
 from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, get_cookie_domain
+from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS
 from backend.core.api.app.utils.newsletter_utils import update_newsletter_registration_status
 # Import backup code verification and hashing utilities
 # Use sha_hash for cache, hash_backup_code (Argon2) for storage, verify_backup_code (Argon2) for verification
@@ -1291,12 +1292,16 @@ async def finalize_login_session(
                     # This enables the session endpoint to detect suspicious country changes mid-session
                     if country_code and country_code not in ("Local", "Unknown", None):
                         cached_user_data["last_session_country"] = country_code
+                    # Set token_expiry so the /session endpoint knows when to refresh the access token.
+                    # Without this, token_expiry defaults to 0 → expires_soon is always True → every
+                    # /session call rotates the refresh token, causing race-condition logouts.
+                    cached_user_data["token_expiry"] = current_time + ACCESS_TOKEN_TTL_SECONDS
                     # CRITICAL: Preserve username and vault_key_id - don't overwrite with incomplete data from user parameter
                     # The user parameter might come from login_user_with_lookup_hash which could have incomplete data
                     # Update with any additional session data that might be needed
                     # Pass custom TTL to match cookie expiration
                     await cache_service.set_user(cached_user_data, refresh_token=refresh_token, ttl=cache_ttl)
-                    logger.info(f"Updated cached user data with stay_logged_in={login_data.stay_logged_in} for user {user_id[:6]}...")
+                    logger.info(f"Updated cached user data with stay_logged_in={login_data.stay_logged_in}, token_expiry={cached_user_data['token_expiry']} for user {user_id[:6]}...")
             else:
                 # Cache entry doesn't exist - fetch user profile and create cache entry with stay_logged_in
                 logger.warning(f"No cached user data found for user {user_id} during session finalization. Fetching profile to create cache entry.")
@@ -1315,6 +1320,8 @@ async def finalize_login_session(
                         # Ensure stay_logged_in is set in the profile data
                         user_profile["stay_logged_in"] = login_data.stay_logged_in
                         user_profile["last_online_timestamp"] = current_time
+                        # Set token_expiry so /session knows when the access token needs refreshing.
+                        user_profile["token_expiry"] = current_time + ACCESS_TOKEN_TTL_SECONDS
                         # Store country code for session-level location change detection
                         if country_code and country_code not in ("Local", "Unknown", None):
                             user_profile["last_session_country"] = country_code
@@ -1322,7 +1329,7 @@ async def finalize_login_session(
                         if "user_id" not in user_profile and "id" in user_profile:
                             user_profile["user_id"] = user_profile["id"]
                         await cache_service.set_user(user_profile, refresh_token=refresh_token, ttl=cache_ttl)
-                        logger.info(f"Created cache entry with stay_logged_in={login_data.stay_logged_in} for user {user_id[:6]}...")
+                        logger.info(f"Created cache entry with stay_logged_in={login_data.stay_logged_in}, token_expiry={user_profile['token_expiry']} for user {user_id[:6]}...")
                 else:
                     logger.error(f"Failed to fetch user profile for user {user_id} during session finalization: {profile_message}. stay_logged_in preference may be lost.")
 

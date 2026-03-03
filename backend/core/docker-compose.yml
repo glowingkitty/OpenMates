@@ -84,6 +84,9 @@ services:
       REDIS_PORT: "6379"
       REDIS_PASSWORD: "${DRAGONFLY_PASSWORD}"
       REDIS_USERNAME: "default"
+      # Directus refresh token lifetime — must match the cookie/cache TTL for stay_logged_in users.
+      # Default is 7 days which is too short for 30-day "stay logged in" sessions.
+      REFRESH_TOKEN_TTL: "30d"
       # Allow clients to bypass Directus cache using Cache-Control: no-store
       CACHE_SKIP_ALLOWED: "true"
       # Automatically purge cache on data manipulation for real-time updates

@@ -2,6 +2,11 @@
 DEFAULT_TTL = 3600  # 1 hour
 USER_TTL = 86400    # 24 hours
 SESSION_TTL = 86400 # 24 hours
+# Directus access token TTL — must match the ACCESS_TOKEN_TTL env var on the cms service.
+# Used to calculate token_expiry in cached user data so we only refresh when near expiry.
+ACCESS_TOKEN_TTL_SECONDS = 900  # 15 minutes (Directus default)
+# How long before expiry to trigger a proactive refresh (seconds).
+TOKEN_REFRESH_THRESHOLD_SECONDS = 300  # 5 minutes
 USER_DEVICE_TTL = 86400 # 24 hours
 USER_APP_DATA_TTL = 86400 # 24 hours (For user-specific app memories and settings)
 
