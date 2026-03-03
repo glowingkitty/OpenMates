@@ -47,6 +47,7 @@ from backend.core.api.app.utils.config_manager import config_manager
 logger = logging.getLogger(__name__)
 
 ONBOARDING_SUPPORT_CATEGORY = "onboarding_support"
+ONBOARDING_FOCUS_ID = "openmates-welcome"  # active_focus_id when Welcome Onboarding is running
 USER_ROLE = "user"
 
 # ---------------------------------------------------------------------------
@@ -1170,28 +1171,43 @@ async def handle_preprocessing(
         available_categories_list.append(f"general_knowledge: {fallback_desc}")
         available_categories_list = sorted(available_categories_list)
 
-    # Hard guard for onboarding routing reliability:
-    # if no user-authored message in the current chat history mentions OpenMates/OpenMate,
-    # remove onboarding_support from selectable categories before prompting the LLM.
-    has_onboarding_trigger = _contains_onboarding_trigger_in_user_history(request_data.message_history)
-    if not has_onboarding_trigger:
-        onboarding_prefix = f"{ONBOARDING_SUPPORT_CATEGORY}:"
-        filtered_categories = [
-            category_entry
-            for category_entry in available_categories_list
-            if not category_entry.startswith(onboarding_prefix)
-        ]
-        if len(filtered_categories) != len(available_categories_list):
-            available_categories_list = filtered_categories
-            logger.info(
-                f"{log_prefix} Removed '{ONBOARDING_SUPPORT_CATEGORY}' from CATEGORIES_LIST "
-                "because no onboarding trigger terms were found in user chat history."
-            )
-    else:
-        logger.debug(
-            f"{log_prefix} Keeping '{ONBOARDING_SUPPORT_CATEGORY}' in CATEGORIES_LIST "
-            "because onboarding trigger terms were found in user chat history."
+    # Hard guard for onboarding routing reliability.
+    #
+    # When the Welcome Onboarding focus mode is active, the user is in an onboarding
+    # conversation — we force category to onboarding_support AFTER the LLM call
+    # (see "Force onboarding_support when Welcome focus is active" block below).
+    # In that case we keep the category in the list and set a flag.
+    #
+    # Otherwise, if no user-authored message in the current chat history mentions
+    # OpenMates/trigger phrases, remove onboarding_support from selectable categories
+    # before prompting the LLM so it cannot be mis-selected.
+    force_onboarding_category = request_data.active_focus_id == ONBOARDING_FOCUS_ID
+    if force_onboarding_category:
+        logger.info(
+            f"{log_prefix} Welcome Onboarding focus mode is active "
+            f"(active_focus_id='{request_data.active_focus_id}'). "
+            f"Will force category='{ONBOARDING_SUPPORT_CATEGORY}' after LLM call."
         )
+    else:
+        has_onboarding_trigger = _contains_onboarding_trigger_in_user_history(request_data.message_history)
+        if not has_onboarding_trigger:
+            onboarding_prefix = f"{ONBOARDING_SUPPORT_CATEGORY}:"
+            filtered_categories = [
+                category_entry
+                for category_entry in available_categories_list
+                if not category_entry.startswith(onboarding_prefix)
+            ]
+            if len(filtered_categories) != len(available_categories_list):
+                available_categories_list = filtered_categories
+                logger.info(
+                    f"{log_prefix} Removed '{ONBOARDING_SUPPORT_CATEGORY}' from CATEGORIES_LIST "
+                    "because no onboarding trigger terms were found in user chat history."
+                )
+        else:
+            logger.debug(
+                f"{log_prefix} Keeping '{ONBOARDING_SUPPORT_CATEGORY}' in CATEGORIES_LIST "
+                "because onboarding trigger terms were found in user chat history."
+            )
 
     # Build a set of bare category IDs (e.g. {"science", "finance", ...}) for validation.
     # The LLM is prompted with the full "id: description" strings (available_categories_list)
@@ -1996,7 +2012,20 @@ async def handle_preprocessing(
     else:
         # Category is valid
         logger.debug(f"{log_prefix} Category '{validated_category}' is valid (exists in available categories list).")
-    
+
+    # --- Force onboarding_support when Welcome focus is active ---
+    # When the user is in an onboarding conversation (openmates-welcome focus mode),
+    # always route to the onboarding mate regardless of what the LLM selected.
+    # This overrides any LLM category selection or fallback logic above.
+    if force_onboarding_category:
+        if validated_category != ONBOARDING_SUPPORT_CATEGORY:
+            logger.info(
+                f"{log_prefix} Overriding LLM category '{validated_category}' → "
+                f"'{ONBOARDING_SUPPORT_CATEGORY}' because Welcome Onboarding focus is active."
+            )
+        validated_category = ONBOARDING_SUPPORT_CATEGORY
+        llm_analysis_args["category"] = ONBOARDING_SUPPORT_CATEGORY
+
     # --- Mate selection: user override first, then explicit request_data, then category-based ---
     # When the user specified @mate:..., we use only that and do not run automatic selection
     # (consistent with model and skill/focus overrides).
