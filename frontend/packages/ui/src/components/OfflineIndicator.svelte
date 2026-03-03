@@ -17,8 +17,8 @@
 {#if !$isOnline}
   <div
     class="offline-indicator"
-    title={$text('connection.offline_banner.title')}
-    aria-label={$text('connection.offline_banner.title')}
+    title={$text('notifications.connection.offline_banner.title')}
+    aria-label={$text('notifications.connection.offline_banner.title')}
     role="status"
     transition:fade={{ duration: 250 }}
   >
