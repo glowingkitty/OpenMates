@@ -1,5 +1,11 @@
 <!--
-Gift Card Redeem - Component for redeeming gift card codes
+Gift Card Redeem - Component for redeeming gift card codes.
+Supports an optional initialCode prop to pre-fill the input field (used by the
+/#gift-card=CODE deep link in +page.svelte). When no initialCode is supplied the
+component also checks sessionStorage for a 'pending_gift_card_code' value so the
+code survives across the signup flow.
+
+Tests: (none yet)
 -->
 
 <script lang="ts">
@@ -11,16 +17,32 @@ Gift Card Redeem - Component for redeeming gift card codes
     const dispatch = createEventDispatcher();
 
     // Props to control behavior in different contexts
-    let { 
-        hideSuccessMessage = false // When true, don't show success message (e.g., during signup)
+    let {
+        hideSuccessMessage = false, // When true, don't show success message (e.g., during signup)
+        initialCode = ''            // Optional pre-filled code (e.g., from /#gift-card=CODE deep link)
     }: {
         hideSuccessMessage?: boolean;
+        initialCode?: string;
     } = $props();
 
     let giftCardCode = $state('');
     let isRedeeming = $state(false);
     let errorMessage: string | null = $state(null);
     let successMessage: string | null = $state(null);
+
+    // Pre-fill from prop or sessionStorage on mount
+    $effect(() => {
+        if (initialCode) {
+            giftCardCode = initialCode.toUpperCase();
+        } else if (typeof window !== 'undefined') {
+            const pending = sessionStorage.getItem('pending_gift_card_code');
+            if (pending) {
+                giftCardCode = pending.toUpperCase();
+                sessionStorage.removeItem('pending_gift_card_code');
+                console.debug('[GiftCardRedeem] Pre-filled code from sessionStorage');
+            }
+        }
+    });
 
     /**
      * Redeem the gift card code

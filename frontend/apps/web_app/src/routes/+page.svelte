@@ -1024,11 +1024,54 @@
 			'[+page.svelte] Shared chat cleanup skipped - shared chats persist until explicitly deleted'
 		);
 
+		// --- Gift-card deep link: /#gift-card=CODE ---
+		// The code lives entirely in the hash so the server never sees it.
+		// For authenticated users:  open Settings > Gift Cards > Redeem with the code pre-filled
+		// For unauthenticated users: store the code and open the signup flow so the code is applied at the credits step
+		const GIFT_CARD_HASH_PREFIX = '#gift-card=';
+		const GIFT_CARD_CODE_REGEX = /^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/i;
+		let hasGiftCardHash = false;
+
+		if (window.location.hash.startsWith(GIFT_CARD_HASH_PREFIX)) {
+			const rawCode = decodeURIComponent(
+				window.location.hash.substring(GIFT_CARD_HASH_PREFIX.length)
+			).toUpperCase();
+
+			if (GIFT_CARD_CODE_REGEX.test(rawCode)) {
+				hasGiftCardHash = true;
+				// Store code in sessionStorage so GiftCardRedeem / CreditsTopContent can pick it up
+				sessionStorage.setItem('pending_gift_card_code', rawCode);
+				console.debug(`[+page.svelte] Gift-card deep link detected, code stored in sessionStorage`);
+
+				// Clean the hash from the URL immediately (code is safely in sessionStorage)
+				history.replaceState(null, '', window.location.pathname + window.location.search);
+
+				// Branch based on auth state (isAuth is not yet set here — check optimistic local data)
+				const hasLocalAuth =
+					!!localStorage.getItem('stayLoggedIn') || !!sessionStorage.getItem('sessionToken');
+
+				if (hasLocalAuth) {
+					// Authenticated user: open the gift-card redeem settings page
+					// (settings panel opens after initialize() completes; set the deep link store now)
+					settingsDeepLink.set('gift_cards/redeem');
+					setTimeout(() => panelState.openSettings(), 100);
+				} else {
+					// Unauthenticated user: open the signup flow
+					// (code stays in sessionStorage for the credits step)
+					currentSignupStep.set('basics');
+					isInSignupProcess.set(true);
+					loginInterfaceOpen.set(true);
+				}
+			} else {
+				console.warn(`[+page.svelte] Invalid gift-card code in hash: ${rawCode}`);
+			}
+		}
+
 		// CRITICAL: Check for signup hash in URL BEFORE initialize() to ensure hash-based signup state takes precedence
 		// This ensures signup flow opens immediately on page reload if URL has #signup/ hash
 		// The hash takes precedence over last_opened from IndexedDB and checkAuth() logic
 		let hasSignupHash = false;
-		if (window.location.hash.startsWith('#signup/')) {
+		if (!hasGiftCardHash && window.location.hash.startsWith('#signup/')) {
 			hasSignupHash = true;
 			// Handle signup deep linking - open login interface and set signup step
 			console.debug(

@@ -102,6 +102,21 @@ class GenerateGiftCardsResponse(BaseModel):
     count: int
     message: str
 
+class AdminGiftCardItem(BaseModel):
+    """A single gift card item returned in the admin list."""
+    id: str
+    code: str
+    credits_value: int
+    created_at: str
+    notes: Optional[str] = None
+    purchased_at: Optional[str] = None  # None = admin-generated, set = user-purchased
+
+class AdminGiftCardListResponse(BaseModel):
+    """Response model for the admin gift card list endpoint."""
+    success: bool
+    gift_cards: List[AdminGiftCardItem]
+    count: int
+
 # --- Endpoints ---
 
 @router.post("/become-admin")
@@ -838,3 +853,51 @@ async def admin_generate_gift_cards(
         logger.error(f"Error generating gift cards: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to generate gift cards")
 
+
+@router.get("/gift-cards", response_model=AdminGiftCardListResponse)
+@limiter.limit("30/minute")
+async def admin_list_gift_cards(
+    request: Request,
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service)
+) -> Dict[str, Any]:
+    """
+    List all active (unredeemed) gift cards on the server.
+
+    Admin-only endpoint. Returns all gift cards currently in the database.
+    Redeemed cards are deleted on redemption, so all returned cards are still valid.
+
+    Security: Protected by require_admin dependency.
+    """
+    try:
+        cards = await directus_service.get_all_gift_cards()
+
+        # Normalise to the response model shape
+        gift_cards = [
+            {
+                "id": str(card.get("id", "")),
+                "code": card.get("code", ""),
+                "credits_value": card.get("credits_value", 0),
+                "created_at": card.get("created_at", ""),
+                "notes": card.get("notes") or None,
+                "purchased_at": card.get("purchased_at") or None,
+            }
+            for card in cards
+        ]
+
+        # Sort newest first so freshly generated cards appear at the top
+        gift_cards.sort(key=lambda c: c.get("created_at", ""), reverse=True)
+
+        logger.info(
+            f"Admin {admin_user.id} listed {len(gift_cards)} active gift card(s)"
+        )
+
+        return {
+            "success": True,
+            "gift_cards": gift_cards,
+            "count": len(gift_cards),
+        }
+
+    except Exception as e:
+        logger.error(f"Error listing gift cards: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to list gift cards")
