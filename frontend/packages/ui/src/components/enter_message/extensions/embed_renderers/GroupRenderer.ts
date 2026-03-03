@@ -411,9 +411,9 @@ export class GroupRenderer implements EmbedRenderer {
    * Recount the visible items in a group's scroll container and update the
    * header text to reflect the real visible count.
    *
-   * This is necessary because error embeds are hidden via `target.remove()`
-   * at render time (in `mountAppSkillUsePreview`), so the header's count
-   * (derived from `groupCount` / `groupedItems.length`) can be stale.
+   * Error embeds are now rendered inline (with error state) rather than removed,
+   * so the count should match groupedItems.length. This method remains as a
+   * safety net to reconcile any DOM-level discrepancies.
    */
   private reconcileGroupHeader(
     scrollContainer: HTMLElement,
@@ -642,9 +642,8 @@ export class GroupRenderer implements EmbedRenderer {
       await this.mountAppSkillUsePreview(item, itemWrapper);
     }
 
-    // CRITICAL: Recount visible items after mounting — error embeds call target.remove()
-    // so the actual number of rendered items may be less than items.length.
-    // Update the header to reflect the real visible count.
+    // Safety net: reconcile header count with actual rendered items.
+    // Error embeds are now rendered inline, so count should match items.length.
     this.reconcileGroupHeader(scrollContainer, header, baseType);
 
     console.debug(
@@ -701,16 +700,16 @@ export class GroupRenderer implements EmbedRenderer {
     const taskId = decodedContent?.task_id;
     const results = decodedContent?.results || [];
 
-    // CRITICAL: Skip rendering error embeds - they should be hidden from users
-    // Failed skill executions are not shown in the user experience
+    // Error embeds are kept in the group and rendered with status: 'error'.
+    // The individual preview components handle the error state display (dimmed,
+    // with an error indicator). This preserves group stability during streaming
+    // and gives users visibility into what failed.
     if (status === "error") {
       console.debug(
-        `[GroupRenderer] Skipping error embed - hiding from user:`,
+        `[GroupRenderer] Rendering error embed in group:`,
         embedId || item.id,
       );
-      // Remove the target element from DOM since we won't render anything
-      target.remove();
-      return;
+      // Continue to the mounting logic below — the component will render in error state
     }
 
     // Merge query from multiple sources

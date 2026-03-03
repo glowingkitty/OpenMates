@@ -3,7 +3,11 @@
 // Uses the shared CodeBlockStateMachine for reliable code fence detection
 
 import { EmbedNodeAttributes } from "./types";
-import { EMBED_PATTERNS, generateUUID, CodeBlockStateMachine } from "./utils";
+import {
+  EMBED_PATTERNS,
+  deterministicId,
+  CodeBlockStateMachine,
+} from "./utils";
 import { normalizeEmbedType } from "../data/embedRegistry.generated";
 
 /**
@@ -42,9 +46,14 @@ function createPreviewEmbed(
   language?: string,
   filename?: string,
 ): EmbedNodeAttributes {
-  const id = generateUUID();
+  // STABLE ID: Derive from language + first 200 chars of content so
+  // re-parsing the same markdown produces an identical node ID.
   const embedType = getEmbedTypeFromLanguage(language);
   const normalizedLang = (language || "").toLowerCase().trim();
+  const id = deterministicId(
+    `${embedType}:${normalizedLang}:${content.slice(0, 200)}`,
+    "code",
+  );
 
   const previewEmbed: EmbedNodeAttributes = {
     id,
@@ -84,9 +93,14 @@ function createReadEmbed(
   language?: string,
   filename?: string,
 ): EmbedNodeAttributes {
-  const id = generateUUID();
+  // STABLE ID: Derive from language + first 200 chars of content so
+  // re-parsing during streaming produces the same node ID each time.
   const embedType = getEmbedTypeFromLanguage(language);
   const normalizedLang = (language || "").toLowerCase().trim();
+  const id = deterministicId(
+    `${embedType}:${normalizedLang}:${content.slice(0, 200)}`,
+    "code",
+  );
 
   const readEmbed: EmbedNodeAttributes = {
     id,
@@ -204,7 +218,12 @@ export function parseEmbedNodes(
           try {
             const embedRef = JSON.parse(content.trim());
             if (embedRef.type && embedRef.embed_id) {
-              const id = generateUUID();
+              // STABLE ID: Use server's embed_id directly instead of generateUUID().
+              // This is critical for incremental streaming updates — when the same
+              // markdown is re-parsed on the next streaming chunk, this embed gets
+              // the same node ID, allowing ProseMirror to match and update instead
+              // of destroying and recreating the NodeView.
+              const id = embedRef.embed_id;
               const embedStatus = mode === "write" ? "processing" : "finished";
 
               // CRITICAL: Extract app_id and skill_id from JSON reference
@@ -273,7 +292,8 @@ export function parseEmbedNodes(
           try {
             const embedData = JSON.parse(content.trim());
             if (embedData.type === "website" && embedData.url) {
-              const id = generateUUID();
+              // STABLE ID: Derive from URL so re-parsing produces the same ID
+              const id = deterministicId(embedData.url, "web");
               embedNodes.push({
                 id,
                 type: "web-website",
@@ -307,7 +327,12 @@ export function parseEmbedNodes(
             "",
           );
           const wordCount = content.split(/\s+/).filter((w) => w.trim()).length;
-          const id = generateUUID();
+          // STABLE ID: Derive from content so re-parsing produces the same ID.
+          // Use first 200 chars to keep hash input bounded while still unique.
+          const id = deterministicId(
+            `document_html:${content.slice(0, 200)}`,
+            "doc",
+          );
 
           if (mode === "write") {
             embedNodes.push({
@@ -448,13 +473,18 @@ function parseNonCodeBlockEmbeds(
           url = `https://${url}`;
         }
 
-        const id = generateUUID();
+        // STABLE ID: Derive from URL so re-parsing produces the same ID
         let type = "web-website";
 
         // Check if it's a YouTube URL
         if (EMBED_PATTERNS.YOUTUBE_URL.test(url)) {
           type = "videos-video";
         }
+
+        const id = deterministicId(
+          url,
+          type === "videos-video" ? "vid" : "url",
+        );
 
         embedNodes.push({
           id,

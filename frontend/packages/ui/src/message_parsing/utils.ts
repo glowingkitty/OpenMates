@@ -45,6 +45,25 @@ export function generateUUID(): string {
   });
 }
 
+/**
+ * Generate a deterministic ID from a string input using DJB2 hash.
+ * Used for embed IDs that must be stable across re-parses (streaming updates).
+ * The hash is fast, synchronous, and produces consistent output for identical input.
+ *
+ * @param input - The string to hash (e.g., URL, language+content, embed_id)
+ * @param prefix - Optional prefix for the ID (e.g., "code", "url", "doc")
+ * @returns A deterministic ID string in format "{prefix}_{hex_hash}"
+ */
+export function deterministicId(input: string, prefix = "det"): string {
+  // DJB2 hash — fast, low collision for short-to-medium strings
+  let hash = 5381;
+  for (let i = 0; i < input.length; i++) {
+    // hash * 33 + charCode
+    hash = ((hash << 5) + hash + input.charCodeAt(i)) >>> 0;
+  }
+  return `${prefix}_${hash.toString(16).padStart(8, "0")}`;
+}
+
 // Compute SHA256 hash of content
 export async function computeSHA256(content: string): Promise<string> {
   const encoder = new TextEncoder();
