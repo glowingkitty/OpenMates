@@ -23,6 +23,7 @@
   import { text } from '@repo/ui';
   import { notificationStore } from '../../../stores/notificationStore';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
+  import { handleImageError } from '../../../utils/offlineImageHandler';
 
   /**
    * Props for maps location embed fullscreen
@@ -269,7 +270,7 @@
             src={mapImageUrl}
             alt={name || $text('embeds.maps_location')}
             class="map-fullscreen-image"
-            onerror={() => { imageError = true; }}
+            onerror={(e) => { imageError = true; handleImageError(e.currentTarget as HTMLImageElement); }}
           />
         </div>
       {:else if status === 'processing'}

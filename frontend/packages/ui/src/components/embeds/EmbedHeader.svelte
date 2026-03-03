@@ -76,8 +76,10 @@
    */
   let useDecoSkillIcon = $derived(!!skillIconName);
 
+  import { handleImageError } from '../../utils/offlineImageHandler';
+
   function hideFavicon(e: Event) {
-    (e.target as HTMLImageElement).style.display = 'none';
+    handleImageError(e.target as HTMLImageElement);
   }
 </script>
 

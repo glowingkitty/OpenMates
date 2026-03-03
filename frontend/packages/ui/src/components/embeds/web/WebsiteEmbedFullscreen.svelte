@@ -25,6 +25,7 @@
 
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import { handleImageError } from '../../../utils/offlineImageHandler';
   
   /**
    * Props for website embed fullscreen
@@ -424,7 +425,7 @@
             class="header-image"
             loading="lazy"
             crossorigin="anonymous"
-            onerror={() => { imageError = true; }}
+            onerror={(e) => { imageError = true; handleImageError(e.currentTarget as HTMLImageElement); }}
           />
         </div>
       {/if}

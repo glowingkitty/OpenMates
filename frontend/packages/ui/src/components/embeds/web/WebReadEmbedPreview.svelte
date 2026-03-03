@@ -26,6 +26,7 @@
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { chatSyncService } from '../../../services/chatSyncService';
+  import { handleImageError } from '../../../utils/offlineImageHandler';
   import type { BaseSkillPreviewData } from '../../../types/appSkills';
   import { text } from '@repo/ui';
   
@@ -305,7 +306,7 @@
             alt="" 
             class="title-favicon"
             crossorigin="anonymous"
-            onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+            onerror={(e) => { handleImageError(e.currentTarget as HTMLImageElement); }}
           />
         {/if}
         <div class="read-title">{displayTitle}</div>

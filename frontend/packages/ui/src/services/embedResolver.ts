@@ -126,8 +126,23 @@ export async function resolveEmbed(
       try {
         // Ensure the cache is loaded from IndexedDB
         await loadFromCache();
-        // Also wait for any server fetch in progress
-        await waitForLoadingComplete();
+        // Also wait for any server fetch in progress, but with a timeout.
+        // When offline, the server fetch may hang indefinitely — a 3s timeout
+        // prevents the entire embed resolution pipeline from blocking.
+        // If the timeout fires, we continue without the demo store; user's own
+        // embeds are resolved from IndexedDB regardless.
+        const DEMO_STORE_LOAD_TIMEOUT_MS = 3000;
+        await Promise.race([
+          waitForLoadingComplete(),
+          new Promise<void>((resolve) =>
+            setTimeout(() => {
+              console.warn(
+                `[embedResolver] Demo store loading timed out after ${DEMO_STORE_LOAD_TIMEOUT_MS}ms (possibly offline), continuing without it`,
+              );
+              resolve();
+            }, DEMO_STORE_LOAD_TIMEOUT_MS),
+          ),
+        ]);
       } catch (error) {
         console.warn(
           "[embedResolver] Error waiting for demo store cache:",

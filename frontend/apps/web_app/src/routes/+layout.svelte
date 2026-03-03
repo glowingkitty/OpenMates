@@ -16,6 +16,7 @@
 		// components
 		MetaTags,
 		OfflineBanner,
+		OfflineIndicator,
 		// Config
 		loadMetaTags,
 		getApiEndpoint,
@@ -268,6 +269,7 @@
 {#if loaded}
 	<MetaTags />
 	<OfflineBanner />
+	<OfflineIndicator />
 {/if}
 <main>
 	{@render children()}

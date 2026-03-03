@@ -33,6 +33,7 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import { handleImageError } from '../../../utils/offlineImageHandler';
   
   // ===========================================
   // Types
@@ -413,9 +414,10 @@
                 alt={displayTitle}
                 loading="lazy"
                 crossorigin="anonymous"
-                onerror={() => {
+                onerror={(e) => {
                   imageLoadError = true;
-                  console.debug('[WebsiteEmbedPreview] Image load error, hiding image');
+                  handleImageError(e.currentTarget as HTMLImageElement);
+                  console.debug('[WebsiteEmbedPreview] Image load error, showing placeholder');
                 }}
               />
             </div>

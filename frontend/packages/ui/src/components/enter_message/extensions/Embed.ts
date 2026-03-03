@@ -758,14 +758,17 @@ export const Embed = Node.create<EmbedOptions>({
           })();
         }
       } else {
-        // No renderer found - this should not happen for properly configured embed types
+        // No renderer found - show a graceful error instead of throwing.
+        // Throwing here would crash the entire TipTap editor creation (new Editor())
+        // and make the whole message invisible. A missing renderer for one embed
+        // should not prevent the rest of the message from rendering.
         console.error(
           "[Embed] No renderer found for embed type:",
           currentAttrs.type,
+          "— rendering fallback. Available renderers:",
+          Object.keys(embedRenderers),
         );
-        throw new Error(
-          `No renderer found for embed type: ${currentAttrs.type}. This indicates a missing renderer registration.`,
-        );
+        mountTarget.innerHTML = `<div class="embed-error" style="padding:8px;font-size:12px;color:var(--color-grey-50);opacity:0.7">Embed unavailable</div>`;
       }
 
       // For image embeds: listen for the 'cancelimageupload' event fired by the

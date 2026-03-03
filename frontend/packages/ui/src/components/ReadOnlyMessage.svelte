@@ -604,13 +604,31 @@
             return true; // Keep first occurrence
         });
     
-        editor = new Editor({
-            element: editorElement,
-            extensions: extensions,
-            content: processedContent,
-            editable: false, // Make it read-only
-            injectCSS: false, // Don't inject default styles
-        });
+        try {
+            editor = new Editor({
+                element: editorElement,
+                extensions: extensions,
+                content: processedContent,
+                editable: false, // Make it read-only
+                injectCSS: false, // Don't inject default styles
+            });
+        } catch (error) {
+            // If TipTap editor creation fails (e.g., an embed NodeView throws),
+            // render the raw text as a fallback so the message is still visible.
+            // This prevents a single broken embed from taking down the entire message.
+            console.error('[ReadOnlyMessage] TipTap editor creation failed, rendering text fallback:', error);
+            if (editorElement) {
+                const fallbackText = typeof processedContent === 'string'
+                    ? processedContent
+                    : (processedContent as Record<string, unknown>)?.text || content || '';
+                const fallbackDiv = document.createElement('div');
+                fallbackDiv.className = 'editor-fallback';
+                fallbackDiv.textContent = String(fallbackText);
+                editorElement.appendChild(fallbackDiv);
+            }
+            editorCreated = true;
+            return;
+        }
         
         // Listen for right-clicks on the editor (for embed context menu)
         // Left clicks are handled by UnifiedEmbedPreview components directly
