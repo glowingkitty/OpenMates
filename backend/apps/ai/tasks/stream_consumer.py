@@ -760,7 +760,11 @@ async def _charge_credits(
     try:
         async with httpx.AsyncClient() as client:
             url = f"{INTERNAL_API_BASE_URL}/internal/billing/charge"
-            logger.info(f"{log_prefix} Charging {credits} credits. Payload: {charge_payload}")
+            logger.info(
+                f"{log_prefix} Charging {credits} credits. "
+                f"Payload summary: keys={sorted(charge_payload.keys())}, "
+                f"usage_detail_keys={sorted(usage_details.keys()) if isinstance(usage_details, dict) else []}"
+            )
             response = await client.post(url, json=charge_payload, headers=headers)
             response.raise_for_status()
             logger.info(f"{log_prefix} Successfully charged {credits} credits. Response: {response.json()}")
@@ -1856,7 +1860,10 @@ async def _consume_main_processing_stream(
                 # Replace any [ERROR: ...] messages with the translation key for generic error message
                 # This ensures users never see technical error details
                 if chunk.strip().startswith("[ERROR"):
-                    logger.warning(f"{log_prefix} Detected error message in stream chunk: {chunk[:200]}... Replacing with generic error message.")
+                    logger.warning(
+                        f"{log_prefix} Detected error marker in stream chunk "
+                        f"(chunk_len={len(chunk)}). Replacing with generic error message."
+                    )
                     chunk = "chat.an_error_occured"
                 
                 # Strip <tool_call>...</tool_call> XML blocks from text content
@@ -1875,13 +1882,16 @@ async def _consume_main_processing_stream(
                 # subsequent text chunks in this task are also leaked reasoning; we drop them all.
                 # See: google_client.py _clamp_temperature_for_thinking_model (Fix 1, primary defense).
                 if in_leaked_thought_mode:
-                    logger.debug(f"{log_prefix} Dropping leaked thought chunk (seq ~{stream_chunk_count + 1}, len={len(chunk)}): preview={repr(chunk[:80])}")
+                    logger.debug(
+                        f"{log_prefix} Dropping leaked thought chunk "
+                        f"(seq ~{stream_chunk_count + 1}, len={len(chunk)})"
+                    )
                     continue
                 if chunk.lstrip().startswith("{thought}"):
                     logger.warning(
                         f"{log_prefix} Detected leaked Gemini thought content at chunk ~{stream_chunk_count + 1}. "
                         f"Activating in_leaked_thought_mode and dropping all subsequent text. "
-                        f"model={stream_model_name}, preview={repr(chunk[:120])}"
+                        f"model={stream_model_name}, chunk_len={len(chunk)}"
                     )
                     in_leaked_thought_mode = True
                     continue
@@ -1900,8 +1910,7 @@ async def _consume_main_processing_stream(
                     if alpha_ratio < 0.02:
                         logger.warning(
                             f"{log_prefix} Dropping garbled chunk (seq ~{stream_chunk_count + 1}, "
-                            f"len={len(chunk)}, alpha_ratio={alpha_ratio:.3f}): "
-                            f"preview={repr(chunk[:80])}"
+                            f"len={len(chunk)}, alpha_ratio={alpha_ratio:.3f})"
                         )
                         continue
                 
@@ -1947,11 +1956,12 @@ async def _consume_main_processing_stream(
                     fence_line = lines[0].strip()
                     fence_content = fence_line[3:].strip()  # Remove ```
                     
-                    # DEBUG: Log the raw chunk and extracted values for code block debugging
-                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Raw chunk (first 500 chars): {repr(chunk[:500])}")
+                    # DEBUG: Log metadata only for code block debugging (never raw content)
                     logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Lines count: {len(lines)}")
-                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] fence_line: {repr(fence_line)}")
-                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] fence_content (after removing ```): {repr(fence_content)}")
+                    logger.info(
+                        f"{log_prefix} [CODE_BLOCK_DEBUG] fence metadata: "
+                        f"line_len={len(fence_line)}, fence_content_len={len(fence_content)}"
+                    )
                     
                     if ':' in fence_content:
                         # Has filename: language:filename
@@ -1984,15 +1994,17 @@ async def _consume_main_processing_stream(
                                 if not current_code_language:
                                     current_code_language = potential_lang
                                     extracted_from_first_line = True
-                                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted language from first content line: {repr(current_code_language)}")
+                                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted language from first content line")
                                 if not current_code_filename:
                                     current_code_filename = potential_filename
                                     extracted_from_first_line = True
-                                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted filename from first content line: {repr(current_code_filename)}")
+                                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted filename from first content line")
                     
                     # DEBUG: Log extracted language and filename
-                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Final extracted language: {repr(current_code_language)}")
-                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Final extracted filename: {repr(current_code_filename)}")
+                    logger.info(
+                        f"{log_prefix} [CODE_BLOCK_DEBUG] Final metadata: "
+                        f"language_present={bool(current_code_language)}, filename_present={bool(current_code_filename)}"
+                    )
                     
                     # Check if this chunk contains both opening and closing fence (complete code block)
                     # Look for closing fence in remaining lines (after the opening fence line)
@@ -2021,10 +2033,12 @@ async def _consume_main_processing_stream(
                                     logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Removed language:filename line from code content")
                         code_content = '\n'.join(content_lines)
                         
-                        # DEBUG: Log extracted code content
+                        # DEBUG: Log extracted code metadata only (never code content)
                         logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Complete code block detected, closing_line_idx: {closing_line_idx}")
-                        logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] content_lines: {repr(content_lines[:5])}{'...' if len(content_lines) > 5 else ''}")
-                        logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] code_content (first 200 chars): {repr(code_content[:200])}")
+                        logger.info(
+                            f"{log_prefix} [CODE_BLOCK_DEBUG] content metadata: "
+                            f"content_lines={len(content_lines)}, code_content_len={len(code_content)}"
+                        )
                         
                         # HARDENING: Detect fake tool calls in code blocks
                         # This catches cases where the LLM outputs code blocks that look like tool calls
@@ -2049,7 +2063,7 @@ async def _consume_main_processing_stream(
                             logger.warning(
                                 f"{log_prefix} [FAKE_TOOL_CALL_DETECTED] LLM output a 'tool_code' code block "
                                 f"with tool='{fake_tool_name}'. This indicates the LLM tried to use a tool "
-                                f"that was not available. Content: {code_content[:500]}"
+                                f"that was not available. code_content_length={len(code_content)}"
                             )
                         
                         # Pattern 2: Code block with language "toon" containing nested tool structure
@@ -2061,7 +2075,7 @@ async def _consume_main_processing_stream(
                                 logger.warning(
                                     f"{log_prefix} [FAKE_TOOL_CALL_DETECTED] LLM output a 'toon' code block "
                                     f"containing tool-like structure. This indicates the LLM tried to fake "
-                                    f"a tool result using TOON encoding. Content: {code_content[:500]}"
+                                    f"a tool result using TOON encoding. code_content_length={len(code_content)}"
                                 )
                         
                         # Pattern 3: JSON code block with {"tool": "...", "input": {...}} structure
@@ -2078,7 +2092,7 @@ async def _consume_main_processing_stream(
                                             f"{log_prefix} [FAKE_TOOL_CALL_DETECTED] LLM output a JSON code block "
                                             f"that looks like a tool call definition. Tool='{fake_tool_name}'. "
                                             f"This indicates the LLM tried to use a tool that was not available. "
-                                            f"Content: {code_content[:500]}"
+                                            f"code_content_length={len(code_content)}"
                                         )
                                 except (json.JSONDecodeError, Exception):
                                     pass  # Not a valid JSON, ignore
@@ -2209,7 +2223,11 @@ async def _consume_main_processing_stream(
                                         # Replace document block with embed reference in chunk
                                         embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
                                         chunk = embed_reference_code
-                                        logger.info(f"{log_prefix} Created and finalized document embed {current_code_embed_id} for complete document_html block (title: {doc_title or 'none'})")
+                                        logger.info(
+                                            f"{log_prefix} Created and finalized document embed {current_code_embed_id} "
+                                            f"for complete document_html block "
+                                            f"(title_present={bool(doc_title)}, title_length={len(doc_title) if isinstance(doc_title, str) else 0})"
+                                        )
                                         
                                         # Reset state
                                         in_code_block = False
@@ -2318,7 +2336,7 @@ async def _consume_main_processing_stream(
                             # Save original chunk (currently unused but left for future potential use)
                             # pending_code_fence_chunk = chunk
                             chunk = ""  # Don't emit anything yet
-                            logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Detected bare fence '```', waiting for potential language in next chunk")
+                            logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Detected bare fence, waiting for potential language in next chunk")
                             continue  # Skip the rest of processing, wait for next chunk
                         
                         # Extract any content after opening fence in this chunk
@@ -2438,7 +2456,11 @@ async def _consume_main_processing_stream(
                                         # Replace opening fence with embed reference
                                         embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
                                         chunk = embed_reference_code
-                                        logger.info(f"{log_prefix} Created document embed placeholder {current_code_embed_id} (title: {current_document_title or 'none'})")
+                                        logger.info(
+                                            f"{log_prefix} Created document embed placeholder {current_code_embed_id} "
+                                            f"(title_present={bool(current_document_title)}, "
+                                            f"title_length={len(current_document_title) if isinstance(current_document_title, str) else 0})"
+                                        )
                                 elif is_email_block_multi:
                                     in_email_block = True
 
@@ -2537,17 +2559,17 @@ async def _consume_main_processing_stream(
                                 parts = first_line.split(':', 1)
                                 current_code_language = parts[0].strip()
                                 current_code_filename = parts[1].strip() if len(parts) > 1 else None
-                                logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted language and filename from next chunk: {current_code_language}:{current_code_filename}")
+                                logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted language and filename from next chunk")
                             else:
                                 current_code_language = first_line
-                                logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted language from next chunk: {repr(current_code_language)}")
+                                logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted language from next chunk")
                             
                             # Any remaining lines after the language are code content
                             current_code_content = remaining_content
                         else:
                             # Not a language - treat entire chunk as code content
                             current_code_content = chunk
-                            logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] No language found in chunk, treating as code: {repr(first_line[:50])}")
+                            logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] No language found in chunk, treating as code")
                         
                         # HARDENING: Check for suspicious languages that indicate fake tool calls
                         # This mirrors the check in the direct-language path (Path B) above.
@@ -2649,7 +2671,12 @@ async def _consume_main_processing_stream(
                                         # Emit the embed reference now
                                         embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
                                         chunk = embed_reference_code
-                                        logger.info(f"{log_prefix} Created document embed placeholder {current_code_embed_id} (title: {current_document_title or 'none'}) after waiting for language")
+                                        logger.info(
+                                            f"{log_prefix} Created document embed placeholder {current_code_embed_id} "
+                                            f"after waiting for language "
+                                            f"(title_present={bool(current_document_title)}, "
+                                            f"title_length={len(current_document_title) if isinstance(current_document_title, str) else 0})"
+                                        )
                                     else:
                                         chunk = ""  # Failed to create document embed
                                 elif is_email_block_post_bare:
@@ -2950,7 +2977,11 @@ async def _consume_main_processing_stream(
                                         log_prefix=log_prefix
                                     )
                                     
-                                    logger.info(f"{log_prefix} Finalized document embed {current_code_embed_id} with {len(current_code_content)} chars (title: {current_document_title or 'none'})")
+                                    logger.info(
+                                        f"{log_prefix} Finalized document embed {current_code_embed_id} with {len(current_code_content)} chars "
+                                        f"(title_present={bool(current_document_title)}, "
+                                        f"title_length={len(current_document_title) if isinstance(current_document_title, str) else 0})"
+                                    )
                                 elif in_email_block:
                                     parsed_email = _parse_email_fence_content(current_code_content)
                                     await embed_service.update_mail_embed_content(
@@ -3217,10 +3248,9 @@ async def _consume_main_processing_stream(
                     # CRITICAL: Always log chunk publishing for debugging (but less verbose)
                     # This helps diagnose if chunks are being published correctly
                     is_code_block = chunk.strip().startswith("```")
-                    chunk_preview = chunk[:50].replace("\n", "\\n") if len(chunk) > 50 else chunk.replace("\n", "\\n")
                     log_message = (
                         f"Published chunk (seq: {stream_chunk_count}, type={'code_block' if is_code_block else 'text'}, "
-                        f"preview='{chunk_preview}...', total_length={len(current_full_content)}) to '{redis_channel_name}'"
+                        f"chunk_len={len(chunk)}, total_length={len(current_full_content)}) to '{redis_channel_name}'"
                     )
                     
                     # CRITICAL: Use await to ensure publish completes before continuing
@@ -3369,7 +3399,7 @@ async def _consume_main_processing_stream(
                     logger.warning(
                         f"{log_prefix} Post-aggregation garbled sweep: stripping {len(span)} chars "
                         f"at position {match.start()}-{match.end()} "
-                        f"(alpha_ratio={alpha_ratio:.4f}): preview={repr(span[:80])}"
+                        f"(alpha_ratio={alpha_ratio:.4f})"
                     )
                     cleaned = cleaned[:match.start()] + cleaned[match.end():]
                     total_stripped += len(span)
@@ -3497,31 +3527,13 @@ async def _consume_main_processing_stream(
             )
         return aggregated_response, False, False, [], debug_metadata
     
-    # IMPROVED LOGGING: Log the full streamed assistant message for debugging
-    # This helps diagnose parsing issues, embed reference problems, and code block extraction
+    # IMPROVED LOGGING: metadata-only stream completion details.
+    # Never log streamed assistant content to avoid plaintext leakage.
     logger.info(
-        f"{log_prefix} [FULL_STREAMED_MESSAGE] "
+        f"{log_prefix} [STREAM_AGGREGATION] "
         f"Total chunks: {stream_chunk_count}, "
-        f"Total length: {len(aggregated_response)} chars, "
-        f"Message preview (first 500 chars):\n{repr(aggregated_response[:500])}"
+        f"Total length: {len(aggregated_response)} chars"
     )
-    # Log full message in chunks if it's very long (to avoid log truncation)
-    if len(aggregated_response) > 2000:
-        # Split into chunks of 2000 chars for logging
-        chunk_size = 2000
-        for i in range(0, len(aggregated_response), chunk_size):
-            chunk_num = (i // chunk_size) + 1
-            total_chunks = (len(aggregated_response) + chunk_size - 1) // chunk_size
-            chunk_content = aggregated_response[i:i + chunk_size]
-            logger.info(
-                f"{log_prefix} [FULL_STREAMED_MESSAGE] "
-                f"Chunk {chunk_num}/{total_chunks} (chars {i}-{min(i + chunk_size, len(aggregated_response))}):\n{repr(chunk_content)}"
-            )
-    else:
-        # Log full message if it's short enough
-        logger.info(
-            f"{log_prefix} [FULL_STREAMED_MESSAGE] Complete message:\n{repr(aggregated_response)}"
-        )
     
     # Wait for all URL validation tasks to complete (non-blocking during streaming, but wait now)
     if url_validation_tasks:

@@ -9,6 +9,7 @@
 
 import logging
 import hashlib
+import json
 from typing import Dict, Any, Optional, List, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -342,12 +343,15 @@ class AppSettingsAndMemoriesMethods:
             return None
         
         try:
-            import json
             decrypted_value = json.loads(decrypted_json_string)
             logger.info(f"Successfully fetched, decrypted, and parsed app item for user {user_id[:8]}..., app {app_id}, key {item_key}")
             return decrypted_value
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse decrypted JSON for app item user {user_id[:8]}..., app {app_id}, key {item_key}. Error: {str(e)}. Decrypted string: '{decrypted_json_string[:100]}...'")
+            logger.error(
+                f"Failed to parse decrypted JSON for app item user {user_id[:8]}..., "
+                f"app {app_id}, key {item_key}. Error: {str(e)}. "
+                f"Decrypted string length: {len(decrypted_json_string)}"
+            )
             return None 
         except Exception as e:
             logger.error(f"Unexpected error parsing decrypted JSON for app item user {user_id[:8]}..., app {app_id}, key {item_key}: {str(e)}", exc_info=True)

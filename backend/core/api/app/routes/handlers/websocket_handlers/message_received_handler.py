@@ -66,7 +66,19 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         is_incognito = payload.get("is_incognito", False)
 
         if not chat_id or not message_payload_from_client or not isinstance(message_payload_from_client, dict):
-            logger.error(f"Invalid message payload structure from {user_id}/{device_fingerprint_hash}: {payload}")
+            payload_keys = sorted(payload.keys()) if isinstance(payload, dict) else []
+            message_keys = (
+                sorted(message_payload_from_client.keys())
+                if isinstance(message_payload_from_client, dict)
+                else []
+            )
+            logger.error(
+                "Invalid message payload structure from "
+                f"{user_id}/{device_fingerprint_hash}: "
+                f"chat_id_present={bool(chat_id)}, "
+                f"message_is_dict={isinstance(message_payload_from_client, dict)}, "
+                f"payload_keys={payload_keys}, message_keys={message_keys}"
+            )
             await manager.send_personal_message(
                 {"type": "error", "payload": {"message": "Invalid message payload structure"}},
                 user_id,
@@ -1121,7 +1133,10 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                                 )
                             )
                         except json.JSONDecodeError:
-                            logger.warning(f"Could not parse cached message string for chat {chat_id}: {msg_str[:100]}...")
+                            logger.warning(
+                                f"Could not parse cached message string for chat {chat_id} "
+                                f"(message_length={len(msg_str) if isinstance(msg_str, str) else 0})"
+                            )
                         except Exception as e_hist_parse:
                             logger.warning(f"Error processing cached message for AI history: {e_hist_parse}")
                     

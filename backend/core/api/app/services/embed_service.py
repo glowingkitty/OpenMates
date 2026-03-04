@@ -1346,7 +1346,10 @@ class EmbedService:
                 log_prefix=log_prefix
             )
 
-            logger.info(f"{log_prefix} Created processing document embed placeholder {embed_id} (title: {title or 'none'})")
+            logger.info(
+                f"{log_prefix} Created processing document embed placeholder {embed_id} "
+                f"(title_present={bool(title)}, title_length={len(title) if isinstance(title, str) else 0})"
+            )
 
             # Generate embed reference JSON
             embed_reference = json.dumps({

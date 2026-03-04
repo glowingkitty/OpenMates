@@ -5,6 +5,16 @@ from typing import Dict, Tuple, Optional
 
 logger = logging.getLogger(__name__)
 
+
+def _safe_message_summary(message: object) -> str:
+    """Return metadata-only message summary for logs."""
+    if isinstance(message, dict):
+        keys = sorted(message.keys())
+        return f"keys={keys}, key_count={len(keys)}"
+    if isinstance(message, list):
+        return f"list_len={len(message)}"
+    return f"type={type(message).__name__}"
+
 class ConnectionManager:
     """
     Manages WebSocket connections with support for multiple browser instances per device.
@@ -174,7 +184,10 @@ class ConnectionManager:
         if websocket:
             try:
                 await websocket.send_json(message)
-                logger.debug(f"Sent message to User {user_id}, Device {device_fingerprint_hash}: {message}")
+                logger.debug(
+                    f"Sent message to User {user_id}, Device {device_fingerprint_hash} "
+                    f"(message_summary={_safe_message_summary(message)})"
+                )
             except Exception as e: # Catch any exception during send
                 logger.error(f"Error sending message to User {user_id}, Device {device_fingerprint_hash} (ws_id: {id(websocket)}): {e}. Initiating disconnect process.")
                 self.disconnect(websocket, reason=f"Send error: {type(e).__name__}") # Pass reason
@@ -213,7 +226,10 @@ class ConnectionManager:
                         logger.error(f"Error broadcasting to User {user_id}, Device {failed_device_hash_lookup} (WS ID: {ws_id}): {result}. Initiating disconnect process.")
                         self.disconnect(failed_websocket, reason=f"Broadcast error: {type(result).__name__}") # Pass reason
 
-                logger.debug(f"Broadcasted message to User {user_id} (excluding {exclude_device_hash}): {message}")
+                logger.debug(
+                    f"Broadcasted message to User {user_id} (excluding {exclude_device_hash}) "
+                    f"(message_summary={_safe_message_summary(message)})"
+                )
 
     async def broadcast_to_user_specific_event(self, user_id: str, event_name: str, payload: dict):
         """Sends a specific event message to all connected devices for a specific user."""
@@ -251,7 +267,11 @@ class ConnectionManager:
                         self.disconnect(failed_websocket, reason=f"Broadcast event error: {type(result).__name__}") # Pass reason
                 
                 if event_name != "send_embed_data":  # Avoid duplicate logging for send_embed_data
-                    logger.debug(f"Broadcasted event '{event_name}' to User {user_id}. Payload: {payload}")
+                    payload_keys = sorted(payload.keys()) if isinstance(payload, dict) else []
+                    logger.debug(
+                        f"Broadcasted event '{event_name}' to User {user_id}. "
+                        f"Payload summary: keys={payload_keys}, key_count={len(payload_keys)}"
+                    )
 
     def is_user_active(self, user_id: str) -> bool:
         """Checks if a user has any active WebSocket connections or connections in grace period."""

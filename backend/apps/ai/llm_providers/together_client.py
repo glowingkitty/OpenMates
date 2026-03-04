@@ -365,14 +365,23 @@ async def _stream_together_response(
                                 error_detail = json.loads(error_text)
                                 error_msg = error_detail.get('error', {}).get('message', error_detail.get('message', error_msg))
                             except json.JSONDecodeError:
-                                error_msg = f"HTTP {response.status_code}: {error_text[:500]}"
+                                error_msg = f"HTTP {response.status_code}: provider returned non-JSON error body"
                     except UnicodeDecodeError:
-                        error_msg = f"HTTP {response.status_code}: {str(error_body[:500])}"
+                        error_msg = f"HTTP {response.status_code}: provider returned non-UTF8 error body"
                     
                     # Log the full error details
                     logger.error(f"{log_prefix} Together AI API error: {error_msg}")
-                    logger.error(f"{log_prefix} Error response body: {error_text if error_text else error_body[:500]}")
-                    logger.debug(f"{log_prefix} Request payload that caused error: {json.dumps(payload, indent=2)}")
+                    logger.error(
+                        f"{log_prefix} Error response metadata: "
+                        f"body_length={len(error_text) if error_text else len(error_body)}"
+                    )
+                    logger.debug(
+                        f"{log_prefix} Request payload summary on error: "
+                        f"model={payload.get('model')}, "
+                        f"messages_count={len(payload.get('messages', [])) if isinstance(payload.get('messages'), list) else 0}, "
+                        f"tools_count={len(payload.get('tools', [])) if isinstance(payload.get('tools'), list) else 0}, "
+                        f"stream={payload.get('stream')}"
+                    )
                     raise ValueError(f"HTTP error {response.status_code}: {error_msg}")
                 
                 # Stream successful response
@@ -487,7 +496,10 @@ async def _stream_together_response(
                             tool_calls_buffer.clear()
                     
                     except json.JSONDecodeError as e:
-                        logger.warning(f"{log_prefix} Failed to parse SSE chunk as JSON: {str(e)}. Line content: {line[:100]}...")
+                        logger.warning(
+                            f"{log_prefix} Failed to parse SSE chunk as JSON: {str(e)} "
+                            f"(line_length={len(line)})"
+                        )
                         continue
                 
                 # Yield final usage information

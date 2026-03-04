@@ -60,7 +60,11 @@ async def handle_cancel_skill(
 
     # Validate required field
     if not skill_task_id:
-        logger.warning(f"{log_prefix} 'skill_task_id' not provided in cancel_skill payload: {payload}")
+        payload_keys = sorted(payload.keys()) if isinstance(payload, dict) else []
+        logger.warning(
+            f"{log_prefix} 'skill_task_id' not provided in cancel_skill payload. "
+            f"payload_keys={payload_keys}"
+        )
         await manager.send_personal_message(
             message={
                 "type": "error", 
@@ -123,4 +127,3 @@ async def handle_cancel_skill(
             user_id=user_id,
             device_fingerprint_hash=device_fingerprint_hash
         )
-

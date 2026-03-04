@@ -1147,7 +1147,10 @@ async def _async_process_ai_skill_ask_task(
                 # NEW CHAT ONLY - both title and icon_names must be present
                 typing_payload_data["title"] = preprocessing_result.title
                 typing_payload_data["icon_names"] = preprocessing_result.icon_names
-                logger.info(f"[Task ID: {task_id}] NEW CHAT: Including title '{preprocessing_result.title}' and icon_names {preprocessing_result.icon_names} in typing event")
+                logger.info(
+                    f"[Task ID: {task_id}] NEW CHAT: Including title and icon metadata in typing event "
+                    f"(title_length={len(preprocessing_result.title)}, icon_count={len(preprocessing_result.icon_names)})"
+                )
             elif preprocessing_result.title or preprocessing_result.icon_names:
                 # VALIDATION ERROR: Both should be present or both should be absent
                 logger.warning(f"[Task ID: {task_id}] INCONSISTENCY: title={bool(preprocessing_result.title)}, icon_names={bool(preprocessing_result.icon_names)}. Should be both present or both absent. Skipping metadata to avoid partial update.")

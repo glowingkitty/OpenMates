@@ -4,7 +4,6 @@
 import logging
 import json
 import httpx
-import asyncio
 from typing import Dict, Any, List, Optional, Union, AsyncIterator
 import time
 
@@ -125,9 +124,21 @@ async def invoke_openrouter_api(
     headers = DEFAULT_HEADERS.copy()
     headers["Authorization"] = f"Bearer {api_key}"
     
-    # Log the request (excluding sensitive information)
-    sanitized_payload = payload.copy()
-    logger.debug(f"{log_prefix} Request payload: {json.dumps(sanitized_payload)}")
+    # Log a metadata-only request summary (never messages/tool arguments content)
+    sanitized_payload = {
+        "model": payload.get("model"),
+        "stream": payload.get("stream"),
+        "temperature": payload.get("temperature"),
+        "messages_count": len(payload.get("messages", [])) if isinstance(payload.get("messages"), list) else 0,
+        "message_roles": [
+            msg.get("role")
+            for msg in payload.get("messages", [])
+            if isinstance(msg, dict)
+        ] if isinstance(payload.get("messages"), list) else [],
+        "tools_count": len(payload.get("tools", [])) if isinstance(payload.get("tools"), list) else 0,
+        "has_provider_overrides": bool(payload.get("provider")),
+    }
+    logger.debug(f"{log_prefix} Request payload summary: {json.dumps(sanitized_payload)}")
     
     try:
         if stream:
@@ -493,8 +504,10 @@ async def _stream_openrouter_response(
                             cumulative_usage["total_tokens"] = usage.get("total_tokens", cumulative_usage["total_tokens"])
                     
                     except json.JSONDecodeError as e:
-                        # Log with more context to help debug actual parsing issues
-                        logger.warning(f"{log_prefix} Failed to parse SSE chunk as JSON: {str(e)}. Line content: {line[:100]}...")
+                        logger.warning(
+                            f"{log_prefix} Failed to parse SSE chunk as JSON: {str(e)} "
+                            f"(line_length={len(line)})"
+                        )
                         continue
                 
                 # Yield final usage information

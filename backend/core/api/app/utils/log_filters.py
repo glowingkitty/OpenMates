@@ -1,7 +1,7 @@
 import re
 import logging
 import os
-from typing import Dict, Pattern, Optional
+from typing import Dict, Pattern
 
 class SensitiveDataFilter(logging.Filter):
     """
@@ -83,7 +83,10 @@ class SensitiveDataFilter(logging.Filter):
                 
                 # Debug output to help diagnose filter behavior
                 if self.debug and original_msg != record.msg:
-                    print(f"FILTER DEBUG: Original: {original_msg!r} -> Filtered: {record.msg!r}")
+                    print(
+                        "FILTER DEBUG: message redacted "
+                        f"(original_length={len(original_msg)}, filtered_length={len(record.msg)})"
+                    )
                 
             # Also check for args that might contain sensitive data
             if record.args:

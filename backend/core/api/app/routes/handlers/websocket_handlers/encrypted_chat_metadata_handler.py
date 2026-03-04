@@ -75,8 +75,8 @@ async def handle_encrypted_chat_metadata(
         # Log encrypted_chat_key status for debugging
         if encrypted_chat_key:
             logger.info(
-                f"✅ Received encrypted_chat_key for chat {chat_id}: {encrypted_chat_key[:20]}... "
-                f"(length: {len(encrypted_chat_key)}), allow_rotation={allow_chat_key_rotation}, "
+                f"✅ Received encrypted_chat_key for chat {chat_id}: "
+                f"length={len(encrypted_chat_key)}, allow_rotation={allow_chat_key_rotation}, "
                 f"reason={chat_key_rotation_reason}"
             )
         else:
@@ -239,13 +239,13 @@ async def handle_encrypted_chat_metadata(
                 except Exception as decode_err:
                     logger.error(
                         f"❌ [ENCRYPTION_VALIDATION] Message {message_id} encrypted_content is NOT valid base64: {decode_err}. "
-                        f"Content preview: {encrypted_content[:50]}..."
+                        f"encrypted_content_length={len(encrypted_content)}"
                     )
                 
                 logger.info(
                     f"Storing encrypted user message {message_id} for chat {chat_id}. "
                     f"encrypted_content_length={len(encrypted_content)}, is_valid_base64={is_valid_base64}, "
-                    f"content_preview={encrypted_content[:30]}..."
+                    f"content_logged=false"
                 )
             else:
                 logger.warning(f"⚠️ Message ID {message_id} provided but encrypted_content is missing/null for chat {chat_id}! "

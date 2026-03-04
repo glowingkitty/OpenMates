@@ -267,7 +267,10 @@ async def get_og_metadata(
                     shared_encrypted_title,
                     key_name="shared-content-metadata"
                 )
-                logger.info(f"Decrypted title for chat {chat_id}: {title[:50]}...")
+                logger.info(
+                    f"Decrypted title for chat {chat_id} "
+                    f"(length={len(title) if isinstance(title, str) else 0})"
+                )
             except Exception as e:
                 logger.warning(f"Failed to decrypt shared_encrypted_title for chat {chat_id}: {e}")
         else:
@@ -280,7 +283,10 @@ async def get_og_metadata(
                     shared_encrypted_summary,
                     key_name="shared-content-metadata"
                 )
-                logger.info(f"Decrypted summary for chat {chat_id}: {description[:50]}...")
+                logger.info(
+                    f"Decrypted summary for chat {chat_id} "
+                    f"(length={len(description) if isinstance(description, str) else 0})"
+                )
             except Exception as e:
                 logger.warning(f"Failed to decrypt shared_encrypted_summary for chat {chat_id}: {e}")
         else:
@@ -467,16 +473,16 @@ async def update_share_metadata(
                         f"has_title={has_title}, has_summary={has_summary}"
                     )
                     
-                    # Log the actual field values (truncated) to see if they're there but empty
+                    # Log field presence/length only (never ciphertext previews)
                     if updated_chat.get("shared_encrypted_title"):
-                        title_preview = str(updated_chat.get("shared_encrypted_title"))[:50]
-                        logger.debug(f"shared_encrypted_title value (first 50 chars): {title_preview}...")
+                        title_len = len(str(updated_chat.get("shared_encrypted_title")))
+                        logger.debug(f"shared_encrypted_title present for chat {chat_id} (length: {title_len})")
                     else:
                         logger.warning(f"shared_encrypted_title is missing or empty for chat {chat_id}")
                     
                     if updated_chat.get("shared_encrypted_summary"):
-                        summary_preview = str(updated_chat.get("shared_encrypted_summary"))[:50]
-                        logger.debug(f"shared_encrypted_summary value (first 50 chars): {summary_preview}...")
+                        summary_len = len(str(updated_chat.get("shared_encrypted_summary")))
+                        logger.debug(f"shared_encrypted_summary present for chat {chat_id} (length: {summary_len})")
                     else:
                         logger.warning(f"shared_encrypted_summary is missing or empty for chat {chat_id}")
                     
@@ -690,10 +696,10 @@ async def get_shared_embed(
         # Embed exists and is shared - return real encrypted data
         logger.debug(f"Returning real encrypted data for shared embed {embed_id}")
         
-        # Log the actual encrypted_content length to debug truncation issues
+        # Log ciphertext presence/length only (never ciphertext preview)
         encrypted_content = embed.get("encrypted_content")
         if encrypted_content:
-            logger.debug(f"Embed {embed_id} encrypted_content length: {len(encrypted_content)} chars, preview: {encrypted_content[:50]}...")
+            logger.debug(f"Embed {embed_id} encrypted_content present (length: {len(encrypted_content)} chars)")
         else:
             logger.warning(f"Embed {embed_id} has no encrypted_content field or it's None/empty")
 
@@ -796,7 +802,10 @@ async def get_embed_og_metadata(
                     shared_encrypted_title,
                     key_name="shared-content-metadata"
                 )
-                logger.info(f"Decrypted title for embed {embed_id}: {title[:50]}...")
+                logger.info(
+                    f"Decrypted title for embed {embed_id} "
+                    f"(length={len(title) if isinstance(title, str) else 0})"
+                )
             except Exception as e:
                 logger.warning(f"Failed to decrypt shared_encrypted_title for embed {embed_id}: {e}")
 
@@ -807,7 +816,10 @@ async def get_embed_og_metadata(
                     shared_encrypted_description,
                     key_name="shared-content-metadata"
                 )
-                logger.info(f"Decrypted description for embed {embed_id}: {description[:50]}...")
+                logger.info(
+                    f"Decrypted description for embed {embed_id} "
+                    f"(length={len(description) if isinstance(description, str) else 0})"
+                )
             except Exception as e:
                 logger.warning(f"Failed to decrypt shared_encrypted_description for embed {embed_id}: {e}")
 
@@ -910,4 +922,3 @@ async def update_embed_share_metadata(
     except Exception as e:
         logger.error(f"Error updating share metadata for embed {payload.embed_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to update embed metadata")
-

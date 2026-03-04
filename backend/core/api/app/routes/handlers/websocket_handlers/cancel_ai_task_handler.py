@@ -38,7 +38,11 @@ async def handle_cancel_ai_task(
     log_prefix = f"[CancelAI Task][User: {user_id[:6]}][Device: {device_fingerprint_hash[:6]}]"
 
     if not task_id_to_cancel:
-        logger.warning(f"{log_prefix} 'task_id' not provided in cancel_ai_task payload: {payload}")
+        payload_keys = sorted(payload.keys()) if isinstance(payload, dict) else []
+        logger.warning(
+            f"{log_prefix} 'task_id' not provided in cancel_ai_task payload. "
+            f"payload_keys={payload_keys}"
+        )
         await manager.send_personal_message(
             message={"type": "error", "payload": {"message": "Task ID is required for cancellation.", "details": "missing_task_id"}},
             user_id=user_id,

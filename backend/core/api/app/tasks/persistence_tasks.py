@@ -1549,7 +1549,10 @@ async def _async_persist_encrypted_chat_metadata(
         f"Task _async_persist_encrypted_chat_metadata (task_id: {task_id}): "
         f"Processing chat {chat_id} with encrypted metadata fields: {list(encrypted_metadata.keys())}"
     )
-    logger.info(f"DEBUG: Encrypted metadata content: {encrypted_metadata}")
+    logger.info(
+        "DEBUG: Encrypted metadata summary: "
+        f"fields={list(encrypted_metadata.keys())}, field_count={len(encrypted_metadata)}"
+    )
 
     directus_service = DirectusService()
     await directus_service.ensure_auth_token()
@@ -1796,7 +1799,10 @@ async def _async_persist_encrypted_chat_metadata(
             # Log encrypted_chat_key for debugging
             encrypted_chat_key_value = encrypted_metadata.get("encrypted_chat_key")  # Don't default to empty string
             if encrypted_chat_key_value:
-                logger.info(f"✅ Creating chat {chat_id} WITH encrypted_chat_key: {encrypted_chat_key_value[:20]}... (length: {len(encrypted_chat_key_value)})")
+                logger.info(
+                    f"✅ Creating chat {chat_id} WITH encrypted_chat_key "
+                    f"(length: {len(encrypted_chat_key_value)})"
+                )
             else:
                 logger.error(f"❌ Creating chat {chat_id} WITHOUT encrypted_chat_key - this will prevent decryption on other devices!")
 
