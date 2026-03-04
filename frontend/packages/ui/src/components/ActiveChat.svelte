@@ -7479,7 +7479,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }) as EventListenerCallback;
 
-        const aiTaskEndedHandler = ((event: CustomEvent<{ chatId: string; status?: string }>) => {
+        const aiTaskEndedHandler = (async (event: CustomEvent<{ chatId: string; status?: string }>) => {
             if (event.detail.chatId === currentChat?.chat_id) {
                 _aiTaskStateTrigger++;
                 
@@ -7493,7 +7493,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // show an endless loading indicator and the sidebar to show stale state.
                 // We do this for ALL task endings (not just cancellation) as a safety fallback
                 // in case the final-chunk handler missed transitioning the message.
+                //
+                // PERSISTENCE ON CANCEL: If the cancelled message has content (partial response),
+                // we also persist it to the server via sendCompletedAIResponse — exactly as if
+                // the response had finished naturally. This ensures cross-device sync works even
+                // when the user stops the response mid-stream.
+                // Empty messages (cancel before any text streamed) are NOT persisted.
                 let needsUpdate = false;
+                const messagesToPersist: ChatMessageModel[] = [];
                 for (let i = 0; i < currentMessages.length; i++) {
                     const msg = currentMessages[i];
                     if (msg.role === 'assistant' && msg.status === 'streaming') {
@@ -7504,10 +7511,28 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             console.error(`[ActiveChat] aiTaskEndedHandler: Failed to save finalized message ${msg.message_id}:`, err);
                         });
                         console.info(`[ActiveChat] aiTaskEndedHandler: Finalized streaming message ${msg.message_id} → synced (task status: ${event.detail.status ?? 'unknown'})`);
+                        // Queue for server persistence if there is actual content
+                        if (finalized.content && finalized.content.trim().length > 0) {
+                            messagesToPersist.push(finalized);
+                        } else {
+                            console.info(`[ActiveChat] aiTaskEndedHandler: Skipping server persistence for empty message ${msg.message_id} (cancelled before any text streamed)`);
+                        }
                     }
                 }
                 if (needsUpdate) {
                     currentMessages = [...currentMessages];
+                }
+
+                // Persist partial responses to server for cross-device sync (non-incognito only)
+                if (messagesToPersist.length > 0 && !currentChat?.is_incognito) {
+                    for (const msg of messagesToPersist) {
+                        try {
+                            console.info(`[ActiveChat] aiTaskEndedHandler: Persisting partial AI response to server (cancel) — message_id: ${msg.message_id}, contentLength: ${msg.content?.length ?? 0}`);
+                            await chatSyncService.sendCompletedAIResponse(msg);
+                        } catch (err) {
+                            console.error(`[ActiveChat] aiTaskEndedHandler: Failed to persist partial AI response ${msg.message_id} to server:`, err);
+                        }
+                    }
                 }
                 
                 // FALLBACK: Mark ALL thinking entries as complete when AI task ends
