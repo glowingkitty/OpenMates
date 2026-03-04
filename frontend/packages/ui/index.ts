@@ -1,4 +1,5 @@
 // Components
+export { default as DevConsole } from "./src/components/DevConsole.svelte";
 export { default as HeroHeader } from "./src/components/HeroHeader.svelte";
 export { default as ActiveChat } from "./src/components/ActiveChat.svelte";
 export { default as Notification } from "./src/components/Notification.svelte";

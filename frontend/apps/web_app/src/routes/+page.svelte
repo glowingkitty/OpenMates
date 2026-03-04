@@ -49,7 +49,8 @@
 		getAllDraftChatIdsWithDrafts,
 		NEW_CHAT_SENTINEL,
 		loadCommunityDemos,
-		loadDefaultInspirations
+		loadDefaultInspirations,
+		DevConsole
 	} from '@repo/ui';
 	import {
 		checkAndClearMasterKeyOnLoad,
@@ -64,6 +65,10 @@
 
 	// --- State ---
 	let isInitialLoad = $state(true);
+	// Developer console — activated via /#console-on hash, toggled off via close button
+	let devConsoleOpen = $state(false);
+	// Height (px) reserved for the dev console at the bottom of the viewport
+	const DEV_CONSOLE_HEIGHT = 280;
 	let activeChat = $state<ActiveChat | null>(null); // Fixed: Use $state for Svelte 5
 	let isProcessingInitialHash = $state(false); // Track if we're processing initial hash load
 	let originalHashChatId: string | null = null; // Store original hash chat ID from URL (read before anything modifies it)
@@ -775,6 +780,16 @@
 
 	onMount(async () => {
 		console.debug('[+page.svelte] onMount started');
+
+		// --- Developer Console activation via /#console-on ---
+		// Check for the special #console-on hash BEFORE any other hash processing.
+		// The hash is stripped from the URL immediately so it never leaks into deep-link logic.
+		if (browser && window.location.hash === '#console-on') {
+			devConsoleOpen = true;
+			// Remove the hash without triggering a hashchange event
+			history.replaceState(null, '', window.location.pathname + window.location.search);
+			console.debug('[+page.svelte] Developer console activated via #console-on');
+		}
 
 		// Load community demo chats (example chats) on page load so they appear in for-everyone
 		// and for-developers intro chats without requiring the sidebar (Chats) to be opened first.
@@ -2248,6 +2263,9 @@
 	class:menu-closed={!$panelState.isActivityHistoryOpen}
 	class:initial-load={isInitialLoad}
 	class:scrollable={showFooter}
+	style={devConsoleOpen
+		? `--dev-console-height: ${DEV_CONSOLE_HEIGHT}px`
+		: '--dev-console-height: 0px'}
 >
 	<Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
 	<div
@@ -2264,6 +2282,13 @@
 			<Settings isLoggedIn={$authStore.isAuthenticated} on:chatSelected={handleChatSelected} />
 		</div>
 	</div>
+
+	<!-- Developer console — only rendered when activated via /#console-on hash -->
+	{#if devConsoleOpen}
+		<div class="dev-console-wrapper">
+			<DevConsole onClose={() => (devConsoleOpen = false)} />
+		</div>
+	{/if}
 </div>
 
 <!-- Login/Signup overlay removed - incomplete feature
@@ -2384,10 +2409,16 @@
 	.chat-container {
 		display: flex;
 		flex-direction: row;
+		/*
+		 * Subtract both the header height (82px) and the dev console height (0px when
+		 * closed, DEV_CONSOLE_HEIGHT when open). Using a CSS custom property lets the
+		 * script switch between the two states reactively via the style attribute on
+		 * .main-content, without touching inline styles on .chat-container itself.
+		 */
 		/* Fallback for browsers that don't support dvh */
-		height: calc(100vh - 82px);
+		height: calc(100vh - 82px - var(--dev-console-height, 0px));
 		/* Modern browsers will use this */
-		height: calc(100dvh - 82px);
+		height: calc(100dvh - 82px - var(--dev-console-height, 0px));
 		gap: 0px;
 		padding: 10px;
 		/* Logical property: extra breathing room on the inline-end side (right in LTR, left in RTL) */
@@ -2422,8 +2453,8 @@
 	@media (max-width: 600px) {
 		.chat-container {
 			padding-inline-end: 10px;
-			height: calc(100vh - 75px);
-			height: calc(100dvh - 75px);
+			height: calc(100vh - 75px - var(--dev-console-height, 0px));
+			height: calc(100dvh - 75px - var(--dev-console-height, 0px));
 		}
 		.sidebar {
 			width: 100%;
@@ -2511,5 +2542,21 @@
 	/* Enable pointer events on notifications themselves */
 	.notification-container :global(.notification) {
 		pointer-events: auto;
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Developer console wrapper                                            */
+	/* Sits at the bottom of .main-content (in normal flow), so it pushes  */
+	/* .chat-container up rather than overlapping it.                       */
+	/* ------------------------------------------------------------------ */
+	.dev-console-wrapper {
+		position: absolute;
+		bottom: 0;
+		inset-inline-start: 0;
+		inset-inline-end: 0;
+		height: var(--dev-console-height, 0px);
+		/* Sit above chat content but below modals/notifications */
+		z-index: 50;
+		overflow: hidden;
 	}
 </style>
