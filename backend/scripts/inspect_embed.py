@@ -866,10 +866,13 @@ def format_output_text(
         lines.append("REDIS CACHE STATUS")
         lines.append("-" * 100)
 
-        if cache_info.get('error'):
+        if not cache_info:
+            # Empty dict = production mode (no local Redis access)
+            lines.append("  ℹ️  Cache status not available in production mode (no direct Redis access)")
+        elif cache_info.get('error'):
             lines.append(f"  ⚠️  {cache_info['error']}")
         elif cache_info.get('cached'):
-            lines.append(f"  ✅ Cached at key: {cache_info['cache_key']}")
+            lines.append(f"  ✅ Cached at key: {cache_info.get('cache_key', 'unknown')}")
             if cache_info.get('ttl'):
                 ttl_mins = cache_info['ttl'] // 60
                 lines.append(f"     TTL: {cache_info['ttl']}s ({ttl_mins}min)")
@@ -878,7 +881,7 @@ def format_output_text(
             if cache_info.get('cached_fields'):
                 lines.append(f"     Cached fields: {', '.join(cache_info['cached_fields'])}")
         else:
-            lines.append(f"  ❌ NOT CACHED (key: {cache_info['cache_key']})")
+            lines.append(f"  ❌ NOT CACHED (key: {cache_info.get('cache_key', 'unknown')})")
 
     # ===================== LINKAGE CHECKS =====================
     if linkage is not None:
