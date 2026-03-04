@@ -855,9 +855,79 @@ changes to the documentation (to keep the documentation up to date).
             if (!cat) return null;
             const rawIcon = cat.icon_image || appMeta.icon_image;
             const iconName = rawIcon ? rawIcon.replace(/\.svg$/, '').trim() : undefined;
+            
+            // Check for deeper sub-routes: create or entry detail
+            const subRoute = activeSettingsView.replace(
+                `app_store/${appId}/settings_memories/${itemId}`, ''
+            );
+            const categoryName = cat.name_translation_key ? $text(cat.name_translation_key) : itemId;
+            
+            if (subRoute === '/create') {
+                // Create entry sub-page: show "Add entry" title with category context
+                return {
+                    appId,
+                    itemName: $text('settings.app_settings_memories.add_entry'),
+                    itemTypeLabel: categoryName,
+                    description: cat.description_translation_key
+                        ? $text(cat.description_translation_key)
+                        : '',
+                    iconName,
+                    iconType: 'memory',
+                };
+            }
+            
+            if (subRoute.startsWith('/entry/')) {
+                // Entry detail sub-page: show entry title or example title
+                const entryId = subRoute.replace('/entry/', '');
+                let entryTitle = categoryName;
+                
+                if (entryId.startsWith('example_')) {
+                    // Example entry: get title from example_translation_keys or example_entries
+                    const exIdx = parseInt(entryId.replace('example_', ''), 10);
+                    const exEntries = cat.example_entries ?? [];
+                    const exKeys = cat.example_translation_keys ?? [];
+                    
+                    if (exEntries[exIdx]) {
+                        // Try to get title from example_entries (use is_title field)
+                        const titleField = cat.schema_definition?.properties
+                            ? Object.entries(cat.schema_definition.properties).find(
+                                ([, p]) => p.is_title
+                            )?.[0]
+                            : undefined;
+                        if (titleField && exEntries[exIdx][titleField] !== undefined) {
+                            const titleVal = exEntries[exIdx][titleField];
+                            // Resolve translation key if applicable
+                            if (typeof titleVal === 'string' && titleVal.includes('.') && !titleVal.includes(' ') && !titleVal.startsWith('http')) {
+                                const resolved = $text(titleVal);
+                                entryTitle = resolved !== titleVal ? resolved : String(titleVal);
+                            } else {
+                                entryTitle = String(titleVal);
+                            }
+                        }
+                    } else if (exKeys[exIdx]) {
+                        // Fallback to legacy title-only key
+                        entryTitle = $text(exKeys[exIdx]);
+                    }
+                }
+                // Note: for real (non-example) entries, we'd need to look up the entry
+                // from IndexedDB, but that requires async decryption. The category name
+                // is a reasonable fallback for the header since the entry title is shown
+                // in the content area below.
+                
+                return {
+                    appId,
+                    itemName: entryTitle,
+                    itemTypeLabel: $text('settings.app_store.settings_memories_entry'),
+                    description: categoryName,
+                    iconName,
+                    iconType: 'memory',
+                };
+            }
+            
+            // Default: category list page
             return {
                 appId,
-                itemName: cat.name_translation_key ? $text(cat.name_translation_key) : itemId,
+                itemName: categoryName,
                 itemTypeLabel: $text('settings.app_store.settings_memories'),
                 description: cat.description_translation_key
                     ? $text(cat.description_translation_key)
@@ -906,6 +976,11 @@ changes to the documentation (to keep the documentation up to date).
             contentScrollTop = (e.target as HTMLElement).scrollTop;
         }
     }
+
+    /** Decorative header icon opacity: fade out on scroll and on menu close. */
+    let headerDecorScrollOpacity = $derived(Math.max(0, 1 - contentScrollTop / 40));
+    let headerDecorMenuOpacity = $derived(isMenuVisible ? 1 : 0);
+    let headerDecorOpacity = $derived(headerDecorScrollOpacity * headerDecorMenuOpacity);
 
     // Add reference for content height calculation
     let menuItemsCount = $state(0);
@@ -2247,7 +2322,7 @@ changes to the documentation (to keep the documentation up to date).
                 <div
                     class="header-chat-icons-layer on-banner"
                     aria-hidden="true"
-                    style="opacity: {Math.max(0, 1 - contentScrollTop / 40)}"
+                    style="opacity: {headerDecorOpacity}"
                 >
                     {#each headerChatDecorIcons as decor (decor.key)}
                         {@const IconComponent = getLucideIcon(decor.iconName)}
@@ -2598,7 +2673,7 @@ changes to the documentation (to keep the documentation up to date).
         overflow: hidden;
         pointer-events: none;
         z-index: 2;
-        transition: opacity 0.15s ease-out;
+        transition: opacity 0.28s ease;
     }
 
     .header-chat-icons-layer.on-banner {
