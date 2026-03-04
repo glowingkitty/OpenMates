@@ -147,7 +147,7 @@
    */
   const COLLAPSED_HEIGHT = 88;
   const EXPANDED_HEIGHT_DESKTOP = 240;
-  const EXPANDED_HEIGHT_MOBILE = 170;
+  const EXPANDED_HEIGHT_MOBILE = 190;
 
   let expandedHeight = $derived.by(() => {
     if (typeof window === 'undefined') return EXPANDED_HEIGHT_DESKTOP;
@@ -722,33 +722,41 @@
   /* ─── Mobile adjustments (≤730px) — matches ChatHeader ─────────────────── */
 
   @media (max-width: 730px) {
-    /* Expanded height is handled by the JS expandedHeight variable reading window.innerWidth.
-       No CSS override needed for the height itself since it is set via inline style.
-       We only need to scale down text sizes for the details block on mobile. */
+    /* Expanded height stays at 190px (set via JS). We tighten internal spacing
+       so the capability-count row remains visible within the fixed banner height. */
 
-    .nav-row {
-      height: 40px;
-      padding: 0 8px;
-      gap: 4px;
-    }
-
-    .identity-block {
-      gap: 6px;
-    }
-
-    .name-category-block {
-      gap: 1px;
+    /* Constrain the icon to 40px on mobile (JS sets 50px via inline style) */
+    .app-icon-slot {
+      max-width: 40px !important;
+      max-height: 40px !important;
+      overflow: hidden;
     }
 
     .app-description {
       font-size: 13px;
+      line-height: 1.2;
       -webkit-line-clamp: 2;
       line-clamp: 2;
     }
 
+    /* Tighten the details block so cap row has room */
     .details-block {
-      padding: 2px 14px 8px;
+      padding: 0 16px 8px;
+      gap: 5px;
+    }
+
+    /* Reduce gap between icon and name in the identity block */
+    .identity-block {
       gap: 6px;
+    }
+
+    /* Tighten name/category stacking */
+    .name-category-block {
+      gap: 0;
+    }
+
+    .app-name {
+      line-height: 1.15;
     }
 
     .cap-icon {
