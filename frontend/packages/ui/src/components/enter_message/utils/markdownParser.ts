@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, no-case-declarations */
 // Markdown Parser for converting markdown text to TipTap JSON
 import MarkdownIt from "markdown-it";
 import { modelsMetadata } from "../../../data/modelsMetadata";
@@ -710,17 +711,18 @@ function convertNodeToTiptap(node: Node): any {
             currentParagraphContent.push(...boldContent);
           }
         } else if (item.type === "blockquote") {
-          // Blockquotes inside list items should be flattened to paragraph content
-          if (item.content && Array.isArray(item.content)) {
-            for (const blockquoteItem of item.content) {
-              if (
-                blockquoteItem.type === "paragraph" &&
-                blockquoteItem.content
-              ) {
-                currentParagraphContent.push(...blockquoteItem.content);
-              }
-            }
+          // Preserve blockquotes as block-level nodes inside list items.
+          // This is required so read-mode source quote detection can convert
+          // `> [text](embed:ref)` patterns to SourceQuote blocks even when
+          // they appear under bullet/numbered lists.
+          if (currentParagraphContent.length > 0) {
+            listItemContent.push({
+              type: "paragraph",
+              content: currentParagraphContent,
+            });
+            currentParagraphContent = [];
           }
+          listItemContent.push(item);
         } else if (
           item.type === "codeBlock" ||
           item.type === "table" ||
@@ -961,6 +963,7 @@ function cleanTiptapDocument(content: any[]): any[] {
         if (
           listContent &&
           (listContent.type === "paragraph" ||
+            listContent.type === "blockquote" ||
             listContent.type === "bulletList" ||
             listContent.type === "orderedList")
         ) {
