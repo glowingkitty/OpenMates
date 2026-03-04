@@ -2321,6 +2321,7 @@ changes to the documentation (to keep the documentation up to date).
             {#if headerChatDecorIcons.length > 0}
                 <div
                     class="header-chat-icons-layer on-banner"
+                    class:menu-open={isMenuVisible}
                     aria-hidden="true"
                     style="opacity: {headerDecorOpacity}"
                 >
@@ -2685,7 +2686,15 @@ changes to the documentation (to keep the documentation up to date).
         display: flex;
         align-items: center;
         justify-content: center;
+        transform: translateY(calc(-50% - 20px)) rotate(var(--header-chat-icon-rotation));
+        opacity: 0;
+        transition: transform 0.28s ease, opacity 0.28s ease;
+    }
+
+    .header-chat-icons-layer.menu-open .header-chat-icon {
         transform: translateY(-50%) rotate(var(--header-chat-icon-rotation));
+        opacity: 1;
+        transition-delay: 0.5s;
     }
 
     .header-chat-icon.left {
