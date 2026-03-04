@@ -24,7 +24,7 @@ skills:
     preprocessor_hint: >
       Transcribe an audio recording uploaded by the user to text using Mistral Voxtral.
       Use this skill when the user has attached a voice recording and the transcript is needed.
-    stage: development
+    stage: production
     class_path: |
       backend.apps.audio.skills.transcribe_skill.TranscribeSkill
     providers:
