@@ -2630,6 +2630,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         viewportHeight = window.innerHeight;
     }
 
+    /**
+     * True when the viewport is tall enough to comfortably show the large
+     * ChatEmbedPreview-style gradient card for the resume-chat link.
+     * Threshold: ≥800px covers iPad vertical (768–1024px) and large monitors.
+     * Below this threshold the compact horizontal card is shown instead.
+     */
+    let isTallViewport = $derived(viewportHeight >= 800);
+
     // ─── Height-based suggestions overlap detection ──────────────────────────
     // Reliable DOM-measurement approach: measure whether the new-chat suggestions
     // (rendered above the message input) would visually overlap the resume-chat
@@ -8283,26 +8291,116 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                             <!-- Resume card: shown below greeting when there's a chat to resume (authenticated users only) -->
                             {#if resumeChatData}
-                                {@const ChevronRight = getLucideIcon('chevron-right')}
-                                <button 
-                                    class="resume-chat-card"
-                                    onclick={handleResumeLastChat}
-                                    type="button"
-                                >
-                                    {#if resumeChatIsCreditsError}
-                                        <!-- Credits-error layout: no category circle, show label + user message preview -->
-                                        <!-- Matches the draft-only-layout design used in Chat.svelte sidebar -->
-                                        <div class="resume-chat-content resume-chat-credits-content">
-                                            <span class="resume-chat-credits-label">{$text('chat.credits_needed')}</span>
-                                            {#if resumeChatUserMessagePreview}
-                                                <span class="resume-chat-credits-preview">{resumeChatUserMessagePreview.slice(0, 60)}</span>
+                                {#if isTallViewport && !resumeChatIsCreditsError}
+                                    <!-- Tall viewport (≥800px, e.g. iPad vertical, large monitors):
+                                         Large ChatEmbedPreview-style card with full category gradient background.
+                                         Matches the linked-chat card design used in the for-everyone chat. -->
+                                    {@const category = resumeChatCategory || 'general_knowledge'}
+                                    {@const gradientColors = getCategoryGradientColors(category)}
+                                    {@const iconName = getValidIconName(resumeChatIcon || '', category)}
+                                    {@const IconComponent = getLucideIcon(iconName)}
+                                    <button
+                                        class="resume-chat-large-card"
+                                        style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: var(--color-primary)'}
+                                        onclick={handleResumeLastChat}
+                                        type="button"
+                                    >
+                                        <!-- Large decorative icons at card edges (matching ChatEmbedPreview) -->
+                                        {#if IconComponent}
+                                            <div class="resume-large-deco resume-large-deco-left">
+                                                <IconComponent size={80} color="white" />
+                                            </div>
+                                            <div class="resume-large-deco resume-large-deco-right">
+                                                <IconComponent size={80} color="white" />
+                                            </div>
+                                        {/if}
+                                        <!-- Centered content: icon + title -->
+                                        <div class="resume-large-content">
+                                            {#if IconComponent}
+                                                <div class="resume-large-icon">
+                                                    <IconComponent size={32} color="white" />
+                                                </div>
                                             {/if}
+                                            <span class="resume-large-title">{resumeChatTitle || 'Untitled Chat'}</span>
                                         </div>
-                                    {:else}
-                                        {@const category = resumeChatCategory || 'general_knowledge'}
-                                        {@const gradientColors = getCategoryGradientColors(category)}
-                                        {@const iconName = getValidIconName(resumeChatIcon || '', category)}
-                                        {@const IconComponent = getLucideIcon(iconName)}
+                                    </button>
+                                {:else}
+                                    <!-- Compact card: short screens or credits-error state -->
+                                    {@const ChevronRight = getLucideIcon('chevron-right')}
+                                    <button 
+                                        class="resume-chat-card"
+                                        onclick={handleResumeLastChat}
+                                        type="button"
+                                    >
+                                        {#if resumeChatIsCreditsError}
+                                            <!-- Credits-error layout: no category circle, show label + user message preview -->
+                                            <!-- Matches the draft-only-layout design used in Chat.svelte sidebar -->
+                                            <div class="resume-chat-content resume-chat-credits-content">
+                                                <span class="resume-chat-credits-label">{$text('chat.credits_needed')}</span>
+                                                {#if resumeChatUserMessagePreview}
+                                                    <span class="resume-chat-credits-preview">{resumeChatUserMessagePreview.slice(0, 60)}</span>
+                                                {/if}
+                                            </div>
+                                        {:else}
+                                            {@const category = resumeChatCategory || 'general_knowledge'}
+                                            {@const gradientColors = getCategoryGradientColors(category)}
+                                            {@const iconName = getValidIconName(resumeChatIcon || '', category)}
+                                            {@const IconComponent = getLucideIcon(iconName)}
+                                            <div 
+                                                class="resume-chat-category-circle"
+                                                style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
+                                            >
+                                                <div class="resume-chat-category-icon">
+                                                    <IconComponent size={16} color="white" />
+                                                </div>
+                                            </div>
+                                            <div class="resume-chat-content">
+                                                <span class="resume-chat-title">{resumeChatTitle || 'Untitled Chat'}</span>
+                                            </div>
+                                        {/if}
+                                        <div class="resume-chat-arrow">
+                                            <ChevronRight size={16} color="var(--color-grey-50)" />
+                                        </div>
+                                    </button>
+                                {/if}
+                            <!-- Same card as above, for non-auth: link to for-everyone chat (same design as "last chat" card) -->
+                            {:else if !$authStore.isAuthenticated}
+                                {@const gradientColors = getCategoryGradientColors('openmates_official')}
+                                {@const iconName = getValidIconName('sparkles', 'openmates_official')}
+                                {@const IconComponent = getLucideIcon(iconName)}
+                                {#if isTallViewport}
+                                    <!-- Tall viewport: large gradient card matching ChatEmbedPreview style -->
+                                    <button
+                                        class="resume-chat-large-card"
+                                        style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: var(--color-primary)'}
+                                        onclick={handleOpenIntroChat}
+                                        type="button"
+                                    >
+                                        {#if IconComponent}
+                                            <div class="resume-large-deco resume-large-deco-left">
+                                                <IconComponent size={80} color="white" />
+                                            </div>
+                                            <div class="resume-large-deco resume-large-deco-right">
+                                                <IconComponent size={80} color="white" />
+                                            </div>
+                                        {/if}
+                                        <div class="resume-large-content">
+                                            {#if IconComponent}
+                                                <div class="resume-large-icon">
+                                                    <IconComponent size={32} color="white" />
+                                                </div>
+                                            {/if}
+                                            <span class="resume-large-title">{$text('demo_chats.for_everyone.title')}</span>
+                                        </div>
+                                    </button>
+                                {:else}
+                                    <!-- Compact card: short screens -->
+                                    {@const ChevronRight = getLucideIcon('chevron-right')}
+                                    <button 
+                                        class="resume-chat-card"
+                                        onclick={handleOpenIntroChat}
+                                        type="button"
+                                    >
                                         <div 
                                             class="resume-chat-category-circle"
                                             style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
@@ -8312,39 +8410,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             </div>
                                         </div>
                                         <div class="resume-chat-content">
-                                            <span class="resume-chat-title">{resumeChatTitle || 'Untitled Chat'}</span>
+                                            <span class="resume-chat-title">{$text('demo_chats.for_everyone.title')}</span>
                                         </div>
-                                    {/if}
-                                    <div class="resume-chat-arrow">
-                                        <ChevronRight size={16} color="var(--color-grey-50)" />
-                                    </div>
-                                </button>
-                            <!-- Same card as above, for non-auth: link to for-everyone chat (same design as "last chat" card) -->
-                            {:else if !$authStore.isAuthenticated}
-                                {@const gradientColors = getCategoryGradientColors('openmates_official')}
-                                {@const iconName = getValidIconName('sparkles', 'openmates_official')}
-                                {@const IconComponent = getLucideIcon(iconName)}
-                                {@const ChevronRight = getLucideIcon('chevron-right')}
-                                <button 
-                                    class="resume-chat-card"
-                                    onclick={handleOpenIntroChat}
-                                    type="button"
-                                >
-                                    <div 
-                                        class="resume-chat-category-circle"
-                                        style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
-                                    >
-                                        <div class="resume-chat-category-icon">
-                                            <IconComponent size={16} color="white" />
+                                        <div class="resume-chat-arrow">
+                                            <ChevronRight size={16} color="var(--color-grey-50)" />
                                         </div>
-                                    </div>
-                                    <div class="resume-chat-content">
-                                        <span class="resume-chat-title">{$text('demo_chats.for_everyone.title')}</span>
-                                    </div>
-                                    <div class="resume-chat-arrow">
-                                        <ChevronRight size={16} color="var(--color-grey-50)" />
-                                    </div>
-                                </button>
+                                    </button>
+                                {/if}
                             {/if}
                         </div>
                     {/if}
@@ -9858,6 +9930,127 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         justify-content: center;
         flex-shrink: 0;
         opacity: 0.5;
+    }
+
+    /* ===========================================
+       Large gradient card — tall viewports (≥800px)
+       Matches the ChatEmbedPreview design used in the
+       for-everyone chat's linked-chat cards.
+       =========================================== */
+
+    .resume-chat-large-card {
+        position: relative;
+        /* Desktop dimensions match ChatEmbedPreview */
+        width: 300px;
+        min-width: 300px;
+        max-width: 300px;
+        height: 200px;
+        min-height: 200px;
+        max-height: 200px;
+        border-radius: 30px;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+        border: none;
+        /* Re-enable pointer events (parent center-content has pointer-events: none) */
+        pointer-events: auto;
+        margin-top: 16px;
+        /* Shadow matching ChatEmbedPreview */
+        box-shadow:
+            0 8px 24px rgba(0, 0, 0, 0.16),
+            0 2px 6px rgba(0, 0, 0, 0.1);
+        transition:
+            transform 0.15s ease-out,
+            box-shadow 0.2s ease-out;
+    }
+
+    .resume-chat-large-card:hover {
+        box-shadow:
+            0 4px 12px rgba(0, 0, 0, 0.12),
+            0 1px 3px rgba(0, 0, 0, 0.08);
+        transform: translateY(-2px);
+    }
+
+    .resume-chat-large-card:active {
+        transform: scale(0.96) !important;
+        transition: transform 0.05s ease-out;
+    }
+
+    .resume-chat-large-card:focus {
+        outline: 2px solid rgba(255, 255, 255, 0.5);
+        outline-offset: 2px;
+    }
+
+    /* Centered content overlay */
+    .resume-large-content {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 16px 24px;
+        max-width: 260px;
+        width: 100%;
+    }
+
+    .resume-large-icon {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .resume-large-title {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        font-size: 16px;
+        font-weight: 700;
+        color: #ffffff;
+        text-align: center;
+        line-height: 1.3;
+        max-width: 100%;
+    }
+
+    /* Large decorative icons at card corners (matching ChatEmbedPreview deco-icon pattern) */
+    .resume-large-deco {
+        position: absolute;
+        width: 80px;
+        height: 80px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1;
+        pointer-events: none;
+        opacity: 0.3;
+    }
+
+    .resume-large-deco-left {
+        left: -10px;
+        bottom: -8px;
+        transform: rotate(-15deg);
+    }
+
+    .resume-large-deco-right {
+        right: -10px;
+        bottom: -8px;
+        transform: rotate(15deg);
+    }
+
+    /* Ensure Lucide SVGs inside deco elements render at the right size */
+    .resume-large-deco :global(svg) {
+        width: 80px !important;
+        height: 80px !important;
     }
 
     
