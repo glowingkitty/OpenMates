@@ -12,6 +12,7 @@ from typing import Optional
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.schemas.chat import CachedChatListItemData, CachedChatVersions
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.s3.service import S3UploadService
@@ -1662,8 +1663,6 @@ async def _async_persist_encrypted_chat_metadata(
                 )
                 if user_id:
                     try:
-                        from backend.core.api.app.services.cache import CacheService
-                        from backend.core.api.app.schemas.chat import CachedChatListItemData
                         cache_service = CacheService()
                         
                         # Get existing cache data to preserve other fields
@@ -1699,6 +1698,27 @@ async def _async_persist_encrypted_chat_metadata(
                                     f"✅ Updated cache for chat {chat_id} with ALL client-encrypted metadata from Directus "
                                     f"(fields updated: {list(update_fields.keys())}) (task_id: {task_id})"
                                 )
+
+                                fresh_messages_v = int(fresh_chat_metadata.get("messages_v", 0) or 0)
+                                fresh_title_v = int(fresh_chat_metadata.get("title_v", 0) or 0)
+                                versions_update_result = await cache_service.set_chat_versions(
+                                    user_id,
+                                    chat_id,
+                                    CachedChatVersions(
+                                        messages_v=fresh_messages_v,
+                                        title_v=fresh_title_v,
+                                    ),
+                                )
+                                if versions_update_result:
+                                    logger.info(
+                                        f"✅ Synced cache versions for chat {chat_id}: "
+                                        f"messages_v={fresh_messages_v}, title_v={fresh_title_v} (task_id: {task_id})"
+                                    )
+                                else:
+                                    logger.error(
+                                        f"❌ Failed to sync cache versions for chat {chat_id} "
+                                        f"(task_id: {task_id})"
+                                    )
                             else:
                                 logger.error(
                                     f"❌ Failed to update cache for chat {chat_id} - set_chat_list_item_data returned False (task_id: {task_id})"
@@ -1735,8 +1755,6 @@ async def _async_persist_encrypted_chat_metadata(
             # This ensures cache-first strategy as per requirements
             if user_id:
                 try:
-                    from backend.core.api.app.services.cache import CacheService
-                    from backend.core.api.app.schemas.chat import CachedChatListItemData
                     cache_service = CacheService()
                     
                     # Build chat creation payload with encrypted metadata
@@ -1847,6 +1865,37 @@ async def _async_persist_encrypted_chat_metadata(
                 logger.info(
                     f"Successfully created chat {chat_id} with encrypted metadata (task_id: {task_id})"
                 )
+
+                if user_id:
+                    try:
+                        fresh_chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
+                        if fresh_chat_metadata:
+                            cache_service = CacheService()
+                            fresh_messages_v = int(fresh_chat_metadata.get("messages_v", 0) or 0)
+                            fresh_title_v = int(fresh_chat_metadata.get("title_v", 0) or 0)
+                            versions_update_result = await cache_service.set_chat_versions(
+                                user_id,
+                                chat_id,
+                                CachedChatVersions(
+                                    messages_v=fresh_messages_v,
+                                    title_v=fresh_title_v,
+                                ),
+                            )
+                            if versions_update_result:
+                                logger.info(
+                                    f"✅ Synced cache versions after chat creation for {chat_id}: "
+                                    f"messages_v={fresh_messages_v}, title_v={fresh_title_v} (task_id: {task_id})"
+                                )
+                            else:
+                                logger.error(
+                                    f"❌ Failed to sync cache versions after chat creation for {chat_id} (task_id: {task_id})"
+                                )
+                    except Exception as cache_versions_error:
+                        logger.error(
+                            f"⚠️ Failed syncing cache versions after chat creation for {chat_id} "
+                            f"(task_id: {task_id}): {cache_versions_error}",
+                            exc_info=True,
+                        )
             elif is_duplicate:
                 # RACE CONDITION FIX: Chat creation failed because another task (persist_new_chat_message_task)
                 # already created a minimal chat record. Update the existing chat with encrypted metadata.
@@ -1865,6 +1914,37 @@ async def _async_persist_encrypted_chat_metadata(
                     logger.info(
                         f"✅ Successfully updated chat {chat_id} with encrypted metadata after race condition (task_id: {task_id})"
                     )
+
+                    if user_id:
+                        try:
+                            fresh_chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
+                            if fresh_chat_metadata:
+                                cache_service = CacheService()
+                                fresh_messages_v = int(fresh_chat_metadata.get("messages_v", 0) or 0)
+                                fresh_title_v = int(fresh_chat_metadata.get("title_v", 0) or 0)
+                                versions_update_result = await cache_service.set_chat_versions(
+                                    user_id,
+                                    chat_id,
+                                    CachedChatVersions(
+                                        messages_v=fresh_messages_v,
+                                        title_v=fresh_title_v,
+                                    ),
+                                )
+                                if versions_update_result:
+                                    logger.info(
+                                        f"✅ Synced cache versions after race-condition update for {chat_id}: "
+                                        f"messages_v={fresh_messages_v}, title_v={fresh_title_v} (task_id: {task_id})"
+                                    )
+                                else:
+                                    logger.error(
+                                        f"❌ Failed to sync cache versions after race-condition update for {chat_id} (task_id: {task_id})"
+                                    )
+                        except Exception as cache_versions_error:
+                            logger.error(
+                                f"⚠️ Failed syncing cache versions after race-condition update for {chat_id} "
+                                f"(task_id: {task_id}): {cache_versions_error}",
+                                exc_info=True,
+                            )
                 else:
                     logger.error(
                         f"❌ Failed to update chat {chat_id} with encrypted metadata after race condition (task_id: {task_id})"

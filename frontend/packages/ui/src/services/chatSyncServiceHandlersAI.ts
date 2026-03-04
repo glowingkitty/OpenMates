@@ -14,6 +14,7 @@ import { activeChatStore } from "../stores/activeChatStore";
 import { notificationStore } from "../stores/notificationStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { webSocketService } from "./websocketService"; // For notifying data activity during AI streaming
+import { normalizeToUnixSeconds } from "./timestampUtils";
 
 // Safe TOON decoder for metadata extraction (local to avoid circular deps)
 let toonDecode:
@@ -2547,18 +2548,14 @@ export async function handleEmbedUpdateImpl(
                 ).default?.sendStoreEmbedImpl;
 
               if (typeof sendStoreFunction === "function") {
-                // CRITICAL: Convert camelCase timestamps to snake_case and milliseconds to seconds for Directus
+                // CRITICAL: Normalize camelCase timestamps to snake_case Unix seconds for Directus
                 const nowSecs = Math.floor(Date.now() / 1000);
                 const { createdAt, updatedAt, ...restFields } =
                   encryptedEmbedForStorage;
                 const storePayload = {
                   ...restFields,
-                  created_at: createdAt
-                    ? Math.floor(createdAt / 1000)
-                    : nowSecs,
-                  updated_at: updatedAt
-                    ? Math.floor(updatedAt / 1000)
-                    : nowSecs,
+                  created_at: normalizeToUnixSeconds(createdAt, nowSecs),
+                  updated_at: normalizeToUnixSeconds(updatedAt, nowSecs),
                 };
                 await sendStoreFunction(serviceInstance, storePayload);
                 console.debug(
@@ -3531,8 +3528,7 @@ export async function handleSendEmbedDataImpl(
       }
 
       // 9. Send encrypted embed to server for Directus storage
-      // CRITICAL: Use snake_case for Directus fields and Unix timestamps in SECONDS
-      // embedData.createdAt/updatedAt may be in milliseconds, must convert to seconds
+      // CRITICAL: Use snake_case for Directus fields and normalized Unix seconds
       const nowSeconds = Math.floor(Date.now() / 1000);
       const storePayload: import("../types/chat").StoreEmbedPayload = {
         embed_id: embedData.embed_id,
@@ -3552,13 +3548,8 @@ export async function handleSendEmbedDataImpl(
         text_length_chars: embedData.text_length_chars,
         is_private: embedData.is_private ?? false,
         is_shared: embedData.is_shared ?? false,
-        // Convert milliseconds to seconds for Directus storage
-        created_at: embedData.createdAt
-          ? Math.floor(embedData.createdAt / 1000)
-          : nowSeconds,
-        updated_at: embedData.updatedAt
-          ? Math.floor(embedData.updatedAt / 1000)
-          : nowSeconds,
+        created_at: normalizeToUnixSeconds(embedData.createdAt, nowSeconds),
+        updated_at: normalizeToUnixSeconds(embedData.updatedAt, nowSeconds),
       };
 
       const sendersModule = await import("./chatSyncServiceSenders");

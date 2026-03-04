@@ -6,6 +6,7 @@ import { notificationStore } from "../stores/notificationStore";
 import { get } from "svelte/store";
 import { websocketStatus } from "../stores/websocketStatusStore";
 import { chatMetadataCache } from "./chatMetadataCache";
+import { normalizeToUnixSeconds } from "./timestampUtils";
 import type {
   Chat,
   Message,
@@ -1302,13 +1303,12 @@ export async function sendNewMessageImpl(
                 hashed_message_id: hashedMessageId,
                 hashed_user_id: hashedUserId,
                 embed_ids: embed.embed_ids,
-                // CRITICAL: Use snake_case for Directus fields and Unix timestamps in SECONDS
-                // embed.createdAt/updatedAt are in milliseconds (from IndexedDB), must convert to seconds
+                // CRITICAL: Use snake_case for Directus fields and normalized Unix seconds
                 created_at: embed.createdAt
-                  ? Math.floor(embed.createdAt / 1000)
+                  ? normalizeToUnixSeconds(embed.createdAt, nowSeconds)
                   : nowSeconds,
                 updated_at: embed.updatedAt
-                  ? Math.floor(embed.updatedAt / 1000)
+                  ? normalizeToUnixSeconds(embed.updatedAt, nowSeconds)
                   : nowSeconds,
                 embed_keys: embedKeys,
               });
