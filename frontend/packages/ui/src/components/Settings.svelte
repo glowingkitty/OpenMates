@@ -2161,19 +2161,6 @@ changes to the documentation (to keep the documentation up to date).
         onkeydown={(e) => e.stopPropagation()}
         role="presentation"
     >
-        {#if headerChatDecorIcons.length > 0}
-            <div class="header-chat-icons-layer" aria-hidden="true">
-                {#each headerChatDecorIcons as decor (decor.key)}
-                    {@const IconComponent = getLucideIcon(decor.iconName)}
-                    <div
-                        class="header-chat-icon {decor.side}"
-                        style="top: {decor.topPercent}%; --header-chat-icon-inset: {decor.insetPx}px; --header-chat-icon-rotation: {decor.rotationDeg}deg; background: linear-gradient(135deg, {decor.gradientStart}, {decor.gradientEnd});"
-                    >
-                        <IconComponent size={14} color="rgba(255, 255, 255, 0.9)" />
-                    </div>
-                {/each}
-            </div>
-        {/if}
         <div class="header-content">
             {#if !hideNavButton}
                 <button
@@ -2249,14 +2236,18 @@ changes to the documentation (to keep the documentation up to date).
     {#if activeSettingsView === 'main'}
         <div class="settings-banner-shell">
             {#if headerChatDecorIcons.length > 0}
-                <div class="header-chat-icons-layer on-banner" aria-hidden="true">
+                <div
+                    class="header-chat-icons-layer on-banner"
+                    aria-hidden="true"
+                    style="opacity: {Math.max(0, 1 - contentScrollTop / 40)}"
+                >
                     {#each headerChatDecorIcons as decor (decor.key)}
                         {@const IconComponent = getLucideIcon(decor.iconName)}
                         <div
                             class="header-chat-icon {decor.side}"
-                            style="top: {decor.topPercent}%; --header-chat-icon-inset: {decor.insetPx}px; --header-chat-icon-rotation: {decor.rotationDeg}deg; background: linear-gradient(135deg, {decor.gradientStart}, {decor.gradientEnd});"
+                            style="top: {decor.topPercent}%; --header-chat-icon-inset: {decor.insetPx}px; --header-chat-icon-rotation: {decor.rotationDeg}deg;"
                         >
-                            <IconComponent size={14} color="rgba(255, 255, 255, 0.9)" />
+                            <IconComponent size={22} color="rgba(255, 255, 255, 0.45)" />
                         </div>
                     {/each}
                 </div>
@@ -2281,19 +2272,6 @@ changes to the documentation (to keep the documentation up to date).
          sticky positioning works here because this element is a direct flex child of .settings-menu. -->
     {#if isAnyAppBannerPage && currentAppMetadata}
         <div class="settings-banner-shell">
-            {#if headerChatDecorIcons.length > 0}
-                <div class="header-chat-icons-layer on-banner" aria-hidden="true">
-                    {#each headerChatDecorIcons as decor (decor.key)}
-                        {@const IconComponent = getLucideIcon(decor.iconName)}
-                        <div
-                            class="header-chat-icon {decor.side}"
-                            style="top: {decor.topPercent}%; --header-chat-icon-inset: {decor.insetPx}px; --header-chat-icon-rotation: {decor.rotationDeg}deg; background: linear-gradient(135deg, {decor.gradientStart}, {decor.gradientEnd});"
-                        >
-                            <IconComponent size={14} color="rgba(255, 255, 255, 0.9)" />
-                        </div>
-                    {/each}
-                </div>
-            {/if}
             <AppDetailsHeader
                 appId={currentAppId}
                 app={currentAppMetadata}
@@ -2317,19 +2295,6 @@ changes to the documentation (to keep the documentation up to date).
          Placed outside the content-wrapper for the same sticky-positioning reason. -->
     {#if isStandardSubPage}
         <div class="settings-banner-shell">
-            {#if headerChatDecorIcons.length > 0}
-                <div class="header-chat-icons-layer on-banner" aria-hidden="true">
-                    {#each headerChatDecorIcons as decor (decor.key)}
-                        {@const IconComponent = getLucideIcon(decor.iconName)}
-                        <div
-                            class="header-chat-icon {decor.side}"
-                            style="top: {decor.topPercent}%; --header-chat-icon-inset: {decor.insetPx}px; --header-chat-icon-rotation: {decor.rotationDeg}deg; background: linear-gradient(135deg, {decor.gradientStart}, {decor.gradientEnd});"
-                        >
-                            <IconComponent size={14} color="rgba(255, 255, 255, 0.9)" />
-                        </div>
-                    {/each}
-                </div>
-            {/if}
             <AppDetailsHeader
                 scrollTop={contentScrollTop}
                 breadcrumbLabel={breadcrumbLabel}
@@ -2623,6 +2588,7 @@ changes to the documentation (to keep the documentation up to date).
         overflow: hidden;
         pointer-events: none;
         z-index: 2;
+        transition: opacity 0.15s ease-out;
     }
 
     .header-chat-icons-layer.on-banner {
@@ -2631,15 +2597,10 @@ changes to the documentation (to keep the documentation up to date).
 
     .header-chat-icon {
         position: absolute;
-        width: 30px;
-        height: 30px;
-        border-radius: 999px;
         display: flex;
         align-items: center;
         justify-content: center;
         transform: translateY(-50%) rotate(var(--header-chat-icon-rotation));
-        opacity: 0.26;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
     }
 
     .header-chat-icon.left {
