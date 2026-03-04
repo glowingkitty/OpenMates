@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, no-case-declarations */
 // Markdown Parser for converting markdown text to TipTap JSON
+// Tests: frontend/packages/ui/src/message_parsing/__tests__/parse_message.test.ts
 import MarkdownIt from "markdown-it";
 import { modelsMetadata } from "../../../data/modelsMetadata";
 import { matesMetadata } from "../../../data/matesMetadata";
@@ -63,6 +64,27 @@ md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
 // Key: placeholder ID, Value: { tex: LaTeX formula, display: boolean }
 const mathFormulas = new Map<string, { tex: string; display: boolean }>();
 
+function isCurrencyLikeDollar(text: string, dollarIndex: number): boolean {
+  if (text[dollarIndex] !== "$") return false;
+
+  let index = dollarIndex + 1;
+  while (index < text.length && /\s/.test(text[index])) {
+    index++;
+  }
+
+  if (index >= text.length || !/\d/.test(text[index])) {
+    return false;
+  }
+
+  let numberEnd = index;
+  while (numberEnd < text.length && /[\d,._]/.test(text[numberEnd])) {
+    numberEnd++;
+  }
+
+  const nextChar = text[numberEnd];
+  return !nextChar || /[\s)\],.;:!?%]/.test(nextChar);
+}
+
 // Helper function to extract math formulas from markdown and replace with placeholders
 // This preserves the LaTeX formula for TipTap Mathematics extension
 function extractMathFormulas(markdownText: string): {
@@ -82,17 +104,75 @@ function extractMathFormulas(markdownText: string): {
     return placeholder;
   });
 
-  // Extract inline math: $...$ (but not $$...$$)
-  // Use negative lookahead/lookbehind to avoid matching block math
-  processed = processed.replace(
-    /(?<!\$)\$(?!\$)([^$\n]+?)\$(?!\$)/g,
-    (match, formula) => {
-      const placeholder = `<!-- MATH_INLINE_${placeholderCounter} -->`;
-      formulas.set(placeholder, { tex: formula.trim(), display: false });
-      placeholderCounter++;
-      return placeholder;
-    },
-  );
+  // Extract inline math: $...$ (but not $$...$$ and not currency values like $2,199)
+  let inlineProcessed = "";
+  let cursor = 0;
+
+  while (cursor < processed.length) {
+    const char = processed[cursor];
+    if (char !== "$") {
+      inlineProcessed += char;
+      cursor++;
+      continue;
+    }
+
+    const prevChar = cursor > 0 ? processed[cursor - 1] : "";
+    const nextChar = cursor + 1 < processed.length ? processed[cursor + 1] : "";
+
+    // Skip block-math delimiters and escaped dollars
+    if (prevChar === "$" || nextChar === "$" || prevChar === "\\") {
+      inlineProcessed += char;
+      cursor++;
+      continue;
+    }
+
+    // Treat currency values like "$2,199" as normal text, not math delimiters
+    if (isCurrencyLikeDollar(processed, cursor)) {
+      inlineProcessed += char;
+      cursor++;
+      continue;
+    }
+
+    let closing = -1;
+    for (let search = cursor + 1; search < processed.length; search++) {
+      if (processed[search] !== "$") continue;
+
+      const searchPrev = search > 0 ? processed[search - 1] : "";
+      const searchNext =
+        search + 1 < processed.length ? processed[search + 1] : "";
+
+      if (searchPrev === "$" || searchNext === "$" || searchPrev === "\\") {
+        continue;
+      }
+
+      if (isCurrencyLikeDollar(processed, search)) {
+        continue;
+      }
+
+      const formula = processed.slice(cursor + 1, search);
+      if (!formula || formula.includes("\n") || formula.trim().length === 0) {
+        continue;
+      }
+
+      closing = search;
+      break;
+    }
+
+    if (closing === -1) {
+      inlineProcessed += char;
+      cursor++;
+      continue;
+    }
+
+    const formula = processed.slice(cursor + 1, closing);
+    const placeholder = `<!-- MATH_INLINE_${placeholderCounter} -->`;
+    formulas.set(placeholder, { tex: formula.trim(), display: false });
+    placeholderCounter++;
+    inlineProcessed += placeholder;
+    cursor = closing + 1;
+  }
+
+  processed = inlineProcessed;
 
   return { processed, formulas };
 }
