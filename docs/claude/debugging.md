@@ -610,6 +610,82 @@ docker exec api python /app/backend/scripts/inspect_frontend_logs.py --follow
 
 ---
 
+## Decrypting Client-Side Encrypted Content (Share Key)
+
+Messages and client-side embeds in Directus are encrypted with AES-256-GCM using a key the server never sees. To view their plaintext during debugging, you need the **share URL** that users include in issue reports. The share URL contains a key blob that, when decrypted, yields the chat's AES key.
+
+### When to Use
+
+- The user reported an issue and included a share URL (format: `https://app.openmates.org/share/chat/<id>#key=<blob>`)
+- You need to see the actual message content or embed content, not just structural metadata
+- The existing `--decrypt` flag (Vault-based, server-side) cannot decrypt client-side content
+
+### Using `--share-url` with inspect_chat.py
+
+```bash
+# Full share URL — decrypts all messages and embeds in the chat
+docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> \
+  --share-url "https://app.openmates.org/share/chat/<chat_id>#key=<blob>"
+
+# Password-protected share link
+docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> \
+  --share-url "https://app.openmates.org/share/chat/<chat_id>#key=<blob>" \
+  --share-password "the-password"
+```
+
+### Using `--share-key` (raw blob)
+
+If you only have the key blob (the part after `#key=` in the URL), use `--share-key`:
+
+```bash
+docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> \
+  --share-key "<base64-key-blob>"
+```
+
+### Using with inspect_embed.py
+
+For embed share URLs:
+
+```bash
+# Embed share URL
+docker exec api python /app/backend/scripts/inspect_embed.py <embed_id> \
+  --share-url "https://app.openmates.org/share/embed/<embed_id>#key=<blob>"
+
+# Chat share URL — also works for embeds in that chat
+docker exec api python /app/backend/scripts/inspect_embed.py <embed_id> \
+  --share-url "https://app.openmates.org/share/chat/<chat_id>#key=<blob>"
+```
+
+### Combining with `--decrypt`
+
+You can use `--share-url` / `--share-key` together with `--decrypt` to get both:
+
+- **Client-side decrypted** message content and embed content (from the share key)
+- **Server-side decrypted** embed TOON summaries (from Vault, for server-generated embeds)
+
+```bash
+docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> \
+  --decrypt --share-url "https://app.openmates.org/share/chat/<chat_id>#key=<blob>"
+```
+
+### How It Works
+
+1. The share URL fragment (`#key=<blob>`) contains an AES-GCM-encrypted parameter string
+2. The blob is decrypted using a key derived from the chat/embed ID via PBKDF2
+3. The decrypted blob contains the chat's AES-256 encryption key (base64-encoded)
+4. This key decrypts `encrypted_content` fields on messages and embeds
+5. If the share link is password-protected (`pwd=1`), an additional PBKDF2 layer is unwrapped first
+
+### Crypto Implementation
+
+The Python implementation lives in `backend/scripts/share_key_crypto.py` and mirrors the TypeScript implementations in:
+
+- `frontend/packages/ui/src/services/shareEncryption.ts`
+- `frontend/packages/ui/src/services/embedShareEncryption.ts`
+- `frontend/packages/ui/src/services/cryptoService.ts`
+
+---
+
 ## Docker Debug Mode
 
 ### Overview

@@ -9,6 +9,7 @@ This script provides deep embed inspection including:
 4. Decrypted TOON content with field inventory (--decrypt flag)
 5. Linkage verification (message, chat, parent/child consistency)
 6. Redis cache status
+7. Client-side AES decryption of embed content (--share-url or --share-key)
 
 Architecture context: See docs/architecture/embed-encryption.md
 Tests: None (inspection script, not production code)
@@ -17,11 +18,16 @@ Usage:
     docker exec -it api python /app/backend/scripts/inspect_embed.py <embed_id>
     docker exec -it api python /app/backend/scripts/inspect_embed.py <embed_id> --decrypt
     docker exec -it api python /app/backend/scripts/inspect_embed.py <embed_id> --decrypt --check-links
+    docker exec -it api python /app/backend/scripts/inspect_embed.py <embed_id> --share-url "https://app.openmates.org/share/embed/<id>#key=<blob>"
+    docker exec -it api python /app/backend/scripts/inspect_embed.py <embed_id> --share-key "<base64-key-blob>"
 
 Options:
     --json              Output as JSON instead of formatted text
-    --decrypt           Decrypt and TOON-decode content (requires Vault access)
+    --decrypt           Decrypt and TOON-decode content via Vault (server-side encryption only)
     --check-links       Verify message/chat/parent-child linkage integrity
+    --share-url URL     Share URL with #key= fragment for client-side AES decryption
+    --share-key BLOB    Raw base64 key blob (the part after #key= in the share URL)
+    --share-password PWD  Password for password-protected share links
 """
 
 import asyncio
@@ -39,6 +45,13 @@ sys.path.insert(0, '/app/backend')
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
+
+# Import share key crypto utilities for client-side AES decryption
+from share_key_crypto import (
+    parse_share_url,
+    decrypt_share_key_blob,
+    decrypt_client_aes_content,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -530,6 +543,7 @@ def format_output_text(
     cache_info: Optional[Dict[str, Any]] = None,
     linkage: Optional[Dict[str, Any]] = None,
     child_decoded: Optional[List[Optional[Dict[str, Any]]]] = None,
+    share_key_error: Optional[str] = None,
 ) -> str:
     """
     Format the embed inspection as human-readable text.
@@ -545,6 +559,7 @@ def format_output_text(
         cache_info: Redis cache status (if checked)
         linkage: Linkage verification results (if --check-links was used)
         child_decoded: List of decoded TOON dicts for child embeds (if --decrypt)
+        share_key_error: Error message if share key decryption failed
 
     Returns:
         Formatted string for display
@@ -558,6 +573,10 @@ def format_output_text(
     lines.append("=" * 100)
     lines.append(f"Embed ID: {embed_id}")
     lines.append(f"Generated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    if decrypted_content is not None and share_key_error is None:
+        lines.append("🔓 CLIENT-SIDE DECRYPTION: Active (share key provided)")
+    if share_key_error:
+        lines.append(f"❌ SHARE KEY ERROR: {share_key_error}")
     lines.append("=" * 100)
 
     # ===================== EMBED DATA =====================
@@ -825,6 +844,7 @@ def format_output_json(
     cache_info: Optional[Dict[str, Any]] = None,
     linkage: Optional[Dict[str, Any]] = None,
     child_decoded: Optional[List[Optional[Dict[str, Any]]]] = None,
+    share_key_error: Optional[str] = None,
 ) -> str:
     """
     Format the embed inspection as JSON.
@@ -840,6 +860,7 @@ def format_output_json(
         cache_info: Redis cache status
         linkage: Linkage verification results
         child_decoded: Decoded TOON dicts for child embeds
+        share_key_error: Error message if share key decryption failed
 
     Returns:
         JSON string
@@ -899,6 +920,9 @@ def format_output_json(
     if linkage is not None:
         output['linkage'] = linkage
 
+    if share_key_error:
+        output['share_key_error'] = share_key_error
+
     return json.dumps(output, indent=2, default=str)
 
 
@@ -920,12 +944,30 @@ async def main():
     parser.add_argument(
         '--decrypt',
         action='store_true',
-        help='Decrypt and TOON-decode embed content (requires Vault access and user lookup)'
+        help='Decrypt and TOON-decode embed content via Vault (server-side encryption only)'
     )
     parser.add_argument(
         '--check-links',
         action='store_true',
         help='Verify message, chat, and parent-child linkage integrity'
+    )
+    parser.add_argument(
+        '--share-url',
+        type=str,
+        default=None,
+        help='Share URL with #key= fragment for client-side AES decryption of embed content'
+    )
+    parser.add_argument(
+        '--share-key',
+        type=str,
+        default=None,
+        help='Raw base64 key blob (the part after #key= in the share URL)'
+    )
+    parser.add_argument(
+        '--share-password',
+        type=str,
+        default=None,
+        help='Password for password-protected share links'
     )
 
     args = parser.parse_args()
@@ -999,10 +1041,132 @@ async def main():
             else:
                 decrypt_error = "Embed has no hashed_user_id — cannot determine encryption key"
 
-        # 5. Check Redis cache status (always, as it's cheap)
+        # 5. Client-side AES decryption via share key (--share-url or --share-key)
+        share_key_error: Optional[str] = None
+        
+        if args.share_url or args.share_key:
+            embed_key_bytes: Optional[bytes] = None
+            
+            if args.share_url:
+                entity_type, entity_id, key_blob = parse_share_url(args.share_url)
+                if entity_type == 'embed' and entity_id and key_blob:
+                    if entity_id != args.embed_id:
+                        share_key_error = (
+                            f"Share URL embed ID ({entity_id}) does not match "
+                            f"inspected embed ID ({args.embed_id})"
+                        )
+                    else:
+                        embed_key_bytes, share_key_error = decrypt_share_key_blob(
+                            entity_id, key_blob,
+                            key_field_name='embed_encryption_key',
+                            password=args.share_password,
+                        )
+                elif entity_type == 'chat' and entity_id and key_blob:
+                    # User provided a chat share URL — the chat key can decrypt
+                    # embeds that are client-side encrypted with the chat key
+                    embed_key_bytes, share_key_error = decrypt_share_key_blob(
+                        entity_id, key_blob,
+                        key_field_name='chat_encryption_key',
+                        password=args.share_password,
+                    )
+                else:
+                    share_key_error = (
+                        "Could not parse share URL. Expected format: "
+                        "https://<domain>/share/embed/<embedId>#key=<blob> or "
+                        "https://<domain>/share/chat/<chatId>#key=<blob>"
+                    )
+            elif args.share_key:
+                # Raw key blob provided — try embed key field first, then chat key field
+                embed_key_bytes, share_key_error = decrypt_share_key_blob(
+                    args.embed_id, args.share_key,
+                    key_field_name='embed_encryption_key',
+                    password=args.share_password,
+                )
+                if share_key_error:
+                    # Might be a chat key blob — caller needs to specify entity_id
+                    script_logger.debug(
+                        f"embed_encryption_key extraction failed: {share_key_error}"
+                    )
+            
+            if embed_key_bytes and not share_key_error:
+                script_logger.info("Share key decrypted successfully, decrypting embed content...")
+                
+                # Decrypt main embed content
+                encrypted_content = embed.get('encrypted_content') if embed else None
+                if encrypted_content and decrypted_content is None:
+                    plaintext, err = decrypt_client_aes_content(
+                        encrypted_content, embed_key_bytes
+                    )
+                    if plaintext:
+                        # Try to parse as TOON or JSON
+                        try:
+                            from toon_format import decode as toon_decode
+                            decoded = toon_decode(plaintext)
+                            if isinstance(decoded, dict):
+                                decrypted_content = decoded
+                        except Exception:
+                            pass
+                        if decrypted_content is None:
+                            try:
+                                decoded = json.loads(plaintext)
+                                if isinstance(decoded, dict):
+                                    decrypted_content = decoded
+                            except Exception:
+                                pass
+                        if decrypted_content is None:
+                            # Store raw plaintext
+                            decrypted_content = {'_raw_plaintext': plaintext}
+                        script_logger.info(
+                            f"Decrypted embed content ({len(decrypted_content)} fields)"
+                        )
+                    else:
+                        if not decrypt_error:
+                            decrypt_error = f"Client-side AES decryption failed: {err}"
+                
+                # Decrypt type field
+                encrypted_type_field = embed.get('encrypted_type') if embed else None
+                if encrypted_type_field and not decrypted_type:
+                    plaintext, err = decrypt_client_aes_content(
+                        encrypted_type_field, embed_key_bytes
+                    )
+                    if plaintext:
+                        decrypted_type = plaintext
+                
+                # Decrypt child embed content
+                if child_embeds and not child_decoded:
+                    child_decoded = []
+                    for child in child_embeds:
+                        child_enc = child.get('encrypted_content')
+                        if child_enc:
+                            pt, _ = decrypt_client_aes_content(child_enc, embed_key_bytes)
+                            if pt:
+                                try:
+                                    from toon_format import decode as toon_decode
+                                    cd = toon_decode(pt)
+                                    if isinstance(cd, dict):
+                                        child_decoded.append(cd)
+                                        continue
+                                except Exception:
+                                    pass
+                                try:
+                                    cd = json.loads(pt)
+                                    if isinstance(cd, dict):
+                                        child_decoded.append(cd)
+                                        continue
+                                except Exception:
+                                    pass
+                                child_decoded.append({'_raw_plaintext': pt})
+                            else:
+                                child_decoded.append(None)
+                        else:
+                            child_decoded.append(None)
+            elif share_key_error:
+                script_logger.error(f"Share key error: {share_key_error}")
+        
+        # 6. Check Redis cache status (always, as it's cheap)
         cache_info = await check_embed_cache(cache_service, args.embed_id)
 
-        # 6. Check linkage if requested
+        # 7. Check linkage if requested
         linkage = None
         if args.check_links and embed:
             linkage = {}
@@ -1045,18 +1209,18 @@ async def main():
 
             linkage['parent_child'] = parent_child
 
-        # 7. Format and output results
+        # 8. Format and output results
         if args.json:
             output = format_output_json(
                 args.embed_id, embed, embed_keys, child_embeds,
                 decrypted_content, decrypted_type, decrypt_error,
-                cache_info, linkage, child_decoded,
+                cache_info, linkage, child_decoded, share_key_error,
             )
         else:
             output = format_output_text(
                 args.embed_id, embed, embed_keys, child_embeds,
                 decrypted_content, decrypted_type, decrypt_error,
-                cache_info, linkage, child_decoded,
+                cache_info, linkage, child_decoded, share_key_error,
             )
 
         print(output)

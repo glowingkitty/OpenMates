@@ -10,6 +10,7 @@ This script provides deep chat inspection including:
 5. Usage entries (credit usage)
 6. Redis cache status
 7. Encryption health dashboard (--decrypt)
+8. Client-side AES decryption of messages/embeds (--share-url or --share-key)
 
 Embed Keys Architecture:
 - key_type='chat': AES(embed_key, chat_key) - for shared chat access
@@ -21,15 +22,20 @@ Tests: None (inspection script, not production code)
 Usage:
     docker exec -it api python /app/backend/scripts/inspect_chat.py <chat_id>
     docker exec -it api python /app/backend/scripts/inspect_chat.py <chat_id> --decrypt
+    docker exec -it api python /app/backend/scripts/inspect_chat.py <chat_id> --share-url "https://app.openmates.org/share/chat/<id>#key=<blob>"
+    docker exec -it api python /app/backend/scripts/inspect_chat.py <chat_id> --share-key "<base64-key-blob>"
     docker exec -it api python /app/backend/scripts/inspect_chat.py abc12345-6789-0123-4567-890123456789
 
 Options:
-    --messages-limit N  Limit number of messages to display (default: 20)
-    --embeds-limit N    Limit number of embeds to display (default: 20)
-    --usage-limit N     Limit number of usage entries to display (default: 20)
-    --json              Output as JSON instead of formatted text
-    --no-cache          Skip cache checks (faster if Redis is down)
-    --decrypt           Decrypt embeds and show per-message content summaries + encryption health
+    --messages-limit N    Limit number of messages to display (default: 20)
+    --embeds-limit N      Limit number of embeds to display (default: 20)
+    --usage-limit N       Limit number of usage entries to display (default: 20)
+    --json                Output as JSON instead of formatted text
+    --no-cache            Skip cache checks (faster if Redis is down)
+    --decrypt             Decrypt embeds via Vault (server-side encryption only)
+    --share-url URL       Share URL with #key= fragment for client-side AES decryption
+    --share-key BLOB      Raw base64 key blob (the part after #key= in the share URL)
+    --share-password PWD  Password for password-protected share links
 """
 
 import asyncio
@@ -47,6 +53,13 @@ sys.path.insert(0, '/app/backend')
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
+
+# Import share key crypto utilities for client-side AES decryption
+from share_key_crypto import (
+    parse_share_url,
+    decrypt_share_key_blob,
+    decrypt_client_aes_content,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -786,6 +799,8 @@ def format_output_text(
     usage_limit: int,
     decoded_embeds: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
     encryption_health: Optional[Dict[str, Any]] = None,
+    decrypted_messages: Optional[Dict[str, str]] = None,
+    share_key_error: Optional[str] = None,
 ) -> str:
     """
     Format the inspection results as human-readable text.
@@ -803,6 +818,8 @@ def format_output_text(
         usage_limit: Limit for usage entries display
         decoded_embeds: Dict mapping embed_id -> decoded TOON dict (if --decrypt was used)
         encryption_health: Encryption health dashboard data (if --decrypt was used)
+        decrypted_messages: Dict mapping message_id -> plaintext (if share key was used)
+        share_key_error: Error message if share key decryption failed
         
     Returns:
         Formatted string for display
@@ -816,6 +833,10 @@ def format_output_text(
     lines.append("=" * 100)
     lines.append(f"Chat ID: {chat_id}")
     lines.append(f"Generated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    if decrypted_messages is not None:
+        lines.append("🔓 CLIENT-SIDE DECRYPTION: Active (share key provided)")
+    if share_key_error:
+        lines.append(f"❌ SHARE KEY ERROR: {share_key_error}")
     lines.append("=" * 100)
     
     # ===================== VERSION CONSISTENCY CHECK =====================
@@ -972,6 +993,18 @@ def format_output_text(
             lines.append(f"  {i:3}. {role_emoji} [{role:9}] {created_at}")
             lines.append(f"       ID: {msg_id[:8]}...  Client ID: {truncate_string(client_msg_id, 25)}")
             lines.append(f"       Content: {has_content} ({content_len} chars encrypted)")
+            
+            # Show decrypted plaintext if share key was used
+            if decrypted_messages is not None:
+                msg_id_str = str(msg.get('id', ''))
+                plaintext = decrypted_messages.get(msg_id_str)
+                if plaintext and not plaintext.startswith('[DECRYPT ERROR:'):
+                    lines.append("       🔓 Decrypted Content:")
+                    # Show full plaintext, indented and wrapped
+                    for pt_line in plaintext.split('\n'):
+                        lines.append(f"          {pt_line}")
+                elif plaintext:
+                    lines.append(f"       ❌ {plaintext}")
             
             # Show if model name is present (for assistant messages)
             if msg.get('encrypted_model_name'):
@@ -1331,6 +1364,8 @@ def format_output_json(
     cache_info: Dict[str, Any],
     decoded_embeds: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
     encryption_health: Optional[Dict[str, Any]] = None,
+    decrypted_messages: Optional[Dict[str, str]] = None,
+    share_key_error: Optional[str] = None,
 ) -> str:
     """
     Format the inspection results as JSON.
@@ -1345,6 +1380,8 @@ def format_output_json(
         cache_info: Cache status information
         decoded_embeds: Dict mapping embed_id -> decoded TOON dict (if --decrypt)
         encryption_health: Encryption health dashboard data (if --decrypt)
+        decrypted_messages: Dict mapping message_id -> plaintext (if share key was used)
+        share_key_error: Error message if share key decryption failed
         
     Returns:
         JSON string
@@ -1400,6 +1437,12 @@ def format_output_json(
     if encryption_health is not None:
         output['encryption_health'] = encryption_health
     
+    # Add client-side decrypted messages if available
+    if decrypted_messages is not None:
+        output['decrypted_messages'] = decrypted_messages
+    if share_key_error:
+        output['share_key_error'] = share_key_error
+    
     return json.dumps(output, indent=2, default=str)
 
 
@@ -1444,7 +1487,25 @@ async def main():
     parser.add_argument(
         '--decrypt',
         action='store_true',
-        help='Decrypt embeds and show per-message content summaries + encryption health dashboard'
+        help='Decrypt embeds via Vault (server-side encryption only)'
+    )
+    parser.add_argument(
+        '--share-url',
+        type=str,
+        default=None,
+        help='Share URL with #key= fragment for client-side AES decryption of messages and embeds'
+    )
+    parser.add_argument(
+        '--share-key',
+        type=str,
+        default=None,
+        help='Raw base64 key blob (the part after #key= in the share URL)'
+    )
+    parser.add_argument(
+        '--share-password',
+        type=str,
+        default=None,
+        help='Password for password-protected share links'
     )
     
     args = parser.parse_args()
@@ -1526,12 +1587,113 @@ async def main():
                 chat_metadata, messages, embeds, embed_keys_by_embed, vault_key_id
             )
         
-        # 8. Format and output results
+        # 8. Client-side AES decryption via share key (--share-url or --share-key)
+        # This decrypts message encrypted_content and embed encrypted_content using the
+        # chat's AES-256 key extracted from the share URL blob.
+        decrypted_messages: Optional[Dict[str, str]] = None
+        share_key_error: Optional[str] = None
+        
+        if args.share_url or args.share_key:
+            chat_key_bytes: Optional[bytes] = None
+            
+            if args.share_url:
+                # Parse share URL to extract entity type, ID, and blob
+                entity_type, entity_id, key_blob = parse_share_url(args.share_url)
+                if entity_type == 'chat' and entity_id and key_blob:
+                    # Verify the chat ID matches
+                    if entity_id != args.chat_id:
+                        share_key_error = (
+                            f"Share URL chat ID ({entity_id}) does not match "
+                            f"inspected chat ID ({args.chat_id})"
+                        )
+                    else:
+                        chat_key_bytes, share_key_error = decrypt_share_key_blob(
+                            entity_id, key_blob,
+                            key_field_name='chat_encryption_key',
+                            password=args.share_password,
+                        )
+                else:
+                    share_key_error = (
+                        "Could not parse share URL. Expected format: "
+                        "https://<domain>/share/chat/<chatId>#key=<blob>"
+                    )
+            elif args.share_key:
+                # Raw key blob provided directly
+                chat_key_bytes, share_key_error = decrypt_share_key_blob(
+                    args.chat_id, args.share_key,
+                    key_field_name='chat_encryption_key',
+                    password=args.share_password,
+                )
+            
+            if chat_key_bytes and not share_key_error:
+                script_logger.info("Share key decrypted successfully, decrypting messages...")
+                decrypted_messages = {}
+                decrypt_ok = 0
+                decrypt_fail = 0
+                
+                for msg in messages:
+                    msg_id = str(msg.get('id', ''))
+                    encrypted_content = msg.get('encrypted_content')
+                    if encrypted_content and msg_id:
+                        plaintext, err = decrypt_client_aes_content(
+                            encrypted_content, chat_key_bytes
+                        )
+                        if plaintext:
+                            decrypted_messages[msg_id] = plaintext
+                            decrypt_ok += 1
+                        else:
+                            decrypted_messages[msg_id] = f"[DECRYPT ERROR: {err}]"
+                            decrypt_fail += 1
+                
+                script_logger.info(
+                    f"Decrypted {decrypt_ok} messages "
+                    f"({decrypt_fail} failed) out of {len(messages)} total"
+                )
+                
+                # Also decrypt embed content with the chat key
+                # (client-side encrypted embeds use the same chat key)
+                if embeds and decoded_embeds is None:
+                    decoded_embeds = {}
+                for embed in embeds:
+                    embed_id = embed.get('embed_id', '')
+                    enc_content = embed.get('encrypted_content')
+                    if enc_content and embed_id:
+                        plaintext, err = decrypt_client_aes_content(
+                            enc_content, chat_key_bytes
+                        )
+                        if plaintext:
+                            # Try to parse as TOON or JSON
+                            try:
+                                from toon_format import decode as toon_decode
+                                decoded = toon_decode(plaintext)
+                                if isinstance(decoded, dict):
+                                    decoded_embeds[embed_id] = decoded  # type: ignore[index]
+                                    continue
+                            except Exception:
+                                pass
+                            try:
+                                decoded = json.loads(plaintext)
+                                if isinstance(decoded, dict):
+                                    decoded_embeds[embed_id] = decoded  # type: ignore[index]
+                                    continue
+                            except Exception:
+                                pass
+                            # Store raw text if not parseable
+                            decoded_embeds[embed_id] = {'_raw_plaintext': plaintext}  # type: ignore[index]
+                        else:
+                            script_logger.debug(
+                                f"Could not decrypt embed {embed_id[:8]} with chat key: {err}"
+                            )
+            elif share_key_error:
+                script_logger.error(f"Share key error: {share_key_error}")
+        
+        # 9. Format and output results
         if args.json:
             output = format_output_json(
                 args.chat_id, chat_metadata, messages, embeds,
                 embed_keys_by_embed, usage_entries, cache_info,
                 decoded_embeds, encryption_health,
+                decrypted_messages, share_key_error,
             )
         else:
             output = format_output_text(
@@ -1547,6 +1709,8 @@ async def main():
                 args.usage_limit,
                 decoded_embeds,
                 encryption_health,
+                decrypted_messages,
+                share_key_error,
             )
         
         print(output)
