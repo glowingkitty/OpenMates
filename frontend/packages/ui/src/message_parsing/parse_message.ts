@@ -246,12 +246,6 @@ function _convertInlineSourceQuoteParagraph(node: any): any[] | null {
   }
 
   const afterEmbedNodes = node.content.slice(firstEmbedInlineIndex + 1);
-  const hasOnlyWhitespaceAfterEmbed = afterEmbedNodes.every(
-    (child: any) => child?.type === "text" && /^\s*$/.test(child.text || ""),
-  );
-  if (!hasOnlyWhitespaceAfterEmbed) {
-    return null;
-  }
 
   const beforeEmbedNodes = node.content.slice(0, firstEmbedInlineIndex);
   const beforeEmbedText = beforeEmbedNodes
@@ -296,6 +290,47 @@ function _convertInlineSourceQuoteParagraph(node: any): any[] | null {
   });
 
   const embedInline = node.content[firstEmbedInlineIndex];
+  const cleanedSuffixNodes = afterEmbedNodes.map((child: any) => ({
+    ...child,
+  }));
+
+  // Remove pure leading/trailing whitespace from the suffix paragraph to avoid
+  // creating empty-looking lines around author attributions like
+  // " – Hermann Hesse".
+  while (cleanedSuffixNodes.length > 0) {
+    const first = cleanedSuffixNodes[0];
+    if (first?.type !== "text") {
+      break;
+    }
+    const text = first.text || "";
+    if (/^\s+$/.test(text)) {
+      cleanedSuffixNodes.shift();
+      continue;
+    }
+    first.text = text.replace(/^\s+/, "");
+    break;
+  }
+  while (cleanedSuffixNodes.length > 0) {
+    const last = cleanedSuffixNodes[cleanedSuffixNodes.length - 1];
+    if (last?.type !== "text") {
+      break;
+    }
+    const text = last.text || "";
+    if (/^\s+$/.test(text)) {
+      cleanedSuffixNodes.pop();
+      continue;
+    }
+    last.text = text.replace(/\s+$/, "");
+    break;
+  }
+
+  const hasMeaningfulSuffix = cleanedSuffixNodes.some((child: any) => {
+    if (child?.type !== "text") {
+      return true;
+    }
+    return /\S/.test(child.text || "");
+  });
+
   const sourceQuoteNode = {
     type: "sourceQuote",
     attrs: {
@@ -305,17 +340,25 @@ function _convertInlineSourceQuoteParagraph(node: any): any[] | null {
     },
   };
 
-  if (!hasMeaningfulPrefix) {
-    return [sourceQuoteNode];
-  }
+  const outputNodes: any[] = [];
 
-  return [
-    {
+  if (hasMeaningfulPrefix) {
+    outputNodes.push({
       ...node,
       content: cleanedPrefixNodes,
-    },
-    sourceQuoteNode,
-  ];
+    });
+  }
+
+  outputNodes.push(sourceQuoteNode);
+
+  if (hasMeaningfulSuffix) {
+    outputNodes.push({
+      ...node,
+      content: cleanedSuffixNodes,
+    });
+  }
+
+  return outputNodes;
 }
 
 /**
