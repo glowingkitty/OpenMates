@@ -368,7 +368,15 @@ changes to the documentation (to keep the documentation up to date).
             };
         }));
 
-        return resolved.slice(0, HEADER_CHAT_ICON_LIMIT);
+        /* Deduplicate by icon name — each icon should appear at most once. */
+        const seen = new Set<string>();
+        const unique = resolved.filter((r) => {
+            if (seen.has(r.iconName)) return false;
+            seen.add(r.iconName);
+            return true;
+        });
+
+        return unique.slice(0, HEADER_CHAT_ICON_LIMIT);
     }
 
     function buildHeaderDecorIcons(icons: RecentHeaderChatIcon[]): HeaderChatDecorIcon[] {
