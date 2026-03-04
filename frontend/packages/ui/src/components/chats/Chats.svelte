@@ -1797,12 +1797,9 @@ let _chatUpdatedFlushPending = false;
 		handleOpenSearchEvent = () => {
 			// Open the Chats panel if it is currently closed — on any screen size.
 			// panelState.toggleChats() is a toggle, so we only call it when the panel is closed.
-			const unsub = isActivityHistoryOpen.subscribe(isOpen => {
-				unsub(); // Read once, immediately unsubscribe
-				if (!isOpen) {
-					panelState.toggleChats();
-				}
-			});
+			if (!$isActivityHistoryOpen) {
+				panelState.toggleChats();
+			}
 			// Activate the search bar (no-op if already active).
 			openSearch();
 		};
