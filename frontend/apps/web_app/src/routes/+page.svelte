@@ -437,6 +437,17 @@
 				// Sync not yet complete — register event listener and wait
 				// CRITICAL: No setTimeout fallback — a premature load causes missing chat header
 				const handlePhasedSyncComplete = async () => {
+					// Guard: if the user switched to a different chat while waiting for sync,
+					// don't force them back to the deep-linked chat. This prevents the bug where
+					// reloading a tab with chat A open and quickly switching to chat B would
+					// cause chat A to re-open a few seconds later when sync completes.
+					if (!phasedSyncState.canAutoNavigate()) {
+						console.debug(
+							`[+page.svelte] Phased sync complete, but user made explicit choice — skipping deep link load for: ${chatId}`
+						);
+						chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncComplete);
+						return;
+					}
 					console.debug(`[+page.svelte] Phased sync complete, loading deep-linked chat: ${chatId}`);
 					await loadChatFromIndexedDB();
 					chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncComplete);
