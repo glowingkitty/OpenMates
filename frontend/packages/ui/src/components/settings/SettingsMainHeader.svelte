@@ -84,11 +84,8 @@
         Math.round(expandedHeight - (expandedHeight - COLLAPSED_HEIGHT) * collapseProgress)
     );
 
-    /**
-     * Opacity for the credits row: fades out in the second half of collapse
-     * (stays visible longer than the description in AppDetailsHeader).
-     */
-    let creditsOpacity = $derived(Math.max(0, 1 - collapseProgress * 2.5));
+    /** Whether the header is in collapsed (row) layout. */
+    let isCollapsed = $derived(collapseProgress > 0.5);
 
     /** Avatar size: 56px (expanded) → 32px (collapsed). */
     let avatarSize = $derived(Math.round(56 - 24 * collapseProgress));
@@ -180,21 +177,19 @@
                 >{username || 'Guest'}</span>
             {/if}
 
-            <!-- Credits: only shown when authenticated AND payment is enabled, fades out on collapse -->
+            <!-- Credits: always visible when authenticated AND payment is enabled.
+                 Expanded: centered below username. Collapsed: inline next to username. -->
             {#if isAuthenticated && paymentEnabled}
-                <div
-                    class="credits-row"
-                    style="opacity: {creditsOpacity}; pointer-events: {creditsOpacity < 0.05 ? 'none' : 'auto'};"
-                    aria-hidden={creditsOpacity < 0.05}
-                >
+                <div class="credits-row" class:credits-row-collapsed={isCollapsed}>
                     <button
                         class="credits-button"
+                        class:credits-button-collapsed={isCollapsed}
                         onclick={onBillingClick}
                         type="button"
                         aria-label={$text('settings.billing')}
                     >
-                        <span class="credits-coin-icon"></span>
-                        <span class="credits-amount">{$text('settings.credits_amount').replace('{credits_amount}', formattedCredits)}</span>
+                        <span class="credits-coin-icon" class:credits-coin-icon-collapsed={isCollapsed}></span>
+                        <span class="credits-amount" class:credits-amount-collapsed={isCollapsed}>{$text('settings.credits_amount').replace('{credits_amount}', formattedCredits)}</span>
                     </button>
                 </div>
             {/if}
@@ -390,8 +385,12 @@
     .credits-row {
         display: flex;
         align-items: center;
-        transition: opacity 0.1s ease;
         pointer-events: auto; /* Re-enable despite parent pointer-events:none */
+    }
+
+    /* Collapsed: tighter spacing so it fits in the 72px-high row layout */
+    .credits-row-collapsed {
+        margin-top: -2px;
     }
 
     .credits-button {
@@ -404,6 +403,11 @@
         border-radius: 6px;
         padding: 3px 6px;
         transition: background-color 0.15s ease;
+    }
+
+    .credits-button-collapsed {
+        gap: 4px;
+        padding: 2px 5px;
     }
 
     .credits-button:hover {
@@ -430,12 +434,21 @@
         background: rgba(255, 255, 255, 0.9);
     }
 
+    .credits-coin-icon-collapsed {
+        width: 13px;
+        height: 13px;
+    }
+
     .credits-amount {
         color: #ffffff;
         font-size: 15px;
         font-weight: 600;
         line-height: 1.2;
         text-decoration: none;
+    }
+
+    .credits-amount-collapsed {
+        font-size: 13px;
     }
 
     /* ─── Mobile adjustments ─────────────────────────────────────────────────── */
