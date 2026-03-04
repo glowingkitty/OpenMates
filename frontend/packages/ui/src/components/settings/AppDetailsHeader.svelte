@@ -147,7 +147,7 @@
    */
   const COLLAPSED_HEIGHT = 88;
   const EXPANDED_HEIGHT_DESKTOP = 240;
-  const EXPANDED_HEIGHT_MOBILE = 190;
+  const EXPANDED_HEIGHT_MOBILE = 170;
 
   let expandedHeight = $derived.by(() => {
     if (typeof window === 'undefined') return EXPANDED_HEIGHT_DESKTOP;
@@ -726,6 +726,20 @@
        No CSS override needed for the height itself since it is set via inline style.
        We only need to scale down text sizes for the details block on mobile. */
 
+    .nav-row {
+      height: 40px;
+      padding: 0 8px;
+      gap: 4px;
+    }
+
+    .identity-block {
+      gap: 6px;
+    }
+
+    .name-category-block {
+      gap: 1px;
+    }
+
     .app-description {
       font-size: 13px;
       -webkit-line-clamp: 2;
@@ -733,8 +747,8 @@
     }
 
     .details-block {
-      padding: 4px 16px 10px;
-      gap: 8px;
+      padding: 2px 14px 8px;
+      gap: 6px;
     }
 
     .cap-icon {
