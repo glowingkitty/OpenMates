@@ -686,6 +686,59 @@ The Python implementation lives in `backend/scripts/share_key_crypto.py` and mir
 
 ---
 
+## Production Inspection (`--production` flag)
+
+### Overview
+
+The `--production` flag on `inspect_chat.py` and `inspect_embed.py` fetches data from the **production (or dev) Admin Debug API** instead of querying local Directus and Redis. This enables debugging production issues from the dev server without needing direct database access.
+
+The API key is fetched from Vault (`kv/data/providers/admin` key `debug_cli__api_key`) — the same key used by `admin_debug_cli.py`.
+
+### Usage
+
+```bash
+# Inspect a production chat (metadata, messages, embeds, usage, cache)
+docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> --production
+
+# Fetch from prod + decrypt with share key (complete debugging workflow)
+docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> --production \
+  --share-url "https://app.openmates.org/share/chat/<chat_id>#key=<blob>"
+
+# JSON output from production
+docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> --production --json
+
+# Inspect a production embed
+docker exec api python /app/backend/scripts/inspect_embed.py <embed_id> --production
+
+# Fetch prod embed + decrypt with share key
+docker exec api python /app/backend/scripts/inspect_embed.py <embed_id> --production \
+  --share-url "https://app.openmates.org/share/embed/<embed_id>#key=<blob>"
+
+# Hit the dev API instead of production
+docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> --dev
+docker exec api python /app/backend/scripts/inspect_embed.py <embed_id> --dev
+```
+
+### Limitations in Production Mode
+
+| Feature                       | Available? | Why                                                 |
+| ----------------------------- | ---------- | --------------------------------------------------- |
+| `--share-url` / `--share-key` | Yes        | Client-side AES decryption runs locally             |
+| `--decrypt` (Vault)           | No         | Cannot access prod Vault from dev server            |
+| `--check-links` (embed)       | No         | Requires local Directus + Redis                     |
+| `--no-cache`                  | Ignored    | Cache info comes from the API response              |
+| Embed key analysis            | Partial    | Chat API does not return embed_keys; embed API does |
+
+### How It Works
+
+1. The script fetches the admin API key from local Vault
+2. Makes a single GET request to the production Admin Debug API endpoint
+3. Maps the API response to the same data structures used by the local fetchers
+4. Passes the mapped data to the same formatter functions (no output changes)
+5. If `--share-url` / `--share-key` is provided, decrypts the encrypted fields locally
+
+---
+
 ## Docker Debug Mode
 
 ### Overview
