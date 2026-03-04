@@ -13,6 +13,7 @@
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import katex from 'katex';
+  import functionPlot from 'function-plot';
 
   interface Props {
     /** Raw plot specification string (function definitions) */
@@ -149,36 +150,35 @@
       .filter(d => d.fn.length > 0);
   }
 
-  $effect(() => {
+  function renderPlot(): void {
     if (!plotContainer || !plotSpec) return;
 
     renderError = null;
 
-    import('function-plot').then(({ default: functionPlot }) => {
-      if (!plotContainer) return;
-      try {
-        const data = parsePlotSpec(plotSpec);
-        if (data.length === 0) return;
+    try {
+      const data = parsePlotSpec(plotSpec);
+      if (data.length === 0) return;
 
-        plotContainer.innerHTML = '';
+      plotContainer.innerHTML = '';
 
-        functionPlot({
-          target: plotContainer,
-          width: plotContainer.clientWidth || 600,
-          height: plotContainer.clientHeight || 400,
-          grid: true,
-          data,
-          // Zoom and pan enabled in fullscreen for interactivity
-          disableZoom: false,
-        });
-      } catch (err) {
-        renderError = err instanceof Error ? err.message : 'Render failed';
-        console.error('[MathPlotEmbedFullscreen] Plot render error:', err);
-      }
-    }).catch(err => {
-      renderError = 'Failed to load plot library';
-      console.error('[MathPlotEmbedFullscreen] Import error:', err);
-    });
+      functionPlot({
+        target: plotContainer,
+        width: plotContainer.clientWidth || 600,
+        height: plotContainer.clientHeight || 400,
+        grid: true,
+        data,
+        // Zoom and pan enabled in fullscreen for interactivity
+        disableZoom: false,
+      });
+    } catch (err) {
+      renderError = err instanceof Error ? err.message : 'Render failed';
+      console.error('[MathPlotEmbedFullscreen] Plot render error:', err);
+    }
+  }
+
+  $effect(() => {
+    if (!plotContainer || !plotSpec) return;
+    renderPlot();
   });
 
   // Re-render when container size changes (e.g. panel resize)
@@ -190,22 +190,11 @@
     resizeObserver = new ResizeObserver(() => {
       // Trigger re-render by re-running effect
       if (plotContainer && plotSpec) {
-        import('function-plot').then(({ default: functionPlot }) => {
-          if (!plotContainer) return;
-          try {
-            const data = parsePlotSpec(plotSpec);
-            if (data.length === 0) return;
-            plotContainer.innerHTML = '';
-            functionPlot({
-              target: plotContainer,
-              width: plotContainer.clientWidth || 600,
-              height: plotContainer.clientHeight || 400,
-              grid: true,
-              data,
-              disableZoom: false,
-            });
-          } catch { /* ignore resize errors */ }
-        }).catch(() => { /* ignore */ });
+        try {
+          renderPlot();
+        } catch {
+          /* ignore resize errors */
+        }
       }
     });
 
