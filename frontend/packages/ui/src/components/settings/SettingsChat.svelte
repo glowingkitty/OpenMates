@@ -40,6 +40,19 @@ Chat Settings - Notification preferences and chat-related settings
             title: $text('settings.chat.notifications')
         });
     }
+
+    /**
+     * Navigate to the AI app settings page where users can configure
+     * additional chat behavior and preferences.
+     */
+    function navigateToAiAppSettings() {
+        dispatch('openSettings', {
+            settingsPath: 'app_store/ai',
+            direction: 'forward',
+            icon: 'app',
+            title: $text('apps.ai')
+        });
+    }
 </script>
 
 <div class="chat-settings-container">
@@ -49,6 +62,14 @@ Chat Settings - Notification preferences and chat-related settings
         title={$text('settings.chat.notifications')}
         subtitleTop={notificationStatus}
         onClick={navigateToNotifications}
+    />
+
+    <SettingsItem
+        type="submenu"
+        icon="ai"
+        title={$text('settings.chat.ai_app_settings')}
+        subtitle={$text('settings.chat.ai_app_settings_info')}
+        onClick={navigateToAiAppSettings}
     />
     
     <!-- Future: Additional chat settings can be added here -->

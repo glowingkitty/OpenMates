@@ -27,6 +27,7 @@
     import MapsLocationEmbedFullscreen from './embeds/maps/MapsLocationEmbedFullscreen.svelte';
     import CodeEmbedFullscreen from './embeds/code/CodeEmbedFullscreen.svelte';
     import DocsEmbedFullscreen from './embeds/docs/DocsEmbedFullscreen.svelte';
+    import MailEmbedFullscreen from './embeds/mail/MailEmbedFullscreen.svelte';
     import SheetEmbedFullscreen from './embeds/sheets/SheetEmbedFullscreen.svelte';
     import VideoTranscriptEmbedPreview from './embeds/videos/VideoTranscriptEmbedPreview.svelte';
     import VideoTranscriptEmbedFullscreen from './embeds/videos/VideoTranscriptEmbedFullscreen.svelte';
@@ -44,6 +45,8 @@
     import MathCalculateEmbedFullscreen from './embeds/math/MathCalculateEmbedFullscreen.svelte';
     import MathPlotEmbedFullscreen from './embeds/math/MathPlotEmbedFullscreen.svelte';
     import PDFEmbedFullscreen from './embeds/pdf/PDFEmbedFullscreen.svelte';
+    import PdfReadEmbedFullscreen from './embeds/pdf/PdfReadEmbedFullscreen.svelte';
+    import PdfSearchEmbedFullscreen from './embeds/pdf/PdfSearchEmbedFullscreen.svelte';
     import RecordingEmbedFullscreen from './embeds/audio/RecordingEmbedFullscreen.svelte';
     import FocusModeContextMenu from './embeds/FocusModeContextMenu.svelte';
     import { appSkillsStore } from '../stores/appSkillsStore'; // For resolving active focus mode name in header banner
@@ -96,6 +99,7 @@
     import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils'; // For resume card category gradient circle
     import { waitLocale } from 'svelte-i18n'; // Import waitLocale for waiting for translations to load
     import { get } from 'svelte/store'; // Import get to read store values
+    import { searchTextHighlightStore } from '../stores/messageHighlightStore'; // For source quote text highlighting in embed fullscreen
     import { extractEmbedReferences } from '../services/embedResolver'; // Import for embed navigation
     import { tipTapToCanonicalMarkdown } from '../message_parsing/serializers'; // Import for embed navigation
     import PushNotificationBanner from './PushNotificationBanner.svelte'; // Import push notification banner component
@@ -210,6 +214,8 @@
         restoreFromPip?: boolean;
         /** Child embed to auto-focus when the search fullscreen opens (from inline badge click) */
         focusChildEmbedId?: string | null;
+        /** Quote text to highlight in the fullscreen content (from source quote block click) */
+        highlightQuoteText?: string | null;
     } | null;
 
     type EmbedFullscreenEventDetail = {
@@ -226,6 +232,8 @@
         };
         /** Child embed to auto-focus when the search fullscreen opens (from inline badge click) */
         focusChildEmbedId?: string | null;
+        /** Quote text to highlight in the fullscreen content (from source quote block click) */
+        highlightQuoteText?: string | null;
     };
 
     type AiMessageChunkPayload = {
@@ -489,6 +497,27 @@
     // PDF embed fullscreen — triggered by clicking a finished PDF embed (editor or read-only)
     let showPdfEmbedFullscreen = $state(false);
     let pdfFullscreenData = $state<{ embedId?: string; filename?: string; pageCount?: number }>({});
+
+    // PDF read fullscreen — triggered by clicking a finished pdf.read skill embed
+    let showPdfReadFullscreen = $state(false);
+    let pdfReadFullscreenData = $state<{
+        embedId?: string;
+        filename?: string;
+        pagesReturned?: number[];
+        pagesSkipped?: number[];
+        textContent?: string;
+    }>({});
+
+    // PDF search fullscreen — triggered by clicking a finished pdf.search skill embed
+    let showPdfSearchFullscreen = $state(false);
+    let pdfSearchFullscreenData = $state<{
+        embedId?: string;
+        filename?: string;
+        query?: string;
+        totalMatches?: number;
+        truncated?: boolean;
+        matches?: Array<{ page_num?: number; match_text?: string; context?: string; char_offset?: number }>;
+    }>({});
 
     // Recording embed fullscreen — triggered by clicking a finished voice recording embed
     let showRecordingFullscreen = $state(false);
@@ -841,6 +870,41 @@
         pdfFullscreenData = {};
     }
 
+    function handlePdfReadFullscreen(event: CustomEvent) {
+        console.debug('[ActiveChat] Received pdfreadfullscreen event:', event.detail);
+        pdfReadFullscreenData = {
+            embedId: event.detail.embedId,
+            filename: event.detail.filename,
+            pagesReturned: event.detail.pagesReturned,
+            pagesSkipped: event.detail.pagesSkipped,
+            textContent: event.detail.textContent,
+        };
+        showPdfReadFullscreen = true;
+    }
+
+    function handleClosePdfReadFullscreen() {
+        showPdfReadFullscreen = false;
+        pdfReadFullscreenData = {};
+    }
+
+    function handlePdfSearchFullscreen(event: CustomEvent) {
+        console.debug('[ActiveChat] Received pdfsearchfullscreen event:', event.detail);
+        pdfSearchFullscreenData = {
+            embedId: event.detail.embedId,
+            filename: event.detail.filename,
+            query: event.detail.query,
+            totalMatches: event.detail.totalMatches,
+            truncated: event.detail.truncated,
+            matches: event.detail.matches,
+        };
+        showPdfSearchFullscreen = true;
+    }
+
+    function handleClosePdfSearchFullscreen() {
+        showPdfSearchFullscreen = false;
+        pdfSearchFullscreenData = {};
+    }
+
     function handleImageFullscreen(event: CustomEvent) {
         console.debug('[ActiveChat] Received imagefullscreen event:', event.detail);
         imageEmbedFullscreenData = {
@@ -943,6 +1007,7 @@
     /**
      * Normalize unknown status values into a supported embed status.
      * This guards against loosely typed decodedContent fields.
+     * Canonical definition: services/embedStateMachine.ts normalizeEmbedStatus()
      */
     function normalizeEmbedStatus(value: unknown): 'processing' | 'finished' | 'error' | 'cancelled' {
         if (value === 'processing' || value === 'finished' || value === 'error' || value === 'cancelled') {
@@ -1054,7 +1119,7 @@
         try {
             const { encryptWithChatKey } = await import('../services/cryptoService');
             const { webSocketService } = await import('../services/websocketService');
-            const importedChatSyncService = (await import('../services/chatSyncService')).default;
+            const { chatSyncService: importedChatSyncService } = await import('../services/chatSyncService');
             
             // Generate message ID (format: last 10 chars of chat_id + uuid)
             const chatIdSuffix = chatId.slice(-10);
@@ -1160,7 +1225,7 @@
     async function handleEmbedFullscreen(event: CustomEvent) {
         console.debug('[ActiveChat] Received embedfullscreen event:', event.detail);
         const detail = event.detail as EmbedFullscreenEventDetail;
-        const { embedId, embedData, decodedContent, embedType, attrs, focusChildEmbedId } = detail;
+        const { embedId, embedData, decodedContent, embedType, attrs, focusChildEmbedId, highlightQuoteText } = detail;
 
         // CRITICAL: Set the URL hash guard BEFORE any async work.
         //
@@ -1493,9 +1558,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             attrs,
             // Forwarded from EmbedInlineLink when an inline badge references a child embed.
             // The search fullscreen components use this to auto-open the specific result overlay.
-            focusChildEmbedId: focusChildEmbedId ?? null
+            focusChildEmbedId: focusChildEmbedId ?? null,
+            // Forwarded from SourceQuoteBlock when a verified source quote is clicked.
+            // The fullscreen uses this to scroll to and highlight the quoted text.
+            highlightQuoteText: highlightQuoteText ?? null
         };
         showEmbedFullscreen = true;
+        
+        // If this was triggered by a source quote click, set the search highlight store
+        // so UnifiedEmbedFullscreen's existing highlight mechanism scrolls to + highlights
+        // the quoted text within the embed content. This is cleared on fullscreen close.
+        if (highlightQuoteText) {
+            searchTextHighlightStore.set(highlightQuoteText);
+        }
         
         // URL hash was already set at the top of this function (before async work) to ensure
         // the programmatic-update guard was live before the hashchange fired.  No second call needed.
@@ -1520,6 +1595,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             } else if (videoState.isPipMode) {
                 console.debug('[ActiveChat] Video in PiP mode - keeping video playing');
             }
+        }
+        
+        // Clear source quote highlight if it was set (from SourceQuoteBlock click).
+        // Only clear if the highlight was set by this feature (not by the search bar).
+        if (embedFullscreenData?.highlightQuoteText) {
+            searchTextHighlightStore.set(null);
         }
         
         showEmbedFullscreen = false;
@@ -2573,6 +2654,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      */
     let suggestionsWouldOverlapWelcome = $state(false);
 
+    // Cache the last measured welcome content height so that when the welcome
+    // block is hidden (hideWelcomeForKeyboard removes it from DOM), we can still
+    // use its height for overlap calculations. Without this, hiding the welcome
+    // causes welcomeHeight=0 → no overlap → show welcome → overlap again → hide
+    // → infinite flicker loop.
+    let lastKnownWelcomeHeight = 0;
+
     // Estimated height the suggestions panel occupies (header + 3 items + margin).
     // Used as the minimum clearance we require between the welcome block bottom
     // and the message-input top before we consider the layout "tight".
@@ -2592,8 +2680,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const containerHeight = containerRect.height;
 
         // Height of the welcome content block (greeting + resume card).
-        // Falls back to 0 when the element isn't rendered (e.g. hideWelcomeForKeyboard).
-        const welcomeHeight = welcomeContentEl ? welcomeContentEl.getBoundingClientRect().height : 0;
+        // When the element is visible, measure it and cache the value.
+        // When hidden (e.g. hideWelcomeForKeyboard removed it from DOM), use the
+        // cached height so the overlap calculation remains stable — otherwise the
+        // cycle hide→welcomeHeight=0→noOverlap→show→overlap→hide causes flicker.
+        const measuredWelcomeHeight = welcomeContentEl ? welcomeContentEl.getBoundingClientRect().height : 0;
+        if (measuredWelcomeHeight > 0) {
+            lastKnownWelcomeHeight = measuredWelcomeHeight;
+        }
+        const welcomeHeight = measuredWelcomeHeight > 0 ? measuredWelcomeHeight : lastKnownWelcomeHeight;
 
         // Height of just the message input itself (NOT the container, which also holds
         // NewChatSuggestions). Using messageInputContainerEl here would create a feedback
@@ -2827,6 +2922,70 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Thinking/Reasoning state for thinking models (Gemini, Anthropic Claude)
     // Map of task_id -> thinking content, streaming status, and signature metadata
     let thinkingContentByTask = $state<Map<string, { content: string; isStreaming: boolean; signature?: string | null; totalTokens?: number | null }>>(new Map());
+    // Tracks message IDs that currently show synthetic thinking placeholder text.
+    // This lets us replace (not append) on first real chunk and avoid persisting placeholders.
+    let thinkingPlaceholderMessageIds = $state<Set<string>>(new Set());
+
+    function isThinkingModel(modelName?: string | null, providerName?: string | null): boolean {
+        const normalizedModel = (modelName || '').toLowerCase();
+        const normalizedProvider = (providerName || '').toLowerCase();
+        return (
+            normalizedModel.includes('gemini') ||
+            normalizedModel.includes('claude') ||
+            normalizedProvider.includes('anthropic')
+        );
+    }
+
+    function ensureThinkingPlaceholder(messageId: string, chatId: string, category?: string, modelName?: string) {
+        // Translated placeholder text for user-facing display
+        const placeholderText = $text('chat.thinking.placeholder');
+
+        const existingMessage = currentMessages.find(m => m.message_id === messageId);
+        if (!existingMessage) {
+            const placeholderMessage: ChatMessageModel = {
+                message_id: messageId,
+                chat_id: chatId,
+                role: 'assistant',
+                category,
+                model_name: modelName,
+                content: '',
+                status: 'streaming',
+                created_at: Math.floor(Date.now() / 1000),
+                encrypted_content: '',
+                // Set thinking fields directly on the message so the ThinkingSection
+                // renders immediately even before the thinkingContentByTask prop
+                // propagates to ChatHistory (Svelte 5 props update in the next
+                // render cycle, but updateMessages runs imperatively).
+                thinking_content: placeholderText,
+                has_thinking: true,
+            };
+            currentMessages = [...currentMessages, placeholderMessage];
+            clearProcessingPhaseWhenReady(chatId);
+        }
+
+        if (!thinkingContentByTask.has(messageId)) {
+            thinkingContentByTask.set(messageId, {
+                content: placeholderText,
+                isStreaming: true,
+            });
+            thinkingContentByTask = new Map(thinkingContentByTask);
+        }
+
+        const nextPlaceholderIds = new Set(thinkingPlaceholderMessageIds);
+        nextPlaceholderIds.add(messageId);
+        thinkingPlaceholderMessageIds = nextPlaceholderIds;
+
+        // Use tick() so the thinkingContentByTask prop has propagated to
+        // ChatHistory by the time it processes the new messages array.
+        // Without this, the imperative updateMessages runs before Svelte
+        // delivers the updated prop, causing the ThinkingSection to not
+        // render on the first frame.
+        tick().then(() => {
+            if (chatHistoryRef) {
+                chatHistoryRef.updateMessages(currentMessages);
+            }
+        });
+    }
     
     // ===========================================
     // Embed Navigation Derived States
@@ -3479,6 +3638,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                 // Attach thinking metadata to the final message so it persists across devices.
                 const thinkingEntry = thinkingContentByTask.get(chunk.message_id);
+                const hasOnlyPlaceholderThinking =
+                    thinkingPlaceholderMessageIds.has(chunk.message_id);
+                const finalThinkingContent = hasOnlyPlaceholderThinking
+                    ? finalMessageInArray.thinking_content
+                    : (thinkingEntry?.content || finalMessageInArray.thinking_content);
+                const finalThinkingSignature = hasOnlyPlaceholderThinking
+                    ? finalMessageInArray.thinking_signature
+                    : (thinkingEntry?.signature || finalMessageInArray.thinking_signature);
+                const finalThinkingTokenCount = hasOnlyPlaceholderThinking
+                    ? finalMessageInArray.thinking_token_count
+                    : (thinkingEntry?.totalTokens ?? finalMessageInArray.thinking_token_count);
                 // For rejection messages (e.g., insufficient credits), keep 'waiting_for_user' status
                 // so the chat shows "Waiting for you..." instead of appearing as a completed response
                 const isRejection = !!chunk.rejection_reason;
@@ -3506,10 +3676,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // Preserve role as 'system' for rejection messages
                     role: isRejection ? 'system' as const : finalMessageInArray.role,
                     model_name: finalModelName, // Explicitly preserve/set model_name
-                    thinking_content: thinkingEntry?.content || finalMessageInArray.thinking_content,
-                    thinking_signature: thinkingEntry?.signature || finalMessageInArray.thinking_signature,
-                    thinking_token_count: thinkingEntry?.totalTokens ?? finalMessageInArray.thinking_token_count,
-                    has_thinking: !!(thinkingEntry?.content || finalMessageInArray.thinking_content)
+                    thinking_content: finalThinkingContent,
+                    thinking_signature: finalThinkingSignature,
+                    thinking_token_count: finalThinkingTokenCount,
+                    has_thinking: !!finalThinkingContent
                 };
 
                 console.debug(`[ActiveChat] Final chunk - preserving model_name: "${finalModelName}" for message ${chunk.message_id}`, {
@@ -3717,7 +3887,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Update thinking content map using message_id (same as task_id)
         const existing = thinkingContentByTask.get(messageId);
-        const newContent = (existing?.content || '') + (chunk.content || '');
+        const hasPlaceholder = thinkingPlaceholderMessageIds.has(messageId);
+        const incomingChunk = chunk.content || '';
+        const hasIncomingThinkingText = incomingChunk.trim().length > 0;
+        const newContent = hasPlaceholder
+            ? (hasIncomingThinkingText ? incomingChunk : (existing?.content || ''))
+            : (existing?.content || '') + incomingChunk;
+
+        if (hasPlaceholder && hasIncomingThinkingText) {
+            const nextPlaceholderIds = new Set(thinkingPlaceholderMessageIds);
+            nextPlaceholderIds.delete(messageId);
+            thinkingPlaceholderMessageIds = nextPlaceholderIds;
+        }
         
         thinkingContentByTask.set(messageId, {
             content: newContent,
@@ -3756,6 +3937,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Mark thinking as complete (no longer streaming)
         const existing = thinkingContentByTask.get(messageId);
         if (existing) {
+            if (thinkingPlaceholderMessageIds.has(messageId)) {
+                thinkingContentByTask.delete(messageId);
+                thinkingContentByTask = new Map(thinkingContentByTask);
+
+                const nextPlaceholderIds = new Set(thinkingPlaceholderMessageIds);
+                nextPlaceholderIds.delete(messageId);
+                thinkingPlaceholderMessageIds = nextPlaceholderIds;
+
+                if (chatHistoryRef) {
+                    chatHistoryRef.updateMessages(currentMessages);
+                }
+                return;
+            }
+
             thinkingContentByTask.set(messageId, {
                 content: existing.content,
                 isStreaming: false,
@@ -5748,6 +5943,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // The thinking content is persisted to IndexedDB by chatSyncServiceHandlersAI and
         // will be loaded via msg.original_message?.thinking_content with isStreaming=false.
         thinkingContentByTask = new Map();
+        thinkingPlaceholderMessageIds = new Set();
         
         let newMessages: ChatMessageModel[] = [];
         if (currentChat?.chat_id) {
@@ -6665,8 +6861,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const recordingfullscreenHandler = (event: Event) => {
             handleRecordingFullscreen(event as CustomEvent);
         };
+        const pdfreadfullscreenHandler = (event: Event) => {
+            handlePdfReadFullscreen(event as CustomEvent);
+        };
+        const pdfsearchfullscreenHandler = (event: Event) => {
+            handlePdfSearchFullscreen(event as CustomEvent);
+        };
         document.addEventListener('imagefullscreen', imagefullscreenHandler);
         document.addEventListener('pdffullscreen', pdffullscreenHandler);
+        document.addEventListener('pdfreadfullscreen', pdfreadfullscreenHandler);
+        document.addEventListener('pdfsearchfullscreen', pdfsearchfullscreenHandler);
         document.addEventListener('recordingfullscreen', recordingfullscreenHandler);
         
         // --- Focus mode event listeners ---
@@ -7302,6 +7506,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // This ensures no thinking state is left in "streaming" mode after the task finishes
                 let hasStreamingThinking = false;
                 thinkingContentByTask.forEach((entry, taskId) => {
+                    if (thinkingPlaceholderMessageIds.has(taskId)) {
+                        thinkingContentByTask.delete(taskId);
+                        const nextPlaceholderIds = new Set(thinkingPlaceholderMessageIds);
+                        nextPlaceholderIds.delete(taskId);
+                        thinkingPlaceholderMessageIds = nextPlaceholderIds;
+                        hasStreamingThinking = true;
+                        return;
+                    }
+
                     if (entry.isStreaming) {
                         hasStreamingThinking = true;
                         thinkingContentByTask.set(taskId, {
@@ -7327,7 +7540,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }) as EventListenerCallback;
 
         const aiTypingStartedHandler = (async (event: CustomEvent) => {
-            const { chat_id, user_message_id, category, model_name, provider_name, server_region, is_continuation } = event.detail;
+            const { chat_id, user_message_id, message_id, category, model_name, provider_name, server_region, is_continuation } = event.detail;
             console.log('[ActiveChat] aiTypingStartedHandler fired', { 
                 chat_id, 
                 currentChatId: currentChat?.chat_id,
@@ -7342,6 +7555,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 } : null
             });
             if (chat_id === currentChat?.chat_id) {
+                if (message_id && isThinkingModel(model_name, provider_name)) {
+                    ensureThinkingPlaceholder(message_id, chat_id, category, model_name);
+                }
+
                 const messageIndex = currentMessages.findIndex(m => m.message_id === user_message_id);
                 // Update user message status to synced from both 'processing' and 'waiting_for_user'
                 // (waiting_for_user is set when paused for app settings permission or credit issues)
@@ -7618,8 +7835,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // Only update the specific message that contains this embed
                     // For now, update all streaming/assistant messages to be safe
                     if (msg.message_id === message_id || msg.status === 'streaming' || msg.role === 'assistant') {
-                        const updated: typeof msg = {
-                            ...msg,
+                        const updated: MessageWithEmbedMeta = {
+                            ...(msg as MessageWithEmbedMeta),
                             // Add a timestamp to force content re-processing
                             _embedUpdateTimestamp: Date.now()
                         };
@@ -7835,6 +8052,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Remove image/PDF/recording fullscreen document listeners
             document.removeEventListener('imagefullscreen', imagefullscreenHandler);
             document.removeEventListener('pdffullscreen', pdffullscreenHandler);
+            document.removeEventListener('pdfreadfullscreen', pdfreadfullscreenHandler);
+            document.removeEventListener('pdfsearchfullscreen', pdfsearchfullscreenHandler);
             document.removeEventListener('recordingfullscreen', recordingfullscreenHandler);
             // Remove focus mode event listeners
             document.removeEventListener('focusModeRejected', focusModeRejectedHandler as EventListenerCallback);
@@ -7982,10 +8201,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 >
                                 </button>
                             </div>
-                        </div>
-
-                        <!-- Right side buttons -->
-                        <div class="right-buttons">
                             <!-- PII hide/unhide toggle - only shows when chat has sensitive data -->
                             {#if chatHasPII && !showWelcome}
                                 <div class="new-chat-button-wrapper">
@@ -8001,6 +8216,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     </button>
                                 </div>
                             {/if}
+                        </div>
+
+                        <!-- Right side buttons -->
+                        <div class="right-buttons">
                             <!-- Minimize chat button - only shows in side-by-side mode -->
                             <!-- When clicked, hides the chat and shows only the embed fullscreen (overlay mode) -->
                             {#if showSideBySideFullscreen}
@@ -8346,6 +8565,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     filename={pdfFullscreenData.filename}
                     pageCount={pdfFullscreenData.pageCount}
                     onClose={handleClosePdfFullscreen}
+                />
+            {/if}
+
+            {#if showPdfReadFullscreen}
+                <PdfReadEmbedFullscreen
+                    embedId={pdfReadFullscreenData.embedId}
+                    filename={pdfReadFullscreenData.filename}
+                    pagesReturned={pdfReadFullscreenData.pagesReturned}
+                    pagesSkipped={pdfReadFullscreenData.pagesSkipped}
+                    textContent={pdfReadFullscreenData.textContent}
+                    onClose={handleClosePdfReadFullscreen}
+                />
+            {/if}
+
+            {#if showPdfSearchFullscreen}
+                <PdfSearchEmbedFullscreen
+                    embedId={pdfSearchFullscreenData.embedId}
+                    filename={pdfSearchFullscreenData.filename}
+                    query={pdfSearchFullscreenData.query}
+                    totalMatches={pdfSearchFullscreenData.totalMatches}
+                    truncated={pdfSearchFullscreenData.truncated}
+                    matches={pdfSearchFullscreenData.matches}
+                    onClose={handleClosePdfSearchFullscreen}
                 />
             {/if}
 
@@ -8966,6 +9208,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         navigateDirection={embedNavigateDirection}
                         showChatButton={showChatButtonInFullscreen}
                         onShowChat={handleShowChat}
+                    />
+                {:else if embedFullscreenData.embedType === 'mail-email'}
+                    <!-- Mail Fullscreen (direct-type embed rendered from ```email ... ``` blocks) -->
+                    <MailEmbedFullscreen
+                        receiver={coerceString(embedFullscreenData.decodedContent?.receiver, '')}
+                        subject={coerceString(embedFullscreenData.decodedContent?.subject, '')}
+                        content={coerceString(embedFullscreenData.decodedContent?.content, '')}
+                        footer={coerceString(embedFullscreenData.decodedContent?.footer, '')}
+                        embedId={embedFullscreenData.embedId}
+                        onClose={handleCloseEmbedFullscreen}
+                        {hasPreviousEmbed}
+                        {hasNextEmbed}
+                        onNavigatePrevious={handleNavigatePreviousEmbed}
+                        onNavigateNext={handleNavigateNextEmbed}
+                        navigateDirection={embedNavigateDirection}
+                        showChatButton={showChatButtonInFullscreen}
+                        onShowChat={handleShowChat}
+                        piiMappings={cumulativePIIMappingsArray}
+                        piiRevealed={piiRevealed}
                     />
                 {:else}
                     <!-- Fallback for unknown embed types -->

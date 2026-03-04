@@ -4,6 +4,35 @@ icon_image: |
   videos.svg
 category: personal
 last_updated: "2025-11-12"
+# Embed type definitions — single source of truth for frontend embed routing.
+embed_types:
+  - id: search
+    category: app-skill-use
+    skill_id: search
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: video
+    child_frontend_type: videos-video
+    groupable: true
+    preview_component: videos/VideosSearchEmbedPreview.svelte
+    fullscreen_component: videos/VideosSearchEmbedFullscreen.svelte
+    child_preview_component: videos/VideoEmbedPreview.svelte
+    child_fullscreen_component: videos/VideoEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-videos"
+    i18n_namespace: embeds.videos.search
+  - id: get_transcript
+    category: app-skill-use
+    skill_id: get_transcript
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    preview_component: videos/VideoTranscriptEmbedPreview.svelte
+    fullscreen_component: videos/VideoTranscriptEmbedFullscreen.svelte
+    icon: transcript
+    gradient_var: "--color-app-videos"
+    i18n_namespace: embeds.videos.get_transcript
 settings_and_memories:
   - id: to_watch_list
     name_translation_key: videos.to_watch_list
@@ -15,6 +44,13 @@ settings_and_memories:
       - "videos.to_watch_list.example_1"
       - "videos.to_watch_list.example_2"
       - "videos.to_watch_list.example_3"
+    example_entries:
+      - name: "videos.to_watch_list.example_1.name"
+        url: "https://youtube.com/watch?v=example1"
+        channel: "Computerphile"
+      - name: "videos.to_watch_list.example_2.name"
+        url: "https://youtube.com/watch?v=example2"
+        channel: "Matt Pocock"
     schema:
       type: object
       properties:

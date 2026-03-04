@@ -535,6 +535,9 @@
         },
         "example_2": {
           "text": "Equipe casual"
+        },
+        "example_3": {
+          "text": "Acompanhamentos e lembretes"
         }
       }
     },
@@ -1185,6 +1188,9 @@
         "description": {
           "text": "Leia texto de páginas específicas de um PDF."
         },
+        "processing": {
+          "text": "Lendo…"
+        },
         "how_to_use": {
           "1": {
             "text": "Leia a página 5 do PDF carregado"
@@ -1802,6 +1808,23 @@
       },
       "just_now": {
         "text": "Agora mesmo"
+      }
+    },
+    "thinking": {
+      "placeholder": {
+        "text": "Deixe-me pensar nisso..."
+      },
+      "header_streaming": {
+        "text": "Pensando..."
+      },
+      "header_done": {
+        "text": "Processo de pensamento"
+      },
+      "collapse": {
+        "text": "Recolher processo de pensamento"
+      },
+      "expand": {
+        "text": "Expandir processo de pensamento"
       }
     },
     "new_chat_suggestions": {
@@ -3092,6 +3115,35 @@
       "plot": {
         "text": "Plotar"
       }
+    },
+    "mail": {
+      "email": {
+        "text": "Rascunho de e-mail"
+      },
+      "to": {
+        "text": "Para"
+      },
+      "subject": {
+        "text": "Assunto"
+      },
+      "content": {
+        "text": "Conteudo"
+      },
+      "footer": {
+        "text": "Rodape"
+      },
+      "empty_content": {
+        "text": "Ainda sem conteudo de email."
+      },
+      "open_mail_client": {
+        "text": "Abrir no app de e-mail"
+      },
+      "copied": {
+        "text": "Rascunho de e-mail copiado."
+      },
+      "copy_failed": {
+        "text": "Falha ao copiar o rascunho de e-mail."
+      }
     }
   },
   "enter_message": {
@@ -3176,7 +3228,7 @@
       "text": "Digite sua mensagem"
     },
     "click_to_enter_message": {
-      "text": "Clique aqui para inserir sua mensagem"
+      "text": "Clique aqui para perguntar qualquer coisa"
     },
     "click_to_add_text": {
       "text": "Clique aqui para adicionar texto"
@@ -3261,10 +3313,10 @@
     },
     "placeholder": {
       "desktop": {
-        "text": "Clique para inserir mensagem..."
+        "text": "Clique para perguntar qualquer coisa..."
       },
       "touch": {
-        "text": "Toque para inserir mensagem..."
+        "text": "Toque para perguntar qualquer coisa..."
       }
     },
     "press_and_hold_menu": {
@@ -7359,6 +7411,12 @@
     },
     "gift_card_redeemed_success": {
       "text": "Aproveite seu presente!"
+    },
+    "gift_card_waiting_notification": {
+      "text": "Your {credits} credits gift card is waiting for you. Sign up or login to apply them."
+    },
+    "gift_card_waiting_action": {
+      "text": "Signup/Login"
     },
     "credits_purchased": {
       "text": "Créditos comprados"

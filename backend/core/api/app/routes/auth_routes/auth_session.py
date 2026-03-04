@@ -16,6 +16,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import get_direct
 from backend.core.api.app.routes.auth_routes.auth_common import verify_authenticated_user
 from backend.core.api.app.routes.auth_routes.auth_utils import get_cookie_domain
 from backend.core.api.app.schemas.user import UserResponse
+from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS, TOKEN_REFRESH_THRESHOLD_SECONDS
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -70,6 +71,8 @@ async def get_session(
 
 
         # Step 1: Verify basic authentication (token validity) without device check
+        # Save the original cookie token so we can detect if the fallback rotated it
+        original_cookie_token = refresh_token
         is_auth, user_data, refresh_token, auth_status = await verify_authenticated_user(
             request, cache_service, directus_service, require_known_device=False # Device check replaced by risk assessment
         )
@@ -83,6 +86,30 @@ async def get_session(
                 token_refresh_needed=False,
                 require_invite_code=require_invite_code  # Include the invite code requirement
             )
+        
+        # Step 1b: If the fallback in verify_authenticated_user rotated the token,
+        # the browser still has the old cookie. We must set the new cookie immediately
+        # so subsequent requests use the valid token.
+        fallback_rotated_token = (refresh_token != original_cookie_token) and refresh_token is not None
+        if fallback_rotated_token:
+            logger.info("Fallback rotated token for user — setting new cookie")
+            stay_logged_in_for_cookie = user_data.get("stay_logged_in", False)
+            cookie_max_age_fallback = 2592000 if stay_logged_in_for_cookie else cache_service.SESSION_TTL
+            cookie_domain = get_cookie_domain(request)
+            is_dev = os.getenv("SERVER_ENVIRONMENT", "development").lower() == "development"
+            use_secure_cookies = not is_dev
+            cookie_params = {
+                "key": "auth_refresh_token",
+                "value": refresh_token,
+                "httponly": True,
+                "secure": use_secure_cookies,
+                "samesite": "lax",
+                "max_age": cookie_max_age_fallback,
+                "path": "/"
+            }
+            if cookie_domain:
+                cookie_params["domain"] = cookie_domain
+            response.set_cookie(**cookie_params)
 
         # --- Authentication successful, proceed with risk assessment ---
         user_id = user_data.get("user_id")
@@ -271,12 +298,16 @@ async def get_session(
              logger.warning(f"Failed to update last_online_timestamp in cache for user {user_id}")
 
         # Step 7: Check token expiry
+        # token_expiry is set during login (finalize_login_session) and after each refresh.
+        # If it's missing (legacy sessions before this fix), default to 0 so the first
+        # /session call triggers a single refresh that sets token_expiry going forward.
         token_expiry = user_data.get("token_expiry", 0)
-        expires_soon = token_expiry - current_time < 300  # 5 minutes
+        expires_soon = (token_expiry - current_time) < TOKEN_REFRESH_THRESHOLD_SECONDS
+        logger.debug(f"Token expiry check for user {user_id[:6]}: token_expiry={token_expiry}, current_time={current_time}, diff={token_expiry - current_time}s, threshold={TOKEN_REFRESH_THRESHOLD_SECONDS}s, expires_soon={expires_soon}")
 
         # Step 8: If token expires soon, refresh it
         if expires_soon:
-            logger.info(f"Token expires soon for user {user_id[:6]}, refreshing...")
+            logger.info(f"Token expires soon for user_id={user_id}, refreshing...")
             success, auth_data, _ = await directus_service.refresh_token(refresh_token)
 
             if success and auth_data.get("cookies"):
@@ -340,14 +371,19 @@ async def get_session(
                     if "stay_logged_in" not in user_data:
                         user_data["stay_logged_in"] = stay_logged_in
                         logger.warning(f"stay_logged_in was missing from user_data for user {user_id[:6]}..., restored from retrieved value: {stay_logged_in}")
+                    # Update token_expiry now that we have a fresh access token.
+                    # This prevents the next /session call from immediately rotating again.
+                    user_data["token_expiry"] = current_time + ACCESS_TOKEN_TTL_SECONDS
                     # Use extended TTL for cache when stay_logged_in is True
                     cache_ttl = cookie_max_age if stay_logged_in else cache_service.SESSION_TTL
                     await cache_service.set_user(user_data, refresh_token=new_refresh_token, ttl=cache_ttl)
-                    logger.info(f"Token refreshed successfully for user {user_id[:6]}... with stay_logged_in={stay_logged_in}, cache_ttl={cache_ttl}s")
+                    # Update refresh_token variable so Step 9 uses the NEW token, not the old rotated one
+                    refresh_token = new_refresh_token
+                    logger.info(f"Token refreshed successfully for user_id={user_id} with stay_logged_in={stay_logged_in}, cache_ttl={cache_ttl}s")
                 else:
-                    logger.warning(f"No new refresh token in response for user {user_id[:6]}")
+                    logger.warning(f"No new refresh token in response for user_id={user_id}")
             else:
-                logger.error(f"Failed to refresh token for user {user_id[:6]}")
+                logger.error(f"Failed to refresh token for user_id={user_id}")
                 # If refresh fails, treat session as invalid
                 return SessionResponse(success=False, message="Session expired", token_refresh_needed=True, require_invite_code=require_invite_code)
         
@@ -365,7 +401,7 @@ async def get_session(
         await cache_service.set_user(user_data, refresh_token=refresh_token, ttl=cache_ttl)
         
         # Step 10: Return successful session validation
-        logger.info(f"Session valid for user {user_id[:6]}. Returning user data.")
+        logger.info(f"Session valid for user_id={user_id}. Returning user data.")
         return SessionResponse(
             success=True,
             message="Session valid",

@@ -1,226 +1,354 @@
 header:
   context: Header text explaining the auto-selection feature in the @ mention dropdown
-  en: By default, OpenMates auto selects the AI model, mates, app- skills, focus modes
+  en:
+    By default, OpenMates auto selects the AI model, mates, app- skills, focus modes
     and settings & memories. Search to overwrite the auto selection
-  de: OpenMates wählt standardmäßig das KI-Modell, Mates, App-Skills, Fokusmodi sowie
+  de:
+    OpenMates wählt standardmäßig das KI-Modell, Mates, App-Skills, Fokusmodi sowie
     Einstellungen & Erinnerungen automatisch aus. Suche, um die automatische Auswahl
     zu überschreiben
-  zh: ''
-  es: Por defecto, OpenMates selecciona automáticamente el modelo de IA, mates, habilidades
+  zh: ""
+  es:
+    Por defecto, OpenMates selecciona automáticamente el modelo de IA, mates, habilidades
     de aplicación, modos de enfoque y configuraciones y memorias. Busca para sobrescribir
     la selección automática
-  fr: Par défaut, OpenMates sélectionne automatiquement le modèle d'IA, les mates,
+  fr:
+    Par défaut, OpenMates sélectionne automatiquement le modèle d'IA, les mates,
     les compétences d'application, les modes de focus et les paramètres et mémoires.
     Recherchez pour remplacer la sélection automatique
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   he: כברירת מחדל, OpenMates בוחרת אוטומטית את מודל ה-AI, ה-mates, כישורי האפליקציה, מצבי המיקוד וההגדרות והזיכרונות. חפש כדי לדרוס את הבחירה האוטומטית
   verified_by_human: []
 autocomplete_hint:
   context: Footer hint text in the @ mention dropdown suggesting how to autocomplete
   en: Press enter or tab to autocomplete.
   de: Drücke Enter oder Tab zum Vervollständigen.
-  zh: ''
+  zh: ""
   es: Presiona enter o tab para autocompletar.
   fr: Appuyez sur entrée ou tab pour compléter.
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   he: לחץ על Enter או Tab להשלמה אוטומטית.
   verified_by_human: []
 show_more:
-  context: Button text in the @ mention dropdown to show more settings/memory entries
+  context:
+    Button text in the @ mention dropdown to show more settings/memory entries
     within an expanded category. {count} is replaced with the number of remaining
     entries.
   en: Show {count} more...
-  de: '{count} weitere anzeigen...'
-  zh: ''
+  de: "{count} weitere anzeigen..."
+  zh: ""
   es: Mostrar {count} más...
   fr: Afficher {count} de plus...
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   he: "הצג עוד {count}..."
   verified_by_human: []
 from_provider:
-  context: Subtitle template showing which provider a model is from. {provider} is
+  context:
+    Subtitle template showing which provider a model is from. {provider} is
     replaced with the provider name.
   en: from {provider}
   de: von {provider}
-  zh: ''
+  zh: ""
   es: de {provider}
   fr: de {provider}
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   he: "מ-{provider}"
   verified_by_human: []
 type_labels.model:
   context: Label for AI model type in mention dropdown
   en: AI Model
   de: KI-Modell
-  zh: ''
+  zh: ""
   es: Modelo de IA
   fr: Modèle IA
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   he: מודל AI
   verified_by_human: []
 type_labels.mate:
   context: Label for mate persona type in mention dropdown
   en: Mate
   de: Mate
-  zh: ''
+  zh: ""
   es: Mate
   fr: Mate
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   he: Mate
   verified_by_human: []
 type_labels.skill:
   context: Label for app skill type in mention dropdown
   en: Skill
   de: Skill
-  zh: ''
+  zh: ""
   es: Habilidad
   fr: Compétence
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   he: מיומנות
   verified_by_human: []
 type_labels.focus_mode:
   context: Label for focus mode type in mention dropdown
   en: Focus mode
   de: Fokus-Modus
-  zh: ''
+  zh: ""
   es: Modo de enfoque
   fr: Mode de focus
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   he: מצב מיקוד
   verified_by_human: []
 type_labels.settings_memory:
   context: Label for settings and memories type in mention dropdown
   en: Settings & memories
   de: Einstellungen & Erinnerungen
-  zh: ''
+  zh: ""
   es: Configuraciones y memorias
   fr: Paramètres et mémoires
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   he: הגדרות וזיכרונות
+  verified_by_human: []
+type_labels.model_alias:
+  context: Label for model alias shortcuts (like @best, @fast) in mention dropdown
+  en: Shortcut
+  de: Shortcut
+  zh: ""
+  es: Atajo
+  fr: Raccourci
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: קיצור
+  verified_by_human: []
+model_alias.best.name:
+  context: Display name for the @best model alias shortcut in the mention dropdown
+  en: Best Model
+  de: Bestes Modell
+  zh: ""
+  es: Mejor modelo
+  fr: Meilleur modèle
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: המודל הטוב ביותר
+  verified_by_human: []
+model_alias.best.description:
+  context: Description/subtitle for the @best model alias, explaining it selects
+    the most capable AI model
+  en: Selects the most capable AI model
+  de: Wählt das leistungsstärkste KI-Modell
+  zh: ""
+  es: Selecciona el modelo de IA más capaz
+  fr: Sélectionne le modèle IA le plus performant
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: בוחר את מודל ה-AI החזק ביותר
+  verified_by_human: []
+model_alias.fast.name:
+  context: Display name for the @fast model alias shortcut in the mention dropdown
+  en: Fastest Model
+  de: Schnellstes Modell
+  zh: ""
+  es: Modelo más rápido
+  fr: Modèle le plus rapide
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: המודל המהיר ביותר
+  verified_by_human: []
+model_alias.fast.description:
+  context: Description/subtitle for the @fast model alias, explaining it selects
+    the fastest inference model
+  en: Selects the fastest AI model
+  de: Wählt das schnellste KI-Modell
+  zh: ""
+  es: Selecciona el modelo de IA más rápido
+  fr: Sélectionne le modèle IA le plus rapide
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: בוחר את מודל ה-AI המהיר ביותר
   verified_by_human: []

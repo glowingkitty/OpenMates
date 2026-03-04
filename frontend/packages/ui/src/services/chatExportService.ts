@@ -13,6 +13,7 @@ import {
   decodeToonContent,
 } from "./embedResolver";
 import { restorePIIInText } from "../components/enter_message/services/piiDetectionService";
+import { copyToClipboard } from "../utils/clipboardUtils";
 
 /**
  * Options for controlling PII handling during export.
@@ -837,32 +838,14 @@ export async function copyChatToClipboard(
     // Wrap YAML content in a markdown code block for better formatting when pasted
     const codeBlock = `\`\`\`yaml\n${yamlContent}\n\`\`\``;
 
-    // Try modern clipboard API first (works on most browsers)
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      try {
-        await navigator.clipboard.writeText(codeBlock);
-        console.debug(
-          "[ChatExportService] Chat copied to clipboard successfully using modern API",
-        );
-        return;
-      } catch (clipboardError) {
-        // Extract error message for proper logging (Safari errors don't serialize well)
-        const errorMsg =
-          clipboardError instanceof Error
-            ? clipboardError.message
-            : String(clipboardError);
-        console.warn(
-          "[ChatExportService] Modern clipboard API failed, trying fallback. Error:",
-          errorMsg,
-        );
-      }
+    // Copy via the unified ClipboardService (writeText → execCommand fallback chain)
+    const result = await copyToClipboard(codeBlock);
+    if (!result.success) {
+      throw new Error(result.error || "Failed to copy to clipboard");
     }
 
-    // Fallback for iOS Safari and older browsers
-    await fallbackCopyToClipboard(codeBlock);
-
     console.debug(
-      "[ChatExportService] Chat copied to clipboard successfully using fallback method",
+      `[ChatExportService] Chat copied to clipboard via ${result.method}`,
     );
   } catch (error) {
     // Extract error message for proper logging (Safari errors don't serialize well)
@@ -873,58 +856,6 @@ export async function copyChatToClipboard(
     );
     throw new Error(`Failed to copy to clipboard: ${errorMsg}`);
   }
-}
-
-/**
- * Fallback clipboard method for iOS Safari and older browsers
- * Uses the deprecated but more compatible execCommand approach
- * @param text - Text to copy to clipboard
- */
-async function fallbackCopyToClipboard(text: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    // Create a temporary textarea element
-    const textArea = document.createElement("textarea");
-    textArea.value = text;
-
-    // Make it invisible but still focusable
-    textArea.style.position = "fixed";
-    textArea.style.left = "-999999px";
-    textArea.style.top = "-999999px";
-    textArea.style.opacity = "0";
-    textArea.style.pointerEvents = "none";
-    textArea.setAttribute("readonly", "");
-
-    // Add to DOM, select, and copy
-    document.body.appendChild(textArea);
-
-    try {
-      // For iOS Safari, we need to focus and select the text
-      textArea.focus();
-      textArea.select();
-      textArea.setSelectionRange(0, text.length);
-
-      // Execute copy command
-      const successful = document.execCommand("copy");
-
-      if (successful) {
-        console.debug("[ChatExportService] Fallback copy successful");
-        resolve();
-      } else {
-        throw new Error("execCommand copy failed");
-      }
-    } catch (error) {
-      // Extract error message for proper logging (Safari errors don't serialize well)
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error(
-        "[ChatExportService] Fallback copy failed. Error:",
-        errorMsg,
-      );
-      reject(new Error(`Fallback copy failed: ${errorMsg}`));
-    } finally {
-      // Clean up
-      document.body.removeChild(textArea);
-    }
-  });
 }
 
 /**

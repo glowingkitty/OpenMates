@@ -40,6 +40,10 @@
         paymentEnabled?: boolean;
         scrollTop?: number;
         onBillingClick?: () => void;
+        /** Callback fired when the user clicks their profile image → deep links to profile picture settings */
+        onAvatarClick?: () => void;
+        /** Callback fired when the user clicks their username → deep links to username settings */
+        onUsernameClick?: () => void;
     }
 
     let {
@@ -50,6 +54,8 @@
         paymentEnabled = true,
         scrollTop = 0,
         onBillingClick,
+        onAvatarClick,
+        onUsernameClick,
     }: Props = $props();
 
     // ─── Collapse animation ───────────────────────────────────────────────────
@@ -78,11 +84,8 @@
         Math.round(expandedHeight - (expandedHeight - COLLAPSED_HEIGHT) * collapseProgress)
     );
 
-    /**
-     * Opacity for the credits row: fades out in the second half of collapse
-     * (stays visible longer than the description in AppDetailsHeader).
-     */
-    let creditsOpacity = $derived(Math.max(0, 1 - collapseProgress * 2.5));
+    /** Whether the header is in collapsed (row) layout. */
+    let isCollapsed = $derived(collapseProgress > 0.5);
 
     /** Avatar size: 56px (expanded) → 32px (collapsed). */
     let avatarSize = $derived(Math.round(56 - 24 * collapseProgress));
@@ -113,65 +116,80 @@
             gap: {collapseProgress > 0.5 ? '12px' : '8px'};
         "
     >
-        <!-- User avatar -->
-        <div
-            class="avatar-slot"
-            style="width: {avatarSize}px; height: {avatarSize}px;"
-        >
-            {#if !isAuthenticated}
+        <!-- User avatar — clickable for authenticated users (deep links to profile picture settings) -->
+        {#if isAuthenticated}
+            <button
+                class="avatar-slot avatar-slot-clickable"
+                style="width: {avatarSize}px; height: {avatarSize}px;"
+                type="button"
+                onclick={onAvatarClick}
+                aria-label={$text('settings.account.profile_picture')}
+            >
+                {#if profileImageUrl}
+                    <div
+                        class="avatar-circle avatar-circle-img"
+                        style="width: {avatarSize}px; height: {avatarSize}px;"
+                    >
+                        <img
+                            class="avatar-img"
+                            src={profileImageUrl}
+                            alt="Profile"
+                            style="width: {avatarSize}px; height: {avatarSize}px;"
+                        />
+                    </div>
+                {:else}
+                    <div class="avatar-circle default-avatar" style="width: {avatarSize}px; height: {avatarSize}px;">
+                        <div class="default-user-icon"></div>
+                    </div>
+                {/if}
+            </button>
+        {:else}
+            <div
+                class="avatar-slot"
+                style="width: {avatarSize}px; height: {avatarSize}px;"
+            >
                 <!-- Guest: user icon with primary-color background -->
                 <div class="avatar-circle guest-avatar" style="width: {avatarSize}px; height: {avatarSize}px;">
                     <div class="guest-user-icon"></div>
                 </div>
-            {:else if profileImageUrl}
-                <!-- Authenticated with profile image.
-                     Use <img> instead of CSS background-image so the browser sends
-                     credentials automatically (blob: URLs work here; legacy https:// URLs also work). -->
-                <div
-                    class="avatar-circle avatar-circle-img"
-                    style="width: {avatarSize}px; height: {avatarSize}px;"
-                >
-                    <img
-                        class="avatar-img"
-                        src={profileImageUrl}
-                        alt="Profile"
-                        style="width: {avatarSize}px; height: {avatarSize}px;"
-                    />
-                </div>
-            {:else}
-                <!-- Authenticated without profile image: default user icon -->
-                <div class="avatar-circle default-avatar" style="width: {avatarSize}px; height: {avatarSize}px;">
-                    <div class="default-user-icon"></div>
-                </div>
-            {/if}
-        </div>
+            </div>
+        {/if}
 
         <!-- Name + credits stacked vertically when expanded -->
         <div
             class="name-credits-block"
             class:name-credits-block-row={collapseProgress > 0.5}
         >
-            <span
-                class="username-label"
-                class:username-label-row={collapseProgress > 0.5}
-                style="font-size: {nameFontSize}px;"
-            >{username || 'Guest'}</span>
+            {#if isAuthenticated}
+                <button
+                    class="username-label username-label-clickable"
+                    class:username-label-row={collapseProgress > 0.5}
+                    style="font-size: {nameFontSize}px;"
+                    type="button"
+                    onclick={onUsernameClick}
+                    aria-label={$text('settings.account.username')}
+                >{username || 'Guest'}</button>
+            {:else}
+                <span
+                    class="username-label"
+                    class:username-label-row={collapseProgress > 0.5}
+                    style="font-size: {nameFontSize}px;"
+                >{username || 'Guest'}</span>
+            {/if}
 
-            <!-- Credits: only shown when authenticated AND payment is enabled, fades out on collapse -->
+            <!-- Credits: always visible when authenticated AND payment is enabled.
+                 Expanded: centered below username. Collapsed: inline next to username. -->
             {#if isAuthenticated && paymentEnabled}
-                <div
-                    class="credits-row"
-                    style="opacity: {creditsOpacity}; pointer-events: {creditsOpacity < 0.05 ? 'none' : 'auto'};"
-                    aria-hidden={creditsOpacity < 0.05}
-                >
+                <div class="credits-row" class:credits-row-collapsed={isCollapsed}>
                     <button
                         class="credits-button"
+                        class:credits-button-collapsed={isCollapsed}
                         onclick={onBillingClick}
                         type="button"
                         aria-label={$text('settings.billing')}
                     >
-                        <span class="credits-coin-icon"></span>
-                        <span class="credits-amount">{$text('settings.credits_amount').replace('{credits_amount}', formattedCredits)}</span>
+                        <span class="credits-coin-icon" class:credits-coin-icon-collapsed={isCollapsed}></span>
+                        <span class="credits-amount" class:credits-amount-collapsed={isCollapsed}>{$text('settings.credits_amount').replace('{credits_amount}', formattedCredits)}</span>
                     </button>
                 </div>
             {/if}
@@ -213,6 +231,29 @@
         align-items: center;
         justify-content: center;
         transition: width 0.15s, height 0.15s;
+    }
+
+    /* Clickable avatar: reset button styles and add hover highlight ring */
+    .avatar-slot-clickable {
+        all: unset;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        pointer-events: auto;
+        border-radius: 50%;
+        padding: 3px;
+        margin: -3px;
+        transition: width 0.15s, height 0.15s, background-color 0.15s ease;
+    }
+
+    .avatar-slot-clickable:hover {
+        background-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .avatar-slot-clickable:active {
+        background-color: rgba(255, 255, 255, 0.25);
     }
 
     /* ─── Avatar variants ─────────────────────────────────────────────────────── */
@@ -307,6 +348,33 @@
         transition: font-size 0.15s;
     }
 
+    /* Clickable username: reset button styles and add hover highlight */
+    .username-label-clickable {
+        all: unset;
+        font-weight: 700;
+        color: #ffffff;
+        line-height: 1.25;
+        text-align: center;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 260px;
+        transition: font-size 0.15s, background-color 0.15s ease;
+        cursor: pointer;
+        pointer-events: auto;
+        border-radius: 6px;
+        padding: 2px 8px;
+        margin: -2px -8px;
+    }
+
+    .username-label-clickable:hover {
+        background-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .username-label-clickable:active {
+        background-color: rgba(255, 255, 255, 0.25);
+    }
+
     /* In row mode: left-aligned, single line */
     .username-label-row {
         text-align: left;
@@ -317,8 +385,12 @@
     .credits-row {
         display: flex;
         align-items: center;
-        transition: opacity 0.1s ease;
         pointer-events: auto; /* Re-enable despite parent pointer-events:none */
+    }
+
+    /* Collapsed: tighter spacing so it fits in the 72px-high row layout */
+    .credits-row-collapsed {
+        margin-top: -2px;
     }
 
     .credits-button {
@@ -331,6 +403,11 @@
         border-radius: 6px;
         padding: 3px 6px;
         transition: background-color 0.15s ease;
+    }
+
+    .credits-button-collapsed {
+        gap: 4px;
+        padding: 2px 5px;
     }
 
     .credits-button:hover {
@@ -357,14 +434,21 @@
         background: rgba(255, 255, 255, 0.9);
     }
 
+    .credits-coin-icon-collapsed {
+        width: 13px;
+        height: 13px;
+    }
+
     .credits-amount {
         color: #ffffff;
         font-size: 15px;
         font-weight: 600;
         line-height: 1.2;
-        text-decoration: underline;
-        text-decoration-color: rgba(255, 255, 255, 0.5);
-        text-underline-offset: 2px;
+        text-decoration: none;
+    }
+
+    .credits-amount-collapsed {
+        font-size: 13px;
     }
 
     /* ─── Mobile adjustments ─────────────────────────────────────────────────── */

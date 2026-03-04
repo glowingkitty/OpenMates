@@ -1851,7 +1851,21 @@
 
         // Insert the appropriate content based on result type
         // CRITICAL: Combine deleteRange and insert into a SINGLE chain to preserve cursor position
-        if (result.type === 'model') {
+        if (result.type === 'model_alias') {
+            // Use the BestModelMention node for alias shortcuts (@best, @fast)
+            // Shows @Best or @Fast in editor, serializes to @best-model:alias_id
+            const aliasResult = result as import('./services/mentionSearchService').ModelAliasMentionResult;
+            editor
+                .chain()
+                .focus()
+                .deleteRange({ from: atDocPosition, to: from })
+                .setBestModelMention({
+                    category: aliasResult.aliasId,
+                    displayName: aliasResult.mentionDisplayName
+                })
+                .insertContent(' ')
+                .run();
+        } else if (result.type === 'model') {
             // Use the custom AI model mention node for visual display
             // Shows hyphenated name (e.g., "Claude-4.5-Opus") but serializes to @ai-model:id
             editor

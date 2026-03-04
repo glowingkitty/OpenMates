@@ -15,7 +15,12 @@ from toon_format import encode
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.apps.ai.processing.preprocessor import PreprocessingResult
 from backend.apps.ai.utils.mate_utils import MateConfig
-from backend.apps.ai.utils.llm_utils import call_main_llm_stream, truncate_message_history_to_token_budget
+from backend.apps.ai.utils.llm_utils import (
+    call_main_llm_stream,
+    truncate_message_history_to_token_budget,
+    AllServersFailedError,
+    STANDARDIZED_USER_ERROR_MESSAGE,
+)
 from backend.apps.ai.utils.stream_utils import aggregate_paragraphs
 from backend.apps.ai.llm_providers.mistral_client import ParsedMistralToolCall, MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata, ParsedGoogleToolCall
@@ -1446,6 +1451,42 @@ async def handle_main_processing(
     # that no longer exist, causing the client to re-request them on every page load.
     failed_embed_ids: set[str] = set()
     
+    # --- Yield debug metadata for the inspection script ---
+    # This provides the full system prompt, tool definitions, and truncated message history
+    # to the stream consumer, which passes it back to ask_skill_task for debug caching.
+    # Only the first + last 3 messages are included to keep the debug entry manageable.
+    DEBUG_MSG_HISTORY_HEAD = 1  # First message (usually system context or first user message)
+    DEBUG_MSG_HISTORY_TAIL = 3  # Last 3 messages (most recent context)
+    if len(current_message_history) <= DEBUG_MSG_HISTORY_HEAD + DEBUG_MSG_HISTORY_TAIL:
+        debug_message_history = current_message_history
+    else:
+        debug_message_history = (
+            current_message_history[:DEBUG_MSG_HISTORY_HEAD]
+            + [{"__truncated__": True, "omitted_messages": len(current_message_history) - DEBUG_MSG_HISTORY_HEAD - DEBUG_MSG_HISTORY_TAIL}]
+            + current_message_history[-DEBUG_MSG_HISTORY_TAIL:]
+        )
+    
+    # Build concise tool summaries (name + first 120 chars of description)
+    TOOL_DESCRIPTION_PREVIEW_LENGTH = 120
+    debug_tool_summaries = []
+    for tool in available_tools_for_llm:
+        func = tool.get("function", {})
+        desc = func.get("description", "")
+        debug_tool_summaries.append({
+            "name": func.get("name", "unknown"),
+            "description_preview": desc[:TOOL_DESCRIPTION_PREVIEW_LENGTH] + ("..." if len(desc) > TOOL_DESCRIPTION_PREVIEW_LENGTH else ""),
+        })
+    
+    yield {
+        "__debug_metadata__": True,
+        "system_prompt": full_system_prompt,
+        "system_prompt_char_count": len(full_system_prompt),
+        "available_tools": debug_tool_summaries,
+        "available_tools_count": len(available_tools_for_llm),
+        "message_history_sent_to_llm": debug_message_history,
+        "message_history_total_count": len(current_message_history),
+    }
+    
     # --- End of existing logic ---
 
     # --- User-requested focus mode: bypass LLM + countdown ---
@@ -1769,7 +1810,12 @@ async def handle_main_processing(
         # showing the "processing" state to users before skill execution starts
         inline_placeholder_embeds: Dict[str, Dict[str, Any]] = {}
         
-        async for chunk in aggregate_paragraphs(llm_stream):
+        # Flag set when AllServersFailedError is caught during stream consumption.
+        # When set, the outer loop will attempt the next model in the fallback list.
+        _stream_all_servers_failed = False
+        _stream_all_servers_error: Optional[AllServersFailedError] = None
+        try:
+          async for chunk in aggregate_paragraphs(llm_stream):
             if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata)):
                 usage = chunk
                 # Accumulate token counts from every LLM call in this turn.
@@ -2105,6 +2151,39 @@ async def handle_main_processing(
                     current_turn_text_buffer.append(chunk)
             else:
                 logger.warning(f"{log_prefix} Received unexpected chunk type from stream: {type(chunk)}")
+        except AllServersFailedError as asf_err:
+            # All servers for the current model failed before yielding any content.
+            # Try the next model in the fallback list instead of showing an error.
+            _stream_all_servers_failed = True
+            _stream_all_servers_error = asf_err
+            logger.warning(
+                f"{log_prefix} MODEL_FALLBACK: AllServersFailedError during stream consumption "
+                f"for model '{models_to_try[current_model_index]}': {asf_err}. "
+                f"Will attempt next model if available."
+            )
+
+        # === MODEL FALLBACK AFTER STREAM FAILURE ===
+        # If all servers failed for the current model during stream consumption,
+        # try the next model in the fallback list before giving up.
+        if _stream_all_servers_failed:
+            current_model_index += 1
+            if current_model_index < len(models_to_try):
+                next_model = models_to_try[current_model_index]
+                logger.warning(
+                    f"{log_prefix} MODEL_FALLBACK: Switching to fallback model #{current_model_index + 1}: "
+                    f"{next_model} (previous model failed: {_stream_all_servers_error})"
+                )
+                # Reset iteration state and continue the outer for loop
+                # to retry with the next model on the same iteration
+                continue
+            else:
+                # All models exhausted — yield standardized error to user
+                logger.error(
+                    f"{log_prefix} MODEL_FALLBACK: All {len(models_to_try)} models exhausted. "
+                    f"Last error: {_stream_all_servers_error}"
+                )
+                yield STANDARDIZED_USER_ERROR_MESSAGE
+                break
 
         final_buffered_text_for_turn = "".join(current_turn_text_buffer)
 
@@ -3149,6 +3228,10 @@ async def handle_main_processing(
                 #      (which reads embed_ref from the result dict if already present)
                 # Generating slugs in two places would produce different random suffixes → ref mismatch.
                 _composite_skill_ids = {"search", "places_search", "events_search", "search_connections", "search_stays"}
+                # Skills whose results contain text-heavy content worth quoting verbatim.
+                # A single source_quote_hint is added at the group level (not per result)
+                # to remind the LLM it can use > [exact text](embed:ref) blockquote syntax.
+                _QUOTABLE_SKILL_IDS = {"search"}
                 if skill_id in _composite_skill_ids and not is_async_skill and not is_multimodal_result:
                     try:
                         from backend.core.api.app.services.embed_service import EmbedService as _EmbedSvc
@@ -3199,15 +3282,44 @@ async def handle_main_processing(
                         json_lines = json_before.split('\n')
                         logger.info(f"{log_prefix} === TOON CONVERSION DEBUG (chat history) ===")
                         logger.info(f"{log_prefix} Original JSON structure (first 15 lines, {len(json_before)} chars total):")
+                        # Source quote hint — added once per tool result group for quotable
+                        # skills (web-search, news-search).  Tells the LLM it can use the
+                        # > [verbatim text](embed:ref) blockquote syntax to cite sources.
+                        # Placed at the wrapper level so it costs ~30 tokens total, not per result.
+                        _sq_hint = (
+                            "When citing specific facts from these results, quote the exact "
+                            "text using: > [verbatim text from title, description, or "
+                            "extra_snippets](embed:the_result's_embed_ref)"
+                        ) if skill_id in _QUOTABLE_SKILL_IDS else None
+
+                        # Embed ref display-text hint — added once per tool result group
+                        # for ALL composite skills.  Reinforces that the display text in
+                        # [text](embed:ref) links must be a human-readable description
+                        # (e.g. the result's title), NEVER the embed_ref slug or its suffix.
+                        # Placed at the wrapper level (~40 tokens total, not per result).
+                        _ref_hint = (
+                            "IMPORTANT — inline link display text: when writing "
+                            "[text](embed:ref), use the result's title or a short "
+                            "description as 'text'. NEVER use the embed_ref itself, "
+                            "its domain-suffix, or the random code as display text."
+                        )
+
                         if len(results_with_refs) == 1:
                             # Single result - flatten and encode full result as TOON for chat history
                             flattened_result = _flatten_for_toon_tabular(results_with_refs[0])
+                            if _sq_hint:
+                                flattened_result["source_quote_hint"] = _sq_hint
+                            flattened_result["embed_ref_hint"] = _ref_hint
                             tool_result_content_str = encode(flattened_result)
                         else:
                             # Multiple results - flatten each result, then combine and encode as TOON
                             # Flattening enables TOON to use tabular format for uniform objects
                             flattened_results = [_flatten_for_toon_tabular(result) for result in results_with_refs]
-                            tool_result_content_str = encode({"results": flattened_results, "count": len(results_with_refs)})
+                            toon_wrapper: Dict[str, Any] = {"results": flattened_results, "count": len(results_with_refs)}
+                            if _sq_hint:
+                                toon_wrapper["source_quote_hint"] = _sq_hint
+                            toon_wrapper["embed_ref_hint"] = _ref_hint
+                            tool_result_content_str = encode(toon_wrapper)
                         
                         logger.debug(f"{log_prefix} TOON conversion (chat history) length={len(tool_result_content_str)} chars")
                         

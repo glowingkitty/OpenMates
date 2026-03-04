@@ -43,6 +43,25 @@ export const unreadMessagesStore = {
   },
 
   /**
+   * Set unread count for a chat to a specific value.
+   * Used by cross-device sync (chat_read_status_updated event) and phased sync
+   * to reflect the server-authoritative unread count on this device.
+   * @param chatId The chat ID
+   * @param count The unread count to set (0 removes the entry)
+   */
+  setUnread: (chatId: string, count: number) => {
+    update((state) => {
+      const newCounts = new Map(state.unreadCounts);
+      if (count <= 0) {
+        newCounts.delete(chatId);
+      } else {
+        newCounts.set(chatId, count);
+      }
+      return { unreadCounts: newCounts };
+    });
+  },
+
+  /**
    * Clear unread count for a chat
    * Called when user opens/views the chat
    * @param chatId The chat ID

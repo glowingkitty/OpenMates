@@ -18,7 +18,7 @@
         type SettingsMemoryMentionResult,
         type SettingsMemoryEntryMentionResult,
     } from './services/mentionSearchService';
-    import type { SkillMentionResult, FocusModeMentionResult } from './services/mentionSearchService';
+    import type { SkillMentionResult, FocusModeMentionResult, ModelAliasMentionResult } from './services/mentionSearchService';
     import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
     import { panelState } from '../../stores/panelStateStore';
 
@@ -239,6 +239,9 @@
         if (type === 'settings_memory_entry') {
             return $text('enter_message.mention_dropdown.type_labels.settings_memory');
         }
+        if (type === 'model_alias') {
+            return $text('enter_message.mention_dropdown.type_labels.model_alias');
+        }
         return $text(`enter_message.mention_dropdown.type_labels.${type}`);
     }
 
@@ -247,6 +250,11 @@
      * Some results have translation keys, others have direct text.
      */
     function getDisplayName(result: AnyMentionResult): string {
+        // For model aliases, resolve the translation key (e.g., "Best Model", "Fastest Model")
+        if (result.type === 'model_alias') {
+            const translated = $text(result.displayName);
+            return translated !== result.displayName ? translated : result.mentionDisplayName;
+        }
         // For mates, resolve the translation key
         if (result.type === 'mate') {
             const translated = $text(result.displayName);
@@ -268,6 +276,11 @@
      * Get translated subtitle for a result.
      */
     function getSubtitle(result: AnyMentionResult): string {
+        // For model aliases, show the resolved model name (e.g., "Claude Opus 4.6")
+        if (result.type === 'model_alias') {
+            const translated = $text(result.subtitle);
+            return translated !== result.subtitle ? translated : result.resolvedModelName;
+        }
         // For models, subtitle is provider name - use translation template
         if (result.type === 'model') {
             return $text('enter_message.mention_dropdown.from_provider').replace('{provider}', result.subtitle);
@@ -294,6 +307,10 @@
         switch (result.type) {
             case 'model':
                 return `app_store/ai/skill/ask/model/${result.id}`;
+            case 'model_alias': {
+                const aliasResult = result as ModelAliasMentionResult;
+                return `app_store/ai/skill/ask/model/${aliasResult.resolvedModelId}`;
+            }
             case 'mate':
                 return 'main';
             case 'skill': {
@@ -385,7 +402,13 @@
                 >
                     <!-- Icon -->
                     <div class="result-icon">
-                        {#if result.type === 'model'}
+                        {#if result.type === 'model_alias'}
+                            <!-- Model alias icon (crown for best, lightning for fast) -->
+                            {@const aliasResult = result as ModelAliasMentionResult}
+                            <div class="alias-icon alias-icon-{aliasResult.aliasIcon}">
+                                <span class="alias-emoji">{aliasResult.aliasIcon === 'crown' ? '\u{1F451}' : '\u{26A1}'}</span>
+                            </div>
+                        {:else if result.type === 'model'}
                             <!-- Provider logo - icon is already a resolved URL from getProviderIconUrl() -->
                             <img 
                                 src={result.icon} 
@@ -608,6 +631,28 @@
     .result-icon.entry-icon {
         width: 32px;
         height: 32px;
+    }
+
+    .alias-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+    }
+
+    .alias-icon-crown {
+        background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+    }
+
+    .alias-icon-lightning {
+        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+    }
+
+    .alias-emoji {
+        line-height: 1;
     }
 
     .provider-logo {

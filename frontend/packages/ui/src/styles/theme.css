@@ -833,3 +833,37 @@ main::-webkit-scrollbar-thumb {
   /* App/Docs - dark mode */
   --color-app-videos-start: #f32b29;
 }
+
+/* ── Offline image placeholder ───────────────────────────────────────────────
+   Applied to the parent element of an <img> that failed to load while offline.
+   Shows the image.svg icon as a subtle placeholder via ::after pseudo-element.
+   The image element itself is hidden (visibility:hidden) to suppress the
+   browser's broken-image icon while preserving layout dimensions.
+   See utils/offlineImageHandler.ts for the JavaScript logic.
+*/
+.offline-image-placeholder {
+  position: relative;
+}
+.offline-image-placeholder::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-grey-15, rgba(128, 128, 128, 0.1));
+  border-radius: inherit;
+  /* image.svg icon as a mask on a grey background-color pseudo element */
+  /* Use a centered, non-repeating mask with contain sizing */
+  -webkit-mask-image: url("@openmates/ui/static/icons/image.svg");
+  mask-image: url("@openmates/ui/static/icons/image.svg");
+  -webkit-mask-size: 50% 50%;
+  mask-size: 50% 50%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  background-color: var(--color-grey-30);
+  opacity: 0.4;
+  pointer-events: none;
+}

@@ -57,6 +57,90 @@ OpenMates/
 - **Clean Code**: Remove all unused functions, variables, imports, and dead code
 - **No Silent Failures**: Never hide errors with fallbacks - all errors must be visible and logged
 
+### DRY Principle — Mandatory Deduplication Check (CRITICAL)
+
+Before writing any new function, class, Pydantic model, or Svelte component:
+
+1. **Search for existing implementations first** — grep/glob for similar logic in the shared locations below. If it exists, use it.
+2. **If similar code exists in 2+ places, extract it** before adding a third copy:
+   - Backend shared logic → `backend/shared/python_utils/` or `BaseSkill`/`BaseApp`
+   - Backend shared models → `backend/shared/python_schemas/`
+   - Backend shared API clients → `backend/shared/providers/`
+   - Frontend shared logic → `frontend/packages/ui/src/utils/` or `src/services/`
+   - Frontend shared components → `frontend/packages/ui/src/components/`
+3. **Shared architecture decision comments** — Write once in `docs/architecture/`, reference with a one-line comment: `# See docs/architecture/<topic>.md for design rationale`. Do NOT copy multi-line decision blocks across files.
+4. **Pydantic model reuse** — If multiple skills need similar Request/Response shapes, create base models in `backend/shared/python_schemas/` and extend per-skill.
+5. **Unified Svelte components first** — Always use `UnifiedEmbedPreview.svelte` and `UnifiedEmbedFullscreen.svelte` as the base for embed components. Only add app-specific logic in the `details`/`content` snippets. See `docs/claude/embed-types.md`.
+
+### Architecture Decision Documentation
+
+When making architecture decisions:
+
+- **In code**: 1-2 line summary + reference link:
+  ```python
+  # Architecture: Direct async execution for app skills (not Celery).
+  # See docs/architecture/app-skills.md#execution-model
+  ```
+- **In `docs/architecture/`**: Full decision with context, decision, alternatives rejected (and why), consequences.
+- **NEVER copy multi-line decision blocks** across files. Write once, reference everywhere.
+- Add new decisions to the relevant `docs/architecture/` file in the same commit as the implementation.
+
+### Test File Cross-References
+
+Source files with associated tests MUST include a comment linking to test file(s):
+
+**Python** (after module docstring):
+
+```python
+# Tests: backend/tests/test_encryption_service.py
+# Tests: backend/tests/test_integration_encryption.py
+```
+
+**TypeScript/Svelte** (in file header comment):
+
+```typescript
+// Tests: src/services/__tests__/db.test.ts
+// E2E:   apps/web_app/tests/chat-flow.spec.ts
+```
+
+Rules:
+
+- Use paths relative to project root
+- Separate unit tests (`Tests:`) from E2E tests (`E2E:`)
+- When creating a new test, add the cross-reference to all source files it covers
+- When modifying a source file, verify test references are still accurate
+
+### File Headers
+
+Every new `.py`, `.ts`, `.svelte` file MUST start with a header comment (5-10 lines max):
+
+1. **Purpose** — what this file does (1-2 sentences)
+2. **Architecture context** — link to relevant `docs/architecture/` doc
+3. **Test references** — paths to associated test files (if any)
+
+### Module Boundaries
+
+- **Skills** must NOT import from other skills. Shared logic → `BaseSkill`, `base_app.py`, or `backend/shared/`.
+- **Frontend stores** must NOT import from other stores' internal modules. Use barrel exports (e.g., import from `authStore.ts`, not `authSessionActions.ts`).
+- **Providers** (`backend/shared/providers/`) must NOT depend on skill-specific code — they are pure API wrappers.
+
+### Constants — No Magic Values
+
+Never use raw strings or numbers in logic. Extract to named constants:
+
+```python
+# Wrong
+if len(results) > 50:
+    results = results[:50]
+
+# Correct
+MAX_RESULTS_PER_REQUEST = 50
+if len(results) > MAX_RESULTS_PER_REQUEST:
+    results = results[:MAX_RESULTS_PER_REQUEST]
+```
+
+Module-level constants for single-file use. Shared constants → dedicated config/constants module.
+
 ### Comments and Documentation
 
 - Ensure every file has detailed comments explaining what the code does
@@ -263,12 +347,6 @@ All concurrent sessions coordinate through a shared file: **`.claude/sessions.md
 1. Generate a random 4-char hex session ID: `python3 -c "import secrets; print(secrets.token_hex(2))"`
 2. Register yourself in the Active Sessions table in `.claude/sessions.md`
 
-**Before fixing a Vercel deployment error:**
-
-1. Read `.claude/sessions.md` → check the Vercel Deployment Lock
-2. If another session holds the lock (and it's <5 min old) → **wait and poll every 30s**
-3. If no lock is held → claim the lock, fix the error, then release the lock immediately
-
 **Before rebuilding Docker containers:**
 
 1. Read `.claude/sessions.md` → check the Docker Rebuild Lock
@@ -345,6 +423,7 @@ Use the Read tool to load each matching file from `docs/claude/`. Do this BEFORE
 - You need to read Docker logs or troubleshoot a service
 - The task involves investigating why something doesn't work
 - **You need to debug a production issue** (CRITICAL: use Admin Debug CLI, not local docker compose)
+- A Vercel deployment failed or the frontend is broken after a push
 
 > **Default assumption:** All reported issues are on the **dev server**, reported by an **admin**, unless the user explicitly states otherwise.
 
@@ -411,7 +490,6 @@ Use the Read tool to load each matching file from `docs/claude/`. Do this BEFORE
 
 **MUST READ when ANY of these are true:**
 
-- You are about to check or fix a Vercel deployment error
 - You are about to rebuild or restart Docker containers
 - You are starting a new session (to register yourself)
 - Another assistant's work may conflict with yours (e.g., editing the same files)

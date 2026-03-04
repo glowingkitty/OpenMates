@@ -4,6 +4,35 @@ icon_image: |
   maps.svg
 category: personal
 last_updated: "2025-01-27"
+# Embed type definitions — single source of truth for frontend embed routing.
+embed_types:
+  - id: search
+    category: app-skill-use
+    skill_id: search
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: place
+    child_frontend_type: maps-place
+    groupable: false
+    preview_component: maps/MapsSearchEmbedPreview.svelte
+    fullscreen_component: maps/MapsSearchEmbedFullscreen.svelte
+    child_preview_component: maps/MapsLocationEmbedPreview.svelte
+    child_fullscreen_component: maps/MapsLocationEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-maps"
+    i18n_namespace: embeds.maps.search
+  # User-pinned map location (direct-type, inserted from MapsView picker)
+  - id: location
+    category: direct
+    frontend_type: maps
+    backend_type: location
+    has_children: false
+    preview_component: maps/MapsLocationEmbedPreview.svelte
+    fullscreen_component: maps/MapsLocationEmbedFullscreen.svelte
+    icon: maps
+    gradient_var: "--color-app-maps"
+    i18n_namespace: embeds.maps.location
 settings_and_memories:
   - id: favorite_places
     name_translation_key: maps.favorite_places
@@ -14,6 +43,11 @@ settings_and_memories:
       - "maps.favorite_places.example_1"
       - "maps.favorite_places.example_2"
       - "maps.favorite_places.example_3"
+    example_entries:
+      - name: "maps.favorite_places.example_1.name"
+        address: "maps.favorite_places.example_1.address"
+      - name: "maps.favorite_places.example_2.name"
+        address: "maps.favorite_places.example_2.address"
     schema:
       type: object
       properties:

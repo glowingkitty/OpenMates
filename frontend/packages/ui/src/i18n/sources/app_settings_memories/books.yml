@@ -368,3 +368,409 @@ to_read_list.example_3:
   verified_by_human:
     - en
     - de
+
+# Structured example entries for favorite_books
+
+favorite_books.example_1.title:
+  context: Example value for title in favorite_books
+  en: The Great Gatsby
+  de: Der große Gatsby
+  zh: 了不起的盖茨比
+  es: El gran Gatsby
+  fr: Gatsby le Magnifique
+  pt: O Grande Gatsby
+  ru: Великий Гэтсби
+  ja: グレート・ギャツビー
+  ko: 위대한 개츠비
+  it: Il grande Gatsby
+  tr: Muhteşem Gatsby
+  vi: Gatsby vĩ đại
+  id: The Great Gatsby
+  pl: Wielki Gatsby
+  nl: De grote Gatsby
+  ar: غاتسبي العظيم
+  hi: द ग्रेट गैट्सबी
+  th: เดอะ เกรท แกตส์บี
+  cs: Velký Gatsby
+  sv: Den store Gatsby
+  he: גטסבי הגדול
+  verified_by_human: []
+
+favorite_books.example_1.genre:
+  context: Example value for genre in favorite_books
+  en: Classic Fiction
+  de: Klassische Belletristik
+  zh: 经典小说
+  es: Ficción clásica
+  fr: Fiction classique
+  pt: Ficção clássica
+  ru: Классическая художественная литература
+  ja: 古典小説
+  ko: 고전 소설
+  it: Narrativa classica
+  tr: Klasik kurgu
+  vi: Tiểu thuyết kinh điển
+  id: Fiksi klasik
+  pl: Klasyczna beletrystyka
+  nl: Klassieke fictie
+  ar: أدب كلاسيكي
+  hi: क्लासिक उपन्यास
+  th: นิยายคลาสสิก
+  cs: Klasická beletrie
+  sv: Klassisk skönlitteratur
+  he: ספרות קלאסית
+  verified_by_human: []
+
+favorite_books.example_1.notes:
+  context: Example value for notes in favorite_books
+  en: Beautiful prose about the American Dream
+  de: Wunderschöne Prosa über den amerikanischen Traum
+  zh: 关于美国梦的优美散文
+  es: Hermosa prosa sobre el sueño americano
+  fr: Belle prose sur le rêve américain
+  pt: Bela prosa sobre o sonho americano
+  ru: Прекрасная проза об американской мечте
+  ja: アメリカンドリームについての美しい散文
+  ko: 아메리칸 드림에 대한 아름다운 산문
+  it: Bella prosa sul sogno americano
+  tr: Amerikan Rüyası hakkında güzel düzyazı
+  vi: Văn xuôi đẹp về Giấc mơ Mỹ
+  id: Prosa indah tentang Mimpi Amerika
+  pl: Piękna proza o amerykańskim śnie
+  nl: Prachtig proza over de Amerikaanse droom
+  ar: نثر جميل عن الحلم الأمريكي
+  hi: अमेरिकी सपने के बारे में सुंदर गद्य
+  th: ร้อยแก้วงดงามเกี่ยวกับความฝันแบบอเมริกัน
+  cs: Krásná próza o americkém snu
+  sv: Vacker prosa om den amerikanska drömmen
+  he: פרוזה יפה על החלום האמריקאי
+  verified_by_human: []
+
+favorite_books.example_2.title:
+  context: Example value for title in favorite_books
+  en: Sapiens
+  de: Sapiens
+  zh: 人类简史
+  es: Sapiens
+  fr: Sapiens
+  pt: Sapiens
+  ru: Sapiens
+  ja: サピエンス全史
+  ko: 사피엔스
+  it: Sapiens
+  tr: Sapiens
+  vi: Sapiens
+  id: Sapiens
+  pl: Sapiens
+  nl: Sapiens
+  ar: العاقل
+  hi: सेपियन्स
+  th: เซเปียนส์
+  cs: Sapiens
+  sv: Sapiens
+  he: קיצור תולדות האנושות
+  verified_by_human: []
+
+favorite_books.example_2.genre:
+  context: Example value for genre in favorite_books
+  en: Non-Fiction
+  de: Sachbuch
+  zh: 非虚构
+  es: No ficción
+  fr: Non-fiction
+  pt: Não ficção
+  ru: Нон-фикшн
+  ja: ノンフィクション
+  ko: 논픽션
+  it: Saggistica
+  tr: Kurgu dışı
+  vi: Phi hư cấu
+  id: Non-fiksi
+  pl: Literatura faktu
+  nl: Non-fictie
+  ar: غير خيالي
+  hi: गैर-काल्पनिक
+  th: สารคดี
+  cs: Naučná literatura
+  sv: Facklitteratur
+  he: עיון
+  verified_by_human: []
+
+favorite_books.example_2.notes:
+  context: Example value for notes in favorite_books
+  en: Fascinating overview of human history
+  de: Faszinierende Übersicht der Menschheitsgeschichte
+  zh: 令人着迷的人类历史概述
+  es: Fascinante panorama de la historia humana
+  fr: Aperçu fascinant de l'histoire de l'humanité
+  pt: Visão fascinante da história da humanidade
+  ru: Увлекательный обзор истории человечества
+  ja: 人類の歴史の魅力的な概観
+  ko: 인류 역사에 대한 매혹적인 개요
+  it: Affascinante panoramica della storia umana
+  tr: İnsan tarihinin büyüleyici bir özeti
+  vi: Tổng quan hấp dẫn về lịch sử loài người
+  id: Gambaran menarik tentang sejarah manusia
+  pl: Fascynujący przegląd historii ludzkości
+  nl: Fascinerend overzicht van de menselijke geschiedenis
+  ar: نظرة شاملة رائعة على تاريخ البشرية
+  hi: मानव इतिहास का आकर्षक अवलोकन
+  th: ภาพรวมที่น่าสนใจของประวัติศาสตร์มนุษยชาติ
+  cs: Fascinující přehled dějin lidstva
+  sv: Fascinerande översikt av mänsklighetens historia
+  he: סקירה מרתקת של תולדות האנושות
+  verified_by_human: []
+
+# Structured example entries for currently_reading
+
+currently_reading.example_1.title:
+  context: Example value for title in currently_reading
+  en: Project Hail Mary
+  de: Der Astronaut
+  zh: 挽救计划
+  es: Proyecto Hail Mary
+  fr: Projet Dernière Chance
+  pt: Projeto Hail Mary
+  ru: Проект «Аве Мария»
+  ja: プロジェクト・ヘイル・メアリー
+  ko: 프로젝트 헤일 메리
+  it: L'uomo di Marte
+  tr: Proje Hail Mary
+  vi: Dự án Hail Mary
+  id: Project Hail Mary
+  pl: Projekt Hail Mary
+  nl: Project Hail Mary
+  ar: مشروع هيل ماري
+  hi: प्रोजेक्ट हेल मैरी
+  th: โปรเจกต์เฮลแมรี
+  cs: Projekt Hail Mary
+  sv: Projekt Hail Mary
+  he: פרויקט הייל מרי
+  verified_by_human: []
+
+currently_reading.example_1.notes:
+  context: Example value for notes in currently_reading
+  en: Great sci-fi adventure
+  de: Großartiges Science-Fiction-Abenteuer
+  zh: 精彩的科幻冒险
+  es: Gran aventura de ciencia ficción
+  fr: Superbe aventure de science-fiction
+  pt: Ótima aventura de ficção científica
+  ru: Отличное научно-фантастическое приключение
+  ja: 素晴らしいSF冒険
+  ko: 훌륭한 SF 모험
+  it: Grande avventura fantascientifica
+  tr: Harika bir bilim kurgu macerası
+  vi: Cuộc phiêu lưu khoa học viễn tưởng tuyệt vời
+  id: Petualangan fiksi ilmiah yang hebat
+  pl: Wspaniała przygoda science fiction
+  nl: Geweldig sciencefictionavontuur
+  ar: مغامرة خيال علمي رائعة
+  hi: शानदार साइंस फिक्शन रोमांच
+  th: การผจญภัยไซไฟที่ยอดเยี่ยม
+  cs: Skvělé sci-fi dobrodružství
+  sv: Fantastiskt science fiction-äventyr
+  he: הרפתקת מדע בדיוני מצוינת
+  verified_by_human: []
+
+currently_reading.example_2.title:
+  context: Example value for title in currently_reading
+  en: Atomic Habits
+  de: Die 1%-Methode
+  zh: 原子习惯
+  es: Hábitos atómicos
+  fr: Un rien peut tout changer
+  pt: Hábitos atômicos
+  ru: Атомные привычки
+  ja: ジェームズ・クリアー式 複利で伸びる1つの習慣
+  ko: 아주 작은 습관의 힘
+  it: Piccole abitudini per grandi cambiamenti
+  tr: Atomik Alışkanlıklar
+  vi: Thói quen nguyên tử
+  id: Atomic Habits
+  pl: Atomowe nawyki
+  nl: Atomic Habits
+  ar: العادات الذرية
+  hi: एटॉमिक हैबिट्स
+  th: Atomic Habits
+  cs: Atomové návyky
+  sv: Atomic Habits
+  he: הרגלים אטומיים
+  verified_by_human: []
+
+currently_reading.example_2.notes:
+  context: Example value for notes in currently_reading
+  en: Practical strategies for building good habits
+  de: Praktische Strategien zum Aufbau guter Gewohnheiten
+  zh: 建立良好习惯的实用策略
+  es: Estrategias prácticas para construir buenos hábitos
+  fr: Stratégies pratiques pour construire de bonnes habitudes
+  pt: Estratégias práticas para construir bons hábitos
+  ru: Практические стратегии для формирования хороших привычек
+  ja: 良い習慣を身につけるための実践的な戦略
+  ko: 좋은 습관을 만들기 위한 실용적인 전략
+  it: Strategie pratiche per costruire buone abitudini
+  tr: İyi alışkanlıklar oluşturmak için pratik stratejiler
+  vi: Chiến lược thực tế để xây dựng thói quen tốt
+  id: Strategi praktis untuk membangun kebiasaan baik
+  pl: Praktyczne strategie budowania dobrych nawyków
+  nl: Praktische strategieën voor het opbouwen van goede gewoontes
+  ar: استراتيجيات عملية لبناء عادات جيدة
+  hi: अच्छी आदतें बनाने के लिए व्यावहारिक रणनीतियाँ
+  th: กลยุทธ์ที่ใช้ได้จริงสำหรับการสร้างนิสัยที่ดี
+  cs: Praktické strategie pro budování dobrých návyků
+  sv: Praktiska strategier för att bygga goda vanor
+  he: אסטרטגיות מעשיות לבניית הרגלים טובים
+  verified_by_human: []
+
+# Structured example entries for to_read_list
+
+to_read_list.example_1.title:
+  context: Example value for title in to_read_list
+  en: Dune
+  de: Der Wüstenplanet
+  zh: 沙丘
+  es: Dune
+  fr: Dune
+  pt: Duna
+  ru: Дюна
+  ja: デューン 砂の惑星
+  ko: 듄
+  it: Dune
+  tr: Dune
+  vi: Xứ cát
+  id: Dune
+  pl: Diuna
+  nl: Dune
+  ar: كثبان
+  hi: ड्यून
+  th: มหาศึกแห่งดูน
+  cs: Duna
+  sv: Dune
+  he: חולית
+  verified_by_human: []
+
+to_read_list.example_1.genre:
+  context: Example value for genre in to_read_list
+  en: Science Fiction
+  de: Science-Fiction
+  zh: 科幻小说
+  es: Ciencia ficción
+  fr: Science-fiction
+  pt: Ficção científica
+  ru: Научная фантастика
+  ja: サイエンスフィクション
+  ko: 공상과학
+  it: Fantascienza
+  tr: Bilim kurgu
+  vi: Khoa học viễn tưởng
+  id: Fiksi ilmiah
+  pl: Fantastyka naukowa
+  nl: Sciencefiction
+  ar: خيال علمي
+  hi: विज्ञान कथा
+  th: นิยายวิทยาศาสตร์
+  cs: Sci-fi
+  sv: Science fiction
+  he: מדע בדיוני
+  verified_by_human: []
+
+to_read_list.example_1.notes:
+  context: Example value for notes in to_read_list
+  en: Classic sci-fi, recommended by friends
+  de: Klassische Science-Fiction, von Freunden empfohlen
+  zh: 经典科幻小说，朋友推荐
+  es: Ciencia ficción clásica, recomendada por amigos
+  fr: Science-fiction classique, recommandé par des amis
+  pt: Ficção científica clássica, recomendada por amigos
+  ru: Классическая фантастика, рекомендовано друзьями
+  ja: 古典的なSF、友人のおすすめ
+  ko: 고전 SF, 친구 추천
+  it: Fantascienza classica, consigliato da amici
+  tr: Klasik bilim kurgu, arkadaşların önerisi
+  vi: Khoa học viễn tưởng kinh điển, bạn bè giới thiệu
+  id: Fiksi ilmiah klasik, direkomendasikan teman
+  pl: Klasyczna fantastyka naukowa, polecana przez przyjaciół
+  nl: Klassieke sciencefiction, aanbevolen door vrienden
+  ar: خيال علمي كلاسيكي، أوصى به الأصدقاء
+  hi: क्लासिक साइंस फिक्शन, दोस्तों की सिफारिश
+  th: นิยายวิทยาศาสตร์คลาสสิก เพื่อนแนะนำ
+  cs: Klasická sci-fi, doporučení od přátel
+  sv: Klassisk science fiction, rekommenderad av vänner
+  he: מדע בדיוני קלאסי, מומלץ על ידי חברים
+  verified_by_human: []
+
+to_read_list.example_2.title:
+  context: Example value for title in to_read_list
+  en: Thinking, Fast and Slow
+  de: Schnelles Denken, langsames Denken
+  zh: 思考，快与慢
+  es: Pensar rápido, pensar despacio
+  fr: Système 1 / Système 2
+  pt: Rápido e devagar
+  ru: Думай медленно... Решай быстро
+  ja: ファスト＆スロー
+  ko: 생각에 관한 생각
+  it: Pensieri lenti e veloci
+  tr: Hızlı ve Yavaş Düşünme
+  vi: Tư duy nhanh và chậm
+  id: Thinking, Fast and Slow
+  pl: Pułapki myślenia
+  nl: Ons feilbare denken
+  ar: التفكير بسرعة وببطء
+  hi: थिंकिंग, फ़ास्ट एंड स्लो
+  th: คิดเร็วและช้า
+  cs: Myšlení rychlé a pomalé
+  sv: Tänka, snabbt och långsamt
+  he: לחשוב מהר, לחשוב לאט
+  verified_by_human: []
+
+to_read_list.example_2.genre:
+  context: Example value for genre in to_read_list
+  en: Psychology
+  de: Psychologie
+  zh: 心理学
+  es: Psicología
+  fr: Psychologie
+  pt: Psicologia
+  ru: Психология
+  ja: 心理学
+  ko: 심리학
+  it: Psicologia
+  tr: Psikoloji
+  vi: Tâm lý học
+  id: Psikologi
+  pl: Psychologia
+  nl: Psychologie
+  ar: علم النفس
+  hi: मनोविज्ञान
+  th: จิตวิทยา
+  cs: Psychologie
+  sv: Psykologi
+  he: פסיכולוגיה
+  verified_by_human: []
+
+to_read_list.example_2.notes:
+  context: Example value for notes in to_read_list
+  en: Want to understand cognitive biases
+  de: Kognitive Verzerrungen verstehen wollen
+  zh: 想要了解认知偏差
+  es: Quiero entender los sesgos cognitivos
+  fr: Envie de comprendre les biais cognitifs
+  pt: Quero entender os vieses cognitivos
+  ru: Хочу разобраться в когнитивных искажениях
+  ja: 認知バイアスを理解したい
+  ko: 인지 편향을 이해하고 싶다
+  it: Voglio capire i pregiudizi cognitivi
+  tr: Bilişsel önyargıları anlamak istiyorum
+  vi: Muốn hiểu về thiên kiến nhận thức
+  id: Ingin memahami bias kognitif
+  pl: Chcę zrozumieć błędy poznawcze
+  nl: Cognitieve vooroordelen willen begrijpen
+  ar: أريد فهم التحيزات المعرفية
+  hi: संज्ञानात्मक पूर्वाग्रहों को समझना चाहते हैं
+  th: ต้องการเข้าใจอคติทางการรับรู้
+  cs: Chci porozumět kognitivním zkreslením
+  sv: Vill förstå kognitiva fördomar
+  he: רוצה להבין הטיות קוגניטיביות
+  verified_by_human: []

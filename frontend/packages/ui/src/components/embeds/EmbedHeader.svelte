@@ -76,8 +76,10 @@
    */
   let useDecoSkillIcon = $derived(!!skillIconName);
 
+  import { handleImageError } from '../../utils/offlineImageHandler';
+
   function hideFavicon(e: Event) {
-    (e.target as HTMLImageElement).style.display = 'none';
+    handleImageError(e.target as HTMLImageElement);
   }
 </script>
 
@@ -572,6 +574,10 @@
   :global([data-skill-icon="math"]) {
     -webkit-mask-image: url('@openmates/ui/static/icons/math.svg');
     mask-image: url('@openmates/ui/static/icons/math.svg');
+  }
+  :global([data-skill-icon="mail"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/mail.svg');
+    mask-image: url('@openmates/ui/static/icons/mail.svg');
   }
 
   /* ==========================================================

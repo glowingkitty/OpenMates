@@ -18,6 +18,7 @@ import type { EmbedType } from "../message_parsing/types";
 import { chatDB } from "./db";
 import { userDB } from "./userDB";
 import { activeChatStore } from "../stores/activeChatStore";
+import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 
 /**
  * Yield control back to the browser's main thread.
@@ -380,6 +381,13 @@ async function storeRecentChats(
         currentUserId,
       );
 
+      // Populate in-memory unread badge store from server-authoritative count
+      // so badges render correctly without waiting for a per-chat read status event.
+      const syncedUnread = mergedChat.unread_count ?? 0;
+      if (syncedUnread > 0) {
+        unreadMessagesStore.setUnread(chatId, syncedUnread);
+      }
+
       // CRITICAL: Check if we should sync messages for Phase 2 chats
       // This prevents data inconsistency where messages_v is set but messages are missing
       const shouldSyncMessages =
@@ -599,6 +607,12 @@ async function storeAllChats(
         existingChat,
         currentUserId,
       );
+
+      // Populate in-memory unread badge store from server-authoritative count
+      const syncedUnread3 = mergedChat.unread_count ?? 0;
+      if (syncedUnread3 > 0) {
+        unreadMessagesStore.setUnread(chatId, syncedUnread3);
+      }
 
       // Check if we should sync messages
       const shouldSyncMessages =

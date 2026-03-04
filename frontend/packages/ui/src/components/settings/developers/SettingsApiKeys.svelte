@@ -12,6 +12,7 @@
         uint8ArrayToBase64,
         base64ToUint8Array
     } from '../../../services/cryptoService';
+    import { copyToClipboard as clipboardCopy } from '../../../utils/clipboardUtils';
 
     const dispatch = createEventDispatcher();
 
@@ -219,9 +220,11 @@
         }
     }
 
-    function copyToClipboard(text: string) {
-        navigator.clipboard.writeText(text);
-        // Could add a toast notification here
+    async function copyToClipboard(text: string) {
+        const result = await clipboardCopy(text);
+        if (!result.success) {
+            console.error('[SettingsApiKeys] Failed to copy to clipboard:', result.error);
+        }
     }
 
     function formatDate(dateString: string) {

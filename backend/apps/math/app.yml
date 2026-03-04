@@ -18,6 +18,41 @@ category: work
 last_updated: "2026-03-01"
 settings_and_memories: []
 instructions: []
+# Embed type definitions — single source of truth for frontend embed routing.
+embed_types:
+  - id: calculate
+    category: app-skill-use
+    skill_id: calculate
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    preview_component: math/MathCalculateEmbedPreview.svelte
+    fullscreen_component: math/MathCalculateEmbedFullscreen.svelte
+    icon: math
+    gradient_var: "--color-app-math"
+    i18n_namespace: embeds.math.calculate
+    content_fields:
+      - name: results
+        type: array
+        required: true
+      - name: result_count
+        type: number
+        required: true
+  # Math plot — direct-type, auto-detected from ```plot``` code blocks by stream_consumer.py
+  - id: plot
+    category: direct
+    frontend_type: math-plot
+    backend_type: math-plot
+    has_children: false
+    preview_component: math/MathPlotEmbedPreview.svelte
+    fullscreen_component: math/MathPlotEmbedFullscreen.svelte
+    icon: function
+    gradient_var: "--color-app-math"
+    i18n_namespace: embeds.math.plot
+    content_fields:
+      - name: plot_spec
+        type: string
+        required: true
 skills:
   # -----------------------------------------------------------------------
   # Calculate — evaluate expressions with guaranteed numerical/symbolic accuracy

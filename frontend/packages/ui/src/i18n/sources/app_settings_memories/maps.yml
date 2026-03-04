@@ -131,3 +131,105 @@ favorite_places.example_3:
   verified_by_human:
     - en
     - de
+
+# example_entries translation keys for favorite_places
+
+favorite_places.example_1.name:
+  context: Example place name for favorite places
+  en: Central Park
+  de: Central Park
+  zh: 中央公园
+  es: Central Park
+  fr: Central Park
+  pt: Central Park
+  ru: Центральный парк
+  ja: セントラルパーク
+  ko: 센트럴 파크
+  it: Central Park
+  tr: Central Park
+  vi: Công viên Trung tâm
+  id: Central Park
+  pl: Central Park
+  nl: Central Park
+  ar: سنترال بارك
+  hi: सेंट्रल पार्क
+  th: เซ็นทรัลพาร์ค
+  cs: Central Park
+  sv: Central Park
+  he: סנטרל פארק
+  verified_by_human: []
+
+favorite_places.example_1.address:
+  context: Example address for favorite place Central Park
+  en: New York, NY 10024
+  de: New York, NY 10024
+  zh: 纽约，NY 10024
+  es: Nueva York, NY 10024
+  fr: New York, NY 10024
+  pt: Nova York, NY 10024
+  ru: Нью-Йорк, NY 10024
+  ja: ニューヨーク、NY 10024
+  ko: 뉴욕, NY 10024
+  it: New York, NY 10024
+  tr: New York, NY 10024
+  vi: New York, NY 10024
+  id: New York, NY 10024
+  pl: Nowy Jork, NY 10024
+  nl: New York, NY 10024
+  ar: نيويورك، NY 10024
+  hi: न्यूयॉर्क, NY 10024
+  th: นิวยอร์ก, NY 10024
+  cs: New York, NY 10024
+  sv: New York, NY 10024
+  he: ניו יורק, NY 10024
+  verified_by_human: []
+
+favorite_places.example_2.name:
+  context: Example place name for favorite places
+  en: Eiffel Tower
+  de: Eiffelturm
+  zh: 埃菲尔铁塔
+  es: Torre Eiffel
+  fr: Tour Eiffel
+  pt: Torre Eiffel
+  ru: Эйфелева башня
+  ja: エッフェル塔
+  ko: 에펠탑
+  it: Torre Eiffel
+  tr: Eyfel Kulesi
+  vi: Tháp Eiffel
+  id: Menara Eiffel
+  pl: Wieża Eiffla
+  nl: Eiffeltoren
+  ar: برج إيفل
+  hi: एफिल टावर
+  th: หอไอเฟล
+  cs: Eiffelova věž
+  sv: Eiffeltornet
+  he: מגדל אייפל
+  verified_by_human: []
+
+favorite_places.example_2.address:
+  context: Example address for favorite place Eiffel Tower
+  en: Champ de Mars, 75007 Paris
+  de: Champ de Mars, 75007 Paris
+  zh: 战神广场，75007 巴黎
+  es: Campo de Marte, 75007 París
+  fr: Champ de Mars, 75007 Paris
+  pt: Champ de Mars, 75007 Paris
+  ru: Марсово поле, 75007 Париж
+  ja: シャン・ド・マルス、75007 パリ
+  ko: 샹 드 마르스, 75007 파리
+  it: Campo di Marte, 75007 Parigi
+  tr: Champ de Mars, 75007 Paris
+  vi: Champ de Mars, 75007 Paris
+  id: Champ de Mars, 75007 Paris
+  pl: Pole Marsowe, 75007 Paryż
+  nl: Champ de Mars, 75007 Parijs
+  ar: ساحة المريخ، 75007 باريس
+  hi: शां दे मार्स, 75007 पेरिस
+  th: ชองป์ เดอ มาร์ส, 75007 ปารีส
+  cs: Champ de Mars, 75007 Paříž
+  sv: Champ de Mars, 75007 Paris
+  he: שאן דה מארס, 75007 פריז
+  verified_by_human: []

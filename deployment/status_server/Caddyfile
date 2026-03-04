@@ -1,0 +1,16 @@
+# Purpose: Reverse proxy for standalone OpenMates status service VM.
+# Architecture: Dedicated status VM independent from dev/prod core infrastructure.
+# See docs/architecture/status-page.md for design rationale.
+
+${DEPLOY_STATUS_DOMAIN} {
+    encode gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    reverse_proxy localhost:8000
+}

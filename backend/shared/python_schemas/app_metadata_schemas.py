@@ -80,6 +80,12 @@ class AppMemoryFieldDefinition(BaseModel):
     type: str # e.g., "string", "number", "boolean", "json_object", "list_of_strings"
     schema_definition: Optional[Dict[str, Any]] = Field(default=None, alias="schema") # Optional JSON schema
     stage: Optional[str] = Field(default=None, description="Stage of the memory field: 'planning', 'development', or 'production'. Components with stage='planning' are excluded from API responses.")
+    # Full example entries with all field values populated.
+    # Each entry is a dict mapping field names to values. String field values
+    # that should be translated are stored as translation keys (looked up via $text() on frontend).
+    # Enum values, booleans, and numbers are stored as raw values.
+    # Replaces the older example_translation_keys (title-only strings).
+    example_entries: Optional[List[Dict[str, Any]]] = Field(default=None, description="Full example entries with all field values for UI display.")
 
     @model_validator(mode='after')
     def inject_added_date(self):
@@ -102,6 +108,48 @@ class AppMemoryFieldDefinition(BaseModel):
                     "auto_generated": True
                 }
                 self.schema_definition["properties"] = properties
+        return self
+
+
+class EmbedTypeDefinition(BaseModel):
+    """
+    Defines an embed type within an app's metadata.
+    
+    Each entry becomes a single source of truth for frontend embed routing.
+    The build script generate-embed-registry.js reads these definitions
+    (from app.yml embed_types sections) and auto-generates TypeScript
+    routing files, eliminating manual if/else chains across 12+ files.
+    
+    Two categories exist:
+      - app-skill-use: Backend skill produces results → EmbedService creates embed.
+        Routed by app_id + skill_id.
+      - direct: Client-side embeds (file uploads, code blocks, tables).
+        Routed by frontend_type string.
+    """
+    id: str = Field(..., description="Unique embed type ID within this app (e.g., 'search', 'generate', 'code')")
+    category: str = Field(..., pattern=r'^(app-skill-use|direct)$', description="'app-skill-use' for backend skill embeds, 'direct' for client-side embeds")
+    skill_id: Optional[str] = Field(default=None, description="Backend skill ID (required for app-skill-use category)")
+    frontend_type: str = Field(..., description="Type string used on the frontend (e.g., 'app-skill-use', 'image', 'code-code')")
+    backend_type: str = Field(..., description="Type string used on the backend (e.g., 'app_skill_use', 'image', 'code')")
+    has_children: bool = Field(default=False, description="True for composite embeds that contain child embeds (e.g., search results)")
+    child_type: Optional[str] = Field(default=None, description="Child embed type ID (for composite embeds)")
+    child_frontend_type: Optional[str] = Field(default=None, description="Frontend type string for child embeds (e.g., 'web-website')")
+    groupable: Optional[bool] = Field(default=False, description="Whether this embed type can be grouped in the TipTap editor")
+    preview_component: Optional[str] = Field(default=None, description="Path to Svelte preview component relative to embeds/ dir")
+    fullscreen_component: Optional[str] = Field(default=None, description="Path to Svelte fullscreen component relative to embeds/ dir (null if no fullscreen)")
+    child_preview_component: Optional[str] = Field(default=None, description="Preview component path for child embeds")
+    child_fullscreen_component: Optional[str] = Field(default=None, description="Fullscreen component path for child embeds")
+    icon: Optional[str] = Field(default=None, description="Icon identifier (maps to SVG filename or icon set)")
+    gradient_var: Optional[str] = Field(default=None, description="CSS custom property for the gradient (e.g., '--color-app-web')")
+    i18n_namespace: Optional[str] = Field(default=None, description="i18n namespace for embed-specific translations")
+
+    @model_validator(mode='after')
+    def validate_category_fields(self):
+        """Validate that app-skill-use embeds have a skill_id."""
+        if self.category == 'app-skill-use' and not self.skill_id:
+            raise ValueError(f"Embed type '{self.id}' with category 'app-skill-use' must have a skill_id")
+        if self.has_children and not self.child_type:
+            raise ValueError(f"Embed type '{self.id}' with has_children=true must have a child_type")
         return self
 
 
@@ -147,6 +195,11 @@ class AppYAML(BaseModel):
     # ONLY when this app is available. This prevents the AI from being instructed about
     # capabilities that don't exist (e.g., instructing about web search when web app is down)
     instructions: List[AppInstructionDefinition] = Field(default=[], description="App-specific instructions to inject into system prompt when this app is available")
+    # Embed type definitions — single source of truth for frontend embed routing.
+    # Read by generate-embed-registry.js to auto-generate TypeScript routing files.
+    # Each entry maps an embed type to its components, icons, and routing metadata,
+    # eliminating manual if/else chains across 12+ frontend files.
+    embed_types: List[EmbedTypeDefinition] = Field(default=[], description="Embed type definitions for frontend routing code generation")
     
     @model_validator(mode='after')
     def validate_description(self):
@@ -205,6 +258,12 @@ class AppYAML(BaseModel):
     @classmethod
     def set_instructions_default(cls, v):
         """Ensures instructions list is initialized even if missing or None."""
+        return v if v is not None else []
+
+    @field_validator('embed_types', mode='before')
+    @classmethod
+    def set_embed_types_default(cls, v):
+        """Ensures embed_types list is initialized even if missing or None."""
         return v if v is not None else []
     
     # Pydantic v2 configuration: allows using field names and aliases interchangeably

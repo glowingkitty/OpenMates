@@ -8,6 +8,7 @@ Shows the gift card code and allows downloading it as a text file
     import { text } from '@repo/ui';
     import { webSocketService } from '../../../services/websocketService';
     import SettingsItem from '../../SettingsItem.svelte';
+    import { copyToClipboard as clipboardCopy } from '../../../utils/clipboardUtils';
 
     const dispatch = createEventDispatcher();
 
@@ -70,8 +71,9 @@ This gift card can only be used once.
         if (!giftCardCode) return;
 
         try {
-            await navigator.clipboard.writeText(giftCardCode);
-            // Show success feedback (could use a toast notification)
+            const result = await clipboardCopy(giftCardCode);
+            if (!result.success) throw new Error(result.error || 'Copy failed');
+            // Show success feedback
             alert($text('settings.gift_cards.code_copied'));
         } catch (err) {
             console.error('Failed to copy to clipboard:', err);

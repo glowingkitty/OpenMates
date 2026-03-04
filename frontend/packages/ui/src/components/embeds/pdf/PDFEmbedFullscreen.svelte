@@ -32,7 +32,7 @@
 -->
 
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, untrack } from 'svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
 
@@ -173,7 +173,10 @@
   $effect(() => {
     if (!hasScreenshots) return;
     for (const pn of inViewPages) {
-      const state = pageImages[pn];
+      // Use untrack() to read pageImages without creating a reactive dependency.
+      // Without this, writing pageImages inside loadPageImage re-triggers this
+      // effect, causing an infinite effect_update_depth_exceeded loop.
+      const state = untrack(() => pageImages[pn]);
       if (!state || state.url || state.loading || state.retries >= MAX_PAGE_RETRIES) continue;
       loadPageImage(pn);
     }

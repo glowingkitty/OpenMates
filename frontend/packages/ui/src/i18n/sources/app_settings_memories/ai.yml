@@ -248,3 +248,150 @@ learning_preferences.example_2:
   sv: Praktisk övning
   he: תרגול מעשי
   verified_by_human: [en, de]
+
+# Structured example entries for example_entries in app.yml
+
+communication_style.example_1.title:
+  context: Example value for title in communication_style
+  en: Technical Expert
+  de: Technischer Experte
+  zh: 技术专家
+  es: Experto técnico
+  fr: Expert technique
+  pt: Especialista técnico
+  ru: Технический эксперт
+  ja: テクニカルエキスパート
+  ko: 기술 전문가
+  it: Esperto tecnico
+  tr: Teknik uzman
+  vi: Chuyên gia kỹ thuật
+  id: Pakar teknis
+  pl: Ekspert techniczny
+  nl: Technisch expert
+  ar: خبير تقني
+  hi: तकनीकी विशेषज्ञ
+  th: ผู้เชี่ยวชาญด้านเทคนิค
+  cs: Technický expert
+  sv: Teknisk expert
+  he: מומחה טכני
+  verified_by_human: []
+communication_style.example_2.title:
+  context: Example value for title in communication_style
+  en: Friendly Helper
+  de: Freundlicher Helfer
+  zh: 友好助手
+  es: Ayudante amigable
+  fr: Assistant amical
+  pt: Ajudante amigável
+  ru: Дружелюбный помощник
+  ja: フレンドリーヘルパー
+  ko: 친절한 도우미
+  it: Assistente amichevole
+  tr: Dostça yardımcı
+  vi: Trợ lý thân thiện
+  id: Pembantu ramah
+  pl: Przyjazny pomocnik
+  nl: Vriendelijke helper
+  ar: مساعد ودود
+  hi: मैत्रीपूर्ण सहायक
+  th: ผู้ช่วยที่เป็นมิตร
+  cs: Přátelský pomocník
+  sv: Vänlig hjälpare
+  he: עוזר ידידותי
+  verified_by_human: []
+learning_preferences.example_1.title:
+  context: Example value for title in learning_preferences
+  en: Visual Learning
+  de: Visuelles Lernen
+  zh: 视觉学习
+  es: Aprendizaje visual
+  fr: Apprentissage visuel
+  pt: Aprendizado visual
+  ru: Визуальное обучение
+  ja: ビジュアル学習
+  ko: 시각적 학습
+  it: Apprendimento visivo
+  tr: Görsel öğrenme
+  vi: Học qua hình ảnh
+  id: Belajar secara visual
+  pl: Nauka wzrokowa
+  nl: Visueel leren
+  ar: التعلم البصري
+  hi: दृश्य अध्ययन
+  th: การเรียนรู้แบบภาพ
+  cs: Vizuální učení
+  sv: Visuellt lärande
+  he: למידה חזותית
+  verified_by_human: []
+learning_preferences.example_1.notes:
+  context: Example value for notes in learning_preferences
+  en: Prefer diagrams, charts, and visual explanations
+  de: Bevorzuge Diagramme, Grafiken und visuelle Erklärungen
+  zh: 更喜欢图表、图形和视觉说明
+  es: Prefiero diagramas, gráficos y explicaciones visuales
+  fr: Préfère les diagrammes, graphiques et explications visuelles
+  pt: Prefiro diagramas, gráficos e explicações visuais
+  ru: Предпочитаю диаграммы, графики и визуальные объяснения
+  ja: ダイアグラム、チャート、視覚的な説明を好む
+  ko: 다이어그램, 차트 및 시각적 설명 선호
+  it: Preferisco diagrammi, grafici e spiegazioni visive
+  tr: Diyagramları, grafikleri ve görsel açıklamaları tercih ederim
+  vi: Thích sơ đồ, biểu đồ và giải thích trực quan
+  id: Lebih suka diagram, grafik, dan penjelasan visual
+  pl: Wolę diagramy, wykresy i wizualne wyjaśnienia
+  nl: Voorkeur voor diagrammen, grafieken en visuele uitleg
+  ar: أفضل المخططات والرسوم البيانية والشروحات المرئية
+  hi: आरेख, चार्ट और दृश्य व्याख्या पसंद करें
+  th: ชอบไดอะแกรม แผนภูมิ และคำอธิบายแบบภาพ
+  cs: Dávám přednost diagramům, grafům a vizuálním vysvětlením
+  sv: Föredrar diagram, grafer och visuella förklaringar
+  he: מעדיף/ה דיאגרמות, תרשימים והסברים חזותיים
+  verified_by_human: []
+learning_preferences.example_2.title:
+  context: Example value for title in learning_preferences
+  en: Hands-on Practice
+  de: Praktische Übungen
+  zh: 动手实践
+  es: Práctica práctica
+  fr: Pratique concrète
+  pt: Prática prática
+  ru: Практическое обучение
+  ja: ハンズオン練習
+  ko: 실습 위주
+  it: Pratica diretta
+  tr: Uygulamalı pratik
+  vi: Thực hành trực tiếp
+  id: Latihan langsung
+  pl: Praktyczne ćwiczenia
+  nl: Praktische oefening
+  ar: التعلم العملي
+  hi: व्यावहारिक अभ्यास
+  th: ฝึกปฏิบัติจริง
+  cs: Praktické cvičení
+  sv: Praktisk övning
+  he: תרגול מעשי
+  verified_by_human: []
+learning_preferences.example_2.notes:
+  context: Example value for notes in learning_preferences
+  en: Learn best by trying things out with code examples
+  de: Lerne am besten durch Ausprobieren mit Code-Beispielen
+  zh: 通过代码示例动手尝试来学习效果最好
+  es: Aprendo mejor probando cosas con ejemplos de código
+  fr: J'apprends mieux en essayant avec des exemples de code
+  pt: Aprendo melhor experimentando com exemplos de código
+  ru: Лучше всего учусь, пробуя на примерах кода
+  ja: コード例を使って試すことで最もよく学べる
+  ko: 코드 예제를 통해 직접 해보며 가장 잘 배움
+  it: Imparo meglio provando con esempi di codice
+  tr: Kod örnekleriyle deneyerek en iyi öğrenirim
+  vi: Học tốt nhất bằng cách thử nghiệm với các ví dụ mã
+  id: Belajar paling baik dengan mencoba contoh kode
+  pl: Uczę się najlepiej, próbując rzeczy z przykładami kodu
+  nl: Leer het beste door dingen uit te proberen met codevoorbeelden
+  ar: أتعلم بشكل أفضل من خلال تجربة الأشياء بأمثلة برمجية
+  hi: कोड उदाहरणों के साथ चीज़ें आज़माकर सबसे अच्छा सीखता हूं
+  th: เรียนรู้ได้ดีที่สุดโดยการลองทำกับตัวอย่างโค้ด
+  cs: Učím se nejlépe zkoušením s příklady kódu
+  sv: Lär mig bäst genom att prova med kodexempel
+  he: לומד/ת הכי טוב על ידי התנסות עם דוגמאות קוד
+  verified_by_human: []

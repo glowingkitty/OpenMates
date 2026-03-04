@@ -4,22 +4,20 @@
   Displays AI thinking/reasoning content from thinking models (Gemini, Anthropic Claude, etc.)
   
   Features:
-  - Shows last 3 lines of thinking as preview while streaming (gives user glimpse of activity)
-  - Auto-scrolls the preview to the bottom as new content arrives so the latest lines are always
-    visible, creating a natural "building up" effect where older content scrolls off the top
-  - Once streaming completes, preview is hidden (collapsed by default)
-  - Expandable to show full thinking content when clicked
-  - Streaming support with shimmer animation on icon and text
+  - Auto-expands while streaming so the user sees thinking content as it arrives
+  - Auto-collapses when streaming completes (collapsed by default for finished thinking)
+  - User can manually toggle expand/collapse at any time (respected during streaming)
+  - Auto-scrolls content to the bottom as new chunks arrive
   - Animated rotating gradient border while streaming (clearly signals "thinking in progress")
   - Uses ReadOnlyMessage for markdown rendering
+  - All user-facing text is i18n-translated
   
   Visual Design:
-  - reasoning.svg icon on the left with shimmer during streaming
-  - "Thinking..." text during streaming, "Thought process" when done
-  - Last 3 lines preview shown below header during streaming, auto-scrolled to bottom
-  - Animated conic-gradient border rotates slowly while streaming (subtle, non-distracting)
+  - reasoning.svg icon on the left
+  - Translated "Thinking..." text during streaming, "Thought process" when done
+  - Animated conic-gradient border rotates slowly while streaming (border-only, non-distracting)
   - dropdown.svg icon on the right that rotates 180° when expanded
-  - Hover color change to indicate clickability (when not streaming)
+  - Hover color change to indicate clickability
   
   Props:
   - thinkingContent: The thinking markdown content
@@ -31,6 +29,7 @@
     import { tick } from 'svelte';
     import ReadOnlyMessage from './ReadOnlyMessage.svelte';
     import { parse_message } from '../message_parsing/parse_message';
+    import { text } from '@repo/ui'; // For i18n translations
     
     // Props using Svelte 5 runes mode
     let {
@@ -43,12 +42,30 @@
         isExpanded?: boolean;
     } = $props();
 
-    // DOM ref for the preview scroll container — used to auto-scroll to bottom
-    let previewEl = $state<HTMLDivElement | null>(null);
+    // DOM ref for the content scroll container — used to auto-scroll to bottom
+    let contentEl = $state<HTMLDivElement | null>(null);
     
-    // Generate summary text for collapsed state
+    // Auto-expand while streaming so the user sees thinking content (or placeholder)
+    // as it arrives. When streaming finishes, collapse automatically.
+    // The user can still toggle manually at any time.
+    let userToggledWhileStreaming = $state(false);
+    
+    $effect(() => {
+        if (isStreaming && !userToggledWhileStreaming) {
+            isExpanded = true;
+        }
+        if (!isStreaming) {
+            // Streaming ended — collapse and reset the toggle flag for next time
+            if (!userToggledWhileStreaming) {
+                isExpanded = false;
+            }
+            userToggledWhileStreaming = false;
+        }
+    });
+    
+    // Generate summary text for collapsed state (i18n)
     const collapsedSummary = $derived(
-        isStreaming ? 'Thinking...' : 'Thought process'
+        isStreaming ? $text('chat.thinking.header_streaming') : $text('chat.thinking.header_done')
     );
     
     // Parse thinking content for display (plain markdown, no embeds)
@@ -66,54 +83,28 @@
     // Track if we have content to show
     const hasContent = $derived(!!thinkingContent && thinkingContent.length > 0);
     
-    // Extract the last 3 lines for streaming preview
-    // This gives users a glimpse of what the model is thinking while processing
-    const last3Lines = $derived.by(() => {
-        if (!thinkingContent || !isStreaming) return null;
-        
-        // Split by newlines and filter out empty lines
-        const lines = thinkingContent.split('\n').filter(line => line.trim().length > 0);
-        
-        if (lines.length === 0) return null;
-        
-        // Get the last 3 non-empty lines
-        const lastLines = lines.slice(-3);
-        return lastLines.join('\n');
-    });
-    
-    // Parse the last 3 lines for preview display during streaming
-    const parsedPreviewContent = $derived.by(() => {
-        if (!last3Lines) return null;
-        try {
-            return parse_message(last3Lines, 'read', { unifiedParsingEnabled: true });
-        } catch (error) {
-            console.error('[ThinkingSection] Error parsing preview content:', error);
-            return null;
-        }
-    });
+    // (Preview extraction removed — content is now always shown expanded during streaming)
 
-    // Auto-scroll the preview container to the bottom whenever content changes while streaming.
-    // This ensures the user always sees the newest lines, while older content naturally scrolls up —
-    // giving the "building up" feel described in the design intent.
-    //
-    // We explicitly reference thinkingContent in the effect body so Svelte tracks it as a
-    // dependency and re-runs this effect on every new chunk. The void expression is intentional —
-    // we only need the tracking side-effect, not the value itself.
+    // Auto-scroll the content container to the bottom whenever content changes while streaming.
+    // This ensures the user always sees the newest lines as they arrive.
     $effect(() => {
         void thinkingContent; // track dependency — re-run on every new chunk
 
-        if (!isStreaming || !previewEl) return;
+        if (!isStreaming || !contentEl) return;
 
         // Wait for the DOM to update after content change before scrolling
         tick().then(() => {
-            if (previewEl) {
-                previewEl.scrollTo({ top: previewEl.scrollHeight, behavior: 'smooth' });
+            if (contentEl) {
+                contentEl.scrollTo({ top: contentEl.scrollHeight, behavior: 'smooth' });
             }
         });
     });
     
     function toggleExpanded() {
         isExpanded = !isExpanded;
+        if (isStreaming) {
+            userToggledWhileStreaming = true;
+        }
     }
 </script>
 
@@ -124,32 +115,21 @@
             class="thinking-header"
             onclick={toggleExpanded}
             aria-expanded={isExpanded}
-            aria-label={isExpanded ? 'Collapse thought process' : 'Expand thought process'}
+            aria-label={isExpanded ? $text('chat.thinking.collapse') : $text('chat.thinking.expand')}
         >
-            <!-- Reasoning icon with shimmer during streaming -->
-            <div class="thinking-icon" class:shimmer={isStreaming}></div>
+            <!-- Reasoning icon -->
+            <div class="thinking-icon"></div>
             
-            <!-- Summary text with shimmer during streaming -->
-            <span class="thinking-summary" class:shimmer={isStreaming}>{collapsedSummary}</span>
+            <!-- Summary text -->
+            <span class="thinking-summary">{collapsedSummary}</span>
             
             <!-- Dropdown icon that rotates when expanded -->
             <div class="expand-icon" class:rotated={isExpanded}></div>
         </button>
         
-        <!-- Streaming Preview: Show last 3 lines while processing -->
-        <!-- bind:this captures the DOM node so the $effect can scroll it to the bottom -->
-        {#if isStreaming && parsedPreviewContent && !isExpanded}
-            <div class="thinking-preview" bind:this={previewEl} transition:slide={{ duration: 150 }}>
-                <ReadOnlyMessage 
-                    content={parsedPreviewContent}
-                    isStreaming={true}
-                />
-            </div>
-        {/if}
-        
-        <!-- Expanded Content: Full thinking content when user clicks to expand -->
+        <!-- Expanded Content: Full thinking content visible while streaming or when user expands -->
         {#if isExpanded && parsedThinkingContent}
-            <div class="thinking-content" transition:slide={{ duration: 200 }}>
+            <div class="thinking-content" class:streaming-content={isStreaming} bind:this={contentEl} transition:slide={{ duration: 200 }}>
                 <ReadOnlyMessage 
                     content={parsedThinkingContent}
                     isStreaming={isStreaming}
@@ -262,7 +242,7 @@
         color: var(--color-primary, #007aff);
     }
     
-    .thinking-header:hover .thinking-icon:not(.shimmer) {
+    .thinking-header:hover .thinking-icon {
         background-color: var(--color-primary, #007aff);
     }
     
@@ -292,42 +272,10 @@
         transition: background-color 0.15s ease;
     }
     
-    /* Shimmer animation for streaming state */
-    .thinking-icon.shimmer {
-        background: linear-gradient(
-            90deg,
-            var(--color-grey-70) 0%,
-            var(--color-grey-70) 30%,
-            var(--color-grey-50) 50%,
-            var(--color-grey-70) 70%,
-            var(--color-grey-70) 100%
-        );
-        background-size: 200% 100%;
-        animation: shimmer 1.5s infinite linear;
-        /* Preserve mask while animating background */
-    }
-    
     .thinking-summary {
         flex: 1;
         font-weight: 500;
         transition: color 0.15s ease;
-    }
-    
-    /* Shimmer animation for summary text during streaming */
-    .thinking-summary.shimmer {
-        background: linear-gradient(
-            90deg,
-            var(--color-grey-70) 0%,
-            var(--color-grey-70) 30%,
-            var(--color-grey-50) 50%,
-            var(--color-grey-70) 70%,
-            var(--color-grey-70) 100%
-        );
-        background-size: 200% 100%;
-        background-clip: text;
-        -webkit-background-clip: text;
-        color: transparent;
-        animation: shimmer 1.5s infinite linear;
     }
     
     /* Dropdown expand icon using mask-image */
@@ -352,56 +300,6 @@
         transform: rotate(180deg);
     }
     
-    /* Streaming preview: shows last 3 lines while processing.
-     * overflow-y: auto (not hidden) so the JS $effect can actually scroll it.
-     * Scrollbar is hidden visually but the container remains scrollable.
-     * scroll-behavior: smooth is overridden by the JS scrollTo({behavior:'smooth'})
-     * call — keeping it here as a fallback for any native scroll triggers. */
-    .thinking-preview {
-        padding: 8px 14px 12px;
-        border-top: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.08));
-        font-size: 13px;
-        line-height: 1.5;
-        color: var(--color-text-tertiary, #777);
-        max-height: 80px;
-        overflow-y: auto;
-        overflow-x: hidden;
-        position: relative;
-        scroll-behavior: smooth;
-        /* Hide scrollbar across browsers — content scrolls but bar stays invisible */
-        scrollbar-width: none; /* Firefox */
-        -ms-overflow-style: none; /* IE/Edge */
-    }
-
-    /* Hide WebKit scrollbar track */
-    .thinking-preview::-webkit-scrollbar {
-        display: none;
-    }
-    
-    /* Fade effect at the top of preview to indicate there's more content above.
-     * Gives a subtle visual cue that older content has scrolled off. */
-    .thinking-preview::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 20px;
-        background: linear-gradient(
-            to bottom,
-            var(--color-surface-secondary, rgba(0, 0, 0, 0.03)) 0%,
-            transparent 100%
-        );
-        pointer-events: none;
-        z-index: 1;
-    }
-    
-    /* Override ReadOnlyMessage styles for preview */
-    .thinking-preview :global(.tiptap-editor) {
-        font-size: 12px;
-        opacity: 0.75;
-    }
-    
     .thinking-content {
         padding: 0 14px 14px;
         border-top: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.08));
@@ -410,22 +308,25 @@
         color: var(--color-text-secondary, #555);
     }
     
+    /* While streaming, cap the content height and auto-scroll so the thinking
+     * area doesn't push the rest of the chat off-screen. */
+    .thinking-content.streaming-content {
+        max-height: 200px;
+        overflow-y: auto;
+        scroll-behavior: smooth;
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE/Edge */
+    }
+    .thinking-content.streaming-content::-webkit-scrollbar {
+        display: none;
+    }
+    
     /* Override ReadOnlyMessage styles for thinking content */
     .thinking-content :global(.tiptap-editor) {
         font-size: 13px;
         opacity: 0.85;
     }
     
-    /* Shimmer animation keyframes */
-    @keyframes shimmer {
-        0% {
-            background-position: 200% 0;
-        }
-        100% {
-            background-position: -200% 0;
-        }
-    }
-
     /* Spinning border gradient — rotates @property angle for smooth conic animation.
      * Falls back gracefully in browsers without @property support (the gradient just
      * doesn't animate, showing a static tint instead). */
@@ -473,18 +374,5 @@
     :global(.dark) .thinking-content {
         border-color: var(--color-border-subtle, rgba(255, 255, 255, 0.1));
         color: var(--color-text-secondary, #bbb);
-    }
-    
-    :global(.dark) .thinking-preview {
-        border-color: var(--color-border-subtle, rgba(255, 255, 255, 0.1));
-        color: var(--color-text-tertiary, #888);
-    }
-    
-    :global(.dark) .thinking-preview::before {
-        background: linear-gradient(
-            to bottom,
-            var(--color-surface-secondary, rgba(255, 255, 255, 0.03)) 0%,
-            transparent 100%
-        );
     }
 </style>

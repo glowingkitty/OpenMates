@@ -1,26 +1,47 @@
 <!--
-Gift Card Redeem - Component for redeeming gift card codes
+Gift Card Redeem - Component for redeeming gift card codes.
+Supports an optional initialCode prop to pre-fill the input field (used by the
+/#gift-card=CODE deep link in +page.svelte). When no initialCode is supplied the
+component also checks sessionStorage for a 'pending_gift_card_code' value so the
+code survives across the signup flow.
+
+Tests: (none yet)
 -->
 
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { apiEndpoints, getApiEndpoint } from '../../../config/api';
-    import { userProfile, updateProfile } from '../../../stores/userProfile';
+    import { updateProfile } from '../../../stores/userProfile';
 
     const dispatch = createEventDispatcher();
 
     // Props to control behavior in different contexts
-    let { 
-        hideSuccessMessage = false // When true, don't show success message (e.g., during signup)
+    let {
+        hideSuccessMessage = false, // When true, don't show success message (e.g., during signup)
+        initialCode = ''            // Optional pre-filled code (e.g., from /#gift-card=CODE deep link)
     }: {
         hideSuccessMessage?: boolean;
+        initialCode?: string;
     } = $props();
 
     let giftCardCode = $state('');
     let isRedeeming = $state(false);
     let errorMessage: string | null = $state(null);
     let successMessage: string | null = $state(null);
+
+    // Pre-fill from prop or sessionStorage on mount
+    $effect(() => {
+        if (initialCode) {
+            giftCardCode = initialCode.toUpperCase();
+        } else if (typeof window !== 'undefined') {
+            const pending = sessionStorage.getItem('pending_gift_card_code');
+            if (pending) {
+                giftCardCode = pending.toUpperCase();
+                console.debug('[GiftCardRedeem] Pre-filled code from sessionStorage');
+            }
+        }
+    });
 
     /**
      * Redeem the gift card code
@@ -38,6 +59,8 @@ Gift Card Redeem - Component for redeeming gift card codes
         isRedeeming = true;
 
         try {
+            const normalizedCode = giftCardCode.trim().toUpperCase();
+
             const response = await fetch(getApiEndpoint(apiEndpoints.payments.redeemGiftCard), {
                 method: 'POST',
                 headers: {
@@ -45,7 +68,7 @@ Gift Card Redeem - Component for redeeming gift card codes
                     'Accept': 'application/json',
                     'Origin': window.location.origin
                 },
-                body: JSON.stringify({ code: giftCardCode.trim().toUpperCase() }),
+                body: JSON.stringify({ code: normalizedCode }),
                 credentials: 'include' // Important for sending auth cookies
             });
 
@@ -53,6 +76,14 @@ Gift Card Redeem - Component for redeeming gift card codes
 
             if (response.ok && result.success) {
                 console.info("Gift card redeemed successfully:", result);
+
+                if (typeof window !== 'undefined') {
+                    const pendingCode = sessionStorage.getItem('pending_gift_card_code');
+                    if (pendingCode?.toUpperCase() === normalizedCode) {
+                        sessionStorage.removeItem('pending_gift_card_code');
+                        console.debug('[GiftCardRedeem] Cleared pending gift card code from sessionStorage after successful redemption');
+                    }
+                }
                 
                 // Update profile store with new credit amount
                 if (typeof result.current_credits === 'number') {
@@ -273,4 +304,3 @@ Gift Card Redeem - Component for redeeming gift card codes
         }
     }
 </style>
-

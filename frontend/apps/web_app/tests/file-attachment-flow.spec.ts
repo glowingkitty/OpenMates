@@ -868,27 +868,29 @@ test('finance image: upload, AI views image, embeds persist through reload and r
 	// Wait for any pending remounts (resolveAndUpdateImageViewProps is async and
 	// unmounts+remounts the component after resolving the original upload embed
 	// from IndexedDB — the test must not click during this brief DOM gap).
-	await page.waitForTimeout(3000);
+	// Use toPass with waitFor instead of a fixed sleep: this waits until the
+	// finished embed is stably attached to the DOM before we try to interact.
+	const finishedImageViewSelector =
+		'.unified-embed-preview[data-app-id="images"][data-skill-id="view"][data-status="finished"]';
+	const finishedImageView = activeChatContainer.locator(finishedImageViewSelector);
 
-	const finishedImageView = activeChatContainer.locator(
-		'.unified-embed-preview[data-app-id="images"][data-skill-id="view"][data-status="finished"]'
-	);
-
-	// Scroll the embed into view before clicking to ensure it's fully interactive.
-	await finishedImageView.first().scrollIntoViewIfNeeded();
-	await page.waitForTimeout(500);
+	// Wait for the element to be stably attached (survives remount cycles).
+	await expect(finishedImageView.first()).toBeAttached({ timeout: 15000 });
+	await expect(finishedImageView.first()).toBeVisible({ timeout: 10000 });
 
 	// Click img.preview-image inside the AI view embed (shortest code path:
 	// directly calls onFullscreen from ImageViewEmbedPreview without going through
-	// UnifiedEmbedPreview.handleClick). If the click doesn't open fullscreen within
-	// 5 seconds, retry — the async resolveAndUpdateImageViewProps might still be in
-	// flight on slower CI runs.
-	const aiImgPreview = finishedImageView.first().locator('img.preview-image');
+	// UnifiedEmbedPreview.handleClick). Re-query inside the retry loop to avoid
+	// stale-locator errors if resolveAndUpdateImageViewProps remounts the component.
 	const fullscreenOverlay = page.locator('.unified-embed-fullscreen-overlay');
 
 	await expect(async () => {
 		if (!(await fullscreenOverlay.isVisible().catch(() => false))) {
-			await aiImgPreview.click({ force: true });
+			// Re-query each retry to pick up the freshly-mounted element
+			const freshView = activeChatContainer.locator(finishedImageViewSelector);
+			await freshView.first().scrollIntoViewIfNeeded();
+			const freshImg = freshView.first().locator('img.preview-image');
+			await freshImg.click({ force: true });
 		}
 		await expect(fullscreenOverlay).toBeVisible({ timeout: 5000 });
 	}).toPass({ timeout: 30000, intervals: [2000] });

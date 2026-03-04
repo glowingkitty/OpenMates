@@ -1515,7 +1515,7 @@ async def websocket_endpoint(
     device_fingerprint_hash = auth_data["device_fingerprint_hash"]
     user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
 
-    logger.debug("WebSocket connection established and authenticated for user")
+    logger.info(f"WebSocket connection established for user_id={user_id}, device={device_fingerprint_hash}")
     await manager.connect(websocket, user_id, device_fingerprint_hash)
 
     # Deliver any pending reminder notifications that fired while the user was offline.
@@ -2070,7 +2070,21 @@ async def websocket_endpoint(
                         unread_count=unread_count
                     )
                     
-                    logger.info(f"User {user_id}: Updated read status for chat {chat_id}: unread_count = {unread_count}")
+                    # Broadcast read status to all OTHER devices for real-time cross-device sync.
+                    # Without this, Device B keeps showing an unread badge until next page reload.
+                    await manager.broadcast_to_user(
+                        message={
+                            "type": "chat_read_status_updated",
+                            "payload": {
+                                "chat_id": chat_id,
+                                "unread_count": unread_count,
+                            },
+                        },
+                        user_id=user_id,
+                        exclude_device_hash=device_fingerprint_hash,
+                    )
+                    
+                    logger.info(f"User {user_id}: Updated and broadcast read status for chat {chat_id}: unread_count = {unread_count}")
                 except Exception as e:
                     logger.error(f"User {user_id}: Failed to update read status: {str(e)}")
 

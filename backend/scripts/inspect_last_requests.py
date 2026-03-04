@@ -8,18 +8,21 @@ This script:
 2. Decrypts the entries using the DEBUG_REQUESTS_ENCRYPTION_KEY (Vault)
 3. Provides multiple viewing modes: list, summary, or full YAML output
 4. Supports filtering by chat_id, task_id, and time range
+5. Can display full system prompts and diff prompts between entries
 
 ARCHITECTURE:
 - Only admin user requests are cached (regular users are never cached)
 - Debug entries are stored as an encrypted list in Dragonfly with 72-hour TTL
 - Each entry contains complete input/output for all three processor stages
-- Entries are stored globally (admin users only) with a max of 50 entries
+- Entries are stored globally (admin users only) with a max of 20 entries
 - Data is encrypted server-side with DEBUG_REQUESTS_ENCRYPTION_KEY
 
 OUTPUT MODES:
 - --list: Quick overview of available requests (default if no output file)
-- --summary: Detailed summary with key metrics and error detection
+- --summary: Detailed summary with key metrics, system prompt stats, tool usage
 - --yaml: Save FULL debug data to YAML file for deep analysis
+- --show-prompt N: Display the full system prompt for entry #N
+- --diff N M: Diff the system prompts of entries #N and #M
 
 Usage:
     # List all available requests (quick overview)
@@ -48,15 +51,23 @@ Usage:
     
     # JSON output for programmatic use
     docker exec -it api python /app/backend/scripts/inspect_last_requests.py --json
+    
+    # Show full system prompt for entry #3
+    docker exec -it api python /app/backend/scripts/inspect_last_requests.py --show-prompt 3
+    
+    # Diff system prompts between entries #1 and #3
+    docker exec -it api python /app/backend/scripts/inspect_last_requests.py --diff 1 3
 """
 
 import asyncio
 import argparse
+import difflib
 import logging
 import sys
 import os
 import json as json_module
 import time
+from collections import Counter
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
@@ -174,7 +185,7 @@ def extract_key_info(entry: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with key information extracted
     """
-    info = {
+    info: Dict[str, Any] = {
         'task_id': entry.get('task_id', 'N/A'),
         'chat_id': entry.get('chat_id', 'N/A'),
         'timestamp': entry.get('timestamp'),
@@ -184,6 +195,11 @@ def extract_key_info(entry: Dict[str, Any]) -> Dict[str, Any]:
         'tokens_used': None,
         'message_count': None,
         'thinking_length': 0,  # Length of thinking content from reasoning models (chars)
+        # New fields from P0/P1/P2 debug metadata enrichment
+        'system_prompt_chars': 0,  # Character count of the full system prompt
+        'tools_count': 0,  # Number of tools available to the LLM
+        'tool_names': [],  # List of tool names available
+        'system_prompt': None,  # Full system prompt text (for --show-prompt / --diff)
     }
     
     # Check which stages have data
@@ -222,6 +238,20 @@ def extract_key_info(entry: Dict[str, Any]) -> Dict[str, Any]:
             if thinking_len:
                 info['thinking_length'] = thinking_len
     
+    # Extract system prompt and tools info from main_processor_input (P0/P1/P2 enrichment)
+    main_input = entry.get('main_processor_input', {})
+    if isinstance(main_input, dict):
+        info['system_prompt_chars'] = main_input.get('system_prompt_char_count', 0)
+        info['tools_count'] = main_input.get('available_tools_count', 0)
+        info['system_prompt'] = main_input.get('system_prompt')
+        # Extract tool names from the available_tools list
+        available_tools = main_input.get('available_tools')
+        if isinstance(available_tools, list):
+            info['tool_names'] = [
+                t.get('name', 'unknown') for t in available_tools
+                if isinstance(t, dict) and t.get('name')
+            ]
+    
     if entry.get('postprocessor_output'):
         info['stages_completed'].append('postprocessor')
     
@@ -249,25 +279,49 @@ def print_list_view(entries: List[Dict[str, Any]]):
         print("\n❌ No debug entries found.\n")
         return
     
-    print("\n" + "=" * 100)
+    # Table width accommodates: #(3) + Timestamp(20) + TaskID(20) + ChatID(20) + Stages(10) +
+    # SysPrompt(10) + Tools(6) + Status(8) + padding = ~120 chars
+    table_width = 120
+    print("\n" + "=" * table_width)
     print("DEBUG REQUEST ENTRIES (Chronological Order - Oldest First)")
-    print("=" * 100)
-    print(f"{'#':<3} {'Timestamp':<20} {'Task ID':<20} {'Chat ID':<20} {'Stages':<15} {'Status':<8}")
-    print("-" * 100)
+    print("=" * table_width)
+    print(
+        f"{'#':<3} {'Timestamp':<20} {'Task ID':<20} {'Chat ID':<20} "
+        f"{'Stages':<10} {'SysPrompt':<10} {'Tools':<6} {'Status':<8}"
+    )
+    print("-" * table_width)
     
     for i, entry in enumerate(entries, 1):
         info = extract_key_info(entry)
         timestamp_str = format_timestamp(info['timestamp'])
-        task_id = info['task_id'][:18] + '…' if len(info['task_id']) > 19 else info['task_id']
-        chat_id = info['chat_id'][:18] + '…' if len(info['chat_id']) > 19 else info['chat_id']
+        task_id = info['task_id'][:18] + '..' if len(info['task_id']) > 19 else info['task_id']
+        chat_id = info['chat_id'][:18] + '..' if len(info['chat_id']) > 19 else info['chat_id']
         stages = '/'.join(s[0].upper() for s in info['stages_completed']) or 'None'
-        status = '❌ ERROR' if info['has_error'] else '✅ OK'
+        status = 'ERROR' if info['has_error'] else 'OK'
         
-        print(f"{i:<3} {timestamp_str:<20} {task_id:<20} {chat_id:<20} {stages:<15} {status:<8}")
+        # Format system prompt size as human-readable (e.g., "15.2K", "0")
+        prompt_chars = info['system_prompt_chars']
+        if prompt_chars >= 1000:
+            sys_prompt_str = f"{prompt_chars / 1000:.1f}K"
+        elif prompt_chars > 0:
+            sys_prompt_str = str(prompt_chars)
+        else:
+            sys_prompt_str = "-"
+        
+        tools_str = str(info['tools_count']) if info['tools_count'] > 0 else "-"
+        
+        print(
+            f"{i:<3} {timestamp_str:<20} {task_id:<20} {chat_id:<20} "
+            f"{stages:<10} {sys_prompt_str:<10} {tools_str:<6} {status:<8}"
+        )
     
-    print("=" * 100)
-    print(f"Total entries: {len(entries)} | Stages: P=Preprocessor, M=MainProcessor, P=Postprocessor")
-    print("=" * 100 + "\n")
+    print("=" * table_width)
+    print(
+        f"Total entries: {len(entries)} | "
+        f"Stages: P=Preprocessor, M=MainProcessor, P=Postprocessor | "
+        f"SysPrompt=chars sent to LLM"
+    )
+    print("=" * table_width + "\n")
 
 
 def print_summary_view(entries: List[Dict[str, Any]]):
@@ -301,13 +355,19 @@ def print_summary_view(entries: List[Dict[str, Any]]):
     chat_ids = [e.get('chat_id') for e in entries if e.get('chat_id')]
     unique_chats = len(set(chat_ids))
     
-    # Model usage and thinking stats
-    models_used = []
+    # Model usage, thinking stats, system prompt stats, and tool usage
+    models_used: List[str] = []
     total_tokens = 0
     entries_with_thinking = 0
     total_thinking_chars = 0
+    system_prompt_sizes: List[int] = []
+    tools_counts: List[int] = []
+    all_tool_names: List[str] = []
+    all_infos: List[Dict[str, Any]] = []
+    
     for e in entries:
         info = extract_key_info(e)
+        all_infos.append(info)
         if info['model_used']:
             models_used.append(info['model_used'])
         if info['tokens_used']:
@@ -315,6 +375,11 @@ def print_summary_view(entries: List[Dict[str, Any]]):
         if info['thinking_length']:
             entries_with_thinking += 1
             total_thinking_chars += info['thinking_length']
+        if info['system_prompt_chars'] > 0:
+            system_prompt_sizes.append(info['system_prompt_chars'])
+        if info['tools_count'] > 0:
+            tools_counts.append(info['tools_count'])
+        all_tool_names.extend(info['tool_names'])
     
     unique_models = set(models_used)
     
@@ -325,25 +390,53 @@ def print_summary_view(entries: List[Dict[str, Any]]):
     print(f"Total Entries:        {total_entries}")
     print(f"Entries with Errors:  {entries_with_errors} ({entries_with_errors/total_entries*100:.1f}%)" if total_entries > 0 else "Entries with Errors:  0")
     print(f"Unique Chats:         {unique_chats}")
-    print(f"Time Range:           {oldest_str} → {newest_str} (span: {span_str})")
+    print(f"Time Range:           {oldest_str} -> {newest_str} (span: {span_str})")
     if unique_models:
         print(f"Models Used:          {', '.join(unique_models)}")
         print(f"Total Tokens:         {total_tokens:,}")
     if entries_with_thinking:
         print(f"Entries w/ Thinking:  {entries_with_thinking} ({total_thinking_chars:,} chars total)")
+    
+    # System prompt statistics
+    if system_prompt_sizes:
+        min_size = min(system_prompt_sizes)
+        max_size = max(system_prompt_sizes)
+        avg_size = sum(system_prompt_sizes) / len(system_prompt_sizes)
+        print(f"\nSystem Prompt Stats ({len(system_prompt_sizes)} entries with data):")
+        print(f"  Min size:           {min_size:,} chars ({min_size / 1000:.1f}K)")
+        print(f"  Max size:           {max_size:,} chars ({max_size / 1000:.1f}K)")
+        print(f"  Avg size:           {avg_size:,.0f} chars ({avg_size / 1000:.1f}K)")
+    
+    # Tool usage patterns
+    if tools_counts:
+        min_tools = min(tools_counts)
+        max_tools = max(tools_counts)
+        avg_tools = sum(tools_counts) / len(tools_counts)
+        print(f"\nTool Usage ({len(tools_counts)} entries with tools):")
+        print(f"  Min tools/request:  {min_tools}")
+        print(f"  Max tools/request:  {max_tools}")
+        print(f"  Avg tools/request:  {avg_tools:.1f}")
+        # Show most common tools across all entries
+        if all_tool_names:
+            tool_freq = Counter(all_tool_names)
+            # Show tools that appear in more than one entry, sorted by frequency
+            common_tools = tool_freq.most_common(10)
+            if common_tools:
+                print(f"  Most common tools:  {', '.join(f'{name}({count})' for name, count in common_tools)}")
+    
     print("=" * 80)
     
     # Print detailed entry info
     print("\nDETAILED ENTRIES:\n")
     for i, entry in enumerate(entries, 1):
         info = extract_key_info(entry)
-        print(f"{'─' * 80}")
+        print(f"{'--' * 40}")
         print(f"Request #{i}")
-        print(f"{'─' * 80}")
+        print(f"{'--' * 40}")
         print(f"  Task ID:       {info['task_id']}")
         print(f"  Chat ID:       {info['chat_id']}")
         print(f"  Timestamp:     {format_timestamp(info['timestamp'])}")
-        print(f"  Status:        {'❌ ERROR DETECTED' if info['has_error'] else '✅ OK'}")
+        print(f"  Status:        {'ERROR DETECTED' if info['has_error'] else 'OK'}")
         print(f"  Stages:        {', '.join(info['stages_completed']) if info['stages_completed'] else 'None'}")
         if info['model_used']:
             print(f"  Model:         {info['model_used']}")
@@ -353,6 +446,12 @@ def print_summary_view(entries: List[Dict[str, Any]]):
             print(f"  Messages:      {info['message_count']}")
         if info['thinking_length']:
             print(f"  Thinking:      {info['thinking_length']:,} chars")
+        # System prompt and tools info
+        if info['system_prompt_chars'] > 0:
+            print(f"  System Prompt: {info['system_prompt_chars']:,} chars ({info['system_prompt_chars'] / 1000:.1f}K)")
+        if info['tools_count'] > 0:
+            print(f"  Tools:         {info['tools_count']} ({', '.join(info['tool_names'][:5])}"
+                  f"{'...' if len(info['tool_names']) > 5 else ''})")
         print()
     
     print("=" * 80 + "\n")
@@ -423,6 +522,122 @@ def prepare_yaml_output(
     return output
 
 
+def print_system_prompt(entries: List[Dict[str, Any]], entry_index: int) -> None:
+    """
+    Print the full system prompt for a specific debug entry.
+    
+    Args:
+        entries: List of debug entries (sorted chronologically)
+        entry_index: 1-based index of the entry to show
+    """
+    if entry_index < 1 or entry_index > len(entries):
+        print(f"\nError: Entry #{entry_index} does not exist. Valid range: 1-{len(entries)}\n")
+        return
+    
+    entry = entries[entry_index - 1]
+    info = extract_key_info(entry)
+    
+    print("\n" + "=" * 80)
+    print(f"SYSTEM PROMPT - Entry #{entry_index}")
+    print("=" * 80)
+    print(f"Task ID:    {info['task_id']}")
+    print(f"Chat ID:    {info['chat_id']}")
+    print(f"Timestamp:  {format_timestamp(info['timestamp'])}")
+    
+    if not info['system_prompt']:
+        print("\nNo system prompt data available for this entry.")
+        print("(This entry may predate the debug metadata enrichment)\n")
+        return
+    
+    prompt_text = info['system_prompt']
+    print(f"Length:     {len(prompt_text):,} chars ({len(prompt_text) / 1000:.1f}K)")
+    print("=" * 80)
+    print()
+    print(prompt_text)
+    print()
+    print("=" * 80)
+    print(f"END OF SYSTEM PROMPT (Entry #{entry_index}, {len(prompt_text):,} chars)")
+    print("=" * 80 + "\n")
+
+
+def diff_system_prompts(
+    entries: List[Dict[str, Any]],
+    index_a: int,
+    index_b: int,
+) -> None:
+    """
+    Diff the system prompts of two debug entries using unified diff format.
+    
+    Args:
+        entries: List of debug entries (sorted chronologically)
+        index_a: 1-based index of the first entry
+        index_b: 1-based index of the second entry
+    """
+    max_index = len(entries)
+    
+    # Validate indices
+    for idx, label in [(index_a, "first"), (index_b, "second")]:
+        if idx < 1 or idx > max_index:
+            print(f"\nError: The {label} entry #{idx} does not exist. Valid range: 1-{max_index}\n")
+            return
+    
+    if index_a == index_b:
+        print(f"\nError: Cannot diff an entry with itself (both are #{index_a})\n")
+        return
+    
+    info_a = extract_key_info(entries[index_a - 1])
+    info_b = extract_key_info(entries[index_b - 1])
+    
+    prompt_a = info_a.get('system_prompt') or ''
+    prompt_b = info_b.get('system_prompt') or ''
+    
+    if not prompt_a and not prompt_b:
+        print("\nNeither entry has system prompt data available.")
+        print("(These entries may predate the debug metadata enrichment)\n")
+        return
+    
+    label_a = f"Entry #{index_a} ({format_timestamp(info_a['timestamp'])})"
+    label_b = f"Entry #{index_b} ({format_timestamp(info_b['timestamp'])})"
+    
+    print("\n" + "=" * 80)
+    print(f"SYSTEM PROMPT DIFF: {label_a} vs {label_b}")
+    print("=" * 80)
+    print(f"  A: {label_a} — {len(prompt_a):,} chars")
+    print(f"  B: {label_b} — {len(prompt_b):,} chars")
+    
+    if prompt_a == prompt_b:
+        print("\nSystem prompts are IDENTICAL (no differences).\n")
+        print("=" * 80 + "\n")
+        return
+    
+    # Generate unified diff
+    lines_a = prompt_a.splitlines(keepends=True)
+    lines_b = prompt_b.splitlines(keepends=True)
+    
+    diff_lines = list(difflib.unified_diff(
+        lines_a,
+        lines_b,
+        fromfile=f"Entry #{index_a}",
+        tofile=f"Entry #{index_b}",
+        lineterm='',
+    ))
+    
+    if not diff_lines:
+        # Whitespace-only differences
+        print("\nDifferences are whitespace-only.\n")
+    else:
+        # Count additions and removals for summary
+        additions = sum(1 for line in diff_lines if line.startswith('+') and not line.startswith('+++'))
+        removals = sum(1 for line in diff_lines if line.startswith('-') and not line.startswith('---'))
+        print(f"  Changes: +{additions} lines added, -{removals} lines removed\n")
+        
+        for line in diff_lines:
+            print(line)
+    
+    print()
+    print("=" * 80 + "\n")
+
+
 def save_to_yaml(data: Dict[str, Any], output_path: str) -> str:
     """
     Save data to a YAML file.
@@ -467,7 +682,7 @@ def save_to_yaml(data: Dict[str, Any], output_path: str) -> str:
 async def main():
     """Main function that inspects debug request entries with multiple viewing modes."""
     parser = argparse.ArgumentParser(
-        description='Inspect the last 10 AI request debug entries with flexible viewing options',
+        description='Inspect the last 20 AI request debug entries with flexible viewing options',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -497,6 +712,12 @@ Examples:
   
   # JSON output for scripts
   %(prog)s --json
+  
+  # Show full system prompt for entry #3
+  %(prog)s --show-prompt 3
+  
+  # Diff system prompts between entries #1 and #3
+  %(prog)s --diff 1 3
         """
     )
     
@@ -561,6 +782,24 @@ Examples:
         '--clear',
         action='store_true',
         help='Clear all cached debug request data and exit'
+    )
+    
+    # System prompt inspection options
+    prompt_group = parser.add_argument_group('System Prompt Inspection')
+    prompt_group.add_argument(
+        '--show-prompt',
+        type=int,
+        metavar='N',
+        default=None,
+        help='Print the full system prompt for entry #N (1-based index from --list)'
+    )
+    prompt_group.add_argument(
+        '--diff',
+        type=int,
+        nargs=2,
+        metavar=('N', 'M'),
+        default=None,
+        help='Diff the system prompts of entries #N and #M (1-based indices from --list)'
     )
     
     args = parser.parse_args()
@@ -629,6 +868,15 @@ Examples:
         
         # Sort chronologically (oldest first)
         sorted_entries = sorted(filtered_entries, key=lambda e: e.get('timestamp', 0))
+        
+        # Handle --show-prompt and --diff modes (independent of output mode)
+        if args.show_prompt is not None:
+            print_system_prompt(sorted_entries, args.show_prompt)
+            return
+        
+        if args.diff is not None:
+            diff_system_prompts(sorted_entries, args.diff[0], args.diff[1])
+            return
         
         # Determine output mode (default to list if nothing specified)
         if args.json:

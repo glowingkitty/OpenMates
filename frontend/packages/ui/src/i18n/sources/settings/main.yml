@@ -2556,6 +2556,270 @@ server.gift_cards.copied:
   sv: Kopierat till urklipp
   he: הועתק ללוח
   verified_by_human: []
+server.gift_cards.show_qr:
+  context: Tooltip/label for the QR code button shown next to each gift card code
+  en: Show QR Code
+  de: QR-Code anzeigen
+  zh: 显示二维码
+  es: Mostrar código QR
+  fr: Afficher le QR code
+  pt: ""
+  ru: ""
+  ja: QRコードを表示
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: عرض رمز QR
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: הצג קוד QR
+  verified_by_human: []
+server.gift_cards.qr_code_for:
+  context: Title shown in the fullscreen QR code overlay
+  en: Gift Card QR Code
+  de: Geschenkkarten-QR-Code
+  zh: 礼品卡二维码
+  es: Código QR de Tarjeta de Regalo
+  fr: QR Code de la Carte Cadeau
+  pt: ""
+  ru: ""
+  ja: ギフトカードQRコード
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: رمز QR لبطاقة الهدية
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: קוד QR לכרטיס מתנה
+  verified_by_human: []
+server.gift_cards.qr_code_hint:
+  context: Subtitle in the QR code overlay explaining what scanning the code does
+  en: Scan to open signup with this gift card pre-filled
+  de: Scannen zum Öffnen der Registrierung mit vorausgefüllter Geschenkkarte
+  zh: 扫描以打开预填礼品卡的注册页面
+  es: Escanear para abrir el registro con esta tarjeta de regalo precargada
+  fr: Scanner pour ouvrir l'inscription avec cette carte cadeau pré-remplie
+  pt: ""
+  ru: ""
+  ja: スキャンしてギフトカードが事前入力されたサインアップを開く
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: امسح لفتح التسجيل مع تعبئة بطاقة الهدية مسبقاً
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: סרוק כדי לפתוח את ההרשמה עם כרטיס המתנה מולא מראש
+  verified_by_human: []
+server.gift_cards.copy_link:
+  context: Tooltip/label for the copy signup link button shown next to each gift card code
+  en: Copy signup link
+  de: Anmeldelink kopieren
+  zh: 复制注册链接
+  es: Copiar enlace de registro
+  fr: Copier le lien d'inscription
+  pt: ""
+  ru: ""
+  ja: サインアップリンクをコピー
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: نسخ رابط التسجيل
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: העתק קישור הרשמה
+  verified_by_human: []
+server.gift_cards.active_cards:
+  context: Section title for the list of active (unredeemed) gift cards in the admin panel
+  en: Active Gift Cards
+  de: Aktive Geschenkkarten
+  zh: 有效礼品卡
+  es: Tarjetas de Regalo Activas
+  fr: Cartes Cadeaux Actives
+  pt: ""
+  ru: ""
+  ja: アクティブなギフトカード
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: بطاقات الهدايا النشطة
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: כרטיסי מתנה פעילים
+  verified_by_human: []
+server.gift_cards.active_cards_empty:
+  context: Message shown when there are no active gift cards on the server
+  en: No active gift cards on this server
+  de: Keine aktiven Geschenkkarten auf diesem Server
+  zh: 此服务器上没有有效礼品卡
+  es: No hay tarjetas de regalo activas en este servidor
+  fr: Aucune carte cadeau active sur ce serveur
+  pt: ""
+  ru: ""
+  ja: このサーバーにはアクティブなギフトカードがありません
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: لا توجد بطاقات هدايا نشطة على هذا الخادم
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: אין כרטיסי מתנה פעילים בשרת זה
+  verified_by_human: []
+server.gift_cards.active_cards_refresh:
+  context: Refresh button label in the active gift cards section header
+  en: Refresh
+  de: Aktualisieren
+  zh: 刷新
+  es: Actualizar
+  fr: Actualiser
+  pt: ""
+  ru: ""
+  ja: 更新
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: تحديث
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: רענן
+  verified_by_human: []
+server.gift_cards.created_at:
+  context: Label for the creation date shown on each active gift card row
+  en: Created
+  de: Erstellt
+  zh: 创建时间
+  es: Creado
+  fr: Créé
+  pt: ""
+  ru: ""
+  ja: 作成日
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: تم الإنشاء
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: נוצר
+  verified_by_human: []
+server.gift_cards.close:
+  context: Close button label for the QR code fullscreen overlay
+  en: Close
+  de: Schließen
+  zh: 关闭
+  es: Cerrar
+  fr: Fermer
+  pt: ""
+  ru: ""
+  ja: 閉じる
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: إغلاق
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: סגור
+  verified_by_human: []
+server.gift_cards.loading_cards:
+  context: Loading message while fetching the list of active gift cards
+  en: Loading gift cards...
+  de: Geschenkkarten werden geladen...
+  zh: 正在加载礼品卡...
+  es: Cargando tarjetas de regalo...
+  fr: Chargement des cartes cadeaux...
+  pt: ""
+  ru: ""
+  ja: ギフトカードを読み込み中...
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: جاري تحميل بطاقات الهدايا...
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: טוען כרטיסי מתנה...
+  verified_by_human: []
+server.gift_cards.load_error:
+  context: Error message when loading the active gift cards list fails
+  en: Failed to load gift cards
+  de: Geschenkkarten konnten nicht geladen werden
+  zh: 加载礼品卡失败
+  es: No se pudieron cargar las tarjetas de regalo
+  fr: Impossible de charger les cartes cadeaux
+  pt: ""
+  ru: ""
+  ja: ギフトカードの読み込みに失敗しました
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: فشل تحميل بطاقات الهدايا
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: טעינת כרטיסי המתנה נכשלה
+  verified_by_human: []
 server.gift_cards.invalid_prefix:
   context: Error message shown when prefix contains invalid characters
   en: Prefix must be 1-4 characters (A-Z, 2-9, excluding O, I, 0, 1)

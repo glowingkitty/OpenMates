@@ -36,8 +36,10 @@ RUN mkdir -p /app/apps && touch /app/apps/__init__.py
 
 # Copy shared Python schemas
 COPY backend/shared/python_schemas /app/backend_shared/python_schemas
-# Copy shared Python utilities (like billing_utils)
+# Copy shared Python utilities (like billing_utils, domain_filter)
 COPY backend/shared/python_utils /app/backend_shared/python_utils
+# Copy shared config files (like tabloid_blocklist.yml)
+COPY backend/shared/config /app/backend_shared/config
 
 # Copy the specific application's code using the APP_NAME build argument
 # This ensures that the app's code (e.g., skills, app.yml) is in /app/{APP_NAME}/

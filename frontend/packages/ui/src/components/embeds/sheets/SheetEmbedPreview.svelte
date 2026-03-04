@@ -21,6 +21,7 @@
   import { text } from '@repo/ui';
   import { parseSheetEmbedContent, formatTableDimensions } from './sheetEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
+  import { stripEmbedLinks } from '../../../utils/embedLinkUtils';
   import { embedPIIStore } from '../../../stores/embedPIIStore';
   
   /**
@@ -206,7 +207,7 @@
               {#each previewRows as row}
                 <tr>
                   {#each row as cell}
-                    <td>{cell.content}</td>
+                    <td>{stripEmbedLinks(cell.content)}</td>
                   {/each}
                 </tr>
               {/each}

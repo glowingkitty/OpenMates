@@ -535,6 +535,9 @@
         },
         "example_2": {
           "text": "캐주얼 팀"
+        },
+        "example_3": {
+          "text": "후속 조치 및 리마인더"
         }
       }
     },
@@ -1185,6 +1188,9 @@
         "description": {
           "text": "PDF의 특정 페이지에서 텍스트를 읽습니다."
         },
+        "processing": {
+          "text": "읽는 중…"
+        },
         "how_to_use": {
           "1": {
             "text": "업로드한 PDF의 5페이지를 읽어주세요"
@@ -1802,6 +1808,23 @@
       },
       "just_now": {
         "text": "방금"
+      }
+    },
+    "thinking": {
+      "placeholder": {
+        "text": "생각해 볼게요..."
+      },
+      "header_streaming": {
+        "text": "생각 중..."
+      },
+      "header_done": {
+        "text": "사고 과정"
+      },
+      "collapse": {
+        "text": "사고 과정 접기"
+      },
+      "expand": {
+        "text": "사고 과정 펼치기"
       }
     },
     "new_chat_suggestions": {
@@ -3092,6 +3115,35 @@
       "plot": {
         "text": "그래프"
       }
+    },
+    "mail": {
+      "email": {
+        "text": "이메일 초안"
+      },
+      "to": {
+        "text": "받는 사람"
+      },
+      "subject": {
+        "text": "제목"
+      },
+      "content": {
+        "text": "본문"
+      },
+      "footer": {
+        "text": "푸터"
+      },
+      "empty_content": {
+        "text": "아직 이메일 본문이 없습니다."
+      },
+      "open_mail_client": {
+        "text": "메일 앱에서 열기"
+      },
+      "copied": {
+        "text": "이메일 초안을 복사했습니다."
+      },
+      "copy_failed": {
+        "text": "이메일 초안 복사에 실패했습니다."
+      }
     }
   },
   "enter_message": {
@@ -3176,7 +3228,7 @@
       "text": "메시지를 입력하세요"
     },
     "click_to_enter_message": {
-      "text": "여기를 클릭하여 메시지 입력"
+      "text": "여기를 클릭하여 무엇이든 질문"
     },
     "click_to_add_text": {
       "text": "여기를 클릭하여 텍스트 추가"
@@ -3261,10 +3313,10 @@
     },
     "placeholder": {
       "desktop": {
-        "text": "클릭하여 메시지 입력..."
+        "text": "클릭하여 무엇이든 질문..."
       },
       "touch": {
-        "text": "탭하여 메시지 입력..."
+        "text": "탭하여 무엇이든 질문..."
       }
     },
     "press_and_hold_menu": {
@@ -7359,6 +7411,12 @@
     },
     "gift_card_redeemed_success": {
       "text": "선물을 즐기세요!"
+    },
+    "gift_card_waiting_notification": {
+      "text": "Your {credits} credits gift card is waiting for you. Sign up or login to apply them."
+    },
+    "gift_card_waiting_action": {
+      "text": "Signup/Login"
     },
     "credits_purchased": {
       "text": "구매한 크레딧"

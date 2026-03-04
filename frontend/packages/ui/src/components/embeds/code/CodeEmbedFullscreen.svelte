@@ -24,6 +24,7 @@
   import { countCodeLines, formatLanguageName, parseCodeEmbedContent } from './codeEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import type { PIIMapping } from '../../../types/chat';
+  import { copyToClipboard } from '../../../utils/clipboardUtils';
   
   /**
    * Props for code embed fullscreen
@@ -177,7 +178,8 @@
   // Copies the PII-processed content (original values if revealed, placeholders if hidden).
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(renderCodeContent);
+      const result = await copyToClipboard(renderCodeContent);
+      if (!result.success) throw new Error(result.error || 'Copy failed');
       console.debug('[CodeEmbedFullscreen] Copied code to clipboard');
       notificationStore.success('Code copied to clipboard');
     } catch (error) {

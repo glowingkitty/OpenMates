@@ -22,6 +22,8 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   import { notificationStore } from '../../../stores/notificationStore';
+  import { copyToClipboard } from '../../../utils/clipboardUtils';
+  import { handleImageError } from '../../../utils/offlineImageHandler';
 
   /**
    * Props for maps location embed fullscreen
@@ -138,7 +140,8 @@
   async function handleCopyOsmUrl() {
     if (!osmUrl) return;
     try {
-      await navigator.clipboard.writeText(osmUrl);
+      const clipResult = await copyToClipboard(osmUrl);
+      if (!clipResult.success) throw new Error(clipResult.error || 'Copy failed');
       console.debug('[MapsLocationEmbedFullscreen] Copied OSM URL:', osmUrl);
       notificationStore.success($text('embeds.copied_to_clipboard'), 3000);
     } catch (err) {
@@ -267,7 +270,7 @@
             src={mapImageUrl}
             alt={name || $text('embeds.maps_location')}
             class="map-fullscreen-image"
-            onerror={() => { imageError = true; }}
+            onerror={(e) => { imageError = true; handleImageError(e.currentTarget as HTMLImageElement); }}
           />
         </div>
       {:else if status === 'processing'}

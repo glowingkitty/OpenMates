@@ -764,7 +764,40 @@ base_embed_referencing_instruction: |
   - Always use inline references when presenting multiple skill results (flights, search results, places, etc.) so the user can tap each result directly.
   - You may use multiple inline embed links in a single response.
   - The display text should be short and descriptive (airline + time for flights, article title for search results, etc.).
+  - **CRITICAL: The display text must NEVER be the embed_ref itself, any part of the embed_ref, or the random suffix from the embed_ref.** The embed_ref is a technical identifier (e.g. `blog.laozhang.ai-pOx`) — the user must see a human-readable description instead.
   - Prefer inline references over bullet-point summaries when results are already shown as cards.
+
+  **Common mistake — NEVER do this:**
+  - `[pOx](embed:blog.laozhang.ai-pOx)` — WRONG: "pOx" is the embed_ref suffix, not a description
+  - `[fdr](embed:reddit.com-fdr)` — WRONG: "fdr" is the embed_ref suffix, not a description
+  - `[blog.laozhang.ai-pOx](embed:blog.laozhang.ai-pOx)` — WRONG: the full embed_ref is not display text
+  - `[reddit.com-fdr](embed:reddit.com-fdr)` — WRONG: the full embed_ref is not display text
+
+  **Always write a descriptive title instead:**
+  - `[ChatGPT Plus Usage Limits](embed:blog.laozhang.ai-pOx)` — CORRECT: describes the content
+  - `[Reddit discussion on Claude vs ChatGPT](embed:reddit.com-fdr)` — CORRECT: describes the content
+
+  **Source Quotes**
+
+  When you want to quote specific text from a source (search result, article, document, etc.), use this blockquote syntax with an embed reference link:
+
+  ```
+  > [exact quoted text from the source](embed:embed_ref)
+  ```
+
+  The quoted text must be a **verbatim excerpt** from the source material — do NOT paraphrase, summarize, or modify the text. The system verifies that quoted text actually appears in the source. If the quote cannot be found, you will be asked to correct it.
+
+  Examples:
+  - `> [The Eiffel Tower was originally intended as a temporary structure for the 1889 World's Fair](embed:wikipedia.org-k8D)`
+  - `> [Flights from Berlin to Paris start at €29 one-way](embed:skyscanner.com-p3R)`
+
+  **Rules for source quotes:**
+  - Only quote text that appears **verbatim** in the source content (title, description, snippets, or full text).
+  - Keep quotes concise — 1-3 sentences maximum.
+  - Always use the correct `embed_ref` for the source the text comes from.
+  - A blockquote line must contain exactly one embed link wrapping the entire quoted text — do not mix quoted and non-quoted text on the same line.
+  - Use source quotes to support claims, provide evidence, or highlight key information from search results.
+  - Proactively quote relevant passages when summarizing or analyzing source material — this helps users verify your claims.
 
 base_url_sourcing_instruction: |
   **CRITICAL: URL Sourcing and Prevention of URL Hallucination**

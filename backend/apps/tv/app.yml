@@ -14,6 +14,17 @@ settings_and_memories:
     example_translation_keys:
       - "tv.watched_movies.example_1"
       - "tv.watched_movies.example_2"
+    example_entries:
+      - title: "tv.watched_movies.example_1.title"
+        year: 2010
+        director: "Christopher Nolan"
+        rating: 4.8
+        notes: "tv.watched_movies.example_1.notes"
+      - title: "tv.watched_movies.example_2.title"
+        year: 2019
+        director: "Bong Joon-ho"
+        rating: 4.9
+        notes: "tv.watched_movies.example_2.notes"
     schema:
       type: object
       properties:
@@ -35,15 +46,13 @@ settings_and_memories:
           description: The Movie Database (TMDb) ID
         notes:
           type: string
-          description: Personal notes about the movie
-        watched_date:
-          type: integer
-          description: Unix timestamp when watched
+          description: Personal notes
+          multiline: true
         genre:
           type: array
           items:
             type: string
-          description: Movie genres (sci-fi, drama, etc.)
+          description: TV show genres
       required:
         - title
   - id: watched_tv_shows
@@ -55,6 +64,21 @@ settings_and_memories:
     example_translation_keys:
       - "tv.watched_tv_shows.example_1"
       - "tv.watched_tv_shows.example_2"
+    example_entries:
+      - title: "tv.watched_tv_shows.example_1.title"
+        year: 2008
+        status: "completed"
+        seasons_watched: 5
+        latest_episode: "S05E16"
+        rating: 5
+        notes: "tv.watched_tv_shows.example_1.notes"
+      - title: "tv.watched_tv_shows.example_2.title"
+        year: 2022
+        status: "watching"
+        seasons_watched: 3
+        latest_episode: "S03E10"
+        rating: 4.7
+        notes: "tv.watched_tv_shows.example_2.notes"
     schema:
       type: object
       properties:
@@ -89,6 +113,7 @@ settings_and_memories:
         notes:
           type: string
           description: Personal notes
+          multiline: true
         genre:
           type: array
           items:
@@ -105,6 +130,17 @@ settings_and_memories:
     example_translation_keys:
       - "tv.to_watch_list.example_1"
       - "tv.to_watch_list.example_2"
+    example_entries:
+      - title: "tv.to_watch_list.example_1.title"
+        year: 2023
+        type: "movie"
+        priority: "high"
+        reason: "tv.to_watch_list.example_1.reason"
+      - title: "tv.to_watch_list.example_2.title"
+        year: 2022
+        type: "tv_show"
+        priority: "medium"
+        reason: "tv.to_watch_list.example_2.reason"
     schema:
       type: object
       properties:
@@ -142,6 +178,7 @@ settings_and_memories:
         reason:
           type: string
           description: Why you want to watch it
+          multiline: true
       required:
         - title
         - type

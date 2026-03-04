@@ -36,6 +36,7 @@ import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPr
 import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
 import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
 import PdfSearchEmbedPreview from "../../../embeds/pdf/PdfSearchEmbedPreview.svelte";
+import MailEmbedPreview from "../../../embeds/mail/MailEmbedPreview.svelte";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -153,6 +154,17 @@ export class GroupRenderer implements EmbedRenderer {
         return;
       }
 
+      // For mail embeds, use Svelte component
+      if (baseType === "mail-email") {
+        await this.renderMailComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+        return;
+      }
+
       // For other types, use HTML rendering
       const itemHtml = await this.renderIndividualItem(
         attrs,
@@ -247,6 +259,17 @@ export class GroupRenderer implements EmbedRenderer {
       return;
     }
 
+    // Mail groups render each item using MailEmbedPreview component
+    if (baseType === "mail-email") {
+      await this.renderMailGroup({
+        baseType,
+        groupDisplayName,
+        items: reversedItems,
+        content,
+      });
+      return;
+    }
+
     // Generate individual embed HTML for each grouped item (async)
     const groupItemsHtmlPromises = reversedItems.map((item) => {
       return this.renderIndividualItem(item, baseType);
@@ -320,6 +343,8 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderDocItem(item, embedData, decodedContent);
       case "sheets-sheet":
         return this.renderSheetItem(item, embedData, decodedContent);
+      case "mail-email":
+        return this.renderMailItem(item, embedData, decodedContent);
       default:
         console.error(
           `[GroupRenderer] No renderer found for embed type: ${baseType}`,
@@ -411,9 +436,9 @@ export class GroupRenderer implements EmbedRenderer {
    * Recount the visible items in a group's scroll container and update the
    * header text to reflect the real visible count.
    *
-   * This is necessary because error embeds are hidden via `target.remove()`
-   * at render time (in `mountAppSkillUsePreview`), so the header's count
-   * (derived from `groupCount` / `groupedItems.length`) can be stale.
+   * Error embeds are now rendered inline (with error state) rather than removed,
+   * so the count should match groupedItems.length. This method remains as a
+   * safety net to reconcile any DOM-level discrepancies.
    */
   private reconcileGroupHeader(
     scrollContainer: HTMLElement,
@@ -642,9 +667,8 @@ export class GroupRenderer implements EmbedRenderer {
       await this.mountAppSkillUsePreview(item, itemWrapper);
     }
 
-    // CRITICAL: Recount visible items after mounting — error embeds call target.remove()
-    // so the actual number of rendered items may be less than items.length.
-    // Update the header to reflect the real visible count.
+    // Safety net: reconcile header count with actual rendered items.
+    // Error embeds are now rendered inline, so count should match items.length.
     this.reconcileGroupHeader(scrollContainer, header, baseType);
 
     console.debug(
@@ -701,16 +725,16 @@ export class GroupRenderer implements EmbedRenderer {
     const taskId = decodedContent?.task_id;
     const results = decodedContent?.results || [];
 
-    // CRITICAL: Skip rendering error embeds - they should be hidden from users
-    // Failed skill executions are not shown in the user experience
+    // Error embeds are kept in the group and rendered with status: 'error'.
+    // The individual preview components handle the error state display (dimmed,
+    // with an error indicator). This preserves group stability during streaming
+    // and gives users visibility into what failed.
     if (status === "error") {
       console.debug(
-        `[GroupRenderer] Skipping error embed - hiding from user:`,
+        `[GroupRenderer] Rendering error embed in group:`,
         embedId || item.id,
       );
-      // Remove the target element from DOM since we won't render anything
-      target.remove();
-      return;
+      // Continue to the mounting logic below — the component will render in error state
     }
 
     // Merge query from multiple sources
@@ -1099,18 +1123,27 @@ export class GroupRenderer implements EmbedRenderer {
         return;
       }
 
-      // Handle pdf.read skill — opens original uploaded PDF fullscreen on click
+      // Handle pdf.read skill — dispatches pdfreadfullscreen to open PdfReadEmbedFullscreen
       if (appId === "pdf" && skillId === "read") {
-        const originalEmbedId = decodedContent?.embed_id || "";
         const filename = decodedContent?.filename || "";
         const pagesReturned: number[] = decodedContent?.pages_returned || [];
         const pagesSkipped: number[] = decodedContent?.pages_skipped || [];
         const pageCount: number | undefined =
           decodedContent?.page_count ?? undefined;
+        // Extract text content from results[0].content
+        const textContent =
+          decodedContent?.results?.[0]?.content ||
+          decodedContent?.content ||
+          "";
 
         const handlePdfReadFullscreen = () => {
-          if (!originalEmbedId) return;
-          this.openPdfUploadFullscreen(originalEmbedId);
+          this.openPdfReadFullscreen(
+            embedId,
+            filename,
+            pagesReturned,
+            pagesSkipped,
+            textContent,
+          );
         };
 
         const component = mount(PdfReadEmbedPreview, {
@@ -1121,13 +1154,12 @@ export class GroupRenderer implements EmbedRenderer {
             pagesReturned,
             pagesSkipped,
             pageCount,
+            textContent,
             status: status as "processing" | "finished" | "error",
             error: decodedContent?.error || "",
             isMobile: false,
             onFullscreen:
-              status === "finished" && originalEmbedId
-                ? handlePdfReadFullscreen
-                : undefined,
+              status === "finished" ? handlePdfReadFullscreen : undefined,
           },
         });
         mountedComponents.set(target, component);
@@ -1154,6 +1186,7 @@ export class GroupRenderer implements EmbedRenderer {
             filename,
             pages,
             pageCount,
+            originalEmbedId,
             status: status as "processing" | "finished" | "error",
             error: decodedContent?.error || "",
             isMobile: false,
@@ -1167,18 +1200,28 @@ export class GroupRenderer implements EmbedRenderer {
         return;
       }
 
-      // Handle pdf.search skill — opens original uploaded PDF fullscreen on click
+      // Handle pdf.search skill — dispatches pdfsearchfullscreen to open PdfSearchEmbedFullscreen
       if (appId === "pdf" && skillId === "search") {
-        const originalEmbedId = decodedContent?.embed_id || "";
         const filename = decodedContent?.filename || "";
         const searchQuery = decodedContent?.query || query || "";
         const totalMatches: number | undefined =
           decodedContent?.total_matches ?? undefined;
         const truncated: boolean = decodedContent?.truncated ?? false;
+        // Extract matches array from results[0].matches
+        const matches: any[] =
+          decodedContent?.results?.[0]?.matches ||
+          decodedContent?.matches ||
+          [];
 
         const handlePdfSearchFullscreen = () => {
-          if (!originalEmbedId) return;
-          this.openPdfUploadFullscreen(originalEmbedId);
+          this.openPdfSearchFullscreen(
+            embedId,
+            filename,
+            searchQuery,
+            totalMatches,
+            truncated,
+            matches,
+          );
         };
 
         const component = mount(PdfSearchEmbedPreview, {
@@ -1193,9 +1236,7 @@ export class GroupRenderer implements EmbedRenderer {
             error: decodedContent?.error || "",
             isMobile: false,
             onFullscreen:
-              status === "finished" && originalEmbedId
-                ? handlePdfSearchFullscreen
-                : undefined,
+              status === "finished" ? handlePdfSearchFullscreen : undefined,
           },
         });
         mountedComponents.set(target, component);
@@ -1344,6 +1385,58 @@ export class GroupRenderer implements EmbedRenderer {
         err,
       );
     }
+  }
+
+  /**
+   * Dispatch 'pdfreadfullscreen' so ActiveChat mounts PdfReadEmbedFullscreen.
+   * Carries the skill-use embed ID + extracted text content.
+   */
+  private openPdfReadFullscreen(
+    embedId: string,
+    filename: string,
+    pagesReturned: number[],
+    pagesSkipped: number[],
+    textContent: string,
+  ): void {
+    const event = new CustomEvent("pdfreadfullscreen", {
+      detail: {
+        embedId,
+        filename,
+        pagesReturned,
+        pagesSkipped,
+        textContent,
+      },
+      bubbles: true,
+    });
+    document.dispatchEvent(event);
+    console.debug("[GroupRenderer] Dispatched pdfreadfullscreen:", embedId);
+  }
+
+  /**
+   * Dispatch 'pdfsearchfullscreen' so ActiveChat mounts PdfSearchEmbedFullscreen.
+   * Carries the skill-use embed ID + search query + matches.
+   */
+  private openPdfSearchFullscreen(
+    embedId: string,
+    filename: string,
+    query: string,
+    totalMatches: number | undefined,
+    truncated: boolean,
+    matches: any[],
+  ): void {
+    const event = new CustomEvent("pdfsearchfullscreen", {
+      detail: {
+        embedId,
+        filename,
+        query,
+        totalMatches,
+        truncated,
+        matches,
+      },
+      bubbles: true,
+    });
+    document.dispatchEvent(event);
+    console.debug("[GroupRenderer] Dispatched pdfsearchfullscreen:", embedId);
   }
 
   /**
@@ -2732,6 +2825,241 @@ export class GroupRenderer implements EmbedRenderer {
     `;
   }
 
+  // =========================================================================
+  // Mail embed rendering — individual + group + mount
+  // =========================================================================
+
+  /**
+   * Render a single mail embed using MailEmbedPreview Svelte component.
+   */
+  private async renderMailComponent(
+    item: EmbedNodeAttributes,
+    embedData: any = null,
+    decodedContent: any = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const receiver = decodedContent?.receiver || "";
+    const subject = decodedContent?.subject || "";
+    const mailContent = decodedContent?.content || "";
+    const footer = decodedContent?.footer || "";
+    const status = (decodedContent?.status ||
+      embedData?.status ||
+      item.status ||
+      "processing") as "processing" | "finished" | "error" | "cancelled";
+    const taskId = decodedContent?.task_id;
+
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    try {
+      const handleFullscreen = () => {
+        this.openFullscreen(item, embedData, decodedContent);
+      };
+
+      const component = mount(MailEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          receiver,
+          subject,
+          content: mailContent,
+          footer,
+          status,
+          taskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug("[GroupRenderer] Mounted MailEmbedPreview component:", {
+        embedId,
+        subject,
+        status,
+      });
+    } catch (error) {
+      console.error(
+        "[GroupRenderer] Error mounting MailEmbedPreview component:",
+        error,
+      );
+      const fallbackHtml = await this.renderMailItem(
+        item,
+        embedData,
+        decodedContent,
+      );
+      content.innerHTML = fallbackHtml;
+    }
+  }
+
+  /**
+   * Render a group of mail embeds using MailEmbedPreview for each item.
+   */
+  private async renderMailGroup(args: {
+    baseType: string;
+    groupDisplayName: string;
+    items: EmbedNodeAttributes[];
+    content: HTMLElement;
+  }): Promise<void> {
+    const { baseType, groupDisplayName, items, content } = args;
+
+    const updated = await this.tryIncrementalGroupUpdate({
+      baseType,
+      groupDisplayName,
+      items,
+      content,
+      mountFn: (item, target) => this.mountMailPreview(item, target),
+    });
+    if (updated) return;
+
+    this.unmountMountedComponentsInSubtree(content);
+    content.innerHTML = "";
+
+    const groupWrapper = document.createElement("div");
+    groupWrapper.className = `${baseType}-preview-group`;
+
+    const header = document.createElement("div");
+    header.className = "group-header";
+    header.textContent = groupDisplayName;
+
+    const scrollContainer = document.createElement("div");
+    scrollContainer.className = "group-scroll-container";
+
+    groupWrapper.appendChild(header);
+    groupWrapper.appendChild(scrollContainer);
+    content.appendChild(groupWrapper);
+
+    for (const item of items) {
+      const itemWrapper = document.createElement("div");
+      itemWrapper.className = "embed-group-item";
+      itemWrapper.style.flex = "0 0 auto";
+      itemWrapper.setAttribute(
+        "data-embed-item-id",
+        item.id || item.contentRef || "unknown",
+      );
+      scrollContainer.appendChild(itemWrapper);
+      await this.mountMailPreview(item, itemWrapper);
+    }
+  }
+
+  /**
+   * Mount MailEmbedPreview component for a single mail embed item (in groups).
+   */
+  private async mountMailPreview(
+    item: EmbedNodeAttributes,
+    target: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.startsWith("embed:")
+      ? item.contentRef.replace("embed:", "")
+      : "";
+
+    let embedData: any = null;
+    let decodedContent: any = null;
+
+    if (embedId) {
+      try {
+        embedData = await resolveEmbed(embedId);
+        decodedContent = embedData?.content
+          ? await decodeToonContent(embedData.content)
+          : null;
+      } catch (error) {
+        console.error(
+          "[GroupRenderer] Error loading mail embed for group item:",
+          error,
+        );
+      }
+    }
+
+    const receiver = decodedContent?.receiver || "";
+    const subject = decodedContent?.subject || "";
+    const mailContent = decodedContent?.content || "";
+    const footer = decodedContent?.footer || "";
+    const status = (decodedContent?.status ||
+      embedData?.status ||
+      item.status ||
+      "finished") as "processing" | "finished" | "error" | "cancelled";
+    const taskId = decodedContent?.task_id;
+
+    const existingComponent = mountedComponents.get(target);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    target.innerHTML = "";
+
+    const handleFullscreen = () => {
+      this.openFullscreen(item, embedData, decodedContent);
+    };
+
+    try {
+      const component = mount(MailEmbedPreview, {
+        target,
+        props: {
+          id: embedId || item.id || "",
+          receiver,
+          subject,
+          content: mailContent,
+          footer,
+          status,
+          taskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+      mountedComponents.set(target, component);
+
+      console.debug(
+        "[GroupRenderer] Mounted MailEmbedPreview component in group:",
+        {
+          embedId,
+          subject,
+          status,
+        },
+      );
+    } catch (error) {
+      console.error(
+        "[GroupRenderer] Error mounting MailEmbedPreview in group:",
+        error,
+      );
+      target.innerHTML = `<div style="padding:8px;font-size:12px;color:var(--color-grey-50)">Mail embed unavailable</div>`;
+    }
+  }
+
+  /**
+   * Render a mail item as HTML fallback (for renderItemContent switch).
+   */
+  private async renderMailItem(
+    item: EmbedNodeAttributes,
+    embedData: any = null,
+    decodedContent: any = null,
+  ): Promise<string> {
+    const subject = decodedContent?.subject || item.title || "Email Draft";
+    const receiver = decodedContent?.receiver || "";
+    const isProcessing = item.status === "processing";
+
+    return `
+      <div class="embed-app-icon mail">
+        <span class="icon icon_mail"></span>
+      </div>
+      <div class="embed-text-content">
+        ${isProcessing ? '<div class="embed-modify-icon"><span class="icon icon_edit"></span></div>' : ""}
+        <div class="embed-text-line">${subject}</div>
+        ${receiver ? `<div class="embed-text-subline">${receiver}</div>` : ""}
+      </div>
+    `;
+  }
+
   private getGroupDisplayName(baseType: string, count: number): string {
     const typeDisplayNames: { [key: string]: string } = {
       "app-skill-use": "request",
@@ -2740,6 +3068,7 @@ export class GroupRenderer implements EmbedRenderer {
       "code-code": "code file",
       "docs-doc": "document",
       "sheets-sheet": "spreadsheet",
+      "mail-email": "email draft",
     };
 
     const displayName = typeDisplayNames[baseType] || baseType;

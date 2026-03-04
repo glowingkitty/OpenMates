@@ -23,12 +23,15 @@ function generateDeterministicGroupId(
     return "group_empty_" + Date.now();
   }
 
-  // Use the first item's ID as the basis for the group ID
-  // This ensures the group ID remains stable as more items are added
-  const firstItemId = embedNodes[0].id || embedNodes[0].contentRef || "";
+  // Prefer contentRef over id for the group identity anchor.
+  // contentRef is the most stable identifier — for server-referenced embeds
+  // it's "embed:<server_uuid>" which never changes across re-parses.
+  // The id field is now also deterministic (WI-1), but contentRef is
+  // semantically the right anchor since it represents the data source.
+  const firstItemAnchor = embedNodes[0].contentRef || embedNodes[0].id || "";
 
   // Prefix with 'group_' to make it clear this is a group node
-  return `group_${firstItemId}`;
+  return `group_${firstItemAnchor}`;
 }
 
 /**
@@ -762,59 +765,28 @@ export class AppSkillUseGroupHandler implements EmbedGroupHandler {
   }
 
   createGroup(embedNodes: EmbedNodeAttributes[]): EmbedNodeAttributes {
-    // CRITICAL: Filter out error embeds - they should not be shown to users
-    // Failed skill executions are hidden from the user experience
-    const validEmbeds = embedNodes.filter((embed) => {
-      if (embed.status === "error") {
-        console.debug(
-          `[AppSkillUseGroupHandler] Filtering out error embed from group:`,
-          embed.id,
-        );
-        return false;
-      }
-      return true;
-    });
-
-    // If all embeds were filtered out, return an empty/hidden group
-    if (validEmbeds.length === 0) {
-      console.debug(
-        "[AppSkillUseGroupHandler] All embeds filtered out - creating empty group",
-      );
-      return {
-        id: generateDeterministicGroupId(embedNodes),
-        type: "app-skill-use-group",
-        status: "finished",
-        contentRef: null,
-        groupedItems: [],
-        groupCount: 0,
-      } as EmbedNodeAttributes;
-    }
-
-    // If only one valid embed remains after filtering errors, dissolve the group
-    // and return the single embed directly (no need for a group wrapper).
-    // Example: 2 searches requested, 1 failed with 429 → show the surviving one
-    // as a standalone embed instead of a "1 request" group.
-    if (validEmbeds.length === 1) {
-      const singleEmbed = validEmbeds[0];
-      console.debug(
-        "[AppSkillUseGroupHandler] Only 1 valid embed after filtering errors - dissolving group, returning single embed:",
-        singleEmbed.id,
-      );
-      return {
-        ...singleEmbed,
-        type: "app-skill-use",
-      } as EmbedNodeAttributes;
-    }
+    // KEEP ERROR EMBEDS IN GROUPS: Failed skill executions stay visible with
+    // an error state indicator, so users can see what failed and retry if needed.
+    // Previously, error embeds were filtered out and groups dissolved to single
+    // items — this caused instability during streaming (group→individual→group
+    // type transitions triggered NodeView recreation).
 
     // Generate deterministic group ID BEFORE sorting (based on first item in original order)
     // This is critical for streaming updates - the group ID must remain stable
-    const groupId = generateDeterministicGroupId(validEmbeds);
+    const groupId = generateDeterministicGroupId(embedNodes);
 
-    // Sort according to status: processing first, then finished
-    const sortedEmbeds = [...validEmbeds].sort((a, b) => {
-      if (a.status === "processing" && b.status !== "processing") return -1;
-      if (a.status !== "processing" && b.status === "processing") return 1;
-      return 0; // Keep original order for same status
+    // Sort according to status: processing first, then error, then finished.
+    // Error embeds are kept but sorted after processing so they appear last in
+    // the horizontal scroll row (least prominent position).
+    const STATUS_ORDER: Record<string, number> = {
+      processing: 0,
+      finished: 1,
+      error: 2,
+    };
+    const sortedEmbeds = [...embedNodes].sort((a, b) => {
+      const orderA = STATUS_ORDER[a.status] ?? 1;
+      const orderB = STATUS_ORDER[b.status] ?? 1;
+      return orderA - orderB;
     });
 
     // Extract serializable attributes for groupedItems
@@ -825,7 +797,7 @@ export class AppSkillUseGroupHandler implements EmbedGroupHandler {
     const serializableGroupedItems = sortedEmbeds.map((embed) => ({
       id: embed.id,
       type: embed.type as any,
-      status: embed.status as "processing" | "finished",
+      status: embed.status as "processing" | "finished" | "error",
       contentRef: embed.contentRef,
       // Preserve app skill metadata for rendering during streaming
       app_id: embed.app_id,
@@ -845,7 +817,7 @@ export class AppSkillUseGroupHandler implements EmbedGroupHandler {
     // additional scattered individual embeds. Without these at the group level,
     // existing groups won't be detected for merging.
     // Also propagate query and provider for rendering purposes.
-    const firstEmbed = validEmbeds[0];
+    const firstEmbed = embedNodes[0];
     const result = {
       id: groupId,
       type: "app-skill-use-group",
@@ -867,22 +839,21 @@ export class AppSkillUseGroupHandler implements EmbedGroupHandler {
     const groupedItems = groupAttrs.groupedItems || [];
 
     if (groupedItems.length > 2) {
-      // For groups with >2 items: keep remaining items grouped, show last one in edit mode
+      // For groups with >2 items: keep remaining items grouped, remove last one
       const remainingItems = groupedItems.slice(0, -1);
-      const lastItem = groupedItems[groupedItems.length - 1];
 
       // Create a new group with the remaining items
       const remainingGroupAttrs = this.createGroup(remainingItems);
 
-      // Build the replacement content: group + editable text
+      // Build the replacement content: group (last item is removed, can't edit app_skill_use as text)
       const replacementContent: any[] = [
         {
           type: "embed",
           attrs: remainingGroupAttrs,
         },
-        { type: "text", text: " " }, // Space between group and editable text
-        { type: "text", text: "" }, // Last item removed (can't edit app_skill_use as text)
-        { type: "hardBreak" }, // Hard break after editable text
+        { type: "text", text: " " },
+        { type: "text", text: "" },
+        { type: "hardBreak" },
       ];
 
       return {

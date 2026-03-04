@@ -20,6 +20,7 @@
   // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   import { chatSyncService } from '../../../services/chatSyncService';
+  import { handleImageError } from '../../../utils/offlineImageHandler';
   
   /**
    * Video search result interface for channel thumbnail display
@@ -348,7 +349,7 @@
                     style="z-index: {channelThumbnailResults.length - index};"
                     loading="lazy"
                     crossorigin="anonymous"
-                    onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                    onerror={(e) => { handleImageError(e.currentTarget as HTMLImageElement); }}
                   />
                 {/if}
               {/each}

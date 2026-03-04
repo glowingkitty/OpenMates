@@ -535,6 +535,9 @@
         },
         "example_2": {
           "text": "Informale di team"
+        },
+        "example_3": {
+          "text": "Follow-up e promemoria"
         }
       }
     },
@@ -1185,6 +1188,9 @@
         "description": {
           "text": "Leggi testo da pagine specifiche di un PDF."
         },
+        "processing": {
+          "text": "Lettura…"
+        },
         "how_to_use": {
           "1": {
             "text": "Leggi la pagina 5 del PDF caricato"
@@ -1802,6 +1808,23 @@
       },
       "just_now": {
         "text": "Proprio ora"
+      }
+    },
+    "thinking": {
+      "placeholder": {
+        "text": "Fammi pensare..."
+      },
+      "header_streaming": {
+        "text": "Sta pensando..."
+      },
+      "header_done": {
+        "text": "Processo di pensiero"
+      },
+      "collapse": {
+        "text": "Comprimi processo di pensiero"
+      },
+      "expand": {
+        "text": "Espandi processo di pensiero"
       }
     },
     "new_chat_suggestions": {
@@ -3092,6 +3115,35 @@
       "plot": {
         "text": "Grafico"
       }
+    },
+    "mail": {
+      "email": {
+        "text": "Bozza email"
+      },
+      "to": {
+        "text": "A"
+      },
+      "subject": {
+        "text": "Oggetto"
+      },
+      "content": {
+        "text": "Contenuto"
+      },
+      "footer": {
+        "text": "Firma"
+      },
+      "empty_content": {
+        "text": "Nessun contenuto email al momento."
+      },
+      "open_mail_client": {
+        "text": "Apri nell'app mail"
+      },
+      "copied": {
+        "text": "Bozza email copiata."
+      },
+      "copy_failed": {
+        "text": "Impossibile copiare la bozza email."
+      }
     }
   },
   "enter_message": {
@@ -3176,7 +3228,7 @@
       "text": "Inserisci il tuo messaggio"
     },
     "click_to_enter_message": {
-      "text": "Clicca qui per inserire il tuo messaggio"
+      "text": "Clicca qui per chiedere qualsiasi cosa"
     },
     "click_to_add_text": {
       "text": "Clicca qui per aggiungere testo"
@@ -3261,10 +3313,10 @@
     },
     "placeholder": {
       "desktop": {
-        "text": "Clicca per inserire un messaggio..."
+        "text": "Clicca per chiedere qualsiasi cosa..."
       },
       "touch": {
-        "text": "Tocca per inserire un messaggio..."
+        "text": "Tocca per chiedere qualsiasi cosa..."
       }
     },
     "press_and_hold_menu": {
@@ -7362,6 +7414,12 @@
     },
     "gift_card_redeemed_success": {
       "text": "Goditi il tuo regalo!"
+    },
+    "gift_card_waiting_notification": {
+      "text": "Your {credits} credits gift card is waiting for you. Sign up or login to apply them."
+    },
+    "gift_card_waiting_action": {
+      "text": "Signup/Login"
     },
     "credits_purchased": {
       "text": "Crediti acquistati"

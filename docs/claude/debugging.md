@@ -91,6 +91,32 @@ Issue source?
 
 ---
 
+## When Logs Don't Explain It: Ask the User
+
+After exhausting available server-side tools (logs, Admin CLI, Loki, Firecrawl) and the root cause is still unclear, **explicitly tell the user what information would help and state the hypothesis it would confirm or rule out.** Don't say "I can't figure it out" — name what's missing.
+
+**Framing rule:** Be specific. Don't ask generically for "more context." Say what you're looking for and why:
+
+> _"I need your browser and OS — this layout issue could be Safari-specific. If it also breaks in Chrome, that rules out the browser as the cause."_
+
+**Common gaps — information Claude cannot access without the user:**
+
+| What to ask for                                                                   | Relevant when                                       |
+| --------------------------------------------------------------------------------- | --------------------------------------------------- |
+| Browser name + version, OS, device type                                           | Any frontend/UI/rendering bug                       |
+| Network context (Wi-Fi, mobile, VPN, corporate proxy)                             | WebSocket drops, timeouts, connection failures      |
+| Does it reproduce in incognito? After hard refresh? Every time or intermittently? | Narrowing cache/storage vs. code bug                |
+| When did you first notice this? Did anything change around that time?             | Distinguishing regression from pre-existing issue   |
+| Were multiple tabs or devices open?                                               | Sync, cache, or session-state bugs                  |
+| UI language setting                                                               | Any text, layout, or display bug                    |
+| What exactly did you type or attach?                                              | AI response quality bugs, embed resolution failures |
+
+This list is not exhaustive — use judgment based on the symptom. The goal is to surface the single most likely missing variable, not to run through every item above.
+
+**For regular user reports:** these questions must go to the admin (who can relay them), not directly to the user.
+
+---
+
 ## CRITICAL: Production vs Development Debugging
 
 **ALWAYS determine which server the issue is on FIRST.** The `dev` branch runs on the development server; the `main` branch runs on production. These are completely separate environments.
@@ -268,16 +294,19 @@ sudo systemctl reload caddy
 
 ### Where to Look First (by Problem Type)
 
-| Problem Type            | Check First                    | Then Check                    |
-| ----------------------- | ------------------------------ | ----------------------------- |
-| AI response issues      | `task-worker`, `app-ai-worker` | `api` (WebSocket logs)        |
-| Login/auth failures     | `api`                          | `cms` (Directus logs)         |
-| Payment issues          | `api`                          | `task-worker` (async jobs)    |
-| Sync/cache issues       | `api` (PHASE1, SYNC_CACHE)     | `cache` (Dragonfly)           |
-| Frontend/client issues  | Loki `{job="client-console"}`  | Browser console (manual)      |
-| WebSocket disconnects   | `api`                          | Loki `{job="client-console"}` |
-| Scheduled task failures | `task-scheduler`               | `task-worker`                 |
-| User data issues        | `cms`, `cms-database`          | `api`                         |
+| Problem Type             | Check First                    | Then Check                    |
+| ------------------------ | ------------------------------ | ----------------------------- |
+| AI response issues       | `task-worker`, `app-ai-worker` | `api` (WebSocket logs)        |
+| Login/auth failures      | `api`                          | `cms` (Directus logs)         |
+| Payment issues           | `api`                          | `task-worker` (async jobs)    |
+| Sync/cache issues        | `api` (PHASE1, SYNC_CACHE)     | `cache` (Dragonfly)           |
+| Frontend/client issues   | Loki `{job="client-console"}`  | Browser console (manual)      |
+| WebSocket disconnects    | `api`                          | Loki `{job="client-console"}` |
+| Scheduled task failures  | `task-scheduler`               | `task-worker`                 |
+| User data issues         | `cms`, `cms-database`          | `api`                         |
+| **User-specific issues** | **`inspect_user_logs.py`**     | Specific service logs above   |
+
+> **Tip:** For any issue tied to a specific user, start with `inspect_user_logs.py <email>` to get a cross-service timeline. This is faster than manually querying multiple services. See [Inspection Scripts → User Activity Timeline](./inspection-scripts.md#user-activity-timeline-cross-service-logs).
 
 ### Debugging Embed Resolution Failures
 
@@ -435,6 +464,67 @@ Note: `appsMetadata.ts` is gitignored — it is regenerated automatically by the
 
 ---
 
+## Debugging Vercel Deployment Issues (Frontend)
+
+The frontend (`frontend/apps/web_app/`) deploys to Vercel automatically on push. The Vercel CLI is installed on the dev server and the project is already linked (`frontend/apps/web_app/.vercel/`). **Always run Vercel CLI commands from the web_app directory.**
+
+### When to Use
+
+Use Vercel CLI when:
+
+- A frontend push to `dev` or `main` results in a failed or broken deployment
+- The app loads locally but fails on the Vercel-hosted URL
+- You need to check build logs, environment variables, or deployment status
+
+### Quick Reference
+
+```bash
+# List recent deployments (shows status: READY, ERROR, BUILDING)
+vercel ls --cwd frontend/apps/web_app
+
+# Inspect a specific deployment (build config, routes, aliases, duration)
+vercel inspect <deployment-url> --cwd frontend/apps/web_app
+
+# View build and runtime logs for a deployment
+vercel logs <deployment-url> --cwd frontend/apps/web_app
+
+# List environment variables (check for missing vars causing build failures)
+vercel env ls --cwd frontend/apps/web_app
+
+# Pull current env vars locally (useful to reproduce build failures)
+vercel env pull --cwd frontend/apps/web_app
+```
+
+### Common Failure Modes
+
+| Symptom                      | Likely Cause                                                 | How to Diagnose                                                 |
+| ---------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------- |
+| Deployment status `ERROR`    | Build failure (TypeScript, adapter, missing dep)             | `vercel logs <url>` — look for the first error                  |
+| App shows 404 on routes      | SvelteKit adapter misconfiguration or `vercel.json` rewrites | `vercel inspect <url>` — check routes; review `vercel.json`     |
+| Runtime crash (500)          | Missing env var or edge function error                       | `vercel logs <url>` — check for `ReferenceError` or `undefined` |
+| Build succeeds but app blank | Client-side JS error (not a Vercel issue)                    | Use Firecrawl or browser console logs via Loki                  |
+| `BUILDING` state stuck       | Vercel infra issue or very large build                       | Wait 5 min, then check `vercel ls`; if still stuck, redeploy    |
+
+### Fixing Deployment Failures
+
+**CRITICAL: Do NOT run `vercel build` or `vercel deploy` locally.** The correct workflow is:
+
+1. Use `vercel logs <url>` to identify the build/runtime error
+2. Fix the code locally (TypeScript error, missing import, config issue, etc.)
+3. Commit and push to `dev` (or `main`) — the Vercel GitHub integration auto-deploys on push
+4. Monitor the new deployment: `vercel ls --cwd frontend/apps/web_app`
+
+Running `vercel build` locally uses a different environment (no Vercel env vars, different Node version, no monorepo root detection) and produces misleading results. If you need to verify a build locally, use `pnpm build` in `frontend/apps/web_app/` instead — that uses the same Turbo pipeline Vercel runs.
+
+**Manual redeploy** (only when the auto-deploy didn't trigger or Vercel infra glitched):
+
+```bash
+vercel --cwd frontend/apps/web_app --prod   # production (main)
+vercel --cwd frontend/apps/web_app           # preview (dev)
+```
+
+---
+
 ## Browser-Based Debugging with Firecrawl
 
 Use Firecrawl to **reproduce bugs and verify fixes** on `https://app.dev.openmates.org`. Use it for frontend/UI issues where "what the user sees" is the key question. For production or backend-only bugs, use the Admin Debug CLI and logs instead.
@@ -517,6 +607,135 @@ docker exec api python /app/backend/scripts/inspect_frontend_logs.py --follow
 - Log collector (with sanitization): `frontend/packages/ui/src/services/logCollector.ts`
 - Backend endpoint: `backend/core/api/app/routes/admin_client_logs.py`
 - Loki push service: `backend/core/api/app/services/loki_push_service.py`
+
+---
+
+## Decrypting Client-Side Encrypted Content (Share Key)
+
+Messages and client-side embeds in Directus are encrypted with AES-256-GCM using a key the server never sees. To view their plaintext during debugging, you need the **share URL** that users include in issue reports. The share URL contains a key blob that, when decrypted, yields the chat's AES key.
+
+### When to Use
+
+- The user reported an issue and included a share URL (format: `https://app.openmates.org/share/chat/<id>#key=<blob>`)
+- You need to see the actual message content or embed content, not just structural metadata
+- The existing `--decrypt` flag (Vault-based, server-side) cannot decrypt client-side content
+
+### Using `--share-url` with inspect_chat.py
+
+```bash
+# Full share URL — decrypts all messages and embeds in the chat
+docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> \
+  --share-url "https://app.openmates.org/share/chat/<chat_id>#key=<blob>"
+
+# Password-protected share link
+docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> \
+  --share-url "https://app.openmates.org/share/chat/<chat_id>#key=<blob>" \
+  --share-password "the-password"
+```
+
+### Using `--share-key` (raw blob)
+
+If you only have the key blob (the part after `#key=` in the URL), use `--share-key`:
+
+```bash
+docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> \
+  --share-key "<base64-key-blob>"
+```
+
+### Using with inspect_embed.py
+
+For embed share URLs:
+
+```bash
+# Embed share URL
+docker exec api python /app/backend/scripts/inspect_embed.py <embed_id> \
+  --share-url "https://app.openmates.org/share/embed/<embed_id>#key=<blob>"
+
+# Chat share URL — also works for embeds in that chat
+docker exec api python /app/backend/scripts/inspect_embed.py <embed_id> \
+  --share-url "https://app.openmates.org/share/chat/<chat_id>#key=<blob>"
+```
+
+### Combining with `--decrypt`
+
+You can use `--share-url` / `--share-key` together with `--decrypt` to get both:
+
+- **Client-side decrypted** message content and embed content (from the share key)
+- **Server-side decrypted** embed TOON summaries (from Vault, for server-generated embeds)
+
+```bash
+docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> \
+  --decrypt --share-url "https://app.openmates.org/share/chat/<chat_id>#key=<blob>"
+```
+
+### How It Works
+
+1. The share URL fragment (`#key=<blob>`) contains an AES-GCM-encrypted parameter string
+2. The blob is decrypted using a key derived from the chat/embed ID via PBKDF2
+3. The decrypted blob contains the chat's AES-256 encryption key (base64-encoded)
+4. This key decrypts `encrypted_content` fields on messages and embeds
+5. If the share link is password-protected (`pwd=1`), an additional PBKDF2 layer is unwrapped first
+
+### Crypto Implementation
+
+The Python implementation lives in `backend/scripts/share_key_crypto.py` and mirrors the TypeScript implementations in:
+
+- `frontend/packages/ui/src/services/shareEncryption.ts`
+- `frontend/packages/ui/src/services/embedShareEncryption.ts`
+- `frontend/packages/ui/src/services/cryptoService.ts`
+
+---
+
+## Production Inspection (`--production` flag)
+
+### Overview
+
+The `--production` flag on `inspect_chat.py` and `inspect_embed.py` fetches data from the **production (or dev) Admin Debug API** instead of querying local Directus and Redis. This enables debugging production issues from the dev server without needing direct database access.
+
+The API key is fetched from Vault (`kv/data/providers/admin` key `debug_cli__api_key`) — the same key used by `admin_debug_cli.py`.
+
+### Usage
+
+```bash
+# Inspect a production chat (metadata, messages, embeds, usage, cache)
+docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> --production
+
+# Fetch from prod + decrypt with share key (complete debugging workflow)
+docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> --production \
+  --share-url "https://app.openmates.org/share/chat/<chat_id>#key=<blob>"
+
+# JSON output from production
+docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> --production --json
+
+# Inspect a production embed
+docker exec api python /app/backend/scripts/inspect_embed.py <embed_id> --production
+
+# Fetch prod embed + decrypt with share key
+docker exec api python /app/backend/scripts/inspect_embed.py <embed_id> --production \
+  --share-url "https://app.openmates.org/share/embed/<embed_id>#key=<blob>"
+
+# Hit the dev API instead of production
+docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> --dev
+docker exec api python /app/backend/scripts/inspect_embed.py <embed_id> --dev
+```
+
+### Limitations in Production Mode
+
+| Feature                       | Available? | Why                                                 |
+| ----------------------------- | ---------- | --------------------------------------------------- |
+| `--share-url` / `--share-key` | Yes        | Client-side AES decryption runs locally             |
+| `--decrypt` (Vault)           | No         | Cannot access prod Vault from dev server            |
+| `--check-links` (embed)       | No         | Requires local Directus + Redis                     |
+| `--no-cache`                  | Ignored    | Cache info comes from the API response              |
+| Embed key analysis            | Partial    | Chat API does not return embed_keys; embed API does |
+
+### How It Works
+
+1. The script fetches the admin API key from local Vault
+2. Makes a single GET request to the production Admin Debug API endpoint
+3. Maps the API response to the same data structures used by the local fetchers
+4. Passes the mapped data to the same formatter functions (no output changes)
+5. If `--share-url` / `--share-key` is provided, decrypts the encrypted fields locally
 
 ---
 

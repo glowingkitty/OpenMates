@@ -34,6 +34,47 @@ GOOGLE_AI_STUDIO_SECRET_PATH = "kv/data/providers/google_ai_studio"
 GOOGLE_AI_STUDIO_API_KEY_NAME = "api_key"
 _google_ai_studio_api_key: Optional[str] = None
 
+# Minimum temperature for Gemini thinking models (gemini-2.5-*, gemini-3-*).
+# Google's own engineers confirmed (Jan 2026) that setting temperature < 1.0 causes
+# the reasoning process to lock onto the single highest-probability path and loop
+# indefinitely, exhausting the output token budget and leaking raw internal reasoning
+# text into the response (missing the `thought: true` flag).
+# Reference: https://discuss.ai.google.dev/t/gemini-3-flash-preview-infinite-reasoning-loop-causing-max-token-exhaustion-raw-logic-leak/114528
+GEMINI_THINKING_MIN_TEMPERATURE = 1.0
+
+def _clamp_temperature_for_thinking_model(model_id: str, temperature: float) -> float:
+    """
+    Clamp temperature to at least GEMINI_THINKING_MIN_TEMPERATURE for Gemini
+    thinking models (gemini-2.5-* and gemini-3-*).
+
+    Gemini thinking models require temperature >= 1.0 to avoid infinite reasoning loops
+    where the model endlessly re-checks intermediate results and then flushes the raw
+    loop text into the response (missing the thought: true tag) when the token budget
+    is exhausted.  Below 1.0 the model collapses to the single highest-probability path
+    and cannot escape verification cycles.
+
+    Args:
+        model_id: The model identifier string (may include publisher prefix).
+        temperature: The requested temperature.
+
+    Returns:
+        The original temperature, or GEMINI_THINKING_MIN_TEMPERATURE if the model is a
+        Gemini thinking model and the requested temperature is too low.
+    """
+    model_lower = model_id.lower()
+    is_thinking_gemini = (
+        "gemini-2.5-" in model_lower
+        or "gemini-3-" in model_lower
+        or "gemini-3." in model_lower  # e.g. gemini-3.1-pro-preview
+    )
+    if is_thinking_gemini and temperature < GEMINI_THINKING_MIN_TEMPERATURE:
+        logger.info(
+            f"[google_client] Clamping temperature {temperature} → {GEMINI_THINKING_MIN_TEMPERATURE} "
+            f"for thinking model '{model_id}' to prevent infinite reasoning loops."
+        )
+        return GEMINI_THINKING_MIN_TEMPERATURE
+    return temperature
+
 
 # --- Pydantic Models for Structured Google Response (remain compatible) ---
 
@@ -464,11 +505,15 @@ async def invoke_google_ai_studio_chat_completions(
         # The thinking content will be yielded as UnifiedStreamChunk(type=THINKING)
         # and displayed in a collapsible "Thinking..." section in the UI
         # Note: thinking_budget is NOT set - models have minimum budgets that can't be disabled
+        # Clamp temperature for thinking models: Google confirmed that temperature < 1.0 causes
+        # infinite reasoning loops that exhaust the token budget and flush raw internal reasoning
+        # text (missing thought: true tag) into the response as regular text.
+        effective_temperature = _clamp_temperature_for_thinking_model(model_id, temperature)
         generation_config = types.GenerateContentConfig(
             thinking_config=types.ThinkingConfig(
                 include_thoughts=True  # Include thoughts in output so we can stream them
             ),
-            temperature=temperature,
+            temperature=effective_temperature,
             max_output_tokens=max_tokens,
             system_instruction=system_prompt,
             tools=google_tools,
@@ -480,7 +525,7 @@ async def invoke_google_ai_studio_chat_completions(
         if stream:
             raise ValueError(err_msg)
         return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=err_msg)
-
+    
     async def _process_non_stream_response(response: types.GenerateContentResponse, token_breakdown: Dict[str, int]) -> UnifiedGoogleResponse:
         logger.info(f"{log_prefix} Received non-streamed response from API.")
 
@@ -800,11 +845,15 @@ async def invoke_google_chat_completions(
         # The thinking content will be yielded as UnifiedStreamChunk(type=THINKING)
         # and displayed in a collapsible "Thinking..." section in the UI
         # Note: thinking_budget is NOT set - models have minimum budgets that can't be disabled
+        # Clamp temperature for thinking models: Google confirmed that temperature < 1.0 causes
+        # infinite reasoning loops that exhaust the token budget and flush raw internal reasoning
+        # text (missing thought: true tag) into the response as regular text.
+        effective_temperature = _clamp_temperature_for_thinking_model(model_id, temperature)
         generation_config = types.GenerateContentConfig(
             thinking_config=types.ThinkingConfig(
                 include_thoughts=True  # Include thoughts in output so we can stream them
             ),
-            temperature=temperature,
+            temperature=effective_temperature,
             max_output_tokens=max_tokens,
             system_instruction=system_prompt,
             tools=google_tools,

@@ -34,6 +34,7 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import { handleImageError } from '../../../utils/offlineImageHandler';
   
   // ===========================================
   // Types
@@ -365,16 +366,16 @@
               class="video-thumbnail"
               loading="lazy"
               onerror={(e) => {
-                // Two-step fallback: proxy → direct CDN → hide.
+                // Two-step fallback: proxy → direct CDN → offline-aware hide.
                 // Step 1: if the proxied URL failed, retry with the direct CDN URL.
-                // Step 2: if the direct CDN URL also fails, hide the image.
+                // Step 2: if the direct CDN URL also fails, use offline-aware handler.
                 const img = e.target as HTMLImageElement;
                 if (rawThumbnailUrl && img.src !== rawThumbnailUrl) {
                   // Proxy failed — retry directly from the YouTube CDN
                   img.src = rawThumbnailUrl;
                 } else {
-                  // Direct CDN also failed — hide image, show fallback below
-                  img.style.display = 'none';
+                  // Direct CDN also failed — use offline-aware handler (placeholder + retry)
+                  handleImageError(img);
                 }
               }}
             />

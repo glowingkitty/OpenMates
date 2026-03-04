@@ -22,6 +22,7 @@ import { userProfile } from "../../../stores/userProfile";
  */
 export type MentionType =
   | "model"
+  | "model_alias"
   | "mate"
   | "skill"
   | "focus_mode"
@@ -63,6 +64,25 @@ export interface ModelMentionResult extends MentionResult {
   providerName: string;
   /** Model tier for styling */
   tier: "economy" | "standard" | "premium";
+}
+
+/**
+ * Model alias mention result (e.g., @best, @fast).
+ * These are shortcuts that resolve to specific hardcoded models.
+ * Displays as "@Best" or "@Fast" in the editor, serializes to @best-model:alias_id for backend.
+ */
+export interface ModelAliasMentionResult extends MentionResult {
+  type: "model_alias";
+  /** The alias category (e.g., "best", "fast") */
+  aliasId: string;
+  /** The resolved model ID (e.g., "claude-opus-4-6") */
+  resolvedModelId: string;
+  /** The resolved model name for subtitle (e.g., "Claude Opus 4.6") */
+  resolvedModelName: string;
+  /** Provider name for display */
+  providerName: string;
+  /** Icon type for the alias (e.g., "crown", "lightning") */
+  aliasIcon: string;
 }
 
 /**
@@ -160,6 +180,7 @@ export interface SettingsMemoryEntryMentionResult extends MentionResult {
  */
 export type AnyMentionResult =
   | ModelMentionResult
+  | ModelAliasMentionResult
   | MateMentionResult
   | SkillMentionResult
   | FocusModeMentionResult
@@ -287,6 +308,75 @@ function getModelMentionResults(): ModelMentionResult[] {
         tier: model.tier,
       }))
   );
+}
+
+/**
+ * Hardcoded model alias definitions.
+ * These map shortcut names (e.g., "best", "fast") to specific model IDs.
+ * Plan: later read from app.yml via appSkillsStore and add tokens_per_second for auto-selection.
+ */
+const MODEL_ALIASES: {
+  id: string;
+  modelId: string;
+  icon: string;
+}[] = [
+  { id: "best", modelId: "claude-opus-4-6", icon: "crown" },
+  { id: "fast", modelId: "qwen3-235b-a22b-2507", icon: "lightning" },
+];
+
+/**
+ * Convert model aliases to mention results.
+ * These are shortcuts like @best and @fast that resolve to specific models.
+ * They appear at the top of search results when the user types the alias name.
+ */
+function getModelAliasMentionResults(): ModelAliasMentionResult[] {
+  const $text = get(text);
+
+  return MODEL_ALIASES.map((alias) => {
+    // Look up the resolved model to get its display name and provider
+    const resolvedModel = modelsMetadata.find((m) => m.id === alias.modelId);
+    const resolvedModelName = resolvedModel?.name || alias.modelId;
+    const providerName = resolvedModel?.provider_name || "";
+    const providerIcon = resolvedModel
+      ? getProviderIconUrl(resolvedModel.logo_svg)
+      : "";
+
+    // Capitalize alias for display: "best" -> "Best", "fast" -> "Fast"
+    const displayName = alias.id.charAt(0).toUpperCase() + alias.id.slice(1);
+
+    // Resolve translated alias name and description for search
+    const translatedName = $text(
+      `enter_message.mention_dropdown.model_alias.${alias.id}.name`,
+    );
+    const translatedDescription = $text(
+      `enter_message.mention_dropdown.model_alias.${alias.id}.description`,
+    );
+
+    return {
+      id: `alias:${alias.id}`,
+      type: "model_alias" as const,
+      displayName: `enter_message.mention_dropdown.model_alias.${alias.id}.name`,
+      mentionDisplayName: displayName,
+      subtitle: `enter_message.mention_dropdown.model_alias.${alias.id}.description`,
+      icon: providerIcon,
+      iconStyle: undefined,
+      mentionSyntax: `@best-model:${alias.id}`,
+      searchTerms: buildSearchTerms(
+        alias.id,
+        displayName,
+        resolvedModelName,
+        providerName,
+        // Include translated terms for localized search
+        translatedName,
+        translatedDescription,
+      ),
+      aliasId: alias.id,
+      resolvedModelId: alias.modelId,
+      resolvedModelName,
+      providerName,
+      aliasIcon: alias.icon,
+    };
+  });
 }
 
 /**
@@ -636,6 +726,7 @@ function getAllSettingsMemoryEntryResults(): SettingsMemoryEntryMentionResult[] 
  */
 export function getAllMentionResults(): AnyMentionResult[] {
   return [
+    ...getModelAliasMentionResults(),
     ...getModelMentionResults(),
     ...getMateMentionResults(),
     ...getSkillMentionResults(),
@@ -650,7 +741,12 @@ export function getAllMentionResults(): AnyMentionResult[] {
  * Shows top 4 most popular AI models (the most common use case).
  */
 export function getDefaultMentionResults(): AnyMentionResult[] {
-  return getModelMentionResults().slice(0, 4);
+  // Show model aliases first (e.g., @best, @fast), then top models
+  const aliases = getModelAliasMentionResults();
+  const models = getModelMentionResults();
+  // Show aliases + enough models to fill 4 total slots
+  const modelsToShow = Math.max(0, 4 - aliases.length);
+  return [...aliases, ...models.slice(0, modelsToShow)];
 }
 
 /** Larger limit when user is searching so settings/memories and entries can appear. */

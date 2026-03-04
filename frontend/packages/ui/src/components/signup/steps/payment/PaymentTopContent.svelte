@@ -37,6 +37,7 @@ step_10_top_content_svelte:
     import { text } from '@repo/ui';
     import { createEventDispatcher, onMount } from 'svelte';
     import Payment from '../../../../components/Payment.svelte';
+    import GiftCardRedeem from '../../../../components/settings/billing/GiftCardRedeem.svelte';
     import AutoTopUp from '../../../../components/payment/AutoTopUp.svelte';
     import { apiEndpoints, getApiUrl } from '../../../../config/api';
     
@@ -74,6 +75,8 @@ step_10_top_content_svelte:
     
     // Track if payment form is visible
     let isPaymentFormVisible = false;
+    let showGiftCardInput = $state(false);
+    let pendingGiftCardCode = $state('');
     
     // Local state for payment method status (used as fallback if prop is not set correctly)
     let localPaymentMethodSaved = $state(paymentMethodSaved);
@@ -83,6 +86,21 @@ step_10_top_content_svelte:
     $effect(() => {
         localPaymentMethodSaved = paymentMethodSaved;
         localPaymentMethodSaveError = paymentMethodSaveError;
+    });
+
+    $effect(() => {
+        if (showSuccess || typeof window === 'undefined') {
+            return;
+        }
+
+        const pendingCode = sessionStorage.getItem('pending_gift_card_code');
+        if (!pendingCode) {
+            return;
+        }
+
+        pendingGiftCardCode = pendingCode.toUpperCase();
+        showGiftCardInput = true;
+        console.debug('[PaymentTopContent] Auto-opening gift card form with pending code at payment step');
     });
     
     
@@ -167,6 +185,26 @@ step_10_top_content_svelte:
         // Forward payment state changes to parent component
         dispatch('paymentStateChange', event.detail);
     }
+
+    function handleGiftCardRedeemed(event: CustomEvent<{ credits_added: number, current_credits: number }>) {
+        dispatch('step', {
+            step: 'payment',
+            isGiftCardRedemption: true,
+            showSuccess: true,
+            credits_amount: event.detail.credits_added || 0
+        });
+    }
+
+    function handleGiftCardCancel() {
+        showGiftCardInput = false;
+    }
+
+    function openGiftCardInput() {
+        if (typeof window !== 'undefined') {
+            pendingGiftCardCode = sessionStorage.getItem('pending_gift_card_code')?.toUpperCase() || '';
+        }
+        showGiftCardInput = true;
+    }
 </script>
 
 <div class="container">
@@ -238,16 +276,28 @@ step_10_top_content_svelte:
         <div class="bottom-container">
             <div class="main-content">
                 <div class="separated-block">
-                    <Payment 
-                        {credits_amount} 
-                        purchasePrice={price * 100} 
-                        {currency}
-                        initialState={isGift ? 'success' : 'idle'}
-                        {isGift}
-                        on:consentGiven={handleConsent}
-                        on:openRefundInfo={handleOpenRefundInfo}
-                        on:paymentStateChange={handlePaymentStateChange}
-                    />
+                    {#if showGiftCardInput}
+                        <GiftCardRedeem
+                            hideSuccessMessage={true}
+                            initialCode={pendingGiftCardCode}
+                            on:redeemed={handleGiftCardRedeemed}
+                            on:cancel={handleGiftCardCancel}
+                        />
+                    {:else}
+                        <Payment 
+                            {credits_amount} 
+                            purchasePrice={price * 100} 
+                            {currency}
+                            initialState={isGift ? 'success' : 'idle'}
+                            {isGift}
+                            on:consentGiven={handleConsent}
+                            on:openRefundInfo={handleOpenRefundInfo}
+                            on:paymentStateChange={handlePaymentStateChange}
+                        />
+                        <button class="gift-card-toggle" onclick={openGiftCardInput}>
+                            {@html $text('settings.billing.gift_card.have_code')}
+                        </button>
+                    {/if}
                 </div>
             </div>
         </div>
@@ -382,6 +432,18 @@ step_10_top_content_svelte:
            .bottom-container can scroll the full height. */
         overflow: visible;
         box-sizing: border-box; /* Include padding in height calculation */
+    }
+
+    .gift-card-toggle {
+        margin-top: 12px;
+        align-self: center;
+        border: none;
+        background: transparent;
+        color: var(--color-primary);
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        padding: 8px 10px;
     }
     
     /* Target the bottom containers of our payment components */

@@ -19,12 +19,19 @@ from toon_format import encode, decode, DecodeOptions
 
 from backend.apps.base_skill import BaseSkill
 from backend.shared.providers.brave.brave_search import search_web
+from backend.shared.python_utils.domain_filter import load_tabloid_blocklist, filter_results_by_domain
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.apps.ai.processing.skill_executor import sanitize_external_content, check_rate_limit, wait_for_rate_limit
 # RateLimitScheduledException is no longer caught here - it bubbles up to route handler
 from backend.core.api.app.services.cache import CacheService
 
 logger = logging.getLogger(__name__)
+
+# When tabloid filtering is active, request more results from the API to compensate
+# for results that will be filtered out. This ensures users still get their requested count.
+TABLOID_FILTER_OVER_REQUEST_COUNT = 15
+# Default number of results to return to the user after filtering
+DEFAULT_RESULT_COUNT = 10
 
 
 def strip_html_tags(text: str) -> str:
@@ -323,12 +330,18 @@ class SearchSkill(BaseSkill):
             return (request_id, [], "Missing 'query' parameter")
         
         # Extract request-specific parameters (with defaults from schema)
-        req_count = req.get("count", 10)  # Default from schema
+        req_count = req.get("count", DEFAULT_RESULT_COUNT)  # Default from schema
         req_country_raw = req.get("country", "us")  # Default from schema
         req_lang = req.get("search_lang", "en")  # Default from schema
         req_safesearch = req.get("safesearch", "moderate")  # Default from schema
         # Default to web articles only (excludes news, videos, discussions, etc.)
         req_result_filter = req.get("result_filter", "web")  # Default to "web" for web articles
+        # Tabloid/boulevard domain filtering — enabled by default
+        req_filter_tabloids = req.get("filter_tabloids", True)
+        
+        # When tabloid filtering is active, over-request from the API to compensate
+        # for results that will be removed. This ensures users still get their requested count.
+        api_count = TABLOID_FILTER_OVER_REQUEST_COUNT if req_filter_tabloids else req_count
         
         # CRITICAL: Validate and correct country code to ensure it's valid for Brave Search API
         # Valid codes: AR, AU, AT, BE, BR, CA, CL, DK, FI, FR, DE, GR, HK, IN, ID, IT, JP, KR, MY, MX, NL, NZ, NO, CN, PL, PT, PH, RU, SA, ZA, ES, SE, CH, TW, TR, GB, US, ALL
@@ -405,10 +418,11 @@ class SearchSkill(BaseSkill):
             # Call Brave Search API
             # Enable extra_snippets to get additional context snippets
             # sanitize_output defaults to True for user-facing requests (sanitization required)
+            # Use api_count (over-requested when filtering) instead of req_count
             search_result = await search_web(
                 query=search_query,
                 secrets_manager=secrets_manager,
-                count=req_count,
+                count=api_count,
                 country=req_country,
                 search_lang=req_lang,
                 safesearch=req_safesearch,
@@ -426,6 +440,16 @@ class SearchSkill(BaseSkill):
             # Convert results to preview format and sanitize external content
             # Batch all text content from all results into a single sanitization request using TOON format
             results = search_result.get("results", [])
+            
+            # Apply tabloid/boulevard domain filtering if enabled
+            if req_filter_tabloids:
+                blocked_domains = load_tabloid_blocklist()
+                if blocked_domains:
+                    results = filter_results_by_domain(results, blocked_domains)
+            
+            # Trim to the user's requested count (may have over-requested for filtering)
+            if len(results) > req_count:
+                results = results[:req_count]
             task_id = f"search_{request_id}_{search_query[:50]}"  # Limit length for logging
             
             # Build JSON structure with only text fields that need sanitization

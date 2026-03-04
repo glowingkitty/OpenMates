@@ -30,11 +30,10 @@ models:
         name: "Mistral"
         model_id: "mistral-small-latest" # Direct Mistral API model ID
         region: "EU" # Server region for UI display (Mistral is EU-based)
-      - id: "google"
-        name: "Google Cloud Vertex AI"
-        # Google Vertex AI model identifier for Mistral Small 3.1 (25.03)
-        model_id: "mistral-small-2503"
-        region: "EU" # Server region for UI display
+      # Google Vertex AI removed — Mistral on Vertex AI requires rawPredict/streamRawPredict
+      # endpoint, but our google client uses the Gemini SDK (genai.Client) which only supports
+      # Google's own models. This caused 404 NOT_FOUND errors. A dedicated Vertex AI Mistral
+      # client (using mistralai[gcp] SDK) would be needed to re-enable this.
       - id: "openrouter"
         name: "OpenRouter"
         # OpenRouter model identifier

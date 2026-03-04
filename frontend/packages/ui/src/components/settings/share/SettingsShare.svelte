@@ -29,6 +29,7 @@
     import { embedStore } from '../../../services/embedStore';
     import { decodeToonContent } from '../../../services/embedResolver';
     import { embedPreviewRegistry } from '../../../services/embedPreviewRegistry';
+    import { copyToClipboard } from '../../../utils/clipboardUtils';
     // PII detection service is dynamically imported where needed (restorePIIInText in community share)
     
     // Define interface for embed context to avoid 'any'
@@ -1182,7 +1183,8 @@
         if (!generatedLink) return;
 
         try {
-            await navigator.clipboard.writeText(generatedLink);
+            const clipResult = await copyToClipboard(generatedLink);
+            if (!clipResult.success) throw new Error(clipResult.error || 'Copy failed');
             isCopied = true;
             console.debug('[SettingsShare] Link copied to clipboard');
 

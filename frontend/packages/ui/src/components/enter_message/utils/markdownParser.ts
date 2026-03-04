@@ -148,9 +148,10 @@ function parseMentions(text: string): any[] {
   const result: any[] = [];
 
   // Combined pattern to match all mention types
-  // Group 1: mention type (ai-model, mate, skill, focus, memory, memory-entry)
+  // Group 1: mention type (best-model, ai-model, mate, skill, focus, memory, memory-entry)
   // Group 2+: variable parts depending on type
   // Pattern breakdown:
+  // - @best-model:alias_id (e.g., @best-model:best, @best-model:fast)
   // - @ai-model:id or @ai-model:id:provider
   // - @mate:id
   // - @skill:app:id
@@ -158,7 +159,7 @@ function parseMentions(text: string): any[] {
   // - @memory:app:id:type
   // - @memory-entry:app:category:entry_id
   const mentionPattern =
-    /@(ai-model|mate|skill|focus|memory-entry|memory):([a-zA-Z0-9_.-]+)(?::([a-zA-Z0-9_.-]+))?(?::([a-zA-Z0-9_.-]+))?/g;
+    /@(best-model|ai-model|mate|skill|focus|memory-entry|memory):([a-zA-Z0-9_.-]+)(?::([a-zA-Z0-9_.-]+))?(?::([a-zA-Z0-9_.-]+))?/g;
 
   let lastIndex = 0;
   let match;
@@ -181,6 +182,22 @@ function parseMentions(text: string): any[] {
     const fullMatch = match[0];
 
     switch (mentionType) {
+      case "best-model": {
+        // @best-model:alias_id (e.g., @best-model:best, @best-model:fast)
+        const aliasId = part1;
+        // Capitalize alias for display: "best" -> "Best", "fast" -> "Fast"
+        const aliasDisplayName =
+          aliasId.charAt(0).toUpperCase() + aliasId.slice(1);
+        result.push({
+          type: "bestModelMention",
+          attrs: {
+            category: aliasId,
+            displayName: aliasDisplayName,
+          },
+        });
+        break;
+      }
+
       case "ai-model": {
         // @ai-model:model_id or @ai-model:model_id:provider
         const modelId = part1;
@@ -271,7 +288,10 @@ function parseMentions(text: string): any[] {
         const categoryId = part2 || "";
         const entryId = match[4] || "";
         // Use entry ID for display (will be replaced with actual title when available)
-        const displayName = formatMentionDisplayName(appId, `${categoryId}-${entryId.slice(0, 8)}`);
+        const displayName = formatMentionDisplayName(
+          appId,
+          `${categoryId}-${entryId.slice(0, 8)}`,
+        );
         result.push({
           type: "genericMention",
           attrs: {
@@ -329,9 +349,10 @@ function convertNodeToTiptap(node: Node): any {
     }
 
     // Check for any mention types in the text
-    // Supported: @ai-model:, @mate:, @skill:, @focus:, @memory:, @memory-entry:
+    // Supported: @ai-model:, @best-model:, @mate:, @skill:, @focus:, @memory:, @memory-entry:
     if (
       text.includes("@ai-model:") ||
+      text.includes("@best-model:") ||
       text.includes("@mate:") ||
       text.includes("@skill:") ||
       text.includes("@focus:") ||

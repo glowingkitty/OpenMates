@@ -33,6 +33,8 @@
   } from './sheetEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import type { PIIMapping } from '../../../types/chat';
+  import { copyToClipboard } from '../../../utils/clipboardUtils';
+  import { replaceEmbedLinksInText, hydrateEmbedLinks, stripEmbedLinks } from '../../../utils/embedLinkUtils';
   
   /**
    * Props for sheet embed fullscreen
@@ -220,6 +222,18 @@
   
   const skillIconName = 'table';
   
+  // ── Embed inline link hydration ────────────────────────────
+  // After the table DOM renders, find placeholder spans and mount
+  // EmbedInlineLink Svelte components into them for interactivity.
+  let tableContainerEl: HTMLDivElement | undefined = $state(undefined);
+  
+  $effect(() => {
+    // Re-run whenever displayRows or tableContainerEl changes
+    void displayRows;
+    const cleanup = hydrateEmbedLinks(tableContainerEl);
+    return cleanup;
+  });
+  
   /**
    * Copy table as TSV to clipboard.
    * TSV (tab-separated values) is what Excel and Google Sheets expect on paste.
@@ -227,8 +241,12 @@
    */
   async function handleCopy() {
     try {
-      const tsv = tableToTSV(parsedTable.headers, displayRows);
-      await navigator.clipboard.writeText(tsv);
+      // Strip embed link markdown syntax before export so TSV contains clean text
+      const cleanHeaders = parsedTable.headers.map(h => ({ ...h, content: stripEmbedLinks(h.content) }));
+      const cleanRows = displayRows.map(row => row.map(cell => ({ ...cell, content: stripEmbedLinks(cell.content) })));
+      const tsv = tableToTSV(cleanHeaders, cleanRows);
+      const clipResult = await copyToClipboard(tsv);
+      if (!clipResult.success) throw new Error(clipResult.error || 'Copy failed');
       console.debug('[SheetEmbedFullscreen] Copied table as TSV to clipboard');
       notificationStore.success('Table copied — paste into Excel or Google Sheets');
     } catch (error) {
@@ -245,7 +263,10 @@
   async function handleDownload() {
     try {
       const sheetName = renderTitle || 'Table';
-      const blob = await tableToXlsx(parsedTable.headers, displayRows, sheetName);
+      // Strip embed link markdown syntax before export so XLSX contains clean text
+      const cleanHeaders = parsedTable.headers.map(h => ({ ...h, content: stripEmbedLinks(h.content) }));
+      const cleanRows = displayRows.map(row => row.map(cell => ({ ...cell, content: stripEmbedLinks(cell.content) })));
+      const blob = await tableToXlsx(cleanHeaders, cleanRows, sheetName);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -341,7 +362,7 @@
       {/if}
       
       <!-- Spreadsheet area — scrolls both directions -->
-      <div class="spreadsheet-wrapper">
+      <div class="spreadsheet-wrapper" bind:this={tableContainerEl}>
         {#if parsedTable.headers.length > 0}
           <table class="spreadsheet">
             <thead>
@@ -395,7 +416,14 @@
                 <tr>
                   <td class="row-num">{rowIndex + 1}</td>
                   {#each row as cell}
-                    <td>{cell.content}</td>
+                    {@const embedHtml = replaceEmbedLinksInText(cell.content)}
+                    {#if embedHtml}
+                      <!-- Cell contains embed links — render as HTML with placeholders -->
+                      <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is HTML-escaped via embedLinkUtils.escapeHtml() -->
+                      <td>{@html embedHtml}</td>
+                    {:else}
+                      <td>{cell.content}</td>
+                    {/if}
                   {/each}
                 </tr>
               {/each}
@@ -759,6 +787,12 @@
   .empty-state p {
     font-size: 14px;
     margin: 0;
+  }
+  
+  /* ── Inline embed links inside cells ───────────────── */
+  
+  .spreadsheet-wrapper :global(.embed-inline-link) {
+    white-space: nowrap;
   }
   
   /* ── Responsive ────────────────────────────────────── */

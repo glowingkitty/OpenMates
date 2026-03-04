@@ -16,6 +16,9 @@ settings_and_memories:
       - "web.bookmarks.example_1"
       - "web.bookmarks.example_2"
       - "web.bookmarks.example_3"
+    example_entries:
+      - url: "https://github.com"
+      - url: "https://stackoverflow.com"
     schema:
       type: object
       properties:
@@ -53,6 +56,11 @@ settings_and_memories:
       - "web.read_later.example_1"
       - "web.read_later.example_2"
       - "web.read_later.example_3"
+    example_entries:
+      - url: "https://example.com/article"
+        notes: "web.read_later.example_1.notes"
+      - url: "https://blog.example.com/post"
+        notes: "web.read_later.example_2.notes"
     schema:
       type: object
       properties:
@@ -62,8 +70,88 @@ settings_and_memories:
         notes:
           type: string
           description: Optional notes about why this was saved
+          multiline: true
       required:
         - url
+# Embed type definitions — single source of truth for frontend embed routing.
+# Read by generate-embed-registry.js to auto-generate TypeScript routing files.
+embed_types:
+  # Web search results — composite embed with child website embeds
+  - id: search
+    category: app-skill-use
+    skill_id: search
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: website
+    child_frontend_type: web-website
+    groupable: true
+    preview_component: web/WebSearchEmbedPreview.svelte
+    fullscreen_component: web/WebSearchEmbedFullscreen.svelte
+    child_preview_component: web/WebsiteEmbedPreview.svelte
+    child_fullscreen_component: web/WebsiteEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-web"
+    i18n_namespace: embeds.web.search
+    # Content fields for the parent app_skill_use embed (finished state)
+    content_fields:
+      - name: query
+        type: string
+        required: true
+      - name: provider
+        type: string
+      - name: result_count
+        type: number
+        required: true
+      - name: embed_ids
+        type: string
+        description: "Pipe-delimited child embed IDs (TOON tabular format)"
+    # Content fields for child website embeds
+    child_content_fields:
+      - name: url
+        type: string
+        required: true
+      - name: title
+        type: string
+        required: true
+      - name: description
+        type: string
+        required: true
+      - name: page_age
+        type: string
+      - name: meta_url_favicon
+        type: string
+        description: "Favicon URL (flattened from meta_url.favicon)"
+      - name: thumbnail_original
+        type: string
+        description: "Thumbnail URL (flattened from thumbnail.original)"
+      - name: extra_snippets
+        type: string
+        description: "Pipe-delimited additional context snippets"
+      - name: language
+        type: string
+  # Web read — single-page content extraction
+  - id: read
+    category: app-skill-use
+    skill_id: read
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    preview_component: web/WebReadEmbedPreview.svelte
+    fullscreen_component: web/WebReadEmbedFullscreen.svelte
+    icon: web
+    gradient_var: "--color-app-web"
+    i18n_namespace: embeds.web.read
+    content_fields:
+      - name: url
+        type: string
+        required: true
+      - name: results
+        type: array
+        required: true
+      - name: result_count
+        type: number
+        required: true
 instructions:
   # This instruction is ALWAYS loaded when web app is available (no category filter)
   # It provides guidance on using web-search and web-read skills
@@ -222,6 +310,10 @@ skills:
                 description: Safe search level
                 enum: ["off", "moderate", "strict"]
                 default: "moderate"
+              filter_tabloids:
+                type: boolean
+                description: "Filter out tabloid/boulevard media sources (e.g., BILD, Daily Mail, TMZ, The Sun) from results. Enabled by default for quality results. Set to false ONLY if the user explicitly asks for tabloid sources."
+                default: true
             required:
               - query
       required:

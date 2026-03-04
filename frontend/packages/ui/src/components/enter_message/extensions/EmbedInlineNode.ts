@@ -116,16 +116,46 @@ export const EmbedInlineNode = Node.create<EmbedInlineNodeOptions>({
         dom.textContent = node.attrs.displayText || "";
       }
 
+      // Track current attributes to avoid unnecessary remounts
+      let currentAttrs = {
+        embedRef: node.attrs.embedRef,
+        embedId: node.attrs.embedId,
+        displayText: node.attrs.displayText,
+        appId: node.attrs.appId,
+      };
+
       return {
         dom,
         update(updatedNode) {
           // Only handle updates to this node type
           if (updatedNode.type.name !== "embedInline") return false;
-          // Attributes changed — re-mount with new props
+
+          // Check if any prop actually changed — skip remount if identical.
+          // During incremental streaming updates, unchanged nodes trigger update()
+          // but with the same attributes. Avoiding the unmount+remount prevents
+          // the brief visual flash of the inline link disappearing and reappearing.
+          const newAttrs = updatedNode.attrs;
+          if (
+            newAttrs.embedRef === currentAttrs.embedRef &&
+            newAttrs.embedId === currentAttrs.embedId &&
+            newAttrs.displayText === currentAttrs.displayText &&
+            newAttrs.appId === currentAttrs.appId
+          ) {
+            return true; // Accept update, no DOM changes needed
+          }
+
+          // Attributes actually changed — re-mount with new props
+          currentAttrs = {
+            embedRef: newAttrs.embedRef,
+            embedId: newAttrs.embedId,
+            displayText: newAttrs.displayText,
+            appId: newAttrs.appId,
+          };
+
           if (svelteInstance) {
             try {
               unmount(svelteInstance);
-            } catch (_) {
+            } catch {
               // Ignore unmount errors
             }
           }
@@ -134,10 +164,10 @@ export const EmbedInlineNode = Node.create<EmbedInlineNodeOptions>({
             svelteInstance = mount(EmbedInlineLink, {
               target: dom,
               props: {
-                embedRef: updatedNode.attrs.embedRef as string,
-                embedId: updatedNode.attrs.embedId as string | null,
-                displayText: updatedNode.attrs.displayText as string,
-                appId: updatedNode.attrs.appId as string | null,
+                embedRef: newAttrs.embedRef as string,
+                embedId: newAttrs.embedId as string | null,
+                displayText: newAttrs.displayText as string,
+                appId: newAttrs.appId as string | null,
               },
             }) as Record<string, unknown>;
           } catch (err) {
@@ -145,7 +175,7 @@ export const EmbedInlineNode = Node.create<EmbedInlineNodeOptions>({
               "[EmbedInlineNode] Failed to re-mount EmbedInlineLink on update:",
               err,
             );
-            dom.textContent = updatedNode.attrs.displayText || "";
+            dom.textContent = newAttrs.displayText || "";
           }
           return true;
         },
@@ -153,7 +183,7 @@ export const EmbedInlineNode = Node.create<EmbedInlineNodeOptions>({
           if (svelteInstance) {
             try {
               unmount(svelteInstance);
-            } catch (_) {
+            } catch {
               // Ignore unmount errors during destroy
             }
             svelteInstance = null;

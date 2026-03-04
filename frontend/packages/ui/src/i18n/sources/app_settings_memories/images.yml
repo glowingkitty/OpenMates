@@ -131,3 +131,102 @@ preferred_styles.example_3:
   verified_by_human:
     - en
     - de
+
+# Structured example entries for example_entries in app.yml
+
+preferred_styles.example_1.name:
+  context: Example value for name in preferred_styles
+  en: Minimalist
+  de: Minimalistisch
+  zh: 极简
+  es: Minimalista
+  fr: Minimaliste
+  pt: Minimalista
+  ru: Минимализм
+  ja: ミニマリスト
+  ko: 미니멀리스트
+  it: Minimalista
+  tr: Minimalist
+  vi: Tối giản
+  id: Minimalis
+  pl: Minimalistyczny
+  nl: Minimalistisch
+  ar: بسيط
+  hi: न्यूनतावादी
+  th: มินิมอล
+  cs: Minimalistický
+  sv: Minimalistisk
+  he: מינימליסטי
+  verified_by_human: []
+preferred_styles.example_1.description:
+  context: Example value for description in preferred_styles
+  en: Clean lines, simple compositions, muted color palette
+  de: Klare Linien, einfache Kompositionen, gedämpfte Farbpalette
+  zh: 简洁线条、简约构图、柔和色调
+  es: Líneas limpias, composiciones simples, paleta de colores suaves
+  fr: Lignes épurées, compositions simples, palette de couleurs douces
+  pt: Linhas limpas, composições simples, paleta de cores suaves
+  ru: Чистые линии, простые композиции, приглушённая цветовая палитра
+  ja: すっきりしたライン、シンプルな構図、落ち着いた配色
+  ko: 깔끔한 선, 단순한 구성, 차분한 색상 팔레트
+  it: Linee pulite, composizioni semplici, palette colori tenui
+  tr: Temiz çizgiler, sade kompozisyonlar, yumuşak renk paleti
+  vi: Đường nét gọn gàng, bố cục đơn giản, bảng màu nhẹ nhàng
+  id: Garis bersih, komposisi sederhana, palet warna lembut
+  pl: Czyste linie, proste kompozycje, stonowana paleta kolorów
+  nl: Strakke lijnen, eenvoudige composities, gedempte kleurenpalet
+  ar: خطوط نظيفة، تركيبات بسيطة، ألوان هادئة
+  hi: साफ रेखाएं, सरल संरचनाएं, म्यूटेड रंग पैलेट
+  th: เส้นสะอาด องค์ประกอบเรียบง่าย จานสีนุ่มนวล
+  cs: Čisté linie, jednoduché kompozice, tlumená barevná paleta
+  sv: Rena linjer, enkla kompositioner, dämpad färgpalett
+  he: קווים נקיים, קומפוזיציות פשוטות, פלטת צבעים עמומה
+  verified_by_human: []
+preferred_styles.example_2.name:
+  context: Example value for name in preferred_styles
+  en: Vibrant Photography
+  de: Lebendige Fotografie
+  zh: 鲜艳摄影
+  es: Fotografía vibrante
+  fr: Photographie vibrante
+  pt: Fotografia vibrante
+  ru: Яркая фотография
+  ja: ビビッドフォトグラフィー
+  ko: 선명한 사진
+  it: Fotografia vivace
+  tr: Canlı fotoğrafçılık
+  vi: Nhiếp ảnh rực rỡ
+  id: Fotografi cerah
+  pl: Żywa fotografia
+  nl: Levendige fotografie
+  ar: تصوير نابض بالحياة
+  hi: जीवंत फोटोग्राफी
+  th: การถ่ายภาพสดใส
+  cs: Živá fotografie
+  sv: Livfull fotografi
+  he: צילום תוסס
+  verified_by_human: []
+preferred_styles.example_2.description:
+  context: Example value for description in preferred_styles
+  en: Bright colors, high contrast, dynamic compositions
+  de: Leuchtende Farben, hoher Kontrast, dynamische Kompositionen
+  zh: 明亮色彩、高对比度、动感构图
+  es: Colores brillantes, alto contraste, composiciones dinámicas
+  fr: Couleurs vives, contraste élevé, compositions dynamiques
+  pt: Cores brilhantes, alto contraste, composições dinâmicas
+  ru: Яркие цвета, высокий контраст, динамичные композиции
+  ja: 鮮やかな色彩、高コントラスト、ダイナミックな構図
+  ko: 밝은 색상, 높은 대비, 역동적인 구성
+  it: Colori vivaci, alto contrasto, composizioni dinamiche
+  tr: Parlak renkler, yüksek kontrast, dinamik kompozisyonlar
+  vi: Màu sắc tươi sáng, tương phản cao, bố cục năng động
+  id: Warna cerah, kontras tinggi, komposisi dinamis
+  pl: Jaskrawe kolory, wysoki kontrast, dynamiczne kompozycje
+  nl: Felle kleuren, hoog contrast, dynamische composities
+  ar: ألوان زاهية، تباين عالٍ، تركيبات ديناميكية
+  hi: चमकीले रंग, उच्च कंट्रास्ट, गतिशील संरचनाएं
+  th: สีสดใส คอนทราสต์สูง องค์ประกอบไดนามิก
+  cs: Jasné barvy, vysoký kontrast, dynamické kompozice
+  sv: Starka färger, hög kontrast, dynamiska kompositioner
+  he: צבעים בהירים, ניגודיות גבוהה, קומפוזיציות דינמיות
+  verified_by_human: []

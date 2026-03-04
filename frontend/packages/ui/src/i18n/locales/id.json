@@ -535,6 +535,9 @@
         },
         "example_2": {
           "text": "Tim santai"
+        },
+        "example_3": {
+          "text": "Tindak lanjut dan pengingat"
         }
       }
     },
@@ -1185,6 +1188,9 @@
         "description": {
           "text": "Baca teks dari halaman tertentu PDF."
         },
+        "processing": {
+          "text": "Membaca…"
+        },
         "how_to_use": {
           "1": {
             "text": "Baca halaman 5 dari PDF yang diunggah"
@@ -1802,6 +1808,23 @@
       },
       "just_now": {
         "text": "Baru saja"
+      }
+    },
+    "thinking": {
+      "placeholder": {
+        "text": "Biarkan saya berpikir..."
+      },
+      "header_streaming": {
+        "text": "Sedang berpikir..."
+      },
+      "header_done": {
+        "text": "Proses berpikir"
+      },
+      "collapse": {
+        "text": "Ciutkan proses berpikir"
+      },
+      "expand": {
+        "text": "Perluas proses berpikir"
       }
     },
     "new_chat_suggestions": {
@@ -3092,6 +3115,35 @@
       "plot": {
         "text": "Grafik"
       }
+    },
+    "mail": {
+      "email": {
+        "text": "Draf email"
+      },
+      "to": {
+        "text": "Kepada"
+      },
+      "subject": {
+        "text": "Subjek"
+      },
+      "content": {
+        "text": "Konten"
+      },
+      "footer": {
+        "text": "Footer"
+      },
+      "empty_content": {
+        "text": "Belum ada konten email."
+      },
+      "open_mail_client": {
+        "text": "Buka di aplikasi mail"
+      },
+      "copied": {
+        "text": "Draf email disalin."
+      },
+      "copy_failed": {
+        "text": "Gagal menyalin draf email."
+      }
     }
   },
   "enter_message": {
@@ -3176,7 +3228,7 @@
       "text": "Masukkan pesan Anda"
     },
     "click_to_enter_message": {
-      "text": "Klik di sini untuk memasukkan pesan Anda"
+      "text": "Klik di sini untuk bertanya apa saja"
     },
     "click_to_add_text": {
       "text": "Klik di sini untuk menambahkan teks"
@@ -3261,10 +3313,10 @@
     },
     "placeholder": {
       "desktop": {
-        "text": "Klik untuk memasukkan pesan..."
+        "text": "Klik untuk bertanya apa saja..."
       },
       "touch": {
-        "text": "Ketuk untuk memasukkan pesan..."
+        "text": "Ketuk untuk bertanya apa saja..."
       }
     },
     "press_and_hold_menu": {
@@ -7359,6 +7411,12 @@
     },
     "gift_card_redeemed_success": {
       "text": "Nikmati hadiah Anda!"
+    },
+    "gift_card_waiting_notification": {
+      "text": "Your {credits} credits gift card is waiting for you. Sign up or login to apply them."
+    },
+    "gift_card_waiting_action": {
+      "text": "Signup/Login"
     },
     "credits_purchased": {
       "text": "Kredit yang dibeli"

@@ -63,7 +63,7 @@ async def _get_youtube_api_key(secrets_manager: SecretsManager) -> Optional[str]
     Retrieve the YouTube Data API key from Vault or environment.
 
     Uses the same two-argument get_secret(path, key) signature as the shared
-    youtube_metadata.py provider.  Returns None (with a debug log) if the key
+    youtube_metadata.py provider.  Returns None (with a warning log) if the key
     is not configured — the caller falls back to Brave-provided metadata.
     """
     try:
@@ -73,13 +73,13 @@ async def _get_youtube_api_key(secrets_manager: SecretsManager) -> Optional[str]
             secret_key=YOUTUBE_API_KEY_NAME,
         )
         if api_key:
-            logger.debug("[DailyInspiration] YouTube API key retrieved from Vault")
+            logger.info("[DailyInspiration] YouTube API key retrieved from Vault")
             return api_key
 
-        logger.debug("[DailyInspiration] YouTube API key not configured — skipping enrichment")
+        logger.warning("[DailyInspiration] YouTube API key not configured — skipping enrichment")
         return None
     except Exception as e:
-        logger.debug(f"[DailyInspiration] Could not retrieve YouTube API key: {e}")
+        logger.warning(f"[DailyInspiration] Could not retrieve YouTube API key: {e}")
         return None
 
 
@@ -160,7 +160,7 @@ async def _enrich_with_youtube(
             if vid_id and vid_id in enrichment:
                 candidate.update(enrichment[vid_id])
 
-        logger.debug(
+        logger.info(
             f"[DailyInspiration] YouTube enrichment completed for {len(enrichment)}/{len(video_ids)} videos"
         )
     except Exception as e:

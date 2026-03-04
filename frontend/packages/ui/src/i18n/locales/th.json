@@ -535,6 +535,9 @@
         },
         "example_2": {
           "text": "ทีมสบายๆ"
+        },
+        "example_3": {
+          "text": "ติดตามผลและการเตือนความจำ"
         }
       }
     },
@@ -1185,6 +1188,9 @@
         "description": {
           "text": "อ่านข้อความจากหน้าที่เฉพาะของ PDF"
         },
+        "processing": {
+          "text": "กำลังอ่าน…"
+        },
         "how_to_use": {
           "1": {
             "text": "อ่านหน้า 5 ของ PDF ที่อัปโหลด"
@@ -1802,6 +1808,23 @@
       },
       "just_now": {
         "text": "เมื่อสักครู่"
+      }
+    },
+    "thinking": {
+      "placeholder": {
+        "text": "ให้ฉันคิดดูก่อน..."
+      },
+      "header_streaming": {
+        "text": "กำลังคิด..."
+      },
+      "header_done": {
+        "text": "กระบวนการคิด"
+      },
+      "collapse": {
+        "text": "ย่อกระบวนการคิด"
+      },
+      "expand": {
+        "text": "ขยายกระบวนการคิด"
       }
     },
     "new_chat_suggestions": {
@@ -3098,6 +3121,35 @@
       "plot": {
         "text": "พล็อต"
       }
+    },
+    "mail": {
+      "email": {
+        "text": "ฉบับร่างอีเมล"
+      },
+      "to": {
+        "text": "ถึง"
+      },
+      "subject": {
+        "text": "หัวเรื่อง"
+      },
+      "content": {
+        "text": "เนื้อหา"
+      },
+      "footer": {
+        "text": "ส่วนท้าย"
+      },
+      "empty_content": {
+        "text": "ยังไม่มีเนื้อหาอีเมล"
+      },
+      "open_mail_client": {
+        "text": "เปิดในแอปเมล"
+      },
+      "copied": {
+        "text": "คัดลอกฉบับร่างอีเมลแล้ว"
+      },
+      "copy_failed": {
+        "text": "คัดลอกฉบับร่างอีเมลไม่สำเร็จ"
+      }
     }
   },
   "enter_message": {
@@ -3182,7 +3234,7 @@
       "text": "ใส่ข้อความของคุณ"
     },
     "click_to_enter_message": {
-      "text": "คลิกที่นี่เพื่อใส่ข้อความของคุณ"
+      "text": "คลิกที่นี่เพื่อถามอะไรก็ได้"
     },
     "click_to_add_text": {
       "text": "คลิกที่นี่เพื่อเพิ่มข้อความ"
@@ -3267,10 +3319,10 @@
     },
     "placeholder": {
       "desktop": {
-        "text": "คลิกเพื่อใส่ข้อความ..."
+        "text": "คลิกเพื่อถามอะไรก็ได้..."
       },
       "touch": {
-        "text": "แตะเพื่อใส่ข้อความ..."
+        "text": "แตะเพื่อถามอะไรก็ได้..."
       }
     },
     "press_and_hold_menu": {
@@ -7365,6 +7417,12 @@
     },
     "gift_card_redeemed_success": {
       "text": "สนุกกับของขวัญของคุณ!"
+    },
+    "gift_card_waiting_notification": {
+      "text": "Your {credits} credits gift card is waiting for you. Sign up or login to apply them."
+    },
+    "gift_card_waiting_action": {
+      "text": "Signup/Login"
     },
     "credits_purchased": {
       "text": "เครดิตที่ซื้อ"

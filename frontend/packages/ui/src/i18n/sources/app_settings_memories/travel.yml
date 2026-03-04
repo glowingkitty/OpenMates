@@ -545,3 +545,209 @@ preferred_activities.example_4:
   verified_by_human:
     - en
     - de
+
+# Structured example entries for trips
+
+trips.example_1.destination:
+  context: Example value for destination in trips
+  en: Tokyo, Japan
+  de: Tokio, Japan
+  zh: 日本东京
+  es: Tokio, Japón
+  fr: Tokyo, Japon
+  pt: Tóquio, Japão
+  ru: Токио, Япония
+  ja: 東京、日本
+  ko: 도쿄, 일본
+  it: Tokyo, Giappone
+  tr: Tokyo, Japonya
+  vi: Tokyo, Nhật Bản
+  id: Tokyo, Jepang
+  pl: Tokio, Japonia
+  nl: Tokio, Japan
+  ar: طوكيو، اليابان
+  hi: टोक्यो, जापान
+  th: โตเกียว ประเทศญี่ปุ่น
+  cs: Tokio, Japonsko
+  sv: Tokyo, Japan
+  he: טוקיו, יפן
+  verified_by_human: []
+
+trips.example_1.notes:
+  context: Example value for notes in trips
+  en: Two-week vacation exploring temples and food scene
+  de: Zweiwöchiger Urlaub, Tempel und Esskultur entdecken
+  zh: 两周假期，探索寺庙和美食
+  es: Vacaciones de dos semanas explorando templos y gastronomía
+  fr: Vacances de deux semaines pour explorer temples et gastronomie
+  pt: Férias de duas semanas explorando templos e culinária
+  ru: Двухнедельный отпуск, храмы и кулинарная культура
+  ja: 2週間の休暇で寺院巡りと食文化を満喫
+  ko: 2주간의 휴가, 사찰과 음식 문화 탐방
+  it: Vacanza di due settimane tra templi e cucina locale
+  tr: İki haftalık tatil, tapınakları ve yemek kültürünü keşfetme
+  vi: Kỳ nghỉ hai tuần khám phá đền chùa và ẩm thực
+  id: Liburan dua minggu menjelajahi kuil dan kuliner
+  pl: Dwutygodniowy urlop, zwiedzanie świątyń i kuchnia lokalna
+  nl: Twee weken vakantie, tempels en eetcultuur verkennen
+  ar: إجازة أسبوعين لاستكشاف المعابد والمطبخ المحلي
+  hi: दो सप्ताह की छुट्टी, मंदिरों और खानपान की खोज
+  th: พักร้อนสองสัปดาห์สำรวจวัดและวัฒนธรรมอาหาร
+  cs: Dvoutýdenní dovolená, prohlídka chrámů a gastronomie
+  sv: Två veckors semester, utforska tempel och matkultur
+  he: חופשה של שבועיים לחקור מקדשות ותרבות אוכל
+  verified_by_human: []
+
+trips.example_2.destination:
+  context: Example value for destination in trips
+  en: Barcelona, Spain
+  de: Barcelona, Spanien
+  zh: 西班牙巴塞罗那
+  es: Barcelona, España
+  fr: Barcelone, Espagne
+  pt: Barcelona, Espanha
+  ru: Барселона, Испания
+  ja: バルセロナ、スペイン
+  ko: 바르셀로나, 스페인
+  it: Barcellona, Spagna
+  tr: Barselona, İspanya
+  vi: Barcelona, Tây Ban Nha
+  id: Barcelona, Spanyol
+  pl: Barcelona, Hiszpania
+  nl: Barcelona, Spanje
+  ar: برشلونة، إسبانيا
+  hi: बार्सिलोना, स्पेन
+  th: บาร์เซโลนา สเปน
+  cs: Barcelona, Španělsko
+  sv: Barcelona, Spanien
+  he: ברצלונה, ספרד
+  verified_by_human: []
+
+trips.example_2.notes:
+  context: Example value for notes in trips
+  en: Summer holiday, beach and architecture
+  de: Sommerurlaub, Strand und Architektur
+  zh: 暑假，海滩和建筑
+  es: Vacaciones de verano, playa y arquitectura
+  fr: Vacances d'été, plage et architecture
+  pt: Férias de verão, praia e arquitetura
+  ru: Летний отпуск, пляж и архитектура
+  ja: 夏休み、ビーチと建築巡り
+  ko: 여름 휴가, 해변과 건축 관광
+  it: Vacanza estiva, spiaggia e architettura
+  tr: Yaz tatili, plaj ve mimari
+  vi: Kỳ nghỉ hè, biển và kiến trúc
+  id: Liburan musim panas, pantai dan arsitektur
+  pl: Wakacje letnie, plaża i architektura
+  nl: Zomervakantie, strand en architectuur
+  ar: عطلة صيفية، شاطئ وعمارة
+  hi: गर्मी की छुट्टी, समुद्र तट और वास्तुकला
+  th: วันหยุดฤดูร้อน ชายหาดและสถาปัตยกรรม
+  cs: Letní dovolená, pláž a architektura
+  sv: Sommarlov, strand och arkitektur
+  he: חופשת קיץ, חוף ואדריכלות
+  verified_by_human: []
+
+# Structured example entries for preferred_airlines
+
+preferred_airlines.example_1.name:
+  context: Example value for name in preferred_airlines
+  en: Lufthansa
+  de: Lufthansa
+  zh: 汉莎航空
+  es: Lufthansa
+  fr: Lufthansa
+  pt: Lufthansa
+  ru: Lufthansa
+  ja: ルフトハンザ
+  ko: 루프트한자
+  it: Lufthansa
+  tr: Lufthansa
+  vi: Lufthansa
+  id: Lufthansa
+  pl: Lufthansa
+  nl: Lufthansa
+  ar: لوفتهانزا
+  hi: लुफ्थांसा
+  th: ลุฟท์ฮันซ่า
+  cs: Lufthansa
+  sv: Lufthansa
+  he: לופטהנזה
+  verified_by_human: []
+
+preferred_airlines.example_2.name:
+  context: Example value for name in preferred_airlines
+  en: Singapore Airlines
+  de: Singapore Airlines
+  zh: 新加坡航空
+  es: Singapore Airlines
+  fr: Singapore Airlines
+  pt: Singapore Airlines
+  ru: Singapore Airlines
+  ja: シンガポール航空
+  ko: 싱가포르 항공
+  it: Singapore Airlines
+  tr: Singapur Havayolları
+  vi: Singapore Airlines
+  id: Singapore Airlines
+  pl: Singapore Airlines
+  nl: Singapore Airlines
+  ar: الخطوط الجوية السنغافورية
+  hi: सिंगापुर एयरलाइंस
+  th: สิงคโปร์แอร์ไลน์
+  cs: Singapore Airlines
+  sv: Singapore Airlines
+  he: סינגפור איירליינס
+  verified_by_human: []
+
+# Structured example entries for preferred_activities
+
+preferred_activities.example_1.name:
+  context: Example value for name in preferred_activities
+  en: Hiking
+  de: Wandern
+  zh: 徒步旅行
+  es: Senderismo
+  fr: Randonnée
+  pt: Trilhas
+  ru: Пешие прогулки
+  ja: ハイキング
+  ko: 하이킹
+  it: Escursionismo
+  tr: Yürüyüş
+  vi: Đi bộ đường dài
+  id: Mendaki
+  pl: Piesze wędrówki
+  nl: Wandelen
+  ar: المشي لمسافات طويلة
+  hi: पैदल यात्रा
+  th: เดินป่า
+  cs: Turistika
+  sv: Vandring
+  he: טיולים רגליים
+  verified_by_human: []
+
+preferred_activities.example_2.name:
+  context: Example value for name in preferred_activities
+  en: Museum Visits
+  de: Museumsbesuche
+  zh: 参观博物馆
+  es: Visitas a museos
+  fr: Visites de musées
+  pt: Visitas a museus
+  ru: Посещение музеев
+  ja: 美術館・博物館巡り
+  ko: 박물관 방문
+  it: Visite ai musei
+  tr: Müze ziyaretleri
+  vi: Tham quan bảo tàng
+  id: Kunjungan museum
+  pl: Wizyty w muzeach
+  nl: Museumbezoeken
+  ar: زيارة المتاحف
+  hi: संग्रहालय भ्रमण
+  th: เยี่ยมชมพิพิธภัณฑ์
+  cs: Návštěvy muzeí
+  sv: Museibesök
+  he: ביקורים במוזיאונים
+  verified_by_human: []

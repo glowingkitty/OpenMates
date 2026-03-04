@@ -173,6 +173,91 @@ function convertEmbedLinks(doc: any): any {
   // Pass 2: convert embed: links, using fallbackAppId when ref index has no entry.
   return convertEmbedLinksInNode(doc, fallbackAppId);
 }
+// ─── Source quote detection ──────────────────────────────────────────────────
+//
+// After `convertEmbedLinks` replaces embed: link marks with `embedInline` atoms,
+// we check each `blockquote` node to see if it contains a single paragraph with
+// a single `embedInline` child. This pattern matches the verified source quote
+// syntax:
+//
+//   > [quoted text](embed:some-ref-k8D)
+//
+// If it matches, we replace the entire blockquote with a `sourceQuote` atom node
+// that renders as a styled clickable card instead of a plain blockquote.
+//
+// This MUST run after convertEmbedLinks (which produces embedInline nodes) and
+// convertEmbedLinksInNode (which is responsible for the embed: → embedInline transform).
+
+/**
+ * Walk a TipTap document and convert blockquotes that contain a single
+ * embedInline node into sourceQuote block-level atom nodes.
+ *
+ * A blockquote matches when its structure is:
+ *   blockquote > paragraph > [single child of type embedInline]
+ *
+ * The embedInline's displayText becomes the quoteText, and its embedRef/appId
+ * are carried over to the sourceQuote node attributes.
+ *
+ * Returns a new document object (does not mutate the input).
+ */
+function convertSourceQuotes(doc: any): any {
+  if (!doc || !doc.content) return doc;
+
+  const newContent = doc.content.map((node: any) =>
+    _convertSourceQuoteNode(node),
+  );
+
+  return { ...doc, content: newContent };
+}
+
+/**
+ * Inner recursive walker: checks if a node is a blockquote matching the
+ * source quote pattern, and if so replaces it with a sourceQuote node.
+ * Otherwise recurses into children.
+ */
+function _convertSourceQuoteNode(node: any): any {
+  // Check if this is a blockquote that contains exactly one paragraph
+  // with exactly one embedInline child — the source quote pattern.
+  if (node.type === "blockquote" && Array.isArray(node.content)) {
+    // Filter to meaningful content (skip empty paragraphs)
+    const meaningfulChildren = node.content.filter(
+      (child: any) =>
+        child.type === "paragraph" &&
+        Array.isArray(child.content) &&
+        child.content.length > 0,
+    );
+
+    if (meaningfulChildren.length === 1) {
+      const paragraph = meaningfulChildren[0];
+      if (
+        Array.isArray(paragraph.content) &&
+        paragraph.content.length === 1 &&
+        paragraph.content[0].type === "embedInline"
+      ) {
+        const embedInline = paragraph.content[0];
+        return {
+          type: "sourceQuote",
+          attrs: {
+            quoteText: embedInline.attrs?.displayText || "",
+            embedRef: embedInline.attrs?.embedRef || "",
+            appId: embedInline.attrs?.appId || null,
+          },
+        };
+      }
+    }
+  }
+
+  // Not a source quote blockquote — recurse into children
+  if (node.content && Array.isArray(node.content)) {
+    const newContent = node.content.map((child: any) =>
+      _convertSourceQuoteNode(child),
+    );
+    return { ...node, content: newContent };
+  }
+
+  return node;
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -190,8 +275,12 @@ export function parse_message(
   // If unified parsing is not enabled, fallback to existing behavior
   if (!opts.unifiedParsingEnabled) {
     const doc = markdownToTipTap(markdown);
-    // Still apply embed: link conversion in read mode even on the fast path
-    return mode === "read" ? convertEmbedLinks(doc) : doc;
+    // Still apply embed: link + source quote conversion in read mode even on the fast path
+    if (mode === "read") {
+      const withLinks = convertEmbedLinks(doc);
+      return convertSourceQuotes(withLinks);
+    }
+    return doc;
   }
 
   console.debug("[parse_message] Parsing with unified architecture:", {
@@ -233,9 +322,11 @@ export function parse_message(
   // Group consecutive embeds of the same type at the document level where we can see actual text between them
   let unifiedDoc = groupConsecutiveEmbedsInDocument(docWithIndividualEmbeds);
 
-  // Convert embed: link marks to embedInline atom nodes (read mode only)
+  // Convert embed: link marks to embedInline atom nodes, then detect
+  // blockquotes that are source quotes and convert them (read mode only)
   if (mode === "read") {
     unifiedDoc = convertEmbedLinks(unifiedDoc);
+    unifiedDoc = convertSourceQuotes(unifiedDoc);
   }
 
   // Add streaming metadata for write mode highlighting

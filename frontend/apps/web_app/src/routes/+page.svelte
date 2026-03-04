@@ -69,6 +69,38 @@
 	let originalHashChatId: string | null = null; // Store original hash chat ID from URL (read before anything modifies it)
 	let deepLinkProcessed = $state(false); // Track if any deep link was processed during onMount to avoid loading welcome chat
 	let pendingDeepLinkHandler: ((event: Event) => void) | null = null; // Store event handler for cleanup
+	let hasAutoOpenedGiftCardRedeemAfterAuth = $state(false);
+
+	function openGiftCardRedeemSettings(): void {
+		hasAutoOpenedGiftCardRedeemAfterAuth = true;
+		settingsDeepLink.set('gift_cards/redeem');
+		setTimeout(() => panelState.openSettings(), 100);
+	}
+
+	$effect(() => {
+		if (!browser) {
+			return;
+		}
+
+		if (!$authStore.isAuthenticated) {
+			hasAutoOpenedGiftCardRedeemAfterAuth = false;
+			return;
+		}
+
+		if (hasAutoOpenedGiftCardRedeemAfterAuth || $isInSignupProcess) {
+			return;
+		}
+
+		const pendingGiftCardCode = sessionStorage.getItem('pending_gift_card_code');
+		if (!pendingGiftCardCode) {
+			return;
+		}
+
+		console.debug(
+			'[+page.svelte] Authenticated with pending gift-card code, opening redeem settings'
+		);
+		openGiftCardRedeemSettings();
+	});
 
 	// CRITICAL: Reactive effect to watch for signup state changes
 	// This handles cases where user profile loads asynchronously after initialize() completes
@@ -405,6 +437,17 @@
 				// Sync not yet complete — register event listener and wait
 				// CRITICAL: No setTimeout fallback — a premature load causes missing chat header
 				const handlePhasedSyncComplete = async () => {
+					// Guard: if the user switched to a different chat while waiting for sync,
+					// don't force them back to the deep-linked chat. This prevents the bug where
+					// reloading a tab with chat A open and quickly switching to chat B would
+					// cause chat A to re-open a few seconds later when sync completes.
+					if (!phasedSyncState.canAutoNavigate()) {
+						console.debug(
+							`[+page.svelte] Phased sync complete, but user made explicit choice — skipping deep link load for: ${chatId}`
+						);
+						chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncComplete);
+						return;
+					}
 					console.debug(`[+page.svelte] Phased sync complete, loading deep-linked chat: ${chatId}`);
 					await loadChatFromIndexedDB();
 					chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncComplete);
@@ -751,6 +794,21 @@
 		const originalHash = browser ? window.location.hash : '';
 		console.debug('[+page.svelte] [INIT] Original hash from URL:', originalHash);
 
+		// SHARED-CHAT REDIRECT: Read and consume the sessionStorage flag set by the share
+		// chat page (/share/chat/[chatId]/+page.svelte) before navigating here.
+		// This flag prevents the forced-logout path from clearing the hash for shared chats
+		// that can be decrypted via sharedChatKeyStorage (no master key needed).
+		const sharedChatRedirectId = browser
+			? sessionStorage.getItem('openmates_shared_chat_redirect')
+			: null;
+		if (sharedChatRedirectId && browser) {
+			sessionStorage.removeItem('openmates_shared_chat_redirect');
+			console.debug(
+				'[+page.svelte] [INIT] Shared chat redirect detected for:',
+				sharedChatRedirectId
+			);
+		}
+
 		// SHARE-REDIRECT: Detect #share-chat-id={chatId}&key={blob} hash produced by +server.ts
 		// When a user opens /share/chat/{chatId}#key=... directly (fresh browser load),
 		// +server.ts serves OG-tag HTML that redirects to /#share-chat-id={chatId}&key={blob}.
@@ -890,7 +948,18 @@
 					// This guard handles any lingering old-format redirects gracefully.
 					const isShareLinkHash = originalHash.includes('&key=');
 
-					if (hashChatId && !isPublicChat(hashChatId) && !isShareLinkHash) {
+					// SHARED-CHAT GUARD: If this navigation came from the share chat page,
+					// the chat ID is a shared chat whose key is stored in IndexedDB.
+					// Do NOT clear the hash — the shared chat can be decrypted without master key.
+					// sharedChatRedirectId was read from sessionStorage at the start of onMount.
+					const isSharedChatRedirect = sharedChatRedirectId === hashChatId;
+
+					if (
+						hashChatId &&
+						!isPublicChat(hashChatId) &&
+						!isShareLinkHash &&
+						!isSharedChatRedirect
+					) {
 						console.debug(
 							`[+page.svelte] URL hash points to encrypted chat ${hashChatId} - clearing hash and loading demo-for-everyone`
 						);
@@ -958,7 +1027,11 @@
 
 				// CRITICAL: Don't set active chat to encrypted chat ID during forced logout
 				// The encrypted chat can't be decrypted without master key
-				if (isForcedLogout && !isPublicChat(originalHashChatId)) {
+				// EXCEPTION: Shared chat redirects — the share page stores the decryption key
+				// in IndexedDB (sharedChatKeyStorage), so the chat CAN be decrypted without master key.
+				// sharedChatRedirectId was read from sessionStorage at the start of onMount.
+				const isSharedRedirect = sharedChatRedirectId === originalHashChatId;
+				if (isForcedLogout && !isPublicChat(originalHashChatId) && !isSharedRedirect) {
 					console.debug(
 						`[+page.svelte] Forced logout in progress - skipping encrypted chat hash ${originalHashChatId}, using demo-for-everyone`
 					);
@@ -1024,11 +1097,58 @@
 			'[+page.svelte] Shared chat cleanup skipped - shared chats persist until explicitly deleted'
 		);
 
+		// --- Gift-card deep link: /#gift-card=CODE ---
+		// The code lives entirely in the hash so the server never sees it.
+		// For authenticated users:  open Settings > Gift Cards > Redeem with the code pre-filled
+		// For unauthenticated users: store the code and show signup/login CTA notification.
+		const GIFT_CARD_HASH_PREFIX = '#gift-card=';
+		const GIFT_CARD_CODE_REGEX = /^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/i;
+		let hasGiftCardHash = false;
+
+		if (window.location.hash.startsWith(GIFT_CARD_HASH_PREFIX)) {
+			const rawCode = decodeURIComponent(
+				window.location.hash.substring(GIFT_CARD_HASH_PREFIX.length)
+			).toUpperCase();
+
+			if (GIFT_CARD_CODE_REGEX.test(rawCode)) {
+				hasGiftCardHash = true;
+				// Store code in sessionStorage so GiftCardRedeem / CreditsTopContent can pick it up
+				sessionStorage.setItem('pending_gift_card_code', rawCode);
+				console.debug(`[+page.svelte] Gift-card deep link detected, code stored in sessionStorage`);
+
+				// Clean the hash from the URL immediately (code is safely in sessionStorage)
+				history.replaceState(null, '', window.location.pathname + window.location.search);
+
+				// Branch based on auth state (isAuth is not yet set here — check optimistic local data)
+				const hasLocalAuth =
+					!!localStorage.getItem('stayLoggedIn') || !!sessionStorage.getItem('sessionToken');
+
+				if (hasLocalAuth) {
+					// Authenticated user: open the gift-card redeem settings page
+					// (settings panel opens after initialize() completes; set the deep link store now)
+					openGiftCardRedeemSettings();
+				} else {
+					// Unauthenticated user: keep code in sessionStorage and prompt for signup/login.
+					notificationStore.addNotificationWithOptions('info', {
+						message: $text('signup.gift_card_waiting_notification').replace('{credits}', 'x'),
+						actionLabel: $text('signup.gift_card_waiting_action'),
+						onAction: () => {
+							window.dispatchEvent(new CustomEvent('openSignupInterface'));
+						},
+						duration: 10000,
+						dismissible: true
+					});
+				}
+			} else {
+				console.warn(`[+page.svelte] Invalid gift-card code in hash: ${rawCode}`);
+			}
+		}
+
 		// CRITICAL: Check for signup hash in URL BEFORE initialize() to ensure hash-based signup state takes precedence
 		// This ensures signup flow opens immediately on page reload if URL has #signup/ hash
 		// The hash takes precedence over last_opened from IndexedDB and checkAuth() logic
 		let hasSignupHash = false;
-		if (window.location.hash.startsWith('#signup/')) {
+		if (!hasGiftCardHash && window.location.hash.startsWith('#signup/')) {
 			hasSignupHash = true;
 			// Handle signup deep linking - open login interface and set signup step
 			console.debug(

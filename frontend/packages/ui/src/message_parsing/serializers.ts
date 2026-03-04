@@ -4,6 +4,7 @@
 import { EmbedNodeAttributes, EmbedType, EmbedClipboardData } from "./types";
 import { groupHandlerRegistry } from "./groupHandlers";
 import { parseMarkdownToTiptap } from "../components/enter_message/utils/markdownParser";
+import { copyToClipboard } from "../utils/clipboardUtils";
 
 /**
  * Convert TipTap document JSON to canonical markdown format for sending
@@ -37,6 +38,10 @@ export function tipTapToCanonicalMarkdown(doc: any): string {
 
       case "blockquote":
         lines.push(serializeBlockquote(node));
+        break;
+
+      case "sourceQuote":
+        lines.push(serializeSourceQuote(node));
         break;
 
       default:
@@ -295,8 +300,9 @@ export async function writeEmbedToClipboard(
   }
 
   // Attempts 2 + 3 require the resolved text value.
+  // Falls back through writeText → execCommand via the unified ClipboardService.
   const plainText = await textPromise;
-  await _writeTextWithFallback(plainText, "[writeEmbedToClipboard]");
+  await copyToClipboard(plainText);
 }
 
 /**
@@ -326,13 +332,10 @@ export async function writeMessageWithEmbedsToClipboard(
       : messageTextPromise;
 
   if (embedAttrs.length === 0) {
-    // No embeds — plain text copy with same Safari-compatible fallback chain.
-    // Still need to wait for the text to resolve before writing.
+    // No embeds — plain text copy via the unified ClipboardService
+    // (writeText → execCommand fallback chain).
     const messageText = await textPromise;
-    await _writeTextWithFallback(
-      messageText,
-      "[writeMessageWithEmbedsToClipboard]",
-    );
+    await copyToClipboard(messageText);
     return;
   }
 
@@ -390,57 +393,9 @@ export async function writeMessageWithEmbedsToClipboard(
     }
   }
 
-  // Attempts 2 + 3: writeText → execCommand fallback (same as writeEmbedToClipboard).
+  // writeText → execCommand fallback via the unified ClipboardService.
   const messageText = await textPromise;
-  await _writeTextWithFallback(
-    messageText,
-    "[writeMessageWithEmbedsToClipboard]",
-  );
-}
-
-/**
- * Write plain text to the clipboard with a Safari-compatible fallback chain:
- *   1. navigator.clipboard.writeText (may fail on Safari after async awaits)
- *   2. document.execCommand('copy') via hidden textarea (no gesture token needed)
- *
- * @internal Used by writeEmbedToClipboard and writeMessageWithEmbedsToClipboard
- */
-async function _writeTextWithFallback(
-  text: string,
-  logPrefix: string,
-): Promise<void> {
-  // Attempt 1: navigator.clipboard.writeText
-  try {
-    await navigator.clipboard.writeText(text);
-    console.debug(`${logPrefix} Copied via navigator.clipboard.writeText`);
-    return;
-  } catch (err) {
-    console.warn(
-      `${logPrefix} navigator.clipboard.writeText failed (gesture token likely expired), trying execCommand fallback:`,
-      err,
-    );
-  }
-
-  // Attempt 2: document.execCommand('copy') — works on Safari even after async ops
-  const textArea = document.createElement("textarea");
-  textArea.value = text;
-  textArea.style.position = "fixed";
-  textArea.style.left = "-9999px";
-  textArea.style.top = "0";
-  textArea.style.opacity = "0";
-  textArea.setAttribute("readonly", "");
-  document.body.appendChild(textArea);
-  try {
-    textArea.select();
-    const success = document.execCommand("copy");
-    if (success) {
-      console.debug(`${logPrefix} Copied via execCommand fallback`);
-      return;
-    }
-    throw new Error("execCommand copy returned false");
-  } finally {
-    document.body.removeChild(textArea);
-  }
+  await copyToClipboard(messageText);
 }
 
 /**
@@ -682,6 +637,13 @@ function serializeParagraph(node: any): string {
         content: child.attrs?.url || "",
         isBlockEmbed: false,
       });
+    } else if (child.type === "bestModelMention") {
+      // Handle best-model alias mention nodes - serialize to backend format
+      // @best-model:best or @best-model:fast
+      serializedParts.push({
+        content: `@best-model:${child.attrs?.category || "best"}`,
+        isBlockEmbed: false,
+      });
     } else if (child.type === "aiModelMention") {
       // Handle AI model mention nodes - serialize to backend format
       console.info(
@@ -768,6 +730,20 @@ function serializeBlockquote(node: any): string {
     .split("\n")
     .map((line) => `> ${line}`)
     .join("\n");
+}
+
+/**
+ * Serialize sourceQuote node back to the original markdown syntax:
+ *   > [quoted text](embed:embed_ref)
+ *
+ * This round-trips correctly: the markdown parser will produce a blockquote
+ * containing a link with href="embed:ref", which convertEmbedLinks converts
+ * to embedInline, which convertSourceQuotes then converts back to sourceQuote.
+ */
+function serializeSourceQuote(node: any): string {
+  const quoteText = node.attrs?.quoteText || "";
+  const embedRef = node.attrs?.embedRef || "";
+  return `> [${quoteText}](embed:${embedRef})`;
 }
 
 /**

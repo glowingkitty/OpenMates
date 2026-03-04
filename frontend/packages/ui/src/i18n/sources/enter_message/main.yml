@@ -24,27 +24,27 @@ enter_your_message:
   verified_by_human: []
 click_to_enter_message:
   context: Placeholder text shown when message field is not focused
-  en: Click here to enter your message
-  de: Hier klicken um eine Nachricht einzugeben
-  zh: 点击此处输入消息
-  es: Haz clic aquí para ingresar tu mensaje
-  fr: Cliquez ici pour entrer votre message
-  pt: Clique aqui para inserir sua mensagem
-  ru: Нажмите здесь, чтобы ввести сообщение
-  ja: クリックしてメッセージを入力
-  ko: 여기를 클릭하여 메시지 입력
-  it: Clicca qui per inserire il tuo messaggio
-  tr: Mesajınızı girmek için buraya tıklayın
-  vi: Nhấp vào đây để nhập tin nhắn
-  id: Klik di sini untuk memasukkan pesan Anda
-  pl: Kliknij tutaj, aby wprowadzić wiadomość
-  nl: Klik hier om je bericht in te voeren
-  ar: انقر هنا لإدخال رسالتك
-  hi: अपना संदेश दर्ज करने के लिए यहां क्लिक करें
-  th: คลิกที่นี่เพื่อใส่ข้อความของคุณ
-  cs: Klikněte sem pro zadání zprávy
-  sv: "Klicka här för att ange ditt meddelande"
-  he: לחץ כאן כדי להקליד הודעה
+  en: Click here to ask anything
+  de: Hier klicken um etwas zu fragen
+  zh: 点击此处提问
+  es: Haz clic aquí para preguntar lo que sea
+  fr: Cliquez ici pour poser une question
+  pt: Clique aqui para perguntar qualquer coisa
+  ru: Нажмите здесь, чтобы спросить что угодно
+  ja: クリックして何でも質問
+  ko: 여기를 클릭하여 무엇이든 질문
+  it: Clicca qui per chiedere qualsiasi cosa
+  tr: Herhangi bir şey sormak için buraya tıklayın
+  vi: Nhấp vào đây để hỏi bất cứ điều gì
+  id: Klik di sini untuk bertanya apa saja
+  pl: Kliknij tutaj, aby zapytać o cokolwiek
+  nl: Klik hier om iets te vragen
+  ar: انقر هنا لتسأل عن أي شيء
+  hi: कुछ भी पूछने के लिए यहां क्लिक करें
+  th: คลิกที่นี่เพื่อถามอะไรก็ได้
+  cs: Klikněte sem a zeptejte se na cokoliv
+  sv: "Klicka här för att fråga vad som helst"
+  he: לחץ כאן כדי לשאול כל דבר
   verified_by_human: []
 click_to_add_text:
   context: Prompt shown after attachments to add more text

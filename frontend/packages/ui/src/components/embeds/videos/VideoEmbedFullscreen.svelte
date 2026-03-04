@@ -27,6 +27,8 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { videoIframeStore } from '../../../stores/videoIframeStore';
   import { text } from '@repo/ui';
+  import { copyToClipboard } from '../../../utils/clipboardUtils';
+  import { handleImageError } from '../../../utils/offlineImageHandler';
   
   // Import VideoMetadata type from preview component
   import type { VideoMetadata } from './VideoEmbedPreview.svelte';
@@ -416,7 +418,8 @@
   async function handleCopy() {
     try {
       if (url) {
-        await navigator.clipboard.writeText(url);
+        const clipResult = await copyToClipboard(url);
+        if (!clipResult.success) throw new Error(clipResult.error || 'Copy failed');
         console.debug('[VideoEmbedFullscreen] Copied video URL to clipboard');
         // Show success notification
         const { notificationStore } = await import('../../../stores/notificationStore');
@@ -550,7 +553,7 @@
                 const fallbackRaw = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
                 img.src = `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(fallbackRaw)}&max_width=${FULLSCREEN_IMAGE_MAX_WIDTH}`;
               } else {
-                img.style.display = 'none';
+                handleImageError(img);
               }
             }}
           />
@@ -649,7 +652,7 @@
               loading="lazy"
               crossorigin="anonymous"
               onerror={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
+                handleImageError(e.target as HTMLImageElement);
               }}
             />
           {/if}

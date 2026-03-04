@@ -35,7 +35,7 @@ chat:
   de: Chat
   ar: الدردشة
 
-# Notifications submenu (becomes settings.chat.notifications.text)
+  # Notifications submenu (becomes settings.chat.notifications.text)
   he: "צ'אט"
 notifications:
   context: Notifications submenu title
@@ -44,6 +44,20 @@ notifications:
   ar: الإشعارات
 
   he: התראות
+ai_app_settings:
+  context: Link title in chat settings that opens the AI app settings page
+  en: AI App Settings
+  de: KI-App-Einstellungen
+  ar: إعدادات تطبيق الذكاء الاصطناعي
+
+  he: הגדרות אפליקציית AI
+ai_app_settings_info:
+  context: Helper text for AI app settings link explaining where to find more chat preferences
+  en: Find more chat preferences in AI app settings
+  de: Weitere Chat-Einstellungen finden Sie in den KI-App-Einstellungen
+  ar: اعثر على المزيد من تفضيلات الدردشة في إعدادات تطبيق الذكاء الاصطناعي
+
+  he: אפשר למצוא העדפות צ'אט נוספות בהגדרות אפליקציית ה-AI
 notifications.enabled:
   context: Status text when notifications are enabled
   en: Enabled
@@ -169,7 +183,7 @@ notifications.software_updates_desc:
   de: Wenn neue Versionen verfügbar sind
   ar: عند توفر إصدارات جديدة
 
-# Email notifications section
+  # Email notifications section
   he: כאשר גרסאות חדשות זמינות
 notifications.email_section:
   context: Section title for email notifications

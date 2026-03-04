@@ -643,6 +643,18 @@
   white-space: nowrap;
 }
 
+/* Best-model alias mention node (@best, @fast) - uses a distinctive gold/orange gradient */
+:global(.ProseMirror .best-model-mention) {
+  display: inline;
+  background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 600;
+  cursor: default;
+  white-space: nowrap;
+}
+
 /* Generic mention styles (skills, focus modes, settings/memories) */
 /* Uses custom properties set inline based on the app's color gradient */
 :global(.ProseMirror .generic-mention) {

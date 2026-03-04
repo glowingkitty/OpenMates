@@ -34,7 +34,7 @@ Follow the [Conventional Commits](https://www.conventionalcommits.org/) specific
 - Don't capitalize the first letter of the description
 - No dot (.) at the end of the title
 
-**Example:**
+**Examples:**
 
 ```bash
 feat: add user authentication flow
@@ -44,9 +44,29 @@ feat: add user authentication flow
 - Secure existing API routes with auth middleware
 ```
 
+```bash
+fix: prevent duplicate messages after WebSocket reconnect
+
+Symptom: users saw the same message twice after a brief connection drop
+Cause: reconnect handler re-subscribed without clearing existing listeners
+Fix: clear previous subscriptions before re-establishing the connection
+```
+
+### Bug Fix Commit Bodies (CRITICAL)
+
+Every `fix:` commit body **must** include three lines so recurring bugs are easy to search for:
+
+1. **Symptom** — what the user or developer experienced (observable behavior, not code internals)
+2. **Cause** — the root cause (why it happened)
+3. **Fix** — what was changed to resolve it
+
+Use the exact prefixes `Symptom:`, `Cause:`, `Fix:` for grep-ability. Bad: `fix: update query`. Good: the example above.
+
+This makes it trivial to detect repeating bugs — `git log --all --grep="Symptom: duplicate message"` instantly surfaces past occurrences and their root causes.
+
 ### Issue-Linked Commits
 
-When fixing a reported issue (fully or partially), add this line at the end of the commit body:
+When fixing a reported issue (fully or partially), add an `Issue:` line **after** the Symptom/Cause/Fix block:
 
 ```
 Issue: <issue_id> — <one sentence describing the problem, no PII>
@@ -54,9 +74,17 @@ Issue: <issue_id> — <one sentence describing the problem, no PII>
 
 No emails, usernames, or user IDs. Example:
 
-```
+```bash
+fix: prevent WebSocket disconnect on embed send
+
+Symptom: connection dropped immediately after sending a message containing an embed
+Cause: message serializer exceeded max frame size for large embed payloads
+Fix: chunk large payloads and send as continuation frames
+
 Issue: 7f3a2c1d — WebSocket dropped after sending a message with an embed
 ```
+
+For ad-hoc fixes without a formal issue ID, the Symptom/Cause/Fix block is still **mandatory** — omit only the `Issue:` line.
 
 ### Pre-commit Checklist
 

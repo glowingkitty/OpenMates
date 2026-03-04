@@ -21,6 +21,7 @@
 
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import { handleImageError } from '../../../utils/offlineImageHandler';
   
   /**
    * Props for news embed fullscreen
@@ -405,7 +406,7 @@
             class="header-image"
             loading="lazy"
             crossorigin="anonymous"
-            onerror={() => { imageError = true; }}
+            onerror={(e) => { imageError = true; handleImageError(e.currentTarget as HTMLImageElement); }}
           />
         </div>
       {/if}
@@ -418,7 +419,7 @@
             alt="" 
             class="title-favicon"
             crossorigin="anonymous"
-            onerror={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            onerror={(e) => { handleImageError(e.target as HTMLImageElement); }}
           />
         {/if}
         <h1 class="news-title">{displayTitle}</h1>

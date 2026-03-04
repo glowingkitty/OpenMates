@@ -535,6 +535,9 @@
         },
         "example_2": {
           "text": "अनौपचारिक टीम"
+        },
+        "example_3": {
+          "text": "फॉलो-अप और रिमाइंडर"
         }
       }
     },
@@ -1185,6 +1188,9 @@
         "description": {
           "text": "PDF के विशिष्ट पृष्ठों से टेक्स्ट पढ़ें।"
         },
+        "processing": {
+          "text": "पढ़ा जा रहा है…"
+        },
         "how_to_use": {
           "1": {
             "text": "अपलोड किए गए PDF का पृष्ठ 5 पढ़ें"
@@ -1802,6 +1808,23 @@
       },
       "just_now": {
         "text": "अभी"
+      }
+    },
+    "thinking": {
+      "placeholder": {
+        "text": "मुझे इसके बारे में सोचने दो..."
+      },
+      "header_streaming": {
+        "text": "सोच रहा है..."
+      },
+      "header_done": {
+        "text": "विचार प्रक्रिया"
+      },
+      "collapse": {
+        "text": "विचार प्रक्रिया संक्षिप्त करें"
+      },
+      "expand": {
+        "text": "विचार प्रक्रिया विस्तार करें"
       }
     },
     "new_chat_suggestions": {
@@ -3092,6 +3115,35 @@
       "plot": {
         "text": "ग्राफ"
       }
+    },
+    "mail": {
+      "email": {
+        "text": "ईमेल ड्राफ्ट"
+      },
+      "to": {
+        "text": "प्राप्तकर्ता"
+      },
+      "subject": {
+        "text": "विषय"
+      },
+      "content": {
+        "text": "सामग्री"
+      },
+      "footer": {
+        "text": "फ़ुटर"
+      },
+      "empty_content": {
+        "text": "अभी ईमेल सामग्री उपलब्ध नहीं है।"
+      },
+      "open_mail_client": {
+        "text": "मेल ऐप में खोलें"
+      },
+      "copied": {
+        "text": "ईमेल ड्राफ्ट कॉपी हो गया।"
+      },
+      "copy_failed": {
+        "text": "ईमेल ड्राफ्ट कॉपी नहीं हो सका।"
+      }
     }
   },
   "enter_message": {
@@ -3176,7 +3228,7 @@
       "text": "अपना संदेश दर्ज करें"
     },
     "click_to_enter_message": {
-      "text": "अपना संदेश दर्ज करने के लिए यहां क्लिक करें"
+      "text": "कुछ भी पूछने के लिए यहां क्लिक करें"
     },
     "click_to_add_text": {
       "text": "पाठ जोड़ने के लिए यहां क्लिक करें"
@@ -3261,10 +3313,10 @@
     },
     "placeholder": {
       "desktop": {
-        "text": "संदेश दर्ज करने के लिए क्लिक करें..."
+        "text": "कुछ भी पूछने के लिए क्लिक करें..."
       },
       "touch": {
-        "text": "संदेश दर्ज करने के लिए टैप करें..."
+        "text": "कुछ भी पूछने के लिए टैप करें..."
       }
     },
     "press_and_hold_menu": {
@@ -7359,6 +7411,12 @@
     },
     "gift_card_redeemed_success": {
       "text": "अपने उपहार का आनंद लें!"
+    },
+    "gift_card_waiting_notification": {
+      "text": "Your {credits} credits gift card is waiting for you. Sign up or login to apply them."
+    },
+    "gift_card_waiting_action": {
+      "text": "Signup/Login"
     },
     "credits_purchased": {
       "text": "खरीदे गए क्रेडिट"

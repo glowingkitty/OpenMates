@@ -63,6 +63,72 @@ docker exec api python /app/backend/scripts/inspect_user.py <email_address>
 
 ---
 
+## User Activity Timeline (Cross-Service Logs)
+
+The `inspect_user_logs.py` script builds a unified, chronologically sorted timeline of all actions a specific user triggered across the entire system — API, task workers, app containers, upload/preview satellites, compliance logs, and client console logs (admin only).
+
+```bash
+# Basic usage — last 24h of activity for a user (by email)
+docker exec api python /app/backend/scripts/inspect_user_logs.py someone@example.com
+
+# By user ID
+docker exec api python /app/backend/scripts/inspect_user_logs.py 550e8400-e29b-41d4-a716-446655440000
+
+# Last 60 minutes only
+docker exec api python /app/backend/scripts/inspect_user_logs.py someone@example.com --since 60
+
+# Filter by category
+docker exec api python /app/backend/scripts/inspect_user_logs.py someone@example.com --category auth,chat,error
+
+# Filter by log level
+docker exec api python /app/backend/scripts/inspect_user_logs.py someone@example.com --level warning
+
+# Follow mode (poll every 5s, like tail -f)
+docker exec api python /app/backend/scripts/inspect_user_logs.py someone@example.com --follow
+
+# JSON output (for programmatic use)
+docker exec api python /app/backend/scripts/inspect_user_logs.py someone@example.com --json
+
+# Verbose mode (show raw log lines alongside parsed events)
+docker exec api python /app/backend/scripts/inspect_user_logs.py someone@example.com --verbose
+```
+
+### How It Works
+
+1. Resolves the user by email or UUID (queries Directus)
+2. Runs parallel targeted Loki queries per service: `api-logs`, `compliance-logs`, `container-logs`, `client-console`
+3. Fetches satellite logs from upload/preview servers via HTTP Admin Log API
+4. Parses and classifies events using regex patterns into categories: `auth`, `chat`, `sync`, `embed`, `usage`, `settings`, `client`, `error`, `other`
+5. Merges all events into a single chronological timeline
+6. Displays with color-coded categories and log levels
+
+### Options
+
+| Flag             | Description                                            |
+| ---------------- | ------------------------------------------------------ |
+| `--since N`      | Minutes to look back (default: 1440 = 24h)             |
+| `--category X,Y` | Filter by event categories                             |
+| `--level X`      | Minimum log level: `debug`, `info`, `warning`, `error` |
+| `--follow`       | Poll every 5s for new events (Ctrl+C to stop)          |
+| `--json`         | JSON output                                            |
+| `--verbose`      | Show raw log lines alongside parsed events             |
+| `--prod`         | Query production via Admin Debug API (placeholder)     |
+
+### Event Categories
+
+| Category   | What it captures                                   |
+| ---------- | -------------------------------------------------- |
+| `auth`     | Login, logout, token refresh, session validation   |
+| `chat`     | Message send/receive, AI dispatch, chat operations |
+| `sync`     | Cache sync, Phase 1/2 operations                   |
+| `embed`    | Embed creation, resolution, rendering              |
+| `usage`    | Usage tracking, rate limits, quota checks          |
+| `settings` | Preference changes, app store toggles              |
+| `client`   | Browser console logs (admin users only)            |
+| `error`    | Any ERROR/CRITICAL level log mentioning the user   |
+
+---
+
 ## Newsletter Inspection
 
 ```bash

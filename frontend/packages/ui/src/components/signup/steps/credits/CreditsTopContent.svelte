@@ -64,10 +64,10 @@ step_9_top_content_svelte:
     import GiftCardRedeem from '../../../../components/settings/billing/GiftCardRedeem.svelte';
     
     const dispatch = createEventDispatcher();
-    
+
     // State to track if gift card input is shown
     let showGiftCardInput = $state(false);
-    
+
     /**
      * Open the app store in settings using deep linking.
      * Sets both the store and the URL hash for proper deep linking support.

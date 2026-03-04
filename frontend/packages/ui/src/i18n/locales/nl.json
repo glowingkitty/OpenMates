@@ -535,6 +535,9 @@
         },
         "example_2": {
           "text": "Casual team"
+        },
+        "example_3": {
+          "text": "Follow-up en herinneringen"
         }
       }
     },
@@ -1185,6 +1188,9 @@
         "description": {
           "text": "Lees tekst van specifieke pagina's van een PDF."
         },
+        "processing": {
+          "text": "Lezen…"
+        },
         "how_to_use": {
           "1": {
             "text": "Lees pagina 5 van de geüploade PDF"
@@ -1802,6 +1808,23 @@
       },
       "just_now": {
         "text": "Zojuist"
+      }
+    },
+    "thinking": {
+      "placeholder": {
+        "text": "Laat me even nadenken..."
+      },
+      "header_streaming": {
+        "text": "Denkt na..."
+      },
+      "header_done": {
+        "text": "Denkproces"
+      },
+      "collapse": {
+        "text": "Denkproces inklappen"
+      },
+      "expand": {
+        "text": "Denkproces uitklappen"
       }
     },
     "new_chat_suggestions": {
@@ -3092,6 +3115,35 @@
       "plot": {
         "text": "Plot"
       }
+    },
+    "mail": {
+      "email": {
+        "text": "E-mailconcept"
+      },
+      "to": {
+        "text": "Aan"
+      },
+      "subject": {
+        "text": "Onderwerp"
+      },
+      "content": {
+        "text": "Inhoud"
+      },
+      "footer": {
+        "text": "Footer"
+      },
+      "empty_content": {
+        "text": "Nog geen e-mailinhoud."
+      },
+      "open_mail_client": {
+        "text": "Openen in mailapp"
+      },
+      "copied": {
+        "text": "E-mailconcept gekopieerd."
+      },
+      "copy_failed": {
+        "text": "E-mailconcept kopieren mislukt."
+      }
     }
   },
   "enter_message": {
@@ -3176,7 +3228,7 @@
       "text": "Voer je bericht in"
     },
     "click_to_enter_message": {
-      "text": "Klik hier om je bericht in te voeren"
+      "text": "Klik hier om iets te vragen"
     },
     "click_to_add_text": {
       "text": "Klik hier om tekst toe te voegen"
@@ -3261,10 +3313,10 @@
     },
     "placeholder": {
       "desktop": {
-        "text": "Klik om een bericht in te voeren..."
+        "text": "Klik om iets te vragen..."
       },
       "touch": {
-        "text": "Tik om een bericht in te voeren..."
+        "text": "Tik om iets te vragen..."
       }
     },
     "press_and_hold_menu": {
@@ -7359,6 +7411,12 @@
     },
     "gift_card_redeemed_success": {
       "text": "Geniet van je cadeau!"
+    },
+    "gift_card_waiting_notification": {
+      "text": "Your {credits} credits gift card is waiting for you. Sign up or login to apply them."
+    },
+    "gift_card_waiting_action": {
+      "text": "Signup/Login"
     },
     "credits_purchased": {
       "text": "Gekochte credits"

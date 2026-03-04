@@ -84,6 +84,9 @@ services:
       REDIS_PORT: "6379"
       REDIS_PASSWORD: "${DRAGONFLY_PASSWORD}"
       REDIS_USERNAME: "default"
+      # Directus refresh token lifetime — must match the cookie/cache TTL for stay_logged_in users.
+      # Default is 7 days which is too short for 30-day "stay logged in" sessions.
+      REFRESH_TOKEN_TTL: "30d"
       # Allow clients to bypass Directus cache using Cache-Control: no-store
       CACHE_SKIP_ALLOWED: "true"
       # Automatically purge cache on data manipulation for real-time updates
@@ -874,6 +877,56 @@ services:
     environment:
       APP_NAME: "docs"
       DOCS_APP_INTERNAL_PORT: "8000"
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ../../backend:/app/backend
+      - ../../backend/apps:/app/apps
+      - ../../shared:/shared
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup:
+        condition: service_started
+      cms-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  app-mail:
+    container_name: app-mail
+    build:
+      context: ../../
+      dockerfile: backend/apps/Dockerfile.base
+      args:
+        APP_NAME: mail
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      APP_NAME: "mail"
+      MAIL_APP_INTERNAL_PORT: "8000"
       CMS_URL: "http://cms:8055"
       DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
       DRAGONFLY_URL: "cache:6379"

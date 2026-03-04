@@ -231,7 +231,7 @@ appointments.example_1:
   th: ทันตแพทย์ Dr. Mueller
   cs: Zubař Dr. Mueller
   sv: Tandläkare Dr. Mueller
-  he: "רופא שיניים ד\"ר מילר"
+  he: 'רופא שיניים ד"ר מילר'
   verified_by_human: [en, de]
 
 appointments.example_2:
@@ -308,3 +308,207 @@ medical_history.example_2:
   sv: Knäoperation 2023
   he: ניתוח ברך 2023
   verified_by_human: [en, de]
+
+# Structured example entries for appointments
+
+appointments.example_1.where:
+  context: Example value for where in appointments
+  en: City Hospital
+  de: Stadtkrankenhaus
+  zh: 市立医院
+  es: Hospital de la Ciudad
+  fr: Hôpital de la ville
+  pt: Hospital da Cidade
+  ru: Городская больница
+  ja: 市立病院
+  ko: 시립병원
+  it: Ospedale Cittadino
+  tr: Şehir Hastanesi
+  vi: Bệnh viện Thành phố
+  id: Rumah Sakit Kota
+  pl: Szpital Miejski
+  nl: Stadsziekenhuis
+  ar: مستشفى المدينة
+  hi: सिटी अस्पताल
+  th: โรงพยาบาลเมือง
+  cs: Městská nemocnice
+  sv: Stadssjukhuset
+  he: בית החולים העירוני
+  verified_by_human: []
+
+appointments.example_1.notes:
+  context: Example value for notes in appointments
+  en: Annual check-up
+  de: Jährliche Vorsorgeuntersuchung
+  zh: 年度体检
+  es: Chequeo anual
+  fr: Bilan de santé annuel
+  pt: Exame anual
+  ru: Ежегодный осмотр
+  ja: 年次健康診断
+  ko: 연간 건강검진
+  it: Visita annuale di controllo
+  tr: Yıllık kontrol muayenesi
+  vi: Khám sức khỏe định kỳ hàng năm
+  id: Pemeriksaan kesehatan tahunan
+  pl: Coroczne badanie kontrolne
+  nl: Jaarlijkse controle
+  ar: فحص سنوي
+  hi: वार्षिक स्वास्थ्य जांच
+  th: ตรวจสุขภาพประจำปี
+  cs: Roční preventivní prohlídka
+  sv: Årlig hälsokontroll
+  he: בדיקה שנתית
+  verified_by_human: []
+
+appointments.example_2.where:
+  context: Example value for where in appointments
+  en: Downtown Dental
+  de: Zahnarztpraxis Innenstadt
+  zh: 市中心牙科诊所
+  es: Clínica Dental del Centro
+  fr: Cabinet dentaire du centre-ville
+  pt: Clínica Dentária do Centro
+  ru: Стоматология в центре города
+  ja: ダウンタウン歯科
+  ko: 시내 치과
+  it: Studio Dentistico Centro
+  tr: Şehir Merkezi Diş Kliniği
+  vi: Nha khoa Trung tâm
+  id: Klinik Gigi Pusat Kota
+  pl: Gabinet Dentystyczny Centrum
+  nl: Tandartspraktijk Centrum
+  ar: عيادة أسنان وسط المدينة
+  hi: डाउनटाउन डेंटल
+  th: คลินิกทันตกรรมใจกลางเมือง
+  cs: Zubní klinika v centru
+  sv: Tandkliniken i centrum
+  he: מרפאת שיניים במרכז העיר
+  verified_by_human: []
+
+appointments.example_2.notes:
+  context: Example value for notes in appointments
+  en: Teeth cleaning
+  de: Zahnreinigung
+  zh: 洗牙
+  es: Limpieza dental
+  fr: Nettoyage dentaire
+  pt: Limpeza dentária
+  ru: Чистка зубов
+  ja: 歯のクリーニング
+  ko: 치아 스케일링
+  it: Pulizia dei denti
+  tr: Diş temizliği
+  vi: Lấy cao răng
+  id: Pembersihan gigi
+  pl: Czyszczenie zębów
+  nl: Tandreiniging
+  ar: تنظيف الأسنان
+  hi: दांतों की सफाई
+  th: ขูดหินปูน
+  cs: Čištění zubů
+  sv: Tandrengöring
+  he: ניקוי שיניים
+  verified_by_human: []
+
+# Structured example entries for medical_history
+
+medical_history.example_1.name:
+  context: Example value for name in medical_history
+  en: Peanut Allergy
+  de: Erdnussallergie
+  zh: 花生过敏
+  es: Alergia al cacahuete
+  fr: Allergie aux arachides
+  pt: Alergia a amendoim
+  ru: Аллергия на арахис
+  ja: ピーナッツアレルギー
+  ko: 땅콩 알레르기
+  it: Allergia alle arachidi
+  tr: Fıstık alerjisi
+  vi: Dị ứng đậu phộng
+  id: Alergi kacang tanah
+  pl: Alergia na orzeszki ziemne
+  nl: Pinda-allergie
+  ar: حساسية الفول السوداني
+  hi: मूंगफली एलर्जी
+  th: แพ้ถั่วลิสง
+  cs: Alergie na arašídy
+  sv: Jordnötsallergi
+  he: אלרגיה לבוטנים
+  verified_by_human: []
+
+medical_history.example_1.details:
+  context: Example value for details in medical_history
+  en: Severe allergic reaction, carry EpiPen
+  de: Schwere allergische Reaktion, EpiPen mitführen
+  zh: 严重过敏反应，随身携带肾上腺素笔
+  es: Reacción alérgica grave, llevar EpiPen
+  fr: Réaction allergique grave, porter un EpiPen
+  pt: Reação alérgica grave, portar EpiPen
+  ru: Тяжёлая аллергическая реакция, носить ЭпиПен
+  ja: 重度のアレルギー反応、エピペン携帯
+  ko: 심각한 알레르기 반응, 에피펜 휴대
+  it: Reazione allergica grave, portare EpiPen
+  tr: Ciddi alerjik reaksiyon, EpiPen taşı
+  vi: Phản ứng dị ứng nghiêm trọng, mang theo EpiPen
+  id: Reaksi alergi parah, bawa EpiPen
+  pl: Ciężka reakcja alergiczna, nosić EpiPen
+  nl: Ernstige allergische reactie, EpiPen bij zich dragen
+  ar: رد فعل تحسسي شديد، حمل حقنة إبينفرين
+  hi: गंभीर एलर्जी प्रतिक्रिया, एपिपेन रखें
+  th: อาการแพ้รุนแรง พกเข็มฉีดอะดรีนาลีน
+  cs: Těžká alergická reakce, nosit EpiPen
+  sv: Allvarlig allergisk reaktion, bär EpiPen
+  he: תגובה אלרגית חמורה, נושא אפיפן
+  verified_by_human: []
+
+medical_history.example_2.name:
+  context: Example value for name in medical_history
+  en: COVID-19 Vaccine
+  de: COVID-19-Impfung
+  zh: 新冠疫苗
+  es: Vacuna COVID-19
+  fr: Vaccin COVID-19
+  pt: Vacina COVID-19
+  ru: Вакцина от COVID-19
+  ja: COVID-19ワクチン
+  ko: 코로나19 백신
+  it: Vaccino COVID-19
+  tr: COVID-19 Aşısı
+  vi: Vắc-xin COVID-19
+  id: Vaksin COVID-19
+  pl: Szczepionka COVID-19
+  nl: COVID-19-vaccin
+  ar: لقاح كوفيد-19
+  hi: कोविड-19 टीका
+  th: วัคซีนโควิด-19
+  cs: Očkování COVID-19
+  sv: COVID-19-vaccin
+  he: חיסון קורונה
+  verified_by_human: []
+
+medical_history.example_2.details:
+  context: Example value for details in medical_history
+  en: Pfizer booster shot
+  de: Pfizer-Auffrischungsimpfung
+  zh: 辉瑞加强针
+  es: Dosis de refuerzo de Pfizer
+  fr: Dose de rappel Pfizer
+  pt: Dose de reforço da Pfizer
+  ru: Бустерная доза Pfizer
+  ja: ファイザーブースター接種
+  ko: 화이자 부스터 접종
+  it: Dose di richiamo Pfizer
+  tr: Pfizer hatırlatma dozu
+  vi: Mũi tăng cường Pfizer
+  id: Booster Pfizer
+  pl: Dawka przypominająca Pfizer
+  nl: Pfizer-boostervaccinatie
+  ar: جرعة معززة من فايزر
+  hi: फाइज़र बूस्टर शॉट
+  th: เข็มกระตุ้นไฟเซอร์
+  cs: Posilovací dávka Pfizer
+  sv: Pfizer boosterdos
+  he: מנת דחף של פייזר
+  verified_by_human: []

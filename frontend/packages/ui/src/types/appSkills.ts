@@ -2,9 +2,14 @@
 // Type definitions for app skill previews and execution states
 
 /**
- * Status of a skill execution
+ * Status of a skill execution.
+ * Canonical definition: see embedStateMachine.ts for valid statuses and transitions.
  */
-export type SkillExecutionStatus = 'processing' | 'finished' | 'error' | 'cancelled';
+export type SkillExecutionStatus =
+  | "processing"
+  | "finished"
+  | "error"
+  | "cancelled";
 
 /**
  * Base interface for all app skill preview data
@@ -20,8 +25,8 @@ export interface BaseSkillPreviewData {
  * Web Search skill preview data
  */
 export interface WebSearchSkillPreviewData extends BaseSkillPreviewData {
-  app_id: 'web';
-  skill_id: 'search';
+  app_id: "web";
+  skill_id: "search";
   query: string;
   provider: string; // e.g., "Brave Search"
   status: SkillExecutionStatus;
@@ -34,7 +39,7 @@ export interface WebSearchSkillPreviewData extends BaseSkillPreviewData {
  * Individual search result from a search skill execution
  */
 export interface WebSearchResult {
-  type: 'search_result';
+  type: "search_result";
   title: string;
   url: string;
   snippet: string;
@@ -47,8 +52,8 @@ export interface WebSearchResult {
  * Video Transcript skill preview data
  */
 export interface VideoTranscriptSkillPreviewData extends BaseSkillPreviewData {
-  app_id: 'videos';
-  skill_id: 'get_transcript';
+  app_id: "videos";
+  skill_id: "get_transcript";
   status: SkillExecutionStatus;
   results?: VideoTranscriptResult[]; // Only present when status is 'finished'
   video_count?: number; // Number of videos requested
@@ -60,7 +65,7 @@ export interface VideoTranscriptSkillPreviewData extends BaseSkillPreviewData {
  * Individual video transcript result
  */
 export interface VideoTranscriptResult {
-  type: 'video_transcript';
+  type: "video_transcript";
   video_id: string;
   url: string;
   transcript?: string;
@@ -88,8 +93,8 @@ export interface VideoTranscriptResult {
  * Used to display documentation fetched from Context7 API
  */
 export interface CodeGetDocsSkillPreviewData extends BaseSkillPreviewData {
-  app_id: 'code';
-  skill_id: 'get_docs';
+  app_id: "code";
+  skill_id: "get_docs";
   status: SkillExecutionStatus;
   results?: CodeGetDocsResult[];
   library?: string; // Library name that was searched
@@ -101,7 +106,7 @@ export interface CodeGetDocsSkillPreviewData extends BaseSkillPreviewData {
  * Note: Backend may send flat (library_id, library_title) or nested (library.id, library.title) structure
  */
 export interface CodeGetDocsResult {
-  type?: 'get_docs';
+  type?: "get_docs";
   /** Selected library info (nested structure) */
   library?: {
     id?: string; // e.g., "/sveltejs/svelte"
@@ -133,4 +138,3 @@ export interface SkillExecutionStatusUpdatePayload {
   status: SkillExecutionStatus;
   preview_data?: BaseSkillPreviewData; // Skill-specific preview data
 }
-

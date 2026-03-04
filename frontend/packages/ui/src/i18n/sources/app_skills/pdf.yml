@@ -362,6 +362,31 @@ read.description:
   verified_by_human:
     - en
 
+read.processing:
+  context: Status text shown on PDF read embed card while the skill is reading pages from the PDF
+  en: "Reading\u2026"
+  de: "Wird gelesen\u2026"
+  zh: "读取中\u2026"
+  es: "Leyendo\u2026"
+  fr: "Lecture\u2026"
+  pt: "Lendo\u2026"
+  ru: "Чтение\u2026"
+  ja: "読み取り中\u2026"
+  ko: "읽는 중\u2026"
+  it: "Lettura\u2026"
+  tr: "Okunuyor\u2026"
+  vi: "Đang đọc\u2026"
+  id: "Membaca\u2026"
+  pl: "Odczytywanie\u2026"
+  nl: "Lezen\u2026"
+  ar: "جارٍ القراءة\u2026"
+  hi: "पढ़ा जा रहा है\u2026"
+  th: "กำลังอ่าน\u2026"
+  cs: "Čtení\u2026"
+  sv: "Läser\u2026"
+  he: "קורא..."
+  verified_by_human: []
+
 search:
   context: Skill name for the PDF search skill (searches text across all PDF pages)
   en: Search
@@ -511,7 +536,7 @@ search.how_to_use.1:
   th: "\u0e04\u0e49\u0e19\u0e2b\u0e32 \"\u0e01\u0e32\u0e23\u0e40\u0e1b\u0e25\u0e35\u0e48\u0e22\u0e19\u0e41\u0e1b\u0e25\u0e07\u0e2a\u0e20\u0e32\u0e1e\u0e20\u0e39\u0e21\u0e34\u0e2d\u0e32\u0e01\u0e32\u0e28\" \u0e43\u0e19 PDF"
   cs: "Hledejte \u201ezmena klimatu\u201c v PDF"
   sv: "S\u00f6k efter \"klimatf\u00f6r\u00e4ndringar\" i PDF:en"
-  he: "חפש \"שינויי אקלים\" ב-PDF"
+  he: 'חפש "שינויי אקלים" ב-PDF'
   verified_by_human: [en]
 
 search.how_to_use.2:
@@ -536,7 +561,7 @@ search.how_to_use.2:
   th: "\u0e04\u0e49\u0e19\u0e2b\u0e32\u0e17\u0e38\u0e01\u0e17\u0e35\u0e48\u0e17\u0e35\u0e48\u0e01\u0e25\u0e48\u0e32\u0e27\u0e16\u0e36\u0e07 \"\u0e44\u0e2d\u0e19\u0e2a\u0e44\u0e15\u0e19\u0e4c\" \u0e43\u0e19\u0e40\u0e2d\u0e01\u0e2a\u0e32\u0e23"
   cs: "Najdi v\u0161echny zm\u00ednky \u201eEinsteine\u201c v dokumentu"
   sv: "Hitta alla n\u00e4mningar av \"Einstein\" i dokumentet"
-  he: "מצא את כל האזכורים של \"איינשטיין\" במסמך"
+  he: 'מצא את כל האזכורים של "איינשטיין" במסמך'
   verified_by_human: [en]
 
 search.how_to_use.3:
@@ -561,5 +586,5 @@ search.how_to_use.3:
   th: "\u0e04\u0e49\u0e19\u0e2b\u0e32\u0e17\u0e38\u0e01\u0e01\u0e32\u0e23\u0e2d\u0e49\u0e32\u0e07\u0e2d\u0e34\u0e07\u0e16\u0e36\u0e07 \"\u0e07\u0e1a\u0e1b\u0e23\u0e30\u0e21\u0e32\u0e13\" \u0e43\u0e19\u0e23\u0e32\u0e22\u0e07\u0e32\u0e19\u0e19\u0e35\u0e49"
   cs: "Prohledejte v\u0161echny odkazy na \u201erozpo\u010det\u201c v t\u00e9to zpr\u00e1v\u011b"
   sv: "S\u00f6k efter alla referenser till \"budget\" i denna rapport"
-  he: "חפש את כל ההתייחסויות ל\"תקציב\" בדוח זה"
+  he: 'חפש את כל ההתייחסויות ל"תקציב" בדוח זה'
   verified_by_human: [en]

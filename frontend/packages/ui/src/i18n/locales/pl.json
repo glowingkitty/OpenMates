@@ -535,6 +535,9 @@
         },
         "example_2": {
           "text": "Luźny zespołowy"
+        },
+        "example_3": {
+          "text": "Follow-up i przypomnienia"
         }
       }
     },
@@ -1185,6 +1188,9 @@
         "description": {
           "text": "Odczytaj tekst z określonych stron PDF."
         },
+        "processing": {
+          "text": "Odczytywanie…"
+        },
         "how_to_use": {
           "1": {
             "text": "Przeczytaj stronę 5 przesłanego PDF"
@@ -1802,6 +1808,23 @@
       },
       "just_now": {
         "text": "Właśnie teraz"
+      }
+    },
+    "thinking": {
+      "placeholder": {
+        "text": "Pozwól mi pomyśleć..."
+      },
+      "header_streaming": {
+        "text": "Myśli..."
+      },
+      "header_done": {
+        "text": "Proces myślenia"
+      },
+      "collapse": {
+        "text": "Zwiń proces myślenia"
+      },
+      "expand": {
+        "text": "Rozwiń proces myślenia"
       }
     },
     "new_chat_suggestions": {
@@ -3092,6 +3115,35 @@
       "plot": {
         "text": "Wykres"
       }
+    },
+    "mail": {
+      "email": {
+        "text": "Szkic e-maila"
+      },
+      "to": {
+        "text": "Do"
+      },
+      "subject": {
+        "text": "Temat"
+      },
+      "content": {
+        "text": "Tresc"
+      },
+      "footer": {
+        "text": "Stopka"
+      },
+      "empty_content": {
+        "text": "Brak tresci e-maila."
+      },
+      "open_mail_client": {
+        "text": "Otworz w aplikacji poczty"
+      },
+      "copied": {
+        "text": "Szkic e-maila skopiowany."
+      },
+      "copy_failed": {
+        "text": "Nie udalo sie skopiowac szkicu e-maila."
+      }
     }
   },
   "enter_message": {
@@ -3176,7 +3228,7 @@
       "text": "Wprowadź wiadomość"
     },
     "click_to_enter_message": {
-      "text": "Kliknij tutaj, aby wprowadzić wiadomość"
+      "text": "Kliknij tutaj, aby zapytać o cokolwiek"
     },
     "click_to_add_text": {
       "text": "Kliknij tutaj, aby dodać tekst"
@@ -3261,10 +3313,10 @@
     },
     "placeholder": {
       "desktop": {
-        "text": "Kliknij, aby wprowadzić wiadomość..."
+        "text": "Kliknij, aby zapytać o cokolwiek..."
       },
       "touch": {
-        "text": "Dotknij, aby wprowadzić wiadomość..."
+        "text": "Dotknij, aby zapytać o cokolwiek..."
       }
     },
     "press_and_hold_menu": {
@@ -7359,6 +7411,12 @@
     },
     "gift_card_redeemed_success": {
       "text": "Ciesz się swoim prezentem!"
+    },
+    "gift_card_waiting_notification": {
+      "text": "Your {credits} credits gift card is waiting for you. Sign up or login to apply them."
+    },
+    "gift_card_waiting_action": {
+      "text": "Signup/Login"
     },
     "credits_purchased": {
       "text": "Zakupione kredyty"

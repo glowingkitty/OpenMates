@@ -444,7 +444,7 @@ export interface SendEmbedDataPayload {
     embed_id: string;
     type: string; // PLAINTEXT embed type (client will encrypt before storage)
     content: string; // PLAINTEXT TOON-encoded string (client will encrypt before storage)
-    status: string; // "processing" | "finished" | "error"
+    status: string; // "processing" | "finished" | "error" | "cancelled" — see embedStateMachine.ts
     chat_id: string; // PLAINTEXT chat_id (client will hash before sending to server)
     message_id: string; // PLAINTEXT message_id (client will hash before sending to server)
     user_id: string;

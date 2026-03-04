@@ -535,6 +535,9 @@
         },
         "example_2": {
           "text": "カジュアルチーム"
+        },
+        "example_3": {
+          "text": "フォローアップとリマインド"
         }
       }
     },
@@ -1185,6 +1188,9 @@
         "description": {
           "text": "PDFの特定ページからテキストを読み取る。"
         },
+        "processing": {
+          "text": "読み取り中…"
+        },
         "how_to_use": {
           "1": {
             "text": "アップロードされたPDFの5ページを読んで"
@@ -1802,6 +1808,23 @@
       },
       "just_now": {
         "text": "たった今"
+      }
+    },
+    "thinking": {
+      "placeholder": {
+        "text": "ちょっと考えさせて..."
+      },
+      "header_streaming": {
+        "text": "考え中..."
+      },
+      "header_done": {
+        "text": "思考プロセス"
+      },
+      "collapse": {
+        "text": "思考プロセスを折りたたむ"
+      },
+      "expand": {
+        "text": "思考プロセスを展開する"
       }
     },
     "new_chat_suggestions": {
@@ -3433,6 +3456,35 @@
       "plot": {
         "text": "グラフ"
       }
+    },
+    "mail": {
+      "email": {
+        "text": "メール下書き"
+      },
+      "to": {
+        "text": "宛先"
+      },
+      "subject": {
+        "text": "件名"
+      },
+      "content": {
+        "text": "本文"
+      },
+      "footer": {
+        "text": "フッター"
+      },
+      "empty_content": {
+        "text": "まだメール本文がありません。"
+      },
+      "open_mail_client": {
+        "text": "メールアプリで開く"
+      },
+      "copied": {
+        "text": "メール下書きをコピーしました。"
+      },
+      "copy_failed": {
+        "text": "メール下書きのコピーに失敗しました。"
+      }
     }
   },
   "enter_message": {
@@ -3517,7 +3569,7 @@
       "text": "メッセージを入力してください"
     },
     "click_to_enter_message": {
-      "text": "クリックしてメッセージを入力"
+      "text": "クリックして何でも質問"
     },
     "click_to_add_text": {
       "text": "クリックしてテキストを追加"
@@ -3602,10 +3654,10 @@
     },
     "placeholder": {
       "desktop": {
-        "text": "クリックしてメッセージを入力..."
+        "text": "クリックして何でも質問..."
       },
       "touch": {
-        "text": "タップしてメッセージを入力..."
+        "text": "タップして何でも質問..."
       }
     },
     "press_and_hold_menu": {
@@ -7100,6 +7152,39 @@
         "copied": {
           "text": "クリップボードにコピーしました"
         },
+        "show_qr": {
+          "text": "QRコードを表示"
+        },
+        "qr_code_for": {
+          "text": "ギフトカードQRコード"
+        },
+        "qr_code_hint": {
+          "text": "スキャンしてギフトカードが事前入力されたサインアップを開く"
+        },
+        "copy_link": {
+          "text": "サインアップリンクをコピー"
+        },
+        "active_cards": {
+          "text": "アクティブなギフトカード"
+        },
+        "active_cards_empty": {
+          "text": "このサーバーにはアクティブなギフトカードがありません"
+        },
+        "active_cards_refresh": {
+          "text": "更新"
+        },
+        "created_at": {
+          "text": "作成日"
+        },
+        "close": {
+          "text": "閉じる"
+        },
+        "loading_cards": {
+          "text": "ギフトカードを読み込み中..."
+        },
+        "load_error": {
+          "text": "ギフトカードの読み込みに失敗しました"
+        },
         "invalid_prefix": {
           "text": "プレフィックスは1-4文字（A-Z, 2-9、O, I, 0, 1を除く）"
         }
@@ -8737,6 +8822,12 @@
     },
     "gift_card_redeemed_success": {
       "text": "ギフトをお楽しみください！"
+    },
+    "gift_card_waiting_notification": {
+      "text": "Your {credits} credits gift card is waiting for you. Sign up or login to apply them."
+    },
+    "gift_card_waiting_action": {
+      "text": "Signup/Login"
     },
     "credits_purchased": {
       "text": "購入したクレジット"

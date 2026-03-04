@@ -535,6 +535,9 @@
         },
         "example_2": {
           "text": "Casual de equipo"
+        },
+        "example_3": {
+          "text": "Seguimiento y recordatorios"
         }
       }
     },
@@ -1185,6 +1188,9 @@
         "description": {
           "text": "Lee texto de páginas específicas de un PDF."
         },
+        "processing": {
+          "text": "Leyendo…"
+        },
         "how_to_use": {
           "1": {
             "text": "Lee la página 5 del PDF subido"
@@ -1802,6 +1808,23 @@
       },
       "just_now": {
         "text": "Ahora mismo"
+      }
+    },
+    "thinking": {
+      "placeholder": {
+        "text": "Déjame pensar en eso..."
+      },
+      "header_streaming": {
+        "text": "Pensando..."
+      },
+      "header_done": {
+        "text": "Proceso de pensamiento"
+      },
+      "collapse": {
+        "text": "Contraer proceso de pensamiento"
+      },
+      "expand": {
+        "text": "Expandir proceso de pensamiento"
       }
     },
     "new_chat_suggestions": {
@@ -3433,6 +3456,35 @@
       "plot": {
         "text": "Graficar"
       }
+    },
+    "mail": {
+      "email": {
+        "text": "Borrador de correo"
+      },
+      "to": {
+        "text": "Para"
+      },
+      "subject": {
+        "text": "Asunto"
+      },
+      "content": {
+        "text": "Contenido"
+      },
+      "footer": {
+        "text": "Firma"
+      },
+      "empty_content": {
+        "text": "Aun no hay contenido del correo."
+      },
+      "open_mail_client": {
+        "text": "Abrir en app de correo"
+      },
+      "copied": {
+        "text": "Borrador de correo copiado."
+      },
+      "copy_failed": {
+        "text": "No se pudo copiar el borrador del correo."
+      }
     }
   },
   "enter_message": {
@@ -3517,7 +3569,7 @@
       "text": "Ingresa tu mensaje"
     },
     "click_to_enter_message": {
-      "text": "Haz clic aquí para ingresar tu mensaje"
+      "text": "Haz clic aquí para preguntar lo que sea"
     },
     "click_to_add_text": {
       "text": "Haz clic aquí para agregar texto"
@@ -3628,15 +3680,36 @@
         },
         "settings_memory": {
           "text": "Configuraciones y memorias"
+        },
+        "model_alias": {
+          "text": "Atajo"
+        }
+      },
+      "model_alias": {
+        "best": {
+          "name": {
+            "text": "Mejor modelo"
+          },
+          "description": {
+            "text": "Selecciona el modelo de IA más capaz"
+          }
+        },
+        "fast": {
+          "name": {
+            "text": "Modelo más rápido"
+          },
+          "description": {
+            "text": "Selecciona el modelo de IA más rápido"
+          }
         }
       }
     },
     "placeholder": {
       "desktop": {
-        "text": "Haz clic para escribir un mensaje..."
+        "text": "Haz clic para preguntar lo que sea..."
       },
       "touch": {
-        "text": "Toca para escribir un mensaje..."
+        "text": "Toca para preguntar lo que sea..."
       }
     },
     "press_and_hold_menu": {
@@ -7257,6 +7330,39 @@
         "copied": {
           "text": "Copiado al portapapeles"
         },
+        "show_qr": {
+          "text": "Mostrar código QR"
+        },
+        "qr_code_for": {
+          "text": "Código QR de Tarjeta de Regalo"
+        },
+        "qr_code_hint": {
+          "text": "Escanear para abrir el registro con esta tarjeta de regalo precargada"
+        },
+        "copy_link": {
+          "text": "Copiar enlace de registro"
+        },
+        "active_cards": {
+          "text": "Tarjetas de Regalo Activas"
+        },
+        "active_cards_empty": {
+          "text": "No hay tarjetas de regalo activas en este servidor"
+        },
+        "active_cards_refresh": {
+          "text": "Actualizar"
+        },
+        "created_at": {
+          "text": "Creado"
+        },
+        "close": {
+          "text": "Cerrar"
+        },
+        "loading_cards": {
+          "text": "Cargando tarjetas de regalo..."
+        },
+        "load_error": {
+          "text": "No se pudieron cargar las tarjetas de regalo"
+        },
         "invalid_prefix": {
           "text": "El prefijo debe tener 1-4 caracteres (A-Z, 2-9, excluyendo O, I, 0, 1)"
         }
@@ -8894,6 +9000,12 @@
     },
     "gift_card_redeemed_success": {
       "text": "¡Disfruta de tu regalo!"
+    },
+    "gift_card_waiting_notification": {
+      "text": "Your {credits} credits gift card is waiting for you. Sign up or login to apply them."
+    },
+    "gift_card_waiting_action": {
+      "text": "Signup/Login"
     },
     "credits_purchased": {
       "text": "Créditos comprados"

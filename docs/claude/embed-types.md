@@ -24,7 +24,19 @@ Every embed is built from **two Svelte components** (Preview + Fullscreen) that 
 | `XxxEmbedPreview.svelte`    | `UnifiedEmbedPreview.svelte`    | Card shell, sizing, tilt/hover, status bar, real-time update subscription, stop button |
 | `XxxEmbedFullscreen.svelte` | `UnifiedEmbedFullscreen.svelte` | Slide-in animation, top bar (share/copy/close), gradient header, child embed loading   |
 
-**Your components only write skill-specific code** — the layout, UX, and data plumbing are handled by the Unified components. Keep each embed component thin.
+### Unified Components Are Mandatory (CRITICAL)
+
+**You MUST use `UnifiedEmbedPreview.svelte` and `UnifiedEmbedFullscreen.svelte` as the base** for every embed. No exceptions. Your app-specific components only provide:
+
+- Preview: the `{#snippet details}` with skill-specific content (query text, thumbnails, result counts)
+- Fullscreen: the `{#snippet content}` with skill-specific result rendering (grid, list, detail view)
+
+**Everything else is already handled by the Unified components.** Do NOT reimplement:
+
+- Card sizing/layout, hover/tilt effects, status bar, stop button, context menus, touch handling
+- Fullscreen animation, top bar, gradient header, child embed loading, search highlighting, share handler, navigation
+
+**Before adding custom logic to an app-specific file**, verify it cannot be achieved through the existing Unified component props (`showSkillIcon`, `faviconUrl`, `customStatusText`, `hasFullWidthImage`, `customHeight`, `titleIcon`, `actionButton`, `childEmbedTransformer`). Only add app-specific code in the snippets.
 
 ---
 

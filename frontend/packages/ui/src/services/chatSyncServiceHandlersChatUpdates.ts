@@ -448,6 +448,10 @@ export async function handleNewChatMessageImpl(
         created_at: payload.created_at || Math.floor(Date.now() / 1000),
         updated_at: Math.floor(Date.now() / 1000),
         encrypted_chat_key: payload.encrypted_chat_key || undefined, // Critical for device sync
+        // CROSS-DEVICE FIX: If no title is available yet (new chat, AI still processing),
+        // flag the chat so the sidebar shows "Processing..." instead of "Untitled chat".
+        // The flag is cleared when chat_title_updated or ai_typing_started delivers the title.
+        waiting_for_metadata: !payload.encrypted_title,
       };
 
       // If we have the chat key and encrypted title/category, decrypt for immediate local display
@@ -905,6 +909,25 @@ export async function handleChatMessageReceivedImpl(
         }),
       );
     } else if (chat) {
+      // CROSS-DEVICE KEY SAFETY: Before saving the message, verify the chat key
+      // is available. Without the correct key, saveMessage() triggers
+      // getOrGenerateChatKey() which generates a random WRONG key, encrypting
+      // the message with it. When the real key later arrives the ciphertext
+      // can't be decrypted → "[Content decryption failed]".
+      // If the key is missing, queue the message and wait for the key to arrive
+      // (same pattern as new_chat_message handler).
+      const existingKey = chatDB.getChatKeyOrNull(payload.chat_id);
+      if (!existingKey) {
+        console.warn(
+          `[ChatSyncService:ChatUpdates] chat_message_added for chat ${payload.chat_id}: ` +
+            `chat key not in cache — queuing message ${incomingMessage.message_id} until key arrives`,
+        );
+        const pending = _pendingMessages.get(payload.chat_id) || [];
+        pending.push(incomingMessage);
+        _pendingMessages.set(payload.chat_id, pending);
+        return;
+      }
+
       // Use separate transactions for each operation to avoid InvalidStateError
       await chatDB.saveMessage(incomingMessage);
 
@@ -1127,6 +1150,47 @@ export async function handleChatDeletedImpl(
         error,
       );
     }
+  }
+}
+
+/**
+ * Handle cross-device read status sync.
+ * When a user reads a chat on Device A, the server broadcasts
+ * `chat_read_status_updated` to all other devices so their unread badges
+ * and IndexedDB chat records stay in sync.
+ */
+export async function handleChatReadStatusUpdatedImpl(
+  _serviceInstance: ChatSynchronizationService,
+  payload: { chat_id: string; unread_count: number },
+): Promise<void> {
+  if (!payload || !payload.chat_id) {
+    console.error(
+      "[ChatSyncService:ChatUpdates] Invalid chat_read_status_updated payload: missing chat_id",
+      payload,
+    );
+    return;
+  }
+
+  const { chat_id, unread_count } = payload;
+  console.debug(
+    `[ChatSyncService:ChatUpdates] Received chat_read_status_updated for chat ${chat_id}: unread_count=${unread_count}`,
+  );
+
+  // 1. Update the in-memory unread store so badges update immediately
+  const { unreadMessagesStore } = await import("../stores/unreadMessagesStore");
+  unreadMessagesStore.setUnread(chat_id, unread_count);
+
+  // 2. Persist to IndexedDB so the count survives page reloads
+  try {
+    const chat = await chatDB.getChat(chat_id);
+    if (chat) {
+      await chatDB.updateChat({ ...chat, unread_count });
+    }
+  } catch (err) {
+    console.error(
+      `[ChatSyncService:ChatUpdates] Failed to persist unread_count for chat ${chat_id}:`,
+      err,
+    );
   }
 }
 

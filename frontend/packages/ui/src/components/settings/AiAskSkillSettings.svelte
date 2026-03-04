@@ -99,8 +99,12 @@
     let defaultSimple = $derived($userProfile.default_ai_model_simple ?? null);
     let defaultComplex = $derived($userProfile.default_ai_model_complex ?? null);
 
-    // Auto-select is ON when BOTH defaults are null (no overrides set)
+    // Auto-select is ON when BOTH defaults are null (no overrides set).
+    // Note: This persisted state alone cannot represent "manual mode with both dropdowns still on Auto".
+    // We keep a local UI mode flag so users can toggle OFF and then pick models.
     let autoSelectEnabled = $derived(defaultSimple === null && defaultComplex === null);
+    let manualModeEnabled = $state(false);
+    let isAutoSelectOn = $derived(autoSelectEnabled && !manualModeEnabled);
 
     // Ordered lists of ai.ask models for each dropdown
     // Simple dropdown: economy first, then standard, then premium (cheapest models first)
@@ -174,13 +178,13 @@
 
     /** Toggle the "Auto-select model" switch. */
     async function handleAutoSelectToggle(): Promise<void> {
-        if (autoSelectEnabled) {
-            // Turning OFF auto-select: both dropdowns now show, both start at "Auto" (null)
-            // No-op: defaults are already null and the toggle UI will flip to show dropdowns.
-            // We do want to persist null→null explicitly so other devices reflect the intent.
-            await saveDefaultModels(null, null);
+        if (isAutoSelectOn) {
+            // Turning OFF auto-select: enter local manual mode so dropdowns appear.
+            // Persisted state remains unchanged until user picks at least one explicit model.
+            manualModeEnabled = true;
         } else {
             // Turning ON auto-select: reset both defaults to null
+            manualModeEnabled = false;
             await saveDefaultModels(null, null);
         }
     }
@@ -354,7 +358,7 @@
         <div class="section">
             <SettingsItem 
                 type="heading"
-                icon="icon_settings"
+                icon="settings"
                 title={$text('settings.ai_ask.ai_ask_settings.default_models')}
             />
             <div class="settings-content">
@@ -375,7 +379,7 @@
                         >
                             <div style="pointer-events: none;">
                                 <Toggle 
-                                    checked={autoSelectEnabled}
+                                    checked={isAutoSelectOn}
                                     ariaLabel={$text('settings.ai_ask.ai_ask_settings.auto_select_model')}
                                 />
                             </div>
@@ -387,7 +391,7 @@
                 </p>
 
                 <!-- Default model dropdowns — shown only when auto-select is OFF -->
-                {#if !autoSelectEnabled}
+                {#if !isAutoSelectOn}
                     <div class="default-model-dropdowns">
                         <!-- Simple requests dropdown -->
                         <div class="model-dropdown-row">

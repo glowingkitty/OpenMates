@@ -19,6 +19,7 @@ import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
 import {
   resolveEmbed,
   decodeToonContent,
+  isEmbedKnownError,
 } from "../../../../services/embedResolver";
 import { chatSyncService } from "../../../../services/chatSyncService";
 import { unmarkEmbedAsProcessed } from "../../../../services/chatSyncServiceHandlersAI";
@@ -138,7 +139,11 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       // the embed renders with an empty decodedContent and stays stuck on the skeleton forever
       // because renderImageViewComponent (and similar) won't call resolveAndUpdateImageViewProps
       // when originalEmbedId is empty (fix for issue #5dc543b0 — images view never shows image).
-      if (!embedData && attrs.status === "finished") {
+      if (
+        !embedData &&
+        attrs.status === "finished" &&
+        !isEmbedKnownError(embedId)
+      ) {
         const retryHandler = (event: Event) => {
           const customEvent = event as CustomEvent<{ embed_id: string }>;
           if (customEvent.detail?.embed_id !== embedId) return;
@@ -205,8 +210,21 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const skillId =
       decodedContent?.skill_id || embedData?.skill_id || attrsSkillId;
 
-    // Determine status - prefer embedData status, then attrs.status, then 'processing'
-    const status = embedData?.status || attrs.status || "processing";
+    // Determine status - prefer embedData status, then check knownErrorEmbeds (for error embeds
+    // that are intentionally never persisted to IndexedDB), then attrs.status, then 'processing'.
+    // Without the knownErrorEmbeds check, error embeds show as "Completed" because:
+    // 1. embedData is null (error embeds are never stored by design)
+    // 2. attrs.status is 'finished' (set by the AI stream before the error signal arrived)
+    // 3. The error guard below never fires, and the card renders with 0 results as "Completed"
+    const statusEmbedId = attrs.contentRef?.replace("embed:", "") || "";
+    const isKnownError = statusEmbedId
+      ? isEmbedKnownError(statusEmbedId)
+      : false;
+    const status =
+      embedData?.status ||
+      (isKnownError ? "error" : null) ||
+      attrs.status ||
+      "processing";
 
     // CRITICAL: Skip rendering error embeds - they should be hidden from users
     // Failed skill executions should not be shown in the user experience
@@ -2126,6 +2144,64 @@ export class AppSkillUseRenderer implements EmbedRenderer {
   }
 
   /**
+   * Dispatch 'pdfreadfullscreen' so ActiveChat mounts PdfReadEmbedFullscreen.
+   * Carries the skill-use embed ID + extracted text content.
+   */
+  private openPdfReadFullscreen(
+    embedId: string,
+    filename: string,
+    pagesReturned: number[],
+    pagesSkipped: number[],
+    textContent: string,
+  ): void {
+    const event = new CustomEvent("pdfreadfullscreen", {
+      detail: {
+        embedId,
+        filename,
+        pagesReturned,
+        pagesSkipped,
+        textContent,
+      },
+      bubbles: true,
+    });
+    document.dispatchEvent(event);
+    console.debug(
+      "[AppSkillUseRenderer] Dispatched pdfreadfullscreen:",
+      embedId,
+    );
+  }
+
+  /**
+   * Dispatch 'pdfsearchfullscreen' so ActiveChat mounts PdfSearchEmbedFullscreen.
+   * Carries the skill-use embed ID + search query + matches.
+   */
+  private openPdfSearchFullscreen(
+    embedId: string,
+    filename: string,
+    query: string,
+    totalMatches: number | undefined,
+    truncated: boolean,
+    matches: any[],
+  ): void {
+    const event = new CustomEvent("pdfsearchfullscreen", {
+      detail: {
+        embedId,
+        filename,
+        query,
+        totalMatches,
+        truncated,
+        matches,
+      },
+      bubbles: true,
+    });
+    document.dispatchEvent(event);
+    console.debug(
+      "[AppSkillUseRenderer] Dispatched pdfsearchfullscreen:",
+      embedId,
+    );
+  }
+
+  /**
    * Render images/view skill embed using ImageViewEmbedPreview component.
    * On fullscreen click, opens the original uploaded image's fullscreen viewer.
    */
@@ -2432,6 +2508,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           filename,
           pageCount,
           pages,
+          originalEmbedId,
           status: status as "processing" | "finished" | "error",
           error,
           taskId,
@@ -2465,7 +2542,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
   /**
    * Render pdf/read skill embed using PdfReadEmbedPreview component.
-   * On fullscreen click, opens the original uploaded PDF's fullscreen viewer.
+   * On fullscreen click, dispatches 'pdfreadfullscreen' to open PdfReadEmbedFullscreen
+   * which shows the full extracted text content.
    */
   private renderPdfReadComponent(
     attrs: EmbedNodeAttributes,
@@ -2497,6 +2575,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const filename = decodedContent?.filename || "";
     const pageCount = decodedContent?.page_count ?? undefined;
 
+    // Extract text content from results[0].content (the actual extracted text)
+    const textContent =
+      decodedContent?.results?.[0]?.content || decodedContent?.content || "";
+
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
@@ -2515,8 +2597,15 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     try {
       const embedId = attrs.contentRef?.replace("embed:", "") || "";
 
+      // On fullscreen click: dispatch pdfreadfullscreen to open PdfReadEmbedFullscreen
       const handleFullscreen = () => {
-        this.openPdfUploadFullscreen(originalEmbedId);
+        this.openPdfReadFullscreen(
+          embedId,
+          filename,
+          pagesReturned,
+          pagesSkipped,
+          textContent,
+        );
       };
 
       const component = mount(PdfReadEmbedPreview, {
@@ -2527,14 +2616,12 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           pagesReturned,
           pagesSkipped,
           pageCount,
+          textContent,
           status: status as "processing" | "finished" | "error",
           error,
           taskId,
           isMobile: false,
-          onFullscreen:
-            status === "finished" && originalEmbedId
-              ? handleFullscreen
-              : undefined,
+          onFullscreen: status === "finished" ? handleFullscreen : undefined,
         },
       });
 
@@ -2548,6 +2635,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           pagesReturned,
           pagesSkipped,
           filename,
+          hasTextContent: !!textContent,
         },
       );
     } catch (error) {
@@ -2561,7 +2649,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
   /**
    * Render pdf/search skill embed using PdfSearchEmbedPreview component.
-   * On fullscreen click, opens the original uploaded PDF's fullscreen viewer.
+   * On fullscreen click, dispatches 'pdfsearchfullscreen' to open PdfSearchEmbedFullscreen
+   * which shows all search matches with context and highlighted keywords.
    */
   private renderPdfSearchComponent(
     attrs: EmbedNodeAttributes,
@@ -2590,6 +2679,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const filename = decodedContent?.filename || "";
     const pageCount = decodedContent?.page_count ?? undefined;
 
+    // Extract matches array from results[0].matches
+    const matches: any[] =
+      decodedContent?.results?.[0]?.matches || decodedContent?.matches || [];
+
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
@@ -2608,8 +2701,16 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     try {
       const embedId = attrs.contentRef?.replace("embed:", "") || "";
 
+      // On fullscreen click: dispatch pdfsearchfullscreen to open PdfSearchEmbedFullscreen
       const handleFullscreen = () => {
-        this.openPdfUploadFullscreen(originalEmbedId);
+        this.openPdfSearchFullscreen(
+          embedId,
+          filename,
+          query,
+          totalMatches,
+          truncated,
+          matches,
+        );
       };
 
       const component = mount(PdfSearchEmbedPreview, {
@@ -2625,10 +2726,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           error,
           taskId,
           isMobile: false,
-          onFullscreen:
-            status === "finished" && originalEmbedId
-              ? handleFullscreen
-              : undefined,
+          onFullscreen: status === "finished" ? handleFullscreen : undefined,
         },
       });
 
@@ -2641,6 +2739,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           originalEmbedId,
           query,
           totalMatches,
+          matchCount: matches.length,
           filename,
         },
       );

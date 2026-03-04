@@ -391,3 +391,54 @@ read_later.example_3:
   verified_by_human:
     - en
     - de
+
+# Structured example entries for example_entries in app.yml
+
+read_later.example_1.notes:
+  context: Example value for notes in read_later
+  en: Interesting article about AI
+  de: Interessanter Artikel über KI
+  zh: 关于人工智能的有趣文章
+  es: Artículo interesante sobre IA
+  fr: Article intéressant sur l'IA
+  pt: Artigo interessante sobre IA
+  ru: Интересная статья об ИИ
+  ja: AIについての興味深い記事
+  ko: AI에 대한 흥미로운 기사
+  it: Articolo interessante sull'IA
+  tr: Yapay zeka hakkında ilginç makale
+  vi: Bài viết thú vị về AI
+  id: Artikel menarik tentang AI
+  pl: Ciekawy artykuł o AI
+  nl: Interessant artikel over AI
+  ar: مقال مثير عن الذكاء الاصطناعي
+  hi: AI के बारे में दिलचस्प लेख
+  th: บทความที่น่าสนใจเกี่ยวกับ AI
+  cs: Zajímavý článek o AI
+  sv: Intressant artikel om AI
+  he: מאמר מעניין על בינה מלאכותית
+  verified_by_human: []
+read_later.example_2.notes:
+  context: Example value for notes in read_later
+  en: Tutorial on web development
+  de: Tutorial zur Webentwicklung
+  zh: 关于Web开发的教程
+  es: Tutorial sobre desarrollo web
+  fr: Tutoriel sur le développement web
+  pt: Tutorial sobre desenvolvimento web
+  ru: Руководство по веб-разработке
+  ja: Web開発のチュートリアル
+  ko: 웹 개발 튜토리얼
+  it: Tutorial sullo sviluppo web
+  tr: Web geliştirme öğreticisi
+  vi: Hướng dẫn phát triển web
+  id: Tutorial pengembangan web
+  pl: Samouczek o tworzeniu stron
+  nl: Tutorial over webontwikkeling
+  ar: دليل تعليمي عن تطوير الويب
+  hi: वेब डेवलपमेंट पर ट्यूटोरियल
+  th: บทเรียนเกี่ยวกับการพัฒนาเว็บ
+  cs: Tutoriál o vývoji webu
+  sv: Handledning om webbutveckling
+  he: מדריך לפיתוח אתרים
+  verified_by_human: []

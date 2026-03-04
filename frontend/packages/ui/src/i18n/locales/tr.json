@@ -535,6 +535,9 @@
         },
         "example_2": {
           "text": "Rahat ekip"
+        },
+        "example_3": {
+          "text": "Takip ve hatırlatmalar"
         }
       }
     },
@@ -1185,6 +1188,9 @@
         "description": {
           "text": "PDF'in belirli sayfalarından metin okuyun."
         },
+        "processing": {
+          "text": "Okunuyor…"
+        },
         "how_to_use": {
           "1": {
             "text": "Yüklenen PDF'in 5. sayfasını oku"
@@ -1802,6 +1808,23 @@
       },
       "just_now": {
         "text": "Az önce"
+      }
+    },
+    "thinking": {
+      "placeholder": {
+        "text": "Düşünmeme izin ver..."
+      },
+      "header_streaming": {
+        "text": "Düşünüyor..."
+      },
+      "header_done": {
+        "text": "Düşünce süreci"
+      },
+      "collapse": {
+        "text": "Düşünce sürecini daralt"
+      },
+      "expand": {
+        "text": "Düşünce sürecini genişlet"
       }
     },
     "new_chat_suggestions": {
@@ -3092,6 +3115,35 @@
       "plot": {
         "text": "Grafik"
       }
+    },
+    "mail": {
+      "email": {
+        "text": "E-posta taslagi"
+      },
+      "to": {
+        "text": "Alici"
+      },
+      "subject": {
+        "text": "Konu"
+      },
+      "content": {
+        "text": "Icerik"
+      },
+      "footer": {
+        "text": "Imza"
+      },
+      "empty_content": {
+        "text": "Henuz e-posta icerigi yok."
+      },
+      "open_mail_client": {
+        "text": "Mail uygulamasinda ac"
+      },
+      "copied": {
+        "text": "E-posta taslagi kopyalandi."
+      },
+      "copy_failed": {
+        "text": "E-posta taslagi kopyalanamadi."
+      }
     }
   },
   "enter_message": {
@@ -3176,7 +3228,7 @@
       "text": "Mesajınızı girin"
     },
     "click_to_enter_message": {
-      "text": "Mesajınızı girmek için buraya tıklayın"
+      "text": "Herhangi bir şey sormak için buraya tıklayın"
     },
     "click_to_add_text": {
       "text": "Metin eklemek için buraya tıklayın"
@@ -3261,10 +3313,10 @@
     },
     "placeholder": {
       "desktop": {
-        "text": "Mesaj girmek için tıklayın..."
+        "text": "Herhangi bir şey sormak için tıklayın..."
       },
       "touch": {
-        "text": "Mesaj girmek için dokunun..."
+        "text": "Herhangi bir şey sormak için dokunun..."
       }
     },
     "press_and_hold_menu": {
@@ -7359,6 +7411,12 @@
     },
     "gift_card_redeemed_success": {
       "text": "Hediyenin tadını çıkar!"
+    },
+    "gift_card_waiting_notification": {
+      "text": "Your {credits} credits gift card is waiting for you. Sign up or login to apply them."
+    },
+    "gift_card_waiting_action": {
+      "text": "Signup/Login"
     },
     "credits_purchased": {
       "text": "Satın alınan krediler"

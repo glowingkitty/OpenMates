@@ -3,7 +3,7 @@ description_translation_key: books.description
 icon_image: |
   book.svg
 category: personal
-last_updated: '2025-11-12'
+last_updated: "2025-11-12"
 settings_and_memories:
   - id: favorite_books
     name_translation_key: books.favorite_books
@@ -15,6 +15,17 @@ settings_and_memories:
       - "books.favorite_books.example_1"
       - "books.favorite_books.example_2"
       - "books.favorite_books.example_3"
+    example_entries:
+      - title: "books.favorite_books.example_1.title"
+        author: "F. Scott Fitzgerald"
+        genre: "books.favorite_books.example_1.genre"
+        rating: 4.5
+        notes: "books.favorite_books.example_1.notes"
+      - title: "books.favorite_books.example_2.title"
+        author: "Yuval Noah Harari"
+        genre: "books.favorite_books.example_2.genre"
+        rating: 5
+        notes: "books.favorite_books.example_2.notes"
     schema:
       type: object
       properties:
@@ -35,6 +46,7 @@ settings_and_memories:
         notes:
           type: string
           description: Personal notes or why you liked it
+          multiline: true
       required:
         - title
   - id: currently_reading
@@ -46,6 +58,15 @@ settings_and_memories:
     example_translation_keys:
       - "books.currently_reading.example_1"
       - "books.currently_reading.example_2"
+    example_entries:
+      - title: "books.currently_reading.example_1.title"
+        author: "Andy Weir"
+        started_date: "2025-01-15"
+        notes: "books.currently_reading.example_1.notes"
+      - title: "books.currently_reading.example_2.title"
+        author: "James Clear"
+        started_date: "2025-02-01"
+        notes: "books.currently_reading.example_2.notes"
     schema:
       type: object
       properties:
@@ -64,6 +85,7 @@ settings_and_memories:
         notes:
           type: string
           description: Optional reading notes
+          multiline: true
       required:
         - title
   - id: to_read_list
@@ -76,6 +98,15 @@ settings_and_memories:
       - "books.to_read_list.example_1"
       - "books.to_read_list.example_2"
       - "books.to_read_list.example_3"
+    example_entries:
+      - title: "books.to_read_list.example_1.title"
+        author: "Frank Herbert"
+        genre: "books.to_read_list.example_1.genre"
+        notes: "books.to_read_list.example_1.notes"
+      - title: "books.to_read_list.example_2.title"
+        author: "Daniel Kahneman"
+        genre: "books.to_read_list.example_2.genre"
+        notes: "books.to_read_list.example_2.notes"
     schema:
       type: object
       properties:
@@ -93,6 +124,7 @@ settings_and_memories:
         notes:
           type: string
           description: Why you want to read it, priority, etc.
+          multiline: true
       required:
         - title
 

@@ -24,6 +24,7 @@
     import { getEmailDecryptedWithMasterKey } from '../../services/cryptoService';
     import { aiTypingStore } from '../../stores/aiTypingStore';
     import { hasPendingSends } from '../../stores/pendingUploadStore';
+    import { copyToClipboard } from '../../utils/clipboardUtils';
 
     const dispatch = createEventDispatcher();
     
@@ -1121,7 +1122,8 @@
         if (!pickedElementHtml || isCopyingElementHtml) return;
         isCopyingElementHtml = true;
         try {
-            await navigator.clipboard.writeText(pickedElementHtml);
+            const result = await copyToClipboard(pickedElementHtml);
+            if (!result.success) throw new Error(result.error || 'Copy failed');
             copyElementHtmlSuccess = true;
             setTimeout(() => { copyElementHtmlSuccess = false; }, 2000);
         } catch (error) {
@@ -1324,41 +1326,8 @@
         };
     }
 
-    /**
-     * Fallback clipboard copy using a hidden textarea + document.execCommand('copy').
-     *
-     * This works even when the modern Clipboard API fails due to the browser
-     * revoking the user-gesture "token" during the async data-collection phase
-     * (IndexedDB inspection, etc.). execCommand does NOT require the gesture token
-     * to still be live at the moment of the call.
-     *
-     * Returns true if the copy succeeded, false otherwise.
-     */
-    function _fallbackCopyText(text: string): boolean {
-        try {
-            const el = document.createElement('textarea');
-            el.value = text;
-            // Position off-screen so it's invisible but still selectable
-            Object.assign(el.style, {
-                position: 'fixed',
-                top: '-9999px',
-                left: '-9999px',
-                width: '1px',
-                height: '1px',
-                opacity: '0',
-                fontSize: '12pt' // avoid iOS zoom on focus
-            });
-            document.body.appendChild(el);
-            el.focus();
-            el.select();
-            const success = document.execCommand('copy');
-            document.body.removeChild(el);
-            return success;
-        } catch (err) {
-            console.warn('[SettingsReportIssue] execCommand copy fallback failed:', err);
-            return false;
-        }
-    }
+    // Clipboard operations use the unified ClipboardService (clipboardUtils.ts)
+    // which provides writeText → execCommand fallback chain with iOS/Safari support.
 
     /**
      * Copy client-side debug info to clipboard.
@@ -1392,28 +1361,11 @@
             return;
         }
 
-        let copied = false;
-
-        // Attempt 1: modern Clipboard API
-        try {
-            await navigator.clipboard.writeText(debugInfoText);
-            copied = true;
-        } catch (clipboardError) {
-            // Expected failure: gesture token expired after async data collection.
-            // Log at debug level — this is a known limitation, not an unexpected error.
-            console.debug(
-                '[SettingsReportIssue] navigator.clipboard.writeText failed (gesture token expired), trying execCommand fallback:',
-                clipboardError
-            );
-        }
-
-        // Attempt 2: execCommand fallback (no gesture token required)
-        if (!copied) {
-            copied = _fallbackCopyText(debugInfoText);
-            if (copied) {
-                console.debug('[SettingsReportIssue] Copied debug info via execCommand fallback');
-            }
-        }
+        // Copy via unified ClipboardService (writeText → execCommand fallback chain).
+        // The gesture token may have expired after async data collection, but the
+        // ClipboardService handles that with its execCommand fallback.
+        const clipResult = await copyToClipboard(debugInfoText);
+        const copied = clipResult.success;
 
         if (copied) {
             copyDebugInfoSuccess = true;

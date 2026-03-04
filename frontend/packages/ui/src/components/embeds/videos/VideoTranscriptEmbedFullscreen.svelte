@@ -17,6 +17,7 @@
   import type { VideoMetadata } from './VideoEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import type { VideoTranscriptSkillPreviewData, VideoTranscriptResult } from '../../../types/appSkills';
+  import { copyToClipboard } from '../../../utils/clipboardUtils';
   
   /**
    * Props for video transcript embed fullscreen
@@ -318,7 +319,8 @@
         .join('\n\n---\n\n');
       
       if (transcriptText) {
-        await navigator.clipboard.writeText(transcriptText);
+        const clipResult = await copyToClipboard(transcriptText);
+        if (!clipResult.success) throw new Error(clipResult.error || 'Copy failed');
         console.debug('[VideoTranscriptEmbedFullscreen] Copied transcript to clipboard');
         // Show success notification
         const { notificationStore } = await import('../../../stores/notificationStore');

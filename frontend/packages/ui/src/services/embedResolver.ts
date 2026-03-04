@@ -16,6 +16,7 @@ import {
 } from "../demo_chats/communityDemoStore";
 import { EmbedNodeAttributes } from "../message_parsing/types";
 import { generateUUID } from "../message_parsing/utils";
+import { normalizeEmbedType } from "../data/embedRegistry.generated";
 import { authStore } from "../stores/authState";
 import { get } from "svelte/store";
 
@@ -91,7 +92,8 @@ async function initToonDecoder() {
 interface EmbedData {
   embed_id: string;
   type: string; // Decrypted type (client-side only)
-  status: "processing" | "finished" | "error";
+  // See embedStateMachine.ts for the canonical status type and valid transitions
+  status: "processing" | "finished" | "error" | "cancelled";
   content: string; // TOON-encoded string
   text_preview?: string;
   embed_ids?: string[]; // For composite embeds (app_skill_use)
@@ -124,8 +126,23 @@ export async function resolveEmbed(
       try {
         // Ensure the cache is loaded from IndexedDB
         await loadFromCache();
-        // Also wait for any server fetch in progress
-        await waitForLoadingComplete();
+        // Also wait for any server fetch in progress, but with a timeout.
+        // When offline, the server fetch may hang indefinitely — a 3s timeout
+        // prevents the entire embed resolution pipeline from blocking.
+        // If the timeout fires, we continue without the demo store; user's own
+        // embeds are resolved from IndexedDB regardless.
+        const DEMO_STORE_LOAD_TIMEOUT_MS = 3000;
+        await Promise.race([
+          waitForLoadingComplete(),
+          new Promise<void>((resolve) =>
+            setTimeout(() => {
+              console.warn(
+                `[embedResolver] Demo store loading timed out after ${DEMO_STORE_LOAD_TIMEOUT_MS}ms (possibly offline), continuing without it`,
+              );
+              resolve();
+            }, DEMO_STORE_LOAD_TIMEOUT_MS),
+          ),
+        ]);
       } catch (error) {
         console.warn(
           "[embedResolver] Error waiting for demo store cache:",
@@ -387,19 +404,10 @@ export async function embedDataToNodeAttributes(
  * @returns EmbedNodeType for TipTap
  */
 function mapEmbedTypeToNodeType(embedType: string): string {
-  const typeMap: Record<string, string> = {
-    app_skill_use: "app-skill-use", // New type for app skill results
-    website: "web-website",
-    video: "videos-video", // YouTube and other video embeds
-    place: "maps-place",
-    event: "maps-event",
-    code: "code-code",
-    sheet: "sheets-sheet",
-    document: "docs-doc",
-    file: "file",
-  };
-
-  return typeMap[embedType] || embedType;
+  // Uses the auto-generated EMBED_TYPE_NORMALIZATION_MAP from app.yml definitions.
+  // To add a new type mapping, add an embed_types entry to the relevant app.yml
+  // and rebuild — do NOT add manual entries here.
+  return normalizeEmbedType(embedType);
 }
 
 /**

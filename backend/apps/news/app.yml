@@ -6,6 +6,24 @@ category: personal
 last_updated: "2025-11-26"
 settings_and_memories: []
 instructions: []
+# Embed type definitions — single source of truth for frontend embed routing.
+embed_types:
+  - id: search
+    category: app-skill-use
+    skill_id: search
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: website
+    child_frontend_type: web-website
+    groupable: true
+    preview_component: news/NewsSearchEmbedPreview.svelte
+    fullscreen_component: news/NewsSearchEmbedFullscreen.svelte
+    child_preview_component: news/NewsEmbedPreview.svelte
+    child_fullscreen_component: news/NewsEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-news"
+    i18n_namespace: embeds.news.search
 skills:
   - id: search
     name_translation_key: news.search
@@ -152,6 +170,10 @@ skills:
                 description: Filter by freshness - "pd" (past 24 hours), "pw" (past week), "pm" (past month), "py" (past year). Defaults to "pw" (past week) to prioritize recent news content.
                 enum: ["pd", "pw", "pm", "py"]
                 default: "pw"
+              filter_tabloids:
+                type: boolean
+                description: "Filter out tabloid/boulevard media sources (e.g., BILD, Daily Mail, TMZ, The Sun) from results. Enabled by default for quality news. Set to false ONLY if the user explicitly asks for tabloid sources."
+                default: true
             required:
               - query
       required:

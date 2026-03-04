@@ -1242,8 +1242,8 @@ export async function handleSend(
               `[handleSend] Duplicating ${demoMessages.length} demo messages to new chat ${chatIdToUse}`,
             );
 
-            // Ensure we have a chat key for encryption
-            await chatDB.getOrGenerateChatKey(chatIdToUse);
+            // Ensure we have a chat key for encryption (this device is creating the chat)
+            chatDB.getOrCreateChatKeyForOriginator(chatIdToUse);
 
             for (const demoMsg of demoMessages) {
               // Format: message_id={last_10_chars_of_chat_id}-{uuid_v4}

@@ -28,6 +28,7 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { chatSyncService } from '../../../services/chatSyncService';
+  import { handleImageError } from '../../../utils/offlineImageHandler';
   import type { VideoTranscriptSkillPreviewData, SkillExecutionStatus } from '../../../types/appSkills';
   
   // ===========================================
@@ -426,7 +427,7 @@
             alt={effectiveChannelName || ''} 
             class="channel-thumbnail"
             crossorigin="anonymous"
-            onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+            onerror={(e) => { handleImageError(e.currentTarget as HTMLImageElement); }}
           />
         {:else if isLoadingMetadata}
           <!-- Placeholder while loading -->

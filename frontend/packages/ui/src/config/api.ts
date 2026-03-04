@@ -210,6 +210,7 @@ export const apiEndpoints = {
   },
   admin: {
     generateGiftCards: "/v1/admin/generate-gift-cards", // Admin-only: generate gift card codes
+    listGiftCards: "/v1/admin/gift-cards", // Admin-only: list all active (unredeemed) gift cards
     clientLogs: "/v1/admin/client-logs", // Admin-only: forward browser console logs to Loki for centralized debugging
   },
   server: {

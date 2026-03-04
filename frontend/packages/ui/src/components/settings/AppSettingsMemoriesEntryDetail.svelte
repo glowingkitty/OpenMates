@@ -58,8 +58,8 @@
     );
 
     // Get entries for this app (grouped by settings_group)
-    let appEntries: Readable<Record<string, unknown>> = appSettingsMemoriesForApp(appId);
-    let groupedEntries = $appEntries;
+    let appEntries = $derived<Readable<Record<string, unknown>>>(appSettingsMemoriesForApp(appId));
+    let groupedEntries = $derived($appEntries);
 
     // Find the specific entry from the store
     let entry = $derived.by(() => {
@@ -80,13 +80,37 @@
         return undefined;
     });
 
-    // For example entries: resolve translated text from category metadata
+    // For example entries: resolve translated text from category metadata (legacy title-only)
     let exampleText = $derived.by(() => {
         if (!isExample || exampleIndex < 0) return '';
         const keys = category?.example_translation_keys ?? [];
         const key = keys[exampleIndex];
         return key ? $text(key) : '';
     });
+    
+    // For full example entries: get the complete example entry object with all fields
+    let exampleEntry = $derived.by<Record<string, string | number | boolean> | undefined>(() => {
+        if (!isExample || exampleIndex < 0) return undefined;
+        const entries = category?.example_entries ?? [];
+        return entries[exampleIndex];
+    });
+    
+    /**
+     * Resolve an example entry field value for display.
+     * If the value looks like a translation key (contains dots), resolve it via $text().
+     * Otherwise, display the raw value (enum, number, boolean).
+     */
+    function resolveExampleValue(value: string | number | boolean): string {
+        if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+        if (typeof value === 'number') return String(value);
+        // String values: check if it looks like a translation key
+        if (typeof value === 'string' && value.includes('.') && !value.includes(' ') && !value.startsWith('http')) {
+            const resolved = $text(value);
+            // If $text() returns the key itself (not found), display the raw value
+            return resolved !== value ? resolved : value;
+        }
+        return String(value);
+    }
 
     // Get schema from category metadata
     let schema = $derived(category?.schema_definition);
@@ -445,12 +469,30 @@
             <button class="back-button" onclick={goBack}>← {$text('settings.app_store.back_to_app')}</button>
         </div>
     {:else if isExample}
-        <!-- Example Entry View — read-only, no auth or entry lookup needed -->
+        <!-- Example Entry View — read-only, shows all fields when example_entries data is available -->
         <div class="view-container">
             <div class="details-section">
-                <div class="detail-row">
-                    <span class="detail-value example-text">{exampleText}</span>
-                </div>
+                {#if exampleEntry && Object.keys(userInputProperties).length > 0}
+                    <!-- Full example entry: render each schema field with its example value -->
+                    {#each Object.entries(userInputProperties) as [fieldName, prop]}
+                        {#if exampleEntry[fieldName] !== undefined}
+                            <div class="detail-row">
+                                <div class="field-header">
+                                    <div class="icon settings_size subsetting_icon icon_settings"></div>
+                                    <span class="detail-label">{getFieldLabel(fieldName, prop)}</span>
+                                </div>
+                                <span class="detail-value">
+                                    {resolveExampleValue(exampleEntry[fieldName])}
+                                </span>
+                            </div>
+                        {/if}
+                    {/each}
+                {:else}
+                    <!-- Fallback: legacy title-only example text -->
+                    <div class="detail-row">
+                        <span class="detail-value example-text">{exampleText}</span>
+                    </div>
+                {/if}
             </div>
             <!-- No action buttons for examples -->
         </div>
@@ -473,7 +515,10 @@
                     <!-- Schema-based display -->
                     {#each Object.entries(userInputProperties) as [fieldName, prop]}
                         <div class="detail-row">
-                            <span class="detail-label">{getFieldLabel(fieldName, prop)}</span>
+                            <div class="field-header">
+                                <div class="icon settings_size subsetting_icon icon_settings"></div>
+                                <span class="detail-label">{getFieldLabel(fieldName, prop)}</span>
+                            </div>
                             <span class="detail-value">
                                 {#if prop.type === 'boolean'}
                                     {entry.item_value[fieldName] ? 'Yes' : 'No'}
@@ -534,12 +579,15 @@
                 <!-- Schema-based form -->
                 {#each Object.entries(userInputProperties) as [fieldName, prop]}
                     <div class="form-group">
-                        <label for={fieldName}>
-                            {getFieldLabel(fieldName, prop)}
-                            {#if isFieldRequired(fieldName)}
-                                <span class="required">*</span>
-                            {/if}
-                        </label>
+                        <div class="field-header">
+                            <div class="icon settings_size subsetting_icon icon_settings"></div>
+                            <label for={fieldName}>
+                                {getFieldLabel(fieldName, prop)}
+                                {#if isFieldRequired(fieldName)}
+                                    <span class="required">*</span>
+                                {/if}
+                            </label>
+                        </div>
                         {#if prop.type === 'boolean'}
                             <div class="checkbox-group">
                                 <input
@@ -597,10 +645,13 @@
             {:else}
                 <!-- Generic form -->
                 <div class="form-group">
-                    <label for="item-key">
-                        Key
-                        <span class="required">*</span>
-                    </label>
+                    <div class="field-header">
+                        <div class="icon settings_size subsetting_icon icon_settings"></div>
+                        <label for="item-key">
+                            Key
+                            <span class="required">*</span>
+                        </label>
+                    </div>
                     <input
                         id="item-key"
                         type="text"
@@ -611,7 +662,10 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="settings-group">Group</label>
+                    <div class="field-header">
+                        <div class="icon settings_size subsetting_icon icon_settings"></div>
+                        <label for="settings-group">Group</label>
+                    </div>
                     <input
                         id="settings-group"
                         type="text"
@@ -622,7 +676,10 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="item-value">Value</label>
+                    <div class="field-header">
+                        <div class="icon settings_size subsetting_icon icon_settings"></div>
+                        <label for="item-value">Value</label>
+                    </div>
                     <textarea
                         id="item-value"
                         bind:value={formState.itemValue}
@@ -797,9 +854,15 @@
         margin-bottom: 1.5rem;
     }
     
+    .field-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 0.5rem;
+    }
+    
     .form-group label {
         display: block;
-        margin-bottom: 0.5rem;
         font-weight: 500;
         color: var(--text-primary);
     }

@@ -15,6 +15,7 @@
 
 <script lang="ts">
   import { text } from '@repo/ui';
+  import { handleImageError } from '../../utils/offlineImageHandler';
   
   /**
    * Props interface for basic info bar
@@ -173,7 +174,7 @@
             class:circular={faviconIsCircular}
             crossorigin="anonymous"
             onerror={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
+              handleImageError(e.currentTarget as HTMLImageElement);
             }} 
           />
         {/if}
@@ -323,6 +324,11 @@
   .basic-infos-bar .skill-icon[data-skill-icon="event"] {
     -webkit-mask-image: url('@openmates/ui/static/icons/event.svg');
     mask-image: url('@openmates/ui/static/icons/event.svg');
+  }
+
+  .basic-infos-bar .skill-icon[data-skill-icon="mail"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/mail.svg');
+    mask-image: url('@openmates/ui/static/icons/mail.svg');
   }
   
   /* Status text container */

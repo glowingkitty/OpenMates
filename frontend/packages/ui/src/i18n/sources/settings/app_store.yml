@@ -1509,6 +1509,30 @@ settings_memories.creating:
   sv: Skapar...
   he: יוצר...
   verified_by_human: []
+settings_memories_entry:
+  context: Type label shown in header when viewing a settings & memories entry detail
+  en: Settings & Memories Entry
+  de: Einstellungen & Erinnerungen Eintrag
+  zh: 设置与记忆条目
+  es: Entrada de configuración y memorias
+  fr: Entrée de paramètres et mémoires
+  pt: Entrada de configurações e memórias
+  ru: Запись настроек и воспоминаний
+  ja: 設定＆メモリーエントリ
+  ko: 설정 및 메모리 항목
+  it: Voce di impostazioni e memorie
+  tr: Ayarlar ve anılar girişi
+  vi: Mục cài đặt và ký ức
+  id: Entri pengaturan dan memori
+  pl: Wpis ustawień i wspomnień
+  nl: Instellingen en herinneringen item
+  ar: إدخال الإعدادات والذكريات
+  hi: सेटिंग्स और यादें प्रविष्टि
+  th: รายการการตั้งค่าและความทรงจำ
+  cs: Položka nastavení a vzpomínek
+  sv: Inställningar och minnen post
+  he: רשומת הגדרות וזיכרונות
+  verified_by_human: []
 app_not_found:
   context: Error message when app is not found
   en: App not found.

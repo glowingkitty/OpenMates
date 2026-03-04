@@ -21,6 +21,7 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { chatSyncService } from '../../../services/chatSyncService';
+  import { handleImageError } from '../../../utils/offlineImageHandler';
   
   /**
    * News search result interface for favicon display
@@ -448,7 +449,7 @@
                     style="z-index: {faviconResults.length - index};"
                     loading="lazy"
                     crossorigin="anonymous"
-                    onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                    onerror={(e) => { handleImageError(e.currentTarget as HTMLImageElement); }}
                   />
                 {/if}
               {/each}

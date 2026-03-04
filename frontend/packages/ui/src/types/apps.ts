@@ -136,6 +136,10 @@ export interface MemoryFieldMetadata {
     required?: string[];
   }; // Optional JSON schema for form field generation
   example_translation_keys?: string[]; // Translation keys for example entries shown to non-authenticated users (resolved via $text())
+  /** Full example entries with all field values populated.
+   *  String fields use translation keys (resolved via $text()), enums/numbers/booleans use raw values.
+   *  Each entry maps field names to values. */
+  example_entries?: Record<string, string | number | boolean>[];
 }
 
 /**

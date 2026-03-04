@@ -36,10 +36,8 @@ models:
         name: "Google Vertex AI"
         model_id: "gemini-3-flash-preview" # Google Vertex AI uses the model ID as-is
         region: "global" # Preview models only available on global endpoint (not regional)
-      - id: "openrouter"
-        name: "OpenRouter API"
-        model_id: "google/gemini-3-flash-preview"
-        region: "US" # Server region for UI display
+      # OpenRouter removed — Google models should only use Google's own infrastructure
+      # (AI Studio + Vertex AI). If both fail, model fallback in main_processor handles it.
     pricing:
       tokens:
         input:
@@ -85,10 +83,8 @@ models:
         name: "Google Vertex AI"
         model_id: "gemini-3.1-pro-preview" # Google Vertex AI uses the model ID as-is
         region: "global" # Preview models only available on global endpoint (not regional)
-      - id: "openrouter"
-        name: "OpenRouter API"
-        model_id: "google/gemini-3.1-pro-preview"
-        region: "US" # Server region for UI display
+      # OpenRouter removed — Google models should only use Google's own infrastructure
+      # (AI Studio + Vertex AI). If both fail, model fallback in main_processor handles it.
     pricing:
       tokens:
         input:

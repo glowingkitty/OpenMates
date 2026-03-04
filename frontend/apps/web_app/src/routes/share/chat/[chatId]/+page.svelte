@@ -484,6 +484,12 @@
 			// where the main page tries to read from IndexedDB before the transaction is visible.
 			await new Promise((resolve) => setTimeout(resolve, 50));
 
+			// CRITICAL: Set sessionStorage flag so root +page.svelte knows this navigation
+			// came from the share page. Without this, the forced-logout path in +page.svelte
+			// clears the hash for non-public chat IDs, breaking the shared chat deep link.
+			// The flag is consumed (removed) by +page.svelte after reading it.
+			sessionStorage.setItem('openmates_shared_chat_redirect', chatId);
+
 			// Navigate to main app with the chat loaded
 			// This allows the user to see the chat in the normal interface
 			// The chat key is already set in the cache, so the chat will be decrypted when loaded

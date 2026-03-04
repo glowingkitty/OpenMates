@@ -24,7 +24,6 @@
     import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
     import {
         MAX_LENGTH_SHORT,
-        MAX_LENGTH_MULTILINE,
         MAX_LENGTH_GENERIC_VALUE,
         MAX_LENGTH_GENERIC_KEY,
         getMaxLength,
@@ -43,9 +42,6 @@
     }
 
     let { appId, categoryId }: Props = $props();
-
-    // Debug logging
-    console.log('[AppSettingsMemoriesCreateEntry] Component initialized with:', { appId, categoryId });
 
     // Get store state reactively (Svelte 5)
     let storeState = $state(appSkillsStore.getState());
@@ -71,15 +67,6 @@
         category?.name_translation_key
             ? $text(category.name_translation_key)
             : categoryId
-    );
-
-    /**
-     * Get the translated category description.
-     */
-    let categoryDescription = $derived(
-        category?.description_translation_key
-            ? $text(category.description_translation_key)
-            : ''
     );
 
     // Get schema from category metadata
@@ -494,26 +481,21 @@
             <button class="back-button" onclick={goBack}>← {$text('settings.app_store.back_to_app')}</button>
         </div>
     {:else}
-        <!-- Category description at the top -->
-        <div class="header">
-            <h1>{$text('settings.app_settings_memories.add_entry')}</h1>
-            {#if categoryDescription}
-                <p class="description">{categoryDescription}</p>
-            {/if}
-        </div>
-
         <!-- Create entry form -->
         <div class="form-container">
             {#if Object.keys(userInputProperties).length > 0}
                 <!-- Schema-based form: Generate fields from user-input properties (excludes auto_generated) -->
                 {#each Object.entries(userInputProperties) as [fieldName, prop]}
                     <div class="form-group">
-                        <label for={fieldName}>
-                            {prop.description || fieldName}
-                            {#if isFieldRequired(fieldName)}
-                                <span class="required">*</span>
-                            {/if}
-                        </label>
+                        <div class="field-header">
+                            <div class="icon settings_size subsetting_icon icon_settings"></div>
+                            <label for={fieldName}>
+                                {prop.description || fieldName}
+                                {#if isFieldRequired(fieldName)}
+                                    <span class="required">*</span>
+                                {/if}
+                            </label>
+                        </div>
                         {#if prop.type === 'boolean'}
                             <div class="checkbox-group">
                                 <input
@@ -574,10 +556,13 @@
             {:else}
                 <!-- Generic form: Fallback when no schema is defined -->
                 <div class="form-group">
-                    <label for="item-key">
-                        {$text('settings.app_settings_memories.item_key')}
-                        <span class="required">*</span>
-                    </label>
+                    <div class="field-header">
+                        <div class="icon settings_size subsetting_icon icon_settings"></div>
+                        <label for="item-key">
+                            {$text('settings.app_settings_memories.item_key')}
+                            <span class="required">*</span>
+                        </label>
+                    </div>
                     <input
                         id="item-key"
                         type="text"
@@ -590,9 +575,12 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="settings-group">
-                        {$text('settings.app_settings_memories.settings_group')}
-                    </label>
+                    <div class="field-header">
+                        <div class="icon settings_size subsetting_icon icon_settings"></div>
+                        <label for="settings-group">
+                            {$text('settings.app_settings_memories.settings_group')}
+                        </label>
+                    </div>
                     <input
                         id="settings-group"
                         type="text"
@@ -605,10 +593,13 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="item-value">
-                        {$text('settings.app_settings_memories.item_value')}
-                        <span class="required">*</span>
-                    </label>
+                    <div class="field-header">
+                        <div class="icon settings_size subsetting_icon icon_settings"></div>
+                        <label for="item-value">
+                            {$text('settings.app_settings_memories.item_value')}
+                            <span class="required">*</span>
+                        </label>
+                    </div>
                     <textarea
                         id="item-value"
                         bind:value={formState.itemValue}
@@ -648,26 +639,6 @@
         margin: 0 auto;
     }
     
-    .header {
-        margin-bottom: 2rem;
-        padding-left: 0;
-    }
-    
-    .header h1 {
-        margin: 0 0 0.5rem 0;
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: var(--text-primary, #000000);
-    }
-    
-    .description {
-        margin: 0;
-        color: var(--color-grey-100);
-        font-size: 1rem;
-        line-height: 1.6;
-        text-align: left;
-    }
-    
     .form-container {
         padding-left: 0;
     }
@@ -676,9 +647,15 @@
         margin-bottom: 1.5rem;
     }
     
+    .field-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 0.5rem;
+    }
+    
     .form-group label {
         display: block;
-        margin-bottom: 0.5rem;
         font-weight: 500;
         color: var(--text-primary);
     }
