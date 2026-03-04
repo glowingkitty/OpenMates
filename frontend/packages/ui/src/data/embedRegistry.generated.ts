@@ -8,8 +8,8 @@
 // To add a new embed type, add an entry to the relevant app.yml
 // under the embed_types section, then rebuild.
 //
-// Generated: 2026-03-03T10:27:30.400Z
-// Total embed types: 26
+// Generated: 2026-03-04T10:12:01.646Z
+// Total embed types: 27
 
 /**
  * Maps server/backend embed type strings to frontend type strings.
@@ -24,6 +24,7 @@ export const EMBED_TYPE_NORMALIZATION_MAP: Record<string, string> = {
   "document": "docs-doc",
   "event": "events-event",
   "image": "image",
+  "mail": "mail-email",
   "place": "maps-place",
   "location": "maps",
   "math-plot": "math-plot",
@@ -69,6 +70,7 @@ export const EMBED_PREVIEW_COMPONENTS: Record<string, string> = {
   "app:images:generate": "images/ImageGenerateEmbedPreview.svelte",
   "app:images:generate_draft": "images/ImageGenerateEmbedPreview.svelte",
   "image": "images/ImageEmbedPreview.svelte",
+  "mail-email": "mail/MailEmbedPreview.svelte",
   "app:maps:search": "maps/MapsSearchEmbedPreview.svelte",
   "maps-place": "maps/MapsLocationEmbedPreview.svelte",
   "maps": "maps/MapsLocationEmbedPreview.svelte",
@@ -108,6 +110,7 @@ export const EMBED_FULLSCREEN_COMPONENTS: Record<string, string> = {
   "app:images:generate": "images/ImageGenerateEmbedFullscreen.svelte",
   "app:images:generate_draft": "images/ImageGenerateEmbedFullscreen.svelte",
   "image": "images/ImageEmbedFullscreen.svelte",
+  "mail-email": "mail/MailEmbedFullscreen.svelte",
   "app:maps:search": "maps/MapsSearchEmbedFullscreen.svelte",
   "maps-place": "maps/MapsLocationEmbedFullscreen.svelte",
   "maps": "maps/MapsLocationEmbedFullscreen.svelte",
@@ -145,6 +148,8 @@ export const EMBED_RENDERER_MAP: Record<string, string> = {
   "events-event": "GroupRenderer",
   "events-event-group": "GroupRenderer",
   "image": "ImageRenderer",
+  "mail-email": "GroupRenderer",
+  "mail-email-group": "GroupRenderer",
   "maps-place": "GroupRenderer",
   "maps-place-group": "GroupRenderer",
   "maps": "MapLocationRenderer",
@@ -239,6 +244,12 @@ export const EMBED_METADATA: Record<string, EmbedTypeMetadata> = {
     "gradientVar": "--color-app-images",
     "i18nNamespace": "embeds.images.view",
     "appId": "images"
+  },
+  "mail-email": {
+    "icon": "mail",
+    "gradientVar": "--color-app-mail",
+    "i18nNamespace": "embeds.mail.email",
+    "appId": "mail"
   },
   "app:maps:search": {
     "icon": "search",
@@ -378,6 +389,7 @@ export const EMBED_GROUPABLE_TYPES: string[] = [
   "code-code",
   "docs-doc",
   "events-event",
+  "mail-email",
   "maps-place",
   "sheets-sheet",
   "travel-connection",
@@ -484,6 +496,21 @@ export interface ImageEmbedContent {
   aes_key?: string;
   aes_nonce?: string;
   content_hash?: string;
+  [key: string]: unknown;
+}
+
+/** Content fields for mail:email embeds (finished state). */
+export interface MailEmailEmbedContent {
+  /** App identifier */
+  app_id: string;
+  /** Skill identifier */
+  skill_id: string;
+  /** Embed status */
+  status: string;
+  receiver: string;
+  subject?: string;
+  content: string;
+  footer?: string;
   [key: string]: unknown;
 }
 

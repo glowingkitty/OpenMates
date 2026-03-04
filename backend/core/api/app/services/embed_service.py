@@ -1055,6 +1055,189 @@ class EmbedService:
             return False
 
     # =========================================================================
+    # Mail embed methods (for ```email ... ``` fenced blocks)
+    # Mirrors the code/document pattern but uses type="mail" with structured fields.
+    # =========================================================================
+
+    async def create_mail_embed_placeholder(
+        self,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        receiver: str = "",
+        subject: str = "",
+        log_prefix: str = ""
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a processing mail embed placeholder when an ```email block starts.
+        """
+        try:
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+
+            embed_id = str(uuid.uuid4())
+
+            placeholder_content = {
+                "type": "mail",
+                "app_id": "mail",
+                "skill_id": "email",
+                "receiver": receiver,
+                "subject": subject,
+                "content": "",
+                "footer": "",
+                "status": "processing",
+            }
+
+            placeholder_toon = encode(placeholder_content)
+
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                placeholder_toon,
+                user_vault_key_id
+            )
+
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "mail",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "status": "processing",
+                "hashed_user_id": user_id_hash,
+                "is_private": False,
+                "is_shared": False,
+                "encryption_mode": "client",
+                "embed_ids": None,
+                "encrypted_content": encrypted_content,
+                "created_at": int(datetime.now().timestamp()),
+                "updated_at": int(datetime.now().timestamp())
+            }
+
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="mail",
+                content_toon=placeholder_toon,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="processing",
+                task_id=task_id,
+                is_private=False,
+                is_shared=False,
+                created_at=embed_data["created_at"],
+                updated_at=embed_data["updated_at"],
+                log_prefix=log_prefix,
+            )
+
+            embed_reference = json.dumps({
+                "type": "mail",
+                "embed_id": embed_id,
+            })
+
+            logger.info(f"{log_prefix} Created processing mail embed placeholder {embed_id}")
+
+            return {
+                "embed_id": embed_id,
+                "embed_reference": embed_reference,
+            }
+
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating mail embed placeholder: {e}", exc_info=True)
+            return None
+
+    async def update_mail_embed_content(
+        self,
+        embed_id: str,
+        receiver: str,
+        subject: str,
+        content: str,
+        chat_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        status: str = "finished",
+        footer: str = "",
+        log_prefix: str = ""
+    ) -> bool:
+        """
+        Update mail embed content while streaming and on finalization.
+        """
+        try:
+            cached_embed = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+            if not cached_embed:
+                logger.warning(f"{log_prefix} Mail embed {embed_id} not found in cache, cannot update")
+                return False
+
+            updated_content = {
+                "type": "mail",
+                "app_id": "mail",
+                "skill_id": "email",
+                "receiver": receiver,
+                "subject": subject,
+                "content": content,
+                "footer": footer,
+                "status": status,
+            }
+
+            updated_toon = encode(updated_content)
+
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                updated_toon,
+                user_vault_key_id
+            )
+
+            updated_embed_data = {
+                **cached_embed,
+                "encrypted_content": encrypted_content,
+                "status": status,
+                "updated_at": int(datetime.now().timestamp())
+            }
+
+            current_status = cached_embed.get("status", "processing")
+            should_send_event = not (status == "finished" and current_status == "finished")
+
+            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+            if should_send_event:
+                await self.send_embed_data_to_client(
+                    embed_id=embed_id,
+                    embed_type="mail",
+                    content_toon=updated_toon,
+                    chat_id=chat_id,
+                    message_id=cached_embed.get("message_id", ""),
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    status=status,
+                    task_id=cached_embed.get("hashed_task_id"),
+                    is_private=cached_embed.get("is_private", False),
+                    is_shared=cached_embed.get("is_shared", False),
+                    created_at=cached_embed.get("created_at"),
+                    updated_at=updated_embed_data["updated_at"],
+                    log_prefix=log_prefix,
+                    check_cache_status=False,
+                )
+
+            if status == "finished":
+                self._schedule_embed_persistence_fallback(embed_id)
+
+            logger.info(
+                f"{log_prefix} Updated mail embed {embed_id} (receiver={receiver[:50]!r}, subject_len={len(subject)}, status={status})"
+            )
+            return True
+
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating mail embed content: {e}", exc_info=True)
+            return False
+
+    # =========================================================================
     # Document embed methods (for document_html fenced blocks)
     # Mirrors the code embed pattern but uses type="document" with HTML content
     # =========================================================================

@@ -36,6 +36,7 @@ import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPr
 import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
 import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
 import PdfSearchEmbedPreview from "../../../embeds/pdf/PdfSearchEmbedPreview.svelte";
+import MailEmbedPreview from "../../../embeds/mail/MailEmbedPreview.svelte";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -153,6 +154,17 @@ export class GroupRenderer implements EmbedRenderer {
         return;
       }
 
+      // For mail embeds, use Svelte component
+      if (baseType === "mail-email") {
+        await this.renderMailComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+        return;
+      }
+
       // For other types, use HTML rendering
       const itemHtml = await this.renderIndividualItem(
         attrs,
@@ -247,6 +259,17 @@ export class GroupRenderer implements EmbedRenderer {
       return;
     }
 
+    // Mail groups render each item using MailEmbedPreview component
+    if (baseType === "mail-email") {
+      await this.renderMailGroup({
+        baseType,
+        groupDisplayName,
+        items: reversedItems,
+        content,
+      });
+      return;
+    }
+
     // Generate individual embed HTML for each grouped item (async)
     const groupItemsHtmlPromises = reversedItems.map((item) => {
       return this.renderIndividualItem(item, baseType);
@@ -320,6 +343,8 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderDocItem(item, embedData, decodedContent);
       case "sheets-sheet":
         return this.renderSheetItem(item, embedData, decodedContent);
+      case "mail-email":
+        return this.renderMailItem(item, embedData, decodedContent);
       default:
         console.error(
           `[GroupRenderer] No renderer found for embed type: ${baseType}`,
@@ -2800,6 +2825,241 @@ export class GroupRenderer implements EmbedRenderer {
     `;
   }
 
+  // =========================================================================
+  // Mail embed rendering — individual + group + mount
+  // =========================================================================
+
+  /**
+   * Render a single mail embed using MailEmbedPreview Svelte component.
+   */
+  private async renderMailComponent(
+    item: EmbedNodeAttributes,
+    embedData: any = null,
+    decodedContent: any = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const receiver = decodedContent?.receiver || "";
+    const subject = decodedContent?.subject || "";
+    const mailContent = decodedContent?.content || "";
+    const footer = decodedContent?.footer || "";
+    const status = (decodedContent?.status ||
+      embedData?.status ||
+      item.status ||
+      "processing") as "processing" | "finished" | "error" | "cancelled";
+    const taskId = decodedContent?.task_id;
+
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    try {
+      const handleFullscreen = () => {
+        this.openFullscreen(item, embedData, decodedContent);
+      };
+
+      const component = mount(MailEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          receiver,
+          subject,
+          content: mailContent,
+          footer,
+          status,
+          taskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug("[GroupRenderer] Mounted MailEmbedPreview component:", {
+        embedId,
+        subject,
+        status,
+      });
+    } catch (error) {
+      console.error(
+        "[GroupRenderer] Error mounting MailEmbedPreview component:",
+        error,
+      );
+      const fallbackHtml = await this.renderMailItem(
+        item,
+        embedData,
+        decodedContent,
+      );
+      content.innerHTML = fallbackHtml;
+    }
+  }
+
+  /**
+   * Render a group of mail embeds using MailEmbedPreview for each item.
+   */
+  private async renderMailGroup(args: {
+    baseType: string;
+    groupDisplayName: string;
+    items: EmbedNodeAttributes[];
+    content: HTMLElement;
+  }): Promise<void> {
+    const { baseType, groupDisplayName, items, content } = args;
+
+    const updated = await this.tryIncrementalGroupUpdate({
+      baseType,
+      groupDisplayName,
+      items,
+      content,
+      mountFn: (item, target) => this.mountMailPreview(item, target),
+    });
+    if (updated) return;
+
+    this.unmountMountedComponentsInSubtree(content);
+    content.innerHTML = "";
+
+    const groupWrapper = document.createElement("div");
+    groupWrapper.className = `${baseType}-preview-group`;
+
+    const header = document.createElement("div");
+    header.className = "group-header";
+    header.textContent = groupDisplayName;
+
+    const scrollContainer = document.createElement("div");
+    scrollContainer.className = "group-scroll-container";
+
+    groupWrapper.appendChild(header);
+    groupWrapper.appendChild(scrollContainer);
+    content.appendChild(groupWrapper);
+
+    for (const item of items) {
+      const itemWrapper = document.createElement("div");
+      itemWrapper.className = "embed-group-item";
+      itemWrapper.style.flex = "0 0 auto";
+      itemWrapper.setAttribute(
+        "data-embed-item-id",
+        item.id || item.contentRef || "unknown",
+      );
+      scrollContainer.appendChild(itemWrapper);
+      await this.mountMailPreview(item, itemWrapper);
+    }
+  }
+
+  /**
+   * Mount MailEmbedPreview component for a single mail embed item (in groups).
+   */
+  private async mountMailPreview(
+    item: EmbedNodeAttributes,
+    target: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.startsWith("embed:")
+      ? item.contentRef.replace("embed:", "")
+      : "";
+
+    let embedData: any = null;
+    let decodedContent: any = null;
+
+    if (embedId) {
+      try {
+        embedData = await resolveEmbed(embedId);
+        decodedContent = embedData?.content
+          ? await decodeToonContent(embedData.content)
+          : null;
+      } catch (error) {
+        console.error(
+          "[GroupRenderer] Error loading mail embed for group item:",
+          error,
+        );
+      }
+    }
+
+    const receiver = decodedContent?.receiver || "";
+    const subject = decodedContent?.subject || "";
+    const mailContent = decodedContent?.content || "";
+    const footer = decodedContent?.footer || "";
+    const status = (decodedContent?.status ||
+      embedData?.status ||
+      item.status ||
+      "finished") as "processing" | "finished" | "error" | "cancelled";
+    const taskId = decodedContent?.task_id;
+
+    const existingComponent = mountedComponents.get(target);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    target.innerHTML = "";
+
+    const handleFullscreen = () => {
+      this.openFullscreen(item, embedData, decodedContent);
+    };
+
+    try {
+      const component = mount(MailEmbedPreview, {
+        target,
+        props: {
+          id: embedId || item.id || "",
+          receiver,
+          subject,
+          content: mailContent,
+          footer,
+          status,
+          taskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+      mountedComponents.set(target, component);
+
+      console.debug(
+        "[GroupRenderer] Mounted MailEmbedPreview component in group:",
+        {
+          embedId,
+          subject,
+          status,
+        },
+      );
+    } catch (error) {
+      console.error(
+        "[GroupRenderer] Error mounting MailEmbedPreview in group:",
+        error,
+      );
+      target.innerHTML = `<div style="padding:8px;font-size:12px;color:var(--color-grey-50)">Mail embed unavailable</div>`;
+    }
+  }
+
+  /**
+   * Render a mail item as HTML fallback (for renderItemContent switch).
+   */
+  private async renderMailItem(
+    item: EmbedNodeAttributes,
+    embedData: any = null,
+    decodedContent: any = null,
+  ): Promise<string> {
+    const subject = decodedContent?.subject || item.title || "Email Draft";
+    const receiver = decodedContent?.receiver || "";
+    const isProcessing = item.status === "processing";
+
+    return `
+      <div class="embed-app-icon mail">
+        <span class="icon icon_mail"></span>
+      </div>
+      <div class="embed-text-content">
+        ${isProcessing ? '<div class="embed-modify-icon"><span class="icon icon_edit"></span></div>' : ""}
+        <div class="embed-text-line">${subject}</div>
+        ${receiver ? `<div class="embed-text-subline">${receiver}</div>` : ""}
+      </div>
+    `;
+  }
+
   private getGroupDisplayName(baseType: string, count: number): string {
     const typeDisplayNames: { [key: string]: string } = {
       "app-skill-use": "request",
@@ -2808,6 +3068,7 @@ export class GroupRenderer implements EmbedRenderer {
       "code-code": "code file",
       "docs-doc": "document",
       "sheets-sheet": "spreadsheet",
+      "mail-email": "email draft",
     };
 
     const displayName = typeDisplayNames[baseType] || baseType;

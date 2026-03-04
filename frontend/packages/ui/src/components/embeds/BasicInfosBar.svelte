@@ -325,6 +325,11 @@
     -webkit-mask-image: url('@openmates/ui/static/icons/event.svg');
     mask-image: url('@openmates/ui/static/icons/event.svg');
   }
+
+  .basic-infos-bar .skill-icon[data-skill-icon="mail"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/mail.svg');
+    mask-image: url('@openmates/ui/static/icons/mail.svg');
+  }
   
   /* Status text container */
   .basic-infos-bar.desktop .status-text {

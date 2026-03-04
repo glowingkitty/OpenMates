@@ -27,6 +27,7 @@
     import MapsLocationEmbedFullscreen from './embeds/maps/MapsLocationEmbedFullscreen.svelte';
     import CodeEmbedFullscreen from './embeds/code/CodeEmbedFullscreen.svelte';
     import DocsEmbedFullscreen from './embeds/docs/DocsEmbedFullscreen.svelte';
+    import MailEmbedFullscreen from './embeds/mail/MailEmbedFullscreen.svelte';
     import SheetEmbedFullscreen from './embeds/sheets/SheetEmbedFullscreen.svelte';
     import VideoTranscriptEmbedPreview from './embeds/videos/VideoTranscriptEmbedPreview.svelte';
     import VideoTranscriptEmbedFullscreen from './embeds/videos/VideoTranscriptEmbedFullscreen.svelte';
@@ -9193,6 +9194,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         navigateDirection={embedNavigateDirection}
                         showChatButton={showChatButtonInFullscreen}
                         onShowChat={handleShowChat}
+                    />
+                {:else if embedFullscreenData.embedType === 'mail-email'}
+                    <!-- Mail Fullscreen (direct-type embed rendered from ```email ... ``` blocks) -->
+                    <MailEmbedFullscreen
+                        receiver={coerceString(embedFullscreenData.decodedContent?.receiver, '')}
+                        subject={coerceString(embedFullscreenData.decodedContent?.subject, '')}
+                        content={coerceString(embedFullscreenData.decodedContent?.content, '')}
+                        footer={coerceString(embedFullscreenData.decodedContent?.footer, '')}
+                        embedId={embedFullscreenData.embedId}
+                        onClose={handleCloseEmbedFullscreen}
+                        {hasPreviousEmbed}
+                        {hasNextEmbed}
+                        onNavigatePrevious={handleNavigatePreviousEmbed}
+                        onNavigateNext={handleNavigateNextEmbed}
+                        navigateDirection={embedNavigateDirection}
+                        showChatButton={showChatButtonInFullscreen}
+                        onShowChat={handleShowChat}
+                        piiMappings={cumulativePIIMappingsArray}
+                        piiRevealed={piiRevealed}
                     />
                 {:else}
                     <!-- Fallback for unknown embed types -->

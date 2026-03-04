@@ -3686,3 +3686,228 @@ math.plot:
   sv: Graf
   he: שרטוט
   verified_by_human: []
+
+mail.email:
+  context: Mail draft embed label shown in BasicInfosBar
+  en: Email Draft
+  de: E-Mail-Entwurf
+  zh: 邮件草稿
+  es: Borrador de correo
+  fr: Brouillon d'e-mail
+  pt: Rascunho de e-mail
+  ru: Черновик письма
+  ja: メール下書き
+  ko: 이메일 초안
+  it: Bozza email
+  tr: E-posta taslagi
+  vi: Ban nhap email
+  id: Draf email
+  pl: Szkic e-maila
+  nl: E-mailconcept
+  ar: مسودة بريد
+  hi: ईमेल ड्राफ्ट
+  th: ฉบับร่างอีเมล
+  cs: Koncept e-mailu
+  sv: E-postutkast
+  he: טיוטת אימייל
+  verified_by_human: []
+
+mail.to:
+  context: Label for email recipient field in mail embed
+  en: To
+  de: An
+  zh: 收件人
+  es: Para
+  fr: A
+  pt: Para
+  ru: Кому
+  ja: 宛先
+  ko: 받는 사람
+  it: A
+  tr: Alici
+  vi: Nguoi nhan
+  id: Kepada
+  pl: Do
+  nl: Aan
+  ar: إلى
+  hi: प्राप्तकर्ता
+  th: ถึง
+  cs: Komu
+  sv: Till
+  he: אל
+  verified_by_human: []
+
+mail.subject:
+  context: Label for email subject field in mail embed
+  en: Subject
+  de: Betreff
+  zh: 主题
+  es: Asunto
+  fr: Objet
+  pt: Assunto
+  ru: Тема
+  ja: 件名
+  ko: 제목
+  it: Oggetto
+  tr: Konu
+  vi: Chu de
+  id: Subjek
+  pl: Temat
+  nl: Onderwerp
+  ar: الموضوع
+  hi: विषय
+  th: หัวเรื่อง
+  cs: Predmet
+  sv: Amne
+  he: נושא
+  verified_by_human: []
+
+mail.content:
+  context: Label for email body content in mail embed
+  en: Content
+  de: Inhalt
+  zh: 正文
+  es: Contenido
+  fr: Contenu
+  pt: Conteudo
+  ru: Содержимое
+  ja: 本文
+  ko: 본문
+  it: Contenuto
+  tr: Icerik
+  vi: Noi dung
+  id: Konten
+  pl: Tresc
+  nl: Inhoud
+  ar: المحتوى
+  hi: सामग्री
+  th: เนื้อหา
+  cs: Obsah
+  sv: Innehall
+  he: תוכן
+  verified_by_human: []
+
+mail.footer:
+  context: Label for reusable footer/signature in mail embed
+  en: Footer
+  de: Signatur
+  zh: 页脚
+  es: Firma
+  fr: Signature
+  pt: Rodape
+  ru: Подпись
+  ja: フッター
+  ko: 푸터
+  it: Firma
+  tr: Imza
+  vi: Chu ky
+  id: Footer
+  pl: Stopka
+  nl: Footer
+  ar: التذييل
+  hi: फ़ुटर
+  th: ส่วนท้าย
+  cs: Podpis
+  sv: Sidfot
+  he: חתימה
+  verified_by_human: []
+
+mail.empty_content:
+  context: Empty state text when no email body content is present
+  en: No email content yet.
+  de: Noch kein E-Mail-Inhalt.
+  zh: 暂无邮件正文。
+  es: Aun no hay contenido del correo.
+  fr: Aucun contenu d'e-mail pour le moment.
+  pt: Ainda sem conteudo de email.
+  ru: Пока нет содержимого письма.
+  ja: まだメール本文がありません。
+  ko: 아직 이메일 본문이 없습니다.
+  it: Nessun contenuto email al momento.
+  tr: Henuz e-posta icerigi yok.
+  vi: Chua co noi dung email.
+  id: Belum ada konten email.
+  pl: Brak tresci e-maila.
+  nl: Nog geen e-mailinhoud.
+  ar: لا يوجد محتوى بريد بعد.
+  hi: अभी ईमेल सामग्री उपलब्ध नहीं है।
+  th: ยังไม่มีเนื้อหาอีเมล
+  cs: Zatim zadny obsah e-mailu.
+  sv: Inget e-postinnehall an.
+  he: עדיין אין תוכן אימייל.
+  verified_by_human: []
+
+mail.open_mail_client:
+  context: CTA text for opening the drafted email in the user's mail client
+  en: Open in Mail App
+  de: In Mail-App offnen
+  zh: 在邮件应用中打开
+  es: Abrir en app de correo
+  fr: Ouvrir dans l'appli e-mail
+  pt: Abrir no app de e-mail
+  ru: Открыть в почтовом приложении
+  ja: メールアプリで開く
+  ko: 메일 앱에서 열기
+  it: Apri nell'app mail
+  tr: Mail uygulamasinda ac
+  vi: Mo trong ung dung mail
+  id: Buka di aplikasi mail
+  pl: Otworz w aplikacji poczty
+  nl: Openen in mailapp
+  ar: افتح في تطبيق البريد
+  hi: मेल ऐप में खोलें
+  th: เปิดในแอปเมล
+  cs: Otevrit v e-mailove aplikaci
+  sv: Oppna i e-postappen
+  he: פתח באפליקציית הדואר
+  verified_by_human: []
+
+mail.copied:
+  context: Notification shown when mail draft is copied
+  en: Email draft copied.
+  de: E-Mail-Entwurf kopiert.
+  zh: 邮件草稿已复制。
+  es: Borrador de correo copiado.
+  fr: Brouillon d'e-mail copie.
+  pt: Rascunho de e-mail copiado.
+  ru: Черновик письма скопирован.
+  ja: メール下書きをコピーしました。
+  ko: 이메일 초안을 복사했습니다.
+  it: Bozza email copiata.
+  tr: E-posta taslagi kopyalandi.
+  vi: Da sao chep ban nhap email.
+  id: Draf email disalin.
+  pl: Szkic e-maila skopiowany.
+  nl: E-mailconcept gekopieerd.
+  ar: تم نسخ مسودة البريد.
+  hi: ईमेल ड्राफ्ट कॉपी हो गया।
+  th: คัดลอกฉบับร่างอีเมลแล้ว
+  cs: Koncept e-mailu zkopirovan.
+  sv: E-postutkast kopierat.
+  he: טיוטת האימייל הועתקה.
+  verified_by_human: []
+
+mail.copy_failed:
+  context: Notification shown when copying mail draft fails
+  en: Failed to copy email draft.
+  de: E-Mail-Entwurf konnte nicht kopiert werden.
+  zh: 复制邮件草稿失败。
+  es: No se pudo copiar el borrador del correo.
+  fr: Impossible de copier le brouillon d'e-mail.
+  pt: Falha ao copiar o rascunho de e-mail.
+  ru: Не удалось скопировать черновик письма.
+  ja: メール下書きのコピーに失敗しました。
+  ko: 이메일 초안 복사에 실패했습니다.
+  it: Impossibile copiare la bozza email.
+  tr: E-posta taslagi kopyalanamadi.
+  vi: Sao chep ban nhap email that bai.
+  id: Gagal menyalin draf email.
+  pl: Nie udalo sie skopiowac szkicu e-maila.
+  nl: E-mailconcept kopieren mislukt.
+  ar: فشل نسخ مسودة البريد.
+  hi: ईमेल ड्राफ्ट कॉपी नहीं हो सका।
+  th: คัดลอกฉบับร่างอีเมลไม่สำเร็จ
+  cs: Kopirovani konceptu e-mailu se nezdarilo.
+  sv: Det gick inte att kopiera e-postutkastet.
+  he: ההעתקה של טיוטת האימייל נכשלה.
+  verified_by_human: []

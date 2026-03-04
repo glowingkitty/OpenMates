@@ -79,6 +79,11 @@ _INLINE_EMBED_LINK_PATTERN = re.compile(
 # where XYZ is a 2-4 character alphanumeric random suffix.
 _EMBED_REF_SUFFIX_PATTERN = re.compile(r'-[a-zA-Z0-9]{2,4}$')
 
+_EMAIL_TO_PATTERN = re.compile(r'^(?:to|receiver|recipient)\s*:\s*(.+)$', re.IGNORECASE)
+_EMAIL_SUBJECT_PATTERN = re.compile(r'^subject\s*:\s*(.+)$', re.IGNORECASE)
+_EMAIL_CONTENT_MARKER_PATTERN = re.compile(r'^content\s*:\s*$', re.IGNORECASE)
+_EMAIL_FOOTER_PATTERN = re.compile(r'^footer\s*:\s*(.*)$', re.IGNORECASE)
+
 def _strip_tool_call_xml_from_text(text: str) -> str:
     """
     Strip <tool_call>...</tool_call> XML blocks from text content.
@@ -109,6 +114,78 @@ def _strip_tool_call_xml_from_text(text: str) -> str:
         logger.debug(f"Stripped <tool_call> XML from text. Original: {len(text)} chars, cleaned: {len(cleaned)} chars")
     
     return cleaned
+
+
+def _parse_email_fence_content(raw_content: str) -> Dict[str, str]:
+    """
+    Parse the body of an ```email fenced block into structured fields.
+
+    Supported field headers (case-insensitive):
+    - to:/receiver:/recipient:  (single line)
+    - subject:                  (single line)
+    - content:                  (multi-line section)
+    - footer:                   (multi-line section, optional inline value)
+
+    Lines are routed to the currently active section. If no explicit `content:`
+    marker is present, all non-header lines are treated as body content.
+    """
+    lines = raw_content.splitlines()
+    receiver = ""
+    subject = ""
+    content_lines: List[str] = []
+    footer_lines: List[str] = []
+    # Track which section we're accumulating into: "content" or "footer".
+    # Default to "content" so non-header lines before any marker become body.
+    current_section = "content"
+
+    for line in lines:
+        stripped = line.strip()
+
+        # Empty lines are preserved in the current section
+        if not stripped:
+            if current_section == "footer":
+                footer_lines.append("")
+            else:
+                content_lines.append("")
+            continue
+
+        to_match = _EMAIL_TO_PATTERN.match(stripped)
+        if to_match:
+            receiver = to_match.group(1).strip()
+            continue
+
+        subject_match = _EMAIL_SUBJECT_PATTERN.match(stripped)
+        if subject_match:
+            subject = subject_match.group(1).strip()
+            continue
+
+        if _EMAIL_CONTENT_MARKER_PATTERN.match(stripped):
+            current_section = "content"
+            continue
+
+        footer_match = _EMAIL_FOOTER_PATTERN.match(stripped)
+        if footer_match:
+            current_section = "footer"
+            # Capture optional inline value (e.g., "footer: Best regards")
+            inline_value = footer_match.group(1).strip()
+            if inline_value:
+                footer_lines.append(inline_value)
+            continue
+
+        # Append to whichever section is active
+        if current_section == "footer":
+            footer_lines.append(line)
+        else:
+            content_lines.append(line)
+
+    content = "\n".join(content_lines).strip()
+    footer = "\n".join(footer_lines).strip()
+    return {
+        "receiver": receiver,
+        "subject": subject,
+        "content": content,
+        "footer": footer,
+    }
 
 
 async def _verify_and_strip_bad_quotes(
@@ -1605,6 +1682,10 @@ async def _consume_main_processing_stream(
     # called during streaming and finalization. The expression is accumulated and stored at close.
     in_plot_block = False
 
+    # Mail block tracking: ```email ... ``` fences produce structured mail embeds (type="mail").
+    # The content is parsed into receiver/subject/content/footer and rendered as draft cards.
+    in_email_block = False
+
     # Table/sheet embed tracking: detect markdown tables (|...|) and convert to embeds.
     # Tables don't have explicit delimiters like code blocks (```). Instead, they are
     # sequences of pipe-delimited lines (|col1|col2|). A table ends when we see a
@@ -2046,6 +2127,9 @@ async def _consume_main_processing_stream(
                                 
                                 # Check if this is a document_html block
                                 is_document_html = current_code_language.lower() == 'document_html' if current_code_language else False
+
+                                # Check if this is a mail block
+                                is_email_block = current_code_language.lower() == 'email' if current_code_language else False
                                 
                                 if is_plot_block:
                                     # Create math-plot embed placeholder and finalize immediately
@@ -2131,6 +2215,48 @@ async def _consume_main_processing_stream(
                                         in_code_block = False
                                         in_document_block = False
                                         current_document_title = None
+                                        current_code_language = ""
+                                        current_code_filename = None
+                                        current_code_content = ""
+                                        current_code_embed_id = None
+                                elif is_email_block:
+                                    parsed_email = _parse_email_fence_content(code_content)
+
+                                    embed_data = await embed_service.create_mail_embed_placeholder(
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        receiver=parsed_email.get("receiver", ""),
+                                        subject=parsed_email.get("subject", ""),
+                                        log_prefix=log_prefix,
+                                    )
+
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+
+                                        await embed_service.update_mail_embed_content(
+                                            embed_id=current_code_embed_id,
+                                            receiver=parsed_email.get("receiver", ""),
+                                            subject=parsed_email.get("subject", ""),
+                                            content=parsed_email.get("content", ""),
+                                            footer=parsed_email.get("footer", ""),
+                                            chat_id=request_data.chat_id,
+                                            user_id=request_data.user_id,
+                                            user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id,
+                                            status="finished",
+                                            log_prefix=log_prefix,
+                                        )
+
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created and finalized mail embed {current_code_embed_id}")
+
+                                        in_code_block = False
+                                        in_email_block = False
                                         current_code_language = ""
                                         current_code_filename = None
                                         current_code_content = ""
@@ -2239,9 +2365,10 @@ async def _consume_main_processing_stream(
                         
                         # Create embed placeholder (only for non-suspicious languages)
                         # Plot blocks get math-plot embeds; document_html blocks get document embeds;
-                        # all others get code embeds.
+                        # email blocks get mail embeds; all others get code embeds.
                         is_plot_block_multi = current_code_language.lower() == 'plot' if current_code_language else False
                         is_document_html = current_code_language.lower() == 'document_html' if current_code_language else False
+                        is_email_block_multi = current_code_language.lower() == 'email' if current_code_language else False
                         if is_plot_block_multi:
                             in_plot_block = True
                         elif is_document_html:
@@ -2312,6 +2439,43 @@ async def _consume_main_processing_stream(
                                         embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
                                         chunk = embed_reference_code
                                         logger.info(f"{log_prefix} Created document embed placeholder {current_code_embed_id} (title: {current_document_title or 'none'})")
+                                elif is_email_block_multi:
+                                    in_email_block = True
+
+                                    parsed_email = _parse_email_fence_content(current_code_content)
+                                    embed_data = await embed_service.create_mail_embed_placeholder(
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        receiver=parsed_email.get("receiver", ""),
+                                        subject=parsed_email.get("subject", ""),
+                                        log_prefix=log_prefix,
+                                    )
+
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+
+                                        if current_code_content:
+                                            await embed_service.update_mail_embed_content(
+                                                embed_id=current_code_embed_id,
+                                                receiver=parsed_email.get("receiver", ""),
+                                                subject=parsed_email.get("subject", ""),
+                                                content=parsed_email.get("content", ""),
+                                                footer=parsed_email.get("footer", ""),
+                                                chat_id=request_data.chat_id,
+                                                user_id=request_data.user_id,
+                                                user_id_hash=request_data.user_id_hash,
+                                                user_vault_key_id=user_vault_key_id,
+                                                status="processing",
+                                                log_prefix=log_prefix,
+                                            )
+
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created mail embed placeholder {current_code_embed_id}")
                                 else:
                                     embed_data = await embed_service.create_code_embed_placeholder(
                                         language=current_code_language,
@@ -2413,9 +2577,10 @@ async def _consume_main_processing_stream(
                             continue
 
                         # Now create the embed placeholder with the extracted (or empty) language
-                        # Check if this is a plot or document_html block (language resolved after bare fence)
+                        # Check if this is a plot/document_html/email block (language resolved after bare fence)
                         is_plot_block_post_bare = current_code_language.lower() == 'plot' if current_code_language else False
                         is_document_html = current_code_language.lower() == 'document_html' if current_code_language else False
+                        is_email_block_post_bare = current_code_language.lower() == 'email' if current_code_language else False
                         if is_plot_block_post_bare:
                             in_plot_block = True
                         elif is_document_html:
@@ -2487,6 +2652,45 @@ async def _consume_main_processing_stream(
                                         logger.info(f"{log_prefix} Created document embed placeholder {current_code_embed_id} (title: {current_document_title or 'none'}) after waiting for language")
                                     else:
                                         chunk = ""  # Failed to create document embed
+                                elif is_email_block_post_bare:
+                                    in_email_block = True
+
+                                    parsed_email = _parse_email_fence_content(current_code_content)
+                                    embed_data = await embed_service.create_mail_embed_placeholder(
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        receiver=parsed_email.get("receiver", ""),
+                                        subject=parsed_email.get("subject", ""),
+                                        log_prefix=log_prefix,
+                                    )
+
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+
+                                        if current_code_content:
+                                            await embed_service.update_mail_embed_content(
+                                                embed_id=current_code_embed_id,
+                                                receiver=parsed_email.get("receiver", ""),
+                                                subject=parsed_email.get("subject", ""),
+                                                content=parsed_email.get("content", ""),
+                                                footer=parsed_email.get("footer", ""),
+                                                chat_id=request_data.chat_id,
+                                                user_id=request_data.user_id,
+                                                user_id_hash=request_data.user_id_hash,
+                                                user_vault_key_id=user_vault_key_id,
+                                                status="processing",
+                                                log_prefix=log_prefix,
+                                            )
+
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created mail embed placeholder {current_code_embed_id} (language resolved after bare fence)")
+                                    else:
+                                        chunk = ""
                                 else:
                                     embed_data = await embed_service.create_code_embed_placeholder(
                                         language=current_code_language,
@@ -2747,6 +2951,23 @@ async def _consume_main_processing_stream(
                                     )
                                     
                                     logger.info(f"{log_prefix} Finalized document embed {current_code_embed_id} with {len(current_code_content)} chars (title: {current_document_title or 'none'})")
+                                elif in_email_block:
+                                    parsed_email = _parse_email_fence_content(current_code_content)
+                                    await embed_service.update_mail_embed_content(
+                                        embed_id=current_code_embed_id,
+                                        receiver=parsed_email.get("receiver", ""),
+                                        subject=parsed_email.get("subject", ""),
+                                        content=parsed_email.get("content", ""),
+                                        footer=parsed_email.get("footer", ""),
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="finished",
+                                        log_prefix=log_prefix
+                                    )
+
+                                    logger.info(f"{log_prefix} Finalized mail embed {current_code_embed_id}")
                                 else:
                                     await embed_service.update_code_embed_content(
                                         embed_id=current_code_embed_id,
@@ -2767,6 +2988,7 @@ async def _consume_main_processing_stream(
                             in_code_block = False
                             in_plot_block = False
                             in_document_block = False
+                            in_email_block = False
                             current_document_title = None
                             current_code_language = ""
                             current_code_filename = None
@@ -2806,6 +3028,22 @@ async def _consume_main_processing_stream(
                                         log_prefix=log_prefix
                                     )
                                     logger.debug(f"{log_prefix} Updated document embed {current_code_embed_id} (per-line update, {len(current_code_content)} chars)")
+                                elif in_email_block:
+                                    parsed_email = _parse_email_fence_content(current_code_content)
+                                    await embed_service.update_mail_embed_content(
+                                        embed_id=current_code_embed_id,
+                                        receiver=parsed_email.get("receiver", ""),
+                                        subject=parsed_email.get("subject", ""),
+                                        content=parsed_email.get("content", ""),
+                                        footer=parsed_email.get("footer", ""),
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="processing",
+                                        log_prefix=log_prefix
+                                    )
+                                    logger.debug(f"{log_prefix} Updated mail embed {current_code_embed_id} (per-line update)")
                                 else:
                                     await embed_service.update_code_embed_content(
                                         embed_id=current_code_embed_id,
@@ -3046,6 +3284,22 @@ async def _consume_main_processing_stream(
                     log_prefix=log_prefix
                 )
                 logger.info(f"{log_prefix} Finalized interrupted document embed {current_code_embed_id} with {len(current_code_content)} chars")
+            elif in_email_block:
+                parsed_email = _parse_email_fence_content(current_code_content)
+                await embed_service.update_mail_embed_content(
+                    embed_id=current_code_embed_id,
+                    receiver=parsed_email.get("receiver", ""),
+                    subject=parsed_email.get("subject", ""),
+                    content=parsed_email.get("content", ""),
+                    footer=parsed_email.get("footer", ""),
+                    chat_id=request_data.chat_id,
+                    user_id=request_data.user_id,
+                    user_id_hash=request_data.user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    status="finished",
+                    log_prefix=log_prefix
+                )
+                logger.info(f"{log_prefix} Finalized interrupted mail embed {current_code_embed_id}")
             else:
                 # Finalize code embed with partial content (interrupted)
                 await embed_service.update_code_embed_content(

@@ -102,3 +102,128 @@ writing_styles.example_2:
   sv: Avslappnat team
   he: צוותי לא רשמי
   verified_by_human: [en, de]
+
+writing_styles.example_3:
+  context: Example entry for writing styles (follow-up style)
+  en: Follow-up and reminders
+  de: Follow-up und Erinnerungen
+  zh: 跟进与提醒
+  es: Seguimiento y recordatorios
+  fr: Relances et rappels
+  pt: Acompanhamentos e lembretes
+  ru: Фоллоу-ап и напоминания
+  ja: フォローアップとリマインド
+  ko: 후속 조치 및 리마인더
+  it: Follow-up e promemoria
+  tr: Takip ve hatırlatmalar
+  vi: Theo dõi và nhắc nhở
+  id: Tindak lanjut dan pengingat
+  pl: Follow-up i przypomnienia
+  nl: Follow-up en herinneringen
+  ar: متابعات وتذكيرات
+  hi: फॉलो-अप और रिमाइंडर
+  th: ติดตามผลและการเตือนความจำ
+  cs: Následná komunikace a připomínky
+  sv: Uppfoljning och påminnelser
+  he: מעקב ותזכורות
+  verified_by_human: [en, de]
+
+footer:
+  context: Settings/memory name for reusable email footer blocks
+  en: Footer
+  de: Signatur
+  zh: 页脚签名
+  es: Pie de correo
+  fr: Signature
+  pt: Rodapé
+  ru: Подпись
+  ja: フッター
+  ko: 메일 푸터
+  it: Firma
+  tr: E-posta imzasi
+  vi: Chu ky cuoi thu
+  id: Footer email
+  pl: Stopka
+  nl: Footer
+  ar: تذييل البريد
+  hi: ईमेल फुटर
+  th: ส่วนท้ายอีเมล
+  cs: Podpis
+  sv: Sidfot
+  he: חתימה
+  verified_by_human: []
+
+footer.description:
+  context: Description for reusable email footer blocks
+  en: Reusable signatures and closing blocks for your drafted emails.
+  de: Wiederverwendbare Signaturen und Abschlussblöcke fur deine E-Mails.
+  zh: 用于邮件草稿的可复用签名和结尾内容。
+  es: Firmas y cierres reutilizables para tus borradores de correo.
+  fr: Signatures et blocs de conclusion reutilisables pour vos e-mails.
+  pt: Assinaturas e blocos finais reutilizaveis para seus emails.
+  ru: Повторно используемые подписи и завершающие блоки для писем.
+  ja: メール下書きで使える再利用可能な署名と締め文です。
+  ko: 이메일 초안에 재사용할 수 있는 서명과 마무리 문구입니다.
+  it: Firme e blocchi di chiusura riutilizzabili per le tue email.
+  tr: E-posta taslaklarin icin yeniden kullanilabilir imza ve kapanis bloklari.
+  vi: Chu ky va doan ket thu co the tai su dung cho email nhap.
+  id: Tanda tangan dan penutup yang bisa dipakai ulang untuk draf email Anda.
+  pl: Wielokrotnego uzytku podpisy i zakonczenia do szkicow e-maili.
+  nl: Herbruikbare handtekeningen en afsluitende blokken voor je e-mails.
+  ar: تواقيع وعبارات ختامية قابلة لاعادة الاستخدام في مسودات البريد.
+  hi: "आपके ईमेल ड्राफ्ट के लिए पुन: उपयोग योग्य सिग्नेचर और क्लोजिंग ब्लॉक।"
+  th: ลายเซ็นและบล็อกปิดท้ายที่ใช้ซ้ำได้สำหรับร่างอีเมลของคุณ
+  cs: Opakovane pouzitelne podpisy a zaverecne bloky pro koncepty e-mailu.
+  sv: Ateranvandbara signaturer och avslut for dina e-postutkast.
+  he: חתימות וקטעי סיום לשימוש חוזר בטיוטות אימייל.
+  verified_by_human: []
+
+footer.example_1:
+  context: Example entry for mail footer memory (professional signature)
+  en: Work signature
+  de: Arbeits-Signatur
+  zh: 工作签名
+  es: Firma de trabajo
+  fr: Signature professionnelle
+  pt: Assinatura de trabalho
+  ru: Рабочая подпись
+  ja: 仕事用署名
+  ko: 업무용 서명
+  it: Firma di lavoro
+  tr: Is imzasi
+  vi: Chu ky cong viec
+  id: Tanda tangan kerja
+  pl: Stopka sluzbowa
+  nl: Werkhandtekening
+  ar: توقيع العمل
+  hi: कार्य हस्ताक्षर
+  th: ลายเซ็นงาน
+  cs: Pracovni podpis
+  sv: Arbetssignatur
+  he: חתימת עבודה
+  verified_by_human: []
+
+footer.example_2:
+  context: Example entry for mail footer memory (personal signature)
+  en: Friendly personal signature
+  de: Freundliche private Signatur
+  zh: 友好的个人签名
+  es: Firma personal amistosa
+  fr: Signature personnelle conviviale
+  pt: Assinatura pessoal amigavel
+  ru: Дружелюбная личная подпись
+  ja: 親しみやすい個人署名
+  ko: 친근한 개인 서명
+  it: Firma personale cordiale
+  tr: Samimi kisisel imza
+  vi: Chu ky ca nhan than thien
+  id: Tanda tangan pribadi yang ramah
+  pl: Przyjazna prywatna stopka
+  nl: Vriendelijke persoonlijke handtekening
+  ar: توقيع شخصي ودود
+  hi: मित्रवत व्यक्तिगत हस्ताक्षर
+  th: ลายเซ็นส่วนตัวแบบเป็นกันเอง
+  cs: Pratelsky osobni podpis
+  sv: Vanlig personlig signatur
+  he: חתימה אישית ידידותית
+  verified_by_human: []
