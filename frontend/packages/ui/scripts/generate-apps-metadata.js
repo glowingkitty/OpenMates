@@ -692,6 +692,27 @@ function parseAppYaml(appId, filePath) {
                 )
                 .filter((e) => e.length > 0)
             : undefined,
+          // Full example entries with all field values populated.
+          // String field values that are translation keys get prefixed with "app_settings_memories."
+          // Enum values, booleans, and numbers are kept as raw values.
+          example_entries: Array.isArray(item.example_entries)
+            ? item.example_entries.map((entry) => {
+                const normalizedEntry = {};
+                for (const [key, value] of Object.entries(entry)) {
+                  if (typeof value === "string" && value.includes(".")) {
+                    // Looks like a translation key — normalize it
+                    normalizedEntry[key] = normalizeTranslationKey(
+                      value.trim(),
+                      "app_settings_memories.",
+                    );
+                  } else {
+                    // Raw value (enum, boolean, number, or simple string)
+                    normalizedEntry[key] = value;
+                  }
+                }
+                return normalizedEntry;
+              })
+            : undefined,
         };
 
         // Auto-inject 'added_date' into every settings/memories schema.
@@ -1001,21 +1022,27 @@ function generateTypeScript(appsMetadata) {
                 return `                ${line}`;
               })
               .join("\n");
-            // Add comma after schema if example_translation_keys follow, otherwise no comma
-            if (
+            // Check if there are trailing properties after schema
+            const hasExampleKeys =
               memory.example_translation_keys &&
-              memory.example_translation_keys.length > 0
-            ) {
+              memory.example_translation_keys.length > 0;
+            const hasExampleEntries =
+              memory.example_entries && memory.example_entries.length > 0;
+            const hasTrailingProps = hasExampleKeys || hasExampleEntries;
+            if (hasTrailingProps) {
               lines.push(indentedSchema + ",");
             } else {
               lines.push(indentedSchema);
             }
           } else {
-            // Add comma after type if example_translation_keys follow, otherwise no comma
-            if (
+            // Check if there are trailing properties after type
+            const hasExampleKeys =
               memory.example_translation_keys &&
-              memory.example_translation_keys.length > 0
-            ) {
+              memory.example_translation_keys.length > 0;
+            const hasExampleEntries =
+              memory.example_entries && memory.example_entries.length > 0;
+            const hasTrailingProps = hasExampleKeys || hasExampleEntries;
+            if (hasTrailingProps) {
               lines.push(
                 `                type: ${JSON.stringify(memory.type)},`,
               );
@@ -1030,8 +1057,22 @@ function generateTypeScript(appsMetadata) {
             memory.example_translation_keys &&
             memory.example_translation_keys.length > 0
           ) {
+            const hasExampleEntries =
+              memory.example_entries && memory.example_entries.length > 0;
+            if (hasExampleEntries) {
+              lines.push(
+                `                example_translation_keys: ${JSON.stringify(memory.example_translation_keys)},`,
+              );
+            } else {
+              lines.push(
+                `                example_translation_keys: ${JSON.stringify(memory.example_translation_keys)}`,
+              );
+            }
+          }
+          // Include full example entries if present (all field values populated)
+          if (memory.example_entries && memory.example_entries.length > 0) {
             lines.push(
-              `                example_translation_keys: ${JSON.stringify(memory.example_translation_keys)}`,
+              `                example_entries: ${JSON.stringify(memory.example_entries)}`,
             );
           }
           lines.push(`            },`);

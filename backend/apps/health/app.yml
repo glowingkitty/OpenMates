@@ -27,6 +27,15 @@ settings_and_memories:
     example_translation_keys:
       - "health.appointments.example_1"
       - "health.appointments.example_2"
+    example_entries:
+      - appointment_type: "doctor_visit"
+        where: "health.appointments.example_1.where"
+        date: "2025-04-15"
+        notes: "health.appointments.example_1.notes"
+      - appointment_type: "dental"
+        where: "health.appointments.example_2.where"
+        date: "2025-05-20"
+        notes: "health.appointments.example_2.notes"
     schema:
       type: object
       properties:
@@ -57,6 +66,7 @@ settings_and_memories:
         notes:
           type: string
           description: Optional notes (reason, location, contact, etc.)
+          multiline: true
       required:
         - appointment_type
         - date
@@ -69,6 +79,15 @@ settings_and_memories:
     example_translation_keys:
       - "health.medical_history.example_1"
       - "health.medical_history.example_2"
+    example_entries:
+      - condition_type: "allergy"
+        name: "health.medical_history.example_1.name"
+        date: "2020-06-01"
+        details: "health.medical_history.example_1.details"
+      - condition_type: "vaccination"
+        name: "health.medical_history.example_2.name"
+        date: "2024-01-15"
+        details: "health.medical_history.example_2.details"
     schema:
       type: object
       properties:
@@ -94,6 +113,7 @@ settings_and_memories:
         details:
           type: string
           description: Optional details (status, doctor, treatment notes)
+          multiline: true
       required:
         - condition_type
         - name
@@ -130,6 +150,7 @@ settings_and_memories:
         notes:
           type: string
           description: Additional details about the symptom
+          multiline: true
       required:
         - symptom
         - date_onset
@@ -171,6 +192,7 @@ settings_and_memories:
           description:
             Additional notes about the sleep period (dreams, restlessness,
             specific disturbances, etc.)
+          multiline: true
       required:
         - date
 skills:

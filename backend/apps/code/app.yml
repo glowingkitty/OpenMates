@@ -16,6 +16,11 @@ settings_and_memories:
       - "code.preferred_tech.example_1"
       - "code.preferred_tech.example_2"
       - "code.preferred_tech.example_3"
+    example_entries:
+      - name: "code.preferred_tech.example_1.name"
+        proficiency: "advanced"
+      - name: "code.preferred_tech.example_2.name"
+        proficiency: "intermediate"
     schema:
       type: object
       properties:
@@ -41,6 +46,14 @@ settings_and_memories:
       - "code.projects.example_1"
       - "code.projects.example_2"
       - "code.projects.example_3"
+    example_entries:
+      - name: "code.projects.example_1.name"
+        status: "active"
+        description: "code.projects.example_1.description"
+        git_repo_url: "https://github.com/user/portfolio"
+      - name: "code.projects.example_2.name"
+        status: "completed"
+        description: "code.projects.example_2.description"
     schema:
       type: object
       properties:
@@ -56,6 +69,7 @@ settings_and_memories:
         description:
           type: string
           description: Brief description of the project
+          multiline: true
         git_repo_url:
           type: string
           description: Git repository URL (e.g., https://github.com/user/repo)
@@ -72,6 +86,9 @@ settings_and_memories:
       - "code.want_to_learn.example_1"
       - "code.want_to_learn.example_2"
       - "code.want_to_learn.example_3"
+    example_entries:
+      - name: "code.want_to_learn.example_1.name"
+      - name: "code.want_to_learn.example_2.name"
     schema:
       type: object
       properties:

@@ -61,6 +61,15 @@ settings_and_memories:
       - "travel.trips.example_1"
       - "travel.trips.example_2"
       - "travel.trips.example_3"
+    example_entries:
+      - destination: "travel.trips.example_1.destination"
+        start_date: "2025-09-01"
+        end_date: "2025-09-14"
+        notes: "travel.trips.example_1.notes"
+      - destination: "travel.trips.example_2.destination"
+        start_date: "2025-06-15"
+        end_date: "2025-06-22"
+        notes: "travel.trips.example_2.notes"
     schema:
       type: object
       properties:
@@ -80,6 +89,7 @@ settings_and_memories:
         notes:
           type: string
           description: Additional notes about the trip
+          multiline: true
       required:
         - destination
   # Preferred airlines: Airlines the user prefers to fly with
@@ -93,6 +103,9 @@ settings_and_memories:
       - "travel.preferred_airlines.example_1"
       - "travel.preferred_airlines.example_2"
       - "travel.preferred_airlines.example_3"
+    example_entries:
+      - name: "travel.preferred_airlines.example_1.name"
+      - name: "travel.preferred_airlines.example_2.name"
     schema:
       type: object
       properties:
@@ -113,6 +126,9 @@ settings_and_memories:
       - "travel.preferred_transport_methods.example_1"
       - "travel.preferred_transport_methods.example_2"
       - "travel.preferred_transport_methods.example_3"
+    example_entries:
+      - method: "train"
+      - method: "bike"
     schema:
       type: object
       properties:
@@ -143,6 +159,9 @@ settings_and_memories:
       - "travel.preferred_activities.example_2"
       - "travel.preferred_activities.example_3"
       - "travel.preferred_activities.example_4"
+    example_entries:
+      - name: "travel.preferred_activities.example_1.name"
+      - name: "travel.preferred_activities.example_2.name"
     schema:
       type: object
       properties:

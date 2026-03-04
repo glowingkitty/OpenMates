@@ -102,3 +102,155 @@ my_plants.example_2:
   sv: Svärmorstunga
   he: סנסביירה
   verified_by_human: [en, de]
+
+# example_entries translation keys for my_plants
+
+my_plants.example_1.name:
+  context: Example plant name for my plants
+  en: Monstera Deliciosa
+  de: Monstera Deliciosa
+  zh: 龟背竹
+  es: Monstera Deliciosa
+  fr: Monstera Deliciosa
+  pt: Monstera Deliciosa
+  ru: Монстера деликатесная
+  ja: モンステラ・デリシオサ
+  ko: 몬스테라 델리시오사
+  it: Monstera Deliciosa
+  tr: Monstera Deliciosa
+  vi: Trầu bà lá xẻ
+  id: Monstera Deliciosa
+  pl: Monstera Deliciosa
+  nl: Monstera Deliciosa
+  ar: مونستيرا
+  hi: मॉन्स्टेरा डेलिसियोसा
+  th: มอนสเตร่า
+  cs: Monstera Deliciosa
+  sv: Monstera Deliciosa
+  he: מונסטרה דליסיוסה
+  verified_by_human: []
+
+my_plants.example_1.location:
+  context: Example location for plant Monstera Deliciosa
+  en: Living room
+  de: Wohnzimmer
+  zh: 客厅
+  es: Sala de estar
+  fr: Salon
+  pt: Sala de estar
+  ru: Гостиная
+  ja: リビングルーム
+  ko: 거실
+  it: Soggiorno
+  tr: Oturma odası
+  vi: Phòng khách
+  id: Ruang tamu
+  pl: Salon
+  nl: Woonkamer
+  ar: غرفة المعيشة
+  hi: बैठक कमरा
+  th: ห้องนั่งเล่น
+  cs: Obývací pokoj
+  sv: Vardagsrum
+  he: סלון
+  verified_by_human: []
+
+my_plants.example_1.notes:
+  context: Example notes for plant Monstera Deliciosa
+  en: Needs indirect light, wipe leaves monthly
+  de: Braucht indirektes Licht, Blätter monatlich abwischen
+  zh: 需要间接光照，每月擦拭叶片
+  es: Necesita luz indirecta, limpiar hojas mensualmente
+  fr: Nécessite une lumière indirecte, essuyer les feuilles mensuellement
+  pt: Precisa de luz indireta, limpar as folhas mensalmente
+  ru: Нуждается в непрямом свете, протирать листья ежемесячно
+  ja: 間接光が必要、月に一度葉を拭く
+  ko: 간접 조명 필요, 매달 잎 닦기
+  it: Necessita di luce indiretta, pulire le foglie mensilmente
+  tr: Dolaylı ışık gerektirir, yaprakları ayda bir silin
+  vi: Cần ánh sáng gián tiếp, lau lá hàng tháng
+  id: Butuh cahaya tidak langsung, bersihkan daun setiap bulan
+  pl: Potrzebuje światła rozproszonego, wycierać liście co miesiąc
+  nl: Heeft indirect licht nodig, bladeren maandelijks afvegen
+  ar: يحتاج إلى ضوء غير مباشر، مسح الأوراق شهرياً
+  hi: अप्रत्यक्ष प्रकाश की आवश्यकता, मासिक रूप से पत्तियां पोंछें
+  th: ต้องการแสงทางอ้อม เช็ดใบไม้ทุกเดือน
+  cs: Potřebuje nepřímé světlo, měsíčně otírat listy
+  sv: Behöver indirekt ljus, torka bladen varje månad
+  he: צריך אור עקיף, לנגב עלים מדי חודש
+  verified_by_human: []
+
+my_plants.example_2.name:
+  context: Example plant name for my plants
+  en: Basil
+  de: Basilikum
+  zh: 罗勒
+  es: Albahaca
+  fr: Basilic
+  pt: Manjericão
+  ru: Базилик
+  ja: バジル
+  ko: 바질
+  it: Basilico
+  tr: Fesleğen
+  vi: Húng quế
+  id: Kemangi
+  pl: Bazylia
+  nl: Basilicum
+  ar: ريحان
+  hi: तुलसी
+  th: โหระพา
+  cs: Bazalka
+  sv: Basilika
+  he: בזיליקום
+  verified_by_human: []
+
+my_plants.example_2.location:
+  context: Example location for plant Basil
+  en: Kitchen window
+  de: Küchenfenster
+  zh: 厨房窗户
+  es: Ventana de la cocina
+  fr: Fenêtre de la cuisine
+  pt: Janela da cozinha
+  ru: Кухонное окно
+  ja: キッチンの窓
+  ko: 부엌 창문
+  it: Finestra della cucina
+  tr: Mutfak penceresi
+  vi: Cửa sổ bếp
+  id: Jendela dapur
+  pl: Okno kuchenne
+  nl: Keukenraam
+  ar: نافذة المطبخ
+  hi: रसोई की खिड़की
+  th: หน้าต่างห้องครัว
+  cs: Kuchyňské okno
+  sv: Köksfönster
+  he: חלון המטבח
+  verified_by_human: []
+
+my_plants.example_2.notes:
+  context: Example notes for plant Basil
+  en: Harvest regularly to encourage growth
+  de: Regelmäßig ernten, um das Wachstum zu fördern
+  zh: 定期采摘以促进生长
+  es: Cosechar regularmente para fomentar el crecimiento
+  fr: Récolter régulièrement pour encourager la croissance
+  pt: Colher regularmente para estimular o crescimento
+  ru: Регулярно собирать урожай для стимулирования роста
+  ja: 成長を促すために定期的に収穫する
+  ko: 성장 촉진을 위해 정기적으로 수확
+  it: Raccogliere regolarmente per favorire la crescita
+  tr: Büyümeyi teşvik etmek için düzenli olarak hasat edin
+  vi: Thu hoạch thường xuyên để thúc đẩy phát triển
+  id: Panen secara teratur untuk mendorong pertumbuhan
+  pl: Regularnie zbierać, aby pobudzić wzrost
+  nl: Regelmatig oogsten om de groei te bevorderen
+  ar: الحصاد بانتظام لتشجيع النمو
+  hi: विकास को प्रोत्साहित करने के लिए नियमित रूप से तोड़ें
+  th: เก็บเกี่ยวเป็นประจำเพื่อส่งเสริมการเจริญเติบโต
+  cs: Pravidelně sklízet pro podporu růstu
+  sv: Skörda regelbundet för att uppmuntra tillväxt
+  he: לקטוף באופן קבוע לעידוד צמיחה
+  verified_by_human: []

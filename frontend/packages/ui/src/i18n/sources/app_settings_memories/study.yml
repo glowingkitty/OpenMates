@@ -206,3 +206,105 @@ learning_goals.example_2:
   sv: Data Science grunderna
   he: יסודות מדעי הנתונים
   verified_by_human: [en, de]
+
+# example_entries translation keys for learning_goals
+
+learning_goals.example_1.topic:
+  context: Example topic for learning goals
+  en: Data Science
+  de: Data Science
+  zh: 数据科学
+  es: Ciencia de datos
+  fr: Science des données
+  pt: Ciência de dados
+  ru: Наука о данных
+  ja: データサイエンス
+  ko: 데이터 사이언스
+  it: Scienza dei dati
+  tr: Veri Bilimi
+  vi: Khoa học dữ liệu
+  id: Ilmu Data
+  pl: Nauka o danych
+  nl: Datawetenschap
+  ar: علوم البيانات
+  hi: डेटा साइंस
+  th: วิทยาศาสตร์ข้อมูล
+  cs: Datová věda
+  sv: Datavetenskap
+  he: מדעי הנתונים
+  verified_by_human: []
+
+learning_goals.example_1.notes:
+  context: Example notes for learning goal Data Science
+  en: Focus on Python pandas and data visualization
+  de: Fokus auf Python Pandas und Datenvisualisierung
+  zh: 专注于Python pandas和数据可视化
+  es: Enfoque en Python pandas y visualización de datos
+  fr: Concentrez-vous sur Python pandas et la visualisation de données
+  pt: Foco em Python pandas e visualização de dados
+  ru: Упор на Python pandas и визуализацию данных
+  ja: Python pandasとデータ可視化に集中
+  ko: Python pandas와 데이터 시각화에 집중
+  it: Focus su Python pandas e visualizzazione dati
+  tr: Python pandas ve veri görselleştirmeye odaklanma
+  vi: Tập trung vào Python pandas và trực quan hóa dữ liệu
+  id: Fokus pada Python pandas dan visualisasi data
+  pl: Skupienie na Python pandas i wizualizacji danych
+  nl: Focus op Python pandas en datavisualisatie
+  ar: التركيز على Python pandas وتصور البيانات
+  hi: Python pandas और डेटा विज़ुअलाइज़ेशन पर ध्यान केंद्रित करें
+  th: มุ่งเน้นที่ Python pandas และการแสดงผลข้อมูล
+  cs: Zaměření na Python pandas a vizualizaci dat
+  sv: Fokus på Python pandas och datavisualisering
+  he: התמקדות ב-Python pandas והמחשת נתונים
+  verified_by_human: []
+
+learning_goals.example_2.topic:
+  context: Example topic for learning goals
+  en: Spanish Language
+  de: Spanische Sprache
+  zh: 西班牙语
+  es: Idioma español
+  fr: Langue espagnole
+  pt: Língua espanhola
+  ru: Испанский язык
+  ja: スペイン語
+  ko: 스페인어
+  it: Lingua spagnola
+  tr: İspanyolca
+  vi: Tiếng Tây Ban Nha
+  id: Bahasa Spanyol
+  pl: Język hiszpański
+  nl: Spaanse taal
+  ar: اللغة الإسبانية
+  hi: स्पेनिश भाषा
+  th: ภาษาสเปน
+  cs: Španělský jazyk
+  sv: Spanska språket
+  he: שפה ספרדית
+  verified_by_human: []
+
+learning_goals.example_2.notes:
+  context: Example notes for learning goal Spanish Language
+  en: Aim for conversational level by summer
+  de: Konversationsniveau bis zum Sommer anstreben
+  zh: 目标在夏天前达到会话水平
+  es: Apuntar a nivel conversacional para el verano
+  fr: Viser le niveau conversationnel d'ici l'été
+  pt: Alcançar nível conversacional até o verão
+  ru: Стремиться к разговорному уровню к лету
+  ja: 夏までに会話レベルを目指す
+  ko: 여름까지 회화 수준 달성 목표
+  it: Puntare al livello conversazionale entro l'estate
+  tr: Yaz aylarına kadar konuşma seviyesine ulaşmayı hedefleme
+  vi: Hướng tới trình độ giao tiếp trước mùa hè
+  id: Targetkan tingkat percakapan sebelum musim panas
+  pl: Cel - poziom konwersacyjny do lata
+  nl: Streven naar gespreksniveau tegen de zomer
+  ar: السعي للوصول إلى مستوى المحادثة بحلول الصيف
+  hi: गर्मियों तक बातचीत स्तर का लक्ष्य रखें
+  th: ตั้งเป้าหมายระดับสนทนาภายในฤดูร้อน
+  cs: Cíl dosáhnout konverzační úrovně do léta
+  sv: Sikta på konversationsnivå till sommaren
+  he: לשאוף לרמת שיחה עד הקיץ
+  verified_by_human: []

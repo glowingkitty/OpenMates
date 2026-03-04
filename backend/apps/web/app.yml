@@ -16,6 +16,9 @@ settings_and_memories:
       - "web.bookmarks.example_1"
       - "web.bookmarks.example_2"
       - "web.bookmarks.example_3"
+    example_entries:
+      - url: "https://github.com"
+      - url: "https://stackoverflow.com"
     schema:
       type: object
       properties:
@@ -53,6 +56,11 @@ settings_and_memories:
       - "web.read_later.example_1"
       - "web.read_later.example_2"
       - "web.read_later.example_3"
+    example_entries:
+      - url: "https://example.com/article"
+        notes: "web.read_later.example_1.notes"
+      - url: "https://blog.example.com/post"
+        notes: "web.read_later.example_2.notes"
     schema:
       type: object
       properties:
@@ -62,6 +70,7 @@ settings_and_memories:
         notes:
           type: string
           description: Optional notes about why this was saved
+          multiline: true
       required:
         - url
 # Embed type definitions — single source of truth for frontend embed routing.

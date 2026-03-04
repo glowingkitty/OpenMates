@@ -44,6 +44,13 @@ settings_and_memories:
       - "videos.to_watch_list.example_1"
       - "videos.to_watch_list.example_2"
       - "videos.to_watch_list.example_3"
+    example_entries:
+      - name: "videos.to_watch_list.example_1.name"
+        url: "https://youtube.com/watch?v=example1"
+        channel: "Computerphile"
+      - name: "videos.to_watch_list.example_2.name"
+        url: "https://youtube.com/watch?v=example2"
+        channel: "Matt Pocock"
     schema:
       type: object
       properties:

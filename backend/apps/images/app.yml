@@ -110,6 +110,11 @@ settings_and_memories:
       - "images.preferred_styles.example_1"
       - "images.preferred_styles.example_2"
       - "images.preferred_styles.example_3"
+    example_entries:
+      - name: "images.preferred_styles.example_1.name"
+        description: "images.preferred_styles.example_1.description"
+      - name: "images.preferred_styles.example_2.name"
+        description: "images.preferred_styles.example_2.description"
     schema:
       type: object
       properties:
@@ -120,6 +125,7 @@ settings_and_memories:
         description:
           type: string
           description: Optional description of the style or when to use it
+          multiline: true
       required:
         - name
 instructions:

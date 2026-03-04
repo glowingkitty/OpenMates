@@ -28,6 +28,13 @@ settings_and_memories:
     example_translation_keys:
       - "ai.communication_style.example_1"
       - "ai.communication_style.example_2"
+    example_entries:
+      - title: "ai.communication_style.example_1.title"
+        tone: "professional"
+        verbosity: "detailed"
+      - title: "ai.communication_style.example_2.title"
+        tone: "friendly"
+        verbosity: "balanced"
     schema:
       type: object
       properties:
@@ -66,6 +73,15 @@ settings_and_memories:
     example_translation_keys:
       - "ai.learning_preferences.example_1"
       - "ai.learning_preferences.example_2"
+    example_entries:
+      - title: "ai.learning_preferences.example_1.title"
+        learning_type: "visual"
+        preference_strength: "strongly_prefer"
+        notes: "ai.learning_preferences.example_1.notes"
+      - title: "ai.learning_preferences.example_2.title"
+        learning_type: "hands-on"
+        preference_strength: "prefer"
+        notes: "ai.learning_preferences.example_2.notes"
     schema:
       type: object
       properties:
@@ -96,6 +112,7 @@ settings_and_memories:
         notes:
           type: string
           description: Additional notes about this learning preference
+          multiline: true
       required:
         - title
         - learning_type

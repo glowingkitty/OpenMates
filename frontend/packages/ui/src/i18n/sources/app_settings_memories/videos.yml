@@ -261,3 +261,55 @@ subscribed_channels.example_3:
   verified_by_human:
     - en
     - de
+
+# example_entries translation keys for to_watch_list
+
+to_watch_list.example_1.name:
+  context: Example video name for to watch list
+  en: How Computers Work
+  de: Wie Computer funktionieren
+  zh: 计算机工作原理
+  es: Cómo funcionan las computadoras
+  fr: Comment fonctionnent les ordinateurs
+  pt: Como os computadores funcionam
+  ru: Как работают компьютеры
+  ja: コンピュータの仕組み
+  ko: 컴퓨터의 작동 원리
+  it: Come funzionano i computer
+  tr: Bilgisayarlar nasıl çalışır
+  vi: Máy tính hoạt động như thế nào
+  id: Bagaimana komputer bekerja
+  pl: Jak działają komputery
+  nl: Hoe computers werken
+  ar: كيف تعمل أجهزة الكمبيوتر
+  hi: कंप्यूटर कैसे काम करते हैं
+  th: คอมพิวเตอร์ทำงานอย่างไร
+  cs: Jak fungují počítače
+  sv: Hur datorer fungerar
+  he: איך מחשבים עובדים
+  verified_by_human: []
+
+to_watch_list.example_2.name:
+  context: Example video name for to watch list
+  en: Advanced TypeScript
+  de: Fortgeschrittenes TypeScript
+  zh: 高级TypeScript
+  es: TypeScript avanzado
+  fr: TypeScript avancé
+  pt: TypeScript avançado
+  ru: Продвинутый TypeScript
+  ja: 上級TypeScript
+  ko: 고급 TypeScript
+  it: TypeScript avanzato
+  tr: İleri düzey TypeScript
+  vi: TypeScript nâng cao
+  id: TypeScript tingkat lanjut
+  pl: Zaawansowany TypeScript
+  nl: Geavanceerd TypeScript
+  ar: TypeScript متقدم
+  hi: उन्नत TypeScript
+  th: TypeScript ขั้นสูง
+  cs: Pokročilý TypeScript
+  sv: Avancerad TypeScript
+  he: TypeScript מתקדם
+  verified_by_human: []

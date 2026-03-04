@@ -394,3 +394,198 @@ want_to_learn.example_3:
   verified_by_human:
     - en
     - de
+
+# Structured example entries for example_entries in app.yml
+
+preferred_tech.example_1.name:
+  context: Example value for name in preferred_tech
+  en: Python
+  de: Python
+  zh: Python
+  es: Python
+  fr: Python
+  pt: Python
+  ru: Python
+  ja: Python
+  ko: Python
+  it: Python
+  tr: Python
+  vi: Python
+  id: Python
+  pl: Python
+  nl: Python
+  ar: Python
+  hi: Python
+  th: Python
+  cs: Python
+  sv: Python
+  he: Python
+  verified_by_human: []
+preferred_tech.example_2.name:
+  context: Example value for name in preferred_tech
+  en: TypeScript
+  de: TypeScript
+  zh: TypeScript
+  es: TypeScript
+  fr: TypeScript
+  pt: TypeScript
+  ru: TypeScript
+  ja: TypeScript
+  ko: TypeScript
+  it: TypeScript
+  tr: TypeScript
+  vi: TypeScript
+  id: TypeScript
+  pl: TypeScript
+  nl: TypeScript
+  ar: TypeScript
+  hi: TypeScript
+  th: TypeScript
+  cs: TypeScript
+  sv: TypeScript
+  he: TypeScript
+  verified_by_human: []
+projects.example_1.name:
+  context: Example value for name in projects
+  en: Personal Website
+  de: Persönliche Webseite
+  zh: 个人网站
+  es: Sitio web personal
+  fr: Site web personnel
+  pt: Site pessoal
+  ru: Личный сайт
+  ja: 個人ウェブサイト
+  ko: 개인 웹사이트
+  it: Sito web personale
+  tr: Kişisel web sitesi
+  vi: Trang web cá nhân
+  id: Situs web pribadi
+  pl: Strona osobista
+  nl: Persoonlijke website
+  ar: موقع شخصي
+  hi: व्यक्तिगत वेबसाइट
+  th: เว็บไซต์ส่วนตัว
+  cs: Osobní web
+  sv: Personlig webbplats
+  he: אתר אישי
+  verified_by_human: []
+projects.example_1.description:
+  context: Example value for description in projects
+  en: A portfolio website built with SvelteKit
+  de: Eine Portfolio-Website mit SvelteKit erstellt
+  zh: 使用SvelteKit构建的作品集网站
+  es: Un sitio web de portafolio construido con SvelteKit
+  fr: Un site portfolio construit avec SvelteKit
+  pt: Um site de portfólio construído com SvelteKit
+  ru: Сайт-портфолио, созданный на SvelteKit
+  ja: SvelteKitで構築したポートフォリオサイト
+  ko: SvelteKit으로 만든 포트폴리오 웹사이트
+  it: Un sito portfolio realizzato con SvelteKit
+  tr: SvelteKit ile oluşturulmuş bir portföy sitesi
+  vi: Trang web danh mục đầu tư được xây dựng bằng SvelteKit
+  id: Situs portofolio yang dibangun dengan SvelteKit
+  pl: Strona portfolio zbudowana w SvelteKit
+  nl: Een portfoliowebsite gebouwd met SvelteKit
+  ar: موقع محفظة أعمال مبني بـ SvelteKit
+  hi: SvelteKit से बनी पोर्टफोलियो वेबसाइट
+  th: เว็บไซต์พอร์ตโฟลิโอที่สร้างด้วย SvelteKit
+  cs: Portfoliový web vytvořený pomocí SvelteKit
+  sv: En portföljwebbplats byggd med SvelteKit
+  he: אתר תיק עבודות שנבנה עם SvelteKit
+  verified_by_human: []
+projects.example_2.name:
+  context: Example value for name in projects
+  en: Weather App
+  de: Wetter-App
+  zh: 天气应用
+  es: Aplicación del tiempo
+  fr: Application météo
+  pt: Aplicativo de clima
+  ru: Приложение погоды
+  ja: 天気アプリ
+  ko: 날씨 앱
+  it: App meteo
+  tr: Hava durumu uygulaması
+  vi: Ứng dụng thời tiết
+  id: Aplikasi cuaca
+  pl: Aplikacja pogodowa
+  nl: Weer-app
+  ar: تطبيق الطقس
+  hi: मौसम ऐप
+  th: แอปพยากรณ์อากาศ
+  cs: Aplikace počasí
+  sv: Väderapp
+  he: אפליקציית מזג אוויר
+  verified_by_human: []
+projects.example_2.description:
+  context: Example value for description in projects
+  en: A weather forecast app using React and OpenWeather API
+  de: Eine Wetter-App mit React und OpenWeather API
+  zh: 使用React和OpenWeather API构建的天气预报应用
+  es: Una aplicación de pronóstico del tiempo con React y OpenWeather API
+  fr: Une application météo utilisant React et l'API OpenWeather
+  pt: Um aplicativo de previsão do tempo usando React e OpenWeather API
+  ru: Приложение прогноза погоды на React и OpenWeather API
+  ja: ReactとOpenWeather APIを使った天気予報アプリ
+  ko: React와 OpenWeather API를 사용한 날씨 예보 앱
+  it: Un'app meteo con React e OpenWeather API
+  tr: React ve OpenWeather API ile hava durumu uygulaması
+  vi: Ứng dụng dự báo thời tiết sử dụng React và OpenWeather API
+  id: Aplikasi prakiraan cuaca menggunakan React dan OpenWeather API
+  pl: Aplikacja pogodowa z React i OpenWeather API
+  nl: Een weersvoorspelling-app met React en OpenWeather API
+  ar: تطبيق توقعات الطقس باستخدام React و OpenWeather API
+  hi: React और OpenWeather API का उपयोग करके बनाया गया मौसम पूर्वानुमान ऐप
+  th: แอปพยากรณ์อากาศที่ใช้ React และ OpenWeather API
+  cs: Aplikace předpovědi počasí s React a OpenWeather API
+  sv: En väderprognosapp med React och OpenWeather API
+  he: אפליקציית תחזית מזג אוויר עם React ו-OpenWeather API
+  verified_by_human: []
+want_to_learn.example_1.name:
+  context: Example value for name in want_to_learn
+  en: Rust
+  de: Rust
+  zh: Rust
+  es: Rust
+  fr: Rust
+  pt: Rust
+  ru: Rust
+  ja: Rust
+  ko: Rust
+  it: Rust
+  tr: Rust
+  vi: Rust
+  id: Rust
+  pl: Rust
+  nl: Rust
+  ar: Rust
+  hi: Rust
+  th: Rust
+  cs: Rust
+  sv: Rust
+  he: Rust
+  verified_by_human: []
+want_to_learn.example_2.name:
+  context: Example value for name in want_to_learn
+  en: Machine Learning
+  de: Maschinelles Lernen
+  zh: 机器学习
+  es: Aprendizaje automático
+  fr: Apprentissage automatique
+  pt: Aprendizado de máquina
+  ru: Машинное обучение
+  ja: 機械学習
+  ko: 머신 러닝
+  it: Machine Learning
+  tr: Makine öğrenimi
+  vi: Học máy
+  id: Pembelajaran mesin
+  pl: Uczenie maszynowe
+  nl: Machine learning
+  ar: التعلم الآلي
+  hi: मशीन लर्निंग
+  th: การเรียนรู้ของเครื่อง
+  cs: Strojové učení
+  sv: Maskininlärning
+  he: למידת מכונה
+  verified_by_human: []

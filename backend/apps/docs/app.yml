@@ -71,6 +71,11 @@ settings_and_memories:
       - "docs.writing_style.example_1"
       - "docs.writing_style.example_2"
       - "docs.writing_style.example_3"
+    example_entries:
+      - name: "docs.writing_style.example_1.name"
+        description: "docs.writing_style.example_1.description"
+      - name: "docs.writing_style.example_2.name"
+        description: "docs.writing_style.example_2.description"
     schema:
       type: object
       properties:
@@ -82,5 +87,6 @@ settings_and_memories:
           type: string
           description: Description of this writing style and when to use it
           is_subtitle: true
+          multiline: true
       required:
         - name

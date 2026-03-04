@@ -124,3 +124,105 @@ writing_style.example_3:
   sv: Avslappnad blogg
   he: בלוג קליל
   verified_by_human: []
+
+# Structured example entries for writing_style
+
+writing_style.example_1.name:
+  context: Example value for name in writing_style
+  en: Technical Documentation
+  de: Technische Dokumentation
+  zh: 技术文档
+  es: Documentación técnica
+  fr: Documentation technique
+  pt: Documentação técnica
+  ru: Техническая документация
+  ja: 技術ドキュメント
+  ko: 기술 문서
+  it: Documentazione tecnica
+  tr: Teknik dokümantasyon
+  vi: Tài liệu kỹ thuật
+  id: Dokumentasi teknis
+  pl: Dokumentacja techniczna
+  nl: Technische documentatie
+  ar: التوثيق التقني
+  hi: तकनीकी दस्तावेज़ीकरण
+  th: เอกสารทางเทคนิค
+  cs: Technická dokumentace
+  sv: Teknisk dokumentation
+  he: תיעוד טכני
+  verified_by_human: []
+
+writing_style.example_1.description:
+  context: Example value for description in writing_style
+  en: Clear, structured writing for developer docs and API references
+  de: Klare, strukturierte Texte für Entwicklerdokumentation und API-Referenzen
+  zh: 清晰、结构化的写作，适用于开发者文档和API参考
+  es: Escritura clara y estructurada para documentación de desarrolladores y referencias API
+  fr: Rédaction claire et structurée pour la documentation développeur et les références API
+  pt: Escrita clara e estruturada para documentação de desenvolvedores e referências de API
+  ru: Чёткий, структурированный стиль для документации разработчика и справочников API
+  ja: 開発者ドキュメントやAPIリファレンス向けの明確で構造的な文章
+  ko: 개발자 문서와 API 레퍼런스를 위한 명확하고 구조적인 글쓰기
+  it: Scrittura chiara e strutturata per documentazione sviluppatori e riferimenti API
+  tr: Geliştirici belgeleri ve API referansları için açık, yapılandırılmış yazım
+  vi: Viết rõ ràng, có cấu trúc cho tài liệu lập trình viên và tham chiếu API
+  id: Penulisan yang jelas dan terstruktur untuk dokumentasi pengembang dan referensi API
+  pl: Przejrzyste, uporządkowane pisanie dla dokumentacji deweloperskiej i referencji API
+  nl: Heldere, gestructureerde teksten voor ontwikkelaarsdocumentatie en API-referenties
+  ar: كتابة واضحة ومنظمة لتوثيق المطورين ومراجع واجهات البرمجة
+  hi: डेवलपर डॉक्स और API संदर्भों के लिए स्पष्ट, संरचित लेखन
+  th: การเขียนที่ชัดเจนและเป็นระบบสำหรับเอกสารนักพัฒนาและเอกสารอ้างอิง API
+  cs: Jasné, strukturované psaní pro vývojářskou dokumentaci a API reference
+  sv: Tydligt, strukturerat skrivande för utvecklardokumentation och API-referenser
+  he: כתיבה ברורה ומובנית לתיעוד מפתחים וייחוסי API
+  verified_by_human: []
+
+writing_style.example_2.name:
+  context: Example value for name in writing_style
+  en: Blog Post
+  de: Blogbeitrag
+  zh: 博客文章
+  es: Artículo de blog
+  fr: Article de blog
+  pt: Postagem de blog
+  ru: Статья для блога
+  ja: ブログ記事
+  ko: 블로그 게시물
+  it: Articolo del blog
+  tr: Blog yazısı
+  vi: Bài viết blog
+  id: Postingan blog
+  pl: Wpis na blogu
+  nl: Blogpost
+  ar: مقالة مدونة
+  hi: ब्लॉग पोस्ट
+  th: โพสต์บล็อก
+  cs: Příspěvek na blog
+  sv: Blogginlägg
+  he: פוסט בבלוג
+  verified_by_human: []
+
+writing_style.example_2.description:
+  context: Example value for description in writing_style
+  en: Engaging, conversational tone for blog articles
+  de: Ansprechender, gesprächiger Ton für Blogartikel
+  zh: 引人入胜的对话式语调，适用于博客文章
+  es: Tono atractivo y conversacional para artículos de blog
+  fr: Ton engageant et conversationnel pour les articles de blog
+  pt: Tom envolvente e conversacional para artigos de blog
+  ru: Увлекательный, разговорный тон для статей блога
+  ja: ブログ記事向けの親しみやすく会話的なトーン
+  ko: 블로그 기사를 위한 매력적이고 대화적인 톤
+  it: Tono coinvolgente e colloquiale per articoli di blog
+  tr: Blog makaleleri için ilgi çekici, sohbet tarzı bir üslup
+  vi: Giọng văn hấp dẫn, mang tính trò chuyện cho bài viết blog
+  id: Nada yang menarik dan percakapan untuk artikel blog
+  pl: Angażujący, konwersacyjny ton dla artykułów blogowych
+  nl: Boeiende, conversationele toon voor blogartikelen
+  ar: أسلوب جذاب وحواري لمقالات المدونة
+  hi: ब्लॉग लेखों के लिए आकर्षक, संवादात्मक शैली
+  th: น้ำเสียงที่น่าสนใจและเป็นกันเองสำหรับบทความบล็อก
+  cs: Poutavý, konverzační tón pro blogové články
+  sv: Engagerande, konverserande ton för bloggartiklar
+  he: טון מרתק ושיחתי למאמרי בלוג
+  verified_by_human: []

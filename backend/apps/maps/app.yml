@@ -43,6 +43,11 @@ settings_and_memories:
       - "maps.favorite_places.example_1"
       - "maps.favorite_places.example_2"
       - "maps.favorite_places.example_3"
+    example_entries:
+      - name: "maps.favorite_places.example_1.name"
+        address: "maps.favorite_places.example_1.address"
+      - name: "maps.favorite_places.example_2.name"
+        address: "maps.favorite_places.example_2.address"
     schema:
       type: object
       properties:

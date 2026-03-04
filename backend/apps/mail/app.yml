@@ -16,6 +16,15 @@ settings_and_memories:
       - "mail.writing_styles.example_1"
       - "mail.writing_styles.example_2"
       - "mail.writing_styles.example_3"
+    example_entries:
+      - title: "mail.writing_styles.example_1.title"
+        description: "mail.writing_styles.example_1.description"
+        when_to_use: "mail.writing_styles.example_1.when_to_use"
+        footer: "mail.writing_styles.example_1.footer"
+      - title: "mail.writing_styles.example_2.title"
+        description: "mail.writing_styles.example_2.description"
+        when_to_use: "mail.writing_styles.example_2.when_to_use"
+        footer: "mail.writing_styles.example_2.footer"
     schema:
       type: object
       properties:
@@ -27,12 +36,15 @@ settings_and_memories:
           type: string
           description: Free-text description of this writing style (tone, verbosity, greeting, closing, special preferences)
           is_subtitle: true
+          multiline: true
         when_to_use:
           type: string
           description: When this style should be applied (e.g., client outreach, internal updates, support replies)
+          multiline: true
         footer:
           type: string
           description: Optional footer/signature text to append when this style is used
+          multiline: true
       required:
         - title
         - description

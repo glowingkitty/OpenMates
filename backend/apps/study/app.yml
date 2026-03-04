@@ -3,7 +3,7 @@ description_translation_key: study.description
 icon_image: |
   study.svg
 category: work
-last_updated: '2025-11-12'
+last_updated: "2025-11-12"
 settings_and_memories:
   - id: learning_goals
     name_translation_key: study.learning_goals
@@ -14,6 +14,15 @@ settings_and_memories:
     example_translation_keys:
       - "study.learning_goals.example_1"
       - "study.learning_goals.example_2"
+    example_entries:
+      - topic: "study.learning_goals.example_1.topic"
+        difficulty_level: "intermediate"
+        deadline: "2025-12-31"
+        notes: "study.learning_goals.example_1.notes"
+      - topic: "study.learning_goals.example_2.topic"
+        difficulty_level: "beginner"
+        deadline: "2025-06-30"
+        notes: "study.learning_goals.example_2.notes"
     schema:
       type: object
       properties:
@@ -24,9 +33,9 @@ settings_and_memories:
         difficulty_level:
           type: string
           enum:
-          - beginner
-          - intermediate
-          - advanced
+            - beginner
+            - intermediate
+            - advanced
           description: Current difficulty level
         deadline:
           type: string
@@ -35,9 +44,10 @@ settings_and_memories:
         notes:
           type: string
           description: Optional details, priority, or goals
+          multiline: true
       required:
-      - topic
-      - difficulty_level
+        - topic
+        - difficulty_level
   - id: education_history
     name_translation_key: study.education_history
     description_translation_key: study.education_history.description
@@ -49,13 +59,13 @@ settings_and_memories:
         degree_type:
           type: string
           enum:
-          - high_school
-          - bachelor
-          - master
-          - phd
-          - certification
-          - bootcamp
-          - other
+            - high_school
+            - bachelor
+            - master
+            - phd
+            - certification
+            - bootcamp
+            - other
           description: Type of education
         field_of_study:
           type: string
@@ -70,13 +80,13 @@ settings_and_memories:
         status:
           type: string
           enum:
-          - completed
-          - in_progress
-          - planned
+            - completed
+            - in_progress
+            - planned
           description: Current status
       required:
-      - degree_type
-      - institution
+        - degree_type
+        - institution
   - id: career_interests
     name_translation_key: study.career_interests
     description_translation_key: study.career_interests.description
@@ -99,15 +109,15 @@ settings_and_memories:
         interest_level:
           type: string
           enum:
-          - exploring
-          - interested
-          - highly_interested
+            - exploring
+            - interested
+            - highly_interested
           description: Level of interest
         timeline:
           type: string
           description: When you want to pursue this career
       required:
-      - job_title
+        - job_title
 focuses:
   - id: what_to_study
     name_translation_key: study.what_to_study

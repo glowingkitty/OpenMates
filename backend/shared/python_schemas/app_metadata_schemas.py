@@ -80,6 +80,12 @@ class AppMemoryFieldDefinition(BaseModel):
     type: str # e.g., "string", "number", "boolean", "json_object", "list_of_strings"
     schema_definition: Optional[Dict[str, Any]] = Field(default=None, alias="schema") # Optional JSON schema
     stage: Optional[str] = Field(default=None, description="Stage of the memory field: 'planning', 'development', or 'production'. Components with stage='planning' are excluded from API responses.")
+    # Full example entries with all field values populated.
+    # Each entry is a dict mapping field names to values. String field values
+    # that should be translated are stored as translation keys (looked up via $text() on frontend).
+    # Enum values, booleans, and numbers are stored as raw values.
+    # Replaces the older example_translation_keys (title-only strings).
+    example_entries: Optional[List[Dict[str, Any]]] = Field(default=None, description="Full example entries with all field values for UI display.")
 
     @model_validator(mode='after')
     def inject_added_date(self):

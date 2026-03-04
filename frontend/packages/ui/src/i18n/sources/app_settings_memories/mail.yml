@@ -127,3 +127,198 @@ writing_styles.example_3:
   sv: Uppfoljning och påminnelser
   he: מעקב ותזכורות
   verified_by_human: [en, de]
+
+# Structured example entries for example_entries in app.yml
+
+writing_styles.example_1.title:
+  context: Example value for title in writing_styles
+  en: Professional
+  de: Professionell
+  zh: 专业
+  es: Profesional
+  fr: Professionnel
+  pt: Profissional
+  ru: Профессиональный
+  ja: プロフェッショナル
+  ko: 전문적
+  it: Professionale
+  tr: Profesyonel
+  vi: Chuyên nghiệp
+  id: Profesional
+  pl: Profesjonalny
+  nl: Professioneel
+  ar: مهني
+  hi: पेशेवर
+  th: มืออาชีพ
+  cs: Profesionální
+  sv: Professionell
+  he: מקצועי
+  verified_by_human: []
+writing_styles.example_1.description:
+  context: Example value for description in writing_styles
+  en: Formal tone for business emails
+  de: Formeller Ton für geschäftliche E-Mails
+  zh: 商务邮件的正式语气
+  es: Tono formal para correos de negocios
+  fr: Ton formel pour les e-mails professionnels
+  pt: Tom formal para e-mails de negócios
+  ru: Формальный тон для деловых писем
+  ja: ビジネスメール向けのフォーマルな口調
+  ko: 비즈니스 이메일을 위한 격식체
+  it: Tono formale per e-mail aziendali
+  tr: İş e-postaları için resmi ton
+  vi: Giọng văn trang trọng cho email công việc
+  id: Nada formal untuk email bisnis
+  pl: Formalny ton dla e-maili biznesowych
+  nl: Formele toon voor zakelijke e-mails
+  ar: نبرة رسمية للرسائل التجارية
+  hi: व्यापारिक ईमेल के लिए औपचारिक स्वर
+  th: น้ำเสียงทางการสำหรับอีเมลธุรกิจ
+  cs: Formální tón pro obchodní e-maily
+  sv: Formell ton för affärsmejl
+  he: טון רשמי למיילים עסקיים
+  verified_by_human: []
+writing_styles.example_1.when_to_use:
+  context: Example value for when_to_use in writing_styles
+  en: Work emails and client communication
+  de: Arbeits-E-Mails und Kundenkommunikation
+  zh: 工作邮件和客户沟通
+  es: Correos de trabajo y comunicación con clientes
+  fr: E-mails de travail et communication avec les clients
+  pt: E-mails de trabalho e comunicação com clientes
+  ru: Рабочие письма и общение с клиентами
+  ja: 仕事のメールとクライアントとのやり取り
+  ko: 업무 이메일 및 고객 커뮤니케이션
+  it: E-mail di lavoro e comunicazione con i clienti
+  tr: İş e-postaları ve müşteri iletişimi
+  vi: Email công việc và giao tiếp với khách hàng
+  id: Email kerja dan komunikasi klien
+  pl: E-maile służbowe i komunikacja z klientami
+  nl: Werk-e-mails en klantcommunicatie
+  ar: رسائل العمل والتواصل مع العملاء
+  hi: कार्य ईमेल और ग्राहक संचार
+  th: อีเมลงานและการสื่อสารกับลูกค้า
+  cs: Pracovní e-maily a komunikace s klienty
+  sv: Arbetsmejl och kundkommunikation
+  he: מיילים עבודה ותקשורת עם לקוחות
+  verified_by_human: []
+writing_styles.example_1.footer:
+  context: Example value for footer in writing_styles
+  en: Best regards,
+  de: Mit freundlichen Grüßen,
+  zh: 此致敬礼，
+  es: Atentamente,
+  fr: Cordialement,
+  pt: Atenciosamente,
+  ru: С уважением,
+  ja: よろしくお願いいたします。
+  ko: 감사합니다,
+  it: Cordiali saluti,
+  tr: Saygılarımla,
+  vi: Trân trọng,
+  id: Hormat saya,
+  pl: Z poważaniem,
+  nl: Met vriendelijke groet,
+  ar: مع أطيب التحيات،
+  hi: सादर,
+  th: ด้วยความนับถือ,
+  cs: S pozdravem,
+  sv: Med vänliga hälsningar,
+  he: "בברכה,"
+  verified_by_human: []
+writing_styles.example_2.title:
+  context: Example value for title in writing_styles
+  en: Casual
+  de: Locker
+  zh: 随意
+  es: Casual
+  fr: Décontracté
+  pt: Casual
+  ru: Неформальный
+  ja: カジュアル
+  ko: 캐주얼
+  it: Informale
+  tr: Rahat
+  vi: Thoải mái
+  id: Santai
+  pl: Swobodny
+  nl: Casual
+  ar: غير رسمي
+  hi: अनौपचारिक
+  th: สบายๆ
+  cs: Neformální
+  sv: Avslappnad
+  he: יומיומי
+  verified_by_human: []
+writing_styles.example_2.description:
+  context: Example value for description in writing_styles
+  en: Relaxed and friendly tone for personal emails
+  de: Entspannter und freundlicher Ton für persönliche E-Mails
+  zh: 个人邮件的轻松友好语气
+  es: Tono relajado y amigable para correos personales
+  fr: Ton détendu et amical pour les e-mails personnels
+  pt: Tom descontraído e amigável para e-mails pessoais
+  ru: Расслабленный и дружелюбный тон для личных писем
+  ja: 個人メール向けのリラックスしたフレンドリーな口調
+  ko: 개인 이메일을 위한 편안하고 친근한 어조
+  it: Tono rilassato e amichevole per e-mail personali
+  tr: Kişisel e-postalar için rahat ve samimi ton
+  vi: Giọng văn thoải mái và thân thiện cho email cá nhân
+  id: Nada santai dan ramah untuk email pribadi
+  pl: Swobodny i przyjazny ton dla e-maili prywatnych
+  nl: Ontspannen en vriendelijke toon voor persoonlijke e-mails
+  ar: نبرة مريحة وودية للرسائل الشخصية
+  hi: व्यक्तिगत ईमेल के लिए सहज और मैत्रीपूर्ण स्वर
+  th: น้ำเสียงผ่อนคลายและเป็นมิตรสำหรับอีเมลส่วนตัว
+  cs: Uvolněný a přátelský tón pro osobní e-maily
+  sv: Avslappnad och vänlig ton för personliga mejl
+  he: טון רגוע וידידותי למיילים אישיים
+  verified_by_human: []
+writing_styles.example_2.when_to_use:
+  context: Example value for when_to_use in writing_styles
+  en: Friends and family
+  de: Freunde und Familie
+  zh: 朋友和家人
+  es: Amigos y familia
+  fr: Amis et famille
+  pt: Amigos e família
+  ru: Друзья и семья
+  ja: 友人や家族
+  ko: 친구와 가족
+  it: Amici e famiglia
+  tr: Arkadaşlar ve aile
+  vi: Bạn bè và gia đình
+  id: Teman dan keluarga
+  pl: Przyjaciele i rodzina
+  nl: Vrienden en familie
+  ar: الأصدقاء والعائلة
+  hi: दोस्त और परिवार
+  th: เพื่อนและครอบครัว
+  cs: Přátelé a rodina
+  sv: Vänner och familj
+  he: חברים ומשפחה
+  verified_by_human: []
+writing_styles.example_2.footer:
+  context: Example value for footer in writing_styles (empty footer)
+  en: ""
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
