@@ -65,6 +65,17 @@ changes to the documentation (to keep the documentation up to date).
     import { modelsMetadata } from '../data/modelsMetadata';
     import { providersMetadata, findProviderByName } from '../data/providersMetadata';
     import { getProviderIconUrl } from '../data/providerIcons';
+    import { chatListCache } from '../services/chatListCache';
+    import { chatMetadataCache } from '../services/chatMetadataCache';
+    import { chatDB } from '../services/db';
+    import type { Chat } from '../types/chat';
+    import {
+        getCategoryGradientColors,
+        getFallbackIconForCategory,
+        getLucideIcon,
+        getValidIconName,
+    } from '../utils/categoryUtils';
+    import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
     
     // Import the normal store instead of the derived one that was causing the error
     import { settingsNavigationStore } from '../stores/settingsNavigationStore';
@@ -273,6 +284,149 @@ changes to the documentation (to keep the documentation up to date).
 
     // Maximum width for breadcrumb text (in pixels)
     const MAX_BREADCRUMB_WIDTH = 220; // Adjusted to leave space for the back icon
+
+    const HEADER_CHAT_ICON_LIMIT = 8;
+    const HEADER_CHAT_ICON_FETCH_LIMIT = 24;
+    const HEADER_CHAT_ICON_REFRESH_DEBOUNCE_MS = 120;
+    const HEADER_CHAT_ICON_SIDE_TOP_SLOTS: Record<'left' | 'right', number[]> = {
+        left: [19, 36, 53, 70],
+        right: [25, 42, 59, 76],
+    };
+
+    interface RecentHeaderChatIcon {
+        chatId: string;
+        iconName: string;
+        category: string;
+    }
+
+    interface HeaderChatDecorIcon {
+        key: string;
+        iconName: string;
+        side: 'left' | 'right';
+        topPercent: number;
+        insetPx: number;
+        rotationDeg: number;
+        gradientStart: string;
+        gradientEnd: string;
+    }
+
+    let headerChatDecorIcons = $state<HeaderChatDecorIcon[]>([]);
+    let headerIconRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+    let isRefreshingHeaderIcons = false;
+
+    function hashToUnitInterval(seed: string): number {
+        let hash = 2166136261;
+        for (let i = 0; i < seed.length; i++) {
+            hash ^= seed.charCodeAt(i);
+            hash = Math.imul(hash, 16777619);
+        }
+        return (hash >>> 0) / 4294967295;
+    }
+
+    function deterministicValue(seed: string, min: number, max: number): number {
+        return min + (max - min) * hashToUnitInterval(seed);
+    }
+
+    async function loadRecentHeaderChatIcons(): Promise<RecentHeaderChatIcon[]> {
+        let chats: Chat[] | null = chatListCache.getCache();
+        if (!chats || chats.length === 0) {
+            chats = await chatDB.getAllChats(undefined, { limit: HEADER_CHAT_ICON_FETCH_LIMIT });
+        }
+        if (!chats || chats.length === 0) {
+            return [];
+        }
+
+        const sortedChats = [...chats]
+            .filter((chat) => !chat.is_hidden && !chat.is_hidden_candidate)
+            .sort((a, b) => b.last_edited_overall_timestamp - a.last_edited_overall_timestamp)
+            .slice(0, HEADER_CHAT_ICON_FETCH_LIMIT);
+
+        const resolved = await Promise.all(sortedChats.map(async (chat) => {
+            let rawIcon = chat.icon?.trim() ?? '';
+            let category = chat.category?.trim() ?? '';
+
+            if ((!rawIcon || !category) && (chat.encrypted_icon || chat.encrypted_category)) {
+                const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
+                if (metadata) {
+                    rawIcon = rawIcon || (metadata.icon?.trim() ?? '');
+                    category = category || (metadata.category?.trim() ?? '');
+                }
+            }
+
+            if (!category) {
+                category = 'general_knowledge';
+            }
+
+            const iconName = rawIcon
+                ? getValidIconName(rawIcon, category)
+                : getFallbackIconForCategory(category);
+
+            return {
+                chatId: chat.chat_id,
+                iconName,
+                category,
+            };
+        }));
+
+        return resolved.slice(0, HEADER_CHAT_ICON_LIMIT);
+    }
+
+    function buildHeaderDecorIcons(icons: RecentHeaderChatIcon[]): HeaderChatDecorIcon[] {
+        const leftSlots = [...HEADER_CHAT_ICON_SIDE_TOP_SLOTS.left];
+        const rightSlots = [...HEADER_CHAT_ICON_SIDE_TOP_SLOTS.right];
+        const decor: HeaderChatDecorIcon[] = [];
+
+        for (let index = 0; index < icons.length; index++) {
+            const item = icons[index];
+            let side: 'left' | 'right' = index % 2 === 0 ? 'left' : 'right';
+
+            if (side === 'left' && leftSlots.length === 0) side = 'right';
+            if (side === 'right' && rightSlots.length === 0) side = 'left';
+            if ((side === 'left' && leftSlots.length === 0) || (side === 'right' && rightSlots.length === 0)) {
+                break;
+            }
+
+            const topPercent = side === 'left' ? leftSlots.shift() ?? 50 : rightSlots.shift() ?? 50;
+            const insetPx = Math.round(deterministicValue(`${item.chatId}-inset`, 6, 18));
+            const rotationDeg = Math.round(deterministicValue(`${item.chatId}-rotation`, -28, 28));
+            const gradient = getCategoryGradientColors(item.category) ?? getCategoryGradientColors('general_knowledge');
+
+            decor.push({
+                key: `${item.chatId}-${item.iconName}-${side}`,
+                iconName: item.iconName,
+                side,
+                topPercent,
+                insetPx,
+                rotationDeg,
+                gradientStart: gradient?.start ?? '#de1e66',
+                gradientEnd: gradient?.end ?? '#ff763b',
+            });
+        }
+
+        return decor;
+    }
+
+    async function refreshHeaderChatDecorIcons(): Promise<void> {
+        if (isRefreshingHeaderIcons) return;
+        isRefreshingHeaderIcons = true;
+        try {
+            const recentIcons = await loadRecentHeaderChatIcons();
+            headerChatDecorIcons = buildHeaderDecorIcons(recentIcons);
+        } catch (error) {
+            console.error('[Settings] Failed to load recent chat icons for settings header:', error);
+        } finally {
+            isRefreshingHeaderIcons = false;
+        }
+    }
+
+    function scheduleHeaderChatDecorIconRefresh(): void {
+        if (headerIconRefreshTimer) {
+            clearTimeout(headerIconRefreshTimer);
+        }
+        headerIconRefreshTimer = setTimeout(() => {
+            void refreshHeaderChatDecorIcons();
+        }, HEADER_CHAT_ICON_REFRESH_DEBOUNCE_MS);
+    }
 
     // Function to calculate the width of text with the correct font
     function getTextWidth(text: string, font = '14px "Lexend Deca Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'): number {
@@ -1473,6 +1627,16 @@ changes to the documentation (to keep the documentation up to date).
         };
         window.addEventListener('language-changed', languageChangeHandler);
 
+        const handleLocalChatListChanged = () => {
+            if (isMenuVisible) {
+                scheduleHeaderChatDecorIconRefresh();
+            }
+        };
+        window.addEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
+
+        // Prime decorative icons on mount to avoid empty first paint.
+        scheduleHeaderChatDecorIconRefresh();
+
         const handleCreditUpdate = (payload: { credits: number }) => {
             const newCredits = payload.credits;
             if (typeof newCredits === 'number') {
@@ -1549,6 +1713,11 @@ changes to the documentation (to keep the documentation up to date).
             window.removeEventListener('forceCloseSettings', handleForceCloseSettings);
             window.removeEventListener('openSettingsMenu', handleOpenSettingsMenu);
             window.removeEventListener('language-changed', languageChangeHandler);
+            window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
+            if (headerIconRefreshTimer) {
+                clearTimeout(headerIconRefreshTimer);
+                headerIconRefreshTimer = null;
+            }
             webSocketService.off('user_credits_updated', handleCreditUpdate);
             webSocketService.off('user_admin_status_updated', handleAdminStatusUpdate);
             // Only unregister payment handlers if they were registered
@@ -1557,6 +1726,12 @@ changes to the documentation (to keep the documentation up to date).
                 webSocketService.off('payment_failed', handlePaymentFailed);
             }
         };
+    });
+
+    $effect(() => {
+        if (isMenuVisible) {
+            scheduleHeaderChatDecorIconRefresh();
+        }
     });
 
     // Update DOM elements opacity and classes based on menu state
@@ -1986,6 +2161,19 @@ changes to the documentation (to keep the documentation up to date).
         onkeydown={(e) => e.stopPropagation()}
         role="presentation"
     >
+        {#if headerChatDecorIcons.length > 0}
+            <div class="header-chat-icons-layer" aria-hidden="true">
+                {#each headerChatDecorIcons as decor (decor.key)}
+                    {@const IconComponent = getLucideIcon(decor.iconName)}
+                    <div
+                        class="header-chat-icon {decor.side}"
+                        style="top: {decor.topPercent}%; --header-chat-icon-inset: {decor.insetPx}px; --header-chat-icon-rotation: {decor.rotationDeg}deg; background: linear-gradient(135deg, {decor.gradientStart}, {decor.gradientEnd});"
+                    >
+                        <IconComponent size={14} color="rgba(255, 255, 255, 0.9)" />
+                    </div>
+                {/each}
+            </div>
+        {/if}
         <div class="header-content">
             {#if !hideNavButton}
                 <button
@@ -2059,15 +2247,30 @@ changes to the documentation (to keep the documentation up to date).
          Displays the user's avatar + username and a clickable credits count.
          Placed outside the content-wrapper so sticky positioning works correctly. -->
     {#if activeSettingsView === 'main'}
-        <SettingsMainHeader
-            {username}
-            profileImageUrl={resolvedProfileImageBlobUrl ?? ''}
-            isAuthenticated={$authStore.isAuthenticated}
-            credits={$userProfile.credits ?? 0}
-            {paymentEnabled}
-            scrollTop={contentScrollTop}
-            onBillingClick={() => handleOpenSettings({ detail: { settingsPath: 'billing', direction: 'forward', icon: 'billing', title: $text('settings.billing') } } as CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string }>)}
-        />
+        <div class="settings-banner-shell">
+            {#if headerChatDecorIcons.length > 0}
+                <div class="header-chat-icons-layer on-banner" aria-hidden="true">
+                    {#each headerChatDecorIcons as decor (decor.key)}
+                        {@const IconComponent = getLucideIcon(decor.iconName)}
+                        <div
+                            class="header-chat-icon {decor.side}"
+                            style="top: {decor.topPercent}%; --header-chat-icon-inset: {decor.insetPx}px; --header-chat-icon-rotation: {decor.rotationDeg}deg; background: linear-gradient(135deg, {decor.gradientStart}, {decor.gradientEnd});"
+                        >
+                            <IconComponent size={14} color="rgba(255, 255, 255, 0.9)" />
+                        </div>
+                    {/each}
+                </div>
+            {/if}
+            <SettingsMainHeader
+                {username}
+                profileImageUrl={resolvedProfileImageBlobUrl ?? ''}
+                isAuthenticated={$authStore.isAuthenticated}
+                credits={$userProfile.credits ?? 0}
+                {paymentEnabled}
+                scrollTop={contentScrollTop}
+                onBillingClick={() => handleOpenSettings({ detail: { settingsPath: 'billing', direction: 'forward', icon: 'billing', title: $text('settings.billing') } } as CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string }>)}
+            />
+        </div>
     {/if}
 
     <!-- App details gradient banner — shown on:
@@ -2077,39 +2280,69 @@ changes to the documentation (to keep the documentation up to date).
          Placed outside the content-wrapper so it's not clipped by the slider's overflow:hidden.
          sticky positioning works here because this element is a direct flex child of .settings-menu. -->
     {#if isAnyAppBannerPage && currentAppMetadata}
-        <AppDetailsHeader
-            appId={currentAppId}
-            app={currentAppMetadata}
-            scrollTop={contentScrollTop}
-            breadcrumbLabel={breadcrumbLabel}
-            fullBreadcrumbLabel={fullBreadcrumbLabel}
-            onBack={() => backToMainView()}
-            subItem={subPageBannerData ? {
-                name: subPageBannerData.itemName,
-                typeLabel: subPageBannerData.itemTypeLabel,
-                description: subPageBannerData.description,
-                iconName: subPageBannerData.iconName,
-                iconType: subPageBannerData.iconType,
-            } : undefined}
-        />
+        <div class="settings-banner-shell">
+            {#if headerChatDecorIcons.length > 0}
+                <div class="header-chat-icons-layer on-banner" aria-hidden="true">
+                    {#each headerChatDecorIcons as decor (decor.key)}
+                        {@const IconComponent = getLucideIcon(decor.iconName)}
+                        <div
+                            class="header-chat-icon {decor.side}"
+                            style="top: {decor.topPercent}%; --header-chat-icon-inset: {decor.insetPx}px; --header-chat-icon-rotation: {decor.rotationDeg}deg; background: linear-gradient(135deg, {decor.gradientStart}, {decor.gradientEnd});"
+                        >
+                            <IconComponent size={14} color="rgba(255, 255, 255, 0.9)" />
+                        </div>
+                    {/each}
+                </div>
+            {/if}
+            <AppDetailsHeader
+                appId={currentAppId}
+                app={currentAppMetadata}
+                scrollTop={contentScrollTop}
+                breadcrumbLabel={breadcrumbLabel}
+                fullBreadcrumbLabel={fullBreadcrumbLabel}
+                onBack={() => backToMainView()}
+                subItem={subPageBannerData ? {
+                    name: subPageBannerData.itemName,
+                    typeLabel: subPageBannerData.itemTypeLabel,
+                    description: subPageBannerData.description,
+                    iconName: subPageBannerData.iconName,
+                    iconType: subPageBannerData.iconType,
+                } : undefined}
+            />
+        </div>
     {/if}
 
     <!-- Standard settings sub-page gradient banner — shown on Privacy, Billing, Usage, etc.
          Uses the openmates gradient with the page icon and title.
          Placed outside the content-wrapper for the same sticky-positioning reason. -->
     {#if isStandardSubPage}
-        <AppDetailsHeader
-            scrollTop={contentScrollTop}
-            breadcrumbLabel={breadcrumbLabel}
-            fullBreadcrumbLabel={fullBreadcrumbLabel}
-            onBack={() => backToMainView()}
-            settingsPage={{
-                title: activeSubMenuTitle,
-                icon: activeSubMenuIcon,
-                description: activeSubMenuDescription,
-                stats: appStoreHeaderStats,
-            }}
-        />
+        <div class="settings-banner-shell">
+            {#if headerChatDecorIcons.length > 0}
+                <div class="header-chat-icons-layer on-banner" aria-hidden="true">
+                    {#each headerChatDecorIcons as decor (decor.key)}
+                        {@const IconComponent = getLucideIcon(decor.iconName)}
+                        <div
+                            class="header-chat-icon {decor.side}"
+                            style="top: {decor.topPercent}%; --header-chat-icon-inset: {decor.insetPx}px; --header-chat-icon-rotation: {decor.rotationDeg}deg; background: linear-gradient(135deg, {decor.gradientStart}, {decor.gradientEnd});"
+                        >
+                            <IconComponent size={14} color="rgba(255, 255, 255, 0.9)" />
+                        </div>
+                    {/each}
+                </div>
+            {/if}
+            <AppDetailsHeader
+                scrollTop={contentScrollTop}
+                breadcrumbLabel={breadcrumbLabel}
+                fullBreadcrumbLabel={fullBreadcrumbLabel}
+                onBack={() => backToMainView()}
+                settingsPage={{
+                    title: activeSubMenuTitle,
+                    icon: activeSubMenuIcon,
+                    description: activeSubMenuDescription,
+                    stats: appStoreHeaderStats,
+                }}
+            />
+        </div>
     {/if}
 
     <div
@@ -2384,10 +2617,54 @@ changes to the documentation (to keep the documentation up to date).
         min-height: 30px;
     }
 
+    .header-chat-icons-layer {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .header-chat-icons-layer.on-banner {
+        border-radius: 0 0 14px 14px;
+    }
+
+    .header-chat-icon {
+        position: absolute;
+        width: 30px;
+        height: 30px;
+        border-radius: 999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transform: translateY(-50%) rotate(var(--header-chat-icon-rotation));
+        opacity: 0.26;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+    }
+
+    .header-chat-icon.left {
+        left: var(--header-chat-icon-inset);
+    }
+
+    .header-chat-icon.right {
+        right: var(--header-chat-icon-inset);
+    }
+
     .header-content {
         width: 100%;
         position: relative;
+        z-index: 1;
         transition: all 0.3s ease;
+    }
+
+    .settings-banner-shell {
+        position: relative;
+        width: 100%;
+    }
+
+    .settings-banner-shell :global(.app-details-header) {
+        position: relative;
+        z-index: 1;
     }
 
     .settings-header.submenu-active {
