@@ -535,6 +535,21 @@
         },
         "example_2": {
           "text": "Неформальный командный"
+        },
+        "example_3": {
+          "text": "Фоллоу-ап и напоминания"
+        }
+      },
+      "footer": {
+        "text": "Подпись",
+        "description": {
+          "text": "Повторно используемые подписи и завершающие блоки для писем."
+        },
+        "example_1": {
+          "text": "Рабочая подпись"
+        },
+        "example_2": {
+          "text": "Дружелюбная личная подпись"
         }
       }
     },
@@ -1185,6 +1200,9 @@
         "description": {
           "text": "Читать текст из конкретных страниц PDF."
         },
+        "processing": {
+          "text": "Чтение…"
+        },
         "how_to_use": {
           "1": {
             "text": "Прочитай страницу 5 загруженного PDF"
@@ -1802,6 +1820,23 @@
       },
       "just_now": {
         "text": "Только что"
+      }
+    },
+    "thinking": {
+      "placeholder": {
+        "text": "Дайте мне подумать..."
+      },
+      "header_streaming": {
+        "text": "Думает..."
+      },
+      "header_done": {
+        "text": "Ход мыслей"
+      },
+      "collapse": {
+        "text": "Свернуть ход мыслей"
+      },
+      "expand": {
+        "text": "Развернуть ход мыслей"
       }
     },
     "new_chat_suggestions": {
@@ -3092,6 +3127,35 @@
       "plot": {
         "text": "График"
       }
+    },
+    "mail": {
+      "email": {
+        "text": "Черновик письма"
+      },
+      "to": {
+        "text": "Кому"
+      },
+      "subject": {
+        "text": "Тема"
+      },
+      "content": {
+        "text": "Содержимое"
+      },
+      "footer": {
+        "text": "Подпись"
+      },
+      "empty_content": {
+        "text": "Пока нет содержимого письма."
+      },
+      "open_mail_client": {
+        "text": "Открыть в почтовом приложении"
+      },
+      "copied": {
+        "text": "Черновик письма скопирован."
+      },
+      "copy_failed": {
+        "text": "Не удалось скопировать черновик письма."
+      }
     }
   },
   "enter_message": {
@@ -3176,7 +3240,7 @@
       "text": "Введите ваше сообщение"
     },
     "click_to_enter_message": {
-      "text": "Нажмите здесь, чтобы ввести сообщение"
+      "text": "Нажмите здесь, чтобы спросить что угодно"
     },
     "click_to_add_text": {
       "text": "Нажмите здесь, чтобы добавить текст"
@@ -3261,10 +3325,10 @@
     },
     "placeholder": {
       "desktop": {
-        "text": "Нажмите, чтобы ввести сообщение..."
+        "text": "Нажмите, чтобы спросить что угодно..."
       },
       "touch": {
-        "text": "Нажмите, чтобы ввести сообщение..."
+        "text": "Нажмите, чтобы спросить что угодно..."
       }
     },
     "press_and_hold_menu": {
@@ -7359,6 +7423,12 @@
     },
     "gift_card_redeemed_success": {
       "text": "Наслаждайтесь вашим подарком!"
+    },
+    "gift_card_waiting_notification": {
+      "text": "Your {credits} credits gift card is waiting for you. Sign up or login to apply them."
+    },
+    "gift_card_waiting_action": {
+      "text": "Signup/Login"
     },
     "credits_purchased": {
       "text": "Купленные кредиты"

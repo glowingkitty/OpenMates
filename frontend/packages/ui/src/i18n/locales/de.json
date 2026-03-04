@@ -535,6 +535,21 @@
         },
         "example_2": {
           "text": "Locker im Team"
+        },
+        "example_3": {
+          "text": "Follow-up und Erinnerungen"
+        }
+      },
+      "footer": {
+        "text": "Signatur",
+        "description": {
+          "text": "Wiederverwendbare Signaturen und Abschlussblöcke fur deine E-Mails."
+        },
+        "example_1": {
+          "text": "Arbeits-Signatur"
+        },
+        "example_2": {
+          "text": "Freundliche private Signatur"
         }
       }
     },
@@ -1184,6 +1199,9 @@
         "text": "Lesen",
         "description": {
           "text": "Text aus bestimmten Seiten eines PDFs lesen."
+        },
+        "processing": {
+          "text": "Wird gelesen…"
         },
         "how_to_use": {
           "1": {
@@ -1850,6 +1868,23 @@
       },
       "next_chat": {
         "text": "Nächster Chat"
+      }
+    },
+    "thinking": {
+      "placeholder": {
+        "text": "Lass mich darüber nachdenken..."
+      },
+      "header_streaming": {
+        "text": "Denkt nach..."
+      },
+      "header_done": {
+        "text": "Denkprozess"
+      },
+      "collapse": {
+        "text": "Denkprozess einklappen"
+      },
+      "expand": {
+        "text": "Denkprozess ausklappen"
       }
     },
     "new_chat_suggestions": {
@@ -3528,6 +3563,35 @@
       "plot": {
         "text": "Grafik"
       }
+    },
+    "mail": {
+      "email": {
+        "text": "E-Mail-Entwurf"
+      },
+      "to": {
+        "text": "An"
+      },
+      "subject": {
+        "text": "Betreff"
+      },
+      "content": {
+        "text": "Inhalt"
+      },
+      "footer": {
+        "text": "Signatur"
+      },
+      "empty_content": {
+        "text": "Noch kein E-Mail-Inhalt."
+      },
+      "open_mail_client": {
+        "text": "In Mail-App offnen"
+      },
+      "copied": {
+        "text": "E-Mail-Entwurf kopiert."
+      },
+      "copy_failed": {
+        "text": "E-Mail-Entwurf konnte nicht kopiert werden."
+      }
     }
   },
   "enter_message": {
@@ -3615,7 +3679,7 @@
       "text": "Gebe deine Nachricht ein"
     },
     "click_to_enter_message": {
-      "text": "Hier klicken um eine Nachricht einzugeben"
+      "text": "Hier klicken um etwas zu fragen"
     },
     "click_to_add_text": {
       "text": "Klicke hier um Text hinzuzufügen"
@@ -3729,6 +3793,27 @@
         },
         "settings_memory": {
           "text": "Einstellungen & Erinnerungen"
+        },
+        "model_alias": {
+          "text": "Shortcut"
+        }
+      },
+      "model_alias": {
+        "best": {
+          "name": {
+            "text": "Bestes Modell"
+          },
+          "description": {
+            "text": "Wählt das leistungsstärkste KI-Modell"
+          }
+        },
+        "fast": {
+          "name": {
+            "text": "Schnellstes Modell"
+          },
+          "description": {
+            "text": "Wählt das schnellste KI-Modell"
+          }
         }
       }
     },
@@ -3799,10 +3884,10 @@
     },
     "placeholder": {
       "desktop": {
-        "text": "Klicken um eine Nachricht einzugeben..."
+        "text": "Klicken um etwas zu fragen..."
       },
       "touch": {
-        "text": "Tippen um eine Nachricht einzugeben..."
+        "text": "Tippen um etwas zu fragen..."
       }
     },
     "press_and_hold_menu": {
@@ -7094,6 +7179,12 @@
         "email_saving": {
           "text": "Wird gespeichert..."
         }
+      },
+      "ai_app_settings": {
+        "text": "KI-App-Einstellungen"
+      },
+      "ai_app_settings_info": {
+        "text": "Weitere Chat-Einstellungen finden Sie in den KI-App-Einstellungen"
       }
     },
     "gift_cards": {
@@ -8144,6 +8235,39 @@
         },
         "copied": {
           "text": "In Zwischenablage kopiert"
+        },
+        "show_qr": {
+          "text": "QR-Code anzeigen"
+        },
+        "qr_code_for": {
+          "text": "Geschenkkarten-QR-Code"
+        },
+        "qr_code_hint": {
+          "text": "Scannen zum Öffnen der Registrierung mit vorausgefüllter Geschenkkarte"
+        },
+        "copy_link": {
+          "text": "Anmeldelink kopieren"
+        },
+        "active_cards": {
+          "text": "Aktive Geschenkkarten"
+        },
+        "active_cards_empty": {
+          "text": "Keine aktiven Geschenkkarten auf diesem Server"
+        },
+        "active_cards_refresh": {
+          "text": "Aktualisieren"
+        },
+        "created_at": {
+          "text": "Erstellt"
+        },
+        "close": {
+          "text": "Schließen"
+        },
+        "loading_cards": {
+          "text": "Geschenkkarten werden geladen..."
+        },
+        "load_error": {
+          "text": "Geschenkkarten konnten nicht geladen werden"
         },
         "invalid_prefix": {
           "text": "Präfix muss 1-4 Zeichen sein (A-Z, 2-9, ohne O, I, 0, 1)"
@@ -9748,6 +9872,12 @@
     },
     "gift_card_redeemed_success": {
       "text": "Viel Spaß mit deinem Geschenk!"
+    },
+    "gift_card_waiting_notification": {
+      "text": "Your {credits} credits gift card is waiting for you. Sign up or login to apply them."
+    },
+    "gift_card_waiting_action": {
+      "text": "Signup/Login"
     },
     "credits_purchased": {
       "text": "Gekaufte Credits"

@@ -535,6 +535,21 @@
         },
         "example_2": {
           "text": "غير رسمي للفريق"
+        },
+        "example_3": {
+          "text": "متابعات وتذكيرات"
+        }
+      },
+      "footer": {
+        "text": "تذييل البريد",
+        "description": {
+          "text": "تواقيع وعبارات ختامية قابلة لاعادة الاستخدام في مسودات البريد."
+        },
+        "example_1": {
+          "text": "توقيع العمل"
+        },
+        "example_2": {
+          "text": "توقيع شخصي ودود"
         }
       }
     },
@@ -1185,6 +1200,9 @@
         "description": {
           "text": "اقرأ نصاً من صفحات محددة في PDF."
         },
+        "processing": {
+          "text": "جارٍ القراءة…"
+        },
         "how_to_use": {
           "1": {
             "text": "اقرأ الصفحة 5 من PDF المرفوع"
@@ -1802,6 +1820,23 @@
       },
       "just_now": {
         "text": "الآن"
+      }
+    },
+    "thinking": {
+      "placeholder": {
+        "text": "دعني أفكر في ذلك..."
+      },
+      "header_streaming": {
+        "text": "يفكر..."
+      },
+      "header_done": {
+        "text": "عملية التفكير"
+      },
+      "collapse": {
+        "text": "طي عملية التفكير"
+      },
+      "expand": {
+        "text": "توسيع عملية التفكير"
       }
     },
     "new_chat_suggestions": {
@@ -3092,6 +3127,35 @@
       "plot": {
         "text": "رسم بياني"
       }
+    },
+    "mail": {
+      "email": {
+        "text": "مسودة بريد"
+      },
+      "to": {
+        "text": "إلى"
+      },
+      "subject": {
+        "text": "الموضوع"
+      },
+      "content": {
+        "text": "المحتوى"
+      },
+      "footer": {
+        "text": "التذييل"
+      },
+      "empty_content": {
+        "text": "لا يوجد محتوى بريد بعد."
+      },
+      "open_mail_client": {
+        "text": "افتح في تطبيق البريد"
+      },
+      "copied": {
+        "text": "تم نسخ مسودة البريد."
+      },
+      "copy_failed": {
+        "text": "فشل نسخ مسودة البريد."
+      }
     }
   },
   "enter_message": {
@@ -3176,7 +3240,7 @@
       "text": "أدخل رسالتك"
     },
     "click_to_enter_message": {
-      "text": "انقر هنا لإدخال رسالتك"
+      "text": "انقر هنا لتسأل عن أي شيء"
     },
     "click_to_add_text": {
       "text": "انقر هنا لإضافة نص"
@@ -3261,10 +3325,10 @@
     },
     "placeholder": {
       "desktop": {
-        "text": "انقر لإدخال الرسالة..."
+        "text": "انقر لتسأل عن أي شيء..."
       },
       "touch": {
-        "text": "اضغط لإدخال الرسالة..."
+        "text": "اضغط لتسأل عن أي شيء..."
       }
     },
     "press_and_hold_menu": {
@@ -5635,6 +5699,12 @@
         "email_saving": {
           "text": "جاري الحفظ..."
         }
+      },
+      "ai_app_settings": {
+        "text": "إعدادات تطبيق الذكاء الاصطناعي"
+      },
+      "ai_app_settings_info": {
+        "text": "اعثر على المزيد من تفضيلات الدردشة في إعدادات تطبيق الذكاء الاصطناعي"
       }
     },
     "gift_cards": {
@@ -6721,6 +6791,39 @@
         },
         "copied": {
           "text": "تم النسخ إلى الحافظة"
+        },
+        "show_qr": {
+          "text": "عرض رمز QR"
+        },
+        "qr_code_for": {
+          "text": "رمز QR لبطاقة الهدية"
+        },
+        "qr_code_hint": {
+          "text": "امسح لفتح التسجيل مع تعبئة بطاقة الهدية مسبقاً"
+        },
+        "copy_link": {
+          "text": "نسخ رابط التسجيل"
+        },
+        "active_cards": {
+          "text": "بطاقات الهدايا النشطة"
+        },
+        "active_cards_empty": {
+          "text": "لا توجد بطاقات هدايا نشطة على هذا الخادم"
+        },
+        "active_cards_refresh": {
+          "text": "تحديث"
+        },
+        "created_at": {
+          "text": "تم الإنشاء"
+        },
+        "close": {
+          "text": "إغلاق"
+        },
+        "loading_cards": {
+          "text": "جاري تحميل بطاقات الهدايا..."
+        },
+        "load_error": {
+          "text": "فشل تحميل بطاقات الهدايا"
         },
         "invalid_prefix": {
           "text": "يجب أن تكون البادئة 1-4 أحرف (A-Z, 2-9, باستثناء O, I, 0, 1)"
@@ -8325,6 +8428,12 @@
     },
     "gift_card_redeemed_success": {
       "text": "استمتع بهديتك!"
+    },
+    "gift_card_waiting_notification": {
+      "text": "Your {credits} credits gift card is waiting for you. Sign up or login to apply them."
+    },
+    "gift_card_waiting_action": {
+      "text": "Signup/Login"
     },
     "credits_purchased": {
       "text": "الاعتمادات المشتراة"

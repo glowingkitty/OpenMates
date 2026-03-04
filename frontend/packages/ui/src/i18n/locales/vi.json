@@ -535,6 +535,21 @@
         },
         "example_2": {
           "text": "Nhóm thoải mái"
+        },
+        "example_3": {
+          "text": "Theo dõi và nhắc nhở"
+        }
+      },
+      "footer": {
+        "text": "Chu ky cuoi thu",
+        "description": {
+          "text": "Chu ky va doan ket thu co the tai su dung cho email nhap."
+        },
+        "example_1": {
+          "text": "Chu ky cong viec"
+        },
+        "example_2": {
+          "text": "Chu ky ca nhan than thien"
         }
       }
     },
@@ -1185,6 +1200,9 @@
         "description": {
           "text": "Đọc văn bản từ các trang cụ thể của PDF."
         },
+        "processing": {
+          "text": "Đang đọc…"
+        },
         "how_to_use": {
           "1": {
             "text": "Đọc trang 5 của PDF đã tải lên"
@@ -1802,6 +1820,23 @@
       },
       "just_now": {
         "text": "Vừa xong"
+      }
+    },
+    "thinking": {
+      "placeholder": {
+        "text": "Để tôi suy nghĩ..."
+      },
+      "header_streaming": {
+        "text": "Đang suy nghĩ..."
+      },
+      "header_done": {
+        "text": "Quá trình suy nghĩ"
+      },
+      "collapse": {
+        "text": "Thu gọn quá trình suy nghĩ"
+      },
+      "expand": {
+        "text": "Mở rộng quá trình suy nghĩ"
       }
     },
     "new_chat_suggestions": {
@@ -3092,6 +3127,35 @@
       "plot": {
         "text": "Vẽ đồ thị"
       }
+    },
+    "mail": {
+      "email": {
+        "text": "Ban nhap email"
+      },
+      "to": {
+        "text": "Nguoi nhan"
+      },
+      "subject": {
+        "text": "Chu de"
+      },
+      "content": {
+        "text": "Noi dung"
+      },
+      "footer": {
+        "text": "Chu ky"
+      },
+      "empty_content": {
+        "text": "Chua co noi dung email."
+      },
+      "open_mail_client": {
+        "text": "Mo trong ung dung mail"
+      },
+      "copied": {
+        "text": "Da sao chep ban nhap email."
+      },
+      "copy_failed": {
+        "text": "Sao chep ban nhap email that bai."
+      }
     }
   },
   "enter_message": {
@@ -3176,7 +3240,7 @@
       "text": "Nhập tin nhắn của bạn"
     },
     "click_to_enter_message": {
-      "text": "Nhấp vào đây để nhập tin nhắn"
+      "text": "Nhấp vào đây để hỏi bất cứ điều gì"
     },
     "click_to_add_text": {
       "text": "Nhấp vào đây để thêm văn bản"
@@ -3261,10 +3325,10 @@
     },
     "placeholder": {
       "desktop": {
-        "text": "Nhấp để nhập tin nhắn..."
+        "text": "Nhấp để hỏi bất cứ điều gì..."
       },
       "touch": {
-        "text": "Chạm để nhập tin nhắn..."
+        "text": "Chạm để hỏi bất cứ điều gì..."
       }
     },
     "press_and_hold_menu": {
@@ -7359,6 +7423,12 @@
     },
     "gift_card_redeemed_success": {
       "text": "Tận hưởng món quà của bạn!"
+    },
+    "gift_card_waiting_notification": {
+      "text": "Your {credits} credits gift card is waiting for you. Sign up or login to apply them."
+    },
+    "gift_card_waiting_action": {
+      "text": "Signup/Login"
     },
     "credits_purchased": {
       "text": "Tín dụng đã mua"

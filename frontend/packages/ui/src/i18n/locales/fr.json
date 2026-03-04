@@ -535,6 +535,21 @@
         },
         "example_2": {
           "text": "Équipe décontractée"
+        },
+        "example_3": {
+          "text": "Relances et rappels"
+        }
+      },
+      "footer": {
+        "text": "Signature",
+        "description": {
+          "text": "Signatures et blocs de conclusion reutilisables pour vos e-mails."
+        },
+        "example_1": {
+          "text": "Signature professionnelle"
+        },
+        "example_2": {
+          "text": "Signature personnelle conviviale"
         }
       }
     },
@@ -1185,6 +1200,9 @@
         "description": {
           "text": "Lire le texte de pages précises d'un PDF."
         },
+        "processing": {
+          "text": "Lecture…"
+        },
         "how_to_use": {
           "1": {
             "text": "Lis la page 5 du PDF téléversé"
@@ -1802,6 +1820,23 @@
       },
       "just_now": {
         "text": "À l'instant"
+      }
+    },
+    "thinking": {
+      "placeholder": {
+        "text": "Laissez-moi réfléchir..."
+      },
+      "header_streaming": {
+        "text": "Réflexion..."
+      },
+      "header_done": {
+        "text": "Processus de réflexion"
+      },
+      "collapse": {
+        "text": "Réduire le processus de réflexion"
+      },
+      "expand": {
+        "text": "Développer le processus de réflexion"
       }
     },
     "new_chat_suggestions": {
@@ -3433,6 +3468,35 @@
       "plot": {
         "text": "Tracer"
       }
+    },
+    "mail": {
+      "email": {
+        "text": "Brouillon d'e-mail"
+      },
+      "to": {
+        "text": "A"
+      },
+      "subject": {
+        "text": "Objet"
+      },
+      "content": {
+        "text": "Contenu"
+      },
+      "footer": {
+        "text": "Signature"
+      },
+      "empty_content": {
+        "text": "Aucun contenu d'e-mail pour le moment."
+      },
+      "open_mail_client": {
+        "text": "Ouvrir dans l'appli e-mail"
+      },
+      "copied": {
+        "text": "Brouillon d'e-mail copie."
+      },
+      "copy_failed": {
+        "text": "Impossible de copier le brouillon d'e-mail."
+      }
     }
   },
   "enter_message": {
@@ -3517,7 +3581,7 @@
       "text": "Entrez votre message"
     },
     "click_to_enter_message": {
-      "text": "Cliquez ici pour entrer votre message"
+      "text": "Cliquez ici pour poser une question"
     },
     "click_to_add_text": {
       "text": "Cliquez ici pour ajouter du texte"
@@ -3628,15 +3692,36 @@
         },
         "settings_memory": {
           "text": "Paramètres et mémoires"
+        },
+        "model_alias": {
+          "text": "Raccourci"
+        }
+      },
+      "model_alias": {
+        "best": {
+          "name": {
+            "text": "Meilleur modèle"
+          },
+          "description": {
+            "text": "Sélectionne le modèle IA le plus performant"
+          }
+        },
+        "fast": {
+          "name": {
+            "text": "Modèle le plus rapide"
+          },
+          "description": {
+            "text": "Sélectionne le modèle IA le plus rapide"
+          }
         }
       }
     },
     "placeholder": {
       "desktop": {
-        "text": "Cliquez pour saisir un message..."
+        "text": "Cliquez pour poser une question..."
       },
       "touch": {
-        "text": "Appuyez pour saisir un message..."
+        "text": "Appuyez pour poser une question..."
       }
     },
     "press_and_hold_menu": {
@@ -7202,6 +7287,39 @@
         "copied": {
           "text": "Copié dans le presse-papiers"
         },
+        "show_qr": {
+          "text": "Afficher le QR code"
+        },
+        "qr_code_for": {
+          "text": "QR Code de la Carte Cadeau"
+        },
+        "qr_code_hint": {
+          "text": "Scanner pour ouvrir l'inscription avec cette carte cadeau pré-remplie"
+        },
+        "copy_link": {
+          "text": "Copier le lien d'inscription"
+        },
+        "active_cards": {
+          "text": "Cartes Cadeaux Actives"
+        },
+        "active_cards_empty": {
+          "text": "Aucune carte cadeau active sur ce serveur"
+        },
+        "active_cards_refresh": {
+          "text": "Actualiser"
+        },
+        "created_at": {
+          "text": "Créé"
+        },
+        "close": {
+          "text": "Fermer"
+        },
+        "loading_cards": {
+          "text": "Chargement des cartes cadeaux..."
+        },
+        "load_error": {
+          "text": "Impossible de charger les cartes cadeaux"
+        },
         "invalid_prefix": {
           "text": "Le préfixe doit contenir 1-4 caractères (A-Z, 2-9, excluant O, I, 0, 1)"
         }
@@ -8839,6 +8957,12 @@
     },
     "gift_card_redeemed_success": {
       "text": "Profitez de votre cadeau !"
+    },
+    "gift_card_waiting_notification": {
+      "text": "Your {credits} credits gift card is waiting for you. Sign up or login to apply them."
+    },
+    "gift_card_waiting_action": {
+      "text": "Signup/Login"
     },
     "credits_purchased": {
       "text": "Crédits achetés"

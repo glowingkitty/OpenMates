@@ -68,22 +68,6 @@ step_9_top_content_svelte:
     // State to track if gift card input is shown
     let showGiftCardInput = $state(false);
 
-    // Pre-filled gift card code from /#gift-card=CODE deep link (stored in sessionStorage by +page.svelte)
-    let pendingGiftCardCode = $state('');
-
-    // On mount, check sessionStorage for a pending gift card code
-    $effect(() => {
-        if (typeof window !== 'undefined') {
-            const pending = sessionStorage.getItem('pending_gift_card_code');
-            if (pending) {
-                pendingGiftCardCode = pending;
-                // Don't remove yet — GiftCardRedeem will consume and remove it
-                showGiftCardInput = true;
-                console.debug('[CreditsTopContent] Auto-opening gift card form with pending code');
-            }
-        }
-    });
-
     /**
      * Open the app store in settings using deep linking.
      * Sets both the store and the URL hash for proper deep linking support.

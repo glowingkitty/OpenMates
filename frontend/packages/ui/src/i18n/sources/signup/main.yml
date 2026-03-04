@@ -4922,6 +4922,54 @@ gift_card_redeemed_success:
   sv: Njut av din present!
   he: "תהנה מהמתנה שלך!"
   verified_by_human: []
+gift_card_waiting_notification:
+  context: Notification shown when an unauthenticated user opens a gift-card deep link and needs to signup or login before redeeming
+  en: Your {credits} credits gift card is waiting for you. Sign up or login to apply them.
+  de: Your {credits} credits gift card is waiting for you. Sign up or login to apply them.
+  zh: Your {credits} credits gift card is waiting for you. Sign up or login to apply them.
+  es: Your {credits} credits gift card is waiting for you. Sign up or login to apply them.
+  fr: Your {credits} credits gift card is waiting for you. Sign up or login to apply them.
+  pt: Your {credits} credits gift card is waiting for you. Sign up or login to apply them.
+  ru: Your {credits} credits gift card is waiting for you. Sign up or login to apply them.
+  ja: Your {credits} credits gift card is waiting for you. Sign up or login to apply them.
+  ko: Your {credits} credits gift card is waiting for you. Sign up or login to apply them.
+  it: Your {credits} credits gift card is waiting for you. Sign up or login to apply them.
+  tr: Your {credits} credits gift card is waiting for you. Sign up or login to apply them.
+  vi: Your {credits} credits gift card is waiting for you. Sign up or login to apply them.
+  id: Your {credits} credits gift card is waiting for you. Sign up or login to apply them.
+  pl: Your {credits} credits gift card is waiting for you. Sign up or login to apply them.
+  nl: Your {credits} credits gift card is waiting for you. Sign up or login to apply them.
+  ar: Your {credits} credits gift card is waiting for you. Sign up or login to apply them.
+  hi: Your {credits} credits gift card is waiting for you. Sign up or login to apply them.
+  th: Your {credits} credits gift card is waiting for you. Sign up or login to apply them.
+  cs: Your {credits} credits gift card is waiting for you. Sign up or login to apply them.
+  sv: Your {credits} credits gift card is waiting for you. Sign up or login to apply them.
+  he: Your {credits} credits gift card is waiting for you. Sign up or login to apply them.
+  verified_by_human: []
+gift_card_waiting_action:
+  context: Action button label on gift card waiting notification to open signup and login interface
+  en: Signup/Login
+  de: Signup/Login
+  zh: Signup/Login
+  es: Signup/Login
+  fr: Signup/Login
+  pt: Signup/Login
+  ru: Signup/Login
+  ja: Signup/Login
+  ko: Signup/Login
+  it: Signup/Login
+  tr: Signup/Login
+  vi: Signup/Login
+  id: Signup/Login
+  pl: Signup/Login
+  nl: Signup/Login
+  ar: Signup/Login
+  hi: Signup/Login
+  th: Signup/Login
+  cs: Signup/Login
+  sv: Signup/Login
+  he: Signup/Login
+  verified_by_human: []
 credits_purchased:
   context: Label for credits purchased in purchase summary
   en: Credits purchased

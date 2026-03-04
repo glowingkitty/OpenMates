@@ -541,6 +541,21 @@
         },
         "example_2": {
           "text": "Casual team"
+        },
+        "example_3": {
+          "text": "Follow-up and reminders"
+        }
+      },
+      "footer": {
+        "text": "Footer",
+        "description": {
+          "text": "Reusable signatures and closing blocks for your drafted emails."
+        },
+        "example_1": {
+          "text": "Work signature"
+        },
+        "example_2": {
+          "text": "Friendly personal signature"
         }
       }
     },
@@ -1190,6 +1205,9 @@
         "text": "Read",
         "description": {
           "text": "Read text from specific pages of a PDF."
+        },
+        "processing": {
+          "text": "Reading…"
         },
         "how_to_use": {
           "1": {
@@ -1856,6 +1874,23 @@
       },
       "next_chat": {
         "text": "Next chat"
+      }
+    },
+    "thinking": {
+      "placeholder": {
+        "text": "Let me think about that..."
+      },
+      "header_streaming": {
+        "text": "Thinking..."
+      },
+      "header_done": {
+        "text": "Thought process"
+      },
+      "collapse": {
+        "text": "Collapse thought process"
+      },
+      "expand": {
+        "text": "Expand thought process"
       }
     },
     "new_chat_suggestions": {
@@ -3588,6 +3623,35 @@
       "plot": {
         "text": "Plot"
       }
+    },
+    "mail": {
+      "email": {
+        "text": "Email Draft"
+      },
+      "to": {
+        "text": "To"
+      },
+      "subject": {
+        "text": "Subject"
+      },
+      "content": {
+        "text": "Content"
+      },
+      "footer": {
+        "text": "Footer"
+      },
+      "empty_content": {
+        "text": "No email content yet."
+      },
+      "open_mail_client": {
+        "text": "Open in Mail App"
+      },
+      "copied": {
+        "text": "Email draft copied."
+      },
+      "copy_failed": {
+        "text": "Failed to copy email draft."
+      }
     }
   },
   "enter_message": {
@@ -3675,7 +3739,7 @@
       "text": "Enter your message"
     },
     "click_to_enter_message": {
-      "text": "Click here to enter your message"
+      "text": "Click here to ask anything"
     },
     "click_to_add_text": {
       "text": "Click here to add text"
@@ -3792,6 +3856,27 @@
         },
         "settings_memory": {
           "text": "Settings & memories"
+        },
+        "model_alias": {
+          "text": "Shortcut"
+        }
+      },
+      "model_alias": {
+        "best": {
+          "name": {
+            "text": "Best Model"
+          },
+          "description": {
+            "text": "Selects the most capable AI model"
+          }
+        },
+        "fast": {
+          "name": {
+            "text": "Fastest Model"
+          },
+          "description": {
+            "text": "Selects the fastest AI model"
+          }
         }
       }
     },
@@ -3862,10 +3947,10 @@
     },
     "placeholder": {
       "desktop": {
-        "text": "Click to enter message..."
+        "text": "Click to ask anything..."
       },
       "touch": {
-        "text": "Tap to enter message..."
+        "text": "Tap to ask anything..."
       }
     },
     "press_and_hold_menu": {
@@ -7466,6 +7551,12 @@
         "email_saving": {
           "text": "Saving..."
         }
+      },
+      "ai_app_settings": {
+        "text": "AI App Settings"
+      },
+      "ai_app_settings_info": {
+        "text": "Find more chat preferences in AI app settings"
       }
     },
     "gift_cards": {
@@ -8552,6 +8643,39 @@
         },
         "copied": {
           "text": "Copied to clipboard"
+        },
+        "show_qr": {
+          "text": "Show QR Code"
+        },
+        "qr_code_for": {
+          "text": "Gift Card QR Code"
+        },
+        "qr_code_hint": {
+          "text": "Scan to open signup with this gift card pre-filled"
+        },
+        "copy_link": {
+          "text": "Copy signup link"
+        },
+        "active_cards": {
+          "text": "Active Gift Cards"
+        },
+        "active_cards_empty": {
+          "text": "No active gift cards on this server"
+        },
+        "active_cards_refresh": {
+          "text": "Refresh"
+        },
+        "created_at": {
+          "text": "Created"
+        },
+        "close": {
+          "text": "Close"
+        },
+        "loading_cards": {
+          "text": "Loading gift cards..."
+        },
+        "load_error": {
+          "text": "Failed to load gift cards"
         },
         "invalid_prefix": {
           "text": "Prefix must be 1-4 characters (A-Z, 2-9, excluding O, I, 0, 1)"
@@ -10156,6 +10280,12 @@
     },
     "gift_card_redeemed_success": {
       "text": "Enjoy your gift!"
+    },
+    "gift_card_waiting_notification": {
+      "text": "Your {credits} credits gift card is waiting for you. Sign up or login to apply them."
+    },
+    "gift_card_waiting_action": {
+      "text": "Signup/Login"
     },
     "credits_purchased": {
       "text": "Credits purchased"

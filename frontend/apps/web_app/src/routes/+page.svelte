@@ -69,6 +69,38 @@
 	let originalHashChatId: string | null = null; // Store original hash chat ID from URL (read before anything modifies it)
 	let deepLinkProcessed = $state(false); // Track if any deep link was processed during onMount to avoid loading welcome chat
 	let pendingDeepLinkHandler: ((event: Event) => void) | null = null; // Store event handler for cleanup
+	let hasAutoOpenedGiftCardRedeemAfterAuth = $state(false);
+
+	function openGiftCardRedeemSettings(): void {
+		hasAutoOpenedGiftCardRedeemAfterAuth = true;
+		settingsDeepLink.set('gift_cards/redeem');
+		setTimeout(() => panelState.openSettings(), 100);
+	}
+
+	$effect(() => {
+		if (!browser) {
+			return;
+		}
+
+		if (!$authStore.isAuthenticated) {
+			hasAutoOpenedGiftCardRedeemAfterAuth = false;
+			return;
+		}
+
+		if (hasAutoOpenedGiftCardRedeemAfterAuth || $isInSignupProcess) {
+			return;
+		}
+
+		const pendingGiftCardCode = sessionStorage.getItem('pending_gift_card_code');
+		if (!pendingGiftCardCode) {
+			return;
+		}
+
+		console.debug(
+			'[+page.svelte] Authenticated with pending gift-card code, opening redeem settings'
+		);
+		openGiftCardRedeemSettings();
+	});
 
 	// CRITICAL: Reactive effect to watch for signup state changes
 	// This handles cases where user profile loads asynchronously after initialize() completes
@@ -1027,7 +1059,7 @@
 		// --- Gift-card deep link: /#gift-card=CODE ---
 		// The code lives entirely in the hash so the server never sees it.
 		// For authenticated users:  open Settings > Gift Cards > Redeem with the code pre-filled
-		// For unauthenticated users: store the code and open the signup flow so the code is applied at the credits step
+		// For unauthenticated users: store the code and show signup/login CTA notification.
 		const GIFT_CARD_HASH_PREFIX = '#gift-card=';
 		const GIFT_CARD_CODE_REGEX = /^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/i;
 		let hasGiftCardHash = false;
@@ -1053,14 +1085,18 @@
 				if (hasLocalAuth) {
 					// Authenticated user: open the gift-card redeem settings page
 					// (settings panel opens after initialize() completes; set the deep link store now)
-					settingsDeepLink.set('gift_cards/redeem');
-					setTimeout(() => panelState.openSettings(), 100);
+					openGiftCardRedeemSettings();
 				} else {
-					// Unauthenticated user: open the signup flow
-					// (code stays in sessionStorage for the credits step)
-					currentSignupStep.set('basics');
-					isInSignupProcess.set(true);
-					loginInterfaceOpen.set(true);
+					// Unauthenticated user: keep code in sessionStorage and prompt for signup/login.
+					notificationStore.addNotificationWithOptions('info', {
+						message: $text('signup.gift_card_waiting_notification').replace('{credits}', 'x'),
+						actionLabel: $text('signup.gift_card_waiting_action'),
+						onAction: () => {
+							window.dispatchEvent(new CustomEvent('openSignupInterface'));
+						},
+						duration: 10000,
+						dismissible: true
+					});
 				}
 			} else {
 				console.warn(`[+page.svelte] Invalid gift-card code in hash: ${rawCode}`);

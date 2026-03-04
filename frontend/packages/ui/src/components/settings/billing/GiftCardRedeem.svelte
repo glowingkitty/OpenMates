@@ -12,7 +12,7 @@ Tests: (none yet)
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { apiEndpoints, getApiEndpoint } from '../../../config/api';
-    import { userProfile, updateProfile } from '../../../stores/userProfile';
+    import { updateProfile } from '../../../stores/userProfile';
 
     const dispatch = createEventDispatcher();
 
@@ -38,7 +38,6 @@ Tests: (none yet)
             const pending = sessionStorage.getItem('pending_gift_card_code');
             if (pending) {
                 giftCardCode = pending.toUpperCase();
-                sessionStorage.removeItem('pending_gift_card_code');
                 console.debug('[GiftCardRedeem] Pre-filled code from sessionStorage');
             }
         }
@@ -60,6 +59,8 @@ Tests: (none yet)
         isRedeeming = true;
 
         try {
+            const normalizedCode = giftCardCode.trim().toUpperCase();
+
             const response = await fetch(getApiEndpoint(apiEndpoints.payments.redeemGiftCard), {
                 method: 'POST',
                 headers: {
@@ -67,7 +68,7 @@ Tests: (none yet)
                     'Accept': 'application/json',
                     'Origin': window.location.origin
                 },
-                body: JSON.stringify({ code: giftCardCode.trim().toUpperCase() }),
+                body: JSON.stringify({ code: normalizedCode }),
                 credentials: 'include' // Important for sending auth cookies
             });
 
@@ -75,6 +76,14 @@ Tests: (none yet)
 
             if (response.ok && result.success) {
                 console.info("Gift card redeemed successfully:", result);
+
+                if (typeof window !== 'undefined') {
+                    const pendingCode = sessionStorage.getItem('pending_gift_card_code');
+                    if (pendingCode?.toUpperCase() === normalizedCode) {
+                        sessionStorage.removeItem('pending_gift_card_code');
+                        console.debug('[GiftCardRedeem] Cleared pending gift card code from sessionStorage after successful redemption');
+                    }
+                }
                 
                 // Update profile store with new credit amount
                 if (typeof result.current_credits === 'number') {
@@ -295,4 +304,3 @@ Tests: (none yet)
         }
     }
 </style>
-

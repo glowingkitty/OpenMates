@@ -535,6 +535,21 @@
         },
         "example_2": {
           "text": "Neformální týmový"
+        },
+        "example_3": {
+          "text": "Následná komunikace a připomínky"
+        }
+      },
+      "footer": {
+        "text": "Podpis",
+        "description": {
+          "text": "Opakovane pouzitelne podpisy a zaverecne bloky pro koncepty e-mailu."
+        },
+        "example_1": {
+          "text": "Pracovni podpis"
+        },
+        "example_2": {
+          "text": "Pratelsky osobni podpis"
         }
       }
     },
@@ -1185,6 +1200,9 @@
         "description": {
           "text": "Přečtěte text z konkrétních stránek PDF."
         },
+        "processing": {
+          "text": "Čtení…"
+        },
         "how_to_use": {
           "1": {
             "text": "Přečtěte strané 5 nahraného PDF"
@@ -1802,6 +1820,23 @@
       },
       "just_now": {
         "text": "Právě teď"
+      }
+    },
+    "thinking": {
+      "placeholder": {
+        "text": "Nech mě přemýšlet..."
+      },
+      "header_streaming": {
+        "text": "Přemýšlí..."
+      },
+      "header_done": {
+        "text": "Myšlenkový proces"
+      },
+      "collapse": {
+        "text": "Sbalit myšlenkový proces"
+      },
+      "expand": {
+        "text": "Rozbalit myšlenkový proces"
       }
     },
     "new_chat_suggestions": {
@@ -3098,6 +3133,35 @@
       "plot": {
         "text": "Graf"
       }
+    },
+    "mail": {
+      "email": {
+        "text": "Koncept e-mailu"
+      },
+      "to": {
+        "text": "Komu"
+      },
+      "subject": {
+        "text": "Predmet"
+      },
+      "content": {
+        "text": "Obsah"
+      },
+      "footer": {
+        "text": "Podpis"
+      },
+      "empty_content": {
+        "text": "Zatim zadny obsah e-mailu."
+      },
+      "open_mail_client": {
+        "text": "Otevrit v e-mailove aplikaci"
+      },
+      "copied": {
+        "text": "Koncept e-mailu zkopirovan."
+      },
+      "copy_failed": {
+        "text": "Kopirovani konceptu e-mailu se nezdarilo."
+      }
     }
   },
   "enter_message": {
@@ -3182,7 +3246,7 @@
       "text": "Zadejte svou zprávu"
     },
     "click_to_enter_message": {
-      "text": "Klikněte sem pro zadání zprávy"
+      "text": "Klikněte sem a zeptejte se na cokoliv"
     },
     "click_to_add_text": {
       "text": "Klikněte sem pro přidání textu"
@@ -3267,10 +3331,10 @@
     },
     "placeholder": {
       "desktop": {
-        "text": "Klikněte pro zadání zprávy..."
+        "text": "Klikněte a zeptejte se na cokoliv..."
       },
       "touch": {
-        "text": "Klepněte pro zadání zprávy..."
+        "text": "Klepněte a zeptejte se na cokoliv..."
       }
     },
     "press_and_hold_menu": {
@@ -7365,6 +7429,12 @@
     },
     "gift_card_redeemed_success": {
       "text": "Užijte si svůj dárek!"
+    },
+    "gift_card_waiting_notification": {
+      "text": "Your {credits} credits gift card is waiting for you. Sign up or login to apply them."
+    },
+    "gift_card_waiting_action": {
+      "text": "Signup/Login"
     },
     "credits_purchased": {
       "text": "Zakoupené kredity"

@@ -535,6 +535,21 @@
         },
         "example_2": {
           "text": "团队随意"
+        },
+        "example_3": {
+          "text": "跟进与提醒"
+        }
+      },
+      "footer": {
+        "text": "页脚签名",
+        "description": {
+          "text": "用于邮件草稿的可复用签名和结尾内容。"
+        },
+        "example_1": {
+          "text": "工作签名"
+        },
+        "example_2": {
+          "text": "友好的个人签名"
         }
       }
     },
@@ -1185,6 +1200,9 @@
         "description": {
           "text": "从PDF的特定页面读取文本。"
         },
+        "processing": {
+          "text": "读取中…"
+        },
         "how_to_use": {
           "1": {
             "text": "读取已上传PDF的第5页"
@@ -1802,6 +1820,23 @@
       },
       "just_now": {
         "text": "刚刚"
+      }
+    },
+    "thinking": {
+      "placeholder": {
+        "text": "让我想想..."
+      },
+      "header_streaming": {
+        "text": "思考中..."
+      },
+      "header_done": {
+        "text": "思考过程"
+      },
+      "collapse": {
+        "text": "收起思考过程"
+      },
+      "expand": {
+        "text": "展开思考过程"
       }
     },
     "new_chat_suggestions": {
@@ -3433,6 +3468,35 @@
       "plot": {
         "text": "绘图"
       }
+    },
+    "mail": {
+      "email": {
+        "text": "邮件草稿"
+      },
+      "to": {
+        "text": "收件人"
+      },
+      "subject": {
+        "text": "主题"
+      },
+      "content": {
+        "text": "正文"
+      },
+      "footer": {
+        "text": "页脚"
+      },
+      "empty_content": {
+        "text": "暂无邮件正文。"
+      },
+      "open_mail_client": {
+        "text": "在邮件应用中打开"
+      },
+      "copied": {
+        "text": "邮件草稿已复制。"
+      },
+      "copy_failed": {
+        "text": "复制邮件草稿失败。"
+      }
     }
   },
   "enter_message": {
@@ -3517,7 +3581,7 @@
       "text": "输入您的消息"
     },
     "click_to_enter_message": {
-      "text": "点击此处输入消息"
+      "text": "点击此处提问"
     },
     "click_to_add_text": {
       "text": "点击此处添加文本"
@@ -3602,10 +3666,10 @@
     },
     "placeholder": {
       "desktop": {
-        "text": "点击输入消息..."
+        "text": "点击提问..."
       },
       "touch": {
-        "text": "轻触输入消息..."
+        "text": "轻触提问..."
       }
     },
     "press_and_hold_menu": {
@@ -7109,6 +7173,39 @@
         "copied": {
           "text": "已复制到剪贴板"
         },
+        "show_qr": {
+          "text": "显示二维码"
+        },
+        "qr_code_for": {
+          "text": "礼品卡二维码"
+        },
+        "qr_code_hint": {
+          "text": "扫描以打开预填礼品卡的注册页面"
+        },
+        "copy_link": {
+          "text": "复制注册链接"
+        },
+        "active_cards": {
+          "text": "有效礼品卡"
+        },
+        "active_cards_empty": {
+          "text": "此服务器上没有有效礼品卡"
+        },
+        "active_cards_refresh": {
+          "text": "刷新"
+        },
+        "created_at": {
+          "text": "创建时间"
+        },
+        "close": {
+          "text": "关闭"
+        },
+        "loading_cards": {
+          "text": "正在加载礼品卡..."
+        },
+        "load_error": {
+          "text": "加载礼品卡失败"
+        },
         "invalid_prefix": {
           "text": "前缀必须是1-4个字符（A-Z, 2-9，不含O, I, 0, 1）"
         }
@@ -8731,6 +8828,12 @@
     },
     "gift_card_redeemed_success": {
       "text": "享受您的礼物！"
+    },
+    "gift_card_waiting_notification": {
+      "text": "Your {credits} credits gift card is waiting for you. Sign up or login to apply them."
+    },
+    "gift_card_waiting_action": {
+      "text": "Signup/Login"
     },
     "credits_purchased": {
       "text": "已购买点数"

@@ -535,6 +535,21 @@
         },
         "example_2": {
           "text": "Avslappnat team"
+        },
+        "example_3": {
+          "text": "Uppfoljning och påminnelser"
+        }
+      },
+      "footer": {
+        "text": "Sidfot",
+        "description": {
+          "text": "Ateranvandbara signaturer och avslut for dina e-postutkast."
+        },
+        "example_1": {
+          "text": "Arbetssignatur"
+        },
+        "example_2": {
+          "text": "Vanlig personlig signatur"
         }
       }
     },
@@ -1185,6 +1200,9 @@
         "description": {
           "text": "Läs text från specifika sidor i en PDF."
         },
+        "processing": {
+          "text": "Läser…"
+        },
         "how_to_use": {
           "1": {
             "text": "Läs sida 5 i den uppladdade PDF:en"
@@ -1802,6 +1820,23 @@
       },
       "just_now": {
         "text": "Just nu"
+      }
+    },
+    "thinking": {
+      "placeholder": {
+        "text": "Låt mig tänka på det..."
+      },
+      "header_streaming": {
+        "text": "Tänker..."
+      },
+      "header_done": {
+        "text": "Tankeprocess"
+      },
+      "collapse": {
+        "text": "Fäll ihop tankeprocess"
+      },
+      "expand": {
+        "text": "Fäll ut tankeprocess"
       }
     },
     "new_chat_suggestions": {
@@ -3134,6 +3169,35 @@
       "plot": {
         "text": "Graf"
       }
+    },
+    "mail": {
+      "email": {
+        "text": "E-postutkast"
+      },
+      "to": {
+        "text": "Till"
+      },
+      "subject": {
+        "text": "Amne"
+      },
+      "content": {
+        "text": "Innehall"
+      },
+      "footer": {
+        "text": "Sidfot"
+      },
+      "empty_content": {
+        "text": "Inget e-postinnehall an."
+      },
+      "open_mail_client": {
+        "text": "Oppna i e-postappen"
+      },
+      "copied": {
+        "text": "E-postutkast kopierat."
+      },
+      "copy_failed": {
+        "text": "Det gick inte att kopiera e-postutkastet."
+      }
     }
   },
   "enter_message": {
@@ -3218,7 +3282,7 @@
       "text": "Ange ditt meddelande"
     },
     "click_to_enter_message": {
-      "text": "Klicka här för att ange ditt meddelande"
+      "text": "Klicka här för att fråga vad som helst"
     },
     "click_to_add_text": {
       "text": "Klicka här för att lägga till text"
@@ -3303,10 +3367,10 @@
     },
     "placeholder": {
       "desktop": {
-        "text": "Klicka för att ange meddelande..."
+        "text": "Klicka för att fråga vad som helst..."
       },
       "touch": {
-        "text": "Tryck för att ange meddelande..."
+        "text": "Tryck för att fråga vad som helst..."
       }
     },
     "press_and_hold_menu": {
@@ -7161,6 +7225,12 @@
     },
     "gift_card_redeemed_success": {
       "text": "Njut av din present!"
+    },
+    "gift_card_waiting_notification": {
+      "text": "Your {credits} credits gift card is waiting for you. Sign up or login to apply them."
+    },
+    "gift_card_waiting_action": {
+      "text": "Signup/Login"
     },
     "credits_purchased": {
       "text": "Köpta krediter"

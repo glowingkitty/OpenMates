@@ -1529,6 +1529,7 @@
                                             on:openRefundInfo={handleOpenRefundInfo}
                                             on:payment={handlePaymentSubmission}
                                             on:paymentStateChange={handlePaymentStateChange}
+                                            on:step={handleStep}
                                         />
                                     {:else if currentStep === STEP_AUTO_TOP_UP}
                                         <PaymentTopContent
