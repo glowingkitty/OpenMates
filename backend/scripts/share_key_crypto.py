@@ -18,7 +18,7 @@ client-side encrypted content using a share URL or raw key blob.
 import base64
 import re
 from typing import Optional, Tuple
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, unquote
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -48,7 +48,8 @@ def base64url_decode(s: str) -> bytes:
     """
     Decode a base64 URL-safe string (as produced by the frontend).
 
-    Handles: '-' -> '+', '_' -> '/', re-adds padding '='.
+    Matches the frontend's base64UrlDecode exactly:
+      replace '-' -> '+', '_' -> '/', then pad with '=' until len % 4 == 0.
 
     Args:
         s: Base64 URL-safe encoded string
@@ -57,9 +58,8 @@ def base64url_decode(s: str) -> bytes:
         Decoded bytes
     """
     s = s.replace('-', '+').replace('_', '/')
-    padding = 4 - len(s) % 4
-    if padding != 4:
-        s += '=' * padding
+    while len(s) % 4:
+        s += '='
     return base64.b64decode(s)
 
 
@@ -150,6 +150,7 @@ def _aes_gcm_decrypt(raw_bytes: bytes, key: bytes) -> bytes:
     return aesgcm.decrypt(iv, ciphertext_with_tag, None)
 
 
+
 def parse_share_url(url: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     """
     Parse a share URL to extract the entity type, entity ID, and key blob.
@@ -211,15 +212,23 @@ def decrypt_share_key_blob(
         raw_key_bytes is the 32-byte AES key for decrypting content.
     """
     try:
+        # Some share URLs are passed with percent-encoding intact (%2B, %2F, %3D).
+        # Normalize to raw base64/base64url characters before decoding.
+        encrypted_blob = unquote(encrypted_blob).strip()
+
         # Step 1: Derive key from entity ID
         id_key = _derive_key_from_id(entity_id)
 
-        # Step 2: Decode the blob from base64 URL-safe
+        # Step 2: Decode the blob from base64 URL-safe / base64
         raw_encrypted = base64url_decode(encrypted_blob)
 
-        # Step 3: AES-GCM decrypt to get the serialised parameter string
-        serialised = _aes_gcm_decrypt(raw_encrypted, id_key)
-        serialised_str = serialised.decode('utf-8')
+        # Step 3: AES-GCM decrypt to get the serialised parameter string.
+        # Matches the frontend's decryptAESGCM: iv = first 12 bytes, rest = ciphertext+tag.
+        try:
+            serialised = _aes_gcm_decrypt(raw_encrypted, id_key)
+            serialised_str = serialised.decode('utf-8')
+        except Exception as e:
+            return None, f"AES-GCM decryption failed: {type(e).__name__}: {e}"
 
         # Step 4: Parse URL-encoded parameters
         params = parse_qs(serialised_str, keep_blank_values=True)
