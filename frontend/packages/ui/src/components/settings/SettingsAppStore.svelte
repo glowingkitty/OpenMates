@@ -39,7 +39,7 @@
     // This ensures apps are filtered when health status is updated
     let apps = $derived.by(() => {
         // Access health state to trigger reactivity
-        const _ = healthState;
+        void healthState;
         // Get filtered apps from store (filtering happens in getState())
         return appSkillsStore.getState().apps;
     });
@@ -227,22 +227,6 @@
     }
     
     /**
-     * Get app gradient from theme.css based on app id.
-     * Constructs CSS variable name directly from app ID: var(--color-app-{appId})
-     * 
-     * **Note**: CSS variables in theme.css now match app IDs exactly (using underscores).
-     * This eliminates the need for a hardcoded mapping that must be kept in sync.
-     * 
-     * @param appId - The app ID (e.g., 'web', 'life_coaching', 'pcb_design', 'mail')
-     * @returns CSS variable reference (e.g., 'var(--color-app-web)')
-     */
-    function getAppGradient(appId: string): string {
-        // Construct CSS variable name directly from app ID
-        // CSS variables in theme.css now match app IDs exactly (e.g., --color-app-life_coaching)
-        return `var(--color-app-${appId})`;
-    }
-    
-    /**
      * Categorize apps into sections (duplicates allowed across categories).
      * 
      * **Categorization Logic:**
@@ -363,20 +347,6 @@
     }
     
     /**
-     * Get all apps sorted by last_updated date (newest first).
-     * Used for "Show all apps" submenu.
-     */
-    function getAllAppsSorted(): AppMetadata[] {
-        return appsList
-            .map(app => ({
-                app,
-                date: app.last_updated ? new Date(app.last_updated).getTime() : 0
-            }))
-            .sort((a, b) => b.date - a.date) // Sort newest first
-            .map(({ app }) => app);
-    }
-    
-    /**
      * Get icon name from icon_image filename.
      * Maps icon_image like "ai.svg" to icon name "ai" for the Icon component.
      * Also handles special cases:
@@ -402,18 +372,6 @@
             iconName = 'health';
         }
         return iconName;
-    }
-    
-    /**
-     * Get provider icon name from provider name.
-     * Maps provider names like "Brave" to icon names like "brave".
-     */
-    function getProviderIconName(providerName: string): string {
-        // Convert to lowercase and handle special cases
-        const normalized = providerName.toLowerCase()
-            .replace(/\s+/g, '_')
-            .replace(/\./g, '');
-        return normalized;
     }
     
     /**
@@ -484,6 +442,16 @@
             <p>{$text('settings.app_store.no_apps_available')}</p>
         </div>
     {:else}
+        <!-- "Show all apps" button at the top, before category sections -->
+        <div class="show-all-apps-section show-all-apps-section-top">
+            <SettingsItem 
+                type="submenu"
+                icon="app"
+                title={$text('settings.app_store.show_all_apps')}
+                onClick={showAllApps}
+            />
+        </div>
+
         <!-- Horizontal scrollable sections for each category -->
         {#each categoryEntries as [categoryName, categoryApps]}
             <div class="category-section">
@@ -503,16 +471,6 @@
                 </div>
             </div>
         {/each}
-        
-        <!-- "Show all apps" button at the bottom -->
-        <div class="show-all-apps-section">
-            <SettingsItem 
-                type="submenu"
-                icon="app"
-                title={$text('settings.app_store.show_all_apps')}
-                onClick={showAllApps}
-            />
-        </div>
     {/if}
 </div>
 
@@ -569,8 +527,12 @@
     }
     
     .show-all-apps-section {
-        margin-top: 2rem;
+        margin-top: 0;
         margin-bottom: 1rem;
+    }
+
+    .show-all-apps-section-top {
+        margin-bottom: 1.5rem;
     }
     
     .apps-scroll-container {
@@ -620,4 +582,3 @@
     }
     
 </style>
-
