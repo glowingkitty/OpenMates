@@ -2070,7 +2070,21 @@ async def websocket_endpoint(
                         unread_count=unread_count
                     )
                     
-                    logger.info(f"User {user_id}: Updated read status for chat {chat_id}: unread_count = {unread_count}")
+                    # Broadcast read status to all OTHER devices for real-time cross-device sync.
+                    # Without this, Device B keeps showing an unread badge until next page reload.
+                    await manager.broadcast_to_user(
+                        message={
+                            "type": "chat_read_status_updated",
+                            "payload": {
+                                "chat_id": chat_id,
+                                "unread_count": unread_count,
+                            },
+                        },
+                        user_id=user_id,
+                        exclude_device_hash=device_fingerprint_hash,
+                    )
+                    
+                    logger.info(f"User {user_id}: Updated and broadcast read status for chat {chat_id}: unread_count = {unread_count}")
                 except Exception as e:
                     logger.error(f"User {user_id}: Failed to update read status: {str(e)}")
 

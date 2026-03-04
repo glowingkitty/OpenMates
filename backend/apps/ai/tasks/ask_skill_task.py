@@ -1098,6 +1098,21 @@ async def _async_process_ai_skill_ask_task(
             # Log the final provider name and server region that will be sent to client
             logger.info(f"[Task ID: {task_id}] Provider name to send to client: '{provider_name}', server region: '{server_region}'")
             
+            # CROSS-DEVICE FIX: Fetch encrypted_chat_key so secondary devices can
+            # decrypt messages without generating a wrong random key.
+            # The ai_typing_started event arrives BEFORE the AI response, so this
+            # gives secondary devices the key early enough to avoid queuing issues.
+            encrypted_chat_key_for_typing: str | None = None
+            try:
+                chat_list_item = await cache_service_instance.get_chat_list_item_data(
+                    request_data.user_id, request_data.chat_id
+                )
+                if chat_list_item and hasattr(chat_list_item, 'encrypted_chat_key'):
+                    encrypted_chat_key_for_typing = chat_list_item.encrypted_chat_key
+                    logger.debug(f"[Task ID: {task_id}] Retrieved encrypted_chat_key from cache for typing event")
+            except Exception as e_key:
+                logger.warning(f"[Task ID: {task_id}] Could not fetch encrypted_chat_key for typing event: {e_key}")
+            
             # Build typing payload with conditional metadata (only for new chats)
             typing_payload_data = { 
                 "type": "ai_processing_started_event", 
@@ -1116,6 +1131,10 @@ async def _async_process_ai_skill_ask_task(
                 # or focus mode deferred activation pause
                 "is_continuation": request_data.is_app_settings_memories_continuation or request_data.is_focus_mode_continuation,
             }
+            
+            # Include encrypted_chat_key so secondary devices can cache it early
+            if encrypted_chat_key_for_typing:
+                typing_payload_data["encrypted_chat_key"] = encrypted_chat_key_for_typing
             
             # Log the complete typing payload for debugging
             logger.info(f"[Task ID: {task_id}] Typing payload BEFORE adding title/icon: category={typing_category}, model_name={model_name}, provider_name={provider_name}, server_region={server_region}")

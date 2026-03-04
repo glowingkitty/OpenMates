@@ -98,8 +98,12 @@ export function clearAllChatKeys(dbInstance: ChatDatabaseInstance): void {
  * Get or generate chat key for a specific chat.
  * If the key is not in cache, generates a new one and caches it.
  *
- * WARNING: If generating a new key for an existing chat, decryption of
- * previously encrypted content will fail. Use with caution.
+ * @deprecated Use `getChatKeyOrNull()` for read paths (decryption) or
+ *   `getOrCreateChatKeyForOriginator()` for write paths on the originating
+ *   device (e.g. sendHandlers creating a brand-new chat). This function
+ *   silently generates a WRONG random key when the real key hasn't been
+ *   loaded yet, causing "[Content decryption failed]" on secondary devices.
+ *   It is kept for backwards compatibility during gradual migration.
  *
  * @param dbInstance - Reference to the ChatDatabase instance
  * @param chatId - The ID of the chat
@@ -117,6 +121,54 @@ export function getOrGenerateChatKey(
     // If not, we'll generate a new key (which might cause decryption issues)
     console.warn(
       `[ChatDatabase] Chat key not found in cache for chat ${chatId}, generating new key. This may cause decryption issues.`,
+    );
+    chatKey = generateChatKey();
+    setChatKey(dbInstance, chatId, chatKey);
+  }
+  return chatKey;
+}
+
+/**
+ * Get chat key from cache, returning null if not available.
+ *
+ * USE THIS for read paths (decryption / message display) where generating
+ * a random key would be WRONG — the caller should queue the operation and
+ * retry after the real key arrives.
+ *
+ * @param dbInstance - Reference to the ChatDatabase instance
+ * @param chatId - The ID of the chat
+ * @returns The chat key if available, null otherwise
+ */
+export function getChatKeyOrNull(
+  dbInstance: ChatDatabaseInstance,
+  chatId: string,
+): Uint8Array | null {
+  return getChatKey(dbInstance, chatId);
+}
+
+/**
+ * Get or create chat key for the ORIGINATING device of a new chat.
+ *
+ * USE THIS in send handlers when the current device is the one creating
+ * a brand-new chat. It is safe to generate a new key here because this
+ * IS the authoritative device — the generated key will be encrypted with
+ * the master key and broadcast to other devices.
+ *
+ * DO NOT use this on secondary devices receiving a chat from another
+ * device — use `getChatKeyOrNull()` instead and wait for the real key.
+ *
+ * @param dbInstance - Reference to the ChatDatabase instance
+ * @param chatId - The ID of the chat
+ * @returns The chat key (from cache or newly generated for originator)
+ */
+export function getOrCreateChatKeyForOriginator(
+  dbInstance: ChatDatabaseInstance,
+  chatId: string,
+): Uint8Array {
+  let chatKey = getChatKey(dbInstance, chatId);
+  if (!chatKey) {
+    console.info(
+      `[ChatDatabase] Originator creating new chat key for chat ${chatId}`,
     );
     chatKey = generateChatKey();
     setChatKey(dbInstance, chatId, chatKey);

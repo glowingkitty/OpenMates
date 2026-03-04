@@ -1481,6 +1481,22 @@ class ChatDatabase {
     return chatKeyManagementOps.getOrGenerateChatKey(this, chatId);
   }
 
+  /**
+   * Get chat key from cache, returning null if not available.
+   * Use for read/decryption paths where generating a wrong key is dangerous.
+   */
+  public getChatKeyOrNull(chatId: string): Uint8Array | null {
+    return chatKeyManagementOps.getChatKeyOrNull(this, chatId);
+  }
+
+  /**
+   * Get or create chat key for the originating device of a new chat.
+   * Safe to call only when THIS device is creating the chat.
+   */
+  public getOrCreateChatKeyForOriginator(chatId: string): Uint8Array {
+    return chatKeyManagementOps.getOrCreateChatKeyForOriginator(this, chatId);
+  }
+
   public async encryptMessageFields(
     message: Message,
     chatId: string,

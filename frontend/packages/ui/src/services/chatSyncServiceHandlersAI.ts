@@ -993,12 +993,41 @@ export async function handleAITypingStartedImpl( // Changed to async
       let encryptedIcon: string | null = null;
       let encryptedCategory: string | null = null;
 
+      // CROSS-DEVICE FIX: If the payload carries an encrypted_chat_key (added by
+      // ask_skill_task.py for secondary devices), decrypt and cache it BEFORE
+      // falling back to getOrGenerateChatKey(). Without this, secondary devices
+      // generate a random wrong key and all subsequent encryption/decryption fails.
+      const payloadWithKey = payload as AITypingStartedPayload & {
+        encrypted_chat_key?: string;
+      };
+      if (
+        payloadWithKey.encrypted_chat_key &&
+        !chatDB.getChatKeyOrNull(payload.chat_id)
+      ) {
+        try {
+          const { decryptChatKeyWithMasterKey } =
+            await import("./cryptoService");
+          const decryptedKey = await decryptChatKeyWithMasterKey(
+            payloadWithKey.encrypted_chat_key,
+          );
+          if (decryptedKey) {
+            chatDB.setChatKey(payload.chat_id, decryptedKey);
+            console.info(
+              `[ChatSyncService:AI] Cached chat key from ai_typing_started for chat ${payload.chat_id}`,
+            );
+          }
+        } catch (keyErr) {
+          console.error(
+            `[ChatSyncService:AI] Failed to decrypt chat key from ai_typing_started for chat ${payload.chat_id}:`,
+            keyErr,
+          );
+        }
+      }
+
       // Get or generate chat key for encryption.
       // On the originating device this generates the key for the first time.
       // On secondary devices the key should already be in cache from the
-      // new_chat_message broadcast; if not (because the broadcast had no key),
-      // getOrGenerateChatKey() generates a fresh key here.  Either way, flush
-      // any messages that were held in the pending queue before the key was set.
+      // new_chat_message broadcast or the encrypted_chat_key in this payload.
       const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
       // Flush regular messages and system messages queued waiting for this key (cross-device sync fix)
       await flushPendingMessagesForChat(payload.chat_id);
@@ -2787,9 +2816,7 @@ export async function handleSendEmbedDataImpl(
           if (typeof refObj.embed_ref === "string" && refObj.embed_ref) {
             // Prefer app_id from decoded TOON content; fall back to payload field
             const refAppId =
-              typeof refObj.app_id === "string"
-                ? refObj.app_id
-                : ((embedPayload.app_id as string | undefined) ?? null);
+              typeof refObj.app_id === "string" ? refObj.app_id : null;
             esForRef.registerEmbedRef(
               refObj.embed_ref,
               embedData.embed_id,
@@ -2968,7 +2995,9 @@ export async function handleSendEmbedDataImpl(
         // store them in IndexedDB so the client can later unwrap the embed key
         // and decrypt the content. Without this, second devices have no way to
         // derive the embed key for inspiration embeds.
-        const serverEmbedKeys = embedData.embed_keys;
+        const serverEmbedKeys = (
+          embedData as unknown as Record<string, unknown>
+        ).embed_keys;
         if (
           serverEmbedKeys &&
           Array.isArray(serverEmbedKeys) &&
