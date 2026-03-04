@@ -2119,6 +2119,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let resumeChatTitle = $state<string | null>(null);
     let resumeChatCategory = $state<string | null>(null);
     let resumeChatIcon = $state<string | null>(null);
+    let resumeChatSummary = $state<string | null>(null);
     // When the last-opened chat was credits-rejected (no title, waiting_for_user),
     // show the "Credits needed..." label + user message preview instead of category circle + title.
     let resumeChatIsCreditsError = $state(false);
@@ -2126,7 +2127,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     /**
      * Load the last-opened chat from IndexedDB using $userProfile.last_opened.
-     * Decrypts title, category, and icon for the resume card display.
+     * Decrypts title, category, icon, and summary for the resume card display.
      * Skips draft chats (no title and no messages) so only real chats with
      * content are shown in the "Continue where you left off" card.
      * Returns true if a non-draft chat was found and loaded.
@@ -2139,10 +2140,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const chat = await chatDB.getChat(lastOpenedId);
             if (!chat) return false;
 
-            // Decrypt title, category, and icon using the chat key
+            // Decrypt title, category, icon, and summary using the chat key
             let decryptedTitle: string | null = null;
             let decryptedCategory: string | null = null;
             let decryptedIcon: string | null = null;
+            let decryptedSummary: string | null = null;
 
             const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../services/cryptoService');
             let chatKey = chatDB.getChatKey(chat.chat_id);
@@ -2176,6 +2178,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         decryptedIcon = await decryptWithChatKey(chat.encrypted_icon, chatKey);
                     } catch {
                         // Icon decryption failed – will use fallback
+                    }
+                }
+                // Decrypt summary (used in the large gradient card on tall viewports)
+                if (chat.encrypted_chat_summary) {
+                    try {
+                        decryptedSummary = await decryptWithChatKey(chat.encrypted_chat_summary, chatKey);
+                    } catch {
+                        // Summary decryption failed – card will show title only
                     }
                 }
             }
@@ -2223,6 +2233,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 resumeChatTitle = null;
                 resumeChatCategory = null;
                 resumeChatIcon = null;
+                resumeChatSummary = null;
                 resumeChatIsCreditsError = true;
                 resumeChatUserMessagePreview = userPreview;
                 console.info(`[ActiveChat] Resume chat is credits-error state: ${chat.chat_id}, preview: "${userPreview}"`);
@@ -2233,11 +2244,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const displayTitle = chat.title || decryptedTitle || 'Untitled Chat';
             const displayCategory = chat.category || decryptedCategory || null;
             const displayIcon = chat.icon || decryptedIcon || null;
+            const displaySummary = chat.chat_summary || decryptedSummary || null;
 
             resumeChatData = chat;
             resumeChatTitle = displayTitle;
             resumeChatCategory = displayCategory;
             resumeChatIcon = displayIcon;
+            resumeChatSummary = displaySummary;
             resumeChatIsCreditsError = false;
             resumeChatUserMessagePreview = null;
             console.info(`[ActiveChat] Resume chat loaded: "${displayTitle}" (${chat.chat_id}), category: ${displayCategory}, icon: ${displayIcon}`);
@@ -2263,6 +2276,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             resumeChatTitle = null;
             resumeChatCategory = null;
             resumeChatIcon = null;
+            resumeChatSummary = null;
             resumeChatIsCreditsError = false;
             resumeChatUserMessagePreview = null;
             return;
@@ -4374,6 +4388,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         resumeChatTitle = null;
         resumeChatCategory = null;
         resumeChatIcon = null;
+        resumeChatSummary = null;
         phasedSyncState.clearResumeChatData();
 
         // Mark that we've loaded the initial chat (prevents further auto-selection)
@@ -8339,7 +8354,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 <IconComponent size={80} color="white" />
                                             </div>
                                         {/if}
-                                        <!-- Centered content: icon + title -->
+                                        <!-- Centered content: icon + title + summary -->
                                         <div class="resume-large-content">
                                             {#if IconComponent}
                                                 <div class="resume-large-icon">
@@ -8347,6 +8362,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 </div>
                                             {/if}
                                             <span class="resume-large-title">{resumeChatTitle || 'Untitled Chat'}</span>
+                                            {#if resumeChatSummary}
+                                                <p class="resume-large-summary">{resumeChatSummary}</p>
+                                            {/if}
                                         </div>
                                     </button>
                                 {:else}
@@ -8416,6 +8434,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 </div>
                                             {/if}
                                             <span class="resume-large-title">{$text('demo_chats.for_everyone.title')}</span>
+                                            <p class="resume-large-summary">{$text('demo_chats.for_everyone.description')}</p>
                                         </div>
                                     </button>
                                 {:else}
@@ -10045,6 +10064,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         text-align: center;
         line-height: 1.3;
         max-width: 100%;
+    }
+
+    /* Summary line below the title — matches ChatEmbedPreview card-summary */
+    .resume-large-summary {
+        margin: 2px 0 0;
+        font-size: 12px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.85);
+        line-height: 1.4;
+        text-align: center;
+        /* Clamp to 3 lines */
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
     }
 
     /* Large decorative icons at card corners (matching ChatEmbedPreview deco-icon pattern) */
