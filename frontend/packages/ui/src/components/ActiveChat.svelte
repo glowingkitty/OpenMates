@@ -2654,6 +2654,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      */
     let suggestionsWouldOverlapWelcome = $state(false);
 
+    // Cache the last measured welcome content height so that when the welcome
+    // block is hidden (hideWelcomeForKeyboard removes it from DOM), we can still
+    // use its height for overlap calculations. Without this, hiding the welcome
+    // causes welcomeHeight=0 → no overlap → show welcome → overlap again → hide
+    // → infinite flicker loop.
+    let lastKnownWelcomeHeight = 0;
+
     // Estimated height the suggestions panel occupies (header + 3 items + margin).
     // Used as the minimum clearance we require between the welcome block bottom
     // and the message-input top before we consider the layout "tight".
@@ -2673,8 +2680,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const containerHeight = containerRect.height;
 
         // Height of the welcome content block (greeting + resume card).
-        // Falls back to 0 when the element isn't rendered (e.g. hideWelcomeForKeyboard).
-        const welcomeHeight = welcomeContentEl ? welcomeContentEl.getBoundingClientRect().height : 0;
+        // When the element is visible, measure it and cache the value.
+        // When hidden (e.g. hideWelcomeForKeyboard removed it from DOM), use the
+        // cached height so the overlap calculation remains stable — otherwise the
+        // cycle hide→welcomeHeight=0→noOverlap→show→overlap→hide causes flicker.
+        const measuredWelcomeHeight = welcomeContentEl ? welcomeContentEl.getBoundingClientRect().height : 0;
+        if (measuredWelcomeHeight > 0) {
+            lastKnownWelcomeHeight = measuredWelcomeHeight;
+        }
+        const welcomeHeight = measuredWelcomeHeight > 0 ? measuredWelcomeHeight : lastKnownWelcomeHeight;
 
         // Height of just the message input itself (NOT the container, which also holds
         // NewChatSuggestions). Using messageInputContainerEl here would create a feedback
