@@ -107,7 +107,7 @@ class AdminGiftCardItem(BaseModel):
     id: str
     code: str
     credits_value: int
-    created_at: str
+    created_at: Optional[str] = None
     notes: Optional[str] = None
     purchased_at: Optional[str] = None  # None = admin-generated, set = user-purchased
 
@@ -878,7 +878,7 @@ async def admin_list_gift_cards(
                 "id": str(card.get("id", "")),
                 "code": card.get("code", ""),
                 "credits_value": card.get("credits_value", 0),
-                "created_at": card.get("created_at", ""),
+                "created_at": card.get("created_at") or "",
                 "notes": card.get("notes") or None,
                 "purchased_at": card.get("purchased_at") or None,
             }
