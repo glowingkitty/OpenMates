@@ -2686,15 +2686,14 @@ changes to the documentation (to keep the documentation up to date).
         display: flex;
         align-items: center;
         justify-content: center;
-        transform: translateY(calc(-50% - 20px)) rotate(var(--header-chat-icon-rotation));
+        transform: translateY(-50%) rotate(var(--header-chat-icon-rotation));
         opacity: 0;
-        transition: transform 0.28s ease, opacity 0.28s ease;
+        transition: opacity 0.28s ease;
     }
 
     .header-chat-icons-layer.menu-open .header-chat-icon {
-        transform: translateY(-50%) rotate(var(--header-chat-icon-rotation));
         opacity: 1;
-        transition-delay: 0.5s;
+        transition-delay: 0.2s;
     }
 
     .header-chat-icon.left {
