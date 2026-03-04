@@ -380,20 +380,106 @@ function _convertSourceQuoteNode(node: any): any {
 
     if (meaningfulChildren.length === 1) {
       const paragraph = meaningfulChildren[0];
-      if (
-        Array.isArray(paragraph.content) &&
-        paragraph.content.length === 1 &&
-        paragraph.content[0].type === "embedInline"
-      ) {
-        const embedInline = paragraph.content[0];
-        return {
-          type: "sourceQuote",
-          attrs: {
-            quoteText: embedInline.attrs?.displayText || "",
-            embedRef: embedInline.attrs?.embedRef || "",
-            appId: embedInline.attrs?.appId || null,
-          },
-        };
+      if (Array.isArray(paragraph.content) && paragraph.content.length > 0) {
+        const embedIndexes = paragraph.content
+          .map((child: any, index: number) =>
+            child?.type === "embedInline" ? index : -1,
+          )
+          .filter((index: number) => index !== -1);
+
+        if (embedIndexes.length === 1) {
+          const embedIndex = embedIndexes[0];
+          const embedInline = paragraph.content[embedIndex];
+
+          const prefixNodes = paragraph.content
+            .slice(0, embedIndex)
+            .map((child: any) => ({ ...child }));
+          const suffixNodes = paragraph.content
+            .slice(embedIndex + 1)
+            .map((child: any) => ({ ...child }));
+
+          while (prefixNodes.length > 0) {
+            const first = prefixNodes[0];
+            if (first?.type !== "text") break;
+            const text = first.text || "";
+            if (/^\s+$/.test(text)) {
+              prefixNodes.shift();
+              continue;
+            }
+            first.text = text.replace(/^\s+/, "");
+            break;
+          }
+          while (prefixNodes.length > 0) {
+            const last = prefixNodes[prefixNodes.length - 1];
+            if (last?.type !== "text") break;
+            const text = last.text || "";
+            if (/^\s+$/.test(text)) {
+              prefixNodes.pop();
+              continue;
+            }
+            last.text = text.replace(/\s+$/, "");
+            break;
+          }
+
+          while (suffixNodes.length > 0) {
+            const first = suffixNodes[0];
+            if (first?.type !== "text") break;
+            const text = first.text || "";
+            if (/^\s+$/.test(text)) {
+              suffixNodes.shift();
+              continue;
+            }
+            first.text = text.replace(/^\s+/, "");
+            break;
+          }
+          while (suffixNodes.length > 0) {
+            const last = suffixNodes[suffixNodes.length - 1];
+            if (last?.type !== "text") break;
+            const text = last.text || "";
+            if (/^\s+$/.test(text)) {
+              suffixNodes.pop();
+              continue;
+            }
+            last.text = text.replace(/\s+$/, "");
+            break;
+          }
+
+          const hasMeaningfulPrefix = prefixNodes.some((child: any) => {
+            if (child?.type !== "text") return true;
+            return /\S/.test(child.text || "");
+          });
+
+          const hasMeaningfulSuffix = suffixNodes.some((child: any) => {
+            if (child?.type !== "text") return true;
+            return /\S/.test(child.text || "");
+          });
+
+          const outputNodes: any[] = [];
+          if (hasMeaningfulPrefix) {
+            outputNodes.push({
+              type: "paragraph",
+              content: prefixNodes,
+            });
+          }
+
+          outputNodes.push({
+            type: "sourceQuote",
+            attrs: {
+              quoteText: embedInline.attrs?.displayText || "",
+              embedRef: embedInline.attrs?.embedRef || "",
+              appId: embedInline.attrs?.appId || null,
+            },
+          });
+
+          if (hasMeaningfulSuffix) {
+            outputNodes.push({
+              type: "paragraph",
+              content: suffixNodes,
+            });
+          }
+
+          return outputNodes;
+        }
       }
     }
   }
