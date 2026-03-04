@@ -794,6 +794,21 @@
 		const originalHash = browser ? window.location.hash : '';
 		console.debug('[+page.svelte] [INIT] Original hash from URL:', originalHash);
 
+		// SHARED-CHAT REDIRECT: Read and consume the sessionStorage flag set by the share
+		// chat page (/share/chat/[chatId]/+page.svelte) before navigating here.
+		// This flag prevents the forced-logout path from clearing the hash for shared chats
+		// that can be decrypted via sharedChatKeyStorage (no master key needed).
+		const sharedChatRedirectId = browser
+			? sessionStorage.getItem('openmates_shared_chat_redirect')
+			: null;
+		if (sharedChatRedirectId && browser) {
+			sessionStorage.removeItem('openmates_shared_chat_redirect');
+			console.debug(
+				'[+page.svelte] [INIT] Shared chat redirect detected for:',
+				sharedChatRedirectId
+			);
+		}
+
 		// SHARE-REDIRECT: Detect #share-chat-id={chatId}&key={blob} hash produced by +server.ts
 		// When a user opens /share/chat/{chatId}#key=... directly (fresh browser load),
 		// +server.ts serves OG-tag HTML that redirects to /#share-chat-id={chatId}&key={blob}.
@@ -933,7 +948,18 @@
 					// This guard handles any lingering old-format redirects gracefully.
 					const isShareLinkHash = originalHash.includes('&key=');
 
-					if (hashChatId && !isPublicChat(hashChatId) && !isShareLinkHash) {
+					// SHARED-CHAT GUARD: If this navigation came from the share chat page,
+					// the chat ID is a shared chat whose key is stored in IndexedDB.
+					// Do NOT clear the hash — the shared chat can be decrypted without master key.
+					// sharedChatRedirectId was read from sessionStorage at the start of onMount.
+					const isSharedChatRedirect = sharedChatRedirectId === hashChatId;
+
+					if (
+						hashChatId &&
+						!isPublicChat(hashChatId) &&
+						!isShareLinkHash &&
+						!isSharedChatRedirect
+					) {
 						console.debug(
 							`[+page.svelte] URL hash points to encrypted chat ${hashChatId} - clearing hash and loading demo-for-everyone`
 						);
@@ -1001,7 +1027,11 @@
 
 				// CRITICAL: Don't set active chat to encrypted chat ID during forced logout
 				// The encrypted chat can't be decrypted without master key
-				if (isForcedLogout && !isPublicChat(originalHashChatId)) {
+				// EXCEPTION: Shared chat redirects — the share page stores the decryption key
+				// in IndexedDB (sharedChatKeyStorage), so the chat CAN be decrypted without master key.
+				// sharedChatRedirectId was read from sessionStorage at the start of onMount.
+				const isSharedRedirect = sharedChatRedirectId === originalHashChatId;
+				if (isForcedLogout && !isPublicChat(originalHashChatId) && !isSharedRedirect) {
 					console.debug(
 						`[+page.svelte] Forced logout in progress - skipping encrypted chat hash ${originalHashChatId}, using demo-for-everyone`
 					);

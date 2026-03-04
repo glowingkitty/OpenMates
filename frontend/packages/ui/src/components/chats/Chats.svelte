@@ -2410,6 +2410,17 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 					allChatsFromDB = loadedChats;
 					chatListCache.setCache(loadedChats);
 					console.debug(`[Chats] Loaded ${loadedChats.length} shared chat(s) from IndexedDB (marked as shared_by_others)`);
+					
+					// CRITICAL: If activeChatStore points to a shared chat we just loaded,
+					// ensure it is selected in the sidebar. This handles the case where the
+					// share page navigated here via goto('/#chat-id={id}') — the event
+					// LOCAL_CHAT_LIST_CHANGED_EVENT fired while Chats.svelte was unmounted
+					// (on the share page), so the event-based selection was missed.
+					const activeId = $activeChatStore;
+					if (activeId && loadedChats.some(c => c.chat_id === activeId)) {
+						selectedChatId = activeId;
+						console.debug(`[Chats] Auto-selected shared chat from activeChatStore: ${activeId}`);
+					}
 				} else {
 					allChatsFromDB = [];
 					chatListCache.setCache([]);
