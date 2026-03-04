@@ -1197,7 +1197,10 @@ class ChatCacheMixin:
         try:
             # 1. Save the vault-encrypted message to AI cache
             message_json_str = message_data.model_dump_json()
-            logger.debug(f"CACHE_OP: Serialized vault-encrypted message for user {user_id}, chat {chat_id}, msg_id {message_data.id} to JSON: {message_json_str[:200]}...")
+            logger.debug(
+                f"CACHE_OP: Serialized vault-encrypted message for user {user_id}, chat {chat_id}, "
+                f"msg_id {message_data.id} to JSON (length={len(message_json_str)})"
+            )
 
             # Use AI cache method (vault-encrypted, 72h TTL, for AI inference only)
             save_success = await self.add_ai_message_to_history(

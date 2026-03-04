@@ -68,7 +68,14 @@ async def handle_chat_system_message_added(
         message_payload = payload.get("message")
         
         if not chat_id or not message_payload or not isinstance(message_payload, dict):
-            logger.error(f"Invalid system message payload from {user_id}/{device_fingerprint_hash}: {payload}")
+            payload_keys = sorted(payload.keys()) if isinstance(payload, dict) else []
+            message_keys = sorted(message_payload.keys()) if isinstance(message_payload, dict) else []
+            logger.error(
+                "Invalid system message payload from "
+                f"{user_id}/{device_fingerprint_hash}: "
+                f"chat_id_present={bool(chat_id)}, message_is_dict={isinstance(message_payload, dict)}, "
+                f"payload_keys={payload_keys}, message_keys={message_keys}"
+            )
             await manager.send_personal_message(
                 {"type": "error", "payload": {"message": "Invalid system message payload structure"}},
                 user_id,

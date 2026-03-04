@@ -38,7 +38,19 @@ async def handle_ai_response_completed(
         versions = payload.get("versions")  # Get version info for multi-device sync
 
         if not chat_id or not message_payload_from_client or not isinstance(message_payload_from_client, dict):
-            logger.error(f"Invalid AI response payload structure from {user_id}/{device_fingerprint_hash}: {payload}")
+            payload_keys = sorted(payload.keys()) if isinstance(payload, dict) else []
+            message_keys = (
+                sorted(message_payload_from_client.keys())
+                if isinstance(message_payload_from_client, dict)
+                else []
+            )
+            logger.error(
+                "Invalid AI response payload structure from "
+                f"{user_id}/{device_fingerprint_hash}: "
+                f"chat_id_present={bool(chat_id)}, "
+                f"message_is_dict={isinstance(message_payload_from_client, dict)}, "
+                f"payload_keys={payload_keys}, message_keys={message_keys}"
+            )
             await manager.send_personal_message(
                 {"type": "error", "payload": {"message": "Invalid AI response payload structure"}},
                 user_id,
@@ -62,7 +74,14 @@ async def handle_ai_response_completed(
 
         # Validate required fields
         if not all([message_id, role, encrypted_content, created_at]):
-            logger.error(f"Missing required fields in AI response from {user_id}/{device_fingerprint_hash}: {message_payload_from_client}")
+            message_keys = sorted(message_payload_from_client.keys()) if isinstance(message_payload_from_client, dict) else []
+            logger.error(
+                "Missing required fields in AI response from "
+                f"{user_id}/{device_fingerprint_hash}: "
+                f"has_message_id={bool(message_id)}, has_role={bool(role)}, "
+                f"has_encrypted_content={bool(encrypted_content)}, has_created_at={bool(created_at)}, "
+                f"message_keys={message_keys}"
+            )
             await manager.send_personal_message(
                 {"type": "error", "payload": {"message": "Missing required fields in AI response"}},
                 user_id,

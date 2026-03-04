@@ -3,7 +3,7 @@
 # This ensures that even in development mode, we don't log actual message content,
 # chat tags, summaries, or other sensitive user data.
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 
 
 def sanitize_request_data_for_logging(request_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -101,7 +101,18 @@ def sanitize_request_data_for_logging(request_data: Dict[str, Any]) -> Dict[str,
             }
         else:
             sanitized["new_chat_request_suggestions"] = "[REDACTED]"
-    
+
+    # Sanitize app_settings_memories_metadata: keep count only
+    if "app_settings_memories_metadata" in sanitized:
+        metadata_keys = sanitized["app_settings_memories_metadata"]
+        if isinstance(metadata_keys, list):
+            sanitized["app_settings_memories_metadata"] = {
+                "count": len(metadata_keys),
+                "keys": "[REDACTED_CONTENT]",
+            }
+        else:
+            sanitized["app_settings_memories_metadata"] = "[REDACTED]"
+
     return sanitized
 
 
@@ -147,4 +158,3 @@ def sanitize_preprocessing_result_for_logging(result: Dict[str, Any]) -> Dict[st
             sanitized["chat_tags"] = "[REDACTED]"
     
     return sanitized
-

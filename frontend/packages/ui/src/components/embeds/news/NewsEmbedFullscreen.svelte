@@ -37,6 +37,8 @@
     favicon?: string;
     /** Thumbnail/preview image URL */
     thumbnail?: string;
+    /** Preview image URL (passed from NewsEmbedPreview on fullscreen open) */
+    image?: string;
     /** Extra snippets (pipe-delimited string or array) */
     extra_snippets?: string | string[];
     /** Meta URL favicon (alternative source) */
@@ -69,6 +71,7 @@
     description,
     favicon,
     thumbnail,
+    image,
     extra_snippets,
     meta_url_favicon,
     thumbnail_original,
@@ -235,7 +238,7 @@
   const HEADER_IMAGE_MAX_WIDTH = 1024; // 2x for retina displays (container is 511px max)
   
   let imageUrl = $derived.by(() => {
-    const originalImageUrl = thumbnail_original || thumbnail;
+    const originalImageUrl = thumbnail_original || image || thumbnail;
     if (!originalImageUrl) {
       return null;
     }

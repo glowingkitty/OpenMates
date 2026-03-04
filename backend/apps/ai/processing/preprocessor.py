@@ -1474,6 +1474,11 @@ async def handle_preprocessing(
     
     # Sanitize llm_analysis_args for logging: show only metadata for chat_summary and chat_tags
     sanitized_args = llm_analysis_args.copy()
+    if "title" in sanitized_args and isinstance(sanitized_args["title"], str):
+        sanitized_args["title"] = {
+            "length": len(sanitized_args["title"]),
+            "content": "[REDACTED_CONTENT]",
+        }
     if "chat_summary" in sanitized_args and isinstance(sanitized_args["chat_summary"], str):
         sanitized_args["chat_summary"] = {"length": len(sanitized_args["chat_summary"]), "content": "[REDACTED_CONTENT]"}
     if "chat_tags" in sanitized_args and isinstance(sanitized_args["chat_tags"], list):
@@ -1481,7 +1486,11 @@ async def handle_preprocessing(
     
     logger.info(f"{log_prefix} Received LLM analysis args: {sanitized_args}")
     if combined_raw_response_summary:
-        logger.debug(f"{log_prefix} Raw provider response summary: {combined_raw_response_summary}")
+        logger.debug(
+            f"{log_prefix} Raw provider response summary present "
+            f"(type={type(combined_raw_response_summary).__name__}, "
+            f"length={len(str(combined_raw_response_summary))})"
+        )
     
     HARM_THRESHOLD = skill_config.preprocessing_thresholds.harmful_content_score # Corrected attribute name
     MISUSE_THRESHOLD = skill_config.preprocessing_thresholds.misuse_risk_score
@@ -2237,7 +2246,7 @@ async def handle_preprocessing(
         chat_summary_val = None
     elif not isinstance(chat_summary_val, str):
         logger.error(
-            f"{log_prefix} CRITICAL: 'chat_summary' is not a string: {type(chat_summary_val)} = {chat_summary_val}. "
+            f"{log_prefix} CRITICAL: 'chat_summary' is not a string: {type(chat_summary_val)}. "
             f"Expected a string. This will cause post-processing to fail."
         )
         chat_summary_val = None

@@ -183,7 +183,10 @@ async def _async_process_rate_limit_followup(
         else:
             followup_content = f"I've completed the {skill_name} request, but no results were found."
         
-        logger.info(f"{log_prefix} Generated followup message: '{followup_content[:100]}...'")
+        logger.info(
+            f"{log_prefix} Generated followup message "
+            f"(content_length={len(followup_content)})"
+        )
         
         # Publish followup message to Redis for WebSocket delivery
         # Use the same mechanism as stream_consumer
@@ -302,4 +305,3 @@ def process_rate_limit_followup_task(
         logger.info(
             f"TASK_FINALLY_SYNC_WRAPPER: Event loop closed for process_rate_limit_followup_task task_id: {task_id}"
         )
-

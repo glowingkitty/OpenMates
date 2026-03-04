@@ -160,9 +160,10 @@ class EmbedService:
             if metadata:
                 logger.debug(
                     f"{log_prefix} Creating placeholder with metadata: "
-                    f"query={metadata.get('query', 'NOT FOUND')}, "
-                    f"provider={metadata.get('provider', 'NOT FOUND')}, "
-                    f"keys={list(metadata.keys())}"
+                    f"keys={list(metadata.keys())}, "
+                    f"key_count={len(metadata.keys())}, "
+                    f"query_present={'query' in metadata}, "
+                    f"provider_present={'provider' in metadata}"
                 )
 
             # Convert to TOON format
@@ -1346,7 +1347,10 @@ class EmbedService:
                 log_prefix=log_prefix
             )
 
-            logger.info(f"{log_prefix} Created processing document embed placeholder {embed_id} (title: {title or 'none'})")
+            logger.info(
+                f"{log_prefix} Created processing document embed placeholder {embed_id} "
+                f"(title_present={bool(title)}, title_length={len(title) if isinstance(title, str) else 0})"
+            )
 
             # Generate embed reference JSON
             embed_reference = json.dumps({
@@ -1774,7 +1778,7 @@ class EmbedService:
             
             logger.debug(
                 f"{log_prefix} Retrieved embed {embed_id} from cache. Final keys: {list(embed_data.keys())}, "
-                f"query={embed_data.get('query', 'NOT FOUND')}"
+                f"query_present={'query' in embed_data}, provider_present={'provider' in embed_data}"
             )
             return embed_data
             
@@ -2466,16 +2470,17 @@ class EmbedService:
                 for key in ['query', 'provider', 'url', 'languages', 'input_data', 'count', 'country', 'search_lang', 'safesearch', 'file_path', 'embed_id']:
                     if key in original_content:
                         original_metadata[key] = original_content[key]
-                        logger.debug(f"{log_prefix} Found metadata key '{key}': {original_metadata[key]}")
+                        logger.debug(f"{log_prefix} Found metadata key '{key}'")
                     else:
                         logger.debug(f"{log_prefix} Metadata key '{key}' not found in original_content")
                 
                 # CRITICAL: Log detailed metadata extraction for debugging
                 logger.info(
                     f"{log_prefix} Preserving original metadata from cache: {list(original_metadata.keys())} "
-                    f"(query={original_metadata.get('query', 'NOT FOUND')}, "
-                    f"url={original_metadata.get('url', 'NOT FOUND')}, "
-                    f"provider={original_metadata.get('provider', 'NOT FOUND')})"
+                    f"(key_count={len(original_metadata.keys())}, "
+                    f"query_present={'query' in original_metadata}, "
+                    f"url_present={'url' in original_metadata}, "
+                    f"provider_present={'provider' in original_metadata})"
                 )
             elif not original_metadata:
                 logger.warning(f"{log_prefix} Could not retrieve original embed metadata for {embed_id} and no request_metadata provided")
@@ -2492,9 +2497,7 @@ class EmbedService:
                     logger.info(
                         f"{log_prefix} [EMBED_DEBUG] Child embed {child_embed_id} - RAW result keys: {list(result.keys())}, "
                         f"has_thumbnail={'thumbnail' in result}, "
-                        f"has_meta_url={'meta_url' in result}, "
-                        f"thumbnail={result.get('thumbnail')}, "
-                        f"meta_url={result.get('meta_url')}"
+                        f"has_meta_url={'meta_url' in result}"
                     )
 
                     # Use pre-generated embed_ref from result dict if present (single source of truth).
@@ -2526,9 +2529,7 @@ class EmbedService:
                     logger.info(
                         f"{log_prefix} [EMBED_DEBUG] Child embed {child_embed_id} - FLATTENED result keys: {list(flattened_result.keys())}, "
                         f"has_thumbnail_original={'thumbnail_original' in flattened_result}, "
-                        f"has_meta_url_favicon={'meta_url_favicon' in flattened_result}, "
-                        f"thumbnail_original={flattened_result.get('thumbnail_original', 'NOT_FOUND')[:80] if flattened_result.get('thumbnail_original') else 'NOT_FOUND'}..., "
-                        f"meta_url_favicon={flattened_result.get('meta_url_favicon', 'NOT_FOUND')[:80] if flattened_result.get('meta_url_favicon') else 'NOT_FOUND'}..."
+                        f"has_meta_url_favicon={'meta_url_favicon' in flattened_result}"
                     )
                     
                     content_toon = encode(flattened_result)
@@ -2607,8 +2608,8 @@ class EmbedService:
                 # Log final parent content to verify query is included
                 logger.info(
                     f"{log_prefix} Parent embed content includes: "
-                    f"query={parent_content.get('query', 'MISSING')}, "
-                    f"provider={parent_content.get('provider', 'MISSING')}, "
+                    f"query_present={'query' in parent_content}, "
+                    f"provider_present={'provider' in parent_content}, "
                     f"result_count={parent_content.get('result_count')}"
                 )
 
@@ -2708,9 +2709,9 @@ class EmbedService:
                 # Log final content to verify metadata is included
                 logger.info(
                     f"{log_prefix} Single result embed content includes: "
-                    f"query={content_with_metadata.get('query', 'MISSING')}, "
-                    f"url={content_with_metadata.get('url', 'MISSING')}, "
-                    f"provider={content_with_metadata.get('provider', 'MISSING')}, "
+                    f"query_present={'query' in content_with_metadata}, "
+                    f"url_present={'url' in content_with_metadata}, "
+                    f"provider_present={'provider' in content_with_metadata}, "
                     f"result_count={content_with_metadata.get('result_count')}"
                 )
                 
@@ -2831,7 +2832,7 @@ class EmbedService:
                 for key in ['query', 'provider', 'url', 'input_data']:
                     if key in original_content:
                         original_metadata[key] = original_content[key]
-                        logger.debug(f"{log_prefix} Found metadata key '{key}': {original_metadata[key]}")
+                        logger.debug(f"{log_prefix} Found metadata key '{key}'")
             
             # Create error content with metadata and error message
             error_content = {

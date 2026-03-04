@@ -905,27 +905,25 @@ async def handle_main_processing(
                                 try:
                                     parsed_content = json.loads(decrypted_content)
                                     loaded_app_settings_and_memories_content[key] = parsed_content
-                                    # DEBUG: Log content type and preview for troubleshooting - NEVER log sensitive content on production
-                                    server_environment = os.getenv("SERVER_ENVIRONMENT", "production").lower()
-                                    if server_environment == "development":
-                                        content_type = type(parsed_content).__name__
-                                        if isinstance(parsed_content, list):
-                                            content_preview = f"list with {len(parsed_content)} items"
-                                        elif isinstance(parsed_content, dict):
-                                            content_preview = f"dict with keys: {list(parsed_content.keys())[:5]}"
-                                        else:
-                                            content_preview = f"value: {str(parsed_content)[:100]}"
-                                        logger.info(f"{log_prefix} Successfully decrypted app settings/memories for {key} (type: {content_type}, content: {content_preview})")
+                                    content_type = type(parsed_content).__name__
+                                    if isinstance(parsed_content, list):
+                                        content_metadata = f"list_len={len(parsed_content)}"
+                                    elif isinstance(parsed_content, dict):
+                                        dict_keys = list(parsed_content.keys())
+                                        content_metadata = f"dict_key_count={len(dict_keys)}"
                                     else:
-                                        logger.info(f"{log_prefix} Successfully decrypted app settings/memories for {key} (content redacted - production environment)")
+                                        content_metadata = "scalar"
+                                    logger.info(
+                                        f"{log_prefix} Successfully decrypted app settings/memories for {key} "
+                                        f"(type={content_type}, {content_metadata})"
+                                    )
                                 except json.JSONDecodeError:
                                     # If not JSON, use as plain string
                                     loaded_app_settings_and_memories_content[key] = decrypted_content
-                                    server_environment = os.getenv("SERVER_ENVIRONMENT", "production").lower()
-                                    if server_environment == "development":
-                                        logger.info(f"{log_prefix} Successfully decrypted app settings/memories for {key} (type: str, length: {len(decrypted_content)})")
-                                    else:
-                                        logger.info(f"{log_prefix} Successfully decrypted app settings/memories for {key} (content redacted - production environment)")
+                                    logger.info(
+                                        f"{log_prefix} Successfully decrypted app settings/memories for {key} "
+                                        f"(type=str, length={len(decrypted_content)})"
+                                    )
                             else:
                                 logger.warning(f"{log_prefix} Failed to decrypt app settings/memories for {key}")
                         else:
@@ -2000,7 +1998,8 @@ async def handle_main_processing(
                                             f"{log_prefix} INLINE: Created and yielded placeholder {request_idx + 1}/{len(requests_list)}: "
                                             f"embed_id={placeholder_embed_data.get('embed_id')}, "
                                             f"request_id={request_id}, "
-                                            f"query={request_metadata.get('query', 'N/A')}"
+                                            f"query_present={'query' in request_metadata}, "
+                                            f"query_length={len(request_metadata.get('query')) if isinstance(request_metadata.get('query'), str) else 0}"
                                         )
                             
                             # Store list of placeholders for later matching
@@ -3281,7 +3280,10 @@ async def handle_main_processing(
                         json_before = json.dumps(results_with_refs, indent=2) if len(results_with_refs) == 1 else json.dumps({"results": results_with_refs, "count": len(results_with_refs)}, indent=2)
                         json_lines = json_before.split('\n')
                         logger.info(f"{log_prefix} === TOON CONVERSION DEBUG (chat history) ===")
-                        logger.info(f"{log_prefix} Original JSON structure (first 15 lines, {len(json_before)} chars total):")
+                        logger.info(
+                            f"{log_prefix} TOON source payload prepared "
+                            f"(json_length={len(json_before)}, line_count={len(json_lines)})"
+                        )
                         # Source quote hint — added once per tool result group for quotable
                         # skills (web-search, news-search).  Tells the LLM it can use the
                         # > [verbatim text](embed:ref) blockquote syntax to cite sources.

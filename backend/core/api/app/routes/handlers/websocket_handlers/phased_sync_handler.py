@@ -386,7 +386,7 @@ async def _handle_phase1_sync(
                 logger.info(
                     f"[PHASE1_CHAT_METADATA] ✅ Cache HIT for chat metadata {chat_id} for user {user_id[:8]}... "
                     f"has_encrypted_chat_key={has_encrypted_chat_key}, "
-                    f"encrypted_chat_key_preview={cached_list_item.encrypted_chat_key[:30] + '...' if cached_list_item.encrypted_chat_key else 'NULL'}"
+                    f"encrypted_chat_key_length={len(cached_list_item.encrypted_chat_key) if cached_list_item.encrypted_chat_key else 0}"
                 )
             else:
                 logger.info(

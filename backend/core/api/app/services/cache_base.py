@@ -10,6 +10,18 @@ from typing import Any, Optional, List
 from . import cache_config
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_cache_payload_summary(payload: object) -> str:
+    """Return metadata-only payload summary for cache logging."""
+    if isinstance(payload, dict):
+        keys = sorted(payload.keys())
+        return f"keys={keys}, key_count={len(keys)}"
+    if isinstance(payload, list):
+        return f"list_len={len(payload)}"
+    if isinstance(payload, str):
+        return f"str_len={len(payload)}"
+    return f"type={type(payload).__name__}"
 # logger.setLevel(logging.DEBUG)  # Set to DEBUG for detailed logging, adjust as needed
 
 class CacheServiceBase:
@@ -239,7 +251,10 @@ class CacheServiceBase:
                 return False
             
             message = json.dumps(event_data)
-            logger.debug(f"Publishing to channel '{channel}': {message}")
+            logger.debug(
+                f"Publishing to channel '{channel}' "
+                f"(event_summary={_safe_cache_payload_summary(event_data)})"
+            )
             await client.publish(channel, message)
             return True
         except Exception as e:
@@ -264,7 +279,10 @@ class CacheServiceBase:
                 # The timeout is only for periodic checks, messages return immediately when available
                 message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=0.1)
                 if message:
-                    logger.debug(f"DEBUG: Received message from Redis: {message}")
+                    logger.debug(
+                        "DEBUG: Received message from Redis "
+                        f"(summary={_safe_cache_payload_summary(message)})"
+                    )
                 if message and message.get("type") in ["pmessage", "message"]: 
                     channel = message.get("channel")
                     if isinstance(channel, bytes):
@@ -274,18 +292,28 @@ class CacheServiceBase:
                     if isinstance(data, bytes):
                         data = data.decode('utf-8')
                     
-                    logger.debug(f"Received message from Redis channel '{channel}': {data}")
+                    logger.debug(
+                        f"Received message from Redis channel '{channel}' "
+                        f"(data_summary={_safe_cache_payload_summary(data)})"
+                    )
                     try:
                         parsed_data = json.loads(data)
                         payload_to_yield = {"channel": channel, "data": parsed_data}
                         yield payload_to_yield
                     except json.JSONDecodeError as e_json:
-                        logger.error(f"Failed to parse JSON from message on channel '{channel}': {data}. Error: {e_json}", exc_info=True)
+                        logger.error(
+                            f"Failed to parse JSON from message on channel '{channel}' "
+                            f"(data_summary={_safe_cache_payload_summary(data)}). Error: {e_json}",
+                            exc_info=True,
+                        )
                         # Optionally yield an error message
                         yield {"channel": channel, "data": data, "error": "json_decode_error"}
                         
                 elif message:
-                    logger.debug(f"Received other type of message on pubsub: {message}")
+                    logger.debug(
+                        "Received other type of message on pubsub "
+                        f"(summary={_safe_cache_payload_summary(message)})"
+                    )
         except asyncio.CancelledError:
             logger.debug(f"Redis PubSub listener for pattern '{channel_pattern}' was cancelled.")
             raise # Re-raise for the main lifespan handler to catch

@@ -30,15 +30,21 @@ async def handle_delete_new_chat_suggestion(
     }
     """
     try:
-        # Debug: Log the full payload to understand what's being received
-        logger.debug(f"Full delete_new_chat_suggestion payload: {payload}")
+        payload_keys = sorted(payload.keys()) if isinstance(payload, dict) else []
+        logger.debug(
+            "delete_new_chat_suggestion payload summary: "
+            f"keys={payload_keys}, key_count={len(payload_keys)}"
+        )
 
         # Get suggestion_id from payload
         suggestion_id = payload.get("suggestion_id") or payload.get("suggestionId")
 
         # Validate that suggestion_id is present and not empty
         if not suggestion_id or (isinstance(suggestion_id, str) and suggestion_id.strip() == ''):
-            logger.error(f"Missing or empty suggestion_id in delete_new_chat_suggestion payload from {user_id}/{device_fingerprint_hash}. Full payload: {payload}")
+            logger.error(
+                "Missing or empty suggestion_id in delete_new_chat_suggestion payload from "
+                f"{user_id}/{device_fingerprint_hash}. payload_keys={payload_keys}"
+            )
             await manager.send_personal_message(
                 {"type": "error", "payload": {"message": "Missing suggestion_id in delete request."}},
                 user_id,

@@ -267,7 +267,10 @@ class ChatMethods:
         Requires 'basedOnVersion' in the data payload for optimistic concurrency control.
         Increments the '_version' field on successful update.
         """
-        logger.info(f"Attempting to update chat metadata for chat_id: {chat_id} with data: {data}")
+        logger.info(
+            f"Attempting to update chat metadata for chat_id: {chat_id} "
+            f"with field_keys={sorted(data.keys()) if isinstance(data, dict) else []}"
+        )
         based_on_version = data.pop('basedOnVersion', None)
         if based_on_version is None:
             logger.error(f"Update rejected for chat {chat_id}: 'basedOnVersion' is missing.")

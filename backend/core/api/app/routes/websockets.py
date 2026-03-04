@@ -56,6 +56,16 @@ router = APIRouter(
 manager = ConnectionManager() # This is the correct manager instance for websockets
 
 
+def _safe_payload_summary(payload: object) -> str:
+    """Return a metadata-only payload summary for logging."""
+    if isinstance(payload, dict):
+        keys = sorted(payload.keys())
+        return f"keys={keys}, key_count={len(keys)}"
+    if isinstance(payload, list):
+        return f"list_len={len(payload)}"
+    return f"type={type(payload).__name__}"
+
+
 # =============================================================================
 # EMAIL NOTIFICATION FOR OFFLINE USERS
 # =============================================================================
@@ -278,7 +288,10 @@ async def listen_for_cache_events(app: FastAPI):
                 parts = channel_str.split(":")
                 if len(parts) == 2 and parts[0] == "user_cache_events":
                     user_id = parts[1]
-                    logger.debug(f"Redis Listener: Received '{event_type}' for user {user_id}. Payload: {payload}")
+                    logger.debug(
+                        f"Redis Listener: Received '{event_type}' for user {user_id}. "
+                        f"Payload summary: {_safe_payload_summary(payload)}"
+                    )
 
                     if event_type == "phase_1_last_chat_ready":
                         await manager.broadcast_to_user_specific_event(
@@ -413,9 +426,15 @@ async def listen_for_cache_events(app: FastAPI):
                     logger.warning(f"Redis Listener: Could not parse user_id from channel: {channel_str}")
 
             elif message and message.get("error") == "json_decode_error":
-                logger.error(f"Redis Listener: JSON decode error from channel '{message.get('channel')}': {message.get('data')}")
+                logger.error(
+                    "Redis Listener: JSON decode error from channel "
+                    f"'{message.get('channel')}' (data_summary={_safe_payload_summary(message.get('data'))})"
+                )
             elif message:
-                logger.debug(f"Redis Listener: Received non-data message or timeout: {message}")
+                logger.debug(
+                    "Redis Listener: Received non-data message or timeout "
+                    f"(summary: {_safe_payload_summary(message)})"
+                )
 
         except Exception as e:
             logger.error(f"Redis Listener: Error processing message: {e}", exc_info=True)
@@ -434,7 +453,10 @@ async def listen_for_ai_chat_streams(app: FastAPI):
     await cache_service.client # Ensure connection
 
     async for message in cache_service.subscribe_to_channel("chat_stream::*"): # Subscribes to chat_stream::{chat_id}
-        logger.debug(f"AI Stream Listener: Raw message from pubsub channel chat_stream::*: {message}")
+        logger.debug(
+            "AI Stream Listener: Received pubsub message on chat_stream::* "
+            f"(summary: {_safe_payload_summary(message)})"
+        )
         try:
             if message and isinstance(message.get("data"), dict):
                 # The 'data' field from cache_service.subscribe_to_channel is already a dict if it was JSON
@@ -443,7 +465,10 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                 
                 # Validate payload structure (basic check)
                 if not all(k in redis_payload for k in ["type", "chat_id", "user_id_hash", "message_id"]):
-                    logger.warning(f"AI Stream Listener: Received malformed payload on channel '{redis_channel_name}': {redis_payload}")
+                    logger.warning(
+                        "AI Stream Listener: Received malformed payload on channel "
+                        f"'{redis_channel_name}' (summary: {_safe_payload_summary(redis_payload)})"
+                    )
                     continue
 
                 event_type = redis_payload.get("type")
@@ -453,7 +478,10 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                     chat_id_from_payload = redis_payload.get("chat_id")
 
                     if not user_id_uuid:
-                        logger.warning(f"AI Stream Listener: Missing user_id_uuid in payload from channel '{redis_channel_name}': {redis_payload}")
+                        logger.warning(
+                            "AI Stream Listener: Missing user_id_uuid in payload from channel "
+                            f"'{redis_channel_name}' (summary: {_safe_payload_summary(redis_payload)})"
+                        )
                         continue
                     
                     # CRITICAL: Skip WebSocket forwarding for external requests (REST API)
@@ -464,7 +492,10 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                         continue
                     
                     logger.debug(f"AI Stream Listener: Received '{event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}), chat_id {chat_id_from_payload} from Redis channel '{redis_channel_name}'. Processing for selective forwarding.")
-                    logger.debug(f"AI Stream Listener: Full Redis Payload: {json.dumps(redis_payload, indent=2)}")
+                    logger.debug(
+                        "AI Stream Listener: Redis payload summary: "
+                        f"{_safe_payload_summary(redis_payload)}"
+                    )
 
                     # Iterate over all connections for this user (using UUID)
                     user_connections = manager.get_connections_for_user(user_id_uuid)
@@ -480,7 +511,10 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                             standardized_error = "The AI service encountered an error while processing your request. Please try again in a moment."
                             if full_content and isinstance(full_content, str):
                                 if "[ERROR" in full_content:
-                                    logger.warning(f"AI Stream Listener: Detected error in stream for chat {chat_id_from_payload}. Original error: {full_content}")
+                                    logger.warning(
+                                        "AI Stream Listener: Detected error marker in stream "
+                                        f"for chat {chat_id_from_payload}. Replacing with generic key."
+                                    )
                                     # Overwrite with a generic key for the frontend
                                     redis_payload["full_content_so_far"] = "chat.an_error_occured"
                                 elif full_content.strip() == standardized_error:
@@ -511,7 +545,10 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                 standardized_error = "The AI service encountered an error while processing your request. Please try again in a moment."
                                 if full_content and isinstance(full_content, str):
                                     if "[ERROR" in full_content:
-                                        logger.warning(f"AI Stream Listener: Detected error in background stream for chat {chat_id_from_payload}. Original error: {full_content}")
+                                        logger.warning(
+                                            "AI Stream Listener: Detected error marker in background stream "
+                                            f"for chat {chat_id_from_payload}. Replacing with generic key."
+                                        )
                                         # Overwrite with a generic key for the frontend
                                         full_content = "chat.an_error_occured"
                                     elif full_content.strip() == standardized_error:
@@ -582,10 +619,16 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                     logger.warning(f"AI Stream Listener: Unknown event_type '{event_type}' on channel '{redis_channel_name}'.")
             
             elif message and message.get("error") == "json_decode_error":
-                logger.error(f"AI Stream Listener: JSON decode error from channel '{message.get('channel')}': {message.get('data')}")
+                logger.error(
+                    "AI Stream Listener: JSON decode error from channel "
+                    f"'{message.get('channel')}' (data_summary={_safe_payload_summary(message.get('data'))})"
+                )
             elif message:
                 # This can happen on initial subscription confirmation or if non-JSON data is published.
-                logger.debug(f"AI Stream Listener: Received non-data message or confirmation: {message}")
+                logger.debug(
+                    "AI Stream Listener: Received non-data message or confirmation "
+                    f"(summary: {_safe_payload_summary(message)})"
+                )
 
         except Exception as e:
             logger.error(f"AI Stream Listener: Error processing message: {e}", exc_info=True)
@@ -617,7 +660,10 @@ async def listen_for_ai_thinking_streams(app: FastAPI):
     await cache_service.client  # Ensure connection
 
     async for message in cache_service.subscribe_to_channel("chat_stream_thinking::*"):
-        logger.debug(f"AI Thinking Stream Listener: Raw message from pubsub channel chat_stream_thinking::*: {message}")
+        logger.debug(
+            "AI Thinking Stream Listener: Received pubsub message on chat_stream_thinking::* "
+            f"(summary: {_safe_payload_summary(message)})"
+        )
         try:
             if message and isinstance(message.get("data"), dict):
                 redis_payload = message["data"]
@@ -625,7 +671,10 @@ async def listen_for_ai_thinking_streams(app: FastAPI):
                 
                 # Validate payload structure
                 if not all(k in redis_payload for k in ["type", "chat_id", "user_id_hash", "message_id"]):
-                    logger.warning(f"AI Thinking Stream Listener: Received malformed payload on channel '{redis_channel_name}': {redis_payload}")
+                    logger.warning(
+                        "AI Thinking Stream Listener: Received malformed payload on channel "
+                        f"'{redis_channel_name}' (summary: {_safe_payload_summary(redis_payload)})"
+                    )
                     continue
 
                 event_type = redis_payload.get("type")
@@ -635,7 +684,10 @@ async def listen_for_ai_thinking_streams(app: FastAPI):
                 task_id = redis_payload.get("task_id")
 
                 if not user_id_uuid:
-                    logger.warning(f"AI Thinking Stream Listener: Missing user_id_uuid in payload from channel '{redis_channel_name}': {redis_payload}")
+                    logger.warning(
+                        "AI Thinking Stream Listener: Missing user_id_uuid in payload from channel "
+                        f"'{redis_channel_name}' (summary: {_safe_payload_summary(redis_payload)})"
+                    )
                     continue
                 
                 # CRITICAL: Skip WebSocket forwarding for external requests (REST API)
@@ -688,9 +740,15 @@ async def listen_for_ai_thinking_streams(app: FastAPI):
                     logger.warning(f"AI Thinking Stream Listener: Unknown event_type '{event_type}' on channel '{redis_channel_name}'.")
             
             elif message and message.get("error") == "json_decode_error":
-                logger.error(f"AI Thinking Stream Listener: JSON decode error from channel '{message.get('channel')}': {message.get('data')}")
+                logger.error(
+                    "AI Thinking Stream Listener: JSON decode error from channel "
+                    f"'{message.get('channel')}' (data_summary={_safe_payload_summary(message.get('data'))})"
+                )
             elif message:
-                logger.debug(f"AI Thinking Stream Listener: Received non-data message or confirmation: {message}")
+                logger.debug(
+                    "AI Thinking Stream Listener: Received non-data message or confirmation "
+                    f"(summary: {_safe_payload_summary(message)})"
+                )
 
         except Exception as e:
             logger.error(f"AI Thinking Stream Listener: Error processing message: {e}", exc_info=True)
@@ -709,7 +767,10 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
     await cache_service.client # Ensure connection
 
     async for message in cache_service.subscribe_to_channel("ai_typing_indicator_events::*"):
-        logger.debug(f"AI Typing Indicator Listener: Raw message from pubsub channel ai_typing_indicator_events::*: {message}")
+        logger.debug(
+            "AI Typing Indicator Listener: Received pubsub message on ai_typing_indicator_events::* "
+            f"(summary: {_safe_payload_summary(message)})"
+        )
         try:
             if message and isinstance(message.get("data"), dict):
                 redis_payload = message["data"]
@@ -738,10 +799,20 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
 
                     # Title is optional in the payload for now, but other fields are essential
                     if not all([client_event_name, user_id_uuid, chat_id, ai_task_id, user_message_id, category]):
-                        logger.warning(f"AI Typing Listener: Malformed payload on channel '{redis_channel_name}' (missing essential fields like category, user_id_uuid, etc.): {redis_payload}")
+                        logger.warning(
+                            "AI Typing Listener: Malformed payload on channel "
+                            f"'{redis_channel_name}' (missing essential fields; "
+                            f"summary: {_safe_payload_summary(redis_payload)})"
+                        )
                         continue
 
-                    logger.debug(f"AI Typing Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{client_event_name}'. Category: {category}, Model Name: {model_name}, Provider Name: {provider_name}, Server Region: {server_region}, Title: {title}")
+                    logger.debug(
+                        f"AI Typing Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} "
+                        f"(hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. "
+                        f"Forwarding as '{client_event_name}'. Category: {category}, Model Name: {model_name}, "
+                        f"Provider Name: {provider_name}, Server Region: {server_region}, "
+                        f"title_present={bool(title)}, title_length={len(title) if isinstance(title, str) else 0}"
+                    )
 
                     client_payload = {
                         "chat_id": chat_id,
@@ -764,7 +835,10 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                         event_name=client_event_name, # "ai_typing_started"
                         payload=client_payload
                     )
-                    logger.debug(f"AI Typing Listener: Broadcasted '{client_event_name}' to user {user_id_uuid} with payload: {client_payload}")
+                    logger.debug(
+                        f"AI Typing Listener: Broadcasted '{client_event_name}' to user {user_id_uuid} "
+                        f"with payload summary: {_safe_payload_summary(client_payload)}"
+                    )
 
                 # Handle post_processing_completed event
                 elif internal_event_type == "post_processing_completed":
@@ -775,7 +849,10 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                     task_id = redis_payload.get("task_id")
 
                     if not all([client_event_name, user_id_uuid, chat_id, task_id]):
-                        logger.warning(f"AI Typing Listener: Malformed post_processing_completed payload on channel '{redis_channel_name}': {redis_payload}")
+                        logger.warning(
+                            "AI Typing Listener: Malformed post_processing_completed payload on channel "
+                            f"'{redis_channel_name}' (summary: {_safe_payload_summary(redis_payload)})"
+                        )
                         continue
 
                     logger.info(f"AI Typing Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{client_event_name}'.")
@@ -817,7 +894,10 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                     preview_data = redis_payload.get("preview_data", {})
 
                     if not all([client_event_name, user_id_uuid, chat_id, message_id, task_id, app_id, skill_id, status]):
-                        logger.warning(f"AI Typing Listener: Malformed skill_execution_status payload on channel '{redis_channel_name}': {redis_payload}")
+                        logger.warning(
+                            "AI Typing Listener: Malformed skill_execution_status payload on channel "
+                            f"'{redis_channel_name}' (summary: {_safe_payload_summary(redis_payload)})"
+                        )
                         continue
 
                     logger.info(
@@ -852,9 +932,15 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                     logger.warning(f"AI Typing Listener: Received unexpected event type '{internal_event_type}' on channel '{redis_channel_name}'. Skipping.")
 
             elif message and message.get("error") == "json_decode_error":
-                logger.error(f"AI Typing Listener: JSON decode error from channel '{message.get('channel')}': {message.get('data')}")
+                logger.error(
+                    "AI Typing Listener: JSON decode error from channel "
+                    f"'{message.get('channel')}' (data_summary={_safe_payload_summary(message.get('data'))})"
+                )
             elif message:
-                logger.debug(f"AI Typing Listener: Received non-data message or confirmation: {message}")
+                logger.debug(
+                    "AI Typing Listener: Received non-data message or confirmation "
+                    f"(summary: {_safe_payload_summary(message)})"
+                )
 
         except Exception as e:
             logger.error(f"AI Typing Listener: Error processing message: {e}", exc_info=True)
@@ -886,7 +972,10 @@ async def listen_for_preprocessing_streams(app: FastAPI):
     await cache_service.client  # Ensure connection
 
     async for message in cache_service.subscribe_to_channel("preprocessing_stream::*"):
-        logger.debug(f"Preprocessing Stream Listener: Raw message from pubsub: {message}")
+        logger.debug(
+            "Preprocessing Stream Listener: Received pubsub message "
+            f"(summary: {_safe_payload_summary(message)})"
+        )
         try:
             if message and isinstance(message.get("data"), dict):
                 redis_payload = message["data"]
@@ -923,9 +1012,15 @@ async def listen_for_preprocessing_streams(app: FastAPI):
                 logger.debug(f"Preprocessing Stream Listener: Forwarded 'preprocessing_step' (step={redis_payload.get('step')}, skipped={redis_payload.get('skipped')}) to user {user_id_uuid}")
 
             elif message and message.get("error") == "json_decode_error":
-                logger.error(f"Preprocessing Stream Listener: JSON decode error from channel '{message.get('channel')}': {message.get('data')}")
+                logger.error(
+                    "Preprocessing Stream Listener: JSON decode error from channel "
+                    f"'{message.get('channel')}' (data_summary={_safe_payload_summary(message.get('data'))})"
+                )
             elif message:
-                logger.debug(f"Preprocessing Stream Listener: Received non-data message or confirmation: {message}")
+                logger.debug(
+                    "Preprocessing Stream Listener: Received non-data message or confirmation "
+                    f"(summary: {_safe_payload_summary(message)})"
+                )
 
         except Exception as e:
             logger.error(f"Preprocessing Stream Listener: Error processing message: {e}", exc_info=True)
@@ -944,7 +1039,10 @@ async def listen_for_chat_updates(app: FastAPI):
     await cache_service.client # Ensure connection
 
     async for message in cache_service.subscribe_to_channel("chat_updates::*"): # Subscribes to chat_updates::{user_id_hash}
-        logger.debug(f"Chat Updates Listener: Raw message from pubsub channel chat_updates::*: {message}")
+        logger.debug(
+            "Chat Updates Listener: Received pubsub message on chat_updates::* "
+            f"(summary: {_safe_payload_summary(message)})"
+        )
         try:
             if message and isinstance(message.get("data"), dict):
                 redis_payload = message["data"]
@@ -961,7 +1059,10 @@ async def listen_for_chat_updates(app: FastAPI):
                 # versions_for_client = redis_payload.get("versions") # e.g., {"title_v": 2}
 
                 if not all([internal_event_type, event_for_client, user_id_uuid]):
-                    logger.warning(f"Chat Updates Listener: Malformed base payload on channel '{redis_channel_name}': {redis_payload}")
+                    logger.warning(
+                        "Chat Updates Listener: Malformed base payload on channel "
+                        f"'{redis_channel_name}' (summary: {_safe_payload_summary(redis_payload)})"
+                    )
                     continue
                 
                 logger.debug(f"Chat Updates Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{event_for_client}'.")
@@ -983,12 +1084,21 @@ async def listen_for_chat_updates(app: FastAPI):
                     event_name=event_for_client,
                     payload=client_payload_data # Send the structured data
                 )
-                logger.debug(f"Chat Updates Listener: Broadcasted '{event_for_client}' to user {user_id_uuid} with payload: {client_payload_data}")
+                logger.debug(
+                    f"Chat Updates Listener: Broadcasted '{event_for_client}' to user {user_id_uuid} "
+                    f"with payload summary: {_safe_payload_summary(client_payload_data)}"
+                )
 
             elif message and message.get("error") == "json_decode_error":
-                logger.error(f"Chat Updates Listener: JSON decode error from channel '{message.get('channel')}': {message.get('data')}")
+                logger.error(
+                    "Chat Updates Listener: JSON decode error from channel "
+                    f"'{message.get('channel')}' (data_summary={_safe_payload_summary(message.get('data'))})"
+                )
             elif message:
-                logger.debug(f"Chat Updates Listener: Received non-data message or confirmation: {message}")
+                logger.debug(
+                    "Chat Updates Listener: Received non-data message or confirmation "
+                    f"(summary: {_safe_payload_summary(message)})"
+                )
 
         except Exception as e:
             logger.error(f"Chat Updates Listener: Error processing message: {e}", exc_info=True)
@@ -1010,7 +1120,10 @@ async def listen_for_embed_data_events(app: FastAPI):
     await cache_service.client  # Ensure connection
 
     async for message in cache_service.subscribe_to_channel("websocket:user:*"):
-        logger.debug(f"Embed Data Listener: Raw message from pubsub channel websocket:user:*: {message}")
+        logger.debug(
+            "Embed Data Listener: Received pubsub message on websocket:user:* "
+            f"(summary: {_safe_payload_summary(message)})"
+        )
         try:
             if message and isinstance(message.get("data"), dict):
                 redis_payload = message["data"]
@@ -1052,9 +1165,15 @@ async def listen_for_embed_data_events(app: FastAPI):
                     payload=payload_for_client
                 )
             elif message and message.get("error") == "json_decode_error":
-                logger.error(f"Embed Data Listener: JSON decode error from channel '{message.get('channel')}': {message.get('data')}")
+                logger.error(
+                    "Embed Data Listener: JSON decode error from channel "
+                    f"'{message.get('channel')}' (data_summary={_safe_payload_summary(message.get('data'))})"
+                )
             elif message:
-                logger.debug(f"Embed Data Listener: Received non-data message or confirmation: {message}")
+                logger.debug(
+                    "Embed Data Listener: Received non-data message or confirmation "
+                    f"(summary: {_safe_payload_summary(message)})"
+                )
         except Exception as e:
             logger.error(f"Embed Data Listener: Error processing message: {e}", exc_info=True)
             await asyncio.sleep(1)
@@ -1072,7 +1191,10 @@ async def listen_for_ai_message_persisted_events(app: FastAPI):
     await cache_service.client # Ensure connection
 
     async for message in cache_service.subscribe_to_channel("ai_message_persisted::*"):
-        logger.debug(f"AI Persisted Listener: Raw message from pubsub channel ai_message_persisted::*: {message}")
+        logger.debug(
+            "AI Persisted Listener: Received pubsub message on ai_message_persisted::* "
+            f"(summary: {_safe_payload_summary(message)})"
+        )
         try:
             if message and isinstance(message.get("data"), dict):
                 redis_payload = message["data"]
@@ -1091,7 +1213,11 @@ async def listen_for_ai_message_persisted_events(app: FastAPI):
                 last_edited_ts_for_client = redis_payload.get("last_edited_overall_timestamp")
 
                 if not all([user_id_uuid, event_for_client, message_content_for_client, versions_for_client, last_edited_ts_for_client is not None]):
-                    logger.warning(f"AI Persisted Listener: Malformed payload on channel '{redis_channel_name}' (missing user_id_uuid or other fields): {redis_payload}")
+                    logger.warning(
+                        "AI Persisted Listener: Malformed payload on channel "
+                        f"'{redis_channel_name}' (missing user_id_uuid or other fields; "
+                        f"summary: {_safe_payload_summary(redis_payload)})"
+                    )
                     continue
                 
                 logger.debug(f"AI Persisted Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{event_for_client}'.")
@@ -1104,7 +1230,10 @@ async def listen_for_ai_message_persisted_events(app: FastAPI):
                         standardized_error = "The AI service encountered an error while processing your request. Please try again in a moment."
                         if isinstance(text_content, str):
                             if "[ERROR" in text_content:
-                                logger.warning(f"AI Persisted Listener: Detected error in persisted message for chat {redis_payload.get('chat_id')}. Original error: {text_content}")
+                                logger.warning(
+                                    "AI Persisted Listener: Detected error marker in persisted message "
+                                    f"for chat {redis_payload.get('chat_id')}. Replacing with generic key."
+                                )
                                 # Overwrite with a generic key for the frontend
                                 message_content_for_client["content"]["content"][0]["content"][0]["text"] = "chat.an_error_occured"
                             elif text_content.strip() == standardized_error:
@@ -1128,12 +1257,21 @@ async def listen_for_ai_message_persisted_events(app: FastAPI):
                     event_name=event_for_client, # Should be "chat_message_added"
                     payload=client_payload
                 )
-                logger.debug(f"AI Persisted Listener: Broadcasted '{event_for_client}' to user {user_id_uuid} with payload: {client_payload}")
+                logger.debug(
+                    f"AI Persisted Listener: Broadcasted '{event_for_client}' to user {user_id_uuid} "
+                    f"with payload summary: {_safe_payload_summary(client_payload)}"
+                )
 
             elif message and message.get("error") == "json_decode_error":
-                logger.error(f"AI Persisted Listener: JSON decode error from channel '{message.get('channel')}': {message.get('data')}")
+                logger.error(
+                    "AI Persisted Listener: JSON decode error from channel "
+                    f"'{message.get('channel')}' (data_summary={_safe_payload_summary(message.get('data'))})"
+                )
             elif message:
-                logger.debug(f"AI Persisted Listener: Received non-data message or confirmation: {message}")
+                logger.debug(
+                    "AI Persisted Listener: Received non-data message or confirmation "
+                    f"(summary: {_safe_payload_summary(message)})"
+                )
 
         except Exception as e:
             logger.error(f"AI Persisted Listener: Error processing message: {e}", exc_info=True)
@@ -1152,7 +1290,10 @@ async def listen_for_user_updates(app: FastAPI):
     await cache_service.client # Ensure connection
 
     async for message in cache_service.subscribe_to_channel("user_updates::*"):
-        logger.debug(f"User Updates Listener: Raw message from pubsub channel user_updates::*: {message}")
+        logger.debug(
+            "User Updates Listener: Received pubsub message on user_updates::* "
+            f"(summary: {_safe_payload_summary(message)})"
+        )
         try:
             if message and isinstance(message.get("data"), dict):
                 redis_payload = message["data"]
@@ -1163,7 +1304,10 @@ async def listen_for_user_updates(app: FastAPI):
                 client_payload = redis_payload.get("payload", {})
 
                 if not all([event_for_client, user_id_uuid]):
-                    logger.warning(f"User Updates Listener: Malformed payload on channel '{redis_channel_name}': {redis_payload}")
+                    logger.warning(
+                        "User Updates Listener: Malformed payload on channel "
+                        f"'{redis_channel_name}' (summary: {_safe_payload_summary(redis_payload)})"
+                    )
                     continue
                 
                 logger.debug(f"User Updates Listener: Received event for user {user_id_uuid}. Forwarding as '{event_for_client}'.")
@@ -1173,12 +1317,21 @@ async def listen_for_user_updates(app: FastAPI):
                     event_name=event_for_client,
                     payload=client_payload
                 )
-                logger.debug(f"User Updates Listener: Broadcasted '{event_for_client}' to user {user_id_uuid} with payload: {client_payload}")
+                logger.debug(
+                    f"User Updates Listener: Broadcasted '{event_for_client}' to user {user_id_uuid} "
+                    f"with payload summary: {_safe_payload_summary(client_payload)}"
+                )
 
             elif message and message.get("error") == "json_decode_error":
-                logger.error(f"User Updates Listener: JSON decode error from channel '{message.get('channel')}': {message.get('data')}")
+                logger.error(
+                    "User Updates Listener: JSON decode error from channel "
+                    f"'{message.get('channel')}' (data_summary={_safe_payload_summary(message.get('data'))})"
+                )
             elif message:
-                logger.debug(f"User Updates Listener: Received non-data message or confirmation: {message}")
+                logger.debug(
+                    "User Updates Listener: Received non-data message or confirmation "
+                    f"(summary: {_safe_payload_summary(message)})"
+                )
 
         except Exception as e:
             logger.error(f"User Updates Listener: Error processing message: {e}", exc_info=True)
@@ -1546,7 +1699,10 @@ async def websocket_endpoint(
     try:
         while True:
             data = await websocket.receive_json()
-            logger.debug(f"Received message from User {user_id}, Device {device_fingerprint_hash}: {data}")
+            logger.debug(
+                f"Received message from User {user_id}, Device {device_fingerprint_hash}. "
+                f"Envelope summary: {_safe_payload_summary(data)}"
+            )
 
             message_type = data.get("type")
             payload = data.get("payload", {})
@@ -2125,7 +2281,10 @@ async def websocket_endpoint(
                 )
 
             elif message_type == "delete_new_chat_suggestion":
-                logger.debug(f"Handling delete_new_chat_suggestion with payload: {payload}")
+                logger.debug(
+                    "Handling delete_new_chat_suggestion with payload summary: "
+                    f"{_safe_payload_summary(payload)}"
+                )
                 await handle_delete_new_chat_suggestion(
                     websocket=websocket,
                     manager=manager,
@@ -2138,7 +2297,10 @@ async def websocket_endpoint(
 
             elif message_type == "reject_settings_memory_suggestion":
                 # Handle rejection of settings/memory suggestions for cross-device sync
-                logger.debug(f"Handling reject_settings_memory_suggestion with payload: {payload}")
+                logger.debug(
+                    "Handling reject_settings_memory_suggestion with payload summary: "
+                    f"{_safe_payload_summary(payload)}"
+                )
                 await handle_reject_settings_memory_suggestion(
                     websocket=websocket,
                     manager=manager,
@@ -2152,7 +2314,10 @@ async def websocket_endpoint(
 
             elif message_type == "email_notification_settings":
                 # Handle email notification settings update
-                logger.debug(f"Handling email_notification_settings with payload: {payload}")
+                logger.debug(
+                    "Handling email_notification_settings with payload summary: "
+                    f"{_safe_payload_summary(payload)}"
+                )
                 await handle_email_notification_settings(
                     websocket=websocket,
                     manager=manager,
@@ -2179,7 +2344,10 @@ async def websocket_endpoint(
             elif message_type == "inspiration_viewed":
                 # Client reports that a Daily Inspiration banner was seen by the user.
                 # Record the view in cache for the daily generation job (view count → generation count).
-                logger.debug(f"Handling inspiration_viewed from user {user_id[:8]}... payload: {payload}")
+                logger.debug(
+                    f"Handling inspiration_viewed from user {user_id[:8]}... "
+                    f"payload summary: {_safe_payload_summary(payload)}"
+                )
                 await handle_inspiration_viewed(
                     cache_service=cache_service,
                     user_id=user_id,

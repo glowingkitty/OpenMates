@@ -359,7 +359,10 @@ async def _stream_google_maas_response(
                     error_msg = f"HTTP {response.status_code}"
                     try:
                         error_text = error_body.decode("utf-8", errors="ignore").strip()
-                        logger.error(f"{log_prefix} Raw error response body: {error_text[:2000]}")
+                        logger.error(
+                            f"{log_prefix} Provider error response received "
+                            f"(response_body_length={len(error_text)})"
+                        )
                         if error_text:
                             try:
                                 error_detail = json.loads(error_text)
@@ -372,11 +375,11 @@ async def _stream_google_maas_response(
                                         error_msg = f"HTTP {response.status_code}: {str(error_obj)[:500]}"
                                 elif isinstance(error_detail, list):
                                     # Google sometimes returns error as a JSON array
-                                    error_msg = f"HTTP {response.status_code}: {json.dumps(error_detail)[:500]}"
+                                    error_msg = f"HTTP {response.status_code}: provider returned array error payload"
                                 else:
-                                    error_msg = f"HTTP {response.status_code}: {str(error_detail)[:500]}"
+                                    error_msg = f"HTTP {response.status_code}: provider returned unsupported error payload"
                             except json.JSONDecodeError:
-                                error_msg = f"HTTP {response.status_code}: {error_text[:500]}"
+                                error_msg = f"HTTP {response.status_code}: provider returned non-JSON error body"
                     except UnicodeDecodeError:
                         error_msg = f"HTTP {response.status_code}: {str(error_body[:500])}"
 
@@ -462,7 +465,10 @@ async def _stream_google_maas_response(
                             cumulative_usage["total_tokens"] = usage.get("total_tokens", cumulative_usage["total_tokens"])
 
                     except json.JSONDecodeError as e:
-                        logger.warning(f"{log_prefix} Failed to parse SSE chunk: {e}. Line: {line[:100]}...")
+                        logger.warning(
+                            f"{log_prefix} Failed to parse SSE chunk: {e} "
+                            f"(line_length={len(line)})"
+                        )
                         continue
 
                 # Yield final usage

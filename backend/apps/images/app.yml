@@ -151,7 +151,7 @@ skills:
       Use output_filetype="svg" for logos, icons, illustrations, and any other
       vector graphics that need to be scalable or editable.
       When the user provides uploaded images as references (embed_refs), pass them via reference_images.
-    stage: development
+    stage: production
     class_path: |
       backend.apps.images.skills.generate_skill.GenerateSkill
     providers:
@@ -233,7 +233,7 @@ skills:
       at it, describe it, read text in it, identify objects, or answer any visual
       question about it. Pass the exact embed_ref (original filename) from the
       toon block — the server resolves all cryptographic and storage details automatically.
-    stage: development
+    stage: production
     class_path: |
       backend.apps.images.skills.view_skill.ViewSkill
     api_config:
@@ -259,7 +259,7 @@ skills:
       to SVG, make an image scalable, or convert a logo/icon/illustration to vector format.
       The user must have uploaded an image in the conversation to use as input.
       Pass the exact embed_ref (original filename) from the toon block.
-    stage: development
+    stage: production
     class_path: |
       backend.apps.images.skills.vectorize_skill.VectorizeSkill
     providers:
@@ -287,7 +287,7 @@ skills:
       Also use for: quick mockups, rough design concepts, draft illustrations,
       sketches, quick visual previews, or any request for a fast/rough image.
       When the user provides uploaded images as references (embed_refs), pass them via reference_images.
-    stage: development
+    stage: production
     class_path: |
       backend.apps.images.skills.generate_skill.GenerateSkill
     providers:
