@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // Main entry point for the unified message parsing architecture
 // Handles both write_mode (editing) and read_mode (display) parsing
 
@@ -203,11 +204,118 @@ function convertEmbedLinks(doc: any): any {
 function convertSourceQuotes(doc: any): any {
   if (!doc || !doc.content) return doc;
 
-  const newContent = doc.content.map((node: any) =>
-    _convertSourceQuoteNode(node),
-  );
+  const newContent = doc.content.flatMap((node: any) => {
+    const converted = _convertSourceQuoteNode(node);
+    return Array.isArray(converted) ? converted : [converted];
+  });
 
   return { ...doc, content: newContent };
+}
+
+/**
+ * Convert an inline source quote pattern inside a paragraph:
+ *
+ *   <prefix text> > [quoted text](embed:ref)
+ *
+ * into:
+ *   - paragraph(<prefix text>)   (optional, omitted if empty)
+ *   - sourceQuote(quoted text, embedRef)
+ *
+ * This handles list-item cases where the quote marker appears inline after
+ * an attribution (e.g. "Name: > [quote](embed:ref)") and markdown-it does
+ * not produce a blockquote node.
+ */
+function _convertInlineSourceQuoteParagraph(node: any): any[] | null {
+  if (node.type !== "paragraph" || !Array.isArray(node.content)) {
+    return null;
+  }
+
+  const firstEmbedInlineIndex = node.content.findIndex(
+    (child: any) => child?.type === "embedInline",
+  );
+
+  if (firstEmbedInlineIndex === -1) {
+    return null;
+  }
+
+  const embedInlineCount = node.content.filter(
+    (child: any) => child?.type === "embedInline",
+  ).length;
+  if (embedInlineCount !== 1) {
+    return null;
+  }
+
+  const afterEmbedNodes = node.content.slice(firstEmbedInlineIndex + 1);
+  const hasOnlyWhitespaceAfterEmbed = afterEmbedNodes.every(
+    (child: any) => child?.type === "text" && /^\s*$/.test(child.text || ""),
+  );
+  if (!hasOnlyWhitespaceAfterEmbed) {
+    return null;
+  }
+
+  const beforeEmbedNodes = node.content.slice(0, firstEmbedInlineIndex);
+  const beforeEmbedText = beforeEmbedNodes
+    .filter((child: any) => child?.type === "text")
+    .map((child: any) => child.text || "")
+    .join("");
+
+  if (!/(^|\s)>\s*$/.test(beforeEmbedText)) {
+    return null;
+  }
+
+  const cleanedPrefixNodes = beforeEmbedNodes.map((child: any) => ({
+    ...child,
+  }));
+
+  for (let i = cleanedPrefixNodes.length - 1; i >= 0; i--) {
+    const child = cleanedPrefixNodes[i];
+    if (child?.type !== "text") {
+      continue;
+    }
+
+    const text = child.text || "";
+    const markerMatch = text.match(/^(.*?)(\s*>\s*)$/);
+    if (!markerMatch) {
+      break;
+    }
+
+    const withoutMarker = markerMatch[1] || "";
+    if (withoutMarker.length > 0) {
+      child.text = withoutMarker;
+    } else {
+      cleanedPrefixNodes.splice(i, 1);
+    }
+    break;
+  }
+
+  const hasMeaningfulPrefix = cleanedPrefixNodes.some((child: any) => {
+    if (child?.type !== "text") {
+      return true;
+    }
+    return /\S/.test(child.text || "");
+  });
+
+  const embedInline = node.content[firstEmbedInlineIndex];
+  const sourceQuoteNode = {
+    type: "sourceQuote",
+    attrs: {
+      quoteText: embedInline?.attrs?.displayText || "",
+      embedRef: embedInline?.attrs?.embedRef || "",
+      appId: embedInline?.attrs?.appId || null,
+    },
+  };
+
+  if (!hasMeaningfulPrefix) {
+    return [sourceQuoteNode];
+  }
+
+  return [
+    {
+      ...node,
+      content: cleanedPrefixNodes,
+    },
+    sourceQuoteNode,
+  ];
 }
 
 /**
@@ -247,11 +355,19 @@ function _convertSourceQuoteNode(node: any): any {
     }
   }
 
+  // Fallback pattern: inline quote marker in a paragraph
+  // e.g. "Attribution: > [quoted text](embed:ref)"
+  const inlineConversion = _convertInlineSourceQuoteParagraph(node);
+  if (inlineConversion) {
+    return inlineConversion;
+  }
+
   // Not a source quote blockquote — recurse into children
   if (node.content && Array.isArray(node.content)) {
-    const newContent = node.content.map((child: any) =>
-      _convertSourceQuoteNode(child),
-    );
+    const newContent = node.content.flatMap((child: any) => {
+      const converted = _convertSourceQuoteNode(child);
+      return Array.isArray(converted) ? converted : [converted];
+    });
     return { ...node, content: newContent };
   }
 
