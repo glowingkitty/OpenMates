@@ -8187,10 +8187,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 >
                                 </button>
                             </div>
-                        </div>
-
-                        <!-- Right side buttons -->
-                        <div class="right-buttons">
                             <!-- PII hide/unhide toggle - only shows when chat has sensitive data -->
                             {#if chatHasPII && !showWelcome}
                                 <div class="new-chat-button-wrapper">
@@ -8206,6 +8202,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     </button>
                                 </div>
                             {/if}
+                        </div>
+
+                        <!-- Right side buttons -->
+                        <div class="right-buttons">
                             <!-- Minimize chat button - only shows in side-by-side mode -->
                             <!-- When clicked, hides the chat and shows only the embed fullscreen (overlay mode) -->
                             {#if showSideBySideFullscreen}

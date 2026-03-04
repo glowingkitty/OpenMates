@@ -545,18 +545,6 @@
         "example_3": {
           "text": "Follow-up and reminders"
         }
-      },
-      "footer": {
-        "text": "Footer",
-        "description": {
-          "text": "Reusable signatures and closing blocks for your drafted emails."
-        },
-        "example_1": {
-          "text": "Work signature"
-        },
-        "example_2": {
-          "text": "Friendly personal signature"
-        }
       }
     },
     "maps": {

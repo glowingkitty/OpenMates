@@ -19,116 +19,23 @@ settings_and_memories:
     schema:
       type: object
       properties:
-        name:
+        title:
           type: string
           description: Style name (e.g., Formal business, Friendly follow-up)
           is_title: true
-        scenario:
+        description:
           type: string
-          description: Email context this style applies to (e.g., client outreach, internal updates, support replies)
+          description: Free-text description of this writing style (tone, verbosity, greeting, closing, special preferences)
           is_subtitle: true
-        tone:
+        when_to_use:
           type: string
-          enum:
-            - formal
-            - semi_formal
-            - casual
-            - friendly
-            - professional
-            - conversational
-            - warm
-            - direct
-          description: The overall tone of the writing style
-        verbosity:
+          description: When this style should be applied (e.g., client outreach, internal updates, support replies)
+        footer:
           type: string
-          enum:
-            - very_concise
-            - concise
-            - balanced
-            - detailed
-            - very_detailed
-          description: How detailed and lengthy the emails should be
-        greeting_style:
-          type: string
-          enum:
-            - formal
-            - semi_formal
-            - casual
-            - none
-          description: Preferred greeting style (e.g., Dear, Hi, Hello, or no greeting)
-        closing_style:
-          type: string
-          enum:
-            - formal
-            - semi_formal
-            - casual
-            - warm
-            - professional
-            - none
-          description: Preferred closing style (e.g., Best regards, Sincerely, Thanks)
-        use_emojis:
-          type: boolean
-          description: Whether to use emojis in emails of this type
-        use_bullet_points:
-          type: string
-          enum:
-            - always
-            - when_helpful
-            - rarely
-            - never
-          description: When to use bullet points or lists in emails
-        paragraph_length:
-          type: string
-          enum:
-            - short
-            - medium
-            - long
-            - mixed
-          description: Preferred paragraph length
-        use_contractions:
-          type: boolean
-          description: Whether to use contractions (for example, don't instead of do not)
-        signature_style:
-          type: string
-          enum:
-            - full
-            - minimal
-            - none
-          description: How detailed the email signature should be when no custom footer is available
-        notes:
-          type: string
-          description: Additional style notes (for example, include one clear call to action)
+          description: Optional footer/signature text to append when this style is used
       required:
-        - name
-        - scenario
-        - tone
-        - verbosity
-  - id: footer
-    name_translation_key: mail.footer
-    description_translation_key: mail.footer.description
-    icon_image: mail.svg
-    type: list
-    stage: production
-    example_translation_keys:
-      - "mail.footer.example_1"
-      - "mail.footer.example_2"
-    schema:
-      type: object
-      properties:
-        name:
-          type: string
-          description: Footer profile name (e.g., Work signature, Personal signature)
-          is_title: true
-        footer_text:
-          type: string
-          description: Footer text to append to drafted emails
-        applies_to:
-          type: string
-          description: Optional scope describing when this footer should be used
-          is_subtitle: true
-      required:
-        - name
-        - footer_text
+        - title
+        - description
 embed_types:
   - id: email
     category: direct
@@ -155,7 +62,7 @@ embed_types:
 instructions:
   - instruction: |
       **Email Drafting (Mail App)**
-      When the user asks to draft an email, output the draft inside:
+      When the user asks to draft, write, compose, or send an email, output the draft inside:
       ```email
       to: <recipient>
       subject: <subject line>
@@ -165,4 +72,5 @@ instructions:
       <optional signature/footer>
       ```
       Keep the body as plain text (no HTML). Include footer only when helpful.
+      If the user has writing style preferences loaded in context (from mail app settings), apply the matching style's tone, verbosity, and footer accordingly.
 skills: []

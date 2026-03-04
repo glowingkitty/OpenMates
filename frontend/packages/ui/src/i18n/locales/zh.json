@@ -539,18 +539,6 @@
         "example_3": {
           "text": "跟进与提醒"
         }
-      },
-      "footer": {
-        "text": "页脚签名",
-        "description": {
-          "text": "用于邮件草稿的可复用签名和结尾内容。"
-        },
-        "example_1": {
-          "text": "工作签名"
-        },
-        "example_2": {
-          "text": "友好的个人签名"
-        }
       }
     },
     "maps": {

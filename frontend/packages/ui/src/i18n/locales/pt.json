@@ -539,18 +539,6 @@
         "example_3": {
           "text": "Acompanhamentos e lembretes"
         }
-      },
-      "footer": {
-        "text": "Rodapé",
-        "description": {
-          "text": "Assinaturas e blocos finais reutilizaveis para seus emails."
-        },
-        "example_1": {
-          "text": "Assinatura de trabalho"
-        },
-        "example_2": {
-          "text": "Assinatura pessoal amigavel"
-        }
       }
     },
     "maps": {

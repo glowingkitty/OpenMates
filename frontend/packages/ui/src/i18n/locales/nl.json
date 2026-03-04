@@ -539,18 +539,6 @@
         "example_3": {
           "text": "Follow-up en herinneringen"
         }
-      },
-      "footer": {
-        "text": "Footer",
-        "description": {
-          "text": "Herbruikbare handtekeningen en afsluitende blokken voor je e-mails."
-        },
-        "example_1": {
-          "text": "Werkhandtekening"
-        },
-        "example_2": {
-          "text": "Vriendelijke persoonlijke handtekening"
-        }
       }
     },
     "maps": {

@@ -539,18 +539,6 @@
         "example_3": {
           "text": "Uppfoljning och påminnelser"
         }
-      },
-      "footer": {
-        "text": "Sidfot",
-        "description": {
-          "text": "Ateranvandbara signaturer och avslut for dina e-postutkast."
-        },
-        "example_1": {
-          "text": "Arbetssignatur"
-        },
-        "example_2": {
-          "text": "Vanlig personlig signatur"
-        }
       }
     },
     "maps": {

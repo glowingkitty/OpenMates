@@ -539,18 +539,6 @@
         "example_3": {
           "text": "Follow-up i przypomnienia"
         }
-      },
-      "footer": {
-        "text": "Stopka",
-        "description": {
-          "text": "Wielokrotnego uzytku podpisy i zakonczenia do szkicow e-maili."
-        },
-        "example_1": {
-          "text": "Stopka sluzbowa"
-        },
-        "example_2": {
-          "text": "Przyjazna prywatna stopka"
-        }
       }
     },
     "maps": {

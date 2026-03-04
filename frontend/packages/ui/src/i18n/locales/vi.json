@@ -539,18 +539,6 @@
         "example_3": {
           "text": "Theo dõi và nhắc nhở"
         }
-      },
-      "footer": {
-        "text": "Chu ky cuoi thu",
-        "description": {
-          "text": "Chu ky va doan ket thu co the tai su dung cho email nhap."
-        },
-        "example_1": {
-          "text": "Chu ky cong viec"
-        },
-        "example_2": {
-          "text": "Chu ky ca nhan than thien"
-        }
       }
     },
     "maps": {

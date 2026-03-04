@@ -539,18 +539,6 @@
         "example_3": {
           "text": "Follow-up e promemoria"
         }
-      },
-      "footer": {
-        "text": "Firma",
-        "description": {
-          "text": "Firme e blocchi di chiusura riutilizzabili per le tue email."
-        },
-        "example_1": {
-          "text": "Firma di lavoro"
-        },
-        "example_2": {
-          "text": "Firma personale cordiale"
-        }
       }
     },
     "maps": {

@@ -539,18 +539,6 @@
         "example_3": {
           "text": "Takip ve hatırlatmalar"
         }
-      },
-      "footer": {
-        "text": "E-posta imzasi",
-        "description": {
-          "text": "E-posta taslaklarin icin yeniden kullanilabilir imza ve kapanis bloklari."
-        },
-        "example_1": {
-          "text": "Is imzasi"
-        },
-        "example_2": {
-          "text": "Samimi kisisel imza"
-        }
       }
     },
     "maps": {

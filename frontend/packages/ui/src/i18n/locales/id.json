@@ -539,18 +539,6 @@
         "example_3": {
           "text": "Tindak lanjut dan pengingat"
         }
-      },
-      "footer": {
-        "text": "Footer email",
-        "description": {
-          "text": "Tanda tangan dan penutup yang bisa dipakai ulang untuk draf email Anda."
-        },
-        "example_1": {
-          "text": "Tanda tangan kerja"
-        },
-        "example_2": {
-          "text": "Tanda tangan pribadi yang ramah"
-        }
       }
     },
     "maps": {

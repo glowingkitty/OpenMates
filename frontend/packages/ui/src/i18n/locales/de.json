@@ -539,18 +539,6 @@
         "example_3": {
           "text": "Follow-up und Erinnerungen"
         }
-      },
-      "footer": {
-        "text": "Signatur",
-        "description": {
-          "text": "Wiederverwendbare Signaturen und Abschlussblöcke fur deine E-Mails."
-        },
-        "example_1": {
-          "text": "Arbeits-Signatur"
-        },
-        "example_2": {
-          "text": "Freundliche private Signatur"
-        }
       }
     },
     "maps": {

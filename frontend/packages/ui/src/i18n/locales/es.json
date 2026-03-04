@@ -539,18 +539,6 @@
         "example_3": {
           "text": "Seguimiento y recordatorios"
         }
-      },
-      "footer": {
-        "text": "Pie de correo",
-        "description": {
-          "text": "Firmas y cierres reutilizables para tus borradores de correo."
-        },
-        "example_1": {
-          "text": "Firma de trabajo"
-        },
-        "example_2": {
-          "text": "Firma personal amistosa"
-        }
       }
     },
     "maps": {

@@ -539,18 +539,6 @@
         "example_3": {
           "text": "Relances et rappels"
         }
-      },
-      "footer": {
-        "text": "Signature",
-        "description": {
-          "text": "Signatures et blocs de conclusion reutilisables pour vos e-mails."
-        },
-        "example_1": {
-          "text": "Signature professionnelle"
-        },
-        "example_2": {
-          "text": "Signature personnelle conviviale"
-        }
       }
     },
     "maps": {

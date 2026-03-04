@@ -539,18 +539,6 @@
         "example_3": {
           "text": "Následná komunikace a připomínky"
         }
-      },
-      "footer": {
-        "text": "Podpis",
-        "description": {
-          "text": "Opakovane pouzitelne podpisy a zaverecne bloky pro koncepty e-mailu."
-        },
-        "example_1": {
-          "text": "Pracovni podpis"
-        },
-        "example_2": {
-          "text": "Pratelsky osobni podpis"
-        }
       }
     },
     "maps": {
