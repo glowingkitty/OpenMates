@@ -1795,7 +1795,10 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
     if os.getenv("SERVER_ENVIRONMENT", "development") != "production":
         # Sanitize request data to show only metadata (counts, lengths) instead of actual content
         sanitized_request = sanitize_request_data_for_logging(request_data_dict)
-        logger.info(f"[Task ID: {task_id}] Received apps.ai.tasks.skill_ask task. Request: {sanitized_request}, Skill Config: {skill_config_dict}")
+        logger.info(
+            f"[Task ID: {task_id}] Received apps.ai.tasks.skill_ask task "
+            f"(request={sanitized_request}, skill_config_keys={sorted(skill_config_dict.keys())})"
+        )
     else:
         # In production, never log request data with sensitive content
         logger.info(f"[Task ID: {task_id}] Received apps.ai.tasks.skill_ask task.")
