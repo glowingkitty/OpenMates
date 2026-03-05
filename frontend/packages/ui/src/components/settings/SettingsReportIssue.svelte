@@ -235,11 +235,15 @@
      * Collect device information for debugging purposes
      */
     function collectDeviceInfo() {
+        const nav = navigator as Navigator & { deviceMemory?: number };
+
         return {
-            userAgent: navigator.userAgent || '',
+            userAgent: nav.userAgent || '',
             viewportWidth: window.innerWidth || 0,
             viewportHeight: window.innerHeight || 0,
-            isTouchEnabled: 'ontouchstart' in window || navigator.maxTouchPoints > 0
+            isTouchEnabled: 'ontouchstart' in window || nav.maxTouchPoints > 0,
+            logicalCores: nav.hardwareConcurrency ?? null,
+            deviceMemoryGiB: nav.deviceMemory ?? null
         };
     }
     
