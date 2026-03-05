@@ -2422,29 +2422,29 @@ ai.skill.ask.model.kimi_k2.5:
   he: Kimi K2.5
   verified_by_human: []
 
-ai.skill.ask.model.gpt_5.2:
-  context: Display name for the GPT-5.2 AI model, shown as the settings page title when navigating directly to this model
-  en: GPT-5.2
-  de: GPT-5.2
-  zh: GPT-5.2
-  es: GPT-5.2
-  fr: GPT-5.2
-  pt: GPT-5.2
-  ru: GPT-5.2
-  ja: GPT-5.2
-  ko: GPT-5.2
-  it: GPT-5.2
-  tr: GPT-5.2
-  vi: GPT-5.2
-  id: GPT-5.2
-  pl: GPT-5.2
-  nl: GPT-5.2
-  ar: GPT-5.2
-  hi: GPT-5.2
-  th: GPT-5.2
-  cs: GPT-5.2
-  sv: GPT-5.2
-  he: GPT-5.2
+ai.skill.ask.model.gpt_5.4:
+  context: Display name for the GPT-5.4 AI model, shown as the settings page title when navigating directly to this model
+  en: GPT-5.4
+  de: GPT-5.4
+  zh: GPT-5.4
+  es: GPT-5.4
+  fr: GPT-5.4
+  pt: GPT-5.4
+  ru: GPT-5.4
+  ja: GPT-5.4
+  ko: GPT-5.4
+  it: GPT-5.4
+  tr: GPT-5.4
+  vi: GPT-5.4
+  id: GPT-5.4
+  pl: GPT-5.4
+  nl: GPT-5.4
+  ar: GPT-5.4
+  hi: GPT-5.4
+  th: GPT-5.4
+  cs: GPT-5.4
+  sv: GPT-5.4
+  he: GPT-5.4
   verified_by_human: []
 
 ai.skill.ask.model.gpt_oss_120b:

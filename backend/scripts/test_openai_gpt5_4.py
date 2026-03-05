@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-# backend/scripts/test_openai_gpt5_2.py
+# backend/scripts/test_openai_gpt5_4.py
 #
-# Integration test script for GPT-5.2 via OpenAI API.
+# Integration test script for GPT-5.4 via OpenAI API.
 # This script tests basic completion, streaming, and tool use.
 
 import asyncio
@@ -19,9 +19,9 @@ logger = logging.getLogger(__name__)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
-async def test_gpt5_2():
+async def test_gpt5_4():
     print("\n" + "="*80)
-    print("GPT-5.2 INTEGRATION TESTS")
+    print("GPT-5.4 INTEGRATION TESTS")
     print("="*80 + "\n")
 
     # Import required modules
@@ -40,7 +40,7 @@ async def test_gpt5_2():
         print(f"❌ Failed to initialize SecretsManager: {e}")
         return 1
 
-    model_id = "gpt-5.2"
+    model_id = "gpt-5.4"
     
     # 1. Check if model is in config
     print(f"\nChecking configuration for {model_id}...")
@@ -56,12 +56,12 @@ async def test_gpt5_2():
     print(f"\nTesting Basic Completion (Non-streaming) for {model_id}...")
     messages = [
         {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "Hello, who are you? Please respond with 'I am GPT-5.2' if you are that model."}
+        {"role": "user", "content": "Hello, who are you? Please respond with 'I am GPT-5.4' if you are that model."}
     ]
     
     try:
         response = await invoke_openai_chat_completions(
-            task_id="test_gpt5_2_basic",
+            task_id="test_gpt5_4_basic",
             model_id=model_id,
             messages=messages,
             secrets_manager=secrets_manager,
@@ -83,7 +83,7 @@ async def test_gpt5_2():
     print(f"\nTesting Streaming for {model_id}...")
     try:
         stream_iter = await invoke_openai_chat_completions(
-            task_id="test_gpt5_2_stream",
+            task_id="test_gpt5_4_stream",
             model_id=model_id,
             messages=[{"role": "user", "content": "Count from 1 to 5 slowly."}],
             secrets_manager=secrets_manager,
@@ -126,7 +126,7 @@ async def test_gpt5_2():
     
     try:
         response = await invoke_openai_chat_completions(
-            task_id="test_gpt5_2_tools",
+            task_id="test_gpt5_4_tools",
             model_id=model_id,
             messages=[{"role": "user", "content": "What time is it in UTC?"}],
             secrets_manager=secrets_manager,
@@ -151,7 +151,7 @@ async def test_gpt5_2():
     try:
         # We call the OpenRouter wrapper with the provider prefix to test resolution
         response = await invoke_openrouter_chat_completions(
-            task_id="test_gpt5_2_openrouter",
+            task_id="test_gpt5_4_openrouter",
             model_id=f"openai/{model_id}",
             messages=[{"role": "user", "content": "Hello via OpenRouter. Who are you?"}],
             secrets_manager=secrets_manager,
@@ -175,21 +175,21 @@ async def test_gpt5_2():
         from unittest.mock import patch
         
         # We mock _invoke_openai_direct_api to fail, which should trigger automatic fallback in invoke_openai_chat_completions
-        # since gpt-5.2 is configured with both openai and openrouter servers.
+        # since gpt-5.4 is configured with both openai and openrouter servers.
         from backend.apps.ai.llm_providers.openai_client import UnifiedOpenAIResponse
         
         async def mock_failed_direct_api(*args, **kwargs):
             print("      (Simulating OpenAI Direct API failure...)")
             return UnifiedOpenAIResponse(
                 task_id=kwargs.get("task_id", "test_fallback"),
-                model_id=kwargs.get("model_id", "gpt-5.2"),
+                model_id=kwargs.get("model_id", "gpt-5.4"),
                 success=False,
                 error_message="Simulated OpenAI Direct failure"
             )
             
         with patch("backend.apps.ai.llm_providers.openai_client._invoke_openai_direct_api", side_effect=mock_failed_direct_api):
             response = await invoke_openai_chat_completions(
-                task_id="test_gpt5_2_auto_fallback",
+                task_id="test_gpt5_4_auto_fallback",
                 model_id=model_id,
                 messages=[{"role": "user", "content": "Hello. This request should automatically fallback to OpenRouter."}],
                 secrets_manager=secrets_manager,
@@ -217,4 +217,4 @@ if __name__ == "__main__":
     # The root of the project should be in the sys.path
     # In docker it's /app
     sys.path.append("/app")
-    asyncio.run(test_gpt5_2())
+    asyncio.run(test_gpt5_4())

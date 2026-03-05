@@ -71,8 +71,8 @@ def mock_leaderboard_data() -> Dict[str, Any]:
             },
             {
                 "rank": 5,
-                "model_id": "gpt-5.2",
-                "name": "GPT-5.2",
+                "model_id": "gpt-5.4",
+                "name": "GPT-5.4",
                 "provider_id": "openai",
                 "country_origin": "US",
                 "composite_score": 90.0,
@@ -262,9 +262,9 @@ class TestOverrideParser:
         """Should parse @ai-model:xxx:provider syntax."""
         from backend.core.api.app.utils.override_parser import parse_overrides
 
-        result = parse_overrides("Explain quantum computing @ai-model:gpt-5.2:openrouter")
+        result = parse_overrides("Explain quantum computing @ai-model:gpt-5.4:openrouter")
 
-        assert result.model_id == "gpt-5.2"
+        assert result.model_id == "gpt-5.4"
         assert result.model_provider == "openrouter"
         assert result.has_overrides is True
 
@@ -302,9 +302,9 @@ class TestOverrideParser:
         """Should parse multiple overrides in one message."""
         from backend.core.api.app.utils.override_parser import parse_overrides
 
-        result = parse_overrides("Do something @ai-model:gpt-5.2 @mate:researcher @skill:web:search")
+        result = parse_overrides("Do something @ai-model:gpt-5.4 @mate:researcher @skill:web:search")
 
-        assert result.model_id == "gpt-5.2"
+        assert result.model_id == "gpt-5.4"
         assert result.mate_id == "researcher"
         assert len(result.skills) == 1
         assert result.has_overrides is True
@@ -336,12 +336,12 @@ class TestOverrideParser:
         messages = [
             {"role": "user", "content": "Hello"},
             {"role": "assistant", "content": "Hi there!"},
-            {"role": "user", "content": "Explain this @ai-model:gpt-5.2"}
+            {"role": "user", "content": "Explain this @ai-model:gpt-5.4"}
         ]
 
         overrides, cleaned_messages = parse_overrides_from_messages(messages)
 
-        assert overrides.model_id == "gpt-5.2"
+        assert overrides.model_id == "gpt-5.4"
         assert overrides.has_overrides is True
         # Last user message should be cleaned
         assert cleaned_messages[-1]["content"] == "Explain this"
@@ -464,7 +464,7 @@ class TestEdgeCases:
         """Should handle special characters in message."""
         from backend.core.api.app.utils.override_parser import parse_overrides
 
-        result = parse_overrides("What about this? 🤔 @ai-model:gpt-5.2")
+        result = parse_overrides("What about this? 🤔 @ai-model:gpt-5.4")
 
-        assert result.model_id == "gpt-5.2"
+        assert result.model_id == "gpt-5.4"
         assert "🤔" in result.cleaned_message

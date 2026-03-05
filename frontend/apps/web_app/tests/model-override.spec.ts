@@ -31,7 +31,7 @@ const {
 	createStepScreenshotter,
 	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount,
+	getTestAccount
 } = require('./signup-flow-helpers');
 
 /**
@@ -198,7 +198,7 @@ async function startNewChat(
  * verifies the model appears, and presses Tab to autocomplete.
  *
  * @param page - Playwright page object
- * @param modelSearchTerm - Partial model name to search (e.g., "qwen3" or "gpt-5.2")
+ * @param modelSearchTerm - Partial model name to search (e.g., "qwen3" or "gpt-5.4")
  * @param expectedModelDisplayName - Expected model name in dropdown (for verification)
  * @param logCheckpoint - Logging function
  * @param takeStepScreenshot - Screenshot function
@@ -531,17 +531,17 @@ test('select qwen model via @ mention dropdown', async ({ page }: { page: any })
 });
 
 /**
- * Test: Select GPT-5.2 model via @ mention dropdown and verify it's used.
+ * Test: Select GPT-5.4 model via @ mention dropdown and verify it's used.
  *
  * Flow:
- * 1. Type "@gpt-5.2" in message input
- * 2. Verify "GPT-5.2" appears in MentionDropdown
+ * 1. Type "@gpt-5.4" in message input
+ * 2. Verify "GPT-5.4" appears in MentionDropdown
  * 3. Press Tab to autocomplete
  * 4. Type "Capital city of Germany? short answer please."
  * 5. Send message
- * 6. Verify response shows "GPT-5.2" in generated-by text
+ * 6. Verify response shows "GPT-5.4" in generated-by text
  */
-test('select gpt-5.2 model via @ mention dropdown', async ({ page }: { page: any }) => {
+test('select gpt-5.4 model via @ mention dropdown', async ({ page }: { page: any }) => {
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
 		consoleLogs.push(`[${timestamp}] [${msg.type()}] ${msg.text()}`);
@@ -569,7 +569,7 @@ test('select gpt-5.2 model via @ mention dropdown', async ({ page }: { page: any
 
 	await archiveExistingScreenshots(logCheckpoint);
 
-	logCheckpoint('Starting GPT-5.2 model mention test.', { email: TEST_EMAIL });
+	logCheckpoint('Starting GPT-5.4 model mention test.', { email: TEST_EMAIL });
 
 	// Login
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
@@ -577,12 +577,12 @@ test('select gpt-5.2 model via @ mention dropdown', async ({ page }: { page: any
 	// Start a new chat
 	await startNewChat(page, logCheckpoint);
 
-	// Select GPT-5.2 via @ mention dropdown
-	// Search term "gpt-5.2" should find "GPT-5.2" in the dropdown
+	// Select GPT-5.4 via @ mention dropdown
+	// Search term "gpt-5.4" should find "GPT-5.4" in the dropdown
 	await selectModelViaMentionDropdown(
 		page,
-		'gpt-5.2',
-		'GPT-5.2',
+		'gpt-5.4',
+		'GPT-5.4',
 		logCheckpoint,
 		takeStepScreenshot,
 		'gpt'
@@ -597,11 +597,11 @@ test('select gpt-5.2 model via @ mention dropdown', async ({ page }: { page: any
 		'gpt'
 	);
 
-	// Wait for response and verify GPT-5.2 model was used
-	// The generated-by text should contain "GPT-5.2" (case-insensitive)
+	// Wait for response and verify GPT-5.4 model was used
+	// The generated-by text should contain "GPT-5.4" (case-insensitive)
 	const response = await waitForResponseAndVerifyModel(
 		page,
-		/gpt-?5\.?2/i,
+		/gpt-?5\.?4/i,
 		logCheckpoint,
 		takeStepScreenshot,
 		'gpt'
@@ -614,7 +614,7 @@ test('select gpt-5.2 model via @ mention dropdown', async ({ page }: { page: any
 	// Cleanup
 	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'gpt-cleanup');
 
-	logCheckpoint('GPT-5.2 model mention test completed successfully.');
+	logCheckpoint('GPT-5.4 model mention test completed successfully.');
 });
 
 /**
@@ -624,10 +624,10 @@ test('select gpt-5.2 model via @ mention dropdown', async ({ page }: { page: any
  * 1. Login once
  * 2. Test Qwen: Select via @qwen, send question, verify response
  * 3. Delete chat
- * 4. Test GPT-5.2: Select via @gpt-5.2, send question, verify response
+ * 4. Test GPT-5.4: Select via @gpt-5.4, send question, verify response
  * 5. Delete chat
  */
-test('switch between qwen and gpt-5.2 via @ mention dropdown', async ({ page }: { page: any }) => {
+test('switch between qwen and gpt-5.4 via @ mention dropdown', async ({ page }: { page: any }) => {
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
 		consoleLogs.push(`[${timestamp}] [${msg.type()}] ${msg.text()}`);
@@ -694,14 +694,14 @@ test('switch between qwen and gpt-5.2 via @ mention dropdown', async ({ page }: 
 
 	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'switch-qwen-cleanup');
 
-	// --- Test 2: GPT-5.2 ---
-	logCheckpoint('--- Testing GPT-5.2 model via @ mention ---');
+	// --- Test 2: GPT-5.4 ---
+	logCheckpoint('--- Testing GPT-5.4 model via @ mention ---');
 	await startNewChat(page, logCheckpoint);
 
 	await selectModelViaMentionDropdown(
 		page,
-		'gpt-5.2',
-		'GPT-5.2',
+		'gpt-5.4',
+		'GPT-5.4',
 		logCheckpoint,
 		takeStepScreenshot,
 		'switch-gpt'
@@ -717,14 +717,14 @@ test('switch between qwen and gpt-5.2 via @ mention dropdown', async ({ page }: 
 
 	const gptResponse = await waitForResponseAndVerifyModel(
 		page,
-		/gpt-?5\.?2/i,
+		/gpt-?5\.?4/i,
 		logCheckpoint,
 		takeStepScreenshot,
 		'switch-gpt'
 	);
 
 	expect(gptResponse).toContain('10');
-	logCheckpoint('GPT-5.2 test passed: response contains "10".');
+	logCheckpoint('GPT-5.4 test passed: response contains "10".');
 
 	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'switch-gpt-cleanup');
 

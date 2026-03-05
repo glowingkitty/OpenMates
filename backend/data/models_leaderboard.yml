@@ -52,8 +52,8 @@ rankings:
     lmarena_rank: 11
     openrouter_rank: null
   - rank: 5
-    model_id: gpt-5.2
-    name: GPT-5.2
+    model_id: gpt-5.4
+    name: GPT-5.4
     provider_id: openai
     country_origin: US
     composite_score: 90.0
