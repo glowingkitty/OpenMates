@@ -807,11 +807,63 @@ type EmbedDecodeAttempt = {
   embedId: string;
   decoded: Record<string, unknown> | null;
   error: string | null;
+  keyDebug: EmbedKeyDebugInfo | null;
 };
+
+type EmbedKeyDebugInfo = {
+  total: number;
+  keyTypes: Record<string, number>;
+  minEncryptedKeyLength: number;
+  maxEncryptedKeyLength: number;
+};
+
+function buildEmbedKeyDebugMap(
+  embedKeys: Record<string, unknown>[],
+): Record<string, EmbedKeyDebugInfo> {
+  const keyMap: Record<string, EmbedKeyDebugInfo> = {};
+
+  for (const key of embedKeys) {
+    const hashedEmbedId = String(key.hashed_embed_id || "");
+    if (!hashedEmbedId) continue;
+
+    if (!keyMap[hashedEmbedId]) {
+      keyMap[hashedEmbedId] = {
+        total: 0,
+        keyTypes: {},
+        minEncryptedKeyLength: Number.MAX_SAFE_INTEGER,
+        maxEncryptedKeyLength: 0,
+      };
+    }
+
+    const entry = keyMap[hashedEmbedId];
+    const keyType = String(key.key_type || "unknown");
+    const encryptedKeyLength = String(key.encrypted_embed_key || "").length;
+
+    entry.total += 1;
+    entry.keyTypes[keyType] = (entry.keyTypes[keyType] || 0) + 1;
+    entry.minEncryptedKeyLength = Math.min(
+      entry.minEncryptedKeyLength,
+      encryptedKeyLength,
+    );
+    entry.maxEncryptedKeyLength = Math.max(
+      entry.maxEncryptedKeyLength,
+      encryptedKeyLength,
+    );
+  }
+
+  for (const value of Object.values(keyMap)) {
+    if (value.minEncryptedKeyLength === Number.MAX_SAFE_INTEGER) {
+      value.minEncryptedKeyLength = 0;
+    }
+  }
+
+  return keyMap;
+}
 
 async function collectClientEmbedDecodeHealth(
   embeds: Record<string, unknown>[],
   maxChecks: number,
+  embedKeyDebugByHashedEmbedId: Record<string, EmbedKeyDebugInfo>,
 ): Promise<{
   checkedCount: number;
   decodedCount: number;
@@ -859,6 +911,9 @@ async function collectClientEmbedDecodeHealth(
       checkedCount += 1;
 
       try {
+        const hashedEmbedId = await computeSHA256(embedId);
+        const keyDebug = embedKeyDebugByHashedEmbedId[hashedEmbedId] || null;
+
         const resolved = await resolveEmbed(embedId);
         if (!resolved?.content) {
           failedCount += 1;
@@ -867,6 +922,7 @@ async function collectClientEmbedDecodeHealth(
             embedId,
             decoded: null,
             error: "resolved embed has no content",
+            keyDebug,
           });
           continue;
         }
@@ -879,6 +935,7 @@ async function collectClientEmbedDecodeHealth(
             embedId,
             decoded: decoded as Record<string, unknown>,
             error: null,
+            keyDebug,
           });
         } else {
           failedCount += 1;
@@ -887,6 +944,7 @@ async function collectClientEmbedDecodeHealth(
             embedId,
             decoded: null,
             error: "decoded content is empty or invalid",
+            keyDebug,
           });
         }
       } catch (error) {
@@ -896,6 +954,7 @@ async function collectClientEmbedDecodeHealth(
           embedId,
           decoded: null,
           error: error instanceof Error ? error.message : String(error),
+          keyDebug: null,
         });
       }
     }
@@ -1030,6 +1089,26 @@ function logHealthCheckBanner(
   );
 }
 
+function logFailedEmbedDecryptionBanner(attempts: EmbedDecodeAttempt[]): void {
+  const failedAttempts = attempts.filter((attempt) => !attempt.decoded);
+  if (failedAttempts.length === 0) return;
+
+  console.error(
+    `%c🔴 EMBED DECRYPTION FAILURES (${failedAttempts.length})`,
+    "font-weight: 700; font-size: 13px; color: #dc2626;",
+  );
+
+  for (const failed of failedAttempts) {
+    const keyInfo = failed.keyDebug
+      ? `keys=${failed.keyDebug.total} types=${JSON.stringify(failed.keyDebug.keyTypes)} enc_len=${failed.keyDebug.minEncryptedKeyLength}-${failed.keyDebug.maxEncryptedKeyLength}`
+      : "keys=unknown";
+    console.error(
+      `%c  • embed=${failed.embedId} error=${failed.error || "unknown"} ${keyInfo}`,
+      "color: #ef4444; font-weight: 600;",
+    );
+  }
+}
+
 /**
  * Inspect a chat and generate a formatted text report
  *
@@ -1096,6 +1175,7 @@ export async function inspectChat(
     hashedChatId,
   );
   const totalEmbedKeysCount = await getStoreCount(db, EMBED_KEYS_STORE);
+  const embedKeyDebugByHashedEmbedId = buildEmbedKeyDebugMap(chatEmbedKeys);
 
   chatEmbeds.sort(
     (a, b) => ((b.createdAt as number) || 0) - ((a.createdAt as number) || 0),
@@ -1104,6 +1184,7 @@ export async function inspectChat(
   const embedDecodeHealth = await collectClientEmbedDecodeHealth(
     chatEmbeds,
     showCount,
+    embedKeyDebugByHashedEmbedId,
   );
 
   const healthSummary = buildClientChatHealthSummary({
@@ -1121,6 +1202,24 @@ export async function inspectChat(
     healthSummary,
     `messages=${messages.length} embeds=${chatEmbeds.length} embed_keys=${chatEmbedKeys.length}`,
   );
+  const failedDecodeAttempts = embedDecodeHealth.attempts.filter(
+    (attempt) => !attempt.decoded,
+  );
+  if (failedDecodeAttempts.length > 0) {
+    lines.push("");
+    lines.push("🔴 EMBED DECRYPTION FAILURES");
+    for (const failed of failedDecodeAttempts) {
+      lines.push(`  - Embed ID: ${failed.embedId}`);
+      lines.push(`    Error: ${failed.error || "unknown"}`);
+      if (failed.keyDebug) {
+        lines.push(
+          `    Key info: total=${failed.keyDebug.total} types=${JSON.stringify(failed.keyDebug.keyTypes)} encrypted_key_len=${failed.keyDebug.minEncryptedKeyLength}-${failed.keyDebug.maxEncryptedKeyLength}`,
+        );
+      } else {
+        lines.push("    Key info: no matching embed_keys found for this embed");
+      }
+    }
+  }
 
   lines.push("");
   lines.push(thinSeparator);
@@ -1470,6 +1569,7 @@ export async function inspectChat(
   const report = lines.join("\n");
 
   logHealthCheckBanner("CHAT", healthSummary.isHealthy);
+  logFailedEmbedDecryptionBanner(embedDecodeHealth.attempts);
 
   // Output full report to console as a single string for easy copying
   console.log(report);
