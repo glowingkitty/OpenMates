@@ -275,6 +275,16 @@
     let selectedNode = $state<{ node: any; pos: number } | null>(null);
     let isMenuInteraction = false;
     let previousHeight = 0;
+
+    const MESSAGE_FIELD_MIN_HEIGHT = 100;
+    const MESSAGE_FIELD_MIN_HEIGHT_COMPACT = 60;
+    const MESSAGE_FIELD_MAX_HEIGHT = 350;
+    const MESSAGE_FIELD_MAPS_HEIGHT = 400;
+    const MESSAGE_FIELD_FULLSCREEN_FALLBACK_VH = 0.65;
+    const MESSAGE_FIELD_TRANSITION_DURATION_MS = 300;
+    const MESSAGE_FIELD_TRANSITION_BUFFER_MS = 70;
+    const FULLSCREEN_TOP_GUTTER_PX = 20;
+    let panelHeightTransitionOverride = $state<string | null>(null);
     
     // Computed state for showing action buttons
     // In extended/fullscreen mode: always visible (no tap required).
@@ -1300,11 +1310,11 @@
             // Use an explicit pixel height (containerRect.height - 20) instead of `height:auto`
             // so that Svelte transitions on child overlays (MapsView, CameraView) can measure
             // the container height correctly via getComputedStyle before the browser layout pass.
-            const top    = containerRect.top + 20;
+            const top    = containerRect.top + FULLSCREEN_TOP_GUTTER_PX;
             const bottom = window.innerHeight - containerRect.bottom;
             const left   = containerRect.left;
             const right  = window.innerWidth - containerRect.right;
-            const height = containerRect.height - 20;
+            const height = containerRect.height - FULLSCREEN_TOP_GUTTER_PX;
             return [
                 'position: fixed',
                 `left: ${left}px`,
@@ -1321,15 +1331,15 @@
         }
         if (isFullscreen) {
             // Fallback when containerRect is not yet available (initial render edge case).
-            return 'height: 65dvh; max-height: 65dvh;';
+            return `height: ${MESSAGE_FIELD_FULLSCREEN_FALLBACK_VH * 100}dvh; max-height: ${MESSAGE_FIELD_FULLSCREEN_FALLBACK_VH * 100}dvh;`;
         }
         // Maps/camera overlay open (non-fullscreen only): grow to fixed height so the
         // overlay fills edge-to-edge. When closing, we fall through to the default below
         // which correctly restores `height: auto` without affecting fullscreen state.
         if (showMaps || showCamera) {
-            return 'height: 400px; max-height: 400px;';
+            return `height: ${MESSAGE_FIELD_MAPS_HEIGHT}px; max-height: ${MESSAGE_FIELD_MAPS_HEIGHT}px;`;
         }
-        return 'height: auto; max-height: 350px;';
+        return `height: auto; max-height: ${MESSAGE_FIELD_MAX_HEIGHT}px;`;
     })());
 
     // In fullscreen the scrollable content area fills the panel height minus the action buttons row (~120px).
@@ -3002,10 +3012,68 @@
         }
     }
     function checkScrollable() { if (scrollableContent) isScrollable = scrollableContent.scrollHeight > scrollableContent.clientHeight; }
-    function toggleFullscreen() {
+
+    function getCollapsedTargetHeight(): number {
+        if (showMaps || showCamera) return MESSAGE_FIELD_MAPS_HEIGHT;
+        const minHeight = shouldShowActionButtons ? MESSAGE_FIELD_MIN_HEIGHT : MESSAGE_FIELD_MIN_HEIGHT_COMPACT;
+        const messageField = messageInputWrapper?.querySelector('.message-field') as HTMLElement | null;
+        const measuredContentHeight = messageField?.scrollHeight ?? minHeight;
+        return Math.min(Math.max(measuredContentHeight, minHeight), MESSAGE_FIELD_MAX_HEIGHT);
+    }
+
+    function getFullscreenTargetHeight(): number {
+        if (containerRect && typeof window !== 'undefined') {
+            return Math.max(containerRect.height - FULLSCREEN_TOP_GUTTER_PX, MESSAGE_FIELD_MIN_HEIGHT);
+        }
+        if (typeof window !== 'undefined') {
+            return Math.max(Math.round(window.innerHeight * MESSAGE_FIELD_FULLSCREEN_FALLBACK_VH), MESSAGE_FIELD_MIN_HEIGHT);
+        }
+        return Math.max(MESSAGE_FIELD_MAPS_HEIGHT, MESSAGE_FIELD_MIN_HEIGHT);
+    }
+
+    async function waitForMessageFieldHeightTransition(messageField: HTMLElement): Promise<void> {
+        const fallbackMs = MESSAGE_FIELD_TRANSITION_DURATION_MS + MESSAGE_FIELD_TRANSITION_BUFFER_MS;
+        await new Promise<void>((resolve) => {
+            let settled = false;
+            const settle = () => {
+                if (settled) return;
+                settled = true;
+                messageField.removeEventListener('transitionend', onTransitionEnd);
+                resolve();
+            };
+            const onTransitionEnd = (event: TransitionEvent) => {
+                if (event.target !== messageField) return;
+                if (event.propertyName !== 'height' && event.propertyName !== 'max-height') return;
+                settle();
+            };
+            messageField.addEventListener('transitionend', onTransitionEnd);
+            setTimeout(settle, fallbackMs);
+        });
+    }
+
+    async function toggleFullscreen() {
+        const messageField = messageInputWrapper?.querySelector('.message-field') as HTMLElement | null;
+        if (!messageField) {
+            isFullscreen = !isFullscreen;
+            dispatch('fullscreenToggle', isFullscreen);
+            tick().then(checkScrollable);
+            return;
+        }
+
+        const startHeight = Math.round(messageField.getBoundingClientRect().height);
+        panelHeightTransitionOverride = `height: ${startHeight}px; max-height: ${startHeight}px;`;
+        await tick();
+
         isFullscreen = !isFullscreen;
         dispatch('fullscreenToggle', isFullscreen);
-        tick().then(checkScrollable);
+
+        await tick();
+        const targetHeight = isFullscreen ? getFullscreenTargetHeight() : getCollapsedTargetHeight();
+        panelHeightTransitionOverride = `height: ${targetHeight}px; max-height: ${targetHeight}px;`;
+
+        await waitForMessageFieldHeightTransition(messageField);
+        panelHeightTransitionOverride = null;
+        checkScrollable();
     }
 
     // --- Action Handlers (delegating to imported handlers) ---
@@ -3704,7 +3772,11 @@
     // so the overlay fills edge-to-edge (same as maps). Without this the desktop camera
     // view renders at a tiny default height.
     // These aliases exist so the template references remain unchanged.
-    let containerStyle = $derived(messagePanelStyle);
+    let containerStyle = $derived(
+        panelHeightTransitionOverride
+            ? `${messagePanelStyle} ${panelHeightTransitionOverride}`
+            : messagePanelStyle
+    );
     let scrollableStyle = $derived(messagePanelScrollableStyle);
     
     // Convert reactive statement with side effects to $effect
