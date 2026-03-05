@@ -40,8 +40,8 @@ skills:
     description_translation_key: app_skills.shopping.search_products.description
     icon_image: shopping.svg
     preprocessor_hint: >
-      Search the REWE online supermarket for products with real-time prices.
-      Returns products with current prices, dietary tags, and purchase links.
+      Search products on REWE or Amazon with real-time prices.
+      Returns products with prices, ratings, badges, and purchase links.
       Costs 10 credits per search. Best for grocery price comparisons and shopping lists.
     stage: production
     class_path: backend.apps.shopping.skills.search_products.SearchProductsSkill
@@ -76,9 +76,16 @@ skills:
               query:
                 type: string
                 description: >
-                  Search query in German or English, e.g. "milch", "bio joghurt",
-                  "pasta barilla", "cola", "reiniger". REWE is a German supermarket
-                  so German terms often yield better results.
+                  Search query, e.g. "bio joghurt", "coffee grinder", "wireless mouse".
+              provider:
+                type: string
+                description: >
+                  Product provider. "REWE" searches the German REWE supermarket.
+                  "Amazon" searches Amazon marketplace products via SerpAPI.
+                enum:
+                  - REWE
+                  - Amazon
+                default: REWE
               max_results:
                 type: integer
                 description: Maximum number of products to return (1-20, default 10).
@@ -87,25 +94,64 @@ skills:
                 type: string
                 description: >
                   Sort order for results.
-                  "relevance" — best match first (default).
-                  "price_asc" — cheapest first.
-                  "price_desc" — most expensive first.
-                  "new" — newest products first.
+                  REWE supports: relevance, price_asc, price_desc, new.
+                  Amazon supports: relevance, price_asc, price_desc, review_rank,
+                  newest, best_sellers.
                 enum:
                   - relevance
                   - price_asc
                   - price_desc
                   - new
+                  - review_rank
+                  - newest
+                  - best_sellers
                 default: relevance
               service_type:
                 type: string
                 description: >
-                  Fulfilment type. "DELIVERY" for home delivery (default).
-                  "CLICK_AND_COLLECT" for store pickup.
+                  REWE-only fulfilment type. "DELIVERY" for home delivery (default).
+                  "CLICK_AND_COLLECT" for store pickup. Ignored for Amazon.
                 enum:
                   - DELIVERY
                   - CLICK_AND_COLLECT
                 default: DELIVERY
+              country:
+                type: string
+                description: >
+                  Amazon-only marketplace country code. Example: us, uk, de, fr,
+                  it, es, ca, au, jp, in, br, mx, nl, sg, se, pl.
+                  If omitted, inferred from user language/locale with fallback to us.
+              department:
+                type: string
+                description: >
+                  Amazon-only category filter. Example: electronics, computers,
+                  fashion, home, books, sports, toys, beauty, grocery, automotive,
+                  health, music, movies, tools, office, pet_supplies, video_games, baby.
+                enum:
+                  - electronics
+                  - computers
+                  - fashion
+                  - home
+                  - books
+                  - sports
+                  - toys
+                  - beauty
+                  - grocery
+                  - automotive
+                  - health
+                  - music
+                  - movies
+                  - tools
+                  - office
+                  - pet_supplies
+                  - video_games
+                  - baby
+              min_price:
+                type: number
+                description: Amazon-only minimum price filter (client-side after fetch).
+              max_price:
+                type: number
+                description: Amazon-only maximum price filter (client-side after fetch).
             required:
               - query
       required:

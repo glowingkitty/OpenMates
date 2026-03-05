@@ -24,8 +24,8 @@ search_products:
   verified_by_human: [en, de]
 search_products.description:
   context: Description for shopping search products skill
-  en: Search and compare products across supermarkets.
-  de: Produkte in Supermärkten suchen und vergleichen.
+  en: Search and compare products on REWE and Amazon.
+  de: Produkte bei REWE und Amazon suchen und vergleichen.
   zh: 在超市中搜索和比较产品。
   es: Busca y compara productos en supermercados.
   fr: Cherchez et comparez des produits dans les supermarchés.
@@ -74,8 +74,8 @@ search_products.how_to_use.1:
 
 search_products.how_to_use.2:
   context: Example instruction for shopping search products skill - pasta comparison
-  en: "**Compare prices** for spaghetti at different supermarkets"
-  de: Spaghetti-Preise in verschiedenen Supermärkten vergleichen
+  en: "**Compare prices** for spaghetti on REWE and Amazon"
+  de: Spaghetti-Preise bei REWE und Amazon vergleichen
   zh: 比较不同超市的意大利面价格
   es: Comparar precios de espaguetis en diferentes supermercados
   fr: Comparer les prix des spaghettis dans différents supermarchés

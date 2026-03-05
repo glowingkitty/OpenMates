@@ -40,6 +40,20 @@
     image_url?: string | null;
     category_path?: string | null;
     total_result_count?: number;
+    price?: string | null;
+    price_amount?: number | null;
+    old_price?: string | null;
+    old_price_amount?: number | null;
+    currency_symbol?: string | null;
+    asin?: string;
+    rating?: number | null;
+    reviews?: number | null;
+    prime?: boolean | null;
+    delivery?: string[];
+    bought_last_month?: string | null;
+    provider?: string;
+    country?: string;
+    amazon_domain?: string;
     attributes?: {
       is_organic?: boolean;
       is_vegan?: boolean;
@@ -133,7 +147,17 @@
   // Skill display info
   let skillName = $derived($text('app_skills.shopping.search_products'));
   const skillIconName = 'search';
-  let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
+  let providerLabel = $derived.by(() => {
+    const normalized = provider.trim().toUpperCase();
+    if (normalized === 'AMAZON') {
+      const countryCode = (flatResults[0]?.country || '').toUpperCase();
+      return countryCode ? `Amazon ${countryCode}` : 'Amazon';
+    }
+    if (normalized === 'REWE') return 'REWE';
+    return provider;
+  });
+
+  let viaProvider = $derived(`${$text('embeds.via')} ${providerLabel}`);
 
   /**
    * Flatten nested results if needed.
@@ -166,12 +190,20 @@
   let lowestPriceDisplay = $derived.by(() => {
     if (flatResults.length === 0) return '';
     const prices = flatResults
-      .filter(r => r.price_cents != null && r.price_cents > 0)
-      .map(r => r.price_cents as number);
+      .map((r) => {
+        if (r.price_amount != null && r.price_amount > 0) return r.price_amount;
+        if (r.price_cents != null && r.price_cents > 0) return r.price_cents / 100;
+        return null;
+      })
+      .filter((v): v is number => v != null);
     if (prices.length === 0) return '';
-    const minCents = Math.min(...prices);
-    const formatted = (minCents / 100).toFixed(2).replace('.', ',');
-    return `${$text('embeds.from')} ${formatted} €`;
+
+    const minPrice = Math.min(...prices);
+    const currencySymbol = flatResults.find((r) => r.currency_symbol)?.currency_symbol || '€';
+    const formatted = currencySymbol === '€'
+      ? minPrice.toFixed(2).replace('.', ',')
+      : minPrice.toFixed(2);
+    return `${$text('embeds.from')} ${currencySymbol}${formatted}`;
   });
 
   /** Handle stop button click */
