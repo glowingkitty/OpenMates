@@ -1051,6 +1051,11 @@ app.conf.beat_schedule = {
         'schedule': timedelta(seconds=60),  # Every 60 seconds
         'options': {'queue': 'reminder'},  # Route to reminder queue
     },
+    'password-security-reminders-daily': {
+        'task': 'app.tasks.email_tasks.password_security_reminder_email_task.process_password_security_reminders',
+        'schedule': crontab(hour=8, minute=0),  # Daily at 08:00 UTC
+        'options': {'queue': 'email'},
+    },
     # Pending delivery audit - logs users with undelivered messages (reminders + AI responses)
     # Redis handles TTL-based expiry (60 days); this task provides audit visibility
     'audit-pending-deliveries': {

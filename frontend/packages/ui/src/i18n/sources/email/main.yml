@@ -7,6 +7,51 @@ account_created:
   ja: アカウントが作成されました
   zh: 账户已创建
   he: החשבון נוצר
+password_security_reminder.subject:
+  context: Subject line for recurring security reminders when password login is enabled without 2FA
+  en: Action needed to secure your OpenMates account
+  de: Aktion erforderlich, um dein OpenMates-Konto zu sichern
+  verified_by_human: []
+password_security_reminder.header:
+  context: Header in password security reminder email
+  en: Your account needs a security update
+  de: Dein Konto braucht ein Sicherheits-Update
+  verified_by_human: []
+password_security_reminder.description:
+  context: Intro paragraph in password security reminder email
+  en: Your account is considered fully secure only if password login is protected by 2FA, or if you switch to passkey-only login by removing password login.
+  de: Dein Konto gilt nur dann als vollständig sicher, wenn Passwort-Login mit 2FA geschützt ist, oder wenn du auf reinen Passkey-Login umstellst und Passwort-Login entfernst.
+  verified_by_human: []
+password_security_reminder.rule_1:
+  context: Rule 1 in password security reminder email
+  en: Add an OTP 2FA app to secure password login.
+  de: Füge eine OTP-2FA-App hinzu, um den Passwort-Login zu schützen.
+  verified_by_human: []
+password_security_reminder.rule_2:
+  context: Rule 2 in password security reminder email
+  en: Or set up a passkey (recommended, fast, phishing-resistant).
+  de: Oder richte einen Passkey ein (empfohlen, schnell, phishing-resistent).
+  verified_by_human: []
+password_security_reminder.rule_3:
+  context: Rule 3 in password security reminder email
+  en: If you choose passkeys, remove password login afterwards to eliminate the insecure fallback.
+  de: Wenn du Passkeys nutzt, entferne danach den Passwort-Login, um den unsicheren Fallback zu beseitigen.
+  verified_by_human: []
+password_security_reminder.actions_title:
+  context: Call-to-action title in password security reminder email
+  en: "Open security settings:"
+  de: "Sicherheits-Einstellungen öffnen:"
+  verified_by_human: []
+password_security_reminder.open_2fa_settings:
+  context: Button label for opening 2FA settings from reminder email
+  en: Add OTP 2FA app
+  de: OTP-2FA-App hinzufügen
+  verified_by_human: []
+password_security_reminder.open_passkey_settings:
+  context: Button label for opening passkey settings from reminder email
+  en: Add passkey
+  de: Passkey hinzufügen
+  verified_by_human: []
 welcome_to_openmates:
   context: Email subheader for account created confirmation
   en: Welcome to OpenMates!

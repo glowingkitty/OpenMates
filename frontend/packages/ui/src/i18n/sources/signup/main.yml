@@ -773,27 +773,99 @@ passwords_do_not_match:
   verified_by_human: []
 password_too_short:
   context: Error message shown when password is too short
-  en: Minimum 8 characters
-  de: Mindestens 8 Zeichen
-  zh: 至少8个字符
-  es: Mínimo 8 caracteres
-  fr: Minimum 8 caractères
-  pt: Mínimo de 8 caracteres
-  ru: Минимум 8 символов
-  ja: 最低8文字必要
-  ko: 최소 8자
-  it: Minimo 8 caratteri
-  tr: En az 8 karakter
-  vi: Tối thiểu 8 ký tự
-  id: Minimal 8 karakter
-  pl: Minimum 8 znaków
-  nl: Minimaal 8 tekens
-  ar: الحد الأدنى 8 أحرف
-  hi: न्यूनतम 8 वर्ण
-  th: อย่างน้อย 8 ตัวอักษร
-  cs: Minimálně 8 znaků
+  en: Minimum 12 characters
+  de: Mindestens 12 Zeichen
+  zh: 至少12个字符
+  es: Mínimo 12 caracteres
+  fr: Minimum 12 caractères
+  pt: Mínimo de 12 caracteres
+  ru: Минимум 12 символов
+  ja: 最低12文字必要
+  ko: 최소 12자
+  it: Minimo 12 caratteri
+  tr: En az 12 karakter
+  vi: Tối thiểu 12 ký tự
+  id: Minimal 12 karakter
+  pl: Minimum 12 znaków
+  nl: Minimaal 12 tekens
+  ar: الحد الأدنى 12 حرفًا
+  hi: न्यूनतम 12 वर्ण
+  th: อย่างน้อย 12 ตัวอักษร
+  cs: Minimálně 12 znaků
   sv: ""
-  he: מינימום 8 תווים
+  he: מינימום 12 תווים
+  verified_by_human: []
+password_too_common:
+  context: Error message shown when password is found in the common-password blocklist
+  en: This password is too common. Please choose a stronger one.
+  de: Dieses Passwort ist zu verbreitet. Bitte wähle ein stärkeres.
+  zh: 该密码过于常见。请选择更强的密码。
+  es: Esta contraseña es demasiado común. Elige una más segura.
+  fr: Ce mot de passe est trop courant. Choisissez-en un plus robuste.
+  pt: Esta senha é muito comum. Escolha uma mais forte.
+  ru: Этот пароль слишком распространен. Выберите более надежный.
+  ja: このパスワードは一般的すぎます。より強力なものを選んでください。
+  ko: 이 비밀번호는 너무 흔합니다. 더 강력한 비밀번호를 선택해 주세요.
+  it: Questa password è troppo comune. Scegline una più sicura.
+  tr: Bu parola çok yaygın. Lütfen daha güçlü bir parola seçin.
+  vi: Mật khẩu này quá phổ biến. Vui lòng chọn mật khẩu mạnh hơn.
+  id: Kata sandi ini terlalu umum. Pilih yang lebih kuat.
+  pl: To hasło jest zbyt popularne. Wybierz silniejsze.
+  nl: Dit wachtwoord is te algemeen. Kies een sterker wachtwoord.
+  ar: كلمة المرور هذه شائعة جدًا. يرجى اختيار كلمة مرور أقوى.
+  hi: यह पासवर्ड बहुत सामान्य है। कृपया अधिक मजबूत पासवर्ड चुनें।
+  th: รหัสผ่านนี้พบบ่อยเกินไป โปรดเลือกรหัสผ่านที่ปลอดภัยกว่า
+  cs: Toto heslo je příliš běžné. Vyberte prosím silnější.
+  sv: ""
+  he: הסיסמה הזו נפוצה מדי. בחר/י סיסמה חזקה יותר.
+  verified_by_human: []
+password_needs_lowercase:
+  context: Error message shown when password does not contain a lowercase letter
+  en: At least one lowercase letter
+  de: Mindestens ein Kleinbuchstabe
+  zh: 至少包含一个小写字母
+  es: Al menos una letra minúscula
+  fr: Au moins une lettre minuscule
+  pt: Pelo menos uma letra minúscula
+  ru: Хотя бы одна строчная буква
+  ja: 少なくとも1つの小文字が必要
+  ko: 최소 하나의 소문자
+  it: Almeno una lettera minuscola
+  tr: En az bir küçük harf
+  vi: Ít nhất một chữ thường
+  id: Setidaknya satu huruf kecil
+  pl: Przynajmniej jedna mała litera
+  nl: Minimaal één kleine letter
+  ar: حرف صغير واحد على الأقل
+  hi: कम से कम एक लोअरकेस अक्षर
+  th: อย่างน้อยหนึ่งตัวอักษรพิมพ์เล็ก
+  cs: Alespoň jedno malé písmeno
+  sv: ""
+  he: לפחות אות קטנה אחת
+  verified_by_human: []
+password_needs_uppercase:
+  context: Error message shown when password does not contain an uppercase letter
+  en: At least one uppercase letter
+  de: Mindestens ein Großbuchstabe
+  zh: 至少包含一个大写字母
+  es: Al menos una letra mayúscula
+  fr: Au moins une lettre majuscule
+  pt: Pelo menos uma letra maiúscula
+  ru: Хотя бы одна заглавная буква
+  ja: 少なくとも1つの大文字が必要
+  ko: 최소 하나의 대문자
+  it: Almeno una lettera maiuscola
+  tr: En az bir büyük harf
+  vi: Ít nhất một chữ hoa
+  id: Setidaknya satu huruf besar
+  pl: Przynajmniej jedna wielka litera
+  nl: Minimaal één hoofdletter
+  ar: حرف كبير واحد على الأقل
+  hi: कम से कम एक अपरकेस अक्षर
+  th: อย่างน้อยหนึ่งตัวอักษรพิมพ์ใหญ่
+  cs: Alespoň jedno velké písmeno
+  sv: ""
+  he: לפחות אות גדולה אחת
   verified_by_human: []
 password_too_long:
   context: Error message shown when password is too long
@@ -890,6 +962,51 @@ password_needs_special:
   cs: Alespoň jeden speciální znak
   sv: ""
   he: לפחות תו מיוחד אחד
+  verified_by_human: []
+skip_for_now:
+  context: Small link text on 2FA setup to defer 2FA until later
+  en: Skip for now
+  de: Vorerst überspringen
+  verified_by_human: []
+skip_2fa_warning_title:
+  context: Title on warning screen shown before user skips 2FA setup
+  en: Be aware before skipping 2FA
+  de: Hinweis vor dem Überspringen von 2FA
+  verified_by_human: []
+skip_2fa_warning_intro:
+  context: Intro warning text on 2FA skip consent screen
+  en: "Be aware: your account is not properly secured as long as password login is active without a 2FA app. If you continue, follow these rules:"
+  de: "Achtung: Dein Konto ist nicht ausreichend geschützt, solange Passwort-Login ohne 2FA-App aktiv ist. Wenn du fortfährst, befolge bitte diese Regeln:"
+  verified_by_human: []
+skip_2fa_warning_rule_1:
+  context: Rule 1 for skipping 2FA warning screen
+  en: Never reuse your password anywhere else
+  de: Verwende dein Passwort nirgendwo sonst erneut
+  verified_by_human: []
+skip_2fa_warning_rule_2:
+  context: Rule 2 for skipping 2FA warning screen
+  en: Remember or store your password securely (recommended, use a password manager)
+  de: Merke dir dein Passwort oder speichere es sicher (empfohlen, nutze einen Passwortmanager)
+  verified_by_human: []
+skip_2fa_warning_rule_3:
+  context: Rule 3 for skipping 2FA warning screen
+  en: Never share your password with anyone else (OpenMates will never ask for your password)
+  de: Teile dein Passwort niemals mit anderen (OpenMates wird dich niemals nach deinem Passwort fragen)
+  verified_by_human: []
+skip_2fa_warning_rule_4:
+  context: Rule 4 for skipping 2FA warning screen
+  en: Never enter your password on a domain that is not openmates.org
+  de: Gib dein Passwort niemals auf einer Domain ein, die nicht openmates.org ist
+  verified_by_human: []
+skip_2fa_warning_rule_5:
+  context: Rule 5 for skipping 2FA warning screen
+  en: Complete setup of a 2FA OTP app or passkey in Settings / Account / Security as soon as possible
+  de: Richte so schnell wie möglich eine 2FA-OTP-App oder einen Passkey unter Einstellungen / Konto / Sicherheit ein
+  verified_by_human: []
+skip_2fa_consent_toggle:
+  context: Consent checkbox label to acknowledge security risks before skipping 2FA setup
+  en: I understand these risks and want to continue without setting up 2FA now
+  de: Ich verstehe diese Risiken und möchte ohne sofortige 2FA-Einrichtung fortfahren
   verified_by_human: []
 agree_to:
   context: "in message: 'Agree to Terms of service' and 'Agree to Privacy policy'"

@@ -1,4 +1,5 @@
 <script lang="ts">
+    /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
     import { tick } from 'svelte';
     import { getWebsiteUrl, routes } from '../../config/links';
     import { _ } from 'svelte-i18n';
@@ -26,6 +27,7 @@
     const STEP_PASSKEY_PRF_ERROR = 'passkey_prf_error';
     // const STEP_PROFILE_PICTURE = 'profile_picture'; // Moved to settings menu
     const STEP_ONE_TIME_CODES = 'one_time_codes';
+    const STEP_SKIP_2FA_CONSENT = 'skip_2fa_consent';
     const STEP_BACKUP_CODES = 'backup_codes';
     const STEP_RECOVERY_KEY = 'recovery_key';
     const STEP_TFA_APP_REMINDER = 'tfa_app_reminder';
@@ -54,6 +56,7 @@
     import PasskeyPRFError from './steps/passkey/PasskeyPRFError.svelte';
     // import ProfilePictureTopContent from './steps/profilepicture/ProfilePictureTopContent.svelte'; // Moved to settings
     import OneTimeCodesTopContent from './steps/onetimecodes/OneTimeCodesTopContent.svelte';
+    import Skip2faConsentTopContent from './steps/skip2faconsent/Skip2faConsentTopContent.svelte';
     import BackupCodesTopContent from './steps/backupcodes/BackupCodesTopContent.svelte';
     import TfaAppReminderTopContent from './steps/tfaappreminder/TfaAppReminderTopContent.svelte';
     import SettingsTopContent from './steps/settings/SettingsTopContent.svelte';
@@ -66,6 +69,7 @@
     import PasskeyRegistrationBottomContent from './steps/passkey/PasskeyRegistrationBottomContent.svelte';
     // import ProfilePictureBottomContent from './steps/profilepicture/ProfilePictureBottomContent.svelte'; // Moved to settings
     import OneTimeCodesBottomContent from './steps/onetimecodes/OneTimeCodesBottomContent.svelte';
+    import Skip2faConsentBottomContent from './steps/skip2faconsent/Skip2faConsentBottomContent.svelte';
     import BackupCodesBottomContent from './steps/backupcodes/BackupCodesBottomContent.svelte';
     import TfaAppReminderBottomContent from './steps/tfaappreminder/TfaAppReminderBottomContent.svelte';
     import SettingsBottomContent from './steps/settings/SettingsBottomContent.svelte';
@@ -136,7 +140,7 @@
     // Base step sequences (will be filtered based on payment status)
     const fullStepSequenceBase = [
         STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD,
-        STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY, // STEP_PROFILE_PICTURE,
+        STEP_ONE_TIME_CODES, STEP_SKIP_2FA_CONSENT, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY, // STEP_PROFILE_PICTURE,
         STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP
     ];
 
@@ -1416,15 +1420,16 @@
             [STEP_PASSWORD]: 4,
             // STEP_PROFILE_PICTURE: 5, // Removed - moved to settings
             [STEP_ONE_TIME_CODES]: 6,
-            [STEP_BACKUP_CODES]: 7,
-            [STEP_TFA_APP_REMINDER]: 8,
-            [STEP_RECOVERY_KEY]: 9,
-            [STEP_SETTINGS]: 10,
-            [STEP_MATE_SETTINGS]: 11,
-            [STEP_CREDITS]: 12,
-            [STEP_PAYMENT]: 13,
-            [STEP_AUTO_TOP_UP]: 14,
-            [STEP_COMPLETION]: 15
+            [STEP_SKIP_2FA_CONSENT]: 7,
+            [STEP_BACKUP_CODES]: 8,
+            [STEP_TFA_APP_REMINDER]: 9,
+            [STEP_RECOVERY_KEY]: 10,
+            [STEP_SETTINGS]: 11,
+            [STEP_MATE_SETTINGS]: 12,
+            [STEP_CREDITS]: 13,
+            [STEP_PAYMENT]: 14,
+            [STEP_AUTO_TOP_UP]: 15,
+            [STEP_COMPLETION]: 16
         };
         return fullStepMap[stepName] || 0;
     }
@@ -1498,7 +1503,9 @@
                                             isUploading={isImageUploading}
                                         /> -->
                                     {:else if currentStep === STEP_ONE_TIME_CODES}
-                                        <OneTimeCodesTopContent on:actionClicked={handleActionClicked} />
+                                        <OneTimeCodesTopContent on:actionClicked={handleActionClicked} on:step={handleStep} />
+                                    {:else if currentStep === STEP_SKIP_2FA_CONSENT}
+                                        <Skip2faConsentTopContent />
                                     {:else if currentStep === STEP_BACKUP_CODES}
                                         <BackupCodesTopContent {selectedAppName} />
                                     {:else if currentStep === STEP_RECOVERY_KEY}
@@ -1570,6 +1577,8 @@
                                         bind:this={oneTimeCodesBottomContentRef}
                                         on:step={handleStep}
                                     />
+                                {:else if currentStep === STEP_SKIP_2FA_CONSENT}
+                                    <Skip2faConsentBottomContent on:step={handleStep} />
                                 {:else}
                                     {#if currentStep === STEP_PASSWORD}
                                         <PasswordBottomContent

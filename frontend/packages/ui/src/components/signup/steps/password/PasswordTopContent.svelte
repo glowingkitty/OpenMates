@@ -1,4 +1,6 @@
 <script lang="ts">
+    /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
+    /* eslint-disable svelte/no-at-html-tags */
     import { text } from '@repo/ui';
     import { fade } from 'svelte/transition';
     import { createEventDispatcher } from 'svelte';
@@ -8,6 +10,42 @@
     import { onMount } from 'svelte';
     
     const dispatch = createEventDispatcher();
+
+    const MIN_PASSWORD_LENGTH = 12;
+    const MAX_PASSWORD_LENGTH = 60;
+    const COMMON_PASSWORD_BLOCKLIST = new Set([
+        '12345678',
+        '123456789',
+        '1234567890',
+        '12345678910',
+        'qwerty123',
+        'qwerty1234',
+        'qwertyuiop',
+        'password',
+        'password1',
+        'password12',
+        'password123',
+        'password1234',
+        'passw0rd',
+        'admin123',
+        'welcome123',
+        'letmein123',
+        'iloveyou123',
+        'changeme123',
+        'openmates123',
+        'openmates2024',
+        'openmates2025',
+        'openmates2026',
+        'abcd1234',
+        'abc12345',
+        'test1234',
+        'test12345',
+        'asdf1234',
+        'zxcv1234',
+        'aa123456',
+        '11111111',
+        '00000000'
+    ]);
     
     // Form state using Svelte 5 runes
     let password = $state('');
@@ -64,14 +102,32 @@
     
     // Password strength validation
     function checkPasswordStrength(pwd: string): boolean {
-        if (pwd.length < 8) {
+        if (pwd.length < MIN_PASSWORD_LENGTH) {
             passwordStrengthError = $text('signup.password_too_short');
             showPasswordStrengthWarning = true;
             return false;
         }
 
-        if (pwd.length > 60) {
+        if (pwd.length > MAX_PASSWORD_LENGTH) {
             passwordStrengthError = $text('signup.password_too_long');
+            showPasswordStrengthWarning = true;
+            return false;
+        }
+
+        if (COMMON_PASSWORD_BLOCKLIST.has(pwd.toLowerCase())) {
+            passwordStrengthError = $text('signup.password_too_common');
+            showPasswordStrengthWarning = true;
+            return false;
+        }
+
+        if (!/\p{Ll}/u.test(pwd)) {
+            passwordStrengthError = $text('signup.password_needs_lowercase');
+            showPasswordStrengthWarning = true;
+            return false;
+        }
+
+        if (!/\p{Lu}/u.test(pwd)) {
+            passwordStrengthError = $text('signup.password_needs_uppercase');
             showPasswordStrengthWarning = true;
             return false;
         }
