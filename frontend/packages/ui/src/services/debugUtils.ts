@@ -714,10 +714,11 @@ function buildClientChatHealthSummary(params: {
   messages: Record<string, unknown>[];
   embeds: Record<string, unknown>[];
   embedKeys: Record<string, unknown>[];
+  embedDecodeHealth?: { checkedCount: number; failedCount: number };
 }): { isHealthy: boolean; issues: string[]; warnings: string[] } {
   const issues: string[] = [];
   const warnings: string[] = [];
-  const { chatMeta, messages, embeds, embedKeys } = params;
+  const { chatMeta, messages, embeds, embedKeys, embedDecodeHealth } = params;
 
   if (!chatMeta) {
     issues.push("chat metadata missing in IndexedDB");
@@ -790,7 +791,131 @@ function buildClientChatHealthSummary(params: {
     issues.push("root embeds exist but no embed keys are stored for this chat");
   }
 
+  if (embedDecodeHealth && embedDecodeHealth.checkedCount > 0) {
+    if (embedDecodeHealth.failedCount > 0) {
+      issues.push(
+        `${embedDecodeHealth.failedCount}/${embedDecodeHealth.checkedCount} checked embeds failed client-side decryption/decoding`,
+      );
+    }
+  }
+
   return { isHealthy: issues.length === 0, issues, warnings };
+}
+
+type EmbedDecodeAttempt = {
+  embed: Record<string, unknown>;
+  embedId: string;
+  decoded: Record<string, unknown> | null;
+  error: string | null;
+};
+
+async function collectClientEmbedDecodeHealth(
+  embeds: Record<string, unknown>[],
+  maxChecks: number,
+): Promise<{
+  checkedCount: number;
+  decodedCount: number;
+  failedCount: number;
+  attempts: EmbedDecodeAttempt[];
+  globalError: string | null;
+}> {
+  const attempts: EmbedDecodeAttempt[] = [];
+  if (maxChecks <= 0 || embeds.length === 0) {
+    return {
+      checkedCount: 0,
+      decodedCount: 0,
+      failedCount: 0,
+      attempts,
+      globalError: null,
+    };
+  }
+
+  try {
+    const { resolveEmbed, decodeToonContent } = await import("./embedResolver");
+
+    let checkedCount = 0;
+    let decodedCount = 0;
+    let failedCount = 0;
+
+    for (let i = 0; i < Math.min(maxChecks, embeds.length); i++) {
+      const embed = embeds[i];
+      const embedId = String(embed.embed_id || embed.contentRef || "").replace(
+        /^embed:/,
+        "",
+      );
+      const status = String(embed.status || "").toLowerCase();
+      const hasAnyContent = Boolean(
+        embed.encrypted_content || embed.content || embed.data,
+      );
+
+      if (
+        !embedId ||
+        !hasAnyContent ||
+        (status !== "finished" && status !== "activated")
+      ) {
+        continue;
+      }
+
+      checkedCount += 1;
+
+      try {
+        const resolved = await resolveEmbed(embedId);
+        if (!resolved?.content) {
+          failedCount += 1;
+          attempts.push({
+            embed,
+            embedId,
+            decoded: null,
+            error: "resolved embed has no content",
+          });
+          continue;
+        }
+
+        const decoded = await decodeToonContent(resolved.content);
+        if (decoded && typeof decoded === "object") {
+          decodedCount += 1;
+          attempts.push({
+            embed,
+            embedId,
+            decoded: decoded as Record<string, unknown>,
+            error: null,
+          });
+        } else {
+          failedCount += 1;
+          attempts.push({
+            embed,
+            embedId,
+            decoded: null,
+            error: "decoded content is empty or invalid",
+          });
+        }
+      } catch (error) {
+        failedCount += 1;
+        attempts.push({
+          embed,
+          embedId,
+          decoded: null,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    return {
+      checkedCount,
+      decodedCount,
+      failedCount,
+      attempts,
+      globalError: null,
+    };
+  } catch (error) {
+    return {
+      checkedCount: 0,
+      decodedCount: 0,
+      failedCount: 0,
+      attempts,
+      globalError: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
 
 function buildClientEmbedHealthSummary(params: {
@@ -972,11 +1097,24 @@ export async function inspectChat(
   );
   const totalEmbedKeysCount = await getStoreCount(db, EMBED_KEYS_STORE);
 
+  chatEmbeds.sort(
+    (a, b) => ((b.createdAt as number) || 0) - ((a.createdAt as number) || 0),
+  );
+  const showCount = Math.min(10, chatEmbeds.length);
+  const embedDecodeHealth = await collectClientEmbedDecodeHealth(
+    chatEmbeds,
+    showCount,
+  );
+
   const healthSummary = buildClientChatHealthSummary({
     chatMeta,
     messages,
     embeds: chatEmbeds,
     embedKeys: chatEmbedKeys,
+    embedDecodeHealth: {
+      checkedCount: embedDecodeHealth.checkedCount,
+      failedCount: embedDecodeHealth.failedCount,
+    },
   });
   appendHealthCheckSection(
     lines,
@@ -1165,13 +1303,7 @@ export async function inspectChat(
     lines.push(`  Status Distribution: ${JSON.stringify(statusCount)}`);
     lines.push(`  Type Distribution: ${JSON.stringify(typeCount)}`);
 
-    // Sort by createdAt descending (most recent first)
-    chatEmbeds.sort(
-      (a, b) => ((b.createdAt as number) || 0) - ((a.createdAt as number) || 0),
-    );
-
     // Show first few embeds
-    const showCount = Math.min(10, chatEmbeds.length);
     lines.push("");
     lines.push(
       `  Showing ${showCount} of ${chatEmbeds.length} embeds (most recent first):`,
@@ -1235,57 +1367,44 @@ export async function inspectChat(
       lines.push("EMBED FIELD INVENTORY (admin-only, privacy-safe)");
       lines.push(thinSeparator);
 
-      try {
-        const { resolveEmbed, decodeToonContent } =
-          await import("./embedResolver");
-        let decodedCount = 0;
-        let failedCount = 0;
+      if (embedDecodeHealth.globalError) {
+        lines.push(
+          `  Error generating field inventory: ${embedDecodeHealth.globalError}`,
+        );
+      } else {
         const allAnomalies: string[] = [];
-
-        for (let i = 0; i < Math.min(showCount, chatEmbeds.length); i++) {
-          const embed = chatEmbeds[i];
-          const embedId =
-            (embed.embed_id as string) || (embed.contentRef as string);
-          if (!embedId) continue;
-
-          const resolved = await resolveEmbed(embedId);
-          if (resolved?.content) {
-            try {
-              const decoded = await decodeToonContent(resolved.content);
-              if (decoded && typeof decoded === "object") {
-                decodedCount++;
-                const decodedObj = decoded as Record<string, unknown>;
-                const inventory = buildFieldInventory(decodedObj);
-                const anomalies = detectEmbedAnomalies(decodedObj, embed);
-                allAnomalies.push(...anomalies);
-
-                lines.push("");
-                lines.push(
-                  `    ${(i + 1).toString().padStart(2)}. embed-${truncate(embedId, 12)}:`,
-                );
-                lines.push(...formatFieldInventoryLines(inventory, anomalies));
-              } else {
-                failedCount++;
-              }
-            } catch {
-              failedCount++;
-            }
-          } else {
-            failedCount++;
+        for (
+          let index = 0;
+          index < embedDecodeHealth.attempts.length;
+          index++
+        ) {
+          const attempt = embedDecodeHealth.attempts[index];
+          if (!attempt.decoded) {
+            continue;
           }
+          const inventory = buildFieldInventory(attempt.decoded);
+          const anomalies = detectEmbedAnomalies(
+            attempt.decoded,
+            attempt.embed,
+          );
+          allAnomalies.push(...anomalies);
+
+          lines.push("");
+          lines.push(
+            `    ${(index + 1).toString().padStart(2)}. embed-${truncate(attempt.embedId, 12)}:`,
+          );
+          lines.push(...formatFieldInventoryLines(inventory, anomalies));
         }
 
         lines.push("");
         lines.push(
-          `  Summary: ${decodedCount} decoded, ${failedCount} failed/unavailable`,
+          `  Summary: ${embedDecodeHealth.decodedCount} decoded, ${embedDecodeHealth.failedCount} failed/unavailable`,
         );
         if (allAnomalies.length > 0) {
           lines.push(`  Total anomalies found: ${allAnomalies.length}`);
         } else {
           lines.push("  No anomalies detected");
         }
-      } catch (e) {
-        lines.push(`  Error generating field inventory: ${e}`);
       }
     }
   } else {
