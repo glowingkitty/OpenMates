@@ -27,6 +27,11 @@ const EMBED_KEYS_STORE = "embed_keys";
 // Field inventory constants
 const MAX_FIELD_INVENTORY_ITEMS = 30;
 const MAX_ANOMALIES_PER_EMBED = 5;
+const MIN_VALID_TIMESTAMP_YEAR = 2025;
+const MAX_HEALTH_ITEMS_TO_SHOW = 8;
+const HEALTHY_BANNER_COLOR = "#16a34a";
+const UNHEALTHY_BANNER_COLOR = "#dc2626";
+const HEALTH_BANNER_STYLE = "font-weight: 700; font-size: 13px;";
 
 /**
  * Compute SHA256 hash of a string
@@ -658,6 +663,248 @@ function truncate(str: string | undefined, maxLen: number): string {
   return str.substring(0, maxLen - 3) + "...";
 }
 
+function parseTimestampForHealth(value: unknown): Date | null {
+  if (value === null || value === undefined || value === "") return null;
+
+  if (typeof value === "number") {
+    const seconds = value > 1_000_000_000_000 ? value / 1000 : value;
+    const date = new Date(seconds * 1000);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    if (/^\d+$/.test(trimmed)) {
+      const asNumber = Number(trimmed);
+      const seconds = asNumber > 1_000_000_000_000 ? asNumber / 1000 : asNumber;
+      const date = new Date(seconds * 1000);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    const date = new Date(trimmed);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  return null;
+}
+
+function collectTimestampIssue(
+  label: string,
+  value: unknown,
+  issues: string[],
+): void {
+  if (value === null || value === undefined || value === "") return;
+
+  const parsed = parseTimestampForHealth(value);
+  if (!parsed) {
+    issues.push(`${label} timestamp is malformed: ${String(value)}`);
+    return;
+  }
+
+  if (parsed.getUTCFullYear() < MIN_VALID_TIMESTAMP_YEAR) {
+    issues.push(
+      `${label} timestamp is before ${MIN_VALID_TIMESTAMP_YEAR}: ${parsed.toISOString()}`,
+    );
+  }
+}
+
+function buildClientChatHealthSummary(params: {
+  chatMeta: Record<string, unknown> | undefined;
+  messages: Record<string, unknown>[];
+  embeds: Record<string, unknown>[];
+  embedKeys: Record<string, unknown>[];
+}): { isHealthy: boolean; issues: string[]; warnings: string[] } {
+  const issues: string[] = [];
+  const warnings: string[] = [];
+  const { chatMeta, messages, embeds, embedKeys } = params;
+
+  if (!chatMeta) {
+    issues.push("chat metadata missing in IndexedDB");
+  } else {
+    collectTimestampIssue("chat.created_at", chatMeta.created_at, issues);
+    collectTimestampIssue("chat.updated_at", chatMeta.updated_at, issues);
+    collectTimestampIssue(
+      "chat.last_message_timestamp",
+      chatMeta.last_message_timestamp,
+      issues,
+    );
+    collectTimestampIssue(
+      "chat.last_edited_overall_timestamp",
+      chatMeta.last_edited_overall_timestamp,
+      issues,
+    );
+
+    const messagesV = Number(chatMeta.messages_v || 0);
+    if (messagesV !== messages.length) {
+      issues.push(
+        `messages_v (${messagesV}) does not match actual message count (${messages.length})`,
+      );
+    }
+  }
+
+  let missingMessageContent = 0;
+  for (const message of messages) {
+    collectTimestampIssue("message.created_at", message.created_at, issues);
+    const role = String(message.role || "");
+    const hasAnyContent = Boolean(message.encrypted_content || message.content);
+    if ((role === "user" || role === "assistant") && !hasAnyContent) {
+      missingMessageContent += 1;
+    }
+  }
+  if (missingMessageContent > 0) {
+    issues.push(
+      `${missingMessageContent} user/assistant messages missing content`,
+    );
+  }
+
+  let embedsInError = 0;
+  let finishedEmbedsMissingContent = 0;
+  let rootEmbedsCount = 0;
+  for (const embed of embeds) {
+    collectTimestampIssue("embed.createdAt", embed.createdAt, issues);
+    collectTimestampIssue("embed.updatedAt", embed.updatedAt, issues);
+
+    const status = String(embed.status || "").toLowerCase();
+    if (status === "error") embedsInError += 1;
+    if (!embed.parent_embed_id) rootEmbedsCount += 1;
+
+    const hasAnyContent = Boolean(
+      embed.encrypted_content || embed.content || embed.data,
+    );
+    if (status === "finished" && !hasAnyContent) {
+      finishedEmbedsMissingContent += 1;
+    }
+  }
+
+  if (embedsInError > 0) {
+    warnings.push(`${embedsInError} embed(s) are currently in error status`);
+  }
+  if (finishedEmbedsMissingContent > 0) {
+    issues.push(
+      `${finishedEmbedsMissingContent} finished embed(s) missing content payload`,
+    );
+  }
+
+  if (rootEmbedsCount > 0 && embedKeys.length === 0) {
+    issues.push("root embeds exist but no embed keys are stored for this chat");
+  }
+
+  return { isHealthy: issues.length === 0, issues, warnings };
+}
+
+function buildClientEmbedHealthSummary(params: {
+  embed: Record<string, unknown> | undefined;
+  childEmbeds: Array<Record<string, unknown> | undefined>;
+}): { isHealthy: boolean; issues: string[]; warnings: string[] } {
+  const issues: string[] = [];
+  const warnings: string[] = [];
+  const { embed, childEmbeds } = params;
+
+  if (!embed) {
+    issues.push("embed record not found in IndexedDB");
+    return { isHealthy: false, issues, warnings };
+  }
+
+  collectTimestampIssue("embed.createdAt", embed.createdAt, issues);
+  collectTimestampIssue("embed.updatedAt", embed.updatedAt, issues);
+
+  const embedStatus = String(embed.status || "").toLowerCase();
+  if (embedStatus === "error") issues.push("embed status is error");
+  else if (embedStatus === "processing")
+    warnings.push("embed is still processing");
+
+  const hasAnyContent = Boolean(
+    embed.encrypted_content || embed.content || embed.data,
+  );
+  if (!hasAnyContent) {
+    issues.push("embed has no encrypted_content/content/data payload");
+  }
+
+  let childMissing = 0;
+  let childErrors = 0;
+  for (const child of childEmbeds) {
+    if (!child) {
+      childMissing += 1;
+      continue;
+    }
+    collectTimestampIssue("child_embed.createdAt", child.createdAt, issues);
+    collectTimestampIssue("child_embed.updatedAt", child.updatedAt, issues);
+    if (String(child.status || "").toLowerCase() === "error") {
+      childErrors += 1;
+    }
+  }
+
+  if (childMissing > 0) {
+    issues.push(
+      `${childMissing} child embed record(s) referenced but missing locally`,
+    );
+  }
+  if (childErrors > 0) {
+    warnings.push(
+      `${childErrors} child embed(s) are currently in error status`,
+    );
+  }
+
+  return { isHealthy: issues.length === 0, issues, warnings };
+}
+
+function appendHealthCheckSection(
+  lines: string[],
+  healthSummary: { isHealthy: boolean; issues: string[]; warnings: string[] },
+  countsLine: string,
+): void {
+  lines.push("");
+  lines.push("=".repeat(100));
+  lines.push("HEALTH CHECK SUMMARY");
+  lines.push("=".repeat(100));
+  lines.push(
+    healthSummary.isHealthy
+      ? "🟢 HEALTH CHECK: HEALTHY"
+      : "🔴 HEALTH CHECK: ISSUES DETECTED",
+  );
+  lines.push(`  Counts: ${countsLine}`);
+
+  if (healthSummary.issues.length > 0) {
+    lines.push("  Issues:");
+    for (const issue of healthSummary.issues.slice(
+      0,
+      MAX_HEALTH_ITEMS_TO_SHOW,
+    )) {
+      lines.push(`   - ${issue}`);
+    }
+    if (healthSummary.issues.length > MAX_HEALTH_ITEMS_TO_SHOW) {
+      lines.push(
+        `   - ... and ${healthSummary.issues.length - MAX_HEALTH_ITEMS_TO_SHOW} more issue(s)`,
+      );
+    }
+  }
+
+  if (healthSummary.warnings.length > 0) {
+    lines.push("  Warnings:");
+    for (const warning of healthSummary.warnings.slice(
+      0,
+      MAX_HEALTH_ITEMS_TO_SHOW,
+    )) {
+      lines.push(`   - ${warning}`);
+    }
+  }
+  lines.push("=".repeat(100));
+}
+
+function logHealthCheckBanner(
+  subject: "CHAT" | "EMBED",
+  isHealthy: boolean,
+): void {
+  const color = isHealthy ? HEALTHY_BANNER_COLOR : UNHEALTHY_BANNER_COLOR;
+  const status = isHealthy ? "HEALTHY" : "ISSUES DETECTED";
+  const icon = isHealthy ? "🟢" : "🔴";
+  console.log(
+    `%c${icon} CLIENT ${subject} HEALTH CHECK: ${status}`,
+    `${HEALTH_BANNER_STYLE} color: ${color};`,
+  );
+}
+
 /**
  * Inspect a chat and generate a formatted text report
  *
@@ -699,6 +946,42 @@ export async function inspectChat(
     db,
     CHATS_STORE,
     chatId,
+  );
+
+  const messages = await getAllFromIndex<Record<string, unknown>>(
+    db,
+    MESSAGES_STORE,
+    "chat_id",
+    chatId,
+  );
+
+  const hashedChatId = await computeSHA256(chatId);
+  const chatEmbeds = await getAllFromIndex<Record<string, unknown>>(
+    db,
+    EMBEDS_STORE,
+    "hashed_chat_id",
+    hashedChatId,
+  );
+  const totalEmbedsCount = await getStoreCount(db, EMBEDS_STORE);
+
+  const chatEmbedKeys = await getAllFromIndex<Record<string, unknown>>(
+    db,
+    EMBED_KEYS_STORE,
+    "hashed_chat_id",
+    hashedChatId,
+  );
+  const totalEmbedKeysCount = await getStoreCount(db, EMBED_KEYS_STORE);
+
+  const healthSummary = buildClientChatHealthSummary({
+    chatMeta,
+    messages,
+    embeds: chatEmbeds,
+    embedKeys: chatEmbedKeys,
+  });
+  appendHealthCheckSection(
+    lines,
+    healthSummary,
+    `messages=${messages.length} embeds=${chatEmbeds.length} embed_keys=${chatEmbedKeys.length}`,
   );
 
   lines.push("");
@@ -795,14 +1078,6 @@ export async function inspectChat(
     lines.push("  ❌ Chat NOT FOUND in IndexedDB");
   }
 
-  // Get all messages for the chat
-  const messages = await getAllFromIndex<Record<string, unknown>>(
-    db,
-    MESSAGES_STORE,
-    "chat_id",
-    chatId,
-  );
-
   // Sort by created_at
   messages.sort((a, b) => (a.created_at as number) - (b.created_at as number));
 
@@ -868,17 +1143,6 @@ export async function inspectChat(
   } else {
     lines.push("  ❌ No messages found for this chat");
   }
-
-  // Get embeds for this chat using hashed_chat_id index
-  // Embeds are linked to chats via hashed_chat_id (SHA256 hash of chat_id) for privacy
-  const hashedChatId = await computeSHA256(chatId);
-  const chatEmbeds = await getAllFromIndex<Record<string, unknown>>(
-    db,
-    EMBEDS_STORE,
-    "hashed_chat_id",
-    hashedChatId,
-  );
-  const totalEmbedsCount = await getStoreCount(db, EMBEDS_STORE);
 
   lines.push("");
   lines.push(thinSeparator);
@@ -1030,15 +1294,6 @@ export async function inspectChat(
     lines.push("  (Embeds are queried by hashed_chat_id index)");
   }
 
-  // Also show embed keys for this chat
-  const chatEmbedKeys = await getAllFromIndex<Record<string, unknown>>(
-    db,
-    EMBED_KEYS_STORE,
-    "hashed_chat_id",
-    hashedChatId,
-  );
-  const totalEmbedKeysCount = await getStoreCount(db, EMBED_KEYS_STORE);
-
   lines.push("");
   lines.push(thinSeparator);
   lines.push(
@@ -1095,7 +1350,9 @@ export async function inspectChat(
 
   const report = lines.join("\n");
 
-  // Output to console as a single string for easy copying
+  logHealthCheckBanner("CHAT", healthSummary.isHealthy);
+
+  // Output full report to console as a single string for easy copying
   console.log(report);
 
   // Optionally download as file
@@ -1159,6 +1416,28 @@ export async function inspectEmbed(
     db,
     EMBEDS_STORE,
     contentRef,
+  );
+
+  const childEmbedRecords: Array<Record<string, unknown> | undefined> = [];
+  if (embed?.embed_ids && Array.isArray(embed.embed_ids)) {
+    for (const childId of embed.embed_ids as string[]) {
+      const childRecord = await getFromStore<Record<string, unknown>>(
+        db,
+        EMBEDS_STORE,
+        `embed:${childId}`,
+      );
+      childEmbedRecords.push(childRecord);
+    }
+  }
+
+  const embedHealthSummary = buildClientEmbedHealthSummary({
+    embed,
+    childEmbeds: childEmbedRecords,
+  });
+  appendHealthCheckSection(
+    lines,
+    embedHealthSummary,
+    `child_embeds=${childEmbedRecords.length}`,
   );
 
   lines.push("");
@@ -1365,7 +1644,9 @@ export async function inspectEmbed(
 
   const report = lines.join("\n");
 
-  // Output to console as a single string for easy copying
+  logHealthCheckBanner("EMBED", embedHealthSummary.isHealthy);
+
+  // Output full report to console as a single string for easy copying
   console.log(report);
 
   // Optionally download as file
