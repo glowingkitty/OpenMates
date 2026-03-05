@@ -1776,6 +1776,145 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Derive video iframe state for template use - use reactive subscription
     // $derived(get(store)) doesn't create a subscription, so we need to use $state with subscription
     let videoIframeState = $state(get(videoIframeStore));
+    type PipCorner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+    const PIP_MARGIN_DESKTOP = 20;
+    const PIP_MARGIN_MOBILE = 10;
+    const MOBILE_BREAKPOINT = 480;
+    const PIP_DRAG_THRESHOLD_PX = 6;
+    const PIP_RESTORE_SUPPRESS_MS = 250;
+
+    let pipCorner = $state<PipCorner>('top-right');
+    let pipDragState = $state<{
+        pointerId: number;
+        startX: number;
+        startY: number;
+        startLeft: number;
+        startTop: number;
+        moved: boolean;
+    } | null>(null);
+    let pipDragPosition = $state<{ left: number; top: number } | null>(null);
+    let suppressPipRestoreUntil = $state(0);
+
+    function getPipMargin(): number {
+        return window.innerWidth <= MOBILE_BREAKPOINT ? PIP_MARGIN_MOBILE : PIP_MARGIN_DESKTOP;
+    }
+
+    function clamp(value: number, min: number, max: number): number {
+        return Math.min(max, Math.max(min, value));
+    }
+
+    function handlePipPointerDown(event: PointerEvent) {
+        if (!videoIframeState.isPipMode) {
+            return;
+        }
+
+        if (event.pointerType !== 'touch' && event.button !== 0) {
+            return;
+        }
+
+        const target = event.currentTarget as HTMLElement | null;
+        const container = activeChatContainerEl;
+        if (!target || !container) {
+            return;
+        }
+
+        const targetRect = target.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+
+        pipDragState = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            startLeft: targetRect.left - containerRect.left,
+            startTop: targetRect.top - containerRect.top,
+            moved: false
+        };
+
+        pipDragPosition = {
+            left: targetRect.left - containerRect.left,
+            top: targetRect.top - containerRect.top
+        };
+
+        target.setPointerCapture(event.pointerId);
+    }
+
+    function handlePipPointerMove(event: PointerEvent) {
+        if (!videoIframeState.isPipMode || !pipDragState || pipDragState.pointerId !== event.pointerId) {
+            return;
+        }
+
+        const container = activeChatContainerEl;
+        const target = event.currentTarget as HTMLElement | null;
+        if (!container || !target) {
+            return;
+        }
+
+        const deltaX = event.clientX - pipDragState.startX;
+        const deltaY = event.clientY - pipDragState.startY;
+
+        const moved = Math.abs(deltaX) > PIP_DRAG_THRESHOLD_PX || Math.abs(deltaY) > PIP_DRAG_THRESHOLD_PX;
+        if (moved && !pipDragState.moved) {
+            pipDragState = { ...pipDragState, moved: true };
+        }
+
+        const margin = getPipMargin();
+        const containerRect = container.getBoundingClientRect();
+        const targetRect = target.getBoundingClientRect();
+        const maxLeft = Math.max(margin, containerRect.width - targetRect.width - margin);
+        const maxTop = Math.max(margin, containerRect.height - targetRect.height - margin);
+
+        pipDragPosition = {
+            left: clamp(pipDragState.startLeft + deltaX, margin, maxLeft),
+            top: clamp(pipDragState.startTop + deltaY, margin, maxTop)
+        };
+    }
+
+    function handlePipPointerUp(event: PointerEvent) {
+        if (!pipDragState || pipDragState.pointerId !== event.pointerId) {
+            return;
+        }
+
+        const target = event.currentTarget as HTMLElement | null;
+        if (target?.hasPointerCapture(event.pointerId)) {
+            target.releasePointerCapture(event.pointerId);
+        }
+
+        const container = activeChatContainerEl;
+        const targetRect = target?.getBoundingClientRect();
+
+        if (pipDragState.moved && container && targetRect && pipDragPosition) {
+            const containerRect = container.getBoundingClientRect();
+            const centerX = pipDragPosition.left + (targetRect.width / 2);
+            const centerY = pipDragPosition.top + (targetRect.height / 2);
+            const isLeft = centerX < (containerRect.width / 2);
+            const isTop = centerY < (containerRect.height / 2);
+
+            pipCorner = isTop
+                ? (isLeft ? 'top-left' : 'top-right')
+                : (isLeft ? 'bottom-left' : 'bottom-right');
+
+            suppressPipRestoreUntil = Date.now() + PIP_RESTORE_SUPPRESS_MS;
+        }
+
+        pipDragPosition = null;
+        pipDragState = null;
+    }
+
+    let videoIframeContainerInlineStyle = $derived.by(() => {
+        if (videoIframeState.isPipMode) {
+            if (pipDragPosition) {
+                return `top: ${pipDragPosition.top}px; left: ${pipDragPosition.left}px; right: auto; transform: none;`;
+            }
+            return '';
+        }
+
+        const anchor = videoIframeState.fullscreenAnchor;
+        if (!anchor) {
+            return '';
+        }
+
+        return `top: ${anchor.top}px; left: ${anchor.left}px; width: ${anchor.width}px; max-width: ${anchor.width}px; transform: none;`;
+    });
     
     // Subscribe to videoIframeStore to keep state reactive
     $effect(() => {
@@ -1810,6 +1949,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // This is called when user clicks the overlay on the VideoIframe in PiP mode
     // It exits PiP mode (via CSS) and opens VideoEmbedFullscreen with restoreFromPip flag
     async function handlePipOverlayClick() {
+        if (Date.now() < suppressPipRestoreUntil) {
+            return;
+        }
+
         console.debug('[ActiveChat] PiP overlay clicked, restoring fullscreen');
         
         // Get current state from videoIframeStore
@@ -9466,10 +9609,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 {@const VideoIframePromise = import('../components/embeds/videos/VideoIframe.svelte')}
                 {#await VideoIframePromise then module}
                     {@const VideoIframe = module.default}
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <div 
                         class="video-iframe-fullscreen-container" 
                         class:pip-mode={videoIframeState.isPipMode}
+                        class:pip-top-left={videoIframeState.isPipMode && pipCorner === 'top-left'}
+                        class:pip-top-right={videoIframeState.isPipMode && pipCorner === 'top-right'}
+                        class:pip-bottom-left={videoIframeState.isPipMode && pipCorner === 'bottom-left'}
+                        class:pip-bottom-right={videoIframeState.isPipMode && pipCorner === 'bottom-right'}
+                        class:pip-dragging={videoIframeState.isPipMode && !!pipDragState?.moved}
                         class:fade-out={videoIframeState.isClosing}
+                        style={videoIframeContainerInlineStyle}
+                        onpointerdown={handlePipPointerDown}
+                        onpointermove={handlePipPointerMove}
+                        onpointerup={handlePipPointerUp}
+                        onpointercancel={handlePipPointerUp}
                     >
                         <VideoIframe
                             videoId={videoIframeState.videoId}
@@ -10745,6 +10899,39 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         width: 320px;
         max-width: 320px;
         z-index: 1000; /* Above everything in ActiveChat */
+        touch-action: none;
+        cursor: grab;
+        user-select: none;
+    }
+
+    .video-iframe-fullscreen-container.pip-mode.pip-top-left {
+        top: 20px;
+        left: 20px;
+        right: auto;
+    }
+
+    .video-iframe-fullscreen-container.pip-mode.pip-top-right {
+        top: 20px;
+        left: auto;
+        right: 20px;
+    }
+
+    .video-iframe-fullscreen-container.pip-mode.pip-bottom-left {
+        top: auto;
+        bottom: 20px;
+        left: 20px;
+        right: auto;
+    }
+
+    .video-iframe-fullscreen-container.pip-mode.pip-bottom-right {
+        top: auto;
+        bottom: 20px;
+        left: auto;
+        right: 20px;
+    }
+
+    .video-iframe-fullscreen-container.pip-mode.pip-dragging {
+        cursor: grabbing;
     }
     
     /* Responsive PiP for small screens */
@@ -10754,6 +10941,32 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             max-width: 240px;
             top: 10px;
             right: 10px;
+        }
+
+        .video-iframe-fullscreen-container.pip-mode.pip-top-left {
+            top: 10px;
+            left: 10px;
+            right: auto;
+        }
+
+        .video-iframe-fullscreen-container.pip-mode.pip-top-right {
+            top: 10px;
+            right: 10px;
+            left: auto;
+        }
+
+        .video-iframe-fullscreen-container.pip-mode.pip-bottom-left {
+            bottom: 10px;
+            left: 10px;
+            right: auto;
+            top: auto;
+        }
+
+        .video-iframe-fullscreen-container.pip-mode.pip-bottom-right {
+            bottom: 10px;
+            right: 10px;
+            left: auto;
+            top: auto;
         }
     }
 
