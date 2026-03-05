@@ -463,10 +463,6 @@
 >
   {#snippet content(ctx)}
     {@const videoResults = getVideoResults(ctx)}
-    <!-- Sync allVideoResults for sibling navigation -->
-    {#if videoResults.length > 0 && videoResults !== allVideoResults}
-      {allVideoResults = videoResults}
-    {/if}
     
     {#if ctx.isLoadingChildren}
       <div class="loading-state">
@@ -497,7 +493,10 @@
             likeCount={result.likeCount}
             publishedAt={result.publishedAt}
             videoId={result.videoId}
-            onFullscreen={(metadata) => handleVideoFullscreen(result, metadata)}
+            onFullscreen={(metadata) => {
+              allVideoResults = videoResults;
+              handleVideoFullscreen(result, metadata);
+            }}
           />
         {/each}
       </div>
@@ -569,4 +568,3 @@
     margin: 0 auto;
   }
 </style>
-
