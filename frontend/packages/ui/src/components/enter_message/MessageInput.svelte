@@ -285,6 +285,7 @@
     const MESSAGE_FIELD_TRANSITION_BUFFER_MS = 70;
     const FULLSCREEN_TOP_GUTTER_PX = 20;
     let panelHeightTransitionOverride = $state<string | null>(null);
+    let suppressHeightChangeDispatch = $state(false);
     
     // Computed state for showing action buttons
     // In extended/fullscreen mode: always visible (no tap required).
@@ -3005,6 +3006,7 @@
     // --- UI Update Functions ---
     function updateHeight() {
         if (!messageInputWrapper) return;
+        if (suppressHeightChangeDispatch || isFullscreen) return;
         const currentHeight = messageInputWrapper.offsetHeight;
         if (currentHeight !== previousHeight) {
             previousHeight = currentHeight;
@@ -3062,6 +3064,7 @@
         }
 
         const wasFullscreen = isFullscreen;
+        suppressHeightChangeDispatch = true;
 
         if (!wasFullscreen && containerRect && typeof window !== 'undefined') {
             const startRect = messageField.getBoundingClientRect();
@@ -3107,6 +3110,7 @@
 
             await waitForMessageFieldHeightTransition(messageField);
             panelHeightTransitionOverride = null;
+            suppressHeightChangeDispatch = false;
             checkScrollable();
             return;
         }
@@ -3124,6 +3128,7 @@
 
         await waitForMessageFieldHeightTransition(messageField);
         panelHeightTransitionOverride = null;
+        suppressHeightChangeDispatch = false;
         checkScrollable();
     }
 
