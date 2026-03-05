@@ -24,9 +24,11 @@
   import { text } from '@repo/ui';
   import { tick } from 'svelte';
   import ChatComponent from '../Chat.svelte';
+  import Icon from '../../Icon.svelte';
   import { groupChats, getLocalizedGroupTitle } from '../utils/chatGroupUtils';
   import type { ChatSearchResult, AppCatalogSearchResult, SearchResults as SearchResultsType } from '../../../services/searchService';
   import type { Chat as ChatType } from '../../../types/chat';
+  import { appSkillsStore } from '../../../stores/appSkillsStore';
 
   // Props using Svelte 5 runes
   interface Props {
@@ -292,14 +294,46 @@
       .replace(/"/g, '&quot;');
   }
 
-  /** Get the display label for an app catalog entry type */
-  function getAppEntryTypeLabel(entryType: AppCatalogSearchResult['entryType']): string {
-    switch (entryType) {
-      case 'skill': return $text('chats.search.app_skill');
-      case 'focus_mode': return $text('chats.search.app_focus_mode');
-      case 'memory': return $text('chats.search.app_memory');
-      default: return $text('chats.search.app_app');
+  function normalizeIconName(iconImage: string | undefined, fallback: string): string {
+    const raw = iconImage ? iconImage.replace(/\.svg$/, '').trim() : fallback;
+    if (raw === 'email') return 'mail';
+    if (raw === 'coding') return 'code';
+    if (raw === 'heart') return 'health';
+    return raw;
+  }
+
+  function getAppCatalogIcons(appResult: AppCatalogSearchResult): {
+    appIconName: string;
+    itemIconName: string | null;
+    itemIconType: 'skill' | 'focus' | 'memory' | null;
+  } {
+    const appMeta = appSkillsStore.getState().apps[appResult.entry.appId];
+    const appIconName = normalizeIconName(appMeta?.icon_image, appResult.entry.appId);
+
+    if (appResult.entryType === 'app' || !appMeta) {
+      return { appIconName, itemIconName: null, itemIconType: null };
     }
+
+    const pathParts = appResult.entry.path.split('/');
+
+    if (appResult.entryType === 'skill') {
+      const skillId = pathParts[3] || '';
+      const skill = appMeta.skills.find(s => s.id === skillId);
+      const itemIconName = normalizeIconName(skill?.icon_image || appMeta.icon_image, appResult.entry.appId);
+      return { appIconName, itemIconName, itemIconType: 'skill' };
+    }
+
+    if (appResult.entryType === 'focus_mode') {
+      const focusId = pathParts[3] || '';
+      const focusMode = appMeta.focus_modes.find(f => f.id === focusId);
+      const itemIconName = normalizeIconName(focusMode?.icon_image || appMeta.icon_image, appResult.entry.appId);
+      return { appIconName, itemIconName, itemIconType: 'focus' };
+    }
+
+    const memoryId = pathParts[3] || '';
+    const memory = appMeta.settings_and_memories.find(m => m.id === memoryId);
+    const itemIconName = normalizeIconName(memory?.icon_image || appMeta.icon_image, appResult.entry.appId);
+    return { appIconName, itemIconName, itemIconType: 'memory' };
   }
 
   /**
@@ -366,13 +400,29 @@
       {#each results.appCatalog as appResult}
         {@const itemId = appResult.entry.path}
         {@const isFocused = allFocusableItems[focusedIndex]?.id === itemId}
+        {@const appIcons = getAppCatalogIcons(appResult)}
         <button
           class="search-setting-item"
           class:focused={isFocused}
           data-result-id={itemId}
           onclick={() => onAppCatalogClick(appResult.entry.path, appResult.label)}
         >
-          <span class="item-type-badge">{getAppEntryTypeLabel(appResult.entryType)}</span>
+          <span class="app-result-icons" aria-hidden="true">
+            <Icon
+              name={appIcons.appIconName}
+              type="app"
+              size="22px"
+              noAnimation={true}
+            />
+            {#if appIcons.itemIconName && appIcons.itemIconType}
+              <Icon
+                name={appIcons.itemIconName}
+                type={appIcons.itemIconType}
+                size="22px"
+                noAnimation={true}
+              />
+            {/if}
+          </span>
           <span class="item-label">
             <!-- eslint-disable-next-line svelte/no-at-html-tags -->
             {@html highlightText(appResult.label, query)}
@@ -528,17 +578,15 @@
     white-space: nowrap;
   }
 
-  /* App entry type badge (e.g., "Skill", "Focus Mode") */
-  .item-type-badge {
-    font-size: 10px;
-    font-weight: 600;
-    color: var(--color-font-tertiary);
-    background-color: var(--color-grey-30);
-    border-radius: 4px;
-    padding: 2px 5px;
+  .app-result-icons {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     flex-shrink: 0;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
+  }
+
+  .app-result-icons :global(.icon) {
+    margin: 0;
   }
 
   /* Chat result item wrapper */

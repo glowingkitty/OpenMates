@@ -47,6 +47,8 @@
     hasNextEmbed?: boolean;
     onNavigatePrevious?: () => void;
     onNavigateNext?: () => void;
+    /** Optional handler: clicking the center icon deep-links to settings. */
+    onHeaderIconClick?: () => void;
   }
 
   let {
@@ -63,6 +65,7 @@
     hasNextEmbed = false,
     onNavigatePrevious,
     onNavigateNext,
+    onHeaderIconClick,
   }: Props = $props();
 
   /** Use skill icon in center header when skillIconName is set and showSkillIcon is true. */
@@ -124,13 +127,28 @@
 
     <!-- Center content: small icon + title + subtitle -->
     <div class="header-center">
-      <div class="header-icon">
-        {#if useSkillIcon}
-          <div class="header-skill-icon" data-skill-icon={skillIconName}></div>
-        {:else}
-          <div class="header-app-icon icon_rounded {appId}"></div>
-        {/if}
-      </div>
+      {#if onHeaderIconClick}
+        <button
+          type="button"
+          class="header-icon header-icon-button"
+          onclick={onHeaderIconClick}
+          aria-label="Open skill settings"
+        >
+          {#if useSkillIcon}
+            <div class="header-skill-icon" data-skill-icon={skillIconName}></div>
+          {:else}
+            <div class="header-app-icon icon_rounded {appId}"></div>
+          {/if}
+        </button>
+      {:else}
+        <div class="header-icon">
+          {#if useSkillIcon}
+            <div class="header-skill-icon" data-skill-icon={skillIconName}></div>
+          {:else}
+            <div class="header-app-icon icon_rounded {appId}"></div>
+          {/if}
+        </div>
+      {/if}
 
       {#if title}
         <div class="header-title">
@@ -328,6 +346,25 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+  }
+
+  .header-icon-button {
+    pointer-events: auto;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    padding: 0;
+    border-radius: 10px;
+    transition: background-color 0.15s ease;
+  }
+
+  .header-icon-button:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .header-icon-button:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.9);
+    outline-offset: 2px;
   }
 
   /* Small skill icon (38×38px white) */

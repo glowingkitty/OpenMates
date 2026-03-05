@@ -274,7 +274,6 @@
     hasNextEmbed = false,
     onNavigatePrevious,
     onNavigateNext,
-    navigateDirection = null,
     // Child embed loading callback
     onChildrenLoaded,
     // Embed data update props
@@ -620,6 +619,29 @@
       console.debug('[UnifiedEmbedFullscreen] Download action (no handler provided)');
     }
   }
+
+  /**
+   * Deep-link from the embed header icon to the app-store skill settings page.
+   * Falls back to the app page when skillId is unavailable.
+   */
+  async function handleEmbedHeaderIconClick() {
+    try {
+      const targetPath = skillId ? `app_store/${appId}/skill/${skillId}` : `app_store/${appId}`;
+      const { navigateToSettings } = await import('../../stores/settingsNavigationStore');
+
+      navigateToSettings(targetPath, 'App Store', appId || 'app_store');
+      settingsMenuVisible.set(true);
+      panelState.openSettings();
+
+      await tick();
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      settingsDeepLink.set(targetPath);
+      console.debug('[UnifiedEmbedFullscreen] Opened settings deep-link from header icon:', targetPath);
+    } catch (error) {
+      console.error('[UnifiedEmbedFullscreen] Failed to open settings from header icon:', error);
+    }
+  }
   
   // Handle navigate to previous embed
   function handleNavigatePrevious() {
@@ -864,6 +886,7 @@
         {appId}
         {skillIconName}
         {showSkillIcon}
+        onHeaderIconClick={handleEmbedHeaderIconClick}
         title={embedHeaderTitle}
         subtitle={embedHeaderSubtitle}
         faviconUrl={embedHeaderFaviconUrl}

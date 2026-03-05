@@ -3820,14 +3820,19 @@
                         editor.commands.insertContent(mention + ' ');
                     }
                 } else {
-                    // Skill or focus mode mention — render as a styled GenericMention chip.
-                    // Syntax: "@skill:{appId}:{skillId}" or "@focus:{appId}:{focusModeId}"
+                    // Skill, focus mode, or memory-category mention — render as a styled GenericMention chip.
+                    // Syntax:
+                    // - "@skill:{appId}:{skillId}"
+                    // - "@focus:{appId}:{focusModeId}"
+                    // - "@memory:{appId}:{memoryCategoryId}:{memoryType}"
                     const skillMatch = mention.match(/^@skill:([^:]+):(.+)$/);
                     const focusMatch = mention.match(/^@focus:([^:]+):(.+)$/);
+                    const memoryMatch = mention.match(/^@memory:([^:]+):([^:]+):(.+)$/);
 
-                    if (skillMatch || focusMatch) {
+                    if (skillMatch || focusMatch || memoryMatch) {
                         const isSkill = !!skillMatch;
-                        const matchGroups = (skillMatch || focusMatch)!;
+                        const isFocus = !!focusMatch;
+                        const matchGroups = (skillMatch || focusMatch || memoryMatch)!;
                         const targetAppId = matchGroups[1];
                         const targetItemId = matchGroups[2];
                         const apps = appSkillsStore.getState().apps;
@@ -3846,7 +3851,7 @@
                                 .chain()
                                 .focus()
                                 .setGenericMention({
-                                    mentionType: isSkill ? 'skill' : 'focus_mode',
+                                    mentionType: isSkill ? 'skill' : (isFocus ? 'focus_mode' : 'settings_memory'),
                                     displayName,
                                     mentionSyntax: mention,
                                     colorStart: app.icon_colorgradient?.start,

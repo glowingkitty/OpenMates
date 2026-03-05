@@ -48,6 +48,7 @@ changes to the documentation (to keep the documentation up to date).
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
     import { isMobileView } from '../stores/uiStateStore'; // Import global isMobileView store
     import { panelState } from '../stores/panelStateStore'; // Import panelState to sync with isSettingsOpen
+    import { pendingMentionStore } from '../stores/pendingMentionStore';
     // Admin status is now read directly from userProfile.is_admin (synced during login)
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
     
@@ -801,6 +802,8 @@ changes to the documentation (to keep the documentation up to date).
         iconName?: string;
         /** Icon gradient type for the item-specific icon */
         iconType?: 'skill' | 'focus' | 'memory';
+        /** Mention syntax inserted into MessageInput when clicking the header identity. */
+        mentionSyntax?: string;
     } | null => {
         if (!isAppSubPage) return null;
 
@@ -830,6 +833,7 @@ changes to the documentation (to keep the documentation up to date).
                     : '',
                 iconName,
                 iconType: 'skill',
+                mentionSyntax: `@skill:${appId}:${itemId}`,
             };
         }
 
@@ -847,6 +851,7 @@ changes to the documentation (to keep the documentation up to date).
                     : '',
                 iconName,
                 iconType: 'focus',
+                mentionSyntax: `@focus:${appId}:${itemId}`,
             };
         }
 
@@ -873,6 +878,7 @@ changes to the documentation (to keep the documentation up to date).
                         : '',
                     iconName,
                     iconType: 'memory',
+                    mentionSyntax: `@memory:${appId}:${itemId}:${cat.type}`,
                 };
             }
             
@@ -921,6 +927,7 @@ changes to the documentation (to keep the documentation up to date).
                     description: categoryName,
                     iconName,
                     iconType: 'memory',
+                    mentionSyntax: `@memory:${appId}:${itemId}:${cat.type}`,
                 };
             }
             
@@ -934,6 +941,7 @@ changes to the documentation (to keep the documentation up to date).
                     : '',
                 iconName,
                 iconType: 'memory',
+                mentionSyntax: `@memory:${appId}:${itemId}:${cat.type}`,
             };
         }
 
@@ -975,6 +983,17 @@ changes to the documentation (to keep the documentation up to date).
         if (isAnyBannerPage || activeSettingsView === 'main') {
             contentScrollTop = (e.target as HTMLElement).scrollTop;
         }
+    }
+
+    /**
+     * Insert the current sub-page mention (skill/focus/memory category) into MessageInput
+     * and close settings so the user can continue typing immediately.
+     */
+    function handleSubPageBannerMentionClick() {
+        const mentionSyntax = subPageBannerData?.mentionSyntax;
+        if (!mentionSyntax) return;
+        pendingMentionStore.set(mentionSyntax);
+        panelState.closeSettings();
     }
 
     /** Decorative header icon opacity: fade out on scroll and on menu close. */
@@ -2372,6 +2391,7 @@ changes to the documentation (to keep the documentation up to date).
                     iconName: subPageBannerData.iconName,
                     iconType: subPageBannerData.iconType,
                 } : undefined}
+                onSubItemMention={subPageBannerData?.mentionSyntax ? handleSubPageBannerMentionClick : undefined}
             />
         </div>
     {/if}
