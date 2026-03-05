@@ -129,11 +129,16 @@
     padding-bottom 0.3s ease-in-out,
     max-height 0.3s ease-in-out,
     height 0.3s ease-in-out,
-    min-height 0.3s ease-in-out;
+    min-height 0.3s ease-in-out,
+    top 0.3s ease-in-out,
+    right 0.3s ease-in-out,
+    bottom 0.3s ease-in-out,
+    left 0.3s ease-in-out,
+    border-radius 0.3s ease-in-out;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  will-change: padding-bottom, max-height, height;
+  will-change: padding-bottom, max-height, height, top, right, bottom, left;
   /* Show text cursor for the input field */
   cursor: text;
 }
