@@ -1583,34 +1583,31 @@ changes to the documentation (to keep the documentation up to date).
 
     // Click outside handler
     function handleClickOutside(event: MouseEvent) {
-    	if ($isMobileView) {
-    		// CRITICAL: Skip closing if settings was just opened programmatically (e.g., from AppStoreCard click).
-    		// On mobile, the same tap that triggers openSettings() also bubbles up to document,
-    		// causing handleClickOutside to immediately close the just-opened panel.
-    		// A 300ms grace period prevents this race condition while still allowing
-    		// genuine outside clicks to close the panel normally.
-    		if (Date.now() - lastProgrammaticOpenTime < 300) {
-    			return;
-    		}
-    		
-    		const settingsMenu = document.querySelector('.settings-menu');
-    		const profileWrapper = document.querySelector('.profile-container-wrapper');
-    		const closeButton = document.querySelector('.close-icon-container');
-   
-    		// Only close the menu if the click is truly outside all menu-related elements
-    		// This prevents the menu from closing when clicking anywhere within the settings menu
-    		const isClickInsideMenu = settingsMenu && settingsMenu.contains(event.target as Node);
-    		const isClickInsideProfile = profileWrapper && profileWrapper.contains(event.target as Node);
-    		const isClickInsideCloseButton = closeButton && closeButton.contains(event.target as Node);
-    		
-    		// Only close if the click is outside all menu-related elements
-    		if (!isClickInsideMenu && !isClickInsideProfile && !isClickInsideCloseButton) {
-    			isMenuVisible = false;
-    			settingsMenuVisible.set(false);
-    			// CRITICAL: Also close via panelState to keep state in sync
-    			panelState.closeSettings();
-    		}
-    	}
+	    // Close on outside-click only when settings is rendered as an overlay.
+	    // In side-by-side mode (>1100px), outside clicks should not close the panel.
+	    const isOverlayMode = viewportWidth <= 1100;
+	    if (!isMenuVisible || !isOverlayMode) {
+	    	return;
+	    }
+
+	    // CRITICAL: Skip closing if settings was just opened programmatically (e.g., from AppStoreCard click).
+	    // The same tap/click event can bubble to document and would otherwise immediately close the panel.
+	    if (Date.now() - lastProgrammaticOpenTime < 300) {
+	    	return;
+	    }
+
+	    const settingsMenu = document.querySelector('.settings-menu');
+	    const profileWrapper = document.querySelector('.profile-container-wrapper');
+	    const closeButton = document.querySelector('.close-icon-container');
+
+	    const isClickInsideMenu = settingsMenu && settingsMenu.contains(event.target as Node);
+	    const isClickInsideProfile = profileWrapper && profileWrapper.contains(event.target as Node);
+	    const isClickInsideCloseButton = closeButton && closeButton.contains(event.target as Node);
+
+	    // Mirror close button behavior so the same close/reset animation path is used.
+	    if (!isClickInsideMenu && !isClickInsideProfile && !isClickInsideCloseButton) {
+	    	toggleMenu();
+	    }
     }
 
     // Setup listeners
