@@ -10070,6 +10070,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         -webkit-user-select: none;
         -webkit-touch-callout: none;
         border: none;
+        padding: 0;
+        margin-right: 0;
+        min-width: 0;
+        filter: none;
+        background-color: transparent;
+        scale: 1;
         /* Re-enable pointer events (parent center-content has pointer-events: none) */
         pointer-events: auto;
         margin-top: 16px;
@@ -10080,6 +10086,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         transition:
             transform 0.15s ease-out,
             box-shadow 0.2s ease-out;
+    }
+
+    /* Override global button hover/active rules from styles/buttons.css */
+    .resume-chat-large-card:hover,
+    .resume-chat-large-card:active,
+    .resume-chat-large-card.hovering {
+        background-color: transparent;
+        filter: none;
+        scale: 1;
     }
 
     .resume-chat-large-card.hovering {
@@ -10150,10 +10165,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         color: rgba(255, 255, 255, 0.85);
         line-height: 1.4;
         text-align: center;
-        /* Clamp to 3 lines */
+        /* Clamp to 4 lines */
         display: -webkit-box;
-        -webkit-line-clamp: 3;
-        line-clamp: 3;
+        -webkit-line-clamp: 4;
+        line-clamp: 4;
         -webkit-box-orient: vertical;
         overflow: hidden;
     }
