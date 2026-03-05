@@ -10712,7 +10712,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         top: 80px; /* Below header */
         left: 50%;
         transform: translateX(-50%);
-        width: calc(100% - 40px); /* Account for padding */
+        width: 100%;
         max-width: 780px;
         box-sizing: border-box;
         z-index: 100; /* Below fullscreen buttons but above chat content */

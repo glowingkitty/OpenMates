@@ -912,6 +912,7 @@
     width: 100%;
     max-width: 780px;
     aspect-ratio: 16 / 9;
+    margin-top: 16px;
     /* Transparent - the actual video is shown by VideoIframe */
   }
   
