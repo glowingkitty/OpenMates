@@ -14,12 +14,14 @@
 import type { Chat, Message } from "../types/chat";
 import { chatDB } from "./db";
 import { chatMetadataCache } from "./chatMetadataCache";
+import { decryptWithMasterKey } from "./cryptoService";
 import {
   getSettingsSearchCatalog,
   getAppSearchCatalog,
   type SettingsCatalogEntry,
   type AppCatalogEntry,
 } from "./searchSettingsCatalog";
+import { appsMetadata } from "../data/appsMetadata";
 import {
   getDemoMessages,
   isDemoChat,
@@ -132,6 +134,21 @@ const MAX_SNIPPETS_PER_MESSAGE = 2;
  * Caps RAM usage per embed — a typical web page scrape can be 10k+ chars.
  */
 const MAX_EMBED_TEXT_CHARS = 1500;
+/** Cache TTL for decrypted user settings/memories search entries. */
+const SETTINGS_MEMORIES_SEARCH_CACHE_TTL_MS = 30_000;
+
+interface UserSettingsMemoriesSearchEntry {
+  path: string;
+  label: string;
+  icon: string | null;
+  translationKey: string;
+  updatedAt: number;
+  searchBlobLower: string;
+}
+
+let userSettingsMemoriesSearchCache: UserSettingsMemoriesSearchEntry[] | null =
+  null;
+let userSettingsMemoriesSearchCacheUpdatedAt = 0;
 
 // --- Helpers ---
 
@@ -172,6 +189,202 @@ function stripMarkdown(text: string): string {
       .replace(/\s+/g, " ")
       .trim()
   );
+}
+
+function getSchemaTitleFieldName(
+  schemaProperties?: Record<string, unknown>,
+): string | null {
+  if (!schemaProperties) return null;
+
+  for (const [fieldName, prop] of Object.entries(schemaProperties)) {
+    if (
+      prop &&
+      typeof prop === "object" &&
+      (prop as { is_title?: unknown }).is_title === true
+    ) {
+      return fieldName;
+    }
+  }
+
+  const fallbackFields = ["name", "title", "label"];
+  for (const field of fallbackFields) {
+    if (schemaProperties[field]) return field;
+  }
+
+  return null;
+}
+
+function getSettingsMemoryEntryTitle(
+  itemValue: Record<string, unknown>,
+  titleFieldName: string | null,
+): string {
+  if (titleFieldName && itemValue[titleFieldName] !== undefined) {
+    return String(itemValue[titleFieldName]);
+  }
+
+  if (typeof itemValue._original_item_key === "string") {
+    const key = itemValue._original_item_key;
+    const parts = key.split(".");
+    return parts.length > 1 ? parts.slice(1).join(".") : key;
+  }
+
+  for (const [key, value] of Object.entries(itemValue)) {
+    if (key.startsWith("_") || key === "settings_group") continue;
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value;
+    }
+  }
+
+  return "Entry";
+}
+
+function collectObjectText(value: unknown, out: string[] = []): string[] {
+  if (value === null || value === undefined) return out;
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed.length > 0) out.push(trimmed);
+    return out;
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    out.push(String(value));
+    return out;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) collectObjectText(item, out);
+    return out;
+  }
+
+  if (typeof value === "object") {
+    for (const [key, nested] of Object.entries(
+      value as Record<string, unknown>,
+    )) {
+      if (key.startsWith("_")) continue;
+      collectObjectText(nested, out);
+    }
+  }
+
+  return out;
+}
+
+async function getUserSettingsMemoriesSearchEntries(
+  textFn: (key: string) => string,
+): Promise<UserSettingsMemoriesSearchEntry[]> {
+  const now = Date.now();
+  if (
+    userSettingsMemoriesSearchCache &&
+    now - userSettingsMemoriesSearchCacheUpdatedAt <
+      SETTINGS_MEMORIES_SEARCH_CACHE_TTL_MS
+  ) {
+    return userSettingsMemoriesSearchCache;
+  }
+
+  try {
+    const encryptedEntries = await chatDB.getAllAppSettingsMemoriesEntries();
+    const mapped: UserSettingsMemoriesSearchEntry[] = [];
+
+    for (const encryptedEntry of encryptedEntries) {
+      const appMeta = appsMetadata[encryptedEntry.app_id];
+      if (!appMeta) continue;
+
+      const categoryMeta = appMeta.settings_and_memories?.find(
+        (c) => c.id === encryptedEntry.item_type,
+      );
+      if (!categoryMeta) continue;
+
+      const decryptedJson = await decryptWithMasterKey(
+        encryptedEntry.encrypted_item_json,
+      );
+      if (!decryptedJson) continue;
+
+      let itemValue: Record<string, unknown>;
+      try {
+        const parsed = JSON.parse(decryptedJson) as unknown;
+        if (!parsed || typeof parsed !== "object") continue;
+        itemValue = parsed as Record<string, unknown>;
+      } catch {
+        continue;
+      }
+
+      const titleFieldName = getSchemaTitleFieldName(
+        categoryMeta.schema_definition?.properties as
+          | Record<string, unknown>
+          | undefined,
+      );
+      const entryTitle = getSettingsMemoryEntryTitle(itemValue, titleFieldName);
+      const appLabel = appMeta.name_translation_key
+        ? textFn(appMeta.name_translation_key)
+        : appMeta.id;
+      const categoryLabel = categoryMeta.name_translation_key
+        ? textFn(categoryMeta.name_translation_key)
+        : categoryMeta.id;
+
+      const label = `${entryTitle} - ${categoryLabel} (${appLabel})`;
+      const originalItemKey =
+        typeof itemValue._original_item_key === "string"
+          ? itemValue._original_item_key
+          : "";
+      const searchBlobLower = [
+        entryTitle,
+        originalItemKey,
+        categoryLabel,
+        appLabel,
+        ...collectObjectText(itemValue),
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      mapped.push({
+        path: `app_store/${encryptedEntry.app_id}/settings_memories/${encryptedEntry.item_type}/entry/${encryptedEntry.id}`,
+        label,
+        icon: "icon_apps",
+        translationKey:
+          categoryMeta.name_translation_key ||
+          "settings.app_settings_memories.settings_and_memories",
+        updatedAt: encryptedEntry.updated_at || 0,
+        searchBlobLower,
+      });
+    }
+
+    mapped.sort((a, b) => b.updatedAt - a.updatedAt);
+    userSettingsMemoriesSearchCache = mapped;
+    userSettingsMemoriesSearchCacheUpdatedAt = now;
+    return mapped;
+  } catch (error) {
+    console.error(
+      "[SearchService] Error loading settings/memories entries for search:",
+      error,
+    );
+    return [];
+  }
+}
+
+async function searchUserSettingsMemoriesEntries(
+  query: string,
+  textFn: (key: string) => string,
+  isAuthenticated: boolean,
+): Promise<SettingsSearchResult[]> {
+  if (!isAuthenticated) return [];
+
+  const lowerQuery = query.toLowerCase();
+  const indexedEntries = await getUserSettingsMemoriesSearchEntries(textFn);
+  const matches = indexedEntries.filter((entry) =>
+    entry.searchBlobLower.includes(lowerQuery),
+  );
+
+  return matches.map((match) => ({
+    entry: {
+      path: match.path,
+      translationKey: match.translationKey,
+      icon: match.icon,
+      keywords: [],
+      access: "authenticated",
+    },
+    label: match.label,
+    icon: match.icon,
+  }));
 }
 
 // --- Embed Text Extraction ---
@@ -1093,12 +1306,21 @@ export async function search(
   });
 
   // Search settings and app catalog — pass auth context so access-controlled entries are filtered
-  const settingsResults = searchSettings(
+  const userSettingsMemoriesResults = await searchUserSettingsMemoriesEntries(
+    trimmedQuery,
+    textFn,
+    isAuthenticated,
+  );
+  const staticSettingsResults = searchSettings(
     trimmedQuery,
     textFn,
     isAuthenticated,
     isAdmin,
   );
+  const settingsResults = [
+    ...userSettingsMemoriesResults,
+    ...staticSettingsResults,
+  ];
   const appCatalogResults = searchAppCatalog(trimmedQuery, textFn);
 
   const totalCount =
