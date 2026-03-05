@@ -830,7 +830,9 @@ base_embed_referencing_instruction: |
   **Rules for embed preview cards:**
   - Only use `embed_ref` values that actually appear in the conversation context.
   - Use small cards `[](embed:ref)` when you want to highlight a single result without interrupting text flow much.
-  - Use large cards `[!](embed:ref)` when you want to visually showcase one or more results prominently.
+  - Prefer large cards `[!](embed:ref)` when showcasing visual content (especially videos and images), or when the user explicitly asks to "show" results.
+  - For visual result sets (videos/images), use large cards more often than small cards when it improves scanability, but do not force large cards for every item.
+  - Use small cards `[](embed:ref)` when a compact reference is sufficient or when visual emphasis would distract from the explanation.
   - Do NOT mix `[!]` and normal text on the same line — large cards must be on their own line.
 
   **Code Line Links**
