@@ -3045,7 +3045,7 @@
             };
             const onTransitionEnd = (event: TransitionEvent) => {
                 if (event.target !== messageField) return;
-                const animatedProps = new Set(['height', 'max-height', 'top', 'right', 'bottom', 'left']);
+                const animatedProps = new Set(['height', 'max-height', 'top', 'right', 'bottom', 'left', 'transform']);
                 if (!animatedProps.has(event.propertyName)) return;
                 settle();
             };
@@ -3066,70 +3066,53 @@
         const wasFullscreen = isFullscreen;
         suppressHeightChangeDispatch = true;
 
-        if (!wasFullscreen && containerRect && typeof window !== 'undefined') {
-            const startRect = messageField.getBoundingClientRect();
-            const startHeight = Math.round(startRect.height);
-            const startLeft = Math.round(startRect.left);
-            const startTop = Math.round(startRect.top);
-            const startRight = Math.round(window.innerWidth - startRect.right);
-            const startBottom = Math.round(window.innerHeight - startRect.bottom);
+        try {
+            if (!wasFullscreen && containerRect && typeof window !== 'undefined') {
+                const firstRect = messageField.getBoundingClientRect();
 
-            panelHeightTransitionOverride = [
-                'position: fixed',
-                `left: ${startLeft}px`,
-                `top: ${startTop}px`,
-                `right: ${startRight}px`,
-                `bottom: ${startBottom}px`,
-                'width: auto',
-                `height: ${startHeight}px`,
-                `max-height: ${startHeight}px`,
-            ].join('; ') + ';';
+                isFullscreen = true;
+                dispatch('fullscreenToggle', isFullscreen);
+                await tick();
+
+                const lastRect = messageField.getBoundingClientRect();
+                const deltaX = firstRect.left - lastRect.left;
+                const deltaY = firstRect.top - lastRect.top;
+                const scaleX = lastRect.width > 0 ? firstRect.width / lastRect.width : 1;
+                const scaleY = lastRect.height > 0 ? firstRect.height / lastRect.height : 1;
+
+                messageField.style.transition = 'none';
+                messageField.style.transformOrigin = 'top left';
+                messageField.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${scaleX}, ${scaleY})`;
+                void messageField.getBoundingClientRect();
+
+                messageField.style.transition = `transform ${MESSAGE_FIELD_TRANSITION_DURATION_MS}ms ease-in-out, border-radius ${MESSAGE_FIELD_TRANSITION_DURATION_MS}ms ease-in-out`;
+                messageField.style.transform = 'translate(0px, 0px) scale(1, 1)';
+
+                await waitForMessageFieldHeightTransition(messageField);
+                messageField.style.transition = '';
+                messageField.style.transform = '';
+                messageField.style.transformOrigin = '';
+                checkScrollable();
+                return;
+            }
+
+            const startHeight = Math.round(messageField.getBoundingClientRect().height);
+            panelHeightTransitionOverride = `height: ${startHeight}px; max-height: ${startHeight}px;`;
             await tick();
 
-            isFullscreen = true;
+            isFullscreen = !isFullscreen;
             dispatch('fullscreenToggle', isFullscreen);
-            await tick();
 
-            const targetHeight = getFullscreenTargetHeight();
-            const targetTop = Math.round(containerRect.top + FULLSCREEN_TOP_GUTTER_PX);
-            const targetLeft = Math.round(containerRect.left);
-            const targetRight = Math.round(window.innerWidth - containerRect.right);
-            const targetBottom = Math.round(window.innerHeight - containerRect.bottom);
-            panelHeightTransitionOverride = [
-                'position: fixed',
-                `left: ${targetLeft}px`,
-                `top: ${targetTop}px`,
-                `right: ${targetRight}px`,
-                `bottom: ${targetBottom}px`,
-                'width: auto',
-                `height: ${targetHeight}px`,
-                `max-height: ${targetHeight}px`,
-                'z-index: 200',
-                'border-radius: 20px',
-            ].join('; ') + ';';
+            await tick();
+            const targetHeight = isFullscreen ? getFullscreenTargetHeight() : getCollapsedTargetHeight();
+            panelHeightTransitionOverride = `height: ${targetHeight}px; max-height: ${targetHeight}px;`;
 
             await waitForMessageFieldHeightTransition(messageField);
             panelHeightTransitionOverride = null;
-            suppressHeightChangeDispatch = false;
             checkScrollable();
-            return;
+        } finally {
+            suppressHeightChangeDispatch = false;
         }
-
-        const startHeight = Math.round(messageField.getBoundingClientRect().height);
-        panelHeightTransitionOverride = `height: ${startHeight}px; max-height: ${startHeight}px;`;
-        await tick();
-
-        isFullscreen = !isFullscreen;
-        dispatch('fullscreenToggle', isFullscreen);
-
-        await tick();
-        const targetHeight = isFullscreen ? getFullscreenTargetHeight() : getCollapsedTargetHeight();
-        panelHeightTransitionOverride = `height: ${targetHeight}px; max-height: ${targetHeight}px;`;
-
-        await waitForMessageFieldHeightTransition(messageField);
-        panelHeightTransitionOverride = null;
-        suppressHeightChangeDispatch = false;
-        checkScrollable();
     }
 
     // --- Action Handlers (delegating to imported handlers) ---
