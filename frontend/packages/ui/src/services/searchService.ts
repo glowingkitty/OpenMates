@@ -65,6 +65,16 @@ export interface MessageMatchSnippet {
    * Undefined for regular message text snippets.
    */
   embedType?: string;
+  /** App ID associated with embed content when available (used for app icon rendering) */
+  embedAppId?: string;
+  /** Skill ID associated with embed content when available (used for skill icon rendering) */
+  embedSkillId?: string;
+  /** Focus mode ID for focus-mode activation embeds (e.g., "jobs-career_insights") */
+  embedFocusId?: string;
+  /** Focus mode display name or translation key from embed payload */
+  embedFocusModeName?: string;
+  /** Whether this focus mode is currently active for the chat (computed at search time) */
+  embedFocusIsActive?: boolean;
 }
 
 /** A chat search result containing title match info and message match snippets */
@@ -579,11 +589,41 @@ async function resolveEmbedText(
   embedId: string,
   embedType: string,
   _referenceData?: Record<string, unknown>,
-): Promise<{ text: string; sourceLabel: string; embedType: string } | null> {
+): Promise<{
+  text: string;
+  sourceLabel: string;
+  embedType: string;
+  appId?: string;
+  skillId?: string;
+  focusId?: string;
+  focusModeName?: string;
+} | null> {
   try {
     // Normalize the embed type for consistent label lookup.
     // Server uses underscores ("app_skill_use"), frontend uses hyphens ("app-skill-use").
     const normalizedType = embedType.replace(/_/g, "-");
+
+    const getEmbedMeta = (decoded: Record<string, unknown>) => ({
+      appId:
+        typeof decoded.app_id === "string" && decoded.app_id.trim().length > 0
+          ? decoded.app_id
+          : undefined,
+      skillId:
+        typeof decoded.skill_id === "string" &&
+        decoded.skill_id.trim().length > 0
+          ? decoded.skill_id
+          : undefined,
+      focusId:
+        typeof decoded.focus_id === "string" &&
+        decoded.focus_id.trim().length > 0
+          ? decoded.focus_id
+          : undefined,
+      focusModeName:
+        typeof decoded.focus_mode_name === "string" &&
+        decoded.focus_mode_name.trim().length > 0
+          ? decoded.focus_mode_name
+          : undefined,
+    });
 
     // --- Community demo embed path (unauthenticated users) ---
     // Community demo embeds live in communityDemoStore (cleartext, separate from embedStore).
@@ -598,7 +638,12 @@ async function resolveEmbedText(
         const text = extractTextFromEmbed(normalizedType, decoded);
         if (!text) return null;
         const sourceLabel = EMBED_TYPE_LABELS[normalizedType] || "Embed";
-        return { text, sourceLabel, embedType: normalizedType };
+        return {
+          text,
+          sourceLabel,
+          embedType: normalizedType,
+          ...getEmbedMeta(decoded),
+        };
       } catch (parseError) {
         console.debug(
           `[SearchService] Could not parse demo embed ${embedId} content:`,
@@ -623,6 +668,29 @@ async function resolveEmbedText(
     }
 
     const allParts: string[] = [];
+    let parentEmbedMeta: {
+      appId?: string;
+      skillId?: string;
+      focusId?: string;
+      focusModeName?: string;
+    } = {
+      appId:
+        typeof _referenceData?.app_id === "string"
+          ? (_referenceData.app_id as string)
+          : undefined,
+      skillId:
+        typeof _referenceData?.skill_id === "string"
+          ? (_referenceData.skill_id as string)
+          : undefined,
+      focusId:
+        typeof _referenceData?.focus_id === "string"
+          ? (_referenceData.focus_id as string)
+          : undefined,
+      focusModeName:
+        typeof _referenceData?.focus_mode_name === "string"
+          ? (_referenceData.focus_mode_name as string)
+          : undefined,
+    };
 
     // Extract query from the JSON reference block if present (e.g., "query":"Twilio").
     // This is stored directly in the message markdown reference, separate from the embed.
@@ -634,6 +702,7 @@ async function resolveEmbedText(
     if (embedData.content) {
       const decoded = await decodeToonContent(embedData.content);
       if (decoded) {
+        parentEmbedMeta = getEmbedMeta(decoded as Record<string, unknown>);
         const parentText = extractTextFromEmbed(normalizedType, decoded);
         if (parentText) allParts.push(parentText);
 
@@ -688,7 +757,12 @@ async function resolveEmbedText(
     // Determine the human-readable source label for this embed type
     const sourceLabel = EMBED_TYPE_LABELS[normalizedType] || "Embed";
 
-    return { text: combined, sourceLabel, embedType: normalizedType };
+    return {
+      text: combined,
+      sourceLabel,
+      embedType: normalizedType,
+      ...parentEmbedMeta,
+    };
   } catch (error) {
     // Non-critical: if embed resolution fails, simply skip this embed
     console.debug(
@@ -726,6 +800,14 @@ const messageIndex = new Map<
     embedId?: string;
     /** The normalized embed type (e.g., "web-website-group", "code-code") for fullscreen dispatch */
     embedType?: string;
+    /** Embed app identifier (for icon rendering in search snippets) */
+    embedAppId?: string;
+    /** Embed skill identifier when present (for secondary icon rendering) */
+    embedSkillId?: string;
+    /** Focus mode identifier for focus-mode activation embeds */
+    embedFocusId?: string;
+    /** Focus mode display name/translation key from embed payload */
+    embedFocusModeName?: string;
   }>
 >();
 
@@ -780,6 +862,10 @@ async function indexChatMessages(chatId: string): Promise<void> {
       embedSourceLabel?: string;
       embedId?: string;
       embedType?: string;
+      embedAppId?: string;
+      embedSkillId?: string;
+      embedFocusId?: string;
+      embedFocusModeName?: string;
     }> = [];
 
     for (const msg of messages) {
@@ -822,6 +908,10 @@ async function indexChatMessages(chatId: string): Promise<void> {
             // Store embed ID and type so clicking the search result can open the embed
             embedId: ref.embed_id,
             embedType: result.embedType,
+            embedAppId: result.appId,
+            embedSkillId: result.skillId,
+            embedFocusId: result.focusId,
+            embedFocusModeName: result.focusModeName,
           });
         }
       }
@@ -912,6 +1002,10 @@ export async function addMessageToIndex(
     embedSourceLabel?: string;
     embedId?: string;
     embedType?: string;
+    embedAppId?: string;
+    embedSkillId?: string;
+    embedFocusId?: string;
+    embedFocusModeName?: string;
   }> = [];
 
   // 1. Index the message's own text
@@ -936,6 +1030,10 @@ export async function addMessageToIndex(
       embedSourceLabel: result.sourceLabel,
       embedId: ref.embed_id,
       embedType: result.embedType,
+      embedAppId: result.appId,
+      embedSkillId: result.skillId,
+      embedFocusId: result.focusId,
+      embedFocusModeName: result.focusModeName,
     });
   }
 
@@ -1047,6 +1145,7 @@ function buildSnippet(
 function searchMessagesInChat(
   chatId: string,
   query: string,
+  activeFocusId: string | null = null,
 ): MessageMatchSnippet[] {
   const entries = messageIndex.get(chatId);
   if (!entries) return [];
@@ -1094,6 +1193,14 @@ function searchMessagesInChat(
       embedSourceLabel: entry.embedSourceLabel,
       embedId: entry.embedId,
       embedType: entry.embedType,
+      embedAppId: entry.embedAppId,
+      embedSkillId: entry.embedSkillId,
+      embedFocusId: entry.embedFocusId,
+      embedFocusModeName: entry.embedFocusModeName,
+      embedFocusIsActive:
+        entry.embedType === "focus-mode-activation" && entry.embedFocusId
+          ? entry.embedFocusId === activeFocusId
+          : undefined,
     });
     snippetsPerMessage.set(entry.messageId, countForMsg + 1);
   }
@@ -1262,6 +1369,7 @@ export async function search(
   // Search each chat
   for (const chat of allSearchableChats) {
     let decryptedTitle: string | null = null;
+    let activeFocusId: string | null = null;
 
     if (isDemoChat(chat.chat_id) || isLegalChat(chat.chat_id)) {
       // Demo/legal chats have plaintext titles (translation key resolved at build time)
@@ -1270,6 +1378,7 @@ export async function search(
       // Authenticated user chats — get decrypted title from cache
       const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
       decryptedTitle = metadata?.title || chat.title || null;
+      activeFocusId = metadata?.activeFocusId || null;
     }
 
     // Check title match
@@ -1281,7 +1390,11 @@ export async function search(
     }
 
     // Check message matches
-    const messageSnippets = searchMessagesInChat(chat.chat_id, trimmedQuery);
+    const messageSnippets = searchMessagesInChat(
+      chat.chat_id,
+      trimmedQuery,
+      activeFocusId,
+    );
 
     // Include chat if title or any message matches
     if (titleMatch || messageSnippets.length > 0) {

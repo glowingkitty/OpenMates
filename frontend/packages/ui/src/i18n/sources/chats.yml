@@ -1742,6 +1742,31 @@ search.apps:
   he: אפליקציות ומיומנויות
   verified_by_human: []
 
+search.apps_only:
+  context: Section header for app-only results in the search results list
+  en: Apps
+  de: Apps
+  zh: 应用
+  es: Apps
+  fr: Applications
+  pt: Apps
+  ru: Приложения
+  ja: アプリ
+  ko: 앱
+  it: App
+  tr: Uygulamalar
+  vi: Ứng dụng
+  id: Aplikasi
+  pl: Aplikacje
+  nl: Apps
+  ar: التطبيقات
+  hi: ऐप्स
+  th: แอป
+  cs: Aplikace
+  sv: Appar
+  he: אפליקציות
+  verified_by_human: []
+
 search.app_app:
   context: Badge label shown on app search results indicating it is an App entry type
   en: App
@@ -1840,6 +1865,56 @@ search.app_memory:
   cs: Paměť
   sv: Minne
   he: זיכרון
+  verified_by_human: []
+
+search.focus_mode_status_activated:
+  context: Short status label shown for focus mode embed search matches when the focus mode is active in the chat
+  en: Activated
+  de: Aktiviert
+  zh: 已激活
+  es: Activado
+  fr: Activé
+  pt: Ativado
+  ru: Активирован
+  ja: 有効
+  ko: 활성화됨
+  it: Attivato
+  tr: Etkin
+  vi: Đã kích hoạt
+  id: Diaktifkan
+  pl: Aktywowany
+  nl: Geactiveerd
+  ar: مفعّل
+  hi: सक्रिय
+  th: เปิดใช้งานแล้ว
+  cs: Aktivováno
+  sv: Aktiverad
+  he: הופעל
+  verified_by_human: []
+
+search.focus_mode_status_deactivated:
+  context: Short status label shown for focus mode embed search matches when the focus mode is not active in the chat
+  en: Deactivated
+  de: Deaktiviert
+  zh: 已停用
+  es: Desactivado
+  fr: Désactivé
+  pt: Desativado
+  ru: Деактивирован
+  ja: 無効
+  ko: 비활성화됨
+  it: Disattivato
+  tr: Devre dışı
+  vi: Đã tắt
+  id: Dinonaktifkan
+  pl: Dezaktywowany
+  nl: Gedeactiveerd
+  ar: معطّل
+  hi: निष्क्रिय
+  th: ปิดใช้งานแล้ว
+  cs: Deaktivováno
+  sv: Inaktiverad
+  he: הושבת
   verified_by_human: []
 
 search.go_to_message:

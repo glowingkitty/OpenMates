@@ -168,8 +168,19 @@
     for (const s of settingsByType.myEmbeds) {
       items.push({ type: 'settings', id: s.entry.path });
     }
-    for (const a of results.appCatalog) {
-      items.push({ type: 'app', id: a.entry.path });
+    if (appsByType) {
+      for (const a of appsByType.apps) {
+        items.push({ type: 'app', id: a.entry.path });
+      }
+      for (const a of appsByType.skills) {
+        items.push({ type: 'app', id: a.entry.path });
+      }
+      for (const a of appsByType.focusModes) {
+        items.push({ type: 'app', id: a.entry.path });
+      }
+      for (const a of appsByType.memories) {
+        items.push({ type: 'app', id: a.entry.path });
+      }
     }
     for (const group of groupedChatResults) {
       for (const chatResult of group.items) {
@@ -372,6 +383,104 @@
     return { appIconName, memoryIconName };
   }
 
+  function resolveTranslatedLabel(value: string): string {
+    const translated = $text(value);
+    return translated.startsWith('[T:') ? value : translated;
+  }
+
+  function humanizeFocusId(focusId: string): string {
+    const relevantPart = focusId.includes('-') ? focusId.split('-').slice(1).join('-') : focusId;
+    return relevantPart
+      .replace(/[_-]/g, ' ')
+      .replace(/\b\w/g, (char: string) => char.toUpperCase())
+      .trim();
+  }
+
+  function getFocusSnippetDisplay(snippet: ChatSearchResult['messageSnippets'][number]): {
+    title: string;
+    status: string;
+  } {
+    const appId = snippet.embedAppId || '';
+    const appMeta = appId ? appSkillsStore.getState().apps[appId] : undefined;
+    const focusId = snippet.embedFocusId || '';
+    const shortFocusId = appId && focusId.startsWith(`${appId}-`) ? focusId.slice(appId.length + 1) : focusId;
+
+    const focusMeta = appMeta?.focus_modes.find((focus) => focus.id === shortFocusId || focus.id === focusId);
+
+    let title = '';
+    if (snippet.embedFocusModeName) {
+      title = resolveTranslatedLabel(snippet.embedFocusModeName);
+    }
+    if (!title && focusMeta?.name_translation_key) {
+      title = resolveTranslatedLabel(focusMeta.name_translation_key);
+    }
+    if (!title && focusId) {
+      title = humanizeFocusId(focusId);
+    }
+    if (!title) {
+      title = $text('chats.search.app_focus_mode');
+    }
+
+    const status = snippet.embedFocusIsActive
+      ? $text('chats.search.focus_mode_status_activated')
+      : $text('chats.search.focus_mode_status_deactivated');
+
+    return { title, status };
+  }
+
+  function getEmbedSnippetIcons(snippet: ChatSearchResult['messageSnippets'][number]): {
+    appIconName: string | null;
+    itemIconName: string | null;
+    itemIconType: 'skill' | 'focus' | null;
+  } {
+    const appId = snippet.embedAppId;
+    if (!appId) {
+      return { appIconName: null, itemIconName: null, itemIconType: null };
+    }
+
+    const appMeta = appSkillsStore.getState().apps[appId];
+    const appIconName = normalizeIconName(appMeta?.icon_image, appId);
+
+    if (snippet.embedType === 'focus-mode-activation') {
+      const focusId = snippet.embedFocusId || '';
+      const shortFocusId = focusId.startsWith(`${appId}-`) ? focusId.slice(appId.length + 1) : focusId;
+      const focusMeta = appMeta?.focus_modes.find((focus) => focus.id === shortFocusId || focus.id === focusId);
+      const focusIconName = normalizeIconName(focusMeta?.icon_image || appMeta?.icon_image, appId);
+      return { appIconName, itemIconName: focusIconName, itemIconType: 'focus' };
+    }
+
+    if (snippet.embedSkillId) {
+      const skillMeta = appMeta?.skills.find((skill) => skill.id === snippet.embedSkillId);
+      const skillIconName = normalizeIconName(skillMeta?.icon_image || appMeta?.icon_image, appId);
+      return { appIconName, itemIconName: skillIconName, itemIconType: 'skill' };
+    }
+
+    return { appIconName, itemIconName: null, itemIconType: null };
+  }
+
+  function getEmbedSnippetContextLabel(snippet: ChatSearchResult['messageSnippets'][number]): string | null {
+    const appId = snippet.embedAppId;
+    if (!appId) {
+      return snippet.embedSourceLabel || null;
+    }
+
+    const appMeta = appSkillsStore.getState().apps[appId];
+    const appName = appMeta?.name_translation_key ? resolveTranslatedLabel(appMeta.name_translation_key) : appId;
+
+    if (snippet.embedType === 'focus-mode-activation') {
+      return null;
+    }
+
+    if (snippet.embedSkillId) {
+      const skillMeta = appMeta?.skills.find((skill) => skill.id === snippet.embedSkillId);
+      if (skillMeta?.name_translation_key) {
+        return `${appName} · ${resolveTranslatedLabel(skillMeta.name_translation_key)}`;
+      }
+    }
+
+    return appName;
+  }
+
   /**
    * Handle keyboard navigation (Arrow Up/Down, Enter) within results.
    * Called from the container div's keydown handler (when user tabs into results).
@@ -470,11 +579,11 @@
     </div>
   {/if}
 
-  <!-- App Catalog Results Section -->
-  {#if results.appCatalog.length > 0 && appsByType}
+  <!-- App Catalog Results Sections -->
+  {#if appsByType && appsByType.apps.length > 0}
     <div class="search-section">
-      <h3 class="search-section-title">{$text('chats.search.apps')}</h3>
-      {#each results.appCatalog as appResult}
+      <h3 class="search-section-title">{$text('chats.search.apps_only')}</h3>
+      {#each appsByType.apps as appResult}
         {@const itemId = appResult.entry.path}
         {@const isFocused = allFocusableItems[focusedIndex]?.id === itemId}
         {@const appIcons = getAppCatalogIcons(appResult)}
@@ -491,10 +600,116 @@
               size="22px"
               noAnimation={true}
             />
-            {#if appIcons.itemIconName && appIcons.itemIconType}
+          </span>
+          <span class="item-label">
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+            {@html highlightText(appResult.label, query)}
+          </span>
+        </button>
+      {/each}
+    </div>
+  {/if}
+
+  {#if appsByType && appsByType.skills.length > 0}
+    <div class="search-section">
+      <h3 class="search-section-title">{$text('settings.app_store.skills.title')}</h3>
+      {#each appsByType.skills as appResult}
+        {@const itemId = appResult.entry.path}
+        {@const isFocused = allFocusableItems[focusedIndex]?.id === itemId}
+        {@const appIcons = getAppCatalogIcons(appResult)}
+        <button
+          class="search-setting-item"
+          class:focused={isFocused}
+          data-result-id={itemId}
+          onclick={() => onAppCatalogClick(appResult.entry.path, appResult.label)}
+        >
+          <span class="app-result-icons" aria-hidden="true">
+            <Icon
+              name={appIcons.appIconName}
+              type="app"
+              size="22px"
+              noAnimation={true}
+            />
+            {#if appIcons.itemIconName}
               <Icon
                 name={appIcons.itemIconName}
-                type={appIcons.itemIconType}
+                type="skill"
+                size="22px"
+                noAnimation={true}
+              />
+            {/if}
+          </span>
+          <span class="item-label">
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+            {@html highlightText(appResult.label, query)}
+          </span>
+        </button>
+      {/each}
+    </div>
+  {/if}
+
+  {#if appsByType && appsByType.focusModes.length > 0}
+    <div class="search-section">
+      <h3 class="search-section-title">{$text('settings.app_store.focus_modes.title')}</h3>
+      {#each appsByType.focusModes as appResult}
+        {@const itemId = appResult.entry.path}
+        {@const isFocused = allFocusableItems[focusedIndex]?.id === itemId}
+        {@const appIcons = getAppCatalogIcons(appResult)}
+        <button
+          class="search-setting-item"
+          class:focused={isFocused}
+          data-result-id={itemId}
+          onclick={() => onAppCatalogClick(appResult.entry.path, appResult.label)}
+        >
+          <span class="app-result-icons" aria-hidden="true">
+            <Icon
+              name={appIcons.appIconName}
+              type="app"
+              size="22px"
+              noAnimation={true}
+            />
+            {#if appIcons.itemIconName}
+              <Icon
+                name={appIcons.itemIconName}
+                type="focus"
+                size="22px"
+                noAnimation={true}
+              />
+            {/if}
+          </span>
+          <span class="item-label">
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+            {@html highlightText(appResult.label, query)}
+          </span>
+        </button>
+      {/each}
+    </div>
+  {/if}
+
+  {#if appsByType && appsByType.memories.length > 0}
+    <div class="search-section">
+      <h3 class="search-section-title">{$text('settings.app_settings_memories.settings_and_memories')}</h3>
+      {#each appsByType.memories as appResult}
+        {@const itemId = appResult.entry.path}
+        {@const isFocused = allFocusableItems[focusedIndex]?.id === itemId}
+        {@const appIcons = getAppCatalogIcons(appResult)}
+        <button
+          class="search-setting-item"
+          class:focused={isFocused}
+          data-result-id={itemId}
+          onclick={() => onAppCatalogClick(appResult.entry.path, appResult.label)}
+        >
+          <span class="app-result-icons" aria-hidden="true">
+            <Icon
+              name={appIcons.appIconName}
+              type="app"
+              size="22px"
+              noAnimation={true}
+            />
+            {#if appIcons.itemIconName}
+              <Icon
+                name={appIcons.itemIconName}
+                type="memory"
                 size="22px"
                 noAnimation={true}
               />
@@ -547,17 +762,50 @@
           <div class="message-snippets">
             {#each chatResult.messageSnippets as snippet}
               {@const snippetIsFocused = allFocusableItems[focusedIndex]?.id === snippet.messageId}
+              {@const embedIcons = getEmbedSnippetIcons(snippet)}
+              {@const embedContextLabel = getEmbedSnippetContextLabel(snippet)}
+              {@const focusDisplay = snippet.embedType === 'focus-mode-activation' ? getFocusSnippetDisplay(snippet) : null}
               <button
                 class="message-snippet"
                 class:focused={snippetIsFocused}
                 data-result-id={snippet.messageId}
                 title={$text('chats.search.go_to_message')}
-                onclick={() => onMessageSnippetClick(chatResult.chat, snippet.messageId, snippet.embedId, snippet.embedType)}
+                onclick={() => onMessageSnippetClick(
+                  chatResult.chat,
+                  snippet.messageId,
+                  snippet.embedType === 'focus-mode-activation' ? undefined : snippet.embedId,
+                  snippet.embedType,
+                )}
               >
-                {#if snippet.embedSourceLabel}
-                  <!-- Embed source label: shows "Web page · <snippet>" or "Code · <snippet>" -->
+                {#if embedIcons.appIconName}
+                  <span class="embed-snippet-header">
+                    <span class="app-result-icons" aria-hidden="true">
+                      <Icon
+                        name={embedIcons.appIconName}
+                        type="app"
+                        size="20px"
+                        noAnimation={true}
+                      />
+                      {#if embedIcons.itemIconName && embedIcons.itemIconType}
+                        <Icon
+                          name={embedIcons.itemIconName}
+                          type={embedIcons.itemIconType}
+                          size="20px"
+                          noAnimation={true}
+                        />
+                      {/if}
+                    </span>
+                    {#if focusDisplay}
+                      <span class="embed-focus-meta">
+                        <span class="embed-focus-title">{focusDisplay.title}</span>
+                        <span class="embed-focus-status">{focusDisplay.status}</span>
+                      </span>
+                    {:else if embedContextLabel}
+                      <span class="embed-source-label">{embedContextLabel}</span>
+                    {/if}
+                  </span>
+                {:else if snippet.embedSourceLabel}
                   <span class="embed-source-label">{snippet.embedSourceLabel}</span>
-                  <span class="embed-source-separator">·</span>
                 {/if}
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 {@html highlightText(snippet.snippet, query)}
@@ -734,6 +982,7 @@
   /* Embed source label (e.g., "Web page ·" or "Code ·") shown before embed-sourced snippets.
    * Styled as a muted badge so it doesn't compete with the match text. */
   .embed-source-label {
+    display: inline-block;
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
@@ -743,11 +992,31 @@
     margin-right: 2px;
   }
 
-  .embed-source-separator {
+  .embed-snippet-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+
+  .embed-focus-meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .embed-focus-title {
+    font-size: 12px;
+    line-height: 1.2;
+    color: var(--color-font-primary);
+    font-weight: 600;
+  }
+
+  .embed-focus-status {
     font-size: 11px;
-    color: var(--color-font-tertiary, var(--color-font-secondary));
-    opacity: 0.5;
-    margin-right: 4px;
+    line-height: 1.2;
+    color: var(--color-font-secondary);
+    font-weight: 500;
   }
 
   /* <mark> inside snippets — yellow background highlight, matching in-chat search marks.
