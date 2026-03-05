@@ -73,18 +73,8 @@
       return;
     }
 
-    // Resolve child → parent if needed (same pattern as EmbedInlineLink)
-    let targetEmbedId = resolvedEmbedId;
-    let focusChildEmbedId: string | undefined;
-    try {
-      const rawEntry = await embedStore.getRawEntry(`embed:${resolvedEmbedId}`);
-      if (rawEntry?.parent_embed_id) {
-        targetEmbedId = rawEntry.parent_embed_id;
-        focusChildEmbedId = resolvedEmbedId;
-      }
-    } catch (err) {
-      console.debug('[SourceQuoteBlock] getRawEntry failed, using child embed_id:', err);
-    }
+    const { targetEmbedId, focusChildEmbedId } =
+      await embedStore.resolveFullscreenTarget(resolvedEmbedId);
 
     console.debug(
       `[SourceQuoteBlock] Opening fullscreen for embed_ref "${embedRef}" → ${targetEmbedId}` +

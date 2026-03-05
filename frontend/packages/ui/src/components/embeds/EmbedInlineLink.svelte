@@ -130,24 +130,8 @@
       return;
     }
 
-    // If this embed is a child embed (e.g. a single flight result of type "connection"),
-    // navigate to the parent "app-skill-use" embed but also pass the child embed_id so
-    // the fullscreen can auto-focus that specific result.
-    let targetEmbedId = resolvedEmbedId;
-    let focusChildEmbedId: string | undefined;
-    try {
-      const rawEntry = await embedStore.getRawEntry(`embed:${resolvedEmbedId}`);
-      if (rawEntry?.parent_embed_id) {
-        targetEmbedId = rawEntry.parent_embed_id;
-        focusChildEmbedId = resolvedEmbedId;
-        console.debug(
-          `[EmbedInlineLink] Child embed detected — opening parent ${targetEmbedId}, focusing child ${focusChildEmbedId}`,
-        );
-      }
-    } catch (err) {
-      // getRawEntry failed — proceed with child embed_id as target (may show "not available" error)
-      console.debug(`[EmbedInlineLink] getRawEntry failed, using child embed_id:`, err);
-    }
+    const { targetEmbedId, focusChildEmbedId } =
+      await embedStore.resolveFullscreenTarget(resolvedEmbedId);
 
     console.debug(
       `[EmbedInlineLink] Opening fullscreen for embed_ref "${embedRef}" → ${targetEmbedId}` +

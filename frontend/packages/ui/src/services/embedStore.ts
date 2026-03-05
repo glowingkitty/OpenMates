@@ -146,6 +146,160 @@ export interface EmbedKeyEntry {
 }
 
 export class EmbedStore {
+  private normalizeEmbedId(embedId: string): string {
+    return embedId.startsWith("embed:")
+      ? embedId.slice("embed:".length)
+      : embedId;
+  }
+
+  private normalizeEmbedIds(rawIds: unknown): string[] {
+    if (!Array.isArray(rawIds)) return [];
+    return rawIds
+      .filter((id): id is string => typeof id === "string" && id.length > 0)
+      .map((id) => this.normalizeEmbedId(id));
+  }
+
+  private extractEmbedIdsFromEntry(entry: EmbedStoreEntry): string[] {
+    if (Array.isArray(entry.embed_ids)) {
+      return this.normalizeEmbedIds(entry.embed_ids);
+    }
+
+    if (!entry.data) {
+      return [];
+    }
+
+    try {
+      const storedData = entry.data;
+      if (typeof storedData === "string") {
+        if (storedData.trim().startsWith("{")) {
+          const parsed = JSON.parse(storedData);
+          return this.normalizeEmbedIds((parsed as any).embed_ids);
+        }
+      } else if (typeof storedData === "object" && storedData !== null) {
+        return this.normalizeEmbedIds((storedData as any).embed_ids);
+      }
+    } catch {
+      // Ignore parse errors: encrypted payloads cannot be inspected without decrypting.
+    }
+
+    return [];
+  }
+
+  private extractEmbedIdFromContentRef(contentRef: string): string | null {
+    if (!contentRef.startsWith("embed:")) return null;
+    const embedId = contentRef.slice("embed:".length);
+    return embedId || null;
+  }
+
+  private findParentEmbedIdInCache(childEmbedId: string): string | null {
+    const normalizedChildEmbedId = this.normalizeEmbedId(childEmbedId);
+    let foundParentEmbedId: string | null = null;
+    embedCache.forEach((entry, contentRef) => {
+      if (foundParentEmbedId) return;
+
+      const parentEmbedId = this.extractEmbedIdFromContentRef(contentRef);
+      if (!parentEmbedId) return;
+
+      const childIds = this.extractEmbedIdsFromEntry(entry);
+      if (childIds.includes(normalizedChildEmbedId)) {
+        foundParentEmbedId = parentEmbedId;
+      }
+    });
+
+    if (foundParentEmbedId) {
+      return foundParentEmbedId;
+    }
+    return null;
+  }
+
+  private async findParentEmbedIdInIndexedDb(
+    childEmbedId: string,
+  ): Promise<string | null> {
+    const normalizedChildEmbedId = this.normalizeEmbedId(childEmbedId);
+    try {
+      const transaction = await chatDB.getTransaction(
+        [EMBEDS_STORE_NAME],
+        "readonly",
+      );
+      const store = transaction.objectStore(EMBEDS_STORE_NAME);
+
+      const allEntries = await new Promise<EmbedStoreEntry[]>(
+        (resolve, reject) => {
+          const request = store.getAll();
+          request.onsuccess = () => resolve(request.result || []);
+          request.onerror = () => reject(request.error);
+        },
+      );
+
+      for (const entry of allEntries) {
+        if (!entry?.contentRef) continue;
+        const parentEmbedId = this.extractEmbedIdFromContentRef(
+          entry.contentRef,
+        );
+        if (!parentEmbedId) continue;
+
+        const childIds = this.extractEmbedIdsFromEntry(entry);
+        if (childIds.includes(normalizedChildEmbedId)) {
+          return parentEmbedId;
+        }
+      }
+    } catch (error) {
+      console.debug(
+        "[EmbedStore] Failed to scan IndexedDB for parent embed lookup:",
+        error,
+      );
+    }
+
+    return null;
+  }
+
+  /**
+   * Resolve the fullscreen navigation target for an embed.
+   *
+   * For child embeds, the target should be the parent search/embed container so
+   * fullscreen opens the aggregate view. The child embed ID is returned as
+   * focusChildEmbedId so callers can auto-focus the original child result.
+   */
+  async resolveFullscreenTarget(embedId: string): Promise<{
+    targetEmbedId: string;
+    focusChildEmbedId?: string;
+  }> {
+    const normalizedEmbedId = this.normalizeEmbedId(embedId);
+
+    let directParentId: string | null = null;
+    try {
+      const rawEntry = await this.getRawEntry(`embed:${normalizedEmbedId}`);
+      if (
+        typeof rawEntry?.parent_embed_id === "string" &&
+        rawEntry.parent_embed_id.length > 0
+      ) {
+        directParentId = this.normalizeEmbedId(rawEntry.parent_embed_id);
+      }
+    } catch (error) {
+      console.debug("[EmbedStore] Direct parent lookup failed:", error);
+    }
+
+    if (directParentId && directParentId !== normalizedEmbedId) {
+      return {
+        targetEmbedId: directParentId,
+        focusChildEmbedId: normalizedEmbedId,
+      };
+    }
+
+    const indexedParentId =
+      this.findParentEmbedIdInCache(normalizedEmbedId) ||
+      (await this.findParentEmbedIdInIndexedDb(normalizedEmbedId));
+
+    if (indexedParentId && indexedParentId !== normalizedEmbedId) {
+      return {
+        targetEmbedId: indexedParentId,
+        focusChildEmbedId: normalizedEmbedId,
+      };
+    }
+
+    return { targetEmbedId: normalizedEmbedId };
+  }
+
   private normalizeEmbedType(type: string): EmbedType {
     // Uses the auto-generated EMBED_TYPE_NORMALIZATION_MAP from app.yml definitions.
     // To add a new type mapping, add an embed_types entry to the relevant app.yml
