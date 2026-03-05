@@ -2652,6 +2652,65 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      */
     let isTallViewport = $derived(viewportHeight >= 800);
 
+    // Hover tilt effect for the large welcome-screen chat preview card.
+    // Mirrors UnifiedEmbedPreview's 3D hover behavior.
+    let resumeLargeCardElement = $state<HTMLButtonElement | null>(null);
+    let isResumeLargeCardHovering = $state(false);
+    let resumeLargeCardMouseX = $state(0); // Normalized -1..1
+    let resumeLargeCardMouseY = $state(0); // Normalized -1..1
+
+    const RESUME_CARD_TILT_MAX_ANGLE = 3;
+    const RESUME_CARD_TILT_PERSPECTIVE = 800;
+    const RESUME_CARD_TILT_SCALE = 0.985;
+
+    let resumeLargeCardTiltTransform = $derived.by(() => {
+        if (!isResumeLargeCardHovering) {
+            return '';
+        }
+
+        const rotateY = resumeLargeCardMouseX * RESUME_CARD_TILT_MAX_ANGLE;
+        const rotateX = -resumeLargeCardMouseY * RESUME_CARD_TILT_MAX_ANGLE;
+
+        return `perspective(${RESUME_CARD_TILT_PERSPECTIVE}px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${RESUME_CARD_TILT_SCALE})`;
+    });
+
+    function getResumeLargeCardStyle(backgroundStyle: string): string {
+        if (!resumeLargeCardTiltTransform) {
+            return backgroundStyle;
+        }
+
+        return `${backgroundStyle}; transform: ${resumeLargeCardTiltTransform}`;
+    }
+
+    function handleResumeLargeCardMouseEnter(e: MouseEvent) {
+        isResumeLargeCardHovering = true;
+        updateResumeLargeCardMousePosition(e);
+    }
+
+    function handleResumeLargeCardMouseMove(e: MouseEvent) {
+        if (!isResumeLargeCardHovering || !resumeLargeCardElement) {
+            return;
+        }
+
+        updateResumeLargeCardMousePosition(e);
+    }
+
+    function handleResumeLargeCardMouseLeave() {
+        isResumeLargeCardHovering = false;
+        resumeLargeCardMouseX = 0;
+        resumeLargeCardMouseY = 0;
+    }
+
+    function updateResumeLargeCardMousePosition(e: MouseEvent) {
+        if (!resumeLargeCardElement) {
+            return;
+        }
+
+        const rect = resumeLargeCardElement.getBoundingClientRect();
+        resumeLargeCardMouseX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+        resumeLargeCardMouseY = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+    }
+
     // ─── Height-based suggestions overlap detection ──────────────────────────
     // Reliable DOM-measurement approach: measure whether the new-chat suggestions
     // (rendered above the message input) would visually overlap the resume-chat
@@ -8340,9 +8399,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     {@const iconName = getValidIconName(resumeChatIcon || '', category)}
                                     {@const IconComponent = getLucideIcon(iconName)}
                                     <button
+                                        bind:this={resumeLargeCardElement}
                                         class="resume-chat-large-card"
-                                        style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: var(--color-primary)'}
+                                        class:hovering={isResumeLargeCardHovering}
+                                        style={getResumeLargeCardStyle(gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: var(--color-primary)')}
                                         onclick={handleResumeLastChat}
+                                        onmouseenter={handleResumeLargeCardMouseEnter}
+                                        onmousemove={handleResumeLargeCardMouseMove}
+                                        onmouseleave={handleResumeLargeCardMouseLeave}
                                         type="button"
                                     >
                                         <!-- Large decorative icons at card edges (matching ChatEmbedPreview) -->
@@ -8414,9 +8478,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 {#if isTallViewport}
                                     <!-- Tall viewport: large gradient card matching ChatEmbedPreview style -->
                                     <button
+                                        bind:this={resumeLargeCardElement}
                                         class="resume-chat-large-card"
-                                        style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: var(--color-primary)'}
+                                        class:hovering={isResumeLargeCardHovering}
+                                        style={getResumeLargeCardStyle(gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: var(--color-primary)')}
                                         onclick={handleOpenIntroChat}
+                                        onmouseenter={handleResumeLargeCardMouseEnter}
+                                        onmousemove={handleResumeLargeCardMouseMove}
+                                        onmouseleave={handleResumeLargeCardMouseLeave}
                                         type="button"
                                     >
                                         {#if IconComponent}
@@ -10013,11 +10082,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             box-shadow 0.2s ease-out;
     }
 
-    .resume-chat-large-card:hover {
+    .resume-chat-large-card.hovering {
         box-shadow:
             0 4px 12px rgba(0, 0, 0, 0.12),
             0 1px 3px rgba(0, 0, 0, 0.08);
-        transform: translateY(-2px);
+    }
+
+    /* CSS fallback hover (non-JS scenarios) */
+    .resume-chat-large-card:hover:not(.hovering) {
+        transform: scale(0.98);
+        box-shadow:
+            0 4px 12px rgba(0, 0, 0, 0.12),
+            0 1px 3px rgba(0, 0, 0, 0.08);
     }
 
     .resume-chat-large-card:active {
