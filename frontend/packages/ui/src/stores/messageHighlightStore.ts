@@ -9,3 +9,14 @@ export const messageHighlightStore = writable<string | null>(null);
  * Set to the search query string while search is open, null when closed.
  */
 export const searchTextHighlightStore = writable<string | null>(null);
+
+/**
+ * Store for code line highlighting in the code embed fullscreen.
+ * Set when the user clicks an embed: link with a #L42 or #L10-L20 line range suffix.
+ * The CodeEmbedFullscreen consumes this to highlight and auto-scroll to the target lines.
+ * Cleared when the fullscreen is closed.
+ */
+export const codeLineHighlightStore = writable<{
+  start: number;
+  end: number;
+} | null>(null);

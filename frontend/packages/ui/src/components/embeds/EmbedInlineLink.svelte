@@ -38,9 +38,21 @@
      *  null if the ref index was empty when the message was parsed.  Always
      *  falls back to a live lookup via embedStore.refIndexVersion. */
     appId?: string | null;
+    /**
+     * For code embeds: the first line to highlight when the fullscreen opens
+     * (1-indexed). Parsed from the #L42 or #L10-L20 suffix in embed: links.
+     * null means no line highlighting.
+     */
+    focusLineStart?: number | null;
+    /**
+     * For code embeds: the last line to highlight (1-indexed, inclusive).
+     * Equal to focusLineStart for single-line references.
+     * null when focusLineStart is null.
+     */
+    focusLineEnd?: number | null;
   }
 
-  let { embedRef, embedId = null, displayText, appId = null }: Props = $props();
+  let { embedRef, embedId = null, displayText, appId = null, focusLineStart = null, focusLineEnd = null }: Props = $props();
 
   // Reactively resolve the effective appId.
   //
@@ -149,6 +161,10 @@
           embedType: 'app-skill-use', // default type; ActiveChat will look up the real type
           // Pass the child embed_id so the search fullscreen can auto-open the specific result
           focusChildEmbedId,
+          // Pass the line range so CodeEmbedFullscreen can highlight + scroll to the target lines
+          focusLineRange: focusLineStart != null
+            ? { start: focusLineStart, end: focusLineEnd ?? focusLineStart }
+            : undefined,
         },
         bubbles: true,
       }),

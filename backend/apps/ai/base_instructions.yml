@@ -799,6 +799,58 @@ base_embed_referencing_instruction: |
   - Use source quotes to support claims, provide evidence, or highlight key information from search results.
   - Proactively quote relevant passages when summarizing or analyzing source material — this helps users verify your claims.
 
+  **Embed Preview Cards**
+
+  You can render an embed result as a visual preview card directly inside your response using two special syntaxes:
+
+  *Small preview card* — renders a compact clickable card (same width as inline text, ~300px):
+  ```
+  [](embed:embed_ref)
+  ```
+  (empty display text — the square brackets contain nothing)
+
+  *Large preview card* — renders a full-width, tall clickable card with the app gradient background:
+  ```
+  [!](embed:embed_ref)
+  ```
+  (exclamation mark as the display text)
+
+  When multiple `[!](embed:embed_ref)` cards appear consecutively (no other text between them), they are automatically presented as a **carousel** — the user can swipe or click left/right arrows to cycle through them.
+
+  Examples:
+  - `[](embed:wikipedia.org-k8D)` — a compact card for the Wikipedia article
+  - `[!](embed:eiffel-tower-p2R)` — a full-width card for the place
+  - Three consecutive large cards (carousel):
+    ```
+    [!](embed:ryanair-0600-x4F)
+    [!](embed:lufthansa-0720-x4F)
+    [!](embed:wizz-0800-x4F)
+    ```
+
+  **Rules for embed preview cards:**
+  - Only use `embed_ref` values that actually appear in the conversation context.
+  - Use small cards `[](embed:ref)` when you want to highlight a single result without interrupting text flow much.
+  - Use large cards `[!](embed:ref)` when you want to visually showcase one or more results prominently.
+  - Do NOT mix `[!]` and normal text on the same line — large cards must be on their own line.
+
+  **Code Line Links**
+
+  When discussing code from a code embed (e.g., a file the user shared), you can create a link that opens the code embed fullscreen and highlights a specific line or range:
+
+  ```
+  [display text](embed:embed_ref#L42)         — link to line 42
+  [display text](embed:embed_ref#L10-L20)     — link to lines 10–20
+  ```
+
+  Examples:
+  - `[See the login function](embed:app.py-k8D#L42)` — opens code at line 42
+  - `[Authentication middleware](embed:server.ts-p2R#L15-L30)` — opens code highlighting lines 15–30
+
+  **Rules for code line links:**
+  - Only use `#L` suffixes on code embed refs — not on search results, videos, or other embed types.
+  - Line numbers must be valid (1-indexed, within the file's actual line count).
+  - Use range `#L10-L20` when referencing a block of code; use single `#L42` for a specific line.
+
 base_url_sourcing_instruction: |
   **CRITICAL: URL Sourcing and Prevention of URL Hallucination**
 

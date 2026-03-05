@@ -60,6 +60,22 @@ export const EmbedInlineNode = Node.create<EmbedInlineNodeOptions>({
       appId: {
         default: null,
       },
+      /**
+       * For code embeds: the first line to highlight (1-indexed).
+       * Parsed from the #L42 or #L10-L20 suffix in embed: links.
+       * null means no line highlighting.
+       */
+      focusLineStart: {
+        default: null,
+      },
+      /**
+       * For code embeds: the last line to highlight (1-indexed, inclusive).
+       * Equal to focusLineStart for single-line references.
+       * null when focusLineStart is null.
+       */
+      focusLineEnd: {
+        default: null,
+      },
     };
   },
 
@@ -81,6 +97,8 @@ export const EmbedInlineNode = Node.create<EmbedInlineNodeOptions>({
         "data-embed-id": HTMLAttributes.embedId,
         "data-display-text": HTMLAttributes.displayText,
         "data-app-id": HTMLAttributes.appId,
+        "data-focus-line-start": HTMLAttributes.focusLineStart,
+        "data-focus-line-end": HTMLAttributes.focusLineEnd,
         class: "embed-inline-node",
         contenteditable: "false",
       }),
@@ -106,6 +124,8 @@ export const EmbedInlineNode = Node.create<EmbedInlineNodeOptions>({
             embedId: node.attrs.embedId as string | null,
             displayText: node.attrs.displayText as string,
             appId: node.attrs.appId as string | null,
+            focusLineStart: node.attrs.focusLineStart as number | null,
+            focusLineEnd: node.attrs.focusLineEnd as number | null,
           },
         }) as Record<string, unknown>;
       } catch (err) {
@@ -122,6 +142,8 @@ export const EmbedInlineNode = Node.create<EmbedInlineNodeOptions>({
         embedId: node.attrs.embedId,
         displayText: node.attrs.displayText,
         appId: node.attrs.appId,
+        focusLineStart: node.attrs.focusLineStart,
+        focusLineEnd: node.attrs.focusLineEnd,
       };
 
       return {
@@ -139,7 +161,9 @@ export const EmbedInlineNode = Node.create<EmbedInlineNodeOptions>({
             newAttrs.embedRef === currentAttrs.embedRef &&
             newAttrs.embedId === currentAttrs.embedId &&
             newAttrs.displayText === currentAttrs.displayText &&
-            newAttrs.appId === currentAttrs.appId
+            newAttrs.appId === currentAttrs.appId &&
+            newAttrs.focusLineStart === currentAttrs.focusLineStart &&
+            newAttrs.focusLineEnd === currentAttrs.focusLineEnd
           ) {
             return true; // Accept update, no DOM changes needed
           }
@@ -150,6 +174,8 @@ export const EmbedInlineNode = Node.create<EmbedInlineNodeOptions>({
             embedId: newAttrs.embedId,
             displayText: newAttrs.displayText,
             appId: newAttrs.appId,
+            focusLineStart: newAttrs.focusLineStart,
+            focusLineEnd: newAttrs.focusLineEnd,
           };
 
           if (svelteInstance) {
@@ -168,6 +194,8 @@ export const EmbedInlineNode = Node.create<EmbedInlineNodeOptions>({
                 embedId: newAttrs.embedId as string | null,
                 displayText: newAttrs.displayText as string,
                 appId: newAttrs.appId as string | null,
+                focusLineStart: newAttrs.focusLineStart as number | null,
+                focusLineEnd: newAttrs.focusLineEnd as number | null,
               },
             }) as Record<string, unknown>;
           } catch (err) {

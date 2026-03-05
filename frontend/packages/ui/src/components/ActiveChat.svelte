@@ -99,7 +99,7 @@
     import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils'; // For resume card category gradient circle
     import { waitLocale } from 'svelte-i18n'; // Import waitLocale for waiting for translations to load
     import { get } from 'svelte/store'; // Import get to read store values
-    import { searchTextHighlightStore } from '../stores/messageHighlightStore'; // For source quote text highlighting in embed fullscreen
+    import { searchTextHighlightStore, codeLineHighlightStore } from '../stores/messageHighlightStore'; // For source quote text + code line highlighting in embed fullscreen
     import { extractEmbedReferences } from '../services/embedResolver'; // Import for embed navigation
     import { tipTapToCanonicalMarkdown } from '../message_parsing/serializers'; // Import for embed navigation
     import PushNotificationBanner from './PushNotificationBanner.svelte'; // Import push notification banner component
@@ -216,6 +216,8 @@
         focusChildEmbedId?: string | null;
         /** Quote text to highlight in the fullscreen content (from source quote block click) */
         highlightQuoteText?: string | null;
+        /** Line range to highlight in a code embed fullscreen (from #L42 / #L10-L20 suffix) */
+        focusLineRange?: { start: number; end: number } | null;
     } | null;
 
     type EmbedFullscreenEventDetail = {
@@ -234,6 +236,8 @@
         focusChildEmbedId?: string | null;
         /** Quote text to highlight in the fullscreen content (from source quote block click) */
         highlightQuoteText?: string | null;
+        /** Line range to highlight in a code embed fullscreen (from #L42 / #L10-L20 suffix) */
+        focusLineRange?: { start: number; end: number } | null;
     };
 
     type AiMessageChunkPayload = {
@@ -1225,7 +1229,7 @@
     async function handleEmbedFullscreen(event: CustomEvent) {
         console.debug('[ActiveChat] Received embedfullscreen event:', event.detail);
         const detail = event.detail as EmbedFullscreenEventDetail;
-        const { embedId, embedData, decodedContent, embedType, attrs, focusChildEmbedId, highlightQuoteText } = detail;
+        const { embedId, embedData, decodedContent, embedType, attrs, focusChildEmbedId, highlightQuoteText, focusLineRange } = detail;
 
         // CRITICAL: Set the URL hash guard BEFORE any async work.
         //
@@ -1561,7 +1565,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             focusChildEmbedId: focusChildEmbedId ?? null,
             // Forwarded from SourceQuoteBlock when a verified source quote is clicked.
             // The fullscreen uses this to scroll to and highlight the quoted text.
-            highlightQuoteText: highlightQuoteText ?? null
+            highlightQuoteText: highlightQuoteText ?? null,
+            // Forwarded from EmbedInlineLink when a code embed link has a #L42 / #L10-L20 suffix.
+            // CodeEmbedFullscreen uses this to highlight + auto-scroll to the target lines.
+            focusLineRange: focusLineRange ?? null
         };
         showEmbedFullscreen = true;
         
@@ -1570,6 +1577,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // the quoted text within the embed content. This is cleared on fullscreen close.
         if (highlightQuoteText) {
             searchTextHighlightStore.set(highlightQuoteText);
+        }
+
+        // If this was triggered by a code embed inline link with a line range suffix,
+        // set the code line highlight store so CodeEmbedFullscreen can highlight
+        // and auto-scroll to the target lines. Cleared on fullscreen close.
+        if (focusLineRange) {
+            codeLineHighlightStore.set(focusLineRange);
         }
         
         // URL hash was already set at the top of this function (before async work) to ensure
@@ -1601,6 +1615,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Only clear if the highlight was set by this feature (not by the search bar).
         if (embedFullscreenData?.highlightQuoteText) {
             searchTextHighlightStore.set(null);
+        }
+
+        // Clear code line highlight if it was set (from inline link #L suffix).
+        if (embedFullscreenData?.focusLineRange) {
+            codeLineHighlightStore.set(null);
         }
         
         showEmbedFullscreen = false;
