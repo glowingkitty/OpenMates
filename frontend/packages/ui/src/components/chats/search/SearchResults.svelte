@@ -128,6 +128,23 @@
     return { apps, skills, focusModes, memories };
   })());
 
+  let settingsByType = $derived((() => {
+    const myEmbeds: typeof results.settings = [];
+    const regularSettings: typeof results.settings = [];
+
+    for (const settingResult of results.settings) {
+      const path = settingResult.entry.path;
+      const isMyEmbedEntry = /^app_store\/[^/]+\/settings_memories\/[^/]+\/entry\/[^/]+$/.test(path);
+      if (isMyEmbedEntry) {
+        myEmbeds.push(settingResult);
+      } else {
+        regularSettings.push(settingResult);
+      }
+    }
+
+    return { myEmbeds, regularSettings };
+  })());
+
   // Track focused result index for keyboard navigation.
   // We flatten all results into a single navigable list.
   let focusedIndex = $state(-1);
@@ -145,7 +162,10 @@
   let allFocusableItems = $derived((() => {
     const items: Array<{ type: 'settings' | 'app' | 'chat' | 'snippet'; id: string }> = [];
 
-    for (const s of results.settings) {
+    for (const s of settingsByType.regularSettings) {
+      items.push({ type: 'settings', id: s.entry.path });
+    }
+    for (const s of settingsByType.myEmbeds) {
       items.push({ type: 'settings', id: s.entry.path });
     }
     for (const a of results.appCatalog) {
@@ -336,6 +356,22 @@
     return { appIconName, itemIconName, itemIconType: 'memory' };
   }
 
+  function getMyEmbedIcons(path: string): {
+    appIconName: string;
+    memoryIconName: string;
+  } {
+    const pathParts = path.split('/');
+    const appId = pathParts[1] || '';
+    const categoryId = pathParts[3] || '';
+    const appMeta = appSkillsStore.getState().apps[appId];
+
+    const appIconName = normalizeIconName(appMeta?.icon_image, appId || 'app');
+    const memoryMeta = appMeta?.settings_and_memories.find((m) => m.id === categoryId);
+    const memoryIconName = normalizeIconName(memoryMeta?.icon_image || appMeta?.icon_image, appId || 'app');
+
+    return { appIconName, memoryIconName };
+  }
+
   /**
    * Handle keyboard navigation (Arrow Up/Down, Enter) within results.
    * Called from the container div's keydown handler (when user tabs into results).
@@ -364,10 +400,10 @@
   onkeydown={handleContainerKeyDown}
 >
   <!-- Settings Results Section -->
-  {#if results.settings.length > 0}
+  {#if settingsByType.regularSettings.length > 0}
     <div class="search-section">
       <h3 class="search-section-title">{$text('chats.search.settings')}</h3>
-      {#each results.settings as settingResult}
+      {#each settingsByType.regularSettings as settingResult}
         {@const itemId = settingResult.entry.path}
         {@const isFocused = allFocusableItems[focusedIndex]?.id === itemId}
         <button
@@ -384,6 +420,47 @@
           {#if settingResult.icon}
             <span class="item-icon clickable-icon {settingResult.icon}"></span>
           {/if}
+          <span class="item-label">
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+            {@html highlightText(settingResult.label, query)}
+          </span>
+        </button>
+      {/each}
+    </div>
+  {/if}
+
+  {#if settingsByType.myEmbeds.length > 0}
+    <div class="search-section">
+      <h3 class="search-section-title">{$text('chats.search.my_embeds')}</h3>
+      {#each settingsByType.myEmbeds as settingResult}
+        {@const itemId = settingResult.entry.path}
+        {@const isFocused = allFocusableItems[focusedIndex]?.id === itemId}
+        {@const myEmbedIcons = getMyEmbedIcons(settingResult.entry.path)}
+        <button
+          class="search-setting-item"
+          class:focused={isFocused}
+          data-result-id={itemId}
+          onclick={() => onSettingsClick(
+            settingResult.entry.path,
+            settingResult.label,
+            settingResult.icon || undefined,
+            settingResult.entry.translationKey,
+          )}
+        >
+          <span class="app-result-icons" aria-hidden="true">
+            <Icon
+              name={myEmbedIcons.appIconName}
+              type="app"
+              size="22px"
+              noAnimation={true}
+            />
+            <Icon
+              name={myEmbedIcons.memoryIconName}
+              type="memory"
+              size="22px"
+              noAnimation={true}
+            />
+          </span>
           <span class="item-label">
             <!-- eslint-disable-next-line svelte/no-at-html-tags -->
             {@html highlightText(settingResult.label, query)}

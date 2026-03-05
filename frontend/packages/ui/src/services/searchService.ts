@@ -321,7 +321,7 @@ async function getUserSettingsMemoriesSearchEntries(
         ? textFn(categoryMeta.name_translation_key)
         : categoryMeta.id;
 
-      const label = `${entryTitle} - ${categoryLabel} (${appLabel})`;
+      const label = `${entryTitle} - ${categoryLabel}`;
       const originalItemKey =
         typeof itemValue._original_item_key === "string"
           ? itemValue._original_item_key

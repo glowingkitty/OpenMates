@@ -1667,6 +1667,31 @@ search.settings:
   he: הגדרות
   verified_by_human: []
 
+search.my_embeds:
+  context: Section header for the user's own settings/memories entry results in the search results list
+  en: My embeds
+  de: Meine Embeds
+  zh: 我的嵌入
+  es: Mis embeds
+  fr: Mes embeds
+  pt: Meus embeds
+  ru: Мои embeds
+  ja: マイ埋め込み
+  ko: 내 임베드
+  it: I miei embed
+  tr: Benim embedlerim
+  vi: Embed của tôi
+  id: Embed saya
+  pl: Moje osadzenia
+  nl: Mijn embeds
+  ar: تضميناتي
+  hi: मेरे एम्बेड
+  th: เอ็มเบดของฉัน
+  cs: Moje embedy
+  sv: Mina inbäddningar
+  he: ההטמעות שלי
+  verified_by_human: []
+
 search.indexing:
   context: Text shown while the search index is being built (warming up message cache)
   en: Building search index...
