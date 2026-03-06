@@ -2550,6 +2550,7 @@ async function runClientHealthCheck(): Promise<void> {
   let decryptChatsFailed = 0;
   let decryptChatsOk = 0;
   const failedChatDetails: { chatId: string; failedFields: string[] }[] = [];
+  let failedEmbedDetails: { embedId: string; error: string }[] = [];
   try {
     const db2 = await openDB();
     const allChats = await getAllFromStore<Record<string, unknown>>(db2, CHATS_STORE);
@@ -2623,6 +2624,10 @@ async function runClientHealthCheck(): Promise<void> {
         allOk.push(`Embed decryption: ${embedDecodeResult.decodedCount}/${embedDecodeResult.checkedCount} ALL OK`);
       } else {
         allIssues.push(`Embed decryption: ${embedDecodeResult.failedCount}/${embedDecodeResult.checkedCount} FAILED`);
+        // Collect failed embed details for the detail section
+        failedEmbedDetails = embedDecodeResult.attempts
+          .filter((a) => a.error !== null)
+          .map((a) => ({ embedId: a.embedId, error: a.error || "unknown" }));
       }
     } else {
       allOk.push("Embed decryption: no finished encrypted embeds to check");
@@ -2740,6 +2745,21 @@ async function runClientHealthCheck(): Promise<void> {
       }
       if (failedChatDetails.length > 10) {
         console.log(`    ... and ${failedChatDetails.length - 10} more`);
+      }
+    }
+
+    // Detail: failed embed IDs
+    if (failedEmbedDetails.length > 0) {
+      console.log("");
+      console.log(
+        `%c  Failed embeds (${failedEmbedDetails.length}):`,
+        "font-weight: 600; color: #dc2626;",
+      );
+      for (const { embedId, error } of failedEmbedDetails.slice(0, 20)) {
+        console.log(`    🔴 ${embedId} — ${error}`);
+      }
+      if (failedEmbedDetails.length > 20) {
+        console.log(`    ... and ${failedEmbedDetails.length - 20} more`);
       }
     }
 
