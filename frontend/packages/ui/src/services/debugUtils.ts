@@ -1037,48 +1037,6 @@ function buildClientEmbedHealthSummary(params: {
   return { isHealthy: issues.length === 0, issues, warnings };
 }
 
-function appendHealthCheckSection(
-  lines: string[],
-  healthSummary: { isHealthy: boolean; issues: string[]; warnings: string[] },
-  countsLine: string,
-): void {
-  lines.push("");
-  lines.push("=".repeat(100));
-  lines.push("HEALTH CHECK SUMMARY");
-  lines.push("=".repeat(100));
-  lines.push(
-    healthSummary.isHealthy
-      ? "🟢 HEALTH CHECK: HEALTHY"
-      : "🔴 HEALTH CHECK: ISSUES DETECTED",
-  );
-  lines.push(`  Counts: ${countsLine}`);
-
-  if (healthSummary.issues.length > 0) {
-    lines.push("  Issues:");
-    for (const issue of healthSummary.issues.slice(
-      0,
-      MAX_HEALTH_ITEMS_TO_SHOW,
-    )) {
-      lines.push(`   - ${issue}`);
-    }
-    if (healthSummary.issues.length > MAX_HEALTH_ITEMS_TO_SHOW) {
-      lines.push(
-        `   - ... and ${healthSummary.issues.length - MAX_HEALTH_ITEMS_TO_SHOW} more issue(s)`,
-      );
-    }
-  }
-
-  if (healthSummary.warnings.length > 0) {
-    lines.push("  Warnings:");
-    for (const warning of healthSummary.warnings.slice(
-      0,
-      MAX_HEALTH_ITEMS_TO_SHOW,
-    )) {
-      lines.push(`   - ${warning}`);
-    }
-  }
-  lines.push("=".repeat(100));
-}
 
 function logHealthCheckBanner(
   subject: "CHAT" | "EMBED",
@@ -1489,7 +1447,7 @@ export async function inspectChat(
     for (const fd of encryptedFieldDefs) {
       const encValue = chatMeta[fd.key] as string | undefined;
       if (!encValue) {
-        lines.push(`  · ${fd.shortLabel.padEnd(12)} not present`);
+        lines.push(`  · ${fd.shortLabel.padEnd(12)} (not present)`);
         continue;
       }
       // Find matching decryption result
@@ -1503,17 +1461,17 @@ export async function inspectChat(
               ? decResult.preview.substring(0, 30) + "..."
               : decResult.preview;
           lines.push(
-            `  ✓ ${fd.shortLabel.padEnd(12)} "${preview}"`,
+            `  🟢 ${fd.shortLabel.padEnd(12)} "${preview}"`,
           );
         } else {
           lines.push(
-            `  ✗ ${fd.shortLabel.padEnd(12)} DECRYPT FAILED`,
+            `  🔴 ${fd.shortLabel.padEnd(12)} DECRYPT FAILED`,
           );
         }
       } else {
         // Encrypted data present but no decrypt attempt (key unavailable)
         lines.push(
-          `  ? ${fd.shortLabel.padEnd(12)} encrypted (${encValue.length} chars, not decrypted)`,
+          `  🔴 ${fd.shortLabel.padEnd(12)} encrypted (${encValue.length} chars, KEY UNAVAILABLE)`,
         );
       }
     }
@@ -1551,7 +1509,7 @@ export async function inspectChat(
       if (msg.content && !msg.encrypted_content) {
         decryptStatus = "· plain";
       } else if (msgDecrypt) {
-        decryptStatus = msgDecrypt.success ? "✓ OK" : "✗ FAIL";
+        decryptStatus = msgDecrypt.success ? "🟢 OK" : "🔴 FAIL";
       } else if (!msg.encrypted_content && !msg.content) {
         decryptStatus = "· empty";
       } else {
@@ -1577,10 +1535,14 @@ export async function inspectChat(
       `  ${"#".padStart(3)}  ${"Role".padEnd(7)} ${"Type".padEnd(16)} ${"Status".padEnd(10)} ${"Decrypt".padEnd(9)} ${"App/Skill".padEnd(24)} ${"Created".padEnd(28)} Embed ID`,
     );
 
-    // Build a map from embedId to decode attempt result for quick lookup
+    // Build maps from embedId to decode results for quick lookup
     const embedDecodeMap = new Map<string, boolean>();
+    const embedDecodedContentMap = new Map<string, Record<string, unknown>>();
     for (const attempt of embedDecodeHealth.attempts) {
       embedDecodeMap.set(attempt.embedId, !!attempt.decoded);
+      if (attempt.decoded) {
+        embedDecodedContentMap.set(attempt.embedId, attempt.decoded);
+      }
     }
 
     const embedShowCount = Math.min(15, chatEmbeds.length);
@@ -1595,7 +1557,7 @@ export async function inspectChat(
       // Decrypt status from embed decode health
       let decryptStatus: string;
       if (embedDecodeMap.has(cleanEmbedId)) {
-        decryptStatus = embedDecodeMap.get(cleanEmbedId) ? "✓ OK" : "✗ FAIL";
+        decryptStatus = embedDecodeMap.get(cleanEmbedId) ? "🟢 OK" : "🔴 FAIL";
       } else if (embed.content || embed.data) {
         decryptStatus = "· plain";
       } else if (!embed.encrypted_content) {
@@ -1610,9 +1572,10 @@ export async function inspectChat(
       const embedRole = hasChildren ? "parent" : hasParent ? "child" : "regular";
       const childCount = hasChildren ? `[${(embed.embed_ids as string[]).length}ch]` : "";
 
-      // App and skill info
-      const appId = (embed.app_id as string) || "";
-      const skillId = (embed.skill_id as string) || "";
+      // App and skill info — read from decoded TOON content (not raw record, since it's encrypted)
+      const decodedContent = embedDecodedContentMap.get(cleanEmbedId);
+      const appId = (decodedContent?.app_id as string) || "";
+      const skillId = (decodedContent?.skill_id as string) || "";
       const appSkill = appId && skillId ? `${appId}/${skillId}` : appId || skillId || "—";
 
       // Created date
@@ -1822,26 +1785,12 @@ export async function inspectEmbed(
   embedId: string,
   options: { download?: boolean; hideKeys?: boolean } = {},
 ): Promise<string> {
-  const hideKeysEmbed = options.hideKeys ?? false;
-  void hideKeysEmbed; // reserved for future use in this function
+  const hideKeys = options.hideKeys ?? false;
   const db = await openDB();
   const lines: string[] = [];
-  const separator = "=".repeat(100);
-  const thinSeparator = "-".repeat(100);
-
-  // Header
-  lines.push("");
-  lines.push(separator);
-  lines.push("CLIENT EMBED INSPECTION REPORT (IndexedDB)");
-  lines.push(separator);
-  lines.push(`Embed ID: ${embedId}`);
-  lines.push(`Generated at: ${new Date().toISOString()}`);
-  lines.push(`Database: ${db.name} v${db.version}`);
-  lines.push(separator);
 
   // Get embed directly from store by ID
   // IMPORTANT: IndexedDB embeds are stored with contentRef key "embed:{embed_id}"
-  // so we need to use the prefixed key for lookup
   const contentRef = `embed:${embedId}`;
   const embed = await getFromStore<Record<string, unknown>>(
     db,
@@ -1849,6 +1798,7 @@ export async function inspectEmbed(
     contentRef,
   );
 
+  // Get child embeds
   const childEmbedRecords: Array<Record<string, unknown> | undefined> = [];
   if (embed?.embed_ids && Array.isArray(embed.embed_ids)) {
     for (const childId of embed.embed_ids as string[]) {
@@ -1861,233 +1811,177 @@ export async function inspectEmbed(
     }
   }
 
-  const embedHealthSummary = buildClientEmbedHealthSummary({
-    embed,
-    childEmbeds: childEmbedRecords,
-  });
-  appendHealthCheckSection(
-    lines,
-    embedHealthSummary,
-    `child_embeds=${childEmbedRecords.length}`,
-  );
+  // Get embed key info
+  const hashedEmbedId = embed ? await computeSHA256(embedId) : "";
+  const embedKeys = hashedEmbedId
+    ? await getAllFromIndex<Record<string, unknown>>(db, EMBED_KEYS_STORE, "hashed_embed_id", hashedEmbedId)
+    : [];
 
-  lines.push("");
-  lines.push(thinSeparator);
-  lines.push("EMBED DATA (IndexedDB)");
-  lines.push(thinSeparator);
+  db.close();
 
+  // Try to resolve and decode embed content for decryption check
+  let decoded: Record<string, unknown> | null = null;
+  let decryptOk = false;
+  let decryptError = "";
   if (embed) {
-    lines.push(`  Embed ID:           ${embed.embed_id || embedId}`);
+    try {
+      const { resolveEmbed, decodeToonContent } = await import("./embedResolver");
+      const resolvedEmbed = await resolveEmbed(embedId);
+      if (resolvedEmbed?.content) {
+        const result = await decodeToonContent(resolvedEmbed.content);
+        if (result && typeof result === "object") {
+          decoded = result as Record<string, unknown>;
+          decryptOk = true;
+        } else {
+          decryptError = "decoded content is empty or invalid";
+        }
+      } else {
+        decryptError = resolvedEmbed ? "resolved embed has no content" : "could not resolve embed";
+      }
+    } catch (e) {
+      decryptError = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  // Build health summary
+  const embedHealthSummary = buildClientEmbedHealthSummary({ embed, childEmbeds: childEmbedRecords });
+  // Add decryption failure to health
+  const status = String(embed?.status || "").toLowerCase();
+  if (!decryptOk && embed && (status === "finished" || status === "activated") && embed.encrypted_content) {
+    embedHealthSummary.issues.push("embed content failed to decrypt");
+    embedHealthSummary.isHealthy = false;
+  }
+  // Check for missing app_id/skill_id on app_skill_use
+  const embedType = (embed?.type as string) || "";
+  if (decryptOk && decoded && embedType === "app-skill-use") {
+    if (!decoded.app_id) {
+      embedHealthSummary.issues.push("missing app_id in decoded content");
+      embedHealthSummary.isHealthy = false;
+    }
+    if (!decoded.skill_id) {
+      embedHealthSummary.issues.push("missing skill_id in decoded content");
+      embedHealthSummary.isHealthy = false;
+    }
+  }
+
+  // Header
+  const createdStr = embed ? formatTimestamp(embed.createdAt as number) : "N/A";
+  lines.push(`EMBED ${embedId}  |  ${createdStr}`);
+
+  // Role
+  const hasChildren = embed?.embed_ids && Array.isArray(embed.embed_ids) && (embed.embed_ids as string[]).length > 0;
+  const hasParent = !!(embed?.parent_embed_id);
+  const embedRole = hasChildren ? `parent [${(embed!.embed_ids as string[]).length} children]` : hasParent ? "child" : "regular";
+  lines.push(`Role: ${embedRole}${hasParent ? `  |  Parent: ${embed!.parent_embed_id}` : ""}`);
+
+  // Key info
+  const keyInfo = embedKeys.length > 0
+    ? `${embedKeys.length} key(s)${hideKeys ? "" : ` — types: ${JSON.stringify(Object.fromEntries(embedKeys.reduce((m, k) => { const t = String(k.key_type || "?"); m.set(t, (m.get(t) || 0) + 1); return m; }, new Map<string, number>())))}`}`
+    : "no keys stored";
+  lines.push(`Keys: ${keyInfo}`);
+
+  // Health status
+  if (embedHealthSummary.isHealthy) {
+    lines.push("");
+    lines.push("🟢 HEALTHY");
+  } else {
+    lines.push("");
+    lines.push(`🔴 ISSUES DETECTED (${embedHealthSummary.issues.length}):`);
+    for (const issue of embedHealthSummary.issues.slice(0, MAX_HEALTH_ITEMS_TO_SHOW)) {
+      lines.push(`   • ${issue}`);
+    }
+  }
+  if (embedHealthSummary.warnings.length > 0) {
+    for (const w of embedHealthSummary.warnings.slice(0, 3)) {
+      lines.push(`   ⚠ ${w}`);
+    }
+  }
+
+  // Embed data
+  lines.push("");
+  lines.push("EMBED DATA");
+  if (embed) {
     lines.push(`  Type:               ${embed.type || "N/A"}`);
     lines.push(`  Status:             ${embed.status || "N/A"}`);
-    lines.push(`  App ID:             ${embed.app_id || "N/A"}`);
-    lines.push(`  Skill ID:           ${embed.skill_id || "N/A"}`);
-    lines.push(`  Query:              ${embed.query || "N/A"}`);
-    lines.push(`  Provider:           ${embed.provider || "N/A"}`);
-    lines.push(`  Parent Embed ID:    ${embed.parent_embed_id || "null (root/regular)"}`);
-    const embedRole2 = embed.embed_ids && Array.isArray(embed.embed_ids) && (embed.embed_ids as string[]).length > 0
-      ? "parent"
-      : embed.parent_embed_id
-        ? "child"
-        : "regular";
-    lines.push(`  Role:               ${embedRole2}`);
-    lines.push(
-      `  Hashed Chat ID:     ${embed.hashed_chat_id ? (embed.hashed_chat_id as string) : "N/A"}`,
-    );
-    lines.push(
-      `  Created At:         ${formatTimestamp(embed.createdAt as number)}`,
-    );
-    lines.push(
-      `  Updated At:         ${formatTimestamp(embed.updatedAt as number)}`,
-    );
+    lines.push(`  Hashed Chat ID:     ${embed.hashed_chat_id || "N/A"}`);
+    lines.push(`  Encryption Mode:    ${embed.encryption_mode || "N/A"}`);
     lines.push("");
-    lines.push("  Content Fields Present:");
-    lines.push(
-      `    ${embed.encrypted_content ? "✓" : "✗"} Encrypted Content ${embed.encrypted_content ? `(${(embed.encrypted_content as string).length} chars)` : ""}`,
-    );
-    lines.push(
-      `    ${embed.content ? "✓" : "✗"} Content (TOON) ${embed.content ? `(${typeof embed.content === "string" ? (embed.content as string).length : "object"})` : ""}`,
-    );
-    lines.push(
-      `    ${embed.data ? "✓" : "✗"} Data ${embed.data ? `(${typeof embed.data === "string" ? (embed.data as string).length : "object"})` : ""}`,
-    );
+    lines.push("  Content Fields:");
+    lines.push(`    ${embed.encrypted_content ? "✅" : "❌"} encrypted_content ${embed.encrypted_content ? `(${(embed.encrypted_content as string).length} chars)` : ""}`);
+    const hasContent = embed.content;
+    lines.push(`    ${hasContent ? "✅" : "❌"} content (TOON) ${hasContent ? `(${typeof hasContent === "string" ? (hasContent as string).length : "object"})` : ""}`);
+    lines.push(`    ${embed.data ? "✅" : "❌"} data ${embed.data ? `(${typeof embed.data === "string" ? (embed.data as string).length : "object"})` : ""}`);
 
-    // Show embed_ids if present (for app_skill_use embeds that have child embeds)
-    if (embed.embed_ids && Array.isArray(embed.embed_ids)) {
-      lines.push("");
-      lines.push(
-        `  Child Embed IDs (${(embed.embed_ids as string[]).length}):`,
-      );
-      for (const childId of embed.embed_ids as string[]) {
-        lines.push(`    - ${childId}`);
+    // Decrypt status
+    lines.push("");
+    lines.push("  Decryption:");
+    if (decryptOk && decoded) {
+      lines.push("    🟢 Decrypt: OK");
+      // Show decoded key fields
+      const appId = (decoded.app_id as string) || "N/A";
+      const skillId = (decoded.skill_id as string) || "N/A";
+      const query = (decoded.query as string) || "N/A";
+      const provider = (decoded.provider as string) || "N/A";
+      const decodedStatus = (decoded.status as string) || "N/A";
+      lines.push(`    app_id:      ${appId}`);
+      lines.push(`    skill_id:    ${skillId}`);
+      lines.push(`    query:       ${truncate(query, 60)}`);
+      lines.push(`    provider:    ${provider}`);
+      lines.push(`    status:      ${decodedStatus}`);
+      if (decoded.results && Array.isArray(decoded.results)) {
+        lines.push(`    results:     ${(decoded.results as unknown[]).length} items`);
       }
-    }
-
-    // Show raw data structure (limited to avoid huge output)
-    lines.push("");
-    lines.push("  Raw Data (truncated):");
-    const rawJson = JSON.stringify(embed, null, 2);
-    const truncatedJson =
-      rawJson.length > 2000
-        ? rawJson.substring(0, 2000) + "\n... [truncated]"
-        : rawJson;
-    for (const line of truncatedJson.split("\n")) {
-      lines.push(`    ${line}`);
+      if (decoded.embed_ids && Array.isArray(decoded.embed_ids)) {
+        lines.push(`    embed_ids:   ${(decoded.embed_ids as unknown[]).length} items`);
+      }
+      // Show other fields count
+      const knownFields = ["app_id", "skill_id", "query", "provider", "status", "task_id", "results", "embed_ids", "result_count"];
+      const otherFields = Object.keys(decoded).filter(k => !knownFields.includes(k));
+      if (otherFields.length > 0) {
+        lines.push(`    other:       ${otherFields.join(", ")}`);
+      }
+    } else if (embed.encrypted_content && (status === "finished" || status === "activated")) {
+      lines.push(`    🔴 Decrypt: FAILED — ${decryptError || "unknown error"}`);
+    } else if (!embed.encrypted_content) {
+      lines.push("    · no encrypted content to decrypt");
+    } else {
+      lines.push(`    · status=${status}, not attempting decrypt`);
     }
   } else {
     lines.push("  ❌ Embed NOT FOUND in IndexedDB");
+  }
+
+  // Children
+  if (hasChildren) {
     lines.push("");
-    lines.push("  Possible reasons:");
-    lines.push('    1. Embed is still "processing" (stored in memory only)');
-    lines.push("    2. Embed ID is incorrect");
-    lines.push("    3. Embed was never stored for this chat");
+    lines.push(`CHILDREN (${(embed!.embed_ids as string[]).length})`);
+    for (let i = 0; i < (embed!.embed_ids as string[]).length; i++) {
+      const childId = (embed!.embed_ids as string[])[i];
+      const child = childEmbedRecords[i];
+      const childStatus = child ? (child.status as string) || "?" : "NOT FOUND";
+      const childHasContent = child ? !!(child.encrypted_content || child.content || child.data) : false;
+      lines.push(`  ${(i + 1).toString().padStart(3)}  ${childStatus.padEnd(10)} ${childHasContent ? "✅ content" : "❌ no content"}  ${childId}`);
+    }
   }
 
-  // Try to get from in-memory cache (embedStore)
-  lines.push("");
-  lines.push(thinSeparator);
-  lines.push("IN-MEMORY CACHE STATUS");
-  lines.push(thinSeparator);
-
+  // In-memory cache status (brief)
   try {
-    // Dynamic import to avoid circular dependencies
     const { embedStore } = await import("./embedStore");
-    // embedStore.get() expects contentRef format "embed:{embed_id}"
     const inMemoryEmbed = await embedStore.get(contentRef);
-
-    if (inMemoryEmbed) {
-      lines.push(`  ✓ Found in embedStore memory cache`);
-      lines.push(`  Status:             ${inMemoryEmbed.status || "N/A"}`);
-      lines.push(`  Has Content:        ${inMemoryEmbed.content ? "✓" : "✗"}`);
-      lines.push(
-        `  Has Encrypted:      ${inMemoryEmbed.encrypted_content ? "✓" : "✗"}`,
-      );
-    } else {
-      lines.push(`  ✗ NOT found in embedStore memory cache`);
-    }
-  } catch (e) {
-    lines.push(`  ⚠️ Could not check in-memory cache: ${e}`);
+    lines.push("");
+    lines.push(`Memory cache:  ${inMemoryEmbed ? "✅ present" : "❌ not cached"}`);
+  } catch {
+    lines.push("");
+    lines.push("Memory cache:  unavailable");
   }
 
-  // Try to resolve and decode the embed content
   lines.push("");
-  lines.push(thinSeparator);
-  lines.push("RESOLVED & DECODED CONTENT");
-  lines.push(thinSeparator);
-
-  try {
-    const { resolveEmbed, decodeToonContent } = await import("./embedResolver");
-    const resolvedEmbed = await resolveEmbed(embedId);
-
-    if (resolvedEmbed) {
-      lines.push(`  ✓ Resolved embed successfully`);
-      lines.push(`  Resolved Status:    ${resolvedEmbed.status || "N/A"}`);
-
-      if (resolvedEmbed.content) {
-        try {
-          const decoded = await decodeToonContent(resolvedEmbed.content);
-          if (decoded) {
-            lines.push("");
-            lines.push("  Decoded TOON Content:");
-            lines.push(`    app_id:           ${decoded.app_id || "N/A"}`);
-            lines.push(`    skill_id:         ${decoded.skill_id || "N/A"}`);
-            lines.push(`    query:            ${decoded.query || "N/A"}`);
-            lines.push(`    provider:         ${decoded.provider || "N/A"}`);
-            lines.push(`    status:           ${decoded.status || "N/A"}`);
-            lines.push(`    task_id:          ${decoded.task_id || "N/A"}`);
-
-            // Show results count if present
-            if (decoded.results && Array.isArray(decoded.results)) {
-              lines.push(
-                `    results:          ${(decoded.results as unknown[]).length} items`,
-              );
-            }
-
-            // Show other fields
-            const knownFields = [
-              "app_id",
-              "skill_id",
-              "query",
-              "provider",
-              "status",
-              "task_id",
-              "results",
-            ];
-            const otherFields = Object.keys(decoded).filter(
-              (k) => !knownFields.includes(k),
-            );
-            if (otherFields.length > 0) {
-              lines.push(`    other fields:     ${otherFields.join(", ")}`);
-            }
-
-            // Admin-only: privacy-safe field inventory + anomaly detection (improvement C)
-            const isAdmin = await isCurrentUserAdmin();
-            if (isAdmin) {
-              const decodedObj = decoded as Record<string, unknown>;
-              const inventory = buildFieldInventory(decodedObj);
-              const anomalies = detectEmbedAnomalies(decodedObj, embed || {});
-
-              lines.push("");
-              lines.push("  FIELD INVENTORY (admin-only, privacy-safe):");
-              lines.push(`    Total fields: ${inventory.totalFields}`);
-
-              // Field type descriptions
-              for (const [key, typeDesc] of Object.entries(
-                inventory.fieldTypes,
-              )) {
-                if (key in inventory.keyMetadata) continue;
-                lines.push(`    ${key.padEnd(22)} : ${typeDesc}`);
-              }
-              if (inventory.totalFields > MAX_FIELD_INVENTORY_ITEMS) {
-                lines.push(
-                  `    ... and ${inventory.totalFields - MAX_FIELD_INVENTORY_ITEMS} more fields`,
-                );
-              }
-
-              if (anomalies.length > 0) {
-                lines.push("");
-                lines.push("  ANOMALIES:");
-                for (const a of anomalies) {
-                  lines.push(`    * ${a}`);
-                }
-              } else {
-                lines.push("");
-                lines.push("  No anomalies detected");
-              }
-            }
-          } else {
-            lines.push("  Could not decode TOON content");
-          }
-        } catch (decodeError) {
-          lines.push(`  Error decoding content: ${decodeError}`);
-        }
-      } else {
-        lines.push("  Resolved embed has no content field");
-      }
-    } else {
-      lines.push(`  Could not resolve embed`);
-    }
-  } catch (e) {
-    lines.push(`  Error resolving embed: ${e}`);
-  }
-
-  // Footer
-  lines.push("");
-  lines.push(separator);
-  lines.push("END OF EMBED REPORT");
-  lines.push(separator);
-  lines.push("");
-
-  db.close();
 
   const report = lines.join("\n");
 
   logHealthCheckBanner("EMBED", embedHealthSummary.isHealthy);
-
-  // Output full report to console as a single string for easy copying
   console.log(report);
 
-  // Optionally download as file
   if (options.download) {
     const blob = new Blob([report], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
@@ -2117,119 +2011,120 @@ export async function inspectEmbed(
  */
 async function debugUser(): Promise<void> {
   const lines: string[] = [];
-  lines.push("USER PROFILE & AUTH STATE");
-  lines.push("─".repeat(80));
+  const issues: string[] = [];
 
   // Auth state
+  let isAuth = false;
+  let isInit = false;
   try {
     const { get } = await import("svelte/store");
     const { authStore } = await import("../stores/authState");
     const auth = get(authStore) as unknown as Record<string, unknown> | null;
-    lines.push(`Auth:  isAuthenticated=${auth?.isAuthenticated ?? "?"}`
-      + `  isInitialized=${auth?.isInitialized ?? "?"}`);
+    isAuth = (auth?.isAuthenticated as boolean) ?? false;
+    isInit = (auth?.isInitialized as boolean) ?? false;
+    if (!isAuth) issues.push("user is NOT authenticated");
+    if (!isInit) issues.push("auth store is NOT initialized");
   } catch {
-    lines.push("Auth:  unavailable");
+    issues.push("auth store unavailable");
+  }
+
+  // Master key health check
+  let masterKeyOk = false;
+  try {
+    const { getKeyFromStorage, encryptWithMasterKey } = await import("./cryptoService");
+    const masterKey = await getKeyFromStorage();
+    if (masterKey) {
+      try {
+        const testEnc = await encryptWithMasterKey("debug_test");
+        masterKeyOk = testEnc !== null && testEnc.length > 0;
+        if (!masterKeyOk) issues.push("master key present but encrypt test FAILED");
+      } catch {
+        issues.push("master key present but encrypt test threw error");
+      }
+    } else {
+      issues.push("master key NOT available (locked or not initialized)");
+    }
+  } catch {
+    issues.push("cryptoService unavailable");
   }
 
   // User profile
+  let profile: Record<string, unknown> | null = null;
   try {
     const { get } = await import("svelte/store");
     const { userProfile } = await import("../stores/userProfile");
-    const profile = get(userProfile) as unknown as Record<string, unknown> | null;
-
+    profile = get(userProfile) as unknown as Record<string, unknown> | null;
     if (!profile) {
-      lines.push("Profile: not loaded");
+      issues.push("user profile not loaded");
     } else {
-      lines.push("");
-      lines.push("Profile:");
-      lines.push(`  user_id:           ${profile.user_id ?? "null"}`);
-      lines.push(`  username:          ${profile.username ?? "?"}`);
-      lines.push(`  is_admin:          ${profile.is_admin ?? false}`);
-      lines.push(`  credits:           ${profile.credits ?? 0}`);
-      lines.push(`  language:          ${profile.language ?? "null"}`);
-      lines.push(`  timezone:          ${profile.timezone ?? "null"}`);
-      lines.push(`  currency:          ${profile.currency ?? "null"}`);
-      lines.push(`  darkmode:          ${profile.darkmode ?? false}`);
-      lines.push(`  tfa_enabled:       ${profile.tfa_enabled ?? false}`);
-      lines.push(`  last_opened:       ${profile.last_opened ?? "?"}`);
-      lines.push(`  last_sync_ts:      ${profile.last_sync_timestamp ?? 0}`
-        + (profile.last_sync_timestamp
-            ? ` (${new Date((profile.last_sync_timestamp as number) * 1000).toISOString().replace("T"," ").replace("Z"," UTC")})`
-            : ""));
-      lines.push(`  push_notif:        ${profile.push_notification_enabled ?? false}`);
-      lines.push(`  email_notif:       ${profile.email_notifications_enabled ?? false}`);
-      lines.push(`  auto_delete_days:  ${profile.auto_delete_chats_after_days ?? "null (never)"}`);
-
-      // Encryption key health
-      const hasEncKey = !!(profile.encrypted_key);
-      const hasSalt = !!(profile.salt);
-      lines.push("");
-      lines.push("Encryption key material:");
-      lines.push(`  encrypted_key:     ${hasEncKey ? `present (${(profile.encrypted_key as string).length} chars)` : "MISSING"}`);
-      lines.push(`  salt:              ${hasSalt ? `present (${(profile.salt as string).length} chars)` : "MISSING"}`);
-
-      // Master key health check
-      try {
-        const { getKeyFromStorage, encryptWithMasterKey } = await import("./cryptoService");
-        const masterKey = await getKeyFromStorage();
-        if (masterKey) {
-          // Verify the key actually works with a test encryption
-          try {
-            const testEnc = await encryptWithMasterKey("debug_test");
-            const keyWorks = testEnc !== null && testEnc.length > 0;
-            lines.push(`  master_key:        UNLOCKED (CryptoKey present, encrypt test: ${keyWorks ? "✓ OK" : "✗ FAILED"})`);
-          } catch {
-            lines.push("  master_key:        UNLOCKED but encrypt test FAILED");
-          }
-        } else {
-          lines.push("  master_key:        NOT available (locked or not initialized)");
-        }
-      } catch {
-        lines.push("  master_key:        NOT available (cryptoService unavailable)");
-      }
-
-      // Recommended apps
-      if (profile.top_recommended_apps && Array.isArray(profile.top_recommended_apps)) {
-        lines.push("");
-        lines.push(`Top recommended apps (${(profile.top_recommended_apps as string[]).length}):  ${(profile.top_recommended_apps as string[]).join(", ")}`);
-      }
-      if (profile.encrypted_top_recommended_apps) {
-        lines.push(`  encrypted_top_apps: present (${(profile.encrypted_top_recommended_apps as string).length} chars)`);
-      }
-
-      // AI model preferences
-      lines.push("");
-      lines.push("AI model preferences:");
-      lines.push(`  default_simple:    ${profile.default_ai_model_simple ?? "auto"}`);
-      lines.push(`  default_complex:   ${profile.default_ai_model_complex ?? "auto"}`);
-      const disabledModels = profile.disabled_ai_models as string[] | undefined;
-      if (disabledModels && disabledModels.length > 0) {
-        lines.push(`  disabled_models:   ${disabledModels.join(", ")}`);
-      } else {
-        lines.push("  disabled_models:   (none)");
-      }
-
-      // Health checks
-      const issues: string[] = [];
       if (!profile.user_id) issues.push("user_id is null");
-      if (!hasEncKey) issues.push("encrypted_key missing — master key unavailable");
-      if (!hasSalt) issues.push("salt missing — master key unavailable");
       if (!profile.last_sync_timestamp) issues.push("last_sync_timestamp is 0/null — never synced");
-
-      lines.push("");
-      if (issues.length === 0) {
-        lines.push("🟢 User profile: HEALTHY");
-      } else {
-        lines.push(`🔴 User profile: ${issues.length} issue(s)`);
-        for (const iss of issues) lines.push(`   • ${iss}`);
-      }
     }
-  } catch (e) {
-    lines.push(`Profile: error reading — ${e}`);
+  } catch {
+    issues.push("userProfile store unavailable");
+  }
+
+  // ─── Health at top ───
+  lines.push("USER PROFILE & AUTH STATE");
+  lines.push("─".repeat(80));
+  if (issues.length === 0) {
+    lines.push("🟢 HEALTHY");
+  } else {
+    lines.push(`🔴 ISSUES (${issues.length}):`);
+    for (const iss of issues) lines.push(`   • ${iss}`);
+  }
+
+  // ─── Auth state ───
+  lines.push("");
+  lines.push("Auth:");
+  lines.push(`  ${isAuth ? "🟢" : "🔴"} isAuthenticated = ${isAuth}`);
+  lines.push(`  ${isInit ? "🟢" : "🔴"} isInitialized   = ${isInit}`);
+  lines.push(`  ${masterKeyOk ? "🟢" : "🔴"} master key       = ${masterKeyOk ? "UNLOCKED (encrypt test OK)" : "LOCKED / UNAVAILABLE"}`);
+
+  // ─── Profile ───
+  if (profile) {
+    lines.push("");
+    lines.push("Profile:");
+    lines.push(`  user_id:           ${profile.user_id ?? "null"}`);
+    lines.push(`  username:          ${profile.username ?? "?"}`);
+    lines.push(`  is_admin:          ${profile.is_admin ?? false}`);
+    lines.push(`  credits:           ${profile.credits ?? 0}`);
+    lines.push(`  language:          ${profile.language ?? "null"}`);
+    lines.push(`  timezone:          ${profile.timezone ?? "null"}`);
+    lines.push(`  currency:          ${profile.currency || "null"}`);
+    lines.push(`  darkmode:          ${profile.darkmode ?? false}`);
+    lines.push(`  tfa_enabled:       ${profile.tfa_enabled ?? false}`);
+    lines.push(`  last_opened:       ${profile.last_opened ?? "?"}`);
+    lines.push(`  last_sync_ts:      ${profile.last_sync_timestamp ?? 0}`
+      + (profile.last_sync_timestamp
+          ? ` (${new Date((profile.last_sync_timestamp as number) * 1000).toISOString().replace("T"," ").replace("Z"," UTC")})`
+          : ""));
+    lines.push(`  push_notif:        ${profile.push_notification_enabled ?? false}`);
+    lines.push(`  email_notif:       ${profile.email_notifications_enabled ?? false}`);
+    lines.push(`  auto_delete_days:  ${profile.auto_delete_chats_after_days ?? "null (never)"}`);
+
+    // Recommended apps
+    if (profile.top_recommended_apps && Array.isArray(profile.top_recommended_apps)) {
+      lines.push("");
+      lines.push(`Top recommended apps (${(profile.top_recommended_apps as string[]).length}):  ${(profile.top_recommended_apps as string[]).join(", ")}`);
+    }
+
+    // AI model preferences
+    lines.push("");
+    lines.push("AI model preferences:");
+    lines.push(`  default_simple:    ${profile.default_ai_model_simple ?? "auto"}`);
+    lines.push(`  default_complex:   ${profile.default_ai_model_complex ?? "auto"}`);
+    const disabledModels = profile.disabled_ai_models as string[] | undefined;
+    if (disabledModels && disabledModels.length > 0) {
+      lines.push(`  disabled_models:   ${disabledModels.join(", ")}`);
+    } else {
+      lines.push("  disabled_models:   (none)");
+    }
   }
 
   console.log(lines.join("\n"));
 }
+
 
 // ============================================================================
 // DAILY INSPIRATIONS DEBUG
@@ -2243,117 +2138,117 @@ async function debugUser(): Promise<void> {
  */
 async function debugDailyInspirations(): Promise<void> {
   const lines: string[] = [];
-  lines.push("DAILY INSPIRATIONS");
-  lines.push("─".repeat(80));
+  const issues: string[] = [];
+
+  let stateObj: {
+    inspirations: Array<Record<string, unknown>>;
+    currentIndex: number;
+    phase1Empty: boolean;
+    isPersonalized: boolean;
+  } | null = null;
 
   try {
     const { get } = await import("svelte/store");
     const { dailyInspirationStore } = await import("../stores/dailyInspirationStore");
-    const state = get(dailyInspirationStore) as unknown as {
-      inspirations: Array<{
-        inspiration_id: string;
-        phrase: string;
-        title?: string;
-        category: string;
-        content_type: string;
-        generated_at: number;
-        is_opened?: boolean;
-        opened_chat_id?: string | null;
-        embed_id?: string | null;
-        video?: {
-          youtube_id: string;
-          title: string;
-          channel_name?: string | null;
-          duration_seconds?: number | null;
-          published_at?: string | null;
-        } | null;
-        follow_up_suggestions?: string[];
-        assistant_response?: string;
-      }>;
-      currentIndex: number;
-      phase1Empty: boolean;
-      isPersonalized: boolean;
-    };
-
-    lines.push(`Count:          ${state.inspirations.length} (max 3)`);
-    lines.push(`currentIndex:   ${state.currentIndex}`);
-    lines.push(`phase1Empty:    ${state.phase1Empty}`);
-    lines.push(`isPersonalized: ${state.isPersonalized}`);
-
-    if (state.inspirations.length === 0) {
-      lines.push("");
-      lines.push("(no inspirations loaded)");
-    } else {
-      lines.push("");
-      for (let i = 0; i < state.inspirations.length; i++) {
-        const ins = state.inspirations[i];
-        const isCurrent = i === state.currentIndex;
-        const opened = ins.is_opened ? "opened" : "unopened";
-        const genDate = ins.generated_at
-          ? new Date(ins.generated_at * 1000).toISOString().replace("T"," ").replace("Z"," UTC")
-          : "N/A";
-
-        lines.push(`Inspiration ${i + 1}${isCurrent ? " ◀ current" : ""} — ${opened}`);
-        lines.push(`  id:             ${ins.inspiration_id}`);
-        lines.push(`  phrase:         ${ins.phrase.length > 70 ? ins.phrase.slice(0, 70) + "..." : ins.phrase}`);
-        lines.push(`  title:          ${ins.title || "(not set)"}`);
-        lines.push(`  category:       ${ins.category}`);
-        lines.push(`  content_type:   ${ins.content_type}`);
-        lines.push(`  generated_at:   ${genDate}`);
-        lines.push(`  embed_id:       ${ins.embed_id || "null"}`);
-        if (ins.opened_chat_id) {
-          lines.push(`  opened_chat_id: ${ins.opened_chat_id} (hashed)`);
-        }
-
-        // Decryption health: try to resolve embed if embed_id is set
-        if (ins.embed_id) {
-          try {
-            const { resolveEmbed } = await import("./embedResolver");
-            const resolved = await resolveEmbed(ins.embed_id);
-            lines.push(`  embed_resolve:  ${resolved ? "✓ OK" : "✗ NOT FOUND"}`);
-          } catch {
-            lines.push("  embed_resolve:  ✗ ERROR");
-          }
-        }
-
-        if (ins.video) {
-          lines.push(`  video:`);
-          lines.push(`    youtube_id:   ${ins.video.youtube_id}`);
-          lines.push(`    title:        ${ins.video.title?.slice(0, 60) || "?"}`);
-          lines.push(`    channel:      ${ins.video.channel_name || "?"}`);
-          lines.push(`    duration:     ${ins.video.duration_seconds != null ? ins.video.duration_seconds + "s" : "?"}`);
-        } else {
-          lines.push("  video:          null");
-        }
-
-        const suggCount = ins.follow_up_suggestions?.length ?? 0;
-        lines.push(`  follow_up:      ${suggCount} suggestion(s)`);
-        lines.push(`  assistant_resp: ${ins.assistant_response ? ins.assistant_response.length + " chars" : "(not set)"}`);
-        lines.push("");
-      }
-    }
-
-    // Health checks
-    const issues: string[] = [];
-    if (!state.isPersonalized && state.inspirations.length > 0) {
-      issues.push("inspirations are public defaults only (not personalized for this user)");
-    }
-    for (const ins of state.inspirations) {
-      if (!ins.video) issues.push(`inspiration ${ins.inspiration_id.slice(0, 8)}... has no video`);
-      if (!ins.generated_at) issues.push(`inspiration ${ins.inspiration_id.slice(0, 8)}... missing generated_at`);
-    }
-    if (issues.length === 0) {
-      lines.push("🟢 Daily inspirations: HEALTHY");
-    } else {
-      lines.push(`⚠️  Daily inspirations: ${issues.length} issue(s)`);
-      for (const iss of issues) lines.push(`   • ${iss}`);
-    }
+    stateObj = get(dailyInspirationStore) as unknown as typeof stateObj;
   } catch (e) {
-    lines.push(`Error: ${e}`);
+    issues.push(`store unavailable: ${e}`);
+  }
+
+  // Pre-compute health issues
+  if (stateObj) {
+    if (!stateObj.isPersonalized && stateObj.inspirations.length > 0) {
+      issues.push("inspirations are public defaults only (not personalized)");
+    }
+    for (const ins of stateObj.inspirations) {
+      const insId = (ins.inspiration_id as string || "?").slice(0, 8);
+      if (!ins.video) issues.push(`inspiration ${insId}... has no video`);
+      if (!ins.generated_at) issues.push(`inspiration ${insId}... missing generated_at`);
+    }
+  }
+
+  // ─── Header + health ───
+  lines.push("DAILY INSPIRATIONS");
+  lines.push("─".repeat(80));
+  if (issues.length === 0) {
+    const count = stateObj?.inspirations.length ?? 0;
+    lines.push(`🟢 HEALTHY (${count} inspiration${count !== 1 ? "s" : ""})`);
+  } else {
+    lines.push(`🔴 ISSUES (${issues.length}):`);
+    for (const iss of issues) lines.push(`   • ${iss}`);
+  }
+
+  if (!stateObj) {
+    console.log(lines.join("\n"));
+    return;
+  }
+
+  // ─── Store state ───
+  lines.push("");
+  lines.push(`Count:          ${stateObj.inspirations.length} (max 3)`);
+  lines.push(`currentIndex:   ${stateObj.currentIndex}`);
+  lines.push(`phase1Empty:    ${stateObj.phase1Empty}`);
+  lines.push(`isPersonalized: ${stateObj.isPersonalized}`);
+
+  if (stateObj.inspirations.length === 0) {
+    lines.push("");
+    lines.push("(no inspirations loaded)");
+  } else {
+    for (let i = 0; i < stateObj.inspirations.length; i++) {
+      const ins = stateObj.inspirations[i] as Record<string, unknown>;
+      const isCurrent = i === stateObj.currentIndex;
+      const opened = ins.is_opened ? "opened" : "unopened";
+      const genDate = ins.generated_at
+        ? new Date((ins.generated_at as number) * 1000).toISOString().replace("T"," ").replace("Z"," UTC")
+        : "N/A";
+
+      lines.push("");
+      lines.push(`Inspiration ${i + 1}${isCurrent ? " ◀ current" : ""} — ${opened}`);
+      lines.push(`  id:             ${ins.inspiration_id as string}`);
+      const phrase = (ins.phrase as string) || "";
+      lines.push(`  phrase:         ${phrase.length > 70 ? phrase.slice(0, 70) + "..." : phrase}`);
+      lines.push(`  title:          ${ins.title || "(not set)"}`);
+      lines.push(`  category:       ${ins.category}`);
+      lines.push(`  content_type:   ${ins.content_type}`);
+      lines.push(`  generated_at:   ${genDate}`);
+      lines.push(`  embed_id:       ${ins.embed_id || "null"}`);
+      if (ins.opened_chat_id) {
+        lines.push(`  opened_chat_id: ${ins.opened_chat_id} (hashed)`);
+      }
+
+      // Embed resolve check
+      if (ins.embed_id) {
+        try {
+          const { resolveEmbed } = await import("./embedResolver");
+          const resolved = await resolveEmbed(ins.embed_id as string);
+          lines.push(`  embed_resolve:  ${resolved ? "🟢 OK" : "🔴 NOT FOUND"}`);
+        } catch {
+          lines.push("  embed_resolve:  🔴 ERROR");
+        }
+      }
+
+      const video = ins.video as Record<string, unknown> | null;
+      if (video) {
+        lines.push(`  video:`);
+        lines.push(`    youtube_id:   ${video.youtube_id}`);
+        const vTitle = (video.title as string) || "?";
+        lines.push(`    title:        ${vTitle.length > 60 ? vTitle.slice(0, 60) + "..." : vTitle}`);
+        lines.push(`    channel:      ${video.channel_name || "?"}`);
+        lines.push(`    duration:     ${video.duration_seconds != null ? video.duration_seconds + "s" : "?"}`);
+      } else {
+        lines.push("  video:          null");
+      }
+
+      const suggCount = Array.isArray(ins.follow_up_suggestions) ? (ins.follow_up_suggestions as unknown[]).length : 0;
+      lines.push(`  follow_up:      ${suggCount} suggestion(s)`);
+      const resp = ins.assistant_response as string | undefined;
+      lines.push(`  assistant_resp: ${resp ? resp.length + " chars" : "(not set)"}`);
+    }
   }
 
   console.log(lines.join("\n"));
 }
+
 
 // ============================================================================
 // NEW CHAT SUGGESTIONS DEBUG
@@ -2367,32 +2262,28 @@ async function debugDailyInspirations(): Promise<void> {
  *   await window.debug.newChatSuggestions({ hideKeys: true })
  */
 async function debugNewChatSuggestions(opts: { hideKeys?: boolean } = {}): Promise<void> {
+  void opts; // reserved for future use
   const lines: string[] = [];
-  lines.push("NEW CHAT SUGGESTIONS");
-  lines.push("─".repeat(80));
+  const issues: string[] = [];
+
+  let suggestions: Record<string, unknown>[] = [];
+  let decryptOk = 0;
+  let decryptFail = 0;
+  let masterKeyAvailable = false;
 
   try {
     const db = await openDB();
-    const suggestions = await getAllFromStore<Record<string, unknown>>(db, NEW_CHAT_SUGGESTIONS_STORE);
+    suggestions = await getAllFromStore<Record<string, unknown>>(db, NEW_CHAT_SUGGESTIONS_STORE);
     db.close();
 
     // Sort by created_at descending
     suggestions.sort((a, b) => ((b.created_at as number) || 0) - ((a.created_at as number) || 0));
 
-    lines.push(`Count in IndexedDB:  ${suggestions.length} (max 50)`);
-    lines.push("");
-
     // Try to decrypt each suggestion
-    let decryptOk = 0;
-    let decryptFail = 0;
-    let masterKeyAvailable = false;
-
-    // Get master key once
     let decryptWithMasterKey: null | ((s: string) => Promise<string | null>) = null;
     try {
       const mod = await import("./cryptoService");
       decryptWithMasterKey = mod.decryptWithMasterKey as (s: string) => Promise<string | null>;
-      // Test that master key is available
       if (decryptWithMasterKey && suggestions.length > 0) {
         masterKeyAvailable = true;
       }
@@ -2400,63 +2291,30 @@ async function debugNewChatSuggestions(opts: { hideKeys?: boolean } = {}): Promi
       masterKeyAvailable = false;
     }
 
-    if (suggestions.length === 0) {
-      lines.push("(no suggestions stored)");
-    } else {
-      lines.push(`${"#".padStart(3)}  ${"Created".padEnd(28)} ${"Chat ID".padEnd(36)} ${"Decrypt".padEnd(9)} ${"Encrypted value (or decrypted preview)"}`);
-      for (let i = 0; i < suggestions.length; i++) {
-        const s = suggestions[i];
-        const createdAt = formatTimestamp(s.created_at as number);
-        const chatId = (s.chat_id as string) || "N/A";
-        const encValue = (s.encrypted_suggestion as string) || "";
-        const isHidden = s.is_hidden ? " [hidden]" : "";
-
-        let decryptInfo = "? N/A";
-        if (decryptWithMasterKey && encValue) {
-          try {
-            const decrypted = await decryptWithMasterKey(encValue);
-            if (decrypted !== null) {
-              decryptOk++;
-              const preview = decrypted.length > 50 ? decrypted.slice(0, 50) + "..." : decrypted;
-              decryptInfo = `✓ OK  "${preview}"`;
-            } else {
-              decryptFail++;
-              decryptInfo = "✗ FAIL (null)";
-            }
-          } catch (err) {
+    // Attempt decryption on all
+    const decryptedPreviews: (string | null)[] = [];
+    for (const s of suggestions) {
+      const encValue = (s.encrypted_suggestion as string) || "";
+      if (decryptWithMasterKey && encValue) {
+        try {
+          const decrypted = await decryptWithMasterKey(encValue);
+          if (decrypted !== null) {
+            decryptOk++;
+            decryptedPreviews.push(decrypted.length > 50 ? decrypted.slice(0, 50) + "..." : decrypted);
+          } else {
             decryptFail++;
-            decryptInfo = `✗ FAIL (${err instanceof Error ? err.message.slice(0, 30) : String(err).slice(0, 30)})`;
+            decryptedPreviews.push(null);
           }
-        } else if (!encValue) {
-          decryptInfo = "· empty";
+        } catch {
+          decryptFail++;
+          decryptedPreviews.push(null);
         }
-
-        const encDisplay = opts.hideKeys ? `${encValue.slice(0, 20)}... [${encValue.length} chars]` : encValue;
-        lines.push(`${(i + 1).toString().padStart(3)}  ${createdAt.padEnd(28)} ${chatId}${isHidden}  ${decryptInfo}`);
-        if (!opts.hideKeys) {
-          lines.push(`     enc: ${encDisplay}`);
-        }
-      }
-
-      lines.push("");
-
-      // Master key health
-      try {
-        const { getKeyFromStorage } = await import("./cryptoService");
-        const masterKey2 = await getKeyFromStorage();
-        if (masterKey2) {
-          lines.push("Master key:  UNLOCKED (CryptoKey present)");
-        } else {
-          lines.push("Master key:  NOT available (locked)");
-        }
-      } catch {
-        lines.push("Master key:  NOT available (cryptoService unavailable)");
+      } else {
+        decryptedPreviews.push(null);
       }
     }
 
-    // Health checks
-    lines.push("");
-    const issues: string[] = [];
+    // Health
     if (!masterKeyAvailable && suggestions.length > 0) {
       issues.push("master key not available — cannot verify suggestions are decryptable");
     }
@@ -2464,21 +2322,59 @@ async function debugNewChatSuggestions(opts: { hideKeys?: boolean } = {}): Promi
       issues.push(`${decryptFail}/${decryptOk + decryptFail} suggestions failed to decrypt`);
     }
     if (suggestions.length > 45) {
-      issues.push(`suggestion count (${suggestions.length}) is near the 50-item cap — oldest will be evicted soon`);
+      issues.push(`suggestion count (${suggestions.length}) is near the 50-item cap`);
     }
+
+    // ─── Header + health at top ───
+    lines.push("NEW CHAT SUGGESTIONS");
+    lines.push("─".repeat(80));
     if (issues.length === 0) {
-      lines.push(`🟢 New chat suggestions: HEALTHY (${decryptOk} decrypted OK)`);
+      lines.push(`🟢 HEALTHY (${suggestions.length} suggestions, ${decryptOk} decrypted OK)`);
     } else {
-      lines.push(`🔴 New chat suggestions: ${issues.length} issue(s)`);
+      lines.push(`🔴 ISSUES (${issues.length}):`);
       for (const iss of issues) lines.push(`   • ${iss}`);
     }
 
+    lines.push("");
+    lines.push(`Count in IndexedDB:  ${suggestions.length} (max 50)`);
+    lines.push(`Master key:          ${masterKeyAvailable ? "🟢 UNLOCKED" : "🔴 LOCKED / UNAVAILABLE"}`);
+
+    if (suggestions.length > 0) {
+      lines.push("");
+      lines.push(`${"#".padStart(3)}  ${"Created".padEnd(28)} ${"Chat ID".padEnd(36)} ${"Decrypt".padEnd(9)} Preview`);
+      for (let i = 0; i < suggestions.length; i++) {
+        const s = suggestions[i];
+        const createdAt = formatTimestamp(s.created_at as number);
+        const chatId = (s.chat_id as string) || "N/A";
+        const encValue = (s.encrypted_suggestion as string) || "";
+        const isHidden = s.is_hidden ? " [hidden]" : "";
+        const preview = decryptedPreviews[i];
+
+        let decryptInfo: string;
+        if (preview !== null) {
+          decryptInfo = `🟢 OK    "${preview}"`;
+        } else if (!encValue) {
+          decryptInfo = "· empty";
+        } else if (!masterKeyAvailable) {
+          decryptInfo = `? N/A   (${encValue.length} chars enc)`;
+        } else {
+          decryptInfo = `🔴 FAIL  (${encValue.length} chars enc)`;
+        }
+
+        lines.push(`${(i + 1).toString().padStart(3)}  ${createdAt.padEnd(28)} ${chatId}${isHidden}  ${decryptInfo}`);
+      }
+    }
   } catch (e) {
-    lines.push(`Error reading IndexedDB: ${e}`);
+    issues.push(`error reading IndexedDB: ${e}`);
+    lines.push("NEW CHAT SUGGESTIONS");
+    lines.push("─".repeat(80));
+    lines.push(`🔴 ISSUES (${issues.length}):`);
+    for (const iss of issues) lines.push(`   • ${iss}`);
   }
 
   console.log(lines.join("\n"));
 }
+
 
 // ============================================================================
 // INITIALIZATION - Expose unified window.debug namespace
@@ -2494,81 +2390,86 @@ async function debugNewChatSuggestions(opts: { hideKeys?: boolean } = {}): Promi
  *  - Last 5 console errors from logCollector
  */
 async function runClientHealthCheck(): Promise<void> {
-  console.group(
-    "%c🔍 Client Health Check",
-    "color: #4CAF50; font-weight: bold",
-  );
+  const allIssues: string[] = [];
+  const allOk: string[] = [];
 
   // 1. IndexedDB connectivity
+  let chatCount = 0;
+  let msgCount = 0;
+  let embedCount = 0;
+  let keyCount = 0;
+  let suggCount = 0;
   try {
     const db = await openDB();
-    const chatCount = await getStoreCount(db, CHATS_STORE);
-    const msgCount = await getStoreCount(db, MESSAGES_STORE);
-    const embedCount = await getStoreCount(db, EMBEDS_STORE);
-    const keyCount = await getStoreCount(db, EMBED_KEYS_STORE);
+    chatCount = await getStoreCount(db, CHATS_STORE);
+    msgCount = await getStoreCount(db, MESSAGES_STORE);
+    embedCount = await getStoreCount(db, EMBEDS_STORE);
+    keyCount = await getStoreCount(db, EMBED_KEYS_STORE);
+    try {
+      suggCount = await getStoreCount(db, NEW_CHAT_SUGGESTIONS_STORE);
+    } catch {
+      suggCount = -1; // store may not exist
+    }
     db.close();
-    console.log(
-      `✅ IndexedDB OK — chats: ${chatCount}, messages: ${msgCount}, embeds: ${embedCount}, keys: ${keyCount}`,
-    );
+    allOk.push(`IndexedDB: chats=${chatCount}, messages=${msgCount}, embeds=${embedCount}, keys=${keyCount}, suggestions=${suggCount >= 0 ? suggCount : "N/A"}`);
   } catch (e) {
-    console.error(`❌ IndexedDB FAILED: ${e}`);
+    allIssues.push(`IndexedDB FAILED: ${e}`);
   }
 
-  // 2. Active chat state (dynamic import to avoid circular deps)
+  // 2. Auth + master key
+  try {
+    const { get } = await import("svelte/store");
+    const { authStore } = await import("../stores/authState");
+    const auth = get(authStore) as unknown as Record<string, unknown> | null;
+    const isAuth = (auth?.isAuthenticated as boolean) ?? false;
+    if (isAuth) {
+      allOk.push("Auth: authenticated");
+    } else {
+      allIssues.push("Auth: NOT authenticated");
+    }
+  } catch {
+    allIssues.push("Auth store unavailable");
+  }
+
+  try {
+    const { getKeyFromStorage } = await import("./cryptoService");
+    const masterKey = await getKeyFromStorage();
+    if (masterKey) {
+      allOk.push("Master key: UNLOCKED");
+    } else {
+      allIssues.push("Master key: LOCKED / unavailable");
+    }
+  } catch {
+    allIssues.push("Master key: unavailable");
+  }
+
+  // 3. Active chat store
   try {
     const { get } = await import("svelte/store");
     const { activeChatStore } = await import("../stores/activeChatStore");
-    const state = get(activeChatStore) as unknown as Record<
-      string,
-      unknown
-    > | null;
-    if (state) {
-      const activeChatId = state.activeChatId ?? null;
-      console.log(
-        `✅ Active chat store: ${activeChatId ? `chat ${activeChatId}` : "no active chat"}`,
-      );
-    } else {
-      console.log("ℹ️  Active chat store: empty (no active chat)");
-    }
+    const state = get(activeChatStore) as unknown as Record<string, unknown> | null;
+    const activeChatId = state?.activeChatId ?? null;
+    allOk.push(`Active chat: ${activeChatId ? activeChatId : "none"}`);
   } catch {
-    console.log("ℹ️  Active chat state unavailable");
+    // non-critical
   }
 
-  // 3. Last N console errors from logCollector
-  try {
-    const { logCollector } = await import("./logCollector");
-    const errors = logCollector.getErrorLogs().filter(
-      (e: { level: string }) => e.level === "error",
-    ).slice(-5);
-    if (errors.length === 0) {
-      console.log("✅ No recent console errors");
-    } else {
-      console.warn(`⚠️  Last ${errors.length} console error(s):`);
-      for (const e of errors) {
-        console.warn(`   [${e.level}] ${e.message}`);
-      }
-    }
-  } catch {
-    console.log("ℹ️  Log collector unavailable");
-  }
-
-  // 4. Attempt decryption of all chats and report failures
+  // 4. Attempt decryption of ALL chats — metadata + messages
+  let decryptChatsFailed = 0;
+  let decryptChatsOk = 0;
+  const failedChatDetails: { chatId: string; failedFields: string[] }[] = [];
   try {
     const db2 = await openDB();
     const allChats = await getAllFromStore<Record<string, unknown>>(db2, CHATS_STORE);
     const allMessages = await getAllFromStore<Record<string, unknown>>(db2, MESSAGES_STORE);
     db2.close();
 
-    // Group messages by chat_id
     const messagesByChatId: Record<string, Record<string, unknown>[]> = {};
     for (const msg of allMessages) {
       const cid = msg.chat_id as string;
       if (!messagesByChatId[cid]) messagesByChatId[cid] = [];
       messagesByChatId[cid].push(msg);
     }
-
-    let totalDecryptFailed = 0;
-    const failedChats: { chatId: string; failedFields: string[] }[] = [];
 
     for (const chatMeta of allChats) {
       const chatId = chatMeta.chat_id as string;
@@ -2578,45 +2479,210 @@ async function runClientHealthCheck(): Promise<void> {
         if (report.chatKeyAvailable) {
           const failedFields: string[] = [];
           for (const f of report.metadataFields) {
-            if (!f.success) failedFields.push(`${f.field}(meta)`);
+            if (!f.success) failedFields.push(f.field);
           }
           for (const m of report.messageFields) {
             if (!m.success) failedFields.push(`msg[${m.messageIndex}]`);
           }
           if (failedFields.length > 0) {
-            totalDecryptFailed++;
-            failedChats.push({ chatId, failedFields });
+            decryptChatsFailed++;
+            failedChatDetails.push({ chatId, failedFields });
+          } else {
+            decryptChatsOk++;
           }
         }
       } catch {
-        // skip individual chat errors in global health check
+        // skip
       }
     }
 
-    if (totalDecryptFailed === 0) {
-      console.log(`✅ Decryption OK — all ${allChats.length} chats decrypted successfully`);
+    if (decryptChatsFailed === 0) {
+      allOk.push(`Chat decryption: all ${decryptChatsOk} chats OK`);
     } else {
-      console.warn(
-        `⚠️  Decryption failures in ${totalDecryptFailed}/${allChats.length} chat(s). Run window.debug.chat(id) for details:`,
-      );
-      for (const { chatId, failedFields } of failedChats.slice(0, 5)) {
-        console.warn(`   ${chatId} — failed: ${failedFields.join(", ")}`);
-      }
-      if (failedChats.length > 5) {
-        console.warn(`   ... and ${failedChats.length - 5} more`);
-      }
+      allIssues.push(`Chat decryption: ${decryptChatsFailed} chat(s) have decrypt failures`);
     }
   } catch (e) {
-    console.log(`ℹ️  Decryption check unavailable: ${e}`);
+    allIssues.push(`Chat decryption check failed: ${e}`);
   }
 
-  console.groupEnd();
+  // 5. Embed decryption — sample up to 20 recent embeds
+  try {
+    const db3 = await openDB();
+    const allEmbeds = await getAllFromStore<Record<string, unknown>>(db3, EMBEDS_STORE);
+    const allEmbedKeys = await getAllFromStore<Record<string, unknown>>(db3, EMBED_KEYS_STORE);
+    db3.close();
+
+    const embedKeyDebug = buildEmbedKeyDebugMap(allEmbedKeys);
+    const finishedEmbeds = allEmbeds.filter(
+      (e) => {
+        const s = String(e.status || "").toLowerCase();
+        return (s === "finished" || s === "activated") && !!(e.encrypted_content);
+      }
+    );
+
+    if (finishedEmbeds.length > 0) {
+      const sampleSize = Math.min(20, finishedEmbeds.length);
+      const embedDecodeResult = await collectClientEmbedDecodeHealth(
+        finishedEmbeds.slice(0, sampleSize),
+        sampleSize,
+        embedKeyDebug,
+      );
+
+      if (embedDecodeResult.failedCount === 0) {
+        allOk.push(`Embed decryption: ${embedDecodeResult.decodedCount}/${embedDecodeResult.checkedCount} sample OK`);
+      } else {
+        allIssues.push(`Embed decryption: ${embedDecodeResult.failedCount}/${embedDecodeResult.checkedCount} sample FAILED`);
+      }
+    } else {
+      allOk.push("Embed decryption: no finished encrypted embeds to check");
+    }
+  } catch (e) {
+    allIssues.push(`Embed decryption check failed: ${e}`);
+  }
+
+  // 6. New chat suggestions decryption
+  try {
+    const db4 = await openDB();
+    const suggestions = await getAllFromStore<Record<string, unknown>>(db4, NEW_CHAT_SUGGESTIONS_STORE);
+    db4.close();
+
+    if (suggestions.length > 0) {
+      let suggOk = 0;
+      let suggFail = 0;
+      try {
+        const { decryptWithMasterKey } = await import("./cryptoService");
+        for (const s of suggestions) {
+          const enc = (s.encrypted_suggestion as string) || "";
+          if (!enc) continue;
+          try {
+            const d = await decryptWithMasterKey(enc);
+            if (d !== null) suggOk++;
+            else suggFail++;
+          } catch {
+            suggFail++;
+          }
+        }
+        if (suggFail === 0) {
+          allOk.push(`Suggestions decrypt: all ${suggOk} OK`);
+        } else {
+          allIssues.push(`Suggestions decrypt: ${suggFail}/${suggOk + suggFail} FAILED`);
+        }
+      } catch {
+        allIssues.push("Suggestions decrypt: master key unavailable");
+      }
+    }
+  } catch {
+    // store may not exist, non-critical
+  }
+
+  // 7. Daily inspirations health
+  try {
+    const { get } = await import("svelte/store");
+    const { dailyInspirationStore } = await import("../stores/dailyInspirationStore");
+    const state = get(dailyInspirationStore) as unknown as {
+      inspirations: Array<Record<string, unknown>>;
+      isPersonalized: boolean;
+    };
+    const count = state.inspirations.length;
+    if (count === 0) {
+      allOk.push("Daily inspirations: 0 loaded");
+    } else {
+      const missing = state.inspirations.filter((i) => !i.video).length;
+      if (missing > 0) {
+        allIssues.push(`Daily inspirations: ${missing}/${count} missing video`);
+      } else {
+        allOk.push(`Daily inspirations: ${count} loaded${state.isPersonalized ? " (personalized)" : " (defaults)"}`);
+      }
+    }
+  } catch {
+    // non-critical
+  }
+
+  // 8. Console error/warn logs
+  let errorLogCount = 0;
+  try {
+    const { logCollector } = await import("./logCollector");
+    const errors = logCollector.getErrorLogs().filter(
+      (e: { level: string }) => e.level === "error" || e.level === "warn",
+    );
+    errorLogCount = errors.length;
+    if (errors.length === 0) {
+      allOk.push("Console: no errors/warnings");
+    } else {
+      allIssues.push(`Console: ${errors.length} error/warning log(s)`);
+    }
+  } catch {
+    // non-critical
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // OUTPUT
+  // ═══════════════════════════════════════════════════════════════
+  const isHealthy = allIssues.length === 0;
+  const banner = isHealthy ? "🟢 CLIENT HEALTH: ALL OK" : `🔴 CLIENT HEALTH: ${allIssues.length} ISSUE(S)`;
+
+  console.log(
+    `%c${banner}`,
+    `${HEALTH_BANNER_STYLE} color: ${isHealthy ? HEALTHY_BANNER_COLOR : UNHEALTHY_BANNER_COLOR};`,
+  );
+
+  // Print checks that passed (concise)
+  for (const ok of allOk) {
+    console.log(`  🟢 ${ok}`);
+  }
+
+  // Print issues with details
+  if (allIssues.length > 0) {
+    for (const issue of allIssues) {
+      console.log(`  🔴 ${issue}`);
+    }
+
+    // Detail: failed chat IDs
+    if (failedChatDetails.length > 0) {
+      console.log("");
+      console.log(
+        `%c  Failed chats (${failedChatDetails.length}):`,
+        "font-weight: 600; color: #dc2626;",
+      );
+      for (const { chatId, failedFields } of failedChatDetails.slice(0, 10)) {
+        console.log(`    🔴 ${chatId} — ${failedFields.join(", ")}`);
+      }
+      if (failedChatDetails.length > 10) {
+        console.log(`    ... and ${failedChatDetails.length - 10} more`);
+      }
+    }
+
+    // Detail: error logs
+    if (errorLogCount > 0) {
+      try {
+        const { logCollector } = await import("./logCollector");
+        const errors = logCollector.getErrorLogs().filter(
+          (e: { level: string }) => e.level === "error",
+        ).slice(-5);
+        if (errors.length > 0) {
+          console.log("");
+          console.log(
+            `%c  Recent errors (${errors.length}):`,
+            "font-weight: 600; color: #dc2626;",
+          );
+          for (const e of errors) {
+            console.log(`    🔴 ${e.message}`);
+          }
+        }
+      } catch {
+        // skip
+      }
+    }
+  }
+
+  console.log("");
   console.info(
     "%c💡 Tip:%c type window.debug.help() to see all available commands",
     "color: #888; font-weight: bold",
     "color: #888",
   );
 }
+
 
 /**
  * Show all available debug commands.
