@@ -1747,6 +1747,15 @@ export async function inspectChat(
     logFailedEmbedDecryptionBanner(embedDecodeHealth.attempts);
   }
 
+  // Fetch server-side sync status and log it directly (non-blocking, degrades gracefully)
+  void fetchServerSyncStatus([chatId]).then((syncResp) => {
+    const serverStatus = syncResp?.chats?.[0];
+    const syncLines = formatServerChatSync(serverStatus);
+    console.group("🌐 SERVER SYNC");
+    for (const line of syncLines) console.log(line);
+    console.groupEnd();
+  });
+
   console.log(report);
 
   if (options.download) {
@@ -1981,6 +1990,16 @@ export async function inspectEmbed(
   const report = lines.join("\n");
 
   logHealthCheckBanner("EMBED", embedHealthSummary.isHealthy);
+
+  // Fetch server-side sync status and log it directly (non-blocking, degrades gracefully)
+  void fetchServerSyncStatus(undefined, [embedId]).then((syncResp) => {
+    const serverStatus = syncResp?.embeds?.[0];
+    const syncLines = formatServerEmbedSync(serverStatus);
+    console.group("🌐 SERVER SYNC");
+    for (const line of syncLines) console.log(line);
+    console.groupEnd();
+  });
+
   console.log(report);
 
   if (options.download) {
@@ -2749,6 +2768,121 @@ async function runClientHealthCheck(): Promise<void> {
     // non-critical
   }
 
+  // 10. Server sync status — batch check all local chats against server
+  // We collect all local chat IDs, then send them in batches of SERVER_SYNC_BATCH_SIZE.
+  // Any chat that is found locally but missing on the server (or has version mismatch) is flagged.
+  const serverSyncIssues: string[] = [];
+  try {
+    const db6 = await openDB();
+    const allChatsForSync = await getAllFromStore<Record<string, unknown>>(db6, CHATS_STORE);
+    db6.close();
+
+    if (allChatsForSync.length > 0) {
+      // Build batches
+      const allChatIds = allChatsForSync.map((c) => c.chat_id as string).filter(Boolean);
+      const batches: string[][] = [];
+      for (let i = 0; i < allChatIds.length; i += SERVER_SYNC_BATCH_SIZE) {
+        batches.push(allChatIds.slice(i, i + SERVER_SYNC_BATCH_SIZE));
+      }
+
+      // Build local messages_v map for comparison
+      const localMsgVMap: Record<string, number> = {};
+      const localMsgCountMap: Record<string, number> = {};
+      for (const c of allChatsForSync) {
+        const cid = c.chat_id as string;
+        if (cid) {
+          localMsgVMap[cid] = (c.messages_v as number) || 0;
+        }
+      }
+      // Count local messages per chat
+      const db7 = await openDB();
+      const allMsgsForSync = await getAllFromStore<Record<string, unknown>>(db7, MESSAGES_STORE);
+      db7.close();
+      for (const m of allMsgsForSync) {
+        const cid = m.chat_id as string;
+        if (cid) localMsgCountMap[cid] = (localMsgCountMap[cid] || 0) + 1;
+      }
+
+      // Fetch server sync status in batches
+      let driftCount = 0;
+      let missingCount = 0;
+      let checkedCount = 0;
+      const driftDetails: string[] = [];
+
+      for (const batch of batches) {
+        const syncResp = await fetchServerSyncStatus(batch);
+        if (!syncResp) break; // Server unreachable — stop checking
+
+        for (const serverChat of syncResp.chats) {
+          checkedCount++;
+          const localMsgV = localMsgVMap[serverChat.chat_id] ?? null;
+          const localMsgCount = localMsgCountMap[serverChat.chat_id] ?? 0;
+
+          if (!serverChat.found) {
+            missingCount++;
+            driftDetails.push(`  🔴 chat ${serverChat.chat_id.substring(0, 12)}... NOT on server`);
+            continue;
+          }
+
+          // Check client vs server messages_v drift
+          const serverMsgV = serverChat.db_messages_v ?? null;
+          if (localMsgV !== null && serverMsgV !== null && localMsgV !== serverMsgV) {
+            driftCount++;
+            driftDetails.push(
+              `  🔴 chat ${serverChat.chat_id.substring(0, 12)}... client_messages_v=${localMsgV} ≠ server_messages_v=${serverMsgV}`,
+            );
+          }
+
+          // Server-side DB consistency
+          if (serverChat.db_consistent === false) {
+            driftCount++;
+            driftDetails.push(
+              `  🔴 chat ${serverChat.chat_id.substring(0, 12)}... server DB inconsistent: messages=${serverChat.db_message_count} ≠ messages_v=${serverChat.db_messages_v}`,
+            );
+          }
+
+          // Local vs server message count
+          if (
+            serverChat.db_message_count !== undefined &&
+            localMsgCount !== serverChat.db_message_count
+          ) {
+            driftCount++;
+            driftDetails.push(
+              `  🔴 chat ${serverChat.chat_id.substring(0, 12)}... local_msg_count=${localMsgCount} ≠ server_msg_count=${serverChat.db_message_count}`,
+            );
+          }
+        }
+
+        // Also report any server-side errors
+        for (const err of syncResp.errors) {
+          serverSyncIssues.push(`Server sync error: ${err}`);
+        }
+      }
+
+      if (checkedCount > 0) {
+        if (driftCount === 0 && missingCount === 0) {
+          allOk.push(`Server sync: all ${checkedCount} chats in sync`);
+        } else {
+          const parts: string[] = [];
+          if (driftCount > 0) parts.push(`${driftCount} drift`);
+          if (missingCount > 0) parts.push(`${missingCount} missing`);
+          allIssues.push(`Server sync: ${parts.join(", ")} (of ${checkedCount} checked)`);
+          for (const detail of driftDetails.slice(0, 10)) {
+            serverSyncIssues.push(detail);
+          }
+          if (driftDetails.length > 10) {
+            serverSyncIssues.push(`  ... and ${driftDetails.length - 10} more`);
+          }
+        }
+      } else {
+        // All batches returned null (server unreachable)
+        allOk.push("Server sync: unavailable (offline or not authenticated)");
+      }
+    }
+  } catch (e) {
+    allOk.push(`Server sync: check failed (${e})`);
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // OUTPUT
   // ═══════════════════════════════════════════════════════════════
@@ -2821,6 +2955,18 @@ async function runClientHealthCheck(): Promise<void> {
       } catch {
         // skip
       }
+    }
+  }
+
+  // Server sync issue details
+  if (serverSyncIssues.length > 0) {
+    console.log("");
+    console.log(
+      "%c  Server sync issues:",
+      "font-weight: 600; color: #dc2626;",
+    );
+    for (const issue of serverSyncIssues) {
+      console.log(issue);
     }
   }
 
@@ -3014,6 +3160,173 @@ async function debugSettingsAndMemories(): Promise<void> {
 
   // Print
   console.log(lines.join("\n"));
+}
+
+// ============================================================================
+// SERVER SYNC STATUS
+// ============================================================================
+
+/**
+ * Server-side sync status for a chat returned by /v1/debug/sync.
+ * Only version numbers, counts and cache presence — NO encrypted content.
+ */
+interface ServerChatSyncStatus {
+  chat_id: string;
+  found: boolean;
+  db_message_count?: number;
+  db_messages_v?: number;
+  db_embed_count?: number;
+  cache_present: boolean;
+  cache_messages_v?: number;
+  db_consistent?: boolean;
+  db_cache_consistent?: boolean;
+}
+
+/**
+ * Server-side sync status for an embed returned by /v1/debug/sync.
+ */
+interface ServerEmbedSyncStatus {
+  embed_id: string;
+  found: boolean;
+  db_status?: string;
+  db_key_count?: number;
+  db_chat_key_count?: number;
+  db_master_key_count?: number;
+}
+
+interface ServerSyncResponse {
+  success: boolean;
+  chats: ServerChatSyncStatus[];
+  embeds: ServerEmbedSyncStatus[];
+  errors: string[];
+}
+
+/** Maximum items per batch in /v1/debug/sync — must match backend MAX_BATCH_SIZE */
+const SERVER_SYNC_BATCH_SIZE = 20;
+
+/**
+ * Fetch server-side sync status for a batch of chat IDs or embed IDs.
+ *
+ * Uses the JWT session cookie (same as all other user-facing API calls).
+ * Returns null if the request fails (network error, 401, etc.) — callers
+ * degrade gracefully and show "server status unavailable".
+ */
+async function fetchServerSyncStatus(
+  chatIds?: string[],
+  embedIds?: string[],
+): Promise<ServerSyncResponse | null> {
+  try {
+    const { getApiEndpoint } = await import("../config/api");
+    const body: { chat_ids?: string[]; embed_ids?: string[] } = {};
+    if (chatIds && chatIds.length > 0) body.chat_ids = chatIds.slice(0, SERVER_SYNC_BATCH_SIZE);
+    if (embedIds && embedIds.length > 0) body.embed_ids = embedIds.slice(0, SERVER_SYNC_BATCH_SIZE);
+
+    const response = await fetch(getApiEndpoint("/v1/debug/sync"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      // 401 = not authenticated, 422 = validation error — expected in some states
+      if (response.status !== 401 && response.status !== 422) {
+        console.debug(`[debug] /v1/debug/sync returned ${response.status}`);
+      }
+      return null;
+    }
+
+    return (await response.json()) as ServerSyncResponse;
+  } catch (e) {
+    console.debug("[debug] /v1/debug/sync unavailable:", e);
+    return null;
+  }
+}
+
+/**
+ * Format a server chat sync status block for inclusion in the chat inspection report.
+ */
+function formatServerChatSync(serverStatus: ServerChatSyncStatus | undefined): string[] {
+  if (!serverStatus) return ["  ⚠ Server status unavailable (offline or not authenticated)"];
+
+  const lines: string[] = [];
+
+  if (!serverStatus.found) {
+    lines.push("  🔴 NOT FOUND on server (not synced yet, or belongs to another user)");
+    return lines;
+  }
+
+  // DB state
+  const dbMsgCount = serverStatus.db_message_count ?? "?";
+  const dbMsgV = serverStatus.db_messages_v ?? "?";
+  const dbEmbedCount = serverStatus.db_embed_count ?? "?";
+  lines.push(`  DB: messages=${dbMsgCount}  messages_v=${dbMsgV}  embeds=${dbEmbedCount}`);
+
+  // Cache state
+  if (serverStatus.cache_present) {
+    const cacheMsgV = serverStatus.cache_messages_v ?? "?";
+    lines.push(`  Cache: PRESENT  messages_v=${cacheMsgV}`);
+  } else {
+    lines.push("  Cache: MISSING (chat not in Redis)");
+  }
+
+  // Consistency flags
+  const dbConsistent = serverStatus.db_consistent;
+  const cacheConsistent = serverStatus.db_cache_consistent;
+
+  if (dbConsistent === false) {
+    lines.push(
+      `  🔴 DB INCONSISTENT: actual messages (${dbMsgCount}) ≠ messages_v (${dbMsgV})`,
+    );
+  } else if (dbConsistent === true) {
+    lines.push("  🟢 DB consistent");
+  }
+
+  if (serverStatus.cache_present) {
+    if (cacheConsistent === false) {
+      lines.push(
+        `  🔴 CACHE STALE: DB messages_v (${dbMsgV}) ≠ cache messages_v (${serverStatus.cache_messages_v ?? "?"})`,
+      );
+    } else if (cacheConsistent === true) {
+      lines.push("  🟢 Cache in sync with DB");
+    }
+  }
+
+  return lines;
+}
+
+/**
+ * Format a server embed sync status block for inclusion in the embed inspection report.
+ */
+function formatServerEmbedSync(serverStatus: ServerEmbedSyncStatus | undefined): string[] {
+  if (!serverStatus) return ["  ⚠ Server status unavailable (offline or not authenticated)"];
+
+  const lines: string[] = [];
+
+  if (!serverStatus.found) {
+    lines.push("  🔴 NOT FOUND on server");
+    return lines;
+  }
+
+  const status = serverStatus.db_status ?? "unknown";
+  const totalKeys = serverStatus.db_key_count ?? "?";
+  const chatKeys = serverStatus.db_chat_key_count ?? "?";
+  const masterKeys = serverStatus.db_master_key_count ?? "?";
+
+  lines.push(`  DB status: ${status}`);
+  lines.push(`  Keys: total=${totalKeys}  chat-type=${chatKeys}  master-type=${masterKeys}`);
+
+  if (serverStatus.db_key_count === 0) {
+    lines.push("  🔴 NO KEYS on server — embed can only be decrypted locally");
+  } else if (serverStatus.db_chat_key_count === 0) {
+    lines.push("  ⚠ No chat-type keys — cross-device decrypt may fail");
+  } else if (serverStatus.db_master_key_count === 0) {
+    lines.push("  ⚠ No master-type keys — recovery decrypt may fail");
+  } else {
+    lines.push("  🟢 Keys present (chat-type + master-type)");
+  }
+
+  return lines;
 }
 
 export function initDebugUtils(): void {
