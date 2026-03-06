@@ -10353,10 +10353,10 @@
       "text": "Never reuse your password anywhere else"
     },
     "skip_2fa_warning_rule_2": {
-      "text": "Remember or store your password securely (recommended, use a password manager)"
+      "text": "Remember or store your password securely (Recommended: Use a password manager)"
     },
     "skip_2fa_warning_rule_3": {
-      "text": "Never share your password with anyone else (OpenMates will never ask for your password)"
+      "text": "Never share your password with anyone else (No real contributor/employee will ever ask for your password)"
     },
     "skip_2fa_warning_rule_4": {
       "text": "Never enter your password on a domain that is not openmates.org"

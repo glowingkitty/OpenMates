@@ -30,13 +30,12 @@ Tests: frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
         padding: 24px;
         display: flex;
         flex-direction: column;
-        align-items: center;
+        align-items: flex-start;
     }
 
     .signup-header {
         display: flex;
         align-items: center;
-        justify-content: center;
         gap: 16px;
         margin-bottom: 14px;
     }

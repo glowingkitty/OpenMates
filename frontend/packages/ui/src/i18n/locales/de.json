@@ -9945,10 +9945,10 @@
       "text": "Verwende dein Passwort nirgendwo sonst erneut"
     },
     "skip_2fa_warning_rule_2": {
-      "text": "Merke dir dein Passwort oder speichere es sicher (empfohlen, nutze einen Passwortmanager)"
+      "text": "Merke dir dein Passwort oder speichere es sicher (Empfohlen: Nutze einen Passwortmanager)"
     },
     "skip_2fa_warning_rule_3": {
-      "text": "Teile dein Passwort niemals mit anderen (OpenMates wird dich niemals nach deinem Passwort fragen)"
+      "text": "Teile dein Passwort niemals mit anderen (Kein echter Mitwirkender/Mitarbeiter wird dich jemals nach deinem Passwort fragen)"
     },
     "skip_2fa_warning_rule_4": {
       "text": "Gib dein Passwort niemals auf einer Domain ein, die nicht openmates.org ist"
