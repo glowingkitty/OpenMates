@@ -2742,12 +2742,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         return `perspective(${RESUME_CARD_TILT_PERSPECTIVE}px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${RESUME_CARD_TILT_SCALE})`;
     });
 
-    function getResumeLargeCardStyle(backgroundStyle: string): string {
-        if (!resumeLargeCardTiltTransform) {
-            return backgroundStyle;
+    /**
+     * Build the inline style string for the large resume card.
+     * Accepts a background CSS declaration and an optional gradient color pair.
+     * Emits --orb-color-a / --orb-color-b CSS custom properties consumed by
+     * the living gradient orb animation (same system as ChatHeader + DailyInspirationBanner).
+     */
+    function getResumeLargeCardStyle(
+        backgroundStyle: string,
+        orbColors?: { start: string; end: string } | null,
+    ): string {
+        const parts = [backgroundStyle];
+        if (orbColors) {
+            parts.push(`--orb-color-a: ${orbColors.start}`);
+            parts.push(`--orb-color-b: ${orbColors.end}`);
+        } else {
+            // Primary blue fallback
+            parts.push('--orb-color-a: #4867cd');
+            parts.push('--orb-color-b: #a0beff');
         }
-
-        return `${backgroundStyle}; transform: ${resumeLargeCardTiltTransform}`;
+        if (resumeLargeCardTiltTransform) {
+            parts.push(`transform: ${resumeLargeCardTiltTransform}`);
+        }
+        return parts.join('; ');
     }
 
     function handleResumeLargeCardMouseEnter(e: MouseEvent) {
@@ -8496,13 +8513,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         bind:this={resumeLargeCardElement}
                                         class="resume-chat-large-card"
                                         class:hovering={isResumeLargeCardHovering}
-                                        style={getResumeLargeCardStyle(gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: var(--color-primary)')}
+                                        style={getResumeLargeCardStyle(
+                                            gradientColors
+                                                ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})`
+                                                : 'background: var(--color-primary)',
+                                            gradientColors
+                                        )}
                                         onclick={handleResumeLastChat}
                                         onmouseenter={handleResumeLargeCardMouseEnter}
                                         onmousemove={handleResumeLargeCardMouseMove}
                                         onmouseleave={handleResumeLargeCardMouseLeave}
                                         type="button"
                                     >
+                                        <!-- Living gradient orbs — same technique as ChatHeader/DailyInspirationBanner -->
+                                        <div class="resume-large-orbs" aria-hidden="true">
+                                            <div class="resume-orb resume-orb-1"></div>
+                                            <div class="resume-orb resume-orb-2"></div>
+                                            <div class="resume-orb resume-orb-3"></div>
+                                        </div>
                                         <!-- Large decorative icons at card edges (matching ChatEmbedPreview) -->
                                         {#if IconComponent}
                                             <div class="resume-large-deco resume-large-deco-left">
@@ -8575,13 +8603,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         bind:this={resumeLargeCardElement}
                                         class="resume-chat-large-card"
                                         class:hovering={isResumeLargeCardHovering}
-                                        style={getResumeLargeCardStyle(gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: var(--color-primary)')}
+                                        style={getResumeLargeCardStyle(
+                                            gradientColors
+                                                ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})`
+                                                : 'background: var(--color-primary)',
+                                            gradientColors
+                                        )}
                                         onclick={handleOpenIntroChat}
                                         onmouseenter={handleResumeLargeCardMouseEnter}
                                         onmousemove={handleResumeLargeCardMouseMove}
                                         onmouseleave={handleResumeLargeCardMouseLeave}
                                         type="button"
                                     >
+                                        <!-- Living gradient orbs -->
+                                        <div class="resume-large-orbs" aria-hidden="true">
+                                            <div class="resume-orb resume-orb-1"></div>
+                                            <div class="resume-orb resume-orb-2"></div>
+                                            <div class="resume-orb resume-orb-3"></div>
+                                        </div>
                                         {#if IconComponent}
                                             <div class="resume-large-deco resume-large-deco-left">
                                                 <IconComponent size={80} color="white" />
@@ -10273,7 +10312,121 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         overflow: hidden;
     }
 
-    /* Large decorative icons at card corners (matching ChatEmbedPreview deco-icon pattern) */
+    /* ── Living gradient orbs ──────────────────────────────────────────────────
+       Same technique as ChatHeader.svelte and DailyInspirationBanner.svelte.
+       The card is smaller (300×200px) so orbs are proportionally smaller too.
+       --orb-color-a / --orb-color-b are set by getResumeLargeCardStyle(). */
+
+    .resume-large-orbs {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        overflow: hidden;
+        border-radius: 30px; /* match card border-radius so orbs don't bleed */
+    }
+
+    .resume-orb {
+        position: absolute;
+        /* Orbs sized ~same as the card so they fill it generously */
+        width: 280px;
+        height: 240px;
+        background: radial-gradient(
+            ellipse at center,
+            var(--orb-color-b) 0%,
+            var(--orb-color-b) 40%,
+            transparent 85%
+        );
+        filter: blur(22px);
+        opacity: 0.55;
+        will-change: transform, border-radius;
+    }
+
+    .resume-orb-1 {
+        top: -60px;
+        left: -70px;
+        animation:
+            resumeOrbMorph1 11s ease-in-out infinite,
+            resumeOrbDrift1 19s ease-in-out infinite;
+    }
+
+    .resume-orb-2 {
+        bottom: -80px;
+        right: -80px;
+        width: 260px;
+        height: 220px;
+        animation:
+            resumeOrbMorph2 13s ease-in-out infinite,
+            resumeOrbDrift2 23s ease-in-out infinite;
+    }
+
+    .resume-orb-3 {
+        top: -10px;
+        left: 25%;
+        width: 200px;
+        height: 180px;
+        opacity: 0.38;
+        animation:
+            resumeOrbMorph3 17s ease-in-out infinite,
+            resumeOrbDrift3 29s ease-in-out infinite;
+    }
+
+    @keyframes resumeOrbMorph1 {
+        0%   { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+        25%  { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
+        50%  { border-radius: 50% 50% 33% 67% / 55% 27% 73% 45%; }
+        75%  { border-radius: 33% 67% 45% 55% / 30% 70% 35% 65%; }
+        100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+    }
+
+    @keyframes resumeOrbMorph2 {
+        0%   { border-radius: 40% 60% 60% 40% / 40% 40% 60% 60%; }
+        33%  { border-radius: 65% 35% 40% 60% / 60% 45% 55% 40%; }
+        66%  { border-radius: 35% 65% 55% 45% / 45% 55% 40% 60%; }
+        100% { border-radius: 40% 60% 60% 40% / 40% 40% 60% 60%; }
+    }
+
+    @keyframes resumeOrbMorph3 {
+        0%   { border-radius: 55% 45% 38% 62% / 48% 58% 42% 52%; }
+        20%  { border-radius: 42% 58% 62% 38% / 55% 38% 62% 45%; }
+        40%  { border-radius: 68% 32% 45% 55% / 40% 65% 35% 60%; }
+        60%  { border-radius: 38% 62% 55% 45% / 62% 42% 58% 38%; }
+        80%  { border-radius: 52% 48% 32% 68% / 35% 55% 45% 65%; }
+        100% { border-radius: 55% 45% 38% 62% / 48% 58% 42% 52%; }
+    }
+
+    /* Drift distances scaled down proportionally to the 300×200 card size */
+    @keyframes resumeOrbDrift1 {
+        0%   { transform: translate(0px,   0px); }
+        25%  { transform: translate(80px,  40px); }
+        50%  { transform: translate(100px, 10px); }
+        75%  { transform: translate(40px,  60px); }
+        100% { transform: translate(0px,   0px); }
+    }
+
+    @keyframes resumeOrbDrift2 {
+        0%   { transform: translate(0px,   0px); }
+        30%  { transform: translate(-80px, -30px); }
+        60%  { transform: translate(-50px, -80px); }
+        85%  { transform: translate(-90px, -20px); }
+        100% { transform: translate(0px,   0px); }
+    }
+
+    @keyframes resumeOrbDrift3 {
+        0%   { transform: translate(0px,  0px); }
+        20%  { transform: translate(-50px, 30px); }
+        45%  { transform: translate(50px,  50px); }
+        70%  { transform: translate(-30px, -40px); }
+        100% { transform: translate(0px,  0px); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .resume-orb { animation: none !important; }
+    }
+
+    /* ── Large decorative icons at card corners ─────────────────────────────
+       Two-phase animation: entrance (0.6s) → continuous 10s hover float.
+       Left and right are offset by half-cycle (5s) for opposing motion. */
     .resume-large-deco {
         position: absolute;
         width: 80px;
@@ -10283,19 +10436,48 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         justify-content: center;
         z-index: 1;
         pointer-events: none;
-        opacity: 0.3;
+        animation:
+            resumeDecoEnter 0.6s ease-out 0.1s both,
+            resumeDecoFloat 10s ease-in-out 0.7s infinite;
     }
 
     .resume-large-deco-left {
         left: -10px;
         bottom: -8px;
-        transform: rotate(-15deg);
+        --deco-rotate: -15deg;
     }
 
     .resume-large-deco-right {
         right: -10px;
         bottom: -8px;
-        transform: rotate(15deg);
+        --deco-rotate: 15deg;
+        /* Half-cycle offset: one rises while the other sinks */
+        animation-delay: 0.1s, 5.7s;
+    }
+
+    @keyframes resumeDecoEnter {
+        from {
+            opacity: 0;
+            transform: translateY(30px) rotate(var(--deco-rotate, 0deg));
+        }
+        to {
+            opacity: 0.3;
+            transform: translateY(0px) rotate(var(--deco-rotate, 0deg));
+        }
+    }
+
+    @keyframes resumeDecoFloat {
+        0%   { opacity: 0.3;  transform: translateY(0px)  rotate(var(--deco-rotate, 0deg)); }
+        25%  { opacity: 0.35; transform: translateY(-8px) rotate(calc(var(--deco-rotate, 0deg) + 3deg)); }
+        50%  { opacity: 0.3;  transform: translateY(-11px) rotate(var(--deco-rotate, 0deg)); }
+        75%  { opacity: 0.35; transform: translateY(-4px) rotate(calc(var(--deco-rotate, 0deg) - 3deg)); }
+        100% { opacity: 0.3;  transform: translateY(0px)  rotate(var(--deco-rotate, 0deg)); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .resume-large-deco {
+            animation: resumeDecoEnter 0.6s ease-out 0.1s both !important;
+        }
     }
 
     /* Ensure Lucide SVGs inside deco elements render at the right size */
