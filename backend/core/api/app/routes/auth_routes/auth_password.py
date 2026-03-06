@@ -72,13 +72,23 @@ async def setup_password(
                 message="Email verification required. Please verify your email first."
             )
 
-        # Validate username
+        # Validate username format
         username_valid, username_error = validate_username(setup_request.username)
         if not username_valid:
             logger.warning(f"Invalid username format: {username_error}")
             return SetupPasswordResponse(
                 success=False,
                 message=f"Invalid username: {username_error}"
+            )
+
+        # Check username uniqueness server-wide (case-insensitive via SHA-256 hash)
+        hashed_username = directus_service.hash_username(setup_request.username)
+        username_taken, _, _ = await directus_service.get_user_by_hashed_username(hashed_username)
+        if username_taken:
+            logger.warning("Signup rejected: username already taken")
+            return SetupPasswordResponse(
+                success=False,
+                message="This username is already taken. Please choose another one."
             )
 
         # Check if user already exists

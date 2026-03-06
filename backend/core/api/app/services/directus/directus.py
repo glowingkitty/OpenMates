@@ -38,7 +38,7 @@ from backend.core.api.app.services.directus.daily_inspiration_pool_methods impor
 from backend.core.api.app.services.directus.daily_inspiration_defaults_methods import DailyInspirationDefaultsMethods  # Daily-selected top 3 per language
 from backend.core.api.app.services.directus.user.user_creation import create_user
 from backend.core.api.app.services.directus.user.user_authentication import login_user, login_user_with_lookup_hash, logout_user, logout_all_sessions, refresh_token
-from backend.core.api.app.services.directus.user.user_lookup import get_user_by_hashed_email, get_total_users_count, get_active_users_since, get_completed_signups_count, get_user_fields_direct, authenticate_user_by_lookup_hash, add_user_lookup_hash, get_user_by_subscription_id
+from backend.core.api.app.services.directus.user.user_lookup import get_user_by_hashed_email, get_user_by_hashed_username, hash_username, get_total_users_count, get_active_users_since, get_completed_signups_count, get_user_fields_direct, authenticate_user_by_lookup_hash, add_user_lookup_hash, get_user_by_subscription_id
 from backend.core.api.app.services.directus.user.user_profile import get_user_profile, get_tfa_backup_code_hashes
 from backend.core.api.app.services.directus.user.delete_user import delete_user
 from backend.core.api.app.services.directus.user.update_user import update_user
@@ -1062,6 +1062,8 @@ class DirectusService:
     logout_user = logout_user
     logout_all_sessions = logout_all_sessions
     get_user_by_hashed_email = get_user_by_hashed_email
+    get_user_by_hashed_username = get_user_by_hashed_username
+    hash_username = hash_username
     refresh_token = refresh_token
     get_total_users_count = get_total_users_count
     get_completed_signups_count = get_completed_signups_count

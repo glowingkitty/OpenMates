@@ -651,6 +651,30 @@ username_invalid_chars:
   sv: ""
   he: "מותר: אותיות, מספרים, _, ."
   verified_by_human: []
+username_taken:
+  context: Error message shown when the chosen username is already in use by another account
+  en: This username is already taken. Please choose another one.
+  de: Dieser Benutzername ist bereits vergeben. Bitte wähle einen anderen.
+  zh: 该用户名已被使用，请选择其他用户名。
+  es: Este nombre de usuario ya está en uso. Por favor, elige otro.
+  fr: Ce nom d'utilisateur est déjà pris. Veuillez en choisir un autre.
+  pt: Este nome de usuário já está em uso. Por favor, escolha outro.
+  ru: Это имя пользователя уже занято. Пожалуйста, выберите другое.
+  ja: このユーザー名はすでに使用されています。別のユーザー名を選んでください。
+  ko: 이 사용자 이름은 이미 사용 중입니다. 다른 이름을 선택해 주세요.
+  it: Questo nome utente è già in uso. Per favore, scegline un altro.
+  tr: Bu kullanıcı adı zaten alınmış. Lütfen başka birini seçin.
+  vi: Tên người dùng này đã được sử dụng. Vui lòng chọn tên khác.
+  id: Nama pengguna ini sudah digunakan. Silakan pilih yang lain.
+  pl: Ta nazwa użytkownika jest już zajęta. Proszę wybrać inną.
+  nl: Deze gebruikersnaam is al in gebruik. Kies een andere naam.
+  ar: اسم المستخدم هذا مأخوذ بالفعل. يرجى اختيار اسم آخر.
+  hi: यह उपयोगकर्ता नाम पहले से उपयोग में है। कृपया कोई अन्य नाम चुनें।
+  th: ชื่อผู้ใช้นี้ถูกใช้ไปแล้ว กรุณาเลือกชื่ออื่น
+  cs: Toto uživatelské jméno je již obsazeno. Prosím zvolte jiné.
+  sv: ""
+  he: שם המשתמש הזה כבר תפוס. אנא בחר שם אחר.
+  verified_by_human: []
 enter_username:
   context: Placeholder text for username input field
   en: Enter username

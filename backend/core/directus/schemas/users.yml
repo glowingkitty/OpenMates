@@ -135,6 +135,12 @@ directus_users:
       length: 256
       note: "SHA-256 hash of the email address for user lookup during login"
 
+    hashed_username:
+      type: string
+      length: 256
+      nullable: true
+      note: "Lowercase SHA-256 hash of the username (base64) for server-wide uniqueness checks. Null for users created before this field was introduced."
+
     user_email_salt:
       type: string
       length: 256

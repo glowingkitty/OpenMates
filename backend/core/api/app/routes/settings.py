@@ -381,6 +381,19 @@ async def update_username(
     if not is_valid:
         raise HTTPException(status_code=400, detail=error_msg)
 
+    # Check username uniqueness server-wide (case-insensitive via SHA-256 hash).
+    # exclude_user_id ensures that keeping the same username is allowed (not a conflict).
+    hashed_username = directus_service.hash_username(new_username)
+    username_taken, _, _ = await directus_service.get_user_by_hashed_username(
+        hashed_username, exclude_user_id=user_id
+    )
+    if username_taken:
+        logger.info(f"Username change rejected for user {user_id}: username already taken")
+        raise HTTPException(
+            status_code=409,
+            detail="This username is already taken. Please choose another one.",
+        )
+
     try:
         # Encrypt the new username with the user's vault key
         encrypted_username, _ = await encryption_service.encrypt_with_user_key(
@@ -388,9 +401,14 @@ async def update_username(
             key_id=vault_key_id,
         )
 
-        # Persist to Directus (source of truth)
+        # Persist to Directus (source of truth) — also update hashed_username so that
+        # future uniqueness checks reflect the change immediately.
         success_directus = await directus_service.update_user(
-            user_id, {"encrypted_username": encrypted_username}
+            user_id,
+            {
+                "encrypted_username": encrypted_username,
+                "hashed_username": hashed_username,
+            },
         )
         if not success_directus:
             logger.error(f"Failed to update encrypted_username in Directus for user {user_id}")

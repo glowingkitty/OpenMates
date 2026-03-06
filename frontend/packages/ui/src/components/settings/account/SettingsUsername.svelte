@@ -15,7 +15,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { text } from '@repo/ui';
-    import { getApiUrl, apiEndpoints } from '../../../config/api';
+    import { getApiUrl, getApiEndpoint, apiEndpoints } from '../../../config/api';
     import { userProfile, updateUsername } from '../../../stores/userProfile';
 
     // ─── State ────────────────────────────────────────────────────────────────
@@ -25,6 +25,10 @@
     let isSaving = $state(false);
     let errorMessage = $state<string | null>(null);
     let successMessage = $state<string | null>(null);
+
+    // Server-side uniqueness check state
+    let usernameAlreadyTaken = $state(false);
+    let isCheckingAvailability = $state(false);
 
     // Whether the input value differs from the saved username
     let hasChanges = $derived(inputValue.trim() !== currentUsername);
@@ -51,9 +55,88 @@
         return null;
     }
 
-    // Derived validation message — shown while typing (only after first blur)
+    // Derived validation message — shown while typing (only after first blur).
+    // Also shows "taken" error when server confirms the username is unavailable.
     let hasBlurred = $state(false);
-    let validationError = $derived(hasBlurred ? validateInput(inputValue) : null);
+    let validationError = $derived(
+        usernameAlreadyTaken
+            ? $text('settings.account.username.error_taken')
+            : (hasBlurred ? validateInput(inputValue) : null)
+    );
+
+    // ─── Debounced availability check ─────────────────────────────────────────
+
+    /** Generic debounce helper */
+    function debounce<T extends (...args: unknown[]) => void>(
+        fn: T,
+        delay: number
+    ): (...args: Parameters<T>) => void {
+        let timeoutId: ReturnType<typeof setTimeout>;
+        return (...args: Parameters<T>) => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => fn(...args), delay);
+        };
+    }
+
+    /**
+     * Checks whether the typed username is already taken by another account.
+     * Only called when format validation passes; skipped when the user is
+     * keeping their current username (no need to check against yourself —
+     * the backend also handles this via exclude_user_id, but we save the
+     * round-trip when the value hasn't changed).
+     */
+    const debouncedCheckAvailability = debounce(async (value: string) => {
+        // Skip network call when user hasn't actually changed the username
+        if (value === currentUsername) {
+            isCheckingAvailability = false;
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                getApiEndpoint(apiEndpoints.auth.check_username_valid),
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({ username: value }),
+                    credentials: 'include',
+                }
+            );
+
+            if (!response.ok) {
+                // Server error — fail open (don't block the user)
+                console.warn('[SettingsUsername] Availability check HTTP error:', response.status);
+                return;
+            }
+
+            const data = await response.json();
+            usernameAlreadyTaken = !data.available;
+        } catch (err) {
+            console.warn('[SettingsUsername] Availability check network error:', err);
+            // Network error — fail open
+        } finally {
+            isCheckingAvailability = false;
+        }
+    }, 600);
+
+    // Trigger availability check whenever inputValue changes (after format passes)
+    $effect(() => {
+        const trimmed = inputValue.trim();
+
+        // Reset on every keystroke
+        usernameAlreadyTaken = false;
+
+        // Only hit the network when format is already valid and value has changed
+        if (trimmed && !validateInput(trimmed) && trimmed !== currentUsername) {
+            isCheckingAvailability = true;
+            debouncedCheckAvailability(trimmed);
+        } else {
+            isCheckingAvailability = false;
+        }
+    });
 
     // ─── Save handler ─────────────────────────────────────────────────────────
 
@@ -67,6 +150,12 @@
         const clientError = validateInput(trimmed);
         if (clientError) {
             errorMessage = clientError;
+            return;
+        }
+
+        // Guard against a race where the debounced check hasn't resolved yet
+        if (usernameAlreadyTaken) {
+            errorMessage = $text('settings.account.username.error_taken');
             return;
         }
 
@@ -168,7 +257,7 @@
         <button
             class="save-btn"
             onclick={handleSave}
-            disabled={isSaving || !hasChanges || !!validationError}
+            disabled={isSaving || !hasChanges || !!validationError || isCheckingAvailability || usernameAlreadyTaken}
         >
             {isSaving
                 ? $text('settings.account.username.saving')

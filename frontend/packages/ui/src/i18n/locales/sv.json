@@ -1599,6 +1599,23 @@
             "text": "Hitta familjevänliga boenden i Rome för Easter-veckan"
           }
         }
+      },
+      "get_flight": {
+        "text": "Hämta flygrutt",
+        "description": {
+          "text": "Se den verkliga flygrutten för vilken som helst tidigare flygning på en karta."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Visa flygrutten för LH2472 den 5 mars"
+          },
+          "2": {
+            "text": "Blev mitt flyg BA234 omdirigerats igår?"
+          },
+          "3": {
+            "text": "Vilken tid landade AF447 och vilken landningsbana användes?"
+          }
+        }
       }
     },
     "videos": {
@@ -4187,6 +4204,17 @@
           "text": "Polars integritetspolicy"
         }
       },
+      "flightradar24": {
+        "heading": {
+          "text": "3.16 Flightradar24"
+        },
+        "description": {
+          "text": "När du begär verkliga flygvägsdata med hjälp av färdigheten \"Hämta flygrutt\" frågar vi Flightradar24 för att hämta historiska GPS-spårdata för avslutade flygningar. Flightradar24 tar emot flygnumret och avgångsdatumet. Inga personuppgifter delas."
+        },
+        "privacy_policy_link": {
+          "text": "Flightradar24s integritetspolicy"
+        }
+      },
       "security_measures": {
         "heading": {
           "text": "4. Säkerhetsåtgärder"
@@ -4992,6 +5020,68 @@
         "provider": {
           "text": "Leverantör"
         }
+      }
+    },
+    "app_settings_memories": {
+      "encrypted_notice": {
+        "text": "Dina inställningar och minnesposter är krypterade, kan bara läsas av dina enheter och skickas aldrig till OpenMates för bearbetning utan ditt uttryckliga samtycke."
+      },
+      "examples_label": {
+        "text": "Exempel:"
+      },
+      "my": {
+        "text": "Mina"
+      },
+      "settings_and_memories": {
+        "text": "Inställningar och minnen"
+      },
+      "my_settings_and_memories": {
+        "text": "Mina inställningar och minnen"
+      },
+      "no_entries_yet": {
+        "text": "Inga poster ännu."
+      },
+      "examples": {
+        "text": "Exempel"
+      },
+      "no_settings": {
+        "text": "Inga inställningar eller minnen ännu inte synkroniserade. De visas här när de är tillgängliga."
+      },
+      "add_entry": {
+        "text": "Lägg till post"
+      },
+      "loading": {
+        "text": "Läser in inställningar och minnen..."
+      },
+      "item_key": {
+        "text": "Objektnyckel"
+      },
+      "settings_group": {
+        "text": "Inställningsgrupp"
+      },
+      "item_value": {
+        "text": "Objektvärde"
+      },
+      "cancel": {
+        "text": "Avbryt"
+      },
+      "creating": {
+        "text": "Skapar..."
+      },
+      "placeholder": {
+        "text": "Snart kommer du att kunna hantera och skapa dina appinställningar och minnen här."
+      },
+      "just_now": {
+        "text": "Just nu"
+      },
+      "edit": {
+        "text": "Redigera"
+      },
+      "delete": {
+        "text": "Radera"
+      },
+      "save": {
+        "text": "Spara"
       }
     },
     "app_store": {
@@ -6349,65 +6439,6 @@
       },
       "loading": {
         "text": "Läser in inbäddningar..."
-      }
-    },
-    "app_settings_memories": {
-      "examples_label": {
-        "text": "Exempel:"
-      },
-      "my": {
-        "text": "Mina"
-      },
-      "settings_and_memories": {
-        "text": "Inställningar och minnen"
-      },
-      "my_settings_and_memories": {
-        "text": "Mina inställningar och minnen"
-      },
-      "no_entries_yet": {
-        "text": "Inga poster ännu."
-      },
-      "examples": {
-        "text": "Exempel"
-      },
-      "no_settings": {
-        "text": "Inga inställningar eller minnen ännu inte synkroniserade. De visas här när de är tillgängliga."
-      },
-      "add_entry": {
-        "text": "Lägg till post"
-      },
-      "loading": {
-        "text": "Läser in inställningar och minnen..."
-      },
-      "item_key": {
-        "text": "Objektnyckel"
-      },
-      "settings_group": {
-        "text": "Inställningsgrupp"
-      },
-      "item_value": {
-        "text": "Objektvärde"
-      },
-      "cancel": {
-        "text": "Avbryt"
-      },
-      "creating": {
-        "text": "Skapar..."
-      },
-      "placeholder": {
-        "text": "Snart kommer du att kunna hantera och skapa dina appinställningar och minnen här."
-      },
-      "just_now": {
-        "text": "Just nu"
-      },
-      "edit": {
-        "text": "Redigera"
-      },
-      "delete": {
-        "text": "Radera"
-      },
-      "save": {
-        "text": "Spara"
       }
     },
     "newsletter": {
