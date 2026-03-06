@@ -22,6 +22,7 @@
     import { pendingMentionStore } from '../../stores/pendingMentionStore';
     import { getMatesById } from '../../data/matesMetadata';
     import { appSkillsStore } from '../../stores/appSkillsStore';
+    import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
     import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
     import { authStore } from '../../stores/authStore'; // Import auth store to check authentication status
     import { userProfile } from '../../stores/userProfile'; // Import user profile to check credit balance
@@ -4001,11 +4002,14 @@
                     const skillMatch = mention.match(/^@skill:([^:]+):(.+)$/);
                     const focusMatch = mention.match(/^@focus:([^:]+):(.+)$/);
                     const memoryMatch = mention.match(/^@memory:([^:]+):([^:]+):(.+)$/);
+                    // @memory-entry:appId:categoryId:entryId — direct reference to a specific entry
+                    const memoryEntryMatch = mention.match(/^@memory-entry:([^:]+):([^:]+):(.+)$/);
 
-                    if (skillMatch || focusMatch || memoryMatch) {
+                    if (skillMatch || focusMatch || memoryMatch || memoryEntryMatch) {
                         const isSkill = !!skillMatch;
                         const isFocus = !!focusMatch;
-                        const matchGroups = (skillMatch || focusMatch || memoryMatch)!;
+                        const isMemoryEntry = !!memoryEntryMatch;
+                        const matchGroups = (skillMatch || focusMatch || memoryMatch || memoryEntryMatch)!;
                         const targetAppId = matchGroups[1];
                         const targetItemId = matchGroups[2];
                         const apps = appSkillsStore.getState().apps;
@@ -4014,21 +4018,62 @@
                         if (app) {
                             // Build mentionDisplayName matching mentionSearchService format:
                             // "AppName-ItemName" e.g. "Code-Get-Docs" or "Jobs-Career-Insights"
+                            // For memory entries: "AppName-CategoryName-EntryTitle"
                             const capitalizeWords = (s: string) =>
                                 s.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join('-');
                             const appDisplay = capitalizeWords(targetAppId);
                             const itemDisplay = capitalizeWords(targetItemId.replace(/_/g, '-'));
-                            const displayName = `${appDisplay}-${itemDisplay}`;
+                            let displayName = `${appDisplay}-${itemDisplay}`;
+
+                            // For memory entries, try to include the entry title
+                            if (isMemoryEntry) {
+                                const entryId = matchGroups[3];
+                                // Look up entry title from the store
+                                const smStore = get(appSettingsMemoriesStore);
+                                const appEntriesByGroup = smStore.entriesByApp.get(targetAppId) || {};
+                                const catEntries = appEntriesByGroup[targetItemId] ?? [];
+                                const found = catEntries.find((e: { id: string }) => e.id === entryId);
+                                if (found) {
+                                    const entryValue = (found as { item_value?: Record<string, unknown> }).item_value;
+                                    // Try to find entry title from is_title field or first string value
+                                    const cat = app.settings_and_memories?.find((c: { id: string }) => c.id === targetItemId);
+                                    const titleField = cat?.schema_definition?.properties
+                                        ? Object.entries(cat.schema_definition.properties).find(
+                                            ([, p]: [string, { is_title?: boolean }]) => p.is_title
+                                        )?.[0]
+                                        : undefined;
+                                    let entryTitle = '';
+                                    if (titleField && entryValue?.[titleField]) {
+                                        entryTitle = String(entryValue[titleField]);
+                                    } else if (entryValue) {
+                                        for (const [key, value] of Object.entries(entryValue)) {
+                                            if (!key.startsWith('_') && key !== 'settings_group' && typeof value === 'string' && value.trim()) {
+                                                entryTitle = value;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if (entryTitle) {
+                                        displayName = `${appDisplay}-${itemDisplay}-${capitalizeWords(entryTitle.replace(/\s+/g, '-'))}`;
+                                    }
+                                }
+                            }
+
+                            // Settings & memories mentions use the dedicated memory gradient,
+                            // not the app's icon gradient, for visual consistency with the memory icon style.
+                            const isMemory = !!memoryMatch || isMemoryEntry;
+                            const MEMORY_GRADIENT_START = '#dd03b5';
+                            const MEMORY_GRADIENT_END = '#cb00a5';
 
                             editor
                                 .chain()
                                 .focus()
                                 .setGenericMention({
-                                    mentionType: isSkill ? 'skill' : (isFocus ? 'focus_mode' : 'settings_memory'),
+                                    mentionType: isSkill ? 'skill' : (isFocus ? 'focus_mode' : (isMemoryEntry ? 'settings_memory_entry' : 'settings_memory')),
                                     displayName,
                                     mentionSyntax: mention,
-                                    colorStart: app.icon_colorgradient?.start,
-                                    colorEnd: app.icon_colorgradient?.end,
+                                    colorStart: isMemory ? MEMORY_GRADIENT_START : app.icon_colorgradient?.start,
+                                    colorEnd: isMemory ? MEMORY_GRADIENT_END : app.icon_colorgradient?.end,
                                 })
                                 .insertContent(' ')
                                 .run();

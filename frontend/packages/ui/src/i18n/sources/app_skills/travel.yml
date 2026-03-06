@@ -233,3 +233,128 @@ search_stays.how_to_use.3:
   sv: Hitta familjevänliga boenden i Rome för Easter-veckan
   he: "**חיפוש** מקומות אירוח למשפחות ברומא בשבוע הפסחא"
   verified_by_human: [en, de]
+
+get_flight:
+  context: Skill name for travel get flight - fetches real GPS track data for a completed flight from Flightradar24
+  en: Get flight track
+  de: Flugroute abrufen
+  zh: 获取航班轨迹
+  es: Obtener ruta de vuelo
+  fr: Obtenir le tracé du vol
+  pt: Obter rota do voo
+  ru: Получить трек рейса
+  ja: フライト追跡を取得
+  ko: 항공편 경로 가져오기
+  it: Ottieni rotta del volo
+  tr: Uçuş rotasını al
+  vi: Lấy tuyến đường bay
+  id: Dapatkan rute penerbangan
+  pl: Pobierz trasę lotu
+  nl: Vluchtroute ophalen
+  ar: الحصول على مسار الرحلة
+  hi: उड़ान मार्ग प्राप्त करें
+  th: รับเส้นทางการบิน
+  cs: Získat trasu letu
+  sv: Hämta flygrutt
+  he: קבל מסלול טיסה
+  verified_by_human: []
+
+get_flight.description:
+  context: Description for the travel get flight skill - fetches real GPS flight track from Flightradar24 for a completed past flight
+  en: See the real flight path of any past flight on a map.
+  de: Zeige den echten Flugweg eines vergangenen Fluges auf einer Karte.
+  zh: 在地图上查看过去任何航班的真实飞行路径。
+  es: Consulta la ruta real de cualquier vuelo pasado en un mapa.
+  fr: Consultez le trajet réel de n'importe quel vol passé sur une carte.
+  pt: Veja a rota real de qualquer voo passado num mapa.
+  ru: Посмотрите реальный маршрут любого прошедшего рейса на карте.
+  ja: 過去のフライトの実際の飛行ルートを地図で確認できます。
+  ko: 과거 항공편의 실제 비행 경로를 지도에서 확인하세요.
+  it: Visualizza il percorso reale di qualsiasi volo passato su una mappa.
+  tr: Harita üzerinde geçmiş herhangi bir uçuşun gerçek uçuş yolunu görün.
+  vi: Xem đường bay thực tế của bất kỳ chuyến bay nào trong quá khứ trên bản đồ.
+  id: Lihat jalur penerbangan nyata dari penerbangan masa lalu di peta.
+  pl: Zobacz rzeczywistą trasę lotu dowolnego minionego lotu na mapie.
+  nl: Bekijk het werkelijke vliegpad van een voorbije vlucht op een kaart.
+  ar: شاهد المسار الحقيقي لأي رحلة جوية سابقة على الخريطة.
+  hi: मानचित्र पर किसी भी पिछली उड़ान का वास्तविक उड़ान पथ देखें।
+  th: ดูเส้นทางการบินจริงของเที่ยวบินที่ผ่านมาบนแผนที่
+  cs: Zobrazte skutečnou letovou trasu libovolného minulého letu na mapě.
+  sv: Se den verkliga flygrutten för vilken som helst tidigare flygning på en karta.
+  he: ראה את מסלול הטיסה האמיתי של כל טיסה עברה על מפה.
+  verified_by_human: []
+
+get_flight.how_to_use.1:
+  context: Example instruction for travel get flight skill - view flight track
+  en: "**Show the flight path** of LH2472 on March 5"
+  de: Zeige die Flugroute von LH2472 am 5. März
+  zh: 显示3月5日LH2472的飞行路径
+  es: Muestra la ruta de vuelo del LH2472 el 5 de marzo
+  fr: Affiche le trajet du vol LH2472 le 5 mars
+  pt: Mostra o percurso do voo LH2472 a 5 de março
+  ru: Покажи маршрут рейса LH2472 5 марта
+  ja: 3月5日のLH2472のフライト経路を表示して
+  ko: 3월 5일 LH2472 항공편의 비행 경로를 보여줘
+  it: Mostra la rotta del volo LH2472 il 5 marzo
+  tr: 5 Mart'taki LH2472 uçuşunun güzergahını göster
+  vi: Hiển thị đường bay của LH2472 vào ngày 5 tháng 3
+  id: Tampilkan jalur penerbangan LH2472 pada tanggal 5 Maret
+  pl: Pokaż trasę lotu LH2472 5 marca
+  nl: Toon de vliegroute van LH2472 op 5 maart
+  ar: أظهر مسار رحلة LH2472 في 5 مارس
+  hi: 5 मार्च को LH2472 का उड़ान पथ दिखाएं
+  th: แสดงเส้นทางการบินของ LH2472 วันที่ 5 มีนาคม
+  cs: Ukáže letovou trasu letu LH2472 5. března
+  sv: Visa flygrutten för LH2472 den 5 mars
+  he: הצג את מסלול הטיסה של LH2472 ב-5 במרץ
+  verified_by_human: []
+
+get_flight.how_to_use.2:
+  context: Example instruction for travel get flight skill - check diversion
+  en: "**Was my flight diverted?** BA234 yesterday"
+  de: Wurde mein Flug BA234 gestern umgeleitet?
+  zh: 我的BA234昨天被改道了吗？
+  es: ¿Mi vuelo BA234 fue desviado ayer?
+  fr: Mon vol BA234 a-t-il été dérouté hier ?
+  pt: O meu voo BA234 foi desviado ontem?
+  ru: Мой рейс BA234 был перенаправлен вчера?
+  ja: 昨日のBA234は迂回しましたか？
+  ko: 어제 BA234 항공편이 우회했나요?
+  it: Il mio volo BA234 è stato dirottato ieri?
+  tr: BA234 uçuşum dün saptırıldı mı?
+  vi: Chuyến bay BA234 của tôi có bị chuyển hướng hôm qua không?
+  id: Apakah penerbangan BA234 saya dialihkan kemarin?
+  pl: Czy mój lot BA234 został przekierowany wczoraj?
+  nl: Is mijn vlucht BA234 gisteren omgeleid?
+  ar: هل تم تحويل رحلتي BA234 أمس؟
+  hi: क्या मेरी उड़ान BA234 कल बदल दी गई थी?
+  th: เที่ยวบิน BA234 ของฉันถูกเปลี่ยนเส้นทางเมื่อวานหรือไม่?
+  cs: Byl let BA234 včera přesměrován?
+  sv: Blev mitt flyg BA234 omdirigerats igår?
+  he: האם הטיסה שלי BA234 הוסטה אתמול?
+  verified_by_human: []
+
+get_flight.how_to_use.3:
+  context: Example instruction for travel get flight skill - actual flight time and runway
+  en: "**What time did AF447 land** and which runway was used?"
+  de: Wann ist AF447 gelandet und welche Landebahn wurde genutzt?
+  zh: AF447是什么时候降落的，使用了哪条跑道？
+  es: ¿A qué hora aterrizó el AF447 y qué pista se usó?
+  fr: À quelle heure AF447 a-t-il atterri et quelle piste a été utilisée ?
+  pt: A que horas aterrou o AF447 e qual pista foi utilizada?
+  ru: В котором часу приземлился AF447 и какая взлётно-посадочная полоса использовалась?
+  ja: AF447は何時に着陸し、どの滑走路が使用されましたか？
+  ko: AF447은 몇 시에 착륙했으며 어떤 활주로가 사용되었나요?
+  it: A che ora è atterrato AF447 e quale pista è stata utilizzata?
+  tr: AF447 ne zaman indi ve hangi pist kullanıldı?
+  vi: AF447 hạ cánh lúc mấy giờ và đường băng nào được sử dụng?
+  id: Pukul berapa AF447 mendarat dan landasan mana yang digunakan?
+  pl: O której godzinie wylądował AF447 i który pas był użyty?
+  nl: Hoe laat landde AF447 en welke baan werd gebruikt?
+  ar: في أي وقت هبطت AF447 وأي مدرج تم استخدامه؟
+  hi: AF447 कितने बजे उतरा और कौन सा रनवे उपयोग किया गया?
+  th: AF447 ลงจอดเวลาเท่าไหร่และใช้รันเวย์ไหน?
+  cs: V kolik hodin přistál AF447 a která dráha byla použita?
+  sv: Vilken tid landade AF447 och vilken landningsbana användes?
+  he: באיזו שעה נחת AF447 ואיזה מסלול שימש?
+  verified_by_human: []

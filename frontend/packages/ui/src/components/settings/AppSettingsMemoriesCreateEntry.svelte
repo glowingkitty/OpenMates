@@ -687,13 +687,19 @@
         width: 100%;
         padding: 0.75rem;
         border: 1px solid var(--color-grey-30);
-        border-radius: 6px;
+        border-radius: 20px;
         font-family: inherit;
         font-size: 0.95rem;
         color: var(--text-primary);
-        background: var(--color-white);
+        background: var(--color-grey-10);
         transition: border-color 0.2s ease;
         box-sizing: border-box;
+    }
+    
+    /* Textarea keeps same style as input but with multiline-appropriate rounding */
+    textarea {
+        border-radius: 16px;
+        resize: vertical;
     }
     
     .checkbox-group {

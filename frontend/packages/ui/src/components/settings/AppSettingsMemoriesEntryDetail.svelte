@@ -145,6 +145,12 @@
     let formInitialized = false;
     let lastEntryId: string | null = null;
     
+    // Snapshot of form state at edit start, to detect if user made changes
+    let initialFormSnapshot = '';
+    
+    // Detect whether the user has made changes compared to the initial state
+    let hasFormChanges = $derived(JSON.stringify(formState) !== initialFormSnapshot);
+    
     // Initialize form state when entry changes or mode switches to edit
     $effect(() => {
         const currentEntryId = entry?.id || null;
@@ -160,12 +166,15 @@
                         }
                     }
                     formState = initialState;
+                    initialFormSnapshot = JSON.stringify(initialState);
                 } else {
-                    formState = {
+                    const genericState = {
                         itemKey: entry.item_key,
                         itemValue: JSON.stringify(entry.item_value, null, 2),
                         settingsGroup: entry.settings_group
                     };
+                    formState = genericState;
+                    initialFormSnapshot = JSON.stringify(genericState);
                 }
                 formInitialized = true;
                 lastEntryId = currentEntryId;
@@ -539,9 +548,11 @@
                                 <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
                                 <span class="detail-label">{getFieldLabel(fieldName)}</span>
                             </div>
-                            <span class="detail-value">
+                            <span class="detail-value" class:not-set={entry.item_value[fieldName] === null || entry.item_value[fieldName] === undefined || entry.item_value[fieldName] === ''}>
                                 {#if prop.type === 'boolean'}
                                     {entry.item_value[fieldName] ? 'Yes' : 'No'}
+                                {:else if entry.item_value[fieldName] === null || entry.item_value[fieldName] === undefined || entry.item_value[fieldName] === ''}
+                                    Not set
                                 {:else}
                                     {formatValue(entry.item_value[fieldName])}
                                 {/if}
@@ -560,34 +571,21 @@
                     </div>
                 {/if}
                 
-                <!-- Metadata -->
+                <!-- Metadata — small, subtle timestamps -->
                 <div class="metadata-section">
-                    <div class="detail-row metadata">
-                        <span class="detail-label">Version</span>
-                        <span class="detail-value">v{entry.item_version}</span>
-                    </div>
-                    <div class="detail-row metadata">
-                        <span class="detail-label">Last Updated</span>
-                        <span class="detail-value">{formatDate(entry.updated_at)}</span>
-                    </div>
-                    <div class="detail-row metadata">
-                        <span class="detail-label">Created</span>
-                        <span class="detail-value">{formatDate(entry.created_at)}</span>
-                    </div>
+                    <span class="metadata-text">Last updated: {formatDate(entry.updated_at)}</span>
+                    <span class="metadata-text">Created: {formatDate(entry.created_at)}</span>
                 </div>
             </div>
             
             <!-- Action buttons — only for own (non-read-only) entries -->
             {#if !readOnly}
                 <div class="action-buttons">
-                    <button class="edit-btn" onclick={startEdit} disabled={isDeleting}>
+                    <button onclick={startEdit} disabled={isDeleting}>
                         {$text('settings.app_settings_memories.edit')}
                     </button>
-                    <button class="delete-btn" onclick={handleDelete} disabled={isDeleting}>
-                        {isDeleting 
-                            ? $text('settings.app_settings_memories.deleting')
-                            : $text('settings.app_settings_memories.delete')
-                        }
+                    <button class="delete-icon-btn" onclick={handleDelete} disabled={isDeleting} aria-label="Delete">
+                        <div class="clickable-icon icon_delete"></div>
                     </button>
                 </div>
             {/if}
@@ -715,18 +713,19 @@
             {/if}
 
             <div class="form-footer">
-                <button class="cancel-btn" onclick={cancelEdit} disabled={isSaving}>
+                {#if hasFormChanges}
+                    <button
+                        onclick={handleSave}
+                        disabled={isSaving}
+                    >
+                        {isSaving 
+                            ? $text('settings.app_settings_memories.saving')
+                            : $text('settings.app_settings_memories.save')
+                        }
+                    </button>
+                {/if}
+                <button class="cancel-link" onclick={cancelEdit} disabled={isSaving} type="button">
                     {$text('settings.app_settings_memories.cancel')}
-                </button>
-                <button
-                    class="save-btn"
-                    onclick={handleSave}
-                    disabled={isSaving}
-                >
-                    {isSaving 
-                        ? $text('settings.app_settings_memories.saving')
-                        : $text('settings.app_settings_memories.save')
-                    }
                 </button>
             </div>
         </div>
@@ -754,38 +753,43 @@
         flex-direction: column;
         gap: 0.25rem;
         padding: 1rem 0;
-        border-bottom: 1px solid var(--color-grey-20);
     }
     
     .detail-row:first-child {
         padding-top: 0;
     }
     
-    .detail-row.metadata {
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.75rem 0;
-    }
-    
+    /* Metadata section — small, subtle date info */
     .metadata-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
         margin-top: 1.5rem;
-        padding-top: 1rem;
-        border-top: 2px solid var(--color-grey-30);
+        padding-top: 0.75rem;
     }
     
+    .metadata-text {
+        font-size: 0.75rem;
+        color: var(--color-grey-30);
+    }
+    
+    /* Field label — regular white text, like a menu title */
     .detail-label {
-        font-size: 0.85rem;
-        color: var(--color-grey-60);
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+        font-size: 1rem;
+        color: var(--text-primary);
+        font-weight: 400;
     }
     
     .detail-value {
         font-size: 1rem;
         color: var(--text-primary);
         word-break: break-word;
+    }
+    
+    /* "Not set" placeholder for null/empty values */
+    .detail-value.not-set {
+        color: var(--color-grey-30);
+        font-style: italic;
     }
 
     .example-text {
@@ -808,64 +812,39 @@
         margin-top: 0.5rem;
     }
     
+    /* Action buttons — Edit (standard <button>) + Delete (icon-only) */
     .action-buttons {
         display: flex;
         gap: 1rem;
+        align-items: center;
         padding-top: 1rem;
     }
     
-    .edit-btn,
-    .delete-btn,
-    .cancel-btn,
-    .save-btn {
-        padding: 0.75rem 1.5rem;
-        border-radius: 6px;
-        border: none;
+    /* Delete icon button — matches ChatContextMenu delete style */
+    .delete-icon-btn {
+        all: unset;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 41px;
+        height: 41px;
         cursor: pointer;
-        font-size: 0.95rem;
-        font-weight: 500;
-        transition: background-color 0.2s ease;
+        border-radius: 20px;
+        transition: opacity 0.15s ease-in-out;
     }
     
-    .edit-btn {
-        background: var(--color-primary);
-        color: white;
-        flex: 1;
+    .delete-icon-btn .clickable-icon {
+        background: #E80000;
+        width: 20px;
+        height: 20px;
     }
     
-    .edit-btn:hover:not(:disabled) {
-        background: var(--color-primary-dark, #005fa3);
+    .delete-icon-btn:hover:not(:disabled) {
+        opacity: 0.8;
     }
     
-    .delete-btn {
-        background: var(--color-grey-30);
-        color: var(--color-error, #dc3545);
-    }
-    
-    .delete-btn:hover:not(:disabled) {
-        background: var(--color-error-light, #f8d7da);
-    }
-    
-    .cancel-btn {
-        background: var(--color-grey-30);
-        color: var(--text-primary);
-    }
-    
-    .cancel-btn:hover:not(:disabled) {
-        background: var(--color-grey-40);
-    }
-    
-    .save-btn {
-        background: var(--color-primary);
-        color: white;
-    }
-    
-    .save-btn:hover:not(:disabled) {
-        background: var(--color-primary-dark, #005fa3);
-    }
-    
-    button:disabled {
-        opacity: 0.5;
+    .delete-icon-btn:disabled {
+        opacity: 0.4;
         cursor: not-allowed;
     }
     
@@ -891,19 +870,26 @@
         color: var(--error-color, #dc3545);
     }
     
+    /* Shared input/textarea/select styles — consistent rounded design */
     input,
     textarea,
     select {
         width: 100%;
         padding: 0.75rem;
         border: 1px solid var(--color-grey-30);
-        border-radius: 6px;
+        border-radius: 20px;
         font-family: inherit;
         font-size: 0.95rem;
         color: var(--text-primary);
-        background: var(--color-white);
+        background: var(--color-grey-10);
         transition: border-color 0.2s ease;
         box-sizing: border-box;
+    }
+    
+    /* Textarea keeps same style as input but with multiline-appropriate rounding */
+    textarea {
+        border-radius: 16px;
+        resize: vertical;
     }
     
     .checkbox-group {
@@ -947,11 +933,32 @@
         margin-bottom: 1rem;
     }
     
+    /* Form footer — Save button + Cancel text link below */
     .form-footer {
         display: flex;
-        gap: 1rem;
-        justify-content: flex-end;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
         margin-top: 2rem;
+    }
+    
+    /* Cancel as clickable text link, not a button */
+    .cancel-link {
+        all: unset;
+        cursor: pointer;
+        color: var(--color-grey-30);
+        font-size: 0.9rem;
+        text-decoration: underline;
+        transition: color 0.15s ease;
+    }
+    
+    .cancel-link:hover:not(:disabled) {
+        color: var(--text-primary);
+    }
+    
+    .cancel-link:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
     }
     
     .error {

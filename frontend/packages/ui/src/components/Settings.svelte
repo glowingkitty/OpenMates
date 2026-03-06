@@ -1103,8 +1103,8 @@ changes to the documentation (to keep the documentation up to date).
         }
 
         // Check if this is a dynamic entry detail route that needs to be registered
-        // Pattern: app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id}
-        const entryDetailPattern = /^app_store\/[^/]+\/settings_memories\/[^/]+\/entry\/[^/]+$/;
+        // Pattern: app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id}[/edit]
+        const entryDetailPattern = /^app_store\/[^/]+\/settings_memories\/[^/]+\/entry\/[^/]+(\/edit)?$/;
         if (entryDetailPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
             // Add this entry detail route dynamically
             dynamicEntryRoutes.add(settingsPath);

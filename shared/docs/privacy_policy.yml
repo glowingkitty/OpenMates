@@ -112,6 +112,14 @@ providers:
     data_shared:
       - External content retrieved from search providers (Brave) and web scraping (Firecrawl) for processing and sanitization (Groq sees the actual content of search results and scraped web pages)
       - Note: Groq is used to process and sanitize external content before it's included in chat responses. All data is shared without user identifiers - Groq does not know which specific user requested the processing of each piece of content
+  flightradar24:
+    privacy_policy: https://www.flightradar24.com/terms-and-conditions
+    provider_location: EU
+    used_for:
+      - get_flight skill (when users request real flight track data for a specific flight)
+    data_shared:
+      - IATA flight numbers (e.g. "LH2472") and departure dates used to look up flight tracks
+      - Note: All data is shared without user identifiers - Flightradar24 does not know which specific user requested each flight track
 security_measures:
   device_fingerprinting:
     purpose: >

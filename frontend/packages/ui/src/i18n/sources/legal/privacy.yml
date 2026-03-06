@@ -1263,6 +1263,78 @@ polar.privacy_policy_link:
   cs: Zásady ochrany osobních údajů Polar
   sv: Polars integritetspolicy
   verified_by_human: []
+flightradar24.heading:
+  context: Section heading for Flightradar24 as a data provider in the privacy policy
+  en: 3.16 Flightradar24
+  de: 3.16 Flightradar24
+  zh: 3.16 Flightradar24
+  es: 3.16 Flightradar24
+  fr: 3.16 Flightradar24
+  pt: 3.16 Flightradar24
+  ru: 3.16 Flightradar24
+  ja: 3.16 Flightradar24
+  ko: 3.16 Flightradar24
+  it: 3.16 Flightradar24
+  tr: 3.16 Flightradar24
+  vi: 3.16 Flightradar24
+  id: 3.16 Flightradar24
+  pl: 3.16 Flightradar24
+  nl: 3.16 Flightradar24
+  ar: 3.16 Flightradar24
+  hi: 3.16 Flightradar24
+  th: 3.16 Flightradar24
+  cs: 3.16 Flightradar24
+  sv: 3.16 Flightradar24
+  he: 3.16 Flightradar24
+  verified_by_human: []
+flightradar24.description:
+  context: Description of how Flightradar24 is used as a flight track data provider
+  en: When you request real flight track data using the "Get flight track" skill, we query Flightradar24 to retrieve historical GPS track data for completed flights. Flightradar24 receives the flight number and departure date. No personal data is shared.
+  de: Wenn du die Funktion "Flugroute abrufen" verwendest, fragen wir Flightradar24 ab, um historische GPS-Trackdaten für abgeschlossene Flüge zu erhalten. Flightradar24 erhält die Flugnummer und das Abflugdatum. Es werden keine personenbezogenen Daten weitergegeben.
+  zh: 当您使用"获取航班轨迹"技能请求真实航班轨迹数据时，我们会查询Flightradar24以获取已完成航班的历史GPS轨迹数据。Flightradar24会收到航班号和出发日期。不会共享任何个人数据。
+  es: Cuando solicitas datos reales de trayectoria de vuelo usando la habilidad "Obtener ruta de vuelo", consultamos Flightradar24 para obtener datos históricos de GPS para vuelos completados. Flightradar24 recibe el número de vuelo y la fecha de salida. No se comparten datos personales.
+  fr: Lorsque vous demandez des données de trajet réel en utilisant la compétence "Obtenir le tracé du vol", nous interrogeons Flightradar24 pour obtenir des données GPS historiques pour les vols terminés. Flightradar24 reçoit le numéro de vol et la date de départ. Aucune donnée personnelle n'est partagée.
+  pt: Quando solicita dados reais de rota de voo usando a habilidade "Obter rota do voo", consultamos a Flightradar24 para obter dados GPS históricos de voos concluídos. A Flightradar24 recebe o número do voo e a data de partida. Nenhum dado pessoal é partilhado.
+  ru: Когда вы запрашиваете реальные данные о траектории полёта с помощью навыка «Получить трек рейса», мы обращаемся к Flightradar24 для получения исторических данных GPS по завершённым рейсам. Flightradar24 получает номер рейса и дату вылета. Личные данные не передаются.
+  ja: 「フライト追跡を取得」スキルを使用して実際のフライトデータを要求すると、完了したフライトの過去のGPSトラックデータを取得するためにFlightradar24に照会します。Flightradar24はフライト番号と出発日を受け取ります。個人データは共有されません。
+  ko: "항공편 경로 가져오기" 기술을 사용하여 실제 비행 경로 데이터를 요청하면 완료된 항공편의 과거 GPS 트랙 데이터를 검색하기 위해 Flightradar24에 쿼리합니다. Flightradar24는 항공편 번호와 출발일을 수신합니다. 개인 데이터는 공유되지 않습니다.
+  it: Quando richiedi dati reali sulla rotta di volo utilizzando la competenza "Ottieni rotta del volo", interroghiamo Flightradar24 per recuperare dati GPS storici per voli completati. Flightradar24 riceve il numero di volo e la data di partenza. Nessun dato personale viene condiviso.
+  tr: "Uçuş rotasını al" becerisini kullanarak gerçek uçuş rotası verisi talep ettiğinizde, tamamlanmış uçuşlar için geçmiş GPS iz verilerini almak amacıyla Flightradar24'ü sorgularız. Flightradar24, uçuş numarasını ve kalkış tarihini alır. Kişisel veri paylaşılmaz.
+  vi: Khi bạn yêu cầu dữ liệu tuyến đường bay thực tế bằng kỹ năng "Lấy tuyến đường bay", chúng tôi truy vấn Flightradar24 để lấy dữ liệu GPS lịch sử cho các chuyến bay đã hoàn thành. Flightradar24 nhận số hiệu chuyến bay và ngày khởi hành. Không có dữ liệu cá nhân nào được chia sẻ.
+  id: Ketika Anda meminta data jalur penerbangan nyata menggunakan keahlian "Dapatkan rute penerbangan", kami mengquery Flightradar24 untuk mengambil data trek GPS historis untuk penerbangan yang telah selesai. Flightradar24 menerima nomor penerbangan dan tanggal keberangkatan. Tidak ada data pribadi yang dibagikan.
+  pl: Gdy prosisz o rzeczywiste dane trasy lotu za pomocą umiejętności "Pobierz trasę lotu", wysyłamy zapytanie do Flightradar24, aby pobrać historyczne dane GPS dla ukończonych lotów. Flightradar24 otrzymuje numer lotu i datę wylotu. Żadne dane osobowe nie są udostępniane.
+  nl: Wanneer u echte vliegpadinformatie opvraagt via de vaardigheid "Vluchtroute ophalen", raadplegen wij Flightradar24 om historische GPS-trackgegevens op te halen voor voltooide vluchten. Flightradar24 ontvangt het vluchtnummer en de vertrekdatum. Er worden geen persoonlijke gegevens gedeeld.
+  ar: عند طلب بيانات مسار الرحلة الحقيقية باستخدام مهارة "الحصول على مسار الرحلة"، نستعلم Flightradar24 لاسترداد بيانات GPS التاريخية للرحلات المكتملة. يتلقى Flightradar24 رقم الرحلة وتاريخ المغادرة. لا تتم مشاركة أي بيانات شخصية.
+  hi: जब आप "उड़ान मार्ग प्राप्त करें" स्किल का उपयोग करके वास्तविक उड़ान मार्ग डेटा का अनुरोध करते हैं, तो हम पूर्ण उड़ानों के लिए ऐतिहासिक GPS ट्रैक डेटा प्राप्त करने के लिए Flightradar24 से पूछताछ करते हैं। Flightradar24 को उड़ान संख्या और प्रस्थान तिथि मिलती है। कोई व्यक्तिगत डेटा साझा नहीं किया जाता है।
+  th: เมื่อคุณร้องขอข้อมูลเส้นทางการบินจริงโดยใช้ทักษะ "รับเส้นทางการบิน" เราจะสอบถาม Flightradar24 เพื่อดึงข้อมูล GPS ประวัติศาสตร์สำหรับเที่ยวบินที่เสร็จสิ้นแล้ว Flightradar24 ได้รับหมายเลขเที่ยวบินและวันที่ออกเดินทาง ไม่มีการแบ่งปันข้อมูลส่วนตัว
+  cs: Když požadujete skutečná data letové trasy pomocí dovednosti "Získat trasu letu", dotazujeme se Flightradar24 pro získání historických GPS dat pro dokončené lety. Flightradar24 obdrží číslo letu a datum odletu. Žádné osobní údaje nejsou sdíleny.
+  sv: När du begär verkliga flygvägsdata med hjälp av färdigheten "Hämta flygrutt" frågar vi Flightradar24 för att hämta historiska GPS-spårdata för avslutade flygningar. Flightradar24 tar emot flygnumret och avgångsdatumet. Inga personuppgifter delas.
+  he: כאשר אתה מבקש נתוני מסלול טיסה אמיתיים באמצעות כישרון "קבל מסלול טיסה", אנו שולחים שאילתה ל-Flightradar24 לשליפת נתוני GPS היסטוריים עבור טיסות שהושלמו. Flightradar24 מקבל את מספר הטיסה ותאריך היציאה. לא משותפים נתונים אישיים.
+  verified_by_human: []
+flightradar24.privacy_policy_link:
+  context: Link text for Flightradar24's terms and privacy policy
+  en: Flightradar24 Privacy Policy
+  de: Flightradar24 Datenschutzerklärung
+  zh: Flightradar24 隐私政策
+  es: Política de privacidad de Flightradar24
+  fr: Politique de confidentialité de Flightradar24
+  pt: Política de Privacidade do Flightradar24
+  ru: Политика конфиденциальности Flightradar24
+  ja: Flightradar24プライバシーポリシー
+  ko: Flightradar24 개인정보 보호정책
+  it: Informativa sulla Privacy di Flightradar24
+  tr: Flightradar24 Gizlilik Politikası
+  vi: Chính sách Bảo mật của Flightradar24
+  id: Kebijakan Privasi Flightradar24
+  pl: Polityka Prywatności Flightradar24
+  nl: Privacybeleid van Flightradar24
+  ar: سياسة خصوصية Flightradar24
+  hi: Flightradar24 गोपनीयता नीति
+  th: นโยบายความเป็นส่วนตัวของ Flightradar24
+  cs: Zásady ochrany osobních údajů Flightradar24
+  sv: Flightradar24s integritetspolicy
+  he: מדיניות הפרטיות של Flightradar24
+  verified_by_human: []
 security_measures.heading:
   context: Section heading for security measures
   en: 4. Security Measures
