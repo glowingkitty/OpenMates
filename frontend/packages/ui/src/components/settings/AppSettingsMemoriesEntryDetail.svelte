@@ -524,6 +524,11 @@
                 {/if}
             </div>
             <!-- No action buttons for examples -->
+            <!-- Encrypted notice: entry data is zero-knowledge encrypted on-device -->
+            <div class="encrypted-notice">
+                <Icon name="lock" size="14px" />
+                <span>{$text('settings.app_settings_memories.encrypted_notice')}</span>
+            </div>
         </div>
     {:else if !isAuthenticated}
         <div class="error">
@@ -589,6 +594,11 @@
                     </button>
                 </div>
             {/if}
+            <!-- Encrypted notice: entry data is zero-knowledge encrypted on-device -->
+            <div class="encrypted-notice">
+                <Icon name="lock" size="14px" />
+                <span>{$text('settings.app_settings_memories.encrypted_notice')}</span>
+            </div>
         </div>
     {:else}
         <!-- Edit Mode -->
@@ -727,6 +737,11 @@
                 <button class="cancel-link" onclick={cancelEdit} disabled={isSaving} type="button">
                     {$text('settings.app_settings_memories.cancel')}
                 </button>
+            </div>
+            <!-- Encrypted notice: entry data is zero-knowledge encrypted on-device -->
+            <div class="encrypted-notice">
+                <Icon name="lock" size="14px" />
+                <span>{$text('settings.app_settings_memories.encrypted_notice')}</span>
             </div>
         </div>
     {/if}
@@ -981,5 +996,23 @@
     
     .back-button:hover {
         background: var(--button-hover-background, #e0e0e0);
+    }
+
+    /* Encrypted notice footer — lock icon + small privacy text */
+    .encrypted-notice {
+        display: flex;
+        align-items: flex-start;
+        gap: 6px;
+        margin-top: 2rem;
+        padding-top: 1rem;
+        color: var(--color-grey-40);
+        font-size: 0.75rem;
+        line-height: 1.4;
+    }
+
+    .encrypted-notice :global(.icon) {
+        flex-shrink: 0;
+        margin-top: 1px;
+        opacity: 0.7;
     }
 </style>
