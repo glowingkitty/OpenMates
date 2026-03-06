@@ -101,12 +101,21 @@
   class="embed-header"
   class:has-cta={hasCta}
 >
-  <!-- Inner banner: gradient + decorative icons + center content + nav arrows.
-       overflow: hidden clips the large decorative icons at the edges. -->
+  <!-- Inner banner: gradient + orbs + decorative icons + center content + nav arrows.
+       overflow: hidden clips the large decorative icons and orb blobs at the edges. -->
   <div
     class="header-inner"
-    style="background: var(--color-app-{appId});"
+    style="background: var(--color-app-{appId}); --orb-color-a: var(--color-app-{appId}-start); --orb-color-b: var(--color-app-{appId}-end);"
   >
+    <!-- Living gradient orbs — three morphing radial-gradient blobs that drift
+         and change shape slowly, creating a living color effect where orb-color-b
+         blooms from the center against the orb-color-a background. -->
+    <div class="embed-header-orbs" aria-hidden="true">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="orb orb-3"></div>
+    </div>
+
     <!-- Large decorative icons at left/right edges (126×126px, 0.4 opacity) -->
     <!-- Always use skill icon when skillIconName is provided — avoids the full gradient
          app icon appearing in the banner. showSkillIcon only governs the center icon. -->
@@ -247,8 +256,75 @@
   /* Height is always fixed — the CTA overflows the bottom, never grows the banner. */
 
   /* ==========================================================
+     Living gradient orbs — three morphing blobs
+     Shared keyframes (orbMorph1/2/3, orbDrift1/2/3) live in animations.css.
+     ========================================================== */
+
+  .embed-header-orbs {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .orb {
+    position: absolute;
+    width: 220px;
+    height: 220px;
+    opacity: 0.55;
+    filter: blur(28px);
+  }
+
+  /* Orb 1 — color-b (end), top-left anchor */
+  .orb-1 {
+    top: -60px;
+    left: -40px;
+    background: radial-gradient(
+      ellipse at center,
+      var(--orb-color-b, #fff) 0%,
+      var(--orb-color-b, #fff) 40%,
+      transparent 85%
+    );
+    animation:
+      orbMorph1 11s ease-in-out infinite,
+      orbDrift1 19s ease-in-out infinite;
+  }
+
+  /* Orb 2 — color-a (start), bottom-right anchor */
+  .orb-2 {
+    bottom: -60px;
+    right: -40px;
+    background: radial-gradient(
+      ellipse at center,
+      var(--orb-color-a, #fff) 0%,
+      var(--orb-color-a, #fff) 40%,
+      transparent 85%
+    );
+    animation:
+      orbMorph2 13s ease-in-out infinite,
+      orbDrift2 23s ease-in-out infinite;
+  }
+
+  /* Orb 3 — color-b (end), center anchor for depth */
+  .orb-3 {
+    top: 20px;
+    right: 20%;
+    background: radial-gradient(
+      ellipse at center,
+      var(--orb-color-b, #fff) 0%,
+      var(--orb-color-b, #fff) 40%,
+      transparent 85%
+    );
+    animation:
+      orbMorph3 17s ease-in-out infinite,
+      orbDrift3 29s ease-in-out infinite;
+  }
+
+  /* ==========================================================
      Decorative large icons (126×126px) at banner edges
-     Same animation as ChatHeader: fade up from +50px below.
+     Two-phase animation: decoEnter (one-shot entrance) → decoFloat (orbital).
+     Shared keyframes (decoEnter, decoFloat) live in animations.css.
      ========================================================== */
 
   .deco-icon {
@@ -260,32 +336,27 @@
     justify-content: center;
     z-index: 1;
     pointer-events: none;
-    animation: decoIconEnter 0.6s ease-out 0.1s both;
+    --float-rx: 10px;
+    --float-ry: 12px;
+    animation:
+      decoEnter 0.6s ease-out 0.1s both,
+      decoFloat 16s linear 0.7s infinite;
   }
 
   .deco-icon-left {
     left: calc(50% - 240px - 106px);
     bottom: -15px;
-    transform: rotate(-15deg);
     --deco-rotate: -15deg;
+    /* Left icon starts at 0° of its orbit (0.7s = entrance duration) */
+    animation-delay: 0.1s, 0.7s;
   }
 
   .deco-icon-right {
     right: calc(50% - 240px - 106px);
     bottom: -15px;
-    transform: rotate(15deg);
     --deco-rotate: 15deg;
-  }
-
-  @keyframes decoIconEnter {
-    from {
-      opacity: 0;
-      transform: translateY(50px) rotate(var(--deco-rotate, 0deg));
-    }
-    to {
-      opacity: 0.4;
-      transform: translateY(0) rotate(var(--deco-rotate, 0deg));
-    }
+    /* Right icon starts 8s (half-cycle) into the orbit — opposing phase */
+    animation-delay: 0.1s, 8.7s;
   }
 
   /* Decorative skill icon: CSS mask-image, white fill */
@@ -666,6 +737,22 @@
 
     .deco-icon-right {
       right: calc(50% - 180px - 70px);
+    }
+  }
+
+  /* ==========================================================
+     Accessibility: disable all animations for users who prefer
+     reduced motion (vestibular disorders, focus preference).
+     ========================================================== */
+
+  @media (prefers-reduced-motion: reduce) {
+    .orb {
+      animation: none;
+    }
+
+    .deco-icon {
+      animation: none;
+      opacity: 0.4;
     }
   }
 </style>
