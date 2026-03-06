@@ -11,22 +11,22 @@ Shows:
 
 Usage:
     # Summary only (counts)
-    docker exec api python /app/backend/scripts/inspect_newsletter.py
+    docker exec api python /app/backend/scripts/debug.py newsletter
 
     # Show all subscribers with decrypted emails
-    docker exec api python /app/backend/scripts/inspect_newsletter.py --show-emails
+    docker exec api python /app/backend/scripts/debug.py newsletter --show-emails
 
     # Show pending (unconfirmed) subscriptions from cache
-    docker exec api python /app/backend/scripts/inspect_newsletter.py --show-pending
+    docker exec api python /app/backend/scripts/debug.py newsletter --show-pending
 
     # Show everything
-    docker exec api python /app/backend/scripts/inspect_newsletter.py --show-emails --show-pending
+    docker exec api python /app/backend/scripts/debug.py newsletter --show-emails --show-pending
 
     # JSON output
-    docker exec api python /app/backend/scripts/inspect_newsletter.py --json
+    docker exec api python /app/backend/scripts/debug.py newsletter --json
 
     # Show subscription timeline (monthly breakdown)
-    docker exec api python /app/backend/scripts/inspect_newsletter.py --timeline
+    docker exec api python /app/backend/scripts/debug.py newsletter --timeline
 """
 
 import asyncio
@@ -51,7 +51,7 @@ from debug_utils import (
     censor_email,
 )
 
-script_logger = configure_script_logging('inspect_newsletter')
+script_logger = configure_script_logging('debug_newsletter')
 
 
 async def get_confirmed_subscribers(
@@ -409,22 +409,22 @@ def main():
         epilog="""
 Examples:
   # Summary counts
-  docker exec api python /app/backend/scripts/inspect_newsletter.py
+  docker exec api python /app/backend/scripts/debug.py newsletter
 
   # Show all subscribers with decrypted emails
-  docker exec api python /app/backend/scripts/inspect_newsletter.py --show-emails
+  docker exec api python /app/backend/scripts/debug.py newsletter --show-emails
 
   # Show pending (unconfirmed) subscriptions from cache
-  docker exec api python /app/backend/scripts/inspect_newsletter.py --show-pending
+  docker exec api python /app/backend/scripts/debug.py newsletter --show-pending
 
   # Show monthly subscription timeline
-  docker exec api python /app/backend/scripts/inspect_newsletter.py --timeline
+  docker exec api python /app/backend/scripts/debug.py newsletter --timeline
 
   # Show everything
-  docker exec api python /app/backend/scripts/inspect_newsletter.py --show-emails --show-pending --timeline
+  docker exec api python /app/backend/scripts/debug.py newsletter --show-emails --show-pending --timeline
 
   # JSON output
-  docker exec api python /app/backend/scripts/inspect_newsletter.py --json
+  docker exec api python /app/backend/scripts/debug.py newsletter --json
         """,
     )
 

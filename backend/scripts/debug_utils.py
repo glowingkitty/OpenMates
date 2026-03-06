@@ -8,7 +8,7 @@ production API requests, and Vault encryption helpers) so that individual
 inspect_*.py scripts can import them instead of re-implementing the same
 logic.
 
-Architecture context: See docs/claude/inspection-scripts.md
+Architecture context: See docs/claude/debugging.md
 Tests: None (inspection utility, not production code)
 """
 
@@ -17,9 +17,12 @@ import base64
 import hashlib
 import json
 import logging
+import os
+import re
 import sys
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from urllib.parse import parse_qs, unquote
 
 
 if TYPE_CHECKING:
@@ -28,6 +31,9 @@ if TYPE_CHECKING:
 
 # ── Third-party (always available in the Docker image) ────────────────────────
 import httpx
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives import hashes
 
 # ── Path bootstrap (same as every inspect script) ────────────────────────────
 # Ensures `backend.*` and top-level imports work when running inside Docker.
@@ -343,13 +349,17 @@ async def make_prod_api_request(
     params: Optional[Dict[str, Any]] = None,
     method: str = "GET",
     entity_label: str = "Resource",
-) -> Dict[str, Any]:
+) -> Optional[Dict[str, Any]]:
     """Make an authenticated request to the Admin Debug API.
 
-    Handles common HTTP error codes (401 / 403 / 404 / 5xx), connection
-    errors, and timeouts — printing a user-facing message and calling
-    ``sys.exit(1)`` on failure, matching the behaviour of the original
-    per-script implementations.
+    Handles common HTTP error codes with the following strategy:
+
+    * **401 / 403** — authentication / authorisation failures indicate a
+      config problem, so ``sys.exit(1)`` is called immediately.
+    * **404** — returns ``None`` so the caller (e.g. the auto-fallback
+      resolution chain) can try the next server.
+    * **Other errors / connection failures / timeouts** — prints a message
+      and calls ``sys.exit(1)``.
 
     Args:
         endpoint: The API endpoint path (appended to *base_url*).
@@ -361,10 +371,11 @@ async def make_prod_api_request(
             (e.g. ``"Chat"`` or ``"Embed"``).
 
     Returns:
-        Parsed JSON response body.
+        Parsed JSON response body, or ``None`` if the server returned 404.
 
     Raises:
-        SystemExit: On any request failure.
+        SystemExit: On auth failures (401/403), non-404 HTTP errors,
+            connection errors, or timeouts.
     """
     url = f"{base_url}/{endpoint}"
     headers = {"Authorization": f"Bearer {api_key}"}
@@ -386,8 +397,7 @@ async def make_prod_api_request(
                 print("Error: Admin privileges required", file=sys.stderr)
                 sys.exit(1)
             elif response.status_code == 404:
-                print(f"Error: {entity_label} not found", file=sys.stderr)
-                sys.exit(1)
+                return None
             elif response.status_code != 200:
                 print(
                     f"Error: API returned status {response.status_code}",
@@ -582,3 +592,447 @@ def collect_timestamp_issues(label: str, ts: Any, issues: List[str]) -> None:
             f"{label} timestamp is before {MIN_VALID_TIMESTAMP_YEAR}: "
             f"{parsed.isoformat()}"
         )
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  Section 9 — Auto-fallback resolution
+# ═════════════════════════════════════════════════════════════════════════════
+# Provides automatic server resolution for debug scripts.  The chain tries
+# the local (dev) Directus first, then falls back to the production Admin
+# Debug API — so callers don't need to specify ``--prod`` / ``--dev``.
+
+# Admin user ID on the dev server (used for Directus queries).
+DEV_ADMIN_USER_ID = "f21b15a5-a36a-4596-b014-0941b6882e96"
+
+# Directus collection names keyed by logical entity type.
+_ENTITY_COLLECTION_MAP: Dict[str, str] = {
+    "chat": "chats",
+    "embed": "embeds",
+    "user": "directus_users",
+    "issue": "issues",
+}
+
+# Admin Debug API endpoint prefixes keyed by logical entity type.
+_ENTITY_API_ENDPOINT_MAP: Dict[str, str] = {
+    "chat": "chats",
+    "embed": "embeds",
+    "user": "users",
+    "issue": "issues",
+}
+
+
+def _is_dev_server() -> bool:
+    """Return ``True`` if we are running on the dev server.
+
+    Checks ``SERVER_ENVIRONMENT`` (set by Docker) — ``"development"`` (or
+    absent) means dev; anything else (typically ``"production"``) means prod.
+    """
+    return os.getenv("SERVER_ENVIRONMENT", "development").lower() == "development"
+
+
+async def _query_local_directus(
+    entity_type: str,
+    identifier: str,
+) -> Optional[Dict[str, Any]]:
+    """Try to find an entity in the local Directus instance.
+
+    Imports :class:`DirectusService` at runtime to avoid import overhead
+    when this helper is not called.
+
+    Args:
+        entity_type: One of ``"chat"``, ``"embed"``, ``"user"``, ``"issue"``.
+        identifier: UUID or other identifier for the entity.
+
+    Returns:
+        The entity dict if found, otherwise ``None``.
+    """
+    collection = _ENTITY_COLLECTION_MAP.get(entity_type)
+    if not collection:
+        print(
+            f"Error: Unknown entity type '{entity_type}'. "
+            f"Expected one of: {', '.join(sorted(_ENTITY_COLLECTION_MAP))}",
+            file=sys.stderr,
+        )
+        return None
+
+    # Runtime imports to avoid startup overhead.
+    from backend.core.api.app.services.cache import CacheService
+    from backend.core.api.app.services.directus.directus import DirectusService
+    from backend.core.api.app.utils.encryption import EncryptionService
+
+    cache_service = CacheService()
+    encryption_service = EncryptionService(cache_service=cache_service)
+    directus_service = DirectusService(
+        cache_service=cache_service,
+        encryption_service=encryption_service,
+    )
+
+    try:
+        # Build filter — users can be looked up by email (hashed) or by ID.
+        if entity_type == "user" and "@" in identifier:
+            hashed = hash_email_sha256(identifier)
+            params: Dict[str, Any] = {
+                "filter[hashed_email][_eq]": hashed,
+                "fields": "*",
+                "limit": 1,
+            }
+        else:
+            params = {
+                "filter[id][_eq]": identifier,
+                "fields": "*",
+                "limit": 1,
+            }
+
+        results = await directus_service.get_items(
+            collection, params=params, no_cache=True,
+        )
+        if results and isinstance(results, list) and len(results) > 0:
+            return results[0]
+        return None
+    except Exception as exc:
+        # Log but do not crash — the fallback chain will try production next.
+        print(
+            f"  {colorize('Warning', C_YELLOW)}: Local Directus query failed: {exc}",
+        )
+        return None
+    finally:
+        await directus_service.close()
+
+
+async def _query_prod_api(
+    entity_type: str,
+    identifier: str,
+) -> Optional[Dict[str, Any]]:
+    """Try to find an entity via the production Admin Debug API.
+
+    Retrieves the API key from Vault, then makes a GET request to the
+    appropriate endpoint.
+
+    Args:
+        entity_type: One of ``"chat"``, ``"embed"``, ``"user"``, ``"issue"``.
+        identifier: UUID or other identifier for the entity.
+
+    Returns:
+        The response body dict if found, otherwise ``None``.
+    """
+    endpoint_prefix = _ENTITY_API_ENDPOINT_MAP.get(entity_type)
+    if not endpoint_prefix:
+        return None
+
+    api_key = await get_api_key_from_vault()
+    base_url = PROD_API_URL
+
+    endpoint = f"{endpoint_prefix}/{identifier}"
+    result = await make_prod_api_request(
+        endpoint,
+        api_key,
+        base_url,
+        entity_label=entity_type.capitalize(),
+    )
+    return result
+
+
+class ResolveResult:
+    """Container for the result of :func:`auto_resolve_entity`.
+
+    Attributes:
+        source: ``"local"`` or ``"prod"`` — which server provided the data.
+        data: The entity payload (dict).
+        api_key: The production API key (only set when ``source == "prod"``).
+            Useful if the caller needs to make follow-up API requests.
+    """
+
+    __slots__ = ("source", "data", "api_key")
+
+    def __init__(
+        self,
+        source: str,
+        data: Dict[str, Any],
+        api_key: Optional[str] = None,
+    ) -> None:
+        self.source = source
+        self.data = data
+        self.api_key = api_key
+
+    def __repr__(self) -> str:  # noqa: D401
+        return f"ResolveResult(source={self.source!r}, data_keys={list(self.data.keys())})"
+
+
+async def auto_resolve_entity(
+    entity_type: str,
+    identifier: str,
+) -> Optional[ResolveResult]:
+    """Resolve an entity by trying local Directus first, then production API.
+
+    This is the main entry point for the auto-fallback resolution chain.
+    Scripts can call this instead of requiring ``--prod`` / ``--dev`` flags.
+
+    Resolution order:
+        1. **Local (dev) Directus** — direct DB query via :class:`DirectusService`.
+        2. **Production Admin Debug API** — remote HTTP request.
+        3. Returns ``None`` with a clear error if neither server has the entity.
+
+    Args:
+        entity_type: One of ``"chat"``, ``"embed"``, ``"user"``, ``"issue"``.
+        identifier: UUID, email address, or other identifier for the entity.
+
+    Returns:
+        A :class:`ResolveResult` with ``source``, ``data``, and optionally
+        ``api_key``; or ``None`` if the entity was not found on any server.
+    """
+    # Validate entity type early.
+    if entity_type not in _ENTITY_COLLECTION_MAP:
+        print(
+            f"Error: Unknown entity type '{entity_type}'. "
+            f"Expected one of: {', '.join(sorted(_ENTITY_COLLECTION_MAP))}",
+            file=sys.stderr,
+        )
+        return None
+
+    # ── Step 1: Try local Directus ────────────────────────────────────────
+    print(f"  {colorize('Searching on dev server...', C_CYAN)}")
+    local_data = await _query_local_directus(entity_type, identifier)
+
+    if local_data:
+        print(f"  {colorize('Found on dev server', C_GREEN)}")
+        return ResolveResult(source="local", data=local_data)
+
+    # ── Step 2: Try production API ────────────────────────────────────────
+    print(f"  {colorize('Not found locally, trying production...', C_YELLOW)}")
+
+    prod_data = await _query_prod_api(entity_type, identifier)
+
+    if prod_data:
+        print(f"  {colorize('Found on production server', C_GREEN)}")
+        # Retrieve api_key again for the caller (cheap — cached in Vault).
+        api_key = await get_api_key_from_vault()
+        return ResolveResult(source="prod", data=prod_data, api_key=api_key)
+
+    # ── Step 3: Not found anywhere ────────────────────────────────────────
+    print(
+        f"\n  {colorize('Error', C_RED)}: {entity_type.capitalize()} "
+        f"'{identifier}' not found on dev or production server.",
+    )
+    return None
+
+
+class ServerInfo:
+    """Container for the result of :func:`auto_resolve_server`.
+
+    Attributes:
+        source: ``"local"`` or ``"prod"``.
+        base_url: The Admin Debug API base URL for this server.
+        api_key: The API key (only set when ``source == "prod"``).
+    """
+
+    __slots__ = ("source", "base_url", "api_key")
+
+    def __init__(
+        self,
+        source: str,
+        base_url: str,
+        api_key: Optional[str] = None,
+    ) -> None:
+        self.source = source
+        self.base_url = base_url
+        self.api_key = api_key
+
+    def __repr__(self) -> str:  # noqa: D401
+        return f"ServerInfo(source={self.source!r}, base_url={self.base_url!r})"
+
+
+async def auto_resolve_server() -> ServerInfo:
+    """Determine which server we are on and return connection info.
+
+    Simpler than :func:`auto_resolve_entity` — used by commands that don't
+    look up a specific entity (e.g. ``logs``, ``errors``, ``health``).
+
+    * If ``SERVER_ENVIRONMENT`` is ``"development"`` (or unset), returns
+      the dev Admin Debug API URL.  No API key is needed because these
+      commands will query local services directly.
+    * Otherwise, returns the production URL with an API key from Vault.
+
+    Returns:
+        A :class:`ServerInfo` instance.
+    """
+    if _is_dev_server():
+        print(f"  {colorize('Using dev server (local)', C_CYAN)}")
+        return ServerInfo(source="local", base_url=DEV_API_URL)
+
+    print(f"  {colorize('Using production server', C_YELLOW)}")
+    api_key = await get_api_key_from_vault()
+    return ServerInfo(source="prod", base_url=PROD_API_URL, api_key=api_key)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  Section 10 — Share Key Cryptography
+# ═════════════════════════════════════════════════════════════════════════════
+# Python implementations of the client-side share URL key blob decryption
+# and AES-GCM content decryption, matching the TypeScript implementations in:
+#   - frontend/packages/ui/src/services/shareEncryption.ts
+#   - frontend/packages/ui/src/services/embedShareEncryption.ts
+#   - frontend/packages/ui/src/services/cryptoService.ts
+# Architecture context: See docs/architecture/share_chat.md
+#                       See docs/architecture/zero-knowledge-storage.md
+# Previously in: share_key_crypto.py
+
+# --- Crypto constants ---
+PBKDF2_ITERATIONS = 100_000
+PBKDF2_KEY_LENGTH = 32  # 256 bits
+AES_IV_LENGTH = 12  # 12 bytes for GCM mode
+SHARE_SALT = b'openmates-share-v1'
+PASSWORD_SALT_PREFIX = 'openmates-pwd-'
+
+# Share URL patterns
+# Format: https://<domain>/share/chat/<chatId>#key=<encryptedBlob>
+# Format: https://<domain>/share/embed/<embedId>#key=<encryptedBlob>
+CHAT_SHARE_URL_PATTERN = re.compile(
+    r'(?:https?://[^/]+)?/share/chat/([a-f0-9-]+)#key=(.*)',
+    re.IGNORECASE,
+)
+EMBED_SHARE_URL_PATTERN = re.compile(
+    r'(?:https?://[^/]+)?/share/embed/([a-f0-9-]+)#key=(.*)',
+    re.IGNORECASE,
+)
+
+
+def base64url_decode(s: str) -> bytes:
+    """Decode a base64 URL-safe string (as produced by the frontend).
+
+    Matches the frontend's base64UrlDecode exactly:
+      replace '-' -> '+', '_' -> '/', then pad with '=' until len % 4 == 0.
+    """
+    s = s.replace('-', '+').replace('_', '/')
+    while len(s) % 4:
+        s += '='
+    return base64.b64decode(s)
+
+
+def _derive_key_from_id(entity_id: str) -> bytes:
+    """Derive an AES-256 key from an entity ID using PBKDF2-HMAC-SHA256.
+
+    Matches the frontend's deriveKeyFromChatId / deriveKeyFromEmbedId.
+    """
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=PBKDF2_KEY_LENGTH,
+        salt=SHARE_SALT,
+        iterations=PBKDF2_ITERATIONS,
+    )
+    return kdf.derive(entity_id.encode('utf-8'))
+
+
+def _derive_key_from_password(password: str, entity_id: str) -> bytes:
+    """Derive an AES-256 key from a password using entity ID as salt part.
+
+    Matches the frontend's deriveKeyFromPassword.
+    """
+    salt = f'{PASSWORD_SALT_PREFIX}{entity_id}'.encode('utf-8')
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=PBKDF2_KEY_LENGTH,
+        salt=salt,
+        iterations=PBKDF2_ITERATIONS,
+    )
+    return kdf.derive(password.encode('utf-8'))
+
+
+def _aes_gcm_decrypt(raw_bytes: bytes, key: bytes) -> bytes:
+    """Decrypt AES-256-GCM data: IV (12 bytes) || ciphertext || tag (16 bytes)."""
+    if len(raw_bytes) < AES_IV_LENGTH + 16:
+        raise ValueError(
+            f"Encrypted data too short: {len(raw_bytes)} bytes "
+            f"(need at least {AES_IV_LENGTH + 16} for IV + GCM tag)"
+        )
+    iv = raw_bytes[:AES_IV_LENGTH]
+    ciphertext_with_tag = raw_bytes[AES_IV_LENGTH:]
+    aesgcm = AESGCM(key)
+    return aesgcm.decrypt(iv, ciphertext_with_tag, None)
+
+
+def parse_share_url(url: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    """Parse a share URL to extract entity type, ID, and key blob.
+
+    Returns:
+        (entity_type, entity_id, key_blob) — entity_type is 'chat' or 'embed'.
+        Returns (None, None, None) if the URL doesn't match any known pattern.
+    """
+    match = CHAT_SHARE_URL_PATTERN.search(url)
+    if match:
+        return 'chat', match.group(1), match.group(2)
+    match = EMBED_SHARE_URL_PATTERN.search(url)
+    if match:
+        return 'embed', match.group(1), match.group(2)
+    return None, None, None
+
+
+def decrypt_share_key_blob(
+    entity_id: str,
+    encrypted_blob: str,
+    key_field_name: str = 'chat_encryption_key',
+    password: Optional[str] = None,
+) -> Tuple[Optional[bytes], Optional[str]]:
+    """Decrypt a share key blob and extract the raw AES encryption key.
+
+    Reimplements the frontend's decryptShareKeyBlob / decryptEmbedShareKeyBlob.
+
+    Returns:
+        (raw_key_bytes, error_message) — on success, error is None.
+    """
+    try:
+        encrypted_blob = unquote(encrypted_blob).strip()
+        id_key = _derive_key_from_id(entity_id)
+        raw_encrypted = base64url_decode(encrypted_blob)
+
+        try:
+            serialised = _aes_gcm_decrypt(raw_encrypted, id_key)
+            serialised_str = serialised.decode('utf-8')
+        except Exception as e:
+            return None, f"AES-GCM decryption failed: {type(e).__name__}: {e}"
+
+        params = parse_qs(serialised_str, keep_blank_values=True)
+        encryption_key_value = params.get(key_field_name, [''])[0]
+        pwd_flag = params.get('pwd', ['0'])[0]
+
+        if not encryption_key_value:
+            return None, f"Blob is missing '{key_field_name}' field"
+
+        if pwd_flag == '1':
+            if not password:
+                return None, (
+                    "Share link is password-protected (pwd=1). "
+                    "Provide the password with --share-password"
+                )
+            pwd_key = _derive_key_from_password(password, entity_id)
+            raw_key_encrypted = base64url_decode(encryption_key_value)
+            key_base64_bytes = _aes_gcm_decrypt(raw_key_encrypted, pwd_key)
+            encryption_key_value = key_base64_bytes.decode('utf-8')
+
+        raw_key = base64.b64decode(encryption_key_value)
+        if len(raw_key) != 32:
+            return None, (
+                f"Decoded key is {len(raw_key)} bytes, expected 32 bytes (AES-256)"
+            )
+        return raw_key, None
+
+    except Exception as e:
+        return None, f"Failed to decrypt share key blob: {e}"
+
+
+def decrypt_client_aes_content(
+    encrypted_base64: str,
+    raw_key: bytes,
+) -> Tuple[Optional[str], Optional[str]]:
+    """Decrypt client-side AES-GCM encrypted content.
+
+    Returns:
+        (plaintext_string, error_message) — on success, error is None.
+    """
+    if not encrypted_base64:
+        return None, "Empty encrypted content"
+    try:
+        raw_bytes = base64.b64decode(encrypted_base64)
+        plaintext_bytes = _aes_gcm_decrypt(raw_bytes, raw_key)
+        return plaintext_bytes.decode('utf-8'), None
+    except Exception as e:
+        return None, f"AES-GCM decryption failed: {e}"

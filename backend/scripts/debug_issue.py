@@ -18,8 +18,8 @@ Issue Architecture:
 - encrypted_issue_report_yaml_s3_key: Vault-encrypted S3 key pointing to full YAML report
 
 Usage:
-    docker exec api python /app/backend/scripts/inspect_issue.py <issue_id>
-    docker exec api python /app/backend/scripts/inspect_issue.py abc12345-6789-0123-4567-890123456789
+    docker exec api python /app/backend/scripts/debug.py issue <issue_id>
+    docker exec api python /app/backend/scripts/debug.py issue abc12345-6789-0123-4567-890123456789
 
 Options:
     --no-logs           Skip fetching the full YAML report from S3
@@ -62,7 +62,7 @@ from debug_utils import (
     censor_email,
 )
 
-script_logger = configure_script_logging('inspect_issue', extra_suppress=['botocore', 'boto3'])
+script_logger = configure_script_logging('debug_issue', extra_suppress=['botocore', 'boto3'])
 
 
 async def get_issue(directus_service: DirectusService, issue_id: str) -> Optional[Dict[str, Any]]:

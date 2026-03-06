@@ -26,37 +26,37 @@ OUTPUT MODES:
 
 Usage:
     # List all available requests (quick overview)
-    docker exec -it api python /app/backend/scripts/inspect_last_requests.py --list
+    docker exec -it api python /app/backend/scripts/debug.py requests --list
     
     # Show detailed summary with statistics
-    docker exec -it api python /app/backend/scripts/inspect_last_requests.py --summary
+    docker exec -it api python /app/backend/scripts/debug.py requests --summary
     
     # Filter by chat ID and show list
-    docker exec -it api python /app/backend/scripts/inspect_last_requests.py --chat-id abc123 --list
+    docker exec -it api python /app/backend/scripts/debug.py requests --chat-id abc123 --list
     
     # Filter by task ID
-    docker exec -it api python /app/backend/scripts/inspect_last_requests.py --task-id celery-task-123
+    docker exec -it api python /app/backend/scripts/debug.py requests --task-id celery-task-123
     
     # Filter by time (last 5 minutes)
-    docker exec -it api python /app/backend/scripts/inspect_last_requests.py --since-minutes 5 --list
+    docker exec -it api python /app/backend/scripts/debug.py requests --since-minutes 5 --list
     
     # Save full YAML output
-    docker exec -it api python /app/backend/scripts/inspect_last_requests.py --yaml --output /tmp/debug.yml
+    docker exec -it api python /app/backend/scripts/debug.py requests --yaml --output /tmp/debug.yml
     
     # Show only requests with errors
-    docker exec -it api python /app/backend/scripts/inspect_last_requests.py --errors-only
+    docker exec -it api python /app/backend/scripts/debug.py requests --errors-only
     
     # Clear all debug cache entries
-    docker exec -it api python /app/backend/scripts/inspect_last_requests.py --clear
+    docker exec -it api python /app/backend/scripts/debug.py requests --clear
     
     # JSON output for programmatic use
-    docker exec -it api python /app/backend/scripts/inspect_last_requests.py --json
+    docker exec -it api python /app/backend/scripts/debug.py requests --json
     
     # Show full system prompt for entry #3
-    docker exec -it api python /app/backend/scripts/inspect_last_requests.py --show-prompt 3
+    docker exec -it api python /app/backend/scripts/debug.py requests --show-prompt 3
     
     # Diff system prompts between entries #1 and #3
-    docker exec -it api python /app/backend/scripts/inspect_last_requests.py --diff 1 3
+    docker exec -it api python /app/backend/scripts/debug.py requests --diff 1 3
 """
 
 import asyncio
@@ -87,7 +87,7 @@ from backend.core.api.app.utils.encryption import EncryptionService
 # Shared inspection utilities — replaces duplicated helpers
 from debug_utils import configure_script_logging, format_timestamp
 
-script_logger = configure_script_logging('inspect_last_requests')
+script_logger = configure_script_logging('debug_requests')
 
 # Default output directory
 DEFAULT_OUTPUT_DIR = "/app/backend/scripts/debug_output"

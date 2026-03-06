@@ -13,8 +13,8 @@ This script:
 6. Checks Redis cache status for the demo chat
 
 Usage:
-    docker exec -it api python /app/backend/scripts/inspect_demo_chat.py demo-1
-    docker exec -it api python /app/backend/scripts/inspect_demo_chat.py abc12345-6789-0123-4567-890123456789
+    docker exec -it api python /app/backend/scripts/debug.py demo demo-1
+    docker exec -it api python /app/backend/scripts/debug.py demo abc12345-6789-0123-4567-890123456789
 
 Options:
     --lang LANG         Language to inspect (default: en)
@@ -44,7 +44,7 @@ from debug_utils import (
     truncate_string,
 )
 
-script_logger = configure_script_logging('inspect_demo_chat')
+script_logger = configure_script_logging('debug_demo_chat')
 
 
 async def get_demo_chat_metadata(directus_service: DirectusService, demo_id: str) -> Optional[Dict[str, Any]]:

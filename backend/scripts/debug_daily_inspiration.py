@@ -21,11 +21,11 @@ internally before querying Directus (SHA-256), matching the storage convention i
 user_daily_inspiration_methods.py.
 
 Usage:
-    docker exec -it api python /app/backend/scripts/inspect_daily_inspiration.py <user_id>
-    docker exec -it api python /app/backend/scripts/inspect_daily_inspiration.py <user_id> --json
-    docker exec -it api python /app/backend/scripts/inspect_daily_inspiration.py <user_id> --no-directus
-    docker exec -it api python /app/backend/scripts/inspect_daily_inspiration.py <user_id> --no-cache
-    docker exec -it api python /app/backend/scripts/inspect_daily_inspiration.py --list-active
+    docker exec -it api python /app/backend/scripts/debug.py daily <user_id>
+    docker exec -it api python /app/backend/scripts/debug.py daily <user_id> --json
+    docker exec -it api python /app/backend/scripts/debug.py daily <user_id> --no-directus
+    docker exec -it api python /app/backend/scripts/debug.py daily <user_id> --no-cache
+    docker exec -it api python /app/backend/scripts/debug.py daily --list-active
 
 Options:
     --json              Output as JSON instead of formatted text
@@ -57,7 +57,7 @@ from debug_utils import (
     hash_user_id as _hash_user_id,
 )
 
-script_logger = configure_script_logging('inspect_daily_inspiration')
+script_logger = configure_script_logging('debug_daily_inspiration')
 
 # ── Cache key constants (must match cache_inspiration_mixin.py) ──────────────
 # These are duplicated here so the script remains self-contained and runnable
@@ -587,10 +587,10 @@ async def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Examples:\n"
-            "  docker exec -it api python /app/backend/scripts/inspect_daily_inspiration.py <user_id>\n"
-            "  docker exec -it api python /app/backend/scripts/inspect_daily_inspiration.py <user_id> --json\n"
-            "  docker exec -it api python /app/backend/scripts/inspect_daily_inspiration.py <user_id> --no-directus\n"
-            "  docker exec -it api python /app/backend/scripts/inspect_daily_inspiration.py --list-active\n"
+            "  docker exec -it api python /app/backend/scripts/debug.py daily <user_id>\n"
+            "  docker exec -it api python /app/backend/scripts/debug.py daily <user_id> --json\n"
+            "  docker exec -it api python /app/backend/scripts/debug.py daily <user_id> --no-directus\n"
+            "  docker exec -it api python /app/backend/scripts/debug.py daily --list-active\n"
         ),
     )
     parser.add_argument(

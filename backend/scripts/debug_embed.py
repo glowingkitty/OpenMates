@@ -15,17 +15,17 @@ Architecture context: See docs/architecture/embed-encryption.md
 Tests: None (inspection script, not production code)
 
 Usage (local — inside Docker container):
-    docker exec -it api python /app/backend/scripts/inspect_embed.py <embed_id>
-    docker exec -it api python /app/backend/scripts/inspect_embed.py <embed_id> --decrypt
-    docker exec -it api python /app/backend/scripts/inspect_embed.py <embed_id> --decrypt --check-links
-    docker exec -it api python /app/backend/scripts/inspect_embed.py <embed_id> --share-url "https://app.openmates.org/share/embed/<id>#key=<blob>"
-    docker exec -it api python /app/backend/scripts/inspect_embed.py <embed_id> --share-key "<base64-key-blob>"
+    docker exec -it api python /app/backend/scripts/debug.py embed <embed_id>
+    docker exec -it api python /app/backend/scripts/debug.py embed <embed_id> --decrypt
+    docker exec -it api python /app/backend/scripts/debug.py embed <embed_id> --decrypt --check-links
+    docker exec -it api python /app/backend/scripts/debug.py embed <embed_id> --share-url "https://app.openmates.org/share/embed/<id>#key=<blob>"
+    docker exec -it api python /app/backend/scripts/debug.py embed <embed_id> --share-key "<base64-key-blob>"
 
 Usage (production — fetch from prod API, decrypt locally):
-    docker exec -it api python /app/backend/scripts/inspect_embed.py <embed_id> --production
-    docker exec -it api python /app/backend/scripts/inspect_embed.py <embed_id> --production --share-url "<url>#key=<blob>"
-    docker exec -it api python /app/backend/scripts/inspect_embed.py <embed_id> --production --json
-    docker exec -it api python /app/backend/scripts/inspect_embed.py <embed_id> --dev  # hit dev API instead of prod
+    docker exec -it api python /app/backend/scripts/debug.py embed <embed_id> --production
+    docker exec -it api python /app/backend/scripts/debug.py embed <embed_id> --production --share-url "<url>#key=<blob>"
+    docker exec -it api python /app/backend/scripts/debug.py embed <embed_id> --production --json
+    docker exec -it api python /app/backend/scripts/debug.py embed <embed_id> --dev  # hit dev API instead of prod
 
 Options:
     --json              Output as JSON instead of formatted text
@@ -53,12 +53,6 @@ from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 
-# Import share key crypto utilities for client-side AES decryption
-from share_key_crypto import (
-    parse_share_url,
-    decrypt_share_key_blob,
-    decrypt_client_aes_content,
-)
 
 # Shared inspection utilities — replaces duplicated helpers
 from debug_utils import (
@@ -72,10 +66,13 @@ from debug_utils import (
     decrypt_and_decode_toon,
     describe_toon_value,
     PROD_API_URL,
+    parse_share_url,
+    decrypt_share_key_blob,
+    decrypt_client_aes_content,
     DEV_API_URL,
 )
 
-script_logger = configure_script_logging('inspect_embed')
+script_logger = configure_script_logging('debug_embed')
 
 # --- Constants (script-specific) ---
 MAX_TOON_VALUE_DISPLAY_LEN = 120

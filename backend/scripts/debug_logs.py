@@ -1,40 +1,54 @@
 #!/usr/bin/env python3
 """
-Unified user activity timeline — combines backend logs, compliance events,
-container logs, client console logs, and satellite server logs for a single user.
+Unified log inspection tool — user activity timeline, browser console logs,
+and satellite server log/update/status management.
 
-Produces a chronologically sorted timeline showing every action a user triggered
-across all services, for debugging and issue investigation.
+Combines backend logs, compliance events, container logs, client console logs,
+and satellite server logs.  Supports multiple modes:
+
+  1. User timeline (default):  Per-user activity log across all services.
+  2. Browser console logs:     Search admin browser console logs in Loki.
+  3. Satellite server logs:    Fetch Docker logs from upload/preview servers.
+  4. Satellite server update:  Trigger git-pull + rebuild on upload/preview.
+  5. Satellite server status:  Poll last update status on upload/preview.
 
 Architecture context: See docs/claude/inspection-scripts.md
 
-Usage:
-    # Dev server (default) — last 24 hours
-    docker exec api python /app/backend/scripts/inspect_user_logs.py user@example.com
+Usage — User Timeline Mode (requires email):
+    docker exec api python /app/backend/scripts/debug_logs.py <email>
+    docker exec api python /app/backend/scripts/debug_logs.py <email> --since 120
+    docker exec api python /app/backend/scripts/debug_logs.py <email> --prod
+    docker exec api python /app/backend/scripts/debug_logs.py <email> --category auth,chat
+    docker exec api python /app/backend/scripts/debug_logs.py <email> --level warning
+    docker exec api python /app/backend/scripts/debug_logs.py <email> --chat-id <chat_id>
+    docker exec api python /app/backend/scripts/debug_logs.py <email> --follow
+    docker exec api python /app/backend/scripts/debug_logs.py <email> --json
+    docker exec api python /app/backend/scripts/debug_logs.py <email> --verbose
 
-    # Last 2 hours only
-    docker exec api python /app/backend/scripts/inspect_user_logs.py user@example.com --since 120
+Usage — Browser Console Log Mode (no email required):
+    docker exec api python /app/backend/scripts/debug_logs.py --browser
+    docker exec api python /app/backend/scripts/debug_logs.py --browser --since 10
+    docker exec api python /app/backend/scripts/debug_logs.py --browser --level error
+    docker exec api python /app/backend/scripts/debug_logs.py --browser --user jan41139
+    docker exec api python /app/backend/scripts/debug_logs.py --browser --search "decrypt"
+    docker exec api python /app/backend/scripts/debug_logs.py --browser --limit 100
+    docker exec api python /app/backend/scripts/debug_logs.py --browser --follow
+    docker exec api python /app/backend/scripts/debug_logs.py --browser --json
+    docker exec api python /app/backend/scripts/debug_logs.py --browser --prod
 
-    # Production logs (via Admin Debug API)
-    docker exec api python /app/backend/scripts/inspect_user_logs.py user@example.com --prod
+Usage — Satellite Server Logs:
+    docker exec api python /app/backend/scripts/debug_logs.py --upload-logs
+    docker exec api python /app/backend/scripts/debug_logs.py --upload-logs --services app-uploads,clamav --since 30
+    docker exec api python /app/backend/scripts/debug_logs.py --preview-logs
+    docker exec api python /app/backend/scripts/debug_logs.py --preview-logs --since 30 --search "ERROR"
 
-    # Filter by category (auth, chat, sync, embed, usage, settings, client, error)
-    docker exec api python /app/backend/scripts/inspect_user_logs.py user@example.com --category auth,chat
+Usage — Satellite Server Update (git pull + rebuild + restart):
+    docker exec api python /app/backend/scripts/debug_logs.py --upload-update
+    docker exec api python /app/backend/scripts/debug_logs.py --preview-update
 
-    # Filter by level (warning = warning+error+critical)
-    docker exec api python /app/backend/scripts/inspect_user_logs.py user@example.com --level warning
-
-    # Filter by chat
-    docker exec api python /app/backend/scripts/inspect_user_logs.py user@example.com --chat-id <chat_id>
-
-    # Follow mode (poll every 5s)
-    docker exec api python /app/backend/scripts/inspect_user_logs.py user@example.com --follow
-
-    # JSON output
-    docker exec api python /app/backend/scripts/inspect_user_logs.py user@example.com --json
-
-    # Show raw log lines alongside parsed events
-    docker exec api python /app/backend/scripts/inspect_user_logs.py user@example.com --verbose
+Usage — Satellite Server Status (poll last update result):
+    docker exec api python /app/backend/scripts/debug_logs.py --upload-status
+    docker exec api python /app/backend/scripts/debug_logs.py --preview-status
 """
 
 import asyncio
@@ -49,6 +63,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Optional, Tuple
 
 import aiohttp
+import httpx
 
 # Add the backend directory to the Python path — must happen before backend imports
 sys.path.insert(0, '/app/backend')
@@ -78,7 +93,7 @@ from debug_utils import (
 )
 
 script_logger = configure_script_logging(
-    'inspect_user_logs', fmt='%(message)s', extra_suppress=['aiohttp']
+    'debug_logs', fmt='%(message)s', extra_suppress=['aiohttp']
 )
 
 # ─── Constants ────────────────────────────────────────────────────────────────
@@ -90,6 +105,17 @@ FOLLOW_POLL_INTERVAL_SECONDS = 5
 
 UPLOAD_SERVER_LOG_URL = "https://upload.openmates.org/admin/logs"
 PREVIEW_SERVER_LOG_URL = "https://preview.openmates.org/admin/logs"
+
+# Satellite server update endpoints — trigger git pull + rebuild + restart.
+# Served by the admin-sidecar container on each satellite VM.
+UPLOAD_SERVER_UPDATE_URL = "https://upload.openmates.org/admin/update"
+PREVIEW_SERVER_UPDATE_URL = "https://preview.openmates.org/admin/update"
+UPLOAD_SERVER_STATUS_URL = "https://upload.openmates.org/admin/update/status"
+PREVIEW_SERVER_STATUS_URL = "https://preview.openmates.org/admin/update/status"
+
+# Default settings for browser log mode
+BROWSER_LOG_DEFAULT_SINCE_MINUTES = 30
+BROWSER_LOG_DEFAULT_LIMIT = 200
 
 
 # Category → colour mapping
@@ -981,31 +1007,778 @@ async def run_prod_mode(
         print(format_timeline(events, user_info, since_minutes, verbose))
 
 
+
+# ─── Browser console log mode ────────────────────────────────────────────────
+# Queries Loki for admin browser console logs (job="client-console").
+# Does NOT require a user email — can search across ALL admins.
+
+def _build_browser_log_query(
+    level: Optional[str] = None,
+    user: Optional[str] = None,
+    search: Optional[str] = None,
+) -> str:
+    """Build a LogQL query for browser console logs."""
+    labels = ['job="client-console"']
+    if level:
+        labels.append(f'level="{level}"')
+    if user:
+        labels.append(f'user_email="{user}"')
+
+    query = "{" + ", ".join(labels) + "}"
+
+    if search:
+        query += f' |= "{search}"'
+
+    return query
+
+
+def _print_browser_log_entry(timestamp_ns: str, message: str, level: str, user: str) -> None:
+    """Print a single formatted browser console log entry."""
+    ts = parse_timestamp_ns(timestamp_ns)[0]
+    level_colors = {"error": C_RED, "warn": C_YELLOW, "info": C_GREEN, "debug": C_GRAY}
+    level_color = level_colors.get(level, C_DIM)
+    level_str = f"{level_color}{level.upper():5s}{C_RESET}"
+    user_str = f"{C_DIM}[{user}]{C_RESET}"
+    print(f"{C_DIM}{ts}{C_RESET} {level_str} {user_str} {message}")
+
+
+async def _query_browser_logs_loki(
+    since_minutes: int,
+    limit: int,
+    level: Optional[str],
+    user: Optional[str],
+    search: Optional[str],
+    as_json: bool,
+    start_ns: Optional[int] = None,
+) -> Optional[int]:
+    """
+    Query Loki for client console logs.
+
+    Returns the latest timestamp (in nanoseconds) seen, or None if no results.
+    """
+    query = _build_browser_log_query(level, user, search)
+
+    if start_ns:
+        start_param = str(start_ns)
+    else:
+        start_seconds = time.time() - (since_minutes * 60)
+        start_param = str(int(start_seconds * 1_000_000_000))
+
+    end_param = str(int(time.time() * 1_000_000_000))
+
+    params = {
+        "query": query,
+        "limit": str(limit),
+        "start": start_param,
+        "end": end_param,
+        "direction": "forward",
+    }
+
+    try:
+        timeout = aiohttp.ClientTimeout(total=15)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(f"{LOKI_URL}/loki/api/v1/query_range", params=params) as resp:
+                if resp.status != 200:
+                    error_text = await resp.text()
+                    script_logger.warning(f"Loki query failed (HTTP {resp.status}): {error_text}")
+                    return None
+                data = await resp.json()
+    except aiohttp.ClientError as e:
+        script_logger.warning(f"Cannot connect to Loki at {LOKI_URL}: {e}")
+        script_logger.warning("Make sure this script is running inside the API container (docker exec api ...)")
+        return None
+
+    if as_json:
+        print(json.dumps(data, indent=2))
+        latest_ns = None
+        for stream in data.get("data", {}).get("result", []):
+            for value in stream.get("values", []):
+                ns = int(value[0])
+                if latest_ns is None or ns > latest_ns:
+                    latest_ns = ns
+        return latest_ns
+
+    results = data.get("data", {}).get("result", [])
+    if not results:
+        return None
+
+    # Collect all entries, then sort by timestamp
+    all_entries = []
+    for stream in results:
+        stream_labels = stream.get("stream", {})
+        stream_level = stream_labels.get("level", "info")
+        stream_user = stream_labels.get("user_email", "unknown")
+
+        for value in stream.get("values", []):
+            timestamp_ns, message = value[0], value[1]
+            all_entries.append((timestamp_ns, message, stream_level, stream_user))
+
+    all_entries.sort(key=lambda e: int(e[0]))
+
+    for timestamp_ns, message, entry_level, entry_user in all_entries:
+        _print_browser_log_entry(timestamp_ns, message, entry_level, entry_user)
+
+    return int(all_entries[-1][0]) if all_entries else None
+
+
+async def _browser_log_follow_mode(
+    since_minutes: int,
+    limit: int,
+    level: Optional[str],
+    user: Optional[str],
+    search: Optional[str],
+    as_json: bool,
+) -> None:
+    """Continuously poll Loki for new browser console log entries."""
+    query = _build_browser_log_query(level, user, search)
+    print(f"{C_BOLD}Following client logs: {query}{C_RESET}")
+    print(f"{C_DIM}Press Ctrl+C to stop{C_RESET}")
+    print()
+
+    latest_ns = await _query_browser_logs_loki(since_minutes, limit, level, user, search, as_json)
+
+    while True:
+        await asyncio.sleep(FOLLOW_POLL_INTERVAL_SECONDS)
+        start_from = (latest_ns + 1) if latest_ns else None
+        if start_from is None:
+            new_latest = await _query_browser_logs_loki(since_minutes, limit, level, user, search, as_json)
+        else:
+            new_latest = await _query_browser_logs_loki(
+                since_minutes, limit, level, user, search, as_json, start_ns=start_from
+            )
+        if new_latest:
+            latest_ns = new_latest
+
+
+async def run_browser_logs_mode(args) -> None:
+    """
+    Browser console log mode — query Loki for admin browser console logs.
+
+    Supports --prod to fall back to the Admin Debug API when local Loki
+    has no results (or when explicitly requested for production data).
+    """
+    since = getattr(args, 'since', BROWSER_LOG_DEFAULT_SINCE_MINUTES)
+    limit = getattr(args, 'limit', BROWSER_LOG_DEFAULT_LIMIT)
+    level = getattr(args, 'level', None)
+    # In browser mode, --user is the admin username filter
+    user_filter = getattr(args, 'user', None)
+    search = getattr(args, 'search', None)
+    as_json = getattr(args, 'as_json', False)
+    use_prod = getattr(args, 'prod', False)
+
+    if getattr(args, 'follow', False):
+        try:
+            await _browser_log_follow_mode(since, limit, level, user_filter, search, as_json)
+        except KeyboardInterrupt:
+            print(f"\n{C_DIM}Stopped.{C_RESET}")
+        return
+
+    query = _build_browser_log_query(level, user_filter, search)
+    print(f"{C_DIM}Query: {query}  (last {since} min, limit {limit}){C_RESET}")
+    print()
+
+    latest_ns = await _query_browser_logs_loki(since, limit, level, user_filter, search, as_json)
+
+    if latest_ns is None and not as_json:
+        print(f"{C_DIM}No client console logs found for the given filters.{C_RESET}")
+        if not use_prod:
+            print(f"{C_DIM}Ensure an admin user has the app open in their browser.{C_RESET}")
+
+        # If --prod is set and local Loki had no results, try the Admin Debug API
+        if use_prod:
+            print(f"\n{C_YELLOW}Trying production via Admin Debug API...{C_RESET}")
+            await _browser_logs_prod_fallback(since, limit, level, user_filter, search, as_json)
+
+
+async def _browser_logs_prod_fallback(
+    since_minutes: int,
+    limit: int,
+    level: Optional[str],
+    user: Optional[str],
+    search: Optional[str],
+    as_json: bool,
+) -> None:
+    """Query browser console logs via the production Admin Debug API."""
+    api_key = await get_api_key_from_vault()
+
+    # Build search term — combine user and search filters
+    search_parts = []
+    if user:
+        search_parts.append(user)
+    if search:
+        search_parts.append(search)
+    search_pattern = "|".join(search_parts) if search_parts else "client-console"
+
+    params = {
+        "services": "promtail",  # Client console logs are forwarded via promtail
+        "lines": limit,
+        "since_minutes": min(since_minutes, 1440),
+        "search": search_pattern,
+    }
+
+    resp = await _prod_api_request("logs", api_key, params=params)
+    raw_logs = resp.get("logs", "")
+
+    if not raw_logs:
+        print(f"{C_DIM}No browser console logs found on production either.{C_RESET}")
+        return
+
+    if as_json:
+        print(json.dumps(resp, indent=2))
+    else:
+        print(f"\n{C_BOLD}Production browser console logs:{C_RESET}")
+        print(raw_logs)
+
+
+# ─── Satellite server log management ─────────────────────────────────────────
+# Fetches Docker logs from upload/preview servers via their admin-sidecar.
+
+async def _get_satellite_log_key(vault_path: str, vault_key: str, server_name: str) -> str:
+    """
+    Fetch a satellite server's admin log API key from the core Vault.
+
+    The key is stored under SECRET__{PROVIDER}__{KEY} convention and imported
+    into Vault by vault-setup.
+
+    Args:
+        vault_path:  Vault KV path (e.g. "kv/data/providers/upload_server")
+        vault_key:   Key within that path (e.g. "admin_log_api_key")
+        server_name: Human-readable name for error messages (e.g. "upload server")
+
+    Returns:
+        The API key string.
+    """
+    from backend.core.api.app.utils.secrets_manager import SecretsManager
+
+    secrets_manager = SecretsManager()
+    await secrets_manager.initialize()
+
+    try:
+        api_key = await secrets_manager.get_secret(vault_path, vault_key)
+        if not api_key:
+            print(
+                f"Error: Admin log key for {server_name} not found in Vault at "
+                f"{vault_path} (key: {vault_key})",
+                file=sys.stderr,
+            )
+            print("", file=sys.stderr)
+            print(f"To set up the {server_name} admin log key:", file=sys.stderr)
+            print(
+                '1. Generate a random secret: python3 -c "import secrets; print(secrets.token_hex(32))"',
+                file=sys.stderr,
+            )
+            if "upload" in server_name:
+                print(
+                    "2. Add to core server .env: SECRET__UPLOAD_SERVER__ADMIN_LOG_API_KEY=<key>",
+                    file=sys.stderr,
+                )
+                print("3. Add to upload VM's .env: ADMIN_LOG_API_KEY=<same-key>", file=sys.stderr)
+            else:
+                print(
+                    "2. Add to core server .env: SECRET__PREVIEW_SERVER__ADMIN_LOG_API_KEY=<key>",
+                    file=sys.stderr,
+                )
+                print("3. Add to preview VM's .env: ADMIN_LOG_API_KEY=<same-key>", file=sys.stderr)
+            print("4. Restart vault-setup: docker compose ... restart vault-setup", file=sys.stderr)
+            sys.exit(1)
+        return api_key
+    finally:
+        await secrets_manager.aclose()
+
+
+async def _fetch_satellite_logs(
+    url: str,
+    api_key: str,
+    services: Optional[str],
+    lines: int,
+    since: int,
+    search: Optional[str],
+) -> str:
+    """
+    Call the /admin/logs endpoint on a satellite server (upload or preview).
+
+    Args:
+        url:      Full URL of the admin logs endpoint.
+        api_key:  X-Admin-Log-Key secret.
+        services: Comma-separated service names (or None for default).
+        lines:    Number of log lines to return.
+        since:    Time window in minutes.
+        search:   Optional regex filter.
+
+    Returns:
+        Log output as plain text.
+    """
+    params: dict = {
+        "lines": lines,
+        "since_minutes": since,
+    }
+    if services:
+        params["services"] = services
+    if search:
+        params["search"] = search
+
+    headers = {"X-Admin-Log-Key": api_key}
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.get(url, headers=headers, params=params)
+
+        if response.status_code == 401:
+            print("Error: Invalid admin log API key", file=sys.stderr)
+            sys.exit(1)
+        elif response.status_code == 503:
+            print(
+                "Error: Admin logs endpoint not configured on the server "
+                "(ADMIN_LOG_API_KEY env var not set on the satellite VM)",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        elif response.status_code == 400:
+            print(f"Error: {response.text}", file=sys.stderr)
+            sys.exit(1)
+        elif response.status_code != 200:
+            print(f"Error: Server returned {response.status_code}", file=sys.stderr)
+            print(response.text, file=sys.stderr)
+            sys.exit(1)
+
+        return response.text
+
+    except httpx.ConnectError:
+        print(f"Error: Could not connect to {url}", file=sys.stderr)
+        sys.exit(1)
+    except httpx.TimeoutException:
+        print("Error: Request timed out (log fetch took > 60s)", file=sys.stderr)
+        sys.exit(1)
+
+
+async def run_upload_logs_mode(args) -> None:
+    """Fetch logs from the upload server (upload.openmates.org)."""
+    api_key = await _get_satellite_log_key(
+        vault_path="kv/data/providers/upload_server",
+        vault_key="admin_log_api_key",
+        server_name="upload server",
+    )
+
+    output = await _fetch_satellite_logs(
+        url=UPLOAD_SERVER_LOG_URL,
+        api_key=api_key,
+        services=getattr(args, 'services', None),
+        lines=getattr(args, 'lines', 200),
+        since=getattr(args, 'since', 60),
+        search=getattr(args, 'search', None),
+    )
+
+    if getattr(args, 'as_json', False):
+        print(json.dumps({"logs": output, "server": "upload"}))
+    else:
+        services_label = getattr(args, 'services', None) or "app-uploads"
+        since_val = getattr(args, 'since', 60)
+        print(f"=== Upload Server Logs [{services_label}] — last {since_val} min ===")
+        search_val = getattr(args, 'search', None)
+        if search_val:
+            print(f"Search pattern: {search_val}")
+        print()
+        print(output)
+
+
+async def run_preview_logs_mode(args) -> None:
+    """Fetch logs from the preview server (preview.openmates.org)."""
+    api_key = await _get_satellite_log_key(
+        vault_path="kv/data/providers/preview_server",
+        vault_key="admin_log_api_key",
+        server_name="preview server",
+    )
+
+    output = await _fetch_satellite_logs(
+        url=PREVIEW_SERVER_LOG_URL,
+        api_key=api_key,
+        services=getattr(args, 'services', None),
+        lines=getattr(args, 'lines', 200),
+        since=getattr(args, 'since', 60),
+        search=getattr(args, 'search', None),
+    )
+
+    if getattr(args, 'as_json', False):
+        print(json.dumps({"logs": output, "server": "preview"}))
+    else:
+        since_val = getattr(args, 'since', 60)
+        print(f"=== Preview Server Logs — last {since_val} min ===")
+        search_val = getattr(args, 'search', None)
+        if search_val:
+            print(f"Search pattern: {search_val}")
+        print()
+        print(output)
+
+
+# ─── Satellite server update management ──────────────────────────────────────
+# Triggers git pull + rebuild + restart on upload/preview servers.
+
+async def _trigger_satellite_update(
+    update_url: str,
+    status_url: str,
+    api_key: str,
+    server_name: str,
+    poll_timeout_s: int = 720,
+) -> None:
+    """
+    Call the POST /admin/update endpoint on a satellite server (upload or preview),
+    then poll GET /admin/update/status until the update completes or times out.
+
+    Args:
+        update_url:     Full URL of the /admin/update endpoint.
+        status_url:     Full URL of the /admin/update/status endpoint.
+        api_key:        X-Admin-Log-Key secret.
+        server_name:    Human-readable name for error messages (e.g. "upload server").
+        poll_timeout_s: Maximum seconds to wait for completion (default: 720 = 12 min).
+    """
+    import time as _time
+
+    headers = {"X-Admin-Log-Key": api_key}
+
+    # Step 1: trigger the update
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(update_url, headers=headers)
+
+        if response.status_code == 401:
+            print("Error: Invalid admin log API key", file=sys.stderr)
+            sys.exit(1)
+        elif response.status_code == 409:
+            print(f"Note: An update is already in progress on the {server_name}.")
+            print("Polling status until it completes...\n")
+        elif response.status_code == 503:
+            print(
+                "Error: Admin update endpoint not configured on the server "
+                "(ADMIN_LOG_API_KEY or SERVICE_UPDATE_TARGET not set on the satellite VM)",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        elif response.status_code == 404:
+            print("Note: This sidecar does not support status polling (old version).")
+            print("Update triggered. Check logs manually with *-logs command.")
+            return
+        elif response.status_code != 202:
+            print(f"Error: Server returned {response.status_code}", file=sys.stderr)
+            print(response.text, file=sys.stderr)
+            sys.exit(1)
+        else:
+            try:
+                data = response.json()
+                print(data.get("message", "Update accepted (202). Polling for completion...\n"))
+            except Exception:
+                print("Update accepted (202). Polling for completion...\n")
+
+    except httpx.ConnectError:
+        print(f"Error: Could not connect to {update_url}", file=sys.stderr)
+        sys.exit(1)
+    except httpx.TimeoutException:
+        print("Error: Request timed out", file=sys.stderr)
+        sys.exit(1)
+
+    # Step 2: poll /admin/update/status until done
+    poll_interval_s = 10
+    deadline = _time.monotonic() + poll_timeout_s
+    dots = 0
+
+    while _time.monotonic() < deadline:
+        await asyncio.sleep(poll_interval_s)
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                status_resp = await client.get(status_url, headers=headers)
+        except (httpx.ConnectError, httpx.TimeoutException):
+            dots += 1
+            print(f"  [{dots * poll_interval_s}s] Waiting for server to come back...", flush=True)
+            continue
+
+        if status_resp.status_code == 404:
+            print("\n  Server restarted with fresh sidecar (no update record — rebuild likely succeeded).")
+            print("  Verify by checking logs: upload-logs --services admin-sidecar --since 5")
+            return
+
+        if status_resp.status_code not in (200, 404):
+            dots += 1
+            print(f"  [{dots * poll_interval_s}s] Status poll returned HTTP {status_resp.status_code} — retrying...")
+            continue
+
+        try:
+            status_data = status_resp.json()
+        except Exception:
+            dots += 1
+            print(f"  [{dots * poll_interval_s}s] Could not parse status response — retrying...")
+            continue
+
+        status = status_data.get("status", "unknown")
+
+        if status == "in_progress":
+            dots += 1
+            print(f"  [{dots * poll_interval_s}s] Update in progress...", flush=True)
+            continue
+
+        _print_update_status(status_data, server_name)
+        if status != "success":
+            sys.exit(1)
+        return
+
+    print(
+        f"\nError: Update did not complete within {poll_timeout_s}s. "
+        "Check logs manually with *-logs --services admin-sidecar.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+
+def _print_update_status(data: dict, server_name: str) -> None:
+    """Pretty-print a completed update status response."""
+    status = data.get("status", "unknown")
+    icon = "✓" if status == "success" else "✗"
+    print(f"\n{icon} Update {status.upper()} on {server_name}")
+    print(f"  Started:  {data.get('started_at', 'N/A')}")
+    print(f"  Finished: {data.get('finished_at', 'N/A')}")
+    print(f"  Duration: {data.get('duration_s', '?')}s")
+    print(f"  Target:   {data.get('target', 'N/A')}")
+    if data.get("extras"):
+        print(f"  Extras:   {', '.join(data['extras'])}")
+    steps = data.get("steps", [])
+    if steps:
+        print("\n  Steps:")
+        for step in steps:
+            step_icon = "✓" if step.get("success") else "✗"
+            print(f"    {step_icon} {step.get('name')}  ({step.get('duration_s', '?')}s)")
+            if not step.get("success") and step.get("output"):
+                output_tail = step["output"][-600:].strip()
+                if output_tail:
+                    for line in output_tail.splitlines():
+                        print(f"         {line}")
+    if data.get("error"):
+        print(f"\n  Error: {data['error']}")
+
+
+async def _fetch_satellite_status(status_url: str, api_key: str, server_name: str) -> None:
+    """Fetch and display the current/last update status from a satellite server."""
+    headers = {"X-Admin-Log-Key": api_key}
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.get(status_url, headers=headers)
+    except httpx.ConnectError:
+        print(f"Error: Could not connect to {status_url}", file=sys.stderr)
+        sys.exit(1)
+    except httpx.TimeoutException:
+        print("Error: Request timed out", file=sys.stderr)
+        sys.exit(1)
+
+    if response.status_code == 401:
+        print("Error: Invalid admin log API key", file=sys.stderr)
+        sys.exit(1)
+    elif response.status_code == 404:
+        try:
+            data = response.json()
+            if data.get("status") == "never_run":
+                print(f"No update has run on {server_name} since the sidecar last started.")
+                return
+        except Exception:
+            pass
+        print("Error: Status endpoint returned 404 — sidecar may be an older version", file=sys.stderr)
+        sys.exit(1)
+    elif response.status_code != 200:
+        print(f"Error: Server returned {response.status_code}", file=sys.stderr)
+        print(response.text, file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        data = response.json()
+    except Exception:
+        print("Error: Could not parse status response", file=sys.stderr)
+        sys.exit(1)
+
+    status = data.get("status", "unknown")
+    if status == "in_progress":
+        print(f"Update is currently IN PROGRESS on {server_name}.")
+        print(f"  Target: {data.get('target', 'N/A')}")
+        if data.get("extras"):
+            print(f"  Extras: {', '.join(data['extras'])}")
+        print("\nPoll again in a few seconds, or check sidecar logs:")
+        print("  upload-logs --services admin-sidecar --since 5")
+    else:
+        _print_update_status(data, server_name)
+
+
+async def run_upload_update_mode(args) -> None:
+    """Trigger a full self-update of the upload server (git pull + rebuild + restart)."""
+    api_key = await _get_satellite_log_key(
+        vault_path="kv/data/providers/upload_server",
+        vault_key="admin_log_api_key",
+        server_name="upload server",
+    )
+    print("=== Triggering update on upload server ===\n")
+    await _trigger_satellite_update(
+        update_url=UPLOAD_SERVER_UPDATE_URL,
+        status_url=UPLOAD_SERVER_STATUS_URL,
+        api_key=api_key,
+        server_name="upload server",
+    )
+
+
+async def run_preview_update_mode(args) -> None:
+    """Trigger a full self-update of the preview server (git pull + rebuild + restart)."""
+    api_key = await _get_satellite_log_key(
+        vault_path="kv/data/providers/preview_server",
+        vault_key="admin_log_api_key",
+        server_name="preview server",
+    )
+    print("=== Triggering update on preview server ===\n")
+    await _trigger_satellite_update(
+        update_url=PREVIEW_SERVER_UPDATE_URL,
+        status_url=PREVIEW_SERVER_STATUS_URL,
+        api_key=api_key,
+        server_name="preview server",
+    )
+
+
+async def run_upload_status_mode(args) -> None:
+    """Poll the current/last update status on the upload server."""
+    api_key = await _get_satellite_log_key(
+        vault_path="kv/data/providers/upload_server",
+        vault_key="admin_log_api_key",
+        server_name="upload server",
+    )
+    print("=== Upload Server Update Status ===\n")
+    await _fetch_satellite_status(
+        status_url=UPLOAD_SERVER_STATUS_URL,
+        api_key=api_key,
+        server_name="upload server",
+    )
+
+
+async def run_preview_status_mode(args) -> None:
+    """Poll the current/last update status on the preview server."""
+    api_key = await _get_satellite_log_key(
+        vault_path="kv/data/providers/preview_server",
+        vault_key="admin_log_api_key",
+        server_name="preview server",
+    )
+    print("=== Preview Server Update Status ===\n")
+    await _fetch_satellite_status(
+        status_url=PREVIEW_SERVER_STATUS_URL,
+        api_key=api_key,
+        server_name="preview server",
+    )
+
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 async def main():
     parser = argparse.ArgumentParser(
-        description="Unified user activity timeline — combine all log sources for a single user"
+        description="Unified log tool — user timeline, browser console logs, satellite server management",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("email", help="User email address")
-    parser.add_argument("--since", type=int, default=DEFAULT_SINCE_MINUTES,
-                        help=f"Minutes to look back (default: {DEFAULT_SINCE_MINUTES})")
-    parser.add_argument("--category", type=str, default=None,
-                        help="Filter by category (comma-separated: auth,chat,sync,embed,usage,settings,client,error)")
-    parser.add_argument("--level", type=str, default=None,
-                        choices=["debug", "info", "warning", "error"],
-                        help="Minimum log level to show")
-    parser.add_argument("--chat-id", type=str, default=None,
-                        help="Filter by specific chat ID")
+    # Positional email — optional (not needed for --browser, satellite modes)
+    parser.add_argument("email", nargs="?", default=None,
+                        help="User email address (required for user timeline mode)")
+
+    # Mode selectors
+    parser.add_argument("--browser", action="store_true",
+                        help="Browser console log mode — query admin browser logs (no email needed)")
+    parser.add_argument("--upload-logs", action="store_true", dest="upload_logs",
+                        help="Fetch Docker logs from the upload server")
+    parser.add_argument("--preview-logs", action="store_true", dest="preview_logs",
+                        help="Fetch Docker logs from the preview server")
+    parser.add_argument("--upload-update", action="store_true", dest="upload_update",
+                        help="Trigger git pull + rebuild on the upload server")
+    parser.add_argument("--preview-update", action="store_true", dest="preview_update",
+                        help="Trigger git pull + rebuild on the preview server")
+    parser.add_argument("--upload-status", action="store_true", dest="upload_status",
+                        help="Poll last update status on the upload server")
+    parser.add_argument("--preview-status", action="store_true", dest="preview_status",
+                        help="Poll last update status on the preview server")
+
+    # Shared options
+    parser.add_argument("--since", type=int, default=None,
+                        help="Minutes to look back (default: 1440 for timeline, 30 for browser, 60 for satellite)")
     parser.add_argument("--json", action="store_true", dest="as_json",
                         help="Output as JSON")
-    parser.add_argument("--verbose", action="store_true",
-                        help="Show raw log lines alongside parsed events")
     parser.add_argument("--follow", action="store_true",
                         help="Poll for new events every 5s (Ctrl+C to stop)")
     parser.add_argument("--prod", action="store_true",
                         help="Query production server (via Admin Debug API) instead of dev")
+
+    # User timeline options
+    parser.add_argument("--category", type=str, default=None,
+                        help="Filter by category (comma-separated: auth,chat,sync,embed,usage,settings,client,error)")
+    parser.add_argument("--level", type=str, default=None,
+                        choices=["debug", "info", "warn", "warning", "error"],
+                        help="Minimum log level to show")
+    parser.add_argument("--chat-id", type=str, default=None,
+                        help="Filter by specific chat ID")
+    parser.add_argument("--verbose", action="store_true",
+                        help="Show raw log lines alongside parsed events")
+
+    # Browser log options
+    parser.add_argument("--user", type=str, default=None,
+                        help="Filter browser logs by admin username (browser mode only)")
+    parser.add_argument("--search", type=str, default=None,
+                        help="Search log message content (browser/satellite modes)")
+    parser.add_argument("--limit", type=int, default=None,
+                        help="Max log entries (default: 200 for browser, 200 for satellite)")
+
+    # Satellite log options
+    parser.add_argument("--services", type=str, default=None,
+                        help="Comma-separated service names (satellite log modes)")
+    parser.add_argument("--lines", type=int, default=None,
+                        help="Number of log lines (satellite modes, default: 200)")
+
     args = parser.parse_args()
+
+    # ── Route to the correct mode ────────────────────────────────────────────
+
+    # Satellite update/status modes (no log querying — just trigger/poll)
+    if args.upload_update:
+        await run_upload_update_mode(args)
+        return
+    if args.preview_update:
+        await run_preview_update_mode(args)
+        return
+    if args.upload_status:
+        await run_upload_status_mode(args)
+        return
+    if args.preview_status:
+        await run_preview_status_mode(args)
+        return
+
+    # Satellite log modes
+    if args.upload_logs:
+        if args.since is None:
+            args.since = 60
+        if args.lines is None:
+            args.lines = 200
+        await run_upload_logs_mode(args)
+        return
+    if args.preview_logs:
+        if args.since is None:
+            args.since = 60
+        if args.lines is None:
+            args.lines = 200
+        await run_preview_logs_mode(args)
+        return
+
+    # Browser console log mode
+    if args.browser:
+        if args.since is None:
+            args.since = BROWSER_LOG_DEFAULT_SINCE_MINUTES
+        if args.limit is None:
+            args.limit = BROWSER_LOG_DEFAULT_LIMIT
+        await run_browser_logs_mode(args)
+        return
+
+    # ── User timeline mode (requires email) ──────────────────────────────────
+    if not args.email:
+        parser.error(
+            "email is required for user timeline mode.\n"
+            "Use --browser for browser console logs, or --upload-logs / --preview-logs "
+            "for satellite server logs."
+        )
+
+    if args.since is None:
+        args.since = DEFAULT_SINCE_MINUTES
 
     # Production mode — route all queries through the Admin Debug API
     if args.prod:

@@ -4,8 +4,8 @@ Script to inspect user data including metadata, decrypted fields, counts of rela
 recent activities, cache status, and daily inspiration state.
 
 Usage:
-    docker exec -it api python /app/backend/scripts/inspect_user.py <email_address>
-    docker exec -it api python /app/backend/scripts/inspect_user.py user@example.com
+    docker exec -it api python /app/backend/scripts/debug.py user <email_address>
+    docker exec -it api python /app/backend/scripts/debug.py user user@example.com
 
 Options:
     --json              Output as JSON instead of formatted text
@@ -36,7 +36,7 @@ from debug_utils import (
     hash_user_id,
 )
 
-script_logger = configure_script_logging('inspect_user')
+script_logger = configure_script_logging('debug_user')
 
 
 async def decrypt_fields(encryption_service: EncryptionService, data: Dict[str, Any], vault_key_id: str) -> Dict[str, Any]:

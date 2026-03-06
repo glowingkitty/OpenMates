@@ -760,3 +760,39 @@ async def replay_request(request_id: str) -> None:
     except Exception as exc:
         print(_err(f"  Replay failed: {exc}"))
         print()
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  CLI entry point — called by debug.py via _delegate()
+# ═════════════════════════════════════════════════════════════════════════════
+
+async def _async_main():
+    """Parse subcommand (health/replay/errors) and dispatch."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Health, replay, and errors")
+    sub = parser.add_subparsers(dest="command")
+
+    health_p = sub.add_parser("health", help="System health check")
+    health_p.add_argument("-v", "--verbose", action="store_true")
+
+    replay_p = sub.add_parser("replay", help="Replay request trace from Loki")
+    replay_p.add_argument("request_id", help="Request ID")
+
+    errors_p = sub.add_parser("errors", help="Top error fingerprints")
+    errors_p.add_argument("--top", type=int, default=10)
+
+    args = parser.parse_args()
+
+    if args.command == "health":
+        await run_health_check(verbose=args.verbose)
+    elif args.command == "replay":
+        await replay_request(request_id=args.request_id)
+    elif args.command == "errors":
+        await show_error_fingerprints(top=args.top)
+    else:
+        await run_health_check(verbose=False)
+
+
+async def main():
+    await _async_main()

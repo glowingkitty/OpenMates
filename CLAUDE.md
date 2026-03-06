@@ -327,9 +327,9 @@ See `docs/claude/backend-standards.md` → "Package and Dependency Management" a
 ### Issue Resolution
 
 - **After an issue is completed and the user confirms it is fixed**, delete the issue entry so it no longer appears in the list and storage is cleaned (Directus + S3). Use one of:
-  - **Server (preferred):** `docker exec api python /app/backend/scripts/inspect_issue.py <issue_id> --delete --yes`
+  - **Server (preferred):** `docker exec api python /app/backend/scripts/debug.py issue <issue_id> --delete --yes`
   - **Admin Debug API:** `DELETE /v1/admin/debug/issues/<issue_id>` with admin API key
-  - **Admin Debug CLI:** `docker exec api python /app/backend/scripts/admin_debug_cli.py issue-delete <issue_id>`
+  - **debug.py:** `docker exec api python /app/backend/scripts/debug.py issue --delete <issue_id>`
 
 ### Multiple Assistants (Concurrent Work)
 
@@ -422,19 +422,19 @@ Use the Read tool to load each matching file from `docs/claude/`. Do this BEFORE
 - The user reports a bug, error, or unexpected behavior
 - You need to read Docker logs or troubleshoot a service
 - The task involves investigating why something doesn't work
-- **You need to debug a production issue** (CRITICAL: use Admin Debug CLI, not local docker compose)
+- **You need to debug a production issue** (CRITICAL: use debug.py, not local docker compose)
 - A Vercel deployment failed or the frontend is broken after a push
 
 > **Default assumption:** All reported issues are on the **dev server**, reported by an **admin**, unless the user explicitly states otherwise.
 
-#### `docs/claude/inspection-scripts.md`
+#### `docs/claude/debugging.md` (also covers inspection)
 
 **MUST READ when ANY of these are true:**
 
 - You need to inspect server state (chats, users, issues, cache, AI requests)
 - You need to run diagnostic commands on the running services
 - The user asks you to check or look up data on the server
-- You need to debug production server state remotely (use Admin Debug CLI)
+- You need to debug production server state remotely (use debug.py)
 
 #### `docs/claude/git-and-deployment.md`
 
