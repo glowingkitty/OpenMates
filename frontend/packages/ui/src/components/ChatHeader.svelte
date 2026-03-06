@@ -641,7 +641,7 @@
        enter keyframe (ends at opacity:1 not 0.4) + shared decoFloat loop */
     animation:
       incognitoDecoEnter 0.6s ease-out 0.1s both,
-      incognitoDecoFloat 6s ease-in-out 0.7s infinite;
+      incognitoDecoFloat 10s ease-in-out 0.7s infinite;
   }
 
   @keyframes incognitoDecoEnter {
@@ -687,7 +687,7 @@
        so the icon hovers up and down within a ~14px range after arrival. */
     animation:
       decoIconEnter 0.6s ease-out 0.1s both,
-      decoFloat 6s ease-in-out 0.7s infinite;
+      decoFloat 10s ease-in-out 0.7s infinite;
   }
 
   .deco-icon-left {
@@ -700,9 +700,9 @@
     right: calc(50% - 240px - 106px);
     bottom: -15px;
     --deco-rotate: 15deg;
-    /* Offset the float phase by half a cycle so left and right hover
-       in opposite directions — one rises while the other sinks */
-    animation-delay: 0.1s, 3.7s;
+    /* Offset the float phase by half a cycle (5s = 10s/2) so left and right
+       hover in opposite directions — one rises while the other sinks */
+    animation-delay: 0.1s, 5.7s;
   }
 
   @keyframes decoIconEnter {

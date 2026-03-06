@@ -144,12 +144,25 @@
   /** Currently displayed inspiration. */
   let current = $derived(inspirations[currentIndex] ?? null);
 
-  /** Background gradient style string for the current card. */
+  /** Background gradient style string for the current card.
+   *  Also emits --orb-color-a (start/outer) and --orb-color-b (end/inner) as
+   *  CSS custom properties consumed by the living gradient orb animation — same
+   *  technique as ChatHeader.svelte. */
   let gradientStyle = $derived.by(() => {
     if (!current) return '';
     const colors = getCategoryGradientColors(current.category);
-    if (!colors) return 'background: linear-gradient(135deg, #1a237e, #3949ab)';
-    return `background: linear-gradient(135deg, ${colors.start}, ${colors.end})`;
+    if (!colors) {
+      return [
+        'background: linear-gradient(135deg, #1a237e, #3949ab)',
+        '--orb-color-a: #1a237e',
+        '--orb-color-b: #3949ab',
+      ].join(';');
+    }
+    return [
+      `background: linear-gradient(135deg, ${colors.start}, ${colors.end})`,
+      `--orb-color-a: ${colors.start}`,
+      `--orb-color-b: ${colors.end}`,
+    ].join(';');
   });
 
   /** Whether multiple inspirations are available (show arrows). */
@@ -316,6 +329,17 @@
       tabindex="0"
       aria-label={current.phrase}
     >
+      <!-- ── Living gradient orbs — same Creative Code technique as ChatHeader.svelte.
+           Three soft radial-gradient blobs morph shape and drift behind all content.
+           --orb-color-b blooms from each orb center, fading to transparent against
+           the --orb-color-a background. Heavy blur + no blend mode = visible color glow.
+           Prime durations keep the three orbs permanently out of sync. ── -->
+      <div class="banner-orbs" aria-hidden="true">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+      </div>
+
       <!-- ── Large decorative category icons at left and right edges (126×126px, 0.4 opacity).
            These sit outside .banner-inner so they are not constrained by the 680px inner width.
            On smaller viewports they will be partially clipped by overflow:hidden — intentional. ── -->
@@ -697,13 +721,119 @@
     border-radius: 10px 0 0 10px !important; /* rounded on the left (inner) side */
   }
 
-  /* ── Large decorative icons at banner edges ──
-     Mirrors the .deco-icon treatment in ChatHeader.svelte.
-     Positioned absolutely outside .banner-inner (which has max-width 680px),
-     so they sit at the edges of the full-width card.
-     overflow:hidden on .daily-inspiration-banner clips them at the card boundary,
-     which is acceptable — they're purely decorative visual texture.
-     Entrance animation: fade up from +50px below, settles at 0.4 opacity. */
+  /* ── Living gradient orbs ─────────────────────────────────────────────────
+     Identical technique to ChatHeader.svelte — see that file for full design
+     rationale. CSS custom properties --orb-color-a / --orb-color-b are set
+     by the gradientStyle derived value in the script block above. */
+
+  .banner-orbs {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .orb {
+    position: absolute;
+    width: 480px;
+    height: 420px;
+    background: radial-gradient(
+      ellipse at center,
+      var(--orb-color-b) 0%,
+      var(--orb-color-b) 40%,
+      transparent 85%
+    );
+    filter: blur(28px);
+    opacity: 0.55;
+    will-change: transform, border-radius;
+  }
+
+  .orb-1 {
+    top: -80px;
+    left: -100px;
+    animation:
+      orbMorph1 11s ease-in-out infinite,
+      orbDrift1 19s ease-in-out infinite;
+  }
+
+  .orb-2 {
+    bottom: -120px;
+    right: -120px;
+    width: 460px;
+    height: 400px;
+    animation:
+      orbMorph2 13s ease-in-out infinite,
+      orbDrift2 23s ease-in-out infinite;
+  }
+
+  .orb-3 {
+    top: -20px;
+    left: 25%;
+    width: 340px;
+    height: 300px;
+    opacity: 0.38;
+    animation:
+      orbMorph3 17s ease-in-out infinite,
+      orbDrift3 29s ease-in-out infinite;
+  }
+
+  @keyframes orbMorph1 {
+    0%   { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+    25%  { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
+    50%  { border-radius: 50% 50% 33% 67% / 55% 27% 73% 45%; }
+    75%  { border-radius: 33% 67% 45% 55% / 30% 70% 35% 65%; }
+    100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+  }
+
+  @keyframes orbMorph2 {
+    0%   { border-radius: 40% 60% 60% 40% / 40% 40% 60% 60%; }
+    33%  { border-radius: 65% 35% 40% 60% / 60% 45% 55% 40%; }
+    66%  { border-radius: 35% 65% 55% 45% / 45% 55% 40% 60%; }
+    100% { border-radius: 40% 60% 60% 40% / 40% 40% 60% 60%; }
+  }
+
+  @keyframes orbMorph3 {
+    0%   { border-radius: 55% 45% 38% 62% / 48% 58% 42% 52%; }
+    20%  { border-radius: 42% 58% 62% 38% / 55% 38% 62% 45%; }
+    40%  { border-radius: 68% 32% 45% 55% / 40% 65% 35% 60%; }
+    60%  { border-radius: 38% 62% 55% 45% / 62% 42% 58% 38%; }
+    80%  { border-radius: 52% 48% 32% 68% / 35% 55% 45% 65%; }
+    100% { border-radius: 55% 45% 38% 62% / 48% 58% 42% 52%; }
+  }
+
+  @keyframes orbDrift1 {
+    0%   { transform: translate(0px,    0px); }
+    25%  { transform: translate(130px,  60px); }
+    50%  { transform: translate(160px,  10px); }
+    75%  { transform: translate(60px,  100px); }
+    100% { transform: translate(0px,    0px); }
+  }
+
+  @keyframes orbDrift2 {
+    0%   { transform: translate(0px,    0px); }
+    30%  { transform: translate(-140px, -50px); }
+    60%  { transform: translate(-80px, -130px); }
+    85%  { transform: translate(-160px, -30px); }
+    100% { transform: translate(0px,    0px); }
+  }
+
+  @keyframes orbDrift3 {
+    0%   { transform: translate(0px,   0px); }
+    20%  { transform: translate(-90px, 50px); }
+    45%  { transform: translate(80px,  80px); }
+    70%  { transform: translate(-40px, -70px); }
+    100% { transform: translate(0px,   0px); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .orb { animation: none !important; }
+  }
+
+  /* ── Large decorative icons at banner edges ────────────────────────────────
+     Mirrors ChatHeader.svelte exactly: two-phase animation — decoIconEnter
+     (one-shot entrance) chains into decoFloat (continuous 10s hover loop).
+     Left and right are half a cycle apart (5s offset) so they move opposite. */
   .deco-icon {
     position: absolute;
     width: 126px;
@@ -713,23 +843,23 @@
     justify-content: center;
     z-index: 1;
     pointer-events: none;
-    animation: decoIconEnter 0.6s ease-out 0.1s both;
+    animation:
+      decoIconEnter 0.6s ease-out 0.1s both,
+      decoFloat 10s ease-in-out 0.7s infinite;
   }
 
   .deco-icon-left {
-    /* Anchored just outside the center content block (max-width 680px, half=340px).
-       Offset inward by 20px so the icon sits close to the content edge. */
     left: calc(50% - 340px - 106px);
     bottom: -15px;
-    transform: rotate(-15deg);
     --deco-rotate: -15deg;
   }
 
   .deco-icon-right {
     right: calc(50% - 340px - 106px);
     bottom: -15px;
-    transform: rotate(15deg);
     --deco-rotate: 15deg;
+    /* Half-cycle offset so left rises while right sinks and vice versa */
+    animation-delay: 0.1s, 5.7s;
   }
 
   @keyframes decoIconEnter {
@@ -739,7 +869,21 @@
     }
     to {
       opacity: 0.4;
-      transform: translateY(0) rotate(var(--deco-rotate, 0deg));
+      transform: translateY(0px) rotate(var(--deco-rotate, 0deg));
+    }
+  }
+
+  @keyframes decoFloat {
+    0%   { opacity: 0.4;  transform: translateY(0px)   rotate(var(--deco-rotate, 0deg)); }
+    25%  { opacity: 0.45; transform: translateY(-10px) rotate(calc(var(--deco-rotate, 0deg) + 3deg)); }
+    50%  { opacity: 0.4;  transform: translateY(-14px) rotate(var(--deco-rotate, 0deg)); }
+    75%  { opacity: 0.45; transform: translateY(-6px)  rotate(calc(var(--deco-rotate, 0deg) - 3deg)); }
+    100% { opacity: 0.4;  transform: translateY(0px)   rotate(var(--deco-rotate, 0deg)); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .deco-icon {
+      animation: decoIconEnter 0.6s ease-out 0.1s both !important;
     }
   }
 
