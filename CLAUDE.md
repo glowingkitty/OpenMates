@@ -224,7 +224,7 @@ Rules: use the emoji headers exactly as shown. For bug fixes, always include the
 - **ALWAYS commit and push to `dev` after completing a feature or bug fix** — do not wait for the user to ask.
 - Only add files you actually modified in the current session (never `git add .`).
 - Run the linter and fix all errors before committing.
-- Run the linter (`lint_changed.sh`) and fix all errors before committing — this covers TypeScript, Svelte, and ESLint checks. For significant routing, adapter, or Vite config changes, also run `pnpm build` in `frontend/apps/web_app/` to catch bundler-level errors.
+- Run the linter (`lint_changed.sh`) and fix all errors before committing — this covers TypeScript, Svelte, ESLint, and YAML syntax checks. For significant routing, adapter, or Vite config changes, also run `pnpm build` in `frontend/apps/web_app/` to catch bundler-level errors.
 - **When a commit resolves or attempts to fix a reported issue**, include the issue ID and a short anonymous description in the commit body (no PII — no emails, usernames, or user IDs). See `docs/claude/git-and-deployment.md` → "Issue-Linked Commits" for format.
 - See `docs/claude/git-and-deployment.md` for commit message format and full workflow.
 
@@ -541,6 +541,9 @@ Use the Read tool to load each matching file from `docs/claude/`. Do this BEFORE
 
 # Frontend changes
 ./scripts/lint_changed.sh --ts --svelte --path frontend/packages/ui
+
+# i18n / YAML changes
+./scripts/lint_changed.sh --yml --path frontend/packages/ui/src/i18n
 
 # Mixed changes
 ./scripts/lint_changed.sh --py --ts --svelte --path backend --path frontend/
