@@ -18,6 +18,147 @@ from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 logger = logging.getLogger(__name__)
 
 
+def extract_available_skills(
+    discovered_apps: Dict[str, AppYAML],
+) -> List[Dict[str, str]]:
+    """
+    Extract a compact list of all production-stage skills from discovered apps.
+
+    These are injected into the postprocessor system prompt so the LLM can
+    generate structured suggestions with valid [app_id-skill_id] prefixes.
+
+    Args:
+        discovered_apps: Dictionary of discovered app metadata (app_id -> AppYAML)
+
+    Returns:
+        List of skill dicts: [{"id": "web-search", "hint": "..."}, ...]
+    """
+    skills = []
+
+    for app_id, app_metadata in discovered_apps.items():
+        if not app_metadata.skills:
+            continue
+
+        for skill in app_metadata.skills:
+            if getattr(skill, "stage", "development") != "production":
+                continue
+            # Skip internal skills (auto-invoked, not user-facing)
+            if getattr(skill, "internal", False):
+                continue
+
+            skill_id = f"{app_id}-{skill.id}"
+            hint = getattr(skill, "preprocessor_hint", None) or ""
+            # Truncate hint to keep context compact
+            if len(hint) > 150:
+                hint = hint[:147] + "..."
+
+            skills.append({"id": skill_id, "hint": hint})
+
+    logger.debug(f"[PostProcessor] Extracted {len(skills)} production-stage skills")
+    return skills
+
+
+def extract_available_focus_modes(
+    discovered_apps: Dict[str, AppYAML],
+) -> List[Dict[str, str]]:
+    """
+    Extract a compact list of all production-stage focus modes from discovered apps.
+
+    These are injected into the postprocessor system prompt so the LLM can
+    generate structured suggestions with valid [app_id-focus_id] prefixes.
+
+    Args:
+        discovered_apps: Dictionary of discovered app metadata (app_id -> AppYAML)
+
+    Returns:
+        List of focus mode dicts: [{"id": "jobs-career_insights", "hint": "..."}, ...]
+    """
+    focus_modes = []
+
+    for app_id, app_metadata in discovered_apps.items():
+        if not app_metadata.focuses:
+            continue
+
+        for focus in app_metadata.focuses:
+            if getattr(focus, "stage", None) != "production":
+                continue
+
+            focus_id = f"{app_id}-{focus.id}"
+            hint = getattr(focus, "preprocessor_hint", None) or ""
+            if len(hint) > 150:
+                hint = hint[:147] + "..."
+
+            focus_modes.append({"id": focus_id, "hint": hint})
+
+    logger.debug(f"[PostProcessor] Extracted {len(focus_modes)} production-stage focus modes")
+    return focus_modes
+
+
+def sanitize_suggestions(
+    suggestions: List[str],
+    valid_skill_ids: set,
+    valid_focus_ids: set,
+    valid_memory_ids: set,
+    allow_memory_prefixes: bool,
+    task_id: str,
+) -> List[str]:
+    """
+    Post-LLM sanitizer: validate and clean suggestions that may carry [app_id-X] prefixes.
+
+    Rules:
+    - If a suggestion starts with [prefix], check that prefix is in the valid set.
+    - Invalid prefixes are stripped (the body text is kept so the suggestion isn't lost).
+    - Memory prefixes are only allowed in follow-up suggestions (allow_memory_prefixes=True).
+    - Suggestions that are empty after stripping are dropped.
+
+    Args:
+        suggestions: Raw suggestion strings from the LLM
+        valid_skill_ids: Set of valid "app_id-skill_id" strings
+        valid_focus_ids: Set of valid "app_id-focus_id" strings
+        valid_memory_ids: Set of valid "app_id-memory_id" strings (dot-notation converted)
+        allow_memory_prefixes: Whether memory prefixes are allowed in this suggestion list
+        task_id: Task ID for logging
+
+    Returns:
+        Cleaned list of suggestion strings (same count or fewer if some were blank after strip)
+    """
+    import re
+
+    # All valid prefixes for this call
+    all_valid = valid_skill_ids | valid_focus_ids
+    if allow_memory_prefixes:
+        all_valid = all_valid | valid_memory_ids
+
+    PREFIX_RE = re.compile(r"^\[([^\]]+)\]\s*")
+
+    cleaned = []
+    for raw in suggestions:
+        if not isinstance(raw, str) or not raw.strip():
+            continue
+
+        m = PREFIX_RE.match(raw)
+        if m:
+            prefix = m.group(1).strip()
+            body = raw[m.end():].strip()
+
+            if prefix in all_valid:
+                # Valid prefix — keep as-is
+                cleaned.append(raw.strip())
+            else:
+                # Invalid/hallucinated prefix — strip the bracket tag, keep body text
+                logger.warning(
+                    f"[Task ID: {task_id}] [PostProcessor] Stripped unknown prefix "
+                    f"'[{prefix}]' from suggestion (not in valid set). Body kept: '{body[:60]}'"
+                )
+                if body:
+                    cleaned.append(body)
+        else:
+            # No prefix — plain suggestion, always keep
+            cleaned.append(raw.strip())
+
+    return cleaned
+
+
 def extract_settings_memory_categories(
     discovered_apps: Dict[str, AppYAML],
     translation_service: Optional[Any] = None
@@ -170,6 +311,8 @@ async def handle_postprocessing(
     cache_service: CacheService,
     available_app_ids: List[str],
     available_settings_memory_categories: List[Dict[str, str]],
+    available_skills: Optional[List[Dict[str, str]]] = None,
+    available_focus_modes: Optional[List[Dict[str, str]]] = None,
     is_incognito: bool = False,
     output_language: str = "en",
     user_system_language: str = "en",
@@ -195,6 +338,10 @@ async def handle_postprocessing(
         available_app_ids: List of available app IDs in the system (required for validation)
         available_settings_memory_categories: List of available categories with descriptions
             Format: [{"id": "code.preferred_tech", "description": "Technologies user prefers"}, ...]
+        available_skills: Optional list of production skills for suggestion prefix generation.
+            Format: [{"id": "web-search", "hint": "..."}, ...] (app_id-skill_id)
+        available_focus_modes: Optional list of production focus modes for suggestion prefix generation.
+            Format: [{"id": "jobs-career_insights", "hint": "..."}, ...] (app_id-focus_id)
         output_language: ISO 639-1 code of the chat/conversation language (detected by preprocessor).
             Used for generating follow-up suggestions in the same language as the conversation.
         user_system_language: ISO 639-1 code of the user's UI/system language (from user profile).
@@ -251,6 +398,52 @@ async def handle_postprocessing(
     else:
         settings_memory_context = ""
 
+    # Build skill/focus context so the LLM can generate [app_id-skill_id] prefixed suggestions.
+    # We keep this compact — just ID + one-line hint per item.
+    if available_skills:
+        skills_lines = "\n".join(
+            f"- {s['id']}: {s['hint']}" if s.get("hint") else f"- {s['id']}"
+            for s in available_skills
+        )
+        skills_context = (
+            f"\n\nAvailable skill IDs for suggestion prefixes (format: app_id-skill_id):\n"
+            f"{skills_lines}\n"
+            "Use these IDs as [prefix] in suggestions when the skill is clearly relevant. "
+            "Only use IDs from this list. Aim for at least 2-3 skill/focus prefixed suggestions."
+        )
+    else:
+        skills_context = ""
+
+    if available_focus_modes:
+        focus_lines = "\n".join(
+            f"- {f['id']}: {f['hint']}" if f.get("hint") else f"- {f['id']}"
+            for f in available_focus_modes
+        )
+        focus_context = (
+            f"\n\nAvailable focus mode IDs for suggestion prefixes (format: app_id-focus_id):\n"
+            f"{focus_lines}\n"
+            "Use these IDs as [prefix] in suggestions when activating a focus mode is relevant. "
+            "Only use IDs from this list."
+        )
+    else:
+        focus_context = ""
+
+    # Build memory prefix context (only valid in follow-up suggestions, not new-chat)
+    if available_settings_memory_categories:
+        # Convert dot-notation category IDs to dash-notation for the prefix format
+        memory_prefix_lines = "\n".join(
+            f"- {cat['id'].replace('.', '-')}: {cat['description']}"
+            for cat in available_settings_memory_categories
+        )
+        memory_prefix_context = (
+            f"\n\nAvailable memory/settings IDs for follow-up suggestion prefixes (format: app_id-memory_id):\n"
+            f"{memory_prefix_lines}\n"
+            "These IDs can be used as [prefix] ONLY in follow_up_request_suggestions (NOT in new_chat_request_suggestions). "
+            "Use them only when the conversation reveals information worth saving to a memory category."
+        )
+    else:
+        memory_prefix_context = ""
+
     # Build language instruction for suggestion generation
     # Follow-up suggestions should match the conversation language (output_language) so they
     # feel natural in context. New chat suggestions should use the user's system/UI language
@@ -270,6 +463,7 @@ async def handle_postprocessing(
         "Generate new chat suggestions that are related but explore new angles.\n\n"
         f"Conversation tags: {chat_tags_str}"
         f"{available_apps_context}{settings_memory_context}"
+        f"{skills_context}{focus_context}{memory_prefix_context}"
         f"{language_instruction}"
     )
     messages.append({"role": "system", "content": system_message})
@@ -367,6 +561,38 @@ async def handle_postprocessing(
             else:
                 logger.warning(f"[Task ID: {task_id}] [PostProcessor] Invalid app ID '{app_id}' filtered out (not in available apps)")
     
+    # Build valid prefix sets for the suggestion sanitizer.
+    # Skills and focus modes use dash notation (app_id-skill_id / app_id-focus_id).
+    # Memory categories are stored as dot notation in available_settings_memory_categories
+    # but the LLM is instructed to use dash notation in prefixes, so we convert here.
+    valid_skill_ids: set = {s["id"] for s in (available_skills or [])}
+    valid_focus_ids: set = {f["id"] for f in (available_focus_modes or [])}
+    valid_memory_ids: set = {
+        cat["id"].replace(".", "-") for cat in (available_settings_memory_categories or [])
+    }
+
+    # Sanitize follow-up suggestions: allow skill + focus + memory prefixes
+    raw_follow_up = llm_result.arguments.get("follow_up_request_suggestions", [])
+    sanitized_follow_up = sanitize_suggestions(
+        suggestions=raw_follow_up,
+        valid_skill_ids=valid_skill_ids,
+        valid_focus_ids=valid_focus_ids,
+        valid_memory_ids=valid_memory_ids,
+        allow_memory_prefixes=True,
+        task_id=task_id,
+    )
+
+    # Sanitize new chat suggestions: allow skill + focus prefixes only (NO memory)
+    raw_new_chat = llm_result.arguments.get("new_chat_request_suggestions", [])
+    sanitized_new_chat = sanitize_suggestions(
+        suggestions=raw_new_chat,
+        valid_skill_ids=valid_skill_ids,
+        valid_focus_ids=valid_focus_ids,
+        valid_memory_ids=set(),  # Memory not allowed here
+        allow_memory_prefixes=False,
+        task_id=task_id,
+    )
+
     # Validate and filter settings/memory categories (Phase 1 output)
     raw_categories = llm_result.arguments.get("relevant_settings_memory_categories", [])
     validated_categories = []
@@ -429,19 +655,21 @@ async def handle_postprocessing(
     #
     # Follow-up suggestions are intentionally NOT translated here — they should remain in the
     # conversation language (a French chat should show French follow-ups).
-    raw_new_chat_suggestions = llm_result.arguments.get("new_chat_request_suggestions", [])
-    if raw_new_chat_suggestions:
+    #
+    # Note: The sanitized_new_chat list is used here (not raw LLM output) so that the
+    # translated suggestions are already free of hallucinated prefixes before translation.
+    if sanitized_new_chat:
         translated_new_chat_suggestions = await translate_new_chat_suggestions(
             task_id=task_id,
-            suggestions=raw_new_chat_suggestions,
+            suggestions=sanitized_new_chat,
             target_language=user_system_language,
             secrets_manager=secrets_manager,
         )
     else:
-        translated_new_chat_suggestions = raw_new_chat_suggestions
+        translated_new_chat_suggestions = sanitized_new_chat
 
     result = PostProcessingResult(
-        follow_up_request_suggestions=llm_result.arguments.get("follow_up_request_suggestions", []),
+        follow_up_request_suggestions=sanitized_follow_up,
         new_chat_request_suggestions=translated_new_chat_suggestions,
         harmful_response=llm_result.arguments.get("harmful_response", 0.0),
         top_recommended_apps_for_user=validated_app_ids[:5],  # Limit to 5 and use validated IDs
@@ -452,10 +680,16 @@ async def handle_postprocessing(
 
     # Validate that we have the required number of suggestions
     if len(result.follow_up_request_suggestions) < 6:
-        logger.warning(f"[Task ID: {task_id}] [PostProcessor] Only {len(result.follow_up_request_suggestions)} follow-up suggestions generated (expected 6)")
+        logger.warning(
+            f"[Task ID: {task_id}] [PostProcessor] Only {len(result.follow_up_request_suggestions)} follow-up suggestions "
+            f"after sanitization (raw: {len(raw_follow_up)}, expected 6)"
+        )
 
     if len(result.new_chat_request_suggestions) < 6:
-        logger.warning(f"[Task ID: {task_id}] [PostProcessor] Only {len(result.new_chat_request_suggestions)} new chat suggestions generated (expected 6)")
+        logger.warning(
+            f"[Task ID: {task_id}] [PostProcessor] Only {len(result.new_chat_request_suggestions)} new chat suggestions "
+            f"after sanitization (raw: {len(raw_new_chat)}, expected 6)"
+        )
 
     if len(validated_app_ids) < len(raw_top_recommended_apps):
         logger.info(f"[Task ID: {task_id}] [PostProcessor] Filtered {len(raw_top_recommended_apps) - len(validated_app_ids)} invalid app IDs. "

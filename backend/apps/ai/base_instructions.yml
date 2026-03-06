@@ -531,26 +531,51 @@ postprocess_response_tool:
       - Conversation tags (topics, technologies, concepts discussed)
       - Last user message
       - Assistant's response
+      - Available skills, focus modes, and memory categories (provided in system context)
+
+      ## Suggestion Format
+
+      Suggestions SHOULD use an optional skill/focus/memory prefix to help users discover features:
+
+        [app_id-skill_or_focus_id] Action text here
+
+      Examples:
+        [web-search] What are the latest AI breakthroughs?
+        [videos-search] Find tutorial videos on React hooks
+        [jobs-career_insights] Start interview prep mode
+        [travel-trips] Remember my Bangkok trip plans
+        [code-run] Run a Python hello world script
+        [images-generate] Generate a sunset landscape image
+        What is the boiling point of water?
+
+      Rules for the prefix:
+      - Use `app_id-skill_id` for skill suggestions (e.g. `web-search`, `code-run`, `images-generate`)
+      - Use `app_id-focus_id` for focus mode activations (e.g. `jobs-career_insights`, `web-research`)
+      - Use `app_id-memory_id` for memory/settings entries (e.g. `travel-trips`, `code-preferred_tech`)
+        - Memory prefixes are ONLY allowed in follow_up_request_suggestions (not new_chat_request_suggestions)
+      - If no skill/focus/memory is clearly relevant, omit the prefix — plain suggestions are fine
+      - The prefix must exactly match an ID in the available skills/focus/memory list provided in the system context
+      - Do NOT invent prefix IDs — only use IDs from the provided lists
 
       Guidelines:
-      1. **follow_up_request_suggestions**: Generate 6 contextual suggestions (max 5 words each) from the USER's perspective - these are things the USER might want to say or ask next, NOT questions the assistant would ask the user.
+      1. **follow_up_request_suggestions**: Generate 6 contextual suggestions from the USER's perspective - these are things the USER might want to say or ask next, NOT questions the assistant would ask the user.
          - **CRITICAL**: Frame all suggestions as if the USER is speaking/sending them.
-         - **LANGUAGE**: Generate in the CONVERSATION language (same language the user and assistant used in the chat).
+         - **LANGUAGE**: Generate the action text in the CONVERSATION language (same language the user and assistant used in the chat). The prefix `[app_id-skill_id]` is always kept as-is (not translated).
          - Suggestions should encourage:
            - Learning more about the topic discussed (from user's perspective)
            - Exploring different viewpoints (user asking questions)
-           - Discovering relevant app skills/features (user requesting features like web search, image generation, focus modes)
+           - Discovering relevant app skills/features — aim for at least 2-3 suggestions with a skill/focus/memory prefix
            - For learning topics: include "Test me on this" or similar (user requesting)
-         - **Format**: Each suggestion must be either a complete question ending with "?" (from user to assistant) or a clear instruction/command (user requesting something). Avoid single keywords or incomplete phrases.
+         - **Format**: Each suggestion is either `[prefix] question?` or `[prefix] instruction/command`, or a plain question/command without prefix. Avoid single keywords or incomplete phrases.
 
-      2. **new_chat_request_suggestions**: Generate 6 suggestions (max 5 words each) for starting new conversations that:
+      2. **new_chat_request_suggestions**: Generate 6 suggestions for starting new conversations that:
          - **CRITICAL**: Frame all suggestions as if the USER is speaking/sending them.
-         - **LANGUAGE**: Generate in the USER'S SYSTEM LANGUAGE (specified in the system message), NOT the conversation language. This ensures a consistent language on the welcome screen.
+         - **LANGUAGE**: Generate the action text in the USER'S SYSTEM LANGUAGE (specified in the system message), NOT the conversation language. This ensures a consistent language on the welcome screen. The prefix `[app_id-skill_id]` is always kept as-is (not translated).
          - Relate to topics discussed but explore new angles
          - Encourage learning and exploration
-         - Suggest using app skills and focus modes
+         - Suggest using app skills and focus modes — aim for at least 2-3 suggestions with a skill/focus prefix (NO memory prefixes here)
          - Provide conversation starters
-         - **Format**: Each suggestion must be either a complete question ending with "?" or a clear instruction/command. Avoid single keywords or incomplete phrases.
+         - **Format**: Each suggestion is either `[prefix] question?` or `[prefix] instruction/command`, or a plain question/command without prefix. Avoid single keywords or incomplete phrases.
 
       3. **harmful_response**: Score 0-10 for detecting potentially harmful responses (0 = safe, 10 = very harmful)
 
@@ -575,14 +600,14 @@ postprocess_response_tool:
       properties:
         follow_up_request_suggestions:
           type: "array"
-          description: "6 follow-up suggestions (max 5 words each) in the CONVERSATION language to encourage deeper engagement"
+          description: "6 follow-up suggestions in the CONVERSATION language. Each may optionally start with a skill/focus/memory prefix: '[app_id-skill_or_focus_or_memory_id] Action text'. Aim for at least 2-3 prefixed suggestions. Plain suggestions without a prefix are also allowed."
           items:
             type: "string"
           minItems: 6
           maxItems: 6
         new_chat_request_suggestions:
           type: "array"
-          description: "6 new chat suggestions (max 5 words each) in the USER'S SYSTEM LANGUAGE (as specified in system message) related to current topics"
+          description: "6 new chat suggestions in the USER'S SYSTEM LANGUAGE (as specified in system message). Each may optionally start with a skill/focus prefix (NO memory prefixes): '[app_id-skill_or_focus_id] Action text'. Aim for at least 2-3 prefixed suggestions. Plain suggestions without a prefix are also allowed."
           items:
             type: "string"
           minItems: 6

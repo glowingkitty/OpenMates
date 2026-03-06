@@ -2,6 +2,8 @@
   import { fade } from 'svelte/transition';
   import { onMount } from 'svelte';
   import { locale } from 'svelte-i18n';
+  import Icon from './Icon.svelte';
+  import { appSkillsStore } from '../stores/appSkillsStore';
 
   let {
     suggestions = [],
@@ -18,6 +20,59 @@
   
   // Force reactivity to language changes
   let currentLocale = $state($locale);
+
+  // Apps metadata for icon resolution
+  let appsMetadata = $state(appSkillsStore.getState());
+
+  /**
+   * Parsed suggestion: splits "[app_id-skill_id] body text" into parts.
+   * Returns null prefix/appId/subId if no valid prefix is present.
+   */
+  interface ParsedSuggestion {
+    raw: string;
+    prefix: string | null;  // e.g. "web-search"
+    appId: string | null;   // e.g. "web"
+    subId: string | null;   // e.g. "search"
+    body: string;           // The body text to insert on click
+  }
+
+  /**
+   * Parse a raw suggestion string of the form "[app_id-skill_id] body text".
+   * The prefix bracket content uses a dash separator (e.g. "web-search", "jobs-career_insights").
+   * If no valid prefix is found, body === raw.
+   */
+  function parseSuggestion(raw: string): ParsedSuggestion {
+    const match = raw.match(/^\[([a-z0-9_]+-[a-z0-9_]+)\]\s*(.+)$/i);
+    if (!match) {
+      return { raw, prefix: null, appId: null, subId: null, body: raw };
+    }
+    const prefix = match[1];
+    const body = match[2].trim();
+    const dashIdx = prefix.indexOf('-');
+    const appId = prefix.substring(0, dashIdx);
+    const subId = prefix.substring(dashIdx + 1);
+    return { raw, prefix, appId, subId, body };
+  }
+
+  /**
+   * Resolve the icon image name for a skill or focus mode.
+   * Returns the icon_image string (svg filename without extension) if found,
+   * or null if not resolvable.
+   */
+  function resolveSubIcon(appId: string, subId: string): string | null {
+    const app = appsMetadata?.apps?.[appId];
+    if (!app) return null;
+
+    // Check skills first
+    const skill = app.skills?.find(s => s.id === subId);
+    if (skill?.icon_image) return skill.icon_image.replace(/\.svg$/i, '');
+
+    // Check focus modes
+    const focus = app.focus_modes?.find(f => f.id === subId);
+    if (focus?.icon_image) return focus.icon_image.replace(/\.svg$/i, '');
+
+    return null;
+  }
 
   /**
    * Strip HTML tags from text to display as plain text
@@ -36,25 +91,31 @@
   const isTouchDevice = () => {
     return (('ontouchstart' in window) ||
             (navigator.maxTouchPoints > 0) ||
-            ((navigator as any).msMaxTouchPoints > 0));
+            ((navigator as Navigator & { msMaxTouchPoints?: number }).msMaxTouchPoints > 0));
   };
 
   let touchDevice = $state(isTouchDevice());
 
-  // Full suggestions pool - computed from prop to avoid duplicates
-  // Strip HTML tags from suggestions so they display as plain text
-  let fullSuggestions = $derived(Array.from(new Set(suggestions)).map(s => stripHtmlTags(s)));
+  // Full suggestions pool - computed from prop to avoid duplicates.
+  // Strip HTML tags and parse prefix. Search is done over the full raw string
+  // (including "[prefix]") so users can type "web" to find web-skill suggestions.
+  let fullSuggestions = $derived(
+    Array.from(new Set(suggestions))
+      .map(s => parseSuggestion(stripHtmlTags(s)))
+  );
 
-  // Filtered and displayed suggestions based on input content
+  // Filtered and displayed suggestions based on input content.
+  // matchIndex/matchLength are relative to `parsed.raw` (full string with prefix)
+  // so the highlight stays on the body text after the prefix chip is rendered separately.
   let filteredSuggestions = $derived.by(() => {
     // When input is empty, show first 3 suggestions
     if (!messageInputContent || messageInputContent.trim() === '') {
       const displayedSuggestions = fullSuggestions.slice(0, 3);
       console.debug('[FollowUpSuggestions] Showing first 3 suggestions (input empty):', displayedSuggestions.length);
-      return displayedSuggestions.map(text => ({ text, matchIndex: -1, matchLength: 0 }));
+      return displayedSuggestions.map(parsed => ({ ...parsed, matchIndex: -1, matchLength: 0 }));
     }
 
-    // When user is typing, filter across the FULL pool
+    // When user is typing, filter across the FULL pool (searching over body text)
     const searchTerm = messageInputContent.trim();
     const searchTermLower = searchTerm.toLowerCase();
 
@@ -64,23 +125,20 @@
       fullPoolSize: fullSuggestions.length
     });
 
-    // Exact substring match (case-insensitive) across FULL pool
-    // Remove duplicates first, then filter and limit to top 3 unique results
-    const uniqueSuggestions = Array.from(new Set(fullSuggestions));
-
-    const filtered = uniqueSuggestions
-      .map(text => {
-        const lowerSuggestion = text.toLowerCase();
-        const matchIndex = lowerSuggestion.indexOf(searchTermLower);
+    // Search over body text (not the prefix) so prefix doesn't interfere with filtering
+    const filtered = fullSuggestions
+      .map(parsed => {
+        const lowerBody = parsed.body.toLowerCase();
+        const matchIndex = lowerBody.indexOf(searchTermLower);
         return {
-          text,
+          ...parsed,
           matchIndex,
           matchLength: searchTerm.length
         };
       })
       .filter(item => item.matchIndex !== -1)
-      // Exclude exact matches (100% match) - no point showing what user already typed
-      .filter(item => item.text.toLowerCase() !== searchTermLower)
+      // Exclude exact matches
+      .filter(item => item.body.toLowerCase() !== searchTermLower)
       // Limit to top 3 unique matches
       .slice(0, 3);
 
@@ -89,27 +147,24 @@
     return filtered;
   });
 
-  function renderHighlightedText(suggestion: { text: string; matchIndex: number; matchLength: number }) {
+  function renderHighlightedText(suggestion: ParsedSuggestion & { matchIndex: number; matchLength: number }) {
     if (suggestion.matchIndex === -1 || !messageInputContent || !messageInputContent.trim()) {
-      return suggestion.text;
+      return suggestion.body;
     }
 
-    const before = suggestion.text.substring(0, suggestion.matchIndex);
-    const match = suggestion.text.substring(suggestion.matchIndex, suggestion.matchIndex + suggestion.matchLength);
-    const after = suggestion.text.substring(suggestion.matchIndex + suggestion.matchLength);
+    const before = suggestion.body.substring(0, suggestion.matchIndex);
+    const match = suggestion.body.substring(suggestion.matchIndex, suggestion.matchIndex + suggestion.matchLength);
+    const after = suggestion.body.substring(suggestion.matchIndex + suggestion.matchLength);
 
     return { before, match, after };
   }
 
   /**
-   * Handle suggestion click - local function like NewChatSuggestions does
+   * Handle suggestion click - inserts only the body text (without prefix) into the input.
+   * This lets users discover skills via the prefix chip while keeping the sent text clean.
    */
-  function handleSuggestionClick(suggestionText: string) {
-    // console.debug('[FollowUpSuggestions] Suggestion clicked via local handler:', suggestionText);
-    // console.debug('[FollowUpSuggestions] onSuggestionClick callback exists:', typeof onSuggestionClick);
-    // console.debug('[FollowUpSuggestions] Calling parent callback with:', suggestionText);
-    onSuggestionClick(suggestionText);
-    // console.debug('[FollowUpSuggestions] Parent callback completed');
+  function handleSuggestionClick(body: string) {
+    onSuggestionClick(body);
   }
 
   // Update currentLocale when language changes to force component re-render
@@ -135,8 +190,9 @@
       {/key}
     </div>
     <div class="suggestions-container">
-      {#each filteredSuggestions as suggestion (suggestion.text)}
+      {#each filteredSuggestions as suggestion (suggestion.raw)}
         {@const highlighted = renderHighlightedText(suggestion)}
+        {@const subIconName = suggestion.appId && suggestion.subId ? resolveSubIcon(suggestion.appId, suggestion.subId) : null}
         <button
           class="suggestion-item"
           onmousedown={(event) => {
@@ -145,10 +201,19 @@
           onclick={(event) => {
             event.preventDefault();
             event.stopPropagation();
-            handleSuggestionClick(suggestion.text);
+            handleSuggestionClick(suggestion.body);
           }}
           transition:fade={{ duration: 150 }}
         >
+          {#if suggestion.appId}
+            <span class="skill-chip">
+              {#if subIconName}
+                <Icon name={subIconName} type="skill" size="16px" noAnimation noMargin />
+              {:else}
+                <Icon name={suggestion.appId} type="app" size="16px" noAnimation noMargin />
+              {/if}
+            </span>
+          {/if}
           {#if typeof highlighted === 'string'}
             {highlighted}
           {:else}
@@ -233,10 +298,28 @@
     margin-right: 0;
     filter: none;
     width: 100%;
-    display: block;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0 6px;
     justify-content: flex-start;
-    align-items: flex-start;
+    align-items: center;
     scale: 1;
+  }
+
+  /* Icon chip rendered before the suggestion body text */
+  .skill-chip {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    opacity: 0.7;
+  }
+
+  /* Override Icon animation/border so it blends into the suggestion row */
+  .skill-chip :global(.icon) {
+    animation: none !important;
+    opacity: 1 !important;
+    border: none !important;
   }
 
   .suggestion-item:hover {

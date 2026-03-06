@@ -38,10 +38,12 @@ from backend.apps.ai.utils.instruction_loader import load_base_instructions
 from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
 from backend.apps.ai.processing.preprocessor import handle_preprocessing, PreprocessingResult
 from backend.apps.ai.processing.postprocessor import (
-    handle_postprocessing, 
+    handle_postprocessing,
     PostProcessingResult,
     handle_memory_generation,
     extract_settings_memory_categories,
+    extract_available_skills,
+    extract_available_focus_modes,
     get_category_schemas,
 )
 from .stream_consumer import _consume_main_processing_stream
@@ -1541,6 +1543,21 @@ async def _async_process_ai_skill_ask_task(
             ) if discovered_apps_metadata else []
             logger.debug(f"[Task ID: {task_id}] Extracted {len(available_settings_memory_categories)} settings/memory categories for post-processing")
 
+            # Extract production skills and focus modes for structured suggestion prefix generation.
+            # These are injected into the postprocessor prompt so the LLM can produce
+            # [app_id-skill_id] / [app_id-focus_id] prefixed suggestions that surface
+            # app features users may not know about.
+            available_skills_for_postproc = extract_available_skills(
+                discovered_apps_metadata
+            ) if discovered_apps_metadata else []
+            available_focus_modes_for_postproc = extract_available_focus_modes(
+                discovered_apps_metadata
+            ) if discovered_apps_metadata else []
+            logger.debug(
+                f"[Task ID: {task_id}] Extracted {len(available_skills_for_postproc)} skills and "
+                f"{len(available_focus_modes_for_postproc)} focus modes for post-processing suggestion context"
+            )
+
             # Build full message history for post-processing (same format as preprocessing)
             # This allows post-processing to generate summaries from the full chat history
             # instead of relying on a condensed 20-word summary from preprocessing
@@ -1572,6 +1589,8 @@ async def _async_process_ai_skill_ask_task(
                 cache_service=cache_service_instance,
                 available_app_ids=available_app_ids,
                 available_settings_memory_categories=available_settings_memory_categories,
+                available_skills=available_skills_for_postproc,
+                available_focus_modes=available_focus_modes_for_postproc,
                 is_incognito=getattr(request_data, 'is_incognito', False),  # Pass incognito flag
                 output_language=chat_output_language,
                 user_system_language=user_system_language,
