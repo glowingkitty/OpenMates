@@ -164,19 +164,42 @@
   // ─── Derived state ─────────────────────────────────────────────────────────
 
   /** Gradient background style for the banner. Incognito gets a fixed dark privacy gradient;
-   *  loading/credits-error gets the primary gradient; loaded state uses the category gradient. */
+   *  loading/credits-error gets the primary gradient; loaded state uses the category gradient.
+   *
+   *  Also emits --orb-color-a (the "outside" background color) and --orb-color-b (the "inside"
+   *  orb color) as CSS custom properties consumed by the living gradient orb animation.
+   *  The orbs use radial-gradient(--orb-color-b → transparent) so they glow out of --orb-color-a,
+   *  matching the Creative Code Berlin aesthetic: soft light blooms with no hard edges. */
   let bannerStyle = $derived.by(() => {
     if (isIncognito) {
       // Fixed dark privacy-themed gradient for incognito chats
-      return 'background: linear-gradient(135deg, #1a1a2e 0%, #2d2d44 50%, #1e1e35 100%)';
+      return [
+        'background: linear-gradient(135deg, #1a1a2e 0%, #2d2d44 50%, #1e1e35 100%)',
+        '--orb-color-a: #1a1a2e',
+        '--orb-color-b: #6b6baa',
+      ].join(';');
     }
     if (isLoading || isCreditsError || !category) {
       // Processing state or credits error: use the primary gradient from theme.css
-      return 'background: var(--color-primary)';
+      return [
+        'background: var(--color-primary)',
+        '--orb-color-a: #4867cd',
+        '--orb-color-b: #a0beff',
+      ].join(';');
     }
     const colors = getCategoryGradientColors(category);
-    if (!colors) return 'background: var(--color-primary)';
-    return `background: linear-gradient(135deg, ${colors.start}, ${colors.end})`;
+    if (!colors) {
+      return [
+        'background: var(--color-primary)',
+        '--orb-color-a: #4867cd',
+        '--orb-color-b: #a0beff',
+      ].join(';');
+    }
+    return [
+      `background: linear-gradient(135deg, ${colors.start}, ${colors.end})`,
+      `--orb-color-a: ${colors.start}`,
+      `--orb-color-b: ${colors.end}`,
+    ].join(';');
   });
 
   /** Lucide icon component for the category, resolved from icon name + fallback. */
@@ -270,6 +293,21 @@
   class:is-loaded={isLoaded}
   style={bannerStyle}
 >
+  <!-- ── Living gradient orbs (Creative Code aesthetic) ──────────────────────
+       Three soft radial-gradient blobs that slowly morph shape and drift
+       around the banner. Each uses --orb-color-b as the orb center color and
+       fades to transparent at the edges, glowing against --orb-color-a (the
+       background). Heavy blur removes all hard edges — you only see the light.
+       Prime-number durations (11s / 13s / 17s morph, 19s / 23s / 29s drift)
+       ensure the three orbs never synchronise, keeping the motion organic and
+       non-repeating within any reasonable viewing window.
+       z-index:0 keeps them behind all content (z-index:1+ for content). -->
+  <div class="banner-orbs" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
   <!-- ── Processing state: AI icon + "Creating new chat ..." with shimmer ── -->
   {#if isLoading && !isCreditsError && !isIncognito}
     <div class="processing-content">
@@ -712,6 +750,162 @@
   .nav-arrow-right {
     right: 0;
     border-radius: 10px 0 0 10px !important; /* rounded on the left (inner) side */
+  }
+
+  /* ─── Living gradient orbs ──────────────────────────────────────────────────
+     Creative Code Berlin aesthetic: soft radial-gradient light blooms that
+     drift and morph slowly. The background is --orb-color-a; each orb is a
+     radial gradient from --orb-color-b (center, full) → transparent (edge).
+     mix-blend-mode: screen makes overlapping orbs blend additively (light on
+     light), which is exactly what produces the rich multi-color glow seen in
+     generative art backgrounds.
+
+     Architecture:
+       - .banner-orbs: full-bleed absolute container, z-index 0, no pointer events
+       - .orb: each orb is position:absolute, sized large (covers ~80% banner),
+         border-radius morphs between 4 different organic shapes on a loop,
+         translate drifts slowly to a different quadrant and back
+       - filter: blur(55px) on each orb removes all shape definition — only the
+         color light remains visible
+       - The three orbs use prime-number durations to prevent synchronisation
+
+     CSS custom properties set in bannerStyle (TypeScript):
+       --orb-color-a  background / outer color  (= gradient start color)
+       --orb-color-b  orb center / inner color   (= gradient end color)  */
+
+  .banner-orbs {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+    /* Smooth color transition when category changes (matches the background transition) */
+    transition: opacity 0.5s ease;
+  }
+
+  .orb {
+    position: absolute;
+    /* Each orb is large — bigger than the banner in one dimension — so the
+       soft edges always bleed to the banner boundary regardless of position */
+    width: 320px;
+    height: 280px;
+    /* Radial gradient: orb color blooms from center, fades to transparent.
+       The inner stop at 0% is fully opaque --orb-color-b; the outer stop at
+       70% is fully transparent. This produces the soft "no hard edge" look. */
+    background: radial-gradient(
+      ellipse at center,
+      var(--orb-color-b) 0%,
+      transparent 70%
+    );
+    /* Screen blend: two overlapping orbs add their light values together,
+       producing the rich multi-tonal bloom seen in the reference photo */
+    mix-blend-mode: screen;
+    /* Heavy blur is what removes all shape definition — only light remains */
+    filter: blur(55px);
+    opacity: 0.75;
+    will-change: transform, border-radius;
+  }
+
+  /* Orb 1 — starts top-left area, drifts toward center-right
+     Morph: 11s loop   Drift: 19s loop   (both prime → never sync) */
+  .orb-1 {
+    top: -60px;
+    left: -40px;
+    animation:
+      orbMorph1 11s ease-in-out infinite,
+      orbDrift1 19s ease-in-out infinite;
+  }
+
+  /* Orb 2 — starts bottom-right area, drifts toward top-left
+     Morph: 13s loop   Drift: 23s loop */
+  .orb-2 {
+    bottom: -80px;
+    right: -60px;
+    width: 280px;
+    height: 300px;
+    animation:
+      orbMorph2 13s ease-in-out infinite,
+      orbDrift2 23s ease-in-out infinite;
+  }
+
+  /* Orb 3 — starts center, smaller, adds the mid-field glow
+     Morph: 17s loop   Drift: 29s loop */
+  .orb-3 {
+    top: 30px;
+    left: 35%;
+    width: 220px;
+    height: 200px;
+    opacity: 0.55;
+    animation:
+      orbMorph3 17s ease-in-out infinite,
+      orbDrift3 29s ease-in-out infinite;
+  }
+
+  /* ── Shape morphs ─────────────────────────────────────────────────────────
+     border-radius uses the 8-value syntax: horizontal-radii / vertical-radii
+     (top-left  top-right  bottom-right  bottom-left  /  same order).
+     All four shapes are kept convex so the blur never produces artifacts.
+     The 0% and 100% keyframes match exactly so the loop is seamless. */
+
+  @keyframes orbMorph1 {
+    0%   { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+    25%  { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
+    50%  { border-radius: 50% 50% 33% 67% / 55% 27% 73% 45%; }
+    75%  { border-radius: 33% 67% 45% 55% / 30% 70% 35% 65%; }
+    100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+  }
+
+  @keyframes orbMorph2 {
+    0%   { border-radius: 40% 60% 60% 40% / 40% 40% 60% 60%; }
+    33%  { border-radius: 65% 35% 40% 60% / 60% 45% 55% 40%; }
+    66%  { border-radius: 35% 65% 55% 45% / 45% 55% 40% 60%; }
+    100% { border-radius: 40% 60% 60% 40% / 40% 40% 60% 60%; }
+  }
+
+  @keyframes orbMorph3 {
+    0%   { border-radius: 55% 45% 38% 62% / 48% 58% 42% 52%; }
+    20%  { border-radius: 42% 58% 62% 38% / 55% 38% 62% 45%; }
+    40%  { border-radius: 68% 32% 45% 55% / 40% 65% 35% 60%; }
+    60%  { border-radius: 38% 62% 55% 45% / 62% 42% 58% 38%; }
+    80%  { border-radius: 52% 48% 32% 68% / 35% 55% 45% 65%; }
+    100% { border-radius: 55% 45% 38% 62% / 48% 58% 42% 52%; }
+  }
+
+  /* ── Positional drifts ────────────────────────────────────────────────────
+     translate moves each orb slowly around its starting quadrant. The travel
+     distance (~60–100px) is intentionally modest so the orbs always stay
+     mostly within the banner bounds despite the large size. */
+
+  @keyframes orbDrift1 {
+    0%   { transform: translate(0px, 0px); }
+    25%  { transform: translate(80px, 50px); }
+    50%  { transform: translate(120px, 20px); }
+    75%  { transform: translate(40px, 80px); }
+    100% { transform: translate(0px, 0px); }
+  }
+
+  @keyframes orbDrift2 {
+    0%   { transform: translate(0px, 0px); }
+    30%  { transform: translate(-90px, -40px); }
+    60%  { transform: translate(-50px, -100px); }
+    85%  { transform: translate(-110px, -20px); }
+    100% { transform: translate(0px, 0px); }
+  }
+
+  @keyframes orbDrift3 {
+    0%   { transform: translate(0px, 0px); }
+    20%  { transform: translate(-60px, 40px); }
+    45%  { transform: translate(50px, 60px); }
+    70%  { transform: translate(-30px, -50px); }
+    100% { transform: translate(0px, 0px); }
+  }
+
+  /* Respect reduced-motion: disable all orb animations (orbs still visible
+     as static soft glows, just not moving) */
+  @media (prefers-reduced-motion: reduce) {
+    .orb {
+      animation: none !important;
+    }
   }
 
   /* ─── Mobile adjustments (≤730px) ───────────────────────────────────────── */
