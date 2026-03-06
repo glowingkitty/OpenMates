@@ -63,6 +63,7 @@ changes to the documentation (to keep the documentation up to date).
     import { baseSettingsViews, AppDetailsWrapper, MateDetailsWrapper } from './settings/settingsRoutes';
     import { matesMetadata } from '../data/matesMetadata';
     import { appSkillsStore } from '../stores/appSkillsStore';
+    import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
     import { modelsMetadata } from '../data/modelsMetadata';
     import { providersMetadata, findProviderByName } from '../data/providersMetadata';
     import { getProviderIconUrl } from '../data/providerIcons';
@@ -578,8 +579,8 @@ changes to the documentation (to keep the documentation up to date).
                     if (category && category.name_translation_key) {
                         pathLabels.push($text(category.name_translation_key));
                     }
-                } else if (pathParts.length === 5 && pathParts[1] === 'settings_memories' && pathParts[3] === 'entry') {
-                    // This is the entry detail page segment - add category name
+                } else if ((pathParts.length === 5 || (pathParts.length === 6 && pathParts[5] === 'edit')) && pathParts[1] === 'settings_memories' && pathParts[3] === 'entry') {
+                    // This is the entry detail or edit page segment - add category name
                     const categoryId = pathParts[2];
                     const category = app?.settings_and_memories?.find(c => c.id === categoryId);
                     if (category && category.name_translation_key) {
@@ -895,9 +896,13 @@ changes to the documentation (to keep the documentation up to date).
             }
             
             if (subRoute.startsWith('/entry/')) {
-                // Entry detail sub-page: show entry title or example title
-                const entryId = subRoute.replace('/entry/', '');
+                // Entry detail sub-page: show entry title on line 1, category name on line 2.
+                // The typeLabel is the category name (e.g. "Trips"), not "Settings & Memories Entry".
+                // Clicking the header copies a @memory-entry mention for real entries (or @memory for examples).
+                const rawEntryId = subRoute.replace('/entry/', '').replace('/edit', '');
+                const entryId = rawEntryId;
                 let entryTitle = categoryName;
+                let mentionSyntax = `@memory:${appId}:${itemId}:${cat.type}`;
                 
                 if (entryId.startsWith('example_')) {
                     // Example entry: get title from example_translation_keys or example_entries
@@ -926,20 +931,50 @@ changes to the documentation (to keep the documentation up to date).
                         // Fallback to legacy title-only key
                         entryTitle = $text(exKeys[exIdx]);
                     }
+                    // Examples use category-level mention (no real entry ID to reference)
+                    mentionSyntax = `@memory:${appId}:${itemId}:${cat.type}`;
+                } else {
+                    // Real entry: look up title from the store (already decrypted in entriesByApp).
+                    // appSettingsMemoriesStore state is a plain Svelte store — read via $appSettingsMemoriesStore.
+                    const storeState = $appSettingsMemoriesStore;
+                    const appEntriesByGroup = storeState.entriesByApp.get(appId) || {};
+                    const categoryEntries = appEntriesByGroup[itemId] ?? [];
+                    const found = categoryEntries.find((e: { id: string }) => e.id === entryId);
+                    if (found) {
+                        // Find is_title field to display as entry title
+                        const titleField = cat.schema_definition?.properties
+                            ? Object.entries(cat.schema_definition.properties).find(
+                                ([, p]) => p.is_title
+                            )?.[0]
+                            : undefined;
+                        const entryValue = (found as { item_value?: Record<string, unknown> }).item_value;
+                        if (titleField && entryValue?.[titleField]) {
+                            entryTitle = String(entryValue[titleField]);
+                        } else if (entryValue) {
+                            // Fallback: use first non-internal string value
+                            for (const [key, value] of Object.entries(entryValue)) {
+                                if (!key.startsWith('_') && key !== 'settings_group' && typeof value === 'string' && value.trim()) {
+                                    entryTitle = value;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    // Real entry uses @memory-entry mention for direct reference
+                    mentionSyntax = `@memory-entry:${appId}:${itemId}:${entryId}`;
                 }
-                // Note: for real (non-example) entries, we'd need to look up the entry
-                // from IndexedDB, but that requires async decryption. The category name
-                // is a reasonable fallback for the header since the entry title is shown
-                // in the content area below.
                 
                 return {
                     appId,
                     itemName: entryTitle,
-                    itemTypeLabel: $text('settings.app_store.settings_memories_entry'),
-                    description: categoryName,
+                    // Line 2 in header = category name (e.g. "Trips"), not "Settings & Memories Entry"
+                    itemTypeLabel: categoryName,
+                    description: cat.description_translation_key
+                        ? $text(cat.description_translation_key)
+                        : '',
                     iconName,
                     iconType: 'memory',
-                    mentionSyntax: `@memory:${appId}:${itemId}:${cat.type}`,
+                    mentionSyntax,
                 };
             }
             

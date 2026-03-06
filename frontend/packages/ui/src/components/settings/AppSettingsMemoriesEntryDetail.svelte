@@ -18,6 +18,7 @@
     import type { AppMetadata, MemoryFieldMetadata, SchemaPropertyDefinition } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
+    import Icon from '../Icon.svelte';
     import { appSettingsMemoriesStore, appSettingsMemoriesForApp } from '../../stores/appSettingsMemoriesStore';
     import type { Readable } from 'svelte/store';
     import {
@@ -39,9 +40,10 @@
         categoryId: string;
         entryId: string;
         readOnly?: boolean;
+        startInEditMode?: boolean;
     }
 
-    let { appId, categoryId, entryId, readOnly = false }: Props = $props();
+    let { appId, categoryId, entryId, readOnly = false, startInEditMode = false }: Props = $props();
 
     // Detect example entries: entryId starts with "example_" (e.g. "example_0")
     // Example entries are shown read-only with translated text content from the category metadata.
@@ -128,7 +130,10 @@
     });
 
     // Mode: 'view' or 'edit'
-    let mode = $state<'view' | 'edit'>('view');
+    // startInEditMode prop allows navigating directly to edit mode (e.g., from the list's edit button)
+    // Use untrack() to read startInEditMode only once (initial value), not reactively.
+    // This is intentional: mode is local state initialized from the prop, but not kept in sync.
+    let mode = $state<'view' | 'edit'>(untrack(() => startInEditMode ? 'edit' : 'view'));
     
     // Form state for edit mode
     let formState = $state<Record<string, unknown>>({});
@@ -182,6 +187,16 @@
             iconName = 'health';
         }
         return iconName;
+    }
+    
+    /**
+     * Get the icon name for this category to use in field icon divs.
+     * Uses the category's own icon_image (e.g. "travel.svg" -> "travel").
+     * Falls back to categoryId, then to appId.
+     */
+    function getCategoryIconName(categoryIconImage: string | undefined): string {
+        if (!categoryIconImage) return categoryId || appId;
+        return categoryIconImage.replace(/\.svg$/, '');
     }
     
     /**
@@ -244,10 +259,16 @@
     }
 
     /**
-     * Get display-friendly field label.
+     * Get display-friendly field label (title).
+     * Returns the field name formatted as a human-readable title (e.g., "start_date" → "Start date").
+     * The prop.description is used as placeholder text, NOT as the label title.
      */
-    function getFieldLabel(fieldName: string, prop: SchemaPropertyDefinition): string {
-        return prop.description || fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    function getFieldLabel(fieldName: string): string {
+        // Format the field key as a human-readable title:
+        // "start_date" → "Start date", "destination" → "Destination"
+        const words = fieldName.split('_');
+        return words[0].charAt(0).toUpperCase() + words[0].slice(1).toLowerCase() +
+            (words.length > 1 ? ' ' + words.slice(1).join(' ').toLowerCase() : '');
     }
     
     /**
@@ -299,8 +320,7 @@
             
             const value = formState[fieldName];
             if (value === undefined || value === null || String(value).trim() === '') {
-                const prop = userInputProperties[fieldName];
-                const fieldLabel = getFieldLabel(fieldName, prop);
+                const fieldLabel = getFieldLabel(fieldName);
                 return `${fieldLabel} is required`;
             }
         }
@@ -315,19 +335,19 @@
             if (prop.type === 'integer' || prop.type === 'number') {
                 const numValue = Number(value);
                 if (isNaN(numValue)) {
-                    return `${getFieldLabel(fieldName, prop)} must be a number`;
+                    return `${getFieldLabel(fieldName)} must be a number`;
                 }
                 if (prop.minimum !== undefined && numValue < prop.minimum) {
-                    return `${getFieldLabel(fieldName, prop)} must be at least ${prop.minimum}`;
+                    return `${getFieldLabel(fieldName)} must be at least ${prop.minimum}`;
                 }
                 if (prop.maximum !== undefined && numValue > prop.maximum) {
-                    return `${getFieldLabel(fieldName, prop)} must be at most ${prop.maximum}`;
+                    return `${getFieldLabel(fieldName)} must be at most ${prop.maximum}`;
                 }
             } else if (prop.type === 'string' || prop.type === undefined) {
                 if (!prop.enum) {
                     const strVal = String(value);
                     const maxLen = getMaxLength(prop);
-                    const lengthError = validateMaxLength(strVal, maxLen, getFieldLabel(fieldName, prop));
+                    const lengthError = validateMaxLength(strVal, maxLen, getFieldLabel(fieldName));
                     if (lengthError) return lengthError;
                 }
             }
@@ -474,12 +494,12 @@
             <div class="details-section">
                 {#if exampleEntry && Object.keys(userInputProperties).length > 0}
                     <!-- Full example entry: render each schema field with its example value -->
-                    {#each Object.entries(userInputProperties) as [fieldName, prop]}
+                    {#each Object.keys(userInputProperties) as fieldName}
                         {#if exampleEntry[fieldName] !== undefined}
                             <div class="detail-row">
                                 <div class="field-header">
-                                    <div class="icon settings_size subsetting_icon icon_settings"></div>
-                                    <span class="detail-label">{getFieldLabel(fieldName, prop)}</span>
+                                    <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
+                                    <span class="detail-label">{getFieldLabel(fieldName)}</span>
                                 </div>
                                 <span class="detail-value">
                                     {resolveExampleValue(exampleEntry[fieldName])}
@@ -516,8 +536,8 @@
                     {#each Object.entries(userInputProperties) as [fieldName, prop]}
                         <div class="detail-row">
                             <div class="field-header">
-                                <div class="icon settings_size subsetting_icon icon_settings"></div>
-                                <span class="detail-label">{getFieldLabel(fieldName, prop)}</span>
+                                <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
+                                <span class="detail-label">{getFieldLabel(fieldName)}</span>
                             </div>
                             <span class="detail-value">
                                 {#if prop.type === 'boolean'}
@@ -580,9 +600,9 @@
                 {#each Object.entries(userInputProperties) as [fieldName, prop]}
                     <div class="form-group">
                         <div class="field-header">
-                            <div class="icon settings_size subsetting_icon icon_settings"></div>
+                            <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
                             <label for={fieldName}>
-                                {getFieldLabel(fieldName, prop)}
+                                {getFieldLabel(fieldName)}
                                 {#if isFieldRequired(fieldName)}
                                     <span class="required">*</span>
                                 {/if}
@@ -597,14 +617,14 @@
                                     onchange={(e) => formState[fieldName] = (e.target as HTMLInputElement).checked}
                                     disabled={isSaving}
                                 />
-                                <span class="checkbox-label">{getFieldLabel(fieldName, prop)}</span>
+                                <span class="checkbox-label">{getFieldLabel(fieldName)}</span>
                             </div>
                         {:else if prop.type === 'integer' || prop.type === 'number'}
                             <input
                                 id={fieldName}
                                 type="number"
                                 bind:value={formState[fieldName]}
-                                placeholder={getFieldLabel(fieldName, prop)}
+                                placeholder={prop.description || getFieldLabel(fieldName)}
                                 min={prop.minimum}
                                 max={prop.maximum}
                                 step={prop.type === 'integer' ? 1 : undefined}
@@ -616,7 +636,7 @@
                                 bind:value={formState[fieldName]}
                                 disabled={isSaving}
                             >
-                                <option value="">Select {getFieldLabel(fieldName, prop)}</option>
+                                <option value="">Select {getFieldLabel(fieldName)}</option>
                                 {#each prop.enum as enumValue}
                                     <option value={enumValue}>{enumValue}</option>
                                 {/each}
@@ -625,7 +645,7 @@
                             <textarea
                                 id={fieldName}
                                 bind:value={formState[fieldName]}
-                                placeholder={getFieldLabel(fieldName, prop)}
+                                placeholder={prop.description || getFieldLabel(fieldName)}
                                 rows="4"
                                 maxlength={getMaxLength(prop)}
                                 disabled={isSaving}
@@ -635,7 +655,7 @@
                                 id={fieldName}
                                 type="text"
                                 bind:value={formState[fieldName]}
-                                placeholder={getFieldLabel(fieldName, prop)}
+                                placeholder={prop.description || getFieldLabel(fieldName)}
                                 maxlength={getMaxLength(prop)}
                                 disabled={isSaving}
                             />
@@ -646,7 +666,7 @@
                 <!-- Generic form -->
                 <div class="form-group">
                     <div class="field-header">
-                        <div class="icon settings_size subsetting_icon icon_settings"></div>
+                        <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
                         <label for="item-key">
                             Key
                             <span class="required">*</span>
@@ -663,7 +683,7 @@
 
                 <div class="form-group">
                     <div class="field-header">
-                        <div class="icon settings_size subsetting_icon icon_settings"></div>
+                        <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
                         <label for="settings-group">Group</label>
                     </div>
                     <input
@@ -677,7 +697,7 @@
 
                 <div class="form-group">
                     <div class="field-header">
-                        <div class="icon settings_size subsetting_icon icon_settings"></div>
+                        <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
                         <label for="item-value">Value</label>
                     </div>
                     <textarea

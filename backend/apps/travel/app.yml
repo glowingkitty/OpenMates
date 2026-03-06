@@ -60,7 +60,6 @@ settings_and_memories:
     example_translation_keys:
       - "travel.trips.example_1"
       - "travel.trips.example_2"
-      - "travel.trips.example_3"
     example_entries:
       - destination: "travel.trips.example_1.destination"
         start_date: "2025-09-01"
@@ -102,7 +101,6 @@ settings_and_memories:
     example_translation_keys:
       - "travel.preferred_airlines.example_1"
       - "travel.preferred_airlines.example_2"
-      - "travel.preferred_airlines.example_3"
     example_entries:
       - name: "travel.preferred_airlines.example_1.name"
       - name: "travel.preferred_airlines.example_2.name"
@@ -125,7 +123,6 @@ settings_and_memories:
     example_translation_keys:
       - "travel.preferred_transport_methods.example_1"
       - "travel.preferred_transport_methods.example_2"
-      - "travel.preferred_transport_methods.example_3"
     example_entries:
       - method: "train"
       - method: "bike"
@@ -157,8 +154,6 @@ settings_and_memories:
     example_translation_keys:
       - "travel.preferred_activities.example_1"
       - "travel.preferred_activities.example_2"
-      - "travel.preferred_activities.example_3"
-      - "travel.preferred_activities.example_4"
     example_entries:
       - name: "travel.preferred_activities.example_1.name"
       - name: "travel.preferred_activities.example_2.name"

@@ -227,11 +227,24 @@
     }
     
     /**
-     * Navigate to entry detail view for viewing/editing.
+     * Navigate to entry detail view (view mode).
      */
     function handleEntryClick(entryId: string, entryTitle: string) {
         dispatch('openSettings', {
             settingsPath: `app_store/${appId}/settings_memories/${categoryId}/entry/${entryId}`,
+            direction: 'forward',
+            icon: getIconName(app?.icon_image),
+            title: entryTitle
+        });
+    }
+
+    /**
+     * Navigate directly to entry edit mode.
+     * Used by the modify button so clicking edit goes straight to editing, not view mode.
+     */
+    function handleEntryEditClick(entryId: string, entryTitle: string) {
+        dispatch('openSettings', {
+            settingsPath: `app_store/${appId}/settings_memories/${categoryId}/entry/${entryId}/edit`,
             direction: 'forward',
             icon: getIconName(app?.icon_image),
             title: entryTitle
@@ -403,7 +416,7 @@
                             subtitleBottom={entrySubtitle}
                             hasModifyButton={true}
                             onClick={() => handleEntryClick(entry.id, entryTitle)}
-                            onModifyClick={() => handleEntryClick(entry.id, entryTitle)}
+                            onModifyClick={() => handleEntryEditClick(entry.id, entryTitle)}
                         />
                     {/each}
                 </div>
@@ -420,8 +433,9 @@
             </div>
         {/if}
 
-        <!-- Examples section — shown to all users -->
-        {#if exampleTranslationKeys.length > 0}
+        <!-- Examples section — only shown when user has no saved entries yet (or is not authenticated).
+             This avoids cluttering the list when user already has their own entries. -->
+        {#if exampleTranslationKeys.length > 0 && (!isAuthenticated || allEntries.length === 0)}
             <div class="examples-section">
                 <!-- "Examples" section heading — uses task/checklist icon, matching skill heading style -->
                 <SettingsItem

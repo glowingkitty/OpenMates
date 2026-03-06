@@ -14,7 +14,6 @@ settings_and_memories:
     example_translation_keys:
       - "books.favorite_books.example_1"
       - "books.favorite_books.example_2"
-      - "books.favorite_books.example_3"
     example_entries:
       - title: "books.favorite_books.example_1.title"
         author: "F. Scott Fitzgerald"
@@ -97,7 +96,6 @@ settings_and_memories:
     example_translation_keys:
       - "books.to_read_list.example_1"
       - "books.to_read_list.example_2"
-      - "books.to_read_list.example_3"
     example_entries:
       - title: "books.to_read_list.example_1.title"
         author: "Frank Herbert"

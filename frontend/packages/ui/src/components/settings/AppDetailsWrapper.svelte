@@ -10,7 +10,8 @@
      - app_store/{app_id}/focus/{focus_mode_id} -> FocusModeDetails
      - app_store/{app_id}/settings_memories/{category_id} -> AppSettingsMemoriesCategory
      - app_store/{app_id}/settings_memories/{category_id}/create -> AppSettingsMemoriesCreateEntry
-     - app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id} -> AppSettingsMemoriesEntryDetail
+     - app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id} -> AppSettingsMemoriesEntryDetail (view mode)
+     - app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id}/edit -> AppSettingsMemoriesEntryDetail (edit mode)
      
      It receives activeSettingsView as a prop from CurrentSettingsPage.
 -->
@@ -44,7 +45,7 @@
         | { type: 'focus_details'; appId: string; focusModeId: string }
         | { type: 'settings_memories_category'; appId: string; categoryId: string }
         | { type: 'settings_memories_create'; appId: string; categoryId: string }
-        | { type: 'settings_memories_entry_detail'; appId: string; categoryId: string; entryId: string };
+        | { type: 'settings_memories_entry_detail'; appId: string; categoryId: string; entryId: string; startInEditMode: boolean };
     
     let { activeSettingsView = '' }: Props = $props();
     
@@ -89,7 +90,10 @@
             return { type: 'settings_memories_create', appId: parts[0], categoryId: parts[2] };
         } else if (parts.length === 5 && parts[1] === 'settings_memories' && parts[3] === 'entry') {
             // app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id}
-            return { type: 'settings_memories_entry_detail', appId: parts[0], categoryId: parts[2], entryId: parts[4] };
+            return { type: 'settings_memories_entry_detail', appId: parts[0], categoryId: parts[2], entryId: parts[4], startInEditMode: false };
+        } else if (parts.length === 6 && parts[1] === 'settings_memories' && parts[3] === 'entry' && parts[5] === 'edit') {
+            // app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id}/edit
+            return { type: 'settings_memories_entry_detail', appId: parts[0], categoryId: parts[2], entryId: parts[4], startInEditMode: true };
         }
         
         return { type: 'invalid', appId: '' };
@@ -116,10 +120,10 @@
     });
     
     // Extract entry detail route info for type safety
-    let entryDetailRouteInfo = $derived.by((): { appId: string; categoryId: string; entryId: string } | null => {
+    let entryDetailRouteInfo = $derived.by((): { appId: string; categoryId: string; entryId: string; startInEditMode: boolean } | null => {
         if (routeInfo.type === 'settings_memories_entry_detail') {
             console.log('[AppDetailsWrapper] Entry detail route detected:', routeInfo);
-            return { appId: routeInfo.appId, categoryId: routeInfo.categoryId, entryId: routeInfo.entryId };
+            return { appId: routeInfo.appId, categoryId: routeInfo.categoryId, entryId: routeInfo.entryId, startInEditMode: routeInfo.startInEditMode };
         }
         return null;
     });
@@ -189,7 +193,7 @@
 {:else if entryDetailRouteInfo}
     {@const route = entryDetailRouteInfo}
     <!-- @ts-ignore - TypeScript limitation with discriminated unions in Svelte templates -->
-    <AppSettingsMemoriesEntryDetail appId={route.appId} categoryId={route.categoryId} entryId={route.entryId} on:openSettings={handleOpenSettings} />
+    <AppSettingsMemoriesEntryDetail appId={route.appId} categoryId={route.categoryId} entryId={route.entryId} startInEditMode={route.startInEditMode} on:openSettings={handleOpenSettings} />
 {:else}
     <div class="error">Invalid app route.</div>
 {/if}

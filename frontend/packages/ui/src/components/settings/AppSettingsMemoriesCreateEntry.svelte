@@ -21,6 +21,7 @@
     import type { AppMetadata, MemoryFieldMetadata, SchemaPropertyDefinition } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
+    import Icon from '../Icon.svelte';
     import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
     import {
         MAX_LENGTH_SHORT,
@@ -199,6 +200,25 @@
         return iconName;
     }
     
+    /**
+     * Get the icon name for this category to use in field headers.
+     */
+    function getCategoryIconName(categoryIconImage: string | undefined): string {
+        if (!categoryIconImage) return categoryId;
+        return categoryIconImage.replace(/\.svg$/, '');
+    }
+    
+    /**
+     * Get display-friendly field label (title).
+     * Returns the field name formatted as a human-readable title (e.g., "start_date" → "Start date").
+     * The prop.description is used as placeholder text, NOT as the label title.
+     */
+    function getFieldLabel(fieldName: string): string {
+        const words = fieldName.split('_');
+        return words[0].charAt(0).toUpperCase() + words[0].slice(1).toLowerCase() +
+            (words.length > 1 ? ' ' + words.slice(1).join(' ').toLowerCase() : '');
+    }
+
     /**
      * Navigate back to category page (settings and memories category page, not app details).
      */
@@ -488,9 +508,9 @@
                 {#each Object.entries(userInputProperties) as [fieldName, prop]}
                     <div class="form-group">
                         <div class="field-header">
-                            <div class="icon settings_size subsetting_icon icon_settings"></div>
+                            <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
                             <label for={fieldName}>
-                                {prop.description || fieldName}
+                                {getFieldLabel(fieldName)}
                                 {#if isFieldRequired(fieldName)}
                                     <span class="required">*</span>
                                 {/if}
@@ -505,14 +525,14 @@
                                     onchange={(e) => formState[fieldName] = (e.target as HTMLInputElement).checked}
                                     disabled={isCreating}
                                 />
-                                <span class="checkbox-label">{prop.description || fieldName}</span>
+                                <span class="checkbox-label">{getFieldLabel(fieldName)}</span>
                             </div>
                         {:else if prop.type === 'integer' || prop.type === 'number'}
                             <input
                                 id={fieldName}
                                 type="number"
                                 bind:value={formState[fieldName]}
-                                placeholder={prop.description || fieldName}
+                                placeholder={prop.description || getFieldLabel(fieldName)}
                                 min={prop.minimum}
                                 max={prop.maximum}
                                 step={prop.type === 'integer' ? 1 : undefined}
@@ -524,7 +544,7 @@
                                 bind:value={formState[fieldName]}
                                 disabled={isCreating}
                             >
-                                <option value="">Select {prop.description || fieldName}</option>
+                                <option value="">Select {getFieldLabel(fieldName)}</option>
                                 {#each prop.enum as enumValue}
                                     <option value={enumValue}>{enumValue}</option>
                                 {/each}
@@ -533,7 +553,7 @@
                             <textarea
                                 id={fieldName}
                                 bind:value={formState[fieldName]}
-                                placeholder={prop.description || fieldName}
+                                placeholder={prop.description || getFieldLabel(fieldName)}
                                 rows="4"
                                 maxlength={getMaxLength(prop)}
                                 disabled={isCreating}
@@ -543,13 +563,10 @@
                                 id={fieldName}
                                 type="text"
                                 bind:value={formState[fieldName]}
-                                placeholder={prop.description || fieldName}
+                                placeholder={prop.description || getFieldLabel(fieldName)}
                                 maxlength={getMaxLength(prop)}
                                 disabled={isCreating}
                             />
-                        {/if}
-                        {#if prop.description}
-                            <small>{prop.description}</small>
                         {/if}
                     </div>
                 {/each}
@@ -557,7 +574,7 @@
                 <!-- Generic form: Fallback when no schema is defined -->
                 <div class="form-group">
                     <div class="field-header">
-                        <div class="icon settings_size subsetting_icon icon_settings"></div>
+                        <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
                         <label for="item-key">
                             {$text('settings.app_settings_memories.item_key')}
                             <span class="required">*</span>
@@ -576,7 +593,7 @@
 
                 <div class="form-group">
                     <div class="field-header">
-                        <div class="icon settings_size subsetting_icon icon_settings"></div>
+                        <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
                         <label for="settings-group">
                             {$text('settings.app_settings_memories.settings_group')}
                         </label>
@@ -594,7 +611,7 @@
 
                 <div class="form-group">
                     <div class="field-header">
-                        <div class="icon settings_size subsetting_icon icon_settings"></div>
+                        <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
                         <label for="item-value">
                             {$text('settings.app_settings_memories.item_value')}
                             <span class="required">*</span>
