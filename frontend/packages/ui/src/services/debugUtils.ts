@@ -26,6 +26,7 @@ const CHATS_STORE = "chats";
 const MESSAGES_STORE = "messages";
 const EMBEDS_STORE = "embeds";
 const EMBED_KEYS_STORE = "embed_keys";
+const NEW_CHAT_SUGGESTIONS_STORE = "new_chat_suggestions";
 
 // Field inventory constants
 const MAX_FIELD_INVENTORY_ITEMS = 30;
@@ -1145,6 +1146,8 @@ type FieldDecryptResult = {
 type ChatDecryptionReport = {
   chatKeyAvailable: boolean;
   chatKeyFingerprint: string;
+  /** Full 64-char hex representation of the 32-byte chat key */
+  chatKeyFull?: string;
   chatKeySource: "cache" | "unwrapped" | "none";
   metadataFields: FieldDecryptResult[];
   messageFields: { messageIndex: number; role: string; success: boolean; error?: string }[];
@@ -1203,11 +1206,13 @@ async function attemptChatDecryption(
   }
 
   report.chatKeyAvailable = true;
-  // Show first 8 bytes of chat key as hex fingerprint (16 hex chars)
-  const keyHex = Array.from(chatKey.slice(0, 8))
+  // Full 32-byte hex key — shown by default; callers can pass hideKeys=true to mask it
+  const keyHexFull = Array.from(chatKey)
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
-  report.chatKeyFingerprint = `${keyHex}... (${chatKey.length} bytes, source: ${report.chatKeySource})`;
+  report.chatKeyFull = keyHexFull;
+  const keyHexShort = keyHexFull.slice(0, 16);
+  report.chatKeyFingerprint = `${keyHexShort}... (${chatKey.length} bytes, source: ${report.chatKeySource})`;
 
   // Step 2: Try decrypting each chat metadata field
   const { decryptWithChatKey } = await import("./cryptoService");
@@ -1314,9 +1319,10 @@ async function attemptChatDecryption(
  */
 export async function inspectChat(
   chatId: string,
-  options: { download?: boolean; verbose?: boolean } = {},
+  options: { download?: boolean; verbose?: boolean; hideKeys?: boolean } = {},
 ): Promise<string> {
   const forceVerbose = options.verbose || options.download || false;
+  const hideKeys = options.hideKeys ?? false;
   const db = await openDB();
 
   // ---- Gather all data ----
@@ -1412,8 +1418,13 @@ export async function inspectChat(
   lines.push(
     `CHAT ${chatId}  |  ${createdStr}`,
   );
+  const keyDisplay = decryptionReport.chatKeyAvailable
+    ? (hideKeys
+        ? `${decryptionReport.chatKeyFingerprint} [pass hideKeys:false to show full key]`
+        : `${decryptionReport.chatKeyFull ?? decryptionReport.chatKeyFingerprint} (${(decryptionReport.chatKeyFull?.length ?? 0) / 2} bytes, source: ${decryptionReport.chatKeySource})`)
+    : decryptionReport.chatKeyFingerprint;
   lines.push(
-    `Key: ${decryptionReport.chatKeyFingerprint}`,
+    `Key: ${keyDisplay}`,
   );
 
   // Health status — single line summary
@@ -1530,7 +1541,7 @@ export async function inspectChat(
     messages.forEach((msg, i) => {
       const role = (msg.role as string) || "unknown";
       const created = formatTimestamp(msg.created_at as number);
-      const msgId = (msg.id as string) || (msg.message_id as string) || "N/A";
+      const msgId = (msg.message_id as string) || (msg.id as string) || "N/A";
 
       // Decrypt status
       const msgDecrypt = decryptionReport.messageFields.find(
@@ -1548,7 +1559,7 @@ export async function inspectChat(
       }
 
       lines.push(
-        `  ${(i + 1).toString().padStart(3)}  ${role.padEnd(10)} ${created.padEnd(28)} ${decryptStatus.padEnd(9)} ${truncate(msgId, 12)}`,
+        `  ${(i + 1).toString().padStart(3)}  ${role.padEnd(10)} ${created.padEnd(28)} ${decryptStatus.padEnd(9)} ${msgId}`,
       );
     });
   } else {
@@ -1563,7 +1574,7 @@ export async function inspectChat(
 
   if (chatEmbeds.length > 0) {
     lines.push(
-      `  ${"#".padStart(3)}  ${"Type".padEnd(16)} ${"Status".padEnd(10)} ${"Decrypt".padEnd(9)} Embed ID`,
+      `  ${"#".padStart(3)}  ${"Role".padEnd(7)} ${"Type".padEnd(16)} ${"Status".padEnd(10)} ${"Decrypt".padEnd(9)} ${"App/Skill".padEnd(24)} ${"Created".padEnd(28)} Embed ID`,
     );
 
     // Build a map from embedId to decode attempt result for quick lookup
@@ -1593,14 +1604,22 @@ export async function inspectChat(
         decryptStatus = "- skip";
       }
 
-      // Child count suffix
-      const childSuffix =
-        embed.embed_ids && Array.isArray(embed.embed_ids) && (embed.embed_ids as string[]).length > 0
-          ? `  [${(embed.embed_ids as string[]).length} children]`
-          : "";
+      // Embed role: parent (has children), child (has parent), or regular
+      const hasChildren = embed.embed_ids && Array.isArray(embed.embed_ids) && (embed.embed_ids as string[]).length > 0;
+      const hasParent = !!(embed.parent_embed_id);
+      const embedRole = hasChildren ? "parent" : hasParent ? "child" : "regular";
+      const childCount = hasChildren ? `[${(embed.embed_ids as string[]).length}ch]` : "";
+
+      // App and skill info
+      const appId = (embed.app_id as string) || "";
+      const skillId = (embed.skill_id as string) || "";
+      const appSkill = appId && skillId ? `${appId}/${skillId}` : appId || skillId || "—";
+
+      // Created date
+      const embedCreated = formatTimestamp(embed.createdAt as number);
 
       lines.push(
-        `  ${(i + 1).toString().padStart(3)}  ${type.padEnd(16)} ${status.padEnd(10)} ${decryptStatus.padEnd(9)} ${truncate(cleanEmbedId, 12)}${childSuffix}`,
+        `  ${(i + 1).toString().padStart(3)}  ${(embedRole + childCount).padEnd(7)} ${type.padEnd(16)} ${status.padEnd(10)} ${decryptStatus.padEnd(9)} ${appSkill.padEnd(24)} ${embedCreated.padEnd(28)} ${cleanEmbedId}`,
       );
     }
 
@@ -1801,8 +1820,10 @@ export async function inspectChat(
  */
 export async function inspectEmbed(
   embedId: string,
-  options: { download?: boolean } = {},
+  options: { download?: boolean; hideKeys?: boolean } = {},
 ): Promise<string> {
+  const hideKeysEmbed = options.hideKeys ?? false;
+  void hideKeysEmbed; // reserved for future use in this function
   const db = await openDB();
   const lines: string[] = [];
   const separator = "=".repeat(100);
@@ -1863,8 +1884,15 @@ export async function inspectEmbed(
     lines.push(`  Skill ID:           ${embed.skill_id || "N/A"}`);
     lines.push(`  Query:              ${embed.query || "N/A"}`);
     lines.push(`  Provider:           ${embed.provider || "N/A"}`);
+    lines.push(`  Parent Embed ID:    ${embed.parent_embed_id || "null (root/regular)"}`);
+    const embedRole2 = embed.embed_ids && Array.isArray(embed.embed_ids) && (embed.embed_ids as string[]).length > 0
+      ? "parent"
+      : embed.parent_embed_id
+        ? "child"
+        : "regular";
+    lines.push(`  Role:               ${embedRole2}`);
     lines.push(
-      `  Hashed Chat ID:     ${embed.hashed_chat_id ? truncate(embed.hashed_chat_id as string, 30) : "N/A"}`,
+      `  Hashed Chat ID:     ${embed.hashed_chat_id ? (embed.hashed_chat_id as string) : "N/A"}`,
     );
     lines.push(
       `  Created At:         ${formatTimestamp(embed.createdAt as number)}`,
@@ -2076,6 +2104,382 @@ export async function inspectEmbed(
   return report;
 }
 
+
+// ============================================================================
+// USER DEBUG
+// ============================================================================
+
+/**
+ * Inspect current user profile and auth state with health checks.
+ *
+ * Usage in console:
+ *   await window.debug.user()
+ */
+async function debugUser(): Promise<void> {
+  const lines: string[] = [];
+  lines.push("USER PROFILE & AUTH STATE");
+  lines.push("─".repeat(80));
+
+  // Auth state
+  try {
+    const { get } = await import("svelte/store");
+    const { authStore } = await import("../stores/authState");
+    const auth = get(authStore) as unknown as Record<string, unknown> | null;
+    lines.push(`Auth:  isAuthenticated=${auth?.isAuthenticated ?? "?"}`
+      + `  isInitialized=${auth?.isInitialized ?? "?"}`);
+  } catch {
+    lines.push("Auth:  unavailable");
+  }
+
+  // User profile
+  try {
+    const { get } = await import("svelte/store");
+    const { userProfile } = await import("../stores/userProfile");
+    const profile = get(userProfile) as unknown as Record<string, unknown> | null;
+
+    if (!profile) {
+      lines.push("Profile: not loaded");
+    } else {
+      lines.push("");
+      lines.push("Profile:");
+      lines.push(`  user_id:           ${profile.user_id ?? "null"}`);
+      lines.push(`  username:          ${profile.username ?? "?"}`);
+      lines.push(`  is_admin:          ${profile.is_admin ?? false}`);
+      lines.push(`  credits:           ${profile.credits ?? 0}`);
+      lines.push(`  language:          ${profile.language ?? "null"}`);
+      lines.push(`  timezone:          ${profile.timezone ?? "null"}`);
+      lines.push(`  currency:          ${profile.currency ?? "null"}`);
+      lines.push(`  darkmode:          ${profile.darkmode ?? false}`);
+      lines.push(`  tfa_enabled:       ${profile.tfa_enabled ?? false}`);
+      lines.push(`  last_opened:       ${profile.last_opened ?? "?"}`);
+      lines.push(`  last_sync_ts:      ${profile.last_sync_timestamp ?? 0}`
+        + (profile.last_sync_timestamp
+            ? ` (${new Date((profile.last_sync_timestamp as number) * 1000).toISOString().replace("T"," ").replace("Z"," UTC")})`
+            : ""));
+      lines.push(`  push_notif:        ${profile.push_notification_enabled ?? false}`);
+      lines.push(`  email_notif:       ${profile.email_notifications_enabled ?? false}`);
+      lines.push(`  auto_delete_days:  ${profile.auto_delete_chats_after_days ?? "null (never)"}`);
+
+      // Encryption key health
+      const hasEncKey = !!(profile.encrypted_key);
+      const hasSalt = !!(profile.salt);
+      lines.push("");
+      lines.push("Encryption key material:");
+      lines.push(`  encrypted_key:     ${hasEncKey ? `present (${(profile.encrypted_key as string).length} chars)` : "MISSING"}`);
+      lines.push(`  salt:              ${hasSalt ? `present (${(profile.salt as string).length} chars)` : "MISSING"}`);
+
+      // Master key health check
+      try {
+        const { getKeyFromStorage, encryptWithMasterKey } = await import("./cryptoService");
+        const masterKey = await getKeyFromStorage();
+        if (masterKey) {
+          // Verify the key actually works with a test encryption
+          try {
+            const testEnc = await encryptWithMasterKey("debug_test");
+            const keyWorks = testEnc !== null && testEnc.length > 0;
+            lines.push(`  master_key:        UNLOCKED (CryptoKey present, encrypt test: ${keyWorks ? "✓ OK" : "✗ FAILED"})`);
+          } catch {
+            lines.push("  master_key:        UNLOCKED but encrypt test FAILED");
+          }
+        } else {
+          lines.push("  master_key:        NOT available (locked or not initialized)");
+        }
+      } catch {
+        lines.push("  master_key:        NOT available (cryptoService unavailable)");
+      }
+
+      // Recommended apps
+      if (profile.top_recommended_apps && Array.isArray(profile.top_recommended_apps)) {
+        lines.push("");
+        lines.push(`Top recommended apps (${(profile.top_recommended_apps as string[]).length}):  ${(profile.top_recommended_apps as string[]).join(", ")}`);
+      }
+      if (profile.encrypted_top_recommended_apps) {
+        lines.push(`  encrypted_top_apps: present (${(profile.encrypted_top_recommended_apps as string).length} chars)`);
+      }
+
+      // AI model preferences
+      lines.push("");
+      lines.push("AI model preferences:");
+      lines.push(`  default_simple:    ${profile.default_ai_model_simple ?? "auto"}`);
+      lines.push(`  default_complex:   ${profile.default_ai_model_complex ?? "auto"}`);
+      const disabledModels = profile.disabled_ai_models as string[] | undefined;
+      if (disabledModels && disabledModels.length > 0) {
+        lines.push(`  disabled_models:   ${disabledModels.join(", ")}`);
+      } else {
+        lines.push("  disabled_models:   (none)");
+      }
+
+      // Health checks
+      const issues: string[] = [];
+      if (!profile.user_id) issues.push("user_id is null");
+      if (!hasEncKey) issues.push("encrypted_key missing — master key unavailable");
+      if (!hasSalt) issues.push("salt missing — master key unavailable");
+      if (!profile.last_sync_timestamp) issues.push("last_sync_timestamp is 0/null — never synced");
+
+      lines.push("");
+      if (issues.length === 0) {
+        lines.push("🟢 User profile: HEALTHY");
+      } else {
+        lines.push(`🔴 User profile: ${issues.length} issue(s)`);
+        for (const iss of issues) lines.push(`   • ${iss}`);
+      }
+    }
+  } catch (e) {
+    lines.push(`Profile: error reading — ${e}`);
+  }
+
+  console.log(lines.join("\n"));
+}
+
+// ============================================================================
+// DAILY INSPIRATIONS DEBUG
+// ============================================================================
+
+/**
+ * Inspect daily inspirations store state with health checks.
+ *
+ * Usage in console:
+ *   await window.debug.dailyInspirations()
+ */
+async function debugDailyInspirations(): Promise<void> {
+  const lines: string[] = [];
+  lines.push("DAILY INSPIRATIONS");
+  lines.push("─".repeat(80));
+
+  try {
+    const { get } = await import("svelte/store");
+    const { dailyInspirationStore } = await import("../stores/dailyInspirationStore");
+    const state = get(dailyInspirationStore) as unknown as {
+      inspirations: Array<{
+        inspiration_id: string;
+        phrase: string;
+        title?: string;
+        category: string;
+        content_type: string;
+        generated_at: number;
+        is_opened?: boolean;
+        opened_chat_id?: string | null;
+        embed_id?: string | null;
+        video?: {
+          youtube_id: string;
+          title: string;
+          channel_name?: string | null;
+          duration_seconds?: number | null;
+          published_at?: string | null;
+        } | null;
+        follow_up_suggestions?: string[];
+        assistant_response?: string;
+      }>;
+      currentIndex: number;
+      phase1Empty: boolean;
+      isPersonalized: boolean;
+    };
+
+    lines.push(`Count:          ${state.inspirations.length} (max 3)`);
+    lines.push(`currentIndex:   ${state.currentIndex}`);
+    lines.push(`phase1Empty:    ${state.phase1Empty}`);
+    lines.push(`isPersonalized: ${state.isPersonalized}`);
+
+    if (state.inspirations.length === 0) {
+      lines.push("");
+      lines.push("(no inspirations loaded)");
+    } else {
+      lines.push("");
+      for (let i = 0; i < state.inspirations.length; i++) {
+        const ins = state.inspirations[i];
+        const isCurrent = i === state.currentIndex;
+        const opened = ins.is_opened ? "opened" : "unopened";
+        const genDate = ins.generated_at
+          ? new Date(ins.generated_at * 1000).toISOString().replace("T"," ").replace("Z"," UTC")
+          : "N/A";
+
+        lines.push(`Inspiration ${i + 1}${isCurrent ? " ◀ current" : ""} — ${opened}`);
+        lines.push(`  id:             ${ins.inspiration_id}`);
+        lines.push(`  phrase:         ${ins.phrase.length > 70 ? ins.phrase.slice(0, 70) + "..." : ins.phrase}`);
+        lines.push(`  title:          ${ins.title || "(not set)"}`);
+        lines.push(`  category:       ${ins.category}`);
+        lines.push(`  content_type:   ${ins.content_type}`);
+        lines.push(`  generated_at:   ${genDate}`);
+        lines.push(`  embed_id:       ${ins.embed_id || "null"}`);
+        if (ins.opened_chat_id) {
+          lines.push(`  opened_chat_id: ${ins.opened_chat_id} (hashed)`);
+        }
+
+        // Decryption health: try to resolve embed if embed_id is set
+        if (ins.embed_id) {
+          try {
+            const { resolveEmbed } = await import("./embedResolver");
+            const resolved = await resolveEmbed(ins.embed_id);
+            lines.push(`  embed_resolve:  ${resolved ? "✓ OK" : "✗ NOT FOUND"}`);
+          } catch {
+            lines.push("  embed_resolve:  ✗ ERROR");
+          }
+        }
+
+        if (ins.video) {
+          lines.push(`  video:`);
+          lines.push(`    youtube_id:   ${ins.video.youtube_id}`);
+          lines.push(`    title:        ${ins.video.title?.slice(0, 60) || "?"}`);
+          lines.push(`    channel:      ${ins.video.channel_name || "?"}`);
+          lines.push(`    duration:     ${ins.video.duration_seconds != null ? ins.video.duration_seconds + "s" : "?"}`);
+        } else {
+          lines.push("  video:          null");
+        }
+
+        const suggCount = ins.follow_up_suggestions?.length ?? 0;
+        lines.push(`  follow_up:      ${suggCount} suggestion(s)`);
+        lines.push(`  assistant_resp: ${ins.assistant_response ? ins.assistant_response.length + " chars" : "(not set)"}`);
+        lines.push("");
+      }
+    }
+
+    // Health checks
+    const issues: string[] = [];
+    if (!state.isPersonalized && state.inspirations.length > 0) {
+      issues.push("inspirations are public defaults only (not personalized for this user)");
+    }
+    for (const ins of state.inspirations) {
+      if (!ins.video) issues.push(`inspiration ${ins.inspiration_id.slice(0, 8)}... has no video`);
+      if (!ins.generated_at) issues.push(`inspiration ${ins.inspiration_id.slice(0, 8)}... missing generated_at`);
+    }
+    if (issues.length === 0) {
+      lines.push("🟢 Daily inspirations: HEALTHY");
+    } else {
+      lines.push(`⚠️  Daily inspirations: ${issues.length} issue(s)`);
+      for (const iss of issues) lines.push(`   • ${iss}`);
+    }
+  } catch (e) {
+    lines.push(`Error: ${e}`);
+  }
+
+  console.log(lines.join("\n"));
+}
+
+// ============================================================================
+// NEW CHAT SUGGESTIONS DEBUG
+// ============================================================================
+
+/**
+ * Inspect new chat suggestions in IndexedDB with decryption health check.
+ *
+ * Usage in console:
+ *   await window.debug.newChatSuggestions()
+ *   await window.debug.newChatSuggestions({ hideKeys: true })
+ */
+async function debugNewChatSuggestions(opts: { hideKeys?: boolean } = {}): Promise<void> {
+  const lines: string[] = [];
+  lines.push("NEW CHAT SUGGESTIONS");
+  lines.push("─".repeat(80));
+
+  try {
+    const db = await openDB();
+    const suggestions = await getAllFromStore<Record<string, unknown>>(db, NEW_CHAT_SUGGESTIONS_STORE);
+    db.close();
+
+    // Sort by created_at descending
+    suggestions.sort((a, b) => ((b.created_at as number) || 0) - ((a.created_at as number) || 0));
+
+    lines.push(`Count in IndexedDB:  ${suggestions.length} (max 50)`);
+    lines.push("");
+
+    // Try to decrypt each suggestion
+    let decryptOk = 0;
+    let decryptFail = 0;
+    let masterKeyAvailable = false;
+
+    // Get master key once
+    let decryptWithMasterKey: null | ((s: string) => Promise<string | null>) = null;
+    try {
+      const mod = await import("./cryptoService");
+      decryptWithMasterKey = mod.decryptWithMasterKey as (s: string) => Promise<string | null>;
+      // Test that master key is available
+      if (decryptWithMasterKey && suggestions.length > 0) {
+        masterKeyAvailable = true;
+      }
+    } catch {
+      masterKeyAvailable = false;
+    }
+
+    if (suggestions.length === 0) {
+      lines.push("(no suggestions stored)");
+    } else {
+      lines.push(`${"#".padStart(3)}  ${"Created".padEnd(28)} ${"Chat ID".padEnd(36)} ${"Decrypt".padEnd(9)} ${"Encrypted value (or decrypted preview)"}`);
+      for (let i = 0; i < suggestions.length; i++) {
+        const s = suggestions[i];
+        const createdAt = formatTimestamp(s.created_at as number);
+        const chatId = (s.chat_id as string) || "N/A";
+        const encValue = (s.encrypted_suggestion as string) || "";
+        const isHidden = s.is_hidden ? " [hidden]" : "";
+
+        let decryptInfo = "? N/A";
+        if (decryptWithMasterKey && encValue) {
+          try {
+            const decrypted = await decryptWithMasterKey(encValue);
+            if (decrypted !== null) {
+              decryptOk++;
+              const preview = decrypted.length > 50 ? decrypted.slice(0, 50) + "..." : decrypted;
+              decryptInfo = `✓ OK  "${preview}"`;
+            } else {
+              decryptFail++;
+              decryptInfo = "✗ FAIL (null)";
+            }
+          } catch (err) {
+            decryptFail++;
+            decryptInfo = `✗ FAIL (${err instanceof Error ? err.message.slice(0, 30) : String(err).slice(0, 30)})`;
+          }
+        } else if (!encValue) {
+          decryptInfo = "· empty";
+        }
+
+        const encDisplay = opts.hideKeys ? `${encValue.slice(0, 20)}... [${encValue.length} chars]` : encValue;
+        lines.push(`${(i + 1).toString().padStart(3)}  ${createdAt.padEnd(28)} ${chatId}${isHidden}  ${decryptInfo}`);
+        if (!opts.hideKeys) {
+          lines.push(`     enc: ${encDisplay}`);
+        }
+      }
+
+      lines.push("");
+
+      // Master key health
+      try {
+        const { getKeyFromStorage } = await import("./cryptoService");
+        const masterKey2 = await getKeyFromStorage();
+        if (masterKey2) {
+          lines.push("Master key:  UNLOCKED (CryptoKey present)");
+        } else {
+          lines.push("Master key:  NOT available (locked)");
+        }
+      } catch {
+        lines.push("Master key:  NOT available (cryptoService unavailable)");
+      }
+    }
+
+    // Health checks
+    lines.push("");
+    const issues: string[] = [];
+    if (!masterKeyAvailable && suggestions.length > 0) {
+      issues.push("master key not available — cannot verify suggestions are decryptable");
+    }
+    if (decryptFail > 0) {
+      issues.push(`${decryptFail}/${decryptOk + decryptFail} suggestions failed to decrypt`);
+    }
+    if (suggestions.length > 45) {
+      issues.push(`suggestion count (${suggestions.length}) is near the 50-item cap — oldest will be evicted soon`);
+    }
+    if (issues.length === 0) {
+      lines.push(`🟢 New chat suggestions: HEALTHY (${decryptOk} decrypted OK)`);
+    } else {
+      lines.push(`🔴 New chat suggestions: ${issues.length} issue(s)`);
+      for (const iss of issues) lines.push(`   • ${iss}`);
+    }
+
+  } catch (e) {
+    lines.push(`Error reading IndexedDB: ${e}`);
+  }
+
+  console.log(lines.join("\n"));
+}
+
 // ============================================================================
 // INITIALIZATION - Expose unified window.debug namespace
 // ============================================================================
@@ -2148,6 +2552,64 @@ async function runClientHealthCheck(): Promise<void> {
     console.log("ℹ️  Log collector unavailable");
   }
 
+  // 4. Attempt decryption of all chats and report failures
+  try {
+    const db2 = await openDB();
+    const allChats = await getAllFromStore<Record<string, unknown>>(db2, CHATS_STORE);
+    const allMessages = await getAllFromStore<Record<string, unknown>>(db2, MESSAGES_STORE);
+    db2.close();
+
+    // Group messages by chat_id
+    const messagesByChatId: Record<string, Record<string, unknown>[]> = {};
+    for (const msg of allMessages) {
+      const cid = msg.chat_id as string;
+      if (!messagesByChatId[cid]) messagesByChatId[cid] = [];
+      messagesByChatId[cid].push(msg);
+    }
+
+    let totalDecryptFailed = 0;
+    const failedChats: { chatId: string; failedFields: string[] }[] = [];
+
+    for (const chatMeta of allChats) {
+      const chatId = chatMeta.chat_id as string;
+      const msgs = messagesByChatId[chatId] || [];
+      try {
+        const report = await attemptChatDecryption(chatId, chatMeta, msgs);
+        if (report.chatKeyAvailable) {
+          const failedFields: string[] = [];
+          for (const f of report.metadataFields) {
+            if (!f.success) failedFields.push(`${f.field}(meta)`);
+          }
+          for (const m of report.messageFields) {
+            if (!m.success) failedFields.push(`msg[${m.messageIndex}]`);
+          }
+          if (failedFields.length > 0) {
+            totalDecryptFailed++;
+            failedChats.push({ chatId, failedFields });
+          }
+        }
+      } catch {
+        // skip individual chat errors in global health check
+      }
+    }
+
+    if (totalDecryptFailed === 0) {
+      console.log(`✅ Decryption OK — all ${allChats.length} chats decrypted successfully`);
+    } else {
+      console.warn(
+        `⚠️  Decryption failures in ${totalDecryptFailed}/${allChats.length} chat(s). Run window.debug.chat(id) for details:`,
+      );
+      for (const { chatId, failedFields } of failedChats.slice(0, 5)) {
+        console.warn(`   ${chatId} — failed: ${failedFields.join(", ")}`);
+      }
+      if (failedChats.length > 5) {
+        console.warn(`   ... and ${failedChats.length - 5} more`);
+      }
+    }
+  } catch (e) {
+    console.log(`ℹ️  Decryption check unavailable: ${e}`);
+  }
+
   console.groupEnd();
   console.info(
     "%c💡 Tip:%c type window.debug.help() to see all available commands",
@@ -2178,6 +2640,13 @@ function showDebugHelp(): void {
       "  Downloads:\n" +
       '  await window.debug.download("chat", "id") — download chat report as .txt\n' +
       '  await window.debug.download("embed", "id")— download embed report as .txt\n\n' +
+      "  User / Suggestions / Inspirations:\n" +
+      "  await window.debug.user()                 — user profile, auth state, encryption key health\n" +
+      "  await window.debug.dailyInspirations()    — daily inspirations store state and health\n" +
+      "  await window.debug.newChatSuggestions()   — new chat suggestions (decrypt all + health)\n\n" +
+      "  Keys / Encryption:\n" +
+      "  All commands show full IDs and keys by default.\n" +
+      "  Pass { hideKeys: true } to mask keys, e.g. debug.chat(id, {hideKeys:true})\n\n" +
       "  Diagnostics:\n" +
       "  window.debug.logs(n?, level?)             — show last N logs (default 20), filter by level\n" +
       "  window.debug.errors(n?)                   — show last N errors+warnings (default 50)\n" +
@@ -2350,6 +2819,15 @@ export function initDebugUtils(): void {
       console.log("📊 Store state snapshot:", summary);
       return summary;
     },
+
+    /** Inspect user profile and auth state with health checks */
+    user: () => debugUser(),
+
+    /** Inspect daily inspirations store state */
+    dailyInspirations: () => debugDailyInspirations(),
+
+    /** Inspect new chat suggestions in IndexedDB with decryption health check */
+    newChatSuggestions: (opts?: { hideKeys?: boolean }) => debugNewChatSuggestions(opts),
   });
 
   (window as unknown as Record<string, unknown>).debug = debugFn;
