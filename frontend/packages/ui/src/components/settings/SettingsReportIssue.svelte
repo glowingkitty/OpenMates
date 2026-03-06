@@ -181,8 +181,11 @@
                 
                 // For private chats, generate encrypted share link
                 try {
-                    const { chatDB } = await import('../../services/db');
-                    const chatKey = chatDB.getOrGenerateChatKey(activeChatId);
+                    const { chatKeyManager } = await import('../../services/encryption/ChatKeyManager');
+                    let chatKey = chatKeyManager.getKeySync(activeChatId);
+                    if (!chatKey) {
+                        chatKey = await chatKeyManager.getKey(activeChatId);
+                    }
                     
                     if (chatKey) {
                         // Convert chat key to base64 if needed

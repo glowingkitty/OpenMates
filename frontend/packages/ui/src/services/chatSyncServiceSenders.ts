@@ -7,6 +7,7 @@ import { get } from "svelte/store";
 import { websocketStatus } from "../stores/websocketStatusStore";
 import { chatMetadataCache } from "./chatMetadataCache";
 import { normalizeToUnixSeconds } from "./timestampUtils";
+import { chatKeyManager } from "./encryption/ChatKeyManager";
 import type {
   Chat,
   Message,
@@ -32,8 +33,16 @@ export async function sendUpdateTitleImpl(
   chat_id: string,
   new_title: string,
 ): Promise<void> {
-  // Get or generate chat key for encryption
-  const chatKey = chatDB.getOrGenerateChatKey(chat_id);
+  // Get chat key — user has this chat open, key should be in cache
+  let chatKey = chatKeyManager.getKeySync(chat_id);
+  if (!chatKey) {
+    chatKey = await chatKeyManager.getKey(chat_id);
+  }
+  if (!chatKey) {
+    console.error(`[ChatSyncService:Senders] No chat key available for title encryption (chat ${chat_id})`);
+    notificationStore.error("Failed to encrypt title - chat key not available");
+    return;
+  }
 
   // Import chat-specific encryption function
   const { encryptWithChatKey } = await import("./cryptoService");
@@ -41,7 +50,7 @@ export async function sendUpdateTitleImpl(
   // Encrypt title with chat-specific key for server storage/syncing
   const encryptedTitle = await encryptWithChatKey(new_title, chatKey);
   if (!encryptedTitle) {
-    notificationStore.error("Failed to encrypt title - chat key not available");
+    notificationStore.error("Failed to encrypt title - encryption returned null");
     return;
   }
 
@@ -1128,12 +1137,11 @@ export async function sendNewMessageImpl(
         const userId = chat?.user_id || "";
         const hashedUserId = userId ? await computeSHA256(userId) : "";
 
-        // Get or generate chat key for wrapping embed keys
-        // This ensures we always have a key, even for new chats
-        const chatKey = chatDB.getOrGenerateChatKey(message.chat_id);
+        // Get chat key for wrapping embed keys — must be available by the time we send
+        const chatKey = chatKeyManager.getKeySync(message.chat_id) || await chatKeyManager.getKey(message.chat_id);
         if (!chatKey) {
           console.error(
-            "[ChatSyncService:Senders] Failed to get or generate chat key, this should not happen",
+            `[ChatSyncService:Senders] No chat key available for embed key wrapping (chat ${message.chat_id}). Embeds will not be encrypted.`,
           );
         }
 
@@ -2030,7 +2038,10 @@ export async function sendEncryptedStoragePackage(
       console.warn(
         `[ChatSyncService:Senders] ⚠️ encrypted_chat_key missing for ${chat_id}, generating new key (new chat)`,
       );
-      chatKey = chatKey || chatDB.getOrGenerateChatKey(chat_id);
+      // CASE 2: New chat on originating device — safe to create key
+      if (!chatKey) {
+        chatKey = chatKeyManager.getKeySync(chat_id) || chatKeyManager.createKeyForNewChat(chat_id);
+      }
 
       // Encrypt and save the new key
       const { encryptChatKeyWithMasterKey } = await import("./cryptoService");

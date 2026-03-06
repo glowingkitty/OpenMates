@@ -4,6 +4,7 @@ import { isDesktop } from "../../../utils/platform";
 import { hasActualContent, vibrateMessageField } from "../utils";
 import { Extension } from "@tiptap/core";
 import { chatDB } from "../../../services/db";
+import { chatKeyManager } from "../../../services/encryption/ChatKeyManager";
 import { chatSyncService } from "../../../services/chatSyncService"; // Import chatSyncService
 import type { Message } from "../../../types/chat"; // Import Message type
 import { draftEditorUIState } from "../../../services/drafts/draftState";
@@ -1243,7 +1244,7 @@ export async function handleSend(
             );
 
             // Ensure we have a chat key for encryption (this device is creating the chat)
-            chatDB.getOrCreateChatKeyForOriginator(chatIdToUse);
+            chatKeyManager.createKeyForNewChat(chatIdToUse);
 
             for (const demoMsg of demoMessages) {
               // Format: message_id={last_10_chars_of_chat_id}-{uuid_v4}

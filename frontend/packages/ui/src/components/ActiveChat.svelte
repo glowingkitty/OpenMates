@@ -16,6 +16,7 @@
     import type { Chat, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
+    import { chatKeyManager } from '../services/encryption/ChatKeyManager';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
     import { skillPreviewService } from '../services/skillPreviewService'; // Import skillPreviewService
     import KeyboardShortcuts from './KeyboardShortcuts.svelte';
@@ -2009,24 +2010,33 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             console.error('[ActiveChat] Failed to parse cleartext follow-up suggestions:', parseError);
                         }
                     } else if (freshChat.encrypted_follow_up_request_suggestions) {
-                        const chatKey = chatDB.getOrGenerateChatKey(chatId);
-                        const { decryptArrayWithChatKey } = await import('../services/cryptoService');
-                        const decryptedSuggestions = await decryptArrayWithChatKey(
-                            freshChat.encrypted_follow_up_request_suggestions,
-                            chatKey
-                        );
-                        
-                        if (decryptedSuggestions && decryptedSuggestions.length > 0) {
-                            followUpSuggestions = decryptedSuggestions;
-                            console.info('[ActiveChat] ✅ Loaded follow-up suggestions from database after post-processing:', decryptedSuggestions.length);
-                        } else {
-                            // Fallback: use suggestions from event if database decryption fails
+                        const chatKey = chatKeyManager.getKeySync(chatId);
+                        if (!chatKey) {
+                            console.debug('[ActiveChat] No chat key for follow-up suggestions decrypt, using event fallback');
                             if (newSuggestions && Array.isArray(newSuggestions) && newSuggestions.length > 0) {
                                 followUpSuggestions = newSuggestions;
-                                console.info('[ActiveChat] ✅ Fallback: Updated followUpSuggestions from event:', $state.snapshot(followUpSuggestions));
                             } else {
                                 followUpSuggestions = [];
-                                console.debug('[ActiveChat] No follow-up suggestions found in database or event');
+                            }
+                        } else {
+                            const { decryptArrayWithChatKey } = await import('../services/cryptoService');
+                            const decryptedSuggestions = await decryptArrayWithChatKey(
+                                freshChat.encrypted_follow_up_request_suggestions,
+                                chatKey
+                            );
+                            
+                            if (decryptedSuggestions && decryptedSuggestions.length > 0) {
+                                followUpSuggestions = decryptedSuggestions;
+                                console.info('[ActiveChat] ✅ Loaded follow-up suggestions from database after post-processing:', decryptedSuggestions.length);
+                            } else {
+                                // Fallback: use suggestions from event if database decryption fails
+                                if (newSuggestions && Array.isArray(newSuggestions) && newSuggestions.length > 0) {
+                                    followUpSuggestions = newSuggestions;
+                                    console.info('[ActiveChat] ✅ Fallback: Updated followUpSuggestions from event:', $state.snapshot(followUpSuggestions));
+                                } else {
+                                    followUpSuggestions = [];
+                                    console.debug('[ActiveChat] No follow-up suggestions found in database or event');
+                                }
                             }
                         }
                     } else if (newSuggestions && Array.isArray(newSuggestions) && newSuggestions.length > 0) {
@@ -2044,7 +2054,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     
                     if (freshChat.encrypted_settings_memories_suggestions) {
                         try {
-                            const chatKey = chatDB.getOrGenerateChatKey(chatId);
+                            const chatKey = chatKeyManager.getKeySync(chatId);
+                            if (!chatKey) {
+                                console.debug('[ActiveChat] No chat key for settings/memories decrypt, skipping');
+                                throw new Error('Chat key not available');
+                            }
                             const { decryptWithChatKey } = await import('../services/cryptoService');
                             const decryptedJson = await decryptWithChatKey(
                                 freshChat.encrypted_settings_memories_suggestions,
@@ -3272,9 +3286,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 console.error('[ActiveChat] Failed to parse cleartext follow-up suggestions from fresh DB read:', parseError);
                             }
                         } else if (freshChat?.encrypted_follow_up_request_suggestions) {
-                            // Use getOrGenerateChatKey: by the time the user has focused the input,
+                            // Use chatKeyManager: by the time the user has focused the input,
                             // loadChatKeysFromDatabase should have completed and the correct key is cached.
-                            const chatKey = chatDB.getOrGenerateChatKey(currentChat.chat_id);
+                            const chatKey = chatKeyManager.getKeySync(currentChat.chat_id);
+                            if (!chatKey) {
+                                console.debug('[ActiveChat] No chat key for focus-reload suggestions decrypt, skipping');
+                                return;
+                            }
                             const { decryptArrayWithChatKey } = await import('../services/cryptoService');
                             const decryptedSuggestions = await decryptArrayWithChatKey(
                                 freshChat.encrypted_follow_up_request_suggestions,
@@ -5476,10 +5494,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     }
                 }
                 if (!chatKey) {
-                    // Last resort: key not in cache and no encrypted_chat_key in the event payload.
-                    // This path should only be reached for a brand-new chat on the originating device
-                    // where the key was already generated in memory by handleSendMessage.
-                    chatKey = chatDB.getOrGenerateChatKey(incomingChatId);
+                    // Last resort: try chatKeyManager async load from IDB
+                    chatKey = await chatKeyManager.getKey(incomingChatId);
+                    if (!chatKey) {
+                        console.warn('[ActiveChat] handleChatUpdated: No chat key available for', incomingChatId, '— skipping header decryption');
+                    }
                 }
                 if (chatKey) {
                     let decryptedTitle = activeChatDecryptedTitle;
@@ -5537,7 +5556,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     }
                 }
                 if (!summaryKey) {
-                    summaryKey = chatDB.getOrGenerateChatKey(incomingChatId);
+                    summaryKey = await chatKeyManager.getKey(incomingChatId);
+                    if (!summaryKey) {
+                        console.warn('[ActiveChat] handleChatUpdated: No chat key for summary decrypt of', incomingChatId);
+                    }
                 }
                 if (summaryKey) {
                     const decryptedSummary = await decryptWithChatKey(incomingChatMetadata.encrypted_chat_summary, summaryKey, { chatId: incomingChatId, fieldName: 'encrypted_chat_summary' });
@@ -5983,11 +6005,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                               }
                           }
                           if (!chatKey) {
-                              // Genuinely new chat or key unavailable — fall back to generate.
-                              // This should only be reached for chats created on this device
-                              // before the server has stored encrypted_chat_key.
-                              console.warn('[ActiveChat] loadChat: No chat key in cache and no encrypted_chat_key for', chatForHeader.chat_id, '— generating new key (may cause header decryption failure for existing chats)');
-                              chatKey = chatDB.getOrGenerateChatKey(chatForHeader.chat_id);
+                              // Try async load from IDB via ChatKeyManager
+                              chatKey = await chatKeyManager.getKey(chatForHeader.chat_id);
+                              if (!chatKey) {
+                                  console.warn('[ActiveChat] loadChat: No chat key available for', chatForHeader.chat_id, '— header will show placeholders');
+                              }
                           }
                           if (chatKey) {
                               let t = '';
@@ -6342,9 +6364,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         } else if (currentChat.encrypted_follow_up_request_suggestions) {
             // For real chats, decrypt the suggestions from database
             try {
-                const chatKey = chatDB.getOrGenerateChatKey(currentChat.chat_id);
-                const { decryptArrayWithChatKey } = await import('../services/cryptoService');
-                followUpSuggestions = await decryptArrayWithChatKey(currentChat.encrypted_follow_up_request_suggestions, chatKey) || [];
+                const chatKey = chatKeyManager.getKeySync(currentChat.chat_id);
+                if (!chatKey) {
+                    console.debug('[ActiveChat] No chat key for follow-up suggestions in loadChat, skipping');
+                    followUpSuggestions = [];
+                } else {
+                    const { decryptArrayWithChatKey } = await import('../services/cryptoService');
+                    followUpSuggestions = await decryptArrayWithChatKey(currentChat.encrypted_follow_up_request_suggestions, chatKey) || [];
+                }
                 console.debug('[ActiveChat] Loaded follow-up suggestions from database:', $state.snapshot(followUpSuggestions));
             } catch (error) {
                 console.error('[ActiveChat] Failed to load follow-up suggestions:', error);
@@ -6362,7 +6389,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             rejectedSuggestionHashes = currentChat.rejected_suggestion_hashes ?? null;
             
             try {
-                const chatKey = chatDB.getOrGenerateChatKey(currentChat.chat_id);
+                const chatKey = chatKeyManager.getKeySync(currentChat.chat_id);
+                if (!chatKey) {
+                    console.debug('[ActiveChat] No chat key for settings/memories suggestions in loadChat, skipping');
+                    throw new Error('Chat key not available');
+                }
                 const { decryptWithChatKey } = await import('../services/cryptoService');
                 const decryptedJson = await decryptWithChatKey(
                     currentChat.encrypted_settings_memories_suggestions,

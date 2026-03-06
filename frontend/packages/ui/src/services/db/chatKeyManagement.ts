@@ -14,6 +14,7 @@ import {
   decryptWithChatKey,
   decryptChatKeyWithMasterKey,
 } from "../cryptoService";
+import { chatKeyManager } from "../encryption/ChatKeyManager";
 import { get } from "svelte/store";
 import { forcedLogoutInProgress } from "../../stores/signupState";
 import { websocketStatus } from "../../stores/websocketStatusStore";
@@ -68,6 +69,8 @@ export function setChatKey(
   chatKey: Uint8Array,
 ): void {
   dbInstance.chatKeys.set(chatId, chatKey);
+  // Keep ChatKeyManager in sync during migration
+  chatKeyManager.injectKey(chatId, chatKey);
 }
 
 /**
@@ -82,6 +85,7 @@ export function clearChatKey(
   chatId: string,
 ): void {
   dbInstance.chatKeys.delete(chatId);
+  chatKeyManager.removeKey(chatId);
 }
 
 /**
@@ -92,6 +96,7 @@ export function clearChatKey(
  */
 export function clearAllChatKeys(dbInstance: ChatDatabaseInstance): void {
   dbInstance.chatKeys.clear();
+  chatKeyManager.clearAll();
 }
 
 /**
@@ -247,6 +252,8 @@ export async function loadChatKeysFromDatabase(
                     await decryptChatKeyWithMasterKey(encryptedKey);
                   if (chatKey) {
                     dbInstance.chatKeys.set(chatId, chatKey);
+                    // Also populate ChatKeyManager for the new architecture
+                    chatKeyManager.injectKey(chatId, chatKey);
                   }
                 } catch (decryptError) {
                   console.error(
@@ -351,7 +358,21 @@ export async function encryptMessageFields(
   }
 
   const encryptedMessage = { ...message };
-  const chatKey = getOrGenerateChatKey(dbInstance, chatId);
+
+  // Use ChatKeyManager: try sync cache first, then async load from IDB.
+  // NEVER generate a random key — if key is unavailable, throw instead of silently corrupting data.
+  let chatKey = chatKeyManager.getKeySync(chatId);
+  if (!chatKey) {
+    // Async fallback: try loading from IDB
+    chatKey = await chatKeyManager.getKey(chatId);
+  }
+  if (!chatKey) {
+    throw new Error(
+      `[ChatKeyManager] Cannot encrypt message for chat ${chatId}: no chat key available. ` +
+        `This prevents silent data corruption. The caller should ensure the key ` +
+        `is loaded before calling encryptMessageFields().`,
+    );
+  }
 
   // CRITICAL FIX: await all async encryption calls to prevent storing Promises in IndexedDB
   // Encrypt content if present - ZERO-KNOWLEDGE: Remove plaintext content
@@ -463,7 +484,18 @@ export async function getEncryptedFields(
   encrypted_thinking_signature?: string;
   encrypted_pii_mappings?: string;
 }> {
-  const chatKey = getOrGenerateChatKey(dbInstance, chatId);
+  // Use ChatKeyManager: try sync cache first, then async load from IDB.
+  // NEVER generate a random key — throw if key is unavailable.
+  let chatKey = chatKeyManager.getKeySync(chatId);
+  if (!chatKey) {
+    chatKey = await chatKeyManager.getKey(chatId);
+  }
+  if (!chatKey) {
+    throw new Error(
+      `[ChatKeyManager] Cannot get encrypted fields for chat ${chatId}: no chat key available. ` +
+        `The caller should ensure the key is loaded before calling getEncryptedFields().`,
+    );
+  }
   const encryptedFields: {
     encrypted_content?: string;
     encrypted_sender_name?: string;
@@ -587,7 +619,8 @@ export async function decryptMessageFields(
   }
 
   const decryptedMessage = { ...message };
-  const chatKey = getChatKey(dbInstance, chatId);
+  // Use ChatKeyManager for key lookup (safe: returns null if unavailable)
+  const chatKey = chatKeyManager.getKeySync(chatId);
 
   if (!chatKey) {
     console.error(

@@ -17,6 +17,7 @@ import type { EmbedType } from "../message_parsing/types";
 // Imported lazily to avoid circular deps — called after each chat-key establishment
 // so that system messages queued before the key was available get saved correctly.
 import { flushPendingSystemMessagesForChat } from "./chatSyncServiceHandlersAppSettings";
+import { chatKeyManager } from "./encryption/ChatKeyManager";
 
 /**
  * Pending message queue for cross-device sync.
@@ -1266,8 +1267,18 @@ export async function handleChatMetadataForEncryptionImpl(
     );
 
     // PHASE 2: Update local chat with encrypted metadata
-    // Get or generate chat key for encryption
-    const chatKey = chatDB.getOrGenerateChatKey(chat_id);
+    // Get chat key — should be cached by the time AI response metadata arrives
+    let chatKey = chatKeyManager.getKeySync(chat_id);
+    if (!chatKey) {
+      chatKey = await chatKeyManager.getKey(chat_id);
+    }
+    if (!chatKey) {
+      console.error(
+        `[ChatSyncService:ChatUpdates] No chat key available for metadata encryption (chat ${chat_id}). ` +
+          `Skipping encrypted metadata update to prevent data corruption.`,
+      );
+      return;
+    }
 
     // Import chat-specific encryption function
     const { encryptWithChatKey } = await import("./cryptoService");

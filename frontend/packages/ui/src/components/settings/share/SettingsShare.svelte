@@ -1094,14 +1094,14 @@
         }
         
         try {
-            // Import chatDB to access the chat key
-            const { chatDB } = await import('../../../services/db');
-            
-            // Get or generate the chat key (this returns the plaintext key)
-            const chatKey = chatDB.getOrGenerateChatKey(currentChatId);
-            
+            // Use ChatKeyManager to safely get the chat key (NEVER generates a wrong random key)
+            const { chatKeyManager } = await import('../../../services/encryption/ChatKeyManager');
+            let chatKey = chatKeyManager.getKeySync(currentChatId);
             if (!chatKey) {
-                throw new Error('Failed to retrieve chat encryption key');
+                chatKey = await chatKeyManager.getKey(currentChatId);
+            }
+            if (!chatKey) {
+                throw new Error('Chat key not available — cannot create share link. Please try again.');
             }
             
             // Convert the chat key (Uint8Array) to base64 for use in share encryption

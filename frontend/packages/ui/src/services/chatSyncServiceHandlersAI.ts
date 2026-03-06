@@ -15,6 +15,7 @@ import { notificationStore } from "../stores/notificationStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { webSocketService } from "./websocketService"; // For notifying data activity during AI streaming
 import { normalizeToUnixSeconds } from "./timestampUtils";
+import { chatKeyManager } from "./encryption/ChatKeyManager";
 
 // Safe TOON decoder for metadata extraction (local to avoid circular deps)
 let toonDecode:
@@ -616,10 +617,16 @@ export async function handleAIBackgroundResponseCompletedImpl(
     if (!category && chat.encrypted_category) {
       try {
         const { decryptWithChatKey } = await import("./cryptoService");
-        const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
-        category =
-          (await decryptWithChatKey(chat.encrypted_category, chatKey)) ||
-          undefined;
+        const chatKey = chatKeyManager.getKeySync(payload.chat_id);
+        if (!chatKey) {
+          console.debug(
+            `[ChatSyncService:AI] No chat key available for ${payload.chat_id}, skipping category decrypt`,
+          );
+        } else {
+          category =
+            (await decryptWithChatKey(chat.encrypted_category, chatKey)) ||
+            undefined;
+        }
         console.info(
           `[ChatSyncService:AI] Retrieved category from chat metadata for background response: ${category}`,
         );
@@ -794,7 +801,13 @@ export async function handleAIBackgroundResponseCompletedImpl(
         // Try to decrypt the title for the notification
         try {
           const { decryptWithChatKey } = await import("./cryptoService");
-          const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
+          const chatKey = chatKeyManager.getKeySync(payload.chat_id);
+          if (!chatKey) {
+            console.debug(
+              `[ChatSyncService:AI] No chat key available for notification title decrypt (chat ${payload.chat_id})`,
+            );
+            throw new Error("Chat key not available");
+          }
           const decryptedTitle = await decryptWithChatKey(
             chat.encrypted_title,
             chatKey,
@@ -1025,11 +1038,20 @@ export async function handleAITypingStartedImpl( // Changed to async
         }
       }
 
-      // Get or generate chat key for encryption.
-      // On the originating device this generates the key for the first time.
-      // On secondary devices the key should already be in cache from the
-      // new_chat_message broadcast or the encrypted_chat_key in this payload.
-      const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
+      // Get chat key: should already be in cache from sendEncryptedStoragePackage (originator)
+      // or from the encrypted_chat_key decrypted above (secondary device).
+      // Only create a new key if this is the originating device for a brand-new chat.
+      let chatKey = chatKeyManager.getKeySync(payload.chat_id);
+      if (!chatKey) {
+        chatKey = await chatKeyManager.getKey(payload.chat_id);
+      }
+      if (!chatKey) {
+        // Last resort: originating device creating a new chat — safe to generate
+        console.info(
+          `[ChatSyncService:AI] No cached key for ${payload.chat_id} in ai_typing_started, creating new key (originator)`,
+        );
+        chatKey = chatKeyManager.createKeyForNewChat(payload.chat_id);
+      }
       // Flush regular messages and system messages queued waiting for this key (cross-device sync fix)
       await flushPendingMessagesForChat(payload.chat_id);
       await flushPendingSystemMessagesForChat(payload.chat_id);
@@ -1165,11 +1187,19 @@ export async function handleAITypingStartedImpl( // Changed to async
             );
           }
 
-          // Ensure chat key is stored for decryption
-          const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
-          const encryptedChatKey = await import("./cryptoService").then((m) =>
-            m.encryptChatKeyWithMasterKey(chatKey),
-          );
+          // Ensure chat key is stored for decryption — key must be ready from ai_typing_started handler above
+          const chatKey = chatKeyManager.getKeySync(payload.chat_id);
+          if (!chatKey) {
+            console.error(
+              `[ChatSyncService:AI] Chat key missing for ${payload.chat_id} when storing encrypted_chat_key — this should not happen`,
+            );
+            // Skip storing encrypted_chat_key rather than generating a wrong one
+          }
+          const encryptedChatKey = chatKey
+            ? await import("./cryptoService").then((m) =>
+                m.encryptChatKeyWithMasterKey(chatKey),
+              )
+            : null;
           if (encryptedChatKey) {
             chatToUpdate.encrypted_chat_key = encryptedChatKey;
             console.info(
@@ -1338,7 +1368,13 @@ export async function handleAITypingStartedImpl( // Changed to async
       console.warn(
         `[ChatSyncService:AI] Message ${userMessage.message_id} missing content field, decrypting from encrypted_content`,
       );
-      const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
+      const chatKey = chatKeyManager.getKeySync(payload.chat_id) || await chatKeyManager.getKey(payload.chat_id);
+      if (!chatKey) {
+        console.error(
+          `[ChatSyncService:AI] No chat key available for ${payload.chat_id}, cannot decrypt missing message content`,
+        );
+        return;
+      }
       const { decryptWithChatKey } = await import("./cryptoService");
       try {
         const decrypted = await decryptWithChatKey(
@@ -1716,7 +1752,18 @@ export async function handlePostProcessingCompletedImpl(
       throw new Error(`Chat ${payload.chat_id} not found`);
     }
 
-    const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
+    // Use ChatKeyManager: try sync cache, then async IDB load. NEVER generate a wrong key.
+    let chatKey = chatKeyManager.getKeySync(payload.chat_id);
+    if (!chatKey) {
+      chatKey = await chatKeyManager.getKey(payload.chat_id);
+    }
+    if (!chatKey) {
+      console.error(
+        `[ChatSyncService:AI] ❌ CRITICAL: No chat key available for post-processing of chat ${payload.chat_id}. ` +
+          `Skipping encryption of follow-ups/summary/tags to prevent data corruption.`,
+      );
+      return;
+    }
     const {
       encryptWithChatKey,
       encryptArrayWithChatKey,
@@ -1942,7 +1989,13 @@ async function aggregateAndUpdateTopRecommendedApps(
     for (const chat of sortedChats) {
       if (chat.encrypted_top_recommended_apps_for_chat) {
         try {
-          const chatKey = chatDB.getOrGenerateChatKey(chat.chat_id);
+          const chatKey = chatKeyManager.getKeySync(chat.chat_id);
+          if (!chatKey) {
+            console.debug(
+              `[AggregateApps] No chat key available for chat ${chat.chat_id}, skipping`,
+            );
+            continue;
+          }
           const decryptedApps = await decryptArrayWithChatKey(
             chat.encrypted_top_recommended_apps_for_chat,
             chatKey,
@@ -2304,7 +2357,6 @@ export async function handleEmbedUpdateImpl(
             wrapEmbedKeyWithMasterKey,
             wrapEmbedKeyWithChatKey,
           } = await import("./cryptoService");
-          const { chatDB } = await import("./db");
 
           // Get chat_id from payload or existing embed
           const chatId = payload.chat_id || existingEmbed.chat_id;
@@ -2408,10 +2460,10 @@ export async function handleEmbedUpdateImpl(
                 throw new Error("Failed to wrap embed key with master key");
               }
 
-              // Create chat key wrapper
-              const chatKey = chatDB.getOrGenerateChatKey(chatId);
+              // Create chat key wrapper — use ChatKeyManager (never generate a wrong key)
+              const chatKey = chatKeyManager.getKeySync(chatId) || await chatKeyManager.getKey(chatId);
               if (!chatKey) {
-                throw new Error("Failed to get chat key for wrapping");
+                throw new Error(`No chat key available for embed key wrapping (chat ${chatId})`);
               }
               const wrappedChatKey = await wrapEmbedKeyWithChatKey(
                 embedKey,
