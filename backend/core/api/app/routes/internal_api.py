@@ -2051,3 +2051,127 @@ async def download_s3_file(
     except Exception as e:
         logger.error(f"[S3 Download] Failed for {bucket_key}/{s3_key}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"S3 download failed: {str(e)}")
+
+
+# ---------------------------------------------------------------------------
+# Alertmanager webhook receiver
+# ---------------------------------------------------------------------------
+
+class AlertmanagerAlert(BaseModel):
+    """A single alert entry in the Alertmanager webhook payload."""
+    status: str  # "firing" or "resolved"
+    labels: Dict[str, str] = Field(default_factory=dict)
+    annotations: Dict[str, str] = Field(default_factory=dict)
+    startsAt: str = ""
+    endsAt: Optional[str] = None
+
+
+class AlertmanagerWebhookPayload(BaseModel):
+    """
+    Alertmanager webhook v4 payload.
+    See: https://prometheus.io/docs/alerting/latest/configuration/#webhook_config
+    """
+    version: str = "4"
+    status: str  # "firing" or "resolved" (group-level)
+    groupLabels: Dict[str, str] = Field(default_factory=dict)
+    commonLabels: Dict[str, str] = Field(default_factory=dict)
+    commonAnnotations: Dict[str, str] = Field(default_factory=dict)
+    alerts: List[AlertmanagerAlert] = Field(default_factory=list)
+
+
+@router.post("/alerts/webhook")
+async def alertmanager_webhook(
+    payload: AlertmanagerWebhookPayload,
+    request: Request,
+) -> Dict[str, Any]:
+    """
+    Receive Alertmanager webhook notifications and dispatch email tasks.
+
+    Alertmanager still handles grouping, throttling and inhibition.
+    This endpoint replaces Alertmanager's built-in SMTP delivery with
+    the existing Brevo/Mailjet email infrastructure.
+
+    For each alert in the payload a separate email task is queued so
+    that each alert produces one email. If SERVER_OWNER_EMAIL is not
+    configured the payload is accepted (200 OK) but no email is sent —
+    this prevents Alertmanager from retrying endlessly when email is
+    intentionally disabled.
+
+    Protected by internal service token (X-Internal-Service-Token header).
+    Architecture: See docs/architecture/logging-and-monitoring.md
+    """
+    from backend.core.api.app.tasks.celery_config import app as celery_app
+
+    logger.info(
+        f"Alertmanager webhook received: status={payload.status}, "
+        f"alert_count={len(payload.alerts)}, "
+        f"group_labels={payload.groupLabels}"
+    )
+
+    admin_email = os.getenv("SERVER_OWNER_EMAIL")
+    if not admin_email:
+        logger.warning(
+            "SERVER_OWNER_EMAIL not configured — alertmanager webhook received but "
+            "no email will be sent. Set SERVER_OWNER_EMAIL in .env to enable alerts."
+        )
+        return {
+            "status": "no_recipient",
+            "reason": "SERVER_OWNER_EMAIL not configured",
+            "alerts_received": len(payload.alerts),
+        }
+
+    dispatched = 0
+    errors = 0
+
+    for alert in payload.alerts:
+        alertname = alert.labels.get("alertname") or payload.groupLabels.get("alertname", "UnknownAlert")
+        severity = alert.labels.get("severity") or payload.commonLabels.get("severity", "unknown")
+        summary = alert.annotations.get("summary") or payload.commonAnnotations.get("summary", "")
+        description = alert.annotations.get("description") or payload.commonAnnotations.get("description")
+        starts_at = alert.startsAt or ""
+
+        # Only include ends_at for resolved alerts (Alertmanager sets it to epoch for firing)
+        ends_at = None
+        if alert.status == "resolved" and alert.endsAt and alert.endsAt != "0001-01-01T00:00:00Z":
+            ends_at = alert.endsAt
+
+        # Format all alert labels as a human-readable string for debugging context
+        labels_str = None
+        if alert.labels:
+            labels_str = "\n".join(f"{k}: {v}" for k, v in sorted(alert.labels.items()))
+
+        try:
+            celery_app.send_task(
+                name="app.tasks.email_tasks.alert_notification_email_task.send_alert_notification",
+                args=[
+                    admin_email,
+                    alertname,
+                    alert.status,
+                    severity,
+                    summary,
+                    starts_at,
+                    description,
+                    ends_at,
+                    labels_str,
+                ],
+                queue="email",
+            )
+            dispatched += 1
+            logger.info(
+                f"Dispatched alert notification task: alertname='{alertname}', "
+                f"status={alert.status}, severity={severity}, recipient={admin_email}"
+            )
+        except Exception as e:
+            errors += 1
+            logger.error(
+                f"Failed to dispatch alert notification for alertname='{alertname}': {e}",
+                exc_info=True,
+            )
+
+    return {
+        "status": "processed",
+        "alerts_received": len(payload.alerts),
+        "notifications_dispatched": dispatched,
+        "errors": errors,
+        "recipient": admin_email,
+    }

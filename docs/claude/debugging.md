@@ -546,11 +546,29 @@ firecrawl_browser_create
 Once logged in, run these in the browser to dump IndexedDB data for a chat or embed:
 
 ```
-agent-browser executeScript "await window.inspectChat('<chat-id>')"
-agent-browser executeScript "await window.inspectEmbed('<embed-id>')"
+agent-browser executeScript "window.debug()"
+agent-browser executeScript "await window.debug.chat('<chat-id>')"
+agent-browser executeScript "await window.debug.embed('<embed-id>')"
+agent-browser executeScript "window.debug.help()"
 ```
 
-These print a formatted report of the decrypted client-side data (messages, metadata, embed content). Useful for diagnosing encryption sync issues, missing messages, or embed resolution failures without needing backend logs.
+These print a formatted report of the client-side data (messages, metadata, embed content, health checks). Useful for diagnosing encryption sync issues, missing messages, or embed resolution failures without needing backend logs.
+
+**Full `window.debug` API:**
+
+| Command                                           | Description                                                       |
+| ------------------------------------------------- | ----------------------------------------------------------------- |
+| `window.debug()`                                  | Quick client health check (IndexedDB, active chat, recent errors) |
+| `window.debug.help()`                             | Show all available commands                                       |
+| `await window.debug.chat('id')`                   | Copyable chat inspection report                                   |
+| `await window.debug.chat('id', {download: true})` | Download chat report as .txt                                      |
+| `await window.debug.chatVerbose('id')`            | Verbose console dump of a chat                                    |
+| `await window.debug.chats()`                      | List all chats + consistency check                                |
+| `await window.debug.message('id')`                | Raw message data                                                  |
+| `await window.debug.embed('id')`                  | Embed inspection report                                           |
+| `await window.debug.decrypt('embedId')`           | Decrypt and show raw embed content                                |
+| `window.debug.logs(n)`                            | Show last N console logs (default 20)                             |
+| `await window.debug.state()`                      | Dump current store state summary                                  |
 
 ---
 

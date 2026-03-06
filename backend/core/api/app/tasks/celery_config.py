@@ -22,6 +22,29 @@ from backend.core.api.app.services.cache import CacheService as _CacheService
 # Set up logging with a direct approach for Celery
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Celery Prometheus metrics
+# ---------------------------------------------------------------------------
+# celery_task_failures_total counts task_failure signal fires, keyed by
+# (task_name, queue). This counter is scraped by Prometheus via the HTTP
+# server started in worker_process_init below.
+# The port is configurable via CELERY_METRICS_PORT env var (default: 9101).
+# Each worker process listens on its own port so Prometheus can scrape all.
+# See alert_rules.yml for the alert rule that uses this metric.
+try:
+    from prometheus_client import Counter, start_http_server as _prom_start_http_server
+    _CELERY_TASK_FAILURES_COUNTER = Counter(
+        "celery_task_failures_total",
+        "Total number of Celery task failures",
+        ["task_name", "queue"],
+    )
+    _PROM_CLIENT_AVAILABLE = True
+except ImportError:
+    _CELERY_TASK_FAILURES_COUNTER = None  # type: ignore[assignment]
+    _prom_start_http_server = None  # type: ignore[assignment]
+    _PROM_CLIENT_AVAILABLE = False
+    logger.warning("prometheus_client not available — Celery metrics will not be exported")
+
 # Global variable to hold the ConfigManager instance for the worker process
 # Will be initialized lazily on first access via ConfigManager singleton pattern
 # Use a class to make it a lazy property that initializes on first access
@@ -586,6 +609,16 @@ def task_failure_handler(task_id, exception, args, kwargs, traceback, einfo, **k
         f"exception_type={type(exception).__name__}, exception_msg={str(exception)[:200]}"
     )
 
+    # Increment the Prometheus failure counter (no-op if prometheus_client unavailable)
+    if _PROM_CLIENT_AVAILABLE and _CELERY_TASK_FAILURES_COUNTER is not None:
+        try:
+            _CELERY_TASK_FAILURES_COUNTER.labels(
+                task_name=task_name,
+                queue=queue,
+            ).inc()
+        except Exception as metric_err:
+            logger.debug(f"[TASK_LIFECYCLE] Failed to increment celery_task_failures_total: {metric_err}")
+
 @signals.task_success.connect
 def task_success_handler(sender, result, **kwargs):
     """
@@ -760,6 +793,21 @@ def init_worker_process(*args, **kwargs):
     # This saves memory if the worker never needs it (though most workers do)
     # The lazy wrapper will initialize it on first access
     logger.info("ConfigManager will be initialized lazily on first access (singleton pattern)")
+
+    # Start Prometheus metrics HTTP server for this worker process.
+    # The port is read from CELERY_METRICS_PORT (default 9101).
+    # Each worker container should expose a unique port so Prometheus can scrape all.
+    # See prometheus.yml for the scrape config and alert_rules.yml for alert rules.
+    if _PROM_CLIENT_AVAILABLE and _prom_start_http_server is not None:
+        metrics_port = int(os.getenv("CELERY_METRICS_PORT", "9101"))
+        try:
+            _prom_start_http_server(metrics_port)
+            logger.info(f"[METRICS] Celery Prometheus metrics server started on port {metrics_port}")
+        except OSError as e:
+            # Port already in use (e.g. multiple forked processes on same host) — log and continue
+            logger.warning(f"[METRICS] Could not start Prometheus metrics server on port {metrics_port}: {e}")
+    else:
+        logger.debug("[METRICS] prometheus_client unavailable — metrics server not started")
 
     # Only initialize services that are needed at worker startup
     # For app workers, services are initialized per-task as needed

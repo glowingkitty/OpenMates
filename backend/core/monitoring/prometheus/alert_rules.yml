@@ -2,6 +2,12 @@
 # These fire when monitored conditions breach thresholds, and Alertmanager
 # routes the resulting notifications (with throttling to prevent email floods).
 #
+# Metric names used here must match what the API actually exposes.
+# API metrics are defined in backend/core/api/app/services/metrics.py:
+#   - api_requests_total         (Counter, labels: method, endpoint, status_code)
+#   - api_request_duration_seconds (Histogram, labels: method, endpoint)
+#   - celery_task_failures_total (Counter, labels: task_name, queue)  — added in celery_config.py
+#
 # Architecture context: See docs/architecture/logging-and-monitoring.md
 
 groups:
@@ -13,9 +19,9 @@ groups:
       - alert: HighErrorRate
         expr: |
           (
-            sum(rate(http_requests_total{status=~"5.."}[5m]))
+            sum(rate(api_requests_total{status_code=~"5.."}[5m]))
             /
-            sum(rate(http_requests_total[5m]))
+            sum(rate(api_requests_total[5m]))
           ) > 0.05
         for: 5m
         labels:
@@ -29,7 +35,7 @@ groups:
       - alert: HighRequestLatency
         expr: |
           histogram_quantile(0.95,
-            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+            sum(rate(api_request_duration_seconds_bucket[5m])) by (le)
           ) > 5
         for: 10m
         labels:
@@ -50,6 +56,8 @@ groups:
 
   # -------------------------------------------------------------------------
   # Celery task health
+  # Requires celery_task_failures_total counter — added in celery_config.py
+  # worker_process_init signal starts a prometheus_client HTTP server per worker.
   # -------------------------------------------------------------------------
   - name: celery_alerts
     rules:

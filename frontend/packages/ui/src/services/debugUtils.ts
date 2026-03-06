@@ -1,20 +1,22 @@
 /**
- * Debug Utilities for Chat Data Inspection
+ * Debug Utilities for Chat / Embed Inspection
  *
- * These utilities are exposed to the global window object for debugging via the browser console.
- * They allow inspecting IndexedDB chat data, messages, and sync status.
- * For admin users, embed inspection includes a privacy-safe field inventory
- * (field names, types, sizes — no actual content values) and anomaly detection.
+ * Exposes a unified `window.debug` namespace for debugging via the browser console.
+ * All operations are read-only — they never modify IndexedDB or any store state.
+ * For admin users, embed inspection includes a privacy-safe field inventory and anomaly detection.
  *
- * Usage in browser console (all read-only):
- *   await window.inspectChat('chat-id')    - Generate copyable inspection report (recommended)
- *   await window.debugChat('chat-id')      - Inspect a specific chat (verbose console output)
- *   await window.debugAllChats()           - List all chats with consistency check
- *   await window.debugGetMessage('msg-id') - Get raw message data
+ * Usage in browser console:
+ *   window.debug()                         — quick client health check
+ *   window.debug.help()                    — show all available commands
+ *   await window.debug.chat('chat-id')     — copyable chat inspection report
+ *   await window.debug.embed('embed-id')   — copyable embed inspection report
+ *   await window.debug.decrypt('embed-id') — decrypt and show raw embed content
+ *   await window.debug.chats()             — list all chats with consistency check
+ *   await window.debug.message('msg-id')   — raw message data
+ *   window.debug.logs(20)                  — last N console logs
+ *   await window.debug.state()             — current store state snapshot
  *
  * Architecture context: See docs/architecture/embed-encryption.md
- * IMPORTANT: These utilities are for development/debugging only.
- * They should not be used in production code paths.
  */
 
 // Database constants (must match db.ts)
@@ -1886,35 +1888,238 @@ export async function inspectEmbed(
 }
 
 // ============================================================================
-// INITIALIZATION - Expose to window object
+// INITIALIZATION - Expose unified window.debug namespace
 // ============================================================================
 
 /**
- * Initialize debug utilities and expose to window object
- * Called once when the module is imported
+ * Run a quick client-side health check and print a summary to the console.
+ * This is what `window.debug()` calls by default (no arguments).
+ *
+ * Checks:
+ *  - IndexedDB connectivity (chats, messages, embeds, keys counts)
+ *  - Active chat store state
+ *  - Last 5 console errors from logCollector
+ */
+async function runClientHealthCheck(): Promise<void> {
+  console.group(
+    "%c🔍 Client Health Check",
+    "color: #4CAF50; font-weight: bold",
+  );
+
+  // 1. IndexedDB connectivity
+  try {
+    const db = await openDB();
+    const chatCount = await getStoreCount(db, CHATS_STORE);
+    const msgCount = await getStoreCount(db, MESSAGES_STORE);
+    const embedCount = await getStoreCount(db, EMBEDS_STORE);
+    const keyCount = await getStoreCount(db, EMBED_KEYS_STORE);
+    db.close();
+    console.log(
+      `✅ IndexedDB OK — chats: ${chatCount}, messages: ${msgCount}, embeds: ${embedCount}, keys: ${keyCount}`,
+    );
+  } catch (e) {
+    console.error(`❌ IndexedDB FAILED: ${e}`);
+  }
+
+  // 2. Active chat state (dynamic import to avoid circular deps)
+  try {
+    const { get } = await import("svelte/store");
+    const { activeChatStore } = await import("../stores/activeChatStore");
+    const state = get(activeChatStore) as unknown as Record<
+      string,
+      unknown
+    > | null;
+    if (state) {
+      const activeChatId = state.activeChatId ?? null;
+      console.log(
+        `✅ Active chat store: ${activeChatId ? `chat ${activeChatId}` : "no active chat"}`,
+      );
+    } else {
+      console.log("ℹ️  Active chat store: empty (no active chat)");
+    }
+  } catch {
+    console.log("ℹ️  Active chat state unavailable");
+  }
+
+  // 3. Last N console errors from logCollector
+  try {
+    const { logCollector } = await import("./logCollector");
+    const errors = logCollector
+      .getLogs(100)
+      .filter((e: { level: string }) => e.level === "error")
+      .slice(-5);
+    if (errors.length === 0) {
+      console.log("✅ No recent console errors");
+    } else {
+      console.warn(`⚠️  Last ${errors.length} console error(s):`);
+      for (const e of errors) {
+        console.warn(`   [${e.level}] ${e.message}`);
+      }
+    }
+  } catch {
+    console.log("ℹ️  Log collector unavailable");
+  }
+
+  console.groupEnd();
+  console.info(
+    "%c💡 Tip:%c type window.debug.help() to see all available commands",
+    "color: #888; font-weight: bold",
+    "color: #888",
+  );
+}
+
+/**
+ * Show all available debug commands.
+ */
+function showDebugHelp(): void {
+  console.info(
+    "%c🔧 window.debug — unified debug namespace%c\n\n" +
+      "  window.debug()                            — quick client health check\n" +
+      "  window.debug.help()                       — show this help\n\n" +
+      "  Chat / Message:\n" +
+      '  await window.debug.chat("id")             — inspection report (copyable)\n' +
+      '  await window.debug.chat("id", {download: true})  — download report as .txt\n' +
+      '  await window.debug.chatVerbose("id")      — verbose console dump\n' +
+      "  await window.debug.chats()                — list all chats + consistency check\n" +
+      '  await window.debug.message("id")          — raw message data\n\n' +
+      "  Embeds:\n" +
+      '  await window.debug.embed("id")            — embed inspection report\n' +
+      '  await window.debug.embed("id", {download: true})  — download embed report\n' +
+      '  await window.debug.decrypt("embedId")     — decrypt & show embed content\n\n' +
+      "  Downloads:\n" +
+      '  await window.debug.download("chat", "id") — download chat report as .txt\n' +
+      '  await window.debug.download("embed", "id")— download embed report as .txt\n\n' +
+      "  Diagnostics:\n" +
+      "  window.debug.logs(n?)                     — show last N console logs (default 20)\n" +
+      "  window.debug.state()                      — dump current store state summary\n",
+    "color: #4CAF50; font-weight: bold; font-size: 14px;",
+    "color: #ccc; font-size: 12px;",
+  );
+}
+
+/**
+ * Initialize debug utilities and expose unified `window.debug` namespace.
+ * Called once when the module is imported.
+ *
+ * Usage in browser console (all read-only):
+ *   window.debug()                             — quick health check
+ *   window.debug.help()                        — show all commands
+ *   await window.debug.chat("chat-id")         — inspect a chat
+ *   await window.debug.embed("embed-id")       — inspect an embed
+ *   await window.debug.decrypt("embed-id")     — decrypt an embed
  */
 export function initDebugUtils(): void {
-  if (typeof window !== "undefined") {
-    // Expose read-only debug functions to window for console access
-    (window as unknown as Record<string, unknown>).inspectChat = inspectChat;
-    (window as unknown as Record<string, unknown>).inspectEmbed = inspectEmbed;
-    (window as unknown as Record<string, unknown>).debugChat = debugChat;
-    (window as unknown as Record<string, unknown>).debugAllChats =
-      debugAllChats;
-    (window as unknown as Record<string, unknown>).debugGetMessage =
-      debugGetMessage;
+  if (typeof window === "undefined") return;
 
-    console.info(
-      "%c🔧 Debug utilities loaded!%c\n" +
-        "Available commands (read-only):\n" +
-        '  • await window.inspectChat("chat-id") - Generate copyable inspection report\n' +
-        '  • await window.inspectChat("chat-id", {download: true}) - Download report as .txt\n' +
-        '  • await window.inspectEmbed("embed-id") - Generate embed inspection report\n' +
-        '  • await window.debugChat("chat-id") - Verbose console output\n' +
-        "  • await window.debugAllChats() - List all chats with consistency check\n" +
-        '  • await window.debugGetMessage("message-id") - Get raw message data',
-      "color: #4CAF50; font-weight: bold; font-size: 14px;",
-      "color: #888; font-size: 12px;",
-    );
-  }
+  // Main callable: window.debug() → health check
+  const debugFn = () => void runClientHealthCheck();
+
+  // Attach subcommands directly on the function object
+  Object.assign(debugFn, {
+    /** Show all available commands */
+    help: showDebugHelp,
+
+    /** Generate a copyable chat inspection report */
+    chat: (chatId: string, opts: { download?: boolean } = {}) =>
+      inspectChat(chatId, opts),
+
+    /** Verbose console dump of a chat (all messages, all fields) */
+    chatVerbose: (chatId: string) => debugChat(chatId),
+
+    /** List all chats with consistency check */
+    chats: () => debugAllChats(),
+
+    /** Get raw message data by ID */
+    message: (messageId: string) => debugGetMessage(messageId),
+
+    /** Generate a copyable embed inspection report */
+    embed: (embedId: string, opts: { download?: boolean } = {}) =>
+      inspectEmbed(embedId, opts),
+
+    /** Decrypt and show raw embed content */
+    decrypt: async (embedId: string) => {
+      const { embedStore } = await import("./embedStore");
+      return embedStore.debugGetDecryptedEmbed(embedId);
+    },
+
+    /** Shorthand: download a chat or embed report as .txt */
+    download: (type: "chat" | "embed", id: string) => {
+      if (type === "chat") return inspectChat(id, { download: true });
+      if (type === "embed") return inspectEmbed(id, { download: true });
+      console.error(`Unknown type "${type}". Use "chat" or "embed".`);
+    },
+
+    /** Show last N console logs from logCollector (default 20) */
+    logs: async (n = 20) => {
+      const { logCollector } = await import("./logCollector");
+      const entries = logCollector.getLogs(n);
+      if (entries.length === 0) {
+        console.log("No logs captured yet.");
+        return;
+      }
+      console.group(`📋 Last ${entries.length} console log(s)`);
+      for (const entry of entries) {
+        const ts = new Date(entry.timestamp).toISOString();
+        console.log(`[${ts}] [${entry.level}]`, entry.message);
+      }
+      console.groupEnd();
+      return entries;
+    },
+
+    /** Dump a summary of current store state */
+    state: async () => {
+      const { get } = await import("svelte/store");
+      const summary: Record<string, unknown> = {};
+
+      try {
+        const { activeChatStore } = await import("../stores/activeChatStore");
+        summary.activeChat = get(activeChatStore);
+      } catch {
+        summary.activeChat = "unavailable";
+      }
+
+      try {
+        const { authStore } = await import("../stores/authState");
+        const auth = get(authStore) as unknown as Record<
+          string,
+          unknown
+        > | null;
+        summary.auth = {
+          isAuthenticated: auth?.isAuthenticated ?? null,
+          isInitialized: auth?.isInitialized ?? null,
+        };
+      } catch {
+        summary.auth = "unavailable";
+      }
+
+      try {
+        const { userProfile } = await import("../stores/userProfile");
+        const profile = get(userProfile) as unknown as Record<
+          string,
+          unknown
+        > | null;
+        summary.user = {
+          id: profile?.id ?? null,
+          role: profile?.role ?? null,
+        };
+      } catch {
+        summary.user = "unavailable";
+      }
+
+      console.log("📊 Store state snapshot:", summary);
+      return summary;
+    },
+  });
+
+  (window as unknown as Record<string, unknown>).debug = debugFn;
+
+  console.info(
+    "%c🔧 Debug utilities loaded%c — type %cwindow.debug()%c for health check, %cwindow.debug.help()%c for all commands",
+    "color: #4CAF50; font-weight: bold",
+    "color: #888",
+    "color: #60a5fa; font-family: monospace",
+    "color: #888",
+    "color: #60a5fa; font-family: monospace",
+    "color: #888",
+  );
 }

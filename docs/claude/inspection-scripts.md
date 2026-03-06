@@ -4,6 +4,63 @@ Load this document when you need to inspect chats, users, issues, cache, or AI r
 
 ---
 
+## Unified Debug Entry Point (`debug.py`)
+
+`backend/scripts/debug.py` is the single command to use for all common debugging tasks. It shows health summaries by default and delegates to the individual inspect scripts when full detail is needed.
+
+```bash
+# Quick system health check (Prometheus metrics, Loki error count, Celery queue depth)
+docker exec api python /app/backend/scripts/debug.py
+
+# Full health with verbose metrics and recent errors
+docker exec api python /app/backend/scripts/debug.py health -v
+
+# Chat health summary (fast — status, versions, message count, embed count)
+docker exec api python /app/backend/scripts/debug.py chat <chat_id>
+
+# Full chat inspection (messages, embeds, keys, cache, decryption)
+docker exec api python /app/backend/scripts/debug.py chat <chat_id> -v
+docker exec api python /app/backend/scripts/debug.py chat <chat_id> -v --decrypt
+docker exec api python /app/backend/scripts/debug.py chat <chat_id> --prod
+
+# Embed health summary / full inspection
+docker exec api python /app/backend/scripts/debug.py embed <embed_id>
+docker exec api python /app/backend/scripts/debug.py embed <embed_id> -v --decrypt
+docker exec api python /app/backend/scripts/debug.py embed <embed_id> --prod
+
+# User health summary / full inspection
+docker exec api python /app/backend/scripts/debug.py user <email>
+docker exec api python /app/backend/scripts/debug.py user <email> -v
+
+# User activity log timeline (Loki cross-service)
+docker exec api python /app/backend/scripts/debug.py logs <email>
+docker exec api python /app/backend/scripts/debug.py logs <email> --since 120 --level warning
+docker exec api python /app/backend/scripts/debug.py logs <email> --follow
+
+# Recent AI requests
+docker exec api python /app/backend/scripts/debug.py requests
+docker exec api python /app/backend/scripts/debug.py requests -v
+docker exec api python /app/backend/scripts/debug.py requests --errors-only
+docker exec api python /app/backend/scripts/debug.py requests --show-prompt 3
+
+# Issue reports
+docker exec api python /app/backend/scripts/debug.py issue --list
+docker exec api python /app/backend/scripts/debug.py issue <issue_id>
+docker exec api python /app/backend/scripts/debug.py issue <issue_id> -v
+docker exec api python /app/backend/scripts/debug.py issue <issue_id> --delete
+
+# Replay a full request trace by request_id (Loki)
+docker exec api python /app/backend/scripts/debug.py replay <request_id>
+
+# Top error fingerprints (Redis sorted set + Loki log samples)
+docker exec api python /app/backend/scripts/debug.py errors
+docker exec api python /app/backend/scripts/debug.py errors --top 20
+```
+
+The individual `inspect_*.py` scripts still work for full detail; `debug.py` wraps them with health-first defaults and a unified interface.
+
+---
+
 ## Chat, Embed and User Inspection
 
 ```bash

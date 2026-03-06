@@ -168,6 +168,7 @@ services:
       CELERY_QUEUES: "email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder" # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
+      CELERY_METRICS_PORT: "9101" # Port for prometheus_client metrics server — scraped by Prometheus
       # E2E test configuration - set these env vars to enable automated testing
       E2E_TEST_DEV_ENABLED: "${E2E_TEST_DEV_ENABLED:-true}"
       E2E_TEST_DEV_BASE_URL: "${E2E_TEST_DEV_BASE_URL:-https://app.dev.openmates.org}"
@@ -1141,6 +1142,7 @@ services:
       CELERY_QUEUES: "app_ai" # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
+      CELERY_METRICS_PORT: "9102" # Port for prometheus_client metrics server — scraped by Prometheus
     command: >
       sh -c "chown celeryuser:celeryuser /vault-data && \
              mkdir -p /app/logs /app/backend/core/api/logs && \
@@ -1199,6 +1201,7 @@ services:
       CELERY_QUEUES: "app_images" # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
+      CELERY_METRICS_PORT: "9103" # Port for prometheus_client metrics server — scraped by Prometheus
     command: >
       sh -c "chown celeryuser:celeryuser /vault-data && \
              mkdir -p /app/logs /app/backend/core/api/logs && \
@@ -1308,6 +1311,7 @@ services:
       CELERY_QUEUES: "app_pdf"
       CELERY_AUTOSCALE_MAX: "4" # PDF processing is CPU/memory intensive — cap concurrency
       CELERY_AUTOSCALE_MIN: "1"
+      CELERY_METRICS_PORT: "9104" # Port for prometheus_client metrics server — scraped by Prometheus
     command: >
       sh -c "chown celeryuser:celeryuser /vault-data && \
              mkdir -p /app/logs /app/backend/core/api/logs && \
@@ -1469,12 +1473,10 @@ services:
       - "--config.file=/etc/alertmanager/alertmanager.yml"
       - "--storage.path=/alertmanager"
     environment:
-      # SMTP settings — sourced from project root .env
-      ALERTMANAGER_SMTP_SMARTHOST: "${ALERTMANAGER_SMTP_SMARTHOST:-smtp.example.com:587}"
-      ALERTMANAGER_SMTP_FROM: "${ALERTMANAGER_SMTP_FROM:-alerts@example.com}"
-      ALERTMANAGER_SMTP_USERNAME: "${ALERTMANAGER_SMTP_USERNAME:-}"
-      ALERTMANAGER_SMTP_PASSWORD: "${ALERTMANAGER_SMTP_PASSWORD:-}"
-      ALERTMANAGER_EMAIL_TO: "${ALERTMANAGER_EMAIL_TO:-admin@example.com}"
+      # Internal API token for securing the alert webhook endpoint.
+      # Alertmanager sends this token in the X-Internal-Service-Token header when posting
+      # to POST /internal/alerts/webhook on the API container.
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
     networks:
       - openmates
     healthcheck:

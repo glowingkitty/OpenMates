@@ -2653,17 +2653,3 @@ export class EmbedStore {
 
 // Export singleton instance
 export const embedStore = new EmbedStore();
-
-// ============================================
-// DEBUG: Expose debug function on window for console access
-// Usage: await window.debugGetDecryptedEmbed('your-embed-id')
-// ============================================
-if (typeof window !== "undefined") {
-  (window as unknown as Record<string, unknown>).debugGetDecryptedEmbed =
-    async (embedId: string) => {
-      return embedStore.debugGetDecryptedEmbed(embedId);
-    };
-  console.debug(
-    "[EmbedStore] Debug function exposed: window.debugGetDecryptedEmbed(embedId)",
-  );
-}
