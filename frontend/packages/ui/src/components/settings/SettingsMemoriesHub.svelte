@@ -176,7 +176,7 @@
     {:else if appSections.length === 0}
         <!-- No entries yet -->
         <div class="empty-state">
-            <p class="empty-text">{$text('settings.settings_memories.hub_no_entries')}</p>
+            <p class="empty-text">{$text('settings.app_store.settings_memories.hub_no_entries')}</p>
         </div>
     {:else}
         <!-- One section per app that has entries -->
@@ -194,7 +194,7 @@
                 {@const categoryName = entry.category.name_translation_key
                     ? $text(entry.category.name_translation_key)
                     : entry.category.id}
-                {@const countText = $text('settings.settings_memories.entry_count', {
+                {@const countText = $text('settings.app_store.settings_memories.entry_count', {
                     values: { count: entry.entryCount }
                 })}
                 <SettingsItem
@@ -214,7 +214,7 @@
         <SettingsItem
             type="submenu"
             icon="app_store"
-            title={$text('settings.settings_memories.discover_link')}
+            title={$text('settings.app_store.settings_memories.discover_link')}
             onClick={openAppStore}
         />
     </div>
