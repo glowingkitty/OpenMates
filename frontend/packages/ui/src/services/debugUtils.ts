@@ -13,7 +13,8 @@
  *   await window.debug.decrypt('embed-id') — decrypt and show raw embed content
  *   await window.debug.chats()             — list all chats with consistency check
  *   await window.debug.message('msg-id')   — raw message data
- *   window.debug.logs(20)                  — last N console logs
+ *   window.debug.logs(20)                  — last N console logs (filter: logs(20, 'error'))
+ *   window.debug.errors(50)                — last N errors+warnings (survives noise)
  *   await window.debug.state()             — current store state snapshot
  *
  * Architecture context: See docs/architecture/embed-encryption.md
@@ -2132,10 +2133,9 @@ async function runClientHealthCheck(): Promise<void> {
   // 3. Last N console errors from logCollector
   try {
     const { logCollector } = await import("./logCollector");
-    const errors = logCollector
-      .getLogs(100)
-      .filter((e: { level: string }) => e.level === "error")
-      .slice(-5);
+    const errors = logCollector.getErrorLogs().filter(
+      (e: { level: string }) => e.level === "error",
+    ).slice(-5);
     if (errors.length === 0) {
       console.log("✅ No recent console errors");
     } else {
@@ -2179,7 +2179,8 @@ function showDebugHelp(): void {
       '  await window.debug.download("chat", "id") — download chat report as .txt\n' +
       '  await window.debug.download("embed", "id")— download embed report as .txt\n\n' +
       "  Diagnostics:\n" +
-      "  window.debug.logs(n?)                     — show last N console logs (default 20)\n" +
+      "  window.debug.logs(n?, level?)             — show last N logs (default 20), filter by level\n" +
+      "  window.debug.errors(n?)                   — show last N errors+warnings (default 50)\n" +
       "  window.debug.state()                      — dump current store state summary\n",
     "color: #4CAF50; font-weight: bold; font-size: 14px;",
     "color: #ccc; font-size: 12px;",
@@ -2238,18 +2239,69 @@ export function initDebugUtils(): void {
       console.error(`Unknown type "${type}". Use "chat" or "embed".`);
     },
 
-    /** Show last N console logs from logCollector (default 20) */
-    logs: async (n = 20) => {
+    /**
+     * Show last N console logs, optionally filtered by level.
+     * @param n - Max entries (default 20)
+     * @param level - Filter: "error", "warn", "info", "log", "debug" (default: all)
+     */
+    logs: async (n = 20, level?: string) => {
       const { logCollector } = await import("./logCollector");
-      const entries = logCollector.getLogs(n);
+      type LogLevel = "log" | "info" | "warn" | "error" | "debug";
+      const validLevels: LogLevel[] = ["log", "info", "warn", "error", "debug"];
+      const filterLevel =
+        level && validLevels.includes(level as LogLevel)
+          ? (level as LogLevel)
+          : undefined;
+      const entries = logCollector.getLogs(n, filterLevel);
       if (entries.length === 0) {
-        console.log("No logs captured yet.");
+        console.log(
+          filterLevel
+            ? `No ${filterLevel}-level logs captured yet.`
+            : "No logs captured yet.",
+        );
         return;
       }
-      console.group(`📋 Last ${entries.length} console log(s)`);
+      const label = filterLevel
+        ? `📋 Last ${entries.length} ${filterLevel.toUpperCase()} log(s)`
+        : `📋 Last ${entries.length} console log(s)`;
+      console.group(label);
       for (const entry of entries) {
-        const ts = new Date(entry.timestamp).toISOString();
-        console.log(`[${ts}] [${entry.level}]`, entry.message);
+        const ts = new Date(entry.timestamp)
+          .toISOString()
+          .replace("T", " ")
+          .slice(0, 23);
+        const lvl = entry.level.toUpperCase().padEnd(5);
+        console.log(`[${ts}] ${lvl}`, entry.message);
+      }
+      console.groupEnd();
+      return entries;
+    },
+
+    /**
+     * Shortcut: show last N errors + warnings from the dedicated error buffer.
+     * These entries survive even when the main buffer is full of routine noise.
+     * @param n - Max entries (default 50)
+     */
+    errors: async (n = 50) => {
+      const { logCollector } = await import("./logCollector");
+      const entries = logCollector.getErrorLogs(n);
+      if (entries.length === 0) {
+        console.log("No errors or warnings captured yet.");
+        return;
+      }
+      console.group(`🔴 Last ${entries.length} error/warn log(s)`);
+      for (const entry of entries) {
+        const ts = new Date(entry.timestamp)
+          .toISOString()
+          .replace("T", " ")
+          .slice(0, 23);
+        const lvl = entry.level.toUpperCase().padEnd(5);
+        // Use console.warn/error for visual distinction in the browser console
+        if (entry.level === "error") {
+          console.error(`[${ts}] ${lvl}`, entry.message);
+        } else {
+          console.warn(`[${ts}] ${lvl}`, entry.message);
+        }
       }
       console.groupEnd();
       return entries;

@@ -1,8 +1,14 @@
 /**
  * Console Log Collector Service
  *
- * This service captures console messages for debugging purposes when users report issues.
- * It maintains a circular buffer of the last 100 console messages to be included in issue reports.
+ * Captures console messages for debugging and issue reporting.
+ * Maintains two circular buffers:
+ *   - Main buffer (500 entries): all log levels
+ *   - Error buffer (100 entries): only error + warn — survives noise eviction
+ *
+ * The separate error buffer solves the problem where critical decryption errors
+ * and other failures get evicted by high-volume noise (WebSocket pings,
+ * ShareMetadataQueue, OfflineBanner, etc.) before the user can run debug.logs().
  *
  * Also supports real-time listeners via onNewLog() / offNewLog() callbacks, used by the
  * ClientLogForwarder to forward admin console logs to the server for centralized debugging.
@@ -12,15 +18,36 @@ export interface ConsoleLogEntry {
   timestamp: number;
   level: "log" | "info" | "warn" | "error" | "debug";
   message: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   args: any[];
 }
+
+/** Log levels that can be used to filter getLogs() results */
+export type LogLevel = ConsoleLogEntry["level"];
 
 /** Callback type for new log entry listeners (used by ClientLogForwarder) */
 export type LogEntryListener = (entry: ConsoleLogEntry) => void;
 
+/** Maximum entries in the main (all-levels) circular buffer */
+const MAX_MAIN_LOGS = 500;
+
+/** Maximum entries in the error/warn-only circular buffer */
+const MAX_ERROR_LOGS = 100;
+
+/** Maximum length of a single log message before truncation */
+const MAX_MESSAGE_LENGTH = 1000;
+
 class LogCollectorService {
+  /** Main circular buffer — all log levels */
   private logs: ConsoleLogEntry[] = [];
-  private maxLogs = 100;
+
+  /**
+   * Separate circular buffer for error + warn entries only.
+   * These are the most important logs for debugging and must survive
+   * even when the main buffer is full of routine noise.
+   */
+  private errorLogs: ConsoleLogEntry[] = [];
+
   private originalConsole: {
     log: typeof console.log;
     info: typeof console.info;
@@ -50,8 +77,9 @@ class LogCollectorService {
   private interceptConsole(): void {
     const interceptMethod = (
       level: "log" | "info" | "warn" | "error" | "debug",
-      originalMethod: Function,
+      originalMethod: (...args: unknown[]) => void,
     ) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return (...args: any[]) => {
         // Call original method first
         originalMethod.apply(console, args);
@@ -69,10 +97,11 @@ class LogCollectorService {
   }
 
   /**
-   * Capture a console log entry
+   * Capture a console log entry into both buffers (main + error if applicable).
    */
   private captureLog(
     level: "log" | "info" | "warn" | "error" | "debug",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     args: any[],
   ): void {
     try {
@@ -88,7 +117,7 @@ class LogCollectorService {
           } else if (typeof arg === "object") {
             try {
               return JSON.stringify(arg, null, 2);
-            } catch (e) {
+            } catch {
               return "[Object object - circular or non-serializable]";
             }
           } else {
@@ -104,12 +133,19 @@ class LogCollectorService {
         args: this.sanitizeArgs(args),
       };
 
-      // Add to circular buffer
+      // Add to main circular buffer (all levels)
       this.logs.push(logEntry);
-
-      // Keep only last maxLogs entries
-      if (this.logs.length > this.maxLogs) {
+      if (this.logs.length > MAX_MAIN_LOGS) {
         this.logs.shift();
+      }
+
+      // Also add error/warn entries to the dedicated error buffer
+      // so they survive even when the main buffer is full of noise
+      if (level === "error" || level === "warn") {
+        this.errorLogs.push(logEntry);
+        if (this.errorLogs.length > MAX_ERROR_LOGS) {
+          this.errorLogs.shift();
+        }
       }
 
       // Notify registered listeners (e.g. ClientLogForwarder for admin log forwarding)
@@ -138,12 +174,13 @@ class LogCollectorService {
       .replace(/token["\s]*[:=]["\s]*[^"\s\]},]+/gi, "token: [REDACTED]")
       .replace(/key["\s]*[:=]["\s]*[^"\s\]},]+/gi, "key: [REDACTED]")
       .replace(/auth["\s]*[:=]["\s]*[^"\s\]},]+/gi, "auth: [REDACTED]")
-      .slice(0, 1000); // Limit message length
+      .slice(0, MAX_MESSAGE_LENGTH);
   }
 
   /**
    * Sanitize arguments to remove sensitive information
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private sanitizeArgs(args: any[]): any[] {
     return args.map((arg) => {
       if (typeof arg === "string") {
@@ -158,7 +195,7 @@ class LogCollectorService {
           if (sanitized.authorization) sanitized.authorization = "[REDACTED]";
           if (sanitized.bearer) sanitized.bearer = "[REDACTED]";
           return sanitized;
-        } catch (e) {
+        } catch {
           return "[Object - could not sanitize]";
         }
       }
@@ -167,19 +204,71 @@ class LogCollectorService {
   }
 
   /**
-   * Get recent console logs
+   * Get recent console logs, optionally filtered by level.
+   *
+   * @param count - Max entries to return (default: all)
+   * @param level - Filter to a single level (e.g. "error"), or omit for all levels
    */
-  public getLogs(count?: number): ConsoleLogEntry[] {
-    const logsToReturn = count ? this.logs.slice(-count) : [...this.logs];
-    return logsToReturn;
+  public getLogs(count?: number, level?: LogLevel): ConsoleLogEntry[] {
+    let source: ConsoleLogEntry[];
+
+    if (level === "error" || level === "warn") {
+      // For error/warn, use the dedicated error buffer for better retention
+      source =
+        level === "error"
+          ? this.errorLogs.filter((e) => e.level === "error")
+          : this.errorLogs.filter((e) => e.level === "warn");
+    } else if (level) {
+      // For other specific levels, filter the main buffer
+      source = this.logs.filter((e) => e.level === level);
+    } else {
+      source = this.logs;
+    }
+
+    return count ? source.slice(-count) : [...source];
   }
 
   /**
-   * Format logs as text for inclusion in issue reports
+   * Get only error and warn entries from the dedicated error buffer.
+   * These entries survive even when the main buffer is full of routine noise.
+   *
+   * @param count - Max entries to return (default: all error/warn entries)
    */
-  public getLogsAsText(count: number = 100): string {
-    const logs = this.getLogs(count);
-    if (logs.length === 0) {
+  public getErrorLogs(count?: number): ConsoleLogEntry[] {
+    return count ? this.errorLogs.slice(-count) : [...this.errorLogs];
+  }
+
+  /**
+   * Format logs as text for inclusion in issue reports.
+   * Includes both the main buffer tail and any error-buffer entries that
+   * might have been evicted from the main buffer.
+   */
+  public getLogsAsText(count: number = 500): string {
+    // Merge main buffer with error buffer (dedup by timestamp+message)
+    const mainLogs = this.getLogs(count);
+    const errorLogs = this.getErrorLogs();
+
+    // Build a Set of keys from main logs for fast dedup lookup
+    const mainKeys = new Set(
+      mainLogs.map(
+        (l) => `${l.timestamp}:${l.level}:${l.message.slice(0, 80)}`,
+      ),
+    );
+
+    // Find error-buffer entries missing from the main buffer (evicted by noise)
+    const rescuedErrors = errorLogs.filter(
+      (e) =>
+        !mainKeys.has(
+          `${e.timestamp}:${e.level}:${e.message.slice(0, 80)}`,
+        ),
+    );
+
+    // Merge and sort chronologically, then take the last `count` entries
+    const merged = [...rescuedErrors, ...mainLogs]
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .slice(-count);
+
+    if (merged.length === 0) {
       return "No console logs available.";
     }
 
@@ -193,7 +282,7 @@ class LogCollectorService {
       return `[${timestamp}] ${level} ${log.message}`;
     };
 
-    return logs.map(formatLog).join("\n");
+    return merged.map(formatLog).join("\n");
   }
 
   /**
@@ -212,10 +301,11 @@ class LogCollectorService {
   }
 
   /**
-   * Clear all captured logs
+   * Clear all captured logs (both main and error buffers)
    */
   public clearLogs(): void {
     this.logs = [];
+    this.errorLogs = [];
   }
 
   /**
