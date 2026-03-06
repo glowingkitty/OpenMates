@@ -189,12 +189,16 @@ class ClientLogForwarder {
         console.warn(
           `[ClientLogForwarder] Auth error (${response.status}) — keeping forwarder alive, will retry on next flush`,
         );
+      } else if (!response.ok) {
+        // Log unexpected non-2xx responses at error level so they are visible and reach Loki
+        console.error(
+          `[ClientLogForwarder] Unexpected flush response: ${response.status} ${response.statusText}`,
+        );
       }
-      // Silently ignore other errors (429 rate limit, 500 server error, network issues)
-      // This is non-critical debug infrastructure - should never interfere with the app
     } catch (err) {
-      // Network error or other fetch failure - log for debugging, then drop the entries.
-      console.debug("[ClientLogForwarder] Flush failed:", err);
+      // Network error or other fetch failure - log at error level so it is visible
+      // in the browser console AND forwarded to Loki on the next successful flush.
+      console.error("[ClientLogForwarder] Flush failed (network error):", err);
     }
   }
 }
