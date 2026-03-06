@@ -73,37 +73,6 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	test.slow();
 	test.setTimeout(360000);
 
-	async function setToggleCheckedWithRetry(
-		toggleSelector: string,
-		shouldBeChecked: boolean
-	): Promise<void> {
-		let lastError: unknown;
-		for (let attempt = 1; attempt <= 4; attempt += 1) {
-			try {
-				const toggle = page.locator(toggleSelector).first();
-				await toggle.waitFor({ state: 'attached', timeout: 15000 });
-				await toggle.evaluate((element: HTMLInputElement, desired: boolean) => {
-					if (element.checked !== desired) {
-						element.checked = desired;
-						element.dispatchEvent(new Event('change', { bubbles: true }));
-						element.dispatchEvent(new Event('input', { bubbles: true }));
-					}
-				}, shouldBeChecked);
-				if (shouldBeChecked) {
-					await expect(toggle).toBeChecked({ timeout: 5000 });
-				} else {
-					await expect(toggle).not.toBeChecked({ timeout: 5000 });
-				}
-				return;
-			} catch (error) {
-				lastError = error;
-				await page.waitForTimeout(600);
-			}
-		}
-
-		throw new Error(`Failed to set toggle ${toggleSelector} after retries: ${String(lastError)}`);
-	}
-
 	const logSignupCheckpoint = createSignupLogger('SIGNUP_SKIP_2FA_FLOW');
 	const takeStepScreenshot = createStepScreenshotter(logSignupCheckpoint, {
 		filenamePrefix: 'skip-2fa'
@@ -221,25 +190,21 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	await expect(page.locator('.credits-package-container .buy-button').first()).toBeVisible({
 		timeout: 30000
 	});
-	const creditsBuyButton = page.locator('.credits-package-container .buy-button').first();
-	await creditsBuyButton.click();
+	await page.locator('.credits-package-container .buy-button').first().click();
 	await takeStepScreenshot(page, 'payment-consent');
-	if (await creditsBuyButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-		// Retry once in case first click did not trigger transition to payment UI.
-		await creditsBuyButton.click();
-	}
+	logSignupCheckpoint('Reached payment consent step.');
 
-	const limitedRefundToggle = page.locator('#limited-refund-consent-toggle').first();
-	const hasConsentToggle = await limitedRefundToggle
-		.isVisible({ timeout: 5000 })
-		.catch(() => false);
-	if (hasConsentToggle) {
-		await setToggleCheckedWithRetry('#limited-refund-consent-toggle', true);
-		logSignupCheckpoint('Payment consent toggle accepted.');
-	} else {
-		logSignupCheckpoint('Payment consent toggle not shown; proceeding directly to payment form.');
-	}
+	// Payment step: consent to limited refund to reveal payment form.
+	const consentToggle = page.locator('#limited-refund-consent-toggle');
+	await setToggleChecked(consentToggle, true);
+	await takeStepScreenshot(page, 'payment-form');
+	logSignupCheckpoint('Payment consent accepted.');
+
+	// Fill Stripe payment element with the test card.
 	await fillStripeCardDetails(page, STRIPE_TEST_CARD_NUMBER);
+	logSignupCheckpoint('Filled Stripe card details.');
+
+	// Submit payment and wait for success.
 	await page.locator('.payment-form .buy-button').click();
 	await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 120000 });
 	logSignupCheckpoint('Stripe payment completed successfully.');
