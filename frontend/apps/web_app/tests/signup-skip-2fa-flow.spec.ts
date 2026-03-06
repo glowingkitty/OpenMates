@@ -195,7 +195,9 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	logSignupCheckpoint('Reached payment consent step.');
 
 	// Payment step: consent to limited refund to reveal payment form.
+	// Wait for the consent toggle to appear — Stripe Elements must initialize first.
 	const consentToggle = page.locator('#limited-refund-consent-toggle');
+	await expect(consentToggle).toBeAttached({ timeout: 60000 });
 	await setToggleChecked(consentToggle, true);
 	await takeStepScreenshot(page, 'payment-form');
 	logSignupCheckpoint('Payment consent accepted.');
