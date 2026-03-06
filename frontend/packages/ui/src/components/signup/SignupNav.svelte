@@ -124,7 +124,10 @@
 
     function handleSkipClick() {
         // Profile picture step removed
-        if (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) {
+        if (currentStep === STEP_ONE_TIME_CODES && !$userProfile.tfa_enabled) {
+            // User wants to skip 2FA setup — navigate to the warning/consent screen
+            onstep({ step: STEP_SKIP_2FA_CONSENT });
+        } else if (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) {
             onstep({ step: STEP_TFA_APP_REMINDER });
     } else if (currentStep === STEP_TFA_APP_REMINDER) {
          // Always go to backup codes step next, regardless of whether an app is selected
@@ -191,6 +194,7 @@
 
 // Update the reactive skipButtonText for different steps and states using Svelte 5 runes
 let skipButtonText = $derived(
+    (currentStep === STEP_ONE_TIME_CODES && !$userProfile.tfa_enabled) ? $text('signup.skip_for_now') :
     (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) ? $text('signup.next') :
     // Only show "Next" for TFA app reminder if an app has been selected AND saved
     (currentStep === STEP_TFA_APP_REMINDER && selectedAppName && selectedAppName.trim() !== '' && isAppSaved) ? $text('signup.next') :
@@ -211,7 +215,7 @@ let skipButtonText = $derived(
     // - showSkip prop is true AND it's not one of the special steps
     let showActualSkipButton = $derived(
         mode === 'login' ? false : (
-            (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) ||
+            (currentStep === STEP_ONE_TIME_CODES) ||
             (currentStep === STEP_TFA_APP_REMINDER && (!selectedAppName || selectedAppName.trim() === '' || isAppSaved)) ||
             (currentStep === STEP_SETTINGS && $userProfile.consent_privacy_and_apps_default_settings) ||
             (currentStep === STEP_MATE_SETTINGS && $userProfile.consent_mates_default_settings) ||
