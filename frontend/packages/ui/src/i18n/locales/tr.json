@@ -1599,6 +1599,23 @@
             "text": "Rome'da Easter haftası için aile dostu konaklama bul"
           }
         }
+      },
+      "get_flight": {
+        "text": "Uçuş rotasını al",
+        "description": {
+          "text": "Harita üzerinde geçmiş herhangi bir uçuşun gerçek uçuş yolunu görün."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "5 Mart'taki LH2472 uçuşunun güzergahını göster"
+          },
+          "2": {
+            "text": "BA234 uçuşum dün saptırıldı mı?"
+          },
+          "3": {
+            "text": "AF447 ne zaman indi ve hangi pist kullanıldı?"
+          }
+        }
       }
     },
     "videos": {
@@ -4160,6 +4177,17 @@
           "text": "Polar Gizlilik Politikası"
         }
       },
+      "flightradar24": {
+        "heading": {
+          "text": "3.16 Flightradar24"
+        },
+        "description": {
+          "text": "\"Uçuş rotasını al\" becerisini kullanarak gerçek uçuş rotası verisi talep ettiğinizde, tamamlanmış uçuşlar için geçmiş GPS iz verilerini almak amacıyla Flightradar24'ü sorgularız. Flightradar24, uçuş numarasını ve kalkış tarihini alır. Kişisel veri paylaşılmaz."
+        },
+        "privacy_policy_link": {
+          "text": "Flightradar24 Gizlilik Politikası"
+        }
+      },
       "security_measures": {
         "heading": {
           "text": "4. Güvenlik Önlemleri"
@@ -4968,6 +4996,68 @@
         "provider": {
           "text": "Sağlayıcı"
         }
+      }
+    },
+    "app_settings_memories": {
+      "encrypted_notice": {
+        "text": "Ayarlarınız ve anı girişleriniz şifrelenmiştir, yalnızca cihazlarınız tarafından okunabilir ve açık onayınız olmadan işleme için hiçbir zaman OpenMates'e gönderilmez."
+      },
+      "examples_label": {
+        "text": "Örnekler:"
+      },
+      "my": {
+        "text": "Benim"
+      },
+      "settings_and_memories": {
+        "text": "Ayarlar ve anılar"
+      },
+      "my_settings_and_memories": {
+        "text": "Ayarlarım ve anılarım"
+      },
+      "no_entries_yet": {
+        "text": "Henüz kayıt yok."
+      },
+      "examples": {
+        "text": "Örnekler"
+      },
+      "no_settings": {
+        "text": "Henüz hiçbir ayar veya anı senkronize edilmedi. Mevcut olduğunda burada görünecekler."
+      },
+      "add_entry": {
+        "text": "Giriş ekle"
+      },
+      "loading": {
+        "text": "Ayarlar ve anılar yükleniyor..."
+      },
+      "item_key": {
+        "text": "Öğe anahtarı"
+      },
+      "settings_group": {
+        "text": "Ayarlar grubu"
+      },
+      "item_value": {
+        "text": "Öğe değeri"
+      },
+      "cancel": {
+        "text": "İptal"
+      },
+      "creating": {
+        "text": "Oluşturuluyor..."
+      },
+      "placeholder": {
+        "text": "Yakında uygulama ayarlarınızı ve anılarınızı buradan yönetebilecek ve oluşturabileceksiniz."
+      },
+      "just_now": {
+        "text": "Az önce"
+      },
+      "edit": {
+        "text": "Düzenle"
+      },
+      "delete": {
+        "text": "Sil"
+      },
+      "save": {
+        "text": "Kaydet"
       }
     },
     "app_store": {
@@ -6327,65 +6417,6 @@
         "text": "Gömme yükleniyor..."
       }
     },
-    "app_settings_memories": {
-      "examples_label": {
-        "text": "Örnekler:"
-      },
-      "my": {
-        "text": "Benim"
-      },
-      "settings_and_memories": {
-        "text": "Ayarlar ve anılar"
-      },
-      "my_settings_and_memories": {
-        "text": "Ayarlarım ve anılarım"
-      },
-      "no_entries_yet": {
-        "text": "Henüz kayıt yok."
-      },
-      "examples": {
-        "text": "Örnekler"
-      },
-      "no_settings": {
-        "text": "Henüz hiçbir ayar veya anı senkronize edilmedi. Mevcut olduğunda burada görünecekler."
-      },
-      "add_entry": {
-        "text": "Giriş ekle"
-      },
-      "loading": {
-        "text": "Ayarlar ve anılar yükleniyor..."
-      },
-      "item_key": {
-        "text": "Öğe anahtarı"
-      },
-      "settings_group": {
-        "text": "Ayarlar grubu"
-      },
-      "item_value": {
-        "text": "Öğe değeri"
-      },
-      "cancel": {
-        "text": "İptal"
-      },
-      "creating": {
-        "text": "Oluşturuluyor..."
-      },
-      "placeholder": {
-        "text": "Yakında uygulama ayarlarınızı ve anılarınızı buradan yönetebilecek ve oluşturabileceksiniz."
-      },
-      "just_now": {
-        "text": "Az önce"
-      },
-      "edit": {
-        "text": "Düzenle"
-      },
-      "delete": {
-        "text": "Sil"
-      },
-      "save": {
-        "text": "Kaydet"
-      }
-    },
     "newsletter": {
       "text": "Bülten"
     },
@@ -7385,7 +7416,7 @@
       "text": "Şifreler eşleşmiyor"
     },
     "password_too_short": {
-      "text": "En az 12 karakter"
+      "text": "En az 10 karakter"
     },
     "password_too_common": {
       "text": "Bu parola çok yaygın. Lütfen daha güçlü bir parola seçin."

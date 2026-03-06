@@ -10,9 +10,30 @@
     
     const dispatch = createEventDispatcher();
 
-    const MIN_PASSWORD_LENGTH = 12;
+    const MIN_PASSWORD_LENGTH = 10;
     const MAX_PASSWORD_LENGTH = 60;
+    // Passwords that trivially satisfy length + character-class rules but are
+    // well-known and easily guessed. Checked case-insensitively.
     const COMMON_PASSWORD_BLOCKLIST = new Set([
+        'password1!',
+        'password1@',
+        'password1#',
+        'password123!',
+        'password123@',
+        'qwerty12345',
+        'qwerty123!',
+        'iloveyou123!',
+        'letmein123!',
+        'admin12345!',
+        'welcome123!',
+        'changeme123!',
+        'openmates123!',
+        'openmates2024!',
+        'openmates2025!',
+        'openmates2026!',
+        'abcd1234!',
+        'test1234!',
+        'test12345!',
         '12345678',
         '123456789',
         '1234567890',
@@ -101,7 +122,11 @@
         };
     }
     
-    // Password strength validation
+    // Password strength validation.
+    // Requirements: 10–60 characters, at least one letter (\p{L}), one digit, one special character.
+    // Uppercase/lowercase case-sensitivity requirements are intentionally dropped — case rules
+    // add friction without meaningfully increasing entropy beyond what length + character
+    // diversity already provide.
     function checkPasswordStrength(pwd: string): boolean {
         if (pwd.length < MIN_PASSWORD_LENGTH) {
             passwordStrengthError = $text('signup.password_too_short');
@@ -121,19 +146,7 @@
             return false;
         }
 
-        if (!/\p{Ll}/u.test(pwd)) {
-            passwordStrengthError = $text('signup.password_needs_lowercase');
-            showPasswordStrengthWarning = true;
-            return false;
-        }
-
-        if (!/\p{Lu}/u.test(pwd)) {
-            passwordStrengthError = $text('signup.password_needs_uppercase');
-            showPasswordStrengthWarning = true;
-            return false;
-        }
-
-        // Use Unicode categories for letter detection (includes international letters)
+        // At least one Unicode letter (covers all scripts, not just Latin)
         if (!/\p{L}/u.test(pwd)) {
             passwordStrengthError = $text('signup.password_needs_letter');
             showPasswordStrengthWarning = true;
@@ -146,6 +159,7 @@
             return false;
         }
 
+        // At least one character that is not a letter and not a digit
         if (!/[^A-Za-z0-9\p{L}]/u.test(pwd)) {
             passwordStrengthError = $text('signup.password_needs_special');
             showPasswordStrengthWarning = true;
@@ -242,10 +256,7 @@
                         class:error={!!passwordStrengthError}
                     />
                 </div>
-                <!-- Persistent inline error: stays visible until the user fixes the issue.
-                     Previously used the auto-hiding InputWarning tooltip (3 s timeout), which
-                     caused the continue button to remain disabled with no visible explanation
-                     once the tooltip disappeared. -->
+                <!-- Persistent inline error: stays visible until the user fixes the issue. -->
                 {#if showPasswordStrengthWarning && passwordStrengthError}
                     <p class="field-error" transition:fade={{ duration: 150 }}>
                         {@html passwordStrengthError}

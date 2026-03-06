@@ -773,27 +773,27 @@ passwords_do_not_match:
   verified_by_human: []
 password_too_short:
   context: Error message shown when password is too short
-  en: Minimum 12 characters
-  de: Mindestens 12 Zeichen
-  zh: 至少12个字符
-  es: Mínimo 12 caracteres
-  fr: Minimum 12 caractères
-  pt: Mínimo de 12 caracteres
-  ru: Минимум 12 символов
-  ja: 最低12文字必要
-  ko: 최소 12자
-  it: Minimo 12 caratteri
-  tr: En az 12 karakter
-  vi: Tối thiểu 12 ký tự
-  id: Minimal 12 karakter
-  pl: Minimum 12 znaków
-  nl: Minimaal 12 tekens
-  ar: الحد الأدنى 12 حرفًا
-  hi: न्यूनतम 12 वर्ण
-  th: อย่างน้อย 12 ตัวอักษร
-  cs: Minimálně 12 znaků
+  en: Minimum 10 characters
+  de: Mindestens 10 Zeichen
+  zh: 至少10个字符
+  es: Mínimo 10 caracteres
+  fr: Minimum 10 caractères
+  pt: Mínimo de 10 caracteres
+  ru: Минимум 10 символов
+  ja: 最低10文字必要
+  ko: 최소 10자
+  it: Minimo 10 caratteri
+  tr: En az 10 karakter
+  vi: Tối thiểu 10 ký tự
+  id: Minimal 10 karakter
+  pl: Minimum 10 znaków
+  nl: Minimaal 10 tekens
+  ar: الحد الأدنى 10 أحرف
+  hi: न्यूनतम 10 वर्ण
+  th: อย่างน้อย 10 ตัวอักษร
+  cs: Minimálně 10 znaků
   sv: ""
-  he: מינימום 12 תווים
+  he: מינימום 10 תווים
   verified_by_human: []
 password_too_common:
   context: Error message shown when password is found in the common-password blocklist

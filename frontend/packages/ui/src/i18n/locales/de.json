@@ -1609,6 +1609,23 @@
             "text": "Finde familienfreundliche Unterkünfte in Rom für die Osterwoche"
           }
         }
+      },
+      "get_flight": {
+        "text": "Flugroute abrufen",
+        "description": {
+          "text": "Zeige den echten Flugweg eines vergangenen Fluges auf einer Karte."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Zeige die Flugroute von LH2472 am 5. März"
+          },
+          "2": {
+            "text": "Wurde mein Flug BA234 gestern umgeleitet?"
+          },
+          "3": {
+            "text": "Wann ist AF447 gelandet und welche Landebahn wurde genutzt?"
+          }
+        }
       }
     },
     "videos": {
@@ -5286,6 +5303,17 @@
           "text": "Polar Datenschutzerklärung"
         }
       },
+      "flightradar24": {
+        "heading": {
+          "text": "3.16 Flightradar24"
+        },
+        "description": {
+          "text": "Wenn du die Funktion \"Flugroute abrufen\" verwendest, fragen wir Flightradar24 ab, um historische GPS-Trackdaten für abgeschlossene Flüge zu erhalten. Flightradar24 erhält die Flugnummer und das Abflugdatum. Es werden keine personenbezogenen Daten weitergegeben."
+        },
+        "privacy_policy_link": {
+          "text": "Flightradar24 Datenschutzerklärung"
+        }
+      },
       "security_measures": {
         "heading": {
           "text": "4. Sicherheitsmaßnahmen"
@@ -6708,6 +6736,9 @@
       },
       "saving": {
         "text": "Wird gespeichert..."
+      },
+      "encrypted_notice": {
+        "text": "Deine Einstellungen und Erinnerungseinträge sind verschlüsselt, können nur von deinen Geräten gelesen werden und werden niemals ohne deine ausdrückliche Zustimmung zur Verarbeitung an OpenMates gesendet."
       },
       "examples_label": {
         "text": "Beispiele:"
@@ -9878,7 +9909,7 @@
       "text": "Passwörter stimmen nicht überein"
     },
     "password_too_short": {
-      "text": "Mindestens 12 Zeichen"
+      "text": "Mindestens 10 Zeichen"
     },
     "password_too_common": {
       "text": "Dieses Passwort ist zu verbreitet. Bitte wähle ein stärkeres."

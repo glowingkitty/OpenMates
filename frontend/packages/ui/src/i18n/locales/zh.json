@@ -1599,6 +1599,23 @@
             "text": "在 Rome 找 Easter 周适合家庭的住宿"
           }
         }
+      },
+      "get_flight": {
+        "text": "获取航班轨迹",
+        "description": {
+          "text": "在地图上查看过去任何航班的真实飞行路径。"
+        },
+        "how_to_use": {
+          "1": {
+            "text": "显示3月5日LH2472的飞行路径"
+          },
+          "2": {
+            "text": "我的BA234昨天被改道了吗？"
+          },
+          "3": {
+            "text": "AF447是什么时候降落的，使用了哪条跑道？"
+          }
+        }
       }
     },
     "videos": {
@@ -5039,6 +5056,17 @@
           "text": "Polar 隐私政策"
         }
       },
+      "flightradar24": {
+        "heading": {
+          "text": "3.16 Flightradar24"
+        },
+        "description": {
+          "text": "当您使用\"获取航班轨迹\"技能请求真实航班轨迹数据时，我们会查询Flightradar24以获取已完成航班的历史GPS轨迹数据。Flightradar24会收到航班号和出发日期。不会共享任何个人数据。"
+        },
+        "privacy_policy_link": {
+          "text": "Flightradar24 隐私政策"
+        }
+      },
       "security_measures": {
         "heading": {
           "text": "4. 安全措施"
@@ -6068,6 +6096,68 @@
         "provider": {
           "text": "提供商"
         }
+      }
+    },
+    "app_settings_memories": {
+      "encrypted_notice": {
+        "text": "您的设置和记忆条目已加密，只有您的设备才能读取，未经您的明确同意，绝不会发送给 OpenMates 进行处理。"
+      },
+      "examples_label": {
+        "text": "示例："
+      },
+      "my": {
+        "text": "我的"
+      },
+      "settings_and_memories": {
+        "text": "设置与记忆"
+      },
+      "my_settings_and_memories": {
+        "text": "我的设置与记忆"
+      },
+      "no_entries_yet": {
+        "text": "还没有条目。"
+      },
+      "examples": {
+        "text": "示例"
+      },
+      "no_settings": {
+        "text": "尚未同步任何设置或记忆。可用后会在此显示。"
+      },
+      "add_entry": {
+        "text": "添加条目"
+      },
+      "loading": {
+        "text": "正在加载设置和记忆..."
+      },
+      "item_key": {
+        "text": "条目键"
+      },
+      "settings_group": {
+        "text": "设置组"
+      },
+      "item_value": {
+        "text": "条目值"
+      },
+      "cancel": {
+        "text": "取消"
+      },
+      "creating": {
+        "text": "创建中..."
+      },
+      "placeholder": {
+        "text": "很快您就能在这里管理和创建您的应用设置和记忆。"
+      },
+      "just_now": {
+        "text": "刚刚"
+      },
+      "edit": {
+        "text": "编辑"
+      },
+      "delete": {
+        "text": "删除"
+      },
+      "save": {
+        "text": "保存"
       }
     },
     "app_store": {
@@ -7751,65 +7841,6 @@
         "text": "正在加载嵌入内容..."
       }
     },
-    "app_settings_memories": {
-      "examples_label": {
-        "text": "示例："
-      },
-      "my": {
-        "text": "我的"
-      },
-      "settings_and_memories": {
-        "text": "设置与记忆"
-      },
-      "my_settings_and_memories": {
-        "text": "我的设置与记忆"
-      },
-      "no_entries_yet": {
-        "text": "还没有条目。"
-      },
-      "examples": {
-        "text": "示例"
-      },
-      "no_settings": {
-        "text": "尚未同步任何设置或记忆。可用后会在此显示。"
-      },
-      "add_entry": {
-        "text": "添加条目"
-      },
-      "loading": {
-        "text": "正在加载设置和记忆..."
-      },
-      "item_key": {
-        "text": "条目键"
-      },
-      "settings_group": {
-        "text": "设置组"
-      },
-      "item_value": {
-        "text": "条目值"
-      },
-      "cancel": {
-        "text": "取消"
-      },
-      "creating": {
-        "text": "创建中..."
-      },
-      "placeholder": {
-        "text": "很快您就能在这里管理和创建您的应用设置和记忆。"
-      },
-      "just_now": {
-        "text": "刚刚"
-      },
-      "edit": {
-        "text": "编辑"
-      },
-      "delete": {
-        "text": "删除"
-      },
-      "save": {
-        "text": "保存"
-      }
-    },
     "newsletter": {
       "description": {
         "text": "订阅以获取最新的 OpenMates 新闻"
@@ -8805,7 +8836,7 @@
       "text": "密码不匹配"
     },
     "password_too_short": {
-      "text": "至少12个字符"
+      "text": "至少10个字符"
     },
     "password_too_common": {
       "text": "该密码过于常见。请选择更强的密码。"

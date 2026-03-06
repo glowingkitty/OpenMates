@@ -1599,6 +1599,23 @@
             "text": "Rome에서 Easter 주에 가족 친화적 숙소 찾기"
           }
         }
+      },
+      "get_flight": {
+        "text": "항공편 경로 가져오기",
+        "description": {
+          "text": "과거 항공편의 실제 비행 경로를 지도에서 확인하세요."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "3월 5일 LH2472 항공편의 비행 경로를 보여줘"
+          },
+          "2": {
+            "text": "어제 BA234 항공편이 우회했나요?"
+          },
+          "3": {
+            "text": "AF447은 몇 시에 착륙했으며 어떤 활주로가 사용되었나요?"
+          }
+        }
       }
     },
     "videos": {
@@ -4160,6 +4177,17 @@
           "text": "Polar 개인정보 보호정책"
         }
       },
+      "flightradar24": {
+        "heading": {
+          "text": "3.16 Flightradar24"
+        },
+        "description": {
+          "text": "\"항공편 경로 가져오기\" 기술을 사용하여 실제 비행 경로 데이터를 요청하면 완료된 항공편의 과거 GPS 트랙 데이터를 검색하기 위해 Flightradar24에 쿼리합니다. Flightradar24는 항공편 번호와 출발일을 수신합니다. 개인 데이터는 공유되지 않습니다."
+        },
+        "privacy_policy_link": {
+          "text": "Flightradar24 개인정보 보호정책"
+        }
+      },
       "security_measures": {
         "heading": {
           "text": "4. 보안 조치"
@@ -4968,6 +4996,68 @@
         "provider": {
           "text": "제공자"
         }
+      }
+    },
+    "app_settings_memories": {
+      "encrypted_notice": {
+        "text": "귀하의 설정 및 메모리 항목은 암호화되어 있으며, 귀하의 기기에서만 읽을 수 있고, 귀하의 명시적인 동의 없이는 처리를 위해 OpenMates로 전송되지 않습니다."
+      },
+      "examples_label": {
+        "text": "예시:"
+      },
+      "my": {
+        "text": "내"
+      },
+      "settings_and_memories": {
+        "text": "설정 및 메모리"
+      },
+      "my_settings_and_memories": {
+        "text": "내 설정 및 메모리"
+      },
+      "no_entries_yet": {
+        "text": "아직 항목이 없습니다."
+      },
+      "examples": {
+        "text": "예시"
+      },
+      "no_settings": {
+        "text": "아직 동기화된 설정 또는 메모리가 없습니다. 이용 가능할 때 여기에 표시됩니다."
+      },
+      "add_entry": {
+        "text": "항목 추가"
+      },
+      "loading": {
+        "text": "설정 및 메모리 로드 중..."
+      },
+      "item_key": {
+        "text": "항목 키"
+      },
+      "settings_group": {
+        "text": "설정 그룹"
+      },
+      "item_value": {
+        "text": "항목 값"
+      },
+      "cancel": {
+        "text": "취소"
+      },
+      "creating": {
+        "text": "생성 중..."
+      },
+      "placeholder": {
+        "text": "곧 여기에서 앱 설정 및 메모리를 관리하고 생성할 수 있습니다."
+      },
+      "just_now": {
+        "text": "방금"
+      },
+      "edit": {
+        "text": "편집"
+      },
+      "delete": {
+        "text": "삭제"
+      },
+      "save": {
+        "text": "저장"
       }
     },
     "app_store": {
@@ -6327,65 +6417,6 @@
         "text": "임베드 로드 중..."
       }
     },
-    "app_settings_memories": {
-      "examples_label": {
-        "text": "예시:"
-      },
-      "my": {
-        "text": "내"
-      },
-      "settings_and_memories": {
-        "text": "설정 및 메모리"
-      },
-      "my_settings_and_memories": {
-        "text": "내 설정 및 메모리"
-      },
-      "no_entries_yet": {
-        "text": "아직 항목이 없습니다."
-      },
-      "examples": {
-        "text": "예시"
-      },
-      "no_settings": {
-        "text": "아직 동기화된 설정 또는 메모리가 없습니다. 이용 가능할 때 여기에 표시됩니다."
-      },
-      "add_entry": {
-        "text": "항목 추가"
-      },
-      "loading": {
-        "text": "설정 및 메모리 로드 중..."
-      },
-      "item_key": {
-        "text": "항목 키"
-      },
-      "settings_group": {
-        "text": "설정 그룹"
-      },
-      "item_value": {
-        "text": "항목 값"
-      },
-      "cancel": {
-        "text": "취소"
-      },
-      "creating": {
-        "text": "생성 중..."
-      },
-      "placeholder": {
-        "text": "곧 여기에서 앱 설정 및 메모리를 관리하고 생성할 수 있습니다."
-      },
-      "just_now": {
-        "text": "방금"
-      },
-      "edit": {
-        "text": "편집"
-      },
-      "delete": {
-        "text": "삭제"
-      },
-      "save": {
-        "text": "저장"
-      }
-    },
     "newsletter": {
       "text": "뉴스레터"
     },
@@ -7385,7 +7416,7 @@
       "text": "비밀번호가 일치하지 않습니다"
     },
     "password_too_short": {
-      "text": "최소 12자"
+      "text": "최소 10자"
     },
     "password_too_common": {
       "text": "이 비밀번호는 너무 흔합니다. 더 강력한 비밀번호를 선택해 주세요."

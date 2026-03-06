@@ -1599,6 +1599,23 @@
             "text": "Najděte ubytování vhodné pro rodiny v Rome na týden Easter"
           }
         }
+      },
+      "get_flight": {
+        "text": "Získat trasu letu",
+        "description": {
+          "text": "Zobrazte skutečnou letovou trasu libovolného minulého letu na mapě."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Ukáže letovou trasu letu LH2472 5. března"
+          },
+          "2": {
+            "text": "Byl let BA234 včera přesměrován?"
+          },
+          "3": {
+            "text": "V kolik hodin přistál AF447 a která dráha byla použita?"
+          }
+        }
       }
     },
     "videos": {
@@ -4166,6 +4183,17 @@
           "text": "Zásady ochrany osobních údajů Polar"
         }
       },
+      "flightradar24": {
+        "heading": {
+          "text": "3.16 Flightradar24"
+        },
+        "description": {
+          "text": "Když požadujete skutečná data letové trasy pomocí dovednosti \"Získat trasu letu\", dotazujeme se Flightradar24 pro získání historických GPS dat pro dokončené lety. Flightradar24 obdrží číslo letu a datum odletu. Žádné osobní údaje nejsou sdíleny."
+        },
+        "privacy_policy_link": {
+          "text": "Zásady ochrany osobních údajů Flightradar24"
+        }
+      },
       "security_measures": {
         "heading": {
           "text": "4. Bezpečnostní opatření"
@@ -4974,6 +5002,68 @@
         "provider": {
           "text": "Poskytovatel"
         }
+      }
+    },
+    "app_settings_memories": {
+      "encrypted_notice": {
+        "text": "Vaše záznamy nastavení a vzpomínek jsou šifrovány, mohou být čteny pouze vašimi zařízeními a nikdy nejsou odesílány k zpracování do OpenMates bez vašeho výslovného souhlasu."
+      },
+      "examples_label": {
+        "text": "Příklady:"
+      },
+      "my": {
+        "text": "Moje"
+      },
+      "settings_and_memories": {
+        "text": "Nastavení a paměti"
+      },
+      "my_settings_and_memories": {
+        "text": "Moje nastavení a paměti"
+      },
+      "no_entries_yet": {
+        "text": "Zatím žádné záznamy."
+      },
+      "examples": {
+        "text": "Příklady"
+      },
+      "no_settings": {
+        "text": "Zatím nejsou synchronizovány žádné nastavení ani paměti. Zobrazí se zde, jakmile budou dostupná."
+      },
+      "add_entry": {
+        "text": "Přidat položku"
+      },
+      "loading": {
+        "text": "Načítání nastavení a paměti..."
+      },
+      "item_key": {
+        "text": "Klíč položky"
+      },
+      "settings_group": {
+        "text": "Skupina nastavení"
+      },
+      "item_value": {
+        "text": "Hodnota položky"
+      },
+      "cancel": {
+        "text": "Zrušit"
+      },
+      "creating": {
+        "text": "Vytváření..."
+      },
+      "placeholder": {
+        "text": "Brzy budete moci spravovat a vytvářet nastavení aplikací a vzpomínky zde."
+      },
+      "just_now": {
+        "text": "Právě teď"
+      },
+      "edit": {
+        "text": "Upravit"
+      },
+      "delete": {
+        "text": "Smazat"
+      },
+      "save": {
+        "text": "Uložit"
       }
     },
     "app_store": {
@@ -6333,65 +6423,6 @@
         "text": "Načítání vložených prvků..."
       }
     },
-    "app_settings_memories": {
-      "examples_label": {
-        "text": "Příklady:"
-      },
-      "my": {
-        "text": "Moje"
-      },
-      "settings_and_memories": {
-        "text": "Nastavení a paměti"
-      },
-      "my_settings_and_memories": {
-        "text": "Moje nastavení a paměti"
-      },
-      "no_entries_yet": {
-        "text": "Zatím žádné záznamy."
-      },
-      "examples": {
-        "text": "Příklady"
-      },
-      "no_settings": {
-        "text": "Zatím nejsou synchronizovány žádné nastavení ani paměti. Zobrazí se zde, jakmile budou dostupná."
-      },
-      "add_entry": {
-        "text": "Přidat položku"
-      },
-      "loading": {
-        "text": "Načítání nastavení a paměti..."
-      },
-      "item_key": {
-        "text": "Klíč položky"
-      },
-      "settings_group": {
-        "text": "Skupina nastavení"
-      },
-      "item_value": {
-        "text": "Hodnota položky"
-      },
-      "cancel": {
-        "text": "Zrušit"
-      },
-      "creating": {
-        "text": "Vytváření..."
-      },
-      "placeholder": {
-        "text": "Brzy budete moci spravovat a vytvářet nastavení aplikací a vzpomínky zde."
-      },
-      "just_now": {
-        "text": "Právě teď"
-      },
-      "edit": {
-        "text": "Upravit"
-      },
-      "delete": {
-        "text": "Smazat"
-      },
-      "save": {
-        "text": "Uložit"
-      }
-    },
     "newsletter": {
       "text": "Zpravodaj"
     },
@@ -7391,7 +7422,7 @@
       "text": "Hesla se neshodují"
     },
     "password_too_short": {
-      "text": "Minimálně 12 znaků"
+      "text": "Minimálně 10 znaků"
     },
     "password_too_common": {
       "text": "Toto heslo je příliš běžné. Vyberte prosím silnější."

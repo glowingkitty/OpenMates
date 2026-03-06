@@ -1599,6 +1599,23 @@
             "text": "Vind gezinsvriendelijke accommodaties in Rome voor de Easter week"
           }
         }
+      },
+      "get_flight": {
+        "text": "Vluchtroute ophalen",
+        "description": {
+          "text": "Bekijk het werkelijke vliegpad van een voorbije vlucht op een kaart."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Toon de vliegroute van LH2472 op 5 maart"
+          },
+          "2": {
+            "text": "Is mijn vlucht BA234 gisteren omgeleid?"
+          },
+          "3": {
+            "text": "Hoe laat landde AF447 en welke baan werd gebruikt?"
+          }
+        }
       }
     },
     "videos": {
@@ -4160,6 +4177,17 @@
           "text": "Privacybeleid van Polar"
         }
       },
+      "flightradar24": {
+        "heading": {
+          "text": "3.16 Flightradar24"
+        },
+        "description": {
+          "text": "Wanneer u echte vliegpadinformatie opvraagt via de vaardigheid \"Vluchtroute ophalen\", raadplegen wij Flightradar24 om historische GPS-trackgegevens op te halen voor voltooide vluchten. Flightradar24 ontvangt het vluchtnummer en de vertrekdatum. Er worden geen persoonlijke gegevens gedeeld."
+        },
+        "privacy_policy_link": {
+          "text": "Privacybeleid van Flightradar24"
+        }
+      },
       "security_measures": {
         "heading": {
           "text": "4. Beveiligingsmaatregelen"
@@ -4968,6 +4996,68 @@
         "provider": {
           "text": "Provider"
         }
+      }
+    },
+    "app_settings_memories": {
+      "encrypted_notice": {
+        "text": "Uw instellingen en geheugenitems zijn versleuteld, kunnen alleen door uw apparaten worden gelezen en worden nooit zonder uw uitdrukkelijke toestemming naar OpenMates verzonden voor verwerking."
+      },
+      "examples_label": {
+        "text": "Voorbeelden:"
+      },
+      "my": {
+        "text": "Mijn"
+      },
+      "settings_and_memories": {
+        "text": "Instellingen en herinneringen"
+      },
+      "my_settings_and_memories": {
+        "text": "Mijn instellingen en herinneringen"
+      },
+      "no_entries_yet": {
+        "text": "Nog geen items."
+      },
+      "examples": {
+        "text": "Voorbeelden"
+      },
+      "no_settings": {
+        "text": "Nog geen instellingen of herinneringen gesynchroniseerd. Ze verschijnen hier zodra deze beschikbaar zijn."
+      },
+      "add_entry": {
+        "text": "Item toevoegen"
+      },
+      "loading": {
+        "text": "Instellingen en herinneringen laden..."
+      },
+      "item_key": {
+        "text": "Item sleutel"
+      },
+      "settings_group": {
+        "text": "Instellingen groep"
+      },
+      "item_value": {
+        "text": "Item waarde"
+      },
+      "cancel": {
+        "text": "Annuleren"
+      },
+      "creating": {
+        "text": "Aanmaken..."
+      },
+      "placeholder": {
+        "text": "Binnenkort kun je hier je app-instellingen en herinneringen beheren en aanmaken."
+      },
+      "just_now": {
+        "text": "Zojuist"
+      },
+      "edit": {
+        "text": "Bewerken"
+      },
+      "delete": {
+        "text": "Verwijderen"
+      },
+      "save": {
+        "text": "Opslaan"
       }
     },
     "app_store": {
@@ -6327,65 +6417,6 @@
         "text": "Inbeddingen laden..."
       }
     },
-    "app_settings_memories": {
-      "examples_label": {
-        "text": "Voorbeelden:"
-      },
-      "my": {
-        "text": "Mijn"
-      },
-      "settings_and_memories": {
-        "text": "Instellingen en herinneringen"
-      },
-      "my_settings_and_memories": {
-        "text": "Mijn instellingen en herinneringen"
-      },
-      "no_entries_yet": {
-        "text": "Nog geen items."
-      },
-      "examples": {
-        "text": "Voorbeelden"
-      },
-      "no_settings": {
-        "text": "Nog geen instellingen of herinneringen gesynchroniseerd. Ze verschijnen hier zodra deze beschikbaar zijn."
-      },
-      "add_entry": {
-        "text": "Item toevoegen"
-      },
-      "loading": {
-        "text": "Instellingen en herinneringen laden..."
-      },
-      "item_key": {
-        "text": "Item sleutel"
-      },
-      "settings_group": {
-        "text": "Instellingen groep"
-      },
-      "item_value": {
-        "text": "Item waarde"
-      },
-      "cancel": {
-        "text": "Annuleren"
-      },
-      "creating": {
-        "text": "Aanmaken..."
-      },
-      "placeholder": {
-        "text": "Binnenkort kun je hier je app-instellingen en herinneringen beheren en aanmaken."
-      },
-      "just_now": {
-        "text": "Zojuist"
-      },
-      "edit": {
-        "text": "Bewerken"
-      },
-      "delete": {
-        "text": "Verwijderen"
-      },
-      "save": {
-        "text": "Opslaan"
-      }
-    },
     "newsletter": {
       "text": "Nieuwsbrief"
     },
@@ -7385,7 +7416,7 @@
       "text": "Wachtwoorden komen niet overeen"
     },
     "password_too_short": {
-      "text": "Minimaal 12 tekens"
+      "text": "Minimaal 10 tekens"
     },
     "password_too_common": {
       "text": "Dit wachtwoord is te algemeen. Kies een sterker wachtwoord."

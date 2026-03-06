@@ -1599,6 +1599,23 @@
             "text": "Cari akomodasi ramah keluarga di Rome untuk minggu Easter"
           }
         }
+      },
+      "get_flight": {
+        "text": "Dapatkan rute penerbangan",
+        "description": {
+          "text": "Lihat jalur penerbangan nyata dari penerbangan masa lalu di peta."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Tampilkan jalur penerbangan LH2472 pada tanggal 5 Maret"
+          },
+          "2": {
+            "text": "Apakah penerbangan BA234 saya dialihkan kemarin?"
+          },
+          "3": {
+            "text": "Pukul berapa AF447 mendarat dan landasan mana yang digunakan?"
+          }
+        }
       }
     },
     "videos": {
@@ -4160,6 +4177,17 @@
           "text": "Kebijakan Privasi Polar"
         }
       },
+      "flightradar24": {
+        "heading": {
+          "text": "3.16 Flightradar24"
+        },
+        "description": {
+          "text": "Ketika Anda meminta data jalur penerbangan nyata menggunakan keahlian \"Dapatkan rute penerbangan\", kami mengquery Flightradar24 untuk mengambil data trek GPS historis untuk penerbangan yang telah selesai. Flightradar24 menerima nomor penerbangan dan tanggal keberangkatan. Tidak ada data pribadi yang dibagikan."
+        },
+        "privacy_policy_link": {
+          "text": "Kebijakan Privasi Flightradar24"
+        }
+      },
       "security_measures": {
         "heading": {
           "text": "4. Tindakan Keamanan"
@@ -4968,6 +4996,68 @@
         "provider": {
           "text": "Penyedia"
         }
+      }
+    },
+    "app_settings_memories": {
+      "encrypted_notice": {
+        "text": "Entri pengaturan dan memori Anda dienkripsi, hanya dapat dibaca oleh perangkat Anda dan tidak pernah dikirim ke OpenMates untuk diproses tanpa persetujuan eksplisit Anda."
+      },
+      "examples_label": {
+        "text": "Contoh:"
+      },
+      "my": {
+        "text": "Saya"
+      },
+      "settings_and_memories": {
+        "text": "Pengaturan dan memori"
+      },
+      "my_settings_and_memories": {
+        "text": "Pengaturan dan memori saya"
+      },
+      "no_entries_yet": {
+        "text": "Belum ada entri."
+      },
+      "examples": {
+        "text": "Contoh"
+      },
+      "no_settings": {
+        "text": "Belum ada pengaturan atau memori yang disinkronkan. Mereka akan muncul di sini setelah tersedia."
+      },
+      "add_entry": {
+        "text": "Tambah entri"
+      },
+      "loading": {
+        "text": "Memuat pengaturan dan memori..."
+      },
+      "item_key": {
+        "text": "Kunci item"
+      },
+      "settings_group": {
+        "text": "Grup pengaturan"
+      },
+      "item_value": {
+        "text": "Nilai item"
+      },
+      "cancel": {
+        "text": "Batal"
+      },
+      "creating": {
+        "text": "Membuat..."
+      },
+      "placeholder": {
+        "text": "Segera Anda dapat mengelola dan membuat pengaturan aplikasi dan memori di sini."
+      },
+      "just_now": {
+        "text": "Baru saja"
+      },
+      "edit": {
+        "text": "Edit"
+      },
+      "delete": {
+        "text": "Hapus"
+      },
+      "save": {
+        "text": "Simpan"
       }
     },
     "app_store": {
@@ -6327,65 +6417,6 @@
         "text": "Memuat embed..."
       }
     },
-    "app_settings_memories": {
-      "examples_label": {
-        "text": "Contoh:"
-      },
-      "my": {
-        "text": "Saya"
-      },
-      "settings_and_memories": {
-        "text": "Pengaturan dan memori"
-      },
-      "my_settings_and_memories": {
-        "text": "Pengaturan dan memori saya"
-      },
-      "no_entries_yet": {
-        "text": "Belum ada entri."
-      },
-      "examples": {
-        "text": "Contoh"
-      },
-      "no_settings": {
-        "text": "Belum ada pengaturan atau memori yang disinkronkan. Mereka akan muncul di sini setelah tersedia."
-      },
-      "add_entry": {
-        "text": "Tambah entri"
-      },
-      "loading": {
-        "text": "Memuat pengaturan dan memori..."
-      },
-      "item_key": {
-        "text": "Kunci item"
-      },
-      "settings_group": {
-        "text": "Grup pengaturan"
-      },
-      "item_value": {
-        "text": "Nilai item"
-      },
-      "cancel": {
-        "text": "Batal"
-      },
-      "creating": {
-        "text": "Membuat..."
-      },
-      "placeholder": {
-        "text": "Segera Anda dapat mengelola dan membuat pengaturan aplikasi dan memori di sini."
-      },
-      "just_now": {
-        "text": "Baru saja"
-      },
-      "edit": {
-        "text": "Edit"
-      },
-      "delete": {
-        "text": "Hapus"
-      },
-      "save": {
-        "text": "Simpan"
-      }
-    },
     "newsletter": {
       "text": "Newsletter"
     },
@@ -7385,7 +7416,7 @@
       "text": "Kata sandi tidak cocok"
     },
     "password_too_short": {
-      "text": "Minimal 12 karakter"
+      "text": "Minimal 10 karakter"
     },
     "password_too_common": {
       "text": "Kata sandi ini terlalu umum. Pilih yang lebih kuat."

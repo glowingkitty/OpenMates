@@ -1599,6 +1599,23 @@
             "text": "Rome で Easter 週のファミリー向け宿泊施設を検索"
           }
         }
+      },
+      "get_flight": {
+        "text": "フライト追跡を取得",
+        "description": {
+          "text": "過去のフライトの実際の飛行ルートを地図で確認できます。"
+        },
+        "how_to_use": {
+          "1": {
+            "text": "3月5日のLH2472のフライト経路を表示して"
+          },
+          "2": {
+            "text": "昨日のBA234は迂回しましたか？"
+          },
+          "3": {
+            "text": "AF447は何時に着陸し、どの滑走路が使用されましたか？"
+          }
+        }
       }
     },
     "videos": {
@@ -5039,6 +5056,17 @@
           "text": "Polarプライバシーポリシー"
         }
       },
+      "flightradar24": {
+        "heading": {
+          "text": "3.16 Flightradar24"
+        },
+        "description": {
+          "text": "「フライト追跡を取得」スキルを使用して実際のフライトデータを要求すると、完了したフライトの過去のGPSトラックデータを取得するためにFlightradar24に照会します。Flightradar24はフライト番号と出発日を受け取ります。個人データは共有されません。"
+        },
+        "privacy_policy_link": {
+          "text": "Flightradar24プライバシーポリシー"
+        }
+      },
       "security_measures": {
         "heading": {
           "text": "4. セキュリティ対策"
@@ -6068,6 +6096,68 @@
         "provider": {
           "text": "プロバイダー"
         }
+      }
+    },
+    "app_settings_memories": {
+      "encrypted_notice": {
+        "text": "設定とメモリのエントリは暗号化されており、あなたのデバイスのみが読み取ることができ、あなたの明示的な同意なしにOpenMatesに処理のために送信されることはありません。"
+      },
+      "examples_label": {
+        "text": "例："
+      },
+      "my": {
+        "text": "私の"
+      },
+      "settings_and_memories": {
+        "text": "設定とメモリ"
+      },
+      "my_settings_and_memories": {
+        "text": "私の設定とメモリ"
+      },
+      "no_entries_yet": {
+        "text": "まだエントリがありません。"
+      },
+      "examples": {
+        "text": "例"
+      },
+      "no_settings": {
+        "text": "設定とメモリはまだ同期されていません。利用可能になると表示されます。"
+      },
+      "add_entry": {
+        "text": "エントリを追加"
+      },
+      "loading": {
+        "text": "設定とメモリを読み込み中..."
+      },
+      "item_key": {
+        "text": "アイテムキー"
+      },
+      "settings_group": {
+        "text": "設定グループ"
+      },
+      "item_value": {
+        "text": "アイテム値"
+      },
+      "cancel": {
+        "text": "キャンセル"
+      },
+      "creating": {
+        "text": "作成中..."
+      },
+      "placeholder": {
+        "text": "まもなくここでアプリの設定とメモリを管理・作成できるようになります。"
+      },
+      "just_now": {
+        "text": "たった今"
+      },
+      "edit": {
+        "text": "編集"
+      },
+      "delete": {
+        "text": "削除"
+      },
+      "save": {
+        "text": "保存"
       }
     },
     "app_store": {
@@ -7742,65 +7832,6 @@
         "text": "埋め込みを読み込み中..."
       }
     },
-    "app_settings_memories": {
-      "examples_label": {
-        "text": "例："
-      },
-      "my": {
-        "text": "私の"
-      },
-      "settings_and_memories": {
-        "text": "設定とメモリ"
-      },
-      "my_settings_and_memories": {
-        "text": "私の設定とメモリ"
-      },
-      "no_entries_yet": {
-        "text": "まだエントリがありません。"
-      },
-      "examples": {
-        "text": "例"
-      },
-      "no_settings": {
-        "text": "設定とメモリはまだ同期されていません。利用可能になると表示されます。"
-      },
-      "add_entry": {
-        "text": "エントリを追加"
-      },
-      "loading": {
-        "text": "設定とメモリを読み込み中..."
-      },
-      "item_key": {
-        "text": "アイテムキー"
-      },
-      "settings_group": {
-        "text": "設定グループ"
-      },
-      "item_value": {
-        "text": "アイテム値"
-      },
-      "cancel": {
-        "text": "キャンセル"
-      },
-      "creating": {
-        "text": "作成中..."
-      },
-      "placeholder": {
-        "text": "まもなくここでアプリの設定とメモリを管理・作成できるようになります。"
-      },
-      "just_now": {
-        "text": "たった今"
-      },
-      "edit": {
-        "text": "編集"
-      },
-      "delete": {
-        "text": "削除"
-      },
-      "save": {
-        "text": "保存"
-      }
-    },
     "newsletter": {
       "description": {
         "text": "最新の OpenMates ニュースを受け取るために購読する"
@@ -8811,7 +8842,7 @@
       "text": "パスワードが一致しません"
     },
     "password_too_short": {
-      "text": "最低12文字必要"
+      "text": "最低10文字必要"
     },
     "password_too_common": {
       "text": "このパスワードは一般的すぎます。より強力なものを選んでください。"

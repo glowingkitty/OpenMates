@@ -1599,6 +1599,23 @@
             "text": "Znajdź przyjazne rodzinom noclegi w Rome na tydzień Easter"
           }
         }
+      },
+      "get_flight": {
+        "text": "Pobierz trasę lotu",
+        "description": {
+          "text": "Zobacz rzeczywistą trasę lotu dowolnego minionego lotu na mapie."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Pokaż trasę lotu LH2472 5 marca"
+          },
+          "2": {
+            "text": "Czy mój lot BA234 został przekierowany wczoraj?"
+          },
+          "3": {
+            "text": "O której godzinie wylądował AF447 i który pas był użyty?"
+          }
+        }
       }
     },
     "videos": {
@@ -4160,6 +4177,17 @@
           "text": "Polityka Prywatności Polar"
         }
       },
+      "flightradar24": {
+        "heading": {
+          "text": "3.16 Flightradar24"
+        },
+        "description": {
+          "text": "Gdy prosisz o rzeczywiste dane trasy lotu za pomocą umiejętności \"Pobierz trasę lotu\", wysyłamy zapytanie do Flightradar24, aby pobrać historyczne dane GPS dla ukończonych lotów. Flightradar24 otrzymuje numer lotu i datę wylotu. Żadne dane osobowe nie są udostępniane."
+        },
+        "privacy_policy_link": {
+          "text": "Polityka Prywatności Flightradar24"
+        }
+      },
       "security_measures": {
         "heading": {
           "text": "4. Środki Bezpieczeństwa"
@@ -4968,6 +4996,68 @@
         "provider": {
           "text": "Dostawca"
         }
+      }
+    },
+    "app_settings_memories": {
+      "encrypted_notice": {
+        "text": "Twoje wpisy ustawień i wspomnień są zaszyfrowane, mogą być odczytane tylko przez Twoje urządzenia i nigdy nie są wysyłane do OpenMates do przetwarzania bez Twojej wyraźnej zgody."
+      },
+      "examples_label": {
+        "text": "Przykłady:"
+      },
+      "my": {
+        "text": "Moje"
+      },
+      "settings_and_memories": {
+        "text": "Ustawienia i wspomnienia"
+      },
+      "my_settings_and_memories": {
+        "text": "Moje ustawienia i wspomnienia"
+      },
+      "no_entries_yet": {
+        "text": "Brak wpisów."
+      },
+      "examples": {
+        "text": "Przykłady"
+      },
+      "no_settings": {
+        "text": "Brak jeszcze zsynchronizowanych ustawień ani wspomnień. Pojawią się tutaj, gdy tylko będą dostępne."
+      },
+      "add_entry": {
+        "text": "Dodaj wpis"
+      },
+      "loading": {
+        "text": "Ładowanie ustawień i wspomnień..."
+      },
+      "item_key": {
+        "text": "Klucz elementu"
+      },
+      "settings_group": {
+        "text": "Grupa ustawień"
+      },
+      "item_value": {
+        "text": "Wartość elementu"
+      },
+      "cancel": {
+        "text": "Anuluj"
+      },
+      "creating": {
+        "text": "Tworzenie..."
+      },
+      "placeholder": {
+        "text": "Wkrótce będziesz mógł tutaj zarządzać i tworzyć ustawienia aplikacji i wspomnienia."
+      },
+      "just_now": {
+        "text": "Właśnie teraz"
+      },
+      "edit": {
+        "text": "Edytuj"
+      },
+      "delete": {
+        "text": "Usuń"
+      },
+      "save": {
+        "text": "Zapisz"
       }
     },
     "app_store": {
@@ -6327,65 +6417,6 @@
         "text": "Ładowanie osadzeń..."
       }
     },
-    "app_settings_memories": {
-      "examples_label": {
-        "text": "Przykłady:"
-      },
-      "my": {
-        "text": "Moje"
-      },
-      "settings_and_memories": {
-        "text": "Ustawienia i wspomnienia"
-      },
-      "my_settings_and_memories": {
-        "text": "Moje ustawienia i wspomnienia"
-      },
-      "no_entries_yet": {
-        "text": "Brak wpisów."
-      },
-      "examples": {
-        "text": "Przykłady"
-      },
-      "no_settings": {
-        "text": "Brak jeszcze zsynchronizowanych ustawień ani wspomnień. Pojawią się tutaj, gdy tylko będą dostępne."
-      },
-      "add_entry": {
-        "text": "Dodaj wpis"
-      },
-      "loading": {
-        "text": "Ładowanie ustawień i wspomnień..."
-      },
-      "item_key": {
-        "text": "Klucz elementu"
-      },
-      "settings_group": {
-        "text": "Grupa ustawień"
-      },
-      "item_value": {
-        "text": "Wartość elementu"
-      },
-      "cancel": {
-        "text": "Anuluj"
-      },
-      "creating": {
-        "text": "Tworzenie..."
-      },
-      "placeholder": {
-        "text": "Wkrótce będziesz mógł tutaj zarządzać i tworzyć ustawienia aplikacji i wspomnienia."
-      },
-      "just_now": {
-        "text": "Właśnie teraz"
-      },
-      "edit": {
-        "text": "Edytuj"
-      },
-      "delete": {
-        "text": "Usuń"
-      },
-      "save": {
-        "text": "Zapisz"
-      }
-    },
     "newsletter": {
       "text": "Newsletter"
     },
@@ -7385,7 +7416,7 @@
       "text": "Hasła nie pasują"
     },
     "password_too_short": {
-      "text": "Minimum 12 znaków"
+      "text": "Minimum 10 znaków"
     },
     "password_too_common": {
       "text": "To hasło jest zbyt popularne. Wybierz silniejsze."

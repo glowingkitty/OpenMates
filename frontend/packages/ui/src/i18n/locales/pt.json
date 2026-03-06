@@ -1599,6 +1599,23 @@
             "text": "Encontre acomodações para famílias em Rome para a semana de Easter"
           }
         }
+      },
+      "get_flight": {
+        "text": "Obter rota do voo",
+        "description": {
+          "text": "Veja a rota real de qualquer voo passado num mapa."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Mostra o percurso do voo LH2472 a 5 de março"
+          },
+          "2": {
+            "text": "O meu voo BA234 foi desviado ontem?"
+          },
+          "3": {
+            "text": "A que horas aterrou o AF447 e qual pista foi utilizada?"
+          }
+        }
       }
     },
     "videos": {
@@ -4160,6 +4177,17 @@
           "text": "Política de Privacidade do Polar"
         }
       },
+      "flightradar24": {
+        "heading": {
+          "text": "3.16 Flightradar24"
+        },
+        "description": {
+          "text": "Quando solicita dados reais de rota de voo usando a habilidade \"Obter rota do voo\", consultamos a Flightradar24 para obter dados GPS históricos de voos concluídos. A Flightradar24 recebe o número do voo e a data de partida. Nenhum dado pessoal é partilhado."
+        },
+        "privacy_policy_link": {
+          "text": "Política de Privacidade do Flightradar24"
+        }
+      },
       "security_measures": {
         "heading": {
           "text": "4. Medidas de Segurança"
@@ -4968,6 +4996,68 @@
         "provider": {
           "text": "Provedor"
         }
+      }
+    },
+    "app_settings_memories": {
+      "encrypted_notice": {
+        "text": "Suas entradas de configurações e memórias são criptografadas, só podem ser lidas pelos seus dispositivos e nunca são enviadas para a OpenMates para processamento sem o seu consentimento explícito."
+      },
+      "examples_label": {
+        "text": "Exemplos:"
+      },
+      "my": {
+        "text": "Minhas"
+      },
+      "settings_and_memories": {
+        "text": "Configurações e memórias"
+      },
+      "my_settings_and_memories": {
+        "text": "Minhas configurações e memórias"
+      },
+      "no_entries_yet": {
+        "text": "Ainda sem entradas."
+      },
+      "examples": {
+        "text": "Exemplos"
+      },
+      "no_settings": {
+        "text": "Nenhuma configuração ou memória sincronizada ainda. Eles aparecerão aqui assim que disponíveis."
+      },
+      "add_entry": {
+        "text": "Adicionar entrada"
+      },
+      "loading": {
+        "text": "Carregando configurações e memórias..."
+      },
+      "item_key": {
+        "text": "Chave do item"
+      },
+      "settings_group": {
+        "text": "Grupo de configurações"
+      },
+      "item_value": {
+        "text": "Valor do item"
+      },
+      "cancel": {
+        "text": "Cancelar"
+      },
+      "creating": {
+        "text": "Criando..."
+      },
+      "placeholder": {
+        "text": "Em breve você poderá gerenciar e criar suas configurações de aplicativos e memórias aqui."
+      },
+      "just_now": {
+        "text": "Agora mesmo"
+      },
+      "edit": {
+        "text": "Editar"
+      },
+      "delete": {
+        "text": "Excluir"
+      },
+      "save": {
+        "text": "Salvar"
       }
     },
     "app_store": {
@@ -6327,65 +6417,6 @@
         "text": "Carregando incorporações..."
       }
     },
-    "app_settings_memories": {
-      "examples_label": {
-        "text": "Exemplos:"
-      },
-      "my": {
-        "text": "Minhas"
-      },
-      "settings_and_memories": {
-        "text": "Configurações e memórias"
-      },
-      "my_settings_and_memories": {
-        "text": "Minhas configurações e memórias"
-      },
-      "no_entries_yet": {
-        "text": "Ainda sem entradas."
-      },
-      "examples": {
-        "text": "Exemplos"
-      },
-      "no_settings": {
-        "text": "Nenhuma configuração ou memória sincronizada ainda. Eles aparecerão aqui assim que disponíveis."
-      },
-      "add_entry": {
-        "text": "Adicionar entrada"
-      },
-      "loading": {
-        "text": "Carregando configurações e memórias..."
-      },
-      "item_key": {
-        "text": "Chave do item"
-      },
-      "settings_group": {
-        "text": "Grupo de configurações"
-      },
-      "item_value": {
-        "text": "Valor do item"
-      },
-      "cancel": {
-        "text": "Cancelar"
-      },
-      "creating": {
-        "text": "Criando..."
-      },
-      "placeholder": {
-        "text": "Em breve você poderá gerenciar e criar suas configurações de aplicativos e memórias aqui."
-      },
-      "just_now": {
-        "text": "Agora mesmo"
-      },
-      "edit": {
-        "text": "Editar"
-      },
-      "delete": {
-        "text": "Excluir"
-      },
-      "save": {
-        "text": "Salvar"
-      }
-    },
     "newsletter": {
       "text": "Newsletter"
     },
@@ -7385,7 +7416,7 @@
       "text": "As senhas não coincidem"
     },
     "password_too_short": {
-      "text": "Mínimo de 12 caracteres"
+      "text": "Mínimo de 10 caracteres"
     },
     "password_too_common": {
       "text": "Esta senha é muito comum. Escolha uma mais forte."

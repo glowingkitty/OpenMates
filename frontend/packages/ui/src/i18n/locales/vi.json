@@ -1599,6 +1599,23 @@
             "text": "Tìm chỗ ở thân thiện với gia đình ở Rome cho tuần Easter"
           }
         }
+      },
+      "get_flight": {
+        "text": "Lấy tuyến đường bay",
+        "description": {
+          "text": "Xem đường bay thực tế của bất kỳ chuyến bay nào trong quá khứ trên bản đồ."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Hiển thị đường bay của LH2472 vào ngày 5 tháng 3"
+          },
+          "2": {
+            "text": "Chuyến bay BA234 của tôi có bị chuyển hướng hôm qua không?"
+          },
+          "3": {
+            "text": "AF447 hạ cánh lúc mấy giờ và đường băng nào được sử dụng?"
+          }
+        }
       }
     },
     "videos": {
@@ -4160,6 +4177,17 @@
           "text": "Chính sách Bảo mật của Polar"
         }
       },
+      "flightradar24": {
+        "heading": {
+          "text": "3.16 Flightradar24"
+        },
+        "description": {
+          "text": "Khi bạn yêu cầu dữ liệu tuyến đường bay thực tế bằng kỹ năng \"Lấy tuyến đường bay\", chúng tôi truy vấn Flightradar24 để lấy dữ liệu GPS lịch sử cho các chuyến bay đã hoàn thành. Flightradar24 nhận số hiệu chuyến bay và ngày khởi hành. Không có dữ liệu cá nhân nào được chia sẻ."
+        },
+        "privacy_policy_link": {
+          "text": "Chính sách Bảo mật của Flightradar24"
+        }
+      },
       "security_measures": {
         "heading": {
           "text": "4. Biện pháp Bảo mật"
@@ -4968,6 +4996,68 @@
         "provider": {
           "text": "Nhà cung cấp"
         }
+      }
+    },
+    "app_settings_memories": {
+      "encrypted_notice": {
+        "text": "Các mục cài đặt và ký ức của bạn được mã hóa, chỉ có thể được đọc bởi thiết bị của bạn và không bao giờ được gửi đến OpenMates để xử lý mà không có sự đồng ý rõ ràng của bạn."
+      },
+      "examples_label": {
+        "text": "Ví dụ:"
+      },
+      "my": {
+        "text": "Của tôi"
+      },
+      "settings_and_memories": {
+        "text": "Cài đặt và ký ức"
+      },
+      "my_settings_and_memories": {
+        "text": "Cài đặt và ký ức của tôi"
+      },
+      "no_entries_yet": {
+        "text": "Chưa có mục nào."
+      },
+      "examples": {
+        "text": "Ví dụ"
+      },
+      "no_settings": {
+        "text": "Chưa có cài đặt hoặc ký ức nào được đồng bộ hóa. Chúng sẽ xuất hiện ở đây khi có sẵn."
+      },
+      "add_entry": {
+        "text": "Thêm mục"
+      },
+      "loading": {
+        "text": "Đang tải cài đặt và ký ức..."
+      },
+      "item_key": {
+        "text": "Khóa mục"
+      },
+      "settings_group": {
+        "text": "Nhóm cài đặt"
+      },
+      "item_value": {
+        "text": "Giá trị mục"
+      },
+      "cancel": {
+        "text": "Hủy"
+      },
+      "creating": {
+        "text": "Đang tạo..."
+      },
+      "placeholder": {
+        "text": "Sớm bạn sẽ có thể quản lý và tạo cài đặt ứng dụng và ký ức của mình tại đây."
+      },
+      "just_now": {
+        "text": "Vừa xong"
+      },
+      "edit": {
+        "text": "Chỉnh sửa"
+      },
+      "delete": {
+        "text": "Xóa"
+      },
+      "save": {
+        "text": "Lưu"
       }
     },
     "app_store": {
@@ -6327,65 +6417,6 @@
         "text": "Đang tải nội dung nhúng..."
       }
     },
-    "app_settings_memories": {
-      "examples_label": {
-        "text": "Ví dụ:"
-      },
-      "my": {
-        "text": "Của tôi"
-      },
-      "settings_and_memories": {
-        "text": "Cài đặt và ký ức"
-      },
-      "my_settings_and_memories": {
-        "text": "Cài đặt và ký ức của tôi"
-      },
-      "no_entries_yet": {
-        "text": "Chưa có mục nào."
-      },
-      "examples": {
-        "text": "Ví dụ"
-      },
-      "no_settings": {
-        "text": "Chưa có cài đặt hoặc ký ức nào được đồng bộ hóa. Chúng sẽ xuất hiện ở đây khi có sẵn."
-      },
-      "add_entry": {
-        "text": "Thêm mục"
-      },
-      "loading": {
-        "text": "Đang tải cài đặt và ký ức..."
-      },
-      "item_key": {
-        "text": "Khóa mục"
-      },
-      "settings_group": {
-        "text": "Nhóm cài đặt"
-      },
-      "item_value": {
-        "text": "Giá trị mục"
-      },
-      "cancel": {
-        "text": "Hủy"
-      },
-      "creating": {
-        "text": "Đang tạo..."
-      },
-      "placeholder": {
-        "text": "Sớm bạn sẽ có thể quản lý và tạo cài đặt ứng dụng và ký ức của mình tại đây."
-      },
-      "just_now": {
-        "text": "Vừa xong"
-      },
-      "edit": {
-        "text": "Chỉnh sửa"
-      },
-      "delete": {
-        "text": "Xóa"
-      },
-      "save": {
-        "text": "Lưu"
-      }
-    },
     "newsletter": {
       "text": "Bản tin"
     },
@@ -7385,7 +7416,7 @@
       "text": "Mật khẩu không khớp"
     },
     "password_too_short": {
-      "text": "Tối thiểu 12 ký tự"
+      "text": "Tối thiểu 10 ký tự"
     },
     "password_too_common": {
       "text": "Mật khẩu này quá phổ biến. Vui lòng chọn mật khẩu mạnh hơn."

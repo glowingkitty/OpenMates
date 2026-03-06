@@ -1615,6 +1615,23 @@
             "text": "**Find** family-friendly accommodations in Rome for Easter week"
           }
         }
+      },
+      "get_flight": {
+        "text": "Get flight track",
+        "description": {
+          "text": "See the real flight path of any past flight on a map."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "**Show the flight path** of LH2472 on March 5"
+          },
+          "2": {
+            "text": "**Was my flight diverted?** BA234 yesterday"
+          },
+          "3": {
+            "text": "**What time did AF447 land** and which runway was used?"
+          }
+        }
       }
     },
     "videos": {
@@ -5481,6 +5498,17 @@
           "text": "Polar Privacy Policy"
         }
       },
+      "flightradar24": {
+        "heading": {
+          "text": "3.16 Flightradar24"
+        },
+        "description": {
+          "text": "When you request real flight track data using the \"Get flight track\" skill, we query Flightradar24 to retrieve historical GPS track data for completed flights. Flightradar24 receives the flight number and departure date. No personal data is shared."
+        },
+        "privacy_policy_link": {
+          "text": "Flightradar24 Privacy Policy"
+        }
+      },
       "security_measures": {
         "heading": {
           "text": "4. Security Measures"
@@ -7077,6 +7105,9 @@
       },
       "saving": {
         "text": "Saving..."
+      },
+      "encrypted_notice": {
+        "text": "Your settings and memories entries are encrypted, can only be read by your devices and are never sent to OpenMates for processing without your explicit consent."
       },
       "examples_label": {
         "text": "Examples:"
@@ -10286,7 +10317,7 @@
       "text": "Passwords do not match"
     },
     "password_too_short": {
-      "text": "Minimum 12 characters"
+      "text": "Minimum 10 characters"
     },
     "password_too_common": {
       "text": "This password is too common. Please choose a stronger one."

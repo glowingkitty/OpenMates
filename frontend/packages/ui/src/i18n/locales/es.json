@@ -1599,6 +1599,23 @@
             "text": "Busca alojamientos familiares en Rome para la semana de Easter"
           }
         }
+      },
+      "get_flight": {
+        "text": "Obtener ruta de vuelo",
+        "description": {
+          "text": "Consulta la ruta real de cualquier vuelo pasado en un mapa."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Muestra la ruta de vuelo del LH2472 el 5 de marzo"
+          },
+          "2": {
+            "text": "¿Mi vuelo BA234 fue desviado ayer?"
+          },
+          "3": {
+            "text": "¿A qué hora aterrizó el AF447 y qué pista se usó?"
+          }
+        }
       }
     },
     "videos": {
@@ -5097,6 +5114,17 @@
           "text": "Política de privacidad de Polar"
         }
       },
+      "flightradar24": {
+        "heading": {
+          "text": "3.16 Flightradar24"
+        },
+        "description": {
+          "text": "Cuando solicitas datos reales de trayectoria de vuelo usando la habilidad \"Obtener ruta de vuelo\", consultamos Flightradar24 para obtener datos históricos de GPS para vuelos completados. Flightradar24 recibe el número de vuelo y la fecha de salida. No se comparten datos personales."
+        },
+        "privacy_policy_link": {
+          "text": "Política de privacidad de Flightradar24"
+        }
+      },
       "security_measures": {
         "heading": {
           "text": "4. Medidas de Seguridad"
@@ -6222,6 +6250,68 @@
         "provider": {
           "text": "Proveedor"
         }
+      }
+    },
+    "app_settings_memories": {
+      "encrypted_notice": {
+        "text": "Sus entradas de configuración y memorias están cifradas, solo pueden ser leídas por sus dispositivos y nunca se envían a OpenMates para su procesamiento sin su consentimiento explícito."
+      },
+      "examples_label": {
+        "text": "Ejemplos:"
+      },
+      "my": {
+        "text": "Mi"
+      },
+      "settings_and_memories": {
+        "text": "Configuración y recuerdos"
+      },
+      "my_settings_and_memories": {
+        "text": "Mi configuración y recuerdos"
+      },
+      "no_entries_yet": {
+        "text": "Aún no hay entradas."
+      },
+      "examples": {
+        "text": "Ejemplos"
+      },
+      "no_settings": {
+        "text": "Aún no hay configuración ni recuerdos sincronizados. Aparecerán aquí una vez disponibles."
+      },
+      "add_entry": {
+        "text": "Agregar entrada"
+      },
+      "loading": {
+        "text": "Cargando configuración y recuerdos..."
+      },
+      "item_key": {
+        "text": "Clave del elemento"
+      },
+      "settings_group": {
+        "text": "Grupo de configuración"
+      },
+      "item_value": {
+        "text": "Valor del elemento"
+      },
+      "cancel": {
+        "text": "Cancelar"
+      },
+      "creating": {
+        "text": "Creando..."
+      },
+      "placeholder": {
+        "text": "Pronto podrás gestionar y crear tu configuración de aplicaciones y recuerdos aquí."
+      },
+      "just_now": {
+        "text": "Justo ahora"
+      },
+      "edit": {
+        "text": "Editar"
+      },
+      "delete": {
+        "text": "Eliminar"
+      },
+      "save": {
+        "text": "Guardar"
       }
     },
     "app_store": {
@@ -7920,65 +8010,6 @@
         "text": "Cargando incrustaciones..."
       }
     },
-    "app_settings_memories": {
-      "examples_label": {
-        "text": "Ejemplos:"
-      },
-      "my": {
-        "text": "Mi"
-      },
-      "settings_and_memories": {
-        "text": "Configuración y recuerdos"
-      },
-      "my_settings_and_memories": {
-        "text": "Mi configuración y recuerdos"
-      },
-      "no_entries_yet": {
-        "text": "Aún no hay entradas."
-      },
-      "examples": {
-        "text": "Ejemplos"
-      },
-      "no_settings": {
-        "text": "Aún no hay configuración ni recuerdos sincronizados. Aparecerán aquí una vez disponibles."
-      },
-      "add_entry": {
-        "text": "Agregar entrada"
-      },
-      "loading": {
-        "text": "Cargando configuración y recuerdos..."
-      },
-      "item_key": {
-        "text": "Clave del elemento"
-      },
-      "settings_group": {
-        "text": "Grupo de configuración"
-      },
-      "item_value": {
-        "text": "Valor del elemento"
-      },
-      "cancel": {
-        "text": "Cancelar"
-      },
-      "creating": {
-        "text": "Creando..."
-      },
-      "placeholder": {
-        "text": "Pronto podrás gestionar y crear tu configuración de aplicaciones y recuerdos aquí."
-      },
-      "just_now": {
-        "text": "Justo ahora"
-      },
-      "edit": {
-        "text": "Editar"
-      },
-      "delete": {
-        "text": "Eliminar"
-      },
-      "save": {
-        "text": "Guardar"
-      }
-    },
     "newsletter": {
       "description": {
         "text": "Suscríbete para estar al día con las últimas noticias de OpenMates"
@@ -8989,7 +9020,7 @@
       "text": "Las contraseñas no coinciden"
     },
     "password_too_short": {
-      "text": "Mínimo 12 caracteres"
+      "text": "Mínimo 10 caracteres"
     },
     "password_too_common": {
       "text": "Esta contraseña es demasiado común. Elige una más segura."

@@ -1599,6 +1599,23 @@
             "text": "Trova alloggi per famiglie a Rome per la settimana di Easter"
           }
         }
+      },
+      "get_flight": {
+        "text": "Ottieni rotta del volo",
+        "description": {
+          "text": "Visualizza il percorso reale di qualsiasi volo passato su una mappa."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Mostra la rotta del volo LH2472 il 5 marzo"
+          },
+          "2": {
+            "text": "Il mio volo BA234 è stato dirottato ieri?"
+          },
+          "3": {
+            "text": "A che ora è atterrato AF447 e quale pista è stata utilizzata?"
+          }
+        }
       }
     },
     "videos": {
@@ -4160,6 +4177,17 @@
           "text": "Informativa sulla Privacy di Polar"
         }
       },
+      "flightradar24": {
+        "heading": {
+          "text": "3.16 Flightradar24"
+        },
+        "description": {
+          "text": "Quando richiedi dati reali sulla rotta di volo utilizzando la competenza \"Ottieni rotta del volo\", interroghiamo Flightradar24 per recuperare dati GPS storici per voli completati. Flightradar24 riceve il numero di volo e la data di partenza. Nessun dato personale viene condiviso."
+        },
+        "privacy_policy_link": {
+          "text": "Informativa sulla Privacy di Flightradar24"
+        }
+      },
       "security_measures": {
         "heading": {
           "text": "4. Misure di Sicurezza"
@@ -4968,6 +4996,68 @@
         "provider": {
           "text": "Fornitore"
         }
+      }
+    },
+    "app_settings_memories": {
+      "encrypted_notice": {
+        "text": "Le voci delle impostazioni e delle memorie sono crittografate, possono essere lette solo dai tuoi dispositivi e non vengono mai inviate a OpenMates per l'elaborazione senza il tuo esplicito consenso."
+      },
+      "examples_label": {
+        "text": "Esempi:"
+      },
+      "my": {
+        "text": "Le mie"
+      },
+      "settings_and_memories": {
+        "text": "Impostazioni e ricordi"
+      },
+      "my_settings_and_memories": {
+        "text": "Le mie impostazioni e ricordi"
+      },
+      "no_entries_yet": {
+        "text": "Ancora nessuna voce."
+      },
+      "examples": {
+        "text": "Esempi"
+      },
+      "no_settings": {
+        "text": "Nessuna impostazione o ricordo sincronizzato ancora. Appariranno qui una volta disponibili."
+      },
+      "add_entry": {
+        "text": "Aggiungi voce"
+      },
+      "loading": {
+        "text": "Caricamento impostazioni e ricordi..."
+      },
+      "item_key": {
+        "text": "Chiave elemento"
+      },
+      "settings_group": {
+        "text": "Gruppo impostazioni"
+      },
+      "item_value": {
+        "text": "Valore elemento"
+      },
+      "cancel": {
+        "text": "Annulla"
+      },
+      "creating": {
+        "text": "Creazione..."
+      },
+      "placeholder": {
+        "text": "Presto potrai gestire e creare qui le impostazioni delle tue app e i ricordi."
+      },
+      "just_now": {
+        "text": "Proprio ora"
+      },
+      "edit": {
+        "text": "Modifica"
+      },
+      "delete": {
+        "text": "Elimina"
+      },
+      "save": {
+        "text": "Salva"
       }
     },
     "app_store": {
@@ -6330,65 +6420,6 @@
         "text": "Caricamento incorporazioni..."
       }
     },
-    "app_settings_memories": {
-      "examples_label": {
-        "text": "Esempi:"
-      },
-      "my": {
-        "text": "Le mie"
-      },
-      "settings_and_memories": {
-        "text": "Impostazioni e ricordi"
-      },
-      "my_settings_and_memories": {
-        "text": "Le mie impostazioni e ricordi"
-      },
-      "no_entries_yet": {
-        "text": "Ancora nessuna voce."
-      },
-      "examples": {
-        "text": "Esempi"
-      },
-      "no_settings": {
-        "text": "Nessuna impostazione o ricordo sincronizzato ancora. Appariranno qui una volta disponibili."
-      },
-      "add_entry": {
-        "text": "Aggiungi voce"
-      },
-      "loading": {
-        "text": "Caricamento impostazioni e ricordi..."
-      },
-      "item_key": {
-        "text": "Chiave elemento"
-      },
-      "settings_group": {
-        "text": "Gruppo impostazioni"
-      },
-      "item_value": {
-        "text": "Valore elemento"
-      },
-      "cancel": {
-        "text": "Annulla"
-      },
-      "creating": {
-        "text": "Creazione..."
-      },
-      "placeholder": {
-        "text": "Presto potrai gestire e creare qui le impostazioni delle tue app e i ricordi."
-      },
-      "just_now": {
-        "text": "Proprio ora"
-      },
-      "edit": {
-        "text": "Modifica"
-      },
-      "delete": {
-        "text": "Elimina"
-      },
-      "save": {
-        "text": "Salva"
-      }
-    },
     "newsletter": {
       "text": "Newsletter"
     },
@@ -7388,7 +7419,7 @@
       "text": "Le password non corrispondono"
     },
     "password_too_short": {
-      "text": "Minimo 12 caratteri"
+      "text": "Minimo 10 caratteri"
     },
     "password_too_common": {
       "text": "Questa password è troppo comune. Scegline una più sicura."
