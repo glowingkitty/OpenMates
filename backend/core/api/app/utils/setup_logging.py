@@ -2,8 +2,9 @@ import logging
 import logging.config
 import os
 import sys
-from pythonjsonlogger import jsonlogger
+from pythonjsonlogger import jsonlogger  # noqa: F401 — used by dictConfig string refs
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
+from backend.core.api.app.utils.request_context import RequestIdLogFilter
 
 # Determine environment
 SERVER_ENVIRONMENT = os.getenv("SERVER_ENVIRONMENT", "development").lower()
@@ -51,7 +52,7 @@ COMPLIANCE_LOG_PATH = os.path.join(LOGS_DIR, "compliance.log")
 # Use mode 0o777 to ensure all users can write (needed for Docker containers with different users)
 try:
     os.makedirs(LOGS_DIR, mode=0o777, exist_ok=True)
-except (OSError, PermissionError) as e:
+except (OSError, PermissionError):
     # If we can't create the directory, we'll fall back to console-only logging
     # This prevents import failures when services don't have write permissions
     pass
@@ -95,8 +96,8 @@ handlers_config = {
         "class": "logging.StreamHandler",
         "level": LOG_LEVEL,
         "formatter": "json",
-        "filters": ["sensitive_data"], # Apply filter to handler
-        "stream": sys.stdout, # Explicitly use stdout
+        "filters": ["request_id", "sensitive_data"],
+        "stream": sys.stdout,
     },
 }
 
@@ -161,48 +162,43 @@ LOGGING_CONFIG = {
         },
         "filters": {
             "sensitive_data": {
-                "()": SensitiveDataFilter, # Define the filter here
+                "()": SensitiveDataFilter,
             },
-            # Filter to apply only to specific handlers if needed
-        "warning_and_above": {
-            # This filter is intended to be used on handlers/loggers set to WARNING or higher
-            # The level check happens at the handler/logger, not in the filter itself.
-            "()": "logging.Filter",
-            "name": "", # Match events attached to the root logger or specified logger name
-            # Remove the 'level' key here
-        },
+            "request_id": {
+                "()": RequestIdLogFilter,
+            },
+            "warning_and_above": {
+                "()": "logging.Filter",
+                "name": "",
+            },
         },
         "handlers": handlers_config,
         "loggers": {
-            "app": { # Configure the base 'app' logger
+            # Base backend logger — catches all backend.* modules not explicitly listed
+            "backend": {
                 "handlers": default_handlers,
                 "level": LOG_LEVEL,
-                "propagate": False, # Prevent passing to root logger if handled here
-            },
-            "app.events": { # Specific logger for events
-                "handlers": default_handlers, # Use same handlers as 'app'
-                "level": LOG_LEVEL, # Use environment-based level
                 "propagate": False,
             },
-            "compliance": { # Specific logger for compliance
+            "compliance": { # Specific logger for compliance (legal retention)
                 "handlers": compliance_handlers,
                 "level": "INFO", # Always keep compliance logging at INFO
                 "propagate": False,
             },
-            # Configure noisy loggers
+            # Configure noisy third-party loggers
             "uvicorn": {
-                "handlers": default_handlers, # Route uvicorn logs through our handlers
-                "level": "WARNING" if IS_PRODUCTION else "INFO", # Restrict in production
+                "handlers": default_handlers,
+                "level": "WARNING" if IS_PRODUCTION else "INFO",
                 "propagate": False,
             },
             "uvicorn.error": {
                 "handlers": default_handlers,
-                "level": "WARNING" if IS_PRODUCTION else "INFO", # Restrict in production
+                "level": "WARNING" if IS_PRODUCTION else "INFO",
                 "propagate": False,
             },
             "uvicorn.access": {
-                "handlers": default_handlers, # Route access logs too
-                "level": "WARNING", # Keep access logs at WARNING
+                "handlers": default_handlers,
+                "level": "WARNING", # Always suppress verbose access logs
                 "propagate": False,
             },
             "httpx": {
@@ -215,13 +211,15 @@ LOGGING_CONFIG = {
                 "level": "WARNING",
                 "propagate": False,
             },
-            "app.middleware.logging_middleware": { # Keep this specific setting
+
+            # ── Middleware: suppress per-request logging (errors still flow via code) ──
+            "backend.core.api.app.middleware.logging_middleware": {
                 "handlers": default_handlers,
                 "level": "WARNING",
                 "propagate": False,
             },
-            
-            # Loggers that contain sensitive information - restrict in production
+
+            # ── Loggers that contain sensitive information — restrict in production ──
             "backend.core.api.app.routes.auth_ws": {
                 "handlers": default_handlers,
                 "level": "WARNING" if IS_PRODUCTION else "INFO",
@@ -252,34 +250,33 @@ LOGGING_CONFIG = {
                 "level": "WARNING" if IS_PRODUCTION else "INFO",
                 "propagate": False,
             },
-            
-            # Other service loggers
-            "app.routes.auth": { # Assuming this was intended for all auth routes
+
+            # ── Noisy service loggers — restrict in production ──
+            "backend.core.api.app.routes.auth": {
                 "handlers": default_handlers,
                 "level": "WARNING" if IS_PRODUCTION else "INFO",
                 "propagate": False,
             },
-            "app.services.s3": { # Example: Ensure S3 logs are captured
+            "backend.core.api.app.services.s3": {
                 "handlers": default_handlers,
                 "level": "WARNING" if IS_PRODUCTION else "INFO",
                 "propagate": False,
             },
-            "app.services.cache": { # Example: Ensure Cache logs are captured
+            "backend.core.api.app.services.cache": {
                 "handlers": default_handlers,
                 "level": "WARNING" if IS_PRODUCTION else "INFO",
                 "propagate": False,
             },
-            "app.services.metrics": { # Example: Ensure Metrics logs are captured
+            "backend.core.api.app.services.metrics": {
                 "handlers": default_handlers,
                 "level": "WARNING" if IS_PRODUCTION else "INFO",
                 "propagate": False,
             },
-            "app.services.directus": { # Example: Ensure Directus logs are captured
+            "backend.core.api.app.services.directus": {
                 "handlers": default_handlers,
                 "level": "WARNING" if IS_PRODUCTION else "INFO",
                 "propagate": False,
             },
-            # Add other specific 'app.*' loggers here if they need levels other than the base 'app' logger
         },
     "root": {
         # Remove handlers from the root logger.
@@ -357,12 +354,9 @@ def setup_logging():
     # Filters are applied via the dictConfig structure ('filters' key in handlers)
     # No need to add them manually here unless for very specific cases.
 
-    # The filter on 'app.middleware.logging_middleware' needs separate handling
-    # as dictConfig doesn't directly support adding filters this way easily.
-    # Re-apply the WARNING level filter after dictConfig.
-    log_filter = logging.Filter()
-    log_filter.filter = lambda record: record.levelno >= logging.WARNING
-    logging.getLogger("app.middleware.logging_middleware").addFilter(log_filter)
+    # The WARNING filter for the logging middleware logger is now handled
+    # via dictConfig (key: "backend.core.api.app.middleware.logging_middleware").
+    # No manual addFilter needed.
 
     logger = logging.getLogger(__name__)
     

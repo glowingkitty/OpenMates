@@ -1454,6 +1454,37 @@ services:
     labels:
       - "promtail.scrape=true"
 
+  alertmanager:
+    container_name: alertmanager
+    image: prom/alertmanager:v0.31.1
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 64M
+    volumes:
+      - ./monitoring/alertmanager:/etc/alertmanager
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    environment:
+      # SMTP settings — sourced from project root .env
+      ALERTMANAGER_SMTP_SMARTHOST: "${ALERTMANAGER_SMTP_SMARTHOST:-smtp.example.com:587}"
+      ALERTMANAGER_SMTP_FROM: "${ALERTMANAGER_SMTP_FROM:-alerts@example.com}"
+      ALERTMANAGER_SMTP_USERNAME: "${ALERTMANAGER_SMTP_USERNAME:-}"
+      ALERTMANAGER_SMTP_PASSWORD: "${ALERTMANAGER_SMTP_PASSWORD:-}"
+      ALERTMANAGER_EMAIL_TO: "${ALERTMANAGER_EMAIL_TO:-admin@example.com}"
+    networks:
+      - openmates
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      - "promtail.scrape=true"
+
   # System monitoring containers
   cadvisor:
     container_name: cadvisor

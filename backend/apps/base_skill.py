@@ -20,6 +20,8 @@ if TYPE_CHECKING:
 # made through the BaseApp instance. No direct top-level imports from backend.core.api...
 from celery import Celery # For Celery type hinting
 
+logger = logging.getLogger(__name__)
+
 # Forward declaration for Celery task if needed, or import specific types
 # from celery import Task # Example
 
@@ -154,7 +156,7 @@ class BaseSkill:
         
         if self.full_model_reference:
             if not self.app: # Should not happen if BaseApp passes itself correctly
-                print(f"CRITICAL: BaseApp instance not available in skill '{self.skill_id}' for API call to get pricing.")
+                logger.critical(f"BaseApp instance not available in skill '{self.skill_id}' for API call to get pricing.")
                 return None
             try:
                 provider_id, model_id_suffix = self.full_model_reference.split('/', 1)
@@ -167,14 +169,13 @@ class BaseSkill:
                 if model_pricing and isinstance(model_pricing, dict):
                     return model_pricing
                 else:
-                    print(f"Warning: Could not retrieve valid pricing for model '{self.full_model_reference}' via internal API. Response: {model_pricing}")
+                    logger.warning(f"Could not retrieve valid pricing for model '{self.full_model_reference}' via internal API. Response: {model_pricing}")
                     return None
             except ValueError:
-                print(f"Warning: Invalid format for full_model_reference: '{self.full_model_reference}'. Expected 'provider/model'.")
+                logger.warning(f"Invalid format for full_model_reference: '{self.full_model_reference}'. Expected 'provider/model'.")
                 return None
             except Exception as e:
-                # Log the full exception for better debugging if the API call fails
-                print(f"Error fetching model pricing for '{self.full_model_reference}' via internal API: {e}", exc_info=True)
+                logger.error(f"Error fetching model pricing for '{self.full_model_reference}' via internal API: {e}", exc_info=True)
                 return None
         return None
 
@@ -191,7 +192,7 @@ class BaseSkill:
         effective_pricing_config = await self._get_effective_pricing_config()
         
         if not effective_pricing_config:
-            print(f"Warning: No effective pricing configuration found for skill '{self.skill_id}'. Defaulting to {MINIMUM_CREDITS_CHARGED} credit.")
+            logger.warning(f"No effective pricing configuration found for skill '{self.skill_id}'. Defaulting to {MINIMUM_CREDITS_CHARGED} credit.")
             return MINIMUM_CREDITS_CHARGED
 
         calculated_credits = calculate_total_credits(
@@ -238,7 +239,7 @@ class BaseSkill:
             message_id: Optional message ID (if not provided, will use _current_message_id from execution context)
         """
         if not self.app: # Should not happen if BaseApp passes itself correctly
-            print(f"CRITICAL: BaseApp instance not available in skill '{self.skill_id}' for API call to record usage.")
+            logger.critical(f"BaseApp instance not available in skill '{self.skill_id}' for API call to record usage.")
             return
 
         # Use provided chat_id/message_id, or fall back to execution context if available
@@ -276,10 +277,9 @@ class BaseSkill:
         try:
             endpoint = "internal/usage/record" # This internal endpoint needs to be implemented in the main API service
             response = await self.app._make_internal_api_request("POST", endpoint, payload=usage_payload)
-            print(f"Successfully sent usage data for skill '{self.skill_id}' by user '{user_id_hash}'. Main API response: {response}")
+            logger.info(f"Successfully sent usage data for skill '{self.skill_id}' by user '{user_id_hash}'. Main API response: {response}")
         except Exception as e:
-            print(f"Error sending usage data for skill '{self.skill_id}': {e}", exc_info=True)
-            # Potentially raise or handle more gracefully
+            logger.error(f"Error sending usage data for skill '{self.skill_id}': {e}", exc_info=True)
 
 
     def get_metadata(self) -> Dict[str, Any]:
@@ -339,8 +339,9 @@ class BaseSkill:
                     return Response(results=[], error=error)
                 # Note: request_id is already added to request_ids by the helper
         """
-        # Use provided logger or fall back to print for debug messages
-        log_func = logger.debug if logger else print
+        # Use provided logger or fall back to module-level logger for debug messages
+        _log = logger or logging.getLogger(__name__)
+        log_func = _log.debug
         
         # Auto-generate 'id' ONLY if not provided
         # This respects user-provided IDs from REST API callers while still
@@ -416,16 +417,12 @@ class BaseSkill:
                     from backend.core.api.app.utils.secrets_manager import SecretsManager
                     secrets_manager = SecretsManager()
                     await secrets_manager.initialize()
-                    if logger:
-                        logger.debug(f"{skill_name} initialized its own SecretsManager instance")
-                    else:
-                        print(f"{skill_name} initialized its own SecretsManager instance")
+                    _log = logger or logging.getLogger(__name__)
+                    _log.debug(f"{skill_name} initialized its own SecretsManager instance")
                 except Exception as e:
                     error_msg = f"{skill_name} service configuration error: Failed to initialize secrets manager"
-                    if logger:
-                        logger.error(f"Failed to initialize SecretsManager for {skill_name}: {e}", exc_info=True)
-                    else:
-                        print(f"Failed to initialize SecretsManager for {skill_name}: {e}", exc_info=True)
+                    _log = logger or logging.getLogger(__name__)
+                    _log.error(f"Failed to initialize SecretsManager for {skill_name}: {e}", exc_info=True)
                     return (None, error_response_factory(error_msg))
         
         return (secrets_manager, None)

@@ -13,6 +13,7 @@ from celery.schedules import crontab
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 from pythonjsonlogger import jsonlogger  # Import the JSON formatter
 from backend.core.api.app.utils.config_manager import ConfigManager
+from backend.core.api.app.utils.request_context import get_request_id, set_request_id
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
 from backend.core.api.app.services.pdf.invoice import InvoiceTemplateService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -519,18 +520,36 @@ async def prewarm_ai_services():
 # ===========================================================================
 # These signal handlers provide visibility into task processing, ensuring
 # we can detect and debug any issues with task routing or execution.
+#
+# request_id propagation:
+#   1. before_task_publish → injects current request_id into task headers
+#   2. task_prerun → restores request_id from headers into contextvars
+# This allows correlating HTTP requests with their spawned Celery tasks in Loki.
+
+@signals.before_task_publish.connect
+def inject_request_id_header(headers=None, **kwargs):
+    """Propagate the current request_id into Celery task headers."""
+    if headers is not None:
+        request_id = get_request_id()
+        if request_id != "no-request-id":
+            headers["request_id"] = request_id
 
 @signals.task_prerun.connect
 def task_prerun_handler(task_id, task, args, kwargs, **kw):
     """
     Called immediately before a task is executed.
-    Logs task start with routing information for debugging.
+    Restores request_id from task headers into contextvars and logs task start.
     """
+    # Restore request_id from task headers into contextvars for this worker context
+    request_id = getattr(task.request, 'request_id', None)
+    if request_id:
+        set_request_id(request_id)
+
     queue = getattr(task.request, 'delivery_info', {}).get('routing_key', 'UNKNOWN_QUEUE')
     worker = getattr(task.request, 'hostname', 'UNKNOWN_WORKER')
     logger.info(
-        f"[TASK_LIFECYCLE] TASK_STARTED: task_id={task_id}, "
-        f"task_name={task.name}, queue={queue}, worker={worker}"
+        "[TASK_LIFECYCLE] TASK_STARTED: task_id=%s, task_name=%s, queue=%s, worker=%s",
+        task_id, task.name, queue, worker,
     )
 
 @signals.task_postrun.connect
@@ -685,14 +704,11 @@ def enforce_queue_restrictions(sender, instance, **kwargs):
     This fixes a bug where workers with --queues=app_ai were still consuming from
     ALL queues (email, persistence, etc.) causing race conditions in task processing.
     """
-    # Log immediately to confirm signal is firing
-    print("[QUEUE_ENFORCEMENT] 🔧 Signal celeryd_after_setup received!")
-    logger.info("[QUEUE_ENFORCEMENT] 🔧 Signal celeryd_after_setup received!")
+    logger.info("[QUEUE_ENFORCEMENT] Signal celeryd_after_setup received")
     
     designated_queues = _get_designated_queues()
     
-    print(f"[QUEUE_ENFORCEMENT] Designated queues from env/args: {designated_queues}")
-    logger.info(f"[QUEUE_ENFORCEMENT] Designated queues from env/args: {designated_queues}")
+    logger.info("[QUEUE_ENFORCEMENT] Designated queues from env/args: %s", designated_queues)
     
     if not designated_queues:
         logger.info("[QUEUE_ENFORCEMENT] No queue restrictions specified, worker will consume from all declared queues")
@@ -703,15 +719,13 @@ def enforce_queue_restrictions(sender, instance, **kwargs):
     # Get the list of all declared queues from task_queues config
     all_declared_queues = {q.name for q in app.conf.task_queues} if app.conf.task_queues else set()
     
-    print(f"[QUEUE_ENFORCEMENT] All declared queues: {all_declared_queues}")
-    logger.info(f"[QUEUE_ENFORCEMENT] All declared queues: {all_declared_queues}")
+    logger.info("[QUEUE_ENFORCEMENT] All declared queues: %s", all_declared_queues)
     
     # Find queues to remove (declared but not designated for this worker)
     queues_to_remove = all_declared_queues - designated_queues
     
     if queues_to_remove:
-        print(f"[QUEUE_ENFORCEMENT] Cancelling consumers for non-designated queues: {queues_to_remove}")
-        logger.info(f"[QUEUE_ENFORCEMENT] Cancelling consumers for non-designated queues: {queues_to_remove}")
+        logger.info("[QUEUE_ENFORCEMENT] Cancelling consumers for non-designated queues: %s", queues_to_remove)
         
         # Cancel consumers for unwanted queues
         # Use the instance (which is the worker) to cancel consumers
@@ -719,11 +733,9 @@ def enforce_queue_restrictions(sender, instance, **kwargs):
             try:
                 # Cancel consumer for this queue on this worker
                 instance.app.control.cancel_consumer(queue_name, destination=[instance.hostname])
-                print(f"[QUEUE_ENFORCEMENT] ✅ Cancelled consumer for queue '{queue_name}'")
-                logger.info(f"[QUEUE_ENFORCEMENT] ✅ Cancelled consumer for queue '{queue_name}'")
+                logger.info("[QUEUE_ENFORCEMENT] Cancelled consumer for queue '%s'", queue_name)
             except Exception as e:
-                print(f"[QUEUE_ENFORCEMENT] ⚠️ Failed to cancel consumer for queue '{queue_name}': {e}")
-                logger.warning(f"[QUEUE_ENFORCEMENT] ⚠️ Failed to cancel consumer for queue '{queue_name}': {e}")
+                logger.warning("[QUEUE_ENFORCEMENT] Failed to cancel consumer for queue '%s': %s", queue_name, e)
     else:
         logger.info("[QUEUE_ENFORCEMENT] Worker is already subscribed only to designated queues")
 

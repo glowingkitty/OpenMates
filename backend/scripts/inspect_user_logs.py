@@ -801,6 +801,207 @@ async def follow_mode(
             latest_ns = max(e.timestamp_ns for e in new_events)
 
 
+# ─── Production mode (Admin Debug API) ────────────────────────────────────────
+
+# Admin Debug API base URL (production) — accessed from inside the Docker network
+PROD_API_BASE = "https://api.openmates.org/v1/admin/debug"
+
+# Services to query for user-specific logs — mirrors the Loki queries in gather_all_events
+PROD_LOG_SERVICES = ["api", "task-worker", "task-scheduler", "app-ai", "app-ai-worker",
+                     "app-web", "app-web-worker", "app-events"]
+
+
+async def _get_prod_api_key() -> str:
+    """Retrieve the admin API key from Vault for --prod queries."""
+    sm = SecretsManager()
+    await sm.initialize()
+    try:
+        api_key = await sm.get_secret("kv/data/providers/admin", "debug_cli__api_key")
+        if not api_key:
+            print(f"{C_RED}Admin API key not found in Vault. See admin_debug_cli.py for setup.{C_RESET}", file=sys.stderr)
+            sys.exit(1)
+        return api_key
+    finally:
+        await sm.aclose()
+
+
+async def _prod_api_request(
+    endpoint: str,
+    api_key: str,
+    params: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Make an authenticated GET request to the Admin Debug API."""
+    url = f"{PROD_API_BASE}/{endpoint}"
+    headers = {"Authorization": f"Bearer {api_key}"}
+    timeout = aiohttp.ClientTimeout(total=60)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with session.get(url, headers=headers, params=params) as resp:
+            if resp.status != 200:
+                text = await resp.text()
+                script_logger.error(f"Admin API error {resp.status}: {text[:300]}")
+                return {}
+            return await resp.json()
+
+
+def _parse_raw_logs_to_events(raw_logs: str) -> List[LogEvent]:
+    """Parse the raw log text returned by the Admin Debug /logs endpoint into LogEvent list."""
+    events: List[LogEvent] = []
+    for line in raw_logs.splitlines():
+        line = line.strip()
+        if not line or line.startswith("===") or line.startswith("---"):
+            continue
+
+        # Try to parse as JSON (structured log line)
+        ts_str = ""
+        ts_ns = 0
+        level = "info"
+        message = line
+        source = "unknown"
+
+        try:
+            obj = json.loads(line)
+            if isinstance(obj, dict):
+                # Extract fields from JSON log
+                ts_str = obj.get("timestamp", obj.get("asctime", ""))
+                level = obj.get("levelname", obj.get("level", "info")).lower()
+                message = obj.get("message", obj.get("msg", line))
+                source = obj.get("container", obj.get("service", "api"))
+                # Parse timestamp to nanoseconds for sorting
+                if ts_str:
+                    try:
+                        dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                        ts_ns = int(dt.timestamp() * 1_000_000_000)
+                    except (ValueError, OSError):
+                        ts_ns = 0
+        except (json.JSONDecodeError, TypeError):
+            # Not JSON — extract level from raw text
+            level = extract_level_from_message(line)
+
+        category, event_name = classify_event(message, level, source)
+
+        display_msg = message.strip()
+        if len(display_msg) > 300:
+            display_msg = display_msg[:297] + "..."
+
+        events.append(LogEvent(
+            timestamp=ts_str or "unknown",
+            timestamp_ns=ts_ns,
+            category=category,
+            event_name=event_name,
+            source=source,
+            level=level,
+            message=display_msg,
+            raw=message.strip(),
+        ))
+
+    return events
+
+
+async def run_prod_mode(
+    email: str,
+    since_minutes: int,
+    categories: Optional[List[str]] = None,
+    level: Optional[str] = None,
+    chat_id_filter: Optional[str] = None,
+    as_json: bool = False,
+    verbose: bool = False,
+) -> None:
+    """
+    Production mode: query user logs via the Admin Debug API instead of local Loki.
+
+    Flow:
+      1. Get admin API key from Vault
+      2. Resolve user via /inspect/user/{email}
+      3. Query /logs with search=<user_id> for each service group
+      4. Parse, filter, and display the timeline
+    """
+    api_key = await _get_prod_api_key()
+
+    # Step 1: Resolve user via Admin Debug API
+    print(f"{C_DIM}Resolving user via Admin Debug API...{C_RESET}", end="", flush=True)
+    user_resp = await _prod_api_request(f"inspect/user/{email}", api_key)
+    if not user_resp or not user_resp.get("success"):
+        print(f"\n{C_RED}User not found or API error for: {email}{C_RESET}")
+        return
+    user_data = user_resp.get("data", {})
+    user_id = user_data.get("user_id") or user_data.get("id", "")
+    chat_ids = user_data.get("recent_chats", [])
+    # Extract chat IDs from the recent_chats list (may be dicts with 'id' key)
+    if chat_ids and isinstance(chat_ids[0], dict):
+        chat_ids = [c.get("id", "") for c in chat_ids if c.get("id")]
+
+    if not user_id:
+        print(f"\n{C_RED}Could not resolve user_id for: {email}{C_RESET}")
+        return
+
+    print(f" {C_GREEN}found{C_RESET} (user_id={user_id[:12]}...)")
+
+    # Step 2: Build search pattern — user_id and optionally chat IDs
+    search_terms = [user_id]
+    if chat_id_filter:
+        search_terms = [chat_id_filter]
+    elif chat_ids:
+        search_terms.extend(chat_ids[:5])  # Limit to avoid huge regex
+
+    search_pattern = "|".join(search_terms)
+
+    # Step 3: Query logs from services via Admin Debug API
+    since_minutes_clamped = min(since_minutes, 1440)  # API max is 24h
+    services_str = ",".join(PROD_LOG_SERVICES)
+
+    print(f"{C_DIM}Querying production logs (last {since_minutes_clamped} min, "
+          f"services: {services_str})...{C_RESET}", flush=True)
+
+    t0 = time.time()
+    logs_resp = await _prod_api_request("logs", api_key, params={
+        "services": services_str,
+        "lines": 500,  # Max lines per service
+        "since_minutes": since_minutes_clamped,
+        "search": search_pattern,
+    })
+
+    raw_logs = logs_resp.get("logs", "")
+    if not raw_logs:
+        print(f"{C_YELLOW}No logs found for user in the given time window.{C_RESET}")
+        return
+
+    # Step 4: Parse raw logs into events
+    events = _parse_raw_logs_to_events(raw_logs)
+
+    # Build user_info dict for display functions (minimal, matching expected shape)
+    user_info = {
+        "user_id": user_id,
+        "email": email,
+        "is_admin": user_data.get("is_server_admin", False),
+        "admin_username": None,
+        "chat_ids": chat_ids,
+        "status": user_data.get("status", "unknown"),
+    }
+
+    # Filter
+    events = filter_events(events, categories, level)
+
+    # Sort and dedup
+    events.sort(key=lambda e: e.timestamp_ns)
+    seen: set = set()
+    unique: List[LogEvent] = []
+    for evt in events:
+        key = (evt.timestamp_ns, evt.message[:100])
+        if key not in seen:
+            seen.add(key)
+            unique.append(evt)
+    events = unique
+
+    elapsed = time.time() - t0
+    print(f"{C_DIM}Done in {elapsed:.1f}s — {len(events)} events found (via Admin Debug API){C_RESET}")
+    print()
+
+    if as_json:
+        print(format_json(events, user_info, since_minutes))
+    else:
+        print(format_timeline(events, user_info, since_minutes, verbose))
+
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 async def main():
@@ -827,15 +1028,18 @@ async def main():
                         help="Query production server (via Admin Debug API) instead of dev")
     args = parser.parse_args()
 
-    # Production mode note
+    # Production mode — route all queries through the Admin Debug API
     if args.prod:
-        print(f"{C_YELLOW}Production mode: Loki queries will go through the Admin Debug API.{C_RESET}")
-        print(f"{C_YELLOW}Note: For production, use the Admin Debug CLI directly for now:{C_RESET}")
-        print(f"{C_DIM}  docker exec api python /app/backend/scripts/admin_debug_cli.py logs --search '<user_id>' --since {args.since}{C_RESET}")
-        print()
-        # Production mode will be implemented by routing Loki queries through the admin API
-        # For now, we exit with instructions
-        print("Production log aggregation is not yet implemented. Use the Admin Debug CLI.")
+        print(f"{C_YELLOW}Production mode: querying via Admin Debug API{C_RESET}")
+        await run_prod_mode(
+            email=args.email,
+            since_minutes=args.since,
+            categories=[c.strip() for c in args.category.split(",")] if args.category else None,
+            level=args.level,
+            chat_id_filter=args.chat_id,
+            as_json=args.as_json,
+            verbose=args.verbose,
+        )
         return
 
     # Resolve user

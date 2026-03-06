@@ -1,0 +1,74 @@
+# Alertmanager configuration for OpenMates.
+# Sends email notifications for Prometheus alerts with aggressive throttling
+# to prevent inbox flooding.
+#
+# SETUP: Set env vars in .env before enabling:
+#   ALERTMANAGER_SMTP_SMARTHOST    — e.g. smtp.mailgun.org:587
+#   ALERTMANAGER_SMTP_FROM         — sender address
+#   ALERTMANAGER_SMTP_USERNAME     — SMTP auth user
+#   ALERTMANAGER_SMTP_PASSWORD     — SMTP auth password
+#   ALERTMANAGER_EMAIL_TO          — recipient address
+#
+# Architecture context: See docs/architecture/logging-and-monitoring.md
+
+global:
+  # SMTP settings — all from environment variables (see docker-compose)
+  smtp_smarthost: "${ALERTMANAGER_SMTP_SMARTHOST}"
+  smtp_from: "${ALERTMANAGER_SMTP_FROM}"
+  smtp_auth_username: "${ALERTMANAGER_SMTP_USERNAME}"
+  smtp_auth_password: "${ALERTMANAGER_SMTP_PASSWORD}"
+  smtp_require_tls: true
+
+  # How long to wait before sending a notification about new alerts
+  # that are added to a group of alerts for which an initial notification
+  # has already been sent. (Default: 5m)
+  group_wait: 60s
+
+  # How long to wait before sending a notification about new alerts
+  # within a group. After the first notification, subsequent ones are
+  # throttled by this interval.
+  group_interval: 10m
+
+  # How long to wait before re-sending a notification that has already
+  # been sent successfully. Prevents the same alert from flooding email.
+  repeat_interval: 4h
+
+# Route tree — controls how alerts are grouped and which receiver handles them
+route:
+  # Group alerts by alertname + severity so each email covers one issue type
+  group_by: ["alertname", "severity"]
+  receiver: "email-notifications"
+
+  routes:
+    # Critical alerts: shorter wait, still throttled
+    - match:
+        severity: critical
+      receiver: "email-notifications"
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 1h
+
+    # Warning alerts: longer throttling to avoid noise
+    - match:
+        severity: warning
+      receiver: "email-notifications"
+      group_wait: 120s
+      group_interval: 30m
+      repeat_interval: 12h
+
+# Inhibition rules — suppress lower-severity alerts when critical is firing
+# for the same alertname (avoids duplicate noise)
+inhibit_rules:
+  - source_match:
+      severity: "critical"
+    target_match:
+      severity: "warning"
+    equal: ["alertname"]
+
+receivers:
+  - name: "email-notifications"
+    email_configs:
+      - to: "${ALERTMANAGER_EMAIL_TO}"
+        send_resolved: true
+        headers:
+          Subject: "[OpenMates {{ .Status | toUpper }}] {{ .GroupLabels.alertname }}"

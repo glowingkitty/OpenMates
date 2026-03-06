@@ -3,17 +3,19 @@
 # including detailed error logging, client context, and metrics tracking.
 # It ensures that response bodies are correctly handled and passed to the client
 # even when inspected by the middleware.
+#
+# Architecture context: request_id is stored in both request.state (for handlers)
+# and contextvars (for automatic log injection + Celery header propagation).
+# See docs/architecture/logging-and-monitoring.md
 
 import time
 import logging
-import uuid
-import json # Added for parsing JSON response bodies
-from typing import Optional # Added for type hinting
+import json
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-from backend.core.api.app.services.metrics import MetricsService
+from backend.core.api.app.utils.request_context import generate_request_id
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +29,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         ]
         
     async def dispatch(self, request: Request, call_next):
-        # Add request ID to request state for potential use in handlers
-        request_id = str(uuid.uuid4())
+        # Generate request_id and store in both contextvars (for automatic log
+        # injection and Celery propagation) and request.state (for handlers).
+        request_id = generate_request_id()
         request.state.request_id = request_id
         
         # Skip metrics tracking for excluded paths
