@@ -10410,8 +10410,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         right: -10px;
         bottom: -8px;
         --deco-rotate: 15deg;
-        /* Half-cycle (8s) offset for opposing orbital phase */
-        animation-delay: 0.1s, 8.7s;
+        /* Negative delay: start as if 8s have already elapsed (half-cycle offset).
+           Positive delay would freeze the icon for 8.7s then snap — use negative
+           to begin mid-orbit immediately with no wait or jump. */
+        animation-delay: 0.1s, -8s;
     }
 
     @media (prefers-reduced-motion: reduce) {

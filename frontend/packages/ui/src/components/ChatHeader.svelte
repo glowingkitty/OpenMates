@@ -686,9 +686,10 @@
     right: calc(50% - 240px - 106px);
     bottom: -15px;
     --deco-rotate: 15deg;
-    /* Right icon starts half a cycle ahead (8s = 16s/2) — orbits in opposite phase,
-       so when left is at the top of its circle, right is at the bottom */
-    animation-delay: 0.1s, 8.7s;
+    /* Negative delay: start as if 8s have already elapsed (half-cycle offset).
+       Positive delay would freeze the icon for 8.7s then snap — use negative
+       to begin mid-orbit immediately with no wait or jump. */
+    animation-delay: 0.1s, -8s;
   }
 
   /* Reduced-motion: entrance only, no float */

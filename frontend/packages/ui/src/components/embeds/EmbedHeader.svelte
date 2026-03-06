@@ -355,8 +355,10 @@
     right: calc(50% - 240px - 106px);
     bottom: -15px;
     --deco-rotate: 15deg;
-    /* Right icon starts 8s (half-cycle) into the orbit — opposing phase */
-    animation-delay: 0.1s, 8.7s;
+    /* Negative delay: start as if 8s have already elapsed (half-cycle offset).
+       Positive delay would freeze the icon for 8.7s then snap — use negative
+       to begin mid-orbit immediately with no wait or jump. */
+    animation-delay: 0.1s, -8s;
   }
 
   /* Decorative skill icon: CSS mask-image, white fill */
