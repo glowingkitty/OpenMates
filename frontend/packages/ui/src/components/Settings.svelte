@@ -1333,9 +1333,16 @@ changes to the documentation (to keep the documentation up to date).
                     previousPath = `app_store/${appId}/settings_memories/${pathParts[2]}`;
                     previousPathSegments = ['app_store', appId, 'settings_memories', pathParts[2]];
                 } else if (pathParts.length >= 3 && (pathParts[1] === 'skill' || pathParts[1] === 'focus' || pathParts[1] === 'settings_memories')) {
-                    // This is a nested route (category page, skill, focus) - go back to app details page
-                    previousPath = `app_store/${appId}`;
-                    previousPathSegments = ['app_store', appId];
+                    // This is a nested route (category page, skill, focus).
+                    // If the user arrived here from the Settings & Memories hub, go back there.
+                    // Otherwise go back to the app details page.
+                    if (pathParts[1] === 'settings_memories' && cameFromPath === 'settings_memories') {
+                        previousPath = 'settings_memories';
+                        previousPathSegments = ['settings_memories'];
+                    } else {
+                        previousPath = `app_store/${appId}`;
+                        previousPathSegments = ['app_store', appId];
+                    }
                 } else {
                     // Regular app details page — if we arrived from "All Apps", go back there.
                     // Otherwise, go back one level normally (to app_store root).

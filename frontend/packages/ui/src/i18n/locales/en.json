@@ -7380,7 +7380,19 @@
         "creating": {
           "text": "Creating..."
         },
-        "text": "Settings & Memories"
+        "text": "Settings & Memories",
+        "description": {
+          "text": "All your app settings & memories in one place."
+        },
+        "hub_no_entries": {
+          "text": "No settings or memories yet. Visit an app in the App Store to create them."
+        },
+        "discover_link": {
+          "text": "Discover apps with settings & memories"
+        },
+        "entry_count": {
+          "text": "{count, plural, one {# entry} other {# entries}}"
+        }
       },
       "skill_not_found": {
         "text": "Skill not found."

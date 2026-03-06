@@ -7011,7 +7011,19 @@
         "creating": {
           "text": "Wird erstellt..."
         },
-        "text": "Einstellungen & Erinnerungen"
+        "text": "Einstellungen & Erinnerungen",
+        "description": {
+          "text": "Alle deine App-Einstellungen & Erinnerungen an einem Ort."
+        },
+        "hub_no_entries": {
+          "text": "Noch keine Einstellungen oder Erinnerungen. Besuche eine App im App Store, um sie zu erstellen."
+        },
+        "discover_link": {
+          "text": "Apps mit Einstellungen & Erinnerungen entdecken"
+        },
+        "entry_count": {
+          "text": "{count, plural, one {# Eintrag} other {# Einträge}}"
+        }
       },
       "skill_not_found": {
         "text": "Fähigkeit nicht gefunden."

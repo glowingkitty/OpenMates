@@ -6314,7 +6314,19 @@
         "creating": {
           "text": "作成中..."
         },
-        "text": "設定とメモリ"
+        "text": "設定とメモリ",
+        "description": {
+          "text": "アプリの設定とメモリをまとめて管理。"
+        },
+        "hub_no_entries": {
+          "text": "まだ設定やメモリがありません。App Store のアプリを訪問して作成してください。"
+        },
+        "discover_link": {
+          "text": "設定とメモリを持つアプリを発見する"
+        },
+        "entry_count": {
+          "text": "{count} 件"
+        }
       },
       "skill_not_found": {
         "text": "スキルが見つかりません。"

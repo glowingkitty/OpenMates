@@ -74,6 +74,7 @@ import SettingsGiftCardsPurchaseConfirmation from "./giftcards/SettingsGiftCards
 import SettingsAppStore from "./SettingsAppStore.svelte";
 import SettingsAllApps from "./SettingsAllApps.svelte";
 import AppDetailsWrapper from "./AppDetailsWrapper.svelte";
+import SettingsMemoriesHub from "./SettingsMemoriesHub.svelte";
 
 // Shared / Social
 import SettingsShared from "./SettingsShared.svelte";
@@ -153,6 +154,8 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   // App Store
   app_store: SettingsAppStore,
   "app_store/all": SettingsAllApps,
+  // Settings & Memories hub — lists all user-created settings and memories across apps
+  settings_memories: SettingsMemoriesHub,
   // Mates — appears directly below App Store in the menu
   mates: SettingsMates,
   // Shared

@@ -6425,7 +6425,19 @@
         "creating": {
           "text": "Création en cours..."
         },
-        "text": "Paramètres et Mémoires"
+        "text": "Paramètres et Mémoires",
+        "description": {
+          "text": "Tous vos paramètres et mémoires d'apps au même endroit."
+        },
+        "hub_no_entries": {
+          "text": "Pas encore de paramètres ni de mémoires. Visitez une app dans l'App Store pour en créer."
+        },
+        "discover_link": {
+          "text": "Découvrir des apps avec paramètres et mémoires"
+        },
+        "entry_count": {
+          "text": "{count, plural, one {# entrée} other {# entrées}}"
+        }
       },
       "skill_not_found": {
         "text": "Compétence introuvable."

@@ -6468,7 +6468,19 @@
         "creating": {
           "text": "Creando..."
         },
-        "text": "Ajustes y Memorias"
+        "text": "Ajustes y Memorias",
+        "description": {
+          "text": "Todos tus ajustes y memorias de apps en un lugar."
+        },
+        "hub_no_entries": {
+          "text": "Todavía no hay ajustes ni memorias. Visita una app en la App Store para crearlos."
+        },
+        "discover_link": {
+          "text": "Descubre apps con ajustes y memorias"
+        },
+        "entry_count": {
+          "text": "{count, plural, one {# entrada} other {# entradas}}"
+        }
       },
       "skill_not_found": {
         "text": "Habilidad no encontrada."

@@ -30,7 +30,6 @@
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { appSettingsMemoriesStore, appSettingsMemoriesForApp } from '../../stores/appSettingsMemoriesStore';
-    import type { Readable } from 'svelte/store';
     import { setAppStoreNavList, clearAppStoreNav } from '../../stores/appStoreNavigationStore';
 
     // Create event dispatcher for navigation
@@ -64,7 +63,7 @@
     // CRITICAL: Use $derived to maintain reactivity with the store
     // Without $derived, the store value is only read once at initialization
     // and won't update when loadEntriesForApp completes
-    let appEntries: Readable<Record<string, unknown>> = appSettingsMemoriesForApp(appId);
+    let appEntries = $derived(appSettingsMemoriesForApp(appId));
     let groupedEntries = $derived($appEntries);
 
     /**
@@ -147,25 +146,26 @@
     });
     
     /**
-     * Get icon name from icon_image filename.
+     * Get app icon name from icon_image filename.
      * Maps icon_image like "ai.svg" to icon name "ai" for the Icon component.
-     * Also handles special cases:
-     * - "coding.svg" -> "code" (since the app ID is "code" but icon file is coding.svg)
      */
     function getIconName(iconImage: string | undefined): string {
         if (!iconImage) return appId;
         let iconName = iconImage.replace(/\.svg$/, '');
-        // Handle special case: coding.svg -> code (since the app ID is "code" but icon file is coding.svg)
-        // This ensures the correct CSS variable --color-app-code is used instead of --color-app-coding
-        if (iconName === 'coding') {
-            iconName = 'code';
-        }
-        // Handle special case: heart.svg -> health (since the app ID is "health" but icon file is heart.svg)
-        // This ensures the correct CSS variable --color-app-health is used instead of --color-app-heart
-        if (iconName === 'heart') {
-            iconName = 'health';
-        }
+        if (iconName === 'coding') iconName = 'code';
+        if (iconName === 'heart') iconName = 'health';
         return iconName;
+    }
+
+    /**
+     * Get the icon name for this category to display with the pink memory gradient.
+     * Uses the category's own icon_image (e.g. "calendar.svg" -> "calendar") so each
+     * category has a distinct icon instead of always showing the parent app icon.
+     * Falls back to the category ID, then to the app ID.
+     */
+    function getCategoryIconName(categoryIconImage: string | undefined): string {
+        if (!categoryIconImage) return category?.id ?? appId;
+        return categoryIconImage.replace(/\.svg$/, '');
     }
     
     /**
@@ -397,8 +397,8 @@
                         {@const entrySubtitle = getEntrySubtitle(entry.item_value, entry.updated_at)}
                         <SettingsItem
                             type="submenu"
-                            icon={getIconName(app?.icon_image)}
-                            iconType="app"
+                            icon={getCategoryIconName(category?.icon_image)}
+                            iconType="memory"
                             title={entryTitle}
                             subtitleBottom={entrySubtitle}
                             hasModifyButton={true}
@@ -433,8 +433,8 @@
                     {#each exampleTranslationKeys as exampleKey, index}
                         <SettingsItem
                             type="submenu"
-                            icon={getIconName(app?.icon_image)}
-                            iconType="app"
+                            icon={getCategoryIconName(category?.icon_image)}
+                            iconType="memory"
                             title={$text(exampleKey)}
                             onClick={() => handleExampleClick(index, exampleKey)}
                         />
