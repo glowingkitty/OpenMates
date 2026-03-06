@@ -61,6 +61,13 @@ export interface StoredDailyInspiration {
    * Optional — not present in older records or when content_type != "video".
    */
   encrypted_video_metadata: string | null;
+  /**
+   * Encrypted JSON blob containing the follow-up suggestion strings (string[]).
+   * Stored so the inspiration's topic-specific follow-up starters survive page reloads.
+   * Optional — not present in older records or when LLM failed to generate suggestions.
+   * Decrypted on load and placed into DailyInspiration.follow_up_suggestions.
+   */
+  encrypted_follow_up_suggestions: string | null;
   // ─── Cleartext cached decrypted values (for in-memory use, NOT synced) ────
   // Populated after decryption; never written to server.
   _phrase?: string;
@@ -101,6 +108,7 @@ export async function saveInspirationToIndexedDB(
       encrypted_title,
       encrypted_category,
       encrypted_video_metadata,
+      encrypted_follow_up_suggestions,
     ] = await Promise.all([
       encryptWithMasterKey(inspiration.phrase),
       encryptWithMasterKey(assistantResponse),
@@ -108,6 +116,9 @@ export async function saveInspirationToIndexedDB(
       encryptWithMasterKey(inspiration.category),
       videoMetadataJson
         ? encryptWithMasterKey(videoMetadataJson)
+        : Promise.resolve(null),
+      inspiration.follow_up_suggestions && inspiration.follow_up_suggestions.length > 0
+        ? encryptWithMasterKey(JSON.stringify(inspiration.follow_up_suggestions))
         : Promise.resolve(null),
     ]);
 
@@ -136,6 +147,7 @@ export async function saveInspirationToIndexedDB(
       encrypted_category,
       encrypted_icon: null, // icon not currently used
       encrypted_video_metadata: encrypted_video_metadata ?? null,
+      encrypted_follow_up_suggestions: encrypted_follow_up_suggestions ?? null,
     };
 
     await new Promise<void>((resolve, reject) => {
@@ -254,15 +266,24 @@ export async function loadInspirationsFromIndexedDB(): Promise<
           ? decryptWithMasterKey(record.encrypted_title)
           : Promise.resolve(null);
         decryptPromises.push(titlePromise);
+        // Also decrypt follow-up suggestions if present (added later — optional)
+        const followUpPromise = (record as StoredDailyInspiration).encrypted_follow_up_suggestions
+          ? decryptWithMasterKey((record as StoredDailyInspiration).encrypted_follow_up_suggestions!)
+          : Promise.resolve(null);
+        decryptPromises.push(followUpPromise);
 
         const results = await Promise.all(decryptPromises);
         const phrase = results[0];
         const category = results[1];
         const assistantResponse = results[2];
-        // Video metadata is at index 3 if present, title is always last
+        // Layout: [phrase, category, assistant, ...optional video, title, ...optional follow_ups]
         const hasVideoMeta = !!record.encrypted_video_metadata;
+        // title is always after optional video: index 3 (no video) or 4 (with video)
+        const titleIdx = hasVideoMeta ? 4 : 3;
         const videoMetadataJson = hasVideoMeta ? results[3] : null;
-        const decryptedTitle = hasVideoMeta ? results[4] : results[3];
+        const decryptedTitle = results[titleIdx];
+        // follow_up_suggestions is always last: after title
+        const followUpJson = results[titleIdx + 1] ?? null;
 
         if (!phrase || !category) {
           // This is unexpected here because we already confirmed the master key
@@ -311,6 +332,16 @@ export async function loadInspirationsFromIndexedDB(): Promise<
           embed_id: record.embed_id,
           is_opened: record.is_opened,
           opened_chat_id: record.opened_chat_id,
+          // Restore follow-up suggestions if they were persisted (undefined if absent for old records)
+          follow_up_suggestions: (() => {
+            if (!followUpJson) return undefined;
+            try {
+              const parsed = JSON.parse(followUpJson);
+              return Array.isArray(parsed) ? (parsed as string[]) : undefined;
+            } catch {
+              return undefined;
+            }
+          })(),
         });
       } catch (decryptErr) {
         console.error(
@@ -686,6 +717,8 @@ export async function loadInspirationsFromAPI(): Promise<DailyInspiration[]> {
           encrypted_category: encCategory,
           encrypted_icon: (record.encrypted_icon as string | null) ?? null,
           encrypted_video_metadata: encVideoMetadata,
+          // follow_up_suggestions are not stored in Directus — set to null for these records
+          encrypted_follow_up_suggestions: null,
         };
 
         // Save to IndexedDB (non-blocking, non-fatal)
@@ -885,6 +918,8 @@ export async function processInspirationRecordsFromSync(
           encrypted_category: encCategory,
           encrypted_icon: (record.encrypted_icon as string | null) ?? null,
           encrypted_video_metadata: encVideoMetadata,
+          // follow_up_suggestions are not stored in Directus — set to null for these records
+          encrypted_follow_up_suggestions: null,
         };
 
         saveStoredInspirationToIndexedDB(idbRecord).catch((err) => {

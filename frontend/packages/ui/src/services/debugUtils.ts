@@ -2167,16 +2167,9 @@ async function debugDailyInspirations(): Promise<void> {
     }
   }
 
-  // ─── Header + health ───
+  // ─── Header ───
   lines.push("DAILY INSPIRATIONS");
   lines.push("─".repeat(80));
-  if (issues.length === 0) {
-    const count = stateObj?.inspirations.length ?? 0;
-    lines.push(`🟢 HEALTHY (${count} inspiration${count !== 1 ? "s" : ""})`);
-  } else {
-    lines.push(`🔴 ISSUES (${issues.length}):`);
-    for (const iss of issues) lines.push(`   • ${iss}`);
-  }
 
   if (!stateObj) {
     console.log(lines.join("\n"));
@@ -2194,16 +2187,31 @@ async function debugDailyInspirations(): Promise<void> {
     lines.push("");
     lines.push("(no inspirations loaded)");
   } else {
+    // Lazy-import modules needed for the assistant-message check
+    let chatDBModule: null | (typeof import("./db"))["chatDB"] = null;
+    let decryptWithChatKeyFn: null | typeof import("./cryptoService")["decryptWithChatKey"] = null;
+    let decryptChatKeyWithMasterKeyFn: null | typeof import("./cryptoService")["decryptChatKeyWithMasterKey"] = null;
+    try {
+      const [dbMod, cryptoMod] = await Promise.all([import("./db"), import("./cryptoService")]);
+      chatDBModule = dbMod.chatDB;
+      decryptWithChatKeyFn = cryptoMod.decryptWithChatKey;
+      decryptChatKeyWithMasterKeyFn = cryptoMod.decryptChatKeyWithMasterKey;
+    } catch {
+      // Non-fatal — assistant message check will be skipped
+    }
+
     for (let i = 0; i < stateObj.inspirations.length; i++) {
       const ins = stateObj.inspirations[i] as Record<string, unknown>;
       const isCurrent = i === stateObj.currentIndex;
-      const opened = ins.is_opened ? "opened" : "unopened";
+      // is_opened: the user clicked the banner and created a chat.
+      // "viewed" (banner entered viewport) is tracked in Redis only — not visible client-side.
+      const openedLabel = ins.is_opened ? "chat opened" : "not opened (click to start chat)";
       const genDate = ins.generated_at
         ? new Date((ins.generated_at as number) * 1000).toISOString().replace("T"," ").replace("Z"," UTC")
         : "N/A";
 
       lines.push("");
-      lines.push(`Inspiration ${i + 1}${isCurrent ? " ◀ current" : ""} — ${opened}`);
+      lines.push(`Inspiration ${i + 1}${isCurrent ? " ◀ current" : ""} — ${openedLabel}`);
       lines.push(`  id:             ${ins.inspiration_id as string}`);
       const phrase = (ins.phrase as string) || "";
       lines.push(`  phrase:         ${phrase.length > 70 ? phrase.slice(0, 70) + "..." : phrase}`);
@@ -2213,7 +2221,7 @@ async function debugDailyInspirations(): Promise<void> {
       lines.push(`  generated_at:   ${genDate}`);
       lines.push(`  embed_id:       ${ins.embed_id || "null"}`);
       if (ins.opened_chat_id) {
-        lines.push(`  opened_chat_id: ${ins.opened_chat_id} (hashed)`);
+        lines.push(`  opened_chat_id: ${ins.opened_chat_id as string}`);
       }
 
       // Embed resolve check
@@ -2239,12 +2247,96 @@ async function debugDailyInspirations(): Promise<void> {
         lines.push("  video:          null");
       }
 
-      const suggCount = Array.isArray(ins.follow_up_suggestions) ? (ins.follow_up_suggestions as unknown[]).length : 0;
-      lines.push(`  follow_up:      ${suggCount} suggestion(s)`);
+      const followUpArr = Array.isArray(ins.follow_up_suggestions) ? (ins.follow_up_suggestions as string[]) : [];
+      lines.push(`  follow_up:      ${followUpArr.length} suggestion(s)${followUpArr.length === 0 ? " (persisted after reload; LLM-gen only in current session)" : ""}`);
       const resp = ins.assistant_response as string | undefined;
       lines.push(`  assistant_resp: ${resp ? resp.length + " chars" : "(not set)"}`);
+
+      // ── Assistant message verification for opened inspirations ──────────────
+      // Check that the first message in the created chat:
+      //   1. Is set (not null/empty)
+      //   2. Is NOT equal to the raw assistant_response alone when the inspiration
+      //      has a video (it should contain the assistant_response + embed reference block).
+      //      If they are equal, the embed reference was not appended — that's a bug.
+      //   3. Has messages_v > 1 (messages_v is set to 1 at chat creation time; if it
+      //      still equals 1 the chat was created but no assistant message was added).
+      if (ins.is_opened && ins.opened_chat_id && chatDBModule && decryptWithChatKeyFn && decryptChatKeyWithMasterKeyFn) {
+        try {
+          await chatDBModule.init();
+          const chatId = ins.opened_chat_id as string;
+          const chat = await chatDBModule.getChat(chatId);
+          if (!chat) {
+            lines.push(`  assistant_msg:  🔴 chat ${chatId.slice(0, 8)}... NOT FOUND in IndexedDB`);
+          } else {
+            const messagesV = (chat as unknown as Record<string, unknown>).messages_v as number | undefined;
+            if (messagesV !== undefined && messagesV <= 1) {
+              // messages_v is initialized to 1 at chat creation. It increments each time a
+              // new message is added. If still 1, no messages have been added after creation.
+              lines.push(`  assistant_msg:  🔴 messages_v=${messagesV} — chat created but no messages added yet (or assistant message not written)`);
+            } else {
+              // Get the chat key (from cache first, then unwrap from encrypted_chat_key)
+              let chatKey: Uint8Array | null = chatDBModule.getChatKey(chatId);
+              if (!chatKey) {
+                const chatMeta = chat as unknown as Record<string, unknown>;
+                if (chatMeta.encrypted_chat_key) {
+                  chatKey = await decryptChatKeyWithMasterKeyFn(chatMeta.encrypted_chat_key as string);
+                }
+              }
+              // Try to read the first assistant message in the chat
+              const allMessages = await chatDBModule.getMessagesForChat(chatId);
+              const firstAssistant = (allMessages as unknown as Array<Record<string, unknown>> | null)?.find(
+                (m) => m.role === "assistant",
+              );
+              if (!firstAssistant) {
+                lines.push(`  assistant_msg:  🔴 no assistant message found in chat (messages_v=${messagesV})`);
+              } else {
+                // Try decrypting the message content
+                const encContent = firstAssistant.encrypted_content as string | null;
+                if (!encContent) {
+                  lines.push(`  assistant_msg:  🟡 message has no encrypted_content (cleartext or not yet written)`);
+                } else if (!chatKey) {
+                  lines.push(`  assistant_msg:  🟡 chat key unavailable — cannot decrypt to verify content`);
+                } else {
+                  const decrypted = await decryptWithChatKeyFn(encContent, chatKey, {
+                    chatId,
+                    fieldName: "first_assistant_message",
+                  });
+                  if (!decrypted) {
+                    lines.push(`  assistant_msg:  🔴 decryption failed for first assistant message`);
+                  } else {
+                    const hasEmbed = decrypted.includes('"type"') && decrypted.includes('"embed_id"');
+                    const equalsRawCta = resp && decrypted.trim() === resp.trim();
+                    if (video && equalsRawCta) {
+                      // Message equals bare assistant_response but there's a video — embed block is missing
+                      lines.push(`  assistant_msg:  🔴 BUG: equals bare CTA text only — embed reference block MISSING (${decrypted.length} chars)`);
+                      issues.push(`inspiration ${(ins.inspiration_id as string).slice(0, 8)}... chat msg = bare CTA (embed block missing)`);
+                    } else if (video && !hasEmbed) {
+                      lines.push(`  assistant_msg:  🟡 ${decrypted.length} chars — no embed JSON block found (may be legacy format)`);
+                    } else {
+                      lines.push(`  assistant_msg:  🟢 OK (${decrypted.length} chars${hasEmbed ? ", embed block present" : ""})`);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } catch (checkErr) {
+          lines.push(`  assistant_msg:  🟡 check error: ${checkErr}`);
+        }
+      }
     }
   }
+  // Re-run health summary after per-inspiration checks (issues array may have grown)
+  lines.push("");
+  if (issues.length === 0) {
+    lines.push("🟢 Daily inspirations: HEALTHY");
+  } else {
+    lines.push(`🔴 Daily inspirations: ${issues.length} issue(s)`);
+    for (const iss of issues) lines.push(`   • ${iss}`);
+  }
+  lines.push("");
+  lines.push("Note: 'not opened' = user has not clicked the banner to start a chat.");
+  lines.push("      'viewed' (banner in viewport) is tracked server-side only (Redis).");
 
   console.log(lines.join("\n"));
 }
