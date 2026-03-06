@@ -2597,7 +2597,7 @@ async function runClientHealthCheck(): Promise<void> {
     allIssues.push(`Chat decryption check failed: ${e}`);
   }
 
-  // 5. Embed decryption — sample up to 20 recent embeds
+  // 5. Embed decryption — ALL finished encrypted embeds (no sampling)
   try {
     const db3 = await openDB();
     const allEmbeds = await getAllFromStore<Record<string, unknown>>(db3, EMBEDS_STORE);
@@ -2613,17 +2613,16 @@ async function runClientHealthCheck(): Promise<void> {
     );
 
     if (finishedEmbeds.length > 0) {
-      const sampleSize = Math.min(20, finishedEmbeds.length);
       const embedDecodeResult = await collectClientEmbedDecodeHealth(
-        finishedEmbeds.slice(0, sampleSize),
-        sampleSize,
+        finishedEmbeds,
+        finishedEmbeds.length,
         embedKeyDebug,
       );
 
       if (embedDecodeResult.failedCount === 0) {
-        allOk.push(`Embed decryption: ${embedDecodeResult.decodedCount}/${embedDecodeResult.checkedCount} sample OK`);
+        allOk.push(`Embed decryption: ${embedDecodeResult.decodedCount}/${embedDecodeResult.checkedCount} ALL OK`);
       } else {
-        allIssues.push(`Embed decryption: ${embedDecodeResult.failedCount}/${embedDecodeResult.checkedCount} sample FAILED`);
+        allIssues.push(`Embed decryption: ${embedDecodeResult.failedCount}/${embedDecodeResult.checkedCount} FAILED`);
       }
     } else {
       allOk.push("Embed decryption: no finished encrypted embeds to check");
@@ -2744,21 +2743,21 @@ async function runClientHealthCheck(): Promise<void> {
       }
     }
 
-    // Detail: error logs
+    // Detail: error + warning logs (last 100)
     if (errorLogCount > 0) {
       try {
         const { logCollector } = await import("./logCollector");
-        const errors = logCollector.getErrorLogs().filter(
-          (e: { level: string }) => e.level === "error",
-        ).slice(-5);
-        if (errors.length > 0) {
+        const MAX_HEALTH_CHECK_LOGS = 100;
+        const errorsAndWarnings = logCollector.getErrorLogs().slice(-MAX_HEALTH_CHECK_LOGS);
+        if (errorsAndWarnings.length > 0) {
           console.log("");
           console.log(
-            `%c  Recent errors (${errors.length}):`,
+            `%c  Recent errors/warnings (${errorsAndWarnings.length}):`,
             "font-weight: 600; color: #dc2626;",
           );
-          for (const e of errors) {
-            console.log(`    🔴 ${e.message}`);
+          for (const e of errorsAndWarnings) {
+            const icon = e.level === "error" ? "🔴" : "🟡";
+            console.log(`    ${icon} [${e.level}] ${e.message}`);
           }
         }
       } catch {
@@ -2997,6 +2996,141 @@ export function initDebugUtils(): void {
     "color: #60a5fa; font-family: monospace",
     "color: #888",
     "color: #60a5fa; font-family: monospace",
+    "color: #888",
+  );
+
+  // ─── Admin-only auto-execution hooks ───────────────────────────────────────
+  // Auto-run debug reports for admin users on specific events:
+  //   - Chat opened → window.debug.chat(chatId)
+  //   - AI response completed → window.debug.chat(chatId)
+  //   - Embed opened fullscreen → window.debug.embed(embedId)
+  // Reports use console.groupCollapsed to avoid spamming the console.
+  void setupAdminAutoExecution();
+}
+
+/**
+ * Sets up admin-only auto-execution of debug reports on specific events.
+ * Only activates if the current user is an admin. Uses collapsed console groups
+ * so auto-reports don't clutter the console but are available for inspection.
+ */
+async function setupAdminAutoExecution(): Promise<void> {
+  // Gate: only activate for admin users
+  const isAdmin = await isCurrentUserAdmin();
+  if (!isAdmin) return;
+
+  // Debounce timer to avoid duplicate auto-reports when multiple events fire
+  // for the same chat/embed in quick succession
+  const AUTO_EXEC_DEBOUNCE_MS = 1500;
+  let lastAutoChatId: string | null = null;
+  let lastAutoChatTime = 0;
+  let lastAutoEmbedId: string | null = null;
+  let lastAutoEmbedTime = 0;
+
+  /**
+   * Auto-run inspectChat in a collapsed console group.
+   * Skips if the same chatId was auto-reported within the debounce window.
+   */
+  async function autoInspectChat(chatId: string, trigger: string): Promise<void> {
+    const now = Date.now();
+    if (chatId === lastAutoChatId && now - lastAutoChatTime < AUTO_EXEC_DEBOUNCE_MS) {
+      return; // Skip duplicate within debounce window
+    }
+    lastAutoChatId = chatId;
+    lastAutoChatTime = now;
+
+    console.groupCollapsed(
+      `%c🔍 [auto] debug.chat %c${trigger}%c — ${chatId}`,
+      "color: #60a5fa",
+      "color: #888; font-style: italic",
+      "color: #60a5fa",
+    );
+    try {
+      await inspectChat(chatId);
+    } catch (e) {
+      console.error("[auto] debug.chat failed:", e);
+    }
+    console.groupEnd();
+  }
+
+  /**
+   * Auto-run inspectEmbed in a collapsed console group.
+   * Skips if the same embedId was auto-reported within the debounce window.
+   */
+  async function autoInspectEmbed(embedId: string): Promise<void> {
+    const now = Date.now();
+    if (embedId === lastAutoEmbedId && now - lastAutoEmbedTime < AUTO_EXEC_DEBOUNCE_MS) {
+      return; // Skip duplicate within debounce window
+    }
+    lastAutoEmbedId = embedId;
+    lastAutoEmbedTime = now;
+
+    console.groupCollapsed(
+      `%c🔍 [auto] debug.embed %c— ${embedId}`,
+      "color: #60a5fa",
+      "color: #60a5fa",
+    );
+    try {
+      await inspectEmbed(embedId);
+    } catch (e) {
+      console.error("[auto] debug.embed failed:", e);
+    }
+    console.groupEnd();
+  }
+
+  // ─── Hook 1: Chat opened (activeChatStore subscription) ─────────────────
+  try {
+    const { activeChatStore } = await import("../stores/activeChatStore");
+    let isFirstValue = true;
+    activeChatStore.subscribe((chatId: string | null) => {
+      // Skip the initial subscription value (store emits current value on subscribe)
+      if (isFirstValue) {
+        isFirstValue = false;
+        return;
+      }
+      if (chatId) {
+        void autoInspectChat(chatId, "chat opened");
+      }
+    });
+  } catch (e) {
+    console.warn("[debug:auto] Failed to subscribe to activeChatStore:", e);
+  }
+
+  // ─── Hook 2: AI response completed (aiTaskEnded event) ─────────────────
+  try {
+    const { chatSyncService } = await import("./chatSyncService");
+    chatSyncService.addEventListener("aiTaskEnded", ((
+      event: CustomEvent<{ chatId: string; status?: string }>,
+    ) => {
+      const { chatId, status } = event.detail;
+      if (status === "completed" && chatId) {
+        // Small delay to allow final message/embed state to settle in IDB
+        const AI_SETTLE_DELAY_MS = 800;
+        setTimeout(() => {
+          void autoInspectChat(chatId, "AI completed");
+        }, AI_SETTLE_DELAY_MS);
+      }
+    }) as EventListener);
+  } catch (e) {
+    console.warn("[debug:auto] Failed to listen for aiTaskEnded:", e);
+  }
+
+  // ─── Hook 3: Embed opened fullscreen (document embedfullscreen event) ──
+  try {
+    document.addEventListener("embedfullscreen", ((
+      event: CustomEvent<{ embedId?: string }>,
+    ) => {
+      const embedId = event.detail?.embedId;
+      if (embedId) {
+        void autoInspectEmbed(embedId);
+      }
+    }) as EventListener);
+  } catch (e) {
+    console.warn("[debug:auto] Failed to listen for embedfullscreen:", e);
+  }
+
+  console.info(
+    "%c🔍 Admin auto-debug active%c — chat/embed reports auto-run on open, AI completion, and embed fullscreen",
+    "color: #4CAF50; font-weight: bold",
     "color: #888",
   );
 }
