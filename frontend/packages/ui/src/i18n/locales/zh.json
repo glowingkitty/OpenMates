@@ -6315,9 +6315,6 @@
           "text": "正在创建..."
         },
         "text": "设置与记忆",
-        "description": {
-          "text": "所有应用设置和记忆集中在一处。"
-        },
         "hub_no_entries": {
           "text": "还没有设置或记忆。请在 App Store 中访问某个应用来创建。"
         },
@@ -7338,6 +7335,12 @@
     },
     "messengers": {
       "text": "通讯工具"
+    },
+    "settings_memories": {
+      "text": "应用设置与记忆",
+      "description": {
+        "text": "所有应用设置和记忆集中在一处。"
+      }
     },
     "developers": {
       "text": "开发者"

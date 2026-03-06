@@ -7012,9 +7012,6 @@
           "text": "Wird erstellt..."
         },
         "text": "Einstellungen & Erinnerungen",
-        "description": {
-          "text": "Alle deine App-Einstellungen & Erinnerungen an einem Ort."
-        },
         "hub_no_entries": {
           "text": "Noch keine Einstellungen oder Erinnerungen. Besuche eine App im App Store, um sie zu erstellen."
         },
@@ -8135,6 +8132,12 @@
     },
     "messengers": {
       "text": "Messenger"
+    },
+    "settings_memories": {
+      "text": "App-Einstellungen & Erinnerungen",
+      "description": {
+        "text": "Alle deine App-Einstellungen & Erinnerungen an einem Ort."
+      }
     },
     "developers": {
       "text": "Entwickler"

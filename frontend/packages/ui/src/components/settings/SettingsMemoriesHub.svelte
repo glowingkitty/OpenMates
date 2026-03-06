@@ -147,6 +147,7 @@
             icon: getAppIconName(app.icon_image, app.id),
             title: categoryName,
             cameFrom: 'settings_memories',
+            cameFromTitle: $text('settings.settings_memories'),
         });
     }
 
@@ -180,32 +181,35 @@
         </div>
     {:else}
         <!-- One section per app that has entries -->
-        {#each appSections as section (section.app.id)}
-            <!-- App section heading — shows app icon with app gradient -->
-            <SettingsItem
-                type="heading"
-                icon={getAppIconName(section.app.icon_image, section.app.id)}
-                iconType="app"
-                title={section.app.name_translation_key ? $text(section.app.name_translation_key) : section.app.id}
-            />
-
-            <!-- Category rows for this app -->
-            {#each section.categories as entry (entry.category.id)}
-                {@const categoryName = entry.category.name_translation_key
-                    ? $text(entry.category.name_translation_key)
-                    : entry.category.id}
-                {@const countText = $text('settings.app_store.settings_memories.entry_count', {
-                    values: { count: entry.entryCount }
-                })}
+        {#each appSections as section, sectionIndex (section.app.id)}
+            <!-- Spacing between app sections (not before the first one) -->
+            <div class="app-section" class:section-gap={sectionIndex > 0}>
+                <!-- App section heading — shows app icon with app gradient -->
                 <SettingsItem
-                    type="submenu"
-                    icon={getCategoryIconName(entry.category.icon_image, entry.category.id)}
-                    iconType="memory"
-                    title={categoryName}
-                    subtitleBottom={countText}
-                    onClick={() => openCategory(entry.app, entry.category.id, categoryName)}
+                    type="heading"
+                    icon={getAppIconName(section.app.icon_image, section.app.id)}
+                    iconType="app"
+                    title={section.app.name_translation_key ? $text(section.app.name_translation_key) : section.app.id}
                 />
-            {/each}
+
+                <!-- Category rows for this app -->
+                {#each section.categories as entry (entry.category.id)}
+                    {@const categoryName = entry.category.name_translation_key
+                        ? $text(entry.category.name_translation_key)
+                        : entry.category.id}
+                    {@const countText = $text('settings.app_store.settings_memories.entry_count', {
+                        values: { count: entry.entryCount }
+                    })}
+                    <SettingsItem
+                        type="submenu"
+                        icon={getCategoryIconName(entry.category.icon_image, entry.category.id)}
+                        iconType="memory"
+                        title={categoryName}
+                        subtitleBottom={countText}
+                        onClick={() => openCategory(entry.app, entry.category.id, categoryName)}
+                    />
+                {/each}
+            </div>
         {/each}
     {/if}
 
@@ -242,6 +246,16 @@
         padding: 1rem 0.5rem;
         color: var(--color-font-secondary);
         font-size: 0.9rem;
+    }
+
+    .app-section {
+        /* Each app's heading + category rows grouped together */
+    }
+
+    .app-section.section-gap {
+        margin-top: 1.5rem;
+        padding-top: 0.5rem;
+        border-top: 1px solid var(--color-grey-15, var(--color-grey-20));
     }
 
     .discover-link-section {

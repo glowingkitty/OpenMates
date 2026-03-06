@@ -6469,9 +6469,6 @@
           "text": "Creando..."
         },
         "text": "Ajustes y Memorias",
-        "description": {
-          "text": "Todos tus ajustes y memorias de apps en un lugar."
-        },
         "hub_no_entries": {
           "text": "Todavía no hay ajustes ni memorias. Visita una app en la App Store para crearlos."
         },
@@ -7495,6 +7492,12 @@
     },
     "messengers": {
       "text": "Mensajeros"
+    },
+    "settings_memories": {
+      "text": "Ajustes y memorias de apps",
+      "description": {
+        "text": "Todos tus ajustes y memorias de apps en un lugar."
+      }
     },
     "developers": {
       "text": "Desarrolladores"

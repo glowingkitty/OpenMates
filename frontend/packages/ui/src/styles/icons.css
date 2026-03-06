@@ -1261,6 +1261,14 @@ div.clickable-icon {
   }
 }
 
+.icon.settings_memories {
+  background: var(--color-primary);
+
+  &::before {
+    background-image: url("@openmates/ui/static/icons/heart.svg");
+  }
+}
+
 .icon.app_store {
   background: var(--color-primary);
 

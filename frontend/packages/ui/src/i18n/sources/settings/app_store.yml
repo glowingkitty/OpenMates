@@ -2718,31 +2718,6 @@ provider_not_found:
   he: הספק לא נמצא.
   verified_by_human: []
 
-settings_memories.description:
-  context: Short description shown in the Settings & Memories hub gradient banner header
-  en: All your app settings & memories in one place.
-  de: Alle deine App-Einstellungen & Erinnerungen an einem Ort.
-  zh: 所有应用设置和记忆集中在一处。
-  es: Todos tus ajustes y memorias de apps en un lugar.
-  fr: Tous vos paramètres et mémoires d'apps au même endroit.
-  pt: ""
-  ru: ""
-  ja: アプリの設定とメモリをまとめて管理。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: جميع إعدادات التطبيقات وذكرياتك في مكان واحد.
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
-  he: כל הגדרות האפליקציות והזיכרונות שלך במקום אחד.
-  verified_by_human: []
-
 settings_memories.hub_no_entries:
   context: Empty state message in the Settings & Memories hub when user has no entries yet
   en: No settings or memories yet. Visit an app in the App Store to create them.

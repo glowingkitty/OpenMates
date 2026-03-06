@@ -278,6 +278,9 @@ changes to the documentation (to keep the documentation up to date).
     // Track the path we navigated from (e.g., 'app_store/all' when opening an app from All Apps).
     // Used to ensure back navigation returns to the correct parent view.
     let cameFromPath = $state<string | null>(null);
+    // Optional human-readable title override for the cameFrom path, used in breadcrumb display.
+    // When set, replaces the auto-derived label for the cameFrom path segment.
+    let cameFromTitleOverride = $state<string | null>(null);
     let breadcrumbLabel = $state($text('settings.settings'));
     let fullBreadcrumbLabel = $state('');
     let navButtonElement: HTMLElement | undefined = $state();
@@ -530,6 +533,15 @@ changes to the documentation (to keep the documentation up to date).
             
             // Handle app_store routes specially - use actual app/skill names from metadata
             if (pathString === 'app_store') {
+                // If the user arrived via the Settings & Memories hub, replace the full
+                // "App Store / {App Name}" chain with just "App Settings & Memories"
+                // so the breadcrumb reads: Settings / App Settings & Memories
+                if (cameFromPath === 'settings_memories') {
+                    // Use the title override if provided, otherwise fall back to the standard key
+                    pathLabels.push(cameFromTitleOverride ?? $text('settings.settings_memories'));
+                    // Skip all remaining app_store sub-segments — they belong to the old chain
+                    break;
+                }
                 // This is the base app_store route - add "App Store" translation
                 const translationKey = 'settings.app_store';
                 pathLabels.push($text(translationKey));
@@ -752,6 +764,7 @@ changes to the documentation (to keep the documentation up to date).
         'shared': 'settings.shared.description',
         'gift_cards': 'settings.gift_cards.description',
         'app_store': 'settings.app_store.description',
+        'settings_memories': 'settings.settings_memories.description',
     };
 
     /**
@@ -1004,9 +1017,9 @@ changes to the documentation (to keep the documentation up to date).
     let menuItemsCount = $state(0);
 
     // Function to set active settings view with transitions
-    async function handleOpenSettings(event: { detail: { settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string } } | CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string }>) {
+    async function handleOpenSettings(event: { detail: { settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string; cameFromTitle?: string } } | CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string; cameFromTitle?: string }>) {
         const detail = 'detail' in event ? event.detail : event;
-        let { settingsPath, direction: newDirection, icon, cameFrom } = detail;
+        let { settingsPath, direction: newDirection, icon, cameFrom, cameFromTitle } = detail;
         direction = newDirection;
 
         // --- Scroll position memory (All Apps only) ---
@@ -1022,6 +1035,9 @@ changes to the documentation (to keep the documentation up to date).
         // explicitly to preserve the chain, so we accept it from both directions.
         if (cameFrom) {
             cameFromPath = cameFrom;
+            if (cameFromTitle !== undefined) {
+                cameFromTitleOverride = cameFromTitle;
+            }
         } else if (newDirection === 'backward') {
             // Clear cameFromPath when arriving at the destination that was the cameFrom source,
             // or when leaving the app_store section entirely (back to app_store root or main).
@@ -1029,11 +1045,13 @@ changes to the documentation (to keep the documentation up to date).
             const isLeavingAppStore = settingsPath === 'app_store' || !settingsPath.startsWith('app_store');
             if (isReturningToSource || isLeavingAppStore) {
                 cameFromPath = null;
+                cameFromTitleOverride = null;
             }
             // Otherwise (e.g., going from skill → app details), cameFromPath is preserved
         } else if (newDirection === 'forward' && !cameFrom) {
             // Forward navigation without explicit cameFrom clears the previous source
             cameFromPath = null;
+            cameFromTitleOverride = null;
         }
 
         // Reset active account ID
@@ -1483,10 +1501,13 @@ changes to the documentation (to keep the documentation up to date).
                     direction: 'backward',
                     icon: icon,
                     title: title,
-                    // Preserve cameFromPath when going backward to an intermediate app page
+                    // Preserve cameFromPath (and title) when going backward to an intermediate app page
                     // so the breadcrumb and next back step still reference the original source.
                     cameFrom: (previousPath.startsWith('app_store/') && previousPath !== 'app_store/all' && cameFromPath)
                         ? cameFromPath
+                        : undefined,
+                    cameFromTitle: (previousPath.startsWith('app_store/') && previousPath !== 'app_store/all' && cameFromTitleOverride)
+                        ? cameFromTitleOverride
                         : undefined
                 }
             }));

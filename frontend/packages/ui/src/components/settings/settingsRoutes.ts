@@ -116,6 +116,23 @@ import SettingsIncognitoInfo from "./incognito/SettingsIncognitoInfo.svelte";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const baseSettingsViews: Record<string, Component<any>> = {
+  // Billing
+  billing: SettingsBilling,
+  "billing/buy-credits": SettingsBuyCredits,
+  "billing/buy-credits/payment": SettingsBuyCreditsPayment,
+  "billing/buy-credits/confirmation": SettingsBuyCreditsConfirmation,
+  "billing/redeem-giftcard": SettingsRedeemGiftCard,
+  "billing/auto-topup": SettingsAutoTopUp,
+  "billing/auto-topup/low-balance": SettingsLowBalanceAutotopup,
+  "billing/auto-topup/monthly": SettingsMonthlyAutotopup,
+  "billing/invoices": SettingsInvoices,
+  // Usage
+  usage: SettingsUsage,
+  // Chat
+  chat: SettingsChat,
+  "chat/notifications": SettingsChatNotifications,
+  // Settings & Memories hub — lists all user-created settings and memories across apps
+  settings_memories: SettingsMemoriesHub,
   // Privacy settings — anonymization, device permissions, auto deletion
   privacy: SettingsPrivacy,
   "privacy/hide-personal-data": SettingsHidePersonalData,
@@ -127,23 +144,11 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "privacy/auto-deletion/chats": SettingsAutoDeletion,
   "privacy/auto-deletion/files": SettingsAutoDeletion,
   "privacy/auto-deletion/usage_data": SettingsAutoDeletion,
-  // Usage
-  usage: SettingsUsage,
-  // Chat
-  chat: SettingsChat,
-  "chat/notifications": SettingsChatNotifications,
-  // Pricing — visible only to non-authenticated users (see Settings.svelte auth filter)
-  pricing: SettingsPricing,
-  // Billing
-  billing: SettingsBilling,
-  "billing/buy-credits": SettingsBuyCredits,
-  "billing/buy-credits/payment": SettingsBuyCreditsPayment,
-  "billing/buy-credits/confirmation": SettingsBuyCreditsConfirmation,
-  "billing/redeem-giftcard": SettingsRedeemGiftCard,
-  "billing/auto-topup": SettingsAutoTopUp,
-  "billing/auto-topup/low-balance": SettingsLowBalanceAutotopup,
-  "billing/auto-topup/monthly": SettingsMonthlyAutotopup,
-  "billing/invoices": SettingsInvoices,
+  // App Store
+  app_store: SettingsAppStore,
+  "app_store/all": SettingsAllApps,
+  // Mates
+  mates: SettingsMates,
   // Gift Cards
   gift_cards: SettingsGiftCards,
   "gift_cards/redeem": SettingsGiftCardsRedeem,
@@ -151,13 +156,6 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "gift_cards/buy": SettingsGiftCardsBuy,
   "gift_cards/buy/payment": SettingsGiftCardsBuyPayment,
   "gift_cards/buy/confirmation": SettingsGiftCardsPurchaseConfirmation,
-  // App Store
-  app_store: SettingsAppStore,
-  "app_store/all": SettingsAllApps,
-  // Settings & Memories hub — lists all user-created settings and memories across apps
-  settings_memories: SettingsMemoriesHub,
-  // Mates — appears directly below App Store in the menu
-  mates: SettingsMates,
   // Shared
   shared: SettingsShared,
   "shared/share": SettingsShare,
@@ -172,6 +170,8 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   interface: SettingsInterface,
   "interface/language": SettingsLanguage,
   "interface/dark_mode": SettingsDarkMode,
+  // Pricing — visible only to non-authenticated users (see Settings.svelte auth filter)
+  pricing: SettingsPricing,
   // Server (admin only)
   server: SettingsServer,
   "server/software-update": SettingsSoftwareUpdate,

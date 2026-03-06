@@ -7381,9 +7381,6 @@
           "text": "Creating..."
         },
         "text": "Settings & Memories",
-        "description": {
-          "text": "All your app settings & memories in one place."
-        },
         "hub_no_entries": {
           "text": "No settings or memories yet. Visit an app in the App Store to create them."
         },
@@ -8516,6 +8513,12 @@
     },
     "messengers": {
       "text": "Messengers"
+    },
+    "settings_memories": {
+      "text": "App Settings & Memories",
+      "description": {
+        "text": "All your app settings & memories in one place."
+      }
     },
     "developers": {
       "text": "Developers"

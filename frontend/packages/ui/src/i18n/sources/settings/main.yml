@@ -862,6 +862,56 @@ messengers:
   sv: ""
   he: "מסנג'רים"
   verified_by_human: []
+settings_memories:
+  context: App Settings & Memories settings menu item — shows all user-created settings/memories across apps
+  en: App Settings & Memories
+  de: App-Einstellungen & Erinnerungen
+  zh: 应用设置与记忆
+  es: Ajustes y memorias de apps
+  fr: Paramètres & mémoires des apps
+  pt: ""
+  ru: ""
+  ja: アプリ設定とメモリ
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: إعدادات وذكريات التطبيقات
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: הגדרות וזיכרונות אפליקציה
+  verified_by_human: []
+
+settings_memories.description:
+  context: Short description shown in the App Settings & Memories hub gradient banner header
+  en: All your app settings & memories in one place.
+  de: Alle deine App-Einstellungen & Erinnerungen an einem Ort.
+  zh: 所有应用设置和记忆集中在一处。
+  es: Todos tus ajustes y memorias de apps en un lugar.
+  fr: Tous vos paramètres et mémoires d'apps au même endroit.
+  pt: ""
+  ru: ""
+  ja: アプリの設定とメモリをまとめて管理。
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: جميع إعدادات التطبيقات وذكرياتك في مكان واحد.
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: כל הגדרות האפליקציות והזיכרונות שלך במקום אחד.
+  verified_by_human: []
+
 developers:
   context: Developers settings menu item
   en: Developers

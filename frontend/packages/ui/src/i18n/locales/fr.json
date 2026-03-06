@@ -6426,9 +6426,6 @@
           "text": "Création en cours..."
         },
         "text": "Paramètres et Mémoires",
-        "description": {
-          "text": "Tous vos paramètres et mémoires d'apps au même endroit."
-        },
         "hub_no_entries": {
           "text": "Pas encore de paramètres ni de mémoires. Visitez une app dans l'App Store pour en créer."
         },
@@ -7452,6 +7449,12 @@
     },
     "messengers": {
       "text": "Messageries"
+    },
+    "settings_memories": {
+      "text": "Paramètres & mémoires des apps",
+      "description": {
+        "text": "Tous vos paramètres et mémoires d'apps au même endroit."
+      }
     },
     "developers": {
       "text": "Développeurs"

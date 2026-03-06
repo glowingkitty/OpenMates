@@ -6315,9 +6315,6 @@
           "text": "作成中..."
         },
         "text": "設定とメモリ",
-        "description": {
-          "text": "アプリの設定とメモリをまとめて管理。"
-        },
         "hub_no_entries": {
           "text": "まだ設定やメモリがありません。App Store のアプリを訪問して作成してください。"
         },
@@ -7338,6 +7335,12 @@
     },
     "messengers": {
       "text": "メッセンジャー"
+    },
+    "settings_memories": {
+      "text": "アプリ設定とメモリ",
+      "description": {
+        "text": "アプリの設定とメモリをまとめて管理。"
+      }
     },
     "developers": {
       "text": "開発者"
