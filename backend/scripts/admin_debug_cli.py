@@ -88,49 +88,15 @@ import httpx
 # Add the backend to the path for imports
 sys.path.insert(0, '/app')
 
+# Shared inspection utilities — replaces duplicated helpers
+from debug_utils import (
+    censor_email,
+    censor_emails_in_data,
+    get_api_key_from_vault,
+    get_base_url,
+    make_prod_api_request,
+)
 
-def censor_email(email: str | None) -> str | None:
-    """
-    Censor an email address to protect user privacy.
-
-    Shows only the first 2 characters of the local part and the full domain.
-    Example: "john.doe@example.com" -> "jo***@example.com"
-    """
-    if not email or '@' not in email:
-        return email
-    local, domain = email.rsplit('@', 1)
-    if len(local) <= 2:
-        censored_local = local[0] + '***' if local else '***'
-    else:
-        censored_local = local[:2] + '***'
-    return f"{censored_local}@{domain}"
-
-
-# Keys known to contain email addresses in API responses
-_EMAIL_KEYS = {'contact_email', 'email'}
-
-
-def censor_emails_in_data(data: object) -> object:
-    """
-    Recursively walk a JSON-serializable structure and censor all email fields.
-
-    Modifies dicts in-place and returns the same reference for convenience.
-    """
-    if isinstance(data, dict):
-        for key, value in data.items():
-            if key in _EMAIL_KEYS and isinstance(value, str):
-                data[key] = censor_email(value)
-            else:
-                censor_emails_in_data(value)
-    elif isinstance(data, list):
-        for item in data:
-            censor_emails_in_data(item)
-    return data
-
-# API base URLs - when running inside Docker, use internal service names
-# For production debugging, we hit the external API
-PROD_API_URL = "https://api.openmates.org/v1/admin/debug"
-DEV_API_URL = "https://api.dev.openmates.org/v1/admin/debug"
 
 # Upload and preview servers run on separate VMs — always hit their public URLs.
 # (There is no dev-specific upload or preview server.)
@@ -149,86 +115,6 @@ UPLOAD_SERVER_STATUS_URL = "https://upload.openmates.org/admin/update/status"
 PREVIEW_SERVER_STATUS_URL = "https://preview.openmates.org/admin/update/status"
 
 
-async def get_api_key_from_vault() -> str:
-    """Get the admin API key from Vault.
-    
-    The SECRET__ADMIN__DEBUG_CLI__API_KEY env var is imported by vault-setup
-    into kv/data/providers/admin with key "debug_cli__api_key" (following the
-    SECRET__{PROVIDER}__{KEY} convention).
-    """
-    from backend.core.api.app.utils.secrets_manager import SecretsManager
-    
-    secrets_manager = SecretsManager()
-    await secrets_manager.initialize()
-    
-    try:
-        api_key = await secrets_manager.get_secret("kv/data/providers/admin", "debug_cli__api_key")
-        if not api_key:
-            print("Error: Admin API key not found in Vault at kv/data/providers/admin (key: debug_cli__api_key)", file=sys.stderr)
-            print("", file=sys.stderr)
-            print("To set up the admin API key:", file=sys.stderr)
-            print("1. Generate an API key for an admin user in the OpenMates app", file=sys.stderr)
-            print("2. Add to your environment: SECRET__ADMIN__DEBUG_CLI__API_KEY=sk-api-xxxxx", file=sys.stderr)
-            print("3. Restart the vault-setup container to import the secret", file=sys.stderr)
-            sys.exit(1)
-        return api_key
-    finally:
-        await secrets_manager.aclose()
-
-
-def get_base_url(use_dev: bool = False) -> str:
-    """Get the API base URL."""
-    return DEV_API_URL if use_dev else PROD_API_URL
-
-
-async def make_request(
-    endpoint: str,
-    api_key: str,
-    base_url: str,
-    params: Optional[dict] = None,
-    method: str = "GET"
-) -> dict:
-    """Make an authenticated request to the admin debug API."""
-    url = f"{base_url}/{endpoint}"
-    headers = {"Authorization": f"Bearer {api_key}"}
-    
-    try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            if method == "GET":
-                response = await client.get(url, headers=headers, params=params)
-            elif method == "DELETE":
-                response = await client.delete(url, headers=headers, params=params)
-            else:
-                print(f"Error: Unsupported method {method}", file=sys.stderr)
-                sys.exit(1)
-            
-            if response.status_code == 401:
-                print("Error: Invalid or expired API key", file=sys.stderr)
-                sys.exit(1)
-            elif response.status_code == 403:
-                print("Error: Admin privileges required", file=sys.stderr)
-                sys.exit(1)
-            elif response.status_code == 404:
-                print("Error: Resource not found", file=sys.stderr)
-                sys.exit(1)
-            elif response.status_code != 200:
-                print(f"Error: API returned status {response.status_code}", file=sys.stderr)
-                try:
-                    print(response.json(), file=sys.stderr)
-                except Exception:
-                    print(response.text, file=sys.stderr)
-                sys.exit(1)
-            
-            return response.json()
-    
-    except httpx.ConnectError:
-        print(f"Error: Could not connect to {base_url}", file=sys.stderr)
-        sys.exit(1)
-    except httpx.TimeoutException:
-        print("Error: Request timed out", file=sys.stderr)
-        sys.exit(1)
-
-
 async def cmd_logs(args, api_key: str):
     """Query Docker Compose logs."""
     base_url = get_base_url(args.dev)
@@ -242,7 +128,7 @@ async def cmd_logs(args, api_key: str):
     if args.search:
         params["search"] = args.search
     
-    result = await make_request("logs", api_key, base_url, params)
+    result = await make_prod_api_request("logs", api_key, base_url, params=params)
     
     if args.json:
         print(json.dumps(result, indent=2))
@@ -765,7 +651,7 @@ async def cmd_issues(args, api_key: str):
     if args.search:
         params["search"] = args.search
     
-    result = await make_request("issues", api_key, base_url, params)
+    result = await make_prod_api_request("issues", api_key, base_url, params=params)
     
     if args.json:
         print(json.dumps(censor_emails_in_data(result), indent=2))
@@ -792,7 +678,7 @@ async def cmd_issue(args, api_key: str):
     
     params = {"include_logs": args.include_logs}
     
-    result = await make_request(f"issues/{args.issue_id}", api_key, base_url, params)
+    result = await make_prod_api_request(f"issues/{args.issue_id}", api_key, base_url, params=params)
     
     if args.json:
         print(json.dumps(censor_emails_in_data(result), indent=2))
@@ -832,7 +718,7 @@ async def cmd_issue(args, api_key: str):
 async def cmd_issue_delete(args, api_key: str):
     """Delete an issue (Directus + S3). Use after the issue is confirmed fixed."""
     base_url = get_base_url(args.dev)
-    result = await make_request(f"issues/{args.issue_id}", api_key, base_url, method="DELETE")
+    result = await make_prod_api_request(f"issues/{args.issue_id}", api_key, base_url, method="DELETE")
     if args.json:
         print(json.dumps(result, indent=2))
     else:
@@ -851,7 +737,7 @@ async def cmd_user(args, api_key: str):
     }
     
     email = args.email
-    result = await make_request(f"inspect/user/{email}", api_key, base_url, params)
+    result = await make_prod_api_request(f"inspect/user/{email}", api_key, base_url, params=params)
     
     if args.json:
         print(json.dumps(censor_emails_in_data(result), indent=2))
@@ -910,7 +796,7 @@ async def cmd_chat(args, api_key: str):
         "include_cache": args.include_cache,
     }
     
-    result = await make_request(f"inspect/chat/{args.chat_id}", api_key, base_url, params)
+    result = await make_prod_api_request(f"inspect/chat/{args.chat_id}", api_key, base_url, params=params)
     
     if args.json:
         print(json.dumps(result, indent=2))
@@ -938,7 +824,7 @@ async def cmd_embed(args, api_key: str):
     """Inspect an embed by ID."""
     base_url = get_base_url(args.dev)
     
-    result = await make_request(f"inspect/embed/{args.embed_id}", api_key, base_url)
+    result = await make_prod_api_request(f"inspect/embed/{args.embed_id}", api_key, base_url)
     
     if args.json:
         print(json.dumps(result, indent=2))
@@ -962,7 +848,7 @@ async def cmd_requests(args, api_key: str):
     if args.chat_id:
         params["chat_id"] = args.chat_id
     
-    result = await make_request("inspect/last-requests", api_key, base_url, params)
+    result = await make_prod_api_request("inspect/last-requests", api_key, base_url, params=params)
     
     if args.json:
         print(json.dumps(result, indent=2))
@@ -993,7 +879,7 @@ async def cmd_newsletter(args, api_key: str):
     if args.timeline:
         params["timeline"] = "true"
 
-    result = await make_request("newsletter", api_key, base_url, params)
+    result = await make_prod_api_request("newsletter", api_key, base_url, params=params)
 
     if args.json:
         print(json.dumps(result, indent=2))

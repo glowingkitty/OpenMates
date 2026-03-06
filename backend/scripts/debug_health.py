@@ -12,26 +12,21 @@ Tests: None (inspection script, not production code)
 import hashlib
 import json
 import logging
-import sys
 import time
 from datetime import datetime
 from typing import Dict, List, Optional
 
 import httpx
 
-# Add backend path
-sys.path.insert(0, '/app/backend')
-sys.path.insert(0, '/app')
+# Shared inspection utilities — logging setup
+from debug_utils import configure_script_logging
 
-# Suppress noisy library logs
-logging.basicConfig(level=logging.WARNING, format='%(message)s')
-logging.getLogger('httpx').setLevel(logging.WARNING)
-logging.getLogger('httpcore').setLevel(logging.WARNING)
-logging.getLogger('backend').setLevel(logging.WARNING)
-logging.getLogger('aiohttp').setLevel(logging.WARNING)
-
-logger = logging.getLogger('debug_health')
-logger.setLevel(logging.WARNING)  # Only raise if something goes wrong
+# debug_health is a library, not a CLI script. Use WARNING so it only
+# logs when something goes wrong; callers control their own verbosity.
+logger = configure_script_logging(
+    'debug_health', level=logging.WARNING, fmt='%(message)s',
+    extra_suppress=['aiohttp'],
+)
 
 # ─── ANSI colours ────────────────────────────────────────────────────────────
 

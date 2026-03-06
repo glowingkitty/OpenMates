@@ -26,73 +26,25 @@ Options:
 
 import asyncio
 import argparse
-import logging
-import sys
 import json
+import sys
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
-# Add the backend directory to the Python path
+# Add the backend directory to the Python path — must happen before backend imports
 sys.path.insert(0, '/app/backend')
 
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 
-# Configure logging
-logging.basicConfig(
-    level=logging.WARNING,  # Only show warnings and errors from libraries
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+# Shared inspection utilities — replaces duplicated helpers
+from debug_utils import (
+    configure_script_logging,
+    format_timestamp,
+    truncate_string,
 )
 
-# Set our script logger to INFO level
-script_logger = logging.getLogger('inspect_demo_chat')
-script_logger.setLevel(logging.INFO)
-
-# Suppress verbose logging from httpx and other libraries
-logging.getLogger('httpx').setLevel(logging.WARNING)
-logging.getLogger('httpcore').setLevel(logging.WARNING)
-logging.getLogger('backend').setLevel(logging.WARNING)
-
-
-def format_timestamp(ts: Optional[int]) -> str:
-    """
-    Format a Unix timestamp to human-readable string.
-
-    Args:
-        ts: Unix timestamp in seconds or None
-
-    Returns:
-        Formatted datetime string or "N/A" if timestamp is None/invalid
-    """
-    if not ts:
-        return "N/A"
-    try:
-        if isinstance(ts, int):
-            dt = datetime.fromtimestamp(ts)
-        else:
-            # Try parsing as ISO format string
-            dt = datetime.fromisoformat(str(ts).replace('Z', '+00:00'))
-        return dt.strftime("%Y-%m-%d %H:%M:%S")
-    except Exception:
-        return str(ts)
-
-
-def truncate_string(s: str, max_len: int = 50) -> str:
-    """
-    Truncate a string to max_len characters, adding ellipsis if truncated.
-
-    Args:
-        s: String to truncate
-        max_len: Maximum length (default: 50)
-
-    Returns:
-        Truncated string with ellipsis if needed
-    """
-    if not s:
-        return "N/A"
-    if len(s) <= max_len:
-        return s
-    return s[:max_len - 3] + "..."
+script_logger = configure_script_logging('inspect_demo_chat')
 
 
 async def get_demo_chat_metadata(directus_service: DirectusService, demo_id: str) -> Optional[Dict[str, Any]]:

@@ -62,7 +62,6 @@ Usage:
 import asyncio
 import argparse
 import difflib
-import logging
 import sys
 import os
 import json as json_module
@@ -71,7 +70,7 @@ from collections import Counter
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
-# Add the backend directory to the Python path
+# Add the backend directory to the Python path — must happen before backend imports
 sys.path.insert(0, '/app/backend')
 
 # Try to import yaml - use ruamel.yaml if available, otherwise PyYAML
@@ -85,46 +84,13 @@ except ImportError:
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 
-# Configure logging
-logging.basicConfig(
-    level=logging.WARNING,  # Only show warnings and errors from libraries
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Shared inspection utilities — replaces duplicated helpers
+from debug_utils import configure_script_logging, format_timestamp
 
-# Set our script logger to INFO level
-script_logger = logging.getLogger('inspect_last_requests')
-script_logger.setLevel(logging.INFO)
-
-# Suppress verbose logging from httpx and other libraries
-logging.getLogger('httpx').setLevel(logging.WARNING)
-logging.getLogger('httpcore').setLevel(logging.WARNING)
-logging.getLogger('backend').setLevel(logging.WARNING)
+script_logger = configure_script_logging('inspect_last_requests')
 
 # Default output directory
 DEFAULT_OUTPUT_DIR = "/app/backend/scripts/debug_output"
-
-
-def format_timestamp(ts: Optional[int]) -> str:
-    """
-    Format a Unix timestamp to human-readable string.
-    
-    Args:
-        ts: Unix timestamp in seconds or None
-        
-    Returns:
-        Formatted datetime string or "N/A" if timestamp is None/invalid
-    """
-    if not ts:
-        return "N/A"
-    try:
-        if isinstance(ts, int):
-            dt = datetime.fromtimestamp(ts)
-        else:
-            # Try parsing as ISO format string
-            dt = datetime.fromisoformat(str(ts).replace('Z', '+00:00'))
-        return dt.strftime("%Y-%m-%d %H:%M:%S")
-    except Exception:
-        return str(ts)
 
 
 def format_duration(seconds: float) -> str:

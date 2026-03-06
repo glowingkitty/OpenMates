@@ -41,15 +41,12 @@ Options:
 import asyncio
 import argparse
 import hashlib
-import logging
-import sys
 import json
+import sys
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Tuple
 
-import httpx
-
-# Add the backend directory to the Python path
+# Add the backend directory to the Python path — must happen before backend imports
 sys.path.insert(0, '/app/backend')
 
 from backend.core.api.app.services.directus.directus import DirectusService
@@ -63,66 +60,28 @@ from share_key_crypto import (
     decrypt_client_aes_content,
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.WARNING,  # Only show warnings and errors from libraries
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+# Shared inspection utilities — replaces duplicated helpers
+from debug_utils import (
+    configure_script_logging,
+    format_timestamp,
+    truncate_string,
+    collect_timestamp_issues,
+    get_api_key_from_vault,
+    make_prod_api_request,
+    resolve_vault_key_id,
+    decrypt_and_decode_toon,
+    describe_toon_value,
+    PROD_API_URL,
+    DEV_API_URL,
 )
 
-# Set our script logger to INFO level
-script_logger = logging.getLogger('inspect_embed')
-script_logger.setLevel(logging.INFO)
+script_logger = configure_script_logging('inspect_embed')
 
-# Suppress verbose logging from httpx and other libraries
-logging.getLogger('httpx').setLevel(logging.WARNING)
-logging.getLogger('httpcore').setLevel(logging.WARNING)
-logging.getLogger('backend').setLevel(logging.WARNING)
-
-# --- Constants ---
+# --- Constants (script-specific) ---
 MAX_TOON_VALUE_DISPLAY_LEN = 120
 MAX_CHILD_EMBEDS_DISPLAY = 10
 MAX_TOON_FIELD_INVENTORY_ITEMS = 30
-
-# Production Admin Debug API URLs — same as admin_debug_cli.py
-# See docs/architecture/admin-debug-api.md for endpoint details
-PROD_API_URL = "https://api.openmates.org/v1/admin/debug"
-DEV_API_URL = "https://api.dev.openmates.org/v1/admin/debug"
-
-# HTTP timeout for production API requests (seconds)
-PROD_API_TIMEOUT_SECONDS = 60.0
-
-
-async def get_api_key_from_vault() -> str:
-    """Get the admin API key from Vault for production API authentication.
-    
-    The SECRET__ADMIN__DEBUG_CLI__API_KEY env var is imported by vault-setup
-    into kv/data/providers/admin with key "debug_cli__api_key".
-    
-    Returns:
-        The admin API key string.
-    
-    Raises:
-        SystemExit: If the key is not found in Vault.
-    """
-    from backend.core.api.app.utils.secrets_manager import SecretsManager
-    
-    secrets_manager = SecretsManager()
-    await secrets_manager.initialize()
-    
-    try:
-        api_key = await secrets_manager.get_secret("kv/data/providers/admin", "debug_cli__api_key")
-        if not api_key:
-            print("Error: Admin API key not found in Vault at kv/data/providers/admin", file=sys.stderr)
-            print("  key: debug_cli__api_key", file=sys.stderr)
-            print("", file=sys.stderr)
-            print("To set up the admin API key:", file=sys.stderr)
-            print("1. Generate an API key for an admin user in the OpenMates app", file=sys.stderr)
-            print("2. Add to your environment: SECRET__ADMIN__DEBUG_CLI__API_KEY=sk-api-xxxxx", file=sys.stderr)
-            print("3. Restart the vault-setup container to import the secret", file=sys.stderr)
-            sys.exit(1)
-        return api_key
-    finally:
-        await secrets_manager.aclose()
+MAX_HEALTH_ISSUES_TO_SHOW = 8
 
 
 async def fetch_embed_from_production_api(
@@ -147,40 +106,18 @@ async def fetch_embed_from_production_api(
     """
     api_key = await get_api_key_from_vault()
     base_url = DEV_API_URL if use_dev else PROD_API_URL
-    url = f"{base_url}/inspect/embed/{embed_id}"
-    headers = {"Authorization": f"Bearer {api_key}"}
     
-    script_logger.info(f"Fetching embed from {'dev' if use_dev else 'production'} API: {url}")
+    script_logger.info(
+        f"Fetching embed from {'dev' if use_dev else 'production'} API: "
+        f"{base_url}/inspect/embed/{embed_id}"
+    )
     
-    try:
-        async with httpx.AsyncClient(timeout=PROD_API_TIMEOUT_SECONDS) as client:
-            response = await client.get(url, headers=headers)
-            
-            if response.status_code == 401:
-                print("Error: Invalid or expired API key", file=sys.stderr)
-                sys.exit(1)
-            elif response.status_code == 403:
-                print("Error: Admin privileges required", file=sys.stderr)
-                sys.exit(1)
-            elif response.status_code == 404:
-                print(f"Error: Embed not found on {'dev' if use_dev else 'production'}: {embed_id}", file=sys.stderr)
-                sys.exit(1)
-            elif response.status_code != 200:
-                print(f"Error: API returned status {response.status_code}", file=sys.stderr)
-                try:
-                    print(response.json(), file=sys.stderr)
-                except Exception:
-                    print(response.text, file=sys.stderr)
-                sys.exit(1)
-            
-            return response.json()
-    
-    except httpx.ConnectError:
-        print(f"Error: Could not connect to {base_url}", file=sys.stderr)
-        sys.exit(1)
-    except httpx.TimeoutException:
-        print(f"Error: Request timed out ({PROD_API_TIMEOUT_SECONDS}s)", file=sys.stderr)
-        sys.exit(1)
+    return await make_prod_api_request(
+        f"inspect/embed/{embed_id}",
+        api_key,
+        base_url,
+        entity_label=f"Embed {embed_id}",
+    )
 
 
 def map_production_embed_response(api_response: Dict[str, Any]) -> Dict[str, Any]:
@@ -219,73 +156,95 @@ def map_production_embed_response(api_response: Dict[str, Any]) -> Dict[str, Any
     }
 
 
-def format_timestamp(ts: Optional[int]) -> str:
-    """
-    Format a Unix timestamp to human-readable string.
+def build_embed_health_summary(
+    embed: Optional[Dict[str, Any]],
+    embed_keys: List[Dict[str, Any]],
+    child_embeds: List[Dict[str, Any]],
+    decrypt_error: Optional[str],
+    cache_info: Optional[Dict[str, Any]],
+    linkage: Optional[Dict[str, Any]],
+    share_key_error: Optional[str],
+) -> Dict[str, Any]:
+    """Build top-level health summary for embed inspection output."""
+    issues: List[str] = []
+    warnings: List[str] = []
 
-    Args:
-        ts: Unix timestamp in seconds or None
+    if not embed:
+        issues.append("Embed record is missing in Directus")
+        return {
+            'status': 'issues_detected',
+            'is_healthy': False,
+            'issues': issues,
+            'warnings': warnings,
+            'counts': {
+                'embed_keys': len(embed_keys),
+                'child_embeds': len(child_embeds),
+            },
+        }
 
-    Returns:
-        Formatted datetime string or "N/A" if timestamp is None/invalid
-    """
-    if not ts:
-        return "N/A"
-    try:
-        if isinstance(ts, int):
-            dt = datetime.fromtimestamp(ts)
-        else:
-            # Try parsing as ISO format string
-            dt = datetime.fromisoformat(str(ts).replace('Z', '+00:00'))
-        return dt.strftime("%Y-%m-%d %H:%M:%S")
-    except Exception:
-        return str(ts)
+    collect_timestamp_issues('embed.created_at', embed.get('created_at'), issues)
+    collect_timestamp_issues('embed.updated_at', embed.get('updated_at'), issues)
 
+    embed_status = str(embed.get('status', '')).lower()
+    if embed_status == 'error':
+        issues.append("embed status is error")
+    elif embed_status == 'processing':
+        warnings.append("embed is still processing")
 
-def truncate_string(s: str, max_len: int = 50) -> str:
-    """
-    Truncate a string to max_len characters, adding ellipsis if truncated.
+    parent_embed_id = embed.get('parent_embed_id')
+    if not parent_embed_id and len(embed_keys) == 0:
+        issues.append("root embed has no encryption keys")
 
-    Args:
-        s: String to truncate
-        max_len: Maximum length (default: 50)
+    if not embed.get('encrypted_content'):
+        warnings.append("encrypted_content missing on embed record")
 
-    Returns:
-        Truncated string with ellipsis if needed
-    """
-    if not s:
-        return "N/A"
-    if len(s) <= max_len:
-        return s
-    return s[:max_len - 3] + "..."
+    for child in child_embeds:
+        collect_timestamp_issues('child_embed.created_at', child.get('created_at'), issues)
+        collect_timestamp_issues('child_embed.updated_at', child.get('updated_at'), issues)
+        child_status = str(child.get('status', '')).lower()
+        if child_status == 'error':
+            warnings.append(f"child embed {child.get('embed_id', 'unknown')} is in error status")
 
+    if decrypt_error:
+        issues.append(f"decryption error: {decrypt_error}")
 
-def _describe_toon_value(value: Any) -> str:
-    """
-    Produce a type+size description for a single TOON field value.
-    Does NOT expose actual content — only structural info.
+    if share_key_error:
+        issues.append(f"share key error: {share_key_error}")
 
-    Args:
-        value: The decoded TOON field value
+    if cache_info and cache_info.get('error'):
+        warnings.append(f"cache check failed: {cache_info.get('error')}")
 
-    Returns:
-        String like "str(142)", "list(5)", "dict(3 keys)", "int", "bool", "null"
-    """
-    if value is None:
-        return "null"
-    if isinstance(value, bool):
-        return f"bool({value})"
-    if isinstance(value, int):
-        return f"int({value})"
-    if isinstance(value, float):
-        return f"float({value})"
-    if isinstance(value, str):
-        return f"str({len(value)})"
-    if isinstance(value, list):
-        return f"list({len(value)})"
-    if isinstance(value, dict):
-        return f"dict({len(value)} keys)"
-    return f"{type(value).__name__}"
+    if linkage:
+        message_link = linkage.get('message', {})
+        if message_link.get('has_message_link') and not message_link.get('message_exists'):
+            issues.append("hashed_message_id is set but linked message does not exist")
+
+        chat_link = linkage.get('chat', {})
+        if chat_link.get('has_chat_link') and chat_link.get('in_chat_embed_set') is False:
+            issues.append("embed is not present in any chat:*:embed_ids cache set")
+
+        parent_child = linkage.get('parent_child', {})
+        if parent_child.get('is_parent'):
+            expected = parent_child.get('expected_children', 0)
+            found = parent_child.get('found_children', 0)
+            if expected != found:
+                issues.append(f"parent-child mismatch: found {found}/{expected} child embeds")
+        if parent_child.get('is_child'):
+            if not parent_child.get('parent_exists'):
+                issues.append("parent_embed_id points to missing parent")
+            elif not parent_child.get('listed_in_parent'):
+                issues.append("parent exists but does not list this embed in embed_ids")
+
+    return {
+        'status': 'healthy' if not issues else 'issues_detected',
+        'is_healthy': len(issues) == 0,
+        'issues': issues,
+        'warnings': warnings,
+        'counts': {
+            'embed_keys': len(embed_keys),
+            'child_embeds': len(child_embeds),
+        },
+    }
 
 
 async def get_embed_by_id(directus_service: DirectusService, embed_id: str) -> Optional[Dict[str, Any]]:
@@ -369,81 +328,6 @@ async def get_child_embeds(directus_service: DirectusService, embed_ids: List[st
             child_embeds.append(child)
 
     return child_embeds
-
-
-async def resolve_vault_key_id(
-    directus_service: DirectusService,
-    hashed_user_id: str
-) -> Optional[str]:
-    """
-    Resolve a hashed_user_id to a vault_key_id via the user_passkeys lookup.
-
-    This is a two-step process:
-    1. hashed_user_id -> user_id (via user_passkeys table)
-    2. user_id -> vault_key_id (via Directus users API)
-
-    Args:
-        directus_service: DirectusService instance
-        hashed_user_id: SHA256 hash of the user_id
-
-    Returns:
-        vault_key_id string or None if not resolvable
-    """
-    try:
-        # Step 1: hashed_user_id -> user_id
-        user_id = await directus_service.get_user_id_from_hashed_user_id(hashed_user_id)
-        if not user_id:
-            script_logger.debug("Could not resolve hashed_user_id to user_id")
-            return None
-
-        # Step 2: user_id -> vault_key_id
-        user_data = await directus_service.get_user_fields_direct(user_id, ["vault_key_id"])
-        if user_data:
-            return user_data.get("vault_key_id")
-        return None
-    except Exception as e:
-        script_logger.debug(f"Error resolving vault_key_id: {e}")
-        return None
-
-
-async def decrypt_and_decode_toon(
-    encryption_service: EncryptionService,
-    encrypted_content: str,
-    vault_key_id: str
-) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
-    """
-    Decrypt Vault-encrypted content and TOON-decode it.
-
-    Args:
-        encryption_service: EncryptionService instance
-        encrypted_content: The Vault-encrypted ciphertext
-        vault_key_id: The user's Vault transit key ID
-
-    Returns:
-        Tuple of (decoded_dict, error_message). On success error_message is None.
-    """
-    try:
-        plaintext = await encryption_service.decrypt_with_user_key(encrypted_content, vault_key_id)
-        if not plaintext:
-            return None, "Decryption returned None (key mismatch or empty content)"
-    except Exception as e:
-        return None, f"Decryption failed: {e}"
-
-    try:
-        from toon_format import decode
-        decoded = decode(plaintext)
-        if isinstance(decoded, dict):
-            return decoded, None
-        return None, f"TOON decoded to {type(decoded).__name__}, expected dict"
-    except Exception as e:
-        # Might be JSON instead of TOON (legacy embeds)
-        try:
-            decoded = json.loads(plaintext)
-            if isinstance(decoded, dict):
-                return decoded, None
-            return None, f"JSON decoded to {type(decoded).__name__}, expected dict"
-        except Exception:
-            return None, f"TOON decode failed: {e}"
 
 
 async def check_embed_cache(
@@ -650,7 +534,7 @@ def format_toon_field_inventory(decoded: Dict[str, Any]) -> List[str]:
             if isinstance(files, dict):
                 lines.append(f"    {'files':25} = dict({len(files)} formats: {', '.join(files.keys())})")
             else:
-                lines.append(f"    {'files':25} = {_describe_toon_value(files)}")
+                lines.append(f"    {'files':25} = {describe_toon_value(files)}")
             shown_keys.add('files')
         for f in s3_fields:
             shown_keys.add(f)
@@ -665,7 +549,7 @@ def format_toon_field_inventory(decoded: Dict[str, Any]) -> List[str]:
             if count >= MAX_TOON_FIELD_INVENTORY_ITEMS:
                 lines.append(f"    ... and {len(remaining) - count} more fields")
                 break
-            lines.append(f"    {field:25} : {_describe_toon_value(value)}")
+            lines.append(f"    {field:25} : {describe_toon_value(value)}")
             count += 1
 
     if anomalies:
@@ -722,6 +606,34 @@ def format_output_text(
         lines.append("🔓 CLIENT-SIDE DECRYPTION: Active (share key provided)")
     if share_key_error:
         lines.append(f"❌ SHARE KEY ERROR: {share_key_error}")
+    lines.append("=" * 100)
+
+    # ===================== HEALTH CHECK SUMMARY =====================
+    health_summary = build_embed_health_summary(
+        embed=embed,
+        embed_keys=embed_keys,
+        child_embeds=child_embeds,
+        decrypt_error=decrypt_error,
+        cache_info=cache_info,
+        linkage=linkage,
+        share_key_error=share_key_error,
+    )
+    lines.append("🟢 HEALTH CHECK: HEALTHY" if health_summary['is_healthy'] else "🔴 HEALTH CHECK: ISSUES DETECTED")
+    lines.append(
+        f"   embed_keys={health_summary['counts']['embed_keys']} "
+        f"child_embeds={health_summary['counts']['child_embeds']}"
+    )
+    if health_summary['issues']:
+        lines.append("   Issues:")
+        for issue in health_summary['issues'][:MAX_HEALTH_ISSUES_TO_SHOW]:
+            lines.append(f"    - {issue}")
+        remaining_issues = len(health_summary['issues']) - MAX_HEALTH_ISSUES_TO_SHOW
+        if remaining_issues > 0:
+            lines.append(f"    - ... and {remaining_issues} more issue(s)")
+    if health_summary['warnings']:
+        lines.append("   Warnings:")
+        for warning in health_summary['warnings'][:MAX_HEALTH_ISSUES_TO_SHOW]:
+            lines.append(f"    - {warning}")
     lines.append("=" * 100)
 
     # ===================== EMBED DATA =====================
@@ -1017,6 +929,15 @@ def format_output_json(
         'embed_id': embed_id,
         'generated_at': datetime.now().isoformat(),
         'embed': embed,
+        'health_check': build_embed_health_summary(
+            embed=embed,
+            embed_keys=embed_keys,
+            child_embeds=child_embeds,
+            decrypt_error=decrypt_error,
+            cache_info=cache_info,
+            linkage=linkage,
+            share_key_error=share_key_error,
+        ),
         'embed_keys': {
             'count': len(embed_keys),
             'items': embed_keys
@@ -1037,7 +958,7 @@ def format_output_json(
         }
         if decrypted_content:
             decrypted_info['field_inventory'] = {
-                k: _describe_toon_value(v) for k, v in decrypted_content.items()
+                k: describe_toon_value(v) for k, v in decrypted_content.items()
             }
             meta_keys = ['app_id', 'skill_id', 'status', 'type', 'query', 'provider',
                          'result_count', 'language', 'filename', 'title']
@@ -1052,7 +973,7 @@ def format_output_json(
         for cd in child_decoded:
             if cd:
                 decoded_list.append({
-                    'field_inventory': {k: _describe_toon_value(v) for k, v in cd.items()},
+                    'field_inventory': {k: describe_toon_value(v) for k, v in cd.items()},
                     'key_metadata': {
                         k: cd[k] for k in ['type', 'title', 'name', 'url']
                         if k in cd

@@ -27,35 +27,43 @@ Options:
 import asyncio
 import argparse
 import json
-import logging
 import time
 from datetime import datetime, timezone
 from typing import Optional
 
 import aiohttp
 
-# Configure logging - suppress everything except our output
-logging.basicConfig(level=logging.WARNING)
-logger = logging.getLogger("inspect_frontend_logs")
-logger.setLevel(logging.INFO)
+# Shared inspection utilities — replaces duplicated helpers
+from debug_utils import (
+    configure_script_logging,
+    C_RESET,
+    C_BOLD,
+    C_DIM,
+    C_RED,
+    C_YELLOW,
+    C_GREEN,
+    C_GRAY,
+)
+
+logger = configure_script_logging('inspect_frontend_logs', extra_suppress=['aiohttp'])
 
 LOKI_URL = "http://loki:3100"
 
-# ANSI color codes for terminal output
+# Map log level names to ANSI colour codes for terminal output.
 COLORS = {
-    "error": "\033[91m",   # Red
-    "warn": "\033[93m",    # Yellow
-    "info": "\033[92m",    # Green
-    "debug": "\033[90m",   # Gray
-    "reset": "\033[0m",
-    "bold": "\033[1m",
-    "dim": "\033[2m",
+    "error": C_RED,
+    "warn": C_YELLOW,
+    "info": C_GREEN,
+    "debug": C_GRAY,
+    "reset": C_RESET,
+    "bold": C_BOLD,
+    "dim": C_DIM,
 }
 
 
 def colorize(text: str, color: str) -> str:
-    """Wrap text in ANSI color codes."""
-    return f"{COLORS.get(color, '')}{text}{COLORS['reset']}"
+    """Wrap text in ANSI color codes (uses the COLORS dict for level names)."""
+    return f"{COLORS.get(color, '')}{text}{C_RESET}"
 
 
 def format_ns_timestamp(ns_str: str) -> str:

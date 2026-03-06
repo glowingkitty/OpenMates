@@ -31,60 +31,27 @@ Usage:
 
 import asyncio
 import argparse
-import logging
 import sys
 import json
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 from collections import defaultdict
 
-# Add the backend directory to the Python path
+# Add the backend directory to the Python path — must happen before backend imports
 sys.path.insert(0, '/app/backend')
 
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 
-# Configure logging - suppress everything except our script output
-logging.basicConfig(
-    level=logging.WARNING,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+# Shared inspection utilities — replaces duplicated helpers
+from debug_utils import (
+    configure_script_logging,
+    format_timestamp,
+    censor_email,
 )
-script_logger = logging.getLogger('inspect_newsletter')
-script_logger.setLevel(logging.INFO)
 
-# Suppress verbose logging from libraries
-logging.getLogger('httpx').setLevel(logging.WARNING)
-logging.getLogger('httpcore').setLevel(logging.WARNING)
-logging.getLogger('backend').setLevel(logging.WARNING)
-
-
-def format_timestamp(ts: Any) -> str:
-    """Format a timestamp string for display."""
-    if not ts:
-        return "N/A"
-    try:
-        if isinstance(ts, str):
-            # Handle various ISO formats
-            ts = ts.replace("Z", "+00:00")
-            dt = datetime.fromisoformat(ts)
-        elif isinstance(ts, datetime):
-            dt = ts
-        else:
-            return str(ts)
-        return dt.strftime("%Y-%m-%d %H:%M:%S UTC")
-    except Exception:
-        return str(ts)
-
-
-def mask_email(email: str) -> str:
-    """Mask an email for privacy-safe logging. Shows first 2 chars + domain."""
-    if not email or "@" not in email:
-        return "***"
-    local, domain = email.split("@", 1)
-    if len(local) <= 2:
-        return f"{local[0]}***@{domain}"
-    return f"{local[:2]}***@{domain}"
+script_logger = configure_script_logging('inspect_newsletter')
 
 
 async def get_confirmed_subscribers(
@@ -283,7 +250,7 @@ async def run_inspection(args: argparse.Namespace) -> None:
             subscriber_list.append({
                 "id": sub.get("id"),
                 "email": email or "[decrypt failed]",
-                "email_masked": mask_email(email) if email else "[decrypt failed]",
+                "email_masked": censor_email(email) if email else "[decrypt failed]",
                 "confirmed_at": format_timestamp(sub.get("confirmed_at")),
                 "subscribed_at": format_timestamp(sub.get("subscribed_at")),
                 "language": sub.get("language", "unknown"),
@@ -382,7 +349,7 @@ def print_formatted(
             print()
             for entry in pending.get("entries", []):
                 email = entry.get("email", "unknown")
-                masked = mask_email(email)
+                masked = censor_email(email)
                 expires = entry.get("expires_in_minutes", "?")
                 created = entry.get("created_at", "unknown")
                 print(f"    {masked:30s}  lang={entry.get('language', '?'):5s}  expires in {expires} min  (requested: {created})")

@@ -48,15 +48,12 @@ Options:
 import asyncio
 import argparse
 import hashlib
-import logging
-import sys
 import json
+import sys
 from datetime import datetime
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional
 
-import httpx
-
-# Add the backend directory to the Python path
+# Add the backend directory to the Python path — must happen before backend imports
 sys.path.insert(0, '/app/backend')
 
 from backend.core.api.app.services.directus.directus import DirectusService
@@ -70,65 +67,27 @@ from share_key_crypto import (
     decrypt_client_aes_content,
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.WARNING,  # Only show warnings and errors from libraries
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+# Shared inspection utilities — replaces duplicated helpers
+from debug_utils import (
+    configure_script_logging,
+    format_timestamp,
+    truncate_string,
+    collect_timestamp_issues,
+    get_api_key_from_vault,
+    make_prod_api_request,
+    resolve_vault_key_id,
+    decrypt_and_decode_toon,
+    describe_toon_value,
+    PROD_API_URL,
+    DEV_API_URL,
 )
 
-# Set our script logger to INFO level
-script_logger = logging.getLogger('inspect_chat')
-script_logger.setLevel(logging.INFO)
+script_logger = configure_script_logging('inspect_chat')
 
-# Suppress verbose logging from httpx and other libraries
-logging.getLogger('httpx').setLevel(logging.WARNING)
-logging.getLogger('httpcore').setLevel(logging.WARNING)
-logging.getLogger('backend').setLevel(logging.WARNING)
-
-# --- Constants ---
+# --- Constants (script-specific) ---
 MAX_EMBED_SUMMARY_QUERY_LEN = 50
 MAX_EMBED_SUMMARY_DISPLAY = 5
-
-# Production Admin Debug API URLs — same as admin_debug_cli.py
-# See docs/architecture/admin-debug-api.md for endpoint details
-PROD_API_URL = "https://api.openmates.org/v1/admin/debug"
-DEV_API_URL = "https://api.dev.openmates.org/v1/admin/debug"
-
-# HTTP timeout for production API requests (seconds)
-PROD_API_TIMEOUT_SECONDS = 60.0
-
-
-async def get_api_key_from_vault() -> str:
-    """Get the admin API key from Vault for production API authentication.
-    
-    The SECRET__ADMIN__DEBUG_CLI__API_KEY env var is imported by vault-setup
-    into kv/data/providers/admin with key "debug_cli__api_key".
-    
-    Returns:
-        The admin API key string.
-    
-    Raises:
-        SystemExit: If the key is not found in Vault.
-    """
-    from backend.core.api.app.utils.secrets_manager import SecretsManager
-    
-    secrets_manager = SecretsManager()
-    await secrets_manager.initialize()
-    
-    try:
-        api_key = await secrets_manager.get_secret("kv/data/providers/admin", "debug_cli__api_key")
-        if not api_key:
-            print("Error: Admin API key not found in Vault at kv/data/providers/admin", file=sys.stderr)
-            print("  key: debug_cli__api_key", file=sys.stderr)
-            print("", file=sys.stderr)
-            print("To set up the admin API key:", file=sys.stderr)
-            print("1. Generate an API key for an admin user in the OpenMates app", file=sys.stderr)
-            print("2. Add to your environment: SECRET__ADMIN__DEBUG_CLI__API_KEY=sk-api-xxxxx", file=sys.stderr)
-            print("3. Restart the vault-setup container to import the secret", file=sys.stderr)
-            sys.exit(1)
-        return api_key
-    finally:
-        await secrets_manager.aclose()
+MAX_HEALTH_ISSUES_TO_SHOW = 10
 
 
 async def fetch_chat_from_production_api(
@@ -159,46 +118,24 @@ async def fetch_chat_from_production_api(
     """
     api_key = await get_api_key_from_vault()
     base_url = DEV_API_URL if use_dev else PROD_API_URL
-    url = f"{base_url}/inspect/chat/{chat_id}"
-    headers = {"Authorization": f"Bearer {api_key}"}
-    params = {
-        "messages_limit": messages_limit,
-        "embeds_limit": embeds_limit,
-        "usage_limit": usage_limit,
-        "include_cache": True,
-    }
     
-    script_logger.info(f"Fetching chat from {'dev' if use_dev else 'production'} API: {url}")
+    script_logger.info(
+        f"Fetching chat from {'dev' if use_dev else 'production'} API: "
+        f"{base_url}/inspect/chat/{chat_id}"
+    )
     
-    try:
-        async with httpx.AsyncClient(timeout=PROD_API_TIMEOUT_SECONDS) as client:
-            response = await client.get(url, headers=headers, params=params)
-            
-            if response.status_code == 401:
-                print("Error: Invalid or expired API key", file=sys.stderr)
-                sys.exit(1)
-            elif response.status_code == 403:
-                print("Error: Admin privileges required", file=sys.stderr)
-                sys.exit(1)
-            elif response.status_code == 404:
-                print(f"Error: Chat not found on {'dev' if use_dev else 'production'}: {chat_id}", file=sys.stderr)
-                sys.exit(1)
-            elif response.status_code != 200:
-                print(f"Error: API returned status {response.status_code}", file=sys.stderr)
-                try:
-                    print(response.json(), file=sys.stderr)
-                except Exception:
-                    print(response.text, file=sys.stderr)
-                sys.exit(1)
-            
-            return response.json()
-    
-    except httpx.ConnectError:
-        print(f"Error: Could not connect to {base_url}", file=sys.stderr)
-        sys.exit(1)
-    except httpx.TimeoutException:
-        print(f"Error: Request timed out ({PROD_API_TIMEOUT_SECONDS}s)", file=sys.stderr)
-        sys.exit(1)
+    return await make_prod_api_request(
+        f"inspect/chat/{chat_id}",
+        api_key,
+        base_url,
+        params={
+            "messages_limit": messages_limit,
+            "embeds_limit": embeds_limit,
+            "usage_limit": usage_limit,
+            "include_cache": True,
+        },
+        entity_label=f"Chat {chat_id}",
+    )
 
 
 def map_production_chat_response(api_response: Dict[str, Any]) -> Dict[str, Any]:
@@ -275,45 +212,132 @@ def map_production_chat_response(api_response: Dict[str, Any]) -> Dict[str, Any]
     }
 
 
-def format_timestamp(ts: Optional[int]) -> str:
-    """
-    Format a Unix timestamp to human-readable string.
-    
-    Args:
-        ts: Unix timestamp in seconds or None
-        
-    Returns:
-        Formatted datetime string or "N/A" if timestamp is None/invalid
-    """
-    if not ts:
-        return "N/A"
-    try:
-        if isinstance(ts, int):
-            dt = datetime.fromtimestamp(ts)
-        else:
-            # Try parsing as ISO format string
-            dt = datetime.fromisoformat(str(ts).replace('Z', '+00:00'))
-        return dt.strftime("%Y-%m-%d %H:%M:%S")
-    except Exception:
-        return str(ts)
+def build_version_consistency_check(
+    chat_metadata: Optional[Dict[str, Any]],
+    messages: List[Dict[str, Any]],
+    cache_info: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Build version mismatch details for health + report sections."""
+    actual_message_count = len(messages)
+    directus_messages_v = chat_metadata.get('messages_v') if chat_metadata else None
+    cache_messages_v = None
+
+    if cache_info.get('chat_versions'):
+        try:
+            cache_messages_v = int(cache_info['chat_versions'].get('messages_v', 0))
+        except (ValueError, TypeError):
+            cache_messages_v = None
+
+    issues: List[str] = []
+
+    if directus_messages_v is not None and directus_messages_v != actual_message_count:
+        issues.append(
+            f"Directus messages_v ({directus_messages_v}) != actual message count ({actual_message_count})"
+        )
+
+    if cache_messages_v is not None and cache_messages_v != actual_message_count:
+        issues.append(
+            f"Cache messages_v ({cache_messages_v}) != actual message count ({actual_message_count})"
+        )
+
+    if directus_messages_v is not None and cache_messages_v is not None:
+        if directus_messages_v != cache_messages_v:
+            issues.append(
+                f"Directus messages_v ({directus_messages_v}) != cache messages_v ({cache_messages_v})"
+            )
+
+    return {
+        'actual_message_count': actual_message_count,
+        'directus_messages_v': directus_messages_v,
+        'cache_messages_v': cache_messages_v,
+        'issues': issues,
+        'is_consistent': len(issues) == 0,
+    }
 
 
-def truncate_string(s: str, max_len: int = 50) -> str:
-    """
-    Truncate a string to max_len characters, adding ellipsis if truncated.
-    
-    Args:
-        s: String to truncate
-        max_len: Maximum length (default: 50)
-        
-    Returns:
-        Truncated string with ellipsis if needed
-    """
-    if not s:
-        return "N/A"
-    if len(s) <= max_len:
-        return s
-    return s[:max_len - 3] + "..."
+def build_chat_health_summary(
+    chat_metadata: Optional[Dict[str, Any]],
+    messages: List[Dict[str, Any]],
+    embeds: List[Dict[str, Any]],
+    usage_entries: List[Dict[str, Any]],
+    cache_info: Dict[str, Any],
+    encryption_health: Optional[Dict[str, Any]],
+    share_key_error: Optional[str],
+) -> Dict[str, Any]:
+    """Build top-level health summary for chat inspection output."""
+    issues: List[str] = []
+    warnings: List[str] = []
+
+    version_check = build_version_consistency_check(chat_metadata, messages, cache_info)
+    issues.extend(version_check['issues'])
+
+    if not chat_metadata:
+        issues.append("Chat metadata is missing in Directus")
+    else:
+        collect_timestamp_issues('chat.created_at', chat_metadata.get('created_at'), issues)
+        collect_timestamp_issues('chat.updated_at', chat_metadata.get('updated_at'), issues)
+        collect_timestamp_issues(
+            'chat.last_message_timestamp',
+            chat_metadata.get('last_message_timestamp'),
+            issues,
+        )
+        collect_timestamp_issues(
+            'chat.last_edited_overall_timestamp',
+            chat_metadata.get('last_edited_overall_timestamp'),
+            issues,
+        )
+
+    messages_missing_content = 0
+    for msg in messages:
+        collect_timestamp_issues('message.created_at', msg.get('created_at'), issues)
+        role = msg.get('role')
+        if role in {'assistant', 'user'} and not msg.get('encrypted_content'):
+            messages_missing_content += 1
+
+    if messages_missing_content > 0:
+        issues.append(f"{messages_missing_content} user/assistant message(s) missing encrypted_content")
+
+    embeds_in_error = 0
+    finished_missing_content = 0
+    for embed in embeds:
+        collect_timestamp_issues('embed.created_at', embed.get('created_at'), issues)
+        collect_timestamp_issues('embed.updated_at', embed.get('updated_at'), issues)
+        status = str(embed.get('status', '')).lower()
+        if status == 'error':
+            embeds_in_error += 1
+        if status == 'finished' and not embed.get('encrypted_content'):
+            finished_missing_content += 1
+
+    if embeds_in_error > 0:
+        warnings.append(f"{embeds_in_error} embed(s) currently in error status")
+    if finished_missing_content > 0:
+        issues.append(f"{finished_missing_content} finished embed(s) missing encrypted_content")
+
+    for usage in usage_entries:
+        collect_timestamp_issues('usage.created_at', usage.get('created_at'), issues)
+
+    if cache_info.get('error'):
+        warnings.append(f"cache check failed: {cache_info.get('error')}")
+
+    if share_key_error:
+        issues.append(f"share key error: {share_key_error}")
+
+    if encryption_health:
+        for anomaly in encryption_health.get('anomalies', []):
+            issues.append(f"encryption anomaly: {anomaly}")
+
+    return {
+        'status': 'healthy' if not issues else 'issues_detected',
+        'is_healthy': len(issues) == 0,
+        'issues': issues,
+        'warnings': warnings,
+        'version_check': version_check,
+        'counts': {
+            'messages': len(messages),
+            'embeds': len(embeds),
+            'usage_entries': len(usage_entries),
+        },
+    }
 
 
 async def get_chat_metadata(directus_service: DirectusService, chat_id: str) -> Optional[Dict[str, Any]]:
@@ -519,107 +543,6 @@ async def get_chat_usage_entries(directus_service: DirectusService, chat_id: str
     except Exception as e:
         script_logger.error(f"Error fetching usage entries: {e}")
         return []
-
-
-async def resolve_vault_key_id(
-    directus_service: DirectusService,
-    hashed_user_id: str
-) -> Optional[str]:
-    """
-    Resolve a hashed_user_id to a vault_key_id via user_passkeys lookup.
-
-    Two-step process:
-    1. hashed_user_id -> user_id (via user_passkeys table)
-    2. user_id -> vault_key_id (via Directus users API)
-
-    Args:
-        directus_service: DirectusService instance
-        hashed_user_id: SHA256 hash of the user_id
-
-    Returns:
-        vault_key_id string or None if not resolvable
-    """
-    try:
-        user_id = await directus_service.get_user_id_from_hashed_user_id(hashed_user_id)
-        if not user_id:
-            script_logger.debug("Could not resolve hashed_user_id to user_id")
-            return None
-
-        user_data = await directus_service.get_user_fields_direct(user_id, ["vault_key_id"])
-        if user_data:
-            return user_data.get("vault_key_id")
-        return None
-    except Exception as e:
-        script_logger.debug(f"Error resolving vault_key_id: {e}")
-        return None
-
-
-async def decrypt_and_decode_toon(
-    encryption_service: EncryptionService,
-    encrypted_content: str,
-    vault_key_id: str
-) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
-    """
-    Decrypt Vault-encrypted content and TOON-decode it.
-
-    Args:
-        encryption_service: EncryptionService instance
-        encrypted_content: The Vault-encrypted ciphertext
-        vault_key_id: The user's Vault transit key ID
-
-    Returns:
-        Tuple of (decoded_dict, error_message). On success error_message is None.
-    """
-    try:
-        plaintext = await encryption_service.decrypt_with_user_key(encrypted_content, vault_key_id)
-        if not plaintext:
-            return None, "Decryption returned None"
-    except Exception as e:
-        return None, f"Decryption failed: {e}"
-
-    try:
-        from toon_format import decode
-        decoded = decode(plaintext)
-        if isinstance(decoded, dict):
-            return decoded, None
-        return None, f"TOON decoded to {type(decoded).__name__}, expected dict"
-    except Exception as e:
-        # Might be JSON instead of TOON (legacy embeds)
-        try:
-            decoded = json.loads(plaintext)
-            if isinstance(decoded, dict):
-                return decoded, None
-            return None, f"JSON decoded to {type(decoded).__name__}, expected dict"
-        except Exception:
-            return None, f"TOON decode failed: {e}"
-
-
-def _describe_toon_value(value: Any) -> str:
-    """
-    Produce a type+size description for a single TOON field value.
-    Does NOT expose actual content — only structural info.
-
-    Args:
-        value: The decoded TOON field value
-
-    Returns:
-        String like "str(142)", "list(5)", "dict(3 keys)", "int", "bool", "null"
-    """
-    if value is None:
-        return "null"
-    if isinstance(value, bool):
-        return f"bool({value})"
-    if isinstance(value, int):
-        return f"int({value})"
-    if isinstance(value, float):
-        return f"float({value})"
-    if isinstance(value, str):
-        return f"str({len(value)})"
-    if isinstance(value, list):
-        return f"list({len(value)})"
-    if isinstance(value, dict):
-        return f"dict({len(value)} keys)"
-    return f"{type(value).__name__}"
 
 
 def build_embed_summary_line(
@@ -1032,44 +955,48 @@ def format_output_text(
     if share_key_error:
         lines.append(f"❌ SHARE KEY ERROR: {share_key_error}")
     lines.append("=" * 100)
+
+    # ===================== HEALTH CHECK SUMMARY =====================
+    health_summary = build_chat_health_summary(
+        chat_metadata=chat_metadata,
+        messages=messages,
+        embeds=embeds,
+        usage_entries=usage_entries,
+        cache_info=cache_info,
+        encryption_health=encryption_health,
+        share_key_error=share_key_error,
+    )
+
+    version_check = health_summary['version_check']
+    status_line = "🟢 HEALTH CHECK: HEALTHY" if health_summary['is_healthy'] else "🔴 HEALTH CHECK: ISSUES DETECTED"
+    lines.append(status_line)
+    lines.append(
+        f"   messages={health_summary['counts']['messages']} embeds={health_summary['counts']['embeds']} "
+        f"usage={health_summary['counts']['usage_entries']}"
+    )
+
+    if health_summary['issues']:
+        lines.append("   Issues:")
+        for issue in health_summary['issues'][:MAX_HEALTH_ISSUES_TO_SHOW]:
+            lines.append(f"    - {issue}")
+        remaining_issues = len(health_summary['issues']) - MAX_HEALTH_ISSUES_TO_SHOW
+        if remaining_issues > 0:
+            lines.append(f"    - ... and {remaining_issues} more issue(s)")
+
+    if health_summary['warnings']:
+        lines.append("   Warnings:")
+        for warning in health_summary['warnings'][:MAX_HEALTH_ISSUES_TO_SHOW]:
+            lines.append(f"    - {warning}")
+    lines.append("=" * 100)
     
     # ===================== VERSION CONSISTENCY CHECK =====================
     # Check for version mismatches between message count, Directus, and cache
-    actual_message_count = len(messages)
-    directus_messages_v = chat_metadata.get('messages_v') if chat_metadata else None
-    cache_messages_v = None
-    if cache_info.get('chat_versions'):
-        try:
-            cache_messages_v = int(cache_info['chat_versions'].get('messages_v', 0))
-        except (ValueError, TypeError):
-            cache_messages_v = None
-    
-    has_version_issues = False
-    version_issues = []
-    
-    # Check: Directus messages_v should equal actual message count
-    if directus_messages_v is not None and directus_messages_v != actual_message_count:
-        has_version_issues = True
-        version_issues.append(
-            f"Directus messages_v ({directus_messages_v}) ≠ actual message count ({actual_message_count})"
-        )
-    
-    # Check: Cache messages_v should equal actual message count (if cached)
-    if cache_messages_v is not None and cache_messages_v != actual_message_count:
-        has_version_issues = True
-        version_issues.append(
-            f"Cache messages_v ({cache_messages_v}) ≠ actual message count ({actual_message_count})"
-        )
-    
-    # Check: Directus and Cache should match (if both exist)
-    if directus_messages_v is not None and cache_messages_v is not None:
-        if directus_messages_v != cache_messages_v:
-            has_version_issues = True
-            version_issues.append(
-                f"Directus messages_v ({directus_messages_v}) ≠ Cache messages_v ({cache_messages_v})"
-            )
-    
-    if has_version_issues:
+    actual_message_count = version_check['actual_message_count']
+    directus_messages_v = version_check['directus_messages_v']
+    cache_messages_v = version_check['cache_messages_v']
+    version_issues = version_check['issues']
+
+    if version_issues:
         lines.append("")
         lines.append("🚨" + "=" * 96 + "🚨")
         lines.append("🚨  VERSION CONSISTENCY ISSUES DETECTED!")
@@ -1580,6 +1507,16 @@ def format_output_json(
     Returns:
         JSON string
     """
+    health_summary = build_chat_health_summary(
+        chat_metadata=chat_metadata,
+        messages=messages,
+        embeds=embeds,
+        usage_entries=usage_entries,
+        cache_info=cache_info,
+        encryption_health=encryption_health,
+        share_key_error=share_key_error,
+    )
+
     # Calculate embed key stats
     total_chat_keys = sum(k.get('chat', 0) for k in embed_keys_by_embed.values())
     total_master_keys = sum(k.get('master', 0) for k in embed_keys_by_embed.values())
@@ -1606,7 +1543,8 @@ def format_output_json(
             'count': len(usage_entries),
             'items': usage_entries
         },
-        'cache': cache_info
+        'cache': cache_info,
+        'health_check': health_summary,
     }
     
     # Add decoded embed summaries if available (improvement B)
@@ -1615,7 +1553,7 @@ def format_output_json(
         for embed_id, decoded in decoded_embeds.items():
             if decoded:
                 embed_summaries[embed_id] = {
-                    'field_inventory': {k: _describe_toon_value(v) for k, v in decoded.items()},
+                    'field_inventory': {k: describe_toon_value(v) for k, v in decoded.items()},
                     'key_metadata': {
                         k: decoded[k] for k in ['app_id', 'skill_id', 'status', 'type',
                                                   'query', 'provider', 'result_count']
@@ -2095,4 +2033,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-

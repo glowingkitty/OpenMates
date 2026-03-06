@@ -39,8 +39,6 @@ Usage:
 
 import asyncio
 import argparse
-import hashlib
-import base64
 import json
 import logging
 import re
@@ -52,7 +50,7 @@ from typing import Dict, Any, List, Optional, Tuple
 
 import aiohttp
 
-# Add the backend directory to the Python path
+# Add the backend directory to the Python path — must happen before backend imports
 sys.path.insert(0, '/app/backend')
 sys.path.insert(0, '/app')
 
@@ -61,14 +59,27 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
-# Configure logging — suppress everything except our output
-logging.basicConfig(level=logging.WARNING, format='%(message)s')
-script_logger = logging.getLogger('inspect_user_logs')
-script_logger.setLevel(logging.INFO)
-logging.getLogger('httpx').setLevel(logging.WARNING)
-logging.getLogger('httpcore').setLevel(logging.WARNING)
-logging.getLogger('backend').setLevel(logging.WARNING)
-logging.getLogger('aiohttp').setLevel(logging.WARNING)
+# Shared inspection utilities — replaces duplicated helpers
+from debug_utils import (
+    configure_script_logging,
+    hash_email_sha256,
+    hash_user_id,
+    get_api_key_from_vault,
+    C_RESET,
+    C_BOLD,
+    C_DIM,
+    C_RED,
+    C_YELLOW,
+    C_GREEN,
+    C_CYAN,
+    C_BLUE,
+    C_MAGENTA,
+    C_GRAY,
+)
+
+script_logger = configure_script_logging(
+    'inspect_user_logs', fmt='%(message)s', extra_suppress=['aiohttp']
+)
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -80,17 +91,6 @@ FOLLOW_POLL_INTERVAL_SECONDS = 5
 UPLOAD_SERVER_LOG_URL = "https://upload.openmates.org/admin/logs"
 PREVIEW_SERVER_LOG_URL = "https://preview.openmates.org/admin/logs"
 
-# ANSI colour codes
-C_RESET = "\033[0m"
-C_BOLD = "\033[1m"
-C_DIM = "\033[2m"
-C_RED = "\033[91m"
-C_YELLOW = "\033[93m"
-C_GREEN = "\033[92m"
-C_CYAN = "\033[96m"
-C_BLUE = "\033[94m"
-C_MAGENTA = "\033[95m"
-C_GRAY = "\033[90m"
 
 # Category → colour mapping
 CATEGORY_COLORS = {
@@ -186,16 +186,6 @@ class LogEvent:
 
 
 # ─── User resolution ─────────────────────────────────────────────────────────
-
-def hash_email_sha256(email: str) -> str:
-    """Hash email using SHA-256 (base64) for Directus lookup."""
-    return base64.b64encode(hashlib.sha256(email.strip().lower().encode()).digest()).decode()
-
-
-def hash_user_id(user_id: str) -> str:
-    """Hash user ID using SHA-256 (hex) for related item lookup."""
-    return hashlib.sha256(user_id.encode()).hexdigest()
-
 
 async def resolve_user(email: str) -> Optional[Dict[str, Any]]:
     """Resolve email → user_id, chat_ids, is_admin, etc."""
@@ -811,18 +801,7 @@ PROD_LOG_SERVICES = ["api", "task-worker", "task-scheduler", "app-ai", "app-ai-w
                      "app-web", "app-web-worker", "app-events"]
 
 
-async def _get_prod_api_key() -> str:
-    """Retrieve the admin API key from Vault for --prod queries."""
-    sm = SecretsManager()
-    await sm.initialize()
-    try:
-        api_key = await sm.get_secret("kv/data/providers/admin", "debug_cli__api_key")
-        if not api_key:
-            print(f"{C_RED}Admin API key not found in Vault. See admin_debug_cli.py for setup.{C_RESET}", file=sys.stderr)
-            sys.exit(1)
-        return api_key
-    finally:
-        await sm.aclose()
+
 
 
 async def _prod_api_request(
@@ -915,7 +894,7 @@ async def run_prod_mode(
       3. Query /logs with search=<user_id> for each service group
       4. Parse, filter, and display the timeline
     """
-    api_key = await _get_prod_api_key()
+    api_key = await get_api_key_from_vault()
 
     # Step 1: Resolve user via Admin Debug API
     print(f"{C_DIM}Resolving user via Admin Debug API...{C_RESET}", end="", flush=True)

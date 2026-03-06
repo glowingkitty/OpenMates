@@ -37,9 +37,7 @@ Options:
 
 import asyncio
 import argparse
-import hashlib
 import json
-import logging
 import sys
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -51,17 +49,15 @@ from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 
-# ── Logging configuration ────────────────────────────────────────────────────
-# Only show warnings and errors from third-party libraries; our script logs at INFO.
-logging.basicConfig(
-    level=logging.WARNING,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+# Shared inspection utilities — replaces duplicated helpers
+from debug_utils import (
+    configure_script_logging,
+    format_timestamp as _fmt_ts_full,
+    truncate_string,
+    hash_user_id as _hash_user_id,
 )
-script_logger = logging.getLogger('inspect_daily_inspiration')
-script_logger.setLevel(logging.INFO)
 
-for noisy_logger in ('httpx', 'httpcore', 'backend'):
-    logging.getLogger(noisy_logger).setLevel(logging.WARNING)
+script_logger = configure_script_logging('inspect_daily_inspiration')
 
 # ── Cache key constants (must match cache_inspiration_mixin.py) ──────────────
 # These are duplicated here so the script remains self-contained and runnable
@@ -78,28 +74,7 @@ _DIRECTUS_COLLECTION = "user_daily_inspirations"
 
 # ── Utility helpers ──────────────────────────────────────────────────────────
 
-def _hash_user_id(user_id: str) -> str:
-    """SHA-256 hash of a user ID (matches user_daily_inspiration_methods.py)."""
-    return hashlib.sha256(user_id.encode("utf-8")).hexdigest()
 
-
-def _fmt_ts(ts: Optional[int]) -> str:
-    """Format a Unix timestamp as a human-readable string, or return 'N/A'."""
-    if not ts:
-        return "N/A"
-    try:
-        return datetime.fromtimestamp(int(ts)).strftime("%Y-%m-%d %H:%M:%S")
-    except Exception:
-        return str(ts)
-
-
-def _trunc(s: Optional[str], max_len: int = 50) -> str:
-    """Truncate a string to max_len characters, appending '...' if shortened."""
-    if not s:
-        return "N/A"
-    if len(s) <= max_len:
-        return s
-    return s[:max_len - 3] + "..."
 
 
 # ── Cache layer fetchers ─────────────────────────────────────────────────────
@@ -201,7 +176,7 @@ async def list_active_users(cache_service: CacheService) -> List[Dict[str, Any]]
             "full_key": key,
             "language": data.get("language", "?"),
             "last_paid_ts": ts,
-            "last_paid_at": _fmt_ts(ts),
+            "last_paid_at": _fmt_ts_full(ts),
             "ttl_seconds": ttl,
         })
 
@@ -328,11 +303,11 @@ def _format_text(
                 paid_data = json.loads(paid_raw)
                 ts = paid_data.get("last_paid_request_timestamp")
                 lang = paid_data.get("language", "?")
-                lines.append(f"  Last paid request:  {_fmt_ts(ts)}  (ts={ts})")
+                lines.append(f"  Last paid request:  {_fmt_ts_full(ts)}  (ts={ts})")
                 lines.append(f"  Language:           {lang}")
                 lines.append(f"  TTL:                {_ttl_str('paid_request')}")
             except Exception:
-                lines.append(f"  [Raw, failed to parse] {_trunc(paid_raw, 80)}")
+                lines.append(f"  [Raw, failed to parse] {truncate_string(paid_raw, 80)}")
 
         # ── 1b. View tracking ──
         lines.append("")
@@ -349,14 +324,14 @@ def _format_text(
                 viewed_ids = view_data.get("viewed_inspiration_ids", [])
                 last_viewed_ts = view_data.get("last_viewed_timestamp")
                 lines.append(f"  Viewed count:       {len(viewed_ids)}  (→ {len(viewed_ids)} new inspiration(s) generated tomorrow)")
-                lines.append(f"  Last viewed:        {_fmt_ts(last_viewed_ts)}")
+                lines.append(f"  Last viewed:        {_fmt_ts_full(last_viewed_ts)}")
                 lines.append(f"  TTL:                {_ttl_str('views')}")
                 if viewed_ids:
                     lines.append("  Viewed IDs:")
                     for vid in viewed_ids:
                         lines.append(f"    - {vid}")
             except Exception:
-                lines.append(f"  [Raw, failed to parse] {_trunc(views_raw, 80)}")
+                lines.append(f"  [Raw, failed to parse] {truncate_string(views_raw, 80)}")
 
         # ── 1c. Pending delivery cache ──
         lines.append("")
@@ -373,7 +348,7 @@ def _format_text(
                 pending_list = pending_data.get("inspirations", [])
                 generated_at = pending_data.get("generated_at")
                 lines.append(f"  Pending count:      {len(pending_list)}  (waiting for user to log in)")
-                lines.append(f"  Generated at:       {_fmt_ts(generated_at)}")
+                lines.append(f"  Generated at:       {_fmt_ts_full(generated_at)}")
                 lines.append(f"  TTL:                {_ttl_str('pending')}")
                 for i, item in enumerate(pending_list, 1):
                     insp_id = item.get("inspiration_id", "?")
@@ -381,7 +356,7 @@ def _format_text(
                     enc_len = len(item.get("encrypted_data", "")) if item.get("encrypted_data") else 0
                     lines.append(f"  {i}. inspiration_id={insp_id}  key_version={key_ver}  encrypted_data=[{enc_len} chars]")
             except Exception:
-                lines.append(f"  [Raw, failed to parse] {_trunc(pending_raw, 120)}")
+                lines.append(f"  [Raw, failed to parse] {truncate_string(pending_raw, 120)}")
 
         # ── 1d. Topic suggestions ──
         lines.append("")
@@ -412,7 +387,7 @@ def _format_text(
                 if len(all_suggestions) > 10:
                     lines.append(f"    ... and {len(all_suggestions) - 10} more")
             except Exception:
-                lines.append(f"  [Raw, failed to parse] {_trunc(topics_raw, 120)}")
+                lines.append(f"  [Raw, failed to parse] {truncate_string(topics_raw, 120)}")
 
         # ── 1e. First-run flag ──
         lines.append("")
@@ -425,7 +400,7 @@ def _format_text(
             lines.append("  NOT SET  — first-run inspirations have NOT been generated yet (will trigger on next paid request)")
         else:
             lines.append(f"  SET      — first-run inspirations were already generated  (TTL: {_ttl_str('first_run')})")
-            lines.append(f"  Value:   {_trunc(str(first_run_raw), 80)}")
+            lines.append(f"  Value:   {truncate_string(str(first_run_raw), 80)}")
 
     # ─────────────────────────────────────────────────────────────────────────
     # SECTION 2 — Directus records
@@ -465,11 +440,11 @@ def _format_text(
                 }
 
                 lines.append("")
-                lines.append(f"  {i}. {opened_emoji} [{content_type}]  generated={_fmt_ts(generated_at)}")
+                lines.append(f"  {i}. {opened_emoji} [{content_type}]  generated={_fmt_ts_full(generated_at)}")
                 lines.append(f"     daily_inspiration_id: {inspiration_id}")
                 lines.append(f"     embed_id:             {embed_id}")
                 lines.append(f"     is_opened:            {is_opened}   opened_chat_id: {opened_chat}")
-                lines.append(f"     created_at:           {_fmt_ts(created_at)}   updated_at: {_fmt_ts(updated_at)}")
+                lines.append(f"     created_at:           {_fmt_ts_full(created_at)}   updated_at: {_fmt_ts_full(updated_at)}")
                 lines.append("     Encrypted fields:")
                 for field_name, value in enc_fields.items():
                     size = len(value) if value else 0

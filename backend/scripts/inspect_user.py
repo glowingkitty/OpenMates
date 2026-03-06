@@ -15,15 +15,12 @@ Options:
 
 import asyncio
 import argparse
-import hashlib
-import logging
-import sys
 import json
-import base64
+import sys
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
-# Add the backend directory to the Python path
+# Add the backend directory to the Python path — must happen before backend imports
 sys.path.insert(0, '/app/backend')
 
 from backend.core.api.app.services.directus.directus import DirectusService
@@ -31,85 +28,15 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
-# Configure logging
-logging.basicConfig(
-    level=logging.WARNING,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+# Shared inspection utilities — replaces duplicated helpers
+from debug_utils import (
+    configure_script_logging,
+    format_timestamp,
+    hash_email_sha256,
+    hash_user_id,
 )
 
-# Set our script logger to INFO level
-script_logger = logging.getLogger('inspect_user')
-script_logger.setLevel(logging.INFO)
-
-# Suppress verbose logging
-logging.getLogger('httpx').setLevel(logging.WARNING)
-logging.getLogger('httpcore').setLevel(logging.WARNING)
-logging.getLogger('backend').setLevel(logging.WARNING)
-
-
-def format_timestamp(ts: Any, relative: bool = False) -> str:
-    """Format a timestamp to human-readable string (absolute or relative)."""
-    if not ts:
-        return "N/A"
-    try:
-        if isinstance(ts, (int, float, str)):
-            try:
-                if isinstance(ts, str):
-                    # Try parsing as float/int first if it's a string timestamp
-                    ts_val = float(ts)
-                else:
-                    ts_val = ts
-                
-                # Handle potential scale issues (some fields seem to have truncated timestamps)
-                if 1000000 < ts_val < 10000000:
-                    return f"{ts_val} (Raw)"
-                
-                dt = datetime.fromtimestamp(ts_val)
-            except ValueError:
-                # Try parsing as ISO format string
-                dt = datetime.fromisoformat(str(ts).replace('Z', '+00:00'))
-        else:
-            return str(ts)
-
-        if relative:
-            now = datetime.now()
-            diff = now - dt
-            seconds = diff.total_seconds()
-            
-            if seconds < 0:
-                return dt.strftime("%Y-%m-%d %H:%M:%S")
-            if seconds < 60:
-                return "Just now"
-            if seconds < 3600:
-                return f"{int(seconds // 60)} minutes ago"
-            if seconds < 86400:
-                return f"{int(seconds // 3600)} hours ago"
-            # Fall through to absolute for > 24 hours
-            
-        return dt.strftime("%Y-%m-%d %H:%M:%S")
-    except Exception:
-        return str(ts)
-
-
-def truncate_string(s: str, max_len: int = 50) -> str:
-    """Truncate a string to max_len characters."""
-    if not s:
-        return "N/A"
-    if len(s) <= max_len:
-        return s
-    return s[:max_len - 3] + "..."
-
-
-def hash_email_sha256(email: str) -> str:
-    """Hash email address using SHA-256 (base64) for Directus lookup."""
-    email_bytes = email.strip().lower().encode('utf-8')
-    hashed_email_buffer = hashlib.sha256(email_bytes).digest()
-    return base64.b64encode(hashed_email_buffer).decode('utf-8')
-
-
-def hash_user_id(user_id: str) -> str:
-    """Hash user ID using SHA-256 (hex) for related item lookup."""
-    return hashlib.sha256(user_id.encode()).hexdigest()
+script_logger = configure_script_logging('inspect_user')
 
 
 async def decrypt_fields(encryption_service: EncryptionService, data: Dict[str, Any], vault_key_id: str) -> Dict[str, Any]:
