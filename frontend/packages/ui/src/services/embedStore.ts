@@ -833,6 +833,7 @@ export class EmbedStore {
           const decryptedContent = await decryptWithEmbedKey(
             cleanedContent,
             embedKey,
+            { embedId, fieldName: "encrypted_content" },
           );
           if (decryptedContent) {
             embed.content = decryptedContent;
@@ -866,7 +867,7 @@ export class EmbedStore {
             }
           } else {
             console.warn(
-              "[EmbedStore] ❌ Failed to decrypt encrypted_content from separate fields - decryptWithEmbedKey returned null",
+              `[EmbedStore] ❌ Failed to decrypt encrypted_content from separate fields - decryptWithEmbedKey returned null. embed_id=${embedId} field=encrypted_content`,
             );
             embed._decryptionFailed = true;
             embed.status = "error";
@@ -874,8 +875,7 @@ export class EmbedStore {
           }
         } else {
           console.warn(
-            "[EmbedStore] No embed key found for separate fields format:",
-            embedId,
+            `[EmbedStore] No embed key found for separate fields format: embed_id=${embedId}`,
             {
               hashedChatId: entry.hashed_chat_id?.substring(0, 16) + "...",
             },
@@ -885,8 +885,9 @@ export class EmbedStore {
           embed.content = null;
         }
       } catch (error) {
+        const embedId = entry.embed_id || contentRef.replace("embed:", "");
         console.warn(
-          "[EmbedStore] Error decrypting encrypted_content from separate fields:",
+          `[EmbedStore] Error decrypting encrypted_content from separate fields: embed_id=${embedId} field=encrypted_content`,
           error,
         );
         embed._decryptionFailed = true;
@@ -951,6 +952,7 @@ export class EmbedStore {
           const decryptedType = await decryptWithEmbedKey(
             entry.encrypted_type,
             embedKey,
+            { embedId, fieldName: "encrypted_type" },
           );
           if (decryptedType) {
             embed.type = decryptedType;
@@ -958,8 +960,9 @@ export class EmbedStore {
           }
         }
       } catch (error) {
+        const embedId = entry.embed_id || contentRef.replace("embed:", "");
         console.debug(
-          "[EmbedStore] Error decrypting encrypted_type from separate fields:",
+          `[EmbedStore] Error decrypting encrypted_type from separate fields: embed_id=${embedId} field=encrypted_type`,
           error,
         );
       }
@@ -975,14 +978,16 @@ export class EmbedStore {
           const decryptedPreview = await decryptWithEmbedKey(
             entry.encrypted_text_preview,
             embedKey,
+            { embedId, fieldName: "encrypted_text_preview" },
           );
           if (decryptedPreview) {
             embed.text_preview = decryptedPreview;
           }
         }
       } catch (error) {
+        const embedId = entry.embed_id || contentRef.replace("embed:", "");
         console.debug(
-          "[EmbedStore] Error decrypting encrypted_text_preview from separate fields:",
+          `[EmbedStore] Error decrypting encrypted_text_preview from separate fields: embed_id=${embedId} field=encrypted_text_preview`,
           error,
         );
       }
@@ -1190,9 +1195,11 @@ export class EmbedStore {
         typeof parsed.encrypted_content === "string"
       ) {
         // Validate encrypted_content is not empty
+        const embedIdForDecrypt =
+          parsed.embed_id || contentRef.replace("embed:", "");
         if (parsed.encrypted_content.trim().length === 0) {
           console.warn(
-            "[EmbedStore] encrypted_content is empty, cannot decrypt",
+            `[EmbedStore] encrypted_content is empty, cannot decrypt: embed_id=${embedIdForDecrypt} field=encrypted_content`,
           );
           parsed._decryptionFailed = true;
           parsed.status = "error";
@@ -1201,7 +1208,7 @@ export class EmbedStore {
           let decryptionFailed = false;
           try {
             // Get the embed_id to look up embed key
-            const embedId = parsed.embed_id || contentRef.replace("embed:", "");
+            const embedId = embedIdForDecrypt;
 
             // Try to get the unwrapped embed key
             const embedKey = await this.getEmbedKey(
@@ -1221,6 +1228,7 @@ export class EmbedStore {
               const decryptedContent = await decryptWithEmbedKey(
                 parsed.encrypted_content,
                 embedKey,
+                { embedId, fieldName: "encrypted_content" },
               );
               if (decryptedContent) {
                 parsed.content = decryptedContent;
@@ -1230,17 +1238,19 @@ export class EmbedStore {
                 );
               } else {
                 console.warn(
-                  "[EmbedStore] ❌ Failed to decrypt encrypted_content with embed key - decrypt returned null",
+                  `[EmbedStore] ❌ Failed to decrypt encrypted_content with embed key - decrypt returned null: embed_id=${embedId} field=encrypted_content`,
                 );
                 decryptionFailed = true;
               }
             } else {
-              console.warn("[EmbedStore] No embed key found for:", embedId);
+              console.warn(
+                `[EmbedStore] No embed key found for: embed_id=${embedId} field=encrypted_content`,
+              );
               decryptionFailed = true;
             }
           } catch (error) {
             console.warn(
-              "[EmbedStore] Error decrypting encrypted_content field:",
+              `[EmbedStore] Error decrypting encrypted_content field: embed_id=${embedIdForDecrypt} field=encrypted_content`,
               error,
             );
             decryptionFailed = true;
@@ -1254,8 +1264,7 @@ export class EmbedStore {
             // Provide minimal content to prevent crashes in TOON decoder
             parsed.content = null;
             console.warn(
-              "[EmbedStore] Embed decryption failed, setting error status for:",
-              contentRef,
+              `[EmbedStore] Embed decryption failed, setting error status for: embed_id=${embedIdForDecrypt} contentRef=${contentRef}`,
             );
           }
         }
@@ -1267,10 +1276,11 @@ export class EmbedStore {
         parsed.encrypted_type &&
         typeof parsed.encrypted_type === "string"
       ) {
+        const embedIdForType =
+          parsed.embed_id || contentRef.replace("embed:", "");
         try {
-          const embedId = parsed.embed_id || contentRef.replace("embed:", "");
           const embedKey = await this.getEmbedKey(
-            embedId,
+            embedIdForType,
             parsed.hashed_chat_id,
           );
 
@@ -1278,13 +1288,14 @@ export class EmbedStore {
             const decryptedType = await decryptWithEmbedKey(
               parsed.encrypted_type,
               embedKey,
+              { embedId: embedIdForType, fieldName: "encrypted_type" },
             );
             if (decryptedType) {
               parsed.type = decryptedType;
               parsed.embed_type = decryptedType;
               console.debug(
                 "[EmbedStore] Successfully decrypted embed type with embed key:",
-                embedId,
+                embedIdForType,
               );
             }
           }
@@ -1295,7 +1306,7 @@ export class EmbedStore {
           }
         } catch (error) {
           console.warn(
-            "[EmbedStore] Error decrypting encrypted_type field:",
+            `[EmbedStore] Error decrypting encrypted_type field: embed_id=${embedIdForType} field=encrypted_type`,
             error,
           );
           // Set default type to prevent crashes
@@ -1694,6 +1705,7 @@ export class EmbedStore {
           );
           const embedKey = await unwrapEmbedKeyWithMasterKey(
             masterKeyEntry.encrypted_embed_key,
+            normalizedEmbedId,
           );
           if (embedKey) {
             embedKeyCache.set(cacheKey, embedKey);
@@ -1722,7 +1734,10 @@ export class EmbedStore {
             (k) => k.key_type === "chat" && k.hashed_chat_id === hashedChatId,
           );
           if (chatKeyEntry) {
-            const embedKey = await this.unwrapChatKeyEntry(chatKeyEntry);
+            const embedKey = await this.unwrapChatKeyEntry(
+              chatKeyEntry,
+              normalizedEmbedId,
+            );
             if (embedKey) {
               embedKeyCache.set(cacheKey, embedKey);
               console.debug(
@@ -1753,7 +1768,10 @@ export class EmbedStore {
           embedId,
         );
         for (const entry of chatKeyEntries) {
-          const embedKey = await this.unwrapChatKeyEntry(entry);
+          const embedKey = await this.unwrapChatKeyEntry(
+            entry,
+            normalizedEmbedId,
+          );
           if (embedKey) {
             embedKeyCache.set(cacheKey, embedKey);
             console.debug(
@@ -1782,7 +1800,10 @@ export class EmbedStore {
       );
       return null;
     } catch (error) {
-      console.error("[EmbedStore] Error getting embed key:", error);
+      console.error(
+        `[EmbedStore] Error getting embed key: embed_id=${normalizedEmbedId}`,
+        error,
+      );
       return null;
     }
   }
@@ -1790,11 +1811,12 @@ export class EmbedStore {
   /**
    * Helper method to unwrap a chat key entry
    * @param entry - The embed key entry to unwrap
-   * @param hashedChatId - Optional hashed chat ID
+   * @param embedId - Optional embed ID for debug logging
    * @returns Promise<Uint8Array | null> - The unwrapped embed key or null
    */
   private async unwrapChatKeyEntry(
     entry: EmbedKeyEntry,
+    embedId?: string,
   ): Promise<Uint8Array | null> {
     if (!entry.hashed_chat_id) {
       return null;
@@ -1810,6 +1832,7 @@ export class EmbedStore {
             const embedKey = await unwrapEmbedKeyWithChatKey(
               entry.encrypted_embed_key,
               chatKey,
+              { embedId, chatId: chat.chat_id },
             );
             if (embedKey) {
               return embedKey;
@@ -1818,7 +1841,10 @@ export class EmbedStore {
         }
       }
     } catch (error) {
-      console.error("[EmbedStore] Error unwrapping chat key entry:", error);
+      console.error(
+        `[EmbedStore] Error unwrapping chat key entry: embed_id=${embedId ?? "unknown"}`,
+        error,
+      );
     }
 
     return null;

@@ -2062,7 +2062,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 settingsMemoriesSuggestions = [];
                             }
                         } catch (decryptError) {
-                            console.error('[ActiveChat] Failed to decrypt settings/memories suggestions:', decryptError);
+                            console.error(`[ActiveChat] Failed to decrypt settings/memories suggestions: chat_id=${chatId} field=encrypted_settings_memories_suggestions`, decryptError);
                             // Fallback to event data
                             if (newSettingsMemories && Array.isArray(newSettingsMemories) && newSettingsMemories.length > 0) {
                                 settingsMemoriesSuggestions = newSettingsMemories;
@@ -2200,7 +2200,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // Decrypt title
                 if (chat.encrypted_title) {
                     try {
-                        decryptedTitle = await decryptWithChatKey(chat.encrypted_title, chatKey);
+                        decryptedTitle = await decryptWithChatKey(chat.encrypted_title, chatKey, { chatId: chat.chat_id, fieldName: 'encrypted_title' });
                     } catch {
                         // Title decryption failed – fall through to default
                     }
@@ -2208,7 +2208,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // Decrypt category
                 if (chat.encrypted_category) {
                     try {
-                        decryptedCategory = await decryptWithChatKey(chat.encrypted_category, chatKey);
+                        decryptedCategory = await decryptWithChatKey(chat.encrypted_category, chatKey, { chatId: chat.chat_id, fieldName: 'encrypted_category' });
                     } catch {
                         // Category decryption failed – will use fallback
                     }
@@ -2216,7 +2216,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // Decrypt icon
                 if (chat.encrypted_icon) {
                     try {
-                        decryptedIcon = await decryptWithChatKey(chat.encrypted_icon, chatKey);
+                        decryptedIcon = await decryptWithChatKey(chat.encrypted_icon, chatKey, { chatId: chat.chat_id, fieldName: 'encrypted_icon' });
                     } catch {
                         // Icon decryption failed – will use fallback
                     }
@@ -2224,7 +2224,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // Decrypt summary (used in the large gradient card on tall viewports)
                 if (chat.encrypted_chat_summary) {
                     try {
-                        decryptedSummary = await decryptWithChatKey(chat.encrypted_chat_summary, chatKey);
+                        decryptedSummary = await decryptWithChatKey(chat.encrypted_chat_summary, chatKey, { chatId: chat.chat_id, fieldName: 'encrypted_chat_summary' });
                     } catch {
                         // Summary decryption failed – card will show title only
                     }
@@ -5464,7 +5464,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         const k = await decryptChatKeyWithMasterKey(chatToDecrypt.encrypted_chat_key);
                         if (k) { chatKey = k; chatDB.setChatKey(incomingChatId, k); }
                     } catch (keyErr) {
-                        console.error('[ActiveChat] handleChatUpdated: Failed to decrypt chat key from encrypted_chat_key:', keyErr);
+                        console.error(`[ActiveChat] handleChatUpdated: Failed to decrypt chat key from encrypted_chat_key: chat_id=${incomingChatId} field=encrypted_chat_key`, keyErr);
                     }
                 }
                 if (!chatKey) {
@@ -5479,13 +5479,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     let decryptedIcon = activeChatDecryptedIcon;
 
                     if (chatToDecrypt.encrypted_title) {
-                        try { decryptedTitle = await decryptWithChatKey(chatToDecrypt.encrypted_title, chatKey) ?? ''; } catch { /* keep previous */ }
+                        try { decryptedTitle = await decryptWithChatKey(chatToDecrypt.encrypted_title, chatKey, { chatId: incomingChatId, fieldName: 'encrypted_title' }) ?? ''; } catch { /* keep previous */ }
                     }
                     if (chatToDecrypt.encrypted_category) {
-                        try { decryptedCategory = await decryptWithChatKey(chatToDecrypt.encrypted_category, chatKey); } catch { /* keep previous */ }
+                        try { decryptedCategory = await decryptWithChatKey(chatToDecrypt.encrypted_category, chatKey, { chatId: incomingChatId, fieldName: 'encrypted_category' }); } catch { /* keep previous */ }
                     }
                     if (chatToDecrypt.encrypted_icon) {
-                        try { decryptedIcon = await decryptWithChatKey(chatToDecrypt.encrypted_icon, chatKey); } catch { /* keep previous */ }
+                        try { decryptedIcon = await decryptWithChatKey(chatToDecrypt.encrypted_icon, chatKey, { chatId: incomingChatId, fieldName: 'encrypted_icon' }); } catch { /* keep previous */ }
                     }
 
                     activeChatDecryptedTitle = decryptedTitle ?? '';
@@ -5508,7 +5508,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     }
                 }
             } catch (err) {
-                console.error('[ActiveChat] handleChatUpdated: Failed to decrypt chat header metadata:', err);
+                console.error(`[ActiveChat] handleChatUpdated: Failed to decrypt chat header metadata: chat_id=${incomingChatId}`, err);
             }
         }
 
@@ -5525,21 +5525,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         const k = await decryptChatKeyWithMasterKey(incomingChatMetadata.encrypted_chat_key);
                         if (k) { summaryKey = k; chatDB.setChatKey(incomingChatId, k); }
                     } catch (keyErr) {
-                        console.error('[ActiveChat] handleChatUpdated: Failed to decrypt chat key for summary:', keyErr);
+                        console.error(`[ActiveChat] handleChatUpdated: Failed to decrypt chat key for summary: chat_id=${incomingChatId} field=encrypted_chat_key`, keyErr);
                     }
                 }
                 if (!summaryKey) {
                     summaryKey = chatDB.getOrGenerateChatKey(incomingChatId);
                 }
                 if (summaryKey) {
-                    const decryptedSummary = await decryptWithChatKey(incomingChatMetadata.encrypted_chat_summary, summaryKey);
+                    const decryptedSummary = await decryptWithChatKey(incomingChatMetadata.encrypted_chat_summary, summaryKey, { chatId: incomingChatId, fieldName: 'encrypted_chat_summary' });
                     if (decryptedSummary) {
                         activeChatDecryptedSummary = decryptedSummary;
                         console.debug('[ActiveChat] Chat header summary updated:', decryptedSummary.substring(0, 60) + '...');
                     }
                 }
             } catch (err) {
-                console.error('[ActiveChat] handleChatUpdated: Failed to decrypt chat summary:', err);
+                console.error(`[ActiveChat] handleChatUpdated: Failed to decrypt chat summary: chat_id=${incomingChatId} field=encrypted_chat_summary`, err);
             }
         }
 
@@ -5971,7 +5971,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                       console.debug('[ActiveChat] loadChat: Recovered chat key from encrypted_chat_key for', chatForHeader.chat_id);
                                   }
                               } catch (keyErr) {
-                                  console.error('[ActiveChat] loadChat: Failed to decrypt chat key from encrypted_chat_key:', keyErr);
+                                  console.error(`[ActiveChat] loadChat: Failed to decrypt chat key from encrypted_chat_key: chat_id=${chatForHeader.chat_id} field=encrypted_chat_key`, keyErr);
                               }
                           }
                           if (!chatKey) {
@@ -5987,22 +5987,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                               let ic: string | null = null;
                               let s: string | null = null;
                               if (chatForHeader.encrypted_title) {
-                                  try { t = await decryptWithChatKey(chatForHeader.encrypted_title, chatKey) ?? ''; } catch { /* keep blank */ }
+                                  try { t = await decryptWithChatKey(chatForHeader.encrypted_title, chatKey, { chatId: chatForHeader.chat_id, fieldName: 'encrypted_title' }) ?? ''; } catch { /* keep blank */ }
                               }
                               if (chatForHeader.encrypted_category) {
-                                  try { c = await decryptWithChatKey(chatForHeader.encrypted_category, chatKey); } catch { /* keep null */ }
+                                  try { c = await decryptWithChatKey(chatForHeader.encrypted_category, chatKey, { chatId: chatForHeader.chat_id, fieldName: 'encrypted_category' }); } catch { /* keep null */ }
                               } else if (chatForHeader.category) {
                                   // Fallback: plaintext category (older chats or partial sync)
                                   c = chatForHeader.category;
                               }
                               if (chatForHeader.encrypted_icon) {
-                                  try { ic = await decryptWithChatKey(chatForHeader.encrypted_icon, chatKey); } catch { /* keep null */ }
+                                  try { ic = await decryptWithChatKey(chatForHeader.encrypted_icon, chatKey, { chatId: chatForHeader.chat_id, fieldName: 'encrypted_icon' }); } catch { /* keep null */ }
                               } else if (chatForHeader.icon) {
                                   // Fallback: plaintext icon (older chats or partial sync)
                                   ic = chatForHeader.icon.split(',')[0]?.trim() || null;
                               }
                               if (chatForHeader.encrypted_chat_summary) {
-                                  try { s = await decryptWithChatKey(chatForHeader.encrypted_chat_summary, chatKey); } catch { /* keep null */ }
+                                  try { s = await decryptWithChatKey(chatForHeader.encrypted_chat_summary, chatKey, { chatId: chatForHeader.chat_id, fieldName: 'encrypted_chat_summary' }); } catch { /* keep null */ }
                               }
                               if (t && c) {
                                   activeChatDecryptedTitle = t;
@@ -6013,7 +6013,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                               }
                           }
                       } catch (err) {
-                          console.error('[ActiveChat] loadChat: Failed to decrypt header for existing chat:', err);
+                          console.error(`[ActiveChat] loadChat: Failed to decrypt header for existing chat: chat_id=${chatForHeader.chat_id}`, err);
                       }
                   }
               }
@@ -6358,7 +6358,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 const { decryptWithChatKey } = await import('../services/cryptoService');
                 const decryptedJson = await decryptWithChatKey(
                     currentChat.encrypted_settings_memories_suggestions,
-                    chatKey
+                    chatKey,
+                    { chatId: currentChat.chat_id, fieldName: 'encrypted_settings_memories_suggestions' }
                 );
                 
                 if (decryptedJson) {
@@ -6373,7 +6374,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     settingsMemoriesSuggestions = [];
                 }
             } catch (error) {
-                console.error('[ActiveChat] Failed to load settings/memories suggestions:', error);
+                console.error(`[ActiveChat] Failed to load settings/memories suggestions: chat_id=${currentChat.chat_id} field=encrypted_settings_memories_suggestions`, error);
                 settingsMemoriesSuggestions = [];
             }
         } else {

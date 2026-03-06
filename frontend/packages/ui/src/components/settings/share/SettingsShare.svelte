@@ -843,36 +843,36 @@
             // Decrypt title
             let title: string | null = null;
             if (chat.encrypted_title) {
-                title = await decryptWithChatKey(chat.encrypted_title, chatKey);
+                title = await decryptWithChatKey(chat.encrypted_title, chatKey, { chatId: currentChatId, fieldName: 'encrypted_title' });
                 if (!title) {
-                    console.warn('[SettingsShare] Failed to decrypt title for OG metadata update');
+                    console.warn(`[SettingsShare] Failed to decrypt title for OG metadata update: chat_id=${currentChatId} field=encrypted_title`);
                 }
             }
             
             // Decrypt summary
             let summary: string | null = null;
             if (chat.encrypted_chat_summary) {
-                summary = await decryptWithChatKey(chat.encrypted_chat_summary, chatKey);
+                summary = await decryptWithChatKey(chat.encrypted_chat_summary, chatKey, { chatId: currentChatId, fieldName: 'encrypted_chat_summary' });
                 if (!summary) {
-                    console.warn('[SettingsShare] Failed to decrypt summary for OG metadata update');
+                    console.warn(`[SettingsShare] Failed to decrypt summary for OG metadata update: chat_id=${currentChatId} field=encrypted_chat_summary`);
                 }
             }
             
             // Decrypt category
             let category: string | null = null;
             if (chat.encrypted_category) {
-                category = await decryptWithChatKey(chat.encrypted_category, chatKey);
+                category = await decryptWithChatKey(chat.encrypted_category, chatKey, { chatId: currentChatId, fieldName: 'encrypted_category' });
                 if (!category) {
-                    console.warn('[SettingsShare] Failed to decrypt category for metadata update');
+                    console.warn(`[SettingsShare] Failed to decrypt category for metadata update: chat_id=${currentChatId} field=encrypted_category`);
                 }
             }
 
             // Decrypt icon
             let icon: string | null = null;
             if (chat.encrypted_icon) {
-                icon = await decryptWithChatKey(chat.encrypted_icon, chatKey);
+                icon = await decryptWithChatKey(chat.encrypted_icon, chatKey, { chatId: currentChatId, fieldName: 'encrypted_icon' });
                 if (!icon) {
-                    console.warn('[SettingsShare] Failed to decrypt icon for metadata update');
+                    console.warn(`[SettingsShare] Failed to decrypt icon for metadata update: chat_id=${currentChatId} field=encrypted_icon`);
                 }
             }
 
@@ -1015,7 +1015,7 @@
                         console.debug(`[SettingsShare] Successfully decrypted ${decryptedEmbeds.length}/${embedEntries.length} embeds for community sharing`);
                     }
                 } catch (error) {
-                    console.error('[SettingsShare] Error decrypting messages/embeds for community sharing:', error);
+                    console.error(`[SettingsShare] Error decrypting messages/embeds for community sharing: chat_id=${currentChatId}`, error);
                     // Continue anyway - backend will handle missing data
                 }
             }

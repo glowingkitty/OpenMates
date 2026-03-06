@@ -894,7 +894,7 @@ let _chatUpdatedFlushPending = false;
 						}
 					}
 			} catch (decryptError) {
-				console.warn('[Chats] Failed to decrypt Phase 1 chat fields:', decryptError);
+				console.warn(`[Chats] Failed to decrypt Phase 1 chat fields: chat_id=${targetChatId}`, decryptError);
 			}
 
 				// Skip draft chats (no title and no messages) — only show resume card for real chats
@@ -2721,7 +2721,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
                     try {
                         chatKey = await decryptChatKeyWithMasterKey(chatToHide.encrypted_chat_key);
                     } catch (error) {
-                        console.error('[Chats] Error decrypting chat key for hiding:', error);
+                        console.error(`[Chats] Error decrypting chat key for hiding: chat_id=${chatIdToHideAfterInlineUnlock} field=encrypted_chat_key`, error);
                         inlineUnlockError = $text('chats.hidden_chats.unlock_error', {
                             default: 'Error decrypting chat key'
                         });

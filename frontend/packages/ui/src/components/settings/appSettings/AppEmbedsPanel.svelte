@@ -161,7 +161,7 @@
                 return embedData;
             }
         } catch (error) {
-            console.error('[AppEmbedsPanel] Error decrypting embed:', error);
+            console.error(`[AppEmbedsPanel] Error decrypting embed: embed_id=${embedId}`, error);
         }
 
         return null;
