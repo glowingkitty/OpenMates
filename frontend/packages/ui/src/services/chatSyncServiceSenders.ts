@@ -39,7 +39,9 @@ export async function sendUpdateTitleImpl(
     chatKey = await chatKeyManager.getKey(chat_id);
   }
   if (!chatKey) {
-    console.error(`[ChatSyncService:Senders] No chat key available for title encryption (chat ${chat_id})`);
+    console.error(
+      `[ChatSyncService:Senders] No chat key available for title encryption (chat ${chat_id})`,
+    );
     notificationStore.error("Failed to encrypt title - chat key not available");
     return;
   }
@@ -50,7 +52,9 @@ export async function sendUpdateTitleImpl(
   // Encrypt title with chat-specific key for server storage/syncing
   const encryptedTitle = await encryptWithChatKey(new_title, chatKey);
   if (!encryptedTitle) {
-    notificationStore.error("Failed to encrypt title - encryption returned null");
+    notificationStore.error(
+      "Failed to encrypt title - encryption returned null",
+    );
     return;
   }
 
@@ -1138,7 +1142,9 @@ export async function sendNewMessageImpl(
         const hashedUserId = userId ? await computeSHA256(userId) : "";
 
         // Get chat key for wrapping embed keys — must be available by the time we send
-        const chatKey = chatKeyManager.getKeySync(message.chat_id) || await chatKeyManager.getKey(message.chat_id);
+        const chatKey =
+          chatKeyManager.getKeySync(message.chat_id) ||
+          (await chatKeyManager.getKey(message.chat_id));
         if (!chatKey) {
           console.error(
             `[ChatSyncService:Senders] No chat key available for embed key wrapping (chat ${message.chat_id}). Embeds will not be encrypted.`,
@@ -1458,23 +1464,18 @@ export async function sendCompletedAIResponseImpl(
     }
 
     // MESSAGES_V HANDLING: For assistant responses, the server already incremented
-    // messages_v in the cache and sent the new version in the broadcast.
-    // We use the current local version (which was updated from the broadcast).
-    // DO NOT increment it again here, otherwise it will drift ahead of message count.
+    // messages_v in the cache and sent the new version via `chat_message_added`.
+    // The `handleChatMessageReceivedImpl` handler is the SOLE authority for
+    // writing the server's messages_v to IndexedDB.
+    // DO NOT write the chat back here — the previous addChat() call created a
+    // race condition: if `chat_message_added` updated messages_v between our
+    // getChat() read above and the addChat() write, we would CLOBBER the
+    // correct value with a stale one, causing permanent client/server drift.
     const newMessagesV = chat.messages_v || 1;
     const newLastEdited = aiMessage.created_at;
 
-    // Update chat in IndexedDB with current version and timestamp
-    const updatedChat = {
-      ...chat,
-      messages_v: newMessagesV,
-      last_edited_overall_timestamp: newLastEdited,
-      updated_at: Math.floor(Date.now() / 1000),
-    };
-
-    await chatDB.addChat(updatedChat);
     console.debug(
-      `[ChatSyncService:Senders] Incremented messages_v for chat ${chat.chat_id}: ${chat.messages_v} → ${newMessagesV}`,
+      `[ChatSyncService:Senders] Using current messages_v for chat ${chat.chat_id}: ${newMessagesV} (not writing back to IDB — version owned by chat_message_added handler)`,
     );
 
     // Encrypt the completed AI response for storage
@@ -1557,7 +1558,7 @@ export async function sendCompletedAIResponseImpl(
     // Dispatch event so UI knows chat was updated
     serviceInstance.dispatchEvent(
       new CustomEvent("chatUpdated", {
-        detail: { chat_id: chat.chat_id, chat: updatedChat },
+        detail: { chat_id: chat.chat_id, chat },
       }),
     );
   } catch (error) {
@@ -2040,7 +2041,9 @@ export async function sendEncryptedStoragePackage(
       );
       // CASE 2: New chat on originating device — safe to create key
       if (!chatKey) {
-        chatKey = chatKeyManager.getKeySync(chat_id) || chatKeyManager.createKeyForNewChat(chat_id);
+        chatKey =
+          chatKeyManager.getKeySync(chat_id) ||
+          chatKeyManager.createKeyForNewChat(chat_id);
       }
 
       // Encrypt and save the new key

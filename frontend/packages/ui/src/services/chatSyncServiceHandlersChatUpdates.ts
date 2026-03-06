@@ -923,6 +923,27 @@ export async function handleChatMessageReceivedImpl(
           `[ChatSyncService:ChatUpdates] chat_message_added for chat ${payload.chat_id}: ` +
             `chat key not in cache — queuing message ${incomingMessage.message_id} until key arrives`,
         );
+
+        // CRITICAL FIX: Update messages_v and timestamps on the chat BEFORE
+        // queuing. The message itself can't be encrypted without the key, but
+        // the chat metadata update doesn't require the key and MUST happen now.
+        // Without this, if the key arrives later and flushPendingMessagesForChat
+        // saves the messages, messages_v stays at 0 and the health check flags
+        // the chat as having issues.
+        if (payload.versions?.messages_v !== undefined) {
+          const chatUpdate: Chat = {
+            ...chat,
+            messages_v: payload.versions.messages_v,
+            last_edited_overall_timestamp:
+              payload.last_edited_overall_timestamp,
+            updated_at: Math.floor(Date.now() / 1000),
+          };
+          await chatDB.updateChat(chatUpdate);
+          console.info(
+            `[ChatSyncService:ChatUpdates] Updated messages_v to ${payload.versions.messages_v} for chat ${payload.chat_id} despite missing key (message queued)`,
+          );
+        }
+
         const pending = _pendingMessages.get(payload.chat_id) || [];
         pending.push(incomingMessage);
         _pendingMessages.set(payload.chat_id, pending);

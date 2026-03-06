@@ -699,17 +699,21 @@ export async function handleAIBackgroundResponseCompletedImpl(
         `[ChatSyncService:AI] Saved background AI response to DB for chat ${payload.chat_id} with category: ${category || "none"}`,
       );
 
-      // Update chat metadata with new messages_v
-      const newMessagesV = (chat.messages_v || 0) + 1;
+      // MESSAGES_V HANDLING: Do NOT increment messages_v locally here.
+      // The server atomically increments messages_v via Redis HINCRBY and
+      // broadcasts the authoritative value in the `chat_message_added` event.
+      // The handler `handleChatMessageReceivedImpl` is the SOLE writer of
+      // messages_v for non-incognito chats. Local increments cause drift
+      // when this code and the broadcast handler race against each other.
+      // Only update last_edited_overall_timestamp (safe, no version drift risk).
       const updatedChat: Chat = {
         ...chat,
-        messages_v: newMessagesV,
         last_edited_overall_timestamp: newLastEdited,
       };
       await chatDB.updateChat(updatedChat);
       chat = updatedChat;
       console.info(
-        `[ChatSyncService:AI] Updated chat ${payload.chat_id} metadata: messages_v=${newMessagesV}`,
+        `[ChatSyncService:AI] Updated chat ${payload.chat_id} last_edited timestamp (messages_v=${chat.messages_v} — owned by chat_message_added handler)`,
       );
     }
 
@@ -1368,7 +1372,9 @@ export async function handleAITypingStartedImpl( // Changed to async
       console.warn(
         `[ChatSyncService:AI] Message ${userMessage.message_id} missing content field, decrypting from encrypted_content`,
       );
-      const chatKey = chatKeyManager.getKeySync(payload.chat_id) || await chatKeyManager.getKey(payload.chat_id);
+      const chatKey =
+        chatKeyManager.getKeySync(payload.chat_id) ||
+        (await chatKeyManager.getKey(payload.chat_id));
       if (!chatKey) {
         console.error(
           `[ChatSyncService:AI] No chat key available for ${payload.chat_id}, cannot decrypt missing message content`,
@@ -2461,9 +2467,13 @@ export async function handleEmbedUpdateImpl(
               }
 
               // Create chat key wrapper — use ChatKeyManager (never generate a wrong key)
-              const chatKey = chatKeyManager.getKeySync(chatId) || await chatKeyManager.getKey(chatId);
+              const chatKey =
+                chatKeyManager.getKeySync(chatId) ||
+                (await chatKeyManager.getKey(chatId));
               if (!chatKey) {
-                throw new Error(`No chat key available for embed key wrapping (chat ${chatId})`);
+                throw new Error(
+                  `No chat key available for embed key wrapping (chat ${chatId})`,
+                );
               }
               const wrappedChatKey = await wrapEmbedKeyWithChatKey(
                 embedKey,
