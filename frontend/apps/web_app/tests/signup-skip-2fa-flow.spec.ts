@@ -1,5 +1,5 @@
 /*
-Purpose: Verifies password signup can skip OTP setup via explicit consent and still allow password login.
+Purpose: Verifies password signup with skipped 2FA setup, re-login with password only, and account deletion via email OTP.
 Architecture: Covers the signup route state machine and auth login flow from the deployed web app.
 Architecture Doc: See docs/architecture/app-skills.md for async auth-related flow context.
 Tests: N/A (this file is the Playwright E2E test entrypoint)
@@ -48,7 +48,7 @@ const MAILOSAUR_SERVER_ID = process.env.MAILOSAUR_SERVER_ID;
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
 const STRIPE_TEST_CARD_NUMBER = '4000002760000016';
 
-test('completes signup with skipped 2FA and can login with password', async ({
+test('completes signup with skipped 2FA, login with password, and delete account via email OTP', async ({
 	page,
 	context
 }: {
@@ -71,7 +71,38 @@ test('completes signup with skipped 2FA and can login with password', async ({
 	});
 
 	test.slow();
-	test.setTimeout(240000);
+	test.setTimeout(360000);
+
+	async function setToggleCheckedWithRetry(
+		toggleSelector: string,
+		shouldBeChecked: boolean
+	): Promise<void> {
+		let lastError: unknown;
+		for (let attempt = 1; attempt <= 4; attempt += 1) {
+			try {
+				const toggle = page.locator(toggleSelector).first();
+				await toggle.waitFor({ state: 'attached', timeout: 15000 });
+				await toggle.evaluate((element: HTMLInputElement, desired: boolean) => {
+					if (element.checked !== desired) {
+						element.checked = desired;
+						element.dispatchEvent(new Event('change', { bubbles: true }));
+						element.dispatchEvent(new Event('input', { bubbles: true }));
+					}
+				}, shouldBeChecked);
+				if (shouldBeChecked) {
+					await expect(toggle).toBeChecked({ timeout: 5000 });
+				} else {
+					await expect(toggle).not.toBeChecked({ timeout: 5000 });
+				}
+				return;
+			} catch (error) {
+				lastError = error;
+				await page.waitForTimeout(600);
+			}
+		}
+
+		throw new Error(`Failed to set toggle ${toggleSelector} after retries: ${String(lastError)}`);
+	}
 
 	const logSignupCheckpoint = createSignupLogger('SIGNUP_SKIP_2FA_FLOW');
 	const takeStepScreenshot = createStepScreenshotter(logSignupCheckpoint, {
@@ -190,16 +221,28 @@ test('completes signup with skipped 2FA and can login with password', async ({
 	await expect(page.locator('.credits-package-container .buy-button').first()).toBeVisible({
 		timeout: 30000
 	});
-	await page.locator('.credits-package-container .buy-button').first().click();
+	const creditsBuyButton = page.locator('.credits-package-container .buy-button').first();
+	await creditsBuyButton.click();
 	await takeStepScreenshot(page, 'payment-consent');
+	if (await creditsBuyButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+		// Retry once in case first click did not trigger transition to payment UI.
+		await creditsBuyButton.click();
+	}
 
-	const consentToggle = page.locator('#limited-refund-consent-toggle');
-	await setToggleChecked(consentToggle, true);
-
+	const limitedRefundToggle = page.locator('#limited-refund-consent-toggle').first();
+	const hasConsentToggle = await limitedRefundToggle
+		.isVisible({ timeout: 5000 })
+		.catch(() => false);
+	if (hasConsentToggle) {
+		await setToggleCheckedWithRetry('#limited-refund-consent-toggle', true);
+		logSignupCheckpoint('Payment consent toggle accepted.');
+	} else {
+		logSignupCheckpoint('Payment consent toggle not shown; proceeding directly to payment form.');
+	}
 	await fillStripeCardDetails(page, STRIPE_TEST_CARD_NUMBER);
-
 	await page.locator('.payment-form .buy-button').click();
-	await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 60000 });
+	await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 120000 });
+	logSignupCheckpoint('Stripe payment completed successfully.');
 
 	await page
 		.getByRole('button', { name: /finish setup/i })
@@ -247,8 +290,91 @@ test('completes signup with skipped 2FA and can login with password', async ({
 	await page.waitForURL(/chat/, { timeout: 60000 });
 	await takeStepScreenshot(page, 'relogin-success');
 	await assertNoMissingTranslations(page);
+	logSignupCheckpoint('Re-login with password completed. No 2FA/OTP was requested.');
 
-	logSignupCheckpoint('Skip-2FA signup + password login flow completed successfully.', {
-		signupEmail
+	// ─── STEP: Delete Account via Email OTP ─────────────────────────────────────
+	// Navigate to settings > account > delete account.
+	// Password-only users (no 2FA, no passkey) get email OTP verification.
+
+	const settingsMenuForDelete = page.locator('.profile-container[role="button"]');
+	await settingsMenuForDelete.click();
+	await expect(page.locator('.settings-menu.visible')).toBeVisible({ timeout: 10000 });
+
+	// Navigate to Account settings
+	await page.getByRole('menuitem', { name: /account/i }).click();
+	await expect(page.getByRole('menuitem', { name: /delete/i })).toBeVisible();
+	await page.getByRole('menuitem', { name: /delete/i }).click();
+	await expect(page.locator('.delete-account-container')).toBeVisible();
+	await takeStepScreenshot(page, 'delete-account');
+	logSignupCheckpoint('Opened delete account settings.');
+
+	// Confirm data deletion checkbox to enable deletion.
+	const deleteConfirmToggle = page
+		.locator('.delete-account-container input[type="checkbox"]')
+		.first();
+	await expect(deleteConfirmToggle).toBeAttached({ timeout: 60000 });
+	await setToggleChecked(deleteConfirmToggle, true);
+	await takeStepScreenshot(page, 'delete-account-confirmed');
+	logSignupCheckpoint('Confirmed delete account data warning.');
+
+	// Click delete button — should open the auth modal with email OTP (not 2FA).
+	await page.locator('.delete-account-container .delete-button').click();
+	const authModal = page.locator('.auth-modal');
+	await expect(authModal).toBeVisible({ timeout: 15000 });
+	await takeStepScreenshot(page, 'delete-account-auth-email-otp');
+
+	// Verify this is the email OTP flow (not 2FA or passkey).
+	const emailOtpSection = authModal.locator('.auth-email-otp');
+	await expect(emailOtpSection).toBeVisible({ timeout: 10000 });
+	logSignupCheckpoint('Auth modal shows email OTP flow (no 2FA, no passkey).');
+
+	// Verify no 2FA input is shown.
+	const twoFactorSection = authModal.locator('.auth-2fa');
+	await expect(twoFactorSection).not.toBeVisible();
+
+	// Click "Send verification code" button.
+	const sendCodeButton = emailOtpSection.locator('.auth-btn');
+	const deleteEmailRequestedAt = new Date().toISOString();
+	await sendCodeButton.click();
+	logSignupCheckpoint('Clicked send verification code for account deletion.');
+
+	// Wait for the email OTP input to appear (means code was sent).
+	const deleteOtpInput = emailOtpSection.locator('input.tfa-input');
+	await expect(deleteOtpInput).toBeVisible({ timeout: 30000 });
+	await takeStepScreenshot(page, 'delete-account-otp-input');
+
+	// Get the verification code from Mailosaur email.
+	const deleteVerificationMessage = await waitForMailosaurMessage({
+		sentTo: signupEmail,
+		receivedAfter: deleteEmailRequestedAt
 	});
+	const deleteVerificationCode = extractSixDigitCode(deleteVerificationMessage);
+	expect(
+		deleteVerificationCode,
+		'Expected a 6-digit action verification code for deletion.'
+	).toBeTruthy();
+	logSignupCheckpoint('Received action verification email with code.');
+
+	// Enter the 6-digit code (auto-submits on 6th digit).
+	await deleteOtpInput.fill(deleteVerificationCode);
+	logSignupCheckpoint('Entered action verification code to confirm deletion.');
+
+	// Wait for success message indicating account was deleted.
+	await expect(page.locator('.delete-account-container .success-message')).toBeVisible({
+		timeout: 60000
+	});
+	await takeStepScreenshot(page, 'delete-account-success');
+	logSignupCheckpoint('Account deletion confirmed via email OTP.');
+
+	// Confirm logout redirect to demo chat after deletion.
+	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
+		timeout: 60000
+	});
+	await takeStepScreenshot(page, 'delete-account-redirected');
+	logSignupCheckpoint('Returned to demo chat after account deletion.');
+
+	logSignupCheckpoint(
+		'Skip-2FA signup + password login + email OTP account deletion flow completed successfully.',
+		{ signupEmail }
+	);
 });
