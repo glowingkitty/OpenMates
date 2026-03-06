@@ -27,6 +27,7 @@ const MESSAGES_STORE = "messages";
 const EMBEDS_STORE = "embeds";
 const EMBED_KEYS_STORE = "embed_keys";
 const NEW_CHAT_SUGGESTIONS_STORE = "new_chat_suggestions";
+const APP_SETTINGS_MEMORIES_STORE = "app_settings_memories";
 
 // Field inventory constants
 const MAX_FIELD_INVENTORY_ITEMS = 30;
@@ -2694,7 +2695,44 @@ async function runClientHealthCheck(): Promise<void> {
     // non-critical
   }
 
-  // 8. Console error/warn logs
+  // 8. Settings & memories decryption health
+  try {
+    const db5 = await openDB();
+    const settingsEntries = await getAllFromStore<Record<string, unknown>>(db5, APP_SETTINGS_MEMORIES_STORE);
+    db5.close();
+
+    if (settingsEntries.length > 0) {
+      let smOk = 0;
+      let smFail = 0;
+      try {
+        const { decryptWithMasterKey } = await import("./cryptoService");
+        for (const entry of settingsEntries) {
+          const enc = (entry.encrypted_item_json as string) || "";
+          if (!enc) { smFail++; continue; }
+          try {
+            const d = await decryptWithMasterKey(enc);
+            if (d !== null) smOk++;
+            else smFail++;
+          } catch {
+            smFail++;
+          }
+        }
+        if (smFail === 0) {
+          allOk.push(`Settings & memories decrypt: all ${smOk} OK`);
+        } else {
+          allIssues.push(`Settings & memories decrypt: ${smFail}/${smOk + smFail} FAILED`);
+        }
+      } catch {
+        allIssues.push("Settings & memories decrypt: master key unavailable");
+      }
+    } else {
+      allOk.push("Settings & memories: 0 entries");
+    }
+  } catch {
+    // store may not exist, non-critical
+  }
+
+  // 9. Console error/warn logs
   let errorLogCount = 0;
   try {
     const { logCollector } = await import("./logCollector");
@@ -2817,10 +2855,11 @@ function showDebugHelp(): void {
       "  Downloads:\n" +
       '  await window.debug.download("chat", "id") — download chat report as .txt\n' +
       '  await window.debug.download("embed", "id")— download embed report as .txt\n\n' +
-      "  User / Suggestions / Inspirations:\n" +
+      "  User / Suggestions / Inspirations / Settings:\n" +
       "  await window.debug.user()                 — user profile, auth state, encryption key health\n" +
       "  await window.debug.dailyInspirations()    — daily inspirations store state and health\n" +
-      "  await window.debug.newChatSuggestions()   — new chat suggestions (decrypt all + health)\n\n" +
+      "  await window.debug.newChatSuggestions()   — new chat suggestions (decrypt all + health)\n" +
+      "  await window.debug.settingsAndMemories() — app settings & memories (decrypt all + health)\n\n" +
       "  Keys / Encryption:\n" +
       "  All commands show full IDs and keys by default.\n" +
       "  Pass { hideKeys: true } to mask keys, e.g. debug.chat(id, {hideKeys:true})\n\n" +
@@ -2844,6 +2883,139 @@ function showDebugHelp(): void {
  *   await window.debug.embed("embed-id")       — inspect an embed
  *   await window.debug.decrypt("embed-id")     — decrypt an embed
  */
+// ============================================================================
+// SETTINGS & MEMORIES DEBUG
+// ============================================================================
+
+/**
+ * Inspect app settings and memories in IndexedDB with decryption health check.
+ * Shows all entries grouped by app, verifies decrypt with master key,
+ * and reports any failures.
+ *
+ * Usage in console:
+ *   await window.debug.settingsAndMemories()
+ */
+async function debugSettingsAndMemories(): Promise<void> {
+  const lines: string[] = [];
+  const issues: string[] = [];
+
+  let entries: Record<string, unknown>[] = [];
+  let decryptOk = 0;
+  let decryptFail = 0;
+  const failedEntries: { id: string; appId: string; error: string }[] = [];
+  let masterKeyAvailable = false;
+
+  try {
+    const db = await openDB();
+    entries = await getAllFromStore<Record<string, unknown>>(db, APP_SETTINGS_MEMORIES_STORE);
+    db.close();
+  } catch (e) {
+    issues.push(`Failed to read IndexedDB store: ${e}`);
+  }
+
+  // Try to decrypt each entry
+  if (entries.length > 0) {
+    let decryptWithMasterKey: null | ((s: string) => Promise<string | null>) = null;
+    try {
+      const mod = await import("./cryptoService");
+      decryptWithMasterKey = mod.decryptWithMasterKey as (s: string) => Promise<string | null>;
+      masterKeyAvailable = true;
+    } catch {
+      masterKeyAvailable = false;
+    }
+
+    if (!masterKeyAvailable) {
+      issues.push("master key not available — cannot verify entries are decryptable");
+    } else {
+      for (const entry of entries) {
+        const enc = (entry.encrypted_item_json as string) || "";
+        const entryId = String(entry.id || "?");
+        const appId = String(entry.app_id || "?");
+        if (!enc) {
+          decryptFail++;
+          failedEntries.push({ id: entryId, appId, error: "empty encrypted_item_json" });
+          continue;
+        }
+        try {
+          const d = await decryptWithMasterKey!(enc);
+          if (d !== null) {
+            decryptOk++;
+          } else {
+            decryptFail++;
+            failedEntries.push({ id: entryId, appId, error: "decrypt returned null" });
+          }
+        } catch (e) {
+          decryptFail++;
+          failedEntries.push({ id: entryId, appId, error: String(e) });
+        }
+      }
+    }
+  }
+
+  // Health checks
+  if (decryptFail > 0) {
+    issues.push(`${decryptFail}/${decryptOk + decryptFail} entries failed to decrypt`);
+  }
+
+  // ─── Header + health at top ───
+  lines.push("SETTINGS & MEMORIES");
+  lines.push("═".repeat(60));
+  lines.push("");
+
+  if (issues.length === 0) {
+    lines.push("🟢 Settings & Memories: HEALTHY");
+  } else {
+    lines.push(`🔴 Settings & Memories: ${issues.length} issue(s)`);
+    for (const issue of issues) {
+      lines.push(`   🔴 ${issue}`);
+    }
+  }
+  lines.push("");
+
+  // ─── Summary ───
+  lines.push(`Total entries in IDB: ${entries.length}`);
+  lines.push(`Master key available: ${masterKeyAvailable ? "🟢 yes" : "🔴 no"}`);
+  if (masterKeyAvailable && entries.length > 0) {
+    lines.push(`Decrypt OK: ${decryptOk}  |  Decrypt FAILED: ${decryptFail}`);
+  }
+  lines.push("");
+
+  // ─── Group by app_id ───
+  const byApp: Record<string, Record<string, unknown>[]> = {};
+  for (const entry of entries) {
+    const appId = String(entry.app_id || "unknown");
+    if (!byApp[appId]) byApp[appId] = [];
+    byApp[appId].push(entry);
+  }
+
+  if (Object.keys(byApp).length > 0) {
+    lines.push("Entries by app:");
+    lines.push("─".repeat(60));
+
+    for (const [appId, appEntries] of Object.entries(byApp)) {
+      const types = new Set(appEntries.map((e) => String(e.item_type || "?")));
+      lines.push(`  ${appId}: ${appEntries.length} entries (types: ${Array.from(types).join(", ")})`);
+    }
+    lines.push("");
+  }
+
+  // ─── Failed entries ───
+  if (failedEntries.length > 0) {
+    lines.push("Failed entries:");
+    lines.push("─".repeat(60));
+    for (const { id, appId, error } of failedEntries.slice(0, 20)) {
+      lines.push(`  🔴 ${id} (app: ${appId}) — ${error}`);
+    }
+    if (failedEntries.length > 20) {
+      lines.push(`  ... and ${failedEntries.length - 20} more`);
+    }
+    lines.push("");
+  }
+
+  // Print
+  console.log(lines.join("\n"));
+}
+
 export function initDebugUtils(): void {
   if (typeof window === "undefined") return;
 
@@ -3005,6 +3177,9 @@ export function initDebugUtils(): void {
 
     /** Inspect new chat suggestions in IndexedDB with decryption health check */
     newChatSuggestions: (opts?: { hideKeys?: boolean }) => debugNewChatSuggestions(opts),
+
+    /** Inspect app settings and memories with decryption health check */
+    settingsAndMemories: () => debugSettingsAndMemories(),
   });
 
   (window as unknown as Record<string, unknown>).debug = debugFn;
