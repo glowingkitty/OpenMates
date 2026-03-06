@@ -1317,9 +1317,21 @@
                                 
                                 // Confirm the payment using the client_secret
                                 // For subscriptions, we use confirmPayment with the client_secret directly
+                                // Build return_url for redirect-based payment methods (Revolut Pay, etc.).
+                                // For cards, redirect: 'if_required' means no redirect happens.
+                                // For redirect methods, user returns to this URL after authenticating.
+                                const signupReturnUrl = new URL(window.location.href);
+                                signupReturnUrl.searchParams.delete('payment_intent');
+                                signupReturnUrl.searchParams.delete('payment_intent_client_secret');
+                                signupReturnUrl.searchParams.delete('redirect_status');
+                                signupReturnUrl.searchParams.delete('redirect_pm_type');
+
                                 const { error, paymentIntent } = await stripe.confirmPayment({
                                     clientSecret: subscriptionData.client_secret,
-                                    redirect: 'if_required'  // Only redirect if 3D Secure is required
+                                    confirmParams: {
+                                        return_url: signupReturnUrl.toString()
+                                    },
+                                    redirect: 'if_required'  // Only redirect if 3D Secure or redirect-based method
                                 });
                                 
                                 if (error) {
