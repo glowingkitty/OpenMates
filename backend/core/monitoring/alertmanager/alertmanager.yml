@@ -8,25 +8,19 @@
 # Architecture context: See docs/architecture/logging-and-monitoring.md
 
 global:
-  # How long to wait before sending a notification about new alerts
-  # that are added to a group of alerts for which an initial notification
-  # has already been sent. (Default: 5m)
-  group_wait: 60s
-
-  # How long to wait before sending a notification about new alerts
-  # within a group. After the first notification, subsequent ones are
-  # throttled by this interval.
-  group_interval: 10m
-
-  # How long to wait before re-sending a notification that has already
-  # been sent successfully. Prevents the same alert from flooding email.
-  repeat_interval: 4h
+  # ResolveTimeout: if an alert has no EndsAt, declare it resolved after this
+  # duration with no further updates.
+  resolve_timeout: 5m
 
 # Route tree — controls how alerts are grouped and which receiver handles them
 route:
   # Group alerts by alertname + severity so each email covers one issue type
   group_by: ["alertname", "severity"]
   receiver: "api-webhook"
+  # Default throttling for all alerts
+  group_wait: 60s
+  group_interval: 10m
+  repeat_interval: 4h
 
   routes:
     # Critical alerts: shorter wait, still throttled
@@ -61,5 +55,6 @@ receivers:
         send_resolved: true
         # The internal service token secures this endpoint
         http_config:
-          headers:
-            X-Internal-Service-Token: "${INTERNAL_API_SHARED_TOKEN}"
+          http_headers:
+            X-Internal-Service-Token:
+              secrets: ["${INTERNAL_API_SHARED_TOKEN}"]
