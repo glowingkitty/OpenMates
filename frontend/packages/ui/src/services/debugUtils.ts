@@ -1038,7 +1038,6 @@ function buildClientEmbedHealthSummary(params: {
   return { isHealthy: issues.length === 0, issues, warnings };
 }
 
-
 function logHealthCheckBanner(
   subject: "CHAT" | "EMBED",
   isHealthy: boolean,
@@ -1109,7 +1108,12 @@ type ChatDecryptionReport = {
   chatKeyFull?: string;
   chatKeySource: "cache" | "unwrapped" | "none";
   metadataFields: FieldDecryptResult[];
-  messageFields: { messageIndex: number; role: string; success: boolean; error?: string }[];
+  messageFields: {
+    messageIndex: number;
+    role: string;
+    success: boolean;
+    error?: string;
+  }[];
 };
 
 /**
@@ -1183,7 +1187,10 @@ async function attemptChatDecryption(
     { field: "Summary", key: "encrypted_chat_summary" },
     { field: "Tags", key: "encrypted_chat_tags" },
     { field: "Draft", key: "encrypted_draft_md" },
-    { field: "Follow-up Suggestions", key: "encrypted_follow_up_request_suggestions" },
+    {
+      field: "Follow-up Suggestions",
+      key: "encrypted_follow_up_request_suggestions",
+    },
     { field: "Active Focus ID", key: "encrypted_active_focus_id" },
   ];
 
@@ -1329,12 +1336,20 @@ export async function inspectChat(
 
   // ---- Attempt decryption of chat fields and messages ----
   messages.sort((a, b) => (a.created_at as number) - (b.created_at as number));
-  const decryptionReport = await attemptChatDecryption(chatId, chatMeta, messages);
+  const decryptionReport = await attemptChatDecryption(
+    chatId,
+    chatMeta,
+    messages,
+  );
 
   // ---- Build health summary (now includes decryption results) ----
-  const metaDecryptFailed = decryptionReport.metadataFields.filter((f) => !f.success).length;
+  const metaDecryptFailed = decryptionReport.metadataFields.filter(
+    (f) => !f.success,
+  ).length;
   const metaDecryptTotal = decryptionReport.metadataFields.length;
-  const msgDecryptFailed = decryptionReport.messageFields.filter((f) => !f.success).length;
+  const msgDecryptFailed = decryptionReport.messageFields.filter(
+    (f) => !f.success,
+  ).length;
   const msgDecryptTotal = decryptionReport.messageFields.length;
 
   const healthSummary = buildClientChatHealthSummary({
@@ -1350,7 +1365,9 @@ export async function inspectChat(
 
   // Add decryption failures to health issues
   if (!decryptionReport.chatKeyAvailable && chatMeta?.encrypted_chat_key) {
-    healthSummary.issues.push("chat key could not be obtained (master key unavailable or decryption failed)");
+    healthSummary.issues.push(
+      "chat key could not be obtained (master key unavailable or decryption failed)",
+    );
     healthSummary.isHealthy = false;
   }
   if (metaDecryptFailed > 0) {
@@ -1374,17 +1391,13 @@ export async function inspectChat(
   const createdStr = chatMeta
     ? formatTimestamp(chatMeta.created_at as number)
     : "N/A";
-  lines.push(
-    `CHAT ${chatId}  |  ${createdStr}`,
-  );
+  lines.push(`CHAT ${chatId}  |  ${createdStr}`);
   const keyDisplay = decryptionReport.chatKeyAvailable
-    ? (hideKeys
-        ? `${decryptionReport.chatKeyFingerprint} [pass hideKeys:false to show full key]`
-        : `${decryptionReport.chatKeyFull ?? decryptionReport.chatKeyFingerprint} (${(decryptionReport.chatKeyFull?.length ?? 0) / 2} bytes, source: ${decryptionReport.chatKeySource})`)
+    ? hideKeys
+      ? `${decryptionReport.chatKeyFingerprint} [pass hideKeys:false to show full key]`
+      : `${decryptionReport.chatKeyFull ?? decryptionReport.chatKeyFingerprint} (${(decryptionReport.chatKeyFull?.length ?? 0) / 2} bytes, source: ${decryptionReport.chatKeySource})`
     : decryptionReport.chatKeyFingerprint;
-  lines.push(
-    `Key: ${keyDisplay}`,
-  );
+  lines.push(`Key: ${keyDisplay}`);
 
   // Health status — single line summary
   if (healthSummary.isHealthy) {
@@ -1461,13 +1474,9 @@ export async function inspectChat(
             decResult.preview.length > 30
               ? decResult.preview.substring(0, 30) + "..."
               : decResult.preview;
-          lines.push(
-            `  🟢 ${fd.shortLabel.padEnd(12)} "${preview}"`,
-          );
+          lines.push(`  🟢 ${fd.shortLabel.padEnd(12)} "${preview}"`);
         } else {
-          lines.push(
-            `  🔴 ${fd.shortLabel.padEnd(12)} DECRYPT FAILED`,
-          );
+          lines.push(`  🔴 ${fd.shortLabel.padEnd(12)} DECRYPT FAILED`);
         }
       } else {
         // Encrypted data present but no decrypt attempt (key unavailable)
@@ -1527,9 +1536,7 @@ export async function inspectChat(
 
   // Embeds table
   lines.push("");
-  lines.push(
-    `EMBEDS (${chatEmbeds.length})  |  Keys: ${chatEmbedKeys.length}`,
-  );
+  lines.push(`EMBEDS (${chatEmbeds.length})  |  Keys: ${chatEmbedKeys.length}`);
 
   if (chatEmbeds.length > 0) {
     lines.push(
@@ -1568,16 +1575,26 @@ export async function inspectChat(
       }
 
       // Embed role: parent (has children), child (has parent), or regular
-      const hasChildren = embed.embed_ids && Array.isArray(embed.embed_ids) && (embed.embed_ids as string[]).length > 0;
-      const hasParent = !!(embed.parent_embed_id);
-      const embedRole = hasChildren ? "parent" : hasParent ? "child" : "regular";
-      const childCount = hasChildren ? `[${(embed.embed_ids as string[]).length}ch]` : "";
+      const hasChildren =
+        embed.embed_ids &&
+        Array.isArray(embed.embed_ids) &&
+        (embed.embed_ids as string[]).length > 0;
+      const hasParent = !!embed.parent_embed_id;
+      const embedRole = hasChildren
+        ? "parent"
+        : hasParent
+          ? "child"
+          : "regular";
+      const childCount = hasChildren
+        ? `[${(embed.embed_ids as string[]).length}ch]`
+        : "";
 
       // App and skill info — read from decoded TOON content (not raw record, since it's encrypted)
       const decodedContent = embedDecodedContentMap.get(cleanEmbedId);
       const appId = (decodedContent?.app_id as string) || "";
       const skillId = (decodedContent?.skill_id as string) || "";
-      const appSkill = appId && skillId ? `${appId}/${skillId}` : appId || skillId || "—";
+      const appSkill =
+        appId && skillId ? `${appId}/${skillId}` : appId || skillId || "—";
 
       // Created date
       const embedCreated = formatTimestamp(embed.createdAt as number);
@@ -1625,7 +1642,13 @@ export async function inspectChat(
 
       lines.push("");
       lines.push(`  User ID:     ${chatMeta.user_id}`);
-      lines.push(`  DB:          ${DB_NAME} v${(await openDB().then((d) => { const v = d.version; d.close(); return v; }))}`);
+      lines.push(
+        `  DB:          ${DB_NAME} v${await openDB().then((d) => {
+          const v = d.version;
+          d.close();
+          return v;
+        })}`,
+      );
 
       lines.push("");
       lines.push("  Encrypted Field Sizes:");
@@ -1827,7 +1850,12 @@ export async function inspectEmbed(
   // Get embed key info
   const hashedEmbedId = embed ? await computeSHA256(embedId) : "";
   const embedKeys = hashedEmbedId
-    ? await getAllFromIndex<Record<string, unknown>>(db, EMBED_KEYS_STORE, "hashed_embed_id", hashedEmbedId)
+    ? await getAllFromIndex<Record<string, unknown>>(
+        db,
+        EMBED_KEYS_STORE,
+        "hashed_embed_id",
+        hashedEmbedId,
+      )
     : [];
 
   db.close();
@@ -1838,7 +1866,8 @@ export async function inspectEmbed(
   let decryptError = "";
   if (embed) {
     try {
-      const { resolveEmbed, decodeToonContent } = await import("./embedResolver");
+      const { resolveEmbed, decodeToonContent } =
+        await import("./embedResolver");
       const resolvedEmbed = await resolveEmbed(embedId);
       if (resolvedEmbed?.content) {
         const result = await decodeToonContent(resolvedEmbed.content);
@@ -1849,7 +1878,9 @@ export async function inspectEmbed(
           decryptError = "decoded content is empty or invalid";
         }
       } else {
-        decryptError = resolvedEmbed ? "resolved embed has no content" : "could not resolve embed";
+        decryptError = resolvedEmbed
+          ? "resolved embed has no content"
+          : "could not resolve embed";
       }
     } catch (e) {
       decryptError = e instanceof Error ? e.message : String(e);
@@ -1857,10 +1888,18 @@ export async function inspectEmbed(
   }
 
   // Build health summary
-  const embedHealthSummary = buildClientEmbedHealthSummary({ embed, childEmbeds: childEmbedRecords });
+  const embedHealthSummary = buildClientEmbedHealthSummary({
+    embed,
+    childEmbeds: childEmbedRecords,
+  });
   // Add decryption failure to health
   const status = String(embed?.status || "").toLowerCase();
-  if (!decryptOk && embed && (status === "finished" || status === "activated") && embed.encrypted_content) {
+  if (
+    !decryptOk &&
+    embed &&
+    (status === "finished" || status === "activated") &&
+    embed.encrypted_content
+  ) {
     embedHealthSummary.issues.push("embed content failed to decrypt");
     embedHealthSummary.isHealthy = false;
   }
@@ -1882,15 +1921,37 @@ export async function inspectEmbed(
   lines.push(`EMBED ${embedId}  |  ${createdStr}`);
 
   // Role
-  const hasChildren = embed?.embed_ids && Array.isArray(embed.embed_ids) && (embed.embed_ids as string[]).length > 0;
-  const hasParent = !!(embed?.parent_embed_id);
-  const embedRole = hasChildren ? `parent [${(embed!.embed_ids as string[]).length} children]` : hasParent ? "child" : "regular";
-  lines.push(`Role: ${embedRole}${hasParent ? `  |  Parent: ${embed!.parent_embed_id}` : ""}`);
+  const hasChildren =
+    embed?.embed_ids &&
+    Array.isArray(embed.embed_ids) &&
+    (embed.embed_ids as string[]).length > 0;
+  const hasParent = !!embed?.parent_embed_id;
+  const embedRole = hasChildren
+    ? `parent [${(embed!.embed_ids as string[]).length} children]`
+    : hasParent
+      ? "child"
+      : "regular";
+  lines.push(
+    `Role: ${embedRole}${hasParent ? `  |  Parent: ${embed!.parent_embed_id}` : ""}`,
+  );
 
   // Key info
-  const keyInfo = embedKeys.length > 0
-    ? `${embedKeys.length} key(s)${hideKeys ? "" : ` — types: ${JSON.stringify(Object.fromEntries(embedKeys.reduce((m, k) => { const t = String(k.key_type || "?"); m.set(t, (m.get(t) || 0) + 1); return m; }, new Map<string, number>())))}`}`
-    : "no keys stored";
+  const keyInfo =
+    embedKeys.length > 0
+      ? `${embedKeys.length} key(s)${
+          hideKeys
+            ? ""
+            : ` — types: ${JSON.stringify(
+                Object.fromEntries(
+                  embedKeys.reduce((m, k) => {
+                    const t = String(k.key_type || "?");
+                    m.set(t, (m.get(t) || 0) + 1);
+                    return m;
+                  }, new Map<string, number>()),
+                ),
+              )}`
+        }`
+      : "no keys stored";
   lines.push(`Keys: ${keyInfo}`);
 
   // Health status
@@ -1900,7 +1961,10 @@ export async function inspectEmbed(
   } else {
     lines.push("");
     lines.push(`🔴 ISSUES DETECTED (${embedHealthSummary.issues.length}):`);
-    for (const issue of embedHealthSummary.issues.slice(0, MAX_HEALTH_ITEMS_TO_SHOW)) {
+    for (const issue of embedHealthSummary.issues.slice(
+      0,
+      MAX_HEALTH_ITEMS_TO_SHOW,
+    )) {
       lines.push(`   • ${issue}`);
     }
   }
@@ -1920,10 +1984,16 @@ export async function inspectEmbed(
     lines.push(`  Encryption Mode:    ${embed.encryption_mode || "N/A"}`);
     lines.push("");
     lines.push("  Content Fields:");
-    lines.push(`    ${embed.encrypted_content ? "✅" : "❌"} encrypted_content ${embed.encrypted_content ? `(${(embed.encrypted_content as string).length} chars)` : ""}`);
+    lines.push(
+      `    ${embed.encrypted_content ? "✅" : "❌"} encrypted_content ${embed.encrypted_content ? `(${(embed.encrypted_content as string).length} chars)` : ""}`,
+    );
     const hasContent = embed.content;
-    lines.push(`    ${hasContent ? "✅" : "❌"} content (TOON) ${hasContent ? `(${typeof hasContent === "string" ? (hasContent as string).length : "object"})` : ""}`);
-    lines.push(`    ${embed.data ? "✅" : "❌"} data ${embed.data ? `(${typeof embed.data === "string" ? (embed.data as string).length : "object"})` : ""}`);
+    lines.push(
+      `    ${hasContent ? "✅" : "❌"} content (TOON) ${hasContent ? `(${typeof hasContent === "string" ? (hasContent as string).length : "object"})` : ""}`,
+    );
+    lines.push(
+      `    ${embed.data ? "✅" : "❌"} data ${embed.data ? `(${typeof embed.data === "string" ? (embed.data as string).length : "object"})` : ""}`,
+    );
 
     // Decrypt status
     lines.push("");
@@ -1942,18 +2012,37 @@ export async function inspectEmbed(
       lines.push(`    provider:    ${provider}`);
       lines.push(`    status:      ${decodedStatus}`);
       if (decoded.results && Array.isArray(decoded.results)) {
-        lines.push(`    results:     ${(decoded.results as unknown[]).length} items`);
+        lines.push(
+          `    results:     ${(decoded.results as unknown[]).length} items`,
+        );
       }
       if (decoded.embed_ids && Array.isArray(decoded.embed_ids)) {
-        lines.push(`    embed_ids:   ${(decoded.embed_ids as unknown[]).length} items`);
+        lines.push(
+          `    embed_ids:   ${(decoded.embed_ids as unknown[]).length} items`,
+        );
       }
       // Show other fields count
-      const knownFields = ["app_id", "skill_id", "query", "provider", "status", "task_id", "results", "embed_ids", "result_count"];
-      const otherFields = Object.keys(decoded).filter(k => !knownFields.includes(k));
+      const knownFields = [
+        "app_id",
+        "skill_id",
+        "query",
+        "provider",
+        "status",
+        "task_id",
+        "results",
+        "embed_ids",
+        "result_count",
+      ];
+      const otherFields = Object.keys(decoded).filter(
+        (k) => !knownFields.includes(k),
+      );
       if (otherFields.length > 0) {
         lines.push(`    other:       ${otherFields.join(", ")}`);
       }
-    } else if (embed.encrypted_content && (status === "finished" || status === "activated")) {
+    } else if (
+      embed.encrypted_content &&
+      (status === "finished" || status === "activated")
+    ) {
       lines.push(`    🔴 Decrypt: FAILED — ${decryptError || "unknown error"}`);
     } else if (!embed.encrypted_content) {
       lines.push("    · no encrypted content to decrypt");
@@ -1972,8 +2061,12 @@ export async function inspectEmbed(
       const childId = (embed!.embed_ids as string[])[i];
       const child = childEmbedRecords[i];
       const childStatus = child ? (child.status as string) || "?" : "NOT FOUND";
-      const childHasContent = child ? !!(child.encrypted_content || child.content || child.data) : false;
-      lines.push(`  ${(i + 1).toString().padStart(3)}  ${childStatus.padEnd(10)} ${childHasContent ? "✅ content" : "❌ no content"}  ${childId}`);
+      const childHasContent = child
+        ? !!(child.encrypted_content || child.content || child.data)
+        : false;
+      lines.push(
+        `  ${(i + 1).toString().padStart(3)}  ${childStatus.padEnd(10)} ${childHasContent ? "✅ content" : "❌ no content"}  ${childId}`,
+      );
     }
   }
 
@@ -1982,7 +2075,9 @@ export async function inspectEmbed(
     const { embedStore } = await import("./embedStore");
     const inMemoryEmbed = await embedStore.get(contentRef);
     lines.push("");
-    lines.push(`Memory cache:  ${inMemoryEmbed ? "✅ present" : "❌ not cached"}`);
+    lines.push(
+      `Memory cache:  ${inMemoryEmbed ? "✅ present" : "❌ not cached"}`,
+    );
   } catch {
     lines.push("");
     lines.push("Memory cache:  unavailable");
@@ -2023,7 +2118,6 @@ export async function inspectEmbed(
   return fullReport;
 }
 
-
 // ============================================================================
 // USER DEBUG
 // ============================================================================
@@ -2056,13 +2150,15 @@ async function debugUser(): Promise<void> {
   // Master key health check
   let masterKeyOk = false;
   try {
-    const { getKeyFromStorage, encryptWithMasterKey } = await import("./cryptoService");
+    const { getKeyFromStorage, encryptWithMasterKey } =
+      await import("./cryptoService");
     const masterKey = await getKeyFromStorage();
     if (masterKey) {
       try {
         const testEnc = await encryptWithMasterKey("debug_test");
         masterKeyOk = testEnc !== null && testEnc.length > 0;
-        if (!masterKeyOk) issues.push("master key present but encrypt test FAILED");
+        if (!masterKeyOk)
+          issues.push("master key present but encrypt test FAILED");
       } catch {
         issues.push("master key present but encrypt test threw error");
       }
@@ -2083,7 +2179,8 @@ async function debugUser(): Promise<void> {
       issues.push("user profile not loaded");
     } else {
       if (!profile.user_id) issues.push("user_id is null");
-      if (!profile.last_sync_timestamp) issues.push("last_sync_timestamp is 0/null — never synced");
+      if (!profile.last_sync_timestamp)
+        issues.push("last_sync_timestamp is 0/null — never synced");
     }
   } catch {
     issues.push("userProfile store unavailable");
@@ -2104,7 +2201,9 @@ async function debugUser(): Promise<void> {
   lines.push("Auth:");
   lines.push(`  ${isAuth ? "🟢" : "🔴"} isAuthenticated = ${isAuth}`);
   lines.push(`  ${isInit ? "🟢" : "🔴"} isInitialized   = ${isInit}`);
-  lines.push(`  ${masterKeyOk ? "🟢" : "🔴"} master key       = ${masterKeyOk ? "UNLOCKED (encrypt test OK)" : "LOCKED / UNAVAILABLE"}`);
+  lines.push(
+    `  ${masterKeyOk ? "🟢" : "🔴"} master key       = ${masterKeyOk ? "UNLOCKED (encrypt test OK)" : "LOCKED / UNAVAILABLE"}`,
+  );
 
   // ─── Profile ───
   if (profile) {
@@ -2120,25 +2219,42 @@ async function debugUser(): Promise<void> {
     lines.push(`  darkmode:          ${profile.darkmode ?? false}`);
     lines.push(`  tfa_enabled:       ${profile.tfa_enabled ?? false}`);
     lines.push(`  last_opened:       ${profile.last_opened ?? "?"}`);
-    lines.push(`  last_sync_ts:      ${profile.last_sync_timestamp ?? 0}`
-      + (profile.last_sync_timestamp
-          ? ` (${new Date((profile.last_sync_timestamp as number) * 1000).toISOString().replace("T"," ").replace("Z"," UTC")})`
-          : ""));
-    lines.push(`  push_notif:        ${profile.push_notification_enabled ?? false}`);
-    lines.push(`  email_notif:       ${profile.email_notifications_enabled ?? false}`);
-    lines.push(`  auto_delete_days:  ${profile.auto_delete_chats_after_days ?? "null (never)"}`);
+    lines.push(
+      `  last_sync_ts:      ${profile.last_sync_timestamp ?? 0}` +
+        (profile.last_sync_timestamp
+          ? ` (${new Date((profile.last_sync_timestamp as number) * 1000).toISOString().replace("T", " ").replace("Z", " UTC")})`
+          : ""),
+    );
+    lines.push(
+      `  push_notif:        ${profile.push_notification_enabled ?? false}`,
+    );
+    lines.push(
+      `  email_notif:       ${profile.email_notifications_enabled ?? false}`,
+    );
+    lines.push(
+      `  auto_delete_days:  ${profile.auto_delete_chats_after_days ?? "null (never)"}`,
+    );
 
     // Recommended apps
-    if (profile.top_recommended_apps && Array.isArray(profile.top_recommended_apps)) {
+    if (
+      profile.top_recommended_apps &&
+      Array.isArray(profile.top_recommended_apps)
+    ) {
       lines.push("");
-      lines.push(`Top recommended apps (${(profile.top_recommended_apps as string[]).length}):  ${(profile.top_recommended_apps as string[]).join(", ")}`);
+      lines.push(
+        `Top recommended apps (${(profile.top_recommended_apps as string[]).length}):  ${(profile.top_recommended_apps as string[]).join(", ")}`,
+      );
     }
 
     // AI model preferences
     lines.push("");
     lines.push("AI model preferences:");
-    lines.push(`  default_simple:    ${profile.default_ai_model_simple ?? "auto"}`);
-    lines.push(`  default_complex:   ${profile.default_ai_model_complex ?? "auto"}`);
+    lines.push(
+      `  default_simple:    ${profile.default_ai_model_simple ?? "auto"}`,
+    );
+    lines.push(
+      `  default_complex:   ${profile.default_ai_model_complex ?? "auto"}`,
+    );
     const disabledModels = profile.disabled_ai_models as string[] | undefined;
     if (disabledModels && disabledModels.length > 0) {
       lines.push(`  disabled_models:   ${disabledModels.join(", ")}`);
@@ -2149,7 +2265,6 @@ async function debugUser(): Promise<void> {
 
   console.log(lines.join("\n"));
 }
-
 
 // ============================================================================
 // DAILY INSPIRATIONS DEBUG
@@ -2174,7 +2289,8 @@ async function debugDailyInspirations(): Promise<void> {
 
   try {
     const { get } = await import("svelte/store");
-    const { dailyInspirationStore } = await import("../stores/dailyInspirationStore");
+    const { dailyInspirationStore } =
+      await import("../stores/dailyInspirationStore");
     stateObj = get(dailyInspirationStore) as unknown as typeof stateObj;
   } catch (e) {
     issues.push(`store unavailable: ${e}`);
@@ -2186,9 +2302,10 @@ async function debugDailyInspirations(): Promise<void> {
       issues.push("inspirations are public defaults only (not personalized)");
     }
     for (const ins of stateObj.inspirations) {
-      const insId = (ins.inspiration_id as string || "?").slice(0, 8);
+      const insId = ((ins.inspiration_id as string) || "?").slice(0, 8);
       if (!ins.video) issues.push(`inspiration ${insId}... has no video`);
-      if (!ins.generated_at) issues.push(`inspiration ${insId}... missing generated_at`);
+      if (!ins.generated_at)
+        issues.push(`inspiration ${insId}... missing generated_at`);
     }
   }
 
@@ -2214,10 +2331,18 @@ async function debugDailyInspirations(): Promise<void> {
   } else {
     // Lazy-import modules needed for the assistant-message check
     let chatDBModule: null | (typeof import("./db"))["chatDB"] = null;
-    let decryptWithChatKeyFn: null | typeof import("./cryptoService")["decryptWithChatKey"] = null;
-    let decryptChatKeyWithMasterKeyFn: null | typeof import("./cryptoService")["decryptChatKeyWithMasterKey"] = null;
+    let decryptWithChatKeyFn:
+      | null
+      | (typeof import("./cryptoService"))["decryptWithChatKey"] = null;
+    let decryptChatKeyWithMasterKeyFn:
+      | null
+      | (typeof import("./cryptoService"))["decryptChatKeyWithMasterKey"] =
+      null;
     try {
-      const [dbMod, cryptoMod] = await Promise.all([import("./db"), import("./cryptoService")]);
+      const [dbMod, cryptoMod] = await Promise.all([
+        import("./db"),
+        import("./cryptoService"),
+      ]);
       chatDBModule = dbMod.chatDB;
       decryptWithChatKeyFn = cryptoMod.decryptWithChatKey;
       decryptChatKeyWithMasterKeyFn = cryptoMod.decryptChatKeyWithMasterKey;
@@ -2230,16 +2355,25 @@ async function debugDailyInspirations(): Promise<void> {
       const isCurrent = i === stateObj.currentIndex;
       // is_opened: the user clicked the banner and created a chat.
       // "viewed" (banner entered viewport) is tracked in Redis only — not visible client-side.
-      const openedLabel = ins.is_opened ? "chat opened" : "not opened (click to start chat)";
+      const openedLabel = ins.is_opened
+        ? "chat opened"
+        : "not opened (click to start chat)";
       const genDate = ins.generated_at
-        ? new Date((ins.generated_at as number) * 1000).toISOString().replace("T"," ").replace("Z"," UTC")
+        ? new Date((ins.generated_at as number) * 1000)
+            .toISOString()
+            .replace("T", " ")
+            .replace("Z", " UTC")
         : "N/A";
 
       lines.push("");
-      lines.push(`Inspiration ${i + 1}${isCurrent ? " ◀ current" : ""} — ${openedLabel}`);
+      lines.push(
+        `Inspiration ${i + 1}${isCurrent ? " ◀ current" : ""} — ${openedLabel}`,
+      );
       lines.push(`  id:             ${ins.inspiration_id as string}`);
       const phrase = (ins.phrase as string) || "";
-      lines.push(`  phrase:         ${phrase.length > 70 ? phrase.slice(0, 70) + "..." : phrase}`);
+      lines.push(
+        `  phrase:         ${phrase.length > 70 ? phrase.slice(0, 70) + "..." : phrase}`,
+      );
       lines.push(`  title:          ${ins.title || "(not set)"}`);
       lines.push(`  category:       ${ins.category}`);
       lines.push(`  content_type:   ${ins.content_type}`);
@@ -2254,7 +2388,9 @@ async function debugDailyInspirations(): Promise<void> {
         try {
           const { resolveEmbed } = await import("./embedResolver");
           const resolved = await resolveEmbed(ins.embed_id as string);
-          lines.push(`  embed_resolve:  ${resolved ? "🟢 OK" : "🔴 NOT FOUND"}`);
+          lines.push(
+            `  embed_resolve:  ${resolved ? "🟢 OK" : "🔴 NOT FOUND"}`,
+          );
         } catch {
           lines.push("  embed_resolve:  🔴 ERROR");
         }
@@ -2265,17 +2401,27 @@ async function debugDailyInspirations(): Promise<void> {
         lines.push(`  video:`);
         lines.push(`    youtube_id:   ${video.youtube_id}`);
         const vTitle = (video.title as string) || "?";
-        lines.push(`    title:        ${vTitle.length > 60 ? vTitle.slice(0, 60) + "..." : vTitle}`);
+        lines.push(
+          `    title:        ${vTitle.length > 60 ? vTitle.slice(0, 60) + "..." : vTitle}`,
+        );
         lines.push(`    channel:      ${video.channel_name || "?"}`);
-        lines.push(`    duration:     ${video.duration_seconds != null ? video.duration_seconds + "s" : "?"}`);
+        lines.push(
+          `    duration:     ${video.duration_seconds != null ? video.duration_seconds + "s" : "?"}`,
+        );
       } else {
         lines.push("  video:          null");
       }
 
-      const followUpArr = Array.isArray(ins.follow_up_suggestions) ? (ins.follow_up_suggestions as string[]) : [];
-      lines.push(`  follow_up:      ${followUpArr.length} suggestion(s)${followUpArr.length === 0 ? " (persisted after reload; LLM-gen only in current session)" : ""}`);
+      const followUpArr = Array.isArray(ins.follow_up_suggestions)
+        ? (ins.follow_up_suggestions as string[])
+        : [];
+      lines.push(
+        `  follow_up:      ${followUpArr.length} suggestion(s)${followUpArr.length === 0 ? " (persisted after reload; LLM-gen only in current session)" : ""}`,
+      );
       const resp = ins.assistant_response as string | undefined;
-      lines.push(`  assistant_resp: ${resp ? resp.length + " chars" : "(not set)"}`);
+      lines.push(
+        `  assistant_resp: ${resp ? resp.length + " chars" : "(not set)"}`,
+      );
 
       // ── Assistant message verification for opened inspirations ──────────────
       // Check that the first message in the created chat:
@@ -2285,60 +2431,98 @@ async function debugDailyInspirations(): Promise<void> {
       //      If they are equal, the embed reference was not appended — that's a bug.
       //   3. Has messages_v > 1 (messages_v is set to 1 at chat creation time; if it
       //      still equals 1 the chat was created but no assistant message was added).
-      if (ins.is_opened && ins.opened_chat_id && chatDBModule && decryptWithChatKeyFn && decryptChatKeyWithMasterKeyFn) {
+      if (
+        ins.is_opened &&
+        ins.opened_chat_id &&
+        chatDBModule &&
+        decryptWithChatKeyFn &&
+        decryptChatKeyWithMasterKeyFn
+      ) {
         try {
           await chatDBModule.init();
           const chatId = ins.opened_chat_id as string;
           const chat = await chatDBModule.getChat(chatId);
           if (!chat) {
-            lines.push(`  assistant_msg:  🔴 chat ${chatId.slice(0, 8)}... NOT FOUND in IndexedDB`);
+            lines.push(
+              `  assistant_msg:  🔴 chat ${chatId.slice(0, 8)}... NOT FOUND in IndexedDB`,
+            );
           } else {
-            const messagesV = (chat as unknown as Record<string, unknown>).messages_v as number | undefined;
+            const messagesV = (chat as unknown as Record<string, unknown>)
+              .messages_v as number | undefined;
             if (messagesV !== undefined && messagesV <= 1) {
               // messages_v is initialized to 1 at chat creation. It increments each time a
               // new message is added. If still 1, no messages have been added after creation.
-              lines.push(`  assistant_msg:  🔴 messages_v=${messagesV} — chat created but no messages added yet (or assistant message not written)`);
+              lines.push(
+                `  assistant_msg:  🔴 messages_v=${messagesV} — chat created but no messages added yet (or assistant message not written)`,
+              );
             } else {
               // Get the chat key (from cache first, then unwrap from encrypted_chat_key)
               let chatKey: Uint8Array | null = chatDBModule.getChatKey(chatId);
               if (!chatKey) {
                 const chatMeta = chat as unknown as Record<string, unknown>;
                 if (chatMeta.encrypted_chat_key) {
-                  chatKey = await decryptChatKeyWithMasterKeyFn(chatMeta.encrypted_chat_key as string);
+                  chatKey = await decryptChatKeyWithMasterKeyFn(
+                    chatMeta.encrypted_chat_key as string,
+                  );
                 }
               }
               // Try to read the first assistant message in the chat
               const allMessages = await chatDBModule.getMessagesForChat(chatId);
-              const firstAssistant = (allMessages as unknown as Array<Record<string, unknown>> | null)?.find(
-                (m) => m.role === "assistant",
-              );
+              const firstAssistant = (
+                allMessages as unknown as Array<Record<string, unknown>> | null
+              )?.find((m) => m.role === "assistant");
               if (!firstAssistant) {
-                lines.push(`  assistant_msg:  🔴 no assistant message found in chat (messages_v=${messagesV})`);
+                lines.push(
+                  `  assistant_msg:  🔴 no assistant message found in chat (messages_v=${messagesV})`,
+                );
               } else {
                 // Try decrypting the message content
-                const encContent = firstAssistant.encrypted_content as string | null;
+                const encContent = firstAssistant.encrypted_content as
+                  | string
+                  | null;
                 if (!encContent) {
-                  lines.push(`  assistant_msg:  🟡 message has no encrypted_content (cleartext or not yet written)`);
+                  lines.push(
+                    `  assistant_msg:  🟡 message has no encrypted_content (cleartext or not yet written)`,
+                  );
                 } else if (!chatKey) {
-                  lines.push(`  assistant_msg:  🟡 chat key unavailable — cannot decrypt to verify content`);
+                  lines.push(
+                    `  assistant_msg:  🟡 chat key unavailable — cannot decrypt to verify content`,
+                  );
                 } else {
-                  const decrypted = await decryptWithChatKeyFn(encContent, chatKey, {
-                    chatId,
-                    fieldName: "first_assistant_message",
-                  });
+                  const decrypted = await decryptWithChatKeyFn(
+                    encContent,
+                    chatKey,
+                    {
+                      chatId,
+                      fieldName: "first_assistant_message",
+                    },
+                  );
                   if (!decrypted) {
-                    lines.push(`  assistant_msg:  🔴 decryption failed for first assistant message`);
+                    lines.push(
+                      `  assistant_msg:  🔴 decryption failed for first assistant message`,
+                    );
                   } else {
-                    const hasEmbed = decrypted.includes('"type"') && decrypted.includes('"embed_id"');
-                    const equalsRawCta = resp && decrypted.trim() === resp.trim();
+                    const hasEmbed =
+                      decrypted.includes('"type"') &&
+                      decrypted.includes('"embed_id"');
+                    const equalsRawCta =
+                      resp && decrypted.trim() === resp.trim();
                     if (video && equalsRawCta) {
                       // Message equals bare assistant_response but there's a video — embed block is missing
-                      lines.push(`  assistant_msg:  🔴 BUG: equals bare CTA text only — embed reference block MISSING (${decrypted.length} chars)`);
-                      issues.push(`inspiration ${(ins.inspiration_id as string).slice(0, 8)}... chat msg = bare CTA (embed block missing)`);
+                      lines.push(
+                        `  assistant_msg:  🔴 BUG: equals bare CTA text only — embed reference block MISSING (${decrypted.length} chars)`,
+                      );
+                      issues.push(
+                        `inspiration ${(ins.inspiration_id as string).slice(0, 8)}... chat msg = bare CTA (embed block missing)`,
+                      );
                     } else if (video && !hasEmbed) {
-                      lines.push(`  assistant_msg:  🟡 ${decrypted.length} chars — no embed JSON block found (may be legacy format)`);
+                      lines.push(
+                        `  assistant_msg:  🟡 ${decrypted.length} chars — no embed JSON block found (may be legacy format)`,
+                      );
                     } else {
-                      lines.push(`  assistant_msg:  🟢 OK (${decrypted.length} chars${hasEmbed ? ", embed block present" : ""})`);
+                      lines.push(
+                        `  assistant_msg:  🟢 OK (${decrypted.length} chars${hasEmbed ? ", embed block present" : ""})`,
+                      );
                     }
                   }
                 }
@@ -2360,12 +2544,15 @@ async function debugDailyInspirations(): Promise<void> {
     for (const iss of issues) lines.push(`   • ${iss}`);
   }
   lines.push("");
-  lines.push("Note: 'not opened' = user has not clicked the banner to start a chat.");
-  lines.push("      'viewed' (banner in viewport) is tracked server-side only (Redis).");
+  lines.push(
+    "Note: 'not opened' = user has not clicked the banner to start a chat.",
+  );
+  lines.push(
+    "      'viewed' (banner in viewport) is tracked server-side only (Redis).",
+  );
 
   console.log(lines.join("\n"));
 }
-
 
 // ============================================================================
 // NEW CHAT SUGGESTIONS DEBUG
@@ -2378,7 +2565,9 @@ async function debugDailyInspirations(): Promise<void> {
  *   await window.debug.newChatSuggestions()
  *   await window.debug.newChatSuggestions({ hideKeys: true })
  */
-async function debugNewChatSuggestions(opts: { hideKeys?: boolean } = {}): Promise<void> {
+async function debugNewChatSuggestions(
+  opts: { hideKeys?: boolean } = {},
+): Promise<void> {
   void opts; // reserved for future use
   const lines: string[] = [];
   const issues: string[] = [];
@@ -2390,17 +2579,26 @@ async function debugNewChatSuggestions(opts: { hideKeys?: boolean } = {}): Promi
 
   try {
     const db = await openDB();
-    suggestions = await getAllFromStore<Record<string, unknown>>(db, NEW_CHAT_SUGGESTIONS_STORE);
+    suggestions = await getAllFromStore<Record<string, unknown>>(
+      db,
+      NEW_CHAT_SUGGESTIONS_STORE,
+    );
     db.close();
 
     // Sort by created_at descending
-    suggestions.sort((a, b) => ((b.created_at as number) || 0) - ((a.created_at as number) || 0));
+    suggestions.sort(
+      (a, b) =>
+        ((b.created_at as number) || 0) - ((a.created_at as number) || 0),
+    );
 
     // Try to decrypt each suggestion
-    let decryptWithMasterKey: null | ((s: string) => Promise<string | null>) = null;
+    let decryptWithMasterKey: null | ((s: string) => Promise<string | null>) =
+      null;
     try {
       const mod = await import("./cryptoService");
-      decryptWithMasterKey = mod.decryptWithMasterKey as (s: string) => Promise<string | null>;
+      decryptWithMasterKey = mod.decryptWithMasterKey as (
+        s: string,
+      ) => Promise<string | null>;
       if (decryptWithMasterKey && suggestions.length > 0) {
         masterKeyAvailable = true;
       }
@@ -2417,7 +2615,11 @@ async function debugNewChatSuggestions(opts: { hideKeys?: boolean } = {}): Promi
           const decrypted = await decryptWithMasterKey(encValue);
           if (decrypted !== null) {
             decryptOk++;
-            decryptedPreviews.push(decrypted.length > 50 ? decrypted.slice(0, 50) + "..." : decrypted);
+            decryptedPreviews.push(
+              decrypted.length > 50
+                ? decrypted.slice(0, 50) + "..."
+                : decrypted,
+            );
           } else {
             decryptFail++;
             decryptedPreviews.push(null);
@@ -2433,20 +2635,28 @@ async function debugNewChatSuggestions(opts: { hideKeys?: boolean } = {}): Promi
 
     // Health
     if (!masterKeyAvailable && suggestions.length > 0) {
-      issues.push("master key not available — cannot verify suggestions are decryptable");
+      issues.push(
+        "master key not available — cannot verify suggestions are decryptable",
+      );
     }
     if (decryptFail > 0) {
-      issues.push(`${decryptFail}/${decryptOk + decryptFail} suggestions failed to decrypt`);
+      issues.push(
+        `${decryptFail}/${decryptOk + decryptFail} suggestions failed to decrypt`,
+      );
     }
     if (suggestions.length > 45) {
-      issues.push(`suggestion count (${suggestions.length}) is near the 50-item cap`);
+      issues.push(
+        `suggestion count (${suggestions.length}) is near the 50-item cap`,
+      );
     }
 
     // ─── Header + health at top ───
     lines.push("NEW CHAT SUGGESTIONS");
     lines.push("─".repeat(80));
     if (issues.length === 0) {
-      lines.push(`🟢 HEALTHY (${suggestions.length} suggestions, ${decryptOk} decrypted OK)`);
+      lines.push(
+        `🟢 HEALTHY (${suggestions.length} suggestions, ${decryptOk} decrypted OK)`,
+      );
     } else {
       lines.push(`🔴 ISSUES (${issues.length}):`);
       for (const iss of issues) lines.push(`   • ${iss}`);
@@ -2454,11 +2664,15 @@ async function debugNewChatSuggestions(opts: { hideKeys?: boolean } = {}): Promi
 
     lines.push("");
     lines.push(`Count in IndexedDB:  ${suggestions.length} (max 50)`);
-    lines.push(`Master key:          ${masterKeyAvailable ? "🟢 UNLOCKED" : "🔴 LOCKED / UNAVAILABLE"}`);
+    lines.push(
+      `Master key:          ${masterKeyAvailable ? "🟢 UNLOCKED" : "🔴 LOCKED / UNAVAILABLE"}`,
+    );
 
     if (suggestions.length > 0) {
       lines.push("");
-      lines.push(`${"#".padStart(3)}  ${"Created".padEnd(28)} ${"Chat ID".padEnd(36)} ${"Decrypt".padEnd(9)} Preview`);
+      lines.push(
+        `${"#".padStart(3)}  ${"Created".padEnd(28)} ${"Chat ID".padEnd(36)} ${"Decrypt".padEnd(9)} Preview`,
+      );
       for (let i = 0; i < suggestions.length; i++) {
         const s = suggestions[i];
         const createdAt = formatTimestamp(s.created_at as number);
@@ -2478,7 +2692,9 @@ async function debugNewChatSuggestions(opts: { hideKeys?: boolean } = {}): Promi
           decryptInfo = `🔴 FAIL  (${encValue.length} chars enc)`;
         }
 
-        lines.push(`${(i + 1).toString().padStart(3)}  ${createdAt.padEnd(28)} ${chatId}${isHidden}  ${decryptInfo}`);
+        lines.push(
+          `${(i + 1).toString().padStart(3)}  ${createdAt.padEnd(28)} ${chatId}${isHidden}  ${decryptInfo}`,
+        );
       }
     }
   } catch (e) {
@@ -2492,7 +2708,6 @@ async function debugNewChatSuggestions(opts: { hideKeys?: boolean } = {}): Promi
   console.log(lines.join("\n"));
 }
 
-
 // ============================================================================
 // INITIALIZATION - Expose unified window.debug namespace
 // ============================================================================
@@ -2503,6 +2718,8 @@ async function debugNewChatSuggestions(opts: { hideKeys?: boolean } = {}): Promi
  *
  * Checks:
  *  - IndexedDB connectivity (chats, messages, embeds, keys counts)
+ *  - Auth state, master key, admin status
+ *  - Admin log forwarder status (running, flush success/failure stats)
  *  - Active chat store state
  *  - Last 5 console errors from logCollector
  */
@@ -2528,7 +2745,9 @@ async function runClientHealthCheck(): Promise<void> {
       suggCount = -1; // store may not exist
     }
     db.close();
-    allOk.push(`IndexedDB: chats=${chatCount}, messages=${msgCount}, embeds=${embedCount}, keys=${keyCount}, suggestions=${suggCount >= 0 ? suggCount : "N/A"}`);
+    allOk.push(
+      `IndexedDB: chats=${chatCount}, messages=${msgCount}, embeds=${embedCount}, keys=${keyCount}, suggestions=${suggCount >= 0 ? suggCount : "N/A"}`,
+    );
   } catch (e) {
     allIssues.push(`IndexedDB FAILED: ${e}`);
   }
@@ -2560,11 +2779,84 @@ async function runClientHealthCheck(): Promise<void> {
     allIssues.push("Master key: unavailable");
   }
 
+  // 2b. Admin status + log forwarder health
+  try {
+    const { get } = await import("svelte/store");
+    const { userProfile } = await import("../stores/userProfile");
+    const profile = get(userProfile) as unknown as Record<
+      string,
+      unknown
+    > | null;
+    const isAdmin = !!profile?.is_admin;
+
+    if (isAdmin) {
+      allOk.push("Admin: YES (is_admin=true)");
+
+      // Check log forwarder status — only relevant for admins
+      try {
+        const { clientLogForwarder } = await import("./clientLogForwarder");
+        const status = clientLogForwarder.getStatus();
+
+        if (status.isRunning) {
+          const flushInfo =
+            status.totalFlushAttempts > 0
+              ? `flushes=${status.successfulFlushes}ok/${status.failedFlushes}fail of ${status.totalFlushAttempts} total`
+              : "no flushes yet";
+          const lastStatus =
+            status.lastFlushStatus !== null
+              ? `, last HTTP ${status.lastFlushStatus}`
+              : "";
+          const lastErr = status.lastFlushError
+            ? `, lastError="${status.lastFlushError}"`
+            : "";
+          const firstFlush = status.firstFlushAttempted
+            ? ""
+            : " (first flush NOT yet attempted)";
+
+          if (status.failedFlushes === 0 && status.successfulFlushes > 0) {
+            allOk.push(
+              `Log forwarder: RUNNING (tab=${status.tabId}, ${flushInfo}${lastStatus}${firstFlush})`,
+            );
+          } else if (
+            status.failedFlushes > 0 &&
+            status.successfulFlushes === 0
+          ) {
+            allIssues.push(
+              `Log forwarder: RUNNING but ALL flushes FAILED (tab=${status.tabId}, ${flushInfo}${lastStatus}${lastErr})`,
+            );
+          } else if (status.failedFlushes > 0) {
+            allIssues.push(
+              `Log forwarder: RUNNING with some failures (tab=${status.tabId}, ${flushInfo}${lastStatus}${lastErr})`,
+            );
+          } else {
+            // Running but no flushes attempted yet (just started)
+            allOk.push(
+              `Log forwarder: RUNNING (tab=${status.tabId}, buffer=${status.bufferSize}${firstFlush})`,
+            );
+          }
+        } else {
+          allIssues.push(
+            "Log forwarder: NOT RUNNING (start() was never called or stop() was called)",
+          );
+        }
+      } catch {
+        allIssues.push("Log forwarder: unable to check status");
+      }
+    } else {
+      allOk.push("Admin: no (log forwarder not applicable)");
+    }
+  } catch {
+    // non-critical — userProfile store may not be available
+  }
+
   // 3. Active chat store
   try {
     const { get } = await import("svelte/store");
     const { activeChatStore } = await import("../stores/activeChatStore");
-    const state = get(activeChatStore) as unknown as Record<string, unknown> | null;
+    const state = get(activeChatStore) as unknown as Record<
+      string,
+      unknown
+    > | null;
     const activeChatId = state?.activeChatId ?? null;
     allOk.push(`Active chat: ${activeChatId ? activeChatId : "none"}`);
   } catch {
@@ -2578,8 +2870,14 @@ async function runClientHealthCheck(): Promise<void> {
   let failedEmbedDetails: { embedId: string; error: string }[] = [];
   try {
     const db2 = await openDB();
-    const allChats = await getAllFromStore<Record<string, unknown>>(db2, CHATS_STORE);
-    const allMessages = await getAllFromStore<Record<string, unknown>>(db2, MESSAGES_STORE);
+    const allChats = await getAllFromStore<Record<string, unknown>>(
+      db2,
+      CHATS_STORE,
+    );
+    const allMessages = await getAllFromStore<Record<string, unknown>>(
+      db2,
+      MESSAGES_STORE,
+    );
     db2.close();
 
     const messagesByChatId: Record<string, Record<string, unknown>[]> = {};
@@ -2617,7 +2915,9 @@ async function runClientHealthCheck(): Promise<void> {
     if (decryptChatsFailed === 0) {
       allOk.push(`Chat decryption: all ${decryptChatsOk} chats OK`);
     } else {
-      allIssues.push(`Chat decryption: ${decryptChatsFailed} chat(s) have decrypt failures`);
+      allIssues.push(
+        `Chat decryption: ${decryptChatsFailed} chat(s) have decrypt failures`,
+      );
     }
   } catch (e) {
     allIssues.push(`Chat decryption check failed: ${e}`);
@@ -2626,17 +2926,21 @@ async function runClientHealthCheck(): Promise<void> {
   // 5. Embed decryption — ALL finished encrypted embeds (no sampling)
   try {
     const db3 = await openDB();
-    const allEmbeds = await getAllFromStore<Record<string, unknown>>(db3, EMBEDS_STORE);
-    const allEmbedKeys = await getAllFromStore<Record<string, unknown>>(db3, EMBED_KEYS_STORE);
+    const allEmbeds = await getAllFromStore<Record<string, unknown>>(
+      db3,
+      EMBEDS_STORE,
+    );
+    const allEmbedKeys = await getAllFromStore<Record<string, unknown>>(
+      db3,
+      EMBED_KEYS_STORE,
+    );
     db3.close();
 
     const embedKeyDebug = buildEmbedKeyDebugMap(allEmbedKeys);
-    const finishedEmbeds = allEmbeds.filter(
-      (e) => {
-        const s = String(e.status || "").toLowerCase();
-        return (s === "finished" || s === "activated") && !!(e.encrypted_content);
-      }
-    );
+    const finishedEmbeds = allEmbeds.filter((e) => {
+      const s = String(e.status || "").toLowerCase();
+      return (s === "finished" || s === "activated") && !!e.encrypted_content;
+    });
 
     if (finishedEmbeds.length > 0) {
       const embedDecodeResult = await collectClientEmbedDecodeHealth(
@@ -2646,9 +2950,13 @@ async function runClientHealthCheck(): Promise<void> {
       );
 
       if (embedDecodeResult.failedCount === 0) {
-        allOk.push(`Embed decryption: ${embedDecodeResult.decodedCount}/${embedDecodeResult.checkedCount} ALL OK`);
+        allOk.push(
+          `Embed decryption: ${embedDecodeResult.decodedCount}/${embedDecodeResult.checkedCount} ALL OK`,
+        );
       } else {
-        allIssues.push(`Embed decryption: ${embedDecodeResult.failedCount}/${embedDecodeResult.checkedCount} FAILED`);
+        allIssues.push(
+          `Embed decryption: ${embedDecodeResult.failedCount}/${embedDecodeResult.checkedCount} FAILED`,
+        );
         // Collect failed embed details for the detail section
         failedEmbedDetails = embedDecodeResult.attempts
           .filter((a) => a.error !== null)
@@ -2664,7 +2972,10 @@ async function runClientHealthCheck(): Promise<void> {
   // 6. New chat suggestions decryption
   try {
     const db4 = await openDB();
-    const suggestions = await getAllFromStore<Record<string, unknown>>(db4, NEW_CHAT_SUGGESTIONS_STORE);
+    const suggestions = await getAllFromStore<Record<string, unknown>>(
+      db4,
+      NEW_CHAT_SUGGESTIONS_STORE,
+    );
     db4.close();
 
     if (suggestions.length > 0) {
@@ -2686,7 +2997,9 @@ async function runClientHealthCheck(): Promise<void> {
         if (suggFail === 0) {
           allOk.push(`Suggestions decrypt: all ${suggOk} OK`);
         } else {
-          allIssues.push(`Suggestions decrypt: ${suggFail}/${suggOk + suggFail} FAILED`);
+          allIssues.push(
+            `Suggestions decrypt: ${suggFail}/${suggOk + suggFail} FAILED`,
+          );
         }
       } catch {
         allIssues.push("Suggestions decrypt: master key unavailable");
@@ -2699,7 +3012,8 @@ async function runClientHealthCheck(): Promise<void> {
   // 7. Daily inspirations health
   try {
     const { get } = await import("svelte/store");
-    const { dailyInspirationStore } = await import("../stores/dailyInspirationStore");
+    const { dailyInspirationStore } =
+      await import("../stores/dailyInspirationStore");
     const state = get(dailyInspirationStore) as unknown as {
       inspirations: Array<Record<string, unknown>>;
       isPersonalized: boolean;
@@ -2712,7 +3026,9 @@ async function runClientHealthCheck(): Promise<void> {
       if (missing > 0) {
         allIssues.push(`Daily inspirations: ${missing}/${count} missing video`);
       } else {
-        allOk.push(`Daily inspirations: ${count} loaded${state.isPersonalized ? " (personalized)" : " (defaults)"}`);
+        allOk.push(
+          `Daily inspirations: ${count} loaded${state.isPersonalized ? " (personalized)" : " (defaults)"}`,
+        );
       }
     }
   } catch {
@@ -2722,7 +3038,10 @@ async function runClientHealthCheck(): Promise<void> {
   // 8. Settings & memories decryption health
   try {
     const db5 = await openDB();
-    const settingsEntries = await getAllFromStore<Record<string, unknown>>(db5, APP_SETTINGS_MEMORIES_STORE);
+    const settingsEntries = await getAllFromStore<Record<string, unknown>>(
+      db5,
+      APP_SETTINGS_MEMORIES_STORE,
+    );
     db5.close();
 
     if (settingsEntries.length > 0) {
@@ -2732,7 +3051,10 @@ async function runClientHealthCheck(): Promise<void> {
         const { decryptWithMasterKey } = await import("./cryptoService");
         for (const entry of settingsEntries) {
           const enc = (entry.encrypted_item_json as string) || "";
-          if (!enc) { smFail++; continue; }
+          if (!enc) {
+            smFail++;
+            continue;
+          }
           try {
             const d = await decryptWithMasterKey(enc);
             if (d !== null) smOk++;
@@ -2744,7 +3066,9 @@ async function runClientHealthCheck(): Promise<void> {
         if (smFail === 0) {
           allOk.push(`Settings & memories decrypt: all ${smOk} OK`);
         } else {
-          allIssues.push(`Settings & memories decrypt: ${smFail}/${smOk + smFail} FAILED`);
+          allIssues.push(
+            `Settings & memories decrypt: ${smFail}/${smOk + smFail} FAILED`,
+          );
         }
       } catch {
         allIssues.push("Settings & memories decrypt: master key unavailable");
@@ -2760,9 +3084,11 @@ async function runClientHealthCheck(): Promise<void> {
   let errorLogCount = 0;
   try {
     const { logCollector } = await import("./logCollector");
-    const errors = logCollector.getErrorLogs().filter(
-      (e: { level: string }) => e.level === "error" || e.level === "warn",
-    );
+    const errors = logCollector
+      .getErrorLogs()
+      .filter(
+        (e: { level: string }) => e.level === "error" || e.level === "warn",
+      );
     errorLogCount = errors.length;
     if (errors.length === 0) {
       allOk.push("Console: no errors/warnings");
@@ -2779,12 +3105,17 @@ async function runClientHealthCheck(): Promise<void> {
   const serverSyncIssues: string[] = [];
   try {
     const db6 = await openDB();
-    const allChatsForSync = await getAllFromStore<Record<string, unknown>>(db6, CHATS_STORE);
+    const allChatsForSync = await getAllFromStore<Record<string, unknown>>(
+      db6,
+      CHATS_STORE,
+    );
     db6.close();
 
     if (allChatsForSync.length > 0) {
       // Build batches
-      const allChatIds = allChatsForSync.map((c) => c.chat_id as string).filter(Boolean);
+      const allChatIds = allChatsForSync
+        .map((c) => c.chat_id as string)
+        .filter(Boolean);
       const batches: string[][] = [];
       for (let i = 0; i < allChatIds.length; i += SERVER_SYNC_BATCH_SIZE) {
         batches.push(allChatIds.slice(i, i + SERVER_SYNC_BATCH_SIZE));
@@ -2801,7 +3132,10 @@ async function runClientHealthCheck(): Promise<void> {
       }
       // Count local messages per chat
       const db7 = await openDB();
-      const allMsgsForSync = await getAllFromStore<Record<string, unknown>>(db7, MESSAGES_STORE);
+      const allMsgsForSync = await getAllFromStore<Record<string, unknown>>(
+        db7,
+        MESSAGES_STORE,
+      );
       db7.close();
       for (const m of allMsgsForSync) {
         const cid = m.chat_id as string;
@@ -2825,13 +3159,19 @@ async function runClientHealthCheck(): Promise<void> {
 
           if (!serverChat.found) {
             missingCount++;
-            driftDetails.push(`  🔴 chat ${serverChat.chat_id.substring(0, 12)}... NOT on server`);
+            driftDetails.push(
+              `  🔴 chat ${serverChat.chat_id.substring(0, 12)}... NOT on server`,
+            );
             continue;
           }
 
           // Check client vs server messages_v drift
           const serverMsgV = serverChat.db_messages_v ?? null;
-          if (localMsgV !== null && serverMsgV !== null && localMsgV !== serverMsgV) {
+          if (
+            localMsgV !== null &&
+            serverMsgV !== null &&
+            localMsgV !== serverMsgV
+          ) {
             driftCount++;
             driftDetails.push(
               `  🔴 chat ${serverChat.chat_id.substring(0, 12)}... client_messages_v=${localMsgV} ≠ server_messages_v=${serverMsgV}`,
@@ -2871,7 +3211,9 @@ async function runClientHealthCheck(): Promise<void> {
           const parts: string[] = [];
           if (driftCount > 0) parts.push(`${driftCount} drift`);
           if (missingCount > 0) parts.push(`${missingCount} missing`);
-          allIssues.push(`Server sync: ${parts.join(", ")} (of ${checkedCount} checked)`);
+          allIssues.push(
+            `Server sync: ${parts.join(", ")} (of ${checkedCount} checked)`,
+          );
           for (const detail of driftDetails.slice(0, 10)) {
             serverSyncIssues.push(detail);
           }
@@ -2892,7 +3234,9 @@ async function runClientHealthCheck(): Promise<void> {
   // OUTPUT
   // ═══════════════════════════════════════════════════════════════
   const isHealthy = allIssues.length === 0;
-  const banner = isHealthy ? "🟢 CLIENT HEALTH: ALL OK" : `🔴 CLIENT HEALTH: ${allIssues.length} ISSUE(S)`;
+  const banner = isHealthy
+    ? "🟢 CLIENT HEALTH: ALL OK"
+    : `🔴 CLIENT HEALTH: ${allIssues.length} ISSUE(S)`;
 
   console.log(
     `%c${banner}`,
@@ -2945,7 +3289,9 @@ async function runClientHealthCheck(): Promise<void> {
       try {
         const { logCollector } = await import("./logCollector");
         const MAX_HEALTH_CHECK_LOGS = 100;
-        const errorsAndWarnings = logCollector.getErrorLogs().slice(-MAX_HEALTH_CHECK_LOGS);
+        const errorsAndWarnings = logCollector
+          .getErrorLogs()
+          .slice(-MAX_HEALTH_CHECK_LOGS);
         if (errorsAndWarnings.length > 0) {
           console.log("");
           console.log(
@@ -2966,10 +3312,7 @@ async function runClientHealthCheck(): Promise<void> {
   // Server sync issue details
   if (serverSyncIssues.length > 0) {
     console.log("");
-    console.log(
-      "%c  Server sync issues:",
-      "font-weight: 600; color: #dc2626;",
-    );
+    console.log("%c  Server sync issues:", "font-weight: 600; color: #dc2626;");
     for (const issue of serverSyncIssues) {
       console.log(issue);
     }
@@ -2982,7 +3325,6 @@ async function runClientHealthCheck(): Promise<void> {
     "color: #888",
   );
 }
-
 
 /**
  * Show all available debug commands.
@@ -3058,7 +3400,10 @@ async function debugSettingsAndMemories(): Promise<void> {
 
   try {
     const db = await openDB();
-    entries = await getAllFromStore<Record<string, unknown>>(db, APP_SETTINGS_MEMORIES_STORE);
+    entries = await getAllFromStore<Record<string, unknown>>(
+      db,
+      APP_SETTINGS_MEMORIES_STORE,
+    );
     db.close();
   } catch (e) {
     issues.push(`Failed to read IndexedDB store: ${e}`);
@@ -3066,17 +3411,22 @@ async function debugSettingsAndMemories(): Promise<void> {
 
   // Try to decrypt each entry
   if (entries.length > 0) {
-    let decryptWithMasterKey: null | ((s: string) => Promise<string | null>) = null;
+    let decryptWithMasterKey: null | ((s: string) => Promise<string | null>) =
+      null;
     try {
       const mod = await import("./cryptoService");
-      decryptWithMasterKey = mod.decryptWithMasterKey as (s: string) => Promise<string | null>;
+      decryptWithMasterKey = mod.decryptWithMasterKey as (
+        s: string,
+      ) => Promise<string | null>;
       masterKeyAvailable = true;
     } catch {
       masterKeyAvailable = false;
     }
 
     if (!masterKeyAvailable) {
-      issues.push("master key not available — cannot verify entries are decryptable");
+      issues.push(
+        "master key not available — cannot verify entries are decryptable",
+      );
     } else {
       for (const entry of entries) {
         const enc = (entry.encrypted_item_json as string) || "";
@@ -3084,7 +3434,11 @@ async function debugSettingsAndMemories(): Promise<void> {
         const appId = String(entry.app_id || "?");
         if (!enc) {
           decryptFail++;
-          failedEntries.push({ id: entryId, appId, error: "empty encrypted_item_json" });
+          failedEntries.push({
+            id: entryId,
+            appId,
+            error: "empty encrypted_item_json",
+          });
           continue;
         }
         try {
@@ -3093,7 +3447,11 @@ async function debugSettingsAndMemories(): Promise<void> {
             decryptOk++;
           } else {
             decryptFail++;
-            failedEntries.push({ id: entryId, appId, error: "decrypt returned null" });
+            failedEntries.push({
+              id: entryId,
+              appId,
+              error: "decrypt returned null",
+            });
           }
         } catch (e) {
           decryptFail++;
@@ -3105,7 +3463,9 @@ async function debugSettingsAndMemories(): Promise<void> {
 
   // Health checks
   if (decryptFail > 0) {
-    issues.push(`${decryptFail}/${decryptOk + decryptFail} entries failed to decrypt`);
+    issues.push(
+      `${decryptFail}/${decryptOk + decryptFail} entries failed to decrypt`,
+    );
   }
 
   // ─── Header + health at top ───
@@ -3125,7 +3485,9 @@ async function debugSettingsAndMemories(): Promise<void> {
 
   // ─── Summary ───
   lines.push(`Total entries in IDB: ${entries.length}`);
-  lines.push(`Master key available: ${masterKeyAvailable ? "🟢 yes" : "🔴 no"}`);
+  lines.push(
+    `Master key available: ${masterKeyAvailable ? "🟢 yes" : "🔴 no"}`,
+  );
   if (masterKeyAvailable && entries.length > 0) {
     lines.push(`Decrypt OK: ${decryptOk}  |  Decrypt FAILED: ${decryptFail}`);
   }
@@ -3145,7 +3507,9 @@ async function debugSettingsAndMemories(): Promise<void> {
 
     for (const [appId, appEntries] of Object.entries(byApp)) {
       const types = new Set(appEntries.map((e) => String(e.item_type || "?")));
-      lines.push(`  ${appId}: ${appEntries.length} entries (types: ${Array.from(types).join(", ")})`);
+      lines.push(
+        `  ${appId}: ${appEntries.length} entries (types: ${Array.from(types).join(", ")})`,
+      );
     }
     lines.push("");
   }
@@ -3223,8 +3587,10 @@ async function fetchServerSyncStatus(
   try {
     const { getApiEndpoint } = await import("../config/api");
     const body: { chat_ids?: string[]; embed_ids?: string[] } = {};
-    if (chatIds && chatIds.length > 0) body.chat_ids = chatIds.slice(0, SERVER_SYNC_BATCH_SIZE);
-    if (embedIds && embedIds.length > 0) body.embed_ids = embedIds.slice(0, SERVER_SYNC_BATCH_SIZE);
+    if (chatIds && chatIds.length > 0)
+      body.chat_ids = chatIds.slice(0, SERVER_SYNC_BATCH_SIZE);
+    if (embedIds && embedIds.length > 0)
+      body.embed_ids = embedIds.slice(0, SERVER_SYNC_BATCH_SIZE);
 
     const response = await fetch(getApiEndpoint("/v1/debug/sync"), {
       method: "POST",
@@ -3251,13 +3617,18 @@ async function fetchServerSyncStatus(
 /**
  * Format a server chat sync status block for inclusion in the chat inspection report.
  */
-function formatServerChatSync(serverStatus: ServerChatSyncStatus | undefined): string[] {
-  if (!serverStatus) return ["  ⚠ Server status unavailable (offline or not authenticated)"];
+function formatServerChatSync(
+  serverStatus: ServerChatSyncStatus | undefined,
+): string[] {
+  if (!serverStatus)
+    return ["  ⚠ Server status unavailable (offline or not authenticated)"];
 
   const lines: string[] = [];
 
   if (!serverStatus.found) {
-    lines.push("  🔴 NOT FOUND on server (not synced yet, or belongs to another user)");
+    lines.push(
+      "  🔴 NOT FOUND on server (not synced yet, or belongs to another user)",
+    );
     return lines;
   }
 
@@ -3265,7 +3636,9 @@ function formatServerChatSync(serverStatus: ServerChatSyncStatus | undefined): s
   const dbMsgCount = serverStatus.db_message_count ?? "?";
   const dbMsgV = serverStatus.db_messages_v ?? "?";
   const dbEmbedCount = serverStatus.db_embed_count ?? "?";
-  lines.push(`  DB: messages=${dbMsgCount}  messages_v=${dbMsgV}  embeds=${dbEmbedCount}`);
+  lines.push(
+    `  DB: messages=${dbMsgCount}  messages_v=${dbMsgV}  embeds=${dbEmbedCount}`,
+  );
 
   // Cache state
   if (serverStatus.cache_present) {
@@ -3303,8 +3676,11 @@ function formatServerChatSync(serverStatus: ServerChatSyncStatus | undefined): s
 /**
  * Format a server embed sync status block for inclusion in the embed inspection report.
  */
-function formatServerEmbedSync(serverStatus: ServerEmbedSyncStatus | undefined): string[] {
-  if (!serverStatus) return ["  ⚠ Server status unavailable (offline or not authenticated)"];
+function formatServerEmbedSync(
+  serverStatus: ServerEmbedSyncStatus | undefined,
+): string[] {
+  if (!serverStatus)
+    return ["  ⚠ Server status unavailable (offline or not authenticated)"];
 
   const lines: string[] = [];
 
@@ -3319,7 +3695,9 @@ function formatServerEmbedSync(serverStatus: ServerEmbedSyncStatus | undefined):
   const masterKeys = serverStatus.db_master_key_count ?? "?";
 
   lines.push(`  DB status: ${status}`);
-  lines.push(`  Keys: total=${totalKeys}  chat-type=${chatKeys}  master-type=${masterKeys}`);
+  lines.push(
+    `  Keys: total=${totalKeys}  chat-type=${chatKeys}  master-type=${masterKeys}`,
+  );
 
   if (serverStatus.db_key_count === 0) {
     lines.push("  🔴 NO KEYS on server — embed can only be decrypted locally");
@@ -3346,8 +3724,10 @@ export function initDebugUtils(): void {
     help: showDebugHelp,
 
     /** Generate a copyable chat inspection report */
-    chat: (chatId: string, opts: { download?: boolean; verbose?: boolean } = {}) =>
-      inspectChat(chatId, opts),
+    chat: (
+      chatId: string,
+      opts: { download?: boolean; verbose?: boolean } = {},
+    ) => inspectChat(chatId, opts),
 
     /** Verbose console dump of a chat (all messages, all fields) */
     chatVerbose: (chatId: string) => debugChat(chatId),
@@ -3494,7 +3874,8 @@ export function initDebugUtils(): void {
     dailyInspirations: () => debugDailyInspirations(),
 
     /** Inspect new chat suggestions in IndexedDB with decryption health check */
-    newChatSuggestions: (opts?: { hideKeys?: boolean }) => debugNewChatSuggestions(opts),
+    newChatSuggestions: (opts?: { hideKeys?: boolean }) =>
+      debugNewChatSuggestions(opts),
 
     /** Inspect app settings and memories with decryption health check */
     settingsAndMemories: () => debugSettingsAndMemories(),
@@ -3543,9 +3924,15 @@ async function setupAdminAutoExecution(): Promise<void> {
    * Auto-run inspectChat in a collapsed console group.
    * Skips if the same chatId was auto-reported within the debounce window.
    */
-  async function autoInspectChat(chatId: string, trigger: string): Promise<void> {
+  async function autoInspectChat(
+    chatId: string,
+    trigger: string,
+  ): Promise<void> {
     const now = Date.now();
-    if (chatId === lastAutoChatId && now - lastAutoChatTime < AUTO_EXEC_DEBOUNCE_MS) {
+    if (
+      chatId === lastAutoChatId &&
+      now - lastAutoChatTime < AUTO_EXEC_DEBOUNCE_MS
+    ) {
       return; // Skip duplicate within debounce window
     }
     lastAutoChatId = chatId;
@@ -3571,7 +3958,10 @@ async function setupAdminAutoExecution(): Promise<void> {
    */
   async function autoInspectEmbed(embedId: string): Promise<void> {
     const now = Date.now();
-    if (embedId === lastAutoEmbedId && now - lastAutoEmbedTime < AUTO_EXEC_DEBOUNCE_MS) {
+    if (
+      embedId === lastAutoEmbedId &&
+      now - lastAutoEmbedTime < AUTO_EXEC_DEBOUNCE_MS
+    ) {
       return; // Skip duplicate within debounce window
     }
     lastAutoEmbedId = embedId;
