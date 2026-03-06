@@ -2158,6 +2158,8 @@ class DeviceInfo(BaseModel):
     viewportWidth: int = Field(..., ge=0, le=10000, description="Viewport width in pixels")
     viewportHeight: int = Field(..., ge=0, le=10000, description="Viewport height in pixels")
     isTouchEnabled: bool = Field(..., description="Whether touch is enabled")
+    logicalCores: Optional[int] = Field(None, ge=0, le=1024, description="Number of logical CPU cores (navigator.hardwareConcurrency)")
+    deviceMemoryGiB: Optional[float] = Field(None, ge=0, le=1024, description="Approximate device RAM in GiB (navigator.deviceMemory)")
 
 
 class IssueReportRequest(BaseModel):
@@ -2357,10 +2359,14 @@ async def report_issue(
             # Format device info in a readable way for the email
             # Sanitize the user agent to prevent any potential injection
             sanitized_user_agent = escape(device_info.userAgent[:500])  # Limit length and escape
+            cpu_str = str(device_info.logicalCores) if device_info.logicalCores is not None else "Unknown"
+            ram_str = f"{device_info.deviceMemoryGiB} GiB" if device_info.deviceMemoryGiB is not None else "Unknown"
             device_info_str = (
                 f"Browser & OS: {sanitized_user_agent}\n"
                 f"Screen Size: {device_info.viewportWidth} × {device_info.viewportHeight} pixels\n"
-                f"Touch Support: {'Yes' if device_info.isTouchEnabled else 'No'}"
+                f"Touch Support: {'Yes' if device_info.isTouchEnabled else 'No'}\n"
+                f"CPU Cores: {cpu_str}\n"
+                f"RAM: {ram_str}"
             )
 
         # Process console logs if provided
