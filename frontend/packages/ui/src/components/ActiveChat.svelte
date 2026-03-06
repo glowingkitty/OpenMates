@@ -78,6 +78,7 @@
     import { aiTypingStore, type AITypingStatus } from '../stores/aiTypingStore'; // Import the new store
     import { decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
     import { getModelDisplayName } from '../utils/modelDisplayName'; // For clean model name display
+    import { modelsMetadata } from '../data/modelsMetadata'; // For reasoning model detection in typing indicator
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
     import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB, getAllDraftChatIdsWithDrafts } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
@@ -3395,12 +3396,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             };
             
             // Build multi-line indicator matching the centered overlay format:
-            //   Line 1: "{mate} is typing..."
+            //   Line 1: "{mate} is typing..." or "{mate} is thinking..." for reasoning models
             //   Line 2: "Powered by {model_name}" (if available)
             //   Line 3: "via {provider} {flag}" (if available)
-            const lines: string[] = [
-                $text('enter_message.is_typing').replace('{mate}', mateName)
-            ];
+            // Check if the current model is a reasoning/thinking model (same logic as Chat.svelte)
+            const isReasoningModelForIndicator = (() => {
+                if (!modelName) return false;
+                const model = modelsMetadata.find(m => m.name === modelName || m.id === modelName);
+                return model?.reasoning === true;
+            })();
+            const primaryLine = isReasoningModelForIndicator
+                ? $text('enter_message.is_thinking').replace('{mate}', mateName)
+                : $text('enter_message.is_typing').replace('{mate}', mateName);
+            const lines: string[] = [primaryLine];
             
             // Line 2: "Powered by {model_name}" — convert technical IDs to human-readable names
             const displayModelName = modelName ? getModelDisplayName(modelName) : '';
@@ -7704,9 +7712,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 } : null
             });
             if (chat_id === currentChat?.chat_id) {
-                if (message_id && isThinkingModel(model_name, provider_name)) {
-                    ensureThinkingPlaceholder(message_id, chat_id, category, model_name);
-                }
+                // NOTE: Do NOT call ensureThinkingPlaceholder here.
+                // Showing a placeholder ThinkingSection before any real thinking chunks arrive
+                // causes a blank/empty thinking block to flash in the UI. The thinking section
+                // is created lazily in handleAiThinkingChunk on the first real chunk.
 
                 const messageIndex = currentMessages.findIndex(m => m.message_id === user_message_id);
                 // Update user message status to synced from both 'processing' and 'waiting_for_user'
