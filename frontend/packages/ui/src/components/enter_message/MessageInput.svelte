@@ -339,6 +339,13 @@
     // --- Backspace State ---
     let isBackspaceOperation = false; // Flag to prevent immediate re-grouping after backspace
     
+    // --- URL ignore list for embed re-conversion guard ---
+    // When the user right-clicks a web/video embed and selects "Paste as text", we add
+    // the original URL to this set so detectClosedUrls will not auto-convert it back to
+    // an embed on the next editor update.  The set is cleared when the user sends the
+    // message or completely clears the message input field.
+    let ignoredEmbedUrls = $state<Set<string>>(new Set());
+    
     // --- Text-change guard for handleEditorUpdate ---
     // Tracks the last text content processed by handleEditorUpdate.
     // On iOS Firefox, double-tap to select text fires spurious `input` events that
@@ -688,7 +695,7 @@
                 urlStart >= range.start && urlEnd <= range.end
             );
             
-            if (!isInsideCodeBlock) {
+            if (!isInsideCodeBlock && !ignoredEmbedUrls.has(url)) {
                 allUrls.push({
                     url,
                     startPos: urlStart,
@@ -1598,6 +1605,44 @@
                         }
                     }
                     
+                    // Check for a standalone URL paste (single URL with optional surrounding
+                    // whitespace).  When detected we immediately trigger embed conversion —
+                    // no need for the user to type a trailing space.
+                    // We only do this when:
+                    //   1. The pasted text is (after trimming) a single URL.
+                    //   2. The URL is not in the ignore list (user previously chose "paste as text").
+                    //   3. The user is authenticated (unauthenticated path has no EmbedStore).
+                    const trimmedText = text ? text.trim() : '';
+                    const standaloneUrlRegex = /^https?:\/\/[^\s]+$/;
+                    if (
+                        trimmedText &&
+                        standaloneUrlRegex.test(trimmedText) &&
+                        !ignoredEmbedUrls.has(trimmedText) &&
+                        $authStore.isAuthenticated
+                    ) {
+                        // Let TipTap insert the text first (return false = default paste),
+                        // then immediately schedule embed processing on the next tick so
+                        // the editor content is already updated when we read it.
+                        // We use a flag so scheduleHeavyParsing in handleEditorUpdate
+                        // triggers processClosedUrls immediately (same as typing a space).
+                        piiPasteDetectionPending = true;
+                        // Schedule immediate URL conversion after the paste is committed.
+                        // We insert a trailing space after the URL to trigger detectClosedUrls
+                        // (which looks for whitespace after the URL), then remove it once
+                        // processClosedUrls has replaced the URL with an embed block.
+                        // The whole operation happens in a single tick so the user never
+                        // sees the trailing space in the editor.
+                        tick().then(() => {
+                            if (!editor || editor.isDestroyed) return;
+                            // Insert a trailing space to satisfy the "closed URL" detection
+                            editor.commands.insertContent(' ');
+                            // The space triggers handleEditorUpdate → scheduleHeavyParsing
+                            // → runHeavyParsing → handleUnifiedParsing → detectClosedUrls
+                            // → processClosedUrls, which replaces the URL+space with the embed.
+                        });
+                        return false;
+                    }
+
                     // No special handling needed - allow default paste.
                     // Flag for immediate PII detection on the next editor update,
                     // since pasted text may contain complete PII patterns.
@@ -2211,6 +2256,8 @@
                 piiExclusions = new Set();
                 currentPIIDecorations = [];
                 lastPIIText = '';
+                // Clear the URL ignore list — field is empty so start fresh
+                ignoredEmbedUrls = new Set();
             }
         }
         
@@ -3375,6 +3422,18 @@
                 preview: textContent.substring(0, 50)
             });
 
+            // For web / video URL embeds: add the URL to the ignore list so that
+            // detectClosedUrls does not immediately re-convert it back to an embed on
+            // the next editor update cycle (e.g. when the user presses Space or types
+            // another character after the restored URL).
+            if (menuType === 'web' || attrs.isYouTube || attrs.type === 'video' || attrs.type === 'website') {
+                const urlToIgnore = textContent.trim();
+                if (urlToIgnore) {
+                    ignoredEmbedUrls = new Set([...ignoredEmbedUrls, urlToIgnore]);
+                    console.debug('[MessageInput] Added URL to ignoredEmbedUrls:', urlToIgnore);
+                }
+            }
+
             // For recording embeds, delete the server-side audio file (same as delete action)
             if (attrs.type === 'recording') {
                 if (attrs.id) {
@@ -3570,6 +3629,8 @@
         // Clear PII state after sending
         detectedPII = [];
         piiExclusions = new Set();
+        // Clear the URL ignore list — a new message starts with a clean slate
+        ignoredEmbedUrls = new Set();
     }
 
     /**
@@ -3786,6 +3847,7 @@
         hasContent = false;
         originalMarkdown = ''; // Clear markdown tracking
         lastEditorUpdateText = ''; // Reset text-change guard so next update processes fully
+        ignoredEmbedUrls = new Set(); // Clear the URL ignore list when the field is fully cleared
     }
     export function getOriginalMarkdown(): string {
         // Flush any pending heavy parsing to ensure originalMarkdown is up-to-date
