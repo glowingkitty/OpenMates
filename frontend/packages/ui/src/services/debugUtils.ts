@@ -1339,7 +1339,6 @@ export async function inspectChat(
     "hashed_chat_id",
     hashedChatId,
   );
-  const totalEmbedsCount = await getStoreCount(db, EMBEDS_STORE);
 
   const chatEmbedKeys = await getAllFromIndex<Record<string, unknown>>(
     db,
@@ -1403,342 +1402,322 @@ export async function inspectChat(
 
   // ---- Build report ----
   const lines: string[] = [];
-  const separator = "=".repeat(100);
-  const thinSeparator = "-".repeat(100);
 
-  // Always: Header + Health Check + Decryption Overview
-  lines.push("");
-  lines.push(separator);
-  lines.push("CLIENT CHAT INSPECTION REPORT (IndexedDB)");
-  lines.push(separator);
-  lines.push(`Chat ID: ${chatId}`);
-  lines.push(`Generated at: ${new Date().toISOString()}`);
-  lines.push(separator);
-
-  // Health check section
-  appendHealthCheckSection(
-    lines,
-    healthSummary,
-    `messages=${messages.length} embeds=${chatEmbeds.length} embed_keys=${chatEmbedKeys.length}`,
+  // ------ CONCISE DEFAULT REPORT ------
+  // Single-line header
+  const createdStr = chatMeta
+    ? formatTimestamp(chatMeta.created_at as number)
+    : "N/A";
+  lines.push(
+    `CHAT ${chatId}  |  ${createdStr}`,
+  );
+  lines.push(
+    `Key: ${decryptionReport.chatKeyFingerprint}`,
   );
 
-  // Decryption overview section (always shown)
+  // Health status — single line summary
+  if (healthSummary.isHealthy) {
+    lines.push("");
+    lines.push("🟢 HEALTHY");
+  } else {
+    const issueSummaries: string[] = [];
+    for (const issue of healthSummary.issues) {
+      issueSummaries.push(issue);
+    }
+    lines.push("");
+    lines.push(`🔴 ISSUES DETECTED (${healthSummary.issues.length}):`);
+    for (const issue of issueSummaries.slice(0, MAX_HEALTH_ITEMS_TO_SHOW)) {
+      lines.push(`   • ${issue}`);
+    }
+    if (issueSummaries.length > MAX_HEALTH_ITEMS_TO_SHOW) {
+      lines.push(
+        `   • ... and ${issueSummaries.length - MAX_HEALTH_ITEMS_TO_SHOW} more`,
+      );
+    }
+  }
+  if (healthSummary.warnings.length > 0) {
+    for (const w of healthSummary.warnings.slice(0, 3)) {
+      lines.push(`   ⚠ ${w}`);
+    }
+  }
+
+  // Metadata decryption table + chat state side-by-side
   lines.push("");
-  lines.push(thinSeparator);
-  lines.push("DECRYPTION STATUS");
-  lines.push(thinSeparator);
-  lines.push(`  Chat Key:      ${decryptionReport.chatKeyAvailable ? "✓ available" : "✗ NOT available"}`);
-  lines.push(`  Key Fingerprint: ${decryptionReport.chatKeyFingerprint}`);
+  lines.push("METADATA");
 
-  if (decryptionReport.metadataFields.length > 0) {
-    lines.push("");
-    lines.push("  Chat Metadata Fields:");
-    for (const f of decryptionReport.metadataFields) {
-      const icon = f.success ? "✓" : "✗";
-      const detail = f.success ? `"${f.preview}"` : `FAILED: ${f.preview}`;
-      lines.push(`    ${icon} ${f.field}: ${detail}`);
-    }
-  } else if (chatMeta?.encrypted_chat_key) {
-    lines.push("  Chat Metadata Fields: none present or key unavailable");
-  }
-
-  if (decryptionReport.messageFields.length > 0) {
-    const successCount = decryptionReport.messageFields.filter((m) => m.success).length;
-    const failCount = decryptionReport.messageFields.filter((m) => !m.success).length;
-    lines.push("");
-    lines.push(`  Messages: ${successCount}/${decryptionReport.messageFields.length} decrypted OK`);
-    if (failCount > 0) {
-      for (const m of decryptionReport.messageFields.filter((m) => !m.success)) {
-        lines.push(`    ✗ Message #${m.messageIndex} (${m.role}): ${m.error || "unknown error"}`);
-      }
-    }
-  }
-
-  // Embed decryption summary
-  if (embedDecodeHealth.checkedCount > 0) {
-    lines.push("");
-    lines.push(
-      `  Embeds: ${embedDecodeHealth.decodedCount}/${embedDecodeHealth.checkedCount} decoded OK`,
-    );
-    const failedDecodeAttempts = embedDecodeHealth.attempts.filter((a) => !a.decoded);
-    if (failedDecodeAttempts.length > 0) {
-      for (const failed of failedDecodeAttempts) {
-        lines.push(`    ✗ Embed ${truncate(failed.embedId, 20)}: ${failed.error || "unknown"}`);
-      }
-    }
-  }
-
-  // If healthy and not verbose: stop here with a concise report
-  if (healthSummary.isHealthy && !forceVerbose) {
-    lines.push("");
-    lines.push(thinSeparator);
-    lines.push("VERIFIED CHECKS");
-    lines.push(thinSeparator);
-    lines.push(`  ✅ Chat metadata present in IndexedDB`);
-    lines.push(`  ✅ All timestamps valid`);
-    lines.push(`  ✅ messages_v (${chatMeta?.messages_v ?? 0}) matches actual count (${messages.length})`);
-    lines.push(`  ✅ All ${messages.length} messages have content`);
-    if (chatEmbeds.length > 0) {
-      lines.push(`  ✅ ${chatEmbeds.length} embeds present, no errors`);
-      lines.push(`  ✅ Embed keys available (${chatEmbedKeys.length})`);
-    }
-    if (metaDecryptTotal > 0) {
-      lines.push(`  ✅ ${metaDecryptTotal} metadata fields decrypted successfully`);
-    }
-    if (msgDecryptTotal > 0) {
-      lines.push(`  ✅ ${msgDecryptTotal} messages decrypted successfully`);
-    }
-    if (embedDecodeHealth.checkedCount > 0) {
-      lines.push(`  ✅ ${embedDecodeHealth.decodedCount} embeds decoded successfully`);
-    }
-    lines.push("");
-    lines.push(`💡 Use { verbose: true } for full report details`);
-
-    lines.push("");
-    lines.push(separator);
-    lines.push("END OF CLIENT REPORT");
-    lines.push(separator);
-    lines.push("");
-
-    const report = lines.join("\n");
-    logHealthCheckBanner("CHAT", true);
-    console.log(report);
-    return report;
-  }
-
-  // ---- Verbose / Unhealthy: Full report ----
-
-  lines.push("");
-  lines.push(thinSeparator);
-  lines.push("CHAT METADATA");
-  lines.push(thinSeparator);
+  // All encrypted fields with decrypt status
+  const encryptedFieldDefs: Array<{
+    label: string;
+    key: string;
+    shortLabel: string;
+  }> = [
+    { label: "Title", key: "encrypted_title", shortLabel: "Title" },
+    { label: "Category", key: "encrypted_category", shortLabel: "Category" },
+    { label: "Icon", key: "encrypted_icon", shortLabel: "Icon" },
+    { label: "Summary", key: "encrypted_chat_summary", shortLabel: "Summary" },
+    { label: "Tags", key: "encrypted_chat_tags", shortLabel: "Tags" },
+    {
+      label: "Follow-up Suggestions",
+      key: "encrypted_follow_up_request_suggestions",
+      shortLabel: "Follow-up",
+    },
+    {
+      label: "Draft",
+      key: "encrypted_draft_md",
+      shortLabel: "Draft",
+    },
+    {
+      label: "Active Focus ID",
+      key: "encrypted_active_focus_id",
+      shortLabel: "Focus",
+    },
+  ];
 
   if (chatMeta) {
+    for (const fd of encryptedFieldDefs) {
+      const encValue = chatMeta[fd.key] as string | undefined;
+      if (!encValue) {
+        lines.push(`  · ${fd.shortLabel.padEnd(12)} not present`);
+        continue;
+      }
+      // Find matching decryption result
+      const decResult = decryptionReport.metadataFields.find(
+        (f) => f.field === fd.label,
+      );
+      if (decResult) {
+        if (decResult.success) {
+          const preview =
+            decResult.preview.length > 30
+              ? decResult.preview.substring(0, 30) + "..."
+              : decResult.preview;
+          lines.push(
+            `  ✓ ${fd.shortLabel.padEnd(12)} "${preview}"`,
+          );
+        } else {
+          lines.push(
+            `  ✗ ${fd.shortLabel.padEnd(12)} DECRYPT FAILED`,
+          );
+        }
+      } else {
+        // Encrypted data present but no decrypt attempt (key unavailable)
+        lines.push(
+          `  ? ${fd.shortLabel.padEnd(12)} encrypted (${encValue.length} chars, not decrypted)`,
+        );
+      }
+    }
+
+    // Chat state on separate compact lines
     const messagesV = (chatMeta.messages_v as number) || 0;
     const titleV = (chatMeta.title_v as number) || 0;
-    const draftV = (chatMeta.draft_v as number) || 0;
-
-    lines.push(`  Chat ID:                     ${chatMeta.chat_id}`);
-    lines.push(
-      `  User ID:                     ${truncate(chatMeta.user_id as string, 40)}`,
-    );
-    lines.push(
-      `  Created At:                  ${formatTimestamp(chatMeta.created_at as number)}`,
-    );
-    lines.push(
-      `  Updated At:                  ${formatTimestamp(chatMeta.updated_at as number)}`,
-    );
-    lines.push(
-      `  Last Message TS:             ${formatTimestamp(chatMeta.last_message_timestamp as number)}`,
-    );
-    lines.push(
-      `  Last Edited Overall TS:      ${formatTimestamp(chatMeta.last_edited_overall_timestamp as number)}`,
-    );
     lines.push("");
-    lines.push(`  Messages Version (messages_v): ${messagesV}`);
-    lines.push(`  Title Version (title_v):       ${titleV}`);
-    lines.push(`  Draft Version (draft_v):       ${draftV}`);
+    lines.push("  State:");
     lines.push(
-      `  Unread Count:                  ${chatMeta.unread_count ?? "N/A"}`,
-    );
-    lines.push(`  Pinned:                        ${chatMeta.pinned ?? false}`);
-    lines.push("");
-    lines.push(
-      `  Is Private:                  ${chatMeta.is_private ?? false}`,
-    );
-    lines.push(`  Is Shared:                   ${chatMeta.is_shared ?? false}`);
-    lines.push(`  Is Hidden:                   ${chatMeta.is_hidden ?? false}`);
-    lines.push(
-      `  Is Hidden Candidate:         ${chatMeta.is_hidden_candidate ?? false}`,
-    );
-    lines.push("");
-    lines.push("  Encrypted Fields Present:");
-    lines.push(
-      `    ${chatMeta.encrypted_title ? "✓" : "✗"} Title ${chatMeta.encrypted_title ? `(${(chatMeta.encrypted_title as string).length} chars)` : ""}`,
-    );
-    lines.push(
-      `    ${chatMeta.encrypted_chat_key ? "✓" : "✗"} Chat Key ${chatMeta.encrypted_chat_key ? `(${(chatMeta.encrypted_chat_key as string).length} chars)` : ""}`,
-    );
-    lines.push(
-      `    ${chatMeta.encrypted_chat_summary ? "✓" : "✗"} Summary ${chatMeta.encrypted_chat_summary ? `(${(chatMeta.encrypted_chat_summary as string).length} chars)` : ""}`,
-    );
-    lines.push(
-      `    ${chatMeta.encrypted_chat_tags ? "✓" : "✗"} Tags ${chatMeta.encrypted_chat_tags ? `(${(chatMeta.encrypted_chat_tags as string).length} chars)` : ""}`,
-    );
-    lines.push(
-      `    ${chatMeta.encrypted_icon ? "✓" : "✗"} Icon ${chatMeta.encrypted_icon ? `(${(chatMeta.encrypted_icon as string).length} chars)` : ""}`,
-    );
-    lines.push(
-      `    ${chatMeta.encrypted_category ? "✓" : "✗"} Category ${chatMeta.encrypted_category ? `(${(chatMeta.encrypted_category as string).length} chars)` : ""}`,
-    );
-    lines.push(
-      `    ${chatMeta.encrypted_draft_md ? "✓" : "✗"} Draft ${chatMeta.encrypted_draft_md ? `(${(chatMeta.encrypted_draft_md as string).length} chars)` : ""}`,
-    );
-    lines.push(
-      `    ${chatMeta.encrypted_follow_up_request_suggestions ? "✓" : "✗"} Follow-up Suggestions ${chatMeta.encrypted_follow_up_request_suggestions ? `(${(chatMeta.encrypted_follow_up_request_suggestions as string).length} chars)` : ""}`,
-    );
-    lines.push(
-      `    ${chatMeta.encrypted_active_focus_id ? "✓" : "✗"} Active Focus ID ${chatMeta.encrypted_active_focus_id ? `(${(chatMeta.encrypted_active_focus_id as string).length} chars)` : ""}`,
+      `    messages_v=${messagesV}  title_v=${titleV}  private=${chatMeta.is_private ?? false}  shared=${chatMeta.is_shared ?? false}  hidden=${chatMeta.is_hidden ?? false}  pinned=${chatMeta.pinned ?? false}`,
     );
   } else {
     lines.push("  ❌ Chat NOT FOUND in IndexedDB");
   }
 
+  // Messages table
   lines.push("");
-  lines.push(thinSeparator);
-  lines.push(`MESSAGES - Total: ${messages.length}`);
-  lines.push(thinSeparator);
-
-  // Calculate role distribution
-  const roleCount: Record<string, number> = {};
-  for (const msg of messages) {
-    const role = (msg.role as string) || "unknown";
-    roleCount[role] = (roleCount[role] || 0) + 1;
-  }
-
-  lines.push(`  Role Distribution: ${JSON.stringify(roleCount)}`);
-  lines.push("");
-  lines.push(`  Showing ${messages.length} messages:`);
-  lines.push("");
+  lines.push(`MESSAGES (${messages.length})`);
 
   if (messages.length > 0) {
+    lines.push(
+      `  ${"#".padStart(3)}  ${"Role".padEnd(10)} ${"Created".padEnd(28)} ${"Decrypt".padEnd(9)} Message ID`,
+    );
     messages.forEach((msg, i) => {
       const role = (msg.role as string) || "unknown";
-      const roleIcon =
-        role === "user" ? "👤" : role === "assistant" ? "🤖" : "❓";
       const created = formatTimestamp(msg.created_at as number);
-      const clientMsgId =
-        (msg.client_message_id as string) ||
-        (msg.message_id as string) ||
-        (msg.id as string);
-      const serverId = (msg.id as string) || "N/A";
+      const msgId = (msg.id as string) || (msg.message_id as string) || "N/A";
 
-      // Check decryption result for this message
+      // Decrypt status
       const msgDecrypt = decryptionReport.messageFields.find(
         (m) => m.messageIndex === i + 1,
       );
-      const decryptIcon = msgDecrypt
-        ? msgDecrypt.success
-          ? "✓ decrypted"
-          : `✗ DECRYPT FAILED: ${msgDecrypt.error || "unknown"}`
-        : "";
-
-      lines.push(
-        `    ${(i + 1).toString().padStart(2)}. ${roleIcon} [${role.padEnd(9)}] ${created}`,
-      );
-      lines.push(
-        `       Server ID: ${truncate(serverId, 12)}  Client ID: ${truncate(clientMsgId, 30)}`,
-      );
-
-      const hasContent = !!msg.content;
-      const hasEncrypted = !!msg.encrypted_content;
-      const contentLen = hasEncrypted
-        ? (msg.encrypted_content as string).length
-        : hasContent
-          ? (msg.content as string).length
-          : 0;
-      lines.push(
-        `       Content: ${hasEncrypted ? "✓ encrypted" : hasContent ? "✓ plaintext" : "✗ missing"} (${contentLen} chars) ${decryptIcon}`,
-      );
-
-      if (role === "assistant" && msg.encrypted_model) {
-        lines.push(`       Model: ✓ (encrypted)`);
+      let decryptStatus: string;
+      if (msg.content && !msg.encrypted_content) {
+        decryptStatus = "· plain";
+      } else if (msgDecrypt) {
+        decryptStatus = msgDecrypt.success ? "✓ OK" : "✗ FAIL";
+      } else if (!msg.encrypted_content && !msg.content) {
+        decryptStatus = "· empty";
+      } else {
+        decryptStatus = "? N/A";
       }
 
-      if (msg.status) {
-        lines.push(`       Status: ${msg.status}`);
-      }
+      lines.push(
+        `  ${(i + 1).toString().padStart(3)}  ${role.padEnd(10)} ${created.padEnd(28)} ${decryptStatus.padEnd(9)} ${truncate(msgId, 12)}`,
+      );
     });
   } else {
-    lines.push("  ❌ No messages found for this chat");
+    lines.push("  (none)");
   }
 
+  // Embeds table
   lines.push("");
-  lines.push(thinSeparator);
   lines.push(
-    `EMBEDS - Total: ${chatEmbeds.length} (${totalEmbedsCount} total in DB)`,
+    `EMBEDS (${chatEmbeds.length})  |  Keys: ${chatEmbedKeys.length}`,
   );
-  lines.push(thinSeparator);
-  lines.push(`  Hashed Chat ID: ${hashedChatId.substring(0, 24)}...`);
 
   if (chatEmbeds.length > 0) {
-    const statusCount: Record<string, number> = {};
-    const typeCount: Record<string, number> = {};
-    for (const embed of chatEmbeds) {
-      const status = (embed.status as string) || "unknown";
-      const type = (embed.type as string) || "unknown";
-      statusCount[status] = (statusCount[status] || 0) + 1;
-      typeCount[type] = (typeCount[type] || 0) + 1;
-    }
-    lines.push(`  Status Distribution: ${JSON.stringify(statusCount)}`);
-    lines.push(`  Type Distribution: ${JSON.stringify(typeCount)}`);
-
-    lines.push("");
     lines.push(
-      `  Showing ${showCount} of ${chatEmbeds.length} embeds (most recent first):`,
+      `  ${"#".padStart(3)}  ${"Type".padEnd(16)} ${"Status".padEnd(10)} ${"Decrypt".padEnd(9)} Embed ID`,
     );
-    lines.push("");
 
-    for (let i = 0; i < showCount; i++) {
+    // Build a map from embedId to decode attempt result for quick lookup
+    const embedDecodeMap = new Map<string, boolean>();
+    for (const attempt of embedDecodeHealth.attempts) {
+      embedDecodeMap.set(attempt.embedId, !!attempt.decoded);
+    }
+
+    const embedShowCount = Math.min(15, chatEmbeds.length);
+    for (let i = 0; i < embedShowCount; i++) {
       const embed = chatEmbeds[i];
       const embedId =
-        (embed.embed_id as string) || (embed.contentRef as string);
+        (embed.embed_id as string) || (embed.contentRef as string) || "N/A";
+      const cleanEmbedId = embedId.replace(/^embed:/, "");
       const type = (embed.type as string) || "unknown";
       const status = (embed.status as string) || "N/A";
-      const hasEncryptedContent = !!embed.encrypted_content;
-      const hasPlainContent = !!embed.content || !!embed.data;
-      const createdAt = formatTimestamp(embed.createdAt as number);
 
-      lines.push(
-        `    ${(i + 1).toString().padStart(2)}. [${type.padEnd(15)}] ${truncate(embedId, 45)}`,
-      );
-      lines.push(`       Status: ${status} | Created: ${createdAt}`);
-      lines.push(
-        `       Content: ${hasEncryptedContent ? "✓ encrypted" : hasPlainContent ? "✓ plaintext" : "✗ missing"}`,
-      );
-
-      if (embed.app_id || embed.skill_id) {
-        lines.push(
-          `       App: ${embed.app_id || "N/A"} | Skill: ${embed.skill_id || "N/A"}`,
-        );
-      }
-
-      if (
-        embed.embed_ids &&
-        Array.isArray(embed.embed_ids) &&
-        embed.embed_ids.length > 0
-      ) {
-        lines.push(
-          `       Child Embeds: ${(embed.embed_ids as string[]).length} (${(
-            embed.embed_ids as string[]
-          )
-            .slice(0, 3)
-            .map((id) => truncate(id, 12))
-            .join(
-              ", ",
-            )}${(embed.embed_ids as string[]).length > 3 ? "..." : ""})`,
-        );
-      }
-    }
-
-    if (chatEmbeds.length > showCount) {
-      lines.push("");
-      lines.push(`    ... and ${chatEmbeds.length - showCount} more embeds`);
-    }
-
-    // Admin-only: decode embeds and show field inventory
-    const isAdmin = await isCurrentUserAdmin();
-    if (isAdmin) {
-      lines.push("");
-      lines.push(thinSeparator);
-      lines.push("EMBED FIELD INVENTORY (admin-only, privacy-safe)");
-      lines.push(thinSeparator);
-
-      if (embedDecodeHealth.globalError) {
-        lines.push(
-          `  Error generating field inventory: ${embedDecodeHealth.globalError}`,
-        );
+      // Decrypt status from embed decode health
+      let decryptStatus: string;
+      if (embedDecodeMap.has(cleanEmbedId)) {
+        decryptStatus = embedDecodeMap.get(cleanEmbedId) ? "✓ OK" : "✗ FAIL";
+      } else if (embed.content || embed.data) {
+        decryptStatus = "· plain";
+      } else if (!embed.encrypted_content) {
+        decryptStatus = "· empty";
       } else {
+        decryptStatus = "- skip";
+      }
+
+      // Child count suffix
+      const childSuffix =
+        embed.embed_ids && Array.isArray(embed.embed_ids) && (embed.embed_ids as string[]).length > 0
+          ? `  [${(embed.embed_ids as string[]).length} children]`
+          : "";
+
+      lines.push(
+        `  ${(i + 1).toString().padStart(3)}  ${type.padEnd(16)} ${status.padEnd(10)} ${decryptStatus.padEnd(9)} ${truncate(cleanEmbedId, 12)}${childSuffix}`,
+      );
+    }
+
+    if (chatEmbeds.length > embedShowCount) {
+      lines.push(`  ... ${chatEmbeds.length - embedShowCount} more`);
+    }
+  } else {
+    lines.push("  (none)");
+  }
+
+  // Footer
+  lines.push("");
+  lines.push(
+    `💡 verbose: await window.debug.chat("${chatId.substring(0, 8)}...", {verbose: true})`,
+  );
+
+  // If verbose: append all the extra detail sections
+  if (forceVerbose) {
+    lines.push("");
+    lines.push("─".repeat(80));
+    lines.push("VERBOSE DETAILS");
+    lines.push("─".repeat(80));
+
+    if (chatMeta) {
+      lines.push("");
+      lines.push("  Timestamps:");
+      lines.push(
+        `    Created At:              ${formatTimestamp(chatMeta.created_at as number)}`,
+      );
+      lines.push(
+        `    Updated At:              ${formatTimestamp(chatMeta.updated_at as number)}`,
+      );
+      lines.push(
+        `    Last Message TS:         ${formatTimestamp(chatMeta.last_message_timestamp as number)}`,
+      );
+      lines.push(
+        `    Last Edited Overall TS:  ${formatTimestamp(chatMeta.last_edited_overall_timestamp as number)}`,
+      );
+
+      lines.push("");
+      lines.push(`  User ID:     ${chatMeta.user_id}`);
+      lines.push(`  DB:          ${DB_NAME} v${(await openDB().then((d) => { const v = d.version; d.close(); return v; }))}`);
+
+      lines.push("");
+      lines.push("  Encrypted Field Sizes:");
+      for (const fd of encryptedFieldDefs) {
+        const encValue = chatMeta[fd.key] as string | undefined;
+        if (encValue) {
+          lines.push(
+            `    ${fd.shortLabel.padEnd(16)} ${encValue.length} chars`,
+          );
+        }
+      }
+      if (chatMeta.encrypted_chat_key) {
+        lines.push(
+          `    ${"Chat Key".padEnd(16)} ${(chatMeta.encrypted_chat_key as string).length} chars`,
+        );
+      }
+    }
+
+    // Verbose message details
+    if (messages.length > 0) {
+      lines.push("");
+      lines.push("  Message Details:");
+      messages.forEach((msg, i) => {
+        const role = (msg.role as string) || "unknown";
+        const clientMsgId =
+          (msg.client_message_id as string) ||
+          (msg.message_id as string) ||
+          (msg.id as string);
+        const hasEncrypted = !!msg.encrypted_content;
+        const hasContent = !!msg.content;
+        const contentLen = hasEncrypted
+          ? (msg.encrypted_content as string).length
+          : hasContent
+            ? (msg.content as string).length
+            : 0;
+
+        lines.push(
+          `    ${(i + 1).toString().padStart(3)}. [${role}] client_id=${truncate(clientMsgId, 30)}  content=${contentLen} chars${msg.status ? `  status=${msg.status}` : ""}`,
+        );
+      });
+    }
+
+    // Verbose embed details
+    if (chatEmbeds.length > 0) {
+      lines.push("");
+      lines.push(`  Hashed Chat ID: ${hashedChatId.substring(0, 24)}...`);
+
+      // Distributions
+      const statusCount: Record<string, number> = {};
+      const typeCount: Record<string, number> = {};
+      for (const embed of chatEmbeds) {
+        const status = (embed.status as string) || "unknown";
+        const type = (embed.type as string) || "unknown";
+        statusCount[status] = (statusCount[status] || 0) + 1;
+        typeCount[type] = (typeCount[type] || 0) + 1;
+      }
+      lines.push(`  Status Distribution: ${JSON.stringify(statusCount)}`);
+      lines.push(`  Type Distribution: ${JSON.stringify(typeCount)}`);
+
+      // Embed keys detail
+      if (chatEmbedKeys.length > 0) {
+        const keyTypeCount: Record<string, number> = {};
+        for (const key of chatEmbedKeys) {
+          const keyType = (key.key_type as string) || "unknown";
+          keyTypeCount[keyType] = (keyTypeCount[keyType] || 0) + 1;
+        }
+        lines.push(
+          `  Embed Key Types: ${JSON.stringify(keyTypeCount)} (${totalEmbedKeysCount} total in DB)`,
+        );
+      }
+
+      // Admin-only: decode embeds and show field inventory
+      const isAdmin = await isCurrentUserAdmin();
+      if (isAdmin && !embedDecodeHealth.globalError) {
+        lines.push("");
+        lines.push("  EMBED FIELD INVENTORY (admin-only):");
         const allAnomalies: string[] = [];
         for (
           let index = 0;
@@ -1746,94 +1725,43 @@ export async function inspectChat(
           index++
         ) {
           const attempt = embedDecodeHealth.attempts[index];
-          if (!attempt.decoded) {
-            continue;
-          }
+          if (!attempt.decoded) continue;
           const inventory = buildFieldInventory(attempt.decoded);
           const anomalies = detectEmbedAnomalies(
             attempt.decoded,
             attempt.embed,
           );
           allAnomalies.push(...anomalies);
-
           lines.push("");
           lines.push(
             `    ${(index + 1).toString().padStart(2)}. embed-${truncate(attempt.embedId, 12)}:`,
           );
           lines.push(...formatFieldInventoryLines(inventory, anomalies));
         }
-
-        lines.push("");
-        lines.push(
-          `  Summary: ${embedDecodeHealth.decodedCount} decoded, ${embedDecodeHealth.failedCount} failed/unavailable`,
-        );
         if (allAnomalies.length > 0) {
-          lines.push(`  Total anomalies found: ${allAnomalies.length}`);
-        } else {
-          lines.push("  No anomalies detected");
+          lines.push(`  Total anomalies: ${allAnomalies.length}`);
         }
       }
     }
-  } else {
+
+    // Version consistency (verbose only — issues already surfaced in health line)
+    const messagesVVerbose = chatMeta
+      ? (chatMeta.messages_v as number) || 0
+      : 0;
     lines.push("");
-    lines.push("  No embeds found for this chat");
-    lines.push("  (Embeds are queried by hashed_chat_id index)");
-  }
-
-  lines.push("");
-  lines.push(thinSeparator);
-  lines.push(
-    `EMBED KEYS - Total: ${chatEmbedKeys.length} for this chat (${totalEmbedKeysCount} total in DB)`,
-  );
-  lines.push(thinSeparator);
-
-  if (chatEmbedKeys.length > 0) {
-    const keyTypeCount: Record<string, number> = {};
-    for (const key of chatEmbedKeys) {
-      const keyType = (key.key_type as string) || "unknown";
-      keyTypeCount[keyType] = (keyTypeCount[keyType] || 0) + 1;
-    }
-    lines.push(`  Key Type Distribution: ${JSON.stringify(keyTypeCount)}`);
-    lines.push(`  (Keys enable decryption of embed content)`);
-  } else {
-    lines.push("  No embed keys found for this chat");
-  }
-
-  // Version consistency analysis
-  const messagesV = chatMeta ? (chatMeta.messages_v as number) || 0 : 0;
-  const actualMessageCount = messages.length;
-
-  lines.push("");
-  lines.push(thinSeparator);
-  lines.push("VERSION CONSISTENCY CHECK");
-  lines.push(thinSeparator);
-  lines.push(`  Messages Version (messages_v): ${messagesV}`);
-  lines.push(`  Actual Message Count:          ${actualMessageCount}`);
-
-  if (messagesV === 0 && actualMessageCount > 0) {
     lines.push(
-      `  ⚠️  INCONSISTENT: messages_v is 0 but ${actualMessageCount} messages exist!`,
+      `  Version Check: messages_v=${messagesVVerbose} actual=${messages.length}`,
     );
-    lines.push(`     This suggests sync metadata wasn't updated properly.`);
-  } else if (messagesV > actualMessageCount + 1) {
-    lines.push(
-      `  ⚠️  POSSIBLE MISSING MESSAGES: messages_v=${messagesV} but only ${actualMessageCount} in IndexedDB`,
-    );
-  } else {
-    lines.push(`  ✅ Versions appear consistent`);
   }
 
-  // Footer
-  lines.push("");
-  lines.push(separator);
-  lines.push("END OF CLIENT REPORT");
-  lines.push(separator);
   lines.push("");
 
   const report = lines.join("\n");
 
   logHealthCheckBanner("CHAT", healthSummary.isHealthy);
-  logFailedEmbedDecryptionBanner(embedDecodeHealth.attempts);
+  if (!healthSummary.isHealthy) {
+    logFailedEmbedDecryptionBanner(embedDecodeHealth.attempts);
+  }
 
   console.log(report);
 
