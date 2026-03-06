@@ -843,6 +843,16 @@ let _chatUpdatedFlushPending = false;
 	const handlePhase1LastChatReadyEvent = async (event: CustomEvent<{chat_id: string}>) => {
 		console.info(`[Chats] Phase 1 complete - Last chat ready: ${event.detail.chat_id}.`);
 		const targetChatId = event.detail.chat_id;
+
+		// DEFENSE-IN-DEPTH: If a chat is already active in the store, skip the entire
+		// Phase 1 resume-card population. The user is viewing a chat (loaded via URL hash,
+		// deep link, or user click) and sync must not interfere.
+		const currentStoreChat = activeChatStore.get();
+		if (currentStoreChat) {
+			console.info(`[Chats] Skipping Phase 1 resume UI — activeChatStore already set to "${currentStoreChat}"`);
+			await updateChatListFromDB();
+			return;
+		}
 		
 		// CRITICAL: Check if we should show the resume UI for this chat
 		// Don't show if user is already in a different chat (e.g., a new chat they just created)

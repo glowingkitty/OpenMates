@@ -809,6 +809,18 @@
 		const originalHash = browser ? window.location.hash : '';
 		console.debug('[+page.svelte] [INIT] Original hash from URL:', originalHash);
 
+		// DEFENSE-IN-DEPTH: If there is no chat hash in the URL, ensure the active chat
+		// store starts clean. This prevents stale hash values (e.g. browser restoring a
+		// previous fragment) or module-level readChatIdFromHash() from pre-populating the
+		// store with an old chat ID, which would cause it to auto-open without user intent.
+		const hashChatMatch = originalHash.match(/^#chat-id=(.+)/);
+		if (!hashChatMatch) {
+			activeChatStore.clearActiveChat();
+			console.debug(
+				'[+page.svelte] [INIT] No chat hash in URL — cleared activeChatStore to prevent stale auto-open'
+			);
+		}
+
 		// SHARED-CHAT REDIRECT: Read and consume the sessionStorage flag set by the share
 		// chat page (/share/chat/[chatId]/+page.svelte) before navigating here.
 		// This flag prevents the forced-logout path from clearing the hash for shared chats

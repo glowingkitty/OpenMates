@@ -102,6 +102,19 @@ function createActiveChatStore() {
      * Also updates the URL hash to allow sharing/bookmarking
      */
     setActiveChat: (chatId: string | null) => {
+      // Defense-in-depth: log abbreviated stack trace so any unexpected caller
+      // that sets an active chat can be traced during debugging.
+      if (chatId) {
+        const stack =
+          new Error().stack
+            ?.split("\n")
+            .slice(1, 4)
+            .map((l) => l.trim())
+            .join(" <- ") ?? "";
+        console.debug(
+          `[activeChatStore] setActiveChat("${chatId}") called from: ${stack}`,
+        );
+      }
       set(chatId);
       updateUrlHash(chatId);
     },

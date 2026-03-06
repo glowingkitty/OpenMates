@@ -571,6 +571,17 @@ export class ChatSynchronizationService extends EventTarget {
           const isOnWelcomeScreen =
             currentChatId === null || currentChatId === NEW_CHAT_SENTINEL;
 
+          // DEFENSE-IN-DEPTH: Also check activeChatStore directly — if a chat is already
+          // loaded/active, never update resume card data from cross-device broadcasts.
+          const { activeChatStore } = await import("../stores/activeChatStore");
+          const storeActiveChat = activeChatStore.get();
+          if (storeActiveChat) {
+            console.debug(
+              `[ChatSyncService] Skipping resume card update from last_opened_updated — activeChatStore already set to "${storeActiveChat}"`,
+            );
+            return;
+          }
+
           if (isOnWelcomeScreen) {
             const chat = await chatDB.getChat(chat_id);
             if (chat) {

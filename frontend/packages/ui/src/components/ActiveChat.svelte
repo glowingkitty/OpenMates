@@ -2324,6 +2324,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const isWelcome = showWelcome;
         const isAuth = $authStore.isAuthenticated;
         const lastOpened = $userProfile.last_opened;
+        // Read activeChatStore to make this effect reactive to it
+        const currentActiveChat = $activeChatStore;
 
         // Only show resume card when on welcome screen, authenticated, and last_opened is a real chat ID
         // (not empty, not '/chat/new' which means the user was already on the new chat screen)
@@ -2335,6 +2337,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             resumeChatSummary = null;
             resumeChatIsCreditsError = false;
             resumeChatUserMessagePreview = null;
+            return;
+        }
+
+        // DEFENSE-IN-DEPTH: If a chat is already active in the store, don't populate
+        // resume card data — the user is viewing a chat, not the welcome screen.
+        // This guards against stale reactivity triggers where showWelcome is still true
+        // but the store was set by another code path moments before the UI re-renders.
+        if (currentActiveChat) {
+            console.debug(`[ActiveChat] Skipping resume card population — activeChatStore already set to "${currentActiveChat}"`);
             return;
         }
 
@@ -2365,10 +2376,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const syncState = $phasedSyncState;
         const isWelcome = showWelcome;
         const isAuth = $authStore.isAuthenticated;
+        const currentActiveChat = $activeChatStore;
 
         // Only sync from phasedSyncState when on the welcome screen, authenticated,
-        // and we don't already have resume data loaded from IndexedDB
-        if (isWelcome && isAuth && syncState.resumeChatData && !resumeChatData) {
+        // no chat is currently active, and we don't already have resume data loaded from IndexedDB
+        if (isWelcome && isAuth && !currentActiveChat && syncState.resumeChatData && !resumeChatData) {
             resumeChatData = syncState.resumeChatData;
             resumeChatTitle = syncState.resumeChatTitle;
             resumeChatCategory = syncState.resumeChatCategory;
