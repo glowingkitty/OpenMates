@@ -2160,6 +2160,21 @@
       },
       "meal_prep": {
         "text": "Aiutami a pianificare una preparazione di pasti sana"
+      },
+      "discover_web_search": {
+        "text": "[web-search] Cosa sta succedendo nel mondo oggi?"
+      },
+      "discover_image_generate": {
+        "text": "[images-generate] Genera un'immagine di un tramonto in montagna"
+      },
+      "discover_news_search": {
+        "text": "[news-search] Trova le ultime notizie sull'AI"
+      },
+      "discover_video_search": {
+        "text": "[videos-search] Trova video tutorial sulla programmazione Python"
+      },
+      "discover_math_calculate": {
+        "text": "[math-calculate] Risolvi: quanto fa il 15% di 240?"
       }
     },
     "suggestions": {
@@ -2771,6 +2786,38 @@
         "text": "Questa notifica è stata inviata dal sistema automatizzato di monitoraggio dei test E2E."
       }
     },
+    "prometheus_alert": {
+      "title": {
+        "text": "Notifica di allerta Prometheus"
+      },
+      "header": {
+        "text": "Avviso Prometheus"
+      },
+      "alert_name_label": {
+        "text": "Nome avviso"
+      },
+      "severity_label": {
+        "text": "Gravità"
+      },
+      "summary_label": {
+        "text": "Riepilogo"
+      },
+      "description_label": {
+        "text": "Descrizione"
+      },
+      "started_at_label": {
+        "text": "Attivato alle"
+      },
+      "ended_at_label": {
+        "text": "Risolto alle"
+      },
+      "labels_label": {
+        "text": "Etichette"
+      },
+      "footer_note": {
+        "text": "Questo avviso è stato inviato dal sistema automatizzato di monitoraggio Prometheus."
+      }
+    },
     "newsletter_confirmation_request": {
       "title": {
         "text": "Conferma la tua iscrizione alla newsletter"
@@ -2928,6 +2975,18 @@
       "open_chat_button": {
         "text": "Apri chat"
       }
+    },
+    "action_verification_title": {
+      "text": "Verifica la tua azione"
+    },
+    "action_verification_description": {
+      "text": "Hai richiesto un codice di verifica per un'azione sensibile sul tuo account."
+    },
+    "action_verification_expires": {
+      "text": "Questo codice scade tra 10 minuti."
+    },
+    "action_verification_subject": {
+      "text": "Il tuo codice di verifica: {code}"
     }
   },
   "embeds": {
@@ -6808,6 +6867,18 @@
       },
       "no_auth_method": {
         "text": "Nessun metodo di autenticazione disponibile. Contatta il supporto."
+      },
+      "email_otp_description": {
+        "text": "Invieremo un codice di verifica al tuo indirizzo email."
+      },
+      "send_verification_code": {
+        "text": "Invia codice di verifica"
+      },
+      "email_otp_enter_code": {
+        "text": "Inserisci il codice a 6 cifre inviato alla tua email."
+      },
+      "resend_code": {
+        "text": "Reinvia codice"
       },
       "loading": {
         "text": "Caricamento..."

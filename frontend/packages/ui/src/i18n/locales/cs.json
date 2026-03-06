@@ -2160,6 +2160,21 @@
       },
       "meal_prep": {
         "text": "Pomozte mi naplánovat zdravou přípravu jídel"
+      },
+      "discover_web_search": {
+        "text": "[web-search] Co se dnes děje ve světě?"
+      },
+      "discover_image_generate": {
+        "text": "[images-generate] Vygeneruj obrázek horského západu slunce"
+      },
+      "discover_news_search": {
+        "text": "[news-search] Najdi nejnovější zprávy o AI"
+      },
+      "discover_video_search": {
+        "text": "[videos-search] Najdi výuková videa o programování v Pythonu"
+      },
+      "discover_math_calculate": {
+        "text": "[math-calculate] Vypočítej: kolik je 15% z 240?"
       }
     },
     "suggestions": {
@@ -2771,6 +2786,38 @@
         "text": "Toto oznámení bylo zasláno automatizovaným systémem monitorování E2E testů."
       }
     },
+    "prometheus_alert": {
+      "title": {
+        "text": "Oznámení o upozornění Prometheus"
+      },
+      "header": {
+        "text": "Upozornění Prometheus"
+      },
+      "alert_name_label": {
+        "text": "Název upozornění"
+      },
+      "severity_label": {
+        "text": "Závažnost"
+      },
+      "summary_label": {
+        "text": "Souhrn"
+      },
+      "description_label": {
+        "text": "Popis"
+      },
+      "started_at_label": {
+        "text": "Spuštěno v"
+      },
+      "ended_at_label": {
+        "text": "Vyřešeno v"
+      },
+      "labels_label": {
+        "text": "Štítky"
+      },
+      "footer_note": {
+        "text": "Toto upozornění bylo zasláno automatizovaným systémem monitorování Prometheus."
+      }
+    },
     "newsletter_confirmation_request": {
       "title": {
         "text": "Potvrďte své předplatné newsletteru"
@@ -2934,6 +2981,18 @@
       "open_chat_button": {
         "text": "Otevřít chat"
       }
+    },
+    "action_verification_title": {
+      "text": "Ověřte svou akci"
+    },
+    "action_verification_description": {
+      "text": "Požádali jste o ověřovací kód pro citlivou akci na vašem účtu."
+    },
+    "action_verification_expires": {
+      "text": "Platnost tohoto kódu vyprší za 10 minut."
+    },
+    "action_verification_subject": {
+      "text": "Váš ověřovací kód: {code}"
     }
   },
   "embeds": {
@@ -6811,6 +6870,18 @@
       },
       "no_auth_method": {
         "text": "Žádná metoda ověření není k dispozici. Kontaktujte prosím podporu."
+      },
+      "email_otp_description": {
+        "text": "Na vaši e-mailovou adresu zašleme ověřovací kód."
+      },
+      "send_verification_code": {
+        "text": "Odeslat ověřovací kód"
+      },
+      "email_otp_enter_code": {
+        "text": "Zadejte 6místný kód zaslaný na váš e-mail."
+      },
+      "resend_code": {
+        "text": "Znovu odeslat kód"
       },
       "loading": {
         "text": "Načítání..."

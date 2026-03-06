@@ -2214,6 +2214,21 @@
       },
       "meal_prep": {
         "text": "Help me plan a healthy meal prep"
+      },
+      "discover_web_search": {
+        "text": "[web-search] What's happening in the world today?"
+      },
+      "discover_image_generate": {
+        "text": "[images-generate] Generate an image of a mountain sunset"
+      },
+      "discover_news_search": {
+        "text": "[news-search] Find the latest AI news"
+      },
+      "discover_video_search": {
+        "text": "[videos-search] Find tutorial videos on Python programming"
+      },
+      "discover_math_calculate": {
+        "text": "[math-calculate] Solve: what is 15% of 240?"
       }
     },
     "suggestions": {
@@ -2997,6 +3012,38 @@
         "text": "This notification was sent by the automated E2E test monitoring system."
       }
     },
+    "prometheus_alert": {
+      "title": {
+        "text": "Prometheus Alert Notification"
+      },
+      "header": {
+        "text": "Prometheus Alert"
+      },
+      "alert_name_label": {
+        "text": "Alert Name"
+      },
+      "severity_label": {
+        "text": "Severity"
+      },
+      "summary_label": {
+        "text": "Summary"
+      },
+      "description_label": {
+        "text": "Description"
+      },
+      "started_at_label": {
+        "text": "Fired At"
+      },
+      "ended_at_label": {
+        "text": "Resolved At"
+      },
+      "labels_label": {
+        "text": "Labels"
+      },
+      "footer_note": {
+        "text": "This alert was sent by the automated Prometheus monitoring system."
+      }
+    },
     "github": {
       "text": "GitHub"
     },
@@ -3447,6 +3494,18 @@
     },
     "top_up_credits": {
       "text": "Top up credits"
+    },
+    "action_verification_title": {
+      "text": "Verify your action"
+    },
+    "action_verification_description": {
+      "text": "You requested a verification code for a sensitive action on your account."
+    },
+    "action_verification_expires": {
+      "text": "This code expires in 10 minutes."
+    },
+    "action_verification_subject": {
+      "text": "Your verification code: {code}"
     }
   },
   "embeds": {
@@ -9691,6 +9750,18 @@
       },
       "no_auth_method": {
         "text": "No authentication method available. Please contact support."
+      },
+      "email_otp_description": {
+        "text": "We'll send a verification code to your email address."
+      },
+      "send_verification_code": {
+        "text": "Send verification code"
+      },
+      "email_otp_enter_code": {
+        "text": "Enter the 6-digit code sent to your email."
+      },
+      "resend_code": {
+        "text": "Resend code"
       },
       "loading": {
         "text": "Loading..."

@@ -2160,6 +2160,21 @@
       },
       "meal_prep": {
         "text": "健康的な食事準備を計画するのを手伝ってください"
+      },
+      "discover_web_search": {
+        "text": "[web-search] 今日、世界では何が起きているの？"
+      },
+      "discover_image_generate": {
+        "text": "[images-generate] 山の夕日の画像を生成して"
+      },
+      "discover_news_search": {
+        "text": "[news-search] 最新のAIニュースを検索して"
+      },
+      "discover_video_search": {
+        "text": "[videos-search] Pythonプログラミングのチュートリアル動画を検索して"
+      },
+      "discover_math_calculate": {
+        "text": "[math-calculate] 計算: 240の15%はいくらですか？"
       }
     },
     "suggestions": {
@@ -2873,6 +2888,38 @@
         "text": "この通知は自動E2Eテスト監視システムから送信されました。"
       }
     },
+    "prometheus_alert": {
+      "title": {
+        "text": "Prometheusアラート通知"
+      },
+      "header": {
+        "text": "Prometheusアラート"
+      },
+      "alert_name_label": {
+        "text": "アラート名"
+      },
+      "severity_label": {
+        "text": "重大度"
+      },
+      "summary_label": {
+        "text": "要約"
+      },
+      "description_label": {
+        "text": "説明"
+      },
+      "started_at_label": {
+        "text": "発火時刻"
+      },
+      "ended_at_label": {
+        "text": "解消時刻"
+      },
+      "labels_label": {
+        "text": "ラベル"
+      },
+      "footer_note": {
+        "text": "このアラートは自動Prometheus監視システムから送信されました。"
+      }
+    },
     "email": {
       "text": "メール"
     },
@@ -3269,6 +3316,18 @@
     },
     "top_up_credits": {
       "text": "クレジットをチャージ"
+    },
+    "action_verification_title": {
+      "text": "操作を確認"
+    },
+    "action_verification_description": {
+      "text": "アカウントの機密操作のための確認コードをリクエストしました。"
+    },
+    "action_verification_expires": {
+      "text": "このコードは10分で期限切れになります。"
+    },
+    "action_verification_subject": {
+      "text": "確認コード：{code}"
     }
   },
   "embeds": {
@@ -8216,6 +8275,18 @@
       },
       "no_auth_method": {
         "text": "認証方法がありません。サポートにお問い合わせください。"
+      },
+      "email_otp_description": {
+        "text": "メールアドレスに確認コードを送信します。"
+      },
+      "send_verification_code": {
+        "text": "確認コードを送信"
+      },
+      "email_otp_enter_code": {
+        "text": "メールに送信された6桁のコードを入力してください。"
+      },
+      "resend_code": {
+        "text": "コードを再送信"
       },
       "loading": {
         "text": "読み込み中..."

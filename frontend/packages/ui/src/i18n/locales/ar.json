@@ -2160,6 +2160,21 @@
       },
       "meal_prep": {
         "text": "ساعدني في التخطيط لتحضير وجبة صحية"
+      },
+      "discover_web_search": {
+        "text": "[web-search] ماذا يحدث في العالم اليوم؟"
+      },
+      "discover_image_generate": {
+        "text": "[images-generate] أنشئ صورة لغروب الشمس في الجبال"
+      },
+      "discover_news_search": {
+        "text": "[news-search] ابحث عن آخر أخبار الذكاء الاصطناعي"
+      },
+      "discover_video_search": {
+        "text": "[videos-search] ابحث عن مقاطع تعليمية لبرمجة Python"
+      },
+      "discover_math_calculate": {
+        "text": "[math-calculate] احسب: ما مقدار 15% من 240؟"
       }
     },
     "suggestions": {
@@ -2771,6 +2786,38 @@
         "text": "تم إرسال هذا الإشعار بواسطة نظام مراقبة اختبار E2E الآلي."
       }
     },
+    "prometheus_alert": {
+      "title": {
+        "text": "إشعار تنبيه Prometheus"
+      },
+      "header": {
+        "text": "تنبيه Prometheus"
+      },
+      "alert_name_label": {
+        "text": "اسم التنبيه"
+      },
+      "severity_label": {
+        "text": "الخطورة"
+      },
+      "summary_label": {
+        "text": "ملخص"
+      },
+      "description_label": {
+        "text": "وصف"
+      },
+      "started_at_label": {
+        "text": "أُطلق في"
+      },
+      "ended_at_label": {
+        "text": "تم الحل في"
+      },
+      "labels_label": {
+        "text": "التسميات"
+      },
+      "footer_note": {
+        "text": "تم إرسال هذا التنبيه بواسطة نظام مراقبة Prometheus الآلي."
+      }
+    },
     "newsletter_confirmation_request": {
       "title": {
         "text": "أكد اشتراكك في النشرة الإخبارية"
@@ -2928,6 +2975,18 @@
       "open_chat_button": {
         "text": "فتح المحادثة"
       }
+    },
+    "action_verification_title": {
+      "text": "تحقق من إجراءك"
+    },
+    "action_verification_description": {
+      "text": "لقد طلبت رمز تحقق لإجراء حساس على حسابك."
+    },
+    "action_verification_expires": {
+      "text": "تنتهي صلاحية هذا الرمز خلال 10 دقائق."
+    },
+    "action_verification_subject": {
+      "text": "رمز التحقق الخاص بك: {code}"
     }
   },
   "embeds": {
@@ -7810,6 +7869,18 @@
       },
       "no_auth_method": {
         "text": "لا تتوفر طريقة مصادقة. يرجى الاتصال بالدعم."
+      },
+      "email_otp_description": {
+        "text": "سنرسل رمز تحقق إلى عنوان بريدك الإلكتروني."
+      },
+      "send_verification_code": {
+        "text": "إرسال رمز التحقق"
+      },
+      "email_otp_enter_code": {
+        "text": "أدخل الرمز المكون من 6 أرقام المرسل إلى بريدك الإلكتروني."
+      },
+      "resend_code": {
+        "text": "إعادة إرسال الرمز"
       },
       "loading": {
         "text": "جاري التحميل..."

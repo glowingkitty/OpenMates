@@ -2160,6 +2160,21 @@
       },
       "meal_prep": {
         "text": "Bantu saya merencanakan persiapan makanan yang sehat"
+      },
+      "discover_web_search": {
+        "text": "[web-search] Apa yang terjadi di dunia hari ini?"
+      },
+      "discover_image_generate": {
+        "text": "[images-generate] Buat gambar matahari terbenam di pegunungan"
+      },
+      "discover_news_search": {
+        "text": "[news-search] Cari berita AI terbaru"
+      },
+      "discover_video_search": {
+        "text": "[videos-search] Cari video tutorial pemrograman Python"
+      },
+      "discover_math_calculate": {
+        "text": "[math-calculate] Selesaikan: berapakah 15% dari 240?"
       }
     },
     "suggestions": {
@@ -2771,6 +2786,38 @@
         "text": "Pemberitahuan ini dikirim oleh sistem pemantauan tes E2E otomatis."
       }
     },
+    "prometheus_alert": {
+      "title": {
+        "text": "Pemberitahuan Peringatan Prometheus"
+      },
+      "header": {
+        "text": "Peringatan Prometheus"
+      },
+      "alert_name_label": {
+        "text": "Nama Peringatan"
+      },
+      "severity_label": {
+        "text": "Tingkat Keparahan"
+      },
+      "summary_label": {
+        "text": "Ringkasan"
+      },
+      "description_label": {
+        "text": "Deskripsi"
+      },
+      "started_at_label": {
+        "text": "Dipicu Pada"
+      },
+      "ended_at_label": {
+        "text": "Diselesaikan Pada"
+      },
+      "labels_label": {
+        "text": "Label"
+      },
+      "footer_note": {
+        "text": "Peringatan ini dikirim oleh sistem pemantauan Prometheus otomatis."
+      }
+    },
     "newsletter_confirmation_request": {
       "title": {
         "text": "Konfirmasi langganan newsletter Anda"
@@ -2928,6 +2975,18 @@
       "open_chat_button": {
         "text": "Buka Obrolan"
       }
+    },
+    "action_verification_title": {
+      "text": "Verifikasi tindakan Anda"
+    },
+    "action_verification_description": {
+      "text": "Anda meminta kode verifikasi untuk tindakan sensitif pada akun Anda."
+    },
+    "action_verification_expires": {
+      "text": "Kode ini kedaluwarsa dalam 10 menit."
+    },
+    "action_verification_subject": {
+      "text": "Kode verifikasi Anda: {code}"
     }
   },
   "embeds": {
@@ -6805,6 +6864,18 @@
       },
       "no_auth_method": {
         "text": "Tidak ada metode autentikasi yang tersedia. Silakan hubungi dukungan."
+      },
+      "email_otp_description": {
+        "text": "Kami akan mengirimkan kode verifikasi ke alamat email Anda."
+      },
+      "send_verification_code": {
+        "text": "Kirim kode verifikasi"
+      },
+      "email_otp_enter_code": {
+        "text": "Masukkan kode 6 digit yang dikirim ke email Anda."
+      },
+      "resend_code": {
+        "text": "Kirim ulang kode"
       },
       "loading": {
         "text": "Memuat..."

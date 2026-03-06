@@ -2160,6 +2160,21 @@
       },
       "meal_prep": {
         "text": "मुझे स्वस्थ भोजन तैयारी की योजना बनाने में मदद करें"
+      },
+      "discover_web_search": {
+        "text": "[web-search] आज दुनिया में क्या हो रहा है?"
+      },
+      "discover_image_generate": {
+        "text": "[images-generate] पहाड़ी सूर्यास्त की एक छवि बनाएं"
+      },
+      "discover_news_search": {
+        "text": "[news-search] नवीनतम AI समाचार खोजें"
+      },
+      "discover_video_search": {
+        "text": "[videos-search] Python प्रोग्रामिंग पर ट्यूटोरियल वीडियो खोजें"
+      },
+      "discover_math_calculate": {
+        "text": "[math-calculate] हल करें: 240 का 15% कितना है?"
       }
     },
     "suggestions": {
@@ -2771,6 +2786,38 @@
         "text": "यह अधिसूचना स्वचालित E2E परीक्षण निगरानी प्रणाली द्वारा भेजी गई थी।"
       }
     },
+    "prometheus_alert": {
+      "title": {
+        "text": "Prometheus अलर्ट अधिसूचना"
+      },
+      "header": {
+        "text": "Prometheus अलर्ट"
+      },
+      "alert_name_label": {
+        "text": "अलर्ट का नाम"
+      },
+      "severity_label": {
+        "text": "गंभीरता"
+      },
+      "summary_label": {
+        "text": "सारांश"
+      },
+      "description_label": {
+        "text": "विवरण"
+      },
+      "started_at_label": {
+        "text": "सक्रिय हुआ"
+      },
+      "ended_at_label": {
+        "text": "हल हुआ"
+      },
+      "labels_label": {
+        "text": "लेबल"
+      },
+      "footer_note": {
+        "text": "यह अलर्ट स्वचालित Prometheus निगरानी प्रणाली द्वारा भेजा गया था।"
+      }
+    },
     "newsletter_confirmation_request": {
       "title": {
         "text": "अपनी न्यूज़लेटर सदस्यता की पुष्टि करें"
@@ -2928,6 +2975,18 @@
       "open_chat_button": {
         "text": "चैट खोलें"
       }
+    },
+    "action_verification_title": {
+      "text": "अपनी कार्रवाई सत्यापित करें"
+    },
+    "action_verification_description": {
+      "text": "आपने अपने खाते पर एक संवेदनशील कार्रवाई के लिए सत्यापन कोड का अनुरोध किया है।"
+    },
+    "action_verification_expires": {
+      "text": "यह कोड 10 मिनट में समाप्त हो जाएगा।"
+    },
+    "action_verification_subject": {
+      "text": "आपका सत्यापन कोड: {code}"
     }
   },
   "embeds": {
@@ -6805,6 +6864,18 @@
       },
       "no_auth_method": {
         "text": "कोई प्रमाणीकरण विधि उपलब्ध नहीं है। कृपया सहायता से संपर्क करें।"
+      },
+      "email_otp_description": {
+        "text": "हम आपके ईमेल पते पर एक सत्यापन कोड भेजेंगे।"
+      },
+      "send_verification_code": {
+        "text": "सत्यापन कोड भेजें"
+      },
+      "email_otp_enter_code": {
+        "text": "अपने ईमेल पर भेजे गए 6-अंकीय कोड दर्ज करें।"
+      },
+      "resend_code": {
+        "text": "कोड पुनः भेजें"
       },
       "loading": {
         "text": "लोड हो रहा है..."

@@ -2160,6 +2160,21 @@
       },
       "meal_prep": {
         "text": "帮我计划一个健康的膳食准备"
+      },
+      "discover_web_search": {
+        "text": "[web-search] 今天世界上发生了什么？"
+      },
+      "discover_image_generate": {
+        "text": "[images-generate] 生成一张山间日落的图片"
+      },
+      "discover_news_search": {
+        "text": "[news-search] 查找最新的AI新闻"
+      },
+      "discover_video_search": {
+        "text": "[videos-search] 查找Python编程教程视频"
+      },
+      "discover_math_calculate": {
+        "text": "[math-calculate] 计算：240的15%是多少？"
       }
     },
     "suggestions": {
@@ -2873,6 +2888,38 @@
         "text": "此通知由自动E2E测试监控系统发送。"
       }
     },
+    "prometheus_alert": {
+      "title": {
+        "text": "Prometheus警报通知"
+      },
+      "header": {
+        "text": "Prometheus警报"
+      },
+      "alert_name_label": {
+        "text": "警报名称"
+      },
+      "severity_label": {
+        "text": "严重程度"
+      },
+      "summary_label": {
+        "text": "摘要"
+      },
+      "description_label": {
+        "text": "描述"
+      },
+      "started_at_label": {
+        "text": "触发时间"
+      },
+      "ended_at_label": {
+        "text": "解决时间"
+      },
+      "labels_label": {
+        "text": "标签"
+      },
+      "footer_note": {
+        "text": "此警报由自动Prometheus监控系统发送。"
+      }
+    },
     "email": {
       "text": "电子邮件"
     },
@@ -3269,6 +3316,18 @@
     },
     "top_up_credits": {
       "text": "充值积分"
+    },
+    "action_verification_title": {
+      "text": "验证您的操作"
+    },
+    "action_verification_description": {
+      "text": "您请求了一个用于帐户敏感操作的验证码。"
+    },
+    "action_verification_expires": {
+      "text": "此验证码将在10分钟后过期。"
+    },
+    "action_verification_subject": {
+      "text": "您的验证码：{code}"
     }
   },
   "embeds": {
@@ -8225,6 +8284,18 @@
       },
       "no_auth_method": {
         "text": "没有可用的身份验证方法。请联系支持。"
+      },
+      "email_otp_description": {
+        "text": "我们将向您的电子邮件地址发送验证码。"
+      },
+      "send_verification_code": {
+        "text": "发送验证码"
+      },
+      "email_otp_enter_code": {
+        "text": "输入发送到您邮箱的6位数验证码。"
+      },
+      "resend_code": {
+        "text": "重新发送验证码"
       },
       "loading": {
         "text": "加载中..."

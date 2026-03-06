@@ -2160,6 +2160,21 @@
       },
       "meal_prep": {
         "text": "Hjälp mig planera en hälsosam måltidsförberedelse"
+      },
+      "discover_web_search": {
+        "text": "[web-search] Vad händer i världen idag?"
+      },
+      "discover_image_generate": {
+        "text": "[images-generate] Generera en bild av en bergssolnedgång"
+      },
+      "discover_news_search": {
+        "text": "[news-search] Hitta de senaste AI-nyheterna"
+      },
+      "discover_video_search": {
+        "text": "[videos-search] Hitta handledningsvideor om Python-programmering"
+      },
+      "discover_math_calculate": {
+        "text": "[math-calculate] Lös: vad är 15% av 240?"
       }
     },
     "suggestions": {
@@ -2807,6 +2822,38 @@
         "text": "Detta meddelande skickades av det automatiserade E2E-testövervakningssystemet."
       }
     },
+    "prometheus_alert": {
+      "title": {
+        "text": "Prometheus-larmmeddelande"
+      },
+      "header": {
+        "text": "Prometheus-larm"
+      },
+      "alert_name_label": {
+        "text": "Larmnamn"
+      },
+      "severity_label": {
+        "text": "Allvarlighetsgrad"
+      },
+      "summary_label": {
+        "text": "Sammanfattning"
+      },
+      "description_label": {
+        "text": "Beskrivning"
+      },
+      "started_at_label": {
+        "text": "Utlöst kl."
+      },
+      "ended_at_label": {
+        "text": "Löst kl."
+      },
+      "labels_label": {
+        "text": "Etiketter"
+      },
+      "footer_note": {
+        "text": "Detta larm skickades av det automatiserade Prometheus-övervakningssystemet."
+      }
+    },
     "newsletter_confirmation_request": {
       "title": {
         "text": "Bekräfta din nyhetsbrevsprenumeration"
@@ -2970,6 +3017,18 @@
       "open_chat_button": {
         "text": "Öppna chatt"
       }
+    },
+    "action_verification_title": {
+      "text": "Verifiera din åtgärd"
+    },
+    "action_verification_description": {
+      "text": "Du begärde en verifieringskod för en känslig åtgärd på ditt konto."
+    },
+    "action_verification_expires": {
+      "text": "Denna kod upphör att gälla om 10 minuter."
+    },
+    "action_verification_subject": {
+      "text": "Din verifieringskod: {code}"
     }
   },
   "embeds": {
@@ -6829,6 +6888,18 @@
       },
       "no_auth_method": {
         "text": "Ingen autentiseringsmetod tillgänglig. Kontakta supporten."
+      },
+      "email_otp_description": {
+        "text": "Vi skickar en verifieringskod till din e-postadress."
+      },
+      "send_verification_code": {
+        "text": "Skicka verifieringskod"
+      },
+      "email_otp_enter_code": {
+        "text": "Ange den 6-siffriga koden som skickades till din e-post."
+      },
+      "resend_code": {
+        "text": "Skicka koden igen"
       },
       "loading": {
         "text": "Laddar..."

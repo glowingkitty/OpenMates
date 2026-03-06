@@ -324,6 +324,103 @@ no_auth_method:
   he: אין שיטת אימות זמינה. נא ליצור קשר עם התמיכה.
   verified_by_human: []
 
+# --- Email OTP for sensitive actions ---
+email_otp_description:
+  context: Description shown when email OTP is required for a sensitive action
+  en: We'll send a verification code to your email address.
+  de: Wir senden einen Bestätigungscode an Ihre E-Mail-Adresse.
+  zh: 我们将向您的电子邮件地址发送验证码。
+  es: Enviaremos un código de verificación a tu dirección de correo electrónico.
+  fr: Nous enverrons un code de vérification à votre adresse e-mail.
+  pt: Enviaremos um código de verificação para o seu endereço de e-mail.
+  ru: Мы отправим код подтверждения на ваш адрес электронной почты.
+  ja: メールアドレスに確認コードを送信します。
+  ko: 이메일 주소로 인증 코드를 보내드리겠습니다.
+  it: Invieremo un codice di verifica al tuo indirizzo email.
+  tr: E-posta adresinize bir doğrulama kodu göndereceğiz.
+  vi: Chúng tôi sẽ gửi mã xác minh đến địa chỉ email của bạn.
+  id: Kami akan mengirimkan kode verifikasi ke alamat email Anda.
+  pl: Wyślemy kod weryfikacyjny na Twój adres e-mail.
+  nl: We sturen een verificatiecode naar je e-mailadres.
+  ar: سنرسل رمز تحقق إلى عنوان بريدك الإلكتروني.
+  hi: हम आपके ईमेल पते पर एक सत्यापन कोड भेजेंगे।
+  th: เราจะส่งรหัสยืนยันไปยังที่อยู่อีเมลของคุณ
+  cs: Na vaši e-mailovou adresu zašleme ověřovací kód.
+  sv: Vi skickar en verifieringskod till din e-postadress.
+  verified_by_human: []
+
+send_verification_code:
+  context: Button label to send email OTP verification code
+  en: Send verification code
+  de: Bestätigungscode senden
+  zh: 发送验证码
+  es: Enviar código de verificación
+  fr: Envoyer le code de vérification
+  pt: Enviar código de verificação
+  ru: Отправить код подтверждения
+  ja: 確認コードを送信
+  ko: 인증 코드 보내기
+  it: Invia codice di verifica
+  tr: Doğrulama kodu gönder
+  vi: Gửi mã xác minh
+  id: Kirim kode verifikasi
+  pl: Wyślij kod weryfikacyjny
+  nl: Verificatiecode verzenden
+  ar: إرسال رمز التحقق
+  hi: सत्यापन कोड भेजें
+  th: ส่งรหัสยืนยัน
+  cs: Odeslat ověřovací kód
+  sv: Skicka verifieringskod
+  verified_by_human: []
+
+email_otp_enter_code:
+  context: Instruction to enter the email OTP code that was sent
+  en: Enter the 6-digit code sent to your email.
+  de: Geben Sie den 6-stelligen Code ein, der an Ihre E-Mail gesendet wurde.
+  zh: 输入发送到您邮箱的6位数验证码。
+  es: Ingresa el código de 6 dígitos enviado a tu correo electrónico.
+  fr: Entrez le code à 6 chiffres envoyé à votre e-mail.
+  pt: Digite o código de 6 dígitos enviado para o seu e-mail.
+  ru: Введите 6-значный код, отправленный на вашу электронную почту.
+  ja: メールに送信された6桁のコードを入力してください。
+  ko: 이메일로 전송된 6자리 코드를 입력하세요.
+  it: Inserisci il codice a 6 cifre inviato alla tua email.
+  tr: E-postanıza gönderilen 6 haneli kodu girin.
+  vi: Nhập mã 6 chữ số đã được gửi đến email của bạn.
+  id: Masukkan kode 6 digit yang dikirim ke email Anda.
+  pl: Wpisz 6-cyfrowy kod wysłany na Twój e-mail.
+  nl: Voer de 6-cijferige code in die naar je e-mail is gestuurd.
+  ar: أدخل الرمز المكون من 6 أرقام المرسل إلى بريدك الإلكتروني.
+  hi: अपने ईमेल पर भेजे गए 6-अंकीय कोड दर्ज करें।
+  th: กรอกรหัส 6 หลักที่ส่งไปยังอีเมลของคุณ
+  cs: Zadejte 6místný kód zaslaný na váš e-mail.
+  sv: Ange den 6-siffriga koden som skickades till din e-post.
+  verified_by_human: []
+
+resend_code:
+  context: Link/button text to resend the verification code
+  en: Resend code
+  de: Code erneut senden
+  zh: 重新发送验证码
+  es: Reenviar código
+  fr: Renvoyer le code
+  pt: Reenviar código
+  ru: Отправить код повторно
+  ja: コードを再送信
+  ko: 코드 재전송
+  it: Reinvia codice
+  tr: Kodu yeniden gönder
+  vi: Gửi lại mã
+  id: Kirim ulang kode
+  pl: Wyślij ponownie kod
+  nl: Code opnieuw verzenden
+  ar: إعادة إرسال الرمز
+  hi: कोड पुनः भेजें
+  th: ส่งรหัสอีกครั้ง
+  cs: Znovu odeslat kód
+  sv: Skicka koden igen
+  verified_by_human: []
+
 # --- SettingsPassword Component ---
 loading:
   context: Loading message

@@ -2160,6 +2160,21 @@
       },
       "meal_prep": {
         "text": "Pomóż mi zaplanować zdrową przygotowanie posiłków"
+      },
+      "discover_web_search": {
+        "text": "[web-search] Co dzieje się dziś na świecie?"
+      },
+      "discover_image_generate": {
+        "text": "[images-generate] Wygeneruj obraz zachodu słońca w górach"
+      },
+      "discover_news_search": {
+        "text": "[news-search] Znajdź najnowsze wiadomości o AI"
+      },
+      "discover_video_search": {
+        "text": "[videos-search] Znajdź filmy tutorialowe o programowaniu w Pythonie"
+      },
+      "discover_math_calculate": {
+        "text": "[math-calculate] Oblicz: ile wynosi 15% z 240?"
       }
     },
     "suggestions": {
@@ -2771,6 +2786,38 @@
         "text": "To powiadomienie zostało wysłane przez zautomatyzowany system monitorowania testów E2E."
       }
     },
+    "prometheus_alert": {
+      "title": {
+        "text": "Powiadomienie o alercie Prometheus"
+      },
+      "header": {
+        "text": "Alert Prometheus"
+      },
+      "alert_name_label": {
+        "text": "Nazwa alertu"
+      },
+      "severity_label": {
+        "text": "Ważność"
+      },
+      "summary_label": {
+        "text": "Podsumowanie"
+      },
+      "description_label": {
+        "text": "Opis"
+      },
+      "started_at_label": {
+        "text": "Wyzwolono o"
+      },
+      "ended_at_label": {
+        "text": "Rozwiązano o"
+      },
+      "labels_label": {
+        "text": "Etykiety"
+      },
+      "footer_note": {
+        "text": "Ten alert został wysłany przez zautomatyzowany system monitorowania Prometheus."
+      }
+    },
     "newsletter_confirmation_request": {
       "title": {
         "text": "Potwierdź subskrypcję newslettera"
@@ -2928,6 +2975,18 @@
       "open_chat_button": {
         "text": "Otwórz czat"
       }
+    },
+    "action_verification_title": {
+      "text": "Zweryfikuj swoje działanie"
+    },
+    "action_verification_description": {
+      "text": "Poprosiłeś o kod weryfikacyjny do wrażliwego działania na swoim koncie."
+    },
+    "action_verification_expires": {
+      "text": "Ten kod wygasa za 10 minut."
+    },
+    "action_verification_subject": {
+      "text": "Twój kod weryfikacyjny: {code}"
     }
   },
   "embeds": {
@@ -6805,6 +6864,18 @@
       },
       "no_auth_method": {
         "text": "Brak dostępnej metody uwierzytelniania. Skontaktuj się z pomocą techniczną."
+      },
+      "email_otp_description": {
+        "text": "Wyślemy kod weryfikacyjny na Twój adres e-mail."
+      },
+      "send_verification_code": {
+        "text": "Wyślij kod weryfikacyjny"
+      },
+      "email_otp_enter_code": {
+        "text": "Wpisz 6-cyfrowy kod wysłany na Twój e-mail."
+      },
+      "resend_code": {
+        "text": "Wyślij ponownie kod"
       },
       "loading": {
         "text": "Ładowanie..."

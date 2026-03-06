@@ -2160,6 +2160,21 @@
       },
       "meal_prep": {
         "text": "Sağlıklı bir yemek hazırlığı planlamasına yardım et"
+      },
+      "discover_web_search": {
+        "text": "[web-search] Bugün dünyada neler oluyor?"
+      },
+      "discover_image_generate": {
+        "text": "[images-generate] Dağ gün batımı görseli oluştur"
+      },
+      "discover_news_search": {
+        "text": "[news-search] En son yapay zeka haberlerini bul"
+      },
+      "discover_video_search": {
+        "text": "[videos-search] Python programlama eğitim videoları bul"
+      },
+      "discover_math_calculate": {
+        "text": "[math-calculate] Çöz: 240'ın yüzde 15'i nedir?"
       }
     },
     "suggestions": {
@@ -2771,6 +2786,38 @@
         "text": "Bu bildirim otomatik E2E test izleme sistemi tarafından gönderildi."
       }
     },
+    "prometheus_alert": {
+      "title": {
+        "text": "Prometheus Uyarı Bildirimi"
+      },
+      "header": {
+        "text": "Prometheus Uyarısı"
+      },
+      "alert_name_label": {
+        "text": "Uyarı Adı"
+      },
+      "severity_label": {
+        "text": "Önem Derecesi"
+      },
+      "summary_label": {
+        "text": "Özet"
+      },
+      "description_label": {
+        "text": "Açıklama"
+      },
+      "started_at_label": {
+        "text": "Tetiklenme Zamanı"
+      },
+      "ended_at_label": {
+        "text": "Çözüm Zamanı"
+      },
+      "labels_label": {
+        "text": "Etiketler"
+      },
+      "footer_note": {
+        "text": "Bu uyarı otomatik Prometheus izleme sistemi tarafından gönderildi."
+      }
+    },
     "newsletter_confirmation_request": {
       "title": {
         "text": "Bülten aboneliğinizi onaylayın"
@@ -2928,6 +2975,18 @@
       "open_chat_button": {
         "text": "Sohbeti Aç"
       }
+    },
+    "action_verification_title": {
+      "text": "İşleminizi doğrulayın"
+    },
+    "action_verification_description": {
+      "text": "Hesabınızda hassas bir işlem için doğrulama kodu talep ettiniz."
+    },
+    "action_verification_expires": {
+      "text": "Bu kod 10 dakika içinde geçerliliğini yitirir."
+    },
+    "action_verification_subject": {
+      "text": "Doğrulama kodunuz: {code}"
     }
   },
   "embeds": {
@@ -6805,6 +6864,18 @@
       },
       "no_auth_method": {
         "text": "Kimlik doğrulama yöntemi mevcut değil. Lütfen destek ile iletişime geçin."
+      },
+      "email_otp_description": {
+        "text": "E-posta adresinize bir doğrulama kodu göndereceğiz."
+      },
+      "send_verification_code": {
+        "text": "Doğrulama kodu gönder"
+      },
+      "email_otp_enter_code": {
+        "text": "E-postanıza gönderilen 6 haneli kodu girin."
+      },
+      "resend_code": {
+        "text": "Kodu yeniden gönder"
       },
       "loading": {
         "text": "Yükleniyor..."

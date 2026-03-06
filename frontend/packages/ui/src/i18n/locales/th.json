@@ -2160,6 +2160,21 @@
       },
       "meal_prep": {
         "text": "ช่วยฉันวางแผนการเตรียมอาหารที่ดีต่อสุขภาพ"
+      },
+      "discover_web_search": {
+        "text": "[web-search] วันนี้โลกมีอะไรเกิดขึ้นบ้าง?"
+      },
+      "discover_image_generate": {
+        "text": "[images-generate] สร้างภาพพระอาทิตย์ตกที่ภูเขา"
+      },
+      "discover_news_search": {
+        "text": "[news-search] ค้นหาข่าว AI ล่าสุด"
+      },
+      "discover_video_search": {
+        "text": "[videos-search] ค้นหาวิดีโอสอน Python programming"
+      },
+      "discover_math_calculate": {
+        "text": "[math-calculate] แก้: 15% ของ 240 คือเท่าไหร่?"
       }
     },
     "suggestions": {
@@ -2771,6 +2786,38 @@
         "text": "การแจ้งเตือนนี้ถูกส่งโดยระบบตรวจสอบการทดสอบ E2E อัตโนมัติ"
       }
     },
+    "prometheus_alert": {
+      "title": {
+        "text": "การแจ้งเตือน Prometheus"
+      },
+      "header": {
+        "text": "การแจ้งเตือน Prometheus"
+      },
+      "alert_name_label": {
+        "text": "ชื่อการแจ้งเตือน"
+      },
+      "severity_label": {
+        "text": "ความรุนแรง"
+      },
+      "summary_label": {
+        "text": "สรุป"
+      },
+      "description_label": {
+        "text": "คำอธิบาย"
+      },
+      "started_at_label": {
+        "text": "เริ่มเวลา"
+      },
+      "ended_at_label": {
+        "text": "แก้ไขเวลา"
+      },
+      "labels_label": {
+        "text": "ป้ายกำกับ"
+      },
+      "footer_note": {
+        "text": "การแจ้งเตือนนี้ถูกส่งโดยระบบตรวจสอบ Prometheus อัตโนมัติ"
+      }
+    },
     "newsletter_confirmation_request": {
       "title": {
         "text": "ยืนยันการสมัครรับจดหมายข่าว"
@@ -2934,6 +2981,18 @@
       "open_chat_button": {
         "text": "เปิดแชท"
       }
+    },
+    "action_verification_title": {
+      "text": "ยืนยันการดำเนินการของคุณ"
+    },
+    "action_verification_description": {
+      "text": "คุณขอรหัสยืนยันสำหรับการดำเนินการที่ละเอียดอ่อนบนบัญชีของคุณ"
+    },
+    "action_verification_expires": {
+      "text": "รหัสนี้จะหมดอายุใน 10 นาที"
+    },
+    "action_verification_subject": {
+      "text": "รหัสยืนยันของคุณ: {code}"
     }
   },
   "embeds": {
@@ -6811,6 +6870,18 @@
       },
       "no_auth_method": {
         "text": "ไม่มีวิธีการยืนยันตัวตนที่พร้อมใช้งาน กรุณาติดต่อฝ่ายสนับสนุน"
+      },
+      "email_otp_description": {
+        "text": "เราจะส่งรหัสยืนยันไปยังที่อยู่อีเมลของคุณ"
+      },
+      "send_verification_code": {
+        "text": "ส่งรหัสยืนยัน"
+      },
+      "email_otp_enter_code": {
+        "text": "กรอกรหัส 6 หลักที่ส่งไปยังอีเมลของคุณ"
+      },
+      "resend_code": {
+        "text": "ส่งรหัสอีกครั้ง"
       },
       "loading": {
         "text": "กำลังโหลด..."

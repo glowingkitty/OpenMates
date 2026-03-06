@@ -19,15 +19,17 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
     
     /** Auth result data passed to onSuccess callback */
     type AuthSuccessData = { 
-        method: 'passkey' | 'password' | '2fa'; 
+        method: 'passkey' | 'password' | '2fa' | 'email_otp'; 
         credentialId?: string;  // For passkey authentication
-        tfaCode?: string;       // For 2FA authentication
+        tfaCode?: string;       // For 2FA / email OTP authentication
     };
     
     let { 
         hasPasskey = false,
         hasPassword = false,
         has2FA = false,
+        hasEmailOtp = false,
+        verificationAction = '',
         title = '',
         description = '',
         autoStart = true, // Auto-start passkey auth if available
@@ -39,6 +41,8 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
         hasPasskey?: boolean;
         hasPassword?: boolean;
         has2FA?: boolean;
+        hasEmailOtp?: boolean;
+        verificationAction?: string;
         title?: string;
         description?: string;
         autoStart?: boolean;
@@ -68,13 +72,20 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
     
     // Passkey state
     let isPasskeyLoading = $state(false);
+    
+    // Email OTP state
+    let showEmailOtpInput = $state(false);
+    let emailOtpCode = $state('');
+    let emailOtpSent = $state(false);
+    let isEmailOtpSending = $state(false);
+    let isEmailOtpVerifying = $state(false);
 
     // ========================================================================
     // COMPUTED
     // ========================================================================
     
     // Determine which auth method to use (passkey takes priority)
-    let authMethod = $derived(hasPasskey ? 'passkey' : (hasPassword ? 'password' : (has2FA ? '2fa' : null)));
+    let authMethod = $derived(hasPasskey ? 'passkey' : (hasPassword ? 'password' : (has2FA ? '2fa' : (hasEmailOtp ? 'email_otp' : null))));
     
     // Compute the default title if not provided
     let displayTitle = $derived(title || $text('settings.security.auth_title'));
@@ -94,6 +105,8 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
             showPasswordInput = true;
         } else if (has2FA) {
             show2FAInput = true;
+        } else if (hasEmailOtp) {
+            showEmailOtpInput = true;
         }
     });
 
@@ -451,6 +464,77 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
         errorMessage = null;
         handlePasskeyAuth();
     }
+
+    /**
+     * Send email OTP for action verification.
+     * Calls POST /v1/settings/request-action-verification with the action type.
+     */
+    async function handleSendEmailOtp() {
+        isEmailOtpSending = true;
+        errorMessage = null;
+        try {
+            const response = await fetch(getApiEndpoint(apiEndpoints.settings.requestActionVerification), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ action: verificationAction })
+            });
+            const data = await response.json();
+            if (response.ok && data.success) {
+                emailOtpSent = true;
+            } else {
+                errorMessage = data.message || data.detail || 'Failed to send verification code';
+            }
+        } catch {
+            errorMessage = 'Network error. Please try again.';
+        } finally {
+            isEmailOtpSending = false;
+        }
+    }
+
+    /**
+     * Handle email OTP code input with auto-submit when 6 digits entered.
+     * Calls POST /v1/settings/verify-action-code to verify the code.
+     */
+    function handleEmailOtpInput(event: Event) {
+        const input = event.target as HTMLInputElement;
+        const cleaned = input.value.replace(/\D/g, '').slice(0, 6);
+        emailOtpCode = cleaned;
+        input.value = cleaned;
+
+        if (cleaned.length === 6) {
+            verifyEmailOtp(cleaned);
+        }
+    }
+
+    /**
+     * Verify the entered email OTP code against the backend.
+     * On success, dispatches onSuccess with method 'email_otp'.
+     */
+    async function verifyEmailOtp(code: string) {
+        isEmailOtpVerifying = true;
+        errorMessage = null;
+        try {
+            const response = await fetch(getApiEndpoint(apiEndpoints.settings.verifyActionCode), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ action: verificationAction, code })
+            });
+            const data = await response.json();
+            if (response.ok && data.success) {
+                onSuccess({ method: 'email_otp' });
+            } else {
+                errorMessage = data.message || data.detail || 'Invalid code. Please try again.';
+                emailOtpCode = '';
+            }
+        } catch {
+            errorMessage = 'Network error. Please try again.';
+            emailOtpCode = '';
+        } finally {
+            isEmailOtpVerifying = false;
+        }
+    }
 </script>
 
 <div 
@@ -556,6 +640,46 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                         </button>
                     {/if}
                 </div>
+            {:else if showEmailOtpInput}
+                <!-- Email OTP Input -->
+                <div class="auth-email-otp">
+                    {#if !emailOtpSent}
+                        <p>{$text('settings.security.email_otp_description')}</p>
+                        <button
+                            class="auth-btn"
+                            onclick={handleSendEmailOtp}
+                            disabled={isEmailOtpSending}
+                        >
+                            {#if isEmailOtpSending}
+                                <span class="loading-spinner-small"></span>
+                            {/if}
+                            {$text('settings.security.send_verification_code')}
+                        </button>
+                    {:else}
+                        <p>{$text('settings.security.email_otp_enter_code')}</p>
+                        <input
+                            type="text"
+                            inputmode="numeric"
+                            pattern="[0-9]*"
+                            maxlength="6"
+                            value={emailOtpCode}
+                            oninput={handleEmailOtpInput}
+                            placeholder="000000"
+                            disabled={isEmailOtpVerifying}
+                            class="tfa-input"
+                        />
+                        <button
+                            class="switch-method-btn"
+                            onclick={handleSendEmailOtp}
+                            disabled={isEmailOtpSending}
+                        >
+                            {$text('settings.security.resend_code')}
+                        </button>
+                    {/if}
+                    {#if errorMessage}
+                        <p class="error-message">{errorMessage}</p>
+                    {/if}
+                </div>
             {:else}
                 <!-- No auth method available -->
                 <div class="no-auth">
@@ -635,6 +759,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
     .auth-2fa,
     .auth-passkey,
     .auth-password,
+    .auth-email-otp,
     .no-auth {
         text-align: center;
     }
@@ -645,7 +770,8 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
 
     .auth-2fa p,
     .auth-passkey p,
-    .auth-password p {
+    .auth-password p,
+    .auth-email-otp p {
         margin-bottom: 16px;
         color: var(--color-grey-70);
     }

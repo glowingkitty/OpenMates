@@ -2160,6 +2160,21 @@
       },
       "meal_prep": {
         "text": "Giúp tôi lên kế hoạch chuẩn bị bữa ăn lành mạnh"
+      },
+      "discover_web_search": {
+        "text": "[web-search] Hôm nay thế giới đang xảy ra điều gì?"
+      },
+      "discover_image_generate": {
+        "text": "[images-generate] Tạo hình ảnh hoàng hôn trên núi"
+      },
+      "discover_news_search": {
+        "text": "[news-search] Tìm tin tức AI mới nhất"
+      },
+      "discover_video_search": {
+        "text": "[videos-search] Tìm video hướng dẫn lập trình Python"
+      },
+      "discover_math_calculate": {
+        "text": "[math-calculate] Giải: 15% của 240 là bao nhiêu?"
       }
     },
     "suggestions": {
@@ -2771,6 +2786,38 @@
         "text": "Thông báo này được gửi bởi hệ thống giám sát kiểm tra E2E tự động."
       }
     },
+    "prometheus_alert": {
+      "title": {
+        "text": "Thông báo cảnh báo Prometheus"
+      },
+      "header": {
+        "text": "Cảnh báo Prometheus"
+      },
+      "alert_name_label": {
+        "text": "Tên cảnh báo"
+      },
+      "severity_label": {
+        "text": "Mức độ nghiêm trọng"
+      },
+      "summary_label": {
+        "text": "Tóm tắt"
+      },
+      "description_label": {
+        "text": "Mô tả"
+      },
+      "started_at_label": {
+        "text": "Kích hoạt lúc"
+      },
+      "ended_at_label": {
+        "text": "Giải quyết lúc"
+      },
+      "labels_label": {
+        "text": "Nhãn"
+      },
+      "footer_note": {
+        "text": "Cảnh báo này được gửi bởi hệ thống giám sát Prometheus tự động."
+      }
+    },
     "newsletter_confirmation_request": {
       "title": {
         "text": "Xác nhận đăng ký bản tin"
@@ -2928,6 +2975,18 @@
       "open_chat_button": {
         "text": "Mở trò chuyện"
       }
+    },
+    "action_verification_title": {
+      "text": "Xác minh hành động của bạn"
+    },
+    "action_verification_description": {
+      "text": "Bạn đã yêu cầu mã xác minh cho một hành động nhạy cảm trên tài khoản của bạn."
+    },
+    "action_verification_expires": {
+      "text": "Mã này hết hạn sau 10 phút."
+    },
+    "action_verification_subject": {
+      "text": "Mã xác minh của bạn: {code}"
     }
   },
   "embeds": {
@@ -6805,6 +6864,18 @@
       },
       "no_auth_method": {
         "text": "Không có phương thức xác thực khả dụng. Vui lòng liên hệ hỗ trợ."
+      },
+      "email_otp_description": {
+        "text": "Chúng tôi sẽ gửi mã xác minh đến địa chỉ email của bạn."
+      },
+      "send_verification_code": {
+        "text": "Gửi mã xác minh"
+      },
+      "email_otp_enter_code": {
+        "text": "Nhập mã 6 chữ số đã được gửi đến email của bạn."
+      },
+      "resend_code": {
+        "text": "Gửi lại mã"
       },
       "loading": {
         "text": "Đang tải..."

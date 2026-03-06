@@ -2160,6 +2160,21 @@
       },
       "meal_prep": {
         "text": "건강한 식사 준비를 계획하도록 도와주세요"
+      },
+      "discover_web_search": {
+        "text": "[web-search] 오늘 세계에서 무슨 일이 일어나고 있나요?"
+      },
+      "discover_image_generate": {
+        "text": "[images-generate] 산 일몰 이미지를 생성해 주세요"
+      },
+      "discover_news_search": {
+        "text": "[news-search] 최신 AI 뉴스 찾기"
+      },
+      "discover_video_search": {
+        "text": "[videos-search] Python 프로그래밍 튜토리얼 영상 찾기"
+      },
+      "discover_math_calculate": {
+        "text": "[math-calculate] 풀어봐: 240의 15%는 얼마인가요?"
       }
     },
     "suggestions": {
@@ -2771,6 +2786,38 @@
         "text": "이 알림은 자동화된 E2E 테스트 모니터링 시스템에서 전송되었습니다."
       }
     },
+    "prometheus_alert": {
+      "title": {
+        "text": "Prometheus 알림 통보"
+      },
+      "header": {
+        "text": "Prometheus 알림"
+      },
+      "alert_name_label": {
+        "text": "알림 이름"
+      },
+      "severity_label": {
+        "text": "심각도"
+      },
+      "summary_label": {
+        "text": "요약"
+      },
+      "description_label": {
+        "text": "설명"
+      },
+      "started_at_label": {
+        "text": "발생 시각"
+      },
+      "ended_at_label": {
+        "text": "해결 시각"
+      },
+      "labels_label": {
+        "text": "레이블"
+      },
+      "footer_note": {
+        "text": "이 알림은 자동화된 Prometheus 모니터링 시스템에서 전송되었습니다."
+      }
+    },
     "newsletter_confirmation_request": {
       "title": {
         "text": "뉴스레터 구독 확인"
@@ -2928,6 +2975,18 @@
       "open_chat_button": {
         "text": "채팅 열기"
       }
+    },
+    "action_verification_title": {
+      "text": "작업 확인"
+    },
+    "action_verification_description": {
+      "text": "계정의 민감한 작업을 위해 인증 코드를 요청하셨습니다."
+    },
+    "action_verification_expires": {
+      "text": "이 코드는 10분 후에 만료됩니다."
+    },
+    "action_verification_subject": {
+      "text": "인증 코드: {code}"
     }
   },
   "embeds": {
@@ -6805,6 +6864,18 @@
       },
       "no_auth_method": {
         "text": "사용 가능한 인증 방법이 없습니다. 지원팀에 문의하세요."
+      },
+      "email_otp_description": {
+        "text": "이메일 주소로 인증 코드를 보내드리겠습니다."
+      },
+      "send_verification_code": {
+        "text": "인증 코드 보내기"
+      },
+      "email_otp_enter_code": {
+        "text": "이메일로 전송된 6자리 코드를 입력하세요."
+      },
+      "resend_code": {
+        "text": "코드 재전송"
       },
       "loading": {
         "text": "로딩 중..."

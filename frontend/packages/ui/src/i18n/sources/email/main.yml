@@ -5067,3 +5067,100 @@ top_up_credits:
   zh: "充值积分"
   he: טעינת קרדיטים
   verified_by_human: []
+
+# --- Action verification email template ---
+action_verification_title:
+  context: Title shown in the action verification email (e.g. for account deletion)
+  en: Verify your action
+  de: Bestätigen Sie Ihre Aktion
+  zh: 验证您的操作
+  es: Verifica tu acción
+  fr: Vérifiez votre action
+  pt: Verifique sua ação
+  ru: Подтвердите действие
+  ja: 操作を確認
+  ko: 작업 확인
+  it: Verifica la tua azione
+  tr: İşleminizi doğrulayın
+  vi: Xác minh hành động của bạn
+  id: Verifikasi tindakan Anda
+  pl: Zweryfikuj swoje działanie
+  nl: Verifieer je actie
+  ar: تحقق من إجراءك
+  hi: अपनी कार्रवाई सत्यापित करें
+  th: ยืนยันการดำเนินการของคุณ
+  cs: Ověřte svou akci
+  sv: Verifiera din åtgärd
+  verified_by_human: []
+
+action_verification_description:
+  context: Description in the action verification email explaining why the code was sent
+  en: You requested a verification code for a sensitive action on your account.
+  de: Sie haben einen Bestätigungscode für eine sensible Aktion auf Ihrem Konto angefordert.
+  zh: 您请求了一个用于帐户敏感操作的验证码。
+  es: Solicitaste un código de verificación para una acción sensible en tu cuenta.
+  fr: Vous avez demandé un code de vérification pour une action sensible sur votre compte.
+  pt: Você solicitou um código de verificação para uma ação sensível na sua conta.
+  ru: Вы запросили код подтверждения для конфиденциального действия в вашем аккаунте.
+  ja: アカウントの機密操作のための確認コードをリクエストしました。
+  ko: 계정의 민감한 작업을 위해 인증 코드를 요청하셨습니다.
+  it: Hai richiesto un codice di verifica per un'azione sensibile sul tuo account.
+  tr: Hesabınızda hassas bir işlem için doğrulama kodu talep ettiniz.
+  vi: Bạn đã yêu cầu mã xác minh cho một hành động nhạy cảm trên tài khoản của bạn.
+  id: Anda meminta kode verifikasi untuk tindakan sensitif pada akun Anda.
+  pl: Poprosiłeś o kod weryfikacyjny do wrażliwego działania na swoim koncie.
+  nl: Je hebt een verificatiecode aangevraagd voor een gevoelige actie op je account.
+  ar: لقد طلبت رمز تحقق لإجراء حساس على حسابك.
+  hi: आपने अपने खाते पर एक संवेदनशील कार्रवाई के लिए सत्यापन कोड का अनुरोध किया है।
+  th: คุณขอรหัสยืนยันสำหรับการดำเนินการที่ละเอียดอ่อนบนบัญชีของคุณ
+  cs: Požádali jste o ověřovací kód pro citlivou akci na vašem účtu.
+  sv: Du begärde en verifieringskod för en känslig åtgärd på ditt konto.
+  verified_by_human: []
+
+action_verification_expires:
+  context: Note in the action verification email about code expiration
+  en: This code expires in 10 minutes.
+  de: Dieser Code läuft in 10 Minuten ab.
+  zh: 此验证码将在10分钟后过期。
+  es: Este código caduca en 10 minutos.
+  fr: Ce code expire dans 10 minutes.
+  pt: Este código expira em 10 minutos.
+  ru: Срок действия этого кода истекает через 10 минут.
+  ja: このコードは10分で期限切れになります。
+  ko: 이 코드는 10분 후에 만료됩니다.
+  it: Questo codice scade tra 10 minuti.
+  tr: Bu kod 10 dakika içinde geçerliliğini yitirir.
+  vi: Mã này hết hạn sau 10 phút.
+  id: Kode ini kedaluwarsa dalam 10 menit.
+  pl: Ten kod wygasa za 10 minut.
+  nl: Deze code verloopt over 10 minuten.
+  ar: تنتهي صلاحية هذا الرمز خلال 10 دقائق.
+  hi: यह कोड 10 मिनट में समाप्त हो जाएगा।
+  th: รหัสนี้จะหมดอายุใน 10 นาที
+  cs: Platnost tohoto kódu vyprší za 10 minut.
+  sv: Denna kod upphör att gälla om 10 minuter.
+  verified_by_human: []
+
+action_verification_subject:
+  context: "Email subject line for action verification code. Variables: {code} = the 6-digit code"
+  en: "Your verification code: {code}"
+  de: "Ihr Bestätigungscode: {code}"
+  zh: "您的验证码：{code}"
+  es: "Tu código de verificación: {code}"
+  fr: "Votre code de vérification : {code}"
+  pt: "Seu código de verificação: {code}"
+  ru: "Ваш код подтверждения: {code}"
+  ja: "確認コード：{code}"
+  ko: "인증 코드: {code}"
+  it: "Il tuo codice di verifica: {code}"
+  tr: "Doğrulama kodunuz: {code}"
+  vi: "Mã xác minh của bạn: {code}"
+  id: "Kode verifikasi Anda: {code}"
+  pl: "Twój kod weryfikacyjny: {code}"
+  nl: "Je verificatiecode: {code}"
+  ar: "رمز التحقق الخاص بك: {code}"
+  hi: "आपका सत्यापन कोड: {code}"
+  th: "รหัสยืนยันของคุณ: {code}"
+  cs: "Váš ověřovací kód: {code}"
+  sv: "Din verifieringskod: {code}"
+  verified_by_human: []

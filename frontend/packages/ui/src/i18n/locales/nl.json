@@ -2160,6 +2160,21 @@
       },
       "meal_prep": {
         "text": "Help mij een gezonde maaltijdbereiding te plannen"
+      },
+      "discover_web_search": {
+        "text": "[web-search] Wat gebeurt er vandaag in de wereld?"
+      },
+      "discover_image_generate": {
+        "text": "[images-generate] Genereer een afbeelding van een bergzonsondergang"
+      },
+      "discover_news_search": {
+        "text": "[news-search] Vind het laatste AI-nieuws"
+      },
+      "discover_video_search": {
+        "text": "[videos-search] Vind tutorial video's over Python-programmering"
+      },
+      "discover_math_calculate": {
+        "text": "[math-calculate] Los op: hoeveel is 15% van 240?"
       }
     },
     "suggestions": {
@@ -2771,6 +2786,38 @@
         "text": "Deze melding is verzonden door het geautomatiseerde E2E-testmonitoringsysteem."
       }
     },
+    "prometheus_alert": {
+      "title": {
+        "text": "Prometheus-waarschuwingsmelding"
+      },
+      "header": {
+        "text": "Prometheus-waarschuwing"
+      },
+      "alert_name_label": {
+        "text": "Waarschuwingsnaam"
+      },
+      "severity_label": {
+        "text": "Ernst"
+      },
+      "summary_label": {
+        "text": "Samenvatting"
+      },
+      "description_label": {
+        "text": "Beschrijving"
+      },
+      "started_at_label": {
+        "text": "Geactiveerd om"
+      },
+      "ended_at_label": {
+        "text": "Opgelost om"
+      },
+      "labels_label": {
+        "text": "Labels"
+      },
+      "footer_note": {
+        "text": "Deze waarschuwing is verzonden door het geautomatiseerde Prometheus-monitoringsysteem."
+      }
+    },
     "newsletter_confirmation_request": {
       "title": {
         "text": "Bevestig je nieuwsbriefabonnement"
@@ -2928,6 +2975,18 @@
       "open_chat_button": {
         "text": "Chat openen"
       }
+    },
+    "action_verification_title": {
+      "text": "Verifieer je actie"
+    },
+    "action_verification_description": {
+      "text": "Je hebt een verificatiecode aangevraagd voor een gevoelige actie op je account."
+    },
+    "action_verification_expires": {
+      "text": "Deze code verloopt over 10 minuten."
+    },
+    "action_verification_subject": {
+      "text": "Je verificatiecode: {code}"
     }
   },
   "embeds": {
@@ -6805,6 +6864,18 @@
       },
       "no_auth_method": {
         "text": "Geen authenticatiemethode beschikbaar. Neem contact op met ondersteuning."
+      },
+      "email_otp_description": {
+        "text": "We sturen een verificatiecode naar je e-mailadres."
+      },
+      "send_verification_code": {
+        "text": "Verificatiecode verzenden"
+      },
+      "email_otp_enter_code": {
+        "text": "Voer de 6-cijferige code in die naar je e-mail is gestuurd."
+      },
+      "resend_code": {
+        "text": "Code opnieuw verzenden"
       },
       "loading": {
         "text": "Laden..."

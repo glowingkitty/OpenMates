@@ -2160,6 +2160,21 @@
       },
       "meal_prep": {
         "text": "Ayúdame a planificar una preparación de comidas saludable"
+      },
+      "discover_web_search": {
+        "text": "[web-search] ¿Qué está pasando en el mundo hoy?"
+      },
+      "discover_image_generate": {
+        "text": "[images-generate] Genera una imagen de una puesta de sol en la montaña"
+      },
+      "discover_news_search": {
+        "text": "[news-search] Busca las últimas noticias sobre IA"
+      },
+      "discover_video_search": {
+        "text": "[videos-search] Busca videos tutoriales sobre programación en Python"
+      },
+      "discover_math_calculate": {
+        "text": "[math-calculate] Resuelve: ¿cuánto es el 15% de 240?"
       }
     },
     "suggestions": {
@@ -2873,6 +2888,38 @@
         "text": "Esta notificación fue enviada por el sistema automatizado de monitoreo de pruebas E2E."
       }
     },
+    "prometheus_alert": {
+      "title": {
+        "text": "Notificación de alerta de Prometheus"
+      },
+      "header": {
+        "text": "Alerta de Prometheus"
+      },
+      "alert_name_label": {
+        "text": "Nombre de la alerta"
+      },
+      "severity_label": {
+        "text": "Gravedad"
+      },
+      "summary_label": {
+        "text": "Resumen"
+      },
+      "description_label": {
+        "text": "Descripción"
+      },
+      "started_at_label": {
+        "text": "Disparado a las"
+      },
+      "ended_at_label": {
+        "text": "Resuelto a las"
+      },
+      "labels_label": {
+        "text": "Etiquetas"
+      },
+      "footer_note": {
+        "text": "Esta alerta fue enviada por el sistema automatizado de monitoreo de Prometheus."
+      }
+    },
     "email": {
       "text": "Correo electrónico"
     },
@@ -3269,6 +3316,18 @@
     },
     "top_up_credits": {
       "text": "Recargar créditos"
+    },
+    "action_verification_title": {
+      "text": "Verifica tu acción"
+    },
+    "action_verification_description": {
+      "text": "Solicitaste un código de verificación para una acción sensible en tu cuenta."
+    },
+    "action_verification_expires": {
+      "text": "Este código caduca en 10 minutos."
+    },
+    "action_verification_subject": {
+      "text": "Tu código de verificación: {code}"
     }
   },
   "embeds": {
@@ -8394,6 +8453,18 @@
       },
       "no_auth_method": {
         "text": "No hay método de autenticación disponible. Por favor contacte al soporte."
+      },
+      "email_otp_description": {
+        "text": "Enviaremos un código de verificación a tu dirección de correo electrónico."
+      },
+      "send_verification_code": {
+        "text": "Enviar código de verificación"
+      },
+      "email_otp_enter_code": {
+        "text": "Ingresa el código de 6 dígitos enviado a tu correo electrónico."
+      },
+      "resend_code": {
+        "text": "Reenviar código"
       },
       "loading": {
         "text": "Cargando..."

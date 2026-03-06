@@ -2208,6 +2208,21 @@
       },
       "meal_prep": {
         "text": "Hilf mir, eine gesunde Essensvorbereitung zu planen"
+      },
+      "discover_web_search": {
+        "text": "[web-search] Was passiert heute in der Welt?"
+      },
+      "discover_image_generate": {
+        "text": "[images-generate] Erstelle ein Bild eines Bergsonnenuntergangs"
+      },
+      "discover_news_search": {
+        "text": "[news-search] Finde die neuesten KI-Nachrichten"
+      },
+      "discover_video_search": {
+        "text": "[videos-search] Finde Tutorial-Videos zum Python-Programmieren"
+      },
+      "discover_math_calculate": {
+        "text": "[math-calculate] Berechne: Was sind 15% von 240?"
       }
     },
     "suggestions": {
@@ -2991,6 +3006,38 @@
         "text": "Diese Benachrichtigung wurde vom automatisierten E2E-Testüberwachungssystem gesendet."
       }
     },
+    "prometheus_alert": {
+      "title": {
+        "text": "Prometheus Alarmbenachrichtigung"
+      },
+      "header": {
+        "text": "Prometheus-Alarm"
+      },
+      "alert_name_label": {
+        "text": "Alarmname"
+      },
+      "severity_label": {
+        "text": "Schweregrad"
+      },
+      "summary_label": {
+        "text": "Zusammenfassung"
+      },
+      "description_label": {
+        "text": "Beschreibung"
+      },
+      "started_at_label": {
+        "text": "Ausgelöst um"
+      },
+      "ended_at_label": {
+        "text": "Aufgelöst um"
+      },
+      "labels_label": {
+        "text": "Labels"
+      },
+      "footer_note": {
+        "text": "Diese Benachrichtigung wurde vom automatisierten Prometheus-Überwachungssystem gesendet."
+      }
+    },
     "email": {
       "text": "E-Mail"
     },
@@ -3387,6 +3434,18 @@
     },
     "top_up_credits": {
       "text": "Guthaben aufladen"
+    },
+    "action_verification_title": {
+      "text": "Bestätigen Sie Ihre Aktion"
+    },
+    "action_verification_description": {
+      "text": "Sie haben einen Bestätigungscode für eine sensible Aktion auf Ihrem Konto angefordert."
+    },
+    "action_verification_expires": {
+      "text": "Dieser Code läuft in 10 Minuten ab."
+    },
+    "action_verification_subject": {
+      "text": "Ihr Bestätigungscode: {code}"
     }
   },
   "embeds": {
@@ -9283,6 +9342,18 @@
       },
       "no_auth_method": {
         "text": "Keine Authentifizierungsmethode verfügbar. Bitte kontaktieren Sie den Support."
+      },
+      "email_otp_description": {
+        "text": "Wir senden einen Bestätigungscode an Ihre E-Mail-Adresse."
+      },
+      "send_verification_code": {
+        "text": "Bestätigungscode senden"
+      },
+      "email_otp_enter_code": {
+        "text": "Geben Sie den 6-stelligen Code ein, der an Ihre E-Mail gesendet wurde."
+      },
+      "resend_code": {
+        "text": "Code erneut senden"
       },
       "loading": {
         "text": "Wird geladen..."

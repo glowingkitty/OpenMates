@@ -2160,6 +2160,21 @@
       },
       "meal_prep": {
         "text": "Помогите мне спланировать здоровую подготовку к еде"
+      },
+      "discover_web_search": {
+        "text": "[web-search] Что происходит в мире сегодня?"
+      },
+      "discover_image_generate": {
+        "text": "[images-generate] Создай изображение горного заката"
+      },
+      "discover_news_search": {
+        "text": "[news-search] Найди последние новости об ИИ"
+      },
+      "discover_video_search": {
+        "text": "[videos-search] Найди обучающие видео по программированию на Python"
+      },
+      "discover_math_calculate": {
+        "text": "[math-calculate] Вычисли: сколько составляет 15% от 240?"
       }
     },
     "suggestions": {
@@ -2771,6 +2786,38 @@
         "text": "Это уведомление было отправлено автоматизированной системой мониторинга E2E тестов."
       }
     },
+    "prometheus_alert": {
+      "title": {
+        "text": "Уведомление об alert Prometheus"
+      },
+      "header": {
+        "text": "Alert Prometheus"
+      },
+      "alert_name_label": {
+        "text": "Имя alert"
+      },
+      "severity_label": {
+        "text": "Серьёзность"
+      },
+      "summary_label": {
+        "text": "Краткое описание"
+      },
+      "description_label": {
+        "text": "Описание"
+      },
+      "started_at_label": {
+        "text": "Сработало в"
+      },
+      "ended_at_label": {
+        "text": "Разрешено в"
+      },
+      "labels_label": {
+        "text": "Метки"
+      },
+      "footer_note": {
+        "text": "Это уведомление было отправлено автоматизированной системой мониторинга Prometheus."
+      }
+    },
     "newsletter_confirmation_request": {
       "title": {
         "text": "Подтвердите подписку на рассылку"
@@ -2928,6 +2975,18 @@
       "open_chat_button": {
         "text": "Открыть чат"
       }
+    },
+    "action_verification_title": {
+      "text": "Подтвердите действие"
+    },
+    "action_verification_description": {
+      "text": "Вы запросили код подтверждения для конфиденциального действия в вашем аккаунте."
+    },
+    "action_verification_expires": {
+      "text": "Срок действия этого кода истекает через 10 минут."
+    },
+    "action_verification_subject": {
+      "text": "Ваш код подтверждения: {code}"
     }
   },
   "embeds": {
@@ -6805,6 +6864,18 @@
       },
       "no_auth_method": {
         "text": "Метод аутентификации недоступен. Пожалуйста, свяжитесь с поддержкой."
+      },
+      "email_otp_description": {
+        "text": "Мы отправим код подтверждения на ваш адрес электронной почты."
+      },
+      "send_verification_code": {
+        "text": "Отправить код подтверждения"
+      },
+      "email_otp_enter_code": {
+        "text": "Введите 6-значный код, отправленный на вашу электронную почту."
+      },
+      "resend_code": {
+        "text": "Отправить код повторно"
       },
       "loading": {
         "text": "Загрузка..."

@@ -175,6 +175,8 @@ export const apiEndpoints = {
     },
     deleteAccountPreview: "/v1/settings/delete-account-preview", // Get preview of account deletion consequences
     deleteAccount: "/v1/settings/delete-account", // Delete user account
+    requestActionVerification: "/v1/settings/request-action-verification", // Send email OTP for sensitive actions
+    verifyActionCode: "/v1/settings/verify-action-code", // Verify email OTP for sensitive actions
     exportAccountManifest: "/v1/settings/export-account-manifest", // Get export manifest (list of all data IDs)
     exportAccountData: "/v1/settings/export-account-data", // Get export data (usage, invoices, profile)
     updatePassword: "/v1/settings/update-password", // Add or change user password
