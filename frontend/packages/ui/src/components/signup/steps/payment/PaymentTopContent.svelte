@@ -284,6 +284,9 @@ step_10_top_content_svelte:
                             on:cancel={handleGiftCardCancel}
                         />
                     {:else}
+                        <button class="gift-card-toggle" onclick={openGiftCardInput}>
+                            {@html $text('settings.billing.gift_card.have_code')}
+                        </button>
                         <Payment 
                             {credits_amount} 
                             purchasePrice={price * 100} 
@@ -294,9 +297,6 @@ step_10_top_content_svelte:
                             on:openRefundInfo={handleOpenRefundInfo}
                             on:paymentStateChange={handlePaymentStateChange}
                         />
-                        <button class="gift-card-toggle" onclick={openGiftCardInput}>
-                            {@html $text('settings.billing.gift_card.have_code')}
-                        </button>
                     {/if}
                 </div>
             </div>
@@ -435,7 +435,7 @@ step_10_top_content_svelte:
     }
 
     .gift-card-toggle {
-        margin-top: 12px;
+        margin-bottom: 12px;
         align-self: center;
         border: none;
         background: transparent;
