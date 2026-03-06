@@ -985,8 +985,8 @@ skip_2fa_warning_rule_1:
   verified_by_human: []
 skip_2fa_warning_rule_2:
   context: Rule 2 for skipping 2FA warning screen
-  en: Remember or store your password securely (Recommended: Use a password manager)
-  de: Merke dir dein Passwort oder speichere es sicher (Empfohlen: Nutze einen Passwortmanager)
+  en: "Remember or store your password securely (Recommended: Use a password manager)"
+  de: "Merke dir dein Passwort oder speichere es sicher (Empfohlen: Nutze einen Passwortmanager)"
   verified_by_human: []
 skip_2fa_warning_rule_3:
   context: Rule 3 for skipping 2FA warning screen
