@@ -142,22 +142,31 @@ class SyncStatusResponse(BaseModel):
 async def _get_chat_sync_status(
     chat_id: str,
     user_id: str,
+    hashed_user_id: str,
     directus_service: DirectusService,
     cache_service: CacheService,
 ) -> ChatSyncStatus:
     """
     Fetch server-side sync status for a single chat.
 
-    Enforces ownership: only returns data when the chat's user_id matches the
-    requesting user's ID. Returns found=False (no data leakage) when not owned.
+    Enforces ownership: only returns data when the chat's hashed_user_id matches
+    the requesting user's hashed ID. Returns found=False (no data leakage) when
+    not owned.
+
+    Args:
+        user_id: Raw Directus user UUID — used for Redis cache key lookups.
+        hashed_user_id: SHA-256 hex digest of user_id — used for Directus
+            ownership filter (chats table stores hashed_user_id, not raw UUID).
     """
     try:
-        # Fetch chat metadata — filter by both id AND user_id for ownership check.
-        # This is the critical security guard: if the chat exists but belongs to
-        # another user, this returns an empty list and we return found=False.
+        # Fetch chat metadata — filter by both id AND hashed_user_id for ownership check.
+        # The chats table stores hashed_user_id (SHA-256 of the Directus UUID),
+        # not the raw user_id. This is the critical security guard: if the chat
+        # exists but belongs to another user, this returns an empty list and we
+        # return found=False.
         chat_params = {
             "filter[id][_eq]": chat_id,
-            "filter[user_id][_eq]": user_id,
+            "filter[hashed_user_id][_eq]": hashed_user_id,
             "fields": "id,messages_v",
             "limit": 1,
         }
@@ -259,20 +268,26 @@ async def _get_chat_sync_status(
 
 async def _get_embed_sync_status(
     embed_id: str,
-    user_id: str,
+    hashed_user_id: str,
     directus_service: DirectusService,
 ) -> EmbedSyncStatus:
     """
     Fetch server-side sync status for a single embed.
 
-    Ownership is verified via the embed's user_id field.
+    Ownership is verified via the embed's hashed_user_id field.
     Returns only status and key counts — NO encrypted content.
+
+    Args:
+        hashed_user_id: SHA-256 hex digest of the Directus user UUID — used for
+            the ownership filter (embeds table stores hashed_user_id).
     """
     try:
-        # Fetch embed metadata with ownership check
+        # Fetch embed metadata with ownership check.
+        # The embeds table stores hashed_user_id (SHA-256 of the Directus UUID),
+        # not the raw user_id.
         embed_params = {
             "filter[id][_eq]": embed_id,
-            "filter[user_id][_eq]": user_id,
+            "filter[hashed_user_id][_eq]": hashed_user_id,
             "fields": "id,status",
             "limit": 1,
         }
@@ -352,7 +367,7 @@ async def _get_embed_sync_status(
     except Exception as e:
         logger.error(
             f"[debug_sync] Error fetching embed sync status for {embed_id} "
-            f"(user={user_id}): {e}",
+            f"(hashed_user={hashed_user_id[:12]}...): {e}",
             exc_info=True,
         )
         raise
@@ -413,6 +428,9 @@ async def get_sync_status(
         )
 
     user_id = current_user.id
+    # The chats and embeds tables store hashed_user_id (SHA-256 of the Directus
+    # UUID), not the raw user_id. Hash once here and pass to helper functions.
+    hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
     logger.debug(
         f"[debug_sync] User {user_id} requesting sync status: "
         f"{len(chat_ids)} chats, {len(embed_ids)} embeds"
@@ -428,6 +446,7 @@ async def get_sync_status(
             status = await _get_chat_sync_status(
                 chat_id=chat_id.strip(),
                 user_id=user_id,
+                hashed_user_id=hashed_user_id,
                 directus_service=directus_service,
                 cache_service=cache_service,
             )
@@ -445,7 +464,7 @@ async def get_sync_status(
         try:
             status = await _get_embed_sync_status(
                 embed_id=embed_id.strip(),
-                user_id=user_id,
+                hashed_user_id=hashed_user_id,
                 directus_service=directus_service,
             )
             embed_statuses.append(status)
