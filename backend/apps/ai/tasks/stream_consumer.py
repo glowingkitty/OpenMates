@@ -304,8 +304,17 @@ async def _verify_and_strip_bad_quotes(
             continue
 
     if not embed_ref_to_id:
-        logger.debug(f"{log_prefix} [QUOTE_VERIFY] No embed_ref→id map built, skipping verification")
-        return aggregated_response
+        # No embed map means zero real embeds exist in this response — any source quotes
+        # referencing embed:... are fabricated. Strip them all.
+        logger.warning(
+            f"{log_prefix} [QUOTE_VERIFY] No embed_ref→id map built but {len(matches)} source quote(s) found — "
+            f"stripping all as hallucinated (no real embeds in this response)"
+        )
+        modified = aggregated_response
+        for match in matches:
+            modified = modified.replace(match.group(0), "")
+        modified = re.sub(r'\n{3,}', '\n\n', modified)
+        return modified
 
     logger.debug(
         f"{log_prefix} [QUOTE_VERIFY] Built embed_ref map with {len(embed_ref_to_id)} entries: "
@@ -321,10 +330,13 @@ async def _verify_and_strip_bad_quotes(
 
         embed_id = embed_ref_to_id.get(embed_ref)
         if not embed_id:
-            logger.info(
-                f"{log_prefix} [QUOTE_VERIFY] embed_ref '{embed_ref}' not found in map — "
-                f"cannot verify, keeping quote"
+            # embed_ref doesn't map to any real embed produced in this response —
+            # the LLM fabricated this citation. Strip it.
+            logger.warning(
+                f"{log_prefix} [QUOTE_VERIFY] embed_ref '{embed_ref}' not found in embed map — "
+                f"stripping hallucinated source quote: '{quoted_text[:60]}...'"
             )
+            bad_quote_lines.append(full_line)
             continue
 
         try:
