@@ -1,10 +1,9 @@
 <script lang="ts">
-    /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     /* eslint-disable svelte/no-at-html-tags */
     import { text } from '@repo/ui';
     import { fade } from 'svelte/transition';
     import { createEventDispatcher } from 'svelte';
-    import InputWarning from '../../../common/InputWarning.svelte';
     import { signupStore } from '../../../../stores/signupStore';
     import { get } from 'svelte/store';
     import { onMount } from 'svelte';
@@ -59,6 +58,8 @@
     // Password validation states using Svelte 5 runes
     let passwordError = $state('');
     let passwordStrengthError = $state('');
+    // showPasswordStrengthWarning tracks whether the user has started typing, so we
+    // only reveal the error after the first validation run (not on initial empty state).
     let showPasswordStrengthWarning = $state(false);
     let showPasswordMatchWarning = $state(false);
     
@@ -240,12 +241,16 @@
                         autocomplete="new-password"
                         class:error={!!passwordStrengthError}
                     />
-                    {#if showPasswordStrengthWarning && passwordStrengthError}
-                        <InputWarning
-                            message={passwordStrengthError}
-                        />
-                    {/if}
                 </div>
+                <!-- Persistent inline error: stays visible until the user fixes the issue.
+                     Previously used the auto-hiding InputWarning tooltip (3 s timeout), which
+                     caused the continue button to remain disabled with no visible explanation
+                     once the tooltip disappeared. -->
+                {#if showPasswordStrengthWarning && passwordStrengthError}
+                    <p class="field-error" transition:fade={{ duration: 150 }}>
+                        {@html passwordStrengthError}
+                    </p>
+                {/if}
             </div>
 
             <div class="input-group">
@@ -261,12 +266,13 @@
                         autocomplete="new-password"
                         class:error={!passwordsMatch && passwordRepeat}
                     />
-                    {#if showPasswordMatchWarning && passwordError && passwordRepeat}
-                        <InputWarning
-                            message={passwordError}
-                        />
-                    {/if}
                 </div>
+                <!-- Persistent inline error for password mismatch -->
+                {#if showPasswordMatchWarning && passwordError && passwordRepeat}
+                    <p class="field-error" transition:fade={{ duration: 150 }}>
+                        {@html passwordError}
+                    </p>
+                {/if}
             </div>
         </form>
     </div>
@@ -309,7 +315,13 @@
         display: flex;
         flex-direction: column;
         gap: 16px;
-        margin-top: 24px;
+        margin-top: 0px;
+    }
+
+    .input-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
     }
     
     .clickable-icon {
@@ -324,8 +336,14 @@
         background-color: var(--color-grey-20);
     }
 
-    .form-container {
-        margin-top: 0px;
+    /* Persistent inline error message below the input.
+       Replaces the auto-hiding floating tooltip so the user always knows
+       why the continue button is disabled. */
+    .field-error {
+        margin: 0;
+        padding: 0 4px;
+        font-size: 13px;
+        color: #E00000;
+        line-height: 1.4;
     }
-    
 </style>
