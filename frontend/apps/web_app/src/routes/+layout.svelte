@@ -11,6 +11,7 @@
 	import '@repo/ui/src/styles/auth.css';
 	import '@repo/ui/src/styles/markdown.css';
 	import '@repo/ui/src/styles/settings.css';
+	import '@repo/ui/src/styles/animations.css';
 	// KaTeX CSS is imported via markdown.css
 	import {
 		// components

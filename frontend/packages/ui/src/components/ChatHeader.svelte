@@ -637,35 +637,20 @@
     -webkit-mask-position: center;
     mask-position: center;
     background-color: rgba(255, 255, 255, 0.15);
-    /* Same two-phase animation as regular deco icons but using incognito
-       enter keyframe (ends at opacity:1 not 0.4) + shared decoFloat loop */
+    /* Incognito icons settle at full opacity — override the shared default (0.4) */
+    --deco-target-opacity: 1;
+    /* Orbital float radius for 126px icons */
+    --float-rx: 10px;
+    --float-ry: 12px;
+    /* Two-phase: entrance → circular orbit loop (keyframes in animations.css) */
     animation:
-      incognitoDecoEnter 0.6s ease-out 0.1s both,
-      incognitoDecoFloat 10s ease-in-out 0.7s infinite;
-  }
-
-  @keyframes incognitoDecoEnter {
-    from {
-      opacity: 0;
-      transform: translateY(50px) rotate(var(--deco-rotate, 0deg));
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0px) rotate(var(--deco-rotate, 0deg));
-    }
-  }
-
-  @keyframes incognitoDecoFloat {
-    0%   { opacity: 1;    transform: translateY(0px)   rotate(var(--deco-rotate, 0deg)); }
-    25%  { opacity: 0.85; transform: translateY(-10px) rotate(calc(var(--deco-rotate, 0deg) + 3deg)); }
-    50%  { opacity: 1;    transform: translateY(-14px) rotate(var(--deco-rotate, 0deg)); }
-    75%  { opacity: 0.85; transform: translateY(-6px)  rotate(calc(var(--deco-rotate, 0deg) - 3deg)); }
-    100% { opacity: 1;    transform: translateY(0px)   rotate(var(--deco-rotate, 0deg)); }
+      decoEnter 0.6s ease-out 0.1s both,
+      decoFloat 16s linear 0.7s infinite;
   }
 
   @media (prefers-reduced-motion: reduce) {
     .incognito-deco-icon {
-      animation: incognitoDecoEnter 0.6s ease-out 0.1s both !important;
+      animation: decoEnter 0.6s ease-out 0.1s both !important;
     }
   }
 
@@ -680,57 +665,36 @@
     justify-content: center;
     z-index: 1;
     pointer-events: none;
-    /* Two animations chained:
-       1. decoIconEnter (0.6s, one-shot, fill:both) — fades up from below
-       2. decoFloat (6s, infinite, starts after 0.7s so enter finishes first)
-       The float uses translateY on top of the base rotate set by --deco-rotate,
-       so the icon hovers up and down within a ~14px range after arrival. */
+    /* Orbital float radius for 126px banner icons */
+    --float-rx: 10px;
+    --float-ry: 12px;
+    /* Two-phase: decoEnter (one-shot) → decoFloat (circular orbit, infinite).
+       Keyframes defined in animations.css (shared across all three banner components). */
     animation:
-      decoIconEnter 0.6s ease-out 0.1s both,
-      decoFloat 10s ease-in-out 0.7s infinite;
+      decoEnter 0.6s ease-out 0.1s both,
+      decoFloat 16s linear 0.7s infinite;
   }
 
   .deco-icon-left {
     left: calc(50% - 240px - 106px);
     bottom: -15px;
     --deco-rotate: -15deg;
+    /* Left icon starts at 0° of orbit (top) */
   }
 
   .deco-icon-right {
     right: calc(50% - 240px - 106px);
     bottom: -15px;
     --deco-rotate: 15deg;
-    /* Offset the float phase by half a cycle (5s = 10s/2) so left and right
-       hover in opposite directions — one rises while the other sinks */
-    animation-delay: 0.1s, 5.7s;
+    /* Right icon starts half a cycle ahead (8s = 16s/2) — orbits in opposite phase,
+       so when left is at the top of its circle, right is at the bottom */
+    animation-delay: 0.1s, 8.7s;
   }
 
-  @keyframes decoIconEnter {
-    from {
-      opacity: 0;
-      transform: translateY(50px) rotate(var(--deco-rotate, 0deg));
-    }
-    to {
-      opacity: 0.4;
-      transform: translateY(0px) rotate(var(--deco-rotate, 0deg));
-    }
-  }
-
-  /* Continuous hover loop after entry. Keeps opacity at 0.4 (matched to
-     the decoIconEnter end state) and oscillates Y by ±14px with a gentle
-     rotation wobble of ±4deg layered on top of the base --deco-rotate. */
-  @keyframes decoFloat {
-    0%   { opacity: 0.4; transform: translateY(0px)   rotate(var(--deco-rotate, 0deg)); }
-    25%  { opacity: 0.45; transform: translateY(-10px) rotate(calc(var(--deco-rotate, 0deg) + 3deg)); }
-    50%  { opacity: 0.4; transform: translateY(-14px) rotate(var(--deco-rotate, 0deg)); }
-    75%  { opacity: 0.45; transform: translateY(-6px)  rotate(calc(var(--deco-rotate, 0deg) - 3deg)); }
-    100% { opacity: 0.4; transform: translateY(0px)   rotate(var(--deco-rotate, 0deg)); }
-  }
-
-  /* Reduced-motion: skip the float, keep the entrance */
+  /* Reduced-motion: entrance only, no float */
   @media (prefers-reduced-motion: reduce) {
     .deco-icon {
-      animation: decoIconEnter 0.6s ease-out 0.1s both !important;
+      animation: decoEnter 0.6s ease-out 0.1s both !important;
     }
   }
 
@@ -871,69 +835,10 @@
       orbDrift3 29s ease-in-out infinite;
   }
 
-  /* ── Shape morphs ─────────────────────────────────────────────────────────
-     border-radius 8-value syntax: h-radii / v-radii (TL TR BR BL).
-     Kept convex so blur doesn't produce pinched artifacts.
-     0% === 100% for seamless infinite loop. */
-
-  @keyframes orbMorph1 {
-    0%   { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
-    25%  { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
-    50%  { border-radius: 50% 50% 33% 67% / 55% 27% 73% 45%; }
-    75%  { border-radius: 33% 67% 45% 55% / 30% 70% 35% 65%; }
-    100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
-  }
-
-  @keyframes orbMorph2 {
-    0%   { border-radius: 40% 60% 60% 40% / 40% 40% 60% 60%; }
-    33%  { border-radius: 65% 35% 40% 60% / 60% 45% 55% 40%; }
-    66%  { border-radius: 35% 65% 55% 45% / 45% 55% 40% 60%; }
-    100% { border-radius: 40% 60% 60% 40% / 40% 40% 60% 60%; }
-  }
-
-  @keyframes orbMorph3 {
-    0%   { border-radius: 55% 45% 38% 62% / 48% 58% 42% 52%; }
-    20%  { border-radius: 42% 58% 62% 38% / 55% 38% 62% 45%; }
-    40%  { border-radius: 68% 32% 45% 55% / 40% 65% 35% 60%; }
-    60%  { border-radius: 38% 62% 55% 45% / 62% 42% 58% 38%; }
-    80%  { border-radius: 52% 48% 32% 68% / 35% 55% 45% 65%; }
-    100% { border-radius: 55% 45% 38% 62% / 48% 58% 42% 52%; }
-  }
-
-  /* ── Positional drifts ────────────────────────────────────────────────────
-     Each orb roams within a ~150px radius of its home position.
-     Translate is combined inside keyframes; border-radius morph runs
-     simultaneously on a separate animation name so they stay independent. */
-
-  @keyframes orbDrift1 {
-    0%   { transform: translate(0px,    0px); }
-    25%  { transform: translate(130px,  60px); }
-    50%  { transform: translate(160px,  10px); }
-    75%  { transform: translate(60px,  100px); }
-    100% { transform: translate(0px,    0px); }
-  }
-
-  @keyframes orbDrift2 {
-    0%   { transform: translate(0px,    0px); }
-    30%  { transform: translate(-140px, -50px); }
-    60%  { transform: translate(-80px, -130px); }
-    85%  { transform: translate(-160px, -30px); }
-    100% { transform: translate(0px,    0px); }
-  }
-
-  @keyframes orbDrift3 {
-    0%   { transform: translate(0px,   0px); }
-    20%  { transform: translate(-90px, 50px); }
-    45%  { transform: translate(80px,  80px); }
-    70%  { transform: translate(-40px, -70px); }
-    100% { transform: translate(0px,   0px); }
-  }
-
-  /* Respect reduced-motion: stop animations, keep orbs as static glows */
+  /* Orb morph + drift @keyframes are in animations.css (shared globally).
+     Reduced-motion: stop all orb animations, keep as static glows. */
   @media (prefers-reduced-motion: reduce) {
-    .orb {
-      animation: none !important;
-    }
+    .orb { animation: none !important; }
   }
 
   /* ─── Mobile adjustments (≤730px) ───────────────────────────────────────── */

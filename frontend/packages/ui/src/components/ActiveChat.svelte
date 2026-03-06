@@ -10346,7 +10346,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         top: -60px;
         left: -70px;
         animation:
-            resumeOrbMorph1 11s ease-in-out infinite,
+            orbMorph1 11s ease-in-out infinite,
             resumeOrbDrift1 19s ease-in-out infinite;
     }
 
@@ -10356,7 +10356,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         width: 260px;
         height: 220px;
         animation:
-            resumeOrbMorph2 13s ease-in-out infinite,
+            orbMorph2 13s ease-in-out infinite,
             resumeOrbDrift2 23s ease-in-out infinite;
     }
 
@@ -10367,66 +10367,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         height: 180px;
         opacity: 0.38;
         animation:
-            resumeOrbMorph3 17s ease-in-out infinite,
+            orbMorph3 17s ease-in-out infinite,
             resumeOrbDrift3 29s ease-in-out infinite;
     }
 
-    @keyframes resumeOrbMorph1 {
-        0%   { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
-        25%  { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
-        50%  { border-radius: 50% 50% 33% 67% / 55% 27% 73% 45%; }
-        75%  { border-radius: 33% 67% 45% 55% / 30% 70% 35% 65%; }
-        100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
-    }
-
-    @keyframes resumeOrbMorph2 {
-        0%   { border-radius: 40% 60% 60% 40% / 40% 40% 60% 60%; }
-        33%  { border-radius: 65% 35% 40% 60% / 60% 45% 55% 40%; }
-        66%  { border-radius: 35% 65% 55% 45% / 45% 55% 40% 60%; }
-        100% { border-radius: 40% 60% 60% 40% / 40% 40% 60% 60%; }
-    }
-
-    @keyframes resumeOrbMorph3 {
-        0%   { border-radius: 55% 45% 38% 62% / 48% 58% 42% 52%; }
-        20%  { border-radius: 42% 58% 62% 38% / 55% 38% 62% 45%; }
-        40%  { border-radius: 68% 32% 45% 55% / 40% 65% 35% 60%; }
-        60%  { border-radius: 38% 62% 55% 45% / 62% 42% 58% 38%; }
-        80%  { border-radius: 52% 48% 32% 68% / 35% 55% 45% 65%; }
-        100% { border-radius: 55% 45% 38% 62% / 48% 58% 42% 52%; }
-    }
-
-    /* Drift distances scaled down proportionally to the 300×200 card size */
-    @keyframes resumeOrbDrift1 {
-        0%   { transform: translate(0px,   0px); }
-        25%  { transform: translate(80px,  40px); }
-        50%  { transform: translate(100px, 10px); }
-        75%  { transform: translate(40px,  60px); }
-        100% { transform: translate(0px,   0px); }
-    }
-
-    @keyframes resumeOrbDrift2 {
-        0%   { transform: translate(0px,   0px); }
-        30%  { transform: translate(-80px, -30px); }
-        60%  { transform: translate(-50px, -80px); }
-        85%  { transform: translate(-90px, -20px); }
-        100% { transform: translate(0px,   0px); }
-    }
-
-    @keyframes resumeOrbDrift3 {
-        0%   { transform: translate(0px,  0px); }
-        20%  { transform: translate(-50px, 30px); }
-        45%  { transform: translate(50px,  50px); }
-        70%  { transform: translate(-30px, -40px); }
-        100% { transform: translate(0px,  0px); }
-    }
-
+    /* Orb morph uses shared orbMorph1/2/3 keyframes (animations.css).
+       Orb drift uses smaller resumeOrbDrift1/2/3 keyframes (animations.css). */
     @media (prefers-reduced-motion: reduce) {
         .resume-orb { animation: none !important; }
     }
 
     /* ── Large decorative icons at card corners ─────────────────────────────
-       Two-phase animation: entrance (0.6s) → continuous 10s hover float.
-       Left and right are offset by half-cycle (5s) for opposing motion. */
+       Two-phase: decoEnter (one-shot) → decoFloat (16s circular orbit).
+       Smaller orbit radius than banners to suit the 300×200 card.
+       Right icon starts half a cycle ahead for opposing orbital phase.
+       All @keyframes in animations.css. */
     .resume-large-deco {
         position: absolute;
         width: 80px;
@@ -10436,9 +10391,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         justify-content: center;
         z-index: 1;
         pointer-events: none;
+        /* Smaller orbit radius for the compact card */
+        --float-rx: 7px;
+        --float-ry: 8px;
+        --deco-target-opacity: 0.3;
         animation:
-            resumeDecoEnter 0.6s ease-out 0.1s both,
-            resumeDecoFloat 10s ease-in-out 0.7s infinite;
+            decoEnter 0.6s ease-out 0.1s both,
+            decoFloat 16s linear 0.7s infinite;
     }
 
     .resume-large-deco-left {
@@ -10451,32 +10410,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         right: -10px;
         bottom: -8px;
         --deco-rotate: 15deg;
-        /* Half-cycle offset: one rises while the other sinks */
-        animation-delay: 0.1s, 5.7s;
-    }
-
-    @keyframes resumeDecoEnter {
-        from {
-            opacity: 0;
-            transform: translateY(30px) rotate(var(--deco-rotate, 0deg));
-        }
-        to {
-            opacity: 0.3;
-            transform: translateY(0px) rotate(var(--deco-rotate, 0deg));
-        }
-    }
-
-    @keyframes resumeDecoFloat {
-        0%   { opacity: 0.3;  transform: translateY(0px)  rotate(var(--deco-rotate, 0deg)); }
-        25%  { opacity: 0.35; transform: translateY(-8px) rotate(calc(var(--deco-rotate, 0deg) + 3deg)); }
-        50%  { opacity: 0.3;  transform: translateY(-11px) rotate(var(--deco-rotate, 0deg)); }
-        75%  { opacity: 0.35; transform: translateY(-4px) rotate(calc(var(--deco-rotate, 0deg) - 3deg)); }
-        100% { opacity: 0.3;  transform: translateY(0px)  rotate(var(--deco-rotate, 0deg)); }
+        /* Half-cycle (8s) offset for opposing orbital phase */
+        animation-delay: 0.1s, 8.7s;
     }
 
     @media (prefers-reduced-motion: reduce) {
         .resume-large-deco {
-            animation: resumeDecoEnter 0.6s ease-out 0.1s both !important;
+            animation: decoEnter 0.6s ease-out 0.1s both !important;
         }
     }
 

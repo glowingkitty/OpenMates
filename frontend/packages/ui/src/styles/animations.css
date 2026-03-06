@@ -1,0 +1,293 @@
+/**
+ * animations.css
+ *
+ * Shared CSS @keyframes for the living gradient orb system and decorative icon
+ * float animation used across ChatHeader, DailyInspirationBanner, and the
+ * ActiveChat resume card.
+ *
+ * Architecture: keyframes are always global in CSS (not scoped by Svelte), so
+ * defining them once here and importing via +layout.svelte eliminates ~200 lines
+ * of duplication. Each component's <style> block only contains the class rules
+ * (selector → animation-name reference) — no @keyframes blocks needed there.
+ *
+ * See docs/architecture/ for the full design rationale of the orb system.
+ *
+ * ─── Orb morphing ────────────────────────────────────────────────────────────
+ * Three independent border-radius morph loops. Prime-number durations (11s/13s/17s)
+ * ensure the three orbs never synchronise, keeping the composite motion organic.
+ * 8-value border-radius syntax: h-radii / v-radii (TL TR BR BL). All shapes are
+ * convex so filter:blur never produces pinched artefacts.
+ */
+
+@keyframes orbMorph1 {
+  0% {
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+  }
+  25% {
+    border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%;
+  }
+  50% {
+    border-radius: 50% 50% 33% 67% / 55% 27% 73% 45%;
+  }
+  75% {
+    border-radius: 33% 67% 45% 55% / 30% 70% 35% 65%;
+  }
+  100% {
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+  }
+}
+
+@keyframes orbMorph2 {
+  0% {
+    border-radius: 40% 60% 60% 40% / 40% 40% 60% 60%;
+  }
+  33% {
+    border-radius: 65% 35% 40% 60% / 60% 45% 55% 40%;
+  }
+  66% {
+    border-radius: 35% 65% 55% 45% / 45% 55% 40% 60%;
+  }
+  100% {
+    border-radius: 40% 60% 60% 40% / 40% 40% 60% 60%;
+  }
+}
+
+@keyframes orbMorph3 {
+  0% {
+    border-radius: 55% 45% 38% 62% / 48% 58% 42% 52%;
+  }
+  20% {
+    border-radius: 42% 58% 62% 38% / 55% 38% 62% 45%;
+  }
+  40% {
+    border-radius: 68% 32% 45% 55% / 40% 65% 35% 60%;
+  }
+  60% {
+    border-radius: 38% 62% 55% 45% / 62% 42% 58% 38%;
+  }
+  80% {
+    border-radius: 52% 48% 32% 68% / 35% 55% 45% 65%;
+  }
+  100% {
+    border-radius: 55% 45% 38% 62% / 48% 58% 42% 52%;
+  }
+}
+
+/* ─── Orb positional drifts ──────────────────────────────────────────────────
+ * Three independent translate loops. Prime durations (19s/23s/29s) never sync
+ * with each other or with the morph loops above. Each orb stays within ~130–160px
+ * of its anchored home position (set via top/left/right/bottom in the component).
+ */
+
+@keyframes orbDrift1 {
+  0% {
+    transform: translate(0px, 0px);
+  }
+  25% {
+    transform: translate(130px, 60px);
+  }
+  50% {
+    transform: translate(160px, 10px);
+  }
+  75% {
+    transform: translate(60px, 100px);
+  }
+  100% {
+    transform: translate(0px, 0px);
+  }
+}
+
+@keyframes orbDrift2 {
+  0% {
+    transform: translate(0px, 0px);
+  }
+  30% {
+    transform: translate(-140px, -50px);
+  }
+  60% {
+    transform: translate(-80px, -130px);
+  }
+  85% {
+    transform: translate(-160px, -30px);
+  }
+  100% {
+    transform: translate(0px, 0px);
+  }
+}
+
+@keyframes orbDrift3 {
+  0% {
+    transform: translate(0px, 0px);
+  }
+  20% {
+    transform: translate(-90px, 50px);
+  }
+  45% {
+    transform: translate(80px, 80px);
+  }
+  70% {
+    transform: translate(-40px, -70px);
+  }
+  100% {
+    transform: translate(0px, 0px);
+  }
+}
+
+/* ─── Orb drifts (small) — resume card (300×200px) ──────────────────────────
+ * Proportionally scaled-down drift distances for the smaller resume card.
+ * Shared across both auth and non-auth large card instances in ActiveChat.
+ */
+
+@keyframes resumeOrbDrift1 {
+  0% {
+    transform: translate(0px, 0px);
+  }
+  25% {
+    transform: translate(80px, 40px);
+  }
+  50% {
+    transform: translate(100px, 10px);
+  }
+  75% {
+    transform: translate(40px, 60px);
+  }
+  100% {
+    transform: translate(0px, 0px);
+  }
+}
+
+@keyframes resumeOrbDrift2 {
+  0% {
+    transform: translate(0px, 0px);
+  }
+  30% {
+    transform: translate(-80px, -30px);
+  }
+  60% {
+    transform: translate(-50px, -80px);
+  }
+  85% {
+    transform: translate(-90px, -20px);
+  }
+  100% {
+    transform: translate(0px, 0px);
+  }
+}
+
+@keyframes resumeOrbDrift3 {
+  0% {
+    transform: translate(0px, 0px);
+  }
+  20% {
+    transform: translate(-50px, 30px);
+  }
+  45% {
+    transform: translate(50px, 50px);
+  }
+  70% {
+    transform: translate(-30px, -40px);
+  }
+  100% {
+    transform: translate(0px, 0px);
+  }
+}
+
+/* ─── Decorative icon entrance ───────────────────────────────────────────────
+ * One-shot fade-up from +40px, settles at opacity var(--deco-target-opacity).
+ * Components set --deco-target-opacity on the element (default 0.4).
+ * After this runs, decoFloat takes over seamlessly.
+ */
+
+@keyframes decoEnter {
+  from {
+    opacity: 0;
+    transform: translateY(40px) rotate(var(--deco-rotate, 0deg));
+  }
+  to {
+    opacity: var(--deco-target-opacity, 0.4);
+    transform: translateY(0px) rotate(var(--deco-rotate, 0deg));
+  }
+}
+
+/* ─── Decorative icon float — orbital circular motion ────────────────────────
+ * Icons trace a slow elliptical orbit within a bounded area rather than simple
+ * up/down oscillation. The path is sampled from parametric circle equations:
+ *   x(t) = sin(t) * --float-rx
+ *   y(t) = -cos(t) * --float-ry    (negative so t=0 starts at the top)
+ * with 8 evenly-spaced keyframes for a smooth approximation.
+ *
+ * CSS custom properties (set per-element):
+ *   --deco-rotate          base rotation angle (e.g. -15deg / 15deg)
+ *   --float-rx             horizontal orbit radius (default 10px)
+ *   --float-ry             vertical orbit radius   (default 12px)
+ *   --deco-target-opacity  resting opacity (default 0.4)
+ *
+ * The orbit is layered on top of --deco-rotate so the base tilt is preserved
+ * throughout the motion. A subtle ±3deg rotation wobble follows the orbit phase
+ * to give the icon a slight "banking" quality as it circles.
+ *
+ * Duration: 16s (slow, meditative). Left icon starts at 0s, right icon at 8s
+ * (half cycle) so they orbit in opposite phase — one moves right while the
+ * other moves left, creating visual counterbalance rather than synchronized movement.
+ */
+
+@keyframes decoFloat {
+  /*  t=0    top of orbit */
+  0% {
+    opacity: var(--deco-target-opacity, 0.4);
+    transform: translateX(0px) translateY(calc(-1 * var(--float-ry, 12px)))
+      rotate(var(--deco-rotate, 0deg));
+  }
+  /*  t=45°  top-right */
+  12.5% {
+    opacity: var(--deco-target-opacity, 0.4);
+    transform: translateX(calc(0.707 * var(--float-rx, 10px)))
+      translateY(calc(-0.707 * var(--float-ry, 12px)))
+      rotate(calc(var(--deco-rotate, 0deg) + 2deg));
+  }
+  /*  t=90°  right of orbit */
+  25% {
+    opacity: var(--deco-target-opacity, 0.4);
+    transform: translateX(var(--float-rx, 10px)) translateY(0px)
+      rotate(calc(var(--deco-rotate, 0deg) + 3deg));
+  }
+  /*  t=135° bottom-right */
+  37.5% {
+    opacity: var(--deco-target-opacity, 0.4);
+    transform: translateX(calc(0.707 * var(--float-rx, 10px)))
+      translateY(calc(0.707 * var(--float-ry, 12px)))
+      rotate(calc(var(--deco-rotate, 0deg) + 2deg));
+  }
+  /*  t=180° bottom of orbit */
+  50% {
+    opacity: var(--deco-target-opacity, 0.4);
+    transform: translateX(0px) translateY(var(--float-ry, 12px))
+      rotate(var(--deco-rotate, 0deg));
+  }
+  /*  t=225° bottom-left */
+  62.5% {
+    opacity: var(--deco-target-opacity, 0.4);
+    transform: translateX(calc(-0.707 * var(--float-rx, 10px)))
+      translateY(calc(0.707 * var(--float-ry, 12px)))
+      rotate(calc(var(--deco-rotate, 0deg) - 2deg));
+  }
+  /*  t=270° left of orbit */
+  75% {
+    opacity: var(--deco-target-opacity, 0.4);
+    transform: translateX(calc(-1 * var(--float-rx, 10px))) translateY(0px)
+      rotate(calc(var(--deco-rotate, 0deg) - 3deg));
+  }
+  /*  t=315° top-left */
+  87.5% {
+    opacity: var(--deco-target-opacity, 0.4);
+    transform: translateX(calc(-0.707 * var(--float-rx, 10px)))
+      translateY(calc(-0.707 * var(--float-ry, 12px)))
+      rotate(calc(var(--deco-rotate, 0deg) - 2deg));
+  }
+  /*  t=360° back to top — identical to 0% for seamless loop */
+  100% {
+    opacity: var(--deco-target-opacity, 0.4);
+    transform: translateX(0px) translateY(calc(-1 * var(--float-ry, 12px)))
+      rotate(var(--deco-rotate, 0deg));
+  }
+}
