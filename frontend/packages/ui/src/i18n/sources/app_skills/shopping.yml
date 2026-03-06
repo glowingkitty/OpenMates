@@ -1,50 +1,50 @@
 search_products:
   context: Skill name for shopping search products
-  en: Search Products
-  de: Produkte suchen
-  zh: 搜索产品
-  es: Buscar productos
-  fr: Rechercher des produits
-  pt: Pesquisar produtos
-  ru: Поиск продуктов
-  ja: 商品を検索
-  ko: 제품 검색
-  it: Cerca prodotti
-  tr: Ürün ara
-  vi: Tìm kiếm sản phẩm
-  id: Cari produk
-  pl: Szukaj produktów
-  nl: Producten zoeken
-  ar: البحث عن المنتجات
-  hi: उत्पाद खोजें
-  th: ค้นหาสินค้า
-  cs: Hledat produkty
-  sv: Sök produkter
-  he: חיפוש מוצרים
+  en: Search
+  de: Suchen
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: بحث
+  hi: खोजें
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  he: חיפוש
   verified_by_human: [en, de]
 search_products.description:
   context: Description for shopping search products skill
-  en: Search and compare products on REWE and Amazon.
-  de: Produkte bei REWE und Amazon suchen und vergleichen.
-  zh: 在超市中搜索和比较产品。
-  es: Busca y compara productos en supermercados.
-  fr: Cherchez et comparez des produits dans les supermarchés.
-  pt: Pesquise e compare produtos em supermercados.
-  ru: Ищите и сравнивайте товары в супермаркетах.
-  ja: スーパーの商品を検索して比較する。
-  ko: 슈퍼마켓 상품을 검색하고 비교하세요.
-  it: Cerca e confronta prodotti nei supermercati.
-  tr: Süpermarketlerde ürün arayın ve karşılaştırın.
-  vi: Tìm kiếm và so sánh sản phẩm tại siêu thị.
-  id: Cari dan bandingkan produk di supermarket.
-  pl: Szukaj i porównuj produkty w supermarketach.
-  nl: Zoek en vergelijk producten in supermarkten.
-  ar: ابحث عن منتجات وقارنها في السوبرماركت.
-  hi: सुपरमार्केट में उत्पाद खोजें और तुलना करें।
-  th: ค้นหาและเปรียบเทียบสินค้าในซุปเปอร์มาร์เก็ต
-  cs: Hledejte a porovnávejte produkty v supermarketech.
-  sv: Sök och jämför produkter i supermarkets.
-  he: חיפוש והשוואת מוצרים בסופרמרקטים.
+  en: Search for products in online shops & online supermarkets.
+  de: Produkte in Online-Shops und Online-Supermärkten suchen.
+  zh: 在网上商店和网上超市中搜索产品。
+  es: Busca productos en tiendas en línea y supermercados en línea.
+  fr: Recherchez des produits dans les boutiques en ligne et les supermarchés en ligne.
+  pt: Pesquise produtos em lojas online e supermercados online.
+  ru: Ищите товары в интернет-магазинах и онлайн-супермаркетах.
+  ja: オンラインショップとオンラインスーパーマーケットで商品を検索する。
+  ko: 온라인 쇼핑몰 및 온라인 슈퍼마켓에서 제품을 검색하세요.
+  it: Cerca prodotti nei negozi online e nei supermercati online.
+  tr: Online mağazalarda ve online süpermarketlerde ürün arayın.
+  vi: Tìm kiếm sản phẩm trong các cửa hàng trực tuyến và siêu thị trực tuyến.
+  id: Cari produk di toko online dan supermarket online.
+  pl: Szukaj produktów w sklepach internetowych i internetowych supermarketach.
+  nl: Zoek producten in online winkels en online supermarkten.
+  ar: ابحث عن المنتجات في المتاجر الإلكترونية والسوبرماركت الإلكتروني.
+  hi: ऑनलाइन दुकानों और ऑनलाइन सुपरमार्केट में उत्पाद खोजें।
+  th: ค้นหาสินค้าในร้านค้าออนไลน์และซุปเปอร์มาร์เก็ตออนไลน์
+  cs: Hledejte produkty v online obchodech a online supermarketech.
+  sv: Sök efter produkter i onlinebutiker och onlinesupermarkets.
+  he: חפש מוצרים בחנויות מקוונות וסופרמרקטים מקוונים.
   verified_by_human: []
 
 search_products.how_to_use.1:

@@ -1,0 +1,19 @@
+# backend/providers/rewe.yml
+#
+# Configuration for REWE provider.
+# Used by the Shopping app for searching the REWE German online supermarket.
+
+provider_id: "rewe"
+name: "REWE"
+description: "REWE German online supermarket with live grocery prices and product availability."
+logo_svg: "icons/rewe.svg"
+region: "EU" # REWE HQ is in Cologne, Germany
+
+
+# API access
+# REWE product search uses a Playwright-harvested cookie pool stored in Vault.
+# The REWE API requires an active browser session for pricing data.
+# All requests are routed through a residential proxy because cf_clearance cookies
+# are IP-bound to the harvesting session.
+# See backend/apps/shopping/providers/rewe_provider.py for the shopping integration.
+# See docs/architecture/shopping-app.md for architecture decisions.

@@ -336,10 +336,16 @@
           "text": "Wie du bevorzugst, dass die KI kommuniziert"
         },
         "example_1": {
-          "text": "Professionell & prägnant"
+          "text": "Professionell & prägnant",
+          "title": {
+            "text": "Technischer Experte"
+          }
         },
         "example_2": {
-          "text": "Locker & freundlich"
+          "text": "Locker & freundlich",
+          "title": {
+            "text": "Freundlicher Helfer"
+          }
         }
       },
       "learning_preferences": {
@@ -348,10 +354,22 @@
           "text": "Wie du bevorzugst zu lernen und Infos aufzunehmen"
         },
         "example_1": {
-          "text": "Visueller Lerner"
+          "text": "Visueller Lerner",
+          "title": {
+            "text": "Visuelles Lernen"
+          },
+          "notes": {
+            "text": "Bevorzuge Diagramme, Grafiken und visuelle Erklärungen"
+          }
         },
         "example_2": {
-          "text": "Praktische Übungen"
+          "text": "Praktische Übungen",
+          "title": {
+            "text": "Praktische Übungen"
+          },
+          "notes": {
+            "text": "Lerne am besten durch Ausprobieren mit Code-Beispielen"
+          }
         }
       },
       "interaction_preferences": {
@@ -368,10 +386,28 @@
           "text": "Bücher, die du geliebt hast und empfehlen würdest."
         },
         "example_1": {
-          "text": "1984"
+          "text": "1984",
+          "title": {
+            "text": "Der große Gatsby"
+          },
+          "genre": {
+            "text": "Klassische Belletristik"
+          },
+          "notes": {
+            "text": "Wunderschöne Prosa über den amerikanischen Traum"
+          }
         },
         "example_2": {
-          "text": "Sapiens"
+          "text": "Sapiens",
+          "title": {
+            "text": "Sapiens"
+          },
+          "genre": {
+            "text": "Sachbuch"
+          },
+          "notes": {
+            "text": "Faszinierende Übersicht der Menschheitsgeschichte"
+          }
         },
         "example_3": {
           "text": "Der Wüstenplanet"
@@ -383,10 +419,22 @@
           "text": "Bücher, die du gerade liest."
         },
         "example_1": {
-          "text": "Der Astronaut"
+          "text": "Der Astronaut",
+          "title": {
+            "text": "Der Astronaut"
+          },
+          "notes": {
+            "text": "Großartiges Science-Fiction-Abenteuer"
+          }
         },
         "example_2": {
-          "text": "Die 1%-Methode"
+          "text": "Die 1%-Methode",
+          "title": {
+            "text": "Die 1%-Methode"
+          },
+          "notes": {
+            "text": "Praktische Strategien zum Aufbau guter Gewohnheiten"
+          }
         }
       },
       "to_read_list": {
@@ -395,10 +443,28 @@
           "text": "Bücher, die du als nächstes lesen möchtest."
         },
         "example_1": {
-          "text": "Die drei Sonnen"
+          "text": "Die drei Sonnen",
+          "title": {
+            "text": "Der Wüstenplanet"
+          },
+          "genre": {
+            "text": "Science-Fiction"
+          },
+          "notes": {
+            "text": "Klassische Science-Fiction, von Freunden empfohlen"
+          }
         },
         "example_2": {
-          "text": "Schnelles Denken, langsames Denken"
+          "text": "Schnelles Denken, langsames Denken",
+          "title": {
+            "text": "Schnelles Denken, langsames Denken"
+          },
+          "genre": {
+            "text": "Psychologie"
+          },
+          "notes": {
+            "text": "Kognitive Verzerrungen verstehen wollen"
+          }
         },
         "example_3": {
           "text": "Konzentriert arbeiten"
@@ -412,10 +478,16 @@
           "text": "Deine bevorzugten Sprachen & Frameworks."
         },
         "example_1": {
-          "text": "Python"
+          "text": "Python",
+          "name": {
+            "text": "Python"
+          }
         },
         "example_2": {
-          "text": "TypeScript"
+          "text": "TypeScript",
+          "name": {
+            "text": "TypeScript"
+          }
         },
         "example_3": {
           "text": "Svelte"
@@ -427,10 +499,22 @@
           "text": "Deine Projekte (aktiv, geplant oder abgeschlossen)"
         },
         "example_1": {
-          "text": "Persönliche Website"
+          "text": "Persönliche Website",
+          "name": {
+            "text": "Persönliche Webseite"
+          },
+          "description": {
+            "text": "Eine Portfolio-Website mit SvelteKit erstellt"
+          }
         },
         "example_2": {
-          "text": "Mobile App"
+          "text": "Mobile App",
+          "name": {
+            "text": "Wetter-App"
+          },
+          "description": {
+            "text": "Eine Wetter-App mit React und OpenWeather API"
+          }
         },
         "example_3": {
           "text": "API-Backend"
@@ -442,10 +526,16 @@
           "text": "Technologien und Fähigkeiten, die du lernen möchtest"
         },
         "example_1": {
-          "text": "Rust"
+          "text": "Rust",
+          "name": {
+            "text": "Rust"
+          }
         },
         "example_2": {
-          "text": "Maschinelles Lernen"
+          "text": "Maschinelles Lernen",
+          "name": {
+            "text": "Maschinelles Lernen"
+          }
         },
         "example_3": {
           "text": "Kubernetes"
@@ -459,10 +549,22 @@
           "text": "Deine bevorzugten Schreibstile für Dokumente."
         },
         "example_1": {
-          "text": "Formell geschäftlich"
+          "text": "Formell geschäftlich",
+          "name": {
+            "text": "Technische Dokumentation"
+          },
+          "description": {
+            "text": "Klare, strukturierte Texte für Entwicklerdokumentation und API-Referenzen"
+          }
         },
         "example_2": {
-          "text": "Akademisch"
+          "text": "Akademisch",
+          "name": {
+            "text": "Blogbeitrag"
+          },
+          "description": {
+            "text": "Ansprechender, gesprächiger Ton für Blogartikel"
+          }
         },
         "example_3": {
           "text": "Lockerer Blog"
@@ -476,10 +578,22 @@
           "text": "Deine medizinischen Termine und Besuche."
         },
         "example_1": {
-          "text": "Zahnarzt Dr. Mueller"
+          "text": "Zahnarzt Dr. Mueller",
+          "where": {
+            "text": "Stadtkrankenhaus"
+          },
+          "notes": {
+            "text": "Jährliche Vorsorgeuntersuchung"
+          }
         },
         "example_2": {
-          "text": "Augenuntersuchung"
+          "text": "Augenuntersuchung",
+          "where": {
+            "text": "Zahnarztpraxis Innenstadt"
+          },
+          "notes": {
+            "text": "Zahnreinigung"
+          }
         }
       },
       "medical_history": {
@@ -488,10 +602,22 @@
           "text": "Vergangene OPs, Erkrankungen & Allergien."
         },
         "example_1": {
-          "text": "Penicillin-Allergie"
+          "text": "Penicillin-Allergie",
+          "name": {
+            "text": "Erdnussallergie"
+          },
+          "details": {
+            "text": "Schwere allergische Reaktion, EpiPen mitführen"
+          }
         },
         "example_2": {
-          "text": "Knieoperation 2023"
+          "text": "Knieoperation 2023",
+          "name": {
+            "text": "COVID-19-Impfung"
+          },
+          "details": {
+            "text": "Pfizer-Auffrischungsimpfung"
+          }
         }
       },
       "symptoms_log": {
@@ -514,10 +640,22 @@
           "text": "Deine bevorzugten Stile für generierte Bilder"
         },
         "example_1": {
-          "text": "Aquarell"
+          "text": "Aquarell",
+          "name": {
+            "text": "Minimalistisch"
+          },
+          "description": {
+            "text": "Klare Linien, einfache Kompositionen, gedämpfte Farbpalette"
+          }
         },
         "example_2": {
-          "text": "Minimalistisch"
+          "text": "Minimalistisch",
+          "name": {
+            "text": "Lebendige Fotografie"
+          },
+          "description": {
+            "text": "Leuchtende Farben, hoher Kontrast, dynamische Kompositionen"
+          }
         },
         "example_3": {
           "text": "Cyberpunk"
@@ -531,10 +669,31 @@
           "text": "Wie du E-Mails in verschiedenen Kontexten schreibst."
         },
         "example_1": {
-          "text": "Formell geschäftlich"
+          "text": "Formell geschäftlich",
+          "title": {
+            "text": "Professionell"
+          },
+          "description": {
+            "text": "Formeller Ton für geschäftliche E-Mails"
+          },
+          "when_to_use": {
+            "text": "Arbeits-E-Mails und Kundenkommunikation"
+          },
+          "footer": {
+            "text": "Mit freundlichen Grüßen,"
+          }
         },
         "example_2": {
-          "text": "Locker im Team"
+          "text": "Locker im Team",
+          "title": {
+            "text": "Locker"
+          },
+          "description": {
+            "text": "Entspannter und freundlicher Ton für persönliche E-Mails"
+          },
+          "when_to_use": {
+            "text": "Freunde und Familie"
+          }
         },
         "example_3": {
           "text": "Follow-up und Erinnerungen"
@@ -548,10 +707,22 @@
           "text": "Deine gespeicherten Lieblingsorte."
         },
         "example_1": {
-          "text": "Zuhause"
+          "text": "Zuhause",
+          "name": {
+            "text": "Central Park"
+          },
+          "address": {
+            "text": "New York, NY 10024"
+          }
         },
         "example_2": {
-          "text": "Büro"
+          "text": "Büro",
+          "name": {
+            "text": "Eiffelturm"
+          },
+          "address": {
+            "text": "Champ de Mars, 75007 Paris"
+          }
         },
         "example_3": {
           "text": "Lieblingscafé"
@@ -565,10 +736,28 @@
           "text": "Deine Pflanzensammlung mit Pflegeplänen"
         },
         "example_1": {
-          "text": "Monstera Deliciosa"
+          "text": "Monstera Deliciosa",
+          "name": {
+            "text": "Monstera Deliciosa"
+          },
+          "location": {
+            "text": "Wohnzimmer"
+          },
+          "notes": {
+            "text": "Braucht indirektes Licht, Blätter monatlich abwischen"
+          }
         },
         "example_2": {
-          "text": "Bogenhanf"
+          "text": "Bogenhanf",
+          "name": {
+            "text": "Basilikum"
+          },
+          "location": {
+            "text": "Küchenfenster"
+          },
+          "notes": {
+            "text": "Regelmäßig ernten, um das Wachstum zu fördern"
+          }
         }
       }
     },
@@ -593,10 +782,22 @@
           "text": "Deine Lernziele und Themen zum Beherrschen"
         },
         "example_1": {
-          "text": "Spanisch B2-Niveau"
+          "text": "Spanisch B2-Niveau",
+          "topic": {
+            "text": "Data Science"
+          },
+          "notes": {
+            "text": "Fokus auf Python Pandas und Datenvisualisierung"
+          }
         },
         "example_2": {
-          "text": "Data Science Grundlagen"
+          "text": "Data Science Grundlagen",
+          "topic": {
+            "text": "Spanische Sprache"
+          },
+          "notes": {
+            "text": "Konversationsniveau bis zum Sommer anstreben"
+          }
         }
       },
       "education_history": {
@@ -619,10 +820,22 @@
           "text": "Deine geplanten und vergangenen Reisen."
         },
         "example_1": {
-          "text": "Japan, März 2026"
+          "text": "Japan, März 2026",
+          "destination": {
+            "text": "Tokio, Japan"
+          },
+          "notes": {
+            "text": "Zweiwöchiger Urlaub, Tempel und Esskultur entdecken"
+          }
         },
         "example_2": {
-          "text": "Barcelona, Sommer 2025"
+          "text": "Barcelona, Sommer 2025",
+          "destination": {
+            "text": "Barcelona, Spanien"
+          },
+          "notes": {
+            "text": "Sommerurlaub, Strand und Architektur"
+          }
         },
         "example_3": {
           "text": "Roadtrip durch Schottland"
@@ -634,10 +847,16 @@
           "text": "Deine bevorzugten Fluggesellschaften"
         },
         "example_1": {
-          "text": "Lufthansa"
+          "text": "Lufthansa",
+          "name": {
+            "text": "Lufthansa"
+          }
         },
         "example_2": {
-          "text": "Swiss"
+          "text": "Swiss",
+          "name": {
+            "text": "Singapore Airlines"
+          }
         },
         "example_3": {
           "text": "KLM"
@@ -664,10 +883,16 @@
           "text": "Deine liebsten Reiseaktivitäten und Erlebnisse."
         },
         "example_1": {
-          "text": "Strände besuchen"
+          "text": "Strände besuchen",
+          "name": {
+            "text": "Wandern"
+          }
         },
         "example_2": {
-          "text": "Museen erkunden"
+          "text": "Museen erkunden",
+          "name": {
+            "text": "Museumsbesuche"
+          }
         },
         "example_3": {
           "text": "Wandern"
@@ -684,10 +909,22 @@
           "text": "Filme, die du gesehen hast"
         },
         "example_1": {
-          "text": "Inception"
+          "text": "Inception",
+          "title": {
+            "text": "Inception"
+          },
+          "notes": {
+            "text": "Gedankenverdrehendes Meisterwerk über Träume in Träumen"
+          }
         },
         "example_2": {
-          "text": "Die Verurteilten"
+          "text": "Die Verurteilten",
+          "title": {
+            "text": "Parasite"
+          },
+          "notes": {
+            "text": "Brillanter sozialer Kommentar mit unerwarteten Wendungen"
+          }
         }
       },
       "watched_tv_shows": {
@@ -696,10 +933,22 @@
           "text": "TV-Serien, die du gesehen hast oder gerade schaust"
         },
         "example_1": {
-          "text": "Breaking Bad"
+          "text": "Breaking Bad",
+          "title": {
+            "text": "Breaking Bad"
+          },
+          "notes": {
+            "text": "Eine der besten Fernsehserien aller Zeiten"
+          }
         },
         "example_2": {
-          "text": "Stranger Things"
+          "text": "Stranger Things",
+          "title": {
+            "text": "The Bear"
+          },
+          "notes": {
+            "text": "Intensives Küchendrama mit großartigen Darstellungen"
+          }
         }
       },
       "to_watch_list": {
@@ -708,10 +957,22 @@
           "text": "Filme und TV-Serien, die du sehen möchtest"
         },
         "example_1": {
-          "text": "Oppenheimer"
+          "text": "Oppenheimer",
+          "title": {
+            "text": "Oppenheimer"
+          },
+          "reason": {
+            "text": "Preisgekrönter biografischer Film"
+          }
         },
         "example_2": {
-          "text": "The Bear"
+          "text": "The Bear",
+          "title": {
+            "text": "Severance"
+          },
+          "reason": {
+            "text": "Einzigartiger Sci-Fi-Arbeitsplatzthriller"
+          }
         }
       }
     },
@@ -722,10 +983,16 @@
           "text": "Videos, die du sehen möchtest"
         },
         "example_1": {
-          "text": "Tech-Konferenz Keynote"
+          "text": "Tech-Konferenz Keynote",
+          "name": {
+            "text": "Wie Computer funktionieren"
+          }
         },
         "example_2": {
-          "text": "Koch-Tutorial"
+          "text": "Koch-Tutorial",
+          "name": {
+            "text": "Fortgeschrittenes TypeScript"
+          }
         },
         "example_3": {
           "text": "Reise-Vlog"
@@ -784,10 +1051,16 @@
           "text": "Websites und Artikel für später gespeichert"
         },
         "example_1": {
-          "text": "Interessantes KI-Forschungspapier"
+          "text": "Interessantes KI-Forschungspapier",
+          "notes": {
+            "text": "Interessanter Artikel über KI"
+          }
         },
         "example_2": {
-          "text": "Artikel über Design-Patterns"
+          "text": "Artikel über Design-Patterns",
+          "notes": {
+            "text": "Tutorial zur Webentwicklung"
+          }
         },
         "example_3": {
           "text": "Tech-Blogbeitrag"
@@ -1279,16 +1552,16 @@
     },
     "shopping": {
       "search_products": {
-        "text": "Produkte suchen",
+        "text": "Suchen",
         "description": {
-          "text": "Produkte in Supermärkten suchen und vergleichen."
+          "text": "Produkte in Online-Shops und Online-Supermärkten suchen."
         },
         "how_to_use": {
           "1": {
             "text": "Bio-Vollmilch bei REWE finden"
           },
           "2": {
-            "text": "Spaghetti-Preise in verschiedenen Supermärkten vergleichen"
+            "text": "Spaghetti-Preise bei REWE und Amazon vergleichen"
           },
           "3": {
             "text": "Welche veganen Käse-Alternativen gibt es bei REWE?"
@@ -2282,11 +2555,17 @@
       "settings": {
         "text": "Einstellungen"
       },
+      "my_embeds": {
+        "text": "Meine Embeds"
+      },
       "indexing": {
         "text": "Suchindex wird aufgebaut..."
       },
       "apps": {
         "text": "Apps & Skills"
+      },
+      "apps_only": {
+        "text": "Apps"
       },
       "app_app": {
         "text": "App"
@@ -2299,6 +2578,12 @@
       },
       "app_memory": {
         "text": "Speicher"
+      },
+      "focus_mode_status_activated": {
+        "text": "Aktiviert"
+      },
+      "focus_mode_status_deactivated": {
+        "text": "Deaktiviert"
       },
       "go_to_message": {
         "text": "Zur Nachricht springen"
@@ -2544,6 +2829,35 @@
   "email": {
     "account_created": {
       "text": "Konto erstellt"
+    },
+    "password_security_reminder": {
+      "subject": {
+        "text": "Aktion erforderlich, um dein OpenMates-Konto zu sichern"
+      },
+      "header": {
+        "text": "Dein Konto braucht ein Sicherheits-Update"
+      },
+      "description": {
+        "text": "Dein Konto gilt nur dann als vollständig sicher, wenn Passwort-Login mit 2FA geschützt ist, oder wenn du auf reinen Passkey-Login umstellst und Passwort-Login entfernst."
+      },
+      "rule_1": {
+        "text": "Füge eine OTP-2FA-App hinzu, um den Passwort-Login zu schützen."
+      },
+      "rule_2": {
+        "text": "Oder richte einen Passkey ein (empfohlen, schnell, phishing-resistent)."
+      },
+      "rule_3": {
+        "text": "Wenn du Passkeys nutzt, entferne danach den Passwort-Login, um den unsicheren Fallback zu beseitigen."
+      },
+      "actions_title": {
+        "text": "Sicherheits-Einstellungen öffnen:"
+      },
+      "open_2fa_settings": {
+        "text": "OTP-2FA-App hinzufügen"
+      },
+      "open_passkey_settings": {
+        "text": "Passkey hinzufügen"
+      }
     },
     "welcome_to_openmates": {
       "text": "Willkommen bei OpenMates!"
@@ -3541,7 +3855,7 @@
         "text": "Keine Produkte gefunden."
       },
       "search_products": {
-        "text": "Produkte suchen"
+        "text": "Suchen"
       }
     },
     "math": {
@@ -6462,7 +6776,7 @@
           "text": "Frag deine Mates einfach so etwas wie:"
         },
         "how_to_use_mention": {
-          "text": "Oder erwähne @{skillname}\nin deiner Nachricht, um den Skill explizit auszulösen."
+          "text": "Oder erwähne {skillname}\nin deiner Nachricht, um den Skill explizit auszulösen."
         },
         "description": {
           "text": "Beschreibung"
@@ -6646,6 +6960,9 @@
       "back_to_app": {
         "text": "Zurück zur App"
       },
+      "settings_memories_entry": {
+        "text": "Einstellungen & Erinnerungen Eintrag"
+      },
       "app_not_found": {
         "text": "App nicht gefunden."
       },
@@ -6721,8 +7038,8 @@
                 }
               },
               "gpt_5": {
-                "2": {
-                  "text": "GPT-5.2"
+                "4": {
+                  "text": "GPT-5.4"
                 }
               },
               "gpt_oss_120b": {
@@ -9475,7 +9792,16 @@
       "text": "Passwörter stimmen nicht überein"
     },
     "password_too_short": {
-      "text": "Mindestens 8 Zeichen"
+      "text": "Mindestens 12 Zeichen"
+    },
+    "password_too_common": {
+      "text": "Dieses Passwort ist zu verbreitet. Bitte wähle ein stärkeres."
+    },
+    "password_needs_lowercase": {
+      "text": "Mindestens ein Kleinbuchstabe"
+    },
+    "password_needs_uppercase": {
+      "text": "Mindestens ein Großbuchstabe"
     },
     "password_too_long": {
       "text": "Weniger als 60 Zeichen"
@@ -9488,6 +9814,33 @@
     },
     "password_needs_special": {
       "text": "Mindestens ein Sonderzeichen"
+    },
+    "skip_for_now": {
+      "text": "Vorerst überspringen"
+    },
+    "skip_2fa_warning_title": {
+      "text": "Hinweis vor dem Überspringen von 2FA"
+    },
+    "skip_2fa_warning_intro": {
+      "text": "Achtung: Dein Konto ist nicht ausreichend geschützt, solange Passwort-Login ohne 2FA-App aktiv ist. Wenn du fortfährst, befolge bitte diese Regeln:"
+    },
+    "skip_2fa_warning_rule_1": {
+      "text": "Verwende dein Passwort nirgendwo sonst erneut"
+    },
+    "skip_2fa_warning_rule_2": {
+      "text": "Merke dir dein Passwort oder speichere es sicher (empfohlen, nutze einen Passwortmanager)"
+    },
+    "skip_2fa_warning_rule_3": {
+      "text": "Teile dein Passwort niemals mit anderen (OpenMates wird dich niemals nach deinem Passwort fragen)"
+    },
+    "skip_2fa_warning_rule_4": {
+      "text": "Gib dein Passwort niemals auf einer Domain ein, die nicht openmates.org ist"
+    },
+    "skip_2fa_warning_rule_5": {
+      "text": "Richte so schnell wie möglich eine 2FA-OTP-App oder einen Passkey unter Einstellungen / Konto / Sicherheit ein"
+    },
+    "skip_2fa_consent_toggle": {
+      "text": "Ich verstehe diese Risiken und möchte ohne sofortige 2FA-Einrichtung fortfahren"
     },
     "agree_to": {
       "text": "Akzeptiere"

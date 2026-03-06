@@ -336,10 +336,16 @@
           "text": "Hur du föredrar att AI kommunicerar"
         },
         "example_1": {
-          "text": "Professionell och koncis"
+          "text": "Professionell och koncis",
+          "title": {
+            "text": "Teknisk expert"
+          }
         },
         "example_2": {
-          "text": "Avslappnad och vänlig"
+          "text": "Avslappnad och vänlig",
+          "title": {
+            "text": "Vänlig hjälpare"
+          }
         }
       },
       "learning_preferences": {
@@ -348,10 +354,22 @@
           "text": "Hur du föredrar att lära dig och konsumera information"
         },
         "example_1": {
-          "text": "Visuell inlärning"
+          "text": "Visuell inlärning",
+          "title": {
+            "text": "Visuellt lärande"
+          },
+          "notes": {
+            "text": "Föredrar diagram, grafer och visuella förklaringar"
+          }
         },
         "example_2": {
-          "text": "Praktisk övning"
+          "text": "Praktisk övning",
+          "title": {
+            "text": "Praktisk övning"
+          },
+          "notes": {
+            "text": "Lär mig bäst genom att prova med kodexempel"
+          }
         }
       },
       "interaction_preferences": {
@@ -368,10 +386,28 @@
           "text": "Böcker du älskat och skulle rekommendera."
         },
         "example_1": {
-          "text": "1984"
+          "text": "1984",
+          "title": {
+            "text": "Den store Gatsby"
+          },
+          "genre": {
+            "text": "Klassisk skönlitteratur"
+          },
+          "notes": {
+            "text": "Vacker prosa om den amerikanska drömmen"
+          }
         },
         "example_2": {
-          "text": "Sapiens"
+          "text": "Sapiens",
+          "title": {
+            "text": "Sapiens"
+          },
+          "genre": {
+            "text": "Facklitteratur"
+          },
+          "notes": {
+            "text": "Fascinerande översikt av mänsklighetens historia"
+          }
         },
         "example_3": {
           "text": "Dune"
@@ -383,10 +419,22 @@
           "text": "Böcker du läser just nu."
         },
         "example_1": {
-          "text": "Projekt Hail Mary"
+          "text": "Projekt Hail Mary",
+          "title": {
+            "text": "Projekt Hail Mary"
+          },
+          "notes": {
+            "text": "Fantastiskt science fiction-äventyr"
+          }
         },
         "example_2": {
-          "text": "Atomic Habits"
+          "text": "Atomic Habits",
+          "title": {
+            "text": "Atomic Habits"
+          },
+          "notes": {
+            "text": "Praktiska strategier för att bygga goda vanor"
+          }
         }
       },
       "to_read_list": {
@@ -395,10 +443,28 @@
           "text": "Böcker du vill läsa härnäst."
         },
         "example_1": {
-          "text": "Trekroppsproblemet"
+          "text": "Trekroppsproblemet",
+          "title": {
+            "text": "Dune"
+          },
+          "genre": {
+            "text": "Science fiction"
+          },
+          "notes": {
+            "text": "Klassisk science fiction, rekommenderad av vänner"
+          }
         },
         "example_2": {
-          "text": "Tänka, snabbt och långsamt"
+          "text": "Tänka, snabbt och långsamt",
+          "title": {
+            "text": "Tänka, snabbt och långsamt"
+          },
+          "genre": {
+            "text": "Psykologi"
+          },
+          "notes": {
+            "text": "Vill förstå kognitiva fördomar"
+          }
         },
         "example_3": {
           "text": "Deep Work"
@@ -412,10 +478,16 @@
           "text": "Dina föredragna språk och ramverk."
         },
         "example_1": {
-          "text": "Python"
+          "text": "Python",
+          "name": {
+            "text": "Python"
+          }
         },
         "example_2": {
-          "text": "TypeScript"
+          "text": "TypeScript",
+          "name": {
+            "text": "TypeScript"
+          }
         },
         "example_3": {
           "text": "Svelte"
@@ -427,10 +499,22 @@
           "text": "Dina projekt (aktiva, planerade eller avslutade)"
         },
         "example_1": {
-          "text": "Personlig webbplats"
+          "text": "Personlig webbplats",
+          "name": {
+            "text": "Personlig webbplats"
+          },
+          "description": {
+            "text": "En portföljwebbplats byggd med SvelteKit"
+          }
         },
         "example_2": {
-          "text": "Mobilapp"
+          "text": "Mobilapp",
+          "name": {
+            "text": "Väderapp"
+          },
+          "description": {
+            "text": "En väderprognosapp med React och OpenWeather API"
+          }
         },
         "example_3": {
           "text": "API-backend"
@@ -442,10 +526,16 @@
           "text": "Teknologier och färdigheter du vill lära dig"
         },
         "example_1": {
-          "text": "Rust"
+          "text": "Rust",
+          "name": {
+            "text": "Rust"
+          }
         },
         "example_2": {
-          "text": "Maskininlärning"
+          "text": "Maskininlärning",
+          "name": {
+            "text": "Maskininlärning"
+          }
         },
         "example_3": {
           "text": "Kubernetes"
@@ -459,10 +549,22 @@
           "text": "Dina föredragna skribentstilar för dokument."
         },
         "example_1": {
-          "text": "Formellt affärsspråk"
+          "text": "Formellt affärsspråk",
+          "name": {
+            "text": "Teknisk dokumentation"
+          },
+          "description": {
+            "text": "Tydligt, strukturerat skrivande för utvecklardokumentation och API-referenser"
+          }
         },
         "example_2": {
-          "text": "Akademiskt"
+          "text": "Akademiskt",
+          "name": {
+            "text": "Blogginlägg"
+          },
+          "description": {
+            "text": "Engagerande, konverserande ton för bloggartiklar"
+          }
         },
         "example_3": {
           "text": "Avslappnad blogg"
@@ -476,10 +578,22 @@
           "text": "Dina medicinska bokningar och besök."
         },
         "example_1": {
-          "text": "Tandläkare Dr. Mueller"
+          "text": "Tandläkare Dr. Mueller",
+          "where": {
+            "text": "Stadssjukhuset"
+          },
+          "notes": {
+            "text": "Årlig hälsokontroll"
+          }
         },
         "example_2": {
-          "text": "Ögonundersökning"
+          "text": "Ögonundersökning",
+          "where": {
+            "text": "Tandkliniken i centrum"
+          },
+          "notes": {
+            "text": "Tandrengöring"
+          }
         }
       },
       "medical_history": {
@@ -488,10 +602,22 @@
           "text": "Tidigare operationer, tillstånd och allergier."
         },
         "example_1": {
-          "text": "Penicillinallergi"
+          "text": "Penicillinallergi",
+          "name": {
+            "text": "Jordnötsallergi"
+          },
+          "details": {
+            "text": "Allvarlig allergisk reaktion, bär EpiPen"
+          }
         },
         "example_2": {
-          "text": "Knäoperation 2023"
+          "text": "Knäoperation 2023",
+          "name": {
+            "text": "COVID-19-vaccin"
+          },
+          "details": {
+            "text": "Pfizer boosterdos"
+          }
         }
       },
       "symptoms_log": {
@@ -514,10 +640,22 @@
           "text": "Dina föredragna stilar för genererade bilder"
         },
         "example_1": {
-          "text": "Akvarell"
+          "text": "Akvarell",
+          "name": {
+            "text": "Minimalistisk"
+          },
+          "description": {
+            "text": "Rena linjer, enkla kompositioner, dämpad färgpalett"
+          }
         },
         "example_2": {
-          "text": "Minimalistisk"
+          "text": "Minimalistisk",
+          "name": {
+            "text": "Livfull fotografi"
+          },
+          "description": {
+            "text": "Starka färger, hög kontrast, dynamiska kompositioner"
+          }
         },
         "example_3": {
           "text": "Cyberpunk"
@@ -531,10 +669,31 @@
           "text": "Hur du skriver e-post i olika sammanhang."
         },
         "example_1": {
-          "text": "Formell affärs"
+          "text": "Formell affärs",
+          "title": {
+            "text": "Professionell"
+          },
+          "description": {
+            "text": "Formell ton för affärsmejl"
+          },
+          "when_to_use": {
+            "text": "Arbetsmejl och kundkommunikation"
+          },
+          "footer": {
+            "text": "Med vänliga hälsningar,"
+          }
         },
         "example_2": {
-          "text": "Avslappnat team"
+          "text": "Avslappnat team",
+          "title": {
+            "text": "Avslappnad"
+          },
+          "description": {
+            "text": "Avslappnad och vänlig ton för personliga mejl"
+          },
+          "when_to_use": {
+            "text": "Vänner och familj"
+          }
         },
         "example_3": {
           "text": "Uppfoljning och påminnelser"
@@ -548,10 +707,22 @@
           "text": "Dina sparade favoritplatser för snabb åtkomst."
         },
         "example_1": {
-          "text": "Hem"
+          "text": "Hem",
+          "name": {
+            "text": "Central Park"
+          },
+          "address": {
+            "text": "New York, NY 10024"
+          }
         },
         "example_2": {
-          "text": "Kontor"
+          "text": "Kontor",
+          "name": {
+            "text": "Eiffeltornet"
+          },
+          "address": {
+            "text": "Champ de Mars, 75007 Paris"
+          }
         },
         "example_3": {
           "text": "Favoritkafé"
@@ -565,10 +736,28 @@
           "text": "Din växtsamling med vårdplaner"
         },
         "example_1": {
-          "text": "Monstera Deliciosa"
+          "text": "Monstera Deliciosa",
+          "name": {
+            "text": "Monstera Deliciosa"
+          },
+          "location": {
+            "text": "Vardagsrum"
+          },
+          "notes": {
+            "text": "Behöver indirekt ljus, torka bladen varje månad"
+          }
         },
         "example_2": {
-          "text": "Svärmorstunga"
+          "text": "Svärmorstunga",
+          "name": {
+            "text": "Basilika"
+          },
+          "location": {
+            "text": "Köksfönster"
+          },
+          "notes": {
+            "text": "Skörda regelbundet för att uppmuntra tillväxt"
+          }
         }
       }
     },
@@ -593,10 +782,22 @@
           "text": "Dina lärandemål och ämnen att bemästra"
         },
         "example_1": {
-          "text": "Spanska B2-nivå"
+          "text": "Spanska B2-nivå",
+          "topic": {
+            "text": "Datavetenskap"
+          },
+          "notes": {
+            "text": "Fokus på Python pandas och datavisualisering"
+          }
         },
         "example_2": {
-          "text": "Data Science grunderna"
+          "text": "Data Science grunderna",
+          "topic": {
+            "text": "Spanska språket"
+          },
+          "notes": {
+            "text": "Sikta på konversationsnivå till sommaren"
+          }
         }
       },
       "education_history": {
@@ -619,10 +820,22 @@
           "text": "Dina planerade och tidigare resor med datum."
         },
         "example_1": {
-          "text": "Japan, mars 2026"
+          "text": "Japan, mars 2026",
+          "destination": {
+            "text": "Tokyo, Japan"
+          },
+          "notes": {
+            "text": "Två veckors semester, utforska tempel och matkultur"
+          }
         },
         "example_2": {
-          "text": "Barcelona, sommar 2025"
+          "text": "Barcelona, sommar 2025",
+          "destination": {
+            "text": "Barcelona, Spanien"
+          },
+          "notes": {
+            "text": "Sommarlov, strand och arkitektur"
+          }
         },
         "example_3": {
           "text": "Bilresa genom Skottland"
@@ -634,10 +847,16 @@
           "text": "Dina favoritflygbolag"
         },
         "example_1": {
-          "text": "Lufthansa"
+          "text": "Lufthansa",
+          "name": {
+            "text": "Lufthansa"
+          }
         },
         "example_2": {
-          "text": "Swiss"
+          "text": "Swiss",
+          "name": {
+            "text": "Singapore Airlines"
+          }
         },
         "example_3": {
           "text": "KLM"
@@ -664,10 +883,16 @@
           "text": "Dina favoritreseaktiviteter och upplevelser."
         },
         "example_1": {
-          "text": "Besöka stränder"
+          "text": "Besöka stränder",
+          "name": {
+            "text": "Vandring"
+          }
         },
         "example_2": {
-          "text": "Utforska museer"
+          "text": "Utforska museer",
+          "name": {
+            "text": "Museibesök"
+          }
         },
         "example_3": {
           "text": "Vandring"
@@ -684,10 +909,22 @@
           "text": "Filmer du har sett"
         },
         "example_1": {
-          "text": "Inception"
+          "text": "Inception",
+          "title": {
+            "text": "Inception"
+          },
+          "notes": {
+            "text": "Tankeväckande mästerverk om drömmar i drömmar"
+          }
         },
         "example_2": {
-          "text": "Nyckeln till frihet"
+          "text": "Nyckeln till frihet",
+          "title": {
+            "text": "Parasit"
+          },
+          "notes": {
+            "text": "Briljant samhällskommentar med oväntade vändningar"
+          }
         }
       },
       "watched_tv_shows": {
@@ -696,10 +933,22 @@
           "text": "TV-program du har sett eller tittar på"
         },
         "example_1": {
-          "text": "Breaking Bad"
+          "text": "Breaking Bad",
+          "title": {
+            "text": "Breaking Bad"
+          },
+          "notes": {
+            "text": "En av de bästa TV-serierna någonsin"
+          }
         },
         "example_2": {
-          "text": "Stranger Things"
+          "text": "Stranger Things",
+          "title": {
+            "text": "The Bear"
+          },
+          "notes": {
+            "text": "Intensivt köksdrama med fantastiska prestationer"
+          }
         }
       },
       "to_watch_list": {
@@ -708,10 +957,22 @@
           "text": "Filmer och TV-program du vill titta på"
         },
         "example_1": {
-          "text": "Oppenheimer"
+          "text": "Oppenheimer",
+          "title": {
+            "text": "Oppenheimer"
+          },
+          "reason": {
+            "text": "Prisbelönad biografisk film"
+          }
         },
         "example_2": {
-          "text": "The Bear"
+          "text": "The Bear",
+          "title": {
+            "text": "Severance"
+          },
+          "reason": {
+            "text": "Unik sci-fi-arbetsplatsthriller"
+          }
         }
       }
     },
@@ -722,10 +983,16 @@
           "text": "Videor du vill titta på"
         },
         "example_1": {
-          "text": "Teknikkonferens keynote"
+          "text": "Teknikkonferens keynote",
+          "name": {
+            "text": "Hur datorer fungerar"
+          }
         },
         "example_2": {
-          "text": "Matlagningsguide"
+          "text": "Matlagningsguide",
+          "name": {
+            "text": "Avancerad TypeScript"
+          }
         },
         "example_3": {
           "text": "Resevlogg"
@@ -784,10 +1051,16 @@
           "text": "Webbplatser och artiklar sparade för senare"
         },
         "example_1": {
-          "text": "Intressant AI-forskningsartikel"
+          "text": "Intressant AI-forskningsartikel",
+          "notes": {
+            "text": "Intressant artikel om AI"
+          }
         },
         "example_2": {
-          "text": "Artikel om designmönster"
+          "text": "Artikel om designmönster",
+          "notes": {
+            "text": "Handledning om webbutveckling"
+          }
         },
         "example_3": {
           "text": "Teknikblogg-inlägg"
@@ -1279,9 +1552,9 @@
     },
     "shopping": {
       "search_products": {
-        "text": "Sök produkter",
+        "text": "Sök",
         "description": {
-          "text": "Sök och jämför produkter i supermarkets."
+          "text": "Sök efter produkter i onlinebutiker och onlinesupermarkets."
         },
         "how_to_use": {
           "1": {
@@ -2234,11 +2507,17 @@
       "settings": {
         "text": "Inställningar"
       },
+      "my_embeds": {
+        "text": "Mina inbäddningar"
+      },
       "indexing": {
         "text": "Bygger sökindex..."
       },
       "apps": {
         "text": "Appar och färdigheter"
+      },
+      "apps_only": {
+        "text": "Appar"
       },
       "app_app": {
         "text": "App"
@@ -2251,6 +2530,12 @@
       },
       "app_memory": {
         "text": "Minne"
+      },
+      "focus_mode_status_activated": {
+        "text": "Aktiverad"
+      },
+      "focus_mode_status_deactivated": {
+        "text": "Inaktiverad"
       },
       "go_to_message": {
         "text": "Gå till meddelande"
@@ -3147,7 +3432,7 @@
         "text": "Inga produkter hittades."
       },
       "search_products": {
-        "text": "Sök produkter"
+        "text": "Sök"
       }
     },
     "math": {
@@ -4718,7 +5003,7 @@
           "text": "Fråga bara dina kompisar något liknande:"
         },
         "how_to_use_mention": {
-          "text": "Eller nämn @{skillname}\ni ditt meddelande för att utlösa kompetensen explicit."
+          "text": "Eller nämn {skillname}\ni ditt meddelande för att utlösa kompetensen explicit."
         },
         "description": {
           "text": "Beskrivning"
@@ -4902,6 +5187,9 @@
       "back_to_app": {
         "text": "Tillbaka till appen"
       },
+      "settings_memories_entry": {
+        "text": "Inställningar och minnen post"
+      },
       "app_not_found": {
         "text": "Appen hittades inte."
       },
@@ -4974,8 +5262,8 @@
                 }
               },
               "gpt_5": {
-                "2": {
-                  "text": "GPT-5.2"
+                "4": {
+                  "text": "GPT-5.4"
                 }
               },
               "gpt_oss_120b": {

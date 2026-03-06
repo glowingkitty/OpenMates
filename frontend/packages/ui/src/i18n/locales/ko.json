@@ -336,10 +336,16 @@
           "text": "AI 소통 방식 선호도"
         },
         "example_1": {
-          "text": "전문적이고 간결한"
+          "text": "전문적이고 간결한",
+          "title": {
+            "text": "기술 전문가"
+          }
         },
         "example_2": {
-          "text": "캐주얼하고 친근한"
+          "text": "캐주얼하고 친근한",
+          "title": {
+            "text": "친절한 도우미"
+          }
         }
       },
       "learning_preferences": {
@@ -348,10 +354,22 @@
           "text": "정보를 학습하고 소비하는 방식을 선호하는 방법"
         },
         "example_1": {
-          "text": "시각적 학습자"
+          "text": "시각적 학습자",
+          "title": {
+            "text": "시각적 학습"
+          },
+          "notes": {
+            "text": "다이어그램, 차트 및 시각적 설명 선호"
+          }
         },
         "example_2": {
-          "text": "실습 중심"
+          "text": "실습 중심",
+          "title": {
+            "text": "실습 위주"
+          },
+          "notes": {
+            "text": "코드 예제를 통해 직접 해보며 가장 잘 배움"
+          }
         }
       },
       "interaction_preferences": {
@@ -368,10 +386,28 @@
           "text": "사랑하고 추천하고 싶은 책."
         },
         "example_1": {
-          "text": "1984"
+          "text": "1984",
+          "title": {
+            "text": "위대한 개츠비"
+          },
+          "genre": {
+            "text": "고전 소설"
+          },
+          "notes": {
+            "text": "아메리칸 드림에 대한 아름다운 산문"
+          }
         },
         "example_2": {
-          "text": "사피엔스"
+          "text": "사피엔스",
+          "title": {
+            "text": "사피엔스"
+          },
+          "genre": {
+            "text": "논픽션"
+          },
+          "notes": {
+            "text": "인류 역사에 대한 매혹적인 개요"
+          }
         },
         "example_3": {
           "text": "듄"
@@ -383,10 +419,22 @@
           "text": "현재 읽고 있는 책."
         },
         "example_1": {
-          "text": "프로젝트 헤일 메리"
+          "text": "프로젝트 헤일 메리",
+          "title": {
+            "text": "프로젝트 헤일 메리"
+          },
+          "notes": {
+            "text": "훌륭한 SF 모험"
+          }
         },
         "example_2": {
-          "text": "아주 작은 습관의 힘"
+          "text": "아주 작은 습관의 힘",
+          "title": {
+            "text": "아주 작은 습관의 힘"
+          },
+          "notes": {
+            "text": "좋은 습관을 만들기 위한 실용적인 전략"
+          }
         }
       },
       "to_read_list": {
@@ -395,10 +443,28 @@
           "text": "다음에 읽고 싶은 책."
         },
         "example_1": {
-          "text": "삼체"
+          "text": "삼체",
+          "title": {
+            "text": "듄"
+          },
+          "genre": {
+            "text": "공상과학"
+          },
+          "notes": {
+            "text": "고전 SF, 친구 추천"
+          }
         },
         "example_2": {
-          "text": "생각에 관한 생각"
+          "text": "생각에 관한 생각",
+          "title": {
+            "text": "생각에 관한 생각"
+          },
+          "genre": {
+            "text": "심리학"
+          },
+          "notes": {
+            "text": "인지 편향을 이해하고 싶다"
+          }
         },
         "example_3": {
           "text": "딥 워크"
@@ -412,10 +478,16 @@
           "text": "선호하는 언어와 프레임워크."
         },
         "example_1": {
-          "text": "Python"
+          "text": "Python",
+          "name": {
+            "text": "Python"
+          }
         },
         "example_2": {
-          "text": "TypeScript"
+          "text": "TypeScript",
+          "name": {
+            "text": "TypeScript"
+          }
         },
         "example_3": {
           "text": "Svelte"
@@ -427,10 +499,22 @@
           "text": "당신의 프로젝트 (진행 중, 계획됨, 완료됨)"
         },
         "example_1": {
-          "text": "개인 웹사이트"
+          "text": "개인 웹사이트",
+          "name": {
+            "text": "개인 웹사이트"
+          },
+          "description": {
+            "text": "SvelteKit으로 만든 포트폴리오 웹사이트"
+          }
         },
         "example_2": {
-          "text": "모바일 앱"
+          "text": "모바일 앱",
+          "name": {
+            "text": "날씨 앱"
+          },
+          "description": {
+            "text": "React와 OpenWeather API를 사용한 날씨 예보 앱"
+          }
         },
         "example_3": {
           "text": "API 백엔드"
@@ -442,10 +526,16 @@
           "text": "배우고 싶은 기술과 기능"
         },
         "example_1": {
-          "text": "Rust"
+          "text": "Rust",
+          "name": {
+            "text": "Rust"
+          }
         },
         "example_2": {
-          "text": "머신 러닝"
+          "text": "머신 러닝",
+          "name": {
+            "text": "머신 러닝"
+          }
         },
         "example_3": {
           "text": "Kubernetes"
@@ -459,10 +549,22 @@
           "text": "문서에 대한 선호하는 글쓰기 스타일."
         },
         "example_1": {
-          "text": "공식 비즈니스"
+          "text": "공식 비즈니스",
+          "name": {
+            "text": "기술 문서"
+          },
+          "description": {
+            "text": "개발자 문서와 API 레퍼런스를 위한 명확하고 구조적인 글쓰기"
+          }
         },
         "example_2": {
-          "text": "학술적"
+          "text": "학술적",
+          "name": {
+            "text": "블로그 게시물"
+          },
+          "description": {
+            "text": "블로그 기사를 위한 매력적이고 대화적인 톤"
+          }
         },
         "example_3": {
           "text": "캐주얼 블로그"
@@ -476,10 +578,22 @@
           "text": "당신의 의료 예약과 방문."
         },
         "example_1": {
-          "text": "치과의사 Mueller 박사"
+          "text": "치과의사 Mueller 박사",
+          "where": {
+            "text": "시립병원"
+          },
+          "notes": {
+            "text": "연간 건강검진"
+          }
         },
         "example_2": {
-          "text": "안과 검진"
+          "text": "안과 검진",
+          "where": {
+            "text": "시내 치과"
+          },
+          "notes": {
+            "text": "치아 스케일링"
+          }
         }
       },
       "medical_history": {
@@ -488,10 +602,22 @@
           "text": "과거 수술, 질환 및 알레르기."
         },
         "example_1": {
-          "text": "페니실린 알레르기"
+          "text": "페니실린 알레르기",
+          "name": {
+            "text": "땅콩 알레르기"
+          },
+          "details": {
+            "text": "심각한 알레르기 반응, 에피펜 휴대"
+          }
         },
         "example_2": {
-          "text": "무릎 수술 2023"
+          "text": "무릎 수술 2023",
+          "name": {
+            "text": "코로나19 백신"
+          },
+          "details": {
+            "text": "화이자 부스터 접종"
+          }
         }
       },
       "symptoms_log": {
@@ -514,10 +640,22 @@
           "text": "생성된 이미지에 대한 선호 스타일"
         },
         "example_1": {
-          "text": "수채화"
+          "text": "수채화",
+          "name": {
+            "text": "미니멀리스트"
+          },
+          "description": {
+            "text": "깔끔한 선, 단순한 구성, 차분한 색상 팔레트"
+          }
         },
         "example_2": {
-          "text": "미니멀리스트"
+          "text": "미니멀리스트",
+          "name": {
+            "text": "선명한 사진"
+          },
+          "description": {
+            "text": "밝은 색상, 높은 대비, 역동적인 구성"
+          }
         },
         "example_3": {
           "text": "사이버펑크"
@@ -531,10 +669,31 @@
           "text": "다양한 상황에서의 이메일 작성 방식."
         },
         "example_1": {
-          "text": "공식 비즈니스"
+          "text": "공식 비즈니스",
+          "title": {
+            "text": "전문적"
+          },
+          "description": {
+            "text": "비즈니스 이메일을 위한 격식체"
+          },
+          "when_to_use": {
+            "text": "업무 이메일 및 고객 커뮤니케이션"
+          },
+          "footer": {
+            "text": "감사합니다,"
+          }
         },
         "example_2": {
-          "text": "캐주얼 팀"
+          "text": "캐주얼 팀",
+          "title": {
+            "text": "캐주얼"
+          },
+          "description": {
+            "text": "개인 이메일을 위한 편안하고 친근한 어조"
+          },
+          "when_to_use": {
+            "text": "친구와 가족"
+          }
         },
         "example_3": {
           "text": "후속 조치 및 리마인더"
@@ -548,10 +707,22 @@
           "text": "빠른 액세스를 위한 저장된 즐겨찾는 장소."
         },
         "example_1": {
-          "text": "집"
+          "text": "집",
+          "name": {
+            "text": "센트럴 파크"
+          },
+          "address": {
+            "text": "뉴욕, NY 10024"
+          }
         },
         "example_2": {
-          "text": "사무실"
+          "text": "사무실",
+          "name": {
+            "text": "에펠탑"
+          },
+          "address": {
+            "text": "샹 드 마르스, 75007 파리"
+          }
         },
         "example_3": {
           "text": "단골 카페"
@@ -565,10 +736,28 @@
           "text": "식물 컬렉션과 관리 일정"
         },
         "example_1": {
-          "text": "몬스테라 델리시오사"
+          "text": "몬스테라 델리시오사",
+          "name": {
+            "text": "몬스테라 델리시오사"
+          },
+          "location": {
+            "text": "거실"
+          },
+          "notes": {
+            "text": "간접 조명 필요, 매달 잎 닦기"
+          }
         },
         "example_2": {
-          "text": "산세베리아"
+          "text": "산세베리아",
+          "name": {
+            "text": "바질"
+          },
+          "location": {
+            "text": "부엌 창문"
+          },
+          "notes": {
+            "text": "성장 촉진을 위해 정기적으로 수확"
+          }
         }
       }
     },
@@ -593,10 +782,22 @@
           "text": "학습 목표와 숙달하고 싶은 주제"
         },
         "example_1": {
-          "text": "스페인어 B2 레벨"
+          "text": "스페인어 B2 레벨",
+          "topic": {
+            "text": "데이터 사이언스"
+          },
+          "notes": {
+            "text": "Python pandas와 데이터 시각화에 집중"
+          }
         },
         "example_2": {
-          "text": "데이터 사이언스 기초"
+          "text": "데이터 사이언스 기초",
+          "topic": {
+            "text": "스페인어"
+          },
+          "notes": {
+            "text": "여름까지 회화 수준 달성 목표"
+          }
         }
       },
       "education_history": {
@@ -619,10 +820,22 @@
           "text": "계획된 여행과 과거 여행."
         },
         "example_1": {
-          "text": "일본, 2026년 3월"
+          "text": "일본, 2026년 3월",
+          "destination": {
+            "text": "도쿄, 일본"
+          },
+          "notes": {
+            "text": "2주간의 휴가, 사찰과 음식 문화 탐방"
+          }
         },
         "example_2": {
-          "text": "바르셀로나, 2025년 여름"
+          "text": "바르셀로나, 2025년 여름",
+          "destination": {
+            "text": "바르셀로나, 스페인"
+          },
+          "notes": {
+            "text": "여름 휴가, 해변과 건축 관광"
+          }
         },
         "example_3": {
           "text": "스코틀랜드 로드 트립"
@@ -634,10 +847,16 @@
           "text": "선호 항공사"
         },
         "example_1": {
-          "text": "루프트한자"
+          "text": "루프트한자",
+          "name": {
+            "text": "루프트한자"
+          }
         },
         "example_2": {
-          "text": "스위스 항공"
+          "text": "스위스 항공",
+          "name": {
+            "text": "싱가포르 항공"
+          }
         },
         "example_3": {
           "text": "KLM"
@@ -664,10 +883,16 @@
           "text": "좋아하는 여행 활동과 경험."
         },
         "example_1": {
-          "text": "해변 방문"
+          "text": "해변 방문",
+          "name": {
+            "text": "하이킹"
+          }
         },
         "example_2": {
-          "text": "박물관 탐방"
+          "text": "박물관 탐방",
+          "name": {
+            "text": "박물관 방문"
+          }
         },
         "example_3": {
           "text": "하이킹"
@@ -684,10 +909,22 @@
           "text": "본 영화"
         },
         "example_1": {
-          "text": "인셉션"
+          "text": "인셉션",
+          "title": {
+            "text": "인셉션"
+          },
+          "notes": {
+            "text": "꿈속의 꿈에 관한 놀라운 걸작"
+          }
         },
         "example_2": {
-          "text": "쇼생크 탈출"
+          "text": "쇼생크 탈출",
+          "title": {
+            "text": "기생충"
+          },
+          "notes": {
+            "text": "예상치 못한 반전이 있는 뛰어난 사회 비평"
+          }
         }
       },
       "watched_tv_shows": {
@@ -696,10 +933,22 @@
           "text": "본 또는 시청 중인 TV 프로그램"
         },
         "example_1": {
-          "text": "브레이킹 배드"
+          "text": "브레이킹 배드",
+          "title": {
+            "text": "브레이킹 배드"
+          },
+          "notes": {
+            "text": "역대 최고의 TV 시리즈 중 하나"
+          }
         },
         "example_2": {
-          "text": "기묘한 이야기"
+          "text": "기묘한 이야기",
+          "title": {
+            "text": "더 베어"
+          },
+          "notes": {
+            "text": "놀라운 연기의 긴박한 주방 드라마"
+          }
         }
       },
       "to_watch_list": {
@@ -708,10 +957,22 @@
           "text": "보고 싶은 영화 및 TV 프로그램"
         },
         "example_1": {
-          "text": "오펜하이머"
+          "text": "오펜하이머",
+          "title": {
+            "text": "오펜하이머"
+          },
+          "reason": {
+            "text": "수상 경력의 전기 영화"
+          }
         },
         "example_2": {
-          "text": "더 베어"
+          "text": "더 베어",
+          "title": {
+            "text": "세버런스"
+          },
+          "reason": {
+            "text": "독특한 SF 직장 스릴러"
+          }
         }
       }
     },
@@ -722,10 +983,16 @@
           "text": "보고 싶은 비디오"
         },
         "example_1": {
-          "text": "기술 컨퍼런스 기조연설"
+          "text": "기술 컨퍼런스 기조연설",
+          "name": {
+            "text": "컴퓨터의 작동 원리"
+          }
         },
         "example_2": {
-          "text": "요리 튜토리얼"
+          "text": "요리 튜토리얼",
+          "name": {
+            "text": "고급 TypeScript"
+          }
         },
         "example_3": {
           "text": "여행 브이로그"
@@ -784,10 +1051,16 @@
           "text": "나중에 읽기 위해 저장된 사이트 및 기사"
         },
         "example_1": {
-          "text": "흥미로운 AI 연구 논문"
+          "text": "흥미로운 AI 연구 논문",
+          "notes": {
+            "text": "AI에 대한 흥미로운 기사"
+          }
         },
         "example_2": {
-          "text": "디자인 패턴 기사"
+          "text": "디자인 패턴 기사",
+          "notes": {
+            "text": "웹 개발 튜토리얼"
+          }
         },
         "example_3": {
           "text": "기술 블로그 게시물"
@@ -1279,9 +1552,9 @@
     },
     "shopping": {
       "search_products": {
-        "text": "제품 검색",
+        "text": "검색",
         "description": {
-          "text": "슈퍼마켓 상품을 검색하고 비교하세요."
+          "text": "온라인 쇼핑몰 및 온라인 슈퍼마켓에서 제품을 검색하세요."
         },
         "how_to_use": {
           "1": {
@@ -2234,11 +2507,17 @@
       "settings": {
         "text": "설정"
       },
+      "my_embeds": {
+        "text": "내 임베드"
+      },
       "indexing": {
         "text": "검색 인덱스 구축 중..."
       },
       "apps": {
         "text": "앱 및 스킬"
+      },
+      "apps_only": {
+        "text": "앱"
       },
       "app_app": {
         "text": "앱"
@@ -2251,6 +2530,12 @@
       },
       "app_memory": {
         "text": "메모리"
+      },
+      "focus_mode_status_activated": {
+        "text": "활성화됨"
+      },
+      "focus_mode_status_deactivated": {
+        "text": "비활성화됨"
       },
       "go_to_message": {
         "text": "메시지로 이동"
@@ -3105,7 +3390,7 @@
         "text": "제품을 찾을 수 없습니다."
       },
       "search_products": {
-        "text": "제품 검색"
+        "text": "검색"
       }
     },
     "math": {
@@ -4694,7 +4979,7 @@
           "text": "메이트에게 이런 식으로 물어보세요:"
         },
         "how_to_use_mention": {
-          "text": "또는 메시지에서 @{skillname}\n을 언급하여 스킬을 명시적으로 트리거하세요."
+          "text": "또는 메시지에서 {skillname}\n을 언급하여 스킬을 명시적으로 트리거하세요."
         },
         "description": {
           "text": "설명"
@@ -4878,6 +5163,9 @@
       "back_to_app": {
         "text": "앱으로 돌아가기"
       },
+      "settings_memories_entry": {
+        "text": "설정 및 메모리 항목"
+      },
       "app_not_found": {
         "text": "앱을 찾을 수 없습니다."
       },
@@ -4950,8 +5238,8 @@
                 }
               },
               "gpt_5": {
-                "2": {
-                  "text": "GPT-5.2"
+                "4": {
+                  "text": "GPT-5.4"
                 }
               },
               "gpt_oss_120b": {
@@ -7026,7 +7314,16 @@
       "text": "비밀번호가 일치하지 않습니다"
     },
     "password_too_short": {
-      "text": "최소 8자"
+      "text": "최소 12자"
+    },
+    "password_too_common": {
+      "text": "이 비밀번호는 너무 흔합니다. 더 강력한 비밀번호를 선택해 주세요."
+    },
+    "password_needs_lowercase": {
+      "text": "최소 하나의 소문자"
+    },
+    "password_needs_uppercase": {
+      "text": "최소 하나의 대문자"
     },
     "password_too_long": {
       "text": "60자 미만"

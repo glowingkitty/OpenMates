@@ -3614,27 +3614,27 @@ shopping.no_results:
   verified_by_human: [en, de]
 shopping.search_products:
   context: Shopping search products skill label shown in BasicInfosBar
-  en: Search Products
-  de: Produkte suchen
-  zh: 搜索产品
-  es: Buscar productos
-  fr: Rechercher des produits
-  pt: Pesquisar produtos
-  ru: Поиск продуктов
-  ja: 商品を検索
-  ko: 제품 검색
-  it: Cerca prodotti
-  tr: Ürün ara
-  vi: Tìm kiếm sản phẩm
-  id: Cari produk
-  pl: Szukaj produktów
-  nl: Producten zoeken
-  ar: البحث عن المنتجات
-  hi: उत्पाद खोजें
-  th: ค้นหาสินค้า
-  cs: Hledat produkty
-  sv: Sök produkter
-  he: חיפוש מוצרים
+  en: Search
+  de: Suchen
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: بحث
+  hi: खोजें
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  he: חיפוש
   verified_by_human: [en, de]
 
 math.calculate:

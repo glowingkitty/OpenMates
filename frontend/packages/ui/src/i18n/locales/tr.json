@@ -336,10 +336,16 @@
           "text": "AI'nın nasıl iletişim kurmasını tercih ettiğiniz"
         },
         "example_1": {
-          "text": "Profesyonel ve öz"
+          "text": "Profesyonel ve öz",
+          "title": {
+            "text": "Teknik uzman"
+          }
         },
         "example_2": {
-          "text": "Rahat ve samimi"
+          "text": "Rahat ve samimi",
+          "title": {
+            "text": "Dostça yardımcı"
+          }
         }
       },
       "learning_preferences": {
@@ -348,10 +354,22 @@
           "text": "Bilgiyi nasıl öğrenmeyi ve tüketmeyi tercih ettiğiniz"
         },
         "example_1": {
-          "text": "Görsel öğrenme"
+          "text": "Görsel öğrenme",
+          "title": {
+            "text": "Görsel öğrenme"
+          },
+          "notes": {
+            "text": "Diyagramları, grafikleri ve görsel açıklamaları tercih ederim"
+          }
         },
         "example_2": {
-          "text": "Uygulamalı pratik"
+          "text": "Uygulamalı pratik",
+          "title": {
+            "text": "Uygulamalı pratik"
+          },
+          "notes": {
+            "text": "Kod örnekleriyle deneyerek en iyi öğrenirim"
+          }
         }
       },
       "interaction_preferences": {
@@ -368,10 +386,28 @@
           "text": "Sevdiğiniz ve tavsiye edeceğiniz kitaplar."
         },
         "example_1": {
-          "text": "1984"
+          "text": "1984",
+          "title": {
+            "text": "Muhteşem Gatsby"
+          },
+          "genre": {
+            "text": "Klasik kurgu"
+          },
+          "notes": {
+            "text": "Amerikan Rüyası hakkında güzel düzyazı"
+          }
         },
         "example_2": {
-          "text": "Sapiens"
+          "text": "Sapiens",
+          "title": {
+            "text": "Sapiens"
+          },
+          "genre": {
+            "text": "Kurgu dışı"
+          },
+          "notes": {
+            "text": "İnsan tarihinin büyüleyici bir özeti"
+          }
         },
         "example_3": {
           "text": "Dune"
@@ -383,10 +419,22 @@
           "text": "Şu anda okuduğunuz kitaplar."
         },
         "example_1": {
-          "text": "Proje Hail Mary"
+          "text": "Proje Hail Mary",
+          "title": {
+            "text": "Proje Hail Mary"
+          },
+          "notes": {
+            "text": "Harika bir bilim kurgu macerası"
+          }
         },
         "example_2": {
-          "text": "Atomik Alışkanlıklar"
+          "text": "Atomik Alışkanlıklar",
+          "title": {
+            "text": "Atomik Alışkanlıklar"
+          },
+          "notes": {
+            "text": "İyi alışkanlıklar oluşturmak için pratik stratejiler"
+          }
         }
       },
       "to_read_list": {
@@ -395,10 +443,28 @@
           "text": "Sonra okumak istediğiniz kitaplar."
         },
         "example_1": {
-          "text": "Üç Cisim Problemi"
+          "text": "Üç Cisim Problemi",
+          "title": {
+            "text": "Dune"
+          },
+          "genre": {
+            "text": "Bilim kurgu"
+          },
+          "notes": {
+            "text": "Klasik bilim kurgu, arkadaşların önerisi"
+          }
         },
         "example_2": {
-          "text": "Hızlı ve Yavaş Düşünme"
+          "text": "Hızlı ve Yavaş Düşünme",
+          "title": {
+            "text": "Hızlı ve Yavaş Düşünme"
+          },
+          "genre": {
+            "text": "Psikoloji"
+          },
+          "notes": {
+            "text": "Bilişsel önyargıları anlamak istiyorum"
+          }
         },
         "example_3": {
           "text": "Derin Çalışma"
@@ -412,10 +478,16 @@
           "text": "Tercih ettiğiniz diller ve framework'ler."
         },
         "example_1": {
-          "text": "Python"
+          "text": "Python",
+          "name": {
+            "text": "Python"
+          }
         },
         "example_2": {
-          "text": "TypeScript"
+          "text": "TypeScript",
+          "name": {
+            "text": "TypeScript"
+          }
         },
         "example_3": {
           "text": "Svelte"
@@ -427,10 +499,22 @@
           "text": "Projeleriniz (aktif, planlı veya tamamlanmış)"
         },
         "example_1": {
-          "text": "Kişisel web sitesi"
+          "text": "Kişisel web sitesi",
+          "name": {
+            "text": "Kişisel web sitesi"
+          },
+          "description": {
+            "text": "SvelteKit ile oluşturulmuş bir portföy sitesi"
+          }
         },
         "example_2": {
-          "text": "Mobil uygulama"
+          "text": "Mobil uygulama",
+          "name": {
+            "text": "Hava durumu uygulaması"
+          },
+          "description": {
+            "text": "React ve OpenWeather API ile hava durumu uygulaması"
+          }
         },
         "example_3": {
           "text": "API arka ucu"
@@ -442,10 +526,16 @@
           "text": "Öğrenmek istediğiniz teknolojiler ve beceriler"
         },
         "example_1": {
-          "text": "Rust"
+          "text": "Rust",
+          "name": {
+            "text": "Rust"
+          }
         },
         "example_2": {
-          "text": "Makine öğrenimi"
+          "text": "Makine öğrenimi",
+          "name": {
+            "text": "Makine öğrenimi"
+          }
         },
         "example_3": {
           "text": "Kubernetes"
@@ -459,10 +549,22 @@
           "text": "Belgeler için tercih ettiğiniz yazı stilleri."
         },
         "example_1": {
-          "text": "Resmi iş"
+          "text": "Resmi iş",
+          "name": {
+            "text": "Teknik dokümantasyon"
+          },
+          "description": {
+            "text": "Geliştirici belgeleri ve API referansları için açık, yapılandırılmış yazım"
+          }
         },
         "example_2": {
-          "text": "Akademik"
+          "text": "Akademik",
+          "name": {
+            "text": "Blog yazısı"
+          },
+          "description": {
+            "text": "Blog makaleleri için ilgi çekici, sohbet tarzı bir üslup"
+          }
         },
         "example_3": {
           "text": "Günlük blog"
@@ -476,10 +578,22 @@
           "text": "Tıbbi randevularınız ve ziyaretleriniz."
         },
         "example_1": {
-          "text": "Diş hekimi Dr. Mueller"
+          "text": "Diş hekimi Dr. Mueller",
+          "where": {
+            "text": "Şehir Hastanesi"
+          },
+          "notes": {
+            "text": "Yıllık kontrol muayenesi"
+          }
         },
         "example_2": {
-          "text": "Göz muayenesi"
+          "text": "Göz muayenesi",
+          "where": {
+            "text": "Şehir Merkezi Diş Kliniği"
+          },
+          "notes": {
+            "text": "Diş temizliği"
+          }
         }
       },
       "medical_history": {
@@ -488,10 +602,22 @@
           "text": "Geçmiş ameliyatlar, durumlar ve alerjiler."
         },
         "example_1": {
-          "text": "Penisilin alerjisi"
+          "text": "Penisilin alerjisi",
+          "name": {
+            "text": "Fıstık alerjisi"
+          },
+          "details": {
+            "text": "Ciddi alerjik reaksiyon, EpiPen taşı"
+          }
         },
         "example_2": {
-          "text": "Diz ameliyatı 2023"
+          "text": "Diz ameliyatı 2023",
+          "name": {
+            "text": "COVID-19 Aşısı"
+          },
+          "details": {
+            "text": "Pfizer hatırlatma dozu"
+          }
         }
       },
       "symptoms_log": {
@@ -514,10 +640,22 @@
           "text": "Oluşturulan görüntüler için tercih ettiğiniz stiller"
         },
         "example_1": {
-          "text": "Suluboya"
+          "text": "Suluboya",
+          "name": {
+            "text": "Minimalist"
+          },
+          "description": {
+            "text": "Temiz çizgiler, sade kompozisyonlar, yumuşak renk paleti"
+          }
         },
         "example_2": {
-          "text": "Minimalist"
+          "text": "Minimalist",
+          "name": {
+            "text": "Canlı fotoğrafçılık"
+          },
+          "description": {
+            "text": "Parlak renkler, yüksek kontrast, dinamik kompozisyonlar"
+          }
         },
         "example_3": {
           "text": "Cyberpunk"
@@ -531,10 +669,31 @@
           "text": "Farklı bağlamlarda e-posta yazma şekliniz."
         },
         "example_1": {
-          "text": "Resmi iş yazışması"
+          "text": "Resmi iş yazışması",
+          "title": {
+            "text": "Profesyonel"
+          },
+          "description": {
+            "text": "İş e-postaları için resmi ton"
+          },
+          "when_to_use": {
+            "text": "İş e-postaları ve müşteri iletişimi"
+          },
+          "footer": {
+            "text": "Saygılarımla,"
+          }
         },
         "example_2": {
-          "text": "Rahat ekip"
+          "text": "Rahat ekip",
+          "title": {
+            "text": "Rahat"
+          },
+          "description": {
+            "text": "Kişisel e-postalar için rahat ve samimi ton"
+          },
+          "when_to_use": {
+            "text": "Arkadaşlar ve aile"
+          }
         },
         "example_3": {
           "text": "Takip ve hatırlatmalar"
@@ -548,10 +707,22 @@
           "text": "Hızlı erişim için kaydedilmiş favori yerleriniz."
         },
         "example_1": {
-          "text": "Ev"
+          "text": "Ev",
+          "name": {
+            "text": "Central Park"
+          },
+          "address": {
+            "text": "New York, NY 10024"
+          }
         },
         "example_2": {
-          "text": "Ofis"
+          "text": "Ofis",
+          "name": {
+            "text": "Eyfel Kulesi"
+          },
+          "address": {
+            "text": "Champ de Mars, 75007 Paris"
+          }
         },
         "example_3": {
           "text": "Favori kahve dükkanı"
@@ -565,10 +736,28 @@
           "text": "Bakım programlarıyla bitki koleksiyonunuz"
         },
         "example_1": {
-          "text": "Monstera Deliciosa"
+          "text": "Monstera Deliciosa",
+          "name": {
+            "text": "Monstera Deliciosa"
+          },
+          "location": {
+            "text": "Oturma odası"
+          },
+          "notes": {
+            "text": "Dolaylı ışık gerektirir, yaprakları ayda bir silin"
+          }
         },
         "example_2": {
-          "text": "Paşa kılıcı"
+          "text": "Paşa kılıcı",
+          "name": {
+            "text": "Fesleğen"
+          },
+          "location": {
+            "text": "Mutfak penceresi"
+          },
+          "notes": {
+            "text": "Büyümeyi teşvik etmek için düzenli olarak hasat edin"
+          }
         }
       }
     },
@@ -593,10 +782,22 @@
           "text": "Öğrenme hedefleriniz ve ustalaşmak istediğiniz konular"
         },
         "example_1": {
-          "text": "İspanyolca B2 seviyesi"
+          "text": "İspanyolca B2 seviyesi",
+          "topic": {
+            "text": "Veri Bilimi"
+          },
+          "notes": {
+            "text": "Python pandas ve veri görselleştirmeye odaklanma"
+          }
         },
         "example_2": {
-          "text": "Veri Bilimi temelleri"
+          "text": "Veri Bilimi temelleri",
+          "topic": {
+            "text": "İspanyolca"
+          },
+          "notes": {
+            "text": "Yaz aylarına kadar konuşma seviyesine ulaşmayı hedefleme"
+          }
         }
       },
       "education_history": {
@@ -619,10 +820,22 @@
           "text": "Planlanan ve geçmiş seyahatleriniz."
         },
         "example_1": {
-          "text": "Japonya, Mart 2026"
+          "text": "Japonya, Mart 2026",
+          "destination": {
+            "text": "Tokyo, Japonya"
+          },
+          "notes": {
+            "text": "İki haftalık tatil, tapınakları ve yemek kültürünü keşfetme"
+          }
         },
         "example_2": {
-          "text": "Barselona, Yaz 2025"
+          "text": "Barselona, Yaz 2025",
+          "destination": {
+            "text": "Barselona, İspanya"
+          },
+          "notes": {
+            "text": "Yaz tatili, plaj ve mimari"
+          }
         },
         "example_3": {
           "text": "İskoçya'da yol gezisi"
@@ -634,10 +847,16 @@
           "text": "Tercih ettiğiniz havayolları"
         },
         "example_1": {
-          "text": "Lufthansa"
+          "text": "Lufthansa",
+          "name": {
+            "text": "Lufthansa"
+          }
         },
         "example_2": {
-          "text": "Swiss"
+          "text": "Swiss",
+          "name": {
+            "text": "Singapur Havayolları"
+          }
         },
         "example_3": {
           "text": "KLM"
@@ -664,10 +883,16 @@
           "text": "En sevdiğiniz seyahat aktiviteleri ve deneyimler."
         },
         "example_1": {
-          "text": "Plajları ziyaret etmek"
+          "text": "Plajları ziyaret etmek",
+          "name": {
+            "text": "Yürüyüş"
+          }
         },
         "example_2": {
-          "text": "Müzeleri keşfetmek"
+          "text": "Müzeleri keşfetmek",
+          "name": {
+            "text": "Müze ziyaretleri"
+          }
         },
         "example_3": {
           "text": "Yürüyüş"
@@ -684,10 +909,22 @@
           "text": "İzlediğiniz filmler"
         },
         "example_1": {
-          "text": "Başlangıç"
+          "text": "Başlangıç",
+          "title": {
+            "text": "Başlangıç"
+          },
+          "notes": {
+            "text": "Rüya içinde rüyayı anlatan büyüleyici başyapıt"
+          }
         },
         "example_2": {
-          "text": "Esaretin Bedeli"
+          "text": "Esaretin Bedeli",
+          "title": {
+            "text": "Parazit"
+          },
+          "notes": {
+            "text": "Beklenmedik dönüşlerle parlak bir sosyal yorum"
+          }
         }
       },
       "watched_tv_shows": {
@@ -696,10 +933,22 @@
           "text": "İzlediğiniz veya izlediğiniz TV dizileri"
         },
         "example_1": {
-          "text": "Breaking Bad"
+          "text": "Breaking Bad",
+          "title": {
+            "text": "Breaking Bad"
+          },
+          "notes": {
+            "text": "Gelmiş geçmiş en iyi TV dizilerinden biri"
+          }
         },
         "example_2": {
-          "text": "Stranger Things"
+          "text": "Stranger Things",
+          "title": {
+            "text": "The Bear"
+          },
+          "notes": {
+            "text": "Muhteşem performanslarla yoğun bir mutfak draması"
+          }
         }
       },
       "to_watch_list": {
@@ -708,10 +957,22 @@
           "text": "İzlemek istediğiniz filmler ve TV dizileri"
         },
         "example_1": {
-          "text": "Oppenheimer"
+          "text": "Oppenheimer",
+          "title": {
+            "text": "Oppenheimer"
+          },
+          "reason": {
+            "text": "Ödüllü biyografik film"
+          }
         },
         "example_2": {
-          "text": "The Bear"
+          "text": "The Bear",
+          "title": {
+            "text": "Severance"
+          },
+          "reason": {
+            "text": "Eşsiz bir bilim kurgu iş yeri gerilimi"
+          }
         }
       }
     },
@@ -722,10 +983,16 @@
           "text": "İzlemek istediğiniz videolar"
         },
         "example_1": {
-          "text": "Teknoloji konferansı sunumu"
+          "text": "Teknoloji konferansı sunumu",
+          "name": {
+            "text": "Bilgisayarlar nasıl çalışır"
+          }
         },
         "example_2": {
-          "text": "Yemek yapma eğitimi"
+          "text": "Yemek yapma eğitimi",
+          "name": {
+            "text": "İleri düzey TypeScript"
+          }
         },
         "example_3": {
           "text": "Seyahat vlogu"
@@ -784,10 +1051,16 @@
           "text": "Daha sonra okumak için kaydedilen siteler"
         },
         "example_1": {
-          "text": "İlginç yapay zeka araştırma makalesi"
+          "text": "İlginç yapay zeka araştırma makalesi",
+          "notes": {
+            "text": "Yapay zeka hakkında ilginç makale"
+          }
         },
         "example_2": {
-          "text": "Tasarım kalıpları makalesi"
+          "text": "Tasarım kalıpları makalesi",
+          "notes": {
+            "text": "Web geliştirme öğreticisi"
+          }
         },
         "example_3": {
           "text": "Teknoloji blog yazısı"
@@ -1279,9 +1552,9 @@
     },
     "shopping": {
       "search_products": {
-        "text": "Ürün ara",
+        "text": "Ara",
         "description": {
-          "text": "Süpermarketlerde ürün arayın ve karşılaştırın."
+          "text": "Online mağazalarda ve online süpermarketlerde ürün arayın."
         },
         "how_to_use": {
           "1": {
@@ -2234,11 +2507,17 @@
       "settings": {
         "text": "Ayarlar"
       },
+      "my_embeds": {
+        "text": "Benim embedlerim"
+      },
       "indexing": {
         "text": "Arama dizini oluşturuluyor..."
       },
       "apps": {
         "text": "Uygulamalar ve beceriler"
+      },
+      "apps_only": {
+        "text": "Uygulamalar"
       },
       "app_app": {
         "text": "Uygulama"
@@ -2251,6 +2530,12 @@
       },
       "app_memory": {
         "text": "Bellek"
+      },
+      "focus_mode_status_activated": {
+        "text": "Etkin"
+      },
+      "focus_mode_status_deactivated": {
+        "text": "Devre dışı"
       },
       "go_to_message": {
         "text": "Mesaja git"
@@ -3105,7 +3390,7 @@
         "text": "Ürün bulunamadı."
       },
       "search_products": {
-        "text": "Ürün ara"
+        "text": "Ara"
       }
     },
     "math": {
@@ -4694,7 +4979,7 @@
           "text": "Matelerinize şöyle bir şey sorun:"
         },
         "how_to_use_mention": {
-          "text": "Veya beceriyi açıkça tetiklemek için mesajınızda @{skillname}\nifadesini kullanın."
+          "text": "Veya beceriyi açıkça tetiklemek için mesajınızda {skillname}\nifadesini kullanın."
         },
         "description": {
           "text": "Açıklama"
@@ -4878,6 +5163,9 @@
       "back_to_app": {
         "text": "Uygulamaya dön"
       },
+      "settings_memories_entry": {
+        "text": "Ayarlar ve anılar girişi"
+      },
       "app_not_found": {
         "text": "Uygulama bulunamadı."
       },
@@ -4950,8 +5238,8 @@
                 }
               },
               "gpt_5": {
-                "2": {
-                  "text": "GPT-5.2"
+                "4": {
+                  "text": "GPT-5.4"
                 }
               },
               "gpt_oss_120b": {
@@ -7026,7 +7314,16 @@
       "text": "Şifreler eşleşmiyor"
     },
     "password_too_short": {
-      "text": "En az 8 karakter"
+      "text": "En az 12 karakter"
+    },
+    "password_too_common": {
+      "text": "Bu parola çok yaygın. Lütfen daha güçlü bir parola seçin."
+    },
+    "password_needs_lowercase": {
+      "text": "En az bir küçük harf"
+    },
+    "password_needs_uppercase": {
+      "text": "En az bir büyük harf"
     },
     "password_too_long": {
       "text": "60 karakterden az"

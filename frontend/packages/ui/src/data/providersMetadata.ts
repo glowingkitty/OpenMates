@@ -7,8 +7,8 @@
 //
 // To modify provider metadata, edit the source YAML files.
 //
-// **Generated**: 2026-03-02T08:59:27.653Z
-// **Providers included**: 16
+// **Generated**: 2026-03-06T08:05:09.166Z
+// **Providers included**: 18
 
 /**
  * Provider metadata for the provider detail pages in the App Store settings.
@@ -37,6 +37,13 @@ export const providersMetadata: Record<string, ProviderMetadata> = {
         description: "Alibaba Cloud AI - Qwen models",
         logo_svg: "icons/alibaba.svg",
         country: "CN",
+    },
+    "amazon": {
+        id: "amazon",
+        name: "Amazon",
+        description: "Amazon marketplace product search for products across multiple countries and categories.",
+        logo_svg: "icons/amazon.svg",
+        country: "US",
     },
     "anthropic": {
         id: "anthropic",
@@ -129,10 +136,17 @@ export const providersMetadata: Record<string, ProviderMetadata> = {
         logo_svg: "icons/recraft.svg",
         country: "US",
     },
+    "rewe": {
+        id: "rewe",
+        name: "REWE",
+        description: "REWE German online supermarket with live grocery prices and product availability.",
+        logo_svg: "icons/rewe.svg",
+        country: "EU",
+    },
     "youtube": {
         id: "youtube",
         name: "YouTube",
-        description: "YouTube video transcript extraction via proxy service.",
+        description: "YouTube video transcript extraction.",
         logo_svg: "icons/youtube.svg",
         country: "US",
     },

@@ -50,6 +50,7 @@ skills:
         credits: 10
     providers:
       - REWE
+      - Amazon
     exclude_fields_for_llm:
       - type
       - product_id

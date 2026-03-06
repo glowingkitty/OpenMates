@@ -336,10 +336,16 @@
           "text": "Cách bạn muốn AI giao tiếp"
         },
         "example_1": {
-          "text": "Chuyên nghiệp và ngắn gọn"
+          "text": "Chuyên nghiệp và ngắn gọn",
+          "title": {
+            "text": "Chuyên gia kỹ thuật"
+          }
         },
         "example_2": {
-          "text": "Thoải mái và thân thiện"
+          "text": "Thoải mái và thân thiện",
+          "title": {
+            "text": "Trợ lý thân thiện"
+          }
         }
       },
       "learning_preferences": {
@@ -348,10 +354,22 @@
           "text": "Cách bạn muốn học và tiếp nhận thông tin"
         },
         "example_1": {
-          "text": "Học qua hình ảnh"
+          "text": "Học qua hình ảnh",
+          "title": {
+            "text": "Học qua hình ảnh"
+          },
+          "notes": {
+            "text": "Thích sơ đồ, biểu đồ và giải thích trực quan"
+          }
         },
         "example_2": {
-          "text": "Thực hành thực tế"
+          "text": "Thực hành thực tế",
+          "title": {
+            "text": "Thực hành trực tiếp"
+          },
+          "notes": {
+            "text": "Học tốt nhất bằng cách thử nghiệm với các ví dụ mã"
+          }
         }
       },
       "interaction_preferences": {
@@ -368,10 +386,28 @@
           "text": "Sách bạn yêu thích và muốn giới thiệu."
         },
         "example_1": {
-          "text": "1984"
+          "text": "1984",
+          "title": {
+            "text": "Gatsby vĩ đại"
+          },
+          "genre": {
+            "text": "Tiểu thuyết kinh điển"
+          },
+          "notes": {
+            "text": "Văn xuôi đẹp về Giấc mơ Mỹ"
+          }
         },
         "example_2": {
-          "text": "Sapiens"
+          "text": "Sapiens",
+          "title": {
+            "text": "Sapiens"
+          },
+          "genre": {
+            "text": "Phi hư cấu"
+          },
+          "notes": {
+            "text": "Tổng quan hấp dẫn về lịch sử loài người"
+          }
         },
         "example_3": {
           "text": "Xứ cát"
@@ -383,10 +419,22 @@
           "text": "Sách bạn đang đọc hiện tại."
         },
         "example_1": {
-          "text": "Dự án Hail Mary"
+          "text": "Dự án Hail Mary",
+          "title": {
+            "text": "Dự án Hail Mary"
+          },
+          "notes": {
+            "text": "Cuộc phiêu lưu khoa học viễn tưởng tuyệt vời"
+          }
         },
         "example_2": {
-          "text": "Thói quen nguyên tử"
+          "text": "Thói quen nguyên tử",
+          "title": {
+            "text": "Thói quen nguyên tử"
+          },
+          "notes": {
+            "text": "Chiến lược thực tế để xây dựng thói quen tốt"
+          }
         }
       },
       "to_read_list": {
@@ -395,10 +443,28 @@
           "text": "Sách bạn muốn đọc tiếp."
         },
         "example_1": {
-          "text": "Tam thể"
+          "text": "Tam thể",
+          "title": {
+            "text": "Xứ cát"
+          },
+          "genre": {
+            "text": "Khoa học viễn tưởng"
+          },
+          "notes": {
+            "text": "Khoa học viễn tưởng kinh điển, bạn bè giới thiệu"
+          }
         },
         "example_2": {
-          "text": "Tư duy nhanh và chậm"
+          "text": "Tư duy nhanh và chậm",
+          "title": {
+            "text": "Tư duy nhanh và chậm"
+          },
+          "genre": {
+            "text": "Tâm lý học"
+          },
+          "notes": {
+            "text": "Muốn hiểu về thiên kiến nhận thức"
+          }
         },
         "example_3": {
           "text": "Làm việc sâu"
@@ -412,10 +478,16 @@
           "text": "Ngôn ngữ và framework bạn thích."
         },
         "example_1": {
-          "text": "Python"
+          "text": "Python",
+          "name": {
+            "text": "Python"
+          }
         },
         "example_2": {
-          "text": "TypeScript"
+          "text": "TypeScript",
+          "name": {
+            "text": "TypeScript"
+          }
         },
         "example_3": {
           "text": "Svelte"
@@ -427,10 +499,22 @@
           "text": "Dự án của bạn (hoạt động, kế hoạch, hoàn thành)"
         },
         "example_1": {
-          "text": "Trang web cá nhân"
+          "text": "Trang web cá nhân",
+          "name": {
+            "text": "Trang web cá nhân"
+          },
+          "description": {
+            "text": "Trang web danh mục đầu tư được xây dựng bằng SvelteKit"
+          }
         },
         "example_2": {
-          "text": "Ứng dụng di động"
+          "text": "Ứng dụng di động",
+          "name": {
+            "text": "Ứng dụng thời tiết"
+          },
+          "description": {
+            "text": "Ứng dụng dự báo thời tiết sử dụng React và OpenWeather API"
+          }
         },
         "example_3": {
           "text": "Backend API"
@@ -442,10 +526,16 @@
           "text": "Các công nghệ và kỹ năng bạn muốn học"
         },
         "example_1": {
-          "text": "Rust"
+          "text": "Rust",
+          "name": {
+            "text": "Rust"
+          }
         },
         "example_2": {
-          "text": "Học máy"
+          "text": "Học máy",
+          "name": {
+            "text": "Học máy"
+          }
         },
         "example_3": {
           "text": "Kubernetes"
@@ -459,10 +549,22 @@
           "text": "Phong cách viết ưa thích của bạn cho tài liệu."
         },
         "example_1": {
-          "text": "Kinh doanh trang trọng"
+          "text": "Kinh doanh trang trọng",
+          "name": {
+            "text": "Tài liệu kỹ thuật"
+          },
+          "description": {
+            "text": "Viết rõ ràng, có cấu trúc cho tài liệu lập trình viên và tham chiếu API"
+          }
         },
         "example_2": {
-          "text": "Học thuật"
+          "text": "Học thuật",
+          "name": {
+            "text": "Bài viết blog"
+          },
+          "description": {
+            "text": "Giọng văn hấp dẫn, mang tính trò chuyện cho bài viết blog"
+          }
         },
         "example_3": {
           "text": "Blog thường ngày"
@@ -476,10 +578,22 @@
           "text": "Các cuộc hẹn và thăm khám y tế của bạn."
         },
         "example_1": {
-          "text": "Nha sĩ Dr. Mueller"
+          "text": "Nha sĩ Dr. Mueller",
+          "where": {
+            "text": "Bệnh viện Thành phố"
+          },
+          "notes": {
+            "text": "Khám sức khỏe định kỳ hàng năm"
+          }
         },
         "example_2": {
-          "text": "Kiểm tra mắt"
+          "text": "Kiểm tra mắt",
+          "where": {
+            "text": "Nha khoa Trung tâm"
+          },
+          "notes": {
+            "text": "Lấy cao răng"
+          }
         }
       },
       "medical_history": {
@@ -488,10 +602,22 @@
           "text": "Phẫu thuật, tình trạng và dị ứng trong quá khứ."
         },
         "example_1": {
-          "text": "Dị ứng penicillin"
+          "text": "Dị ứng penicillin",
+          "name": {
+            "text": "Dị ứng đậu phộng"
+          },
+          "details": {
+            "text": "Phản ứng dị ứng nghiêm trọng, mang theo EpiPen"
+          }
         },
         "example_2": {
-          "text": "Phẫu thuật đầu gối 2023"
+          "text": "Phẫu thuật đầu gối 2023",
+          "name": {
+            "text": "Vắc-xin COVID-19"
+          },
+          "details": {
+            "text": "Mũi tăng cường Pfizer"
+          }
         }
       },
       "symptoms_log": {
@@ -514,10 +640,22 @@
           "text": "Phong cách ưa thích của bạn cho hình ảnh được tạo"
         },
         "example_1": {
-          "text": "Màu nước"
+          "text": "Màu nước",
+          "name": {
+            "text": "Tối giản"
+          },
+          "description": {
+            "text": "Đường nét gọn gàng, bố cục đơn giản, bảng màu nhẹ nhàng"
+          }
         },
         "example_2": {
-          "text": "Tối giản"
+          "text": "Tối giản",
+          "name": {
+            "text": "Nhiếp ảnh rực rỡ"
+          },
+          "description": {
+            "text": "Màu sắc tươi sáng, tương phản cao, bố cục năng động"
+          }
         },
         "example_3": {
           "text": "Cyberpunk"
@@ -531,10 +669,31 @@
           "text": "Cách bạn viết email trong các ngữ cảnh khác nhau."
         },
         "example_1": {
-          "text": "Thương mại trang trọng"
+          "text": "Thương mại trang trọng",
+          "title": {
+            "text": "Chuyên nghiệp"
+          },
+          "description": {
+            "text": "Giọng văn trang trọng cho email công việc"
+          },
+          "when_to_use": {
+            "text": "Email công việc và giao tiếp với khách hàng"
+          },
+          "footer": {
+            "text": "Trân trọng,"
+          }
         },
         "example_2": {
-          "text": "Nhóm thoải mái"
+          "text": "Nhóm thoải mái",
+          "title": {
+            "text": "Thoải mái"
+          },
+          "description": {
+            "text": "Giọng văn thoải mái và thân thiện cho email cá nhân"
+          },
+          "when_to_use": {
+            "text": "Bạn bè và gia đình"
+          }
         },
         "example_3": {
           "text": "Theo dõi và nhắc nhở"
@@ -548,10 +707,22 @@
           "text": "Các địa điểm yêu thích đã lưu của bạn."
         },
         "example_1": {
-          "text": "Nhà"
+          "text": "Nhà",
+          "name": {
+            "text": "Công viên Trung tâm"
+          },
+          "address": {
+            "text": "New York, NY 10024"
+          }
         },
         "example_2": {
-          "text": "Văn phòng"
+          "text": "Văn phòng",
+          "name": {
+            "text": "Tháp Eiffel"
+          },
+          "address": {
+            "text": "Champ de Mars, 75007 Paris"
+          }
         },
         "example_3": {
           "text": "Quán cà phê yêu thích"
@@ -565,10 +736,28 @@
           "text": "Bộ sưu tập cây trồng với lịch chăm sóc"
         },
         "example_1": {
-          "text": "Trầu bà lá xẻ"
+          "text": "Trầu bà lá xẻ",
+          "name": {
+            "text": "Trầu bà lá xẻ"
+          },
+          "location": {
+            "text": "Phòng khách"
+          },
+          "notes": {
+            "text": "Cần ánh sáng gián tiếp, lau lá hàng tháng"
+          }
         },
         "example_2": {
-          "text": "Cây lưỡi hổ"
+          "text": "Cây lưỡi hổ",
+          "name": {
+            "text": "Húng quế"
+          },
+          "location": {
+            "text": "Cửa sổ bếp"
+          },
+          "notes": {
+            "text": "Thu hoạch thường xuyên để thúc đẩy phát triển"
+          }
         }
       }
     },
@@ -593,10 +782,22 @@
           "text": "Mục tiêu học tập và chủ đề muốn thành thạo"
         },
         "example_1": {
-          "text": "Tiếng Tây Ban Nha B2"
+          "text": "Tiếng Tây Ban Nha B2",
+          "topic": {
+            "text": "Khoa học dữ liệu"
+          },
+          "notes": {
+            "text": "Tập trung vào Python pandas và trực quan hóa dữ liệu"
+          }
         },
         "example_2": {
-          "text": "Cơ bản về Khoa học dữ liệu"
+          "text": "Cơ bản về Khoa học dữ liệu",
+          "topic": {
+            "text": "Tiếng Tây Ban Nha"
+          },
+          "notes": {
+            "text": "Hướng tới trình độ giao tiếp trước mùa hè"
+          }
         }
       },
       "education_history": {
@@ -619,10 +820,22 @@
           "text": "Các chuyến đi đã lên kế hoạch và đã qua."
         },
         "example_1": {
-          "text": "Nhật Bản, tháng 3 năm 2026"
+          "text": "Nhật Bản, tháng 3 năm 2026",
+          "destination": {
+            "text": "Tokyo, Nhật Bản"
+          },
+          "notes": {
+            "text": "Kỳ nghỉ hai tuần khám phá đền chùa và ẩm thực"
+          }
         },
         "example_2": {
-          "text": "Barcelona, Hè 2025"
+          "text": "Barcelona, Hè 2025",
+          "destination": {
+            "text": "Barcelona, Tây Ban Nha"
+          },
+          "notes": {
+            "text": "Kỳ nghỉ hè, biển và kiến trúc"
+          }
         },
         "example_3": {
           "text": "Chuyến đi đường xuyên Scotland"
@@ -634,10 +847,16 @@
           "text": "Các hãng hàng không yêu thích"
         },
         "example_1": {
-          "text": "Lufthansa"
+          "text": "Lufthansa",
+          "name": {
+            "text": "Lufthansa"
+          }
         },
         "example_2": {
-          "text": "Swiss"
+          "text": "Swiss",
+          "name": {
+            "text": "Singapore Airlines"
+          }
         },
         "example_3": {
           "text": "KLM"
@@ -664,10 +883,16 @@
           "text": "Hoạt động và trải nghiệm du lịch yêu thích của bạn."
         },
         "example_1": {
-          "text": "Đi biển"
+          "text": "Đi biển",
+          "name": {
+            "text": "Đi bộ đường dài"
+          }
         },
         "example_2": {
-          "text": "Tham quan bảo tàng"
+          "text": "Tham quan bảo tàng",
+          "name": {
+            "text": "Tham quan bảo tàng"
+          }
         },
         "example_3": {
           "text": "Đi bộ đường dài"
@@ -684,10 +909,22 @@
           "text": "Phim bạn đã xem"
         },
         "example_1": {
-          "text": "Kẻ đánh cắp giấc mơ"
+          "text": "Kẻ đánh cắp giấc mơ",
+          "title": {
+            "text": "Kẻ đánh cắp giấc mơ"
+          },
+          "notes": {
+            "text": "Kiệt tác đảo lộn tư duy về giấc mơ trong giấc mơ"
+          }
         },
         "example_2": {
-          "text": "Nhà tù Shawshank"
+          "text": "Nhà tù Shawshank",
+          "title": {
+            "text": "Ký sinh trùng"
+          },
+          "notes": {
+            "text": "Bình luận xã hội xuất sắc với những bước ngoặt bất ngờ"
+          }
         }
       },
       "watched_tv_shows": {
@@ -696,10 +933,22 @@
           "text": "Chương trình TV bạn đã xem hoặc đang xem"
         },
         "example_1": {
-          "text": "Tập làm người xấu"
+          "text": "Tập làm người xấu",
+          "title": {
+            "text": "Tập làm người xấu"
+          },
+          "notes": {
+            "text": "Một trong những bộ phim truyền hình vĩ đại nhất từng được sản xuất"
+          }
         },
         "example_2": {
-          "text": "Cậu bé mất tích"
+          "text": "Cậu bé mất tích",
+          "title": {
+            "text": "The Bear"
+          },
+          "notes": {
+            "text": "Phim chính kịch nhà bếp gay cấn với diễn xuất tuyệt vời"
+          }
         }
       },
       "to_watch_list": {
@@ -708,10 +957,22 @@
           "text": "Phim và chương trình TV bạn muốn xem"
         },
         "example_1": {
-          "text": "Oppenheimer"
+          "text": "Oppenheimer",
+          "title": {
+            "text": "Oppenheimer"
+          },
+          "reason": {
+            "text": "Phim tiểu sử đoạt giải thưởng"
+          }
         },
         "example_2": {
-          "text": "The Bear"
+          "text": "The Bear",
+          "title": {
+            "text": "Severance"
+          },
+          "reason": {
+            "text": "Phim giật gân nơi công sở khoa học viễn tưởng độc đáo"
+          }
         }
       }
     },
@@ -722,10 +983,16 @@
           "text": "Video bạn muốn xem"
         },
         "example_1": {
-          "text": "Bài phát biểu hội nghị công nghệ"
+          "text": "Bài phát biểu hội nghị công nghệ",
+          "name": {
+            "text": "Máy tính hoạt động như thế nào"
+          }
         },
         "example_2": {
-          "text": "Hướng dẫn nấu ăn"
+          "text": "Hướng dẫn nấu ăn",
+          "name": {
+            "text": "TypeScript nâng cao"
+          }
         },
         "example_3": {
           "text": "Vlog du lịch"
@@ -784,10 +1051,16 @@
           "text": "Các trang web và bài viết đã lưu"
         },
         "example_1": {
-          "text": "Bài nghiên cứu AI thú vị"
+          "text": "Bài nghiên cứu AI thú vị",
+          "notes": {
+            "text": "Bài viết thú vị về AI"
+          }
         },
         "example_2": {
-          "text": "Bài viết về mẫu thiết kế"
+          "text": "Bài viết về mẫu thiết kế",
+          "notes": {
+            "text": "Hướng dẫn phát triển web"
+          }
         },
         "example_3": {
           "text": "Bài viết blog công nghệ"
@@ -1279,9 +1552,9 @@
     },
     "shopping": {
       "search_products": {
-        "text": "Tìm kiếm sản phẩm",
+        "text": "Tìm kiếm",
         "description": {
-          "text": "Tìm kiếm và so sánh sản phẩm tại siêu thị."
+          "text": "Tìm kiếm sản phẩm trong các cửa hàng trực tuyến và siêu thị trực tuyến."
         },
         "how_to_use": {
           "1": {
@@ -2234,11 +2507,17 @@
       "settings": {
         "text": "Cài đặt"
       },
+      "my_embeds": {
+        "text": "Embed của tôi"
+      },
       "indexing": {
         "text": "Đang xây dựng chỉ mục tìm kiếm..."
       },
       "apps": {
         "text": "Ứng dụng và kỹ năng"
+      },
+      "apps_only": {
+        "text": "Ứng dụng"
       },
       "app_app": {
         "text": "Ứng dụng"
@@ -2251,6 +2530,12 @@
       },
       "app_memory": {
         "text": "Bộ nhớ"
+      },
+      "focus_mode_status_activated": {
+        "text": "Đã kích hoạt"
+      },
+      "focus_mode_status_deactivated": {
+        "text": "Đã tắt"
       },
       "go_to_message": {
         "text": "Đi đến tin nhắn"
@@ -3105,7 +3390,7 @@
         "text": "Không tìm thấy sản phẩm."
       },
       "search_products": {
-        "text": "Tìm kiếm sản phẩm"
+        "text": "Tìm kiếm"
       }
     },
     "math": {
@@ -4694,7 +4979,7 @@
           "text": "Chỉ cần hỏi bạn đồng hành của bạn điều gì đó như:"
         },
         "how_to_use_mention": {
-          "text": "Hoặc đề cập @{skillname}\ntrong tin nhắn của bạn để kích hoạt kỹ năng một cách rõ ràng."
+          "text": "Hoặc đề cập {skillname}\ntrong tin nhắn của bạn để kích hoạt kỹ năng một cách rõ ràng."
         },
         "description": {
           "text": "Mô tả"
@@ -4878,6 +5163,9 @@
       "back_to_app": {
         "text": "Quay lại ứng dụng"
       },
+      "settings_memories_entry": {
+        "text": "Mục cài đặt và ký ức"
+      },
       "app_not_found": {
         "text": "Không tìm thấy ứng dụng."
       },
@@ -4950,8 +5238,8 @@
                 }
               },
               "gpt_5": {
-                "2": {
-                  "text": "GPT-5.2"
+                "4": {
+                  "text": "GPT-5.4"
                 }
               },
               "gpt_oss_120b": {
@@ -7026,7 +7314,16 @@
       "text": "Mật khẩu không khớp"
     },
     "password_too_short": {
-      "text": "Tối thiểu 8 ký tự"
+      "text": "Tối thiểu 12 ký tự"
+    },
+    "password_too_common": {
+      "text": "Mật khẩu này quá phổ biến. Vui lòng chọn mật khẩu mạnh hơn."
+    },
+    "password_needs_lowercase": {
+      "text": "Ít nhất một chữ thường"
+    },
+    "password_needs_uppercase": {
+      "text": "Ít nhất một chữ hoa"
     },
     "password_too_long": {
       "text": "Ít hơn 60 ký tự"
