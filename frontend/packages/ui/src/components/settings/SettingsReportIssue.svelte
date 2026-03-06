@@ -272,7 +272,7 @@
             
             // Generate the inspection report (same format as window.inspectChat)
             // This only returns metadata - no plaintext content is included
-            const report = await inspectChat(activeChatId);
+            const report = await inspectChat(activeChatId, { verbose: true });
             
             console.debug('[SettingsReportIssue] Generated IndexedDB inspection report:', report.length, 'chars');
             return report;

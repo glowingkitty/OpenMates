@@ -1127,27 +1127,198 @@ function logFailedEmbedDecryptionBanner(attempts: EmbedDecodeAttempt[]): void {
  * @param options.download - If true, downloads report as a text file (default: false)
  * @returns The formatted report string
  */
+
+// ============================================================================
+// CHAT FIELD DECRYPTION FOR DEBUG REPORTS
+// ============================================================================
+
+/** Result of attempting to decrypt a single encrypted field */
+type FieldDecryptResult = {
+  field: string;
+  success: boolean;
+  /** First 40 chars of decrypted value (or error message) */
+  preview: string;
+};
+
+/** Overall decryption report for a chat */
+type ChatDecryptionReport = {
+  chatKeyAvailable: boolean;
+  chatKeyFingerprint: string;
+  chatKeySource: "cache" | "unwrapped" | "none";
+  metadataFields: FieldDecryptResult[];
+  messageFields: { messageIndex: number; role: string; success: boolean; error?: string }[];
+};
+
+/**
+ * Attempt to decrypt all encrypted fields on a chat for debug inspection.
+ * Returns a structured report of what succeeded and what failed.
+ */
+async function attemptChatDecryption(
+  chatId: string,
+  chatMeta: Record<string, unknown> | undefined,
+  messages: Record<string, unknown>[],
+): Promise<ChatDecryptionReport> {
+  const report: ChatDecryptionReport = {
+    chatKeyAvailable: false,
+    chatKeyFingerprint: "N/A",
+    chatKeySource: "none",
+    metadataFields: [],
+    messageFields: [],
+  };
+
+  if (!chatMeta) return report;
+
+  // Step 1: Obtain the chat key
+  let chatKey: Uint8Array | null = null;
+  try {
+    const { chatDB } = await import("./db");
+    chatKey = chatDB.getChatKey(chatId);
+    if (chatKey) {
+      report.chatKeySource = "cache";
+    }
+  } catch {
+    // chatDB not available
+  }
+
+  // If not in cache, try to unwrap from encrypted_chat_key
+  if (!chatKey && chatMeta.encrypted_chat_key) {
+    try {
+      const { decryptChatKeyWithMasterKey } = await import("./cryptoService");
+      chatKey = await decryptChatKeyWithMasterKey(
+        chatMeta.encrypted_chat_key as string,
+      );
+      if (chatKey) {
+        report.chatKeySource = "unwrapped";
+      }
+    } catch {
+      // Master key not available
+    }
+  }
+
+  if (!chatKey) {
+    report.chatKeyAvailable = false;
+    report.chatKeyFingerprint = "N/A (no key available)";
+    return report;
+  }
+
+  report.chatKeyAvailable = true;
+  // Show first 8 bytes of chat key as hex fingerprint (16 hex chars)
+  const keyHex = Array.from(chatKey.slice(0, 8))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  report.chatKeyFingerprint = `${keyHex}... (${chatKey.length} bytes, source: ${report.chatKeySource})`;
+
+  // Step 2: Try decrypting each chat metadata field
+  const { decryptWithChatKey } = await import("./cryptoService");
+
+  const encryptedMetadataFields: Array<{ field: string; key: string }> = [
+    { field: "Title", key: "encrypted_title" },
+    { field: "Category", key: "encrypted_category" },
+    { field: "Icon", key: "encrypted_icon" },
+    { field: "Summary", key: "encrypted_chat_summary" },
+    { field: "Tags", key: "encrypted_chat_tags" },
+    { field: "Draft", key: "encrypted_draft_md" },
+    { field: "Follow-up Suggestions", key: "encrypted_follow_up_request_suggestions" },
+    { field: "Active Focus ID", key: "encrypted_active_focus_id" },
+  ];
+
+  for (const { field, key } of encryptedMetadataFields) {
+    const encryptedValue = chatMeta[key] as string | undefined;
+    if (!encryptedValue) {
+      // Field not present — not an error, just absent
+      continue;
+    }
+
+    try {
+      const decrypted = await decryptWithChatKey(encryptedValue, chatKey, {
+        chatId,
+        fieldName: field,
+      });
+      if (decrypted !== null) {
+        const preview =
+          decrypted.length > 40
+            ? decrypted.substring(0, 40) + "..."
+            : decrypted;
+        report.metadataFields.push({ field, success: true, preview });
+      } else {
+        report.metadataFields.push({
+          field,
+          success: false,
+          preview: "decryption returned null",
+        });
+      }
+    } catch (error) {
+      report.metadataFields.push({
+        field,
+        success: false,
+        preview: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  // Step 3: Try decrypting message content
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
+    const role = (msg.role as string) || "unknown";
+    const encryptedContent = msg.encrypted_content as string | undefined;
+
+    if (!encryptedContent) {
+      // Message has plaintext content or no content at all
+      if (msg.content) {
+        report.messageFields.push({ messageIndex: i + 1, role, success: true });
+      }
+      continue;
+    }
+
+    try {
+      const decrypted = await decryptWithChatKey(encryptedContent, chatKey, {
+        chatId,
+        fieldName: `message[${i}].content`,
+      });
+      report.messageFields.push({
+        messageIndex: i + 1,
+        role,
+        success: decrypted !== null,
+        error: decrypted === null ? "decryption returned null" : undefined,
+      });
+    } catch (error) {
+      report.messageFields.push({
+        messageIndex: i + 1,
+        role,
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return report;
+}
+
+/**
+ * Inspect a chat and generate a formatted text report.
+ *
+ * By default, healthy chats show a concise summary. Unhealthy chats show full details.
+ * Use { verbose: true } to always show the full report.
+ *
+ * Usage in console:
+ *   await window.debug.chat('chat-id')                         — concise if healthy
+ *   await window.debug.chat('chat-id', { verbose: true })      — always full report
+ *   await window.debug.chat('chat-id', { download: true })     — download as .txt (always verbose)
+ *
+ * @param chatId - The chat ID to inspect
+ * @param options - Optional configuration
+ * @param options.download - If true, downloads report as a text file (default: false)
+ * @param options.verbose - If true, always shows full report (default: false)
+ * @returns The formatted report string
+ */
 export async function inspectChat(
   chatId: string,
-  options: { download?: boolean } = {},
+  options: { download?: boolean; verbose?: boolean } = {},
 ): Promise<string> {
+  const forceVerbose = options.verbose || options.download || false;
   const db = await openDB();
-  const lines: string[] = [];
-  const separator = "=".repeat(100);
-  const thinSeparator = "-".repeat(100);
 
-  // Header
-  lines.push("");
-  lines.push(separator);
-  lines.push("CLIENT CHAT INSPECTION REPORT (IndexedDB)");
-  lines.push(separator);
-  lines.push(`Chat ID: ${chatId}`);
-  lines.push(`Generated at: ${new Date().toISOString()}`);
-  lines.push(`Database: ${db.name} v${db.version}`);
-  lines.push(`Object stores: ${Array.from(db.objectStoreNames).join(", ")}`);
-  lines.push(separator);
-
-  // Get chat metadata
+  // ---- Gather all data ----
   const chatMeta = await getFromStore<Record<string, unknown>>(
     db,
     CHATS_STORE,
@@ -1189,6 +1360,18 @@ export async function inspectChat(
     embedKeyDebugByHashedEmbedId,
   );
 
+  db.close();
+
+  // ---- Attempt decryption of chat fields and messages ----
+  messages.sort((a, b) => (a.created_at as number) - (b.created_at as number));
+  const decryptionReport = await attemptChatDecryption(chatId, chatMeta, messages);
+
+  // ---- Build health summary (now includes decryption results) ----
+  const metaDecryptFailed = decryptionReport.metadataFields.filter((f) => !f.success).length;
+  const metaDecryptTotal = decryptionReport.metadataFields.length;
+  const msgDecryptFailed = decryptionReport.messageFields.filter((f) => !f.success).length;
+  const msgDecryptTotal = decryptionReport.messageFields.length;
+
   const healthSummary = buildClientChatHealthSummary({
     chatMeta,
     messages,
@@ -1199,29 +1382,131 @@ export async function inspectChat(
       failedCount: embedDecodeHealth.failedCount,
     },
   });
+
+  // Add decryption failures to health issues
+  if (!decryptionReport.chatKeyAvailable && chatMeta?.encrypted_chat_key) {
+    healthSummary.issues.push("chat key could not be obtained (master key unavailable or decryption failed)");
+    healthSummary.isHealthy = false;
+  }
+  if (metaDecryptFailed > 0) {
+    healthSummary.issues.push(
+      `${metaDecryptFailed}/${metaDecryptTotal} chat metadata fields failed to decrypt`,
+    );
+    healthSummary.isHealthy = false;
+  }
+  if (msgDecryptFailed > 0) {
+    healthSummary.issues.push(
+      `${msgDecryptFailed}/${msgDecryptTotal} messages failed to decrypt`,
+    );
+    healthSummary.isHealthy = false;
+  }
+
+  // ---- Build report ----
+  const lines: string[] = [];
+  const separator = "=".repeat(100);
+  const thinSeparator = "-".repeat(100);
+
+  // Always: Header + Health Check + Decryption Overview
+  lines.push("");
+  lines.push(separator);
+  lines.push("CLIENT CHAT INSPECTION REPORT (IndexedDB)");
+  lines.push(separator);
+  lines.push(`Chat ID: ${chatId}`);
+  lines.push(`Generated at: ${new Date().toISOString()}`);
+  lines.push(separator);
+
+  // Health check section
   appendHealthCheckSection(
     lines,
     healthSummary,
     `messages=${messages.length} embeds=${chatEmbeds.length} embed_keys=${chatEmbedKeys.length}`,
   );
-  const failedDecodeAttempts = embedDecodeHealth.attempts.filter(
-    (attempt) => !attempt.decoded,
-  );
-  if (failedDecodeAttempts.length > 0) {
+
+  // Decryption overview section (always shown)
+  lines.push("");
+  lines.push(thinSeparator);
+  lines.push("DECRYPTION STATUS");
+  lines.push(thinSeparator);
+  lines.push(`  Chat Key:      ${decryptionReport.chatKeyAvailable ? "✓ available" : "✗ NOT available"}`);
+  lines.push(`  Key Fingerprint: ${decryptionReport.chatKeyFingerprint}`);
+
+  if (decryptionReport.metadataFields.length > 0) {
     lines.push("");
-    lines.push("🔴 EMBED DECRYPTION FAILURES");
-    for (const failed of failedDecodeAttempts) {
-      lines.push(`  - Embed ID: ${failed.embedId}`);
-      lines.push(`    Error: ${failed.error || "unknown"}`);
-      if (failed.keyDebug) {
-        lines.push(
-          `    Key info: total=${failed.keyDebug.total} types=${JSON.stringify(failed.keyDebug.keyTypes)} encrypted_key_len=${failed.keyDebug.minEncryptedKeyLength}-${failed.keyDebug.maxEncryptedKeyLength}`,
-        );
-      } else {
-        lines.push("    Key info: no matching embed_keys found for this embed");
+    lines.push("  Chat Metadata Fields:");
+    for (const f of decryptionReport.metadataFields) {
+      const icon = f.success ? "✓" : "✗";
+      const detail = f.success ? `"${f.preview}"` : `FAILED: ${f.preview}`;
+      lines.push(`    ${icon} ${f.field}: ${detail}`);
+    }
+  } else if (chatMeta?.encrypted_chat_key) {
+    lines.push("  Chat Metadata Fields: none present or key unavailable");
+  }
+
+  if (decryptionReport.messageFields.length > 0) {
+    const successCount = decryptionReport.messageFields.filter((m) => m.success).length;
+    const failCount = decryptionReport.messageFields.filter((m) => !m.success).length;
+    lines.push("");
+    lines.push(`  Messages: ${successCount}/${decryptionReport.messageFields.length} decrypted OK`);
+    if (failCount > 0) {
+      for (const m of decryptionReport.messageFields.filter((m) => !m.success)) {
+        lines.push(`    ✗ Message #${m.messageIndex} (${m.role}): ${m.error || "unknown error"}`);
       }
     }
   }
+
+  // Embed decryption summary
+  if (embedDecodeHealth.checkedCount > 0) {
+    lines.push("");
+    lines.push(
+      `  Embeds: ${embedDecodeHealth.decodedCount}/${embedDecodeHealth.checkedCount} decoded OK`,
+    );
+    const failedDecodeAttempts = embedDecodeHealth.attempts.filter((a) => !a.decoded);
+    if (failedDecodeAttempts.length > 0) {
+      for (const failed of failedDecodeAttempts) {
+        lines.push(`    ✗ Embed ${truncate(failed.embedId, 20)}: ${failed.error || "unknown"}`);
+      }
+    }
+  }
+
+  // If healthy and not verbose: stop here with a concise report
+  if (healthSummary.isHealthy && !forceVerbose) {
+    lines.push("");
+    lines.push(thinSeparator);
+    lines.push("VERIFIED CHECKS");
+    lines.push(thinSeparator);
+    lines.push(`  ✅ Chat metadata present in IndexedDB`);
+    lines.push(`  ✅ All timestamps valid`);
+    lines.push(`  ✅ messages_v (${chatMeta?.messages_v ?? 0}) matches actual count (${messages.length})`);
+    lines.push(`  ✅ All ${messages.length} messages have content`);
+    if (chatEmbeds.length > 0) {
+      lines.push(`  ✅ ${chatEmbeds.length} embeds present, no errors`);
+      lines.push(`  ✅ Embed keys available (${chatEmbedKeys.length})`);
+    }
+    if (metaDecryptTotal > 0) {
+      lines.push(`  ✅ ${metaDecryptTotal} metadata fields decrypted successfully`);
+    }
+    if (msgDecryptTotal > 0) {
+      lines.push(`  ✅ ${msgDecryptTotal} messages decrypted successfully`);
+    }
+    if (embedDecodeHealth.checkedCount > 0) {
+      lines.push(`  ✅ ${embedDecodeHealth.decodedCount} embeds decoded successfully`);
+    }
+    lines.push("");
+    lines.push(`💡 Use { verbose: true } for full report details`);
+
+    lines.push("");
+    lines.push(separator);
+    lines.push("END OF CLIENT REPORT");
+    lines.push(separator);
+    lines.push("");
+
+    const report = lines.join("\n");
+    logHealthCheckBanner("CHAT", true);
+    console.log(report);
+    return report;
+  }
+
+  // ---- Verbose / Unhealthy: Full report ----
 
   lines.push("");
   lines.push(thinSeparator);
@@ -1295,30 +1580,9 @@ export async function inspectChat(
     lines.push(
       `    ${chatMeta.encrypted_active_focus_id ? "✓" : "✗"} Active Focus ID ${chatMeta.encrypted_active_focus_id ? `(${(chatMeta.encrypted_active_focus_id as string).length} chars)` : ""}`,
     );
-
-    // Attempt to decrypt active focus ID for display
-    if (chatMeta.encrypted_active_focus_id) {
-      try {
-        const { chatDB } = await import("./db");
-        const chatKey = chatDB.getChatKey(chatId);
-        if (chatKey) {
-          const { decryptWithChatKey } = await import("./cryptoService");
-          const decryptedFocusId = await decryptWithChatKey(
-            chatMeta.encrypted_active_focus_id as string,
-            chatKey,
-          );
-          lines.push(`  Active Focus Mode:           ${decryptedFocusId}`);
-        }
-      } catch {
-        lines.push(`  Active Focus Mode:           (decryption failed)`);
-      }
-    }
   } else {
     lines.push("  ❌ Chat NOT FOUND in IndexedDB");
   }
-
-  // Sort by created_at
-  messages.sort((a, b) => (a.created_at as number) - (b.created_at as number));
 
   lines.push("");
   lines.push(thinSeparator);
@@ -1343,12 +1607,21 @@ export async function inspectChat(
       const roleIcon =
         role === "user" ? "👤" : role === "assistant" ? "🤖" : "❓";
       const created = formatTimestamp(msg.created_at as number);
-      // Use client_message_id for display as that's what the UI references
       const clientMsgId =
         (msg.client_message_id as string) ||
         (msg.message_id as string) ||
         (msg.id as string);
       const serverId = (msg.id as string) || "N/A";
+
+      // Check decryption result for this message
+      const msgDecrypt = decryptionReport.messageFields.find(
+        (m) => m.messageIndex === i + 1,
+      );
+      const decryptIcon = msgDecrypt
+        ? msgDecrypt.success
+          ? "✓ decrypted"
+          : `✗ DECRYPT FAILED: ${msgDecrypt.error || "unknown"}`
+        : "";
 
       lines.push(
         `    ${(i + 1).toString().padStart(2)}. ${roleIcon} [${role.padEnd(9)}] ${created}`,
@@ -1357,7 +1630,6 @@ export async function inspectChat(
         `       Server ID: ${truncate(serverId, 12)}  Client ID: ${truncate(clientMsgId, 30)}`,
       );
 
-      // Content status
       const hasContent = !!msg.content;
       const hasEncrypted = !!msg.encrypted_content;
       const contentLen = hasEncrypted
@@ -1366,15 +1638,13 @@ export async function inspectChat(
           ? (msg.content as string).length
           : 0;
       lines.push(
-        `       Content: ${hasEncrypted ? "✓ encrypted" : hasContent ? "✓ plaintext" : "✗ missing"} (${contentLen} chars)`,
+        `       Content: ${hasEncrypted ? "✓ encrypted" : hasContent ? "✓ plaintext" : "✗ missing"} (${contentLen} chars) ${decryptIcon}`,
       );
 
-      // Model info for assistant messages
       if (role === "assistant" && msg.encrypted_model) {
         lines.push(`       Model: ✓ (encrypted)`);
       }
 
-      // Status if present
       if (msg.status) {
         lines.push(`       Status: ${msg.status}`);
       }
@@ -1392,7 +1662,6 @@ export async function inspectChat(
   lines.push(`  Hashed Chat ID: ${hashedChatId.substring(0, 24)}...`);
 
   if (chatEmbeds.length > 0) {
-    // Collect statistics
     const statusCount: Record<string, number> = {};
     const typeCount: Record<string, number> = {};
     for (const embed of chatEmbeds) {
@@ -1404,7 +1673,6 @@ export async function inspectChat(
     lines.push(`  Status Distribution: ${JSON.stringify(statusCount)}`);
     lines.push(`  Type Distribution: ${JSON.stringify(typeCount)}`);
 
-    // Show first few embeds
     lines.push("");
     lines.push(
       `  Showing ${showCount} of ${chatEmbeds.length} embeds (most recent first):`,
@@ -1429,14 +1697,12 @@ export async function inspectChat(
         `       Content: ${hasEncryptedContent ? "✓ encrypted" : hasPlainContent ? "✓ plaintext" : "✗ missing"}`,
       );
 
-      // Show app/skill metadata for app-skill-use embeds
       if (embed.app_id || embed.skill_id) {
         lines.push(
           `       App: ${embed.app_id || "N/A"} | Skill: ${embed.skill_id || "N/A"}`,
         );
       }
 
-      // Show child embed_ids if present
       if (
         embed.embed_ids &&
         Array.isArray(embed.embed_ids) &&
@@ -1460,7 +1726,7 @@ export async function inspectChat(
       lines.push(`    ... and ${chatEmbeds.length - showCount} more embeds`);
     }
 
-    // Admin-only: decode embeds and show field inventory (improvement C)
+    // Admin-only: decode embeds and show field inventory
     const isAdmin = await isCurrentUserAdmin();
     if (isAdmin) {
       lines.push("");
@@ -1544,8 +1810,6 @@ export async function inspectChat(
   lines.push(`  Messages Version (messages_v): ${messagesV}`);
   lines.push(`  Actual Message Count:          ${actualMessageCount}`);
 
-  // Check consistency - if messages_v is 0 but there are messages, that's suspicious
-  // Also if messages_v is much higher than actual count, messages may be missing
   if (messagesV === 0 && actualMessageCount > 0) {
     lines.push(
       `  ⚠️  INCONSISTENT: messages_v is 0 but ${actualMessageCount} messages exist!`,
@@ -1566,17 +1830,13 @@ export async function inspectChat(
   lines.push(separator);
   lines.push("");
 
-  db.close();
-
   const report = lines.join("\n");
 
   logHealthCheckBanner("CHAT", healthSummary.isHealthy);
   logFailedEmbedDecryptionBanner(embedDecodeHealth.attempts);
 
-  // Output full report to console as a single string for easy copying
   console.log(report);
 
-  // Optionally download as file
   if (options.download) {
     const blob = new Blob([report], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
@@ -1977,7 +2237,8 @@ function showDebugHelp(): void {
       "  window.debug()                            — quick client health check\n" +
       "  window.debug.help()                       — show this help\n\n" +
       "  Chat / Message:\n" +
-      '  await window.debug.chat("id")             — inspection report (copyable)\n' +
+      '  await window.debug.chat("id")             — concise report (full details if issues found)\n' +
+      '  await window.debug.chat("id", {verbose: true})   — always show full details\n' +
       '  await window.debug.chat("id", {download: true})  — download report as .txt\n' +
       '  await window.debug.chatVerbose("id")      — verbose console dump\n' +
       "  await window.debug.chats()                — list all chats + consistency check\n" +
@@ -2020,7 +2281,7 @@ export function initDebugUtils(): void {
     help: showDebugHelp,
 
     /** Generate a copyable chat inspection report */
-    chat: (chatId: string, opts: { download?: boolean } = {}) =>
+    chat: (chatId: string, opts: { download?: boolean; verbose?: boolean } = {}) =>
       inspectChat(chatId, opts),
 
     /** Verbose console dump of a chat (all messages, all fields) */
