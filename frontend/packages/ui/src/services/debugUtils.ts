@@ -1747,19 +1747,22 @@ export async function inspectChat(
     logFailedEmbedDecryptionBanner(embedDecodeHealth.attempts);
   }
 
-  // Fetch server-side sync status and log it directly (non-blocking, degrades gracefully)
-  void fetchServerSyncStatus([chatId]).then((syncResp) => {
-    const serverStatus = syncResp?.chats?.[0];
-    const syncLines = formatServerChatSync(serverStatus);
-    console.group("🌐 SERVER SYNC");
-    for (const line of syncLines) console.log(line);
-    console.groupEnd();
-  });
+  // Fetch server-side sync status — awaited so the result is included in the returned string
+  // (used by SettingsReportIssue to include server sync data in bug reports)
+  const syncResp = await fetchServerSyncStatus([chatId]);
+  const serverStatus = syncResp?.chats?.[0];
+  const syncLines = formatServerChatSync(serverStatus);
+  const serverSyncBlock =
+    "\n\n─────────────────────────────────────────────\n" +
+    "🌐 SERVER SYNC\n" +
+    syncLines.join("\n");
 
-  console.log(report);
+  const fullReport = report + serverSyncBlock;
+
+  console.log(fullReport);
 
   if (options.download) {
-    const blob = new Blob([report], { type: "text/plain" });
+    const blob = new Blob([fullReport], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -1771,7 +1774,7 @@ export async function inspectChat(
     console.log("📥 Report downloaded!");
   }
 
-  return report;
+  return fullReport;
 }
 
 // ============================================================================
@@ -1991,19 +1994,21 @@ export async function inspectEmbed(
 
   logHealthCheckBanner("EMBED", embedHealthSummary.isHealthy);
 
-  // Fetch server-side sync status and log it directly (non-blocking, degrades gracefully)
-  void fetchServerSyncStatus(undefined, [embedId]).then((syncResp) => {
-    const serverStatus = syncResp?.embeds?.[0];
-    const syncLines = formatServerEmbedSync(serverStatus);
-    console.group("🌐 SERVER SYNC");
-    for (const line of syncLines) console.log(line);
-    console.groupEnd();
-  });
+  // Fetch server-side sync status — awaited so the result is included in the returned string
+  const embedSyncResp = await fetchServerSyncStatus(undefined, [embedId]);
+  const embedServerStatus = embedSyncResp?.embeds?.[0];
+  const embedSyncLines = formatServerEmbedSync(embedServerStatus);
+  const embedServerSyncBlock =
+    "\n\n─────────────────────────────────────────────\n" +
+    "🌐 SERVER SYNC\n" +
+    embedSyncLines.join("\n");
 
-  console.log(report);
+  const fullReport = report + embedServerSyncBlock;
+
+  console.log(fullReport);
 
   if (options.download) {
-    const blob = new Blob([report], { type: "text/plain" });
+    const blob = new Blob([fullReport], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -2015,7 +2020,7 @@ export async function inspectEmbed(
     console.log("📥 Report downloaded!");
   }
 
-  return report;
+  return fullReport;
 }
 
 
