@@ -857,10 +857,10 @@ async def handle_main_processing(
             for key, value in mentioned.items():
                 if isinstance(key, str) and value is not None:
                     loaded_app_settings_and_memories_content[key] = value
-            logger.info(f"{log_prefix} [DEBUG] Pre-filled {len(mentioned)} app settings/memories from client-mentioned cleartext: {list(mentioned.keys())}")
+            logger.debug(f"{log_prefix} Pre-filled {len(mentioned)} app settings/memories from client-mentioned cleartext: {list(mentioned.keys())}")
 
     if preprocessing_results.load_app_settings_and_memories and cache_service:
-        logger.info(f"{log_prefix} [DEBUG] Preprocessing requested app settings/memories: {preprocessing_results.load_app_settings_and_memories}")
+        logger.debug(f"{log_prefix} Preprocessing requested app settings/memories: {preprocessing_results.load_app_settings_and_memories}")
         try:
             # Import helper function for creating requests
             from backend.core.api.app.utils.app_settings_memories_request import (
@@ -1469,7 +1469,8 @@ async def handle_main_processing(
     
     # Log available tools for debugging
     tool_names = [tool["function"]["name"] for tool in available_tools_for_llm]
-    logger.info(f"{log_prefix} Available tools for main processing LLM ({len(available_tools_for_llm)} total): {', '.join(tool_names) if tool_names else 'None'}")
+    logger.info(f"{log_prefix} Available tools for main processing LLM: {len(available_tools_for_llm)} total")
+    logger.debug(f"{log_prefix} Tool names: {', '.join(tool_names) if tool_names else 'None'}")
     if preselected_skills:
         logger.info(f"{log_prefix} Using preselected skills filter: {preselected_skills}")
     if assigned_app_ids:

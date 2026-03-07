@@ -277,7 +277,8 @@ class BaseSkill:
         try:
             endpoint = "internal/usage/record" # This internal endpoint needs to be implemented in the main API service
             response = await self.app._make_internal_api_request("POST", endpoint, payload=usage_payload)
-            logger.info(f"Successfully sent usage data for skill '{self.skill_id}' by user '{user_id_hash}'. Main API response: {response}")
+            logger.info(f"Successfully sent usage data for skill '{self.skill_id}' by user '{user_id_hash}'.")
+            logger.debug(f"Usage data API response for skill '{self.skill_id}': {response}")
         except Exception as e:
             logger.error(f"Error sending usage data for skill '{self.skill_id}': {e}", exc_info=True)
 

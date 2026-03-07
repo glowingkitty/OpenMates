@@ -573,12 +573,11 @@ async def _async_process_ai_skill_ask_task(
                 discovered_apps_metadata = cached_metadata
                 # Log discovered apps and their skills for debugging
                 app_names = list(discovered_apps_metadata.keys())
-                logger.info(f"[Task ID: {task_id}] Successfully loaded discovered_apps_metadata from cache via CacheService method.")
-                logger.info(f"[Task ID: {task_id}] Discovered apps ({len(app_names)} total): {', '.join(app_names) if app_names else 'None'}")
+                logger.info(f"[Task ID: {task_id}] Loaded discovered_apps_metadata from cache: {len(app_names)} apps ({', '.join(app_names) if app_names else 'None'})")
                 for app_id, metadata in discovered_apps_metadata.items():
                     skill_ids = [skill.id for skill in metadata.skills] if metadata.skills else []
                     skill_identifiers = [f"{app_id}.{skill_id}" for skill_id in skill_ids]
-                    logger.info(f"[Task ID: {task_id}]   App '{app_id}': Skills: {', '.join(skill_identifiers) if skill_identifiers else 'None'}")
+                    logger.debug(f"[Task ID: {task_id}]   App '{app_id}': Skills: {', '.join(skill_identifiers) if skill_identifiers else 'None'}")
                 
                 # Check for critical apps that should normally be available
                 _check_critical_apps_availability(discovered_apps_metadata, task_id)
@@ -590,21 +589,19 @@ async def _async_process_ai_skill_ask_task(
                 
                 if discovered_apps_metadata:
                     app_names = list(discovered_apps_metadata.keys())
-                    logger.info(f"[Task ID: {task_id}] Successfully fetched discovered_apps_metadata from API fallback.")
-                    logger.info(f"[Task ID: {task_id}] Discovered apps ({len(app_names)} total): {', '.join(app_names) if app_names else 'None'}")
+                    logger.info(f"[Task ID: {task_id}] Fetched discovered_apps_metadata from API fallback: {len(app_names)} apps ({', '.join(app_names) if app_names else 'None'})")
                     
                     # Warn if only one app is discovered (likely indicates other apps are not running/available)
                     if len(app_names) == 1:
                         logger.warning(
-                            f"[Task ID: {task_id}] WARNING: Only one app discovered ({app_names[0]}). "
-                            f"This may indicate that other app containers are not running or not responding to /metadata endpoint. "
-                            f"Check docker-compose logs and ensure all app containers (app-web, app-ai, etc.) are healthy."
+                            f"[Task ID: {task_id}] Only one app discovered ({app_names[0]}). "
+                            f"Other app containers may not be running or responding to /metadata endpoint."
                         )
                     
                     for app_id, metadata in discovered_apps_metadata.items():
                         skill_ids = [skill.id for skill in metadata.skills] if metadata.skills else []
-                        skill_identifiers = [f"{app_id}-{skill_id}" for skill_id in skill_ids]  # Use hyphen format for consistency
-                        logger.info(f"[Task ID: {task_id}]   App '{app_id}': Skills: {', '.join(skill_identifiers) if skill_identifiers else 'None'}")
+                        skill_identifiers = [f"{app_id}-{skill_id}" for skill_id in skill_ids]
+                        logger.debug(f"[Task ID: {task_id}]   App '{app_id}': Skills: {', '.join(skill_identifiers) if skill_identifiers else 'None'}")
                     
                     # Check for critical apps that should normally be available
                     _check_critical_apps_availability(discovered_apps_metadata, task_id)

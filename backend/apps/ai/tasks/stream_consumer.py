@@ -779,7 +779,8 @@ async def _charge_credits(
             )
             response = await client.post(url, json=charge_payload, headers=headers)
             response.raise_for_status()
-            logger.info(f"{log_prefix} Successfully charged {credits} credits. Response: {response.json()}")
+            logger.info(f"{log_prefix} Successfully charged {credits} credits.")
+            logger.debug(f"{log_prefix} Charge response: {response.json()}")
             
             return {
                 "prompt_tokens": usage_details.get("input_tokens", 0),

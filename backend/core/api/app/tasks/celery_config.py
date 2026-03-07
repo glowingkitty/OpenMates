@@ -220,9 +220,14 @@ encoded_password = quote(raw_password) if raw_password else ''
 broker_url = os.getenv('CELERY_BROKER_URL', f'redis://default:{encoded_password}@cache:6379/0')
 result_backend = os.getenv('CELERY_RESULT_BACKEND', f'redis://default:{encoded_password}@cache:6379/0')
 
-# Log the connection information
-logger.info(f"Celery broker URL: {broker_url}")
-logger.info(f"Celery result backend: {result_backend}")
+# Log the connection information (mask password for security)
+def _mask_redis_url(url: str) -> str:
+    """Replace password in Redis URL with '***' for safe logging."""
+    import re
+    return re.sub(r'(://[^:]*:)[^@]+(@)', r'\1***\2', url)
+
+logger.info(f"Celery broker URL: {_mask_redis_url(broker_url)}")
+logger.info(f"Celery result backend: {_mask_redis_url(result_backend)}")
 
 # Explicitly configure Redis backend settings
 broker_connection_retry_on_startup = True
