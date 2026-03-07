@@ -356,7 +356,7 @@ See `docs/claude/backend-standards.md` → "Package and Dependency Management" a
 
 #### Session Coordination via `scripts/sessions.py` (CRITICAL)
 
-All concurrent sessions coordinate through **`.claude/sessions.json`** (gitignored), managed by `scripts/sessions.py`. File edit tracking is automated via hooks in `.claude/settings.json`.
+All concurrent sessions coordinate through **`.claude/sessions.json`** (gitignored), managed by `scripts/sessions.py`. File edit tracking is automated via the OpenCode plugin (`.opencode/plugins/session-tracker.ts`).
 
 **On session start:**
 
