@@ -168,7 +168,18 @@ class StripeService:
             
             refund = stripe_lib.Refund.create(**refund_params)
             
-            logger.info(f"Successfully created refund {refund.id} for PaymentIntent {payment_intent_id}, amount: {refund.amount}")
+            # Revolut Pay and other redirect-based payment methods have async refunds
+            # that may return status='pending' instead of 'succeeded'. The refund will
+            # complete asynchronously and Stripe will send refund.updated/refund.failed
+            # webhook events. For card payments, status is typically 'succeeded' immediately.
+            if refund.status == "pending":
+                logger.info(
+                    f"Refund {refund.id} for PaymentIntent {payment_intent_id} is pending "
+                    f"(async refund, e.g. Revolut Pay). Amount: {refund.amount}. "
+                    f"Will be confirmed via refund.updated/charge.refunded webhook."
+                )
+            else:
+                logger.info(f"Refund {refund.id} for PaymentIntent {payment_intent_id} status: {refund.status}, amount: {refund.amount}")
             
             return {
                 "refund_id": refund.id,

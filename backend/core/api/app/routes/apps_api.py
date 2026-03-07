@@ -1177,6 +1177,59 @@ class BookingLinkResponse(BaseModel):
     error: Optional[str] = Field(None, description="Error message if lookup failed.")
 
 
+# ---------------------------------------------------------------------------
+# Travel app: Flight Details models (for flight-details endpoint)
+# ---------------------------------------------------------------------------
+
+class FlightDetailsRequest(BaseModel):
+    """Request for on-demand flight track + enrichment data lookup via Flightradar24."""
+
+    flight_number: str = Field(
+        ...,
+        description="IATA flight number including carrier prefix (e.g. 'LH2472', 'BA234').",
+    )
+    departure_date: str = Field(
+        ...,
+        description="Departure date in YYYY-MM-DD format. Must be a past/completed flight.",
+    )
+    origin_iata: Optional[str] = Field(
+        None,
+        description="Optional IATA departure airport code for disambiguation.",
+    )
+    destination_iata: Optional[str] = Field(
+        None,
+        description="Optional IATA destination airport code for diversion detection.",
+    )
+    hashed_chat_id: Optional[str] = Field(
+        None,
+        description="SHA-256 hashed chat ID to link the usage entry to the originating chat.",
+    )
+
+
+class FlightDetailsResponse(BaseModel):
+    """Response containing resolved flight track and enrichment data from Flightradar24."""
+
+    success: bool
+    flight_number: Optional[str] = Field(None, description="Resolved IATA flight number.")
+    fr24_id: Optional[str] = Field(None, description="Flightradar24 internal flight ID.")
+    data_source: str = Field(default="flightradar24")
+    tracks: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="GPS track points with lat/lon/timestamp/alt/gspeed.",
+    )
+    actual_takeoff: Optional[str] = Field(None, description="Actual takeoff datetime (ISO 8601).")
+    actual_landing: Optional[str] = Field(None, description="Actual landing datetime (ISO 8601).")
+    runway_takeoff: Optional[str] = Field(None, description="Takeoff runway (e.g. '08L').")
+    runway_landing: Optional[str] = Field(None, description="Landing runway (e.g. '27R').")
+    actual_distance_km: Optional[float] = Field(None, description="Actual flight distance in km.")
+    circle_distance_km: Optional[float] = Field(None, description="Great-circle distance in km.")
+    flight_time_minutes: Optional[int] = Field(None, description="Actual flight time in minutes.")
+    diverted: bool = Field(default=False, description="True if flight was diverted.")
+    actual_destination_iata: Optional[str] = Field(None, description="Actual IATA if diverted.")
+    credits_charged: Optional[int] = Field(None, description="Credits charged for this lookup.")
+    error: Optional[str] = Field(None, description="Error message if lookup failed.")
+
+
 def _register_travel_custom_routes(app: FastAPI, app_name: str) -> None:
     """
     Register travel-specific REST endpoints that are not standard skills.
@@ -1296,6 +1349,206 @@ def _register_travel_custom_routes(app: FastAPI, app_name: str) -> None:
         ),
     )
     logger.info("Registered custom route: POST /v1/apps/travel/booking-link")
+
+    # -----------------------------------------------------------------------
+    # POST /v1/apps/travel/flight-details
+    # Fetches real GPS track + enrichment for a completed flight from FR24.
+    # Charges 7 credits on success (covers ~46 FR24 API credits).
+    # -----------------------------------------------------------------------
+
+    from backend.apps.travel.providers.flightradar24_provider import (
+        FR24Provider,
+        FR24NotFoundError,
+        FR24AuthError,
+        FR24RateLimitError,
+        FR24Error,
+    )
+
+    async def flight_details_handler(
+        request_body: FlightDetailsRequest,
+        request: Request = None,
+        user=Depends(get_current_user_or_api_key),
+        cache_service: CacheService = Depends(get_cache_service),
+        directus_service: DirectusService = Depends(get_directus_service),
+    ) -> FlightDetailsResponse:
+        """
+        Fetch real GPS flight track and enrichment metadata from Flightradar24.
+
+        Used by TravelConnectionEmbedFullscreen.svelte to replace the estimated
+        great-circle arc with the real flight polyline once the user opens the
+        fullscreen view. Costs 7 credits per successful lookup.
+
+        Data is persisted into the embed by the frontend (same pattern as
+        booking-link) so subsequent fullscreen opens are free.
+
+        Supports both session and API key authentication.
+        """
+        user_id = user.id if hasattr(user, "id") else str(user)
+
+        try:
+            logger.info(
+                f"Travel flight-details: User {user_id} requesting "
+                f"track data for {request_body.flight_number} on {request_body.departure_date}"
+            )
+
+            # Load FR24 API key via SecretsManager
+            sm = SecretsManager()
+            await sm.initialize()
+            try:
+                provider = FR24Provider(secrets_manager=sm)
+                fr24_id = await provider.get_fr24_id(
+                    request_body.flight_number,
+                    request_body.departure_date,
+                )
+
+                import asyncio as _asyncio
+                tracks, summary = await _asyncio.gather(
+                    provider.get_flight_tracks(fr24_id),
+                    provider.get_flight_summary(fr24_id),
+                )
+            finally:
+                await sm.aclose()
+
+            # Normalise enrichment fields
+            flight_time_secs = summary.get("flight_time")
+            flight_time_minutes: Optional[int] = None
+            if flight_time_secs is not None:
+                try:
+                    flight_time_minutes = int(float(flight_time_secs)) // 60
+                except (ValueError, TypeError):
+                    pass
+
+            actual_dist = summary.get("actual_distance")
+            actual_distance_km: Optional[float] = None
+            if actual_dist is not None:
+                try:
+                    actual_distance_km = float(actual_dist)
+                except (ValueError, TypeError):
+                    pass
+
+            circle_dist = summary.get("circle_distance")
+            circle_distance_km: Optional[float] = None
+            if circle_dist is not None:
+                try:
+                    circle_distance_km = float(circle_dist)
+                except (ValueError, TypeError):
+                    pass
+
+            dest_iata_actual = summary.get("dest_iata_actual")
+            # Diversion: only flag when we can compare to the scheduled destination
+            diverted = bool(
+                dest_iata_actual
+                and request_body.destination_iata
+                and dest_iata_actual.upper() != request_body.destination_iata.upper()
+            )
+
+            # Charge 7 credits on success
+            credits_charged = 7
+            user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+            usage_details: Dict[str, Any] = {
+                "external_request": False,
+                "units_processed": 1,
+                "server_provider": "Flightradar24",
+                "server_region": "EU",
+                "flight_number": request_body.flight_number,
+                "departure_date": request_body.departure_date,
+                "fr24_id": fr24_id,
+                "track_points": len(tracks),
+            }
+            if request_body.hashed_chat_id:
+                usage_details["chat_id"] = request_body.hashed_chat_id
+
+            await charge_credits_via_internal_api(
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                credits=credits_charged,
+                app_id="travel",
+                skill_id="get_flight",
+                usage_details=usage_details,
+            )
+
+            return FlightDetailsResponse(
+                success=True,
+                flight_number=request_body.flight_number.upper(),
+                fr24_id=fr24_id,
+                data_source="flightradar24",
+                tracks=tracks,
+                actual_takeoff=summary.get("datetime_takeoff"),
+                actual_landing=summary.get("datetime_landed"),
+                runway_takeoff=summary.get("runway_takeoff"),
+                runway_landing=summary.get("runway_landed"),
+                actual_distance_km=actual_distance_km,
+                circle_distance_km=circle_distance_km,
+                flight_time_minutes=flight_time_minutes,
+                diverted=diverted,
+                actual_destination_iata=dest_iata_actual if diverted else None,
+                credits_charged=credits_charged,
+            )
+
+        except FR24NotFoundError as e:
+            logger.warning(f"Travel flight-details: Flight not found — {e}")
+            return FlightDetailsResponse(
+                success=False,
+                flight_number=request_body.flight_number.upper(),
+                error=f"Flight {request_body.flight_number} on {request_body.departure_date} "
+                      "not found in Flightradar24. Only completed past flights are supported.",
+            )
+
+        except FR24AuthError as e:
+            logger.error(f"Travel flight-details: Auth error — {e}")
+            return FlightDetailsResponse(
+                success=False,
+                flight_number=request_body.flight_number.upper(),
+                error="Flight data service authentication failed.",
+            )
+
+        except FR24RateLimitError as e:
+            logger.error(f"Travel flight-details: Rate limit — {e}")
+            return FlightDetailsResponse(
+                success=False,
+                flight_number=request_body.flight_number.upper(),
+                error="Flight data service is temporarily unavailable. Please try again shortly.",
+            )
+
+        except FR24Error as e:
+            logger.error(
+                f"Travel flight-details error for user {user_id}: {e}",
+                exc_info=True,
+            )
+            return FlightDetailsResponse(
+                success=False,
+                flight_number=request_body.flight_number.upper(),
+                error="Failed to fetch flight data. Please try again.",
+            )
+
+        except Exception as e:
+            logger.error(
+                f"Travel flight-details unexpected error for user {user_id}: {e}",
+                exc_info=True,
+            )
+            return FlightDetailsResponse(
+                success=False,
+                flight_number=request_body.flight_number.upper(),
+                error="An unexpected error occurred while fetching flight data.",
+            )
+
+    app.add_api_route(
+        path="/v1/apps/travel/flight-details",
+        endpoint=limiter.limit("30/minute")(flight_details_handler),
+        methods=["POST"],
+        response_model=FlightDetailsResponse,
+        tags=[f"Apps | {app_name.capitalize()}"],
+        name="travel_flight_details",
+        summary="Fetch real GPS flight track from Flightradar24",
+        description=(
+            "Fetch the real GPS flight track polyline and enrichment metadata "
+            "(actual takeoff/landing times, runway, actual distance, diversion indicator) "
+            "for a completed/past flight using Flightradar24. "
+            "Costs 7 credits per successful lookup. "
+            "Supports both session and API key authentication."
+        ),
+    )
+    logger.info("Registered custom route: POST /v1/apps/travel/flight-details")
 
 
 def _register_audio_custom_routes(app: FastAPI, app_name: str) -> None:

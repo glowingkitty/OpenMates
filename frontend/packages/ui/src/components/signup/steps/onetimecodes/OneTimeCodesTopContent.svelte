@@ -81,8 +81,9 @@ step_4_top_content_svelte:
         connected_documentation:
             - '/signup/2fa'
 -->
-
 <script lang="ts">
+    /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
+    /* eslint-disable svelte/no-at-html-tags */
     /**
      * One Time Codes Top Content Component
      *
@@ -433,6 +434,7 @@ step_4_top_content_svelte:
                 </button>
             </div>
             {/if}
+
         </div>
     {/if} <!-- End of outer {:else if setupComplete} -->
 </div>
@@ -672,4 +674,5 @@ step_4_top_content_svelte:
     .hide-secret-button:hover {
         color: var(--color-text-primary, #333);
     }
+
 </style>

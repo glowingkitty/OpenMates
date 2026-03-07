@@ -1,13 +1,13 @@
 import logging
+import time
 from typing import Dict, Any, Optional
 
 from fastapi import WebSocket
 
 from backend.core.api.app.services.cache import CacheService
-from backend.core.api.app.services.directus.directus import DirectusService # Keep if needed for validation?
+from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
-# No Celery task needed for immediate draft persistence
 
 logger = logging.getLogger(__name__)
 
@@ -147,92 +147,51 @@ async def handle_update_draft(
         )
         return # Cannot proceed without new version
 
-    # Update encrypted draft_json in user:{user_id}:chat:{chat_id}:draft cache key
-    update_success = await cache_service.update_user_draft_in_cache(user_id, chat_id, encrypted_draft_str, new_user_draft_v)
+    # Update encrypted draft content and preview in user:{user_id}:chat:{chat_id}:draft cache key
+    draft_preview_from_payload: Optional[str] = payload.get("encrypted_draft_preview")
+    update_success = await cache_service.update_user_draft_in_cache(
+        user_id, chat_id, encrypted_draft_str, new_user_draft_v,
+        encrypted_draft_preview=draft_preview_from_payload
+    )
     if not update_success:
         logger.error(f"Failed to update user draft in cache for user {user_id}, chat {chat_id}.")
         # Log error but continue, version was incremented.
 
-    # CRITICAL: Don't update last_edited_overall_timestamp for drafts
-    # Only messages should update this timestamp for proper sorting
-    # Chats with drafts will appear at the top via frontend sorting logic, but won't affect message-based sorting
-    # now_ts = int(time.time())
-    # update_score_success = await cache_service.update_chat_score_in_ids_versions(user_id, chat_id, now_ts)
-    # if not update_score_success:
-    #      logger.error(f"Failed to update last_edited_overall_timestamp score for chat {chat_id}. User: {user_id}")
-    # --- Top N Message Cache Maintenance (Section 9.1) ---
-    # NOTE: Top N cache maintenance removed since we're not updating the score anymore
-    # Chats with drafts will still appear in the list, but won't affect Top N cache ordering
-    # if update_score_success: # Only proceed if the score update was likely successful
-    if False:  # Disabled - Top N maintenance not needed for draft updates
-        try:
-            top_n_chat_ids = await cache_service.get_chat_ids_versions(
-                user_id, start=0, end=cache_service.TOP_N_MESSAGES_COUNT - 1
-            )
+    # --- Draft-only chat discoverability for cross-device sync ---
+    # For draft-only NEW chats (not yet in the sorted set), we add them so that
+    # initial_sync and reconnect can discover them on other devices.
+    # We do NOT update the score for existing chats — only messages should change
+    # last_edited_overall_timestamp for proper sorting. The frontend sorts chats
+    # with drafts above non-draft chats via hasNonEmptyDraft() in chatSortUtils.ts.
+    now_ts = int(time.time())
+    chat_exists_in_sorted_set = await cache_service.check_chat_exists_for_user(user_id, chat_id)
+    if not chat_exists_in_sorted_set:
+        # This is a draft-only new chat — add it to the sorted set so other devices
+        # can discover it during initial sync or reconnect.
+        add_success = await cache_service.add_chat_to_ids_versions(user_id, chat_id, now_ts)
+        if add_success:
+            logger.info(f"Added draft-only new chat {chat_id} to chat_ids_versions for user {user_id}")
+        else:
+            logger.error(f"Failed to add draft-only new chat {chat_id} to chat_ids_versions for user {user_id}")
 
-            if chat_id in top_n_chat_ids:
-                # Check if messages are already cached for this chat (check SYNC cache, not AI cache)
-                messages_key = cache_service._get_sync_messages_key(user_id, chat_id)
-                client = await cache_service.client
-                if client and not await client.exists(messages_key):
-                    logger.info(f"Chat {chat_id} entered Top N, caching messages to sync cache.")
-                    try:
-                        # First check if messages exist to avoid permission issues with encrypted fields
-                        messages_exist = await directus_service.chat.check_messages_exist_for_chat(chat_id)
-                        if messages_exist:
-                            # Fetch client-encrypted messages from Directus
-                            messages_list = await directus_service.chat.get_all_messages_for_chat(
-                                chat_id=chat_id
-                                )
-                            if messages_list:
-                                # Store to SYNC cache (client-encrypted, for client sync)
-                                await cache_service.set_sync_messages_history(user_id, chat_id, messages_list, ttl=3600)
-                                logger.info(f"Successfully cached client-encrypted messages to sync cache for Top N chat {chat_id}.")
-                            else:
-                                logger.info(f"No messages found in Directus for Top N chat {chat_id} to cache. This is normal for new chats.")
-                        else:
-                            logger.info(f"No messages exist for Top N chat {chat_id}. This is normal for new chats.")
-                    except Exception as e_fetch:
-                        # Handle permission errors or other issues gracefully
-                        logger.warning(f"Failed to fetch messages for Top N chat {chat_id}: {e_fetch}. This may be a new chat with no messages yet.")
-                        # Don't raise the exception, just log it and continue
-                # else: # Optional: log if messages already cached or client unavailable
-                #      logger.debug(f"Messages for chat {chat_id} already cached or client unavailable.")
+    # Get the current score for this chat (for the broadcast payload).
+    # Other devices need this timestamp when creating the chat entry locally.
+    chat_timestamp = await cache_service.get_chat_last_edited_overall_timestamp(user_id, chat_id)
+    if chat_timestamp is None:
+        chat_timestamp = now_ts
 
-            # Evict messages for chats that fell out of Top N
-            # Get N+1 chats to find the one to evict (if any)
-            # Note: This simple eviction assumes only one chat drops out at a time.
-            # A more robust approach might involve checking all keys matching the pattern
-            # user:{user_id}:chat:*:messages:sync and comparing against the current Top N set.
-            
-            # Simple eviction: Check the (N+1)th chat ID if it exists
-            if len(top_n_chat_ids) >= cache_service.TOP_N_MESSAGES_COUNT:
-                 # Get the ID just outside the top N
-                 potential_evict_candidates = await cache_service.get_chat_ids_versions(
-                     user_id, start=cache_service.TOP_N_MESSAGES_COUNT, end=cache_service.TOP_N_MESSAGES_COUNT
-                 )
-                 if potential_evict_candidates:
-                     evict_chat_id = potential_evict_candidates[0]
-                     # Check if this chat actually had messages cached before evicting (from SYNC cache)
-                     messages_key_to_evict = cache_service._get_sync_messages_key(user_id, evict_chat_id)
-                     if client and await client.exists(messages_key_to_evict):
-                          logger.info(f"Chat {evict_chat_id} fell out of Top N. Evicting its sync cache messages.")
-                          await cache_service.delete_sync_messages_history(user_id, evict_chat_id)
-
-        except Exception as e_top_n:
-            logger.error(f"Error during Top N message cache maintenance for chat {chat_id}: {e_top_n}", exc_info=True)
-            # Log error but continue - don't let Top N cache issues break draft saving
-    # --- End Top N Logic ---
-
-    # NO immediate Celery task dispatched for draft persistence
-
-    # Broadcast to all connected devices for this user
+    # Broadcast to all connected devices for this user.
+    # Include encrypted_draft_preview so other devices can show preview text in chat list.
+    # Include last_edited_overall_timestamp so new chats can be created with correct sorting.
     broadcast_payload = {
-        "event": "chat_draft_updated", # As per chat_sync_architecture.md Section 7
+        "event": "chat_draft_updated",
         "chat_id": chat_id,
-        "data": {"encrypted_draft_md": encrypted_draft_str}, # Send encrypted draft (or null)
-        "versions": {"draft_v": new_user_draft_v}, # Send new user-specific draft version, renamed to draft_v
-        # REMOVED: "last_edited_overall_timestamp": now_ts # Don't send timestamp update for drafts
+        "data": {
+            "encrypted_draft_md": encrypted_draft_str,
+            "encrypted_draft_preview": draft_preview_from_payload,
+        },
+        "versions": {"draft_v": new_user_draft_v},
+        "last_edited_overall_timestamp": chat_timestamp,
     }
     # Broadcast only to the current user's other connected devices
     await manager.broadcast_to_user(

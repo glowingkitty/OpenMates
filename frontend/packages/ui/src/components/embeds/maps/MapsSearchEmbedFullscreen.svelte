@@ -71,6 +71,12 @@
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button to restore chat visibility */
     onShowChat?: () => void;
+    /**
+     * Child embed ID to auto-select on mount (set when arriving from an inline badge click).
+     * When provided, the fullscreen will auto-select and center the map on the matching place
+     * once results have loaded. Maps has no child overlay — it highlights the place instead.
+     */
+    initialChildEmbedId?: string;
   }
   
   let {
@@ -86,7 +92,8 @@
     onNavigateNext,
     navigateDirection,
     showChatButton = false,
-    onShowChat
+    onShowChat,
+    initialChildEmbedId
   }: Props = $props();
   
   // Determine if mobile layout
@@ -371,6 +378,14 @@
   childEmbedTransformer={transformToPlaceResult}
   legacyResults={resultsProp}
   onChildrenLoaded={handleChildrenLoaded}
+  {initialChildEmbedId}
+  onAutoOpenChild={(index, children) => {
+    // Maps has no child overlay — auto-select the place on the map instead
+    const places = children as PlaceSearchResult[];
+    if (places[index]) {
+      handleSelectPlace(places[index], index);
+    }
+  }}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}

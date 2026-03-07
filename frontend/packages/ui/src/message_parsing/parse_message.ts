@@ -100,6 +100,34 @@ function collectEmbedAppIds(doc: any): string | null {
  * Pass 2 inner: walk a node and convert embed: link marks to embedInline nodes.
  * Uses the pre-collected `fallbackAppId` when the live ref index has no entry.
  */
+/**
+ * Parse a #L line-range fragment from an embed: href suffix.
+ * Supports:
+ *   #L42        → { start: 42, end: 42 }
+ *   #L10-L20    → { start: 10, end: 20 }
+ *   #L10-20     → { start: 10, end: 20 }  (alternate form)
+ * Returns null when no valid #L fragment is present.
+ */
+function _parseLineFragment(raw: string): {
+  cleanRef: string;
+  lineStart: number | null;
+  lineEnd: number | null;
+} {
+  const lineMatch = raw.match(/#L(\d+)(?:-L?(\d+))?$/);
+  if (!lineMatch) {
+    return { cleanRef: raw, lineStart: null, lineEnd: null };
+  }
+  const cleanRef = raw.slice(0, raw.lastIndexOf("#"));
+  const lineStart = parseInt(lineMatch[1], 10);
+  const lineEnd = lineMatch[2] ? parseInt(lineMatch[2], 10) : lineStart;
+  // Normalise reversed ranges
+  return {
+    cleanRef,
+    lineStart: Math.min(lineStart, lineEnd),
+    lineEnd: Math.max(lineStart, lineEnd),
+  };
+}
+
 function convertEmbedLinksInNode(
   node: any,
   fallbackAppId: string | null,
@@ -116,22 +144,67 @@ function convertEmbedLinksInNode(
     if (linkMarkIndex !== -1) {
       const linkMark = node.marks[linkMarkIndex];
       const href: string = linkMark.attrs.href as string;
-      const embedRef = href.slice("embed:".length);
-      const displayText = node.text || embedRef;
+      const rawRef = href.slice("embed:".length);
+      const displayText = node.text || "";
+
+      // ── Embed preview large: [!](embed:ref) ──────────────────────────────
+      // The LLM signals a full-width large preview card by using "!" as the
+      // display text. This becomes a block-level embedPreviewLarge node.
+      if (displayText === "!") {
+        // Strip any accidental #L suffix (preview cards don't use line highlighting)
+        const { cleanRef } = _parseLineFragment(rawRef);
+        const appId =
+          _getEmbedStore()?.resolveAppIdByRef(cleanRef) ?? fallbackAppId;
+        return {
+          type: "embedPreviewLarge",
+          attrs: {
+            embedRef: cleanRef,
+            embedId: null,
+            appId,
+            carouselIndex: 0, // will be overwritten by _hoistBlockEmbedPreviews Phase B
+            carouselTotal: 1,
+          },
+        };
+      }
+
+      // ── Embed preview small: [](embed:ref) ────────────────────────────────
+      // The LLM signals a small preview card (same visual as existing embed
+      // preview cards, rendered inline in the message flow) by using an empty
+      // display text. This becomes a block-level embedPreviewSmall node.
+      if (displayText === "") {
+        // Strip any accidental #L suffix (preview cards don't use line highlighting)
+        const { cleanRef } = _parseLineFragment(rawRef);
+        const appId =
+          _getEmbedStore()?.resolveAppIdByRef(cleanRef) ?? fallbackAppId;
+        return {
+          type: "embedPreviewSmall",
+          attrs: {
+            embedRef: cleanRef,
+            embedId: null,
+            appId,
+          },
+        };
+      }
+
+      // ── Standard inline embed link: [display text](embed:ref) ────────────
+      // Parse optional #L line-range fragment from the embed ref.
+      const { cleanRef, lineStart, lineEnd } = _parseLineFragment(rawRef);
 
       // Primary: check the in-memory ref index (populated during live streaming).
       // Fallback: use app_id from sibling embed nodes collected in Pass 1 —
       //   always available on first parse, even on page reload, with no async work.
       const appId =
-        _getEmbedStore()?.resolveAppIdByRef(embedRef) ?? fallbackAppId;
+        _getEmbedStore()?.resolveAppIdByRef(cleanRef) ?? fallbackAppId;
 
       return {
         type: "embedInline",
         attrs: {
-          embedRef,
+          embedRef: cleanRef,
           embedId: null, // resolved lazily at click time via embedStore.resolveByRef()
           displayText,
           appId,
+          focusLineStart: lineStart,
+          focusLineEnd: lineEnd,
         },
       };
     }
@@ -172,8 +245,94 @@ function convertEmbedLinks(doc: any): any {
   // Pass 1: collect app_id from embed nodes already in the document.
   const fallbackAppId = collectEmbedAppIds(doc);
   // Pass 2: convert embed: links, using fallbackAppId when ref index has no entry.
-  return convertEmbedLinksInNode(doc, fallbackAppId);
+  const withInlineNodes = convertEmbedLinksInNode(doc, fallbackAppId);
+  // Pass 3: hoist embedPreviewSmall/embedPreviewLarge nodes out of their
+  // paragraph wrappers to become true block-level document nodes.
+  return _hoistBlockEmbedPreviews(withInlineNodes);
 }
+
+// ─── Block embed preview hoisting ────────────────────────────────────────────
+//
+// When the LLM writes [](embed:ref) or [!](embed:ref), markdown-it wraps the
+// link inside a <p> tag, resulting in a paragraph node containing a single
+// embedPreviewSmall/embedPreviewLarge child. We hoist those nodes to the
+// document level so TipTap treats them as block-level elements.
+//
+// A paragraph qualifies for hoisting if ALL its meaningful content is a single
+// embedPreviewSmall or embedPreviewLarge atom. Purely whitespace-only text
+// siblings are discarded.
+
+const BLOCK_EMBED_PREVIEW_TYPES = new Set([
+  "embedPreviewSmall",
+  "embedPreviewLarge",
+]);
+
+function _hoistBlockEmbedPreviews(doc: any): any {
+  if (!doc || !doc.content) return doc;
+
+  // Phase A: hoist block-preview embeds out of their paragraph wrappers.
+  const hoisted: any[] = [];
+
+  for (const node of doc.content) {
+    // Only inspect paragraph nodes for potential hoisting
+    if (node.type !== "paragraph" || !Array.isArray(node.content)) {
+      hoisted.push(node);
+      continue;
+    }
+
+    // Find all non-whitespace children
+    const meaningful = node.content.filter(
+      (c: any) => !(c.type === "text" && !c.text?.trim()),
+    );
+
+    // If the paragraph contains exactly one block-preview embed, hoist it
+    if (
+      meaningful.length === 1 &&
+      BLOCK_EMBED_PREVIEW_TYPES.has(meaningful[0].type)
+    ) {
+      hoisted.push(meaningful[0]);
+    } else {
+      hoisted.push(node);
+    }
+  }
+
+  // Phase B: assign carouselIndex + carouselTotal to consecutive embedPreviewLarge
+  // runs.  Walk the hoisted array and annotate runs of consecutive large-preview
+  // nodes with their position within the run.
+  const finalContent: any[] = [];
+  let runStart = -1;
+
+  function flushRun(endExclusive: number) {
+    if (runStart < 0) return;
+    const runLen = endExclusive - runStart;
+    for (let i = runStart; i < endExclusive; i++) {
+      finalContent.push({
+        ...hoisted[i],
+        attrs: {
+          ...hoisted[i].attrs,
+          carouselIndex: i - runStart,
+          carouselTotal: runLen,
+        },
+      });
+    }
+    runStart = -1;
+  }
+
+  for (let i = 0; i < hoisted.length; i++) {
+    if (hoisted[i].type === "embedPreviewLarge") {
+      if (runStart < 0) runStart = i;
+      // continue accumulating the run
+    } else {
+      flushRun(i);
+      finalContent.push(hoisted[i]);
+    }
+  }
+  // Flush any trailing run
+  flushRun(hoisted.length);
+
+  return { ...doc, content: finalContent };
+}
+
 // ─── Source quote detection ──────────────────────────────────────────────────
 //
 // After `convertEmbedLinks` replaces embed: link marks with `embedInline` atoms,

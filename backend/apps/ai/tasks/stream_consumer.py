@@ -304,8 +304,17 @@ async def _verify_and_strip_bad_quotes(
             continue
 
     if not embed_ref_to_id:
-        logger.debug(f"{log_prefix} [QUOTE_VERIFY] No embed_ref→id map built, skipping verification")
-        return aggregated_response
+        # No embed map means zero real embeds exist in this response — any source quotes
+        # referencing embed:... are fabricated. Strip them all.
+        logger.warning(
+            f"{log_prefix} [QUOTE_VERIFY] No embed_ref→id map built but {len(matches)} source quote(s) found — "
+            f"stripping all as hallucinated (no real embeds in this response)"
+        )
+        modified = aggregated_response
+        for match in matches:
+            modified = modified.replace(match.group(0), "")
+        modified = re.sub(r'\n{3,}', '\n\n', modified)
+        return modified
 
     logger.debug(
         f"{log_prefix} [QUOTE_VERIFY] Built embed_ref map with {len(embed_ref_to_id)} entries: "
@@ -321,10 +330,13 @@ async def _verify_and_strip_bad_quotes(
 
         embed_id = embed_ref_to_id.get(embed_ref)
         if not embed_id:
-            logger.info(
-                f"{log_prefix} [QUOTE_VERIFY] embed_ref '{embed_ref}' not found in map — "
-                f"cannot verify, keeping quote"
+            # embed_ref doesn't map to any real embed produced in this response —
+            # the LLM fabricated this citation. Strip it.
+            logger.warning(
+                f"{log_prefix} [QUOTE_VERIFY] embed_ref '{embed_ref}' not found in embed map — "
+                f"stripping hallucinated source quote: '{quoted_text[:60]}...'"
             )
+            bad_quote_lines.append(full_line)
             continue
 
         try:
@@ -767,7 +779,8 @@ async def _charge_credits(
             )
             response = await client.post(url, json=charge_payload, headers=headers)
             response.raise_for_status()
-            logger.info(f"{log_prefix} Successfully charged {credits} credits. Response: {response.json()}")
+            logger.info(f"{log_prefix} Successfully charged {credits} credits.")
+            logger.debug(f"{log_prefix} Charge response: {response.json()}")
             
             return {
                 "prompt_tokens": usage_details.get("input_tokens", 0),
@@ -837,20 +850,40 @@ async def _update_chat_metadata(
         current_messages_v = chat_metadata.get("messages_v", 0) if chat_metadata else 0
         new_messages_v = current_messages_v + 1
 
+    # CRITICAL: Use optimistic locking for messages_v to prevent race conditions.
+    # When a task is cancelled and a new task starts concurrently, both call
+    # _update_chat_metadata. Without optimistic locking, the cancelled task's
+    # Directus write can clobber the new task's higher messages_v value.
+    # The Redis HINCRBY is atomic, but the Directus write is not — so we must
+    # read-compare-write to ensure we never decrease messages_v.
+    current_chat_metadata = await directus_service.chat.get_chat_metadata(request_data.chat_id)
+    current_directus_messages_v = current_chat_metadata.get("messages_v", 0) if current_chat_metadata else 0
+
     fields_to_update = {
-        "messages_v": new_messages_v,
         "last_edited_overall_timestamp": timestamp,
         "last_message_timestamp": timestamp,
         "last_mate_category": category,
         "updated_at": int(time.time())
     }
-    
-    logger.info(
-        f"{log_prefix} [MESSAGES_V_TRACKING] AI_RESPONSE: "
-        f"chat_id={request_data.chat_id}, "
-        f"updating messages_v in Directus to {new_messages_v} (via cache atomic increment), "
-        f"source=stream_consumer._update_chat_metadata"
-    )
+
+    # Only update messages_v in Directus if our value is greater (optimistic locking)
+    if new_messages_v > current_directus_messages_v:
+        fields_to_update["messages_v"] = new_messages_v
+        logger.info(
+            f"{log_prefix} [MESSAGES_V_TRACKING] AI_RESPONSE: "
+            f"chat_id={request_data.chat_id}, "
+            f"updating messages_v in Directus: {current_directus_messages_v} -> {new_messages_v} "
+            f"(via cache atomic increment + optimistic locking), "
+            f"source=stream_consumer._update_chat_metadata"
+        )
+    else:
+        logger.info(
+            f"{log_prefix} [MESSAGES_V_TRACKING] AI_RESPONSE: "
+            f"chat_id={request_data.chat_id}, "
+            f"skipping messages_v Directus update: new={new_messages_v} <= current={current_directus_messages_v} "
+            f"(concurrent task already wrote a higher version), "
+            f"source=stream_consumer._update_chat_metadata"
+        )
     
     success = await directus_service.chat.update_chat_fields_in_directus(
         request_data.chat_id, fields_to_update
@@ -860,7 +893,7 @@ async def _update_chat_metadata(
         logger.error(f"{log_prefix} Failed to update chat metadata for {request_data.chat_id}.")
         return
         
-    logger.info(f"{log_prefix} Updated chat metadata: timestamp {timestamp}, category {category}, messages_v {new_messages_v}.")
+    logger.info(f"{log_prefix} Updated chat metadata: timestamp {timestamp}, category {category}, messages_v {fields_to_update.get('messages_v', f'unchanged at {current_directus_messages_v}')}")
     
     # Save assistant response to cache and publish events
     # This ensures follow-up messages include assistant responses in the history

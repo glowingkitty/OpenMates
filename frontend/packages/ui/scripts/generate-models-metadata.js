@@ -328,8 +328,8 @@ export interface ModelServerInfo {
     id: string;
     /** Server display name */
     name: string;
-    /** Server region: EU, US, or APAC */
-    region: 'EU' | 'US' | 'APAC';
+    /** Server region: EU, US, APAC, or global */
+    region: 'EU' | 'US' | 'APAC' | 'global';
 }
 
 /**

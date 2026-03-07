@@ -1,0 +1,116 @@
+# Prometheus alert rules for OpenMates.
+# These fire when monitored conditions breach thresholds, and Alertmanager
+# routes the resulting notifications (with throttling to prevent email floods).
+#
+# Metric names used here must match what the API actually exposes.
+# API metrics are defined in backend/core/api/app/services/metrics.py:
+#   - api_requests_total         (Counter, labels: method, endpoint, status_code)
+#   - api_request_duration_seconds (Histogram, labels: method, endpoint)
+#   - celery_task_failures_total (Counter, labels: task_name, queue)  — added in celery_config.py
+#
+# Architecture context: See docs/architecture/logging-and-monitoring.md
+
+groups:
+  # -------------------------------------------------------------------------
+  # API health
+  # -------------------------------------------------------------------------
+  - name: api_alerts
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(api_requests_total{status_code=~"5.."}[5m]))
+            /
+            sum(rate(api_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API 5xx error rate above 5%"
+          description: >-
+            Over the last 5 minutes, {{ $value | humanizePercentage }} of
+            requests returned 5xx errors.
+
+      - alert: HighRequestLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(api_request_duration_seconds_bucket[5m])) by (le)
+          ) > 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "P95 request latency above 5 s"
+          description: >-
+            P95 latency is {{ $value | humanizeDuration }}.
+
+      - alert: APIDown
+        expr: up{job="api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API container is down"
+          description: "Prometheus cannot scrape the API metrics endpoint."
+
+  # -------------------------------------------------------------------------
+  # Celery task health
+  # Requires celery_task_failures_total counter — added in celery_config.py
+  # worker_process_init signal starts a prometheus_client HTTP server per worker.
+  # -------------------------------------------------------------------------
+  - name: celery_alerts
+    rules:
+      - alert: TaskFailureSpike
+        expr: |
+          sum(increase(celery_task_failures_total[15m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "More than 10 Celery task failures in 15 min"
+          description: >-
+            {{ $value }} task failures detected in the last 15 minutes.
+
+  # -------------------------------------------------------------------------
+  # Container / resource health (cAdvisor)
+  # -------------------------------------------------------------------------
+  - name: container_alerts
+    rules:
+      - alert: ContainerRestarting
+        expr: |
+          increase(container_restart_count[30m]) > 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} restarted >3 times in 30 min"
+          description: >-
+            Container {{ $labels.name }} has restarted {{ $value }} times.
+
+      - alert: HighMemoryUsage
+        expr: |
+          (container_memory_usage_bytes{name!=""} / container_spec_memory_limit_bytes{name!=""})
+          > 0.90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} memory above 90%"
+          description: >-
+            Memory usage is at {{ $value | humanizePercentage }}.
+
+  # -------------------------------------------------------------------------
+  # Prometheus self-monitoring
+  # -------------------------------------------------------------------------
+  - name: prometheus_self
+    rules:
+      - alert: PrometheusTargetDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Scrape target {{ $labels.job }} is down"
+          description: >-
+            Prometheus cannot reach {{ $labels.instance }} (job={{ $labels.job }}).

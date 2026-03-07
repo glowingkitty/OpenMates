@@ -9,12 +9,12 @@ import { chatListCache } from "./chatListCache"; // Import for cache invalidatio
 import { flushPendingMessagesForChat } from "./chatSyncServiceHandlersChatUpdates"; // Flush messages queued while chat key was unavailable
 import { flushPendingSystemMessagesForChat } from "./chatSyncServiceHandlersAppSettings"; // Flush system messages queued while chat key was unavailable
 import type { EmbedType } from "../message_parsing/types";
-import type { SuggestedSettingsMemoryEntry } from "../types/apps";
 import { activeChatStore } from "../stores/activeChatStore";
 import { notificationStore } from "../stores/notificationStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { webSocketService } from "./websocketService"; // For notifying data activity during AI streaming
 import { normalizeToUnixSeconds } from "./timestampUtils";
+import { chatKeyManager } from "./encryption/ChatKeyManager";
 
 // Safe TOON decoder for metadata extraction (local to avoid circular deps)
 let toonDecode:
@@ -616,10 +616,16 @@ export async function handleAIBackgroundResponseCompletedImpl(
     if (!category && chat.encrypted_category) {
       try {
         const { decryptWithChatKey } = await import("./cryptoService");
-        const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
-        category =
-          (await decryptWithChatKey(chat.encrypted_category, chatKey)) ||
-          undefined;
+        const chatKey = chatKeyManager.getKeySync(payload.chat_id);
+        if (!chatKey) {
+          console.debug(
+            `[ChatSyncService:AI] No chat key available for ${payload.chat_id}, skipping category decrypt`,
+          );
+        } else {
+          category =
+            (await decryptWithChatKey(chat.encrypted_category, chatKey)) ||
+            undefined;
+        }
         console.info(
           `[ChatSyncService:AI] Retrieved category from chat metadata for background response: ${category}`,
         );
@@ -692,17 +698,21 @@ export async function handleAIBackgroundResponseCompletedImpl(
         `[ChatSyncService:AI] Saved background AI response to DB for chat ${payload.chat_id} with category: ${category || "none"}`,
       );
 
-      // Update chat metadata with new messages_v
-      const newMessagesV = (chat.messages_v || 0) + 1;
+      // MESSAGES_V HANDLING: Do NOT increment messages_v locally here.
+      // The server atomically increments messages_v via Redis HINCRBY and
+      // broadcasts the authoritative value in the `chat_message_added` event.
+      // The handler `handleChatMessageReceivedImpl` is the SOLE writer of
+      // messages_v for non-incognito chats. Local increments cause drift
+      // when this code and the broadcast handler race against each other.
+      // Only update last_edited_overall_timestamp (safe, no version drift risk).
       const updatedChat: Chat = {
         ...chat,
-        messages_v: newMessagesV,
         last_edited_overall_timestamp: newLastEdited,
       };
       await chatDB.updateChat(updatedChat);
       chat = updatedChat;
       console.info(
-        `[ChatSyncService:AI] Updated chat ${payload.chat_id} metadata: messages_v=${newMessagesV}`,
+        `[ChatSyncService:AI] Updated chat ${payload.chat_id} last_edited timestamp (messages_v=${chat.messages_v} — owned by chat_message_added handler)`,
       );
     }
 
@@ -794,7 +804,13 @@ export async function handleAIBackgroundResponseCompletedImpl(
         // Try to decrypt the title for the notification
         try {
           const { decryptWithChatKey } = await import("./cryptoService");
-          const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
+          const chatKey = chatKeyManager.getKeySync(payload.chat_id);
+          if (!chatKey) {
+            console.debug(
+              `[ChatSyncService:AI] No chat key available for notification title decrypt (chat ${payload.chat_id})`,
+            );
+            throw new Error("Chat key not available");
+          }
           const decryptedTitle = await decryptWithChatKey(
             chat.encrypted_title,
             chatKey,
@@ -1025,11 +1041,20 @@ export async function handleAITypingStartedImpl( // Changed to async
         }
       }
 
-      // Get or generate chat key for encryption.
-      // On the originating device this generates the key for the first time.
-      // On secondary devices the key should already be in cache from the
-      // new_chat_message broadcast or the encrypted_chat_key in this payload.
-      const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
+      // Get chat key: should already be in cache from sendEncryptedStoragePackage (originator)
+      // or from the encrypted_chat_key decrypted above (secondary device).
+      // Only create a new key if this is the originating device for a brand-new chat.
+      let chatKey = chatKeyManager.getKeySync(payload.chat_id);
+      if (!chatKey) {
+        chatKey = await chatKeyManager.getKey(payload.chat_id);
+      }
+      if (!chatKey) {
+        // Last resort: originating device creating a new chat — safe to generate
+        console.info(
+          `[ChatSyncService:AI] No cached key for ${payload.chat_id} in ai_typing_started, creating new key (originator)`,
+        );
+        chatKey = chatKeyManager.createKeyForNewChat(payload.chat_id);
+      }
       // Flush regular messages and system messages queued waiting for this key (cross-device sync fix)
       await flushPendingMessagesForChat(payload.chat_id);
       await flushPendingSystemMessagesForChat(payload.chat_id);
@@ -1165,11 +1190,19 @@ export async function handleAITypingStartedImpl( // Changed to async
             );
           }
 
-          // Ensure chat key is stored for decryption
-          const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
-          const encryptedChatKey = await import("./cryptoService").then((m) =>
-            m.encryptChatKeyWithMasterKey(chatKey),
-          );
+          // Ensure chat key is stored for decryption — key must be ready from ai_typing_started handler above
+          const chatKey = chatKeyManager.getKeySync(payload.chat_id);
+          if (!chatKey) {
+            console.error(
+              `[ChatSyncService:AI] Chat key missing for ${payload.chat_id} when storing encrypted_chat_key — this should not happen`,
+            );
+            // Skip storing encrypted_chat_key rather than generating a wrong one
+          }
+          const encryptedChatKey = chatKey
+            ? await import("./cryptoService").then((m) =>
+                m.encryptChatKeyWithMasterKey(chatKey),
+              )
+            : null;
           if (encryptedChatKey) {
             chatToUpdate.encrypted_chat_key = encryptedChatKey;
             console.info(
@@ -1338,7 +1371,15 @@ export async function handleAITypingStartedImpl( // Changed to async
       console.warn(
         `[ChatSyncService:AI] Message ${userMessage.message_id} missing content field, decrypting from encrypted_content`,
       );
-      const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
+      const chatKey =
+        chatKeyManager.getKeySync(payload.chat_id) ||
+        (await chatKeyManager.getKey(payload.chat_id));
+      if (!chatKey) {
+        console.error(
+          `[ChatSyncService:AI] No chat key available for ${payload.chat_id}, cannot decrypt missing message content`,
+        );
+        return;
+      }
       const { decryptWithChatKey } = await import("./cryptoService");
       try {
         const decrypted = await decryptWithChatKey(
@@ -1695,7 +1736,6 @@ export async function handlePostProcessingCompletedImpl(
     chat_tags: string[];
     harmful_response: number;
     top_recommended_apps_for_user?: string[]; // Optional: Top 5 recommended app IDs
-    suggested_settings_memories?: SuggestedSettingsMemoryEntry[]; // Optional: Settings/memories suggestions from Phase 2
   },
 ): Promise<void> {
   console.info(
@@ -1709,14 +1749,24 @@ export async function handlePostProcessingCompletedImpl(
     let encryptedChatSummary: string | null = null;
     let encryptedChatTags: string | null = null;
     let encryptedTopRecommendedApps: string | null = null;
-    let encryptedSettingsMemoriesSuggestions: string | null = null;
 
     const chat = await chatDB.getChat(payload.chat_id);
     if (!chat) {
       throw new Error(`Chat ${payload.chat_id} not found`);
     }
 
-    const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
+    // Use ChatKeyManager: try sync cache, then async IDB load. NEVER generate a wrong key.
+    let chatKey = chatKeyManager.getKeySync(payload.chat_id);
+    if (!chatKey) {
+      chatKey = await chatKeyManager.getKey(payload.chat_id);
+    }
+    if (!chatKey) {
+      console.error(
+        `[ChatSyncService:AI] ❌ CRITICAL: No chat key available for post-processing of chat ${payload.chat_id}. ` +
+          `Skipping encryption of follow-ups/summary/tags to prevent data corruption.`,
+      );
+      return;
+    }
     const {
       encryptWithChatKey,
       encryptArrayWithChatKey,
@@ -1804,34 +1854,12 @@ export async function handlePostProcessingCompletedImpl(
       );
     }
 
-    // Encrypt and save settings/memories suggestions (overwrites previous suggestions)
-    // These are shown to user as suggestion cards with "Add" and "Reject" options
-    if (
-      payload.suggested_settings_memories &&
-      payload.suggested_settings_memories.length > 0
-    ) {
-      // Encrypt the suggestions array as JSON string with chat key
-      const suggestionsJson = JSON.stringify(
-        payload.suggested_settings_memories.slice(0, 3), // Max 3 suggestions
-      );
-      encryptedSettingsMemoriesSuggestions = await encryptWithChatKey(
-        suggestionsJson,
-        chatKey,
-      );
-      chat.encrypted_settings_memories_suggestions =
-        encryptedSettingsMemoriesSuggestions;
-      console.debug(
-        `[ChatSyncService:AI] Saved ${payload.suggested_settings_memories.length} settings/memories suggestions for chat ${payload.chat_id}`,
-      );
-    }
-
     // Update chat with all encrypted metadata at once
     if (
       payload.follow_up_request_suggestions?.length > 0 ||
       payload.chat_summary ||
       payload.chat_tags?.length > 0 ||
-      encryptedTopRecommendedApps ||
-      encryptedSettingsMemoriesSuggestions
+      encryptedTopRecommendedApps
     ) {
       await chatDB.updateChat(chat);
       // CRITICAL: Invalidate metadata cache so context menu shows updated summary
@@ -1860,8 +1888,7 @@ export async function handlePostProcessingCompletedImpl(
       encryptedNewChatSuggestions.length > 0 ||
       encryptedChatSummary ||
       encryptedChatTags ||
-      encryptedTopRecommendedApps ||
-      encryptedSettingsMemoriesSuggestions
+      encryptedTopRecommendedApps
     ) {
       const { sendPostProcessingMetadataImpl } =
         await import("./chatSyncServiceSenders");
@@ -1873,7 +1900,6 @@ export async function handlePostProcessingCompletedImpl(
         encryptedChatSummary || "",
         encryptedChatTags || "",
         encryptedTopRecommendedApps || "",
-        encryptedSettingsMemoriesSuggestions || "",
       );
       console.debug(
         `[ChatSyncService:AI] Sent encrypted post-processing metadata to server for Directus sync`,
@@ -1897,12 +1923,10 @@ export async function handlePostProcessingCompletedImpl(
         taskId: payload.task_id,
         followUpSuggestions: payload.follow_up_request_suggestions,
         harmfulResponse: payload.harmful_response,
-        // Include settings/memories suggestions for UI to display suggestion cards
-        suggestedSettingsMemories: payload.suggested_settings_memories || [],
       },
     });
     console.info(
-      `[ChatSyncService:AI] 🚀 Dispatching 'postProcessingCompleted' event for chat ${payload.chat_id} with ${payload.follow_up_request_suggestions?.length || 0} follow-up suggestions and ${payload.suggested_settings_memories?.length || 0} settings/memories suggestions`,
+      `[ChatSyncService:AI] 🚀 Dispatching 'postProcessingCompleted' event for chat ${payload.chat_id} with ${payload.follow_up_request_suggestions?.length || 0} follow-up suggestions`,
     );
     serviceInstance.dispatchEvent(event);
     console.debug(`[ChatSyncService:AI] ✅ Event dispatched successfully`);
@@ -1942,7 +1966,13 @@ async function aggregateAndUpdateTopRecommendedApps(
     for (const chat of sortedChats) {
       if (chat.encrypted_top_recommended_apps_for_chat) {
         try {
-          const chatKey = chatDB.getOrGenerateChatKey(chat.chat_id);
+          const chatKey = chatKeyManager.getKeySync(chat.chat_id);
+          if (!chatKey) {
+            console.debug(
+              `[AggregateApps] No chat key available for chat ${chat.chat_id}, skipping`,
+            );
+            continue;
+          }
           const decryptedApps = await decryptArrayWithChatKey(
             chat.encrypted_top_recommended_apps_for_chat,
             chatKey,
@@ -2304,7 +2334,6 @@ export async function handleEmbedUpdateImpl(
             wrapEmbedKeyWithMasterKey,
             wrapEmbedKeyWithChatKey,
           } = await import("./cryptoService");
-          const { chatDB } = await import("./db");
 
           // Get chat_id from payload or existing embed
           const chatId = payload.chat_id || existingEmbed.chat_id;
@@ -2408,10 +2437,14 @@ export async function handleEmbedUpdateImpl(
                 throw new Error("Failed to wrap embed key with master key");
               }
 
-              // Create chat key wrapper
-              const chatKey = chatDB.getOrGenerateChatKey(chatId);
+              // Create chat key wrapper — use ChatKeyManager (never generate a wrong key)
+              const chatKey =
+                chatKeyManager.getKeySync(chatId) ||
+                (await chatKeyManager.getKey(chatId));
               if (!chatKey) {
-                throw new Error("Failed to get chat key for wrapping");
+                throw new Error(
+                  `No chat key available for embed key wrapping (chat ${chatId})`,
+                );
               }
               const wrappedChatKey = await wrapEmbedKeyWithChatKey(
                 embedKey,
@@ -4154,4 +4187,68 @@ export function handleInspirationOpenedImpl(
         err,
       );
     });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Chat Compression Events
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Handles 'chat_compression_started' WebSocket event.
+ *
+ * Published by the AI worker when chat history exceeds the compression threshold.
+ * Dispatches a global event for ActiveChat.svelte to show the "Compressing chat..."
+ * shimmer indicator.
+ */
+export function handleChatCompressionStartedImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: { chat_id: string; task_id: string },
+): void {
+  console.debug(
+    "[ChatSyncService:AI] Received 'chat_compression_started' for chat",
+    payload.chat_id,
+  );
+
+  serviceInstance.dispatchEvent(
+    new CustomEvent("chatCompressionStarted", { detail: payload }),
+  );
+}
+
+/**
+ * Handles 'chat_compression_completed' WebSocket event.
+ *
+ * Published by the AI worker when compression finishes (success or error).
+ * Dispatches a global event for ActiveChat.svelte to clear the compression
+ * indicator and proceed with the normal processing flow.
+ */
+export function handleChatCompressionCompletedImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: {
+    chat_id: string;
+    task_id: string;
+    compressed_message_count?: number;
+    summary_token_estimate?: number;
+    compressed_up_to_timestamp?: number;
+    summary_message_id?: string;
+    error?: string;
+  },
+): void {
+  if (payload.error) {
+    console.warn(
+      "[ChatSyncService:AI] Chat compression failed for chat",
+      payload.chat_id,
+      ":",
+      payload.error,
+    );
+  } else {
+    console.debug(
+      "[ChatSyncService:AI] Chat compression completed for chat",
+      payload.chat_id,
+      `(${payload.compressed_message_count} messages compressed)`,
+    );
+  }
+
+  serviceInstance.dispatchEvent(
+    new CustomEvent("chatCompressionCompleted", { detail: payload }),
+  );
 }

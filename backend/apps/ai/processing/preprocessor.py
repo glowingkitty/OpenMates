@@ -1269,14 +1269,22 @@ async def handle_preprocessing(
                     else:
                         available_focus_modes_list.append(focus_identifier)
     
-    logger.info(f"{log_prefix} Preparing for LLM call(s). Using {len(available_categories_list)} categories from mates.yml: {available_categories_list}")
-    logger.info(f"  - User Message History Length: {len(request_data.message_history)}")
-    logger.info(f"  - Available app skills for tool preselection ({len(available_skills_list)} total): {', '.join(available_skills_list) if available_skills_list else 'None'}")
-    logger.info(f"  - Available focus modes ({len(available_focus_modes_list)} total): {', '.join(available_focus_modes_list) if available_focus_modes_list else 'None'}")
-    logger.info(f"    - CATEGORIES_LIST: {available_categories_list}")
-    logger.info(f"    - AVAILABLE_APP_SKILLS: {available_skills_list if available_skills_list else 'None'}")
-    logger.info(f"    - AVAILABLE_FOCUS_MODES: {available_focus_modes_list if available_focus_modes_list else 'None'}")
-    logger.info(f"    - AVAILABLE_APP_SETTINGS_AND_MEMORIES (from direct param): {user_app_settings_and_memories_metadata}")
+    # Log concise summary at INFO (names/IDs only, no descriptions)
+    logger.info(
+        f"{log_prefix} Preparing for LLM call(s). "
+        f"categories={len(available_categories_list)}, skills={len(available_skill_ids)}, "
+        f"focus_modes={len(available_focus_mode_ids)}, history_msgs={len(request_data.message_history)}, "
+        f"app_settings_keys={len(user_app_settings_and_memories_metadata) if user_app_settings_and_memories_metadata else 0}"
+    )
+    logger.info(
+        f"{log_prefix} Available skill IDs: {', '.join(available_skill_ids) if available_skill_ids else 'None'} | "
+        f"Focus mode IDs: {', '.join(available_focus_mode_ids) if available_focus_mode_ids else 'None'}"
+    )
+    # Full details with preprocessor_hints — only at DEBUG level
+    logger.debug(f"{log_prefix} Categories: {available_categories_list}")
+    logger.debug(f"{log_prefix} Skills with hints: {available_skills_list}")
+    logger.debug(f"{log_prefix} Focus modes with hints: {available_focus_modes_list}")
+    logger.debug(f"{log_prefix} App settings/memories metadata: {user_app_settings_and_memories_metadata}")
 
     preprocessing_model = skill_config.default_llms.preprocessing_model
 
@@ -2129,9 +2137,10 @@ async def handle_preprocessing(
 
             if invalid_keys:
                 logger.warning(
-                    f"{log_prefix} LLM requested {len(invalid_keys)} invalid app_settings_and_memories key(s) that don't exist: {invalid_keys}. "
-                    f"Filtered out. Valid keys: {validated_keys}. Available keys: {list(available_keys)}"
+                    f"{log_prefix} LLM requested {len(invalid_keys)} invalid app_settings_and_memories key(s): {invalid_keys}. "
+                    f"Filtered out. Valid keys: {validated_keys}. ({len(available_keys)} available keys total)"
                 )
+                logger.debug(f"{log_prefix} Full available keys: {list(available_keys)}")
             elif validated_keys:
                 logger.info(f"{log_prefix} Successfully validated {len(validated_keys)} app_settings_and_memories key(s): {validated_keys}")
             

@@ -16,7 +16,7 @@
   // Import highlight.js theme - using github-dark for dark mode compatibility
   import 'highlight.js/styles/github-dark.css';
   // Import shared highlighting utilities (includes all language support + Svelte)
-  import { highlightToElement } from './codeHighlighting';
+  import { highlightToLines } from './codeHighlighting';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   import { downloadCodeFile } from '../../../services/zipExportService';
@@ -25,6 +25,7 @@
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import type { PIIMapping } from '../../../types/chat';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
+  import { codeLineHighlightStore } from '../../../stores/messageHighlightStore';
   
   /**
    * Props for code embed fullscreen
@@ -104,9 +105,6 @@
     localPiiRevealed = !localPiiRevealed;
   }
   
-  // Reference to the code element for syntax highlighting
-  let codeElement: HTMLElement | null = $state(null);
-
   /**
    * Apply PII masking to the raw code string before parsing/displaying.
    * The AI-generated code may include placeholder strings (e.g. "[EMAIL_1]").
@@ -132,6 +130,54 @@
   let actualLineCount = $derived.by(() => {
     if (lineCount > 0) return lineCount;
     return countCodeLines(renderCodeContent);
+  });
+
+  /**
+   * Per-line highlighted HTML fragments.
+   * Re-computed whenever the code content or language changes.
+   * Each element is a sanitized HTML string for one source line.
+   */
+  let highlightedLines = $derived(highlightToLines(renderCodeContent, renderLanguage));
+
+  /**
+   * The line range to highlight, sourced from the global codeLineHighlightStore.
+   * Set when the user clicks an embed: link with a #L42 / #L10-L20 suffix.
+   * Null when no line highlighting is requested.
+   * $codeLineHighlightStore uses Svelte's auto-subscribe rune syntax — it
+   * reactively re-evaluates anywhere it is referenced in this component.
+   */
+  let highlightRange = $derived($codeLineHighlightStore);
+
+  /**
+   * Reference to the code lines container — used to query-select the first
+   * highlighted line element for auto-scrolling.
+   */
+  let codeLinesContainer: HTMLElement | null = $state(null);
+
+  /**
+   * Scroll the first highlighted line into view (centered).
+   * Safe to call before the DOM is rendered — does nothing if container is null.
+   */
+  function scrollToHighlightedLine() {
+    if (!codeLinesContainer || !highlightRange) return;
+    const startLine = codeLinesContainer.querySelector(
+      `.code-line[data-line="${highlightRange.start}"]`
+    ) as HTMLElement | null;
+    if (startLine) {
+      startLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
+  // Auto-scroll to the first highlighted line after mount.
+  onMount(() => {
+    scrollToHighlightedLine();
+  });
+
+  // Also scroll whenever the highlight range changes while the fullscreen is open.
+  $effect(() => {
+    // Reactive dependency on highlightRange — re-runs when the store value changes.
+    void highlightRange;
+    scrollToHighlightedLine();
   });
   
   // Build skill name for BasicInfosBar: filename (or "Code snippet")
@@ -163,16 +209,6 @@
   
   // Map skillId to icon name
   const skillIconName = 'coding';
-  
-  // Apply syntax highlighting after mount and when content changes
-  onMount(() => {
-    highlightToElement(codeElement, renderCodeContent, renderLanguage);
-  });
-  
-  // Re-highlight when code content changes
-  $effect(() => {
-    highlightToElement(codeElement, renderCodeContent, renderLanguage);
-  });
   
   // Handle copy code to clipboard.
   // Copies the PII-processed content (original values if revealed, placeholders if hidden).
@@ -262,9 +298,24 @@
             </button>
           </div>
         {/if}
-        <div class="code-fullscreen-grid">
-          <pre class="line-numbers" aria-hidden="true">{Array.from({ length: actualLineCount }, (_, i) => i + 1).join('\n')}</pre>
-          <pre class="code-fullscreen"><code bind:this={codeElement}>{renderCodeContent}</code></pre>
+        <!-- Per-line code display — each line is a flex row: gutter number + code text.
+             This structure enables GitHub-style per-line highlighting via a background
+             bar that spans the full width, without affecting text selection or wrapping.
+             data-line attribute (1-indexed) is used by the auto-scroll logic. -->
+        <div class="code-lines-container" role="presentation" bind:this={codeLinesContainer}>
+          {#each highlightedLines as lineHtml, i}
+            {@const lineNum = i + 1}
+            {@const isHighlighted = highlightRange != null && lineNum >= highlightRange.start && lineNum <= highlightRange.end}
+            <div
+              class="code-line"
+              class:code-line--highlighted={isHighlighted}
+              data-line={lineNum}
+            >
+              <span class="code-line-gutter" aria-hidden="true">{lineNum}</span>
+              <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+              <code class="code-line-text">{@html lineHtml}</code>
+            </div>
+          {/each}
         </div>
       </div>
     {:else}
@@ -327,45 +378,51 @@
     font-size: 12px;
   }
 
-  .code-fullscreen-grid {
-    display: flex;
-    align-items: flex-start;
+  /* Per-line container — vertical stack of .code-line rows.
+     overflow-x on the container allows horizontal scrolling for long lines
+     while keeping line highlighting at the full container width. */
+  .code-lines-container {
     width: 100%;
-    gap: 0;
+    overflow-x: auto;
+    font-size: 14px;
+    line-height: 1.6;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Consolas', monospace;
   }
 
-  .line-numbers {
-    margin: 0;
-    padding: 0 12px 0 0;
-    font-size: 14px;
-    line-height: 1.6;
-    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Consolas', monospace;
-    color: var(--color-font-tertiary);
+  /* Each line row: gutter number on the left, code text on the right. */
+  .code-line {
+    display: flex;
+    align-items: baseline;
+    min-width: max-content; /* prevents line from wrapping when container scrolls */
+    position: relative;
+  }
+
+  /* GitHub-style line highlight — full-width yellow background bar.
+     Applied to every line inside the requested range. */
+  .code-line--highlighted {
+    background-color: rgba(255, 200, 50, 0.18);
+    border-left: 2px solid rgba(255, 200, 50, 0.7);
+  }
+
+  /* Gutter: right-aligned line numbers, not selectable. */
+  .code-line-gutter {
+    flex: 0 0 auto;
+    min-width: 40px;
+    padding-right: 12px;
     text-align: right;
+    color: var(--color-font-tertiary);
     user-select: none;
     -webkit-user-select: none;
-    flex: 0 0 auto;
+    font-size: inherit;
+    line-height: inherit;
+    font-family: inherit;
   }
-  
-  .code-fullscreen {
-    margin: 0;
-    padding: 0;
-    font-size: 14px;
-    line-height: 1.6;
+
+  /* Code text: allows text selection, no wrapping (container scrolls instead). */
+  .code-line-text {
+    flex: 1 1 auto;
+    display: block;
     white-space: pre;
-    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Consolas', monospace;
-    background: transparent;
-    color: var(--color-font-primary);
-    display: block;
-    overflow-x: auto;
-    width: 100%;
-    min-width: 0;
-    user-select: text;
-    -webkit-user-select: text;
-  }
-  
-  .code-fullscreen code {
-    display: block;
     color: var(--color-font-primary);
     background: transparent;
     padding: 0;
@@ -376,25 +433,25 @@
     user-select: text;
     -webkit-user-select: text;
   }
-  
-  /* Syntax highlighting colors - basic support */
-  .code-fullscreen code :global(.keyword) {
+
+  /* Syntax highlighting colors — delegated to highlight.js github-dark theme spans */
+  .code-line-text :global(.keyword) {
     color: var(--color-syntax-keyword, #c678dd);
   }
-  
-  .code-fullscreen code :global(.string) {
+
+  .code-line-text :global(.string) {
     color: var(--color-syntax-string, #98c379);
   }
-  
-  .code-fullscreen code :global(.comment) {
+
+  .code-line-text :global(.comment) {
     color: var(--color-syntax-comment, #5c6370);
   }
-  
-  .code-fullscreen code :global(.function) {
+
+  .code-line-text :global(.function) {
     color: var(--color-syntax-function, #61afef);
   }
-  
-  .code-fullscreen code :global(.number) {
+
+  .code-line-text :global(.number) {
     color: var(--color-syntax-number, #d19a66);
   }
   

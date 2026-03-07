@@ -1,4 +1,5 @@
 <script lang="ts">
+    /* eslint-disable @typescript-eslint/no-unused-vars */
     import { text } from '../../i18n/translations';
     import { userProfile } from '../../stores/userProfile'; // Import userProfile store
     import { getWebsiteUrl, routes } from '../../config/links';
@@ -16,6 +17,7 @@
     const STEP_PASSWORD = 'password';
     // const STEP_PROFILE_PICTURE = 'profile_picture'; // Moved to settings
     const STEP_ONE_TIME_CODES = 'one_time_codes';
+    const STEP_SKIP_2FA_CONSENT = 'skip_2fa_consent';
     const STEP_BACKUP_CODES = 'backup_codes';
     const STEP_RECOVERY_KEY = 'recovery_key';
     const STEP_TFA_APP_REMINDER = 'tfa_app_reminder';
@@ -30,7 +32,7 @@
     // Note: STEP_COMPLETION is not included as it's not a visible step - users go directly to the app after auto top-up
     const fullStepSequence = [
         STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD,
-        STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY,
+        STEP_ONE_TIME_CODES, STEP_SKIP_2FA_CONSENT, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY,
         STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP
     ];
 
@@ -95,11 +97,16 @@
             onback();
         } else if (currentStep === STEP_ONE_TIME_CODES) {
             onlogout();
+        } else if (currentStep === STEP_SKIP_2FA_CONSENT) {
+            onstep({ step: STEP_ONE_TIME_CODES });
         } else if (currentStep === STEP_RECOVERY_KEY && $signupStore.loginMethod === 'passkey') {
             // CRITICAL: For passkey signup, recovery_key step should trigger logout (not go back to backup_codes)
             // Passkey signup doesn't have backup_codes step, so going back from recovery_key should logout
             console.log('[SignupNav] Passkey signup - triggering logout from recovery_key step');
             onlogout();
+        } else if (currentStep === STEP_RECOVERY_KEY && $signupStore.loginMethod === 'password' && !$userProfile.tfa_enabled) {
+            // Password signup with skipped 2FA: return to warning step, not backup codes.
+            onstep({ step: STEP_SKIP_2FA_CONSENT });
         } else if (currentStep === STEP_AUTO_TOP_UP) {
             // Auto top-up step should trigger logout when back button is clicked
             console.log('[SignupNav] Auto top-up step - triggering logout');
@@ -117,7 +124,10 @@
 
     function handleSkipClick() {
         // Profile picture step removed
-        if (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) {
+        if (currentStep === STEP_ONE_TIME_CODES && !$userProfile.tfa_enabled) {
+            // User wants to skip 2FA setup — navigate to the warning/consent screen
+            onstep({ step: STEP_SKIP_2FA_CONSENT });
+        } else if (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) {
             onstep({ step: STEP_TFA_APP_REMINDER });
     } else if (currentStep === STEP_TFA_APP_REMINDER) {
          // Always go to backup codes step next, regardless of whether an app is selected
@@ -159,11 +169,15 @@
         if (step === STEP_SECURE_ACCOUNT) return $text('signup.sign_up');
         if (step === STEP_PASSWORD) return $text('signup.secure_your_account');
         if (step === STEP_ONE_TIME_CODES) return $text('settings.logout');
+        if (step === STEP_SKIP_2FA_CONSENT) return $text('signup.one_time_codes');
         if (step === STEP_TFA_APP_REMINDER) return $text('signup.connect_2fa_app');
         if (step === STEP_BACKUP_CODES) return $text('signup.2fa_app_reminder.text');
         // CRITICAL: For passkey signup, recovery_key step should show "Logout" (triggers logout)
         // For password signup, it should show "Backup codes" (goes back to backup_codes step)
         if (step === STEP_RECOVERY_KEY) {
+            if ($signupStore.loginMethod === 'password' && !$userProfile.tfa_enabled) {
+                return $text('signup.one_time_codes');
+            }
             return $signupStore.loginMethod === 'passkey' 
                 ? $text('settings.logout') 
                 : $text('signup.backup_codes');
@@ -180,6 +194,7 @@
 
 // Update the reactive skipButtonText for different steps and states using Svelte 5 runes
 let skipButtonText = $derived(
+    (currentStep === STEP_ONE_TIME_CODES && !$userProfile.tfa_enabled) ? $text('signup.skip_for_now') :
     (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) ? $text('signup.next') :
     // Only show "Next" for TFA app reminder if an app has been selected AND saved
     (currentStep === STEP_TFA_APP_REMINDER && selectedAppName && selectedAppName.trim() !== '' && isAppSaved) ? $text('signup.next') :
@@ -200,7 +215,7 @@ let skipButtonText = $derived(
     // - showSkip prop is true AND it's not one of the special steps
     let showActualSkipButton = $derived(
         mode === 'login' ? false : (
-            (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) ||
+            (currentStep === STEP_ONE_TIME_CODES) ||
             (currentStep === STEP_TFA_APP_REMINDER && (!selectedAppName || selectedAppName.trim() === '' || isAppSaved)) ||
             (currentStep === STEP_SETTINGS && $userProfile.consent_privacy_and_apps_default_settings) ||
             (currentStep === STEP_MATE_SETTINGS && $userProfile.consent_mates_default_settings) ||

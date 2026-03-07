@@ -4,6 +4,24 @@
 
 The Shopping app helps users manage products they are considering buying, track purchase decisions, and get intelligent reminders to reconsider items at appropriate times.
 
+## Product Search Providers
+
+The `search_products` skill supports two providers:
+
+- **REWE**: German supermarket product search with authenticated market pricing
+- **Amazon**: Marketplace product search via SerpAPI Amazon engine
+
+### Amazon search filters
+
+For Amazon searches, the skill supports:
+
+- `country` (marketplace): e.g., `us`, `uk`, `de`, `fr`, `it`, `es`, `ca`, `au`, `jp`
+- `department` (category): e.g., `electronics`, `home`, `books`, `beauty`, `grocery`
+- `sort`: relevance, price ascending/descending, review rank, newest, best sellers
+- `min_price` / `max_price`: client-side price filtering on extracted product prices
+
+If `country` is omitted, the skill infers a default from user locale/language and falls back to `us`.
+
 ## Settings and Memories
 
 ### Buy List

@@ -450,7 +450,8 @@ async def _trigger_continuation(
                     app_settings_memories_metadata.append(f"{app_id}-{item_key}")
                 else:
                     app_settings_memories_metadata.append(key)
-            logger.info(f"Passing {len(app_settings_memories_metadata)} app_settings_memories_metadata keys to continuation task: {app_settings_memories_metadata}")
+            logger.info(f"Passing {len(app_settings_memories_metadata)} app_settings_memories_metadata keys to continuation task.")
+            logger.debug(f"App settings/memories metadata keys for continuation: {app_settings_memories_metadata}")
         
         request_data_dict = {
             "chat_id": chat_id,

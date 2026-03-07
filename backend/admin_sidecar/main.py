@@ -12,10 +12,13 @@
 #   GET  /admin/logs          — fetch recent Docker Compose logs (plain text)
 #   POST /admin/update        — git pull + docker compose build + docker compose up -d
 #   GET  /admin/update/status — poll the current/last update status (JSON)
+#   GET  /admin/version       — current version info: commit SHA, tag, branch (PUBLIC)
 #   GET  /health              — liveness probe
 #
 # Authentication:
-#   All /admin/* endpoints require X-Admin-Log-Key matching ADMIN_LOG_API_KEY env var.
+#   Most /admin/* endpoints require X-Admin-Log-Key matching ADMIN_LOG_API_KEY env var.
+#   Exception: /admin/version is public — version info is not sensitive and the
+#   sidecar is only reachable from localhost/Docker network.
 #
 # Configuration (all via environment variables):
 #   ADMIN_LOG_API_KEY      — shared secret for X-Admin-Log-Key header (required)
@@ -61,6 +64,9 @@ _COMPOSE_FILE = os.environ.get("COMPOSE_FILE", "")
 _SERVICES_ALLOWED_RAW = os.environ.get("SERVICES_ALLOWED", "")
 _SERVICE_UPDATE_TARGET = os.environ.get("SERVICE_UPDATE_TARGET", "")
 _SERVICE_UPDATE_EXTRAS_RAW = os.environ.get("SERVICE_UPDATE_EXTRAS", "")
+_SERVICE_UPDATE_ALL = os.environ.get("SERVICE_UPDATE_ALL", "").lower() in ("true", "1", "yes")
+_CLEAR_CACHE_ON_UPDATE = os.environ.get("CLEAR_CACHE_ON_UPDATE", "").lower() in ("true", "1", "yes")
+_CACHE_VOLUME_NAME = os.environ.get("CACHE_VOLUME_NAME", "")
 _GIT_WORK_DIR = os.environ.get("GIT_WORK_DIR", "/app")
 _PORT = int(os.environ.get("PORT", "8001"))
 
@@ -109,6 +115,18 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # FastAPI application
 # =============================================================================
+
+# Mark the host git repo as safe so git commands work inside the container
+# (the repo owner UID on the host differs from the container user).
+if _GIT_WORK_DIR:
+    try:
+        subprocess.run(
+            ["git", "config", "--global", "--add", "safe.directory", _GIT_WORK_DIR],
+            check=True,
+            capture_output=True,
+        )
+    except Exception:
+        pass  # Non-fatal — git commands will fail with a clear error later
 
 app = FastAPI(
     title="OpenMates Admin Sidecar",
@@ -363,25 +381,95 @@ def _run_update_script() -> tuple[bool, str, list[dict]]:
     if compose_file_abs:
         compose_base += ["-f", compose_file_abs]
 
-    # Step 1: git pull
-    if not _step("git pull", ["git", "pull"], _STEP_TIMEOUT_GIT):
-        return False, "\n".join(log_lines), steps
+    # Detect deployment mode
+    git_dir = os.path.join(work_dir, ".git")
+    is_git_mode = os.path.isdir(git_dir)
 
-    # Step 2: docker compose build <target>
-    if not _step(
-        f"docker compose build {target}",
-        compose_base + ["build", target],
-        _STEP_TIMEOUT_BUILD,
-    ):
-        return False, "\n".join(log_lines), steps
+    # Step 1: git pull (only in git mode)
+    if is_git_mode:
+        if not _step("git pull", ["git", "pull"], _STEP_TIMEOUT_GIT):
+            return False, "\n".join(log_lines), steps
+    else:
+        log_lines.append("\n=== Skipping git pull (Docker Hub mode) ===")
 
-    # Step 3: docker compose up -d <target>
-    if not _step(
-        f"docker compose up -d {target}",
-        compose_base + ["up", "-d", target],
-        _STEP_TIMEOUT_UP,
-    ):
-        return False, "\n".join(log_lines), steps
+    if _SERVICE_UPDATE_ALL:
+        # Multi-service mode (core server): build ALL images first, then swap ALL at once.
+        # This is the "smart grouping" strategy — build has no downtime, then ~30s swap.
+
+        # Step 2a: Optional cache volume removal (between build and up)
+        if _CLEAR_CACHE_ON_UPDATE and _CACHE_VOLUME_NAME:
+            # Note: cache is cleared AFTER build but BEFORE up, so the new
+            # containers start with a clean cache.
+            log_lines.append(
+                f"\n=== Cache clearing scheduled for volume '{_CACHE_VOLUME_NAME}' ==="
+            )
+
+        if is_git_mode:
+            # Step 2b: Build all service images (no downtime — old containers keep running)
+            if not _step(
+                "docker compose build (all services)",
+                compose_base + ["build"],
+                _STEP_TIMEOUT_BUILD,
+            ):
+                return False, "\n".join(log_lines), steps
+        else:
+            # Docker Hub mode: pull pre-built images instead of building
+            if not _step(
+                "docker compose pull (all services)",
+                compose_base + ["pull"],
+                _STEP_TIMEOUT_BUILD,
+            ):
+                return False, "\n".join(log_lines), steps
+
+        # Step 2c: Clear cache volume if configured
+        if _CLEAR_CACHE_ON_UPDATE and _CACHE_VOLUME_NAME:
+            # Stop the cache container first, remove volume, then it will be
+            # recreated on the next `up -d`
+            _step(
+                "docker compose stop cache (for volume cleanup)",
+                compose_base + ["stop", "cache"],
+                _STEP_TIMEOUT_UP,
+            )
+            _step(
+                f"docker volume rm {_CACHE_VOLUME_NAME}",
+                ["docker", "volume", "rm", "-f", _CACHE_VOLUME_NAME],
+                _STEP_TIMEOUT_UP,
+            )
+
+        # Step 3: Swap all containers at once (brief ~30s downtime)
+        if not _step(
+            "docker compose up -d (all services — swap to new images)",
+            compose_base + ["up", "-d"],
+            _STEP_TIMEOUT_UP,
+        ):
+            return False, "\n".join(log_lines), steps
+
+    else:
+        # Single-service mode (satellite servers): build and restart just the target
+        if is_git_mode:
+            # Step 2: docker compose build <target>
+            if not _step(
+                f"docker compose build {target}",
+                compose_base + ["build", target],
+                _STEP_TIMEOUT_BUILD,
+            ):
+                return False, "\n".join(log_lines), steps
+        else:
+            # Docker Hub mode: pull just the target image
+            if not _step(
+                f"docker compose pull {target}",
+                compose_base + ["pull", target],
+                _STEP_TIMEOUT_BUILD,
+            ):
+                return False, "\n".join(log_lines), steps
+
+        # Step 3: docker compose up -d <target>
+        if not _step(
+            f"docker compose up -d {target}",
+            compose_base + ["up", "-d", target],
+            _STEP_TIMEOUT_UP,
+        ):
+            return False, "\n".join(log_lines), steps
 
     # Step 4 (optional): restart extra services (e.g. vault-setup re-populates secrets)
     # These are NOT rebuilt — just restarted so their entrypoint re-runs.
@@ -665,6 +753,123 @@ async def get_update_status(
     return JSONResponse(status_code=200, content=_last_update_result)
 
 
+@app.get(
+    "/admin/version",
+    summary="Get current version info (commit SHA, branch, tag, deployment mode)",
+    description=(
+        "Returns the current git commit SHA, branch name, version tag, build "
+        "timestamp, and deployment mode (git or docker) for this server. "
+        "This endpoint is PUBLIC (no auth required) because version info is not "
+        "sensitive and the sidecar is only reachable from localhost/Docker network."
+    ),
+)
+async def get_version() -> JSONResponse:
+    """
+    Return current version info for this server.
+
+    This endpoint is intentionally public (no _require_admin_key) because:
+    - Version info is not sensitive (it's public on GitHub)
+    - The sidecar is bound to 127.0.0.1 / Docker network only
+    - The core API needs to call this without an admin key on first startup
+
+    Detects deployment mode by checking for .git directory:
+    - If .git exists in GIT_WORK_DIR -> git mode
+    - Otherwise -> docker mode
+
+    Version info is read from:
+    1. BUILD_COMMIT_SHA / BUILD_BRANCH / BUILD_TIMESTAMP env vars (if set at build time)
+    2. git commands (if running in git mode with volume-mounted repo)
+    3. git describe --tags for the nearest release tag
+    """
+    work_dir = _GIT_WORK_DIR
+    git_dir = os.path.join(work_dir, ".git")
+
+    # Detect deployment mode
+    deployment_mode = "git" if os.path.isdir(git_dir) else "docker"
+
+    # Try build-time env vars first
+    sha = os.environ.get("BUILD_COMMIT_SHA", "")
+    branch = os.environ.get("BUILD_BRANCH", "")
+    build_timestamp = os.environ.get("BUILD_TIMESTAMP", "")
+    message = os.environ.get("BUILD_COMMIT_MESSAGE", "")
+
+    # Fall back to git commands if env vars not set and .git exists
+    if not sha and deployment_mode == "git":
+        try:
+            result = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                capture_output=True, text=True, timeout=5, cwd=work_dir,
+            )
+            sha = result.stdout.strip()
+        except Exception as e:
+            logger.warning("[AdminSidecar/version] git rev-parse failed: %s", e)
+
+    if not branch and deployment_mode == "git":
+        try:
+            result = subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                capture_output=True, text=True, timeout=5, cwd=work_dir,
+            )
+            branch = result.stdout.strip()
+        except Exception as e:
+            logger.warning("[AdminSidecar/version] git branch detection failed: %s", e)
+
+    if not message and sha and deployment_mode == "git":
+        try:
+            result = subprocess.run(
+                ["git", "log", "-1", "--format=%s"],
+                capture_output=True, text=True, timeout=5, cwd=work_dir,
+            )
+            message = result.stdout.strip()
+        except Exception as e:
+            logger.warning("[AdminSidecar/version] git log failed: %s", e)
+
+    # Get the latest version tag (e.g. "v0.5.0-alpha").
+    # We use `git tag --sort=-v:refname` (latest by version sort) instead of
+    # `git describe --tags --abbrev=0` because describe only finds tags that
+    # are ancestors of HEAD. On `dev`, tags created on `main` would be missed.
+    tag = os.environ.get("BUILD_VERSION_TAG", "")
+    if not tag and deployment_mode == "git":
+        try:
+            result = subprocess.run(
+                ["git", "tag", "--sort=-v:refname"],
+                capture_output=True, text=True, timeout=5, cwd=work_dir,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                tag = result.stdout.strip().splitlines()[0]
+        except Exception as e:
+            logger.warning("[AdminSidecar/version] git tag listing failed: %s", e)
+
+    # Build the tag URL (GitHub release page)
+    tag_url = ""
+    if tag:
+        tag_url = f"https://github.com/glowingkitty/OpenMates/releases/tag/{tag}"
+
+    commit_info = None
+    if sha:
+        commit_info = {
+            "sha": sha,
+            "short_sha": sha[:7],
+            "message": message,
+            "date": build_timestamp,
+            "tag": tag,
+            "tag_url": tag_url,
+        }
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "deployment_mode": deployment_mode,
+            "branch": branch,
+            "build_timestamp": build_timestamp,
+            "commit": commit_info,
+            "tag": tag,
+            "tag_url": tag_url,
+            "service_update_target": _SERVICE_UPDATE_TARGET,
+        },
+    )
+
+
 # =============================================================================
 # Startup log
 # =============================================================================
@@ -684,6 +889,18 @@ async def _log_config() -> None:
     logger.info(
         "  SERVICE_UPDATE_EXTRAS:   %s",
         _SERVICE_UPDATE_EXTRAS or "(none)",
+    )
+    logger.info(
+        "  SERVICE_UPDATE_ALL:      %s",
+        _SERVICE_UPDATE_ALL,
+    )
+    logger.info(
+        "  CLEAR_CACHE_ON_UPDATE:   %s",
+        _CLEAR_CACHE_ON_UPDATE,
+    )
+    logger.info(
+        "  CACHE_VOLUME_NAME:       %s",
+        _CACHE_VOLUME_NAME or "(not set)",
     )
     logger.info("  GIT_WORK_DIR:            %s", _GIT_WORK_DIR)
     logger.info("  PORT:                    %d", _PORT)

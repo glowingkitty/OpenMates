@@ -336,10 +336,16 @@
           "text": "你希望AI如何与你沟通"
         },
         "example_1": {
-          "text": "专业简洁"
+          "text": "专业简洁",
+          "title": {
+            "text": "技术专家"
+          }
         },
         "example_2": {
-          "text": "随意友好"
+          "text": "随意友好",
+          "title": {
+            "text": "友好助手"
+          }
         }
       },
       "learning_preferences": {
@@ -348,10 +354,22 @@
           "text": "你如何偏好学习和获取信息"
         },
         "example_1": {
-          "text": "视觉学习者"
+          "text": "视觉学习者",
+          "title": {
+            "text": "视觉学习"
+          },
+          "notes": {
+            "text": "更喜欢图表、图形和视觉说明"
+          }
         },
         "example_2": {
-          "text": "动手实践"
+          "text": "动手实践",
+          "title": {
+            "text": "动手实践"
+          },
+          "notes": {
+            "text": "通过代码示例动手尝试来学习效果最好"
+          }
         }
       },
       "interaction_preferences": {
@@ -368,10 +386,28 @@
           "text": "你喜爱并推荐的书籍。"
         },
         "example_1": {
-          "text": "1984"
+          "text": "1984",
+          "title": {
+            "text": "了不起的盖茨比"
+          },
+          "genre": {
+            "text": "经典小说"
+          },
+          "notes": {
+            "text": "关于美国梦的优美散文"
+          }
         },
         "example_2": {
-          "text": "人类简史"
+          "text": "人类简史",
+          "title": {
+            "text": "人类简史"
+          },
+          "genre": {
+            "text": "非虚构"
+          },
+          "notes": {
+            "text": "令人着迷的人类历史概述"
+          }
         },
         "example_3": {
           "text": "沙丘"
@@ -383,10 +419,22 @@
           "text": "你目前正在阅读的书。"
         },
         "example_1": {
-          "text": "挽救计划"
+          "text": "挽救计划",
+          "title": {
+            "text": "挽救计划"
+          },
+          "notes": {
+            "text": "精彩的科幻冒险"
+          }
         },
         "example_2": {
-          "text": "原子习惯"
+          "text": "原子习惯",
+          "title": {
+            "text": "原子习惯"
+          },
+          "notes": {
+            "text": "建立良好习惯的实用策略"
+          }
         }
       },
       "to_read_list": {
@@ -395,10 +443,28 @@
           "text": "你接下来想阅读的书。"
         },
         "example_1": {
-          "text": "三体"
+          "text": "三体",
+          "title": {
+            "text": "沙丘"
+          },
+          "genre": {
+            "text": "科幻小说"
+          },
+          "notes": {
+            "text": "经典科幻小说，朋友推荐"
+          }
         },
         "example_2": {
-          "text": "思考，快与慢"
+          "text": "思考，快与慢",
+          "title": {
+            "text": "思考，快与慢"
+          },
+          "genre": {
+            "text": "心理学"
+          },
+          "notes": {
+            "text": "想要了解认知偏差"
+          }
         },
         "example_3": {
           "text": "深度工作"
@@ -412,10 +478,16 @@
           "text": "你偏好的语言和框架。"
         },
         "example_1": {
-          "text": "Python"
+          "text": "Python",
+          "name": {
+            "text": "Python"
+          }
         },
         "example_2": {
-          "text": "TypeScript"
+          "text": "TypeScript",
+          "name": {
+            "text": "TypeScript"
+          }
         },
         "example_3": {
           "text": "Svelte"
@@ -427,10 +499,22 @@
           "text": "你的项目（进行中、计划中或已完成）"
         },
         "example_1": {
-          "text": "个人网站"
+          "text": "个人网站",
+          "name": {
+            "text": "个人网站"
+          },
+          "description": {
+            "text": "使用SvelteKit构建的作品集网站"
+          }
         },
         "example_2": {
-          "text": "移动应用"
+          "text": "移动应用",
+          "name": {
+            "text": "天气应用"
+          },
+          "description": {
+            "text": "使用React和OpenWeather API构建的天气预报应用"
+          }
         },
         "example_3": {
           "text": "API后端"
@@ -442,10 +526,16 @@
           "text": "你想学习的技术和技能"
         },
         "example_1": {
-          "text": "Rust"
+          "text": "Rust",
+          "name": {
+            "text": "Rust"
+          }
         },
         "example_2": {
-          "text": "机器学习"
+          "text": "机器学习",
+          "name": {
+            "text": "机器学习"
+          }
         },
         "example_3": {
           "text": "Kubernetes"
@@ -459,10 +549,22 @@
           "text": "您首选的文档写作风格。"
         },
         "example_1": {
-          "text": "正式商务"
+          "text": "正式商务",
+          "name": {
+            "text": "技术文档"
+          },
+          "description": {
+            "text": "清晰、结构化的写作，适用于开发者文档和API参考"
+          }
         },
         "example_2": {
-          "text": "学术"
+          "text": "学术",
+          "name": {
+            "text": "博客文章"
+          },
+          "description": {
+            "text": "引人入胜的对话式语调，适用于博客文章"
+          }
         },
         "example_3": {
           "text": "随意博客"
@@ -476,10 +578,22 @@
           "text": "你的医疗预约和访问。"
         },
         "example_1": {
-          "text": "牙医 Mueller 医生"
+          "text": "牙医 Mueller 医生",
+          "where": {
+            "text": "市立医院"
+          },
+          "notes": {
+            "text": "年度体检"
+          }
         },
         "example_2": {
-          "text": "眼科检查"
+          "text": "眼科检查",
+          "where": {
+            "text": "市中心牙科诊所"
+          },
+          "notes": {
+            "text": "洗牙"
+          }
         }
       },
       "medical_history": {
@@ -488,10 +602,22 @@
           "text": "过去的手术、疾病和过敏。"
         },
         "example_1": {
-          "text": "青霉素过敏"
+          "text": "青霉素过敏",
+          "name": {
+            "text": "花生过敏"
+          },
+          "details": {
+            "text": "严重过敏反应，随身携带肾上腺素笔"
+          }
         },
         "example_2": {
-          "text": "2023年膝关节手术"
+          "text": "2023年膝关节手术",
+          "name": {
+            "text": "新冠疫苗"
+          },
+          "details": {
+            "text": "辉瑞加强针"
+          }
         }
       },
       "symptoms_log": {
@@ -514,10 +640,22 @@
           "text": "您生成图像的偏好风格"
         },
         "example_1": {
-          "text": "水彩"
+          "text": "水彩",
+          "name": {
+            "text": "极简"
+          },
+          "description": {
+            "text": "简洁线条、简约构图、柔和色调"
+          }
         },
         "example_2": {
-          "text": "极简"
+          "text": "极简",
+          "name": {
+            "text": "鲜艳摄影"
+          },
+          "description": {
+            "text": "明亮色彩、高对比度、动感构图"
+          }
         },
         "example_3": {
           "text": "赛博朋克"
@@ -531,10 +669,31 @@
           "text": "你在不同情境下如何撰写电子邮件。"
         },
         "example_1": {
-          "text": "正式商务"
+          "text": "正式商务",
+          "title": {
+            "text": "专业"
+          },
+          "description": {
+            "text": "商务邮件的正式语气"
+          },
+          "when_to_use": {
+            "text": "工作邮件和客户沟通"
+          },
+          "footer": {
+            "text": "此致敬礼，"
+          }
         },
         "example_2": {
-          "text": "团队随意"
+          "text": "团队随意",
+          "title": {
+            "text": "随意"
+          },
+          "description": {
+            "text": "个人邮件的轻松友好语气"
+          },
+          "when_to_use": {
+            "text": "朋友和家人"
+          }
         },
         "example_3": {
           "text": "跟进与提醒"
@@ -548,10 +707,22 @@
           "text": "您保存的收藏地点，方便快速访问。"
         },
         "example_1": {
-          "text": "家"
+          "text": "家",
+          "name": {
+            "text": "中央公园"
+          },
+          "address": {
+            "text": "纽约，NY 10024"
+          }
         },
         "example_2": {
-          "text": "办公室"
+          "text": "办公室",
+          "name": {
+            "text": "埃菲尔铁塔"
+          },
+          "address": {
+            "text": "战神广场，75007 巴黎"
+          }
         },
         "example_3": {
           "text": "最爱的咖啡店"
@@ -565,10 +736,28 @@
           "text": "你的植物收藏和护理时间表"
         },
         "example_1": {
-          "text": "龟背竹"
+          "text": "龟背竹",
+          "name": {
+            "text": "龟背竹"
+          },
+          "location": {
+            "text": "客厅"
+          },
+          "notes": {
+            "text": "需要间接光照，每月擦拭叶片"
+          }
         },
         "example_2": {
-          "text": "虎尾兰"
+          "text": "虎尾兰",
+          "name": {
+            "text": "罗勒"
+          },
+          "location": {
+            "text": "厨房窗户"
+          },
+          "notes": {
+            "text": "定期采摘以促进生长"
+          }
         }
       }
     },
@@ -593,10 +782,22 @@
           "text": "你的学习目标和想要掌握的主题"
         },
         "example_1": {
-          "text": "西班牙语B2水平"
+          "text": "西班牙语B2水平",
+          "topic": {
+            "text": "数据科学"
+          },
+          "notes": {
+            "text": "专注于Python pandas和数据可视化"
+          }
         },
         "example_2": {
-          "text": "数据科学基础"
+          "text": "数据科学基础",
+          "topic": {
+            "text": "西班牙语"
+          },
+          "notes": {
+            "text": "目标在夏天前达到会话水平"
+          }
         }
       },
       "education_history": {
@@ -619,10 +820,22 @@
           "text": "你计划的和过去的旅行。"
         },
         "example_1": {
-          "text": "日本，2026年3月"
+          "text": "日本，2026年3月",
+          "destination": {
+            "text": "日本东京"
+          },
+          "notes": {
+            "text": "两周假期，探索寺庙和美食"
+          }
         },
         "example_2": {
-          "text": "巴塞罗那，2025年夏天"
+          "text": "巴塞罗那，2025年夏天",
+          "destination": {
+            "text": "西班牙巴塞罗那"
+          },
+          "notes": {
+            "text": "暑假，海滩和建筑"
+          }
         },
         "example_3": {
           "text": "苏格兰自驾游"
@@ -634,10 +847,16 @@
           "text": "你最喜欢的航空公司"
         },
         "example_1": {
-          "text": "汉莎航空"
+          "text": "汉莎航空",
+          "name": {
+            "text": "汉莎航空"
+          }
         },
         "example_2": {
-          "text": "瑞士航空"
+          "text": "瑞士航空",
+          "name": {
+            "text": "新加坡航空"
+          }
         },
         "example_3": {
           "text": "荷兰皇家航空"
@@ -664,10 +883,16 @@
           "text": "你最喜欢的旅行活动和体验。"
         },
         "example_1": {
-          "text": "去海滩"
+          "text": "去海滩",
+          "name": {
+            "text": "徒步旅行"
+          }
         },
         "example_2": {
-          "text": "参观博物馆"
+          "text": "参观博物馆",
+          "name": {
+            "text": "参观博物馆"
+          }
         },
         "example_3": {
           "text": "徒步旅行"
@@ -684,10 +909,22 @@
           "text": "你看过的电影"
         },
         "example_1": {
-          "text": "盗梦空间"
+          "text": "盗梦空间",
+          "title": {
+            "text": "盗梦空间"
+          },
+          "notes": {
+            "text": "关于梦中之梦的烧脑杰作"
+          }
         },
         "example_2": {
-          "text": "肖申克的救赎"
+          "text": "肖申克的救赎",
+          "title": {
+            "text": "寄生虫"
+          },
+          "notes": {
+            "text": "出色的社会评论，充满意想不到的转折"
+          }
         }
       },
       "watched_tv_shows": {
@@ -696,10 +933,22 @@
           "text": "你看过或正在看的电视节目"
         },
         "example_1": {
-          "text": "绝命毒师"
+          "text": "绝命毒师",
+          "title": {
+            "text": "绝命毒师"
+          },
+          "notes": {
+            "text": "史上最伟大的电视剧之一"
+          }
         },
         "example_2": {
-          "text": "怪奇物语"
+          "text": "怪奇物语",
+          "title": {
+            "text": "熊家餐馆"
+          },
+          "notes": {
+            "text": "紧张的厨房剧情，精彩的表演"
+          }
         }
       },
       "to_watch_list": {
@@ -708,10 +957,22 @@
           "text": "你想看的电影和电视节目"
         },
         "example_1": {
-          "text": "奥本海默"
+          "text": "奥本海默",
+          "title": {
+            "text": "奥本海默"
+          },
+          "reason": {
+            "text": "获奖传记电影"
+          }
         },
         "example_2": {
-          "text": "熊家餐馆"
+          "text": "熊家餐馆",
+          "title": {
+            "text": "人生切割术"
+          },
+          "reason": {
+            "text": "独特的科幻职场惊悚片"
+          }
         }
       }
     },
@@ -722,10 +983,16 @@
           "text": "你想看的视频"
         },
         "example_1": {
-          "text": "科技大会主题演讲"
+          "text": "科技大会主题演讲",
+          "name": {
+            "text": "计算机工作原理"
+          }
         },
         "example_2": {
-          "text": "烹饪教程"
+          "text": "烹饪教程",
+          "name": {
+            "text": "高级TypeScript"
+          }
         },
         "example_3": {
           "text": "旅行视频博客"
@@ -784,10 +1051,16 @@
           "text": "为稍后阅读而保存的网站和文章"
         },
         "example_1": {
-          "text": "有趣的AI研究论文"
+          "text": "有趣的AI研究论文",
+          "notes": {
+            "text": "关于人工智能的有趣文章"
+          }
         },
         "example_2": {
-          "text": "设计模式文章"
+          "text": "设计模式文章",
+          "notes": {
+            "text": "关于Web开发的教程"
+          }
         },
         "example_3": {
           "text": "技术博客文章"
@@ -1279,9 +1552,9 @@
     },
     "shopping": {
       "search_products": {
-        "text": "搜索产品",
+        "text": "搜索",
         "description": {
-          "text": "在超市中搜索和比较产品。"
+          "text": "在网上商店和网上超市中搜索产品。"
         },
         "how_to_use": {
           "1": {
@@ -1324,6 +1597,23 @@
           },
           "3": {
             "text": "在 Rome 找 Easter 周适合家庭的住宿"
+          }
+        }
+      },
+      "get_flight": {
+        "text": "获取航班轨迹",
+        "description": {
+          "text": "在地图上查看过去任何航班的真实飞行路径。"
+        },
+        "how_to_use": {
+          "1": {
+            "text": "显示3月5日LH2472的飞行路径"
+          },
+          "2": {
+            "text": "我的BA234昨天被改道了吗？"
+          },
+          "3": {
+            "text": "AF447是什么时候降落的，使用了哪条跑道？"
           }
         }
       }
@@ -1758,23 +2048,6 @@
     "generated_by": {
       "text": "由 {model} 生成"
     },
-    "settings_memories_suggestions": {
-      "header": {
-        "text": "你的 OpenMates 应该记住这些信息吗？"
-      },
-      "reject": {
-        "text": "拒绝"
-      },
-      "add": {
-        "text": "添加"
-      },
-      "customize_entry": {
-        "text": "自定义并添加"
-      },
-      "privacy_notice": {
-        "text": "您的设置和记忆已加密，只有您的设备才能解密。"
-      }
-    },
     "credits_needed": {
       "text": "需要积分..."
     },
@@ -1887,6 +2160,21 @@
       },
       "meal_prep": {
         "text": "帮我计划一个健康的膳食准备"
+      },
+      "discover_web_search": {
+        "text": "[web-search] 今天世界上发生了什么？"
+      },
+      "discover_image_generate": {
+        "text": "[images-generate] 生成一张山间日落的图片"
+      },
+      "discover_news_search": {
+        "text": "[news-search] 查找最新的AI新闻"
+      },
+      "discover_video_search": {
+        "text": "[videos-search] 查找Python编程教程视频"
+      },
+      "discover_math_calculate": {
+        "text": "[math-calculate] 计算：240的15%是多少？"
       }
     },
     "suggestions": {
@@ -2234,11 +2522,17 @@
       "settings": {
         "text": "设置"
       },
+      "my_embeds": {
+        "text": "我的嵌入"
+      },
       "indexing": {
         "text": "正在构建搜索索引..."
       },
       "apps": {
         "text": "应用与技能"
+      },
+      "apps_only": {
+        "text": "应用"
       },
       "app_app": {
         "text": "应用"
@@ -2251,6 +2545,12 @@
       },
       "app_memory": {
         "text": "记忆"
+      },
+      "focus_mode_status_activated": {
+        "text": "已激活"
+      },
+      "focus_mode_status_deactivated": {
+        "text": "已停用"
       },
       "go_to_message": {
         "text": "跳转到消息"
@@ -2586,6 +2886,38 @@
       },
       "footer_note": {
         "text": "此通知由自动E2E测试监控系统发送。"
+      }
+    },
+    "prometheus_alert": {
+      "title": {
+        "text": "Prometheus警报通知"
+      },
+      "header": {
+        "text": "Prometheus警报"
+      },
+      "alert_name_label": {
+        "text": "警报名称"
+      },
+      "severity_label": {
+        "text": "严重程度"
+      },
+      "summary_label": {
+        "text": "摘要"
+      },
+      "description_label": {
+        "text": "描述"
+      },
+      "started_at_label": {
+        "text": "触发时间"
+      },
+      "ended_at_label": {
+        "text": "解决时间"
+      },
+      "labels_label": {
+        "text": "标签"
+      },
+      "footer_note": {
+        "text": "此警报由自动Prometheus监控系统发送。"
       }
     },
     "email": {
@@ -2984,6 +3316,18 @@
     },
     "top_up_credits": {
       "text": "充值积分"
+    },
+    "action_verification_title": {
+      "text": "验证您的操作"
+    },
+    "action_verification_description": {
+      "text": "您请求了一个用于帐户敏感操作的验证码。"
+    },
+    "action_verification_expires": {
+      "text": "此验证码将在10分钟后过期。"
+    },
+    "action_verification_subject": {
+      "text": "您的验证码：{code}"
     }
   },
   "embeds": {
@@ -3004,6 +3348,9 @@
     },
     "more_results": {
       "text": "+ {count} 更多"
+    },
+    "search_no_results": {
+      "text": "找到 0 个结果"
     },
     "open_search_results": {
       "text": "打开搜索结果"
@@ -3446,7 +3793,7 @@
         "text": "未找到产品。"
       },
       "search_products": {
-        "text": "搜索产品"
+        "text": "搜索"
       }
     },
     "math": {
@@ -4695,6 +5042,17 @@
           "text": "Polar 隐私政策"
         }
       },
+      "flightradar24": {
+        "heading": {
+          "text": "3.16 Flightradar24"
+        },
+        "description": {
+          "text": "当您使用\"获取航班轨迹\"技能请求真实航班轨迹数据时，我们会查询Flightradar24以获取已完成航班的历史GPS轨迹数据。Flightradar24会收到航班号和出发日期。不会共享任何个人数据。"
+        },
+        "privacy_policy_link": {
+          "text": "Flightradar24 隐私政策"
+        }
+      },
       "security_measures": {
         "heading": {
           "text": "4. 安全措施"
@@ -5377,7 +5735,19 @@
       "text": "工作流程"
     }
   },
-  "notifications": {},
+  "notifications": {
+    "security_reminder": {
+      "title": {
+        "text": "安全提醒"
+      },
+      "message": {
+        "text": "通过设置两步验证或通行密钥来正确保护您的账户。"
+      },
+      "action": {
+        "text": "打开安全设置"
+      }
+    }
+  },
   "onboarding": {},
   "platforms": {
     "via": {
@@ -5440,6 +5810,9 @@
         },
         "error_invalid_chars": {
           "text": "用户名只能包含字母、数字、点和下划线"
+        },
+        "error_taken": {
+          "text": "该用户名已被使用，请选择其他用户名。"
         },
         "error_failed": {
           "text": "更新用户名失败，请重试。"
@@ -5726,6 +6099,74 @@
         }
       }
     },
+    "app_settings_memories": {
+      "encrypted_notice": {
+        "text": "您的设置和记忆条目已加密，只有您的设备才能读取，未经您的明确同意，绝不会发送给 OpenMates 进行处理。"
+      },
+      "diff_previous_value": {
+        "text": "之前："
+      },
+      "diff_not_set": {
+        "text": "未设置"
+      },
+      "examples_label": {
+        "text": "示例："
+      },
+      "my": {
+        "text": "我的"
+      },
+      "settings_and_memories": {
+        "text": "设置与记忆"
+      },
+      "my_settings_and_memories": {
+        "text": "我的设置与记忆"
+      },
+      "no_entries_yet": {
+        "text": "还没有条目。"
+      },
+      "examples": {
+        "text": "示例"
+      },
+      "no_settings": {
+        "text": "尚未同步任何设置或记忆。可用后会在此显示。"
+      },
+      "add_entry": {
+        "text": "添加条目"
+      },
+      "loading": {
+        "text": "正在加载设置和记忆..."
+      },
+      "item_key": {
+        "text": "条目键"
+      },
+      "settings_group": {
+        "text": "设置组"
+      },
+      "item_value": {
+        "text": "条目值"
+      },
+      "cancel": {
+        "text": "取消"
+      },
+      "creating": {
+        "text": "创建中..."
+      },
+      "placeholder": {
+        "text": "很快您就能在这里管理和创建您的应用设置和记忆。"
+      },
+      "just_now": {
+        "text": "刚刚"
+      },
+      "edit": {
+        "text": "编辑"
+      },
+      "delete": {
+        "text": "删除"
+      },
+      "save": {
+        "text": "保存"
+      }
+    },
     "app_store": {
       "description": {
         "text": "浏览和管理你的伙伴可以使用的应用。"
@@ -5794,7 +6235,7 @@
           "text": "只需向你的伙伴提问，例如："
         },
         "how_to_use_mention": {
-          "text": "或在消息中提及 @{skillname}\n以明确触发该技能。"
+          "text": "或在消息中提及 {skillname}\n以明确触发该技能。"
         },
         "description": {
           "text": "描述"
@@ -5970,13 +6411,25 @@
         "creating": {
           "text": "正在创建..."
         },
-        "text": "设置与记忆"
+        "text": "设置与记忆",
+        "hub_no_entries": {
+          "text": "还没有设置或记忆。请在 App Store 中访问某个应用来创建。"
+        },
+        "discover_link": {
+          "text": "发现具有设置和记忆的应用"
+        },
+        "entry_count": {
+          "text": "{count, plural, other {# 条目}}"
+        }
       },
       "skill_not_found": {
         "text": "未找到技能。"
       },
       "back_to_app": {
         "text": "返回应用"
+      },
+      "settings_memories_entry": {
+        "text": "设置与记忆条目"
       },
       "app_not_found": {
         "text": "未找到应用。"
@@ -6050,8 +6503,8 @@
                 }
               },
               "gpt_5": {
-                "2": {
-                  "text": "GPT-5.2"
+                "4": {
+                  "text": "GPT-5.4"
                 }
               },
               "gpt_oss_120b": {
@@ -6980,6 +7433,12 @@
     "messengers": {
       "text": "通讯工具"
     },
+    "settings_memories": {
+      "text": "应用设置与记忆",
+      "description": {
+        "text": "所有应用设置和记忆集中在一处。"
+      }
+    },
     "developers": {
       "text": "开发者"
     },
@@ -7372,6 +7831,48 @@
     "installed": {
       "text": "已安装"
     },
+    "current_version": {
+      "text": "当前版本"
+    },
+    "up_to_date": {
+      "text": "您的软件已是最新版本"
+    },
+    "commits_behind": {
+      "text": "落后 {count} 个提交"
+    },
+    "view_on_github": {
+      "text": "在 GitHub 上查看"
+    },
+    "auto_check_for_updates": {
+      "text": "自动检查更新"
+    },
+    "auto_install_updates": {
+      "text": "自动安装更新"
+    },
+    "clear_cache_on_update": {
+      "text": "更新时清除缓存"
+    },
+    "check_interval": {
+      "text": "检查间隔"
+    },
+    "every_n_hours": {
+      "text": "每 {count} 小时"
+    },
+    "update_settings": {
+      "text": "更新设置"
+    },
+    "server_versions": {
+      "text": "服务器版本"
+    },
+    "no_update_check_error": {
+      "text": "无法检查更新。请稍后再试。"
+    },
+    "check_now": {
+      "text": "立即检查"
+    },
+    "unreachable": {
+      "text": "无法访问"
+    },
     "profile_image_not_allowed": {
       "text": "在个人资料图片中\n不允许裸露、暴力或血腥。"
     },
@@ -7387,65 +7888,6 @@
       },
       "loading": {
         "text": "正在加载嵌入内容..."
-      }
-    },
-    "app_settings_memories": {
-      "examples_label": {
-        "text": "示例："
-      },
-      "my": {
-        "text": "我的"
-      },
-      "settings_and_memories": {
-        "text": "设置与记忆"
-      },
-      "my_settings_and_memories": {
-        "text": "我的设置与记忆"
-      },
-      "no_entries_yet": {
-        "text": "还没有条目。"
-      },
-      "examples": {
-        "text": "示例"
-      },
-      "no_settings": {
-        "text": "尚未同步任何设置或记忆。可用后会在此显示。"
-      },
-      "add_entry": {
-        "text": "添加条目"
-      },
-      "loading": {
-        "text": "正在加载设置和记忆..."
-      },
-      "item_key": {
-        "text": "条目键"
-      },
-      "settings_group": {
-        "text": "设置组"
-      },
-      "item_value": {
-        "text": "条目值"
-      },
-      "cancel": {
-        "text": "取消"
-      },
-      "creating": {
-        "text": "创建中..."
-      },
-      "placeholder": {
-        "text": "很快您就能在这里管理和创建您的应用设置和记忆。"
-      },
-      "just_now": {
-        "text": "刚刚"
-      },
-      "edit": {
-        "text": "编辑"
-      },
-      "delete": {
-        "text": "删除"
-      },
-      "save": {
-        "text": "保存"
       }
     },
     "newsletter": {
@@ -7938,6 +8380,18 @@
       "no_auth_method": {
         "text": "没有可用的身份验证方法。请联系支持。"
       },
+      "email_otp_description": {
+        "text": "我们将向您的电子邮件地址发送验证码。"
+      },
+      "send_verification_code": {
+        "text": "发送验证码"
+      },
+      "email_otp_enter_code": {
+        "text": "输入发送到您邮箱的6位数验证码。"
+      },
+      "resend_code": {
+        "text": "重新发送验证码"
+      },
       "loading": {
         "text": "加载中..."
       },
@@ -8415,6 +8869,9 @@
     "username_invalid_chars": {
       "text": "允许: 字母, 数字, _, ."
     },
+    "username_taken": {
+      "text": "该用户名已被使用，请选择其他用户名。"
+    },
     "enter_username": {
       "text": "输入用户名"
     },
@@ -8431,7 +8888,16 @@
       "text": "密码不匹配"
     },
     "password_too_short": {
-      "text": "至少8个字符"
+      "text": "至少10个字符"
+    },
+    "password_too_common": {
+      "text": "该密码过于常见。请选择更强的密码。"
+    },
+    "password_needs_lowercase": {
+      "text": "至少包含一个小写字母"
+    },
+    "password_needs_uppercase": {
+      "text": "至少包含一个大写字母"
     },
     "password_too_long": {
       "text": "少于60个字符"

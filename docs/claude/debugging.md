@@ -71,7 +71,7 @@ Issue source?
 
 ### Why This Matters
 
-- **Dev vs production** determines which debugging tools to use (local `docker compose` vs Admin Debug CLI).
+- **Dev vs production** determines which debugging tools to use (local `docker compose` vs Unified Debug CLI).
   Getting this wrong wastes time investigating the wrong environment.
 - **Admin vs user report** determines whether asking follow-up questions is useful.
   A regular user's issue report contains everything available — pushing the admin to ask the user for more
@@ -125,30 +125,30 @@ This list is not exhaustive — use judgment based on the symptom. The goal is t
 >
 > - `docker compose` commands and `docker exec` commands run against **local containers and the local database** — this IS the dev environment.
 > - `api.dev.openmates.org` is the public-facing URL of this same dev server. There is no separate dev database; the local PostgreSQL container is the dev database.
-> - To access **production**, you must use the Admin Debug CLI (which sends HTTP requests to `api.openmates.org` over the network) — never `docker compose` for production.
+> - To access **production**, you must use the Unified Debug CLI (which sends HTTP requests to `api.openmates.org` over the network) — never `docker compose` for production.
 
-### Production Server Debugging (ALWAYS use Admin Debug CLI)
+### Production Server Debugging (ALWAYS use Unified Debug CLI)
 
-**For production issues, ALWAYS use the Admin Debug CLI** (`backend/scripts/admin_debug_cli.py`). This script runs locally on the dev server via `docker exec` but queries the **production API** remotely. Do NOT use local `docker compose logs` commands — those only show dev server logs.
+**For production issues, ALWAYS use the Unified Debug CLI** (`backend/scripts/debug.py`). This script runs locally on the dev server via `docker exec` but queries the **production API** remotely. Do NOT use local `docker compose logs` commands — those only show dev server logs.
 
 ```bash
 # Query production task-worker logs (last 30 min)
-docker exec api python /app/backend/scripts/admin_debug_cli.py logs --services task-worker --since 30
+docker exec api python /app/backend/scripts/debug.py logs --services task-worker --since 30
 
 # Search production logs for errors
-docker exec api python /app/backend/scripts/admin_debug_cli.py logs --services api,task-worker --search "ERROR|WARNING" --since 60
+docker exec api python /app/backend/scripts/debug.py logs --services api,task-worker --search "ERROR|WARNING" --since 60
 
 # Query production task lifecycle events (e.g. to verify a Celery task ran)
-docker exec api python /app/backend/scripts/admin_debug_cli.py logs --services task-worker --since 15 --search "TASK_LIFECYCLE"
+docker exec api python /app/backend/scripts/debug.py logs --services task-worker --since 15 --search "TASK_LIFECYCLE"
 
 # Inspect a production user
-docker exec api python /app/backend/scripts/admin_debug_cli.py user someone@example.com
+docker exec api python /app/backend/scripts/debug.py user someone@example.com
 
 # Inspect a production chat
-docker exec api python /app/backend/scripts/admin_debug_cli.py chat <chat_id>
+docker exec api python /app/backend/scripts/debug.py chat <chat_id>
 
 # List production issues
-docker exec api python /app/backend/scripts/admin_debug_cli.py issues
+docker exec api python /app/backend/scripts/debug.py issue --list
 ```
 
 **Key flags:**
@@ -164,7 +164,7 @@ docker exec api python /app/backend/scripts/admin_debug_cli.py issues
 
 - `issue <id>` includes the full S3 report (console logs, docker logs, metadata) **by default**
 - Add `--no-logs` to skip fetching the S3 report (faster, useful when you only need the issue description)
-- Example: `docker exec api python /app/backend/scripts/admin_debug_cli.py issue <id> --no-logs`
+- Example: `docker exec api python /app/backend/scripts/debug.py issue <id> --no-logs`
 
 **When to also check production code:** If something should be working but isn't (e.g., a task was queued but never executed), check whether the code exists on the `main` branch:
 
@@ -174,26 +174,26 @@ git grep "function_or_task_name" main
 git show main:path/to/file.py
 ```
 
-### Upload / Preview Server Debugging (ALWAYS use Admin Debug CLI)
+### Upload / Preview Server Debugging (ALWAYS use Unified Debug CLI)
 
-The upload server (`upload.openmates.org`) and preview server (`preview.openmates.org`) run on **separate VMs** — they have no Loki, no `docker compose` access from the dev server, and no connection to the core API's log infrastructure. Use the Admin Debug CLI exclusively for these servers.
+The upload server (`upload.openmates.org`) and preview server (`preview.openmates.org`) run on **separate VMs** — they have no Loki, no `docker compose` access from the dev server, and no connection to the core API's log infrastructure. Use the Unified Debug CLI exclusively for these servers.
 
 ```bash
 # Upload server logs (default: app-uploads, last 60 min)
-docker exec api python /app/backend/scripts/admin_debug_cli.py upload-logs
+docker exec api python /app/backend/scripts/debug.py upload-logs
 
 # Upload server logs — specific services, filtered
-docker exec api python /app/backend/scripts/admin_debug_cli.py upload-logs --services app-uploads,clamav --since 30 --search "ERROR"
+docker exec api python /app/backend/scripts/debug.py upload-logs --services app-uploads,clamav --since 30 --search "ERROR"
 
 # Preview server logs
-docker exec api python /app/backend/scripts/admin_debug_cli.py preview-logs --since 30 --lines 200
+docker exec api python /app/backend/scripts/debug.py preview-logs --since 30 --lines 200
 
 # Trigger a full self-update on the upload server (git pull + rebuild + restart)
 # Returns 202 immediately; use upload-logs to monitor progress
-docker exec api python /app/backend/scripts/admin_debug_cli.py upload-update
+docker exec api python /app/backend/scripts/debug.py upload-update
 
 # Trigger a full self-update on the preview server
-docker exec api python /app/backend/scripts/admin_debug_cli.py preview-update
+docker exec api python /app/backend/scripts/debug.py preview-update
 ```
 
 **Allowed services for `upload-logs`:** `app-uploads`, `clamav`, `vault`
@@ -304,9 +304,9 @@ sudo systemctl reload caddy
 | WebSocket disconnects    | `api`                          | Loki `{job="client-console"}` |
 | Scheduled task failures  | `task-scheduler`               | `task-worker`                 |
 | User data issues         | `cms`, `cms-database`          | `api`                         |
-| **User-specific issues** | **`inspect_user_logs.py`**     | Specific service logs above   |
+| **User-specific issues** | **`debug.py logs`**     | Specific service logs above   |
 
-> **Tip:** For any issue tied to a specific user, start with `inspect_user_logs.py <email>` to get a cross-service timeline. This is faster than manually querying multiple services. See [Inspection Scripts → User Activity Timeline](./inspection-scripts.md#user-activity-timeline-cross-service-logs).
+> **Tip:** For any issue tied to a specific user, start with `debug.py logs <email>` to get a cross-service timeline. This is faster than manually querying multiple services. See the "Debug Commands Reference" section below.
 
 ### Debugging Embed Resolution Failures
 
@@ -344,7 +344,7 @@ resolve_embed_references_in_content(
 - Embed key expired in Redis (TTL passed since the user composed the message)
 - Wrong `user_vault_key_id` (key mismatch → decryption returns `None`)
 
-**How to verify:** Use `inspect_last_requests.py` to dump the AI request payload and check whether the history contains TOON blocks (`\`\`\`toon\n...\`\`\``) or raw `{"embed_id": "..."}` JSON strings. Raw JSON = resolution failed.
+**How to verify:** Use `debug.py requests` to dump the AI request payload and check whether the history contains TOON blocks (`\`\`\`toon\n...\`\`\``) or raw `{"embed_id": "..."}` JSON strings. Raw JSON = resolution failed.
 
 ---
 
@@ -527,7 +527,7 @@ vercel --cwd frontend/apps/web_app           # preview (dev)
 
 ## Browser-Based Debugging with Firecrawl
 
-Use Firecrawl to **reproduce bugs and verify fixes** on `https://app.dev.openmates.org`. Use it for frontend/UI issues where "what the user sees" is the key question. For production or backend-only bugs, use the Admin Debug CLI and logs instead.
+Use Firecrawl to **reproduce bugs and verify fixes** on `https://app.dev.openmates.org`. Use it for frontend/UI issues where "what the user sees" is the key question. For production or backend-only bugs, use the Unified Debug CLI and logs instead.
 
 ```
 firecrawl_browser_create
@@ -546,11 +546,29 @@ firecrawl_browser_create
 Once logged in, run these in the browser to dump IndexedDB data for a chat or embed:
 
 ```
-agent-browser executeScript "await window.inspectChat('<chat-id>')"
-agent-browser executeScript "await window.inspectEmbed('<embed-id>')"
+agent-browser executeScript "window.debug()"
+agent-browser executeScript "await window.debug.chat('<chat-id>')"
+agent-browser executeScript "await window.debug.embed('<embed-id>')"
+agent-browser executeScript "window.debug.help()"
 ```
 
-These print a formatted report of the decrypted client-side data (messages, metadata, embed content). Useful for diagnosing encryption sync issues, missing messages, or embed resolution failures without needing backend logs.
+These print a formatted report of the client-side data (messages, metadata, embed content, health checks). Useful for diagnosing encryption sync issues, missing messages, or embed resolution failures without needing backend logs.
+
+**Full `window.debug` API:**
+
+| Command                                           | Description                                                       |
+| ------------------------------------------------- | ----------------------------------------------------------------- |
+| `window.debug()`                                  | Quick client health check (IndexedDB, active chat, recent errors) |
+| `window.debug.help()`                             | Show all available commands                                       |
+| `await window.debug.chat('id')`                   | Copyable chat inspection report                                   |
+| `await window.debug.chat('id', {download: true})` | Download chat report as .txt                                      |
+| `await window.debug.chatVerbose('id')`            | Verbose console dump of a chat                                    |
+| `await window.debug.chats()`                      | List all chats + consistency check                                |
+| `await window.debug.message('id')`                | Raw message data                                                  |
+| `await window.debug.embed('id')`                  | Embed inspection report                                           |
+| `await window.debug.decrypt('embedId')`           | Decrypt and show raw embed content                                |
+| `window.debug.logs(n)`                            | Show last N console logs (default 20)                             |
+| `await window.debug.state()`                      | Dump current store state summary                                  |
 
 ---
 
@@ -562,25 +580,25 @@ These print a formatted report of the decrypted client-side data (messages, meta
 
 ```bash
 # All admin client logs (last 30 min)
-docker exec api python /app/backend/scripts/inspect_frontend_logs.py
+docker exec api python /app/backend/scripts/debug.py logs --browser
 
 # Only errors from the last hour
-docker exec api python /app/backend/scripts/inspect_frontend_logs.py --level error --since 60
+docker exec api python /app/backend/scripts/debug.py logs --browser --level error --since 60
 
 # Filter by admin user
-docker exec api python /app/backend/scripts/inspect_frontend_logs.py --user jan41139
+docker exec api python /app/backend/scripts/debug.py logs --browser --user jan41139
 
 # Search log content
-docker exec api python /app/backend/scripts/inspect_frontend_logs.py --search "WebSocket"
+docker exec api python /app/backend/scripts/debug.py logs --browser --search "WebSocket"
 
 # Combine filters
-docker exec api python /app/backend/scripts/inspect_frontend_logs.py --level error --user jan41139 --since 60
+docker exec api python /app/backend/scripts/debug.py logs --browser --level error --user jan41139 --since 60
 
 # Raw JSON output
-docker exec api python /app/backend/scripts/inspect_frontend_logs.py --json
+docker exec api python /app/backend/scripts/debug.py logs --browser --json
 
 # Follow mode (poll every 5s, like tail -f)
-docker exec api python /app/backend/scripts/inspect_frontend_logs.py --follow
+docker exec api python /app/backend/scripts/debug.py logs --browser --follow
 ```
 
 ### Key Loki Labels
@@ -620,15 +638,15 @@ Messages and client-side embeds in Directus are encrypted with AES-256-GCM using
 - You need to see the actual message content or embed content, not just structural metadata
 - The existing `--decrypt` flag (Vault-based, server-side) cannot decrypt client-side content
 
-### Using `--share-url` with inspect_chat.py
+### Using `--share-url` with debug.py chat
 
 ```bash
 # Full share URL — decrypts all messages and embeds in the chat
-docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> \
+docker exec api python /app/backend/scripts/debug.py chat <chat_id> \
   --share-url "https://app.openmates.org/share/chat/<chat_id>#key=<blob>"
 
 # Password-protected share link
-docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> \
+docker exec api python /app/backend/scripts/debug.py chat <chat_id> \
   --share-url "https://app.openmates.org/share/chat/<chat_id>#key=<blob>" \
   --share-password "the-password"
 ```
@@ -638,21 +656,21 @@ docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> \
 If you only have the key blob (the part after `#key=` in the URL), use `--share-key`:
 
 ```bash
-docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> \
+docker exec api python /app/backend/scripts/debug.py chat <chat_id> \
   --share-key "<base64-key-blob>"
 ```
 
-### Using with inspect_embed.py
+### Using with debug.py embed
 
 For embed share URLs:
 
 ```bash
 # Embed share URL
-docker exec api python /app/backend/scripts/inspect_embed.py <embed_id> \
+docker exec api python /app/backend/scripts/debug.py embed <embed_id> \
   --share-url "https://app.openmates.org/share/embed/<embed_id>#key=<blob>"
 
 # Chat share URL — also works for embeds in that chat
-docker exec api python /app/backend/scripts/inspect_embed.py <embed_id> \
+docker exec api python /app/backend/scripts/debug.py embed <embed_id> \
   --share-url "https://app.openmates.org/share/chat/<chat_id>#key=<blob>"
 ```
 
@@ -664,7 +682,7 @@ You can use `--share-url` / `--share-key` together with `--decrypt` to get both:
 - **Server-side decrypted** embed TOON summaries (from Vault, for server-generated embeds)
 
 ```bash
-docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> \
+docker exec api python /app/backend/scripts/debug.py chat <chat_id> \
   --decrypt --share-url "https://app.openmates.org/share/chat/<chat_id>#key=<blob>"
 ```
 
@@ -678,7 +696,7 @@ docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> \
 
 ### Crypto Implementation
 
-The Python implementation lives in `backend/scripts/share_key_crypto.py` and mirrors the TypeScript implementations in:
+The Python implementation lives in `backend/scripts/debug_utils.py (Section 10)` and mirrors the TypeScript implementations in:
 
 - `frontend/packages/ui/src/services/shareEncryption.ts`
 - `frontend/packages/ui/src/services/embedShareEncryption.ts`
@@ -690,33 +708,33 @@ The Python implementation lives in `backend/scripts/share_key_crypto.py` and mir
 
 ### Overview
 
-The `--production` flag on `inspect_chat.py` and `inspect_embed.py` fetches data from the **production (or dev) Admin Debug API** instead of querying local Directus and Redis. This enables debugging production issues from the dev server without needing direct database access.
+The `--production` flag on `debug.py chat` and `debug.py embed` fetches data from the **production (or dev) Admin Debug API** instead of querying local Directus and Redis. This enables debugging production issues from the dev server without needing direct database access.
 
-The API key is fetched from Vault (`kv/data/providers/admin` key `debug_cli__api_key`) — the same key used by `admin_debug_cli.py`.
+The API key is fetched from Vault (`kv/data/providers/admin` key `debug_cli__api_key`) — the same key used by `debug.py`.
 
 ### Usage
 
 ```bash
 # Inspect a production chat (metadata, messages, embeds, usage, cache)
-docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> --production
+docker exec api python /app/backend/scripts/debug.py chat <chat_id> --production
 
 # Fetch from prod + decrypt with share key (complete debugging workflow)
-docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> --production \
+docker exec api python /app/backend/scripts/debug.py chat <chat_id> --production \
   --share-url "https://app.openmates.org/share/chat/<chat_id>#key=<blob>"
 
 # JSON output from production
-docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> --production --json
+docker exec api python /app/backend/scripts/debug.py chat <chat_id> --production --json
 
 # Inspect a production embed
-docker exec api python /app/backend/scripts/inspect_embed.py <embed_id> --production
+docker exec api python /app/backend/scripts/debug.py embed <embed_id> --production
 
 # Fetch prod embed + decrypt with share key
-docker exec api python /app/backend/scripts/inspect_embed.py <embed_id> --production \
+docker exec api python /app/backend/scripts/debug.py embed <embed_id> --production \
   --share-url "https://app.openmates.org/share/embed/<embed_id>#key=<blob>"
 
 # Hit the dev API instead of production
-docker exec api python /app/backend/scripts/inspect_chat.py <chat_id> --dev
-docker exec api python /app/backend/scripts/inspect_embed.py <embed_id> --dev
+docker exec api python /app/backend/scripts/debug.py chat <chat_id> --dev
+docker exec api python /app/backend/scripts/debug.py embed <embed_id> --dev
 ```
 
 ### Limitations in Production Mode

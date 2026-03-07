@@ -4,10 +4,14 @@ import { isDesktop } from "../../../utils/platform";
 import { hasActualContent, vibrateMessageField } from "../utils";
 import { Extension } from "@tiptap/core";
 import { chatDB } from "../../../services/db";
+import { chatKeyManager } from "../../../services/encryption/ChatKeyManager";
 import { chatSyncService } from "../../../services/chatSyncService"; // Import chatSyncService
 import type { Message } from "../../../types/chat"; // Import Message type
 import { draftEditorUIState } from "../../../services/drafts/draftState";
-import { clearCurrentDraft } from "../../../services/drafts/draftSave"; // Import clearCurrentDraft
+import {
+  clearCurrentDraft,
+  saveDraftDebounced,
+} from "../../../services/drafts/draftSave"; // Import clearCurrentDraft + debounced save (for cancellation)
 import { tipTapToCanonicalMarkdown } from "../../../message_parsing/serializers"; // Import TipTap to markdown converter
 import { isPublicChat } from "../../../demo_chats/convertToChat";
 import { websocketStatus } from "../../../stores/websocketStatusStore"; // Import WebSocket status store
@@ -371,6 +375,13 @@ export async function handleSend(
     return;
   }
   sendInProgress = true;
+
+  // CRITICAL: Cancel any pending debounced draft save immediately.
+  // Without this, fast typing + send within the 1200ms debounce window causes the
+  // debounced save to fire AFTER the message is sent, re-saving the already-sent
+  // content as a draft. The server also clears drafts on message receipt, but
+  // the client's debounced save fires afterwards and re-creates the draft.
+  saveDraftDebounced.cancel();
 
   // DEFERRED SEND: Detect embeds that are still in-flight.
   // Instead of blocking with a warning toast, we:
@@ -1243,7 +1254,7 @@ export async function handleSend(
             );
 
             // Ensure we have a chat key for encryption (this device is creating the chat)
-            chatDB.getOrCreateChatKeyForOriginator(chatIdToUse);
+            chatKeyManager.createKeyForNewChat(chatIdToUse);
 
             for (const demoMsg of demoMessages) {
               // Format: message_id={last_10_chars_of_chat_id}-{uuid_v4}

@@ -172,9 +172,13 @@ export const apiEndpoints = {
       check: "/v1/settings/software_update/check", // Check for software updates
       install: "/v1/settings/software_update/install", // Install software update
       install_status: "/v1/settings/software_update/install_status", // Get status of software update installation
+      versions: "/v1/settings/software_update/versions", // Get version info for all services
+      config: "/v1/settings/software_update/config", // Get/update auto-update configuration
     },
     deleteAccountPreview: "/v1/settings/delete-account-preview", // Get preview of account deletion consequences
     deleteAccount: "/v1/settings/delete-account", // Delete user account
+    requestActionVerification: "/v1/settings/request-action-verification", // Send email OTP for sensitive actions
+    verifyActionCode: "/v1/settings/verify-action-code", // Verify email OTP for sensitive actions
     exportAccountManifest: "/v1/settings/export-account-manifest", // Get export manifest (list of all data IDs)
     exportAccountData: "/v1/settings/export-account-data", // Get export data (usage, invoices, profile)
     updatePassword: "/v1/settings/update-password", // Add or change user password

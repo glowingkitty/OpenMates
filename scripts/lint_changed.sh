@@ -8,6 +8,7 @@ check_ts=false
 check_svelte=false
 check_css=false
 check_html=false
+check_yml=false
 declare -a target_paths=()
 
 # Parse arguments (supports --path and positional file/dir targets)
@@ -37,6 +38,10 @@ while [[ $# -gt 0 ]]; do
       check_html=true
       shift
       ;;
+    --yml)
+      check_yml=true
+      shift
+      ;;
     --path)
       if [[ -z "${2-}" ]]; then
         echo "Missing value for --path" >&2
@@ -53,7 +58,7 @@ while [[ $# -gt 0 ]]; do
       done
       ;;
     --help|-h)
-      echo "Usage: $0 [full_repo] [--py] [--ts] [--svelte] [--css] [--html] [--path <file|dir>] [-- <file|dir> ...]"
+      echo "Usage: $0 [full_repo] [--py] [--ts] [--svelte] [--css] [--html] [--yml] [--path <file|dir>] [-- <file|dir> ...]"
       echo ""
       echo "Options:"
       echo "  full_repo             Check all files in the repository (default: only uncommitted changes)"
@@ -62,6 +67,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --svelte              Only check Svelte (.svelte) files"
       echo "  --css                 Only check CSS (.css) files"
       echo "  --html                Only check HTML (.html) files"
+      echo "  --yml                 Only check YAML (.yml) files (syntax validation via PyYAML)"
       echo "  --path <file|dir>     Only check files under this path (repeatable)"
       echo "  -- <file|dir> ...     Treat remaining args as target paths"
       echo ""
@@ -86,12 +92,13 @@ while [[ $# -gt 0 ]]; do
 done
 
 # If no file type filters are specified, check all types
-if ! ${check_py} && ! ${check_ts} && ! ${check_svelte} && ! ${check_css} && ! ${check_html}; then
+if ! ${check_py} && ! ${check_ts} && ! ${check_svelte} && ! ${check_css} && ! ${check_html} && ! ${check_yml}; then
   check_py=true
   check_ts=true
   check_svelte=true
   check_css=true
   check_html=true
+  check_yml=true
 fi
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
@@ -242,6 +249,7 @@ declare -a ts_files=()
 declare -a svelte_files=()
 declare -a css_files=()
 declare -a html_files=()
+declare -a yml_files=()
 
 # Separate files by type based on enabled checks
 for path in "${changed_files[@]}"; do
@@ -272,6 +280,11 @@ for path in "${changed_files[@]}"; do
         html_files+=("${path}")
       fi
       ;;
+    *.yml|*.yaml)
+      if ${check_yml}; then
+        yml_files+=("${path}")
+      fi
+      ;;
   esac
 done
 
@@ -282,6 +295,43 @@ ${check_ts} && js_files+=("${ts_files[@]}")
 ${check_svelte} && js_files+=("${svelte_files[@]}")
 ${check_css} && js_files+=("${css_files[@]}")
 ${check_html} && js_files+=("${html_files[@]}")
+
+run_yaml_lint() {
+  if (( ${#yml_files[@]} == 0 )); then
+    return 0
+  fi
+
+  if [[ -z "${python_cmd}" ]]; then
+    echo "YAML: no Python interpreter configured; skipping." >&2
+    return 0
+  fi
+
+  # Check PyYAML is available
+  if ! "${python_cmd}" -c "import yaml" >/dev/null 2>&1; then
+    echo "YAML: PyYAML not installed (pip install pyyaml); skipping." >&2
+    return 0
+  fi
+
+  local file
+  for file in "${yml_files[@]}"; do
+    local error_output
+    if error_output=$("${python_cmd}" -c "
+import yaml, sys
+path = sys.argv[1]
+try:
+    yaml.safe_load(open(path).read())
+except yaml.YAMLError as e:
+    print(str(e), file=sys.stderr)
+    sys.exit(1)
+" "${file}" 2>&1); then
+      echo "YAML: ok ${file}"
+    else
+      echo "YAML: error ${file}" >&2
+      echo "${error_output}" >&2
+      overall_status=1
+    fi
+  done
+}
 
 run_python_lint() {
   if (( ${#py_files[@]} == 0 )); then
@@ -749,6 +799,7 @@ run_js_lint() {
   done
 }
 
+run_yaml_lint
 run_python_lint
 
 # Run TypeScript and Svelte type checks first (these catch type errors that ESLint might miss)

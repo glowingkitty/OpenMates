@@ -903,7 +903,7 @@ async def passkey_registration_complete(
                 )
         else:
             # New user signup flow
-            # Validate username
+            # Validate username format
             username_valid, username_error = validate_username(complete_request.username)
             if not username_valid:
                 logger.warning(f"Invalid username format: {username_error}")
@@ -912,7 +912,18 @@ async def passkey_registration_complete(
                     message=f"Invalid username: {username_error}",
                     user=None
                 )
-            
+
+            # Check username uniqueness server-wide (case-insensitive via SHA-256 hash)
+            hashed_username = directus_service.hash_username(complete_request.username)
+            username_taken, _, _ = await directus_service.get_user_by_hashed_username(hashed_username)
+            if username_taken:
+                logger.warning("Passkey signup rejected: username already taken")
+                return PasskeyRegistrationCompleteResponse(
+                    success=False,
+                    message="This username is already taken. Please choose another one.",
+                    user=None
+                )
+
             # Check if user already exists
             exists_result, existing_user, _ = await directus_service.get_user_by_hashed_email(complete_request.hashed_email)
             if exists_result and existing_user:

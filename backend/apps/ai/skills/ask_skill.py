@@ -245,7 +245,8 @@ class AskSkill(BaseSkill):
         if skill_operational_defaults:
             try:
                 self.parsed_default_config = AskSkillDefaultConfig(**skill_operational_defaults)
-                logger.info(f"AskSkill '{self.skill_name}' loaded with specific operational_defaults: {self.parsed_default_config.model_dump_json(indent=2)}")
+                logger.info(f"AskSkill '{self.skill_name}' loaded with operational_defaults successfully.")
+                logger.debug(f"AskSkill '{self.skill_name}' operational_defaults: {self.parsed_default_config.model_dump_json(indent=2)}")
             except Exception as e:
                 logger.error(f"Error parsing skill_operational_defaults for AskSkill '{self.skill_name}': {e}. Config was: {skill_operational_defaults}", exc_info=True)
                 # Decide if this should be a fatal error for the skill

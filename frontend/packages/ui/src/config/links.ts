@@ -153,6 +153,7 @@ export const privacyPolicyLinks = {
   firecrawl: "https://www.firecrawl.dev/privacy-policy",
   groq: "https://groq.com/privacy-policy",
   polar: "https://polar.sh/legal/privacy",
+  flightradar24: "https://www.flightradar24.com/terms-and-conditions",
   discord: "https://discord.com/privacy",
 } as const;
 

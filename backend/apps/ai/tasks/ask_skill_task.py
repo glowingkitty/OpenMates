@@ -38,11 +38,10 @@ from backend.apps.ai.utils.instruction_loader import load_base_instructions
 from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
 from backend.apps.ai.processing.preprocessor import handle_preprocessing, PreprocessingResult
 from backend.apps.ai.processing.postprocessor import (
-    handle_postprocessing, 
+    handle_postprocessing,
     PostProcessingResult,
-    handle_memory_generation,
-    extract_settings_memory_categories,
-    get_category_schemas,
+    extract_available_skills,
+    extract_available_focus_modes,
 )
 from .stream_consumer import _consume_main_processing_stream
 
@@ -51,6 +50,17 @@ from backend.core.api.app.utils.override_parser import parse_overrides_from_mess
 
 # Import embed service for cleanup on task failure
 from backend.core.api.app.services.embed_service import EmbedService
+
+# Import chat compressor for long chat history summarization
+# Architecture context: See docs/architecture/chat-compression.md
+from backend.apps.ai.processing.chat_compressor import (
+    should_compress,
+    compress_chat_history,
+    get_admin_compression_threshold,
+    COMPRESSION_SUMMARY_CATEGORY,
+    DEFAULT_COMPRESSION_TRIGGER_THRESHOLD,
+)
+from backend.core.api.app.schemas.chat import AIHistoryMessage, MessageInCache
 
 
 logger = logging.getLogger(__name__)
@@ -571,12 +581,11 @@ async def _async_process_ai_skill_ask_task(
                 discovered_apps_metadata = cached_metadata
                 # Log discovered apps and their skills for debugging
                 app_names = list(discovered_apps_metadata.keys())
-                logger.info(f"[Task ID: {task_id}] Successfully loaded discovered_apps_metadata from cache via CacheService method.")
-                logger.info(f"[Task ID: {task_id}] Discovered apps ({len(app_names)} total): {', '.join(app_names) if app_names else 'None'}")
+                logger.info(f"[Task ID: {task_id}] Loaded discovered_apps_metadata from cache: {len(app_names)} apps ({', '.join(app_names) if app_names else 'None'})")
                 for app_id, metadata in discovered_apps_metadata.items():
                     skill_ids = [skill.id for skill in metadata.skills] if metadata.skills else []
                     skill_identifiers = [f"{app_id}.{skill_id}" for skill_id in skill_ids]
-                    logger.info(f"[Task ID: {task_id}]   App '{app_id}': Skills: {', '.join(skill_identifiers) if skill_identifiers else 'None'}")
+                    logger.debug(f"[Task ID: {task_id}]   App '{app_id}': Skills: {', '.join(skill_identifiers) if skill_identifiers else 'None'}")
                 
                 # Check for critical apps that should normally be available
                 _check_critical_apps_availability(discovered_apps_metadata, task_id)
@@ -588,21 +597,19 @@ async def _async_process_ai_skill_ask_task(
                 
                 if discovered_apps_metadata:
                     app_names = list(discovered_apps_metadata.keys())
-                    logger.info(f"[Task ID: {task_id}] Successfully fetched discovered_apps_metadata from API fallback.")
-                    logger.info(f"[Task ID: {task_id}] Discovered apps ({len(app_names)} total): {', '.join(app_names) if app_names else 'None'}")
+                    logger.info(f"[Task ID: {task_id}] Fetched discovered_apps_metadata from API fallback: {len(app_names)} apps ({', '.join(app_names) if app_names else 'None'})")
                     
                     # Warn if only one app is discovered (likely indicates other apps are not running/available)
                     if len(app_names) == 1:
                         logger.warning(
-                            f"[Task ID: {task_id}] WARNING: Only one app discovered ({app_names[0]}). "
-                            f"This may indicate that other app containers are not running or not responding to /metadata endpoint. "
-                            f"Check docker-compose logs and ensure all app containers (app-web, app-ai, etc.) are healthy."
+                            f"[Task ID: {task_id}] Only one app discovered ({app_names[0]}). "
+                            f"Other app containers may not be running or responding to /metadata endpoint."
                         )
                     
                     for app_id, metadata in discovered_apps_metadata.items():
                         skill_ids = [skill.id for skill in metadata.skills] if metadata.skills else []
-                        skill_identifiers = [f"{app_id}-{skill_id}" for skill_id in skill_ids]  # Use hyphen format for consistency
-                        logger.info(f"[Task ID: {task_id}]   App '{app_id}': Skills: {', '.join(skill_identifiers) if skill_identifiers else 'None'}")
+                        skill_identifiers = [f"{app_id}-{skill_id}" for skill_id in skill_ids]
+                        logger.debug(f"[Task ID: {task_id}]   App '{app_id}': Skills: {', '.join(skill_identifiers) if skill_identifiers else 'None'}")
                     
                     # Check for critical apps that should normally be available
                     _check_critical_apps_availability(discovered_apps_metadata, task_id)
@@ -783,6 +790,221 @@ async def _async_process_ai_skill_ask_task(
             f"Proceeding without overrides."
         )
         user_overrides = None
+
+    # --- Step 0.5: Chat Compression (long chat history summarization) ---
+    # When the total token estimate of the message history exceeds the compression threshold,
+    # older messages are summarized into a structured summary. This runs BEFORE preprocessing
+    # because the worker already has SecretsManager for LLM API calls.
+    # Architecture context: See docs/architecture/chat-compression.md
+    compression_performed = False
+    try:
+        if (
+            request_data.message_history
+            and cache_service_instance
+            and encryption_service_instance
+            and user_vault_key_id
+            and not request_data.is_external  # Skip compression for external API requests
+        ):
+            # Convert AIHistoryMessage objects to dicts for the compressor
+            message_dicts_for_compression = [
+                {
+                    "role": msg.role,
+                    "content": msg.content,
+                    "created_at": msg.created_at,
+                    "category": getattr(msg, "category", None),
+                    "sender_name": getattr(msg, "sender_name", None),
+                }
+                for msg in request_data.message_history
+            ]
+
+            # Check for admin threshold override
+            compression_threshold = DEFAULT_COMPRESSION_TRIGGER_THRESHOLD
+            admin_threshold = await get_admin_compression_threshold(
+                cache_service_instance, request_data.user_id
+            )
+            if admin_threshold is not None:
+                compression_threshold = admin_threshold
+                logger.info(
+                    f"[Task ID: {task_id}] Using admin compression threshold: "
+                    f"{compression_threshold} tokens"
+                )
+
+            if should_compress(message_dicts_for_compression, compression_threshold):
+                logger.info(
+                    f"[Task ID: {task_id}] Chat compression triggered for chat "
+                    f"{request_data.chat_id} ({len(message_dicts_for_compression)} messages)"
+                )
+
+                # Publish compression_started event to frontend
+                if request_data.user_id_hash:
+                    compression_started_payload = {
+                        "type": "chat_compression_started",
+                        "event_for_client": "chat_compression_started",
+                        "task_id": task_id,
+                        "chat_id": request_data.chat_id,
+                        "user_id_uuid": request_data.user_id,
+                        "user_id_hash": request_data.user_id_hash,
+                    }
+                    compression_channel = (
+                        f"ai_typing_indicator_events::{request_data.user_id_hash}"
+                    )
+                    await cache_service_instance.publish_event(
+                        compression_channel, compression_started_payload
+                    )
+
+                # Run compression
+                compression_result = await compress_chat_history(
+                    message_history=message_dicts_for_compression,
+                    task_id=task_id,
+                    secrets_manager=secrets_manager,
+                    compression_threshold=compression_threshold,
+                )
+
+                if compression_result.was_compressed and compression_result.summary_content:
+                    compression_performed = True
+                    logger.info(
+                        f"[Task ID: {task_id}] Compression succeeded: "
+                        f"{compression_result.compressed_message_count} messages compressed, "
+                        f"~{compression_result.summary_token_estimate} token summary"
+                    )
+
+                    # Create a summary system message in the AI cache
+                    import uuid as _uuid
+                    summary_message_id = f"compression_{_uuid.uuid4().hex[:12]}"
+                    summary_timestamp = int(time.time())
+
+                    # Vault-encrypt the summary content for AI cache storage
+                    encrypted_summary, _ = await encryption_service_instance.encrypt_with_user_key(
+                        compression_result.summary_content, user_vault_key_id
+                    )
+
+                    summary_cache_msg = MessageInCache(
+                        id=summary_message_id,
+                        chat_id=request_data.chat_id,
+                        role="system",
+                        category=COMPRESSION_SUMMARY_CATEGORY,
+                        sender_name=None,
+                        encrypted_content=encrypted_summary,
+                        created_at=summary_timestamp,
+                        status="sent",
+                    )
+
+                    # Replace the AI cache with: [summary_message] + [recent_messages]
+                    # First, build the new cache list
+                    new_cache_messages = [summary_cache_msg.model_dump_json()]
+
+                    # Re-encrypt and add the recent messages that were kept
+                    if compression_result.recent_messages:
+                        for recent_msg in compression_result.recent_messages:
+                            recent_content = recent_msg.get("content", "")
+                            encrypted_recent, _ = await encryption_service_instance.encrypt_with_user_key(
+                                recent_content, user_vault_key_id
+                            )
+                            recent_cache_msg = MessageInCache(
+                                id=f"recent_{_uuid.uuid4().hex[:8]}",
+                                chat_id=request_data.chat_id,
+                                role=recent_msg.get("role", "user"),
+                                category=recent_msg.get("category"),
+                                sender_name=recent_msg.get("sender_name"),
+                                encrypted_content=encrypted_recent,
+                                created_at=recent_msg.get("created_at", summary_timestamp),
+                                status="sent",
+                            )
+                            new_cache_messages.append(recent_cache_msg.model_dump_json())
+
+                    # Overwrite the AI cache with the compressed history
+                    await cache_service_instance.set_ai_messages_history(
+                        user_id=request_data.user_id,
+                        chat_id=request_data.chat_id,
+                        encrypted_messages_json_list=new_cache_messages,
+                    )
+                    logger.info(
+                        f"[Task ID: {task_id}] AI cache updated: "
+                        f"{len(new_cache_messages)} messages (1 summary + "
+                        f"{len(new_cache_messages) - 1} recent)"
+                    )
+
+                    # Update request_data.message_history with compressed version
+                    # so preprocessing and main processing use the compressed history
+                    compressed_history: list = []
+
+                    # Add compression summary as system message
+                    compressed_history.append(
+                        AIHistoryMessage(
+                            content=compression_result.summary_content,
+                            role="system",
+                            category=COMPRESSION_SUMMARY_CATEGORY,
+                            created_at=summary_timestamp,
+                        )
+                    )
+
+                    # Add recent messages kept in full
+                    if compression_result.recent_messages:
+                        for recent_msg in compression_result.recent_messages:
+                            compressed_history.append(
+                                AIHistoryMessage(
+                                    content=recent_msg.get("content", ""),
+                                    role=recent_msg.get("role", "user"),
+                                    category=recent_msg.get("category"),
+                                    created_at=recent_msg.get("created_at", summary_timestamp),
+                                )
+                            )
+
+                    request_data.message_history = compressed_history
+                    logger.info(
+                        f"[Task ID: {task_id}] message_history replaced: "
+                        f"{len(compressed_history)} messages "
+                        f"(was {len(message_dicts_for_compression)})"
+                    )
+
+                    # Publish compression_completed event to frontend
+                    if request_data.user_id_hash:
+                        compression_completed_payload = {
+                            "type": "chat_compression_completed",
+                            "event_for_client": "chat_compression_completed",
+                            "task_id": task_id,
+                            "chat_id": request_data.chat_id,
+                            "user_id_uuid": request_data.user_id,
+                            "user_id_hash": request_data.user_id_hash,
+                            "compressed_message_count": compression_result.compressed_message_count,
+                            "summary_token_estimate": compression_result.summary_token_estimate,
+                            "compressed_up_to_timestamp": compression_result.compressed_up_to_timestamp,
+                            "summary_message_id": summary_message_id,
+                        }
+                        await cache_service_instance.publish_event(
+                            compression_channel, compression_completed_payload
+                        )
+
+                elif compression_result.error:
+                    logger.warning(
+                        f"[Task ID: {task_id}] Compression failed (non-fatal, proceeding "
+                        f"with full history): {compression_result.error}"
+                    )
+                    # Publish compression_completed with error so frontend can clear the indicator
+                    if request_data.user_id_hash:
+                        compression_error_payload = {
+                            "type": "chat_compression_completed",
+                            "event_for_client": "chat_compression_completed",
+                            "task_id": task_id,
+                            "chat_id": request_data.chat_id,
+                            "user_id_uuid": request_data.user_id,
+                            "user_id_hash": request_data.user_id_hash,
+                            "error": compression_result.error,
+                        }
+                        compression_channel = (
+                            f"ai_typing_indicator_events::{request_data.user_id_hash}"
+                        )
+                        await cache_service_instance.publish_event(
+                            compression_channel, compression_error_payload
+                        )
+    except Exception as e_compression:
+        logger.error(
+            f"[Task ID: {task_id}] Chat compression failed with exception (non-fatal, "
+            f"proceeding with full history): {e_compression}",
+            exc_info=True,
+        )
+        # Non-fatal: if compression fails, we proceed with the full history
+        # and rely on the existing truncation in main_processor.py
 
     # --- Step 1: Preprocessing ---
     # The synchronous wrapper (process_ai_skill_ask_task) will call self.update_state for PROGRESS.
@@ -1400,7 +1622,6 @@ async def _async_process_ai_skill_ask_task(
                 # Create a new AskSkillRequest for the combined message
                 # Import the necessary modules
                 from backend.apps.ai.skills.ask_skill import AskSkillRequest as AskSkillRequestType
-                from backend.apps.ai.skills.ask_skill import AIHistoryMessage
                 
                 # Convert dict history back to AIHistoryMessage objects
                 history_objects = []
@@ -1535,11 +1756,21 @@ async def _async_process_ai_skill_ask_task(
             if not available_app_ids:
                 logger.warning(f"[Task ID: {task_id}] No available app IDs found in discovered_apps_metadata for post-processing validation")
 
-            # Extract settings/memory categories for Phase 1 (lightweight category selection)
-            available_settings_memory_categories = extract_settings_memory_categories(
+
+            # Extract production skills and focus modes for structured suggestion prefix generation.
+            # These are injected into the postprocessor prompt so the LLM can produce
+            # [app_id-skill_id] / [app_id-focus_id] prefixed suggestions that surface
+            # app features users may not know about.
+            available_skills_for_postproc = extract_available_skills(
                 discovered_apps_metadata
             ) if discovered_apps_metadata else []
-            logger.debug(f"[Task ID: {task_id}] Extracted {len(available_settings_memory_categories)} settings/memory categories for post-processing")
+            available_focus_modes_for_postproc = extract_available_focus_modes(
+                discovered_apps_metadata
+            ) if discovered_apps_metadata else []
+            logger.debug(
+                f"[Task ID: {task_id}] Extracted {len(available_skills_for_postproc)} skills and "
+                f"{len(available_focus_modes_for_postproc)} focus modes for post-processing suggestion context"
+            )
 
             # Build full message history for post-processing (same format as preprocessing)
             # This allows post-processing to generate summaries from the full chat history
@@ -1571,42 +1802,15 @@ async def _async_process_ai_skill_ask_task(
                 secrets_manager=secrets_manager,
                 cache_service=cache_service_instance,
                 available_app_ids=available_app_ids,
-                available_settings_memory_categories=available_settings_memory_categories,
+
+                available_skills=available_skills_for_postproc,
+                available_focus_modes=available_focus_modes_for_postproc,
                 is_incognito=getattr(request_data, 'is_incognito', False),  # Pass incognito flag
                 output_language=chat_output_language,
                 user_system_language=user_system_language,
             )
 
-            # Phase 2: Memory generation (only if Phase 1 identified relevant categories)
-            if (postprocessing_result 
-                and postprocessing_result.relevant_settings_memory_categories 
-                and discovered_apps_metadata):
-                
-                logger.info(f"[Task ID: {task_id}] Phase 2: Generating memory entries for categories: {postprocessing_result.relevant_settings_memory_categories}")
-                
-                # Get full schemas for the selected categories
-                category_schemas = get_category_schemas(
-                    discovered_apps_metadata,
-                    postprocessing_result.relevant_settings_memory_categories
-                )
-                
-                if category_schemas:
-                    # Generate actual entry suggestions
-                    suggested_entries = await handle_memory_generation(
-                        task_id=task_id,
-                        user_message=last_user_message,
-                        assistant_response=aggregated_final_response,
-                        relevant_categories=postprocessing_result.relevant_settings_memory_categories,
-                        category_schemas=category_schemas,
-                        base_instructions=base_instructions,
-                        secrets_manager=secrets_manager,
-                    )
-                    
-                    # Update the postprocessing result with generated entries
-                    postprocessing_result.suggested_settings_memories = suggested_entries
-                    logger.info(f"[Task ID: {task_id}] Phase 2 complete: Generated {len(suggested_entries)} memory entry suggestions")
-                else:
-                    logger.warning(f"[Task ID: {task_id}] Phase 2 skipped: No schemas found for selected categories")
+
 
         if postprocessing_result and cache_service_instance:
             # Publish post-processing results to Redis for WebSocket delivery to client
@@ -1618,11 +1822,7 @@ async def _async_process_ai_skill_ask_task(
                 logger.info(f"[Task ID: {task_id}] Using post-processing chat_summary (length: {len(postprocessing_result.chat_summary)})")
             else:
                 logger.info(f"[Task ID: {task_id}] Falling back to preprocessing chat_summary (post-processing didn't provide one)")
-            # Convert suggested_settings_memories to serializable format
-            suggested_settings_memories_serialized = [
-                entry.model_dump() for entry in postprocessing_result.suggested_settings_memories
-            ] if postprocessing_result.suggested_settings_memories else []
-            
+
             postprocessing_payload = {
                 "type": "post_processing_completed",
                 "event_for_client": "post_processing_completed",
@@ -1636,8 +1836,7 @@ async def _async_process_ai_skill_ask_task(
                 "chat_tags": chat_tags,  # From preprocessing (full history context)
                 "harmful_response": postprocessing_result.harmful_response,
                 "top_recommended_apps_for_user": postprocessing_result.top_recommended_apps_for_user,
-                # Phase 2: Suggested settings/memories entries (sent as plaintext, client encrypts)
-                "suggested_settings_memories": suggested_settings_memories_serialized,
+
             }
 
             postprocessing_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}"

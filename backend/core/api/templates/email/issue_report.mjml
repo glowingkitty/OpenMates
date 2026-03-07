@@ -64,6 +64,22 @@
             <strong>Device Information (for debugging):</strong><br/>
             {{ device_info | safe }}
           </mj-text>
+          {% if screenshot_presigned_url %}
+          <mj-text font-size="16px" padding-bottom="10px">
+            <strong>Screenshot (captured by user):</strong>
+          </mj-text>
+          <mj-image
+            src="{{ screenshot_presigned_url }}"
+            alt="Issue screenshot uploaded by user"
+            padding="0 0 10px 0"
+            border-radius="8px"
+            fluid-on-mobile="true"
+          />
+          <mj-text font-size="14px" padding-bottom="20px">
+            If the image preview is blocked by your email client, open it directly:
+            <a href="{{ screenshot_presigned_url }}" style="color: #6364FF; text-decoration: underline;">View screenshot</a>
+          </mj-text>
+          {% endif %}
           <mj-text font-size="16px" padding-bottom="30px">
             <strong>Debug Information:</strong><br/>
             This issue report includes a consolidated YAML file attachment containing all debugging information including metadata, device information, console logs (client-side), and Docker Compose logs (all containers).
@@ -76,4 +92,3 @@
     <mj-include path="./components/footer.mjml" />
   </mj-body>
 </mjml>
-

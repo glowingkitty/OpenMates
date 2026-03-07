@@ -41,6 +41,20 @@
     category_path?: string | null;
     total_result_count?: number;
     search_rank?: number;
+    price?: string | null;
+    price_amount?: number | null;
+    old_price?: string | null;
+    old_price_amount?: number | null;
+    currency_symbol?: string | null;
+    asin?: string;
+    rating?: number | null;
+    reviews?: number | null;
+    prime?: boolean | null;
+    delivery?: string[];
+    bought_last_month?: string | null;
+    provider?: string;
+    country?: string;
+    amazon_domain?: string;
     attributes?: {
       is_organic?: boolean;
       is_vegan?: boolean;
@@ -125,7 +139,17 @@
 
   let errorMessage = $derived(localErrorMessage || $text('chat.an_error_occured'));
 
-  let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
+  let providerLabel = $derived.by(() => {
+    const normalized = provider.trim().toUpperCase();
+    if (normalized === 'AMAZON') {
+      const countryCode = (flatResults[0]?.country || '').toUpperCase();
+      return countryCode ? `Amazon ${countryCode}` : 'Amazon';
+    }
+    if (normalized === 'REWE') return 'REWE';
+    return provider;
+  });
+
+  let viaProvider = $derived(`${$text('embeds.via')} ${providerLabel}`);
 
   /**
    * Handle embed data updates during streaming.
@@ -169,9 +193,50 @@
   }
 
   /**
+   * Format a numeric amount with a currency symbol.
+   */
+  function formatPriceAmount(
+    amount: number | null | undefined,
+    currencySymbol: string | null | undefined
+  ): string {
+    if (amount == null || amount <= 0) return '';
+    const symbol = currencySymbol || '€';
+    const formatted = symbol === '€' ? amount.toFixed(2).replace('.', ',') : amount.toFixed(2);
+    return `${symbol}${formatted}`;
+  }
+
+  /**
+   * Render current product price from provider-specific fields.
+   */
+  function getDisplayPrice(product: ProductResult): string {
+    if (product.price) return product.price;
+    if (product.price_eur) return product.price_eur;
+    if (product.price_amount != null) return formatPriceAmount(product.price_amount, product.currency_symbol);
+    if (product.price_cents != null) return formatPrice(product.price_cents);
+    return '';
+  }
+
+  /**
+   * Render old/strikethrough price from provider-specific fields.
+   */
+  function getDisplayOldPrice(product: ProductResult): string {
+    if (product.old_price) return product.old_price;
+    if (product.old_price_amount != null) return formatPriceAmount(product.old_price_amount, product.currency_symbol);
+    if (product.was_price_cents != null) return formatPrice(product.was_price_cents);
+    return '';
+  }
+
+  /**
    * Check if a product is on sale (was_price > current_price).
    */
   function isOnSale(product: ProductResult): boolean {
+    if (
+      product.old_price_amount != null &&
+      product.price_amount != null &&
+      product.old_price_amount > product.price_amount
+    ) {
+      return true;
+    }
     return (
       product.was_price_cents != null &&
       product.price_cents != null &&
@@ -233,9 +298,11 @@
     {:else}
       <!-- Product cards grid -->
       <div class="products-grid">
-        {#each flatResults as product (product.product_id ?? product.title)}
+        {#each flatResults as product (product.product_id ?? product.asin ?? product.title)}
           {@const salePrice = isOnSale(product)}
           {@const tags = getDietaryTags(product)}
+          {@const displayPrice = getDisplayPrice(product)}
+          {@const displayOldPrice = getDisplayOldPrice(product)}
           <a
             class="product-card"
             href={product.purchase_url || '#'}
@@ -275,21 +342,41 @@
 
               <!-- Price row -->
               <div class="product-price-row">
-                {#if product.price_eur}
+                {#if displayPrice}
                   <span class="product-price" class:sale={salePrice}>
-                    {product.price_eur}
+                    {displayPrice}
                   </span>
                 {:else}
                   <span class="product-price-unavailable">
                     {$text('embeds.shopping.price_unavailable')}
                   </span>
                 {/if}
-                {#if salePrice && product.was_price_cents}
+                {#if salePrice && displayOldPrice}
                   <span class="product-was-price">
-                    {formatPrice(product.was_price_cents)}
+                    {displayOldPrice}
                   </span>
                 {/if}
               </div>
+
+              {#if product.rating != null}
+                <div class="product-rating-row">
+                  <span class="product-rating">★ {product.rating.toFixed(1)}</span>
+                  {#if product.reviews != null}
+                    <span class="product-reviews">({new Intl.NumberFormat().format(product.reviews)})</span>
+                  {/if}
+                  {#if product.prime}
+                    <span class="product-prime">Prime</span>
+                  {/if}
+                </div>
+              {/if}
+
+              {#if product.delivery && product.delivery.length > 0}
+                <div class="product-delivery">{product.delivery[0]}</div>
+              {/if}
+
+              {#if product.bought_last_month}
+                <div class="product-bought">{product.bought_last_month}</div>
+              {/if}
 
               <!-- Grammage / unit price -->
               {#if product.grammage}
@@ -550,6 +637,41 @@
 
   /* Grammage */
   .product-grammage {
+    font-size: 11px;
+    color: var(--color-font-secondary);
+    line-height: 1.3;
+  }
+
+  .product-rating-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+    flex-wrap: wrap;
+  }
+
+  .product-rating {
+    font-size: 12px;
+    color: #f59e0b;
+    font-weight: 600;
+  }
+
+  .product-reviews {
+    font-size: 11px;
+    color: var(--color-font-secondary);
+  }
+
+  .product-prime {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 10px;
+    background: rgba(59, 130, 246, 0.12);
+    color: #2563eb;
+  }
+
+  .product-delivery,
+  .product-bought {
     font-size: 11px;
     color: var(--color-font-secondary);
     line-height: 1.3;

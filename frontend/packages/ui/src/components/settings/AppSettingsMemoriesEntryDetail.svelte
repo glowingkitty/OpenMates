@@ -18,7 +18,10 @@
     import type { AppMetadata, MemoryFieldMetadata, SchemaPropertyDefinition } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
+    import Icon from '../Icon.svelte';
     import { appSettingsMemoriesStore, appSettingsMemoriesForApp } from '../../stores/appSettingsMemoriesStore';
+    import { updateEntryPrefillStore } from '../../stores/updateEntryPrefillStore';
+    import { get } from 'svelte/store';
     import type { Readable } from 'svelte/store';
     import {
         MAX_LENGTH_SHORT,
@@ -39,9 +42,10 @@
         categoryId: string;
         entryId: string;
         readOnly?: boolean;
+        startInEditMode?: boolean;
     }
 
-    let { appId, categoryId, entryId, readOnly = false }: Props = $props();
+    let { appId, categoryId, entryId, readOnly = false, startInEditMode = false }: Props = $props();
 
     // Detect example entries: entryId starts with "example_" (e.g. "example_0")
     // Example entries are shown read-only with translated text content from the category metadata.
@@ -128,7 +132,10 @@
     });
 
     // Mode: 'view' or 'edit'
-    let mode = $state<'view' | 'edit'>('view');
+    // startInEditMode prop allows navigating directly to edit mode (e.g., from the list's edit button)
+    // Use untrack() to read startInEditMode only once (initial value), not reactively.
+    // This is intentional: mode is local state initialized from the prop, but not kept in sync.
+    let mode = $state<'view' | 'edit'>(untrack(() => startInEditMode ? 'edit' : 'view'));
     
     // Form state for edit mode
     let formState = $state<Record<string, unknown>>({});
@@ -139,6 +146,18 @@
     // Track if form has been initialized
     let formInitialized = false;
     let lastEntryId: string | null = null;
+    
+    // Snapshot of form state at edit start, to detect if user made changes
+    let initialFormSnapshot = '';
+    
+    // Detect whether the user has made changes compared to the initial state
+    let hasFormChanges = $derived(JSON.stringify(formState) !== initialFormSnapshot);
+    
+    // Old values for diff display when the AI suggests updates via deep link.
+    // Maps field name -> original value (before prefill was applied).
+    // Only populated when the user arrives via an AI update deep link with prefill data.
+    let oldValuesForDiff = $state<Record<string, unknown>>({});
+    let hasPrefillDiff = $derived(Object.keys(oldValuesForDiff).length > 0);
     
     // Initialize form state when entry changes or mode switches to edit
     $effect(() => {
@@ -155,13 +174,35 @@
                         }
                     }
                     formState = initialState;
+                    initialFormSnapshot = JSON.stringify(initialState);
                 } else {
-                    formState = {
+                    const genericState = {
                         itemKey: entry.item_key,
                         itemValue: JSON.stringify(entry.item_value, null, 2),
                         settingsGroup: entry.settings_group
                     };
+                    formState = genericState;
+                    initialFormSnapshot = JSON.stringify(genericState);
                 }
+                // Apply prefill from AI-generated update deep link (if present)
+                const prefill = get(updateEntryPrefillStore);
+                if (prefill && prefill.entryId === currentEntryId && Object.keys(prefill.prefillFields).length > 0) {
+                    const diffOldValues: Record<string, unknown> = {};
+                    for (const [fieldName, newValue] of Object.entries(prefill.prefillFields)) {
+                        if (fieldName in formState) {
+                            // Record old value for diff display
+                            diffOldValues[fieldName] = formState[fieldName];
+                            // Apply prefilled new value
+                            formState[fieldName] = newValue;
+                        }
+                    }
+                    oldValuesForDiff = diffOldValues;
+                    // initialFormSnapshot was already set above from entry.item_value,
+                    // so hasFormChanges will correctly detect the prefilled fields as changes
+                    updateEntryPrefillStore.set(null);
+                    console.info('[AppSettingsMemoriesEntryDetail] Applied prefill from AI deep link:', Object.keys(prefill.prefillFields));
+                }
+                
                 formInitialized = true;
                 lastEntryId = currentEntryId;
             });
@@ -185,6 +226,16 @@
     }
     
     /**
+     * Get the icon name for this category to use in field icon divs.
+     * Uses the category's own icon_image (e.g. "travel.svg" -> "travel").
+     * Falls back to categoryId, then to appId.
+     */
+    function getCategoryIconName(categoryIconImage: string | undefined): string {
+        if (!categoryIconImage) return categoryId || appId;
+        return categoryIconImage.replace(/\.svg$/, '');
+    }
+    
+    /**
      * Navigate back to category page.
      */
     function goBack() {
@@ -201,6 +252,7 @@
      */
     function startEdit() {
         formInitialized = false; // Force re-initialization
+        oldValuesForDiff = {}; // Clear any previous diff state
         mode = 'edit';
     }
     
@@ -210,6 +262,7 @@
     function cancelEdit() {
         formInitialized = false;
         saveError = '';
+        oldValuesForDiff = {}; // Clear diff state
         mode = 'view';
     }
     
@@ -244,10 +297,16 @@
     }
 
     /**
-     * Get display-friendly field label.
+     * Get display-friendly field label (title).
+     * Returns the field name formatted as a human-readable title (e.g., "start_date" → "Start date").
+     * The prop.description is used as placeholder text, NOT as the label title.
      */
-    function getFieldLabel(fieldName: string, prop: SchemaPropertyDefinition): string {
-        return prop.description || fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    function getFieldLabel(fieldName: string): string {
+        // Format the field key as a human-readable title:
+        // "start_date" → "Start date", "destination" → "Destination"
+        const words = fieldName.split('_');
+        return words[0].charAt(0).toUpperCase() + words[0].slice(1).toLowerCase() +
+            (words.length > 1 ? ' ' + words.slice(1).join(' ').toLowerCase() : '');
     }
     
     /**
@@ -299,8 +358,7 @@
             
             const value = formState[fieldName];
             if (value === undefined || value === null || String(value).trim() === '') {
-                const prop = userInputProperties[fieldName];
-                const fieldLabel = getFieldLabel(fieldName, prop);
+                const fieldLabel = getFieldLabel(fieldName);
                 return `${fieldLabel} is required`;
             }
         }
@@ -315,19 +373,19 @@
             if (prop.type === 'integer' || prop.type === 'number') {
                 const numValue = Number(value);
                 if (isNaN(numValue)) {
-                    return `${getFieldLabel(fieldName, prop)} must be a number`;
+                    return `${getFieldLabel(fieldName)} must be a number`;
                 }
                 if (prop.minimum !== undefined && numValue < prop.minimum) {
-                    return `${getFieldLabel(fieldName, prop)} must be at least ${prop.minimum}`;
+                    return `${getFieldLabel(fieldName)} must be at least ${prop.minimum}`;
                 }
                 if (prop.maximum !== undefined && numValue > prop.maximum) {
-                    return `${getFieldLabel(fieldName, prop)} must be at most ${prop.maximum}`;
+                    return `${getFieldLabel(fieldName)} must be at most ${prop.maximum}`;
                 }
             } else if (prop.type === 'string' || prop.type === undefined) {
                 if (!prop.enum) {
                     const strVal = String(value);
                     const maxLen = getMaxLength(prop);
-                    const lengthError = validateMaxLength(strVal, maxLen, getFieldLabel(fieldName, prop));
+                    const lengthError = validateMaxLength(strVal, maxLen, getFieldLabel(fieldName));
                     if (lengthError) return lengthError;
                 }
             }
@@ -474,12 +532,12 @@
             <div class="details-section">
                 {#if exampleEntry && Object.keys(userInputProperties).length > 0}
                     <!-- Full example entry: render each schema field with its example value -->
-                    {#each Object.entries(userInputProperties) as [fieldName, prop]}
+                    {#each Object.keys(userInputProperties) as fieldName}
                         {#if exampleEntry[fieldName] !== undefined}
                             <div class="detail-row">
                                 <div class="field-header">
-                                    <div class="icon settings_size subsetting_icon icon_settings"></div>
-                                    <span class="detail-label">{getFieldLabel(fieldName, prop)}</span>
+                                    <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
+                                    <span class="detail-label">{getFieldLabel(fieldName)}</span>
                                 </div>
                                 <span class="detail-value">
                                     {resolveExampleValue(exampleEntry[fieldName])}
@@ -495,6 +553,11 @@
                 {/if}
             </div>
             <!-- No action buttons for examples -->
+            <!-- Encrypted notice: entry data is zero-knowledge encrypted on-device -->
+            <div class="encrypted-notice">
+                <Icon name="lock" size="14px" />
+                <span>{$text('settings.app_settings_memories.encrypted_notice')}</span>
+            </div>
         </div>
     {:else if !isAuthenticated}
         <div class="error">
@@ -516,12 +579,14 @@
                     {#each Object.entries(userInputProperties) as [fieldName, prop]}
                         <div class="detail-row">
                             <div class="field-header">
-                                <div class="icon settings_size subsetting_icon icon_settings"></div>
-                                <span class="detail-label">{getFieldLabel(fieldName, prop)}</span>
+                                <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
+                                <span class="detail-label">{getFieldLabel(fieldName)}</span>
                             </div>
-                            <span class="detail-value">
+                            <span class="detail-value" class:not-set={entry.item_value[fieldName] === null || entry.item_value[fieldName] === undefined || entry.item_value[fieldName] === ''}>
                                 {#if prop.type === 'boolean'}
                                     {entry.item_value[fieldName] ? 'Yes' : 'No'}
+                                {:else if entry.item_value[fieldName] === null || entry.item_value[fieldName] === undefined || entry.item_value[fieldName] === ''}
+                                    Not set
                                 {:else}
                                     {formatValue(entry.item_value[fieldName])}
                                 {/if}
@@ -540,37 +605,29 @@
                     </div>
                 {/if}
                 
-                <!-- Metadata -->
+                <!-- Metadata — small, subtle timestamps -->
                 <div class="metadata-section">
-                    <div class="detail-row metadata">
-                        <span class="detail-label">Version</span>
-                        <span class="detail-value">v{entry.item_version}</span>
-                    </div>
-                    <div class="detail-row metadata">
-                        <span class="detail-label">Last Updated</span>
-                        <span class="detail-value">{formatDate(entry.updated_at)}</span>
-                    </div>
-                    <div class="detail-row metadata">
-                        <span class="detail-label">Created</span>
-                        <span class="detail-value">{formatDate(entry.created_at)}</span>
-                    </div>
+                    <span class="metadata-text">Last updated: {formatDate(entry.updated_at)}</span>
+                    <span class="metadata-text">Created: {formatDate(entry.created_at)}</span>
                 </div>
             </div>
             
             <!-- Action buttons — only for own (non-read-only) entries -->
             {#if !readOnly}
                 <div class="action-buttons">
-                    <button class="edit-btn" onclick={startEdit} disabled={isDeleting}>
+                    <button onclick={startEdit} disabled={isDeleting}>
                         {$text('settings.app_settings_memories.edit')}
                     </button>
-                    <button class="delete-btn" onclick={handleDelete} disabled={isDeleting}>
-                        {isDeleting 
-                            ? $text('settings.app_settings_memories.deleting')
-                            : $text('settings.app_settings_memories.delete')
-                        }
+                    <button class="delete-icon-btn" onclick={handleDelete} disabled={isDeleting} aria-label="Delete">
+                        <div class="clickable-icon icon_delete"></div>
                     </button>
                 </div>
             {/if}
+            <!-- Encrypted notice: entry data is zero-knowledge encrypted on-device -->
+            <div class="encrypted-notice">
+                <Icon name="lock" size="14px" />
+                <span>{$text('settings.app_settings_memories.encrypted_notice')}</span>
+            </div>
         </div>
     {:else}
         <!-- Edit Mode -->
@@ -580,9 +637,9 @@
                 {#each Object.entries(userInputProperties) as [fieldName, prop]}
                     <div class="form-group">
                         <div class="field-header">
-                            <div class="icon settings_size subsetting_icon icon_settings"></div>
+                            <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
                             <label for={fieldName}>
-                                {getFieldLabel(fieldName, prop)}
+                                {getFieldLabel(fieldName)}
                                 {#if isFieldRequired(fieldName)}
                                     <span class="required">*</span>
                                 {/if}
@@ -597,14 +654,14 @@
                                     onchange={(e) => formState[fieldName] = (e.target as HTMLInputElement).checked}
                                     disabled={isSaving}
                                 />
-                                <span class="checkbox-label">{getFieldLabel(fieldName, prop)}</span>
+                                <span class="checkbox-label">{getFieldLabel(fieldName)}</span>
                             </div>
                         {:else if prop.type === 'integer' || prop.type === 'number'}
                             <input
                                 id={fieldName}
                                 type="number"
                                 bind:value={formState[fieldName]}
-                                placeholder={getFieldLabel(fieldName, prop)}
+                                placeholder={prop.description || getFieldLabel(fieldName)}
                                 min={prop.minimum}
                                 max={prop.maximum}
                                 step={prop.type === 'integer' ? 1 : undefined}
@@ -616,7 +673,7 @@
                                 bind:value={formState[fieldName]}
                                 disabled={isSaving}
                             >
-                                <option value="">Select {getFieldLabel(fieldName, prop)}</option>
+                                <option value="">Select {getFieldLabel(fieldName)}</option>
                                 {#each prop.enum as enumValue}
                                     <option value={enumValue}>{enumValue}</option>
                                 {/each}
@@ -625,7 +682,7 @@
                             <textarea
                                 id={fieldName}
                                 bind:value={formState[fieldName]}
-                                placeholder={getFieldLabel(fieldName, prop)}
+                                placeholder={prop.description || getFieldLabel(fieldName)}
                                 rows="4"
                                 maxlength={getMaxLength(prop)}
                                 disabled={isSaving}
@@ -635,10 +692,23 @@
                                 id={fieldName}
                                 type="text"
                                 bind:value={formState[fieldName]}
-                                placeholder={getFieldLabel(fieldName, prop)}
+                                placeholder={prop.description || getFieldLabel(fieldName)}
                                 maxlength={getMaxLength(prop)}
                                 disabled={isSaving}
                             />
+                        {/if}
+                        <!-- Diff hint: show old value when AI prefilled this field -->
+                        {#if hasPrefillDiff && fieldName in oldValuesForDiff}
+                            <div class="diff-hint">
+                                <span class="diff-label">{$text("settings.app_settings_memories.diff_previous_value")}</span>
+                                <span class="diff-old-value">
+                                    {#if oldValuesForDiff[fieldName] === '' || oldValuesForDiff[fieldName] === null || oldValuesForDiff[fieldName] === undefined}
+                                        <em class="not-set">{$text("settings.app_settings_memories.diff_not_set")}</em>
+                                    {:else}
+                                        {String(oldValuesForDiff[fieldName])}
+                                    {/if}
+                                </span>
+                            </div>
                         {/if}
                     </div>
                 {/each}
@@ -646,7 +716,7 @@
                 <!-- Generic form -->
                 <div class="form-group">
                     <div class="field-header">
-                        <div class="icon settings_size subsetting_icon icon_settings"></div>
+                        <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
                         <label for="item-key">
                             Key
                             <span class="required">*</span>
@@ -663,7 +733,7 @@
 
                 <div class="form-group">
                     <div class="field-header">
-                        <div class="icon settings_size subsetting_icon icon_settings"></div>
+                        <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
                         <label for="settings-group">Group</label>
                     </div>
                     <input
@@ -677,7 +747,7 @@
 
                 <div class="form-group">
                     <div class="field-header">
-                        <div class="icon settings_size subsetting_icon icon_settings"></div>
+                        <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
                         <label for="item-value">Value</label>
                     </div>
                     <textarea
@@ -695,19 +765,25 @@
             {/if}
 
             <div class="form-footer">
-                <button class="cancel-btn" onclick={cancelEdit} disabled={isSaving}>
+                {#if hasFormChanges}
+                    <button
+                        onclick={handleSave}
+                        disabled={isSaving}
+                    >
+                        {isSaving 
+                            ? $text('settings.app_settings_memories.saving')
+                            : $text('settings.app_settings_memories.save')
+                        }
+                    </button>
+                {/if}
+                <button class="cancel-link" onclick={cancelEdit} disabled={isSaving} type="button">
                     {$text('settings.app_settings_memories.cancel')}
                 </button>
-                <button
-                    class="save-btn"
-                    onclick={handleSave}
-                    disabled={isSaving}
-                >
-                    {isSaving 
-                        ? $text('settings.app_settings_memories.saving')
-                        : $text('settings.app_settings_memories.save')
-                    }
-                </button>
+            </div>
+            <!-- Encrypted notice: entry data is zero-knowledge encrypted on-device -->
+            <div class="encrypted-notice">
+                <Icon name="lock" size="14px" />
+                <span>{$text('settings.app_settings_memories.encrypted_notice')}</span>
             </div>
         </div>
     {/if}
@@ -734,38 +810,43 @@
         flex-direction: column;
         gap: 0.25rem;
         padding: 1rem 0;
-        border-bottom: 1px solid var(--color-grey-20);
     }
     
     .detail-row:first-child {
         padding-top: 0;
     }
     
-    .detail-row.metadata {
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.75rem 0;
-    }
-    
+    /* Metadata section — small, subtle date info */
     .metadata-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
         margin-top: 1.5rem;
-        padding-top: 1rem;
-        border-top: 2px solid var(--color-grey-30);
+        padding-top: 0.75rem;
     }
     
+    .metadata-text {
+        font-size: 0.75rem;
+        color: var(--color-grey-30);
+    }
+    
+    /* Field label — regular white text, like a menu title */
     .detail-label {
-        font-size: 0.85rem;
-        color: var(--color-grey-60);
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+        font-size: 1rem;
+        color: var(--text-primary);
+        font-weight: 400;
     }
     
     .detail-value {
         font-size: 1rem;
         color: var(--text-primary);
         word-break: break-word;
+    }
+    
+    /* "Not set" placeholder for null/empty values */
+    .detail-value.not-set {
+        color: var(--color-grey-30);
+        font-style: italic;
     }
 
     .example-text {
@@ -788,64 +869,39 @@
         margin-top: 0.5rem;
     }
     
+    /* Action buttons — Edit (standard <button>) + Delete (icon-only) */
     .action-buttons {
         display: flex;
         gap: 1rem;
+        align-items: center;
         padding-top: 1rem;
     }
     
-    .edit-btn,
-    .delete-btn,
-    .cancel-btn,
-    .save-btn {
-        padding: 0.75rem 1.5rem;
-        border-radius: 6px;
-        border: none;
+    /* Delete icon button — matches ChatContextMenu delete style */
+    .delete-icon-btn {
+        all: unset;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 41px;
+        height: 41px;
         cursor: pointer;
-        font-size: 0.95rem;
-        font-weight: 500;
-        transition: background-color 0.2s ease;
+        border-radius: 20px;
+        transition: opacity 0.15s ease-in-out;
     }
     
-    .edit-btn {
-        background: var(--color-primary);
-        color: white;
-        flex: 1;
+    .delete-icon-btn .clickable-icon {
+        background: #E80000;
+        width: 20px;
+        height: 20px;
     }
     
-    .edit-btn:hover:not(:disabled) {
-        background: var(--color-primary-dark, #005fa3);
+    .delete-icon-btn:hover:not(:disabled) {
+        opacity: 0.8;
     }
     
-    .delete-btn {
-        background: var(--color-grey-30);
-        color: var(--color-error, #dc3545);
-    }
-    
-    .delete-btn:hover:not(:disabled) {
-        background: var(--color-error-light, #f8d7da);
-    }
-    
-    .cancel-btn {
-        background: var(--color-grey-30);
-        color: var(--text-primary);
-    }
-    
-    .cancel-btn:hover:not(:disabled) {
-        background: var(--color-grey-40);
-    }
-    
-    .save-btn {
-        background: var(--color-primary);
-        color: white;
-    }
-    
-    .save-btn:hover:not(:disabled) {
-        background: var(--color-primary-dark, #005fa3);
-    }
-    
-    button:disabled {
-        opacity: 0.5;
+    .delete-icon-btn:disabled {
+        opacity: 0.4;
         cursor: not-allowed;
     }
     
@@ -871,19 +927,26 @@
         color: var(--error-color, #dc3545);
     }
     
+    /* Shared input/textarea/select styles — consistent rounded design */
     input,
     textarea,
     select {
         width: 100%;
         padding: 0.75rem;
         border: 1px solid var(--color-grey-30);
-        border-radius: 6px;
+        border-radius: 20px;
         font-family: inherit;
         font-size: 0.95rem;
         color: var(--text-primary);
-        background: var(--color-white);
+        background: var(--color-grey-10);
         transition: border-color 0.2s ease;
         box-sizing: border-box;
+    }
+    
+    /* Textarea keeps same style as input but with multiline-appropriate rounding */
+    textarea {
+        border-radius: 16px;
+        resize: vertical;
     }
     
     .checkbox-group {
@@ -927,11 +990,32 @@
         margin-bottom: 1rem;
     }
     
+    /* Form footer — Save button + Cancel text link below */
     .form-footer {
         display: flex;
-        gap: 1rem;
-        justify-content: flex-end;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
         margin-top: 2rem;
+    }
+    
+    /* Cancel as clickable text link, not a button */
+    .cancel-link {
+        all: unset;
+        cursor: pointer;
+        color: var(--color-grey-30);
+        font-size: 0.9rem;
+        text-decoration: underline;
+        transition: color 0.15s ease;
+    }
+    
+    .cancel-link:hover:not(:disabled) {
+        color: var(--text-primary);
+    }
+    
+    .cancel-link:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
     }
     
     .error {
@@ -954,5 +1038,50 @@
     
     .back-button:hover {
         background: var(--button-hover-background, #e0e0e0);
+    }
+
+    /* Encrypted notice footer — lock icon + small privacy text */
+    .encrypted-notice {
+        display: flex;
+        align-items: flex-start;
+        gap: 6px;
+        margin-top: 2rem;
+        padding-top: 1rem;
+        color: var(--color-grey-40);
+        font-size: 0.75rem;
+        line-height: 1.4;
+    }
+
+    .encrypted-notice :global(.icon) {
+        flex-shrink: 0;
+        margin-top: 1px;
+        opacity: 0.7;
+    }
+    /* Diff hint styles — shown when AI suggests updates via deep link */
+    .diff-hint {
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+        margin-top: 4px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        background-color: var(--color-surface-hover, rgba(0, 0, 0, 0.04));
+        font-size: 0.8rem;
+        color: var(--color-text-secondary, #666);
+    }
+    
+    .diff-label {
+        font-weight: 500;
+        white-space: nowrap;
+        color: var(--color-text-tertiary, #888);
+    }
+    
+    .diff-old-value {
+        word-break: break-word;
+    }
+    
+    .diff-old-value .not-set {
+        font-style: italic;
+        opacity: 0.6;
     }
 </style>

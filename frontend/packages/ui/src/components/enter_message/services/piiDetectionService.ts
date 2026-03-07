@@ -727,6 +727,24 @@ export function detectPII(
   const hasExclusions = excludedIds.size > 0;
   const hasDisabledCategories = disabledCategories.size > 0;
 
+  // ── Pre-processing: Build URL exclusion zones ───────────────────────────
+  // URLs contain path segments that often false-positive as phone numbers,
+  // IBANs, etc. (e.g. "/2025/1/6/24337399" matches the local phone regex).
+  // We mark URL ranges so regex matches falling inside them are skipped.
+  // Using exclusion zones (instead of replacing text) preserves character
+  // offsets so match positions remain valid for PII highlighting decorations.
+  const URL_EXCLUSION_REGEX = /https?:\/\/[^\s]+/g;
+  const urlExclusionZones: Array<{ start: number; end: number }> = [];
+  URL_EXCLUSION_REGEX.lastIndex = 0;
+  let urlMatch;
+  while ((urlMatch = URL_EXCLUSION_REGEX.exec(text)) !== null) {
+    urlExclusionZones.push({
+      start: urlMatch.index,
+      end: urlMatch.index + urlMatch[0].length,
+    });
+  }
+  const hasUrlExclusions = urlExclusionZones.length > 0;
+
   // ── Phase 1: Regex-based PII pattern detection ──────────────────────────
   if (text.length >= MIN_PII_TEXT_LENGTH) {
     for (const pattern of PII_PATTERNS) {
@@ -745,6 +763,15 @@ export function detectPII(
         const matchText = regexMatch[0];
         const startIndex = regexMatch.index;
         const endIndex = startIndex + matchText.length;
+
+        // Skip matches that fall inside a URL — URL path segments often
+        // false-positive as phone numbers, IBANs, etc.
+        if (hasUrlExclusions) {
+          const insideUrl = urlExclusionZones.some(
+            (zone) => startIndex >= zone.start && endIndex <= zone.end,
+          );
+          if (insideUrl) continue;
+        }
 
         // Skip if this range overlaps with an already detected PII
         const overlaps = coveredRanges.some(

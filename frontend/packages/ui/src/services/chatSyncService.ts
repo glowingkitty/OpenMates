@@ -359,6 +359,13 @@ export class ChatSynchronizationService extends EventTarget {
         payload as { chat_id: string; unread_count: number },
       ),
     );
+    // Handle pinned status sync from other devices (cross-device pin/unpin)
+    webSocketService.on("chat_pinned_updated", (payload) =>
+      chatUpdateHandlers.handleChatPinnedUpdatedImpl(
+        this,
+        payload as { chat_id: string; pinned: boolean },
+      ),
+    );
     // Handle single message deletion (broadcast from server to all devices)
     webSocketService.on("message_deleted", (payload) => {
       const { chat_id, message_id, embed_ids_to_delete } =
@@ -571,7 +578,19 @@ export class ChatSynchronizationService extends EventTarget {
           const isOnWelcomeScreen =
             currentChatId === null || currentChatId === NEW_CHAT_SENTINEL;
 
-          if (isOnWelcomeScreen) {
+          // Check if user is actually viewing a chat (not just a stale URL hash).
+          // Use phasedSyncState.currentActiveChatId as the source of truth since it
+          // is explicitly set/cleared by the UI, unlike activeChatStore which can
+          // retain a stale value from the URL hash fragment after navigation.
+          if (!isOnWelcomeScreen) {
+            console.debug(
+              `[ChatSyncService] Skipping resume card update from last_opened_updated — user is in active chat (currentActiveChatId: ${currentChatId})`,
+            );
+            return;
+          }
+
+          // User is on welcome/new-chat screen — update the resume card
+          {
             const chat = await chatDB.getChat(chat_id);
             if (chat) {
               // Decrypt title, category, icon for the resume card display
@@ -629,11 +648,17 @@ export class ChatSynchronizationService extends EventTarget {
                 );
               }
 
+              // Use force=true to bypass the stale currentActiveChatId guard.
+              // We already verified the user is on the welcome screen above via
+              // phasedSyncState.currentActiveChatId check. The guard inside
+              // setResumeChatData uses the same field, which may retain a stale
+              // chat ID from a previous navigation — force bypasses that.
               phasedSyncState.setResumeChatData(
                 chat,
                 displayTitle,
                 displayCategory,
                 displayIcon,
+                true, // force — caller verified user is on welcome screen
               );
               console.debug(
                 `[ChatSyncService] Updated resume card from cross-device last_opened_updated: "${displayTitle}" (${chat_id})`,
@@ -832,7 +857,27 @@ export class ChatSynchronizationService extends EventTarget {
           chat_tags: string[];
           harmful_response: number;
           top_recommended_apps_for_user?: string[];
-          suggested_settings_memories?: import("../types/apps").SuggestedSettingsMemoryEntry[];
+        },
+      ),
+    );
+    // Chat compression events: triggered when long chat histories are summarized
+    webSocketService.on("chat_compression_started", (payload) =>
+      aiHandlers.handleChatCompressionStartedImpl(
+        this,
+        payload as { chat_id: string; task_id: string },
+      ),
+    );
+    webSocketService.on("chat_compression_completed", (payload) =>
+      aiHandlers.handleChatCompressionCompletedImpl(
+        this,
+        payload as {
+          chat_id: string;
+          task_id: string;
+          compressed_message_count?: number;
+          summary_token_estimate?: number;
+          compressed_up_to_timestamp?: number;
+          summary_message_id?: string;
+          error?: string;
         },
       ),
     );
@@ -841,49 +886,6 @@ export class ChatSynchronizationService extends EventTarget {
         this,
         payload as { chat_id: string; task_id?: string },
       ),
-    );
-
-    // Handler for settings/memory suggestion rejection broadcast from other devices
-    // When user rejects a suggestion on one device, other devices receive this to update their local state
-    webSocketService.on(
-      "settings_memory_suggestion_rejected",
-      async (payload) => {
-        const { chat_id, rejection_hash } = payload as {
-          chat_id: string;
-          rejection_hash: string;
-        };
-        console.info(
-          `[ChatSyncService] Received suggestion rejection broadcast for chat ${chat_id}`,
-        );
-        try {
-          // Update local chat record with the new rejection hash
-          const chat = await chatDB.getChat(chat_id);
-          if (chat) {
-            const existingHashes = chat.rejected_suggestion_hashes ?? [];
-            if (!existingHashes.includes(rejection_hash)) {
-              chat.rejected_suggestion_hashes = [
-                ...existingHashes,
-                rejection_hash,
-              ];
-              await chatDB.updateChat(chat);
-              console.debug(
-                `[ChatSyncService] Added rejection hash to chat ${chat_id} from other device`,
-              );
-              // Dispatch event so UI can update if needed
-              this.dispatchEvent(
-                new CustomEvent("suggestionRejected", {
-                  detail: { chatId: chat_id, rejectionHash: rejection_hash },
-                }),
-              );
-            }
-          }
-        } catch (error) {
-          console.error(
-            `[ChatSyncService] Error handling rejection broadcast for chat ${chat_id}:`,
-            error,
-          );
-        }
-      },
     );
 
     webSocketService.on("message_queued", (payload) =>

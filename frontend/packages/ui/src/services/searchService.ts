@@ -14,12 +14,14 @@
 import type { Chat, Message } from "../types/chat";
 import { chatDB } from "./db";
 import { chatMetadataCache } from "./chatMetadataCache";
+import { decryptWithMasterKey } from "./cryptoService";
 import {
   getSettingsSearchCatalog,
   getAppSearchCatalog,
   type SettingsCatalogEntry,
   type AppCatalogEntry,
 } from "./searchSettingsCatalog";
+import { appsMetadata } from "../data/appsMetadata";
 import {
   getDemoMessages,
   isDemoChat,
@@ -63,6 +65,16 @@ export interface MessageMatchSnippet {
    * Undefined for regular message text snippets.
    */
   embedType?: string;
+  /** App ID associated with embed content when available (used for app icon rendering) */
+  embedAppId?: string;
+  /** Skill ID associated with embed content when available (used for skill icon rendering) */
+  embedSkillId?: string;
+  /** Focus mode ID for focus-mode activation embeds (e.g., "jobs-career_insights") */
+  embedFocusId?: string;
+  /** Focus mode display name or translation key from embed payload */
+  embedFocusModeName?: string;
+  /** Whether this focus mode is currently active for the chat (computed at search time) */
+  embedFocusIsActive?: boolean;
 }
 
 /** A chat search result containing title match info and message match snippets */
@@ -132,6 +144,21 @@ const MAX_SNIPPETS_PER_MESSAGE = 2;
  * Caps RAM usage per embed — a typical web page scrape can be 10k+ chars.
  */
 const MAX_EMBED_TEXT_CHARS = 1500;
+/** Cache TTL for decrypted user settings/memories search entries. */
+const SETTINGS_MEMORIES_SEARCH_CACHE_TTL_MS = 30_000;
+
+interface UserSettingsMemoriesSearchEntry {
+  path: string;
+  label: string;
+  icon: string | null;
+  translationKey: string;
+  updatedAt: number;
+  searchBlobLower: string;
+}
+
+let userSettingsMemoriesSearchCache: UserSettingsMemoriesSearchEntry[] | null =
+  null;
+let userSettingsMemoriesSearchCacheUpdatedAt = 0;
 
 // --- Helpers ---
 
@@ -172,6 +199,202 @@ function stripMarkdown(text: string): string {
       .replace(/\s+/g, " ")
       .trim()
   );
+}
+
+function getSchemaTitleFieldName(
+  schemaProperties?: Record<string, unknown>,
+): string | null {
+  if (!schemaProperties) return null;
+
+  for (const [fieldName, prop] of Object.entries(schemaProperties)) {
+    if (
+      prop &&
+      typeof prop === "object" &&
+      (prop as { is_title?: unknown }).is_title === true
+    ) {
+      return fieldName;
+    }
+  }
+
+  const fallbackFields = ["name", "title", "label"];
+  for (const field of fallbackFields) {
+    if (schemaProperties[field]) return field;
+  }
+
+  return null;
+}
+
+function getSettingsMemoryEntryTitle(
+  itemValue: Record<string, unknown>,
+  titleFieldName: string | null,
+): string {
+  if (titleFieldName && itemValue[titleFieldName] !== undefined) {
+    return String(itemValue[titleFieldName]);
+  }
+
+  if (typeof itemValue._original_item_key === "string") {
+    const key = itemValue._original_item_key;
+    const parts = key.split(".");
+    return parts.length > 1 ? parts.slice(1).join(".") : key;
+  }
+
+  for (const [key, value] of Object.entries(itemValue)) {
+    if (key.startsWith("_") || key === "settings_group") continue;
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value;
+    }
+  }
+
+  return "Entry";
+}
+
+function collectObjectText(value: unknown, out: string[] = []): string[] {
+  if (value === null || value === undefined) return out;
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed.length > 0) out.push(trimmed);
+    return out;
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    out.push(String(value));
+    return out;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) collectObjectText(item, out);
+    return out;
+  }
+
+  if (typeof value === "object") {
+    for (const [key, nested] of Object.entries(
+      value as Record<string, unknown>,
+    )) {
+      if (key.startsWith("_")) continue;
+      collectObjectText(nested, out);
+    }
+  }
+
+  return out;
+}
+
+async function getUserSettingsMemoriesSearchEntries(
+  textFn: (key: string) => string,
+): Promise<UserSettingsMemoriesSearchEntry[]> {
+  const now = Date.now();
+  if (
+    userSettingsMemoriesSearchCache &&
+    now - userSettingsMemoriesSearchCacheUpdatedAt <
+      SETTINGS_MEMORIES_SEARCH_CACHE_TTL_MS
+  ) {
+    return userSettingsMemoriesSearchCache;
+  }
+
+  try {
+    const encryptedEntries = await chatDB.getAllAppSettingsMemoriesEntries();
+    const mapped: UserSettingsMemoriesSearchEntry[] = [];
+
+    for (const encryptedEntry of encryptedEntries) {
+      const appMeta = appsMetadata[encryptedEntry.app_id];
+      if (!appMeta) continue;
+
+      const categoryMeta = appMeta.settings_and_memories?.find(
+        (c) => c.id === encryptedEntry.item_type,
+      );
+      if (!categoryMeta) continue;
+
+      const decryptedJson = await decryptWithMasterKey(
+        encryptedEntry.encrypted_item_json,
+      );
+      if (!decryptedJson) continue;
+
+      let itemValue: Record<string, unknown>;
+      try {
+        const parsed = JSON.parse(decryptedJson) as unknown;
+        if (!parsed || typeof parsed !== "object") continue;
+        itemValue = parsed as Record<string, unknown>;
+      } catch {
+        continue;
+      }
+
+      const titleFieldName = getSchemaTitleFieldName(
+        categoryMeta.schema_definition?.properties as
+          | Record<string, unknown>
+          | undefined,
+      );
+      const entryTitle = getSettingsMemoryEntryTitle(itemValue, titleFieldName);
+      const appLabel = appMeta.name_translation_key
+        ? textFn(appMeta.name_translation_key)
+        : appMeta.id;
+      const categoryLabel = categoryMeta.name_translation_key
+        ? textFn(categoryMeta.name_translation_key)
+        : categoryMeta.id;
+
+      const label = `${entryTitle} - ${categoryLabel}`;
+      const originalItemKey =
+        typeof itemValue._original_item_key === "string"
+          ? itemValue._original_item_key
+          : "";
+      const searchBlobLower = [
+        entryTitle,
+        originalItemKey,
+        categoryLabel,
+        appLabel,
+        ...collectObjectText(itemValue),
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      mapped.push({
+        path: `app_store/${encryptedEntry.app_id}/settings_memories/${encryptedEntry.item_type}/entry/${encryptedEntry.id}`,
+        label,
+        icon: "icon_apps",
+        translationKey:
+          categoryMeta.name_translation_key ||
+          "settings.app_settings_memories.settings_and_memories",
+        updatedAt: encryptedEntry.updated_at || 0,
+        searchBlobLower,
+      });
+    }
+
+    mapped.sort((a, b) => b.updatedAt - a.updatedAt);
+    userSettingsMemoriesSearchCache = mapped;
+    userSettingsMemoriesSearchCacheUpdatedAt = now;
+    return mapped;
+  } catch (error) {
+    console.error(
+      "[SearchService] Error loading settings/memories entries for search:",
+      error,
+    );
+    return [];
+  }
+}
+
+async function searchUserSettingsMemoriesEntries(
+  query: string,
+  textFn: (key: string) => string,
+  isAuthenticated: boolean,
+): Promise<SettingsSearchResult[]> {
+  if (!isAuthenticated) return [];
+
+  const lowerQuery = query.toLowerCase();
+  const indexedEntries = await getUserSettingsMemoriesSearchEntries(textFn);
+  const matches = indexedEntries.filter((entry) =>
+    entry.searchBlobLower.includes(lowerQuery),
+  );
+
+  return matches.map((match) => ({
+    entry: {
+      path: match.path,
+      translationKey: match.translationKey,
+      icon: match.icon,
+      keywords: [],
+      access: "authenticated",
+    },
+    label: match.label,
+    icon: match.icon,
+  }));
 }
 
 // --- Embed Text Extraction ---
@@ -366,11 +589,41 @@ async function resolveEmbedText(
   embedId: string,
   embedType: string,
   _referenceData?: Record<string, unknown>,
-): Promise<{ text: string; sourceLabel: string; embedType: string } | null> {
+): Promise<{
+  text: string;
+  sourceLabel: string;
+  embedType: string;
+  appId?: string;
+  skillId?: string;
+  focusId?: string;
+  focusModeName?: string;
+} | null> {
   try {
     // Normalize the embed type for consistent label lookup.
     // Server uses underscores ("app_skill_use"), frontend uses hyphens ("app-skill-use").
     const normalizedType = embedType.replace(/_/g, "-");
+
+    const getEmbedMeta = (decoded: Record<string, unknown>) => ({
+      appId:
+        typeof decoded.app_id === "string" && decoded.app_id.trim().length > 0
+          ? decoded.app_id
+          : undefined,
+      skillId:
+        typeof decoded.skill_id === "string" &&
+        decoded.skill_id.trim().length > 0
+          ? decoded.skill_id
+          : undefined,
+      focusId:
+        typeof decoded.focus_id === "string" &&
+        decoded.focus_id.trim().length > 0
+          ? decoded.focus_id
+          : undefined,
+      focusModeName:
+        typeof decoded.focus_mode_name === "string" &&
+        decoded.focus_mode_name.trim().length > 0
+          ? decoded.focus_mode_name
+          : undefined,
+    });
 
     // --- Community demo embed path (unauthenticated users) ---
     // Community demo embeds live in communityDemoStore (cleartext, separate from embedStore).
@@ -385,7 +638,12 @@ async function resolveEmbedText(
         const text = extractTextFromEmbed(normalizedType, decoded);
         if (!text) return null;
         const sourceLabel = EMBED_TYPE_LABELS[normalizedType] || "Embed";
-        return { text, sourceLabel, embedType: normalizedType };
+        return {
+          text,
+          sourceLabel,
+          embedType: normalizedType,
+          ...getEmbedMeta(decoded),
+        };
       } catch (parseError) {
         console.debug(
           `[SearchService] Could not parse demo embed ${embedId} content:`,
@@ -410,6 +668,29 @@ async function resolveEmbedText(
     }
 
     const allParts: string[] = [];
+    let parentEmbedMeta: {
+      appId?: string;
+      skillId?: string;
+      focusId?: string;
+      focusModeName?: string;
+    } = {
+      appId:
+        typeof _referenceData?.app_id === "string"
+          ? (_referenceData.app_id as string)
+          : undefined,
+      skillId:
+        typeof _referenceData?.skill_id === "string"
+          ? (_referenceData.skill_id as string)
+          : undefined,
+      focusId:
+        typeof _referenceData?.focus_id === "string"
+          ? (_referenceData.focus_id as string)
+          : undefined,
+      focusModeName:
+        typeof _referenceData?.focus_mode_name === "string"
+          ? (_referenceData.focus_mode_name as string)
+          : undefined,
+    };
 
     // Extract query from the JSON reference block if present (e.g., "query":"Twilio").
     // This is stored directly in the message markdown reference, separate from the embed.
@@ -421,6 +702,7 @@ async function resolveEmbedText(
     if (embedData.content) {
       const decoded = await decodeToonContent(embedData.content);
       if (decoded) {
+        parentEmbedMeta = getEmbedMeta(decoded as Record<string, unknown>);
         const parentText = extractTextFromEmbed(normalizedType, decoded);
         if (parentText) allParts.push(parentText);
 
@@ -475,7 +757,12 @@ async function resolveEmbedText(
     // Determine the human-readable source label for this embed type
     const sourceLabel = EMBED_TYPE_LABELS[normalizedType] || "Embed";
 
-    return { text: combined, sourceLabel, embedType: normalizedType };
+    return {
+      text: combined,
+      sourceLabel,
+      embedType: normalizedType,
+      ...parentEmbedMeta,
+    };
   } catch (error) {
     // Non-critical: if embed resolution fails, simply skip this embed
     console.debug(
@@ -513,6 +800,14 @@ const messageIndex = new Map<
     embedId?: string;
     /** The normalized embed type (e.g., "web-website-group", "code-code") for fullscreen dispatch */
     embedType?: string;
+    /** Embed app identifier (for icon rendering in search snippets) */
+    embedAppId?: string;
+    /** Embed skill identifier when present (for secondary icon rendering) */
+    embedSkillId?: string;
+    /** Focus mode identifier for focus-mode activation embeds */
+    embedFocusId?: string;
+    /** Focus mode display name/translation key from embed payload */
+    embedFocusModeName?: string;
   }>
 >();
 
@@ -567,6 +862,10 @@ async function indexChatMessages(chatId: string): Promise<void> {
       embedSourceLabel?: string;
       embedId?: string;
       embedType?: string;
+      embedAppId?: string;
+      embedSkillId?: string;
+      embedFocusId?: string;
+      embedFocusModeName?: string;
     }> = [];
 
     for (const msg of messages) {
@@ -609,6 +908,10 @@ async function indexChatMessages(chatId: string): Promise<void> {
             // Store embed ID and type so clicking the search result can open the embed
             embedId: ref.embed_id,
             embedType: result.embedType,
+            embedAppId: result.appId,
+            embedSkillId: result.skillId,
+            embedFocusId: result.focusId,
+            embedFocusModeName: result.focusModeName,
           });
         }
       }
@@ -699,6 +1002,10 @@ export async function addMessageToIndex(
     embedSourceLabel?: string;
     embedId?: string;
     embedType?: string;
+    embedAppId?: string;
+    embedSkillId?: string;
+    embedFocusId?: string;
+    embedFocusModeName?: string;
   }> = [];
 
   // 1. Index the message's own text
@@ -723,6 +1030,10 @@ export async function addMessageToIndex(
       embedSourceLabel: result.sourceLabel,
       embedId: ref.embed_id,
       embedType: result.embedType,
+      embedAppId: result.appId,
+      embedSkillId: result.skillId,
+      embedFocusId: result.focusId,
+      embedFocusModeName: result.focusModeName,
     });
   }
 
@@ -834,6 +1145,7 @@ function buildSnippet(
 function searchMessagesInChat(
   chatId: string,
   query: string,
+  activeFocusId: string | null = null,
 ): MessageMatchSnippet[] {
   const entries = messageIndex.get(chatId);
   if (!entries) return [];
@@ -881,6 +1193,14 @@ function searchMessagesInChat(
       embedSourceLabel: entry.embedSourceLabel,
       embedId: entry.embedId,
       embedType: entry.embedType,
+      embedAppId: entry.embedAppId,
+      embedSkillId: entry.embedSkillId,
+      embedFocusId: entry.embedFocusId,
+      embedFocusModeName: entry.embedFocusModeName,
+      embedFocusIsActive:
+        entry.embedType === "focus-mode-activation" && entry.embedFocusId
+          ? entry.embedFocusId === activeFocusId
+          : undefined,
     });
     snippetsPerMessage.set(entry.messageId, countForMsg + 1);
   }
@@ -1049,6 +1369,7 @@ export async function search(
   // Search each chat
   for (const chat of allSearchableChats) {
     let decryptedTitle: string | null = null;
+    let activeFocusId: string | null = null;
 
     if (isDemoChat(chat.chat_id) || isLegalChat(chat.chat_id)) {
       // Demo/legal chats have plaintext titles (translation key resolved at build time)
@@ -1057,6 +1378,7 @@ export async function search(
       // Authenticated user chats — get decrypted title from cache
       const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
       decryptedTitle = metadata?.title || chat.title || null;
+      activeFocusId = metadata?.activeFocusId || null;
     }
 
     // Check title match
@@ -1068,7 +1390,11 @@ export async function search(
     }
 
     // Check message matches
-    const messageSnippets = searchMessagesInChat(chat.chat_id, trimmedQuery);
+    const messageSnippets = searchMessagesInChat(
+      chat.chat_id,
+      trimmedQuery,
+      activeFocusId,
+    );
 
     // Include chat if title or any message matches
     if (titleMatch || messageSnippets.length > 0) {
@@ -1093,12 +1419,21 @@ export async function search(
   });
 
   // Search settings and app catalog — pass auth context so access-controlled entries are filtered
-  const settingsResults = searchSettings(
+  const userSettingsMemoriesResults = await searchUserSettingsMemoriesEntries(
+    trimmedQuery,
+    textFn,
+    isAuthenticated,
+  );
+  const staticSettingsResults = searchSettings(
     trimmedQuery,
     textFn,
     isAuthenticated,
     isAdmin,
   );
+  const settingsResults = [
+    ...userSettingsMemoriesResults,
+    ...staticSettingsResults,
+  ];
   const appCatalogResults = searchAppCatalog(trimmedQuery, textFn);
 
   const totalCount =

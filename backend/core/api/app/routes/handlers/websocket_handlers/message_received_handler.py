@@ -1366,7 +1366,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         app_settings_memories_metadata_from_client = payload.get("app_settings_memories_metadata")
         if app_settings_memories_metadata_from_client:
             if isinstance(app_settings_memories_metadata_from_client, list):
-                logger.info(f"Received {len(app_settings_memories_metadata_from_client)} app settings/memories metadata keys from client: {app_settings_memories_metadata_from_client}")
+                logger.info(f"Received {len(app_settings_memories_metadata_from_client)} app settings/memories metadata keys from client.")
+                logger.debug(f"App settings/memories metadata keys: {app_settings_memories_metadata_from_client}")
             else:
                 logger.warning(f"app_settings_memories_metadata is not a list: {type(app_settings_memories_metadata_from_client)}, ignoring")
                 app_settings_memories_metadata_from_client = None

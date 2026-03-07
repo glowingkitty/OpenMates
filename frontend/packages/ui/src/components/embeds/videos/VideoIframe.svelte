@@ -20,7 +20,7 @@
 -->
 
 <script lang="ts">
-  import { onDestroy, onMount } from 'svelte';
+  import { onDestroy } from 'svelte';
   import { videoIframeStore } from '../../../stores/videoIframeStore';
   
   /**
@@ -37,6 +37,8 @@
     isPipMode?: boolean;
     /** Callback when overlay is clicked in PiP mode (to restore fullscreen) */
     onPipOverlayClick?: () => void;
+    /** Callback when user clicks a PiP corner control */
+    onMoveToCorner?: (corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') => void;
   }
   
   let {
@@ -44,7 +46,8 @@
     title,
     embedUrl,
     isPipMode = false,
-    onPipOverlayClick
+    onPipOverlayClick,
+    onMoveToCorner
   }: Props = $props();
   
   // Reference to the iframe element
@@ -92,6 +95,14 @@
       document.dispatchEvent(customEvent);
     }
   }
+
+  function handleMoveToCorner(event: MouseEvent, corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') {
+    event.preventDefault();
+    event.stopPropagation();
+    if (isPipMode && onMoveToCorner) {
+      onMoveToCorner(corner);
+    }
+  }
   
   // Cleanup on destroy - only clear refs, don't manipulate iframe
   onDestroy(() => {
@@ -130,26 +141,61 @@
     frameborder="0"
   ></iframe>
   
-  <!-- 
-    Invisible overlay that covers the iframe in PiP mode.
-    When clicked, it restores the fullscreen view.
-    Only active (pointer-events: auto) in PiP mode.
-  -->
+  <!-- PiP controls: corner buttons move PiP, center button restores fullscreen. -->
   <div 
-    class="pip-overlay"
+    class="pip-controls"
     class:active={isPipMode}
-    onclick={handleOverlayClick}
-    onkeydown={(e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        handleOverlayClick(e);
-      }
-    }}
-    role="button"
-    tabindex={isPipMode ? 0 : -1}
-    aria-label="Click to restore fullscreen video"
-    title={isPipMode ? "Click to restore fullscreen" : ""}
-  ></div>
+  >
+    <button
+      type="button"
+      class="pip-corner-button top-left"
+      onclick={(e) => handleMoveToCorner(e, 'top-left')}
+      aria-label="Move video to top left"
+      title="Move to top left"
+      tabindex={isPipMode ? 0 : -1}
+    >
+      ↖
+    </button>
+    <button
+      type="button"
+      class="pip-corner-button top-right"
+      onclick={(e) => handleMoveToCorner(e, 'top-right')}
+      aria-label="Move video to top right"
+      title="Move to top right"
+      tabindex={isPipMode ? 0 : -1}
+    >
+      ↗
+    </button>
+    <button
+      type="button"
+      class="pip-corner-button bottom-left"
+      onclick={(e) => handleMoveToCorner(e, 'bottom-left')}
+      aria-label="Move video to bottom left"
+      title="Move to bottom left"
+      tabindex={isPipMode ? 0 : -1}
+    >
+      ↙
+    </button>
+    <button
+      type="button"
+      class="pip-corner-button bottom-right"
+      onclick={(e) => handleMoveToCorner(e, 'bottom-right')}
+      aria-label="Move video to bottom right"
+      title="Move to bottom right"
+      tabindex={isPipMode ? 0 : -1}
+    >
+      ↘
+    </button>
+
+    <button
+      type="button"
+      class="pip-restore-button"
+      onclick={handleOverlayClick}
+      aria-label="Open fullscreen video"
+      title="Open fullscreen"
+      tabindex={isPipMode ? 0 : -1}
+    ></button>
+  </div>
 </div>
 
 <style>
@@ -222,35 +268,67 @@
     visibility: visible;
   }
   
-  /*
-   * PiP overlay - invisible div that covers the iframe in PiP mode.
-   * Catches clicks to restore fullscreen view.
-   * 
-   * Inactive by default (pointer-events: none).
-   * Active when .active class is added (PiP mode).
-   */
-  .pip-overlay {
+  .pip-controls {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: transparent;
     z-index: 100; /* Above iframe */
-    cursor: default;
-    
-    /* Inactive by default - clicks pass through to iframe */
     pointer-events: none;
     opacity: 0;
   }
-  
-  /*
-   * Active overlay - catches clicks in PiP mode.
-   */
-  .pip-overlay.active {
+
+  .pip-controls.active {
     pointer-events: auto;
-    cursor: pointer;
     opacity: 1;
+  }
+
+  .pip-corner-button,
+  .pip-restore-button {
+    position: absolute;
+    border: none;
+    background: rgba(0, 0, 0, 0.45);
+    color: white;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .pip-corner-button {
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    font-size: 16px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .pip-corner-button.top-left { top: 8px; left: 8px; }
+  .pip-corner-button.top-right { top: 8px; right: 8px; }
+  .pip-corner-button.bottom-left { bottom: 8px; left: 8px; }
+  .pip-corner-button.bottom-right { bottom: 8px; right: 8px; }
+
+  .pip-restore-button {
+    top: 46px;
+    right: 46px;
+    bottom: 46px;
+    left: 46px;
+    border-radius: 10px;
+    background: transparent;
+  }
+
+  .pip-corner-button:hover,
+  .pip-corner-button:focus-visible {
+    background: rgba(0, 0, 0, 0.7);
+    outline: none;
+  }
+
+  .pip-restore-button:hover,
+  .pip-restore-button:focus-visible {
+    background: rgba(0, 0, 0, 0.18);
+    outline: none;
   }
   
   /* Responsive adjustments for small screens */

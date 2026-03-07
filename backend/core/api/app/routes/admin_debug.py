@@ -1331,6 +1331,100 @@ async def inspect_last_requests(
 
 
 # ============================================================================
+# ERROR FINGERPRINT ENDPOINT
+# ============================================================================
+# Returns the top-N recurring error fingerprints from the Redis sorted set
+# maintained by LoggingMiddleware. Each fingerprint encodes
+# exc_type:filename:function:lineno and its occurrence count.
+# See backend/core/api/app/middleware/logging_middleware.py for fingerprinting logic.
+# ============================================================================
+
+class ErrorFingerprintEntry(BaseModel):
+    """A single error fingerprint with its occurrence count."""
+    fingerprint: str  # 12-char hex prefix of SHA-256
+    canonical_key: str  # exc_type:filename:function:lineno
+    count: int  # Total occurrence count
+
+
+class ErrorsResponse(BaseModel):
+    success: bool
+    total_unique_errors: int
+    top_errors: List[ErrorFingerprintEntry]
+    generated_at: str
+
+
+@router.get("/errors", response_model=ErrorsResponse, include_in_schema=False)
+@limiter.limit("30/minute")
+async def list_error_fingerprints(
+    request: Request,
+    top: int = 20,
+    admin_user: User = Depends(require_admin_api_key),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> ErrorsResponse:
+    """
+    Return the top-N error fingerprints by occurrence count.
+
+    Error fingerprints are computed by LoggingMiddleware for every unhandled
+    exception (5xx). Each fingerprint is a short hash of
+    (exc_type, file, function, line) so that distinct error messages for the
+    same code location are grouped together.
+
+    Query params:
+        top: How many fingerprints to return (default 20, max 200).
+
+    Equivalent to running: docker exec api python /app/backend/scripts/debug.py errors
+    """
+    top = min(max(1, top), 200)  # Clamp to [1, 200]
+    logger.info(f"Admin {admin_user.id} querying error fingerprints (top={top})")
+
+    try:
+        client = await cache_service.client
+        from backend.core.api.app.middleware.logging_middleware import REDIS_ERROR_FINGERPRINTS_KEY
+        total = await client.zcard(REDIS_ERROR_FINGERPRINTS_KEY)
+
+        # Fetch top-N by score descending (highest occurrence count first)
+        raw_entries = await client.zrevrangebyscore(
+            REDIS_ERROR_FINGERPRINTS_KEY,
+            "+inf",
+            "-inf",
+            withscores=True,
+            start=0,
+            num=top,
+        )
+
+        top_errors: List[ErrorFingerprintEntry] = []
+        for member, score in raw_entries:
+            member_str = member.decode("utf-8") if isinstance(member, bytes) else member
+            # member format: "<fingerprint>|<canonical_key>"
+            if "|" in member_str:
+                fingerprint, canonical_key = member_str.split("|", 1)
+            else:
+                fingerprint = member_str
+                canonical_key = member_str
+            top_errors.append(
+                ErrorFingerprintEntry(
+                    fingerprint=fingerprint,
+                    canonical_key=canonical_key,
+                    count=int(score),
+                )
+            )
+
+        return ErrorsResponse(
+            success=True,
+            total_unique_errors=total,
+            top_errors=top_errors,
+            generated_at=datetime.now(timezone.utc).isoformat(),
+        )
+
+    except Exception as e:
+        logger.error(f"Error fetching error fingerprints: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch error fingerprints: {str(e)}",
+        )
+
+
+# ============================================================================
 # UTILITY ENDPOINTS
 # ============================================================================
 

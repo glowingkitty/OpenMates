@@ -8,8 +8,8 @@
 // To add a new embed type, add an entry to the relevant app.yml
 // under the embed_types section, then rebuild.
 //
-// Generated: 2026-03-04T10:12:01.646Z
-// Total embed types: 27
+// Generated: 2026-03-06T13:48:11.015Z
+// Total embed types: 28
 
 /**
  * Maps server/backend embed type strings to frontend type strings.
@@ -86,6 +86,7 @@ export const EMBED_PREVIEW_COMPONENTS: Record<string, string> = {
   "app:travel:search_stays": "travel/TravelStaysEmbedPreview.svelte",
   "travel-stay": "travel/TravelStayEmbedPreview.svelte",
   "app:travel:price_calendar": "travel/TravelPriceCalendarEmbedPreview.svelte",
+  "app:travel:get_flight": "travel/TravelFlightDetailsEmbedPreview.svelte",
   "app:videos:search": "videos/VideosSearchEmbedPreview.svelte",
   "videos-video": "videos/VideoEmbedPreview.svelte",
   "app:videos:get_transcript": "videos/VideoTranscriptEmbedPreview.svelte",
@@ -126,6 +127,7 @@ export const EMBED_FULLSCREEN_COMPONENTS: Record<string, string> = {
   "app:travel:search_stays": "travel/TravelStaysEmbedFullscreen.svelte",
   "travel-stay": "travel/TravelStayEmbedFullscreen.svelte",
   "app:travel:price_calendar": "travel/TravelPriceCalendarEmbedFullscreen.svelte",
+  "app:travel:get_flight": "travel/TravelFlightDetailsEmbedFullscreen.svelte",
   "app:videos:search": "videos/VideosSearchEmbedFullscreen.svelte",
   "videos-video": "videos/VideoEmbedFullscreen.svelte",
   "app:videos:get_transcript": "videos/VideoTranscriptEmbedFullscreen.svelte",
@@ -334,6 +336,13 @@ export const EMBED_METADATA: Record<string, EmbedTypeMetadata> = {
     "i18nNamespace": "embeds.travel.price_calendar",
     "appId": "travel",
     "skillId": "price_calendar"
+  },
+  "app:travel:get_flight": {
+    "icon": "travel",
+    "gradientVar": "--color-app-travel",
+    "i18nNamespace": "embeds.travel.flight_details",
+    "appId": "travel",
+    "skillId": "get_flight"
   },
   "app:videos:search": {
     "icon": "search",

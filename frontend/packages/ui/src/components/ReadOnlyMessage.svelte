@@ -10,6 +10,8 @@
     import { BestModelMentionNode } from '../components/enter_message/extensions/BestModelMentionNode';
     import { EmbedInlineNode } from '../components/enter_message/extensions/EmbedInlineNode';
     import { SourceQuoteNode } from '../components/enter_message/extensions/SourceQuoteNode';
+    import { EmbedPreviewSmallNode } from '../components/enter_message/extensions/EmbedPreviewSmallNode';
+    import { EmbedPreviewLargeNode } from '../components/enter_message/extensions/EmbedPreviewLargeNode';
     import { MarkdownExtensions } from '../components/enter_message/extensions/MarkdownExtensions';
     import { parseMarkdownToTiptap, isMarkdownContent } from '../components/enter_message/utils/markdownParser';
     import { parse_message } from '../message_parsing/parse_message';
@@ -607,6 +609,8 @@
             GenericMentionNode, // For @skill:, @focus:, @memory: mentions
             EmbedInlineNode, // For inline [text](embed:ref) links produced by the LLM
             SourceQuoteNode, // For > [quoted text](embed:ref) verified source quotes
+            EmbedPreviewSmallNode, // For [](embed:ref) — inline small preview card
+            EmbedPreviewLargeNode, // For [!](embed:ref) — full-width large preview card (carousel-capable)
             ...MarkdownExtensions, // Spread the array of markdown extensions
         ];
         

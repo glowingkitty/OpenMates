@@ -1,13 +1,71 @@
 <script lang="ts">
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    /* eslint-disable svelte/no-at-html-tags */
     import { text } from '@repo/ui';
     import { fade } from 'svelte/transition';
     import { createEventDispatcher } from 'svelte';
-    import InputWarning from '../../../common/InputWarning.svelte';
     import { signupStore } from '../../../../stores/signupStore';
     import { get } from 'svelte/store';
     import { onMount } from 'svelte';
     
     const dispatch = createEventDispatcher();
+
+    const MIN_PASSWORD_LENGTH = 10;
+    const MAX_PASSWORD_LENGTH = 60;
+    // Passwords that trivially satisfy length + character-class rules but are
+    // well-known and easily guessed. Checked case-insensitively.
+    const COMMON_PASSWORD_BLOCKLIST = new Set([
+        'password1!',
+        'password1@',
+        'password1#',
+        'password123!',
+        'password123@',
+        'qwerty12345',
+        'qwerty123!',
+        'iloveyou123!',
+        'letmein123!',
+        'admin12345!',
+        'welcome123!',
+        'changeme123!',
+        'openmates123!',
+        'openmates2024!',
+        'openmates2025!',
+        'openmates2026!',
+        'abcd1234!',
+        'test1234!',
+        'test12345!',
+        '12345678',
+        '123456789',
+        '1234567890',
+        '12345678910',
+        'qwerty123',
+        'qwerty1234',
+        'qwertyuiop',
+        'password',
+        'password1',
+        'password12',
+        'password123',
+        'password1234',
+        'passw0rd',
+        'admin123',
+        'welcome123',
+        'letmein123',
+        'iloveyou123',
+        'changeme123',
+        'openmates123',
+        'openmates2024',
+        'openmates2025',
+        'openmates2026',
+        'abcd1234',
+        'abc12345',
+        'test1234',
+        'test12345',
+        'asdf1234',
+        'zxcv1234',
+        'aa123456',
+        '11111111',
+        '00000000'
+    ]);
     
     // Form state using Svelte 5 runes
     let password = $state('');
@@ -21,6 +79,8 @@
     // Password validation states using Svelte 5 runes
     let passwordError = $state('');
     let passwordStrengthError = $state('');
+    // showPasswordStrengthWarning tracks whether the user has started typing, so we
+    // only reveal the error after the first validation run (not on initial empty state).
     let showPasswordStrengthWarning = $state(false);
     let showPasswordMatchWarning = $state(false);
     
@@ -62,21 +122,31 @@
         };
     }
     
-    // Password strength validation
+    // Password strength validation.
+    // Requirements: 10–60 characters, at least one letter (\p{L}), one digit, one special character.
+    // Uppercase/lowercase case-sensitivity requirements are intentionally dropped — case rules
+    // add friction without meaningfully increasing entropy beyond what length + character
+    // diversity already provide.
     function checkPasswordStrength(pwd: string): boolean {
-        if (pwd.length < 8) {
+        if (pwd.length < MIN_PASSWORD_LENGTH) {
             passwordStrengthError = $text('signup.password_too_short');
             showPasswordStrengthWarning = true;
             return false;
         }
 
-        if (pwd.length > 60) {
+        if (pwd.length > MAX_PASSWORD_LENGTH) {
             passwordStrengthError = $text('signup.password_too_long');
             showPasswordStrengthWarning = true;
             return false;
         }
 
-        // Use Unicode categories for letter detection (includes international letters)
+        if (COMMON_PASSWORD_BLOCKLIST.has(pwd.toLowerCase())) {
+            passwordStrengthError = $text('signup.password_too_common');
+            showPasswordStrengthWarning = true;
+            return false;
+        }
+
+        // At least one Unicode letter (covers all scripts, not just Latin)
         if (!/\p{L}/u.test(pwd)) {
             passwordStrengthError = $text('signup.password_needs_letter');
             showPasswordStrengthWarning = true;
@@ -89,6 +159,7 @@
             return false;
         }
 
+        // At least one character that is not a letter and not a digit
         if (!/[^A-Za-z0-9\p{L}]/u.test(pwd)) {
             passwordStrengthError = $text('signup.password_needs_special');
             showPasswordStrengthWarning = true;
@@ -184,12 +255,13 @@
                         autocomplete="new-password"
                         class:error={!!passwordStrengthError}
                     />
-                    {#if showPasswordStrengthWarning && passwordStrengthError}
-                        <InputWarning
-                            message={passwordStrengthError}
-                        />
-                    {/if}
                 </div>
+                <!-- Persistent inline error: stays visible until the user fixes the issue. -->
+                {#if showPasswordStrengthWarning && passwordStrengthError}
+                    <p class="field-error" transition:fade={{ duration: 150 }}>
+                        {@html passwordStrengthError}
+                    </p>
+                {/if}
             </div>
 
             <div class="input-group">
@@ -205,12 +277,13 @@
                         autocomplete="new-password"
                         class:error={!passwordsMatch && passwordRepeat}
                     />
-                    {#if showPasswordMatchWarning && passwordError && passwordRepeat}
-                        <InputWarning
-                            message={passwordError}
-                        />
-                    {/if}
                 </div>
+                <!-- Persistent inline error for password mismatch -->
+                {#if showPasswordMatchWarning && passwordError && passwordRepeat}
+                    <p class="field-error" transition:fade={{ duration: 150 }}>
+                        {@html passwordError}
+                    </p>
+                {/if}
             </div>
         </form>
     </div>
@@ -253,7 +326,13 @@
         display: flex;
         flex-direction: column;
         gap: 16px;
-        margin-top: 24px;
+        margin-top: 0px;
+    }
+
+    .input-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
     }
     
     .clickable-icon {
@@ -268,8 +347,14 @@
         background-color: var(--color-grey-20);
     }
 
-    .form-container {
-        margin-top: 0px;
+    /* Persistent inline error message below the input.
+       Replaces the auto-hiding floating tooltip so the user always knows
+       why the continue button is disabled. */
+    .field-error {
+        margin: 0;
+        padding: 0 4px;
+        font-size: 13px;
+        color: #E00000;
+        line-height: 1.4;
     }
-    
 </style>

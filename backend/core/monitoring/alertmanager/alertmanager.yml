@@ -1,0 +1,60 @@
+# Alertmanager configuration for OpenMates.
+# Sends alert notifications by POSTing to an internal API webhook, which
+# dispatches email via the existing Brevo/Mailjet infrastructure.
+#
+# No SMTP configuration is needed — delivery is handled by the API + Celery.
+# Alertmanager still controls grouping, throttling, and inhibition.
+#
+# Architecture context: See docs/architecture/logging-and-monitoring.md
+
+global:
+  # ResolveTimeout: if an alert has no EndsAt, declare it resolved after this
+  # duration with no further updates.
+  resolve_timeout: 5m
+
+# Route tree — controls how alerts are grouped and which receiver handles them
+route:
+  # Group alerts by alertname + severity so each email covers one issue type
+  group_by: ["alertname", "severity"]
+  receiver: "api-webhook"
+  # Default throttling for all alerts
+  group_wait: 60s
+  group_interval: 10m
+  repeat_interval: 4h
+
+  routes:
+    # Critical alerts: shorter wait, still throttled
+    - match:
+        severity: critical
+      receiver: "api-webhook"
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 1h
+
+    # Warning alerts: longer throttling to avoid noise
+    - match:
+        severity: warning
+      receiver: "api-webhook"
+      group_wait: 120s
+      group_interval: 30m
+      repeat_interval: 12h
+
+# Inhibition rules — suppress lower-severity alerts when critical is firing
+# for the same alertname (avoids duplicate noise)
+inhibit_rules:
+  - source_match:
+      severity: "critical"
+    target_match:
+      severity: "warning"
+    equal: ["alertname"]
+
+receivers:
+  - name: "api-webhook"
+    webhook_configs:
+      - url: "http://api:8000/internal/alerts/webhook"
+        send_resolved: true
+        # The internal service token secures this endpoint
+        http_config:
+          http_headers:
+            X-Internal-Service-Token:
+              secrets: ["${INTERNAL_API_SHARED_TOKEN}"]

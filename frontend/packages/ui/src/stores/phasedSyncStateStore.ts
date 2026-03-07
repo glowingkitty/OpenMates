@@ -257,14 +257,36 @@ export const phasedSyncState = {
     decryptedTitle: string | null,
     decryptedCategory?: string | null,
     decryptedIcon?: string | null,
+    /** When true, bypass the currentActiveChatId guard. Used for cross-device
+     *  last_opened_updated broadcasts where the caller has already verified
+     *  that the user is on the welcome screen via activeChatStore. */
+    force?: boolean,
   ) => {
-    update((state) => ({
-      ...state,
-      resumeChatData: chat,
-      resumeChatTitle: decryptedTitle,
-      resumeChatCategory: decryptedCategory ?? null,
-      resumeChatIcon: decryptedIcon ?? null,
-    }));
+    update((state) => {
+      // DEFENSE-IN-DEPTH: If the user is already in a chat (not on the welcome
+      // screen), silently skip populating resume data. This prevents any late-arriving
+      // sync event from setting up resume card data that could trigger a reactive
+      // chain leading to the last-opened chat being auto-loaded.
+      // The `force` flag bypasses this guard for cross-device broadcasts where the
+      // caller has independently verified the user is on the welcome screen.
+      if (
+        !force &&
+        state.currentActiveChatId &&
+        state.currentActiveChatId !== NEW_CHAT_SENTINEL
+      ) {
+        console.debug(
+          `[PhasedSyncState] Skipping setResumeChatData — user is in chat "${state.currentActiveChatId}"`,
+        );
+        return state;
+      }
+      return {
+        ...state,
+        resumeChatData: chat,
+        resumeChatTitle: decryptedTitle,
+        resumeChatCategory: decryptedCategory ?? null,
+        resumeChatIcon: decryptedIcon ?? null,
+      };
+    });
   },
 
   /**

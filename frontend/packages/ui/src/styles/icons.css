@@ -142,6 +142,10 @@
 .subsetting_icon.heart {
   --icon-mask-image: url("@openmates/ui/static/icons/heart.svg");
 }
+/* Settings & Memories hub nav item — uses heart.svg (matching the memory concept) */
+.subsetting_icon.settings_memories {
+  --icon-mask-image: url("@openmates/ui/static/icons/heart.svg");
+}
 .subsetting_icon.low_balance {
   --icon-mask-image: url("@openmates/ui/static/icons/coins.svg");
 }
@@ -789,6 +793,13 @@ div.clickable-icon {
   }
 }
 
+.icon_rounded.mail {
+  background: var(--color-app-mail);
+  &::after {
+    background-image: url("@openmates/ui/static/icons/mail.svg");
+  }
+}
+
 @media (max-width: 600px) {
   .icon {
     width: 77.69px;
@@ -1254,6 +1265,14 @@ div.clickable-icon {
 
   &::before {
     background-image: url("@openmates/ui/static/icons/language.svg");
+  }
+}
+
+.icon.settings_memories {
+  background: var(--color-primary);
+
+  &::before {
+    background-image: url("@openmates/ui/static/icons/heart.svg");
   }
 }
 

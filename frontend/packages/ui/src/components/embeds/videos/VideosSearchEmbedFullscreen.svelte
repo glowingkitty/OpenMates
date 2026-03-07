@@ -113,6 +113,12 @@
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button to restore chat visibility */
     onShowChat?: () => void;
+    /**
+     * Child embed ID to auto-open on mount (set when arriving from an inline badge click).
+     * When provided, the fullscreen will immediately open the VideoEmbedFullscreen overlay
+     * for that specific video once results have loaded.
+     */
+    initialChildEmbedId?: string;
   }
   
   let {
@@ -128,7 +134,8 @@
     onNavigateNext,
     navigateDirection,
     showChatButton = false,
-    onShowChat
+    onShowChat,
+    initialChildEmbedId
   }: Props = $props();
   
   // ============================================
@@ -370,11 +377,21 @@
   }
   
   /**
-   * Handle closing the video fullscreen - returns to search results.
+   * Handle closing the video fullscreen.
+   *
+   * When opened via inline badge (initialChildEmbedId set): close the entire
+   * fullscreen immediately — no parent results grid expected.
+   * When opened normally (card click): return to the parent search results grid.
    */
   function handleVideoFullscreenClose() {
-    console.debug('[VideosSearchEmbedFullscreen] Closing video fullscreen, returning to search results');
-    selectedVideoIndex = -1;
+    if (initialChildEmbedId) {
+      // Opened via inline badge — skip the parent grid and close completely
+      console.debug('[VideosSearchEmbedFullscreen] Closing video fullscreen (inline badge origin) — closing entire fullscreen');
+      onClose();
+    } else {
+      console.debug('[VideosSearchEmbedFullscreen] Closing video fullscreen, returning to search results');
+      selectedVideoIndex = -1;
+    }
   }
   
   /** Navigate to the previous sibling video */
@@ -389,9 +406,10 @@
   
   /**
    * Handle closing the entire search fullscreen.
+   * If a child overlay is open (and was NOT from an inline badge), close it first.
    */
   function handleMainClose() {
-    if (selectedVideoIndex >= 0) {
+    if (selectedVideoIndex >= 0 && !initialChildEmbedId) {
       selectedVideoIndex = -1;
     } else {
       onClose();
@@ -453,6 +471,15 @@
   {embedIds}
   childEmbedTransformer={transformToVideoResult}
   legacyResults={resultsProp}
+  onChildrenLoaded={(children) => { allVideoResults = children as VideoSearchResult[]; }}
+  {initialChildEmbedId}
+  onAutoOpenChild={(index, children) => {
+    allVideoResults = children as VideoSearchResult[];
+    const video = allVideoResults[index];
+    if (video) {
+      handleVideoFullscreen(video, createVideoMetadata(video));
+    }
+  }}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
@@ -463,10 +490,6 @@
 >
   {#snippet content(ctx)}
     {@const videoResults = getVideoResults(ctx)}
-    <!-- Sync allVideoResults for sibling navigation -->
-    {#if videoResults.length > 0 && videoResults !== allVideoResults}
-      {allVideoResults = videoResults}
-    {/if}
     
     {#if ctx.isLoadingChildren}
       <div class="loading-state">
@@ -497,7 +520,10 @@
             likeCount={result.likeCount}
             publishedAt={result.publishedAt}
             videoId={result.videoId}
-            onFullscreen={(metadata) => handleVideoFullscreen(result, metadata)}
+            onFullscreen={(metadata) => {
+              allVideoResults = videoResults;
+              handleVideoFullscreen(result, metadata);
+            }}
           />
         {/each}
       </div>
@@ -569,4 +595,3 @@
     margin: 0 auto;
   }
 </style>
-

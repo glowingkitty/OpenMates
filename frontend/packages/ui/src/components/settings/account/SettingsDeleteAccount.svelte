@@ -61,6 +61,7 @@ Uses SecurityAuth component for passkey/2FA verification.
     // Auth state
     let hasPasskey = $state(false);
     let has2FA = $state(false);
+    let hasPassword = $state(false);
     let showAuthModal = $state(false);
 
     // Confirmation
@@ -203,6 +204,7 @@ Uses SecurityAuth component for passkey/2FA verification.
                 const data = await response.json();
                 hasPasskey = data.has_passkey || false;
                 has2FA = data.has_2fa || false;
+                hasPassword = data.has_password || false;
             }
         } catch (error) {
             console.error('[SettingsDeleteAccount] Error fetching auth methods:', error);
@@ -225,7 +227,7 @@ Uses SecurityAuth component for passkey/2FA verification.
     }
 
     let canProceed = $derived(!!previewData && confirmDataDeletion);
-    let hasAnyAuthMethod = $derived(hasPasskey || has2FA);
+    let hasAnyAuthMethod = $derived(hasPasskey || has2FA || hasPassword);
 
     // ========================================================================
     // ACTIONS
@@ -243,13 +245,24 @@ Uses SecurityAuth component for passkey/2FA verification.
         showAuthModal = true;
     }
 
-    async function handleAuthSuccess(data: { method: 'passkey' | 'password' | '2fa'; credentialId?: string; tfaCode?: string }) {
+    async function handleAuthSuccess(data: { method: 'passkey' | 'password' | '2fa' | 'email_otp'; credentialId?: string; tfaCode?: string }) {
         showAuthModal = false;
         
         // Determine auth method and code based on the authentication type used
-        const authMethod = data.method === 'passkey' ? 'passkey' : '2fa_otp';
-        // Use credentialId for passkey, tfaCode for 2FA
-        const authCode = data.method === 'passkey' ? (data.credentialId || '') : (data.tfaCode || '');
+        let authMethod: string;
+        let authCode: string;
+        if (data.method === 'passkey') {
+            authMethod = 'passkey';
+            authCode = data.credentialId || '';
+        } else if (data.method === 'email_otp') {
+            // Email OTP: the verification was already confirmed server-side
+            // by the verify-action-code endpoint. Pass the method through.
+            authMethod = 'email_otp';
+            authCode = data.tfaCode || '';
+        } else {
+            authMethod = '2fa_otp';
+            authCode = data.tfaCode || '';
+        }
         
         console.log(`[SettingsDeleteAccount] Auth success - method: ${authMethod}, code present: ${!!authCode}`);
         
@@ -417,6 +430,8 @@ Uses SecurityAuth component for passkey/2FA verification.
         {hasPasskey}
         hasPassword={false}
         has2FA={has2FA}
+        hasEmailOtp={hasPassword && !hasPasskey && !has2FA}
+        verificationAction="delete_account"
         title={$text('settings.account.delete_account_auth_title')}
         description={$text('settings.account.delete_account_auth_description')}
         autoStart={true}

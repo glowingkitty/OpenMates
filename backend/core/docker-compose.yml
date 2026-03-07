@@ -168,6 +168,7 @@ services:
       CELERY_QUEUES: "email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder" # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
+      CELERY_METRICS_PORT: "9101" # Port for prometheus_client metrics server — scraped by Prometheus
       # E2E test configuration - set these env vars to enable automated testing
       E2E_TEST_DEV_ENABLED: "${E2E_TEST_DEV_ENABLED:-true}"
       E2E_TEST_DEV_BASE_URL: "${E2E_TEST_DEV_BASE_URL:-https://app.dev.openmates.org}"
@@ -1141,6 +1142,7 @@ services:
       CELERY_QUEUES: "app_ai" # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
+      CELERY_METRICS_PORT: "9102" # Port for prometheus_client metrics server — scraped by Prometheus
     command: >
       sh -c "chown celeryuser:celeryuser /vault-data && \
              mkdir -p /app/logs /app/backend/core/api/logs && \
@@ -1199,6 +1201,7 @@ services:
       CELERY_QUEUES: "app_images" # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
+      CELERY_METRICS_PORT: "9103" # Port for prometheus_client metrics server — scraped by Prometheus
     command: >
       sh -c "chown celeryuser:celeryuser /vault-data && \
              mkdir -p /app/logs /app/backend/core/api/logs && \
@@ -1308,6 +1311,7 @@ services:
       CELERY_QUEUES: "app_pdf"
       CELERY_AUTOSCALE_MAX: "4" # PDF processing is CPU/memory intensive — cap concurrency
       CELERY_AUTOSCALE_MIN: "1"
+      CELERY_METRICS_PORT: "9104" # Port for prometheus_client metrics server — scraped by Prometheus
     command: >
       sh -c "chown celeryuser:celeryuser /vault-data && \
              mkdir -p /app/logs /app/backend/core/api/logs && \
@@ -1448,6 +1452,35 @@ services:
       - openmates
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      - "promtail.scrape=true"
+
+  alertmanager:
+    container_name: alertmanager
+    image: prom/alertmanager:v0.31.1
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 64M
+    volumes:
+      - ./monitoring/alertmanager:/etc/alertmanager
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    environment:
+      # Internal API token for securing the alert webhook endpoint.
+      # Alertmanager sends this token in the X-Internal-Service-Token header when posting
+      # to POST /internal/alerts/webhook on the API container.
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+    networks:
+      - openmates
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9093/-/healthy"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -1597,30 +1630,78 @@ services:
   #     - cms
   #     - vault
 
-  # #########################################################################
-  # ##### Updater Service
-  # #########################################################################
-  # updater-service:
-  #   container_name: updater-service
-  #   build:
-  #     context: ./updater
-  #     dockerfile: Dockerfile
-  #   restart: unless-stopped
-  #   env_file: ../../.env
-  #   environment:
-  #     PYTHONPATH: "/app"
-  #   volumes:
-  #     - ./updater:/app
-  #     - /var/run/docker.sock:/var/run/docker.sock
-  #   ports:
-  #     - "3010:3010"
-  #   networks:
-  #     - openmates
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:3010/health"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
+  #########################################################################
+  ##### Admin Sidecar (update orchestrator + log access)
+  #########################################################################
+  # Provides /admin/update (git pull + build + restart), /admin/logs,
+  # and /admin/version for the core server stack.
+  # Reuses the same admin_sidecar codebase as upload/preview sidecars.
+  # See docs/architecture/software-updates.md
+  admin-sidecar:
+    container_name: core-admin-sidecar
+    build:
+      # Build context is project root so Dockerfile can COPY backend/admin_sidecar/
+      context: ../../
+      dockerfile: backend/admin_sidecar/Dockerfile
+    restart: unless-stopped
+    environment:
+      # Admin authentication — matches SECRET__CORE_SERVER__ADMIN_LOG_API_KEY
+      ADMIN_LOG_API_KEY: "${SECRET__CORE_SERVER__ADMIN_LOG_API_KEY:-}"
+
+      # Docker Compose project to query and manage
+      COMPOSE_PROJECT: "openmates"
+
+      # Path to the compose file (relative to GIT_WORK_DIR)
+      COMPOSE_FILE: "backend/core/docker-compose.yml"
+
+      # Which services are queryable via /admin/logs
+      SERVICES_ALLOWED: "api,task-worker,task-scheduler,cache,admin-sidecar"
+
+      # Build and restart ALL services (core server has 28+ containers)
+      # This enables "smart grouping": build all → swap all at once (~30s downtime)
+      SERVICE_UPDATE_ALL: "true"
+
+      # Still need a target for single-service fallback and status reporting
+      SERVICE_UPDATE_TARGET: "api"
+
+      # Extra services to restart after main update (re-init secrets, schema)
+      SERVICE_UPDATE_EXTRAS: "vault-setup,cms-setup"
+
+      # Optional: clear Dragonfly cache volume during update for clean restart
+      CLEAR_CACHE_ON_UPDATE: "${CLEAR_CACHE_ON_UPDATE:-true}"
+      CACHE_VOLUME_NAME: "openmates-cache-data"
+
+      # Git repository root on the host (where `git pull` runs)
+      GIT_WORK_DIR: "${GIT_WORK_DIR}"
+
+      PORT: "8001"
+    # Bind to localhost only — the core API calls it via Docker network
+    ports:
+      - "127.0.0.1:8001:8001"
+    volumes:
+      # Docker socket — this container needs it for docker compose commands
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mount the project root so `git pull` and `docker compose` can run
+      - type: bind
+        source: "${GIT_WORK_DIR}"
+        target: "${GIT_WORK_DIR}"
+    group_add:
+      # Add the docker group so this container can access the Docker socket
+      # Find the GID with: stat -c %g /var/run/docker.sock
+      - "${DOCKER_GID:-999}"
+    networks:
+      - openmates
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
 
   #########################################################################
   ##### Frontend Webapp (Static SvelteKit Build)

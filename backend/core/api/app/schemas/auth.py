@@ -311,3 +311,27 @@ class PasskeyDeviceVerifyResponse(BaseModel):
     """Response for passkey device verification"""
     success: bool = Field(..., description="Whether the device verification was successful")
     message: str = Field(..., description="Response message")
+
+
+# ── Username availability check ──────────────────────────────────────────────
+
+class CheckUsernameRequest(BaseModel):
+    """Request body for the username-availability endpoint."""
+    username: str = Field(
+        ...,
+        min_length=1,
+        max_length=20,
+        description="Username to check for availability (format-validated server-side)",
+    )
+
+
+class CheckUsernameResponse(BaseModel):
+    """Response from the username-availability endpoint."""
+    available: bool = Field(
+        ...,
+        description="True if the username passes format validation and is not taken",
+    )
+    message: str = Field(
+        ...,
+        description="Human-readable reason when available=False",
+    )

@@ -254,6 +254,16 @@ export function buildPrivacyPolicyContent(
   );
   lines.push("");
 
+  // Section 3.16: Flightradar24
+  lines.push(`### ${t("legal.privacy.flightradar24.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.flightradar24.description"));
+  lines.push("");
+  lines.push(
+    `${t("legal.privacy.flightradar24.privacy_policy_link")}: ${privacyPolicyLinks.flightradar24}`,
+  );
+  lines.push("");
+
   // Section 4: Security Measures
   lines.push(`## ${t("legal.privacy.security_measures.heading")}`);
   lines.push("");

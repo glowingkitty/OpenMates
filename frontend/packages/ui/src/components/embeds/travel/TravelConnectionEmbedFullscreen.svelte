@@ -97,6 +97,23 @@
     co2_kg?: number;
     co2_typical_kg?: number;
     co2_difference_percent?: number;
+    /**
+     * Persisted flight track data from Flightradar24.
+     * Present after a successful get_flight lookup (post-persist).
+     * Shape matches FlightDetailsResponse from the REST endpoint.
+     */
+    flight_track?: {
+      fr24_id?: string;
+      tracks: Array<{ timestamp: number; lat: number; lon: number; alt?: number; gspeed?: number }>;
+      actual_takeoff?: string;
+      actual_landing?: string;
+      runway_takeoff?: string;
+      runway_landing?: string;
+      actual_distance_km?: number;
+      flight_time_minutes?: number;
+      diverted?: boolean;
+      actual_destination_iata?: string;
+    };
   }
   
   interface Props {
@@ -231,7 +248,265 @@
       });
     }
   });
-  
+
+  // ---------------------------------------------------------------------------
+  // Flight track (Flightradar24) — three-state auto-load
+  //
+  // State machine:
+  //   'idle'    → no air segment found, or flight_track already persisted (skip to loaded)
+  //   'loading' → REST request to POST /v1/apps/travel/flight-details in progress
+  //   'loaded'  → track data available (either from persist or fresh fetch)
+  //   'error'   → fetch failed; UI falls back to existing great-circle arc silently
+  //
+  // Pattern mirrors the booking-link three-state flow exactly.
+  // ---------------------------------------------------------------------------
+
+  type FlightTrackState = 'idle' | 'loading' | 'loaded' | 'error';
+
+  let flightTrackState = $state<FlightTrackState>('idle');
+
+  /** Resolved flight track data (either from persist or fresh fetch) */
+  let resolvedFlightTrack = $state<ConnectionData['flight_track'] | null>(null);
+
+  // If flight_track is already persisted in the connection data, skip to loaded state.
+  $effect(() => {
+    if (connection.flight_track && flightTrackState === 'idle') {
+      resolvedFlightTrack = connection.flight_track;
+      flightTrackState = 'loaded';
+    }
+  });
+
+  /**
+   * Derive the first air segment's flight number from the connection's legs.
+   * Returns null if no air segment with a flight number is found.
+   */
+  let firstAirFlightNumber = $derived.by(() => {
+    if (!connection.legs) return null;
+    for (const leg of connection.legs) {
+      if (!leg.segments) continue;
+      for (const seg of leg.segments) {
+        if (seg.number && seg.number.trim()) {
+          return seg.number.trim();
+        }
+      }
+    }
+    return null;
+  });
+
+  /** Departure date extracted from the first leg's departure ISO string */
+  let firstDepartureDate = $derived.by(() => {
+    const depIso = connection.legs?.[0]?.departure || connection.departure;
+    if (!depIso) return null;
+    return depIso.split('T')[0] || null;
+  });
+
+  // Auto-trigger: once we have a flight number + date, auto-load the track.
+  // Only fires when: we have an air segment, state is idle, track not yet persisted.
+  $effect(() => {
+    if (
+      firstAirFlightNumber &&
+      firstDepartureDate &&
+      flightTrackState === 'idle' &&
+      connection.transport_method === 'airplane'
+    ) {
+      loadFlightDetails(firstAirFlightNumber, firstDepartureDate);
+    }
+  });
+
+  /**
+   * Fetch real flight track data from Flightradar24 via the REST endpoint.
+   * Called automatically when the fullscreen opens for an air connection.
+   * Silently falls back to the great-circle arc on any error.
+   */
+  async function loadFlightDetails(flightNumber: string, departureDate: string) {
+    if (flightTrackState !== 'idle') return;
+
+    flightTrackState = 'loading';
+
+    try {
+      const response = await fetch(getApiEndpoint('/v1/apps/travel/flight-details'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          flight_number: flightNumber,
+          departure_date: departureDate,
+          origin_iata: connection.booking_context?.departure_id || null,
+          destination_iata: connection.booking_context?.arrival_id || null,
+          hashed_chat_id: hashedChatId || null,
+        }),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        console.debug(
+          `[TravelConnectionEmbedFullscreen] Flight details request failed: ${response.status} — falling back to arc`,
+        );
+        flightTrackState = 'error';
+        return;
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.tracks && data.tracks.length >= 2) {
+        resolvedFlightTrack = {
+          fr24_id: data.fr24_id,
+          tracks: data.tracks,
+          actual_takeoff: data.actual_takeoff,
+          actual_landing: data.actual_landing,
+          runway_takeoff: data.runway_takeoff,
+          runway_landing: data.runway_landing,
+          actual_distance_km: data.actual_distance_km,
+          flight_time_minutes: data.flight_time_minutes,
+          diverted: data.diverted,
+          actual_destination_iata: data.actual_destination_iata,
+        };
+        flightTrackState = 'loaded';
+
+        // Persist into embed so reopening is free (no second API call)
+        persistFlightDetailsInEmbed(resolvedFlightTrack);
+      } else {
+        // Flight not found or no track data — silent fallback to arc
+        console.debug(
+          '[TravelConnectionEmbedFullscreen] No track data from FR24 — using arc fallback',
+          data.error,
+        );
+        flightTrackState = 'error';
+      }
+    } catch (err) {
+      // Network error etc. — silent fallback to arc
+      console.debug('[TravelConnectionEmbedFullscreen] Flight details fetch failed:', err);
+      flightTrackState = 'error';
+    }
+  }
+
+  /**
+   * Persist the resolved flight track data into the child embed's content
+   * so the real map polyline survives close/reopen of the fullscreen view.
+   *
+   * Mirrors persistBookingUrlInEmbed() exactly — same IDB + server sync flow.
+   * Non-blocking: failures are logged but do not affect the UI.
+   */
+  async function persistFlightDetailsInEmbed(
+    flightTrack: NonNullable<ConnectionData['flight_track']>,
+  ) {
+    if (!embedId) {
+      console.debug('[TravelConnectionEmbedFullscreen] No embedId, skipping flight track persistence');
+      return;
+    }
+
+    try {
+      const contentRef = `embed:${embedId}`;
+
+      const existingEmbed = await embedStore.get(contentRef);
+      if (!existingEmbed) {
+        console.warn('[TravelConnectionEmbedFullscreen] Embed not found in store, cannot persist flight track:', embedId);
+        return;
+      }
+
+      const { decodeToonContent } = await import('../../../services/embedResolver');
+      let decodedContent: Record<string, unknown> = {};
+      if (existingEmbed.content && typeof existingEmbed.content === 'string') {
+        decodedContent = (await decodeToonContent(existingEmbed.content)) || {};
+      } else if (typeof existingEmbed.content === 'object' && existingEmbed.content !== null) {
+        decodedContent = existingEmbed.content as Record<string, unknown>;
+      }
+
+      // Inject the flight track data
+      decodedContent.flight_track = flightTrack;
+
+      const { encode: toonEncode } = await import('@toon-format/toon');
+      const updatedToonContent = toonEncode(decodedContent);
+
+      const embedHashed = existingEmbed.hashed_chat_id || undefined;
+      const embedKey = await embedStore.getEmbedKey(embedId, embedHashed);
+
+      if (!embedKey) {
+        console.warn('[TravelConnectionEmbedFullscreen] No embed key found, cannot persist flight track:', embedId);
+        return;
+      }
+
+      const { encryptWithEmbedKey } = await import('../../../services/cryptoService');
+      const encryptedContent = await encryptWithEmbedKey(updatedToonContent, embedKey);
+      if (!encryptedContent) {
+        console.warn('[TravelConnectionEmbedFullscreen] Failed to encrypt updated content');
+        return;
+      }
+
+      const embedType = existingEmbed.type || existingEmbed.embed_type || 'app-skill-use';
+      const encryptedType = (await encryptWithEmbedKey(embedType, embedKey)) || undefined;
+
+      const nowMs = Date.now();
+
+      const encryptedEmbedForStorage = {
+        embed_id: existingEmbed.embed_id || embedId,
+        encrypted_content: encryptedContent,
+        encrypted_type: encryptedType,
+        encrypted_text_preview: existingEmbed.encrypted_text_preview,
+        status: existingEmbed.status || 'finished',
+        hashed_chat_id: existingEmbed.hashed_chat_id,
+        hashed_message_id: existingEmbed.hashed_message_id,
+        hashed_task_id: existingEmbed.hashed_task_id,
+        hashed_user_id: existingEmbed.hashed_user_id,
+        embed_ids: existingEmbed.embed_ids,
+        parent_embed_id: existingEmbed.parent_embed_id,
+        version_number: existingEmbed.version_number,
+        file_path: existingEmbed.file_path,
+        content_hash: existingEmbed.content_hash,
+        text_length_chars: existingEmbed.text_length_chars,
+        is_private: existingEmbed.is_private ?? false,
+        is_shared: existingEmbed.is_shared ?? false,
+        createdAt: existingEmbed.createdAt,
+        updatedAt: nowMs,
+      };
+
+      await embedStore.putEncrypted(
+        contentRef,
+        encryptedEmbedForStorage,
+        embedType as import('../../../message_parsing/types').EmbedType,
+        updatedToonContent,
+        { app_id: existingEmbed.app_id, skill_id: existingEmbed.skill_id },
+      );
+
+      console.info('[TravelConnectionEmbedFullscreen] Persisted flight track in embed:', embedId);
+
+      try {
+        const { chatSyncService } = await import('../../../services/chatSyncService');
+        const nowSecs = Math.floor(nowMs / 1000);
+        await chatSyncService.sendStoreEmbed({
+          embed_id: encryptedEmbedForStorage.embed_id || embedId,
+          encrypted_type: encryptedEmbedForStorage.encrypted_type || '',
+          encrypted_content: encryptedEmbedForStorage.encrypted_content,
+          encrypted_text_preview: encryptedEmbedForStorage.encrypted_text_preview,
+          status: encryptedEmbedForStorage.status || 'finished',
+          hashed_chat_id: encryptedEmbedForStorage.hashed_chat_id || '',
+          hashed_message_id: encryptedEmbedForStorage.hashed_message_id || '',
+          hashed_task_id: encryptedEmbedForStorage.hashed_task_id,
+          hashed_user_id: encryptedEmbedForStorage.hashed_user_id || '',
+          embed_ids: encryptedEmbedForStorage.embed_ids,
+          parent_embed_id: encryptedEmbedForStorage.parent_embed_id,
+          version_number: encryptedEmbedForStorage.version_number,
+          file_path: encryptedEmbedForStorage.file_path,
+          content_hash: encryptedEmbedForStorage.content_hash,
+          text_length_chars: encryptedEmbedForStorage.text_length_chars,
+          is_private: encryptedEmbedForStorage.is_private,
+          is_shared: encryptedEmbedForStorage.is_shared,
+          created_at: encryptedEmbedForStorage.createdAt
+            ? Math.floor(encryptedEmbedForStorage.createdAt / 1000)
+            : nowSecs,
+          updated_at: nowSecs,
+        });
+        console.debug('[TravelConnectionEmbedFullscreen] Sent updated embed (flight track) to server:', embedId);
+      } catch (sendError) {
+        console.warn('[TravelConnectionEmbedFullscreen] Failed to send updated embed (flight track) to server:', sendError);
+      }
+    } catch (error) {
+      console.warn('[TravelConnectionEmbedFullscreen] Failed to persist flight track in embed:', error);
+    }
+  }
+
   /**
    * Build a Google Flights search URL from the connection data.
    * Used as a fallback when the direct booking link is unavailable.
@@ -882,24 +1157,38 @@
           .bindPopup(wp.code);
       }
       
-      // Draw geodesic (great-circle) arcs between consecutive waypoints.
-      // This produces the curved flight route lines that follow the
-      // Earth's surface, looking correct even for long-haul flights.
-      for (let i = 0; i < routeWaypoints.length - 1; i++) {
-        const wp1 = routeWaypoints[i];
-        const wp2 = routeWaypoints[i + 1];
-        const arcPoints = greatCircleArc(wp1.lat, wp1.lng, wp2.lat, wp2.lng, 60);
-        const arcLatLngs = arcPoints.map(([lat, lng]) => L.latLng(lat, lng));
-        L.polyline(arcLatLngs, {
+      // Draw the flight route polyline.
+      // If real GPS track data is available from Flightradar24, use it for a
+      // precise actual path. Otherwise, fall back to an estimated great-circle arc.
+      let boundsLatLngs: import('leaflet').LatLng[];
+
+      if (resolvedFlightTrack && resolvedFlightTrack.tracks.length >= 2) {
+        // Use real FR24 GPS track data
+        const trackLatLngs = resolvedFlightTrack.tracks.map(p => L.latLng(p.lat, p.lon));
+        L.polyline(trackLatLngs, {
           color: 'var(--color-primary, #6366f1)',
           weight: 2.5,
-          opacity: 0.7,
+          opacity: 0.85,
         }).addTo(map);
+        boundsLatLngs = trackLatLngs;
+      } else {
+        // Fall back to estimated great-circle arcs between waypoints
+        for (let i = 0; i < routeWaypoints.length - 1; i++) {
+          const wp1 = routeWaypoints[i];
+          const wp2 = routeWaypoints[i + 1];
+          const arcPoints = greatCircleArc(wp1.lat, wp1.lng, wp2.lat, wp2.lng, 60);
+          const arcLatLngs = arcPoints.map(([lat, lng]) => L.latLng(lat, lng));
+          L.polyline(arcLatLngs, {
+            color: 'var(--color-primary, #6366f1)',
+            weight: 2.5,
+            opacity: 0.7,
+          }).addTo(map);
+        }
+        boundsLatLngs = routeWaypoints.map(wp => L.latLng(wp.lat, wp.lng));
       }
-      
-      // Fit bounds to show all waypoints with padding
-      const waypointLatLngs = routeWaypoints.map(wp => L.latLng(wp.lat, wp.lng));
-      const bounds = L.latLngBounds(waypointLatLngs);
+
+      // Fit bounds to show the full route with padding
+      const bounds = L.latLngBounds(boundsLatLngs);
       map.fitBounds(bounds, { padding: [40, 40] });
       
       // Listen for dark mode changes
@@ -1002,7 +1291,72 @@
       
       <!-- Route Map (OpenStreetMap via Leaflet) -->
       {#if routeWaypoints.length >= 2}
-        <div class="route-map-container" bind:this={mapContainer}></div>
+        <div
+          class="route-map-container"
+          class:track-loading={flightTrackState === 'loading'}
+          bind:this={mapContainer}
+        ></div>
+        <!-- FR24 attribution badge — shown only when real track data is loaded -->
+        {#if flightTrackState === 'loaded' && resolvedFlightTrack}
+          <div class="fr24-attribution">
+            Track: <a href="https://www.flightradar24.com" target="_blank" rel="noopener noreferrer">Flightradar24</a>
+          </div>
+        {/if}
+      {/if}
+
+      <!-- Actual flight details (from Flightradar24) — shown only when track is loaded -->
+      {#if flightTrackState === 'loaded' && resolvedFlightTrack}
+        <div class="actual-flight-details">
+          {#if resolvedFlightTrack.diverted}
+            <div class="diversion-warning">
+              <span>Flight diverted{resolvedFlightTrack.actual_destination_iata ? ` to ${resolvedFlightTrack.actual_destination_iata}` : ''}</span>
+            </div>
+          {/if}
+          <div class="actual-details-grid">
+            {#if resolvedFlightTrack.actual_takeoff}
+              <div class="actual-detail-row">
+                <span class="actual-detail-label">Actual takeoff</span>
+                <span class="actual-detail-value">{new Date(resolvedFlightTrack.actual_takeoff).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              </div>
+            {/if}
+            {#if resolvedFlightTrack.actual_landing}
+              <div class="actual-detail-row">
+                <span class="actual-detail-label">Actual landing</span>
+                <span class="actual-detail-value">{new Date(resolvedFlightTrack.actual_landing).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              </div>
+            {/if}
+            {#if resolvedFlightTrack.runway_takeoff}
+              <div class="actual-detail-row">
+                <span class="actual-detail-label">Runway (dep.)</span>
+                <span class="actual-detail-value mono">{resolvedFlightTrack.runway_takeoff}</span>
+              </div>
+            {/if}
+            {#if resolvedFlightTrack.runway_landing}
+              <div class="actual-detail-row">
+                <span class="actual-detail-label">Runway (arr.)</span>
+                <span class="actual-detail-value mono">{resolvedFlightTrack.runway_landing}</span>
+              </div>
+            {/if}
+            {#if resolvedFlightTrack.actual_distance_km != null}
+              <div class="actual-detail-row">
+                <span class="actual-detail-label">Distance</span>
+                <span class="actual-detail-value">{Math.round(resolvedFlightTrack.actual_distance_km).toLocaleString()} km</span>
+              </div>
+            {/if}
+            {#if resolvedFlightTrack.flight_time_minutes != null}
+              <div class="actual-detail-row">
+                <span class="actual-detail-label">Flight time</span>
+                <span class="actual-detail-value">{
+                  (() => {
+                    const h = Math.floor(resolvedFlightTrack.flight_time_minutes / 60);
+                    const m = resolvedFlightTrack.flight_time_minutes % 60;
+                    return h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+                  })()
+                }</span>
+              </div>
+            {/if}
+          </div>
+        </div>
       {/if}
       
       <!-- Legs Timeline -->
@@ -1357,7 +1711,91 @@
   .route-map-container :global(.dark-tiles) {
     filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9);
   }
-  
+
+  .route-map-container.track-loading {
+    opacity: 0.75;
+    animation: map-pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes map-pulse {
+    0%, 100% { opacity: 0.75; }
+    50% { opacity: 0.55; }
+  }
+
+  /* ===========================================
+     FR24 Attribution & Actual Flight Details
+     =========================================== */
+
+  .fr24-attribution {
+    font-size: 0.7rem;
+    color: var(--color-text-tertiary, var(--color-text-secondary));
+    text-align: right;
+    margin-top: 4px;
+    margin-bottom: 16px;
+  }
+
+  .fr24-attribution a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .actual-flight-details {
+    margin-bottom: 24px;
+  }
+
+  .diversion-warning {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: color-mix(in srgb, var(--color-warning, #f59e0b) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-warning, #f59e0b) 30%, transparent);
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-warning, #f59e0b);
+    margin-bottom: 12px;
+  }
+
+  .actual-details-grid {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--color-grey-20, rgba(0, 0, 0, 0.08));
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .actual-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--color-grey-10, rgba(0, 0, 0, 0.04));
+  }
+
+  .actual-detail-row:last-child {
+    border-bottom: none;
+  }
+
+  .actual-detail-label {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    font-weight: 500;
+  }
+
+  .actual-detail-value {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+  }
+
+  .actual-detail-value.mono {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.82rem;
+    letter-spacing: 0.04em;
+  }
+
   /* ===========================================
      Legs Container
      =========================================== */

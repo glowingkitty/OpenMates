@@ -46,11 +46,44 @@ function generateTabId(): string {
   return id;
 }
 
+/** Status snapshot returned by getStatus() for debug health checks */
+export interface ClientLogForwarderStatus {
+  /** Whether the forwarder is currently running (start() was called, stop() was not) */
+  isRunning: boolean;
+  /** Unique tab ID for this browser tab (regenerated on each start()) */
+  tabId: string;
+  /** Number of log entries currently buffered awaiting flush */
+  bufferSize: number;
+  /** Total number of flush attempts since last start() */
+  totalFlushAttempts: number;
+  /** Number of flushes that returned HTTP 2xx */
+  successfulFlushes: number;
+  /** Number of flushes that failed (network error, non-2xx response) */
+  failedFlushes: number;
+  /** HTTP status of the most recent flush attempt, or null if none yet */
+  lastFlushStatus: number | null;
+  /** ISO timestamp of the most recent flush attempt, or null if none yet */
+  lastFlushTime: string | null;
+  /** Error message from the most recent flush failure, or null */
+  lastFlushError: string | null;
+  /** Whether the very first flush after start() has been attempted */
+  firstFlushAttempted: boolean;
+}
+
 class ClientLogForwarder {
   private buffer: ConsoleLogEntry[] = [];
   private flushTimer: ReturnType<typeof setInterval> | null = null;
   private isRunning = false;
   private tabId: string = generateTabId();
+
+  // ── Diagnostic counters (reset on each start()) ──
+  private totalFlushAttempts = 0;
+  private successfulFlushes = 0;
+  private failedFlushes = 0;
+  private lastFlushStatus: number | null = null;
+  private lastFlushTime: string | null = null;
+  private lastFlushError: string | null = null;
+  private firstFlushAttempted = false;
 
   /**
    * Bound reference to the listener function so we can unsubscribe cleanly.
@@ -73,6 +106,25 @@ class ClientLogForwarder {
   };
 
   /**
+   * Return a snapshot of the forwarder's current status for debug health checks.
+   * Called by window.debug() health check.
+   */
+  public getStatus(): ClientLogForwarderStatus {
+    return {
+      isRunning: this.isRunning,
+      tabId: this.tabId,
+      bufferSize: this.buffer.length,
+      totalFlushAttempts: this.totalFlushAttempts,
+      successfulFlushes: this.successfulFlushes,
+      failedFlushes: this.failedFlushes,
+      lastFlushStatus: this.lastFlushStatus,
+      lastFlushTime: this.lastFlushTime,
+      lastFlushError: this.lastFlushError,
+      firstFlushAttempted: this.firstFlushAttempted,
+    };
+  }
+
+  /**
    * Start forwarding console logs to the server.
    * Should only be called when the authenticated user is confirmed to be an admin.
    * Safe to call multiple times (idempotent) - will not create duplicate listeners.
@@ -82,6 +134,15 @@ class ClientLogForwarder {
 
     this.isRunning = true;
     this.tabId = generateTabId();
+
+    // Reset diagnostic counters for this session
+    this.totalFlushAttempts = 0;
+    this.successfulFlushes = 0;
+    this.failedFlushes = 0;
+    this.lastFlushStatus = null;
+    this.lastFlushTime = null;
+    this.lastFlushError = null;
+    this.firstFlushAttempted = false;
 
     // Subscribe to real-time log entries from the collector
     logCollector.onNewLog(this.logListener);
@@ -143,9 +204,23 @@ class ClientLogForwarder {
     const entries = this.buffer.splice(0, MAX_BATCH_SIZE);
 
     const endpoint = getApiEndpoint(apiEndpoints.admin.clientLogs);
-    console.debug(
-      `[ClientLogForwarder] Flushing ${entries.length} entries to ${endpoint}`,
-    );
+    const isFirstFlush = !this.firstFlushAttempted;
+    this.firstFlushAttempted = true;
+    this.totalFlushAttempts++;
+    this.lastFlushTime = new Date().toISOString();
+
+    // Log first flush attempt at warn level so it is always visible in the browser console.
+    // This is the key diagnostic breadcrumb: if this line appears, the forwarder started
+    // and is actively attempting to send logs. If it does NOT appear, start() was never called.
+    if (isFirstFlush) {
+      console.warn(
+        `[ClientLogForwarder] First flush attempt — sending ${entries.length} entries to ${endpoint}`,
+      );
+    } else {
+      console.debug(
+        `[ClientLogForwarder] Flushing ${entries.length} entries to ${endpoint}`,
+      );
+    }
 
     try {
       const payload = {
@@ -171,7 +246,25 @@ class ClientLogForwarder {
         body: JSON.stringify(payload),
       });
 
-      console.debug(`[ClientLogForwarder] Flush response: ${response.status}`);
+      this.lastFlushStatus = response.status;
+      this.lastFlushError = null;
+
+      if (response.ok) {
+        this.successfulFlushes++;
+      } else {
+        this.failedFlushes++;
+      }
+
+      // Log first successful flush at warn level for diagnostic visibility
+      if (isFirstFlush) {
+        console.warn(
+          `[ClientLogForwarder] First flush response: ${response.status} ${response.ok ? "(OK)" : "(FAILED)"}`,
+        );
+      } else {
+        console.debug(
+          `[ClientLogForwarder] Flush response: ${response.status}`,
+        );
+      }
 
       // Auth errors (401/403) are logged but do NOT stop the forwarder.
       //
@@ -189,12 +282,20 @@ class ClientLogForwarder {
         console.warn(
           `[ClientLogForwarder] Auth error (${response.status}) — keeping forwarder alive, will retry on next flush`,
         );
+      } else if (!response.ok) {
+        // Log unexpected non-2xx responses at error level so they are visible and reach Loki
+        console.error(
+          `[ClientLogForwarder] Unexpected flush response: ${response.status} ${response.statusText}`,
+        );
       }
-      // Silently ignore other errors (429 rate limit, 500 server error, network issues)
-      // This is non-critical debug infrastructure - should never interfere with the app
     } catch (err) {
-      // Network error or other fetch failure - log for debugging, then drop the entries.
-      console.debug("[ClientLogForwarder] Flush failed:", err);
+      this.failedFlushes++;
+      this.lastFlushStatus = null;
+      this.lastFlushError = err instanceof Error ? err.message : String(err);
+
+      // Network error or other fetch failure - log at error level so it is visible
+      // in the browser console AND forwarded to Loki on the next successful flush.
+      console.error("[ClientLogForwarder] Flush failed (network error):", err);
     }
   }
 }

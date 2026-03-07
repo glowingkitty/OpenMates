@@ -144,12 +144,25 @@
   /** Currently displayed inspiration. */
   let current = $derived(inspirations[currentIndex] ?? null);
 
-  /** Background gradient style string for the current card. */
+  /** Background gradient style string for the current card.
+   *  Also emits --orb-color-a (start/outer) and --orb-color-b (end/inner) as
+   *  CSS custom properties consumed by the living gradient orb animation — same
+   *  technique as ChatHeader.svelte. */
   let gradientStyle = $derived.by(() => {
     if (!current) return '';
     const colors = getCategoryGradientColors(current.category);
-    if (!colors) return 'background: linear-gradient(135deg, #1a237e, #3949ab)';
-    return `background: linear-gradient(135deg, ${colors.start}, ${colors.end})`;
+    if (!colors) {
+      return [
+        'background: linear-gradient(135deg, #1a237e, #3949ab)',
+        '--orb-color-a: #1a237e',
+        '--orb-color-b: #3949ab',
+      ].join(';');
+    }
+    return [
+      `background: linear-gradient(135deg, ${colors.start}, ${colors.end})`,
+      `--orb-color-a: ${colors.start}`,
+      `--orb-color-b: ${colors.end}`,
+    ].join(';');
   });
 
   /** Whether multiple inspirations are available (show arrows). */
@@ -316,6 +329,17 @@
       tabindex="0"
       aria-label={current.phrase}
     >
+      <!-- ── Living gradient orbs — same Creative Code technique as ChatHeader.svelte.
+           Three soft radial-gradient blobs morph shape and drift behind all content.
+           --orb-color-b blooms from each orb center, fading to transparent against
+           the --orb-color-a background. Heavy blur + no blend mode = visible color glow.
+           Prime durations keep the three orbs permanently out of sync. ── -->
+      <div class="banner-orbs" aria-hidden="true">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+      </div>
+
       <!-- ── Large decorative category icons at left and right edges (126×126px, 0.4 opacity).
            These sit outside .banner-inner so they are not constrained by the 680px inner width.
            On smaller viewports they will be partially clipped by overflow:hidden — intentional. ── -->
@@ -697,13 +721,72 @@
     border-radius: 10px 0 0 10px !important; /* rounded on the left (inner) side */
   }
 
-  /* ── Large decorative icons at banner edges ──
-     Mirrors the .deco-icon treatment in ChatHeader.svelte.
-     Positioned absolutely outside .banner-inner (which has max-width 680px),
-     so they sit at the edges of the full-width card.
-     overflow:hidden on .daily-inspiration-banner clips them at the card boundary,
-     which is acceptable — they're purely decorative visual texture.
-     Entrance animation: fade up from +50px below, settles at 0.4 opacity. */
+  /* ── Living gradient orbs ─────────────────────────────────────────────────
+     Identical technique to ChatHeader.svelte — see that file for full design
+     rationale. CSS custom properties --orb-color-a / --orb-color-b are set
+     by the gradientStyle derived value in the script block above. */
+
+  .banner-orbs {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .orb {
+    position: absolute;
+    width: 480px;
+    height: 420px;
+    background: radial-gradient(
+      ellipse at center,
+      var(--orb-color-b) 0%,
+      var(--orb-color-b) 40%,
+      transparent 85%
+    );
+    filter: blur(28px);
+    opacity: 0.55;
+    will-change: transform, border-radius;
+  }
+
+  .orb-1 {
+    top: -80px;
+    left: -100px;
+    animation:
+      orbMorph1 11s ease-in-out infinite,
+      orbDrift1 19s ease-in-out infinite;
+  }
+
+  .orb-2 {
+    bottom: -120px;
+    right: -120px;
+    width: 460px;
+    height: 400px;
+    animation:
+      orbMorph2 13s ease-in-out infinite,
+      orbDrift2 23s ease-in-out infinite;
+  }
+
+  .orb-3 {
+    top: -20px;
+    left: 25%;
+    width: 340px;
+    height: 300px;
+    opacity: 0.38;
+    animation:
+      orbMorph3 17s ease-in-out infinite,
+      orbDrift3 29s ease-in-out infinite;
+  }
+
+  /* Orb morph + drift @keyframes are in animations.css (shared globally). */
+  @media (prefers-reduced-motion: reduce) {
+    .orb { animation: none !important; }
+  }
+
+  /* ── Large decorative icons at banner edges ────────────────────────────────
+     Two-phase: decoEnter (one-shot) → decoFloat (16s circular orbit, infinite).
+     All @keyframes are in animations.css. CSS vars control the orbit radius and
+     base rotation. Right icon starts half a cycle ahead for opposing phase. */
   .deco-icon {
     position: absolute;
     width: 126px;
@@ -713,33 +796,32 @@
     justify-content: center;
     z-index: 1;
     pointer-events: none;
-    animation: decoIconEnter 0.6s ease-out 0.1s both;
+    --float-rx: 10px;
+    --float-ry: 12px;
+    animation:
+      decoEnter 0.6s ease-out 0.1s both,
+      decoFloat 16s linear 0.7s infinite;
   }
 
   .deco-icon-left {
-    /* Anchored just outside the center content block (max-width 680px, half=340px).
-       Offset inward by 20px so the icon sits close to the content edge. */
     left: calc(50% - 340px - 106px);
     bottom: -15px;
-    transform: rotate(-15deg);
     --deco-rotate: -15deg;
   }
 
   .deco-icon-right {
     right: calc(50% - 340px - 106px);
     bottom: -15px;
-    transform: rotate(15deg);
     --deco-rotate: 15deg;
+    /* Negative delay: start as if 8s have already elapsed (half-cycle offset).
+       Positive delay would freeze the icon for 8.7s then snap — use negative
+       to begin mid-orbit immediately with no wait or jump. */
+    animation-delay: 0.1s, -8s;
   }
 
-  @keyframes decoIconEnter {
-    from {
-      opacity: 0;
-      transform: translateY(50px) rotate(var(--deco-rotate, 0deg));
-    }
-    to {
-      opacity: 0.4;
-      transform: translateY(0) rotate(var(--deco-rotate, 0deg));
+  @media (prefers-reduced-motion: reduce) {
+    .deco-icon {
+      animation: decoEnter 0.6s ease-out 0.1s both !important;
     }
   }
 

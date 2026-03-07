@@ -731,6 +731,12 @@ async def payment_webhook(
             elif event_type == "checkout.session.async_payment_failed":
                 # For async payment failures, get PaymentIntent ID from checkout session
                 webhook_order_id = event_payload.get("data", {}).get("object", {}).get("payment_intent")
+            elif event_type == "charge.refunded":
+                # charge.refunded: data.object is a Charge, payment_intent is our order_id
+                webhook_order_id = event_payload.get("data", {}).get("object", {}).get("payment_intent")
+            elif event_type == "refund.failed":
+                # refund.failed: data.object is a Refund, payment_intent is our order_id
+                webhook_order_id = event_payload.get("data", {}).get("object", {}).get("payment_intent")
         elif provider_name == "polar":
             # Polar events use different ID fields depending on the event type:
             #   - checkout.updated: data.id = checkout session ID (our order_id)
@@ -752,6 +758,12 @@ async def payment_webhook(
             if provider_name == "polar" and event_type and event_type.startswith("refund."):
                 logger.info(f"Polar {event_type} event — will use refund-specific order lookup.")
                 webhook_order_id = f"polar_refund_{(event_payload.get('data') or {}).get('id', 'unknown')}"
+            elif provider_name == "stripe" and event_type in ("refund.failed", "charge.refunded"):
+                # Stripe refund events: the handler does its own invoice lookup by payment_intent,
+                # so we can use a synthetic order_id to pass the null check.
+                refund_pi = (event_payload.get("data", {}) or {}).get("object", {}).get("payment_intent")
+                webhook_order_id = refund_pi or f"stripe_refund_{(event_payload.get('data', {}) or {}).get('object', {}).get('id', 'unknown')}"
+                logger.info(f"Stripe {event_type} event — extracted payment_intent: {refund_pi}")
             else:
                 logger.warning(f"Webhook event {event_type} received without an order_id for provider {provider_name}.")
                 return {"status": "received_missing_order_id"}
@@ -1840,6 +1852,19 @@ async def payment_webhook(
                     )
                     return {"status": "already_refunded"}
 
+                # Handle async refund completion: if the invoice has refund_status='pending',
+                # it means we already deducted credits when the user initiated the refund
+                # (e.g. Revolut Pay async refund). Just finalize the status without re-deducting.
+                if existing_refund_status == "pending":
+                    logger.info(
+                        f"Async refund completed: invoice {refund_invoice_id} was pending, "
+                        f"now marking as completed. Credits were already deducted at initiation."
+                    )
+                    await directus_service.update_item("invoices", refund_invoice_id, {
+                        "refund_status": "completed"
+                    })
+                    return {"status": "async_refund_completed"}
+
                 # Find the user by user_id_hash to deduct credits
                 user_id_hash = refund_invoice.get("user_id_hash")
                 if not user_id_hash:
@@ -2049,6 +2074,153 @@ async def payment_webhook(
                 logger.error(
                     f"Error processing dashboard-initiated refund webhook "
                     f"({event_type} from {provider_name}): {refund_webhook_exc}",
+                    exc_info=True
+                )
+
+        # ===== Async Refund Failure Handler (Revolut Pay, Wero, etc.) =====
+        # When a refund is initiated for a redirect-based payment method, Stripe may return
+        # status='pending'. If the refund fails asynchronously, Stripe sends a refund.failed event.
+        # We need to: (1) reverse the credit deduction, (2) update invoice refund_status to 'failed',
+        # (3) return the refund amount to the Stripe balance.
+        elif provider_name == "stripe" and event_type == "refund.failed":
+            logger.warning(f"Processing async refund failure webhook: {event_type}")
+            try:
+                refund_obj = (event_payload.get("data", {}) or {}).get("object", {}) or {}
+                failed_refund_id = refund_obj.get("id")
+                failed_payment_intent = refund_obj.get("payment_intent")
+                failed_amount = refund_obj.get("amount", 0)
+                failed_currency = refund_obj.get("currency", "eur")
+                failure_reason = refund_obj.get("failure_reason", "unknown")
+
+                logger.warning(
+                    f"Async refund {failed_refund_id} failed for PaymentIntent {failed_payment_intent}. "
+                    f"Amount: {failed_amount} {failed_currency}. Reason: {failure_reason}"
+                )
+
+                if not failed_payment_intent:
+                    logger.error("refund.failed event missing payment_intent. Cannot reverse credit deduction.")
+                    return {"status": "refund_failed_no_payment_intent"}
+
+                # Find the invoice by order_id (= payment_intent ID)
+                failed_invoices = await directus_service.get_items("invoices", {
+                    "filter": {"order_id": {"_eq": failed_payment_intent}},
+                    "limit": 1
+                })
+
+                if not failed_invoices:
+                    logger.warning(
+                        f"refund.failed: no invoice found for order_id={failed_payment_intent}. "
+                        f"This may be a refund for an order not tracked in our system."
+                    )
+                    return {"status": "refund_failed_no_invoice"}
+
+                failed_invoice = failed_invoices[0]
+                failed_invoice_id = failed_invoice.get("id")
+                existing_refund_status = failed_invoice.get("refund_status", "none")
+
+                # Only reverse if the invoice is in 'pending' refund state (async refund that was waiting)
+                if existing_refund_status != "pending":
+                    logger.info(
+                        f"refund.failed: invoice {failed_invoice_id} has refund_status='{existing_refund_status}', "
+                        f"not 'pending'. Skipping credit reversal (may have been already handled)."
+                    )
+                    # Still update status to reflect the failure
+                    await directus_service.update_item("invoices", failed_invoice_id, {
+                        "refund_status": "failed"
+                    })
+                    return {"status": "refund_failed_status_updated"}
+
+                # Reverse the credit deduction: add back the credits that were deducted
+                user_id_hash = failed_invoice.get("user_id_hash")
+                if user_id_hash:
+                    # Find the user to restore credits
+                    refund_fail_user_id = None
+                    refund_fail_vault_key_id = None
+
+                    # Try order cache first
+                    cached_order = await cache_service.get_order(failed_payment_intent)
+                    if cached_order:
+                        refund_fail_user_id = cached_order.get("user_id")
+
+                    if not refund_fail_user_id:
+                        # Brute-force lookup by user_id_hash (same approach as dashboard refund handler)
+                        all_users = await directus_service.get_items("directus_users", {"limit": -1, "fields": ["id", "vault_key_id"]})
+                        import hashlib
+                        for u in (all_users or []):
+                            uid = u.get("id", "")
+                            if hashlib.sha256(uid.encode()).hexdigest() == user_id_hash:
+                                refund_fail_user_id = uid
+                                refund_fail_vault_key_id = u.get("vault_key_id")
+                                break
+
+                    if refund_fail_user_id:
+                        if not refund_fail_vault_key_id:
+                            user_record = await directus_service.get_user(refund_fail_user_id)
+                            if user_record:
+                                refund_fail_vault_key_id = user_record.get("vault_key_id")
+
+                        if refund_fail_vault_key_id:
+                            # Decrypt the refunded credits amount from the invoice
+                            encrypted_refunded_credits = failed_invoice.get("encrypted_refunded_credits")
+                            if encrypted_refunded_credits:
+                                try:
+                                    credits_to_restore_str = await encryption_service.decrypt_with_user_key(
+                                        encrypted_refunded_credits, refund_fail_vault_key_id
+                                    )
+                                    credits_to_restore = int(credits_to_restore_str) if credits_to_restore_str else 0
+
+                                    if credits_to_restore > 0:
+                                        refund_fail_user_cache = await cache_service.get_user_by_id(refund_fail_user_id) or {}
+                                        current_credits = refund_fail_user_cache.get("credits", 0)
+                                        restored_credits = current_credits + credits_to_restore
+
+                                        # Update in Directus
+                                        encrypted_restored, _ = await encryption_service.encrypt_with_user_key(
+                                            str(restored_credits), refund_fail_vault_key_id
+                                        )
+                                        await directus_service.update_user(refund_fail_user_id, {
+                                            "encrypted_credits": encrypted_restored
+                                        })
+
+                                        # Update in cache
+                                        refund_fail_user_cache["credits"] = restored_credits
+                                        await cache_service.update_user(refund_fail_user_id, refund_fail_user_cache)
+
+                                        logger.info(
+                                            f"refund.failed: restored {credits_to_restore} credits for user {refund_fail_user_id} "
+                                            f"(was {current_credits}, now {restored_credits})"
+                                        )
+
+                                        # Broadcast credit update via WebSocket
+                                        try:
+                                            await cache_service.publish_event(
+                                                user_id=refund_fail_user_id,
+                                                event_data={
+                                                    "event_for_client": "user_credits_updated",
+                                                    "user_id_uuid": refund_fail_user_id,
+                                                    "payload": {"credits": restored_credits}
+                                                }
+                                            )
+                                        except Exception as ws_exc:
+                                            logger.warning(f"refund.failed: could not broadcast credit update: {ws_exc}")
+
+                                except Exception as restore_exc:
+                                    logger.error(f"refund.failed: error restoring credits for user {refund_fail_user_id}: {restore_exc}", exc_info=True)
+
+                # Mark invoice as refund failed
+                await directus_service.update_item("invoices", failed_invoice_id, {
+                    "refund_status": "failed"
+                })
+
+                logger.warning(
+                    f"Async refund failure processed: invoice={failed_invoice_id}, "
+                    f"refund={failed_refund_id}, reason={failure_reason}. Credits restored."
+                )
+                return {"status": "refund_failed_processed"}
+
+            except Exception as refund_fail_exc:
+                logger.error(
+                    f"Error processing refund.failed webhook: {refund_fail_exc}",
                     exc_info=True
                 )
 
@@ -4391,6 +4563,20 @@ async def request_refund(
             
             raise HTTPException(status_code=500, detail="Failed to process refund with payment provider")
         
+        # Determine refund status: redirect-based payment methods (Revolut Pay, Wero, etc.)
+        # have async refunds that return status='pending'. For these, we mark the invoice as
+        # "pending" and wait for the charge.refunded / refund.failed webhook to finalize.
+        # Card refunds typically return 'succeeded' immediately.
+        provider_refund_status = refund_result.get("status", "succeeded")
+        is_async_refund = provider_refund_status == "pending"
+        invoice_refund_status = "pending" if is_async_refund else "completed"
+        
+        if is_async_refund:
+            logger.info(
+                f"Async refund initiated for invoice {invoice_id} (refund_id={refund_result.get('refund_id')}). "
+                f"Status is 'pending' — will be finalized by charge.refunded/refund.failed webhook."
+            )
+        
         # Update invoice with refund information
         refund_timestamp = datetime.now(timezone.utc).isoformat()
         
@@ -4408,7 +4594,7 @@ async def request_refund(
             "refunded_at": refund_timestamp,
             "encrypted_refunded_credits": encrypted_refunded_credits,
             "encrypted_refund_amount": encrypted_refund_amount,
-            "refund_status": "completed"
+            "refund_status": invoice_refund_status
         }
         
         update_success = await directus_service.update_item("invoices", invoice_id, invoice_update)
@@ -4609,9 +4795,19 @@ async def request_refund(
             # Don't fail the refund if credit note generation fails - refund was already processed
             logger.error(f"Failed to dispatch credit note processing task for invoice {invoice_id}: {credit_note_err}", exc_info=True)
         
+        # For async refunds (Revolut Pay, etc.), adjust the success message to indicate
+        # the refund is pending and will be completed shortly.
+        if is_async_refund:
+            refund_message = (
+                f"Refund initiated for {unused_credits} unused credits. "
+                f"The refund is being processed and will arrive in your account shortly."
+            )
+        else:
+            refund_message = f"Refund processed successfully. {unused_credits} unused credits refunded."
+
         return RefundResponse(
             success=True,
-            message=f"Refund processed successfully. {unused_credits} unused credits refunded.",
+            message=refund_message,
             refund_amount=refund_amount_decimal,
             unused_credits=unused_credits,
             total_credits=total_credits

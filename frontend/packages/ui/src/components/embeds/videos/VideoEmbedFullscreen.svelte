@@ -114,6 +114,9 @@
   let likeCount = $state<VideoMetadata['likeCount'] | undefined>(undefined);
   let publishedAt = $state<VideoMetadata['publishedAt'] | undefined>(undefined);
 
+  let videoThumbnailWrapperEl = $state<HTMLDivElement | null>(null);
+  let videoPlayingSpacerEl = $state<HTMLDivElement | null>(null);
+
   // Sync state from props (runs on mount and whenever metadata/propVideoId/title changes)
   $effect(() => {
     videoId = metadata?.videoId || propVideoId || '';
@@ -356,11 +359,40 @@
   // ===========================================
   
   // Handle play button click - signals ActiveChat to start VideoIframe
+  function getFullscreenAnchorFromElement(element: HTMLElement | null): { top: number; left: number; width: number } | undefined {
+    if (!element) {
+      return undefined;
+    }
+
+    const container = element.closest('.active-chat-container') as HTMLElement | null;
+    if (!container) {
+      return undefined;
+    }
+
+    const elementRect = element.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+
+    return {
+      top: Math.max(0, elementRect.top - containerRect.top),
+      left: Math.max(0, elementRect.left - containerRect.left),
+      width: elementRect.width
+    };
+  }
+
+  function updateFullscreenAnchor() {
+    const anchorSource = videoThumbnailWrapperEl || videoPlayingSpacerEl;
+    const anchor = getFullscreenAnchorFromElement(anchorSource);
+    videoIframeStore.setFullscreenAnchor(anchor);
+    return anchor;
+  }
+
   function handlePlayClick() {
     if (!videoId || !embedUrl) {
       console.warn('[VideoEmbedFullscreen] Cannot play: missing videoId or embedUrl');
       return;
     }
+
+    const fullscreenAnchor = updateFullscreenAnchor();
     
     console.debug('[VideoEmbedFullscreen] Play button clicked, starting video', {
       videoId,
@@ -375,9 +407,27 @@
       title: displayTitle,
       videoId,
       embedUrl,
-      thumbnailUrl
+      thumbnailUrl,
+      fullscreenAnchor
     });
   }
+
+  $effect(() => {
+    if (!isVideoPlaying) {
+      return;
+    }
+
+    const syncAnchor = () => {
+      updateFullscreenAnchor();
+    };
+
+    syncAnchor();
+    window.addEventListener('resize', syncAnchor);
+
+    return () => {
+      window.removeEventListener('resize', syncAnchor);
+    };
+  });
   
   // Handle tip creator - opens tip settings menu (commented out for now)
   /*
@@ -539,7 +589,7 @@
       <!-- Video thumbnail with play button -->
       <!-- Only show thumbnail when video is NOT playing -->
       {#if !isVideoPlaying && videoId && thumbnailUrl}
-        <div class="video-thumbnail-wrapper">
+        <div class="video-thumbnail-wrapper" bind:this={videoThumbnailWrapperEl}>
           <img 
             src={thumbnailUrl} 
             alt={displayTitle}
@@ -593,7 +643,7 @@
       {:else if isVideoPlaying}
         <!-- Video is playing - VideoIframe shows the actual video -->
         <!-- This spacer maintains layout so buttons stay below the video -->
-        <div class="video-playing-spacer"></div>
+        <div class="video-playing-spacer" bind:this={videoPlayingSpacerEl}></div>
         
         <!-- Action buttons when video is playing -->
         <div class="button-container">
@@ -912,6 +962,7 @@
     width: 100%;
     max-width: 780px;
     aspect-ratio: 16 / 9;
+    margin-top: 16px;
     /* Transparent - the actual video is shown by VideoIframe */
   }
   

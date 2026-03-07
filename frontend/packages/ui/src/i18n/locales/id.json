@@ -336,10 +336,16 @@
           "text": "Bagaimana Anda lebih suka AI berkomunikasi"
         },
         "example_1": {
-          "text": "Profesional dan ringkas"
+          "text": "Profesional dan ringkas",
+          "title": {
+            "text": "Pakar teknis"
+          }
         },
         "example_2": {
-          "text": "Santai dan ramah"
+          "text": "Santai dan ramah",
+          "title": {
+            "text": "Pembantu ramah"
+          }
         }
       },
       "learning_preferences": {
@@ -348,10 +354,22 @@
           "text": "Bagaimana Anda lebih suka belajar dan menyerap info"
         },
         "example_1": {
-          "text": "Belajar secara visual"
+          "text": "Belajar secara visual",
+          "title": {
+            "text": "Belajar secara visual"
+          },
+          "notes": {
+            "text": "Lebih suka diagram, grafik, dan penjelasan visual"
+          }
         },
         "example_2": {
-          "text": "Latihan langsung"
+          "text": "Latihan langsung",
+          "title": {
+            "text": "Latihan langsung"
+          },
+          "notes": {
+            "text": "Belajar paling baik dengan mencoba contoh kode"
+          }
         }
       },
       "interaction_preferences": {
@@ -368,10 +386,28 @@
           "text": "Buku yang Anda sukai dan rekomendasikan."
         },
         "example_1": {
-          "text": "1984"
+          "text": "1984",
+          "title": {
+            "text": "The Great Gatsby"
+          },
+          "genre": {
+            "text": "Fiksi klasik"
+          },
+          "notes": {
+            "text": "Prosa indah tentang Mimpi Amerika"
+          }
         },
         "example_2": {
-          "text": "Sapiens"
+          "text": "Sapiens",
+          "title": {
+            "text": "Sapiens"
+          },
+          "genre": {
+            "text": "Non-fiksi"
+          },
+          "notes": {
+            "text": "Gambaran menarik tentang sejarah manusia"
+          }
         },
         "example_3": {
           "text": "Dune"
@@ -383,10 +419,22 @@
           "text": "Buku yang sedang Anda baca."
         },
         "example_1": {
-          "text": "Project Hail Mary"
+          "text": "Project Hail Mary",
+          "title": {
+            "text": "Project Hail Mary"
+          },
+          "notes": {
+            "text": "Petualangan fiksi ilmiah yang hebat"
+          }
         },
         "example_2": {
-          "text": "Atomic Habits"
+          "text": "Atomic Habits",
+          "title": {
+            "text": "Atomic Habits"
+          },
+          "notes": {
+            "text": "Strategi praktis untuk membangun kebiasaan baik"
+          }
         }
       },
       "to_read_list": {
@@ -395,10 +443,28 @@
           "text": "Buku yang ingin Anda baca selanjutnya."
         },
         "example_1": {
-          "text": "The Three-Body Problem"
+          "text": "The Three-Body Problem",
+          "title": {
+            "text": "Dune"
+          },
+          "genre": {
+            "text": "Fiksi ilmiah"
+          },
+          "notes": {
+            "text": "Fiksi ilmiah klasik, direkomendasikan teman"
+          }
         },
         "example_2": {
-          "text": "Thinking, Fast and Slow"
+          "text": "Thinking, Fast and Slow",
+          "title": {
+            "text": "Thinking, Fast and Slow"
+          },
+          "genre": {
+            "text": "Psikologi"
+          },
+          "notes": {
+            "text": "Ingin memahami bias kognitif"
+          }
         },
         "example_3": {
           "text": "Deep Work"
@@ -412,10 +478,16 @@
           "text": "Bahasa dan framework pilihan Anda."
         },
         "example_1": {
-          "text": "Python"
+          "text": "Python",
+          "name": {
+            "text": "Python"
+          }
         },
         "example_2": {
-          "text": "TypeScript"
+          "text": "TypeScript",
+          "name": {
+            "text": "TypeScript"
+          }
         },
         "example_3": {
           "text": "Svelte"
@@ -427,10 +499,22 @@
           "text": "Proyek Anda (aktif, direncanakan, atau selesai)"
         },
         "example_1": {
-          "text": "Situs web pribadi"
+          "text": "Situs web pribadi",
+          "name": {
+            "text": "Situs web pribadi"
+          },
+          "description": {
+            "text": "Situs portofolio yang dibangun dengan SvelteKit"
+          }
         },
         "example_2": {
-          "text": "Aplikasi seluler"
+          "text": "Aplikasi seluler",
+          "name": {
+            "text": "Aplikasi cuaca"
+          },
+          "description": {
+            "text": "Aplikasi prakiraan cuaca menggunakan React dan OpenWeather API"
+          }
         },
         "example_3": {
           "text": "Backend API"
@@ -442,10 +526,16 @@
           "text": "Teknologi dan keterampilan yang ingin Anda pelajari"
         },
         "example_1": {
-          "text": "Rust"
+          "text": "Rust",
+          "name": {
+            "text": "Rust"
+          }
         },
         "example_2": {
-          "text": "Pembelajaran mesin"
+          "text": "Pembelajaran mesin",
+          "name": {
+            "text": "Pembelajaran mesin"
+          }
         },
         "example_3": {
           "text": "Kubernetes"
@@ -459,10 +549,22 @@
           "text": "Gaya penulisan pilihan Anda untuk dokumen."
         },
         "example_1": {
-          "text": "Bisnis formal"
+          "text": "Bisnis formal",
+          "name": {
+            "text": "Dokumentasi teknis"
+          },
+          "description": {
+            "text": "Penulisan yang jelas dan terstruktur untuk dokumentasi pengembang dan referensi API"
+          }
         },
         "example_2": {
-          "text": "Akademis"
+          "text": "Akademis",
+          "name": {
+            "text": "Postingan blog"
+          },
+          "description": {
+            "text": "Nada yang menarik dan percakapan untuk artikel blog"
+          }
         },
         "example_3": {
           "text": "Blog santai"
@@ -476,10 +578,22 @@
           "text": "Janji temu dan kunjungan medis Anda."
         },
         "example_1": {
-          "text": "Dokter gigi Dr. Mueller"
+          "text": "Dokter gigi Dr. Mueller",
+          "where": {
+            "text": "Rumah Sakit Kota"
+          },
+          "notes": {
+            "text": "Pemeriksaan kesehatan tahunan"
+          }
         },
         "example_2": {
-          "text": "Pemeriksaan mata"
+          "text": "Pemeriksaan mata",
+          "where": {
+            "text": "Klinik Gigi Pusat Kota"
+          },
+          "notes": {
+            "text": "Pembersihan gigi"
+          }
         }
       },
       "medical_history": {
@@ -488,10 +602,22 @@
           "text": "Operasi, kondisi, dan alergi masa lalu."
         },
         "example_1": {
-          "text": "Alergi penisilin"
+          "text": "Alergi penisilin",
+          "name": {
+            "text": "Alergi kacang tanah"
+          },
+          "details": {
+            "text": "Reaksi alergi parah, bawa EpiPen"
+          }
         },
         "example_2": {
-          "text": "Operasi lutut 2023"
+          "text": "Operasi lutut 2023",
+          "name": {
+            "text": "Vaksin COVID-19"
+          },
+          "details": {
+            "text": "Booster Pfizer"
+          }
         }
       },
       "symptoms_log": {
@@ -514,10 +640,22 @@
           "text": "Gaya yang Anda sukai untuk gambar yang dihasilkan"
         },
         "example_1": {
-          "text": "Cat air"
+          "text": "Cat air",
+          "name": {
+            "text": "Minimalis"
+          },
+          "description": {
+            "text": "Garis bersih, komposisi sederhana, palet warna lembut"
+          }
         },
         "example_2": {
-          "text": "Minimalis"
+          "text": "Minimalis",
+          "name": {
+            "text": "Fotografi cerah"
+          },
+          "description": {
+            "text": "Warna cerah, kontras tinggi, komposisi dinamis"
+          }
         },
         "example_3": {
           "text": "Cyberpunk"
@@ -531,10 +669,31 @@
           "text": "Cara Anda menulis email dalam konteks berbeda."
         },
         "example_1": {
-          "text": "Bisnis formal"
+          "text": "Bisnis formal",
+          "title": {
+            "text": "Profesional"
+          },
+          "description": {
+            "text": "Nada formal untuk email bisnis"
+          },
+          "when_to_use": {
+            "text": "Email kerja dan komunikasi klien"
+          },
+          "footer": {
+            "text": "Hormat saya,"
+          }
         },
         "example_2": {
-          "text": "Tim santai"
+          "text": "Tim santai",
+          "title": {
+            "text": "Santai"
+          },
+          "description": {
+            "text": "Nada santai dan ramah untuk email pribadi"
+          },
+          "when_to_use": {
+            "text": "Teman dan keluarga"
+          }
         },
         "example_3": {
           "text": "Tindak lanjut dan pengingat"
@@ -548,10 +707,22 @@
           "text": "Tempat favorit yang disimpan untuk akses cepat."
         },
         "example_1": {
-          "text": "Rumah"
+          "text": "Rumah",
+          "name": {
+            "text": "Central Park"
+          },
+          "address": {
+            "text": "New York, NY 10024"
+          }
         },
         "example_2": {
-          "text": "Kantor"
+          "text": "Kantor",
+          "name": {
+            "text": "Menara Eiffel"
+          },
+          "address": {
+            "text": "Champ de Mars, 75007 Paris"
+          }
         },
         "example_3": {
           "text": "Kedai kopi favorit"
@@ -565,10 +736,28 @@
           "text": "Koleksi tanaman dengan jadwal perawatan"
         },
         "example_1": {
-          "text": "Monstera Deliciosa"
+          "text": "Monstera Deliciosa",
+          "name": {
+            "text": "Monstera Deliciosa"
+          },
+          "location": {
+            "text": "Ruang tamu"
+          },
+          "notes": {
+            "text": "Butuh cahaya tidak langsung, bersihkan daun setiap bulan"
+          }
         },
         "example_2": {
-          "text": "Tanaman lidah mertua"
+          "text": "Tanaman lidah mertua",
+          "name": {
+            "text": "Kemangi"
+          },
+          "location": {
+            "text": "Jendela dapur"
+          },
+          "notes": {
+            "text": "Panen secara teratur untuk mendorong pertumbuhan"
+          }
         }
       }
     },
@@ -593,10 +782,22 @@
           "text": "Tujuan pembelajaran dan topik yang ingin dikuasai"
         },
         "example_1": {
-          "text": "Bahasa Spanyol tingkat B2"
+          "text": "Bahasa Spanyol tingkat B2",
+          "topic": {
+            "text": "Ilmu Data"
+          },
+          "notes": {
+            "text": "Fokus pada Python pandas dan visualisasi data"
+          }
         },
         "example_2": {
-          "text": "Dasar-dasar Data Science"
+          "text": "Dasar-dasar Data Science",
+          "topic": {
+            "text": "Bahasa Spanyol"
+          },
+          "notes": {
+            "text": "Targetkan tingkat percakapan sebelum musim panas"
+          }
         }
       },
       "education_history": {
@@ -619,10 +820,22 @@
           "text": "Perjalanan yang direncanakan dan masa lalu Anda."
         },
         "example_1": {
-          "text": "Jepang, Maret 2026"
+          "text": "Jepang, Maret 2026",
+          "destination": {
+            "text": "Tokyo, Jepang"
+          },
+          "notes": {
+            "text": "Liburan dua minggu menjelajahi kuil dan kuliner"
+          }
         },
         "example_2": {
-          "text": "Barcelona, Musim Panas 2025"
+          "text": "Barcelona, Musim Panas 2025",
+          "destination": {
+            "text": "Barcelona, Spanyol"
+          },
+          "notes": {
+            "text": "Liburan musim panas, pantai dan arsitektur"
+          }
         },
         "example_3": {
           "text": "Perjalanan darat melalui Skotlandia"
@@ -634,10 +847,16 @@
           "text": "Maskapai penerbangan favorit Anda"
         },
         "example_1": {
-          "text": "Lufthansa"
+          "text": "Lufthansa",
+          "name": {
+            "text": "Lufthansa"
+          }
         },
         "example_2": {
-          "text": "Swiss"
+          "text": "Swiss",
+          "name": {
+            "text": "Singapore Airlines"
+          }
         },
         "example_3": {
           "text": "KLM"
@@ -664,10 +883,16 @@
           "text": "Aktivitas dan pengalaman perjalanan favorit Anda."
         },
         "example_1": {
-          "text": "Mengunjungi pantai"
+          "text": "Mengunjungi pantai",
+          "name": {
+            "text": "Mendaki"
+          }
         },
         "example_2": {
-          "text": "Menjelajahi museum"
+          "text": "Menjelajahi museum",
+          "name": {
+            "text": "Kunjungan museum"
+          }
         },
         "example_3": {
           "text": "Mendaki"
@@ -684,10 +909,22 @@
           "text": "Film yang telah Anda tonton"
         },
         "example_1": {
-          "text": "Inception"
+          "text": "Inception",
+          "title": {
+            "text": "Inception"
+          },
+          "notes": {
+            "text": "Mahakarya yang memutar pikiran tentang mimpi di dalam mimpi"
+          }
         },
         "example_2": {
-          "text": "The Shawshank Redemption"
+          "text": "The Shawshank Redemption",
+          "title": {
+            "text": "Parasite"
+          },
+          "notes": {
+            "text": "Komentar sosial brilian dengan kejutan tak terduga"
+          }
         }
       },
       "watched_tv_shows": {
@@ -696,10 +933,22 @@
           "text": "Acara TV yang telah Anda tonton atau sedang ditonton"
         },
         "example_1": {
-          "text": "Breaking Bad"
+          "text": "Breaking Bad",
+          "title": {
+            "text": "Breaking Bad"
+          },
+          "notes": {
+            "text": "Salah satu serial TV terbaik yang pernah dibuat"
+          }
         },
         "example_2": {
-          "text": "Stranger Things"
+          "text": "Stranger Things",
+          "title": {
+            "text": "The Bear"
+          },
+          "notes": {
+            "text": "Drama dapur yang intens dengan akting luar biasa"
+          }
         }
       },
       "to_watch_list": {
@@ -708,10 +957,22 @@
           "text": "Film dan acara TV yang ingin Anda tonton"
         },
         "example_1": {
-          "text": "Oppenheimer"
+          "text": "Oppenheimer",
+          "title": {
+            "text": "Oppenheimer"
+          },
+          "reason": {
+            "text": "Film biografi pemenang penghargaan"
+          }
         },
         "example_2": {
-          "text": "The Bear"
+          "text": "The Bear",
+          "title": {
+            "text": "Severance"
+          },
+          "reason": {
+            "text": "Thriller tempat kerja fiksi ilmiah yang unik"
+          }
         }
       }
     },
@@ -722,10 +983,16 @@
           "text": "Video yang ingin Anda tonton"
         },
         "example_1": {
-          "text": "Keynote konferensi teknologi"
+          "text": "Keynote konferensi teknologi",
+          "name": {
+            "text": "Bagaimana komputer bekerja"
+          }
         },
         "example_2": {
-          "text": "Tutorial memasak"
+          "text": "Tutorial memasak",
+          "name": {
+            "text": "TypeScript tingkat lanjut"
+          }
         },
         "example_3": {
           "text": "Vlog perjalanan"
@@ -784,10 +1051,16 @@
           "text": "Situs dan artikel yang disimpan untuk nanti"
         },
         "example_1": {
-          "text": "Makalah penelitian AI yang menarik"
+          "text": "Makalah penelitian AI yang menarik",
+          "notes": {
+            "text": "Artikel menarik tentang AI"
+          }
         },
         "example_2": {
-          "text": "Artikel pola desain"
+          "text": "Artikel pola desain",
+          "notes": {
+            "text": "Tutorial pengembangan web"
+          }
         },
         "example_3": {
           "text": "Postingan blog teknologi"
@@ -1279,9 +1552,9 @@
     },
     "shopping": {
       "search_products": {
-        "text": "Cari produk",
+        "text": "Cari",
         "description": {
-          "text": "Cari dan bandingkan produk di supermarket."
+          "text": "Cari produk di toko online dan supermarket online."
         },
         "how_to_use": {
           "1": {
@@ -1324,6 +1597,23 @@
           },
           "3": {
             "text": "Cari akomodasi ramah keluarga di Rome untuk minggu Easter"
+          }
+        }
+      },
+      "get_flight": {
+        "text": "Dapatkan rute penerbangan",
+        "description": {
+          "text": "Lihat jalur penerbangan nyata dari penerbangan masa lalu di peta."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Tampilkan jalur penerbangan LH2472 pada tanggal 5 Maret"
+          },
+          "2": {
+            "text": "Apakah penerbangan BA234 saya dialihkan kemarin?"
+          },
+          "3": {
+            "text": "Pukul berapa AF447 mendarat dan landasan mana yang digunakan?"
           }
         }
       }
@@ -1758,23 +2048,6 @@
     "generated_by": {
       "text": "dibuat oleh {model}"
     },
-    "settings_memories_suggestions": {
-      "header": {
-        "text": "Apakah OpenMates Anda harus mengingat info ini?"
-      },
-      "reject": {
-        "text": "Tolak"
-      },
-      "add": {
-        "text": "Tambah"
-      },
-      "customize_entry": {
-        "text": "Sesuaikan dan tambahkan"
-      },
-      "privacy_notice": {
-        "text": "Pengaturan & memori Anda dienkripsi dan hanya dapat didekripsi oleh perangkat Anda."
-      }
-    },
     "credits_needed": {
       "text": "Kredit diperlukan..."
     },
@@ -1887,6 +2160,21 @@
       },
       "meal_prep": {
         "text": "Bantu saya merencanakan persiapan makanan yang sehat"
+      },
+      "discover_web_search": {
+        "text": "[web-search] Apa yang terjadi di dunia hari ini?"
+      },
+      "discover_image_generate": {
+        "text": "[images-generate] Buat gambar matahari terbenam di pegunungan"
+      },
+      "discover_news_search": {
+        "text": "[news-search] Cari berita AI terbaru"
+      },
+      "discover_video_search": {
+        "text": "[videos-search] Cari video tutorial pemrograman Python"
+      },
+      "discover_math_calculate": {
+        "text": "[math-calculate] Selesaikan: berapakah 15% dari 240?"
       }
     },
     "suggestions": {
@@ -2234,11 +2522,17 @@
       "settings": {
         "text": "Pengaturan"
       },
+      "my_embeds": {
+        "text": "Embed saya"
+      },
       "indexing": {
         "text": "Membangun indeks pencarian..."
       },
       "apps": {
         "text": "Aplikasi & keterampilan"
+      },
+      "apps_only": {
+        "text": "Aplikasi"
       },
       "app_app": {
         "text": "Aplikasi"
@@ -2251,6 +2545,12 @@
       },
       "app_memory": {
         "text": "Memori"
+      },
+      "focus_mode_status_activated": {
+        "text": "Diaktifkan"
+      },
+      "focus_mode_status_deactivated": {
+        "text": "Dinonaktifkan"
       },
       "go_to_message": {
         "text": "Pergi ke pesan"
@@ -2486,6 +2786,38 @@
         "text": "Pemberitahuan ini dikirim oleh sistem pemantauan tes E2E otomatis."
       }
     },
+    "prometheus_alert": {
+      "title": {
+        "text": "Pemberitahuan Peringatan Prometheus"
+      },
+      "header": {
+        "text": "Peringatan Prometheus"
+      },
+      "alert_name_label": {
+        "text": "Nama Peringatan"
+      },
+      "severity_label": {
+        "text": "Tingkat Keparahan"
+      },
+      "summary_label": {
+        "text": "Ringkasan"
+      },
+      "description_label": {
+        "text": "Deskripsi"
+      },
+      "started_at_label": {
+        "text": "Dipicu Pada"
+      },
+      "ended_at_label": {
+        "text": "Diselesaikan Pada"
+      },
+      "labels_label": {
+        "text": "Label"
+      },
+      "footer_note": {
+        "text": "Peringatan ini dikirim oleh sistem pemantauan Prometheus otomatis."
+      }
+    },
     "newsletter_confirmation_request": {
       "title": {
         "text": "Konfirmasi langganan newsletter Anda"
@@ -2643,6 +2975,18 @@
       "open_chat_button": {
         "text": "Buka Obrolan"
       }
+    },
+    "action_verification_title": {
+      "text": "Verifikasi tindakan Anda"
+    },
+    "action_verification_description": {
+      "text": "Anda meminta kode verifikasi untuk tindakan sensitif pada akun Anda."
+    },
+    "action_verification_expires": {
+      "text": "Kode ini kedaluwarsa dalam 10 menit."
+    },
+    "action_verification_subject": {
+      "text": "Kode verifikasi Anda: {code}"
     }
   },
   "embeds": {
@@ -2663,6 +3007,9 @@
     },
     "more_results": {
       "text": "+ {count} lagi"
+    },
+    "search_no_results": {
+      "text": "0 hasil ditemukan"
     },
     "open_search_results": {
       "text": "Buka hasil pencarian"
@@ -3105,7 +3452,7 @@
         "text": "Tidak ada produk ditemukan."
       },
       "search_products": {
-        "text": "Cari produk"
+        "text": "Cari"
       }
     },
     "math": {
@@ -3816,6 +4163,17 @@
           "text": "Kebijakan Privasi Polar"
         }
       },
+      "flightradar24": {
+        "heading": {
+          "text": "3.16 Flightradar24"
+        },
+        "description": {
+          "text": "Ketika Anda meminta data jalur penerbangan nyata menggunakan keahlian \"Dapatkan rute penerbangan\", kami mengquery Flightradar24 untuk mengambil data trek GPS historis untuk penerbangan yang telah selesai. Flightradar24 menerima nomor penerbangan dan tanggal keberangkatan. Tidak ada data pribadi yang dibagikan."
+        },
+        "privacy_policy_link": {
+          "text": "Kebijakan Privasi Flightradar24"
+        }
+      },
       "security_measures": {
         "heading": {
           "text": "4. Tindakan Keamanan"
@@ -4350,7 +4708,19 @@
     }
   },
   "navigation": {},
-  "notifications": {},
+  "notifications": {
+    "security_reminder": {
+      "title": {
+        "text": "Pengingat keamanan"
+      },
+      "message": {
+        "text": "Amankan akun Anda dengan benar dengan mengatur 2FA atau passkey."
+      },
+      "action": {
+        "text": "Buka pengaturan keamanan"
+      }
+    }
+  },
   "onboarding": {},
   "platforms": {},
   "predefined_responses": {
@@ -4397,6 +4767,9 @@
         },
         "error_invalid_chars": {
           "text": "Nama pengguna hanya boleh mengandung huruf, angka, titik, dan garis bawah"
+        },
+        "error_taken": {
+          "text": "Nama pengguna ini sudah digunakan. Silakan pilih yang lain."
         },
         "error_failed": {
           "text": "Gagal memperbarui nama pengguna. Silakan coba lagi."
@@ -4626,6 +4999,74 @@
         }
       }
     },
+    "app_settings_memories": {
+      "encrypted_notice": {
+        "text": "Entri pengaturan dan memori Anda dienkripsi, hanya dapat dibaca oleh perangkat Anda dan tidak pernah dikirim ke OpenMates untuk diproses tanpa persetujuan eksplisit Anda."
+      },
+      "diff_previous_value": {
+        "text": "Sebelumnya:"
+      },
+      "diff_not_set": {
+        "text": "Belum diatur"
+      },
+      "examples_label": {
+        "text": "Contoh:"
+      },
+      "my": {
+        "text": "Saya"
+      },
+      "settings_and_memories": {
+        "text": "Pengaturan dan memori"
+      },
+      "my_settings_and_memories": {
+        "text": "Pengaturan dan memori saya"
+      },
+      "no_entries_yet": {
+        "text": "Belum ada entri."
+      },
+      "examples": {
+        "text": "Contoh"
+      },
+      "no_settings": {
+        "text": "Belum ada pengaturan atau memori yang disinkronkan. Mereka akan muncul di sini setelah tersedia."
+      },
+      "add_entry": {
+        "text": "Tambah entri"
+      },
+      "loading": {
+        "text": "Memuat pengaturan dan memori..."
+      },
+      "item_key": {
+        "text": "Kunci item"
+      },
+      "settings_group": {
+        "text": "Grup pengaturan"
+      },
+      "item_value": {
+        "text": "Nilai item"
+      },
+      "cancel": {
+        "text": "Batal"
+      },
+      "creating": {
+        "text": "Membuat..."
+      },
+      "placeholder": {
+        "text": "Segera Anda dapat mengelola dan membuat pengaturan aplikasi dan memori di sini."
+      },
+      "just_now": {
+        "text": "Baru saja"
+      },
+      "edit": {
+        "text": "Edit"
+      },
+      "delete": {
+        "text": "Hapus"
+      },
+      "save": {
+        "text": "Simpan"
+      }
+    },
     "app_store": {
       "description": {
         "text": "Jelajahi dan kelola aplikasi yang dapat digunakan oleh mates Anda."
@@ -4694,7 +5135,7 @@
           "text": "Cukup tanyakan kepada teman-teman Anda sesuatu seperti:"
         },
         "how_to_use_mention": {
-          "text": "Atau sebutkan @{skillname}\ndalam pesan Anda untuk memicu keterampilan secara eksplisit."
+          "text": "Atau sebutkan {skillname}\ndalam pesan Anda untuk memicu keterampilan secara eksplisit."
         },
         "description": {
           "text": "Deskripsi"
@@ -4878,6 +5319,9 @@
       "back_to_app": {
         "text": "Kembali ke aplikasi"
       },
+      "settings_memories_entry": {
+        "text": "Entri pengaturan dan memori"
+      },
       "app_not_found": {
         "text": "Aplikasi tidak ditemukan."
       },
@@ -4950,8 +5394,8 @@
                 }
               },
               "gpt_5": {
-                "2": {
-                  "text": "GPT-5.2"
+                "4": {
+                  "text": "GPT-5.4"
                 }
               },
               "gpt_oss_120b": {
@@ -5980,65 +6424,6 @@
         "text": "Memuat embed..."
       }
     },
-    "app_settings_memories": {
-      "examples_label": {
-        "text": "Contoh:"
-      },
-      "my": {
-        "text": "Saya"
-      },
-      "settings_and_memories": {
-        "text": "Pengaturan dan memori"
-      },
-      "my_settings_and_memories": {
-        "text": "Pengaturan dan memori saya"
-      },
-      "no_entries_yet": {
-        "text": "Belum ada entri."
-      },
-      "examples": {
-        "text": "Contoh"
-      },
-      "no_settings": {
-        "text": "Belum ada pengaturan atau memori yang disinkronkan. Mereka akan muncul di sini setelah tersedia."
-      },
-      "add_entry": {
-        "text": "Tambah entri"
-      },
-      "loading": {
-        "text": "Memuat pengaturan dan memori..."
-      },
-      "item_key": {
-        "text": "Kunci item"
-      },
-      "settings_group": {
-        "text": "Grup pengaturan"
-      },
-      "item_value": {
-        "text": "Nilai item"
-      },
-      "cancel": {
-        "text": "Batal"
-      },
-      "creating": {
-        "text": "Membuat..."
-      },
-      "placeholder": {
-        "text": "Segera Anda dapat mengelola dan membuat pengaturan aplikasi dan memori di sini."
-      },
-      "just_now": {
-        "text": "Baru saja"
-      },
-      "edit": {
-        "text": "Edit"
-      },
-      "delete": {
-        "text": "Hapus"
-      },
-      "save": {
-        "text": "Simpan"
-      }
-    },
     "newsletter": {
       "text": "Newsletter"
     },
@@ -6517,6 +6902,18 @@
       },
       "no_auth_method": {
         "text": "Tidak ada metode autentikasi yang tersedia. Silakan hubungi dukungan."
+      },
+      "email_otp_description": {
+        "text": "Kami akan mengirimkan kode verifikasi ke alamat email Anda."
+      },
+      "send_verification_code": {
+        "text": "Kirim kode verifikasi"
+      },
+      "email_otp_enter_code": {
+        "text": "Masukkan kode 6 digit yang dikirim ke email Anda."
+      },
+      "resend_code": {
+        "text": "Kirim ulang kode"
       },
       "loading": {
         "text": "Memuat..."
@@ -7010,6 +7407,9 @@
     "username_invalid_chars": {
       "text": "Diizinkan: huruf, angka, _, ."
     },
+    "username_taken": {
+      "text": "Nama pengguna ini sudah digunakan. Silakan pilih yang lain."
+    },
     "enter_username": {
       "text": "Masukkan nama pengguna"
     },
@@ -7026,7 +7426,16 @@
       "text": "Kata sandi tidak cocok"
     },
     "password_too_short": {
-      "text": "Minimal 8 karakter"
+      "text": "Minimal 10 karakter"
+    },
+    "password_too_common": {
+      "text": "Kata sandi ini terlalu umum. Pilih yang lebih kuat."
+    },
+    "password_needs_lowercase": {
+      "text": "Setidaknya satu huruf kecil"
+    },
+    "password_needs_uppercase": {
+      "text": "Setidaknya satu huruf besar"
     },
     "password_too_long": {
       "text": "Kurang dari 60 karakter"

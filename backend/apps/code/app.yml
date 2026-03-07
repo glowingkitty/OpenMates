@@ -15,7 +15,6 @@ settings_and_memories:
     example_translation_keys:
       - "code.preferred_tech.example_1"
       - "code.preferred_tech.example_2"
-      - "code.preferred_tech.example_3"
     example_entries:
       - name: "code.preferred_tech.example_1.name"
         proficiency: "advanced"
@@ -45,7 +44,6 @@ settings_and_memories:
     example_translation_keys:
       - "code.projects.example_1"
       - "code.projects.example_2"
-      - "code.projects.example_3"
     example_entries:
       - name: "code.projects.example_1.name"
         status: "active"
@@ -85,7 +83,6 @@ settings_and_memories:
     example_translation_keys:
       - "code.want_to_learn.example_1"
       - "code.want_to_learn.example_2"
-      - "code.want_to_learn.example_3"
     example_entries:
       - name: "code.want_to_learn.example_1.name"
       - name: "code.want_to_learn.example_2.name"

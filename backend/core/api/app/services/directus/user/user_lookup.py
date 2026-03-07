@@ -6,6 +6,26 @@ from datetime import datetime
 from typing import Dict, Any, Optional, Tuple, List # Add List import
 
 
+def hash_username(username: str) -> str:
+    """
+    Produce a stable, case-insensitive SHA-256 hash (base64) of a username.
+
+    The username is lower-cased before hashing so that "Alice" and "alice"
+    resolve to the same hash, making uniqueness checks case-insensitive.
+    This mirrors the hashed_email approach used for email uniqueness.
+
+    Args:
+        username: The plaintext username (not yet normalised by the caller).
+
+    Returns:
+        Base64-encoded SHA-256 hash string suitable for storage in hashed_username.
+    """
+    normalised = username.lower().strip()
+    username_bytes = normalised.encode("utf-8")
+    digest = hashlib.sha256(username_bytes).digest()
+    return base64.b64encode(digest).decode("utf-8")
+
+
 logger = logging.getLogger(__name__)
 
 async def get_total_users_count(self) -> int:
@@ -202,6 +222,65 @@ async def get_user_by_hashed_email(self, hashed_email: str) -> Tuple[bool, Optio
         error_msg = f"Error querying user by hashed email: {str(e)}"
         logger.error(error_msg, exc_info=True)
         return False, None, error_msg
+
+async def get_user_by_hashed_username(
+    self,
+    hashed_username: str,
+    exclude_user_id: Optional[str] = None,
+) -> Tuple[bool, Optional[Dict[str, Any]], str]:
+    """
+    Find a user by their hashed username (server-wide uniqueness check).
+
+    Used at signup and at username-change time to detect conflicts before
+    writing a new username to the database.
+
+    Args:
+        hashed_username: Base64-encoded SHA-256 hash of the lowercased username
+                         (produced by ``hash_username()`` in this module).
+        exclude_user_id: When provided, any matching user with this ID is
+                         ignored.  Used during a username-change request so
+                         that keeping the *same* username does not trigger a
+                         false conflict.
+
+    Returns:
+        (True, user_data, "User found")   — username is already taken.
+        (False, None, "User not found")   — username is available.
+        (False, None, <error_msg>)        — Directus query failed.
+    """
+    try:
+        url = f"{self.base_url}/users"
+        params = {"filter": json.dumps({"hashed_username": {"_eq": hashed_username}})}
+
+        response = await self._make_api_request("GET", url, params=params)
+
+        if response.status_code == 200:
+            data = response.json()
+            users = data.get("data", [])
+
+            if not users:
+                logger.debug("No user found with matching hashed_username")
+                return False, None, "User not found"
+
+            # Filter out the requesting user if we are checking during an update
+            if exclude_user_id:
+                users = [u for u in users if u.get("id") != exclude_user_id]
+
+            if not users:
+                # Only match was the current user — username is still available
+                return False, None, "User not found"
+
+            logger.info("Found user with matching hashed_username")
+            return True, users[0], "User found"
+        else:
+            error_msg = f"Failed to query user by hashed_username: {response.status_code} - {response.text}"
+            logger.error(error_msg)
+            return False, None, error_msg
+
+    except Exception as e:
+        error_msg = f"Error querying user by hashed_username: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        return False, None, error_msg
+
 
 async def authenticate_user_by_lookup_hash(self, hashed_email: str, lookup_hash: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
     """

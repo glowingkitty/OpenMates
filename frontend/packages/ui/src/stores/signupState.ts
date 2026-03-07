@@ -8,6 +8,7 @@ export const STEP_SECURE_ACCOUNT = "secure_account";
 export const STEP_PASSWORD = "password";
 // export const STEP_PROFILE_PICTURE = 'profile_picture'; // Moved to settings menu
 export const STEP_ONE_TIME_CODES = "one_time_codes";
+export const STEP_SKIP_2FA_CONSENT = "skip_2fa_consent";
 export const STEP_BACKUP_CODES = "backup_codes";
 export const STEP_RECOVERY_KEY = "recovery_key";
 export const STEP_TFA_APP_REMINDER = "tfa_app_reminder";
@@ -25,6 +26,7 @@ export const STEP_SEQUENCE = [
   STEP_SECURE_ACCOUNT,
   STEP_PASSWORD,
   STEP_ONE_TIME_CODES,
+  STEP_SKIP_2FA_CONSENT,
   STEP_BACKUP_CODES,
   STEP_TFA_APP_REMINDER,
   // STEP_PROFILE_PICTURE, // Moved to settings menu
@@ -235,6 +237,8 @@ export function getStepFromPath(path: string): string {
       // case 'profile-picture': return STEP_PROFILE_PICTURE; // Moved to settings
       case "one-time-codes":
         return STEP_ONE_TIME_CODES;
+      case "skip-2fa-consent":
+        return STEP_SKIP_2FA_CONSENT;
       case "backup-codes":
         return STEP_BACKUP_CODES;
       case "tfa-app-reminder":

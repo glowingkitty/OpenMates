@@ -989,11 +989,13 @@ export async function encryptWithChatKey(
  * Decrypts data using a chat-specific key (AES-GCM)
  * @param encryptedDataWithIV - Base64 encoded encrypted data with IV
  * @param chatKey - The chat-specific decryption key
+ * @param context - Optional debug context (chatId, fieldName) included in error logs
  * @returns Promise<string | null> - Decrypted data or null if decryption fails
  */
 export async function decryptWithChatKey(
   encryptedDataWithIV: string,
   chatKey: Uint8Array,
+  context?: { chatId?: string; fieldName?: string },
 ): Promise<string | null> {
   try {
     const combined = base64ToUint8Array(encryptedDataWithIV);
@@ -1021,8 +1023,11 @@ export async function decryptWithChatKey(
     return decoder.decode(decrypted);
   } catch (error) {
     // Enhanced logging to help diagnose decryption failures
+    const chatId = context?.chatId ?? "unknown";
+    const fieldName = context?.fieldName ?? "unknown";
     console.error(
       `[CryptoService] Chat decryption failed: ${error instanceof Error ? error.message : String(error)}. ` +
+        `chat_id=${chatId} field=${fieldName}. ` +
         `Error type: ${error instanceof Error ? error.constructor.name : typeof error}. ` +
         `Encrypted data length: ${encryptedDataWithIV.length} chars. ` +
         `Chat key length: ${chatKey.length} bytes. ` +
@@ -1188,15 +1193,17 @@ export async function wrapEmbedKeyWithMasterKey(
 /**
  * Unwraps an embed key using the user's master key
  * @param wrappedEmbedKey - Base64 encoded wrapped embed key with IV
+ * @param embedId - Optional embed ID for debug logging
  * @returns Promise<Uint8Array | null> - Unwrapped embed key or null if unwrapping fails
  */
 export async function unwrapEmbedKeyWithMasterKey(
   wrappedEmbedKey: string,
+  embedId?: string,
 ): Promise<Uint8Array | null> {
   const masterKey = await getKeyFromStorage();
   if (!masterKey) {
     console.warn(
-      "[CryptoService] unwrapEmbedKeyWithMasterKey: No master key in storage!",
+      `[CryptoService] unwrapEmbedKeyWithMasterKey: No master key in storage! embed_id=${embedId ?? "unknown"}`,
     );
     return null;
   }
@@ -1219,7 +1226,7 @@ export async function unwrapEmbedKeyWithMasterKey(
     return new Uint8Array(decrypted);
   } catch (error) {
     console.warn(
-      "[CryptoService] Failed to unwrap embed key with master key (key mismatch?):",
+      `[CryptoService] Failed to unwrap embed key with master key (key mismatch?): embed_id=${embedId ?? "unknown"}`,
       error,
     );
     return null;
@@ -1265,11 +1272,13 @@ export async function wrapEmbedKeyWithChatKey(
  * Unwraps an embed key using a chat key (for shared chat access)
  * @param wrappedEmbedKey - Base64 encoded wrapped embed key with IV
  * @param chatKey - The chat-specific key to use for unwrapping
+ * @param context - Optional debug context (embedId, chatId) included in error logs
  * @returns Promise<Uint8Array | null> - Unwrapped embed key or null if unwrapping fails
  */
 export async function unwrapEmbedKeyWithChatKey(
   wrappedEmbedKey: string,
   chatKey: Uint8Array,
+  context?: { embedId?: string; chatId?: string },
 ): Promise<Uint8Array | null> {
   try {
     const chatKeyBuffer = new Uint8Array(chatKey);
@@ -1297,8 +1306,10 @@ export async function unwrapEmbedKeyWithChatKey(
     );
     return new Uint8Array(decrypted);
   } catch (error) {
+    const embedId = context?.embedId ?? "unknown";
+    const chatId = context?.chatId ?? "unknown";
     console.warn(
-      "[CryptoService] Failed to unwrap embed key with chat key:",
+      `[CryptoService] Failed to unwrap embed key with chat key: embed_id=${embedId} chat_id=${chatId}`,
       error,
     );
     return null;
@@ -1346,11 +1357,13 @@ export async function encryptWithEmbedKey(
  * Decrypts data using an embed-specific key (AES-GCM)
  * @param encryptedDataWithIV - Base64 encoded encrypted data with IV
  * @param embedKey - The embed-specific decryption key
+ * @param context - Optional debug context (embedId, chatId, fieldName) included in error logs
  * @returns Promise<string | null> - Decrypted data or null if decryption fails
  */
 export async function decryptWithEmbedKey(
   encryptedDataWithIV: string,
   embedKey: Uint8Array,
+  context?: { embedId?: string; chatId?: string; fieldName?: string },
 ): Promise<string | null> {
   try {
     const combined = base64ToUint8Array(encryptedDataWithIV);
@@ -1375,7 +1388,13 @@ export async function decryptWithEmbedKey(
     const decoder = new TextDecoder();
     return decoder.decode(decrypted);
   } catch (error) {
-    console.error("Embed decryption failed:", error);
+    const embedId = context?.embedId ?? "unknown";
+    const chatId = context?.chatId ?? "unknown";
+    const fieldName = context?.fieldName ?? "unknown";
+    console.error(
+      `[CryptoService] Embed decryption failed: embed_id=${embedId} chat_id=${chatId} field=${fieldName}`,
+      error,
+    );
     return null;
   }
 }

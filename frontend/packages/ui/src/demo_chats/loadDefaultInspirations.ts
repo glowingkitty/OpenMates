@@ -40,8 +40,11 @@ const LOG_PREFIX = "[loadDefaultInspirations]";
  * Only populates the store if it is currently empty — personalized inspirations
  * delivered via WebSocket earlier in the same session take precedence.
  */
-export async function loadDefaultInspirations(): Promise<void> {
+export async function loadDefaultInspirations(
+  options: { allowIndexedDB?: boolean } = {},
+): Promise<void> {
   try {
+    const { allowIndexedDB = true } = options;
     // Skip immediately if the store is already populated by a WS delivery
     // that raced ahead of us (e.g. fast reconnect).
     const current = get(dailyInspirationStore);
@@ -56,49 +59,52 @@ export async function loadDefaultInspirations(): Promise<void> {
     // Attempt to load persisted personalised inspirations. This is fast (local)
     // and only works if the user has a master key (i.e. is logged in or has
     // "stay logged in" enabled from a previous session).
-    try {
-      const { loadInspirationsFromIndexedDB } =
-        await import("../services/dailyInspirationDB");
-      const persisted = await loadInspirationsFromIndexedDB();
+    if (allowIndexedDB) {
+      try {
+        const { loadInspirationsFromIndexedDB } =
+          await import("../services/dailyInspirationDB");
+        const persisted = await loadInspirationsFromIndexedDB();
 
-      if (persisted.length > 0) {
-        // Re-check store — a WS event or Phase 1 sync may have arrived during the async load.
-        // If personalized data already landed, skip — it has is_opened / opened_chat_id state
-        // that must not be overwritten by anything from this function.
-        const currentNow = get(dailyInspirationStore);
-        if (currentNow.isPersonalized) {
-          console.debug(
-            `${LOG_PREFIX} Personalized inspirations already in store — skipping IndexedDB load`,
-          );
-          return;
-        }
-        if (currentNow.inspirations.length === 0) {
-          // IndexedDB data is from a prior authenticated session — it IS personalized
-          // (it was written by processInspirationRecordsFromSync with is_opened state).
-          dailyInspirationStore.setInspirations(persisted, {
-            personalized: true,
-          });
-          console.debug(
-            `${LOG_PREFIX} Loaded ${persisted.length} personalised inspiration(s) from IndexedDB`,
-          );
-          // Return — IndexedDB wins over server defaults
-          return;
-        } else {
+        if (persisted.length > 0) {
+          // Re-check store — a WS event or Phase 1 sync may have arrived during the async load.
+          // If personalized data already landed, skip — it has is_opened / opened_chat_id state
+          // that must not be overwritten by anything from this function.
+          const currentNow = get(dailyInspirationStore);
+          if (currentNow.isPersonalized) {
+            console.debug(
+              `${LOG_PREFIX} Personalized inspirations already in store — skipping IndexedDB load`,
+            );
+            return;
+          }
+          if (currentNow.inspirations.length === 0) {
+            // IndexedDB data is from a prior authenticated session — it IS personalized
+            // (it was written by processInspirationRecordsFromSync with is_opened state).
+            dailyInspirationStore.setInspirations(persisted, {
+              personalized: true,
+            });
+            console.debug(
+              `${LOG_PREFIX} Loaded ${persisted.length} personalised inspiration(s) from IndexedDB`,
+            );
+            // Return — IndexedDB wins over server defaults
+            return;
+          }
           console.debug(
             `${LOG_PREFIX} WS delivered inspirations while loading from IndexedDB — keeping WS data`,
           );
           return;
         }
+      } catch (idbError) {
+        // Non-fatal: fall through to server defaults, but always surface the
+        // actual error so we can diagnose it. Guest users / logged-out sessions
+        // will hit this every page load (expected); authenticated users hitting
+        // this means something is wrong (master key race, DB corruption, etc.).
+        console.error(
+          `${LOG_PREFIX} IndexedDB load failed — falling back to server defaults. Error:`,
+          idbError,
+        );
       }
-    } catch (idbError) {
-      // Non-fatal: fall through to server defaults, but always surface the
-      // actual error so we can diagnose it. Guest users / logged-out sessions
-      // will hit this every page load (expected); authenticated users hitting
-      // this means something is wrong (master key race, DB corruption, etc.).
-      console.error(
-        `${LOG_PREFIX} IndexedDB load failed — falling back to server defaults. Error:`,
-        idbError,
-      );
+    } else {
+      console.debug(`${LOG_PREFIX} IndexedDB step skipped by caller`);
     }
 
     // ── Step 2: Fall back to server defaults ──────────────────────────────────

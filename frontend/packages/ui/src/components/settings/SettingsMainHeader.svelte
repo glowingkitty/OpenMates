@@ -103,8 +103,16 @@
 
 <div
     class="settings-main-header app-details-header"
-    style="height: {headerHeight}px; background: var(--color-app-openmates, var(--color-primary));"
+    style="height: {headerHeight}px; background: var(--color-app-openmates, var(--color-primary)); --orb-color-a: #3b4fbf; --orb-color-b: #7ba0f7;"
 >
+    <!-- Living gradient orbs — three morphing radial-gradient blobs.
+         Uses the banner-sized orbDrift keyframes (same as ChatHeader, 240px banner). -->
+    <div class="settings-header-orbs" aria-hidden="true">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
     <!-- ── Identity block: column (expanded) ↔ row (collapsed) ── -->
     <div
         class="identity-block"
@@ -216,12 +224,83 @@
         transition: height 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
+    /* ─── Living gradient orbs ─────────────────────────────────────────────── */
+    /* Shared keyframes (orbMorph1/2/3, orbDrift1/2/3) in animations.css.        */
+
+    .settings-header-orbs {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        overflow: hidden;
+        border-radius: 0 0 14px 14px; /* match banner border-radius */
+    }
+
+    .orb {
+        position: absolute;
+        width: 220px;
+        height: 220px;
+        opacity: 0.75;
+        filter: blur(24px);
+    }
+
+    /* Orb 1 — color-b (end), top-left anchor */
+    .orb-1 {
+        top: -60px;
+        left: -40px;
+        background: radial-gradient(
+            ellipse at center,
+            var(--orb-color-b, #fff) 0%,
+            var(--orb-color-b, #fff) 40%,
+            transparent 85%
+        );
+        animation:
+            orbMorph1 11s ease-in-out infinite,
+            orbDrift1 19s ease-in-out infinite;
+    }
+
+    /* Orb 2 — color-a (start), bottom-right anchor */
+    .orb-2 {
+        bottom: -60px;
+        right: -40px;
+        background: radial-gradient(
+            ellipse at center,
+            var(--orb-color-a, #fff) 0%,
+            var(--orb-color-a, #fff) 40%,
+            transparent 85%
+        );
+        animation:
+            orbMorph2 13s ease-in-out infinite,
+            orbDrift2 23s ease-in-out infinite;
+    }
+
+    /* Orb 3 — color-b (end), center-right for depth */
+    .orb-3 {
+        top: 20px;
+        right: 20%;
+        background: radial-gradient(
+            ellipse at center,
+            var(--orb-color-b, #fff) 0%,
+            var(--orb-color-b, #fff) 40%,
+            transparent 85%
+        );
+        animation:
+            orbMorph3 17s ease-in-out infinite,
+            orbDrift3 29s ease-in-out infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .orb { animation: none; }
+    }
+
     /* ─── Identity block ─────────────────────────────────────────────────────── */
 
     .identity-block {
         display: flex;
         flex: 1;
         align-items: center;
+        position: relative;
+        z-index: 1;
         transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     }
 

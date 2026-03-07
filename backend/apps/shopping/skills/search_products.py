@@ -22,14 +22,15 @@ See: docs/architecture/shopping-cookie-pool.md for the cookie harvesting design.
 """
 
 import logging
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from backend.core.api.app.utils.secrets_manager import SecretsManager
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
+from backend.apps.shopping.providers.amazon_provider import (
+    search_products as amazon_search,
+)
+from backend.apps.shopping.providers.amazon_provider import infer_country_from_locale
 from backend.apps.shopping.providers.rewe_provider import search_products as rewe_search
 
 logger = logging.getLogger(__name__)
@@ -53,7 +54,7 @@ class SearchProductsRequest(BaseModel):
         description=(
             "Array of product search request objects. Each object requires "
             "a 'query' field (e.g. 'bio joghurt') and optionally "
-            "'max_results', 'sort', and 'service_type'."
+            "'provider', 'max_results', 'sort', and provider-specific filters."
         )
     )
 
@@ -96,9 +97,15 @@ class SearchProductsSkill(BaseSkill):
 
     Accepts a 'requests' array where each request contains:
     - query: Search term (required), e.g. "bio joghurt", "pasta barilla"
+    - provider: "REWE" | "Amazon" (default: "REWE")
     - max_results: Maximum products per search (1–20, default 10)
-    - sort: Sort order — "relevance" | "price_asc" | "price_desc" | "new"
-    - service_type: "DELIVERY" | "CLICK_AND_COLLECT" (default: "DELIVERY")
+    - sort: Provider-specific sort order
+      - REWE: "relevance" | "price_asc" | "price_desc" | "new"
+      - Amazon: "relevance" | "price_asc" | "price_desc" | "review_rank" | "newest" | "best_sellers"
+    - service_type: REWE only — "DELIVERY" | "CLICK_AND_COLLECT" (default: "DELIVERY")
+    - country: Amazon only country code (e.g. "us", "de"). Optional.
+    - department: Amazon only category filter (e.g. "electronics", "home")
+    - min_price/max_price: Amazon only client-side price filters
 
     Returns product results grouped by request ID. Each product includes:
     - title, brand, category_path
@@ -118,6 +125,10 @@ class SearchProductsSkill(BaseSkill):
         "Find similar products at a lower price",
         "Add to shopping list",
     ]
+
+    DEFAULT_PROVIDER = "REWE"
+    AMAZON_PROVIDER = "AMAZON"
+    REWE_PROVIDER = "REWE"
 
     async def execute(
         self,
@@ -177,12 +188,20 @@ class SearchProductsSkill(BaseSkill):
             logger=logger,
         )
 
+        provider_values = {
+            (req.get("provider") or self.DEFAULT_PROVIDER).strip().upper()
+            for req in validated_requests
+        }
+        response_provider = (
+            provider_values.pop() if len(provider_values) == 1 else "MULTI"
+        )
+
         # 5. Build and return response
         return self._build_response_with_errors(
             response_class=SearchProductsResponse,
             grouped_results=grouped_results,
             errors=errors,
-            provider="REWE",
+            provider=response_provider,
             suggestions=self.FOLLOW_UP_SUGGESTIONS,
             logger=logger,
         )
@@ -209,9 +228,20 @@ class SearchProductsSkill(BaseSkill):
 
         # Extract parameters with defaults
         query: str = req.get("query", "").strip()
+        provider: str = str(req.get("provider", self.DEFAULT_PROVIDER)).strip().upper()
         max_results: int = int(req.get("max_results", 10))
         sort: str = req.get("sort", "relevance")
         service_type: str = req.get("service_type", "DELIVERY")
+        country: Optional[str] = req.get("country")
+        department: Optional[str] = req.get("department")
+        min_price_raw = req.get("min_price")
+        max_price_raw = req.get("max_price")
+        min_price: Optional[float] = (
+            float(min_price_raw) if min_price_raw is not None else None
+        )
+        max_price: Optional[float] = (
+            float(max_price_raw) if max_price_raw is not None else None
+        )
 
         if not query:
             return (request_id, [], "Missing 'query' in request")
@@ -220,34 +250,73 @@ class SearchProductsSkill(BaseSkill):
         max_results = max(1, min(20, max_results))
 
         try:
-            products, pagination = await rewe_search(
-                query=query,
-                max_results=max_results,
-                sort=sort,
-                service_type=service_type,
-                secrets_manager=secrets_manager,
-            )
+            if provider == self.REWE_PROVIDER:
+                products, pagination = await rewe_search(
+                    query=query,
+                    max_results=max_results,
+                    sort=sort,
+                    service_type=service_type,
+                    secrets_manager=secrets_manager,
+                )
+            elif provider == self.AMAZON_PROVIDER:
+                amazon_sort = "newest" if sort == "new" else sort
+                locale_hint = (
+                    kwargs.get("user_locale")
+                    or kwargs.get("user_language")
+                    or kwargs.get("language")
+                    or kwargs.get("locale")
+                )
+                resolved_country = country or infer_country_from_locale(locale_hint)
+                products, pagination = await amazon_search(
+                    query=query,
+                    max_results=max_results,
+                    sort=amazon_sort,
+                    country=resolved_country,
+                    department=department,
+                    min_price=min_price,
+                    max_price=max_price,
+                    locale_hint=locale_hint,
+                    secrets_manager=secrets_manager,
+                )
+            else:
+                return (
+                    request_id,
+                    [],
+                    "Invalid provider. Choose 'REWE' or 'Amazon'",
+                )
         except ValueError as e:
             logger.error(
-                "REWE search parameter error for query=%r: %s", query, e
+                "Shopping search parameter error provider=%s query=%r: %s",
+                provider,
+                query,
+                e,
             )
             return (request_id, [], str(e))
         except Exception as e:
             logger.error(
-                "REWE search failed for query=%r: %s", query, e, exc_info=True
+                "Shopping search failed provider=%s query=%r: %s",
+                provider,
+                query,
+                e,
+                exc_info=True,
             )
-            return (request_id, [], f"REWE search failed: {e}")
+            return (request_id, [], f"{provider.title()} search failed: {e}")
 
         # Convert REWEProduct objects to result dicts
         results: List[Dict[str, Any]] = []
         for product in products:
             result = product.to_result_dict()
+            result["provider"] = provider
             # Include pagination context on each result for frontend reference
             result["total_result_count"] = pagination.get("totalResultCount", 0)
+            if provider == self.AMAZON_PROVIDER:
+                result["country"] = pagination.get("country")
+                result["amazon_domain"] = pagination.get("amazon_domain")
             results.append(result)
 
         logger.info(
-            "REWE search query=%r → %d products (total=%d)",
+            "Shopping search provider=%s query=%r → %d products (total=%d)",
+            provider,
             query,
             len(results),
             pagination.get("totalResultCount", 0),

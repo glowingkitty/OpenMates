@@ -48,7 +48,7 @@
         onClick?: (() => void) | undefined;
         onModifyClick?: (() => void) | undefined;
         hasNestedItems?: boolean;
-        iconType?: 'default' | 'app' | 'category';
+        iconType?: 'default' | 'app' | 'memory' | 'skill' | 'focus' | 'category';
         category?: string | undefined;
         categoryIcon?: string | undefined;
         children?: Snippet | undefined;
@@ -142,7 +142,7 @@
 >
     <div class="menu-item-content">
         <div class="menu-item-left">
-            <!-- Icon rendering: app icon, category gradient circle, or default mask icon -->
+            <!-- Icon rendering: app icon, memory/skill/focus gradient icon, category gradient circle, or default mask icon -->
             {#if iconType === 'app'}
                 <div class="app-icon-wrapper">
                     <Icon 
@@ -151,6 +151,17 @@
                         size="38px"
                         className="app-icon-main no-fade"
                         borderColor="#ffffff"
+                    />
+                </div>
+            {:else if iconType === 'memory' || iconType === 'skill' || iconType === 'focus'}
+                <!-- Renders rounded square with type-specific gradient: pink/grey/purple -->
+                <div class="app-icon-wrapper">
+                    <Icon 
+                        name={icon}
+                        type={iconType}
+                        size="38px"
+                        className="app-icon-main no-fade"
+                        noAnimation={true}
                     />
                 </div>
             {:else if iconType === 'category' && category}

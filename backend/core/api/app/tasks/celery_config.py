@@ -13,6 +13,7 @@ from celery.schedules import crontab
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 from pythonjsonlogger import jsonlogger  # Import the JSON formatter
 from backend.core.api.app.utils.config_manager import ConfigManager
+from backend.core.api.app.utils.request_context import get_request_id, set_request_id
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
 from backend.core.api.app.services.pdf.invoice import InvoiceTemplateService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -20,6 +21,29 @@ from backend.core.api.app.services.cache import CacheService as _CacheService
 
 # Set up logging with a direct approach for Celery
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Celery Prometheus metrics
+# ---------------------------------------------------------------------------
+# celery_task_failures_total counts task_failure signal fires, keyed by
+# (task_name, queue). This counter is scraped by Prometheus via the HTTP
+# server started in worker_process_init below.
+# The port is configurable via CELERY_METRICS_PORT env var (default: 9101).
+# Each worker process listens on its own port so Prometheus can scrape all.
+# See alert_rules.yml for the alert rule that uses this metric.
+try:
+    from prometheus_client import Counter, start_http_server as _prom_start_http_server
+    _CELERY_TASK_FAILURES_COUNTER = Counter(
+        "celery_task_failures_total",
+        "Total number of Celery task failures",
+        ["task_name", "queue"],
+    )
+    _PROM_CLIENT_AVAILABLE = True
+except ImportError:
+    _CELERY_TASK_FAILURES_COUNTER = None  # type: ignore[assignment]
+    _prom_start_http_server = None  # type: ignore[assignment]
+    _PROM_CLIENT_AVAILABLE = False
+    logger.warning("prometheus_client not available — Celery metrics will not be exported")
 
 # Global variable to hold the ConfigManager instance for the worker process
 # Will be initialized lazily on first access via ConfigManager singleton pattern
@@ -109,6 +133,7 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.default_inspiration_tasks'},  # Daily defaults selection from pool (replaces old admin-curated pipeline)
     {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.web_analytics_tasks'},  # Web analytics flush tasks (privacy-preserving aggregate counters)
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.app_analytics_tasks'},  # App analytics daily aggregation tasks
+    {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.software_update_tasks'},  # Software update auto-check tasks
     # Add new task configurations here, e.g.:
     # {'name': 'new_queue', 'module': 'backend.core.api.app.tasks.new_tasks'}, # Example updated
 ]
@@ -195,9 +220,14 @@ encoded_password = quote(raw_password) if raw_password else ''
 broker_url = os.getenv('CELERY_BROKER_URL', f'redis://default:{encoded_password}@cache:6379/0')
 result_backend = os.getenv('CELERY_RESULT_BACKEND', f'redis://default:{encoded_password}@cache:6379/0')
 
-# Log the connection information
-logger.info(f"Celery broker URL: {broker_url}")
-logger.info(f"Celery result backend: {result_backend}")
+# Log the connection information (mask password for security)
+def _mask_redis_url(url: str) -> str:
+    """Replace password in Redis URL with '***' for safe logging."""
+    import re
+    return re.sub(r'(://[^:]*:)[^@]+(@)', r'\1***\2', url)
+
+logger.info(f"Celery broker URL: {_mask_redis_url(broker_url)}")
+logger.info(f"Celery result backend: {_mask_redis_url(result_backend)}")
 
 # Explicitly configure Redis backend settings
 broker_connection_retry_on_startup = True
@@ -519,18 +549,36 @@ async def prewarm_ai_services():
 # ===========================================================================
 # These signal handlers provide visibility into task processing, ensuring
 # we can detect and debug any issues with task routing or execution.
+#
+# request_id propagation:
+#   1. before_task_publish → injects current request_id into task headers
+#   2. task_prerun → restores request_id from headers into contextvars
+# This allows correlating HTTP requests with their spawned Celery tasks in Loki.
+
+@signals.before_task_publish.connect
+def inject_request_id_header(headers=None, **kwargs):
+    """Propagate the current request_id into Celery task headers."""
+    if headers is not None:
+        request_id = get_request_id()
+        if request_id != "no-request-id":
+            headers["request_id"] = request_id
 
 @signals.task_prerun.connect
 def task_prerun_handler(task_id, task, args, kwargs, **kw):
     """
     Called immediately before a task is executed.
-    Logs task start with routing information for debugging.
+    Restores request_id from task headers into contextvars and logs task start.
     """
+    # Restore request_id from task headers into contextvars for this worker context
+    request_id = getattr(task.request, 'request_id', None)
+    if request_id:
+        set_request_id(request_id)
+
     queue = getattr(task.request, 'delivery_info', {}).get('routing_key', 'UNKNOWN_QUEUE')
     worker = getattr(task.request, 'hostname', 'UNKNOWN_WORKER')
     logger.info(
-        f"[TASK_LIFECYCLE] TASK_STARTED: task_id={task_id}, "
-        f"task_name={task.name}, queue={queue}, worker={worker}"
+        "[TASK_LIFECYCLE] TASK_STARTED: task_id=%s, task_name=%s, queue=%s, worker=%s",
+        task_id, task.name, queue, worker,
     )
 
 @signals.task_postrun.connect
@@ -566,6 +614,16 @@ def task_failure_handler(task_id, exception, args, kwargs, traceback, einfo, **k
         f"task_name={task_name}, queue={queue}, worker={worker}, "
         f"exception_type={type(exception).__name__}, exception_msg={str(exception)[:200]}"
     )
+
+    # Increment the Prometheus failure counter (no-op if prometheus_client unavailable)
+    if _PROM_CLIENT_AVAILABLE and _CELERY_TASK_FAILURES_COUNTER is not None:
+        try:
+            _CELERY_TASK_FAILURES_COUNTER.labels(
+                task_name=task_name,
+                queue=queue,
+            ).inc()
+        except Exception as metric_err:
+            logger.debug(f"[TASK_LIFECYCLE] Failed to increment celery_task_failures_total: {metric_err}")
 
 @signals.task_success.connect
 def task_success_handler(sender, result, **kwargs):
@@ -685,14 +743,11 @@ def enforce_queue_restrictions(sender, instance, **kwargs):
     This fixes a bug where workers with --queues=app_ai were still consuming from
     ALL queues (email, persistence, etc.) causing race conditions in task processing.
     """
-    # Log immediately to confirm signal is firing
-    print("[QUEUE_ENFORCEMENT] 🔧 Signal celeryd_after_setup received!")
-    logger.info("[QUEUE_ENFORCEMENT] 🔧 Signal celeryd_after_setup received!")
+    logger.info("[QUEUE_ENFORCEMENT] Signal celeryd_after_setup received")
     
     designated_queues = _get_designated_queues()
     
-    print(f"[QUEUE_ENFORCEMENT] Designated queues from env/args: {designated_queues}")
-    logger.info(f"[QUEUE_ENFORCEMENT] Designated queues from env/args: {designated_queues}")
+    logger.info("[QUEUE_ENFORCEMENT] Designated queues from env/args: %s", designated_queues)
     
     if not designated_queues:
         logger.info("[QUEUE_ENFORCEMENT] No queue restrictions specified, worker will consume from all declared queues")
@@ -703,15 +758,13 @@ def enforce_queue_restrictions(sender, instance, **kwargs):
     # Get the list of all declared queues from task_queues config
     all_declared_queues = {q.name for q in app.conf.task_queues} if app.conf.task_queues else set()
     
-    print(f"[QUEUE_ENFORCEMENT] All declared queues: {all_declared_queues}")
-    logger.info(f"[QUEUE_ENFORCEMENT] All declared queues: {all_declared_queues}")
+    logger.info("[QUEUE_ENFORCEMENT] All declared queues: %s", all_declared_queues)
     
     # Find queues to remove (declared but not designated for this worker)
     queues_to_remove = all_declared_queues - designated_queues
     
     if queues_to_remove:
-        print(f"[QUEUE_ENFORCEMENT] Cancelling consumers for non-designated queues: {queues_to_remove}")
-        logger.info(f"[QUEUE_ENFORCEMENT] Cancelling consumers for non-designated queues: {queues_to_remove}")
+        logger.info("[QUEUE_ENFORCEMENT] Cancelling consumers for non-designated queues: %s", queues_to_remove)
         
         # Cancel consumers for unwanted queues
         # Use the instance (which is the worker) to cancel consumers
@@ -719,11 +772,9 @@ def enforce_queue_restrictions(sender, instance, **kwargs):
             try:
                 # Cancel consumer for this queue on this worker
                 instance.app.control.cancel_consumer(queue_name, destination=[instance.hostname])
-                print(f"[QUEUE_ENFORCEMENT] ✅ Cancelled consumer for queue '{queue_name}'")
-                logger.info(f"[QUEUE_ENFORCEMENT] ✅ Cancelled consumer for queue '{queue_name}'")
+                logger.info("[QUEUE_ENFORCEMENT] Cancelled consumer for queue '%s'", queue_name)
             except Exception as e:
-                print(f"[QUEUE_ENFORCEMENT] ⚠️ Failed to cancel consumer for queue '{queue_name}': {e}")
-                logger.warning(f"[QUEUE_ENFORCEMENT] ⚠️ Failed to cancel consumer for queue '{queue_name}': {e}")
+                logger.warning("[QUEUE_ENFORCEMENT] Failed to cancel consumer for queue '%s': %s", queue_name, e)
     else:
         logger.info("[QUEUE_ENFORCEMENT] Worker is already subscribed only to designated queues")
 
@@ -748,6 +799,21 @@ def init_worker_process(*args, **kwargs):
     # This saves memory if the worker never needs it (though most workers do)
     # The lazy wrapper will initialize it on first access
     logger.info("ConfigManager will be initialized lazily on first access (singleton pattern)")
+
+    # Start Prometheus metrics HTTP server for this worker process.
+    # The port is read from CELERY_METRICS_PORT (default 9101).
+    # Each worker container should expose a unique port so Prometheus can scrape all.
+    # See prometheus.yml for the scrape config and alert_rules.yml for alert rules.
+    if _PROM_CLIENT_AVAILABLE and _prom_start_http_server is not None:
+        metrics_port = int(os.getenv("CELERY_METRICS_PORT", "9101"))
+        try:
+            _prom_start_http_server(metrics_port)
+            logger.info(f"[METRICS] Celery Prometheus metrics server started on port {metrics_port}")
+        except OSError as e:
+            # Port already in use (e.g. multiple forked processes on same host) — log and continue
+            logger.warning(f"[METRICS] Could not start Prometheus metrics server on port {metrics_port}: {e}")
+    else:
+        logger.debug("[METRICS] prometheus_client unavailable — metrics server not started")
 
     # Only initialize services that are needed at worker startup
     # For app workers, services are initialized per-task as needed
@@ -842,6 +908,7 @@ _EXPLICIT_TASK_ROUTES = {
     
     # Persistence tasks (custom names starting with app.tasks.persistence_tasks.*)
     "app.tasks.persistence_tasks.persist_chat_title": "persistence",
+    "app.tasks.persistence_tasks.persist_chat_pinned": "persistence",
     "app.tasks.persistence_tasks.persist_user_draft": "persistence",
     "app.tasks.persistence_tasks.persist_new_chat_message": "persistence",
     "app.tasks.persistence_tasks.persist_chat_and_draft_on_logout": "persistence",
@@ -850,7 +917,6 @@ _EXPLICIT_TASK_ROUTES = {
     "app.tasks.persistence_tasks.persist_ai_response_to_directus": "persistence",
     "app.tasks.persistence_tasks.persist_encrypted_chat_metadata": "persistence",
     "app.tasks.persistence_tasks.persist_new_chat_suggestions": "persistence",
-    "app.tasks.persistence_tasks.append_rejected_suggestion_hash": "persistence",
     "app.tasks.persistence_tasks.persist_embed_fallback": "persistence",
     "app.tasks.persistence_tasks.process_pending_embeds": "persistence",
     
@@ -886,6 +952,9 @@ _EXPLICIT_TASK_ROUTES = {
 
     # App analytics tasks (daily aggregation of raw app_analytics events)
     "app_analytics.aggregate_daily": "persistence",
+
+    # Software update auto-check task
+    "software_update.auto_check": "server_stats",
 }
 
 def get_expected_queue_for_task(task_name: str) -> Optional[str]:
@@ -1051,6 +1120,11 @@ app.conf.beat_schedule = {
         'schedule': timedelta(seconds=60),  # Every 60 seconds
         'options': {'queue': 'reminder'},  # Route to reminder queue
     },
+    'password-security-reminders-daily': {
+        'task': 'app.tasks.email_tasks.password_security_reminder_email_task.process_password_security_reminders',
+        'schedule': crontab(hour=8, minute=0),  # Daily at 08:00 UTC
+        'options': {'queue': 'email'},
+    },
     # Pending delivery audit - logs users with undelivered messages (reminders + AI responses)
     # Redis handles TTL-based expiry (60 days); this task provides audit visibility
     'audit-pending-deliveries': {
@@ -1120,6 +1194,14 @@ app.conf.beat_schedule = {
         'task': 'app_analytics.aggregate_daily',
         'schedule': crontab(hour=3, minute=0),  # Daily at 03:00 UTC
         'options': {'queue': 'persistence'},
+    },
+    # Software update auto-check - periodically checks GitHub for new commits.
+    # Runs every hour; the task itself enforces the user-configured interval
+    # (default 6 hours) and skips if not enough time has passed.
+    'software-update-auto-check': {
+        'task': 'software_update.auto_check',
+        'schedule': timedelta(seconds=3600),  # Every 1 hour
+        'options': {'queue': 'server_stats'},
     },
 }
 app.conf.timezone = 'UTC'

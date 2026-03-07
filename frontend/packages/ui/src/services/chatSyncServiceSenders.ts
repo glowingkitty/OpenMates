@@ -7,6 +7,7 @@ import { get } from "svelte/store";
 import { websocketStatus } from "../stores/websocketStatusStore";
 import { chatMetadataCache } from "./chatMetadataCache";
 import { normalizeToUnixSeconds } from "./timestampUtils";
+import { chatKeyManager } from "./encryption/ChatKeyManager";
 import type {
   Chat,
   Message,
@@ -32,8 +33,18 @@ export async function sendUpdateTitleImpl(
   chat_id: string,
   new_title: string,
 ): Promise<void> {
-  // Get or generate chat key for encryption
-  const chatKey = chatDB.getOrGenerateChatKey(chat_id);
+  // Get chat key — user has this chat open, key should be in cache
+  let chatKey = chatKeyManager.getKeySync(chat_id);
+  if (!chatKey) {
+    chatKey = await chatKeyManager.getKey(chat_id);
+  }
+  if (!chatKey) {
+    console.error(
+      `[ChatSyncService:Senders] No chat key available for title encryption (chat ${chat_id})`,
+    );
+    notificationStore.error("Failed to encrypt title - chat key not available");
+    return;
+  }
 
   // Import chat-specific encryption function
   const { encryptWithChatKey } = await import("./cryptoService");
@@ -41,7 +52,9 @@ export async function sendUpdateTitleImpl(
   // Encrypt title with chat-specific key for server storage/syncing
   const encryptedTitle = await encryptWithChatKey(new_title, chatKey);
   if (!encryptedTitle) {
-    notificationStore.error("Failed to encrypt title - chat key not available");
+    notificationStore.error(
+      "Failed to encrypt title - encryption returned null",
+    );
     return;
   }
 
@@ -1128,12 +1141,13 @@ export async function sendNewMessageImpl(
         const userId = chat?.user_id || "";
         const hashedUserId = userId ? await computeSHA256(userId) : "";
 
-        // Get or generate chat key for wrapping embed keys
-        // This ensures we always have a key, even for new chats
-        const chatKey = chatDB.getOrGenerateChatKey(message.chat_id);
+        // Get chat key for wrapping embed keys — must be available by the time we send
+        const chatKey =
+          chatKeyManager.getKeySync(message.chat_id) ||
+          (await chatKeyManager.getKey(message.chat_id));
         if (!chatKey) {
           console.error(
-            "[ChatSyncService:Senders] Failed to get or generate chat key, this should not happen",
+            `[ChatSyncService:Senders] No chat key available for embed key wrapping (chat ${message.chat_id}). Embeds will not be encrypted.`,
           );
         }
 
@@ -1450,23 +1464,18 @@ export async function sendCompletedAIResponseImpl(
     }
 
     // MESSAGES_V HANDLING: For assistant responses, the server already incremented
-    // messages_v in the cache and sent the new version in the broadcast.
-    // We use the current local version (which was updated from the broadcast).
-    // DO NOT increment it again here, otherwise it will drift ahead of message count.
+    // messages_v in the cache and sent the new version via `chat_message_added`.
+    // The `handleChatMessageReceivedImpl` handler is the SOLE authority for
+    // writing the server's messages_v to IndexedDB.
+    // DO NOT write the chat back here — the previous addChat() call created a
+    // race condition: if `chat_message_added` updated messages_v between our
+    // getChat() read above and the addChat() write, we would CLOBBER the
+    // correct value with a stale one, causing permanent client/server drift.
     const newMessagesV = chat.messages_v || 1;
     const newLastEdited = aiMessage.created_at;
 
-    // Update chat in IndexedDB with current version and timestamp
-    const updatedChat = {
-      ...chat,
-      messages_v: newMessagesV,
-      last_edited_overall_timestamp: newLastEdited,
-      updated_at: Math.floor(Date.now() / 1000),
-    };
-
-    await chatDB.addChat(updatedChat);
     console.debug(
-      `[ChatSyncService:Senders] Incremented messages_v for chat ${chat.chat_id}: ${chat.messages_v} → ${newMessagesV}`,
+      `[ChatSyncService:Senders] Using current messages_v for chat ${chat.chat_id}: ${newMessagesV} (not writing back to IDB — version owned by chat_message_added handler)`,
     );
 
     // Encrypt the completed AI response for storage
@@ -1549,7 +1558,7 @@ export async function sendCompletedAIResponseImpl(
     // Dispatch event so UI knows chat was updated
     serviceInstance.dispatchEvent(
       new CustomEvent("chatUpdated", {
-        detail: { chat_id: chat.chat_id, chat: updatedChat },
+        detail: { chat_id: chat.chat_id, chat },
       }),
     );
   } catch (error) {
@@ -2030,7 +2039,12 @@ export async function sendEncryptedStoragePackage(
       console.warn(
         `[ChatSyncService:Senders] ⚠️ encrypted_chat_key missing for ${chat_id}, generating new key (new chat)`,
       );
-      chatKey = chatKey || chatDB.getOrGenerateChatKey(chat_id);
+      // CASE 2: New chat on originating device — safe to create key
+      if (!chatKey) {
+        chatKey =
+          chatKeyManager.getKeySync(chat_id) ||
+          chatKeyManager.createKeyForNewChat(chat_id);
+      }
 
       // Encrypt and save the new key
       const { encryptChatKeyWithMasterKey } = await import("./cryptoService");
@@ -2340,7 +2354,7 @@ export async function sendChatReadStatusImpl(
 }
 
 /**
- * Send encrypted post-processing metadata (suggestions, summary, tags, settings/memories) to server for Directus sync
+ * Send encrypted post-processing metadata (suggestions, summary, tags) to server for Directus sync
  * Called after client encrypts plaintext suggestions received from post-processing
  */
 export async function sendPostProcessingMetadataImpl(
@@ -2351,7 +2365,6 @@ export async function sendPostProcessingMetadataImpl(
   encrypted_chat_summary: string,
   encrypted_chat_tags: string,
   encrypted_top_recommended_apps: string = "",
-  encrypted_settings_memories_suggestions: string = "",
 ): Promise<void> {
   if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
     console.warn(
@@ -2368,7 +2381,6 @@ export async function sendPostProcessingMetadataImpl(
       encrypted_chat_summary?: string;
       encrypted_chat_tags?: string;
       encrypted_top_recommended_apps_for_chat?: string;
-      encrypted_settings_memories_suggestions?: string;
     }
 
     // Build payload with all the encrypted post-processing metadata
@@ -2384,12 +2396,6 @@ export async function sendPostProcessingMetadataImpl(
     if (encrypted_top_recommended_apps) {
       payload.encrypted_top_recommended_apps_for_chat =
         encrypted_top_recommended_apps;
-    }
-
-    // Only include settings/memories suggestions if provided
-    if (encrypted_settings_memories_suggestions) {
-      payload.encrypted_settings_memories_suggestions =
-        encrypted_settings_memories_suggestions;
     }
 
     console.debug(
@@ -2642,62 +2648,7 @@ export async function sendDeleteNewChatSuggestionByIdImpl(
   }
 }
 
-/**
- * Send rejected settings/memory suggestion hash to server for cross-device sync.
- *
- * When a user rejects a suggested settings/memory entry, we:
- * 1. Add the hash locally to the chat's rejected_suggestion_hashes
- * 2. Send it to the server to store in Directus
- * 3. Server broadcasts to other devices so they also hide this suggestion
- *
- * Hash format: SHA-256 of "app_id:item_type:title.toLowerCase()"
- * This allows zero-knowledge rejection - server never sees the suggestion content.
- *
- * @param serviceInstance ChatSynchronizationService instance
- * @param chat_id Chat ID where the suggestion was rejected
- * @param rejectionHash SHA-256 hash of the rejected suggestion
- */
-export async function sendRejectSettingsMemorySuggestionImpl(
-  serviceInstance: ChatSynchronizationService,
-  chat_id: string,
-  rejectionHash: string,
-): Promise<void> {
-  if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
-    console.warn(
-      "[ChatSyncService:Senders] Cannot send rejection hash - WebSocket not connected",
-    );
-    // Local storage already happened, so this is non-critical
-    // The hash will be synced on next phased sync
-    return;
-  }
 
-  if (!chat_id || !rejectionHash) {
-    console.error(
-      "[ChatSyncService:Senders] Cannot send rejection: missing chat_id or rejectionHash",
-    );
-    return;
-  }
-
-  try {
-    console.debug(
-      `[ChatSyncService:Senders] Sending settings/memory rejection hash for chat ${chat_id}`,
-    );
-    await webSocketService.sendMessage("reject_settings_memory_suggestion", {
-      chat_id,
-      rejection_hash: rejectionHash,
-    });
-    console.info(
-      `[ChatSyncService:Senders] Sent rejection hash to server for cross-device sync`,
-    );
-  } catch (error) {
-    console.error(
-      "[ChatSyncService:Senders] Error sending rejection hash:",
-      error,
-    );
-    // Don't throw - rejection is already applied locally
-    // Server sync failure is non-critical
-  }
-}
 
 /**
  * Request additional older chats from the server beyond the initial 100.

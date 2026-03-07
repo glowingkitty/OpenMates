@@ -502,28 +502,28 @@ skills.how_to_use_prefix:
   he: "פשוט שאל את החברים שלך משהו כמו:"
   verified_by_human: []
 skills.how_to_use_mention:
-  context: Text shown after the how-to-use example cards on a skill detail page, explaining how to explicitly trigger the skill by @-mentioning it. {skillname} is replaced with the skill's @mention name (e.g., @Audio-GenerateTranscript).
-  en: "Or mention @{skillname}\nin your message to trigger the skill explicitly."
-  de: "Oder erwähne @{skillname}\nin deiner Nachricht, um den Skill explizit auszulösen."
-  zh: "或在消息中提及 @{skillname}\n以明确触发该技能。"
-  es: "O menciona @{skillname}\nen tu mensaje para activar la habilidad explícitamente."
-  fr: "Ou mentionnez @{skillname}\ndans votre message pour déclencher explicitement la compétence."
-  pt: "Ou mencione @{skillname}\nna sua mensagem para acionar a habilidade explicitamente."
-  ru: "Или упомяните @{skillname}\nв своём сообщении, чтобы явно активировать навык."
-  ja: "またはメッセージで @{skillname}\nと書いて、スキルを明示的にトリガーしてください。"
-  ko: "또는 메시지에서 @{skillname}\n을 언급하여 스킬을 명시적으로 트리거하세요."
-  it: "Oppure menziona @{skillname}\nnel tuo messaggio per attivare esplicitamente la competenza."
-  tr: "Veya beceriyi açıkça tetiklemek için mesajınızda @{skillname}\nifadesini kullanın."
-  vi: "Hoặc đề cập @{skillname}\ntrong tin nhắn của bạn để kích hoạt kỹ năng một cách rõ ràng."
-  id: "Atau sebutkan @{skillname}\ndalam pesan Anda untuk memicu keterampilan secara eksplisit."
-  pl: "Lub wspomnij @{skillname}\nw swojej wiadomości, aby jawnie uruchomić umiejętność."
-  nl: "Of vermeld @{skillname}\nin je bericht om de vaardigheid expliciet te activeren."
-  ar: "أو اذكر @{skillname}\nفي رسالتك لتشغيل المهارة صراحةً."
-  hi: "या अपने संदेश में @{skillname}\nका उल्लेख करें ताकि स्किल को स्पष्ट रूप से ट्रिगर किया जा सके।"
-  th: "หรือกล่าวถึง @{skillname}\nในข้อความของคุณเพื่อเรียกใช้ทักษะอย่างชัดเจน"
-  cs: "Nebo zmíněte @{skillname}\nve své zprávě a explicitně spusťte dovednost."
-  sv: "Eller nämn @{skillname}\ni ditt meddelande för att utlösa kompetensen explicit."
-  he: "או הזכר @{skillname}\nבהודעה שלך כדי להפעיל את המיומנות במפורש."
+  context: Text shown after the how-to-use example cards on a skill detail page, explaining how to explicitly trigger the skill by @-mentioning it. {skillname} is replaced with a button showing the skill's @mention name (e.g., @Audio-GenerateTranscript). Do NOT include @ before {skillname} — the button already renders its own @ prefix.
+  en: "Or mention {skillname}\nin your message to trigger the skill explicitly."
+  de: "Oder erwähne {skillname}\nin deiner Nachricht, um den Skill explizit auszulösen."
+  zh: "或在消息中提及 {skillname}\n以明确触发该技能。"
+  es: "O menciona {skillname}\nen tu mensaje para activar la habilidad explícitamente."
+  fr: "Ou mentionnez {skillname}\ndans votre message pour déclencher explicitement la compétence."
+  pt: "Ou mencione {skillname}\nna sua mensagem para acionar a habilidade explicitamente."
+  ru: "Или упомяните {skillname}\nв своём сообщении, чтобы явно активировать навык."
+  ja: "またはメッセージで {skillname}\nと書いて、スキルを明示的にトリガーしてください。"
+  ko: "또는 메시지에서 {skillname}\n을 언급하여 스킬을 명시적으로 트리거하세요."
+  it: "Oppure menziona {skillname}\nnel tuo messaggio per attivare esplicitamente la competenza."
+  tr: "Veya beceriyi açıkça tetiklemek için mesajınızda {skillname}\nifadesini kullanın."
+  vi: "Hoặc đề cập {skillname}\ntrong tin nhắn của bạn để kích hoạt kỹ năng một cách rõ ràng."
+  id: "Atau sebutkan {skillname}\ndalam pesan Anda untuk memicu keterampilan secara eksplisit."
+  pl: "Lub wspomnij {skillname}\nw swojej wiadomości, aby jawnie uruchomić umiejętność."
+  nl: "Of vermeld {skillname}\nin je bericht om de vaardigheid expliciet te activeren."
+  ar: "أو اذكر {skillname}\nفي رسالتك لتشغيل المهارة صراحةً."
+  hi: "या अपने संदेश में {skillname}\nका उल्लेख करें ताकि स्किल को स्पष्ट रूप से ट्रिगर किया जा सके।"
+  th: "หรือกล่าวถึง {skillname}\nในข้อความของคุณเพื่อเรียกใช้ทักษะอย่างชัดเจน"
+  cs: "Nebo zmíněte {skillname}\nve své zprávě a explicitně spusťte dovednost."
+  sv: "Eller nämn {skillname}\ni ditt meddelande för att utlösa kompetensen explicit."
+  he: "או הזכר {skillname}\nבהודעה שלך כדי להפעיל את המיומנות במפורש."
   verified_by_human: []
 skills.description:
   context: Label for skill description
@@ -2422,29 +2422,29 @@ ai.skill.ask.model.kimi_k2.5:
   he: Kimi K2.5
   verified_by_human: []
 
-ai.skill.ask.model.gpt_5.2:
-  context: Display name for the GPT-5.2 AI model, shown as the settings page title when navigating directly to this model
-  en: GPT-5.2
-  de: GPT-5.2
-  zh: GPT-5.2
-  es: GPT-5.2
-  fr: GPT-5.2
-  pt: GPT-5.2
-  ru: GPT-5.2
-  ja: GPT-5.2
-  ko: GPT-5.2
-  it: GPT-5.2
-  tr: GPT-5.2
-  vi: GPT-5.2
-  id: GPT-5.2
-  pl: GPT-5.2
-  nl: GPT-5.2
-  ar: GPT-5.2
-  hi: GPT-5.2
-  th: GPT-5.2
-  cs: GPT-5.2
-  sv: GPT-5.2
-  he: GPT-5.2
+ai.skill.ask.model.gpt_5.4:
+  context: Display name for the GPT-5.4 AI model, shown as the settings page title when navigating directly to this model
+  en: GPT-5.4
+  de: GPT-5.4
+  zh: GPT-5.4
+  es: GPT-5.4
+  fr: GPT-5.4
+  pt: GPT-5.4
+  ru: GPT-5.4
+  ja: GPT-5.4
+  ko: GPT-5.4
+  it: GPT-5.4
+  tr: GPT-5.4
+  vi: GPT-5.4
+  id: GPT-5.4
+  pl: GPT-5.4
+  nl: GPT-5.4
+  ar: GPT-5.4
+  hi: GPT-5.4
+  th: GPT-5.4
+  cs: GPT-5.4
+  sv: GPT-5.4
+  he: GPT-5.4
   verified_by_human: []
 
 ai.skill.ask.model.gpt_oss_120b:
@@ -2716,4 +2716,79 @@ provider_not_found:
   cs: Poskytovatel nenalezen.
   sv: Leverantör hittades inte.
   he: הספק לא נמצא.
+  verified_by_human: []
+
+settings_memories.hub_no_entries:
+  context: Empty state message in the Settings & Memories hub when user has no entries yet
+  en: No settings or memories yet. Visit an app in the App Store to create them.
+  de: Noch keine Einstellungen oder Erinnerungen. Besuche eine App im App Store, um sie zu erstellen.
+  zh: 还没有设置或记忆。请在 App Store 中访问某个应用来创建。
+  es: Todavía no hay ajustes ni memorias. Visita una app en la App Store para crearlos.
+  fr: Pas encore de paramètres ni de mémoires. Visitez une app dans l'App Store pour en créer.
+  pt: ""
+  ru: ""
+  ja: まだ設定やメモリがありません。App Store のアプリを訪問して作成してください。
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: لا توجد إعدادات أو ذكريات بعد. قم بزيارة أحد التطبيقات في App Store لإنشائها.
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: אין עדיין הגדרות או זיכרונות. בקר באפליקציה ב-App Store כדי ליצור אותם.
+  verified_by_human: []
+
+settings_memories.discover_link:
+  context: Footer link at the bottom of the Settings & Memories hub pointing to App Store
+  en: Discover apps with settings & memories
+  de: Apps mit Einstellungen & Erinnerungen entdecken
+  zh: 发现具有设置和记忆的应用
+  es: Descubre apps con ajustes y memorias
+  fr: Découvrir des apps avec paramètres et mémoires
+  pt: ""
+  ru: ""
+  ja: 設定とメモリを持つアプリを発見する
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: اكتشف التطبيقات التي تحتوي على إعدادات وذكريات
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: גלה אפליקציות עם הגדרות וזיכרונות
+  verified_by_human: []
+
+settings_memories.entry_count:
+  context: Number of entries shown for a settings/memories category in the hub (e.g. "3 entries")
+  en: "{count, plural, one {# entry} other {# entries}}"
+  de: "{count, plural, one {# Eintrag} other {# Einträge}}"
+  zh: "{count, plural, other {# 条目}}"
+  es: "{count, plural, one {# entrada} other {# entradas}}"
+  fr: "{count, plural, one {# entrée} other {# entrées}}"
+  pt: ""
+  ru: ""
+  ja: "{count} 件"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: "{count, plural, one {# إدخال} other {# إدخالات}}"
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: "{count, plural, one {# רשומה} other {# רשומות}}"
   verified_by_human: []

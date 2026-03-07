@@ -81,7 +81,7 @@ async def logout(
                             if not cached_draft_data:
                                 continue
 
-                            encrypted_content, version = cached_draft_data
+                            encrypted_content, version, _ = cached_draft_data
                             if encrypted_content is None and version == 0:
                                 logger.debug(f"Skipping empty/initial draft for user {user_id[:6]}..., chat {chat_id_to_check} (last device).")
                                 continue

@@ -336,10 +336,16 @@
           "text": "Jak upřednostňujete komunikaci s AI"
         },
         "example_1": {
-          "text": "Profesionální a stručný"
+          "text": "Profesionální a stručný",
+          "title": {
+            "text": "Technický expert"
+          }
         },
         "example_2": {
-          "text": "Neformální a přátelský"
+          "text": "Neformální a přátelský",
+          "title": {
+            "text": "Přátelský pomocník"
+          }
         }
       },
       "learning_preferences": {
@@ -348,10 +354,22 @@
           "text": "Jak upřednostňujete učení a spotřebu informací"
         },
         "example_1": {
-          "text": "Vizuální učení"
+          "text": "Vizuální učení",
+          "title": {
+            "text": "Vizuální učení"
+          },
+          "notes": {
+            "text": "Dávám přednost diagramům, grafům a vizuálním vysvětlením"
+          }
         },
         "example_2": {
-          "text": "Praktické cvičení"
+          "text": "Praktické cvičení",
+          "title": {
+            "text": "Praktické cvičení"
+          },
+          "notes": {
+            "text": "Učím se nejlépe zkoušením s příklady kódu"
+          }
         }
       },
       "interaction_preferences": {
@@ -368,10 +386,28 @@
           "text": "Knihy, které jste milovali a doporučili byste."
         },
         "example_1": {
-          "text": "1984"
+          "text": "1984",
+          "title": {
+            "text": "Velký Gatsby"
+          },
+          "genre": {
+            "text": "Klasická beletrie"
+          },
+          "notes": {
+            "text": "Krásná próza o americkém snu"
+          }
         },
         "example_2": {
-          "text": "Sapiens"
+          "text": "Sapiens",
+          "title": {
+            "text": "Sapiens"
+          },
+          "genre": {
+            "text": "Naučná literatura"
+          },
+          "notes": {
+            "text": "Fascinující přehled dějin lidstva"
+          }
         },
         "example_3": {
           "text": "Duna"
@@ -383,10 +419,22 @@
           "text": "Knihy, které právě čtete."
         },
         "example_1": {
-          "text": "Projekt Hail Mary"
+          "text": "Projekt Hail Mary",
+          "title": {
+            "text": "Projekt Hail Mary"
+          },
+          "notes": {
+            "text": "Skvělé sci-fi dobrodružství"
+          }
         },
         "example_2": {
-          "text": "Atomové návyky"
+          "text": "Atomové návyky",
+          "title": {
+            "text": "Atomové návyky"
+          },
+          "notes": {
+            "text": "Praktické strategie pro budování dobrých návyků"
+          }
         }
       },
       "to_read_list": {
@@ -395,10 +443,28 @@
           "text": "Knihy, které chcete číst příště."
         },
         "example_1": {
-          "text": "Problém tří těles"
+          "text": "Problém tří těles",
+          "title": {
+            "text": "Duna"
+          },
+          "genre": {
+            "text": "Sci-fi"
+          },
+          "notes": {
+            "text": "Klasická sci-fi, doporučení od přátel"
+          }
         },
         "example_2": {
-          "text": "Myšlení rychlé a pomalé"
+          "text": "Myšlení rychlé a pomalé",
+          "title": {
+            "text": "Myšlení rychlé a pomalé"
+          },
+          "genre": {
+            "text": "Psychologie"
+          },
+          "notes": {
+            "text": "Chci porozumět kognitivním zkreslením"
+          }
         },
         "example_3": {
           "text": "Hluboká práce"
@@ -412,10 +478,16 @@
           "text": "Vaše preferované jazyky a frameworky."
         },
         "example_1": {
-          "text": "Python"
+          "text": "Python",
+          "name": {
+            "text": "Python"
+          }
         },
         "example_2": {
-          "text": "TypeScript"
+          "text": "TypeScript",
+          "name": {
+            "text": "TypeScript"
+          }
         },
         "example_3": {
           "text": "Svelte"
@@ -427,10 +499,22 @@
           "text": "Vaše projekty (aktivní, plánované nebo dokončené)"
         },
         "example_1": {
-          "text": "Osobní web"
+          "text": "Osobní web",
+          "name": {
+            "text": "Osobní web"
+          },
+          "description": {
+            "text": "Portfoliový web vytvořený pomocí SvelteKit"
+          }
         },
         "example_2": {
-          "text": "Mobilní aplikace"
+          "text": "Mobilní aplikace",
+          "name": {
+            "text": "Aplikace počasí"
+          },
+          "description": {
+            "text": "Aplikace předpovědi počasí s React a OpenWeather API"
+          }
         },
         "example_3": {
           "text": "API backend"
@@ -442,10 +526,16 @@
           "text": "Technologie a dovednosti, které se chcete naučit"
         },
         "example_1": {
-          "text": "Rust"
+          "text": "Rust",
+          "name": {
+            "text": "Rust"
+          }
         },
         "example_2": {
-          "text": "Strojové učení"
+          "text": "Strojové učení",
+          "name": {
+            "text": "Strojové učení"
+          }
         },
         "example_3": {
           "text": "Kubernetes"
@@ -459,10 +549,22 @@
           "text": "Vaše preferované styly psaní dokumentů."
         },
         "example_1": {
-          "text": "Formální obchodní"
+          "text": "Formální obchodní",
+          "name": {
+            "text": "Technická dokumentace"
+          },
+          "description": {
+            "text": "Jasné, strukturované psaní pro vývojářskou dokumentaci a API reference"
+          }
         },
         "example_2": {
-          "text": "Akademický"
+          "text": "Akademický",
+          "name": {
+            "text": "Příspěvek na blog"
+          },
+          "description": {
+            "text": "Poutavý, konverzační tón pro blogové články"
+          }
         },
         "example_3": {
           "text": "Neformální blog"
@@ -476,10 +578,22 @@
           "text": "Vaše lékařské schůzky a návštěvy."
         },
         "example_1": {
-          "text": "Zubař Dr. Mueller"
+          "text": "Zubař Dr. Mueller",
+          "where": {
+            "text": "Městská nemocnice"
+          },
+          "notes": {
+            "text": "Roční preventivní prohlídka"
+          }
         },
         "example_2": {
-          "text": "Oční vyšetření"
+          "text": "Oční vyšetření",
+          "where": {
+            "text": "Zubní klinika v centru"
+          },
+          "notes": {
+            "text": "Čištění zubů"
+          }
         }
       },
       "medical_history": {
@@ -488,10 +602,22 @@
           "text": "Minulé operace, stavy a alergie."
         },
         "example_1": {
-          "text": "Alergie na penicilin"
+          "text": "Alergie na penicilin",
+          "name": {
+            "text": "Alergie na arašídy"
+          },
+          "details": {
+            "text": "Těžká alergická reakce, nosit EpiPen"
+          }
         },
         "example_2": {
-          "text": "Operace kolena 2023"
+          "text": "Operace kolena 2023",
+          "name": {
+            "text": "Očkování COVID-19"
+          },
+          "details": {
+            "text": "Posilovací dávka Pfizer"
+          }
         }
       },
       "symptoms_log": {
@@ -514,10 +640,22 @@
           "text": "Vaše preferované styly pro generované obrázky"
         },
         "example_1": {
-          "text": "Akvarel"
+          "text": "Akvarel",
+          "name": {
+            "text": "Minimalistický"
+          },
+          "description": {
+            "text": "Čisté linie, jednoduché kompozice, tlumená barevná paleta"
+          }
         },
         "example_2": {
-          "text": "Minimalistický"
+          "text": "Minimalistický",
+          "name": {
+            "text": "Živá fotografie"
+          },
+          "description": {
+            "text": "Jasné barvy, vysoký kontrast, dynamické kompozice"
+          }
         },
         "example_3": {
           "text": "Cyberpunk"
@@ -531,10 +669,31 @@
           "text": "Jak píšete e-maily v různých kontextech."
         },
         "example_1": {
-          "text": "Formální obchodní"
+          "text": "Formální obchodní",
+          "title": {
+            "text": "Profesionální"
+          },
+          "description": {
+            "text": "Formální tón pro obchodní e-maily"
+          },
+          "when_to_use": {
+            "text": "Pracovní e-maily a komunikace s klienty"
+          },
+          "footer": {
+            "text": "S pozdravem,"
+          }
         },
         "example_2": {
-          "text": "Neformální týmový"
+          "text": "Neformální týmový",
+          "title": {
+            "text": "Neformální"
+          },
+          "description": {
+            "text": "Uvolněný a přátelský tón pro osobní e-maily"
+          },
+          "when_to_use": {
+            "text": "Přátelé a rodina"
+          }
         },
         "example_3": {
           "text": "Následná komunikace a připomínky"
@@ -548,10 +707,22 @@
           "text": "Vaše uložená oblíbená místa pro rychlý přístup."
         },
         "example_1": {
-          "text": "Domov"
+          "text": "Domov",
+          "name": {
+            "text": "Central Park"
+          },
+          "address": {
+            "text": "New York, NY 10024"
+          }
         },
         "example_2": {
-          "text": "Kancelář"
+          "text": "Kancelář",
+          "name": {
+            "text": "Eiffelova věž"
+          },
+          "address": {
+            "text": "Champ de Mars, 75007 Paříž"
+          }
         },
         "example_3": {
           "text": "Oblíbená kavárna"
@@ -565,10 +736,28 @@
           "text": "Vaše sbírka rostlin s harmonogramy péče"
         },
         "example_1": {
-          "text": "Monstera Deliciosa"
+          "text": "Monstera Deliciosa",
+          "name": {
+            "text": "Monstera Deliciosa"
+          },
+          "location": {
+            "text": "Obývací pokoj"
+          },
+          "notes": {
+            "text": "Potřebuje nepřímé světlo, měsíčně otírat listy"
+          }
         },
         "example_2": {
-          "text": "Zelenec"
+          "text": "Zelenec",
+          "name": {
+            "text": "Bazalka"
+          },
+          "location": {
+            "text": "Kuchyňské okno"
+          },
+          "notes": {
+            "text": "Pravidelně sklízet pro podporu růstu"
+          }
         }
       }
     },
@@ -593,10 +782,22 @@
           "text": "Vaše učební cíle a témata ke zvládnutí"
         },
         "example_1": {
-          "text": "Španělština úroveň B2"
+          "text": "Španělština úroveň B2",
+          "topic": {
+            "text": "Datová věda"
+          },
+          "notes": {
+            "text": "Zaměření na Python pandas a vizualizaci dat"
+          }
         },
         "example_2": {
-          "text": "Základy Data Science"
+          "text": "Základy Data Science",
+          "topic": {
+            "text": "Španělský jazyk"
+          },
+          "notes": {
+            "text": "Cíl dosáhnout konverzační úrovně do léta"
+          }
         }
       },
       "education_history": {
@@ -619,10 +820,22 @@
           "text": "Vaše plánované a minulé cesty s daty."
         },
         "example_1": {
-          "text": "Japonsko, březen 2026"
+          "text": "Japonsko, březen 2026",
+          "destination": {
+            "text": "Tokio, Japonsko"
+          },
+          "notes": {
+            "text": "Dvoutýdenní dovolená, prohlídka chrámů a gastronomie"
+          }
         },
         "example_2": {
-          "text": "Barcelona, léto 2025"
+          "text": "Barcelona, léto 2025",
+          "destination": {
+            "text": "Barcelona, Španělsko"
+          },
+          "notes": {
+            "text": "Letní dovolená, pláž a architektura"
+          }
         },
         "example_3": {
           "text": "Výlet autem po Skotsku"
@@ -634,10 +847,16 @@
           "text": "Vaše oblíbené letecké společnosti"
         },
         "example_1": {
-          "text": "Lufthansa"
+          "text": "Lufthansa",
+          "name": {
+            "text": "Lufthansa"
+          }
         },
         "example_2": {
-          "text": "Swiss"
+          "text": "Swiss",
+          "name": {
+            "text": "Singapore Airlines"
+          }
         },
         "example_3": {
           "text": "KLM"
@@ -664,10 +883,16 @@
           "text": "Vaše oblíbené cestovní aktivity a zážitky."
         },
         "example_1": {
-          "text": "Návštěva pláží"
+          "text": "Návštěva pláží",
+          "name": {
+            "text": "Turistika"
+          }
         },
         "example_2": {
-          "text": "Návštěva muzeí"
+          "text": "Návštěva muzeí",
+          "name": {
+            "text": "Návštěvy muzeí"
+          }
         },
         "example_3": {
           "text": "Turistika"
@@ -684,10 +909,22 @@
           "text": "Filmy, které jste viděli"
         },
         "example_1": {
-          "text": "Počátek"
+          "text": "Počátek",
+          "title": {
+            "text": "Počátek"
+          },
+          "notes": {
+            "text": "Ohromující mistrovské dílo o snech uvnitř snů"
+          }
         },
         "example_2": {
-          "text": "Vykoupení z věznice Shawshank"
+          "text": "Vykoupení z věznice Shawshank",
+          "title": {
+            "text": "Parazit"
+          },
+          "notes": {
+            "text": "Brilantní sociální komentář s nečekanými zvraty"
+          }
         }
       },
       "watched_tv_shows": {
@@ -696,10 +933,22 @@
           "text": "Seriály, které jste viděli nebo sledujete"
         },
         "example_1": {
-          "text": "Perníkový táta"
+          "text": "Perníkový táta",
+          "title": {
+            "text": "Perníkový táta"
+          },
+          "notes": {
+            "text": "Jeden z nejlepších televizních seriálů všech dob"
+          }
         },
         "example_2": {
-          "text": "Stranger Things"
+          "text": "Stranger Things",
+          "title": {
+            "text": "The Bear"
+          },
+          "notes": {
+            "text": "Intenzivní kuchyňské drama s úžasnými hereckými výkony"
+          }
         }
       },
       "to_watch_list": {
@@ -708,10 +957,22 @@
           "text": "Filmy a seriály, které chcete sledovat"
         },
         "example_1": {
-          "text": "Oppenheimer"
+          "text": "Oppenheimer",
+          "title": {
+            "text": "Oppenheimer"
+          },
+          "reason": {
+            "text": "Oceněný biografický film"
+          }
         },
         "example_2": {
-          "text": "The Bear"
+          "text": "The Bear",
+          "title": {
+            "text": "Severance"
+          },
+          "reason": {
+            "text": "Jedinečný sci-fi pracovní thriller"
+          }
         }
       }
     },
@@ -722,10 +983,16 @@
           "text": "Videa, která chcete sledovat"
         },
         "example_1": {
-          "text": "Hlavní přednáška tech konference"
+          "text": "Hlavní přednáška tech konference",
+          "name": {
+            "text": "Jak fungují počítače"
+          }
         },
         "example_2": {
-          "text": "Kuchařský tutoriál"
+          "text": "Kuchařský tutoriál",
+          "name": {
+            "text": "Pokročilý TypeScript"
+          }
         },
         "example_3": {
           "text": "Cestovatelský vlog"
@@ -784,10 +1051,16 @@
           "text": "Stránky a články uložené na později"
         },
         "example_1": {
-          "text": "Zajímavý výzkumný článek o AI"
+          "text": "Zajímavý výzkumný článek o AI",
+          "notes": {
+            "text": "Zajímavý článek o AI"
+          }
         },
         "example_2": {
-          "text": "Článek o návrhových vzorech"
+          "text": "Článek o návrhových vzorech",
+          "notes": {
+            "text": "Tutoriál o vývoji webu"
+          }
         },
         "example_3": {
           "text": "Příspěvek na tech blogu"
@@ -1279,9 +1552,9 @@
     },
     "shopping": {
       "search_products": {
-        "text": "Hledat produkty",
+        "text": "Hledat",
         "description": {
-          "text": "Hledejte a porovnávejte produkty v supermarketech."
+          "text": "Hledejte produkty v online obchodech a online supermarketech."
         },
         "how_to_use": {
           "1": {
@@ -1324,6 +1597,23 @@
           },
           "3": {
             "text": "Najděte ubytování vhodné pro rodiny v Rome na týden Easter"
+          }
+        }
+      },
+      "get_flight": {
+        "text": "Získat trasu letu",
+        "description": {
+          "text": "Zobrazte skutečnou letovou trasu libovolného minulého letu na mapě."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Ukáže letovou trasu letu LH2472 5. března"
+          },
+          "2": {
+            "text": "Byl let BA234 včera přesměrován?"
+          },
+          "3": {
+            "text": "V kolik hodin přistál AF447 a která dráha byla použita?"
           }
         }
       }
@@ -1758,23 +2048,6 @@
     "generated_by": {
       "text": "generováno modelem {model}"
     },
-    "settings_memories_suggestions": {
-      "header": {
-        "text": "Má si váš OpenMates tyto informace zapamatovat?"
-      },
-      "reject": {
-        "text": "Odmítnout"
-      },
-      "add": {
-        "text": "Přidat"
-      },
-      "customize_entry": {
-        "text": "Přizpůsobit a přidat"
-      },
-      "privacy_notice": {
-        "text": "Vaše nastavení a vzpomínky jsou šifrovány a mohou být dešifrovány pouze vašimi zařízeními."
-      }
-    },
     "credits_needed": {
       "text": "Jsou potřeba kredity..."
     },
@@ -1887,6 +2160,21 @@
       },
       "meal_prep": {
         "text": "Pomozte mi naplánovat zdravou přípravu jídel"
+      },
+      "discover_web_search": {
+        "text": "[web-search] Co se dnes děje ve světě?"
+      },
+      "discover_image_generate": {
+        "text": "[images-generate] Vygeneruj obrázek horského západu slunce"
+      },
+      "discover_news_search": {
+        "text": "[news-search] Najdi nejnovější zprávy o AI"
+      },
+      "discover_video_search": {
+        "text": "[videos-search] Najdi výuková videa o programování v Pythonu"
+      },
+      "discover_math_calculate": {
+        "text": "[math-calculate] Vypočítej: kolik je 15% z 240?"
       }
     },
     "suggestions": {
@@ -2234,11 +2522,17 @@
       "settings": {
         "text": "Nastavení"
       },
+      "my_embeds": {
+        "text": "Moje embedy"
+      },
       "indexing": {
         "text": "Vytváření vyhledávacího indexu..."
       },
       "apps": {
         "text": "Aplikace a dovednosti"
+      },
+      "apps_only": {
+        "text": "Aplikace"
       },
       "app_app": {
         "text": "Aplikace"
@@ -2251,6 +2545,12 @@
       },
       "app_memory": {
         "text": "Paměť"
+      },
+      "focus_mode_status_activated": {
+        "text": "Aktivováno"
+      },
+      "focus_mode_status_deactivated": {
+        "text": "Deaktivováno"
       },
       "go_to_message": {
         "text": "Přejít na zprávu"
@@ -2486,6 +2786,38 @@
         "text": "Toto oznámení bylo zasláno automatizovaným systémem monitorování E2E testů."
       }
     },
+    "prometheus_alert": {
+      "title": {
+        "text": "Oznámení o upozornění Prometheus"
+      },
+      "header": {
+        "text": "Upozornění Prometheus"
+      },
+      "alert_name_label": {
+        "text": "Název upozornění"
+      },
+      "severity_label": {
+        "text": "Závažnost"
+      },
+      "summary_label": {
+        "text": "Souhrn"
+      },
+      "description_label": {
+        "text": "Popis"
+      },
+      "started_at_label": {
+        "text": "Spuštěno v"
+      },
+      "ended_at_label": {
+        "text": "Vyřešeno v"
+      },
+      "labels_label": {
+        "text": "Štítky"
+      },
+      "footer_note": {
+        "text": "Toto upozornění bylo zasláno automatizovaným systémem monitorování Prometheus."
+      }
+    },
     "newsletter_confirmation_request": {
       "title": {
         "text": "Potvrďte své předplatné newsletteru"
@@ -2649,6 +2981,18 @@
       "open_chat_button": {
         "text": "Otevřít chat"
       }
+    },
+    "action_verification_title": {
+      "text": "Ověřte svou akci"
+    },
+    "action_verification_description": {
+      "text": "Požádali jste o ověřovací kód pro citlivou akci na vašem účtu."
+    },
+    "action_verification_expires": {
+      "text": "Platnost tohoto kódu vyprší za 10 minut."
+    },
+    "action_verification_subject": {
+      "text": "Váš ověřovací kód: {code}"
     }
   },
   "embeds": {
@@ -2669,6 +3013,9 @@
     },
     "more_results": {
       "text": "+ {count} dalších"
+    },
+    "search_no_results": {
+      "text": "Nalezeno 0 výsledků"
     },
     "open_search_results": {
       "text": "Otevřít výsledky hledání"
@@ -3111,7 +3458,7 @@
         "text": "Žádné produkty nenalezeny."
       },
       "search_products": {
-        "text": "Hledat produkty"
+        "text": "Hledat"
       }
     },
     "math": {
@@ -3822,6 +4169,17 @@
           "text": "Zásady ochrany osobních údajů Polar"
         }
       },
+      "flightradar24": {
+        "heading": {
+          "text": "3.16 Flightradar24"
+        },
+        "description": {
+          "text": "Když požadujete skutečná data letové trasy pomocí dovednosti \"Získat trasu letu\", dotazujeme se Flightradar24 pro získání historických GPS dat pro dokončené lety. Flightradar24 obdrží číslo letu a datum odletu. Žádné osobní údaje nejsou sdíleny."
+        },
+        "privacy_policy_link": {
+          "text": "Zásady ochrany osobních údajů Flightradar24"
+        }
+      },
       "security_measures": {
         "heading": {
           "text": "4. Bezpečnostní opatření"
@@ -4356,7 +4714,19 @@
     }
   },
   "navigation": {},
-  "notifications": {},
+  "notifications": {
+    "security_reminder": {
+      "title": {
+        "text": "Bezpečnostní připomínka"
+      },
+      "message": {
+        "text": "Řádně zabezpečte svůj účet nastavením 2FA nebo přístupového klíče."
+      },
+      "action": {
+        "text": "Otevřít nastavení zabezpečení"
+      }
+    }
+  },
   "onboarding": {},
   "platforms": {},
   "predefined_responses": {
@@ -4403,6 +4773,9 @@
         },
         "error_invalid_chars": {
           "text": "Uživatelské jméno může obsahovat pouze písmena, číslice, tečky a podtržítka"
+        },
+        "error_taken": {
+          "text": "Toto uživatelské jméno je již obsazeno. Prosím zvolte jiné."
         },
         "error_failed": {
           "text": "Aktualizace uživatelského jména selhala. Zkuste to prosím znovu."
@@ -4632,6 +5005,74 @@
         }
       }
     },
+    "app_settings_memories": {
+      "encrypted_notice": {
+        "text": "Vaše záznamy nastavení a vzpomínek jsou šifrovány, mohou být čteny pouze vašimi zařízeními a nikdy nejsou odesílány k zpracování do OpenMates bez vašeho výslovného souhlasu."
+      },
+      "diff_previous_value": {
+        "text": "Předchozí:"
+      },
+      "diff_not_set": {
+        "text": "Nenastaveno"
+      },
+      "examples_label": {
+        "text": "Příklady:"
+      },
+      "my": {
+        "text": "Moje"
+      },
+      "settings_and_memories": {
+        "text": "Nastavení a paměti"
+      },
+      "my_settings_and_memories": {
+        "text": "Moje nastavení a paměti"
+      },
+      "no_entries_yet": {
+        "text": "Zatím žádné záznamy."
+      },
+      "examples": {
+        "text": "Příklady"
+      },
+      "no_settings": {
+        "text": "Zatím nejsou synchronizovány žádné nastavení ani paměti. Zobrazí se zde, jakmile budou dostupná."
+      },
+      "add_entry": {
+        "text": "Přidat položku"
+      },
+      "loading": {
+        "text": "Načítání nastavení a paměti..."
+      },
+      "item_key": {
+        "text": "Klíč položky"
+      },
+      "settings_group": {
+        "text": "Skupina nastavení"
+      },
+      "item_value": {
+        "text": "Hodnota položky"
+      },
+      "cancel": {
+        "text": "Zrušit"
+      },
+      "creating": {
+        "text": "Vytváření..."
+      },
+      "placeholder": {
+        "text": "Brzy budete moci spravovat a vytvářet nastavení aplikací a vzpomínky zde."
+      },
+      "just_now": {
+        "text": "Právě teď"
+      },
+      "edit": {
+        "text": "Upravit"
+      },
+      "delete": {
+        "text": "Smazat"
+      },
+      "save": {
+        "text": "Uložit"
+      }
+    },
     "app_store": {
       "description": {
         "text": "Procházejte a spravujte aplikace, které mohou vaši mates používat."
@@ -4700,7 +5141,7 @@
           "text": "Stačí se zeptat spoluhráčů na něco takového:"
         },
         "how_to_use_mention": {
-          "text": "Nebo zmíněte @{skillname}\nve své zprávě a explicitně spusťte dovednost."
+          "text": "Nebo zmíněte {skillname}\nve své zprávě a explicitně spusťte dovednost."
         },
         "description": {
           "text": "Popis"
@@ -4884,6 +5325,9 @@
       "back_to_app": {
         "text": "Zpět k aplikaci"
       },
+      "settings_memories_entry": {
+        "text": "Položka nastavení a vzpomínek"
+      },
       "app_not_found": {
         "text": "Aplikace nenalezena."
       },
@@ -4956,8 +5400,8 @@
                 }
               },
               "gpt_5": {
-                "2": {
-                  "text": "GPT-5.2"
+                "4": {
+                  "text": "GPT-5.4"
                 }
               },
               "gpt_oss_120b": {
@@ -5986,65 +6430,6 @@
         "text": "Načítání vložených prvků..."
       }
     },
-    "app_settings_memories": {
-      "examples_label": {
-        "text": "Příklady:"
-      },
-      "my": {
-        "text": "Moje"
-      },
-      "settings_and_memories": {
-        "text": "Nastavení a paměti"
-      },
-      "my_settings_and_memories": {
-        "text": "Moje nastavení a paměti"
-      },
-      "no_entries_yet": {
-        "text": "Zatím žádné záznamy."
-      },
-      "examples": {
-        "text": "Příklady"
-      },
-      "no_settings": {
-        "text": "Zatím nejsou synchronizovány žádné nastavení ani paměti. Zobrazí se zde, jakmile budou dostupná."
-      },
-      "add_entry": {
-        "text": "Přidat položku"
-      },
-      "loading": {
-        "text": "Načítání nastavení a paměti..."
-      },
-      "item_key": {
-        "text": "Klíč položky"
-      },
-      "settings_group": {
-        "text": "Skupina nastavení"
-      },
-      "item_value": {
-        "text": "Hodnota položky"
-      },
-      "cancel": {
-        "text": "Zrušit"
-      },
-      "creating": {
-        "text": "Vytváření..."
-      },
-      "placeholder": {
-        "text": "Brzy budete moci spravovat a vytvářet nastavení aplikací a vzpomínky zde."
-      },
-      "just_now": {
-        "text": "Právě teď"
-      },
-      "edit": {
-        "text": "Upravit"
-      },
-      "delete": {
-        "text": "Smazat"
-      },
-      "save": {
-        "text": "Uložit"
-      }
-    },
     "newsletter": {
       "text": "Zpravodaj"
     },
@@ -6523,6 +6908,18 @@
       },
       "no_auth_method": {
         "text": "Žádná metoda ověření není k dispozici. Kontaktujte prosím podporu."
+      },
+      "email_otp_description": {
+        "text": "Na vaši e-mailovou adresu zašleme ověřovací kód."
+      },
+      "send_verification_code": {
+        "text": "Odeslat ověřovací kód"
+      },
+      "email_otp_enter_code": {
+        "text": "Zadejte 6místný kód zaslaný na váš e-mail."
+      },
+      "resend_code": {
+        "text": "Znovu odeslat kód"
       },
       "loading": {
         "text": "Načítání..."
@@ -7016,6 +7413,9 @@
     "username_invalid_chars": {
       "text": "Povoleno: písmena, číslice, _, ."
     },
+    "username_taken": {
+      "text": "Toto uživatelské jméno je již obsazeno. Prosím zvolte jiné."
+    },
     "enter_username": {
       "text": "Zadejte uživatelské jméno"
     },
@@ -7032,7 +7432,16 @@
       "text": "Hesla se neshodují"
     },
     "password_too_short": {
-      "text": "Minimálně 8 znaků"
+      "text": "Minimálně 10 znaků"
+    },
+    "password_too_common": {
+      "text": "Toto heslo je příliš běžné. Vyberte prosím silnější."
+    },
+    "password_needs_lowercase": {
+      "text": "Alespoň jedno malé písmeno"
+    },
+    "password_needs_uppercase": {
+      "text": "Alespoň jedno velké písmeno"
     },
     "password_too_long": {
       "text": "Méně než 60 znaků"

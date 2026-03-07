@@ -336,10 +336,16 @@
           "text": "Como você prefere que a IA se comunique"
         },
         "example_1": {
-          "text": "Profissional e conciso"
+          "text": "Profissional e conciso",
+          "title": {
+            "text": "Especialista técnico"
+          }
         },
         "example_2": {
-          "text": "Casual e amigável"
+          "text": "Casual e amigável",
+          "title": {
+            "text": "Ajudante amigável"
+          }
         }
       },
       "learning_preferences": {
@@ -348,10 +354,22 @@
           "text": "Como você prefere aprender e consumir informações"
         },
         "example_1": {
-          "text": "Aprendiz visual"
+          "text": "Aprendiz visual",
+          "title": {
+            "text": "Aprendizado visual"
+          },
+          "notes": {
+            "text": "Prefiro diagramas, gráficos e explicações visuais"
+          }
         },
         "example_2": {
-          "text": "Prática prática"
+          "text": "Prática prática",
+          "title": {
+            "text": "Prática prática"
+          },
+          "notes": {
+            "text": "Aprendo melhor experimentando com exemplos de código"
+          }
         }
       },
       "interaction_preferences": {
@@ -368,10 +386,28 @@
           "text": "Livros que você amou e recomendaria."
         },
         "example_1": {
-          "text": "1984"
+          "text": "1984",
+          "title": {
+            "text": "O Grande Gatsby"
+          },
+          "genre": {
+            "text": "Ficção clássica"
+          },
+          "notes": {
+            "text": "Bela prosa sobre o sonho americano"
+          }
         },
         "example_2": {
-          "text": "Sapiens"
+          "text": "Sapiens",
+          "title": {
+            "text": "Sapiens"
+          },
+          "genre": {
+            "text": "Não ficção"
+          },
+          "notes": {
+            "text": "Visão fascinante da história da humanidade"
+          }
         },
         "example_3": {
           "text": "Duna"
@@ -383,10 +419,22 @@
           "text": "Livros que você está lendo atualmente."
         },
         "example_1": {
-          "text": "Projeto Hail Mary"
+          "text": "Projeto Hail Mary",
+          "title": {
+            "text": "Projeto Hail Mary"
+          },
+          "notes": {
+            "text": "Ótima aventura de ficção científica"
+          }
         },
         "example_2": {
-          "text": "Hábitos atômicos"
+          "text": "Hábitos atômicos",
+          "title": {
+            "text": "Hábitos atômicos"
+          },
+          "notes": {
+            "text": "Estratégias práticas para construir bons hábitos"
+          }
         }
       },
       "to_read_list": {
@@ -395,10 +443,28 @@
           "text": "Livros que você quer ler em seguida."
         },
         "example_1": {
-          "text": "O Problema dos Três Corpos"
+          "text": "O Problema dos Três Corpos",
+          "title": {
+            "text": "Duna"
+          },
+          "genre": {
+            "text": "Ficção científica"
+          },
+          "notes": {
+            "text": "Ficção científica clássica, recomendada por amigos"
+          }
         },
         "example_2": {
-          "text": "Rápido e devagar"
+          "text": "Rápido e devagar",
+          "title": {
+            "text": "Rápido e devagar"
+          },
+          "genre": {
+            "text": "Psicologia"
+          },
+          "notes": {
+            "text": "Quero entender os vieses cognitivos"
+          }
         },
         "example_3": {
           "text": "Trabalho focado"
@@ -412,10 +478,16 @@
           "text": "Suas linguagens e frameworks preferidos."
         },
         "example_1": {
-          "text": "Python"
+          "text": "Python",
+          "name": {
+            "text": "Python"
+          }
         },
         "example_2": {
-          "text": "TypeScript"
+          "text": "TypeScript",
+          "name": {
+            "text": "TypeScript"
+          }
         },
         "example_3": {
           "text": "Svelte"
@@ -427,10 +499,22 @@
           "text": "Seus projetos (ativos, planejados ou concluídos)"
         },
         "example_1": {
-          "text": "Site pessoal"
+          "text": "Site pessoal",
+          "name": {
+            "text": "Site pessoal"
+          },
+          "description": {
+            "text": "Um site de portfólio construído com SvelteKit"
+          }
         },
         "example_2": {
-          "text": "Aplicativo móvel"
+          "text": "Aplicativo móvel",
+          "name": {
+            "text": "Aplicativo de clima"
+          },
+          "description": {
+            "text": "Um aplicativo de previsão do tempo usando React e OpenWeather API"
+          }
         },
         "example_3": {
           "text": "Backend de API"
@@ -442,10 +526,16 @@
           "text": "Tecnologias e habilidades que você quer aprender"
         },
         "example_1": {
-          "text": "Rust"
+          "text": "Rust",
+          "name": {
+            "text": "Rust"
+          }
         },
         "example_2": {
-          "text": "Aprendizado de máquina"
+          "text": "Aprendizado de máquina",
+          "name": {
+            "text": "Aprendizado de máquina"
+          }
         },
         "example_3": {
           "text": "Kubernetes"
@@ -459,10 +549,22 @@
           "text": "Seus estilos de escrita preferidos para documentos."
         },
         "example_1": {
-          "text": "Negócios formal"
+          "text": "Negócios formal",
+          "name": {
+            "text": "Documentação técnica"
+          },
+          "description": {
+            "text": "Escrita clara e estruturada para documentação de desenvolvedores e referências de API"
+          }
         },
         "example_2": {
-          "text": "Acadêmico"
+          "text": "Acadêmico",
+          "name": {
+            "text": "Postagem de blog"
+          },
+          "description": {
+            "text": "Tom envolvente e conversacional para artigos de blog"
+          }
         },
         "example_3": {
           "text": "Blog casual"
@@ -476,10 +578,22 @@
           "text": "Suas consultas e visitas médicas."
         },
         "example_1": {
-          "text": "Dentista Dr. Mueller"
+          "text": "Dentista Dr. Mueller",
+          "where": {
+            "text": "Hospital da Cidade"
+          },
+          "notes": {
+            "text": "Exame anual"
+          }
         },
         "example_2": {
-          "text": "Exame oftalmológico"
+          "text": "Exame oftalmológico",
+          "where": {
+            "text": "Clínica Dentária do Centro"
+          },
+          "notes": {
+            "text": "Limpeza dentária"
+          }
         }
       },
       "medical_history": {
@@ -488,10 +602,22 @@
           "text": "Cirurgias passadas, condições e alergias."
         },
         "example_1": {
-          "text": "Alergia à penicilina"
+          "text": "Alergia à penicilina",
+          "name": {
+            "text": "Alergia a amendoim"
+          },
+          "details": {
+            "text": "Reação alérgica grave, portar EpiPen"
+          }
         },
         "example_2": {
-          "text": "Cirurgia no joelho 2023"
+          "text": "Cirurgia no joelho 2023",
+          "name": {
+            "text": "Vacina COVID-19"
+          },
+          "details": {
+            "text": "Dose de reforço da Pfizer"
+          }
         }
       },
       "symptoms_log": {
@@ -514,10 +640,22 @@
           "text": "Seus estilos preferidos para imagens geradas"
         },
         "example_1": {
-          "text": "Aquarela"
+          "text": "Aquarela",
+          "name": {
+            "text": "Minimalista"
+          },
+          "description": {
+            "text": "Linhas limpas, composições simples, paleta de cores suaves"
+          }
         },
         "example_2": {
-          "text": "Minimalista"
+          "text": "Minimalista",
+          "name": {
+            "text": "Fotografia vibrante"
+          },
+          "description": {
+            "text": "Cores brilhantes, alto contraste, composições dinâmicas"
+          }
         },
         "example_3": {
           "text": "Cyberpunk"
@@ -531,10 +669,31 @@
           "text": "Como você escreve e-mails em contextos diferentes."
         },
         "example_1": {
-          "text": "Formal de negócios"
+          "text": "Formal de negócios",
+          "title": {
+            "text": "Profissional"
+          },
+          "description": {
+            "text": "Tom formal para e-mails de negócios"
+          },
+          "when_to_use": {
+            "text": "E-mails de trabalho e comunicação com clientes"
+          },
+          "footer": {
+            "text": "Atenciosamente,"
+          }
         },
         "example_2": {
-          "text": "Equipe casual"
+          "text": "Equipe casual",
+          "title": {
+            "text": "Casual"
+          },
+          "description": {
+            "text": "Tom descontraído e amigável para e-mails pessoais"
+          },
+          "when_to_use": {
+            "text": "Amigos e família"
+          }
         },
         "example_3": {
           "text": "Acompanhamentos e lembretes"
@@ -548,10 +707,22 @@
           "text": "Seus lugares favoritos salvos para acesso rápido."
         },
         "example_1": {
-          "text": "Casa"
+          "text": "Casa",
+          "name": {
+            "text": "Central Park"
+          },
+          "address": {
+            "text": "Nova York, NY 10024"
+          }
         },
         "example_2": {
-          "text": "Escritório"
+          "text": "Escritório",
+          "name": {
+            "text": "Torre Eiffel"
+          },
+          "address": {
+            "text": "Champ de Mars, 75007 Paris"
+          }
         },
         "example_3": {
           "text": "Cafeteria favorita"
@@ -565,10 +736,28 @@
           "text": "Sua coleção de plantas com horários de cuidados"
         },
         "example_1": {
-          "text": "Monstera Deliciosa"
+          "text": "Monstera Deliciosa",
+          "name": {
+            "text": "Monstera Deliciosa"
+          },
+          "location": {
+            "text": "Sala de estar"
+          },
+          "notes": {
+            "text": "Precisa de luz indireta, limpar as folhas mensalmente"
+          }
         },
         "example_2": {
-          "text": "Espada-de-são-jorge"
+          "text": "Espada-de-são-jorge",
+          "name": {
+            "text": "Manjericão"
+          },
+          "location": {
+            "text": "Janela da cozinha"
+          },
+          "notes": {
+            "text": "Colher regularmente para estimular o crescimento"
+          }
         }
       }
     },
@@ -593,10 +782,22 @@
           "text": "Seus objetivos de aprendizado e tópicos a dominar"
         },
         "example_1": {
-          "text": "Espanhol nível B2"
+          "text": "Espanhol nível B2",
+          "topic": {
+            "text": "Ciência de dados"
+          },
+          "notes": {
+            "text": "Foco em Python pandas e visualização de dados"
+          }
         },
         "example_2": {
-          "text": "Fundamentos de ciência de dados"
+          "text": "Fundamentos de ciência de dados",
+          "topic": {
+            "text": "Língua espanhola"
+          },
+          "notes": {
+            "text": "Alcançar nível conversacional até o verão"
+          }
         }
       },
       "education_history": {
@@ -619,10 +820,22 @@
           "text": "Suas viagens planejadas e passadas com datas."
         },
         "example_1": {
-          "text": "Japão, março de 2026"
+          "text": "Japão, março de 2026",
+          "destination": {
+            "text": "Tóquio, Japão"
+          },
+          "notes": {
+            "text": "Férias de duas semanas explorando templos e culinária"
+          }
         },
         "example_2": {
-          "text": "Barcelona, verão de 2025"
+          "text": "Barcelona, verão de 2025",
+          "destination": {
+            "text": "Barcelona, Espanha"
+          },
+          "notes": {
+            "text": "Férias de verão, praia e arquitetura"
+          }
         },
         "example_3": {
           "text": "Viagem de carro pela Escócia"
@@ -634,10 +847,16 @@
           "text": "Suas companhias aéreas favoritas"
         },
         "example_1": {
-          "text": "Lufthansa"
+          "text": "Lufthansa",
+          "name": {
+            "text": "Lufthansa"
+          }
         },
         "example_2": {
-          "text": "Swiss"
+          "text": "Swiss",
+          "name": {
+            "text": "Singapore Airlines"
+          }
         },
         "example_3": {
           "text": "KLM"
@@ -664,10 +883,16 @@
           "text": "Suas atividades e experiências de viagem favoritas."
         },
         "example_1": {
-          "text": "Visitar praias"
+          "text": "Visitar praias",
+          "name": {
+            "text": "Trilhas"
+          }
         },
         "example_2": {
-          "text": "Explorar museus"
+          "text": "Explorar museus",
+          "name": {
+            "text": "Visitas a museus"
+          }
         },
         "example_3": {
           "text": "Trilhas"
@@ -684,10 +909,22 @@
           "text": "Filmes que você assistiu"
         },
         "example_1": {
-          "text": "A Origem"
+          "text": "A Origem",
+          "title": {
+            "text": "A Origem"
+          },
+          "notes": {
+            "text": "Obra-prima surpreendente sobre sonhos dentro de sonhos"
+          }
         },
         "example_2": {
-          "text": "Um Sonho de Liberdade"
+          "text": "Um Sonho de Liberdade",
+          "title": {
+            "text": "Parasita"
+          },
+          "notes": {
+            "text": "Comentário social brilhante com reviravoltas inesperadas"
+          }
         }
       },
       "watched_tv_shows": {
@@ -696,10 +933,22 @@
           "text": "Séries de TV que você assistiu ou está assistindo"
         },
         "example_1": {
-          "text": "Breaking Bad"
+          "text": "Breaking Bad",
+          "title": {
+            "text": "Breaking Bad"
+          },
+          "notes": {
+            "text": "Uma das maiores séries de TV já feitas"
+          }
         },
         "example_2": {
-          "text": "Stranger Things"
+          "text": "Stranger Things",
+          "title": {
+            "text": "O Urso"
+          },
+          "notes": {
+            "text": "Drama de cozinha intenso com performances incríveis"
+          }
         }
       },
       "to_watch_list": {
@@ -708,10 +957,22 @@
           "text": "Filmes e séries de TV que você quer assistir"
         },
         "example_1": {
-          "text": "Oppenheimer"
+          "text": "Oppenheimer",
+          "title": {
+            "text": "Oppenheimer"
+          },
+          "reason": {
+            "text": "Filme biográfico premiado"
+          }
         },
         "example_2": {
-          "text": "O Urso"
+          "text": "O Urso",
+          "title": {
+            "text": "Ruptura"
+          },
+          "reason": {
+            "text": "Thriller único de ficção científica no ambiente de trabalho"
+          }
         }
       }
     },
@@ -722,10 +983,16 @@
           "text": "Vídeos que você quer assistir"
         },
         "example_1": {
-          "text": "Palestra de conferência tech"
+          "text": "Palestra de conferência tech",
+          "name": {
+            "text": "Como os computadores funcionam"
+          }
         },
         "example_2": {
-          "text": "Tutorial de culinária"
+          "text": "Tutorial de culinária",
+          "name": {
+            "text": "TypeScript avançado"
+          }
         },
         "example_3": {
           "text": "Vlog de viagem"
@@ -784,10 +1051,16 @@
           "text": "Sites e artigos salvos para depois"
         },
         "example_1": {
-          "text": "Artigo interessante de pesquisa em IA"
+          "text": "Artigo interessante de pesquisa em IA",
+          "notes": {
+            "text": "Artigo interessante sobre IA"
+          }
         },
         "example_2": {
-          "text": "Artigo sobre padrões de design"
+          "text": "Artigo sobre padrões de design",
+          "notes": {
+            "text": "Tutorial sobre desenvolvimento web"
+          }
         },
         "example_3": {
           "text": "Post de blog de tecnologia"
@@ -1279,9 +1552,9 @@
     },
     "shopping": {
       "search_products": {
-        "text": "Pesquisar produtos",
+        "text": "Pesquisar",
         "description": {
-          "text": "Pesquise e compare produtos em supermercados."
+          "text": "Pesquise produtos em lojas online e supermercados online."
         },
         "how_to_use": {
           "1": {
@@ -1324,6 +1597,23 @@
           },
           "3": {
             "text": "Encontre acomodações para famílias em Rome para a semana de Easter"
+          }
+        }
+      },
+      "get_flight": {
+        "text": "Obter rota do voo",
+        "description": {
+          "text": "Veja a rota real de qualquer voo passado num mapa."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Mostra o percurso do voo LH2472 a 5 de março"
+          },
+          "2": {
+            "text": "O meu voo BA234 foi desviado ontem?"
+          },
+          "3": {
+            "text": "A que horas aterrou o AF447 e qual pista foi utilizada?"
           }
         }
       }
@@ -1758,23 +2048,6 @@
     "generated_by": {
       "text": "gerado por {model}"
     },
-    "settings_memories_suggestions": {
-      "header": {
-        "text": "Seu OpenMates deve lembrar dessas informações?"
-      },
-      "reject": {
-        "text": "Rejeitar"
-      },
-      "add": {
-        "text": "Adicionar"
-      },
-      "customize_entry": {
-        "text": "Personalizar e adicionar"
-      },
-      "privacy_notice": {
-        "text": "Suas configurações e memórias são criptografadas e só podem ser descriptografadas pelos seus dispositivos."
-      }
-    },
     "credits_needed": {
       "text": "Créditos necessários..."
     },
@@ -1887,6 +2160,21 @@
       },
       "meal_prep": {
         "text": "Ajude-me a planejar uma preparação de refeição saudável"
+      },
+      "discover_web_search": {
+        "text": "[web-search] O que está acontecendo no mundo hoje?"
+      },
+      "discover_image_generate": {
+        "text": "[images-generate] Gere uma imagem de um pôr do sol na montanha"
+      },
+      "discover_news_search": {
+        "text": "[news-search] Encontre as últimas notícias sobre IA"
+      },
+      "discover_video_search": {
+        "text": "[videos-search] Encontre vídeos tutoriais de programação Python"
+      },
+      "discover_math_calculate": {
+        "text": "[math-calculate] Calcule: quanto é 15% de 240?"
       }
     },
     "suggestions": {
@@ -2234,11 +2522,17 @@
       "settings": {
         "text": "Configurações"
       },
+      "my_embeds": {
+        "text": "Meus embeds"
+      },
       "indexing": {
         "text": "Construindo índice de pesquisa..."
       },
       "apps": {
         "text": "Apps e habilidades"
+      },
+      "apps_only": {
+        "text": "Apps"
       },
       "app_app": {
         "text": "App"
@@ -2251,6 +2545,12 @@
       },
       "app_memory": {
         "text": "Memória"
+      },
+      "focus_mode_status_activated": {
+        "text": "Ativado"
+      },
+      "focus_mode_status_deactivated": {
+        "text": "Desativado"
       },
       "go_to_message": {
         "text": "Ir para a mensagem"
@@ -2486,6 +2786,38 @@
         "text": "Esta notificação foi enviada pelo sistema automatizado de monitoramento de testes E2E."
       }
     },
+    "prometheus_alert": {
+      "title": {
+        "text": "Notificação de alerta do Prometheus"
+      },
+      "header": {
+        "text": "Alerta do Prometheus"
+      },
+      "alert_name_label": {
+        "text": "Nome do alerta"
+      },
+      "severity_label": {
+        "text": "Gravidade"
+      },
+      "summary_label": {
+        "text": "Resumo"
+      },
+      "description_label": {
+        "text": "Descrição"
+      },
+      "started_at_label": {
+        "text": "Disparado em"
+      },
+      "ended_at_label": {
+        "text": "Resolvido em"
+      },
+      "labels_label": {
+        "text": "Rótulos"
+      },
+      "footer_note": {
+        "text": "Este alerta foi enviado pelo sistema automatizado de monitoramento Prometheus."
+      }
+    },
     "newsletter_confirmation_request": {
       "title": {
         "text": "Confirme sua assinatura do boletim informativo"
@@ -2643,6 +2975,18 @@
       "open_chat_button": {
         "text": "Abrir chat"
       }
+    },
+    "action_verification_title": {
+      "text": "Verifique sua ação"
+    },
+    "action_verification_description": {
+      "text": "Você solicitou um código de verificação para uma ação sensível na sua conta."
+    },
+    "action_verification_expires": {
+      "text": "Este código expira em 10 minutos."
+    },
+    "action_verification_subject": {
+      "text": "Seu código de verificação: {code}"
     }
   },
   "embeds": {
@@ -2663,6 +3007,9 @@
     },
     "more_results": {
       "text": "+ {count} mais"
+    },
+    "search_no_results": {
+      "text": "0 resultados encontrados"
     },
     "open_search_results": {
       "text": "Abrir resultados de busca"
@@ -3105,7 +3452,7 @@
         "text": "Nenhum produto encontrado."
       },
       "search_products": {
-        "text": "Pesquisar produtos"
+        "text": "Pesquisar"
       }
     },
     "math": {
@@ -3816,6 +4163,17 @@
           "text": "Política de Privacidade do Polar"
         }
       },
+      "flightradar24": {
+        "heading": {
+          "text": "3.16 Flightradar24"
+        },
+        "description": {
+          "text": "Quando solicita dados reais de rota de voo usando a habilidade \"Obter rota do voo\", consultamos a Flightradar24 para obter dados GPS históricos de voos concluídos. A Flightradar24 recebe o número do voo e a data de partida. Nenhum dado pessoal é partilhado."
+        },
+        "privacy_policy_link": {
+          "text": "Política de Privacidade do Flightradar24"
+        }
+      },
       "security_measures": {
         "heading": {
           "text": "4. Medidas de Segurança"
@@ -4350,7 +4708,19 @@
     }
   },
   "navigation": {},
-  "notifications": {},
+  "notifications": {
+    "security_reminder": {
+      "title": {
+        "text": "Lembrete de segurança"
+      },
+      "message": {
+        "text": "Proteja adequadamente sua conta configurando 2FA ou uma chave de acesso."
+      },
+      "action": {
+        "text": "Abrir configurações de segurança"
+      }
+    }
+  },
   "onboarding": {},
   "platforms": {},
   "predefined_responses": {
@@ -4397,6 +4767,9 @@
         },
         "error_invalid_chars": {
           "text": "O nome de usuário só pode conter letras, números, pontos e sublinhados"
+        },
+        "error_taken": {
+          "text": "Este nome de usuário já está em uso. Por favor, escolha outro."
         },
         "error_failed": {
           "text": "Falha ao atualizar o nome de usuário. Por favor, tente novamente."
@@ -4626,6 +4999,74 @@
         }
       }
     },
+    "app_settings_memories": {
+      "encrypted_notice": {
+        "text": "Suas entradas de configurações e memórias são criptografadas, só podem ser lidas pelos seus dispositivos e nunca são enviadas para a OpenMates para processamento sem o seu consentimento explícito."
+      },
+      "diff_previous_value": {
+        "text": "Anterior:"
+      },
+      "diff_not_set": {
+        "text": "Não definido"
+      },
+      "examples_label": {
+        "text": "Exemplos:"
+      },
+      "my": {
+        "text": "Minhas"
+      },
+      "settings_and_memories": {
+        "text": "Configurações e memórias"
+      },
+      "my_settings_and_memories": {
+        "text": "Minhas configurações e memórias"
+      },
+      "no_entries_yet": {
+        "text": "Ainda sem entradas."
+      },
+      "examples": {
+        "text": "Exemplos"
+      },
+      "no_settings": {
+        "text": "Nenhuma configuração ou memória sincronizada ainda. Eles aparecerão aqui assim que disponíveis."
+      },
+      "add_entry": {
+        "text": "Adicionar entrada"
+      },
+      "loading": {
+        "text": "Carregando configurações e memórias..."
+      },
+      "item_key": {
+        "text": "Chave do item"
+      },
+      "settings_group": {
+        "text": "Grupo de configurações"
+      },
+      "item_value": {
+        "text": "Valor do item"
+      },
+      "cancel": {
+        "text": "Cancelar"
+      },
+      "creating": {
+        "text": "Criando..."
+      },
+      "placeholder": {
+        "text": "Em breve você poderá gerenciar e criar suas configurações de aplicativos e memórias aqui."
+      },
+      "just_now": {
+        "text": "Agora mesmo"
+      },
+      "edit": {
+        "text": "Editar"
+      },
+      "delete": {
+        "text": "Excluir"
+      },
+      "save": {
+        "text": "Salvar"
+      }
+    },
     "app_store": {
       "description": {
         "text": "Navegue e gerencie os apps que seus mates podem usar."
@@ -4694,7 +5135,7 @@
           "text": "Apenas pergunte aos seus companheiros algo como:"
         },
         "how_to_use_mention": {
-          "text": "Ou mencione @{skillname}\nna sua mensagem para acionar a habilidade explicitamente."
+          "text": "Ou mencione {skillname}\nna sua mensagem para acionar a habilidade explicitamente."
         },
         "description": {
           "text": "Descrição"
@@ -4878,6 +5319,9 @@
       "back_to_app": {
         "text": "Voltar ao aplicativo"
       },
+      "settings_memories_entry": {
+        "text": "Entrada de configurações e memórias"
+      },
       "app_not_found": {
         "text": "Aplicativo não encontrado."
       },
@@ -4950,8 +5394,8 @@
                 }
               },
               "gpt_5": {
-                "2": {
-                  "text": "GPT-5.2"
+                "4": {
+                  "text": "GPT-5.4"
                 }
               },
               "gpt_oss_120b": {
@@ -5980,65 +6424,6 @@
         "text": "Carregando incorporações..."
       }
     },
-    "app_settings_memories": {
-      "examples_label": {
-        "text": "Exemplos:"
-      },
-      "my": {
-        "text": "Minhas"
-      },
-      "settings_and_memories": {
-        "text": "Configurações e memórias"
-      },
-      "my_settings_and_memories": {
-        "text": "Minhas configurações e memórias"
-      },
-      "no_entries_yet": {
-        "text": "Ainda sem entradas."
-      },
-      "examples": {
-        "text": "Exemplos"
-      },
-      "no_settings": {
-        "text": "Nenhuma configuração ou memória sincronizada ainda. Eles aparecerão aqui assim que disponíveis."
-      },
-      "add_entry": {
-        "text": "Adicionar entrada"
-      },
-      "loading": {
-        "text": "Carregando configurações e memórias..."
-      },
-      "item_key": {
-        "text": "Chave do item"
-      },
-      "settings_group": {
-        "text": "Grupo de configurações"
-      },
-      "item_value": {
-        "text": "Valor do item"
-      },
-      "cancel": {
-        "text": "Cancelar"
-      },
-      "creating": {
-        "text": "Criando..."
-      },
-      "placeholder": {
-        "text": "Em breve você poderá gerenciar e criar suas configurações de aplicativos e memórias aqui."
-      },
-      "just_now": {
-        "text": "Agora mesmo"
-      },
-      "edit": {
-        "text": "Editar"
-      },
-      "delete": {
-        "text": "Excluir"
-      },
-      "save": {
-        "text": "Salvar"
-      }
-    },
     "newsletter": {
       "text": "Newsletter"
     },
@@ -6517,6 +6902,18 @@
       },
       "no_auth_method": {
         "text": "Nenhum método de autenticação disponível. Entre em contato com o suporte."
+      },
+      "email_otp_description": {
+        "text": "Enviaremos um código de verificação para o seu endereço de e-mail."
+      },
+      "send_verification_code": {
+        "text": "Enviar código de verificação"
+      },
+      "email_otp_enter_code": {
+        "text": "Digite o código de 6 dígitos enviado para o seu e-mail."
+      },
+      "resend_code": {
+        "text": "Reenviar código"
       },
       "loading": {
         "text": "Carregando..."
@@ -7010,6 +7407,9 @@
     "username_invalid_chars": {
       "text": "Permitido: letras, números, _, ."
     },
+    "username_taken": {
+      "text": "Este nome de usuário já está em uso. Por favor, escolha outro."
+    },
     "enter_username": {
       "text": "Digite o nome de usuário"
     },
@@ -7026,7 +7426,16 @@
       "text": "As senhas não coincidem"
     },
     "password_too_short": {
-      "text": "Mínimo de 8 caracteres"
+      "text": "Mínimo de 10 caracteres"
+    },
+    "password_too_common": {
+      "text": "Esta senha é muito comum. Escolha uma mais forte."
+    },
+    "password_needs_lowercase": {
+      "text": "Pelo menos uma letra minúscula"
+    },
+    "password_needs_uppercase": {
+      "text": "Pelo menos uma letra maiúscula"
     },
     "password_too_long": {
       "text": "Menos de 60 caracteres"

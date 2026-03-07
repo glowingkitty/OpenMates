@@ -428,6 +428,9 @@ class EmailTemplateService:
                     # which would never match the YAML key "email.ai_response_notification.subject".
                     subject_key = "email.ai_response_notification.subject"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                elif template == "password-security-reminder":
+                    subject_key = "email.password_security_reminder.subject"
+                    subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 else:
                     subject_key = f"email.{template}.subject"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)
@@ -455,6 +458,7 @@ class EmailTemplateService:
                 'recovery-key-was-used', 'purchase-confirmation', 'refund-confirmation',
                 'signup_milestone', 'issue_report', 'issue_report_confirmation',
                 'community_share_notification',
+                'password-security-reminder',
                 'storage-billing-failed-1', 'storage-billing-failed-2',
                 'storage-billing-failed-3', 'storage-files-deleted',
             }

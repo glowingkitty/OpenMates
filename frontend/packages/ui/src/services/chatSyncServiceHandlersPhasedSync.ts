@@ -947,28 +947,7 @@ async function storeEmbedKeysBatch(
  * Merge rejected suggestion hashes from local and server for cross-device sync.
  * Returns a union of both arrays with duplicates removed.
  * This ensures rejected suggestions stay rejected across all devices.
- *
- * @param localHashes - Local rejected suggestion hashes (may be null/undefined)
- * @param serverHashes - Server rejected suggestion hashes (may be null/undefined)
- * @returns Merged array of unique hashes, or null if both inputs are empty/null
- */
-function mergeRejectedHashes(
-  localHashes: string[] | null | undefined,
-  serverHashes: string[] | null | undefined,
-): string[] | null {
-  const local = localHashes ?? [];
-  const server = serverHashes ?? [];
 
-  // If both empty, return null to avoid storing empty arrays
-  if (local.length === 0 && server.length === 0) {
-    return null;
-  }
-
-  // Create union using Set for deduplication
-  const mergedSet = new Set([...local, ...server]);
-  const merged = Array.from(mergedSet);
-  return merged;
-}
 
 /**
  * Merge server chat data with local chat data
@@ -1020,10 +999,7 @@ function mergeServerChatWithLocal(
       encrypted_chat_tags: serverChat.encrypted_chat_tags,
       encrypted_top_recommended_apps_for_chat:
         serverChat.encrypted_top_recommended_apps_for_chat,
-      // Settings/memories suggestions from post-processing Phase 2
-      encrypted_settings_memories_suggestions:
-        serverChat.encrypted_settings_memories_suggestions,
-      rejected_suggestion_hashes: serverChat.rejected_suggestion_hashes,
+
       // Active focus mode for this chat
       encrypted_active_focus_id: serverChat.encrypted_active_focus_id,
       // Include sharing fields from server sync
@@ -1085,16 +1061,7 @@ function mergeServerChatWithLocal(
     encrypted_top_recommended_apps_for_chat:
       serverChat.encrypted_top_recommended_apps_for_chat ??
       localChat.encrypted_top_recommended_apps_for_chat,
-    // Settings/memories suggestions from post-processing Phase 2
-    // Server takes precedence since suggestions are overwritten each response
-    encrypted_settings_memories_suggestions:
-      serverChat.encrypted_settings_memories_suggestions ??
-      localChat.encrypted_settings_memories_suggestions,
-    // Merge rejected suggestion hashes - union of local and server for zero-knowledge cross-device sync
-    rejected_suggestion_hashes: mergeRejectedHashes(
-      localChat.rejected_suggestion_hashes,
-      serverChat.rejected_suggestion_hashes,
-    ),
+
     // Active focus mode — server takes precedence (focus mode is activated/deactivated in real-time)
     encrypted_active_focus_id:
       serverChat.encrypted_active_focus_id ??

@@ -17,6 +17,7 @@ import type { EmbedType } from "../message_parsing/types";
 // Imported lazily to avoid circular deps — called after each chat-key establishment
 // so that system messages queued before the key was available get saved correctly.
 import { flushPendingSystemMessagesForChat } from "./chatSyncServiceHandlersAppSettings";
+import { chatKeyManager } from "./encryption/ChatKeyManager";
 
 /**
  * Pending message queue for cross-device sync.
@@ -922,6 +923,27 @@ export async function handleChatMessageReceivedImpl(
           `[ChatSyncService:ChatUpdates] chat_message_added for chat ${payload.chat_id}: ` +
             `chat key not in cache — queuing message ${incomingMessage.message_id} until key arrives`,
         );
+
+        // CRITICAL FIX: Update messages_v and timestamps on the chat BEFORE
+        // queuing. The message itself can't be encrypted without the key, but
+        // the chat metadata update doesn't require the key and MUST happen now.
+        // Without this, if the key arrives later and flushPendingMessagesForChat
+        // saves the messages, messages_v stays at 0 and the health check flags
+        // the chat as having issues.
+        if (payload.versions?.messages_v !== undefined) {
+          const chatUpdate: Chat = {
+            ...chat,
+            messages_v: payload.versions.messages_v,
+            last_edited_overall_timestamp:
+              payload.last_edited_overall_timestamp,
+            updated_at: Math.floor(Date.now() / 1000),
+          };
+          await chatDB.updateChat(chatUpdate);
+          console.info(
+            `[ChatSyncService:ChatUpdates] Updated messages_v to ${payload.versions.messages_v} for chat ${payload.chat_id} despite missing key (message queued)`,
+          );
+        }
+
         const pending = _pendingMessages.get(payload.chat_id) || [];
         pending.push(incomingMessage);
         _pendingMessages.set(payload.chat_id, pending);
@@ -1195,6 +1217,67 @@ export async function handleChatReadStatusUpdatedImpl(
 }
 
 /**
+ * Handle cross-device pinned status sync.
+ * When a user pins/unpins a chat on Device A, the server broadcasts
+ * `chat_pinned_updated` to all other devices so their chat lists
+ * reflect the updated pin state without requiring a tab reload.
+ */
+export async function handleChatPinnedUpdatedImpl(
+  _serviceInstance: ChatSynchronizationService,
+  payload: { chat_id: string; pinned: boolean },
+): Promise<void> {
+  if (!payload || !payload.chat_id) {
+    console.error(
+      "[ChatSyncService:ChatUpdates] Invalid chat_pinned_updated payload: missing chat_id",
+      payload,
+    );
+    return;
+  }
+
+  const { chat_id, pinned } = payload;
+  console.debug(
+    `[ChatSyncService:ChatUpdates] Received chat_pinned_updated for chat ${chat_id}: pinned=${pinned}`,
+  );
+
+  // 1. Update IndexedDB so pinned state survives page reloads
+  try {
+    const chat = await chatDB.getChat(chat_id);
+    if (chat) {
+      await chatDB.updateChat({ ...chat, pinned: !!pinned });
+    } else {
+      console.debug(
+        `[ChatSyncService:ChatUpdates] Chat ${chat_id} not found in IndexedDB for pinned update (may not be loaded yet)`,
+      );
+    }
+  } catch (err) {
+    console.error(
+      `[ChatSyncService:ChatUpdates] Failed to persist pinned for chat ${chat_id}:`,
+      err,
+    );
+  }
+
+  // 2. Dispatch LOCAL_CHAT_LIST_CHANGED_EVENT so Chats.svelte re-reads and re-sorts
+  //    the chat list reactively (pinned chats appear at top).
+  try {
+    const { LOCAL_CHAT_LIST_CHANGED_EVENT } = await import(
+      "./drafts/draftConstants"
+    );
+    const { chatListCache } = await import("./chatListCache");
+    chatListCache.markDirty();
+    window.dispatchEvent(
+      new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, {
+        detail: { chat_id, pinned: !!pinned },
+      }),
+    );
+  } catch (err) {
+    console.error(
+      `[ChatSyncService:ChatUpdates] Failed to dispatch pin update event for chat ${chat_id}:`,
+      err,
+    );
+  }
+}
+
+/**
  * Handle metadata for encryption - Dual-Phase Architecture
  * Server sends plaintext metadata (title, category) for client-side encryption
  */
@@ -1266,8 +1349,18 @@ export async function handleChatMetadataForEncryptionImpl(
     );
 
     // PHASE 2: Update local chat with encrypted metadata
-    // Get or generate chat key for encryption
-    const chatKey = chatDB.getOrGenerateChatKey(chat_id);
+    // Get chat key — should be cached by the time AI response metadata arrives
+    let chatKey = chatKeyManager.getKeySync(chat_id);
+    if (!chatKey) {
+      chatKey = await chatKeyManager.getKey(chat_id);
+    }
+    if (!chatKey) {
+      console.error(
+        `[ChatSyncService:ChatUpdates] No chat key available for metadata encryption (chat ${chat_id}). ` +
+          `Skipping encrypted metadata update to prevent data corruption.`,
+      );
+      return;
+    }
 
     // Import chat-specific encryption function
     const { encryptWithChatKey } = await import("./cryptoService");

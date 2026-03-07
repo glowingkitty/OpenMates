@@ -108,6 +108,7 @@
 <UnifiedEmbedFullscreen
   appId="mail"
   skillId="email"
+  skillIconName="mail"
   embedHeaderTitle={safeSubject || $text('embeds.mail.email')}
   embedHeaderSubtitle={safeReceiver ? `${$text('embeds.mail.to')}: ${safeReceiver}` : undefined}
   onClose={onClose}

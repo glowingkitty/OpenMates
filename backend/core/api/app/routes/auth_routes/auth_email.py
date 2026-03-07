@@ -3,7 +3,11 @@ import logging
 import time
 import hashlib
 import base64
-from backend.core.api.app.schemas.auth import RequestEmailCodeRequest, RequestEmailCodeResponse, CheckEmailCodeRequest, CheckEmailCodeResponse
+from backend.core.api.app.schemas.auth import (
+    RequestEmailCodeRequest, RequestEmailCodeResponse,
+    CheckEmailCodeRequest, CheckEmailCodeResponse,
+    CheckUsernameRequest, CheckUsernameResponse,
+)
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.metrics import MetricsService
@@ -248,13 +252,23 @@ async def check_confirm_email_code(
         event_logger.info(f"Email verified successfully")
         logger.info(f"Email verified successfully")
 
-        # Validate username from request body
+        # Validate username format
         username_valid, username_error = validate_username(code_request.username)
         if not username_valid:
             logger.warning(f"Invalid username format: {username_error}")
             return CheckEmailCodeResponse(
                 success=False,
                 message=f"Invalid username: {username_error}"
+            )
+
+        # Check username uniqueness server-wide (case-insensitive via SHA-256 hash)
+        hashed_username = directus_service.hash_username(code_request.username)
+        username_taken, _, _ = await directus_service.get_user_by_hashed_username(hashed_username)
+        if username_taken:
+            logger.warning("Email verification rejected: username already taken")
+            return CheckEmailCodeResponse(
+                success=False,
+                message="This username is already taken. Please choose another one."
             )
 
         # Check if user already exists (double-check)
@@ -306,4 +320,62 @@ async def check_confirm_email_code(
         return CheckEmailCodeResponse(
             success=False,
             message="An error occurred while verifying the code."
+        )
+
+
+# ── Username availability check ───────────────────────────────────────────────
+
+@router.post(
+    "/check_username_valid",
+    response_model=CheckUsernameResponse,
+    dependencies=[Depends(verify_allowed_origin)],
+    include_in_schema=False,  # Internal endpoint — not exposed in public API docs
+)
+@limiter.limit("30/minute")
+async def check_username_valid(
+    request: Request,
+    username_request: CheckUsernameRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> CheckUsernameResponse:
+    """
+    Check whether a username is both valid in format and not already taken
+    server-wide.
+
+    Called by the signup form (on blur / before submit) and, optionally, by
+    the username-change settings page.
+
+    Rate-limited to 30 req/min — more permissive than write endpoints but
+    still prevents enumeration at scale.
+
+    Returns:
+        { available: true }   — username is free and well-formed.
+        { available: false, message: "<reason>" }  — taken or invalid.
+    """
+    try:
+        username = username_request.username.strip()
+
+        # 1. Format validation (same rules as signup / settings)
+        is_valid, error_msg = validate_username(username)
+        if not is_valid:
+            return CheckUsernameResponse(available=False, message=error_msg)
+
+        # 2. Uniqueness check — hash the username and query Directus
+        hashed = directus_service.hash_username(username)
+        found, _, _ = await directus_service.get_user_by_hashed_username(hashed)
+
+        if found:
+            logger.debug("Username availability check: username is taken")
+            return CheckUsernameResponse(
+                available=False,
+                message="This username is already taken. Please choose another one.",
+            )
+
+        return CheckUsernameResponse(available=True, message="Username is available")
+
+    except Exception as e:
+        logger.error(f"Error checking username availability: {e}", exc_info=True)
+        # On unexpected errors, return unavailable to prevent silent data issues
+        return CheckUsernameResponse(
+            available=False,
+            message="Could not verify username availability. Please try again.",
         )

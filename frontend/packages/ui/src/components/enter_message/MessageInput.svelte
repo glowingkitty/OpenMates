@@ -22,6 +22,7 @@
     import { pendingMentionStore } from '../../stores/pendingMentionStore';
     import { getMatesById } from '../../data/matesMetadata';
     import { appSkillsStore } from '../../stores/appSkillsStore';
+    import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
     import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
     import { authStore } from '../../stores/authStore'; // Import auth store to check authentication status
     import { userProfile } from '../../stores/userProfile'; // Import user profile to check credit balance
@@ -257,7 +258,15 @@
     // Location precision setting — read from personalDataStore (persisted, encrypted).
     // When impreciseByDefault=true, MapsView opens in area mode (privacy-first default).
     let locationSettingsState = $state({ impreciseByDefault: true });
+    // Performance: Cache PII store reads to avoid calling get() on every detection run.
+    // Updated via store subscriptions; detection reads from cache instead of stores.
+    let cachedPIISettings: PIIDetectionSettings | null = null;
+    let cachedPIIEnabledEntries: PersonalDataEntry[] | null = null;
     personalDataStore.locationSettings.subscribe((s) => { locationSettingsState = s; });
+    // Performance: Subscribe to PII-related stores so runPIIDetectionImmediate() reads
+    // from cache instead of calling get() on every invocation.
+    personalDataStore.settings.subscribe((s) => { cachedPIISettings = s; });
+    personalDataStore.enabledEntries.subscribe((entries) => { cachedPIIEnabledEntries = entries; });
     let defaultImprecise = $derived(locationSettingsState.impreciseByDefault);
     let isMessageFieldFocused = $state(false);
     
@@ -275,6 +284,17 @@
     let selectedNode = $state<{ node: any; pos: number } | null>(null);
     let isMenuInteraction = false;
     let previousHeight = 0;
+
+    const MESSAGE_FIELD_MIN_HEIGHT = 100;
+    const MESSAGE_FIELD_MIN_HEIGHT_COMPACT = 60;
+    const MESSAGE_FIELD_MAX_HEIGHT = 350;
+    const MESSAGE_FIELD_MAPS_HEIGHT = 400;
+    const MESSAGE_FIELD_FULLSCREEN_FALLBACK_VH = 0.65;
+    const MESSAGE_FIELD_TRANSITION_DURATION_MS = 300;
+    const MESSAGE_FIELD_TRANSITION_BUFFER_MS = 70;
+    const FULLSCREEN_TOP_GUTTER_PX = 20;
+    let panelHeightTransitionOverride = $state<string | null>(null);
+    let suppressHeightChangeDispatch = $state(false);
     
     // Computed state for showing action buttons
     // In extended/fullscreen mode: always visible (no tap required).
@@ -327,6 +347,13 @@
     
     // --- Backspace State ---
     let isBackspaceOperation = false; // Flag to prevent immediate re-grouping after backspace
+    
+    // --- URL ignore list for embed re-conversion guard ---
+    // When the user right-clicks a web/video embed and selects "Paste as text", we add
+    // the original URL to this set so detectClosedUrls will not auto-convert it back to
+    // an embed on the next editor update.  The set is cleared when the user sends the
+    // message or completely clears the message input field.
+    let ignoredEmbedUrls = $state<Set<string>>(new Set());
     
     // --- Text-change guard for handleEditorUpdate ---
     // Tracks the last text content processed by handleEditorUpdate.
@@ -677,7 +704,7 @@
                 urlStart >= range.start && urlEnd <= range.end
             );
             
-            if (!isInsideCodeBlock) {
+            if (!isInsideCodeBlock && !ignoredEmbedUrls.has(url)) {
                 allUrls.push({
                     url,
                     startPos: urlStart,
@@ -731,32 +758,13 @@
             const isRecentlyClosed = isFollowedByWhitespace && isInRecentContent && (lastChar === ' ' || lastChar === '\n') && isStandaloneUrl;
             
             if (isRecentlyClosed) {
-                console.debug('[MessageInput] Found newly closed standalone URL:', {
-                    url,
-                    startPos,
-                    endPos,
-                    charAfterUrl,
-                    distanceFromEnd,
-                    threshold: recentContentThreshold,
-                    isStandaloneUrl,
-                    textBeforeUrl: textBeforeUrl.substring(Math.max(0, textBeforeUrl.length - 20)) // Last 20 chars for debugging
-                });
-                
                 closedUrls.push({
                     url,
                     startPos,
                     endPos
                 });
-            } else if (isFollowedByWhitespace && isInRecentContent && (lastChar === ' ' || lastChar === '\n') && !isStandaloneUrl) {
-                // Log when we skip a URL because it's part of a sentence
-                console.debug('[MessageInput] Skipping URL conversion - URL is part of a sentence:', {
-                    url,
-                    textBeforeUrl: textBeforeUrl.substring(Math.max(0, textBeforeUrl.length - 30)) // Last 30 chars for debugging
-                });
             }
         }
-        
-        console.debug('[MessageInput] Total closed URLs detected:', closedUrls.length);
         
         return closedUrls;
     }
@@ -882,6 +890,13 @@
                 // Use chain().setContent(content, { emitUpdate: false }).run() to match the working draft loading pattern
                 editor.chain().setContent(parsedDoc, { emitUpdate: false }).run();
                 console.debug('[MessageInput] Updated editor with unified parser result');
+                
+                // After embed conversion, the URL text that may have triggered a PII
+                // false positive is gone from the editor. Invalidate the PII text cache
+                // and re-run detection so the stale banner (e.g. "Found 1 phone number"
+                // from a URL path segment) is cleared.
+                lastPIIText = '';
+                runPIIDetectionImmediate(editor);
             }
             
         } finally {
@@ -1076,10 +1091,6 @@
                     
                     // Only highlight standalone URLs - skip URLs that are part of sentences
                     if (!isStandaloneUrl) {
-                        console.debug('[MessageInput] Skipping URL highlight - URL is part of a sentence:', {
-                            url: url.substring(0, 50),
-                            textBeforeUrl: textBeforeUrl.substring(Math.max(0, textBeforeUrl.length - 30))
-                        });
                         continue;
                     }
                     
@@ -1211,12 +1222,6 @@
                 const containerWidth = scrollContainer.offsetWidth;
                 const isMobile = containerWidth < 450;
                 
-                console.debug('[MessageInput] Updating embed group layout:', {
-                    containerWidth,
-                    isMobile,
-                    threshold: 450
-                });
-                
                 // Apply mobile class only when container is narrow
                 // Desktop is the default layout (no class needed)
                 if (isMobile) {
@@ -1263,7 +1268,7 @@
                 embedGroupResizeObserver.observe(container as HTMLElement);
             });
             
-            console.debug('[MessageInput] Observing', scrollContainers.length, 'embed group containers for resize');
+            // Performance: removed per-keystroke console.debug for embed group observer count
         } catch (error) {
             console.error('[MessageInput] Error setting up embed group observers:', error);
         }
@@ -1300,11 +1305,11 @@
             // Use an explicit pixel height (containerRect.height - 20) instead of `height:auto`
             // so that Svelte transitions on child overlays (MapsView, CameraView) can measure
             // the container height correctly via getComputedStyle before the browser layout pass.
-            const top    = containerRect.top + 20;
+            const top    = containerRect.top + FULLSCREEN_TOP_GUTTER_PX;
             const bottom = window.innerHeight - containerRect.bottom;
             const left   = containerRect.left;
             const right  = window.innerWidth - containerRect.right;
-            const height = containerRect.height - 20;
+            const height = containerRect.height - FULLSCREEN_TOP_GUTTER_PX;
             return [
                 'position: fixed',
                 `left: ${left}px`,
@@ -1321,15 +1326,15 @@
         }
         if (isFullscreen) {
             // Fallback when containerRect is not yet available (initial render edge case).
-            return 'height: 65dvh; max-height: 65dvh;';
+            return `height: ${MESSAGE_FIELD_FULLSCREEN_FALLBACK_VH * 100}dvh; max-height: ${MESSAGE_FIELD_FULLSCREEN_FALLBACK_VH * 100}dvh;`;
         }
         // Maps/camera overlay open (non-fullscreen only): grow to fixed height so the
         // overlay fills edge-to-edge. When closing, we fall through to the default below
         // which correctly restores `height: auto` without affecting fullscreen state.
         if (showMaps || showCamera) {
-            return 'height: 400px; max-height: 400px;';
+            return `height: ${MESSAGE_FIELD_MAPS_HEIGHT}px; max-height: ${MESSAGE_FIELD_MAPS_HEIGHT}px;`;
         }
-        return 'height: auto; max-height: 350px;';
+        return `height: auto; max-height: ${MESSAGE_FIELD_MAX_HEIGHT}px;`;
     })());
 
     // In fullscreen the scrollable content area fills the panel height minus the action buttons row (~120px).
@@ -1587,6 +1592,44 @@
                         }
                     }
                     
+                    // Check for a standalone URL paste (single URL with optional surrounding
+                    // whitespace).  When detected we immediately trigger embed conversion —
+                    // no need for the user to type a trailing space.
+                    // We only do this when:
+                    //   1. The pasted text is (after trimming) a single URL.
+                    //   2. The URL is not in the ignore list (user previously chose "paste as text").
+                    //   3. The user is authenticated (unauthenticated path has no EmbedStore).
+                    const trimmedText = text ? text.trim() : '';
+                    const standaloneUrlRegex = /^https?:\/\/[^\s]+$/;
+                    if (
+                        trimmedText &&
+                        standaloneUrlRegex.test(trimmedText) &&
+                        !ignoredEmbedUrls.has(trimmedText) &&
+                        $authStore.isAuthenticated
+                    ) {
+                        // Let TipTap insert the text first (return false = default paste),
+                        // then immediately schedule embed processing on the next tick so
+                        // the editor content is already updated when we read it.
+                        // We use a flag so scheduleHeavyParsing in handleEditorUpdate
+                        // triggers processClosedUrls immediately (same as typing a space).
+                        piiPasteDetectionPending = true;
+                        // Schedule immediate URL conversion after the paste is committed.
+                        // We insert a trailing space after the URL to trigger detectClosedUrls
+                        // (which looks for whitespace after the URL), then remove it once
+                        // processClosedUrls has replaced the URL with an embed block.
+                        // The whole operation happens in a single tick so the user never
+                        // sees the trailing space in the editor.
+                        tick().then(() => {
+                            if (!editor || editor.isDestroyed) return;
+                            // Insert a trailing space to satisfy the "closed URL" detection
+                            editor.commands.insertContent(' ');
+                            // The space triggers handleEditorUpdate → scheduleHeavyParsing
+                            // → runHeavyParsing → handleUnifiedParsing → detectClosedUrls
+                            // → processClosedUrls, which replaces the URL+space with the embed.
+                        });
+                        return false;
+                    }
+
                     // No special handling needed - allow default paste.
                     // Flag for immediate PII detection on the next editor update,
                     // since pasted text may contain complete PII patterns.
@@ -1776,6 +1819,20 @@
     function checkMentionTrigger(editor: Editor) {
         const { from } = editor.state.selection;
 
+        // Performance: Short-circuit when we know the dropdown isn't showing and
+        // the user hasn't typed '@'. The full textBetween + extractMentionQuery
+        // path is only needed when an '@' character is nearby or the dropdown is
+        // already visible (user may be backspacing out of a mention).
+        if (!showMentionDropdown) {
+            // Quick check: look at a small window around the cursor for '@'
+            const quickText = editor.state.doc.textBetween(
+                Math.max(0, from - 50), from, '\n'
+            );
+            if (!quickText.includes('@')) {
+                return;
+            }
+        }
+
         // Get text from document start to cursor position using ProseMirror's textBetween
         // This properly handles the document structure and gives us the actual character position
         const textBeforeCursor = editor.state.doc.textBetween(0, from, '\n');
@@ -1952,10 +2009,10 @@
      *
      * For immediate needs (e.g. exclusion changes), use runPIIDetectionImmediate().
      */
-    function runPIIDetection(editor: Editor, forcedByPaste = false) {
+    function runPIIDetection(editor: Editor, forcedByPaste = false, currentText?: string) {
         if (!editor || editor.isDestroyed) return;
         
-        const text = editor.getText();
+        const text = currentText ?? editor.getText();
         
         // Skip if text hasn't changed (e.g. cursor movement, selection change)
         if (text === lastPIIText) return;
@@ -1969,19 +2026,17 @@
             return;
         }
         
-        // Determine if the latest character typed is a delimiter (word boundary).
-        // Compare current text to last detected text to find what was just typed.
-        const lastChar = text.length > 0 ? text[text.length - 1] : '';
-        const isDelimiter = PII_TRIGGER_CHARS.has(lastChar);
-        
-        if (forcedByPaste || isDelimiter) {
-            // Trigger 1 & 2: Delimiter typed or paste event — run immediately
+        // Performance optimization: Only run PII detection immediately on paste.
+        // On delimiter keystrokes (space, comma, etc.), heavy parsing already runs
+        // immediately — stacking PII detection on top causes input lag. The debounce
+        // timer still fires after PII_DEBOUNCE_MS as a safety net.
+        if (forcedByPaste) {
+            // Paste: content arrives complete, detect immediately
             if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); piiDebounceTimer = null; }
             runPIIDetectionImmediate(editor);
         } else {
-            // Trigger 3: No delimiter — schedule fallback debounce.
-            // This catches cases where the user finishes typing PII but doesn't type
-            // a trailing delimiter before sending.
+            // Regular typing and delimiters: debounce to avoid stacking with heavy parsing.
+            // PII_DEBOUNCE_MS (800ms) ensures detection runs shortly after the user pauses.
             if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); }
             piiDebounceTimer = setTimeout(() => {
                 piiDebounceTimer = null;
@@ -2016,8 +2071,9 @@
             return;
         }
         
-        // Read current privacy settings from the personalDataStore
-        const piiSettings: PIIDetectionSettings = get(personalDataStore.settings);
+        // Performance: Read from cached store values (updated via subscription)
+        // instead of calling get() on every detection run.
+        const piiSettings: PIIDetectionSettings = cachedPIISettings ?? get(personalDataStore.settings);
         
         // If master toggle is off, skip all PII detection
         if (!piiSettings.masterEnabled) {
@@ -2032,8 +2088,8 @@
             if (!enabled) disabledCategories.add(category);
         }
         
-        // Get user-defined personal data entries that are enabled
-        const enabledEntries: PersonalDataEntry[] = get(personalDataStore.enabledEntries);
+        // Performance: Read from cached store values instead of get()
+        const enabledEntries: PersonalDataEntry[] = cachedPIIEnabledEntries ?? get(personalDataStore.enabledEntries);
         const personalDataForDetection: PersonalDataForDetection[] = enabledEntries.map(
             (entry) => {
                 const result: PersonalDataForDetection = {
@@ -2200,6 +2256,8 @@
                 piiExclusions = new Set();
                 currentPIIDecorations = [];
                 lastPIIText = '';
+                // Clear the URL ignore list — field is empty so start fresh
+                ignoredEmbedUrls = new Set();
             }
         }
         
@@ -2215,16 +2273,23 @@
         // Always trigger save/delete operation - the draft service handles both scenarios
         triggerSaveDraft(currentChatId);
 
-        // PII Detection: hybrid trigger — immediate on delimiter chars and paste events,
-        // debounce fallback for regular typing. See runPIIDetection() for details.
+        // Performance: Stagger PII detection and heavy parsing on delimiter keystrokes.
+        // Both are expensive — running them simultaneously on every space/comma causes
+        // noticeable input lag. Strategy:
+        //   - Heavy parsing runs immediately on delimiters (needed for URL detection/embeds)
+        //   - PII detection runs immediately ONLY on paste (content arrives complete)
+        //   - On delimiters, PII detection stays on its 800ms debounce timer
+        // This halves synchronous work on delimiter keystrokes while keeping paste instant.
         const wasPaste = piiPasteDetectionPending;
         piiPasteDetectionPending = false;
-        runPIIDetection(editor, wasPaste);
+        
+        // PII Detection: immediate only on paste events; delimiter-triggered detection
+        // uses the debounce fallback to avoid stacking with heavy parsing.
+        runPIIDetection(editor, wasPaste, currentText);
 
         // Heavy parsing (markdown serialization + unified parser + decorations):
-        // Debounced to delimiter boundaries to avoid running the full parser on every
-        // keystroke. Runs immediately on space/newline/punctuation and paste, with a
-        // 400ms fallback timer for regular characters.
+        // Runs immediately on delimiter characters and paste, with a 400ms fallback
+        // timer for regular characters.
         scheduleHeavyParsing(editor, currentText, wasPaste);
 
         // Dispatch live text change event so parent components can react on each keystroke
@@ -2241,8 +2306,13 @@
         tick().then(() => {
             checkScrollable();
             updateHeight();
-            updateEmbedGroupLayouts(); // Update embed group layouts when content changes
-            observeEmbedGroupContainers(); // Re-observe any new embed groups
+            // Performance: Only run embed group DOM queries if embeds might exist.
+            // These call querySelectorAll('.web-website-preview-group') on every keystroke,
+            // which is wasted work when the editor has no embed nodes.
+            if (editorElement?.querySelector('[data-embed-id]')) {
+                updateEmbedGroupLayouts();
+                observeEmbedGroupContainers();
+            }
         });
     }
 
@@ -2995,6 +3065,7 @@
     // --- UI Update Functions ---
     function updateHeight() {
         if (!messageInputWrapper) return;
+        if (suppressHeightChangeDispatch || isFullscreen) return;
         const currentHeight = messageInputWrapper.offsetHeight;
         if (currentHeight !== previousHeight) {
             previousHeight = currentHeight;
@@ -3002,10 +3073,105 @@
         }
     }
     function checkScrollable() { if (scrollableContent) isScrollable = scrollableContent.scrollHeight > scrollableContent.clientHeight; }
-    function toggleFullscreen() {
-        isFullscreen = !isFullscreen;
-        dispatch('fullscreenToggle', isFullscreen);
-        tick().then(checkScrollable);
+
+    function getCollapsedTargetHeight(): number {
+        if (showMaps || showCamera) return MESSAGE_FIELD_MAPS_HEIGHT;
+        const minHeight = shouldShowActionButtons ? MESSAGE_FIELD_MIN_HEIGHT : MESSAGE_FIELD_MIN_HEIGHT_COMPACT;
+        const messageField = messageInputWrapper?.querySelector('.message-field') as HTMLElement | null;
+        const measuredContentHeight = messageField?.scrollHeight ?? minHeight;
+        return Math.min(Math.max(measuredContentHeight, minHeight), MESSAGE_FIELD_MAX_HEIGHT);
+    }
+
+    function getFullscreenTargetHeight(): number {
+        if (containerRect && typeof window !== 'undefined') {
+            return Math.max(containerRect.height - FULLSCREEN_TOP_GUTTER_PX, MESSAGE_FIELD_MIN_HEIGHT);
+        }
+        if (typeof window !== 'undefined') {
+            return Math.max(Math.round(window.innerHeight * MESSAGE_FIELD_FULLSCREEN_FALLBACK_VH), MESSAGE_FIELD_MIN_HEIGHT);
+        }
+        return Math.max(MESSAGE_FIELD_MAPS_HEIGHT, MESSAGE_FIELD_MIN_HEIGHT);
+    }
+
+    async function waitForMessageFieldHeightTransition(messageField: HTMLElement): Promise<void> {
+        const fallbackMs = MESSAGE_FIELD_TRANSITION_DURATION_MS + MESSAGE_FIELD_TRANSITION_BUFFER_MS;
+        await new Promise<void>((resolve) => {
+            let settled = false;
+            const settle = () => {
+                if (settled) return;
+                settled = true;
+                messageField.removeEventListener('transitionend', onTransitionEnd);
+                resolve();
+            };
+            const onTransitionEnd = (event: TransitionEvent) => {
+                if (event.target !== messageField) return;
+                const animatedProps = new Set(['height', 'max-height', 'top', 'right', 'bottom', 'left', 'transform']);
+                if (!animatedProps.has(event.propertyName)) return;
+                settle();
+            };
+            messageField.addEventListener('transitionend', onTransitionEnd);
+            setTimeout(settle, fallbackMs);
+        });
+    }
+
+    async function toggleFullscreen() {
+        const messageField = messageInputWrapper?.querySelector('.message-field') as HTMLElement | null;
+        if (!messageField) {
+            isFullscreen = !isFullscreen;
+            dispatch('fullscreenToggle', isFullscreen);
+            tick().then(checkScrollable);
+            return;
+        }
+
+        const wasFullscreen = isFullscreen;
+        suppressHeightChangeDispatch = true;
+
+        try {
+            if (!wasFullscreen && containerRect && typeof window !== 'undefined') {
+                const firstRect = messageField.getBoundingClientRect();
+
+                isFullscreen = true;
+                dispatch('fullscreenToggle', isFullscreen);
+                await tick();
+
+                const lastRect = messageField.getBoundingClientRect();
+                const deltaX = firstRect.left - lastRect.left;
+                const deltaY = firstRect.top - lastRect.top;
+                const scaleX = lastRect.width > 0 ? firstRect.width / lastRect.width : 1;
+                const scaleY = lastRect.height > 0 ? firstRect.height / lastRect.height : 1;
+
+                messageField.style.transition = 'none';
+                messageField.style.transformOrigin = 'top left';
+                messageField.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${scaleX}, ${scaleY})`;
+                void messageField.getBoundingClientRect();
+
+                messageField.style.transition = `transform ${MESSAGE_FIELD_TRANSITION_DURATION_MS}ms ease-in-out, border-radius ${MESSAGE_FIELD_TRANSITION_DURATION_MS}ms ease-in-out`;
+                messageField.style.transform = 'translate(0px, 0px) scale(1, 1)';
+
+                await waitForMessageFieldHeightTransition(messageField);
+                messageField.style.transition = '';
+                messageField.style.transform = '';
+                messageField.style.transformOrigin = '';
+                checkScrollable();
+                return;
+            }
+
+            const startHeight = Math.round(messageField.getBoundingClientRect().height);
+            panelHeightTransitionOverride = `height: ${startHeight}px; max-height: ${startHeight}px;`;
+            await tick();
+
+            isFullscreen = !isFullscreen;
+            dispatch('fullscreenToggle', isFullscreen);
+
+            await tick();
+            const targetHeight = isFullscreen ? getFullscreenTargetHeight() : getCollapsedTargetHeight();
+            panelHeightTransitionOverride = `height: ${targetHeight}px; max-height: ${targetHeight}px;`;
+
+            await waitForMessageFieldHeightTransition(messageField);
+            panelHeightTransitionOverride = null;
+            checkScrollable();
+        } finally {
+            suppressHeightChangeDispatch = false;
+        }
     }
 
     // --- Action Handlers (delegating to imported handlers) ---
@@ -3268,6 +3434,18 @@
                 preview: textContent.substring(0, 50)
             });
 
+            // For web / video URL embeds: add the URL to the ignore list so that
+            // detectClosedUrls does not immediately re-convert it back to an embed on
+            // the next editor update cycle (e.g. when the user presses Space or types
+            // another character after the restored URL).
+            if (menuType === 'web' || attrs.isYouTube || attrs.type === 'video' || attrs.type === 'website') {
+                const urlToIgnore = textContent.trim();
+                if (urlToIgnore) {
+                    ignoredEmbedUrls = new Set([...ignoredEmbedUrls, urlToIgnore]);
+                    console.debug('[MessageInput] Added URL to ignoredEmbedUrls:', urlToIgnore);
+                }
+            }
+
             // For recording embeds, delete the server-side audio file (same as delete action)
             if (attrs.type === 'recording') {
                 if (attrs.id) {
@@ -3463,6 +3641,8 @@
         // Clear PII state after sending
         detectedPII = [];
         piiExclusions = new Set();
+        // Clear the URL ignore list — a new message starts with a clean slate
+        ignoredEmbedUrls = new Set();
     }
 
     /**
@@ -3679,6 +3859,7 @@
         hasContent = false;
         originalMarkdown = ''; // Clear markdown tracking
         lastEditorUpdateText = ''; // Reset text-change guard so next update processes fully
+        ignoredEmbedUrls = new Set(); // Clear the URL ignore list when the field is fully cleared
     }
     export function getOriginalMarkdown(): string {
         // Flush any pending heavy parsing to ensure originalMarkdown is up-to-date
@@ -3704,7 +3885,11 @@
     // so the overlay fills edge-to-edge (same as maps). Without this the desktop camera
     // view renders at a tiny default height.
     // These aliases exist so the template references remain unchanged.
-    let containerStyle = $derived(messagePanelStyle);
+    let containerStyle = $derived(
+        panelHeightTransitionOverride
+            ? `${messagePanelStyle} ${panelHeightTransitionOverride}`
+            : messagePanelStyle
+    );
     let scrollableStyle = $derived(messagePanelScrollableStyle);
     
     // Convert reactive statement with side effects to $effect
@@ -3741,6 +3926,16 @@
             setTimeout(() => {
                 console.debug(`[MessageInput] Draft flush completed for previous chat ${previousChatId}`);
             }, 100);
+            
+            // Reset PII detection state for the new chat.
+            // Without this, stale PII matches from the previous chat persist
+            // (the "Sensitive data detected" banner stays visible even when the
+            // new chat's editor is empty or contains no PII).
+            detectedPII = [];
+            piiExclusions = new Set();
+            currentPIIDecorations = [];
+            lastPIIText = '';
+            if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); piiDebounceTimer = null; }
         }
         previousChatId = currentChatId;
     });
@@ -3776,18 +3971,21 @@
         }
     });
 
-    // Watch for a pending mention inserted from the settings panel (e.g. "Chat with this mate").
-    // When MateDetails.svelte sets pendingMentionStore, we insert the text into the editor
-    // using the same .setMate() path as the mention dropdown so it renders identically
-    // (styled gradient node showing @Sophia, not raw text "@mate:software_development").
+    // Watch for a pending mention (from suggestion clicks or "Chat with this mate" panel).
+    // When pendingMentionStore is set, we insert the mention chip at the START of the
+    // editor so it appears before any body text. This is important for suggestion clicks
+    // where the body text is already in the editor — placing the @mention first produces
+    // "@Travel-Search Show me flights..." instead of "Show me flights...@Travel-Search",
+    // which avoids false PII detection (an @mention at the end looks like an email).
     $effect(() => {
         const mention = $pendingMentionStore;
         if (mention && editor && !editor.isDestroyed) {
-            console.debug('[MessageInput] Inserting pending mention from settings panel:', mention);
+            console.debug('[MessageInput] Inserting pending mention:', mention);
             pendingMentionStore.set(null);
             tick().then(() => {
                 if (!editor || editor.isDestroyed) return;
-                editor.commands.focus('end');
+                // Insert at the start so the mention precedes any existing body text.
+                editor.commands.focus('start');
 
                 // Parse "@mate:{mateId}" to extract the id
                 const mateMatch = mention.match(/^@mate:(.+)$/);
@@ -3820,14 +4018,22 @@
                         editor.commands.insertContent(mention + ' ');
                     }
                 } else {
-                    // Skill or focus mode mention — render as a styled GenericMention chip.
-                    // Syntax: "@skill:{appId}:{skillId}" or "@focus:{appId}:{focusModeId}"
+                    // Skill, focus mode, or memory-category mention — render as a styled GenericMention chip.
+                    // Syntax:
+                    // - "@skill:{appId}:{skillId}"
+                    // - "@focus:{appId}:{focusModeId}"
+                    // - "@memory:{appId}:{memoryCategoryId}:{memoryType}"
                     const skillMatch = mention.match(/^@skill:([^:]+):(.+)$/);
                     const focusMatch = mention.match(/^@focus:([^:]+):(.+)$/);
+                    const memoryMatch = mention.match(/^@memory:([^:]+):([^:]+):(.+)$/);
+                    // @memory-entry:appId:categoryId:entryId — direct reference to a specific entry
+                    const memoryEntryMatch = mention.match(/^@memory-entry:([^:]+):([^:]+):(.+)$/);
 
-                    if (skillMatch || focusMatch) {
+                    if (skillMatch || focusMatch || memoryMatch || memoryEntryMatch) {
                         const isSkill = !!skillMatch;
-                        const matchGroups = (skillMatch || focusMatch)!;
+                        const isFocus = !!focusMatch;
+                        const isMemoryEntry = !!memoryEntryMatch;
+                        const matchGroups = (skillMatch || focusMatch || memoryMatch || memoryEntryMatch)!;
                         const targetAppId = matchGroups[1];
                         const targetItemId = matchGroups[2];
                         const apps = appSkillsStore.getState().apps;
@@ -3836,21 +4042,62 @@
                         if (app) {
                             // Build mentionDisplayName matching mentionSearchService format:
                             // "AppName-ItemName" e.g. "Code-Get-Docs" or "Jobs-Career-Insights"
+                            // For memory entries: "AppName-CategoryName-EntryTitle"
                             const capitalizeWords = (s: string) =>
                                 s.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join('-');
                             const appDisplay = capitalizeWords(targetAppId);
                             const itemDisplay = capitalizeWords(targetItemId.replace(/_/g, '-'));
-                            const displayName = `${appDisplay}-${itemDisplay}`;
+                            let displayName = `${appDisplay}-${itemDisplay}`;
+
+                            // For memory entries, try to include the entry title
+                            if (isMemoryEntry) {
+                                const entryId = matchGroups[3];
+                                // Look up entry title from the store
+                                const smStore = get(appSettingsMemoriesStore);
+                                const appEntriesByGroup = smStore.entriesByApp.get(targetAppId) || {};
+                                const catEntries = appEntriesByGroup[targetItemId] ?? [];
+                                const found = catEntries.find((e: { id: string }) => e.id === entryId);
+                                if (found) {
+                                    const entryValue = (found as { item_value?: Record<string, unknown> }).item_value;
+                                    // Try to find entry title from is_title field or first string value
+                                    const cat = app.settings_and_memories?.find((c: { id: string }) => c.id === targetItemId);
+                                    const titleField = cat?.schema_definition?.properties
+                                        ? Object.entries(cat.schema_definition.properties).find(
+                                            ([, p]: [string, { is_title?: boolean }]) => p.is_title
+                                        )?.[0]
+                                        : undefined;
+                                    let entryTitle = '';
+                                    if (titleField && entryValue?.[titleField]) {
+                                        entryTitle = String(entryValue[titleField]);
+                                    } else if (entryValue) {
+                                        for (const [key, value] of Object.entries(entryValue)) {
+                                            if (!key.startsWith('_') && key !== 'settings_group' && typeof value === 'string' && value.trim()) {
+                                                entryTitle = value;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if (entryTitle) {
+                                        displayName = `${appDisplay}-${itemDisplay}-${capitalizeWords(entryTitle.replace(/\s+/g, '-'))}`;
+                                    }
+                                }
+                            }
+
+                            // Settings & memories mentions use the dedicated memory gradient,
+                            // not the app's icon gradient, for visual consistency with the memory icon style.
+                            const isMemory = !!memoryMatch || isMemoryEntry;
+                            const MEMORY_GRADIENT_START = '#dd03b5';
+                            const MEMORY_GRADIENT_END = '#cb00a5';
 
                             editor
                                 .chain()
                                 .focus()
                                 .setGenericMention({
-                                    mentionType: isSkill ? 'skill' : 'focus_mode',
+                                    mentionType: isSkill ? 'skill' : (isFocus ? 'focus_mode' : (isMemoryEntry ? 'settings_memory_entry' : 'settings_memory')),
                                     displayName,
                                     mentionSyntax: mention,
-                                    colorStart: app.icon_colorgradient?.start,
-                                    colorEnd: app.icon_colorgradient?.end,
+                                    colorStart: isMemory ? MEMORY_GRADIENT_START : app.icon_colorgradient?.start,
+                                    colorEnd: isMemory ? MEMORY_GRADIENT_END : app.icon_colorgradient?.end,
                                 })
                                 .insertContent(' ')
                                 .run();

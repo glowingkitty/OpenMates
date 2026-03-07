@@ -67,7 +67,7 @@
     currency = 'EUR',
     ratePerNight,
     totalRate,
-    amenities = [],
+    amenities: amenitiesProp = [],
     isCheapest = false,
     // ecoCertified and freeCancellation accepted but not shown in preview to keep it compact
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -95,6 +95,9 @@
   let formattedReviews = $derived(
     reviews != null ? reviews.toLocaleString() : ''
   );
+  
+  // Defensive: TOON serialization may collapse arrays into bare strings.
+  let amenities = $derived(Array.isArray(amenitiesProp) ? amenitiesProp : []);
   
   // Top amenities (max 3 for preview card)
   let topAmenities = $derived(amenities.slice(0, 3));

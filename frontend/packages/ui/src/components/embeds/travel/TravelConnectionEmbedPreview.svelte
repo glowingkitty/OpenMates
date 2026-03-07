@@ -73,14 +73,21 @@
     arrival,
     duration,
     stops = 0,
-    carriers = [],
-    carrierCodes = [],
+    carriers: carriersProp = [],
+    carrierCodes: carrierCodesProp = [],
     bookableSeats,
     isCheapest = false,
     status = 'finished',
     isMobile = false,
     onFullscreen
   }: Props = $props();
+  
+  // Defensive: TOON serialization may collapse arrays into bare strings.
+  // Ensure carriers and carrierCodes are always arrays even if a non-array
+  // value slips through from the renderer. Belt-and-suspenders with the
+  // extractToonArray() fix in GroupRenderer.
+  let carriers = $derived(Array.isArray(carriersProp) ? carriersProp : []);
+  let carrierCodes = $derived(Array.isArray(carrierCodesProp) ? carrierCodesProp : []);
   
   // Format price for display
   let formattedPrice = $derived.by(() => {

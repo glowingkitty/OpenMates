@@ -1,44 +1,35 @@
 <!--
   frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
-  
+
   Fullscreen view for Document embeds (document_html).
   Uses UnifiedEmbedFullscreen as base and provides document-specific content.
-  
+
+  Architecture: See docs/claude/embed-types.md for the unified embed pattern.
+
   Designed to look like reading a document in Microsoft Word / Google Docs:
-  - Grey background canvas (the grey area around and between pages)
-  - White A4-ratio pages centered with shadow (like printed pages)
+  - Dark grey background canvas (the area around and between pages)
+  - White A4-sized pages centered with shadow (like printed pages)
   - Content flows naturally; grey gaps appear between pages
-  - Zoom controls to scale the document view
-  - Filename shown in bottom bar (e.g., "Report.docx")
+  - Floating zoom controls at the bottom (−, %, +) with pinch-to-zoom
+  - Filename shown in header (e.g., "Report.docx")
   - Copy (plain text), Download (as .docx), Share actions
-  
+
   Page rendering approach:
-  1. Render all content in a single tall white div with page margins
-  2. Measure the content, calculate how many pages are needed
-  3. The paper-stack container uses a CSS gradient background that draws
-     grey gaps at each page boundary
-  4. A column layout on the content wrapper creates "column breaks" at
-     page boundaries by using CSS column-fill with a fixed column height
-     equal to the page content height. Each column = one page of content.
-     The columns are stacked vertically (not side by side) via a transform.
-     
-  Actually, the simplest correct approach:
-  We use a single white container with content flowing normally.
-  At each page boundary, the grey gap is painted as a background band
-  that overlays the white. The content text does flow through these bands,
-  but we offset it using a CSS trick: the content wrapper uses
-  `background-clip: content-box` with vertical padding that accounts for 
-  the grey gaps.
-  
-  Final approach (what we actually do):
-  We render content once. After measuring, we insert invisible "spacer"
-  elements into the DOM at page-break Y positions. Each spacer has a
-  height equal to the gap + top/bottom page margins. This pushes subsequent
-  content past the grey gap area. The background gradient draws the
-  page/gap pattern, and the spacers keep text aligned to page content areas.
+  We render content once in a fixed-width container matching A4 dimensions.
+  After measuring, we insert invisible "spacer" elements into the DOM at
+  page-break Y positions. Each spacer pushes subsequent content past the
+  grey gap area. The background gradient draws the page/gap pattern, and
+  the spacers keep text aligned to page content areas.
+
+  Mobile rendering:
+  Instead of breaking the A4 layout on narrow screens, we keep the exact
+  same page structure and auto-calculate a zoom level that fits the
+  container width. This ensures the document always looks like an actual
+  A4 page, regardless of viewport size. Pinch-to-zoom is supported.
 -->
 
 <script lang="ts">
+  import { onMount } from 'svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   import { notificationStore } from '../../../stores/notificationStore';
@@ -53,8 +44,8 @@
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import type { PIIMapping } from '../../../types/chat';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
-  import { hydrateEmbedLinks } from '../../../utils/embedLinkUtils';
-  
+  import { hydrateEmbedLinks, replaceEmbedRefsWithUrls, replaceEmbedRefsWithUrlsInHtml } from '../../../utils/embedLinkUtils';
+
   /**
    * Props for document embed fullscreen
    */
@@ -99,7 +90,7 @@
      */
     piiRevealed?: boolean;
   }
-  
+
   let {
     htmlContent,
     title,
@@ -119,11 +110,9 @@
   }: Props = $props();
 
   // Local PII reveal toggle — initialised from prop but user can flip it in fullscreen.
-  // We use a local state so the fullscreen can show/hide independently without
-  // requiring a prop change from the parent (the parent toggle already covers the chat view).
   let localPiiRevealed = $state(false);
 
-  // Keep localPiiRevealed in sync when the parent prop changes (e.g. user toggles in chat).
+  // Keep localPiiRevealed in sync when the parent prop changes.
   $effect(() => {
     localPiiRevealed = piiRevealed;
   });
@@ -134,34 +123,28 @@
   function togglePII() {
     localPiiRevealed = !localPiiRevealed;
   }
-  
+
   /**
    * Apply PII masking to the raw HTML string before sanitizing.
-   * The AI may include placeholder strings (e.g. "[EMAIL_1]") in document content.
-   * When localPiiRevealed is true, we restore originals so the user can read the full content.
-   * When false, placeholders remain as-is (privacy mode).
    */
   let piiProcessedHtml = $derived.by(() => {
     if (!hasPII || !htmlContent) return htmlContent;
     if (localPiiRevealed) {
-      // Show originals: replace placeholders with original values
       return restorePIIInText(htmlContent, piiMappings);
     } else {
-      // Hide originals: ensure originals are replaced back with placeholders
-      // (needed in case the content was already restored elsewhere)
       return replacePIIOriginalsWithPlaceholders(htmlContent, piiMappings);
     }
   });
 
   // Sanitize HTML content for safe rendering (DOMPurify)
   let sanitizedHtml = $derived(sanitizeDocumentHtml(piiProcessedHtml));
-  
+
   // Extract title from content if not provided
   let displayTitle = $derived.by(() => {
     if (title) return title;
     return extractDocumentTitle(htmlContent) || $text('embeds.document_snippet');
   });
-  
+
   // Extract or generate filename for display
   let displayFilename = $derived.by(() => {
     if (filename) return filename;
@@ -169,86 +152,175 @@
     if (extracted) return extracted;
     return generateFilenameFromTitle(displayTitle);
   });
-  
+
   // Calculate word count from content if not provided
   let actualWordCount = $derived.by(() => {
     if (wordCount > 0) return wordCount;
     return countDocWords(htmlContent);
   });
-  
+
   // Build status text: word count
   let statusText = $derived.by(() => {
     const wc = actualWordCount;
     if (wc === 0) return '';
-    
-    const wordText = wc === 1 
+
+    const wordText = wc === 1
       ? $text('embeds.document_word_singular')
       : $text('embeds.document_word_plural');
-    
+
     return `${wc} ${wordText}`;
   });
-  
-  // Icon for documents
+
   const skillIconName = 'docs';
-  
+
   // =============================================
-  // US Letter Page Dimensions (at 96 DPI)
+  // A4 Page Dimensions (at 96 DPI)
   // =============================================
-  // US Letter: 8.5" × 11" = 816 × 1056 px
-  // Page margin: 96px top/bottom (1 inch), 96px left/right
-  // Usable content height per page: 1056 - 96 - 96 = 864px
+  // A4: 210mm x 297mm = 794 x 1123 px at 96 DPI
+  // Page margin: 96px top/bottom (1 inch), 72px left/right (~0.75 inch)
+  // Usable content height per page: 1123 - 96 - 96 = 931px
   // Gap between pages: 32px (grey canvas visible)
-  // At each page break, the spacer height = bottom margin + gap + top margin = 96 + 32 + 96 = 224px
-  const PAGE_CONTENT_HEIGHT = 864;
+  // Spacer height = bottom margin + gap + top margin = 96 + 32 + 96 = 224px
+  const PAGE_WIDTH = 794;
+  const PAGE_CONTENT_HEIGHT = 931;
   const PAGE_GAP = 32;
   const PAGE_MARGIN_Y = 96;
   const SPACER_HEIGHT = PAGE_MARGIN_Y + PAGE_GAP + PAGE_MARGIN_Y; // 224px
 
-  // Zoom state
-  const ZOOM_LEVELS = [50, 75, 100, 125, 150, 200];
-  let zoomIndex = $state(2); // Start at 100%
-  let zoomLevel = $derived(ZOOM_LEVELS[zoomIndex]);
-  
+  // =============================================
+  // Zoom State
+  // =============================================
+  const ZOOM_MIN = 20;
+  const ZOOM_MAX = 250;
+  const ZOOM_STEP_LEVELS = [25, 50, 75, 100, 125, 150, 200];
+  const DEFAULT_DESKTOP_ZOOM_INDEX = 2; // 75%
+  /** Continuous zoom percentage — not limited to step levels (for pinch-to-zoom) */
+  let zoomPercent = $state(75);
+  /** Whether the initial auto-fit zoom has been calculated */
+  let zoomInitialized = $state(false);
+
   function zoomIn() {
-    if (zoomIndex < ZOOM_LEVELS.length - 1) {
-      zoomIndex++;
+    // Jump to the next step level above current zoom
+    for (const level of ZOOM_STEP_LEVELS) {
+      if (level > zoomPercent + 1) {
+        zoomPercent = Math.min(level, ZOOM_MAX);
+        return;
+      }
     }
+    zoomPercent = ZOOM_MAX;
   }
-  
+
   function zoomOut() {
-    if (zoomIndex > 0) {
-      zoomIndex--;
+    // Jump to the next step level below current zoom
+    for (let i = ZOOM_STEP_LEVELS.length - 1; i >= 0; i--) {
+      if (ZOOM_STEP_LEVELS[i] < zoomPercent - 1) {
+        zoomPercent = Math.max(ZOOM_STEP_LEVELS[i], ZOOM_MIN);
+        return;
+      }
+    }
+    zoomPercent = ZOOM_MIN;
+  }
+
+  /** Reset zoom to the auto-fit level for the current container width */
+  function resetZoom() {
+    zoomPercent = calculateFitZoomPercent();
+  }
+
+  /** Display text for zoom — round to nearest integer */
+  let zoomDisplayText = $derived(`${Math.round(zoomPercent)}%`);
+
+  /**
+   * Calculate the zoom percentage that fits the page width to the container.
+   * Returns a continuous percentage, not snapped to step levels.
+   */
+  function calculateFitZoomPercent(): number {
+    if (!canvasScrollEl) return ZOOM_STEP_LEVELS[DEFAULT_DESKTOP_ZOOM_INDEX];
+
+    const CANVAS_HORIZONTAL_PADDING = 48;
+    const availableWidth = canvasScrollEl.clientWidth - CANVAS_HORIZONTAL_PADDING;
+    const fitPercent = Math.floor((availableWidth / PAGE_WIDTH) * 100);
+
+    // Clamp to valid range
+    return Math.max(ZOOM_MIN, Math.min(fitPercent, ZOOM_MAX));
+  }
+
+  // =============================================
+  // Pinch-to-Zoom (Touch Gesture Support)
+  // =============================================
+  let initialPinchDistance = 0;
+  let initialPinchZoom = 0;
+
+  function handleTouchStart(e: TouchEvent) {
+    if (e.touches.length === 2) {
+      // Two-finger pinch start — calculate initial distance
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      initialPinchDistance = Math.hypot(dx, dy);
+      initialPinchZoom = zoomPercent;
+      // Prevent browser's native pinch zoom on the document canvas
+      e.preventDefault();
     }
   }
-  
-  function resetZoom() {
-    zoomIndex = 2; // 100%
+
+  function handleTouchMove(e: TouchEvent) {
+    if (e.touches.length === 2 && initialPinchDistance > 0) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const currentDistance = Math.hypot(dx, dy);
+      const scale = currentDistance / initialPinchDistance;
+      const newZoom = initialPinchZoom * scale;
+      zoomPercent = Math.max(ZOOM_MIN, Math.min(Math.round(newZoom), ZOOM_MAX));
+      e.preventDefault();
+    }
+  }
+
+  function handleTouchEnd(e: TouchEvent) {
+    if (e.touches.length < 2) {
+      initialPinchDistance = 0;
+    }
   }
 
   // =============================================
-  // Page Break Spacer Injection
+  // DOM References
   // =============================================
-  // After content renders, we walk the DOM to find which elements
-  // cross page boundaries, and insert spacer divs that push
-  // subsequent content into the next page's content area.
-  //
-  // This is the same technique used by Google Docs:
-  // content flows naturally, but spacers at page breaks
-  // ensure text doesn't appear in the grey gap between pages.
   let contentEl: HTMLDivElement | undefined = $state(undefined);
+  let canvasScrollEl: HTMLDivElement | undefined = $state(undefined);
   let pageCount = $state(1);
-
-  // CSS class for injected spacers so we can identify and remove them
   const SPACER_CLASS = 'doc-page-break-spacer';
 
-  // ── Embed inline link hydration ────────────────────────────
-  // After the document HTML renders, find placeholder spans and mount
-  // EmbedInlineLink Svelte components into them for interactivity.
+  // =============================================
+  // Auto-fit zoom on mount
+  // =============================================
+  onMount(() => {
+    const raf = requestAnimationFrame(() => {
+      zoomPercent = calculateFitZoomPercent();
+      zoomInitialized = true;
+    });
+
+    // Re-calculate on container resize only if not yet initialized
+    let resizeObserver: ResizeObserver | undefined;
+    if (canvasScrollEl) {
+      resizeObserver = new ResizeObserver(() => {
+        if (!zoomInitialized) {
+          zoomPercent = calculateFitZoomPercent();
+          zoomInitialized = true;
+        }
+      });
+      resizeObserver.observe(canvasScrollEl);
+    }
+
+    return () => {
+      cancelAnimationFrame(raf);
+      resizeObserver?.disconnect();
+    };
+  });
+
+  // =============================================
+  // Embed Inline Link Hydration
+  // =============================================
   $effect(() => {
-    // Depend on sanitizedHtml so we re-hydrate when content changes
     void sanitizedHtml;
     if (!contentEl) return;
-    // Use requestAnimationFrame to ensure the DOM has been updated with @html
     const raf = requestAnimationFrame(() => {
       if (!contentEl) return;
       embedLinkCleanup = hydrateEmbedLinks(contentEl);
@@ -263,6 +335,9 @@
   });
   let embedLinkCleanup: (() => void) | undefined;
 
+  // =============================================
+  // Page Break Spacer Injection
+  // =============================================
   $effect(() => {
     if (!contentEl || !sanitizedHtml) {
       pageCount = 1;
@@ -271,102 +346,124 @@
 
     const raf = requestAnimationFrame(() => {
       if (!contentEl) return;
-      
-      // Remove any previously injected spacers
+      injectPageBreakSpacers();
+    });
+
+    return () => cancelAnimationFrame(raf);
+  });
+
+  /**
+   * Measure the content and inject spacer divs at page boundaries.
+   * Runs up to 3 passes to handle cascading shifts.
+   */
+  function injectPageBreakSpacers() {
+    if (!contentEl) return;
+
+    const MAX_STABILIZATION_PASSES = 3;
+
+    for (let pass = 0; pass < MAX_STABILIZATION_PASSES; pass++) {
       contentEl.querySelectorAll(`.${SPACER_CLASS}`).forEach(el => el.remove());
 
-      // Measure the natural content height (without spacers)
       const naturalHeight = contentEl.scrollHeight;
       const numPages = Math.max(1, Math.ceil(naturalHeight / PAGE_CONTENT_HEIGHT));
-      
+
       if (numPages <= 1) {
         pageCount = numPages;
         return;
       }
 
-      // For each page break (between page N and page N+1), find the child element
-      // that straddles the boundary and insert a spacer before it.
-      // We work from bottom to top so insertions don't shift positions of earlier breaks.
       let insertedSpacers = 0;
-      
+
       for (let breakIdx = numPages - 1; breakIdx >= 1; breakIdx--) {
-        // The Y position of this page break in the content (before any spacers from this pass)
-        // Account for spacers already inserted below this point
         const breakY = breakIdx * PAGE_CONTENT_HEIGHT + insertedSpacers * SPACER_HEIGHT;
-        
-        // Find the top-level child element that contains or straddles this break point
         const children = contentEl.children;
         let targetChild: Element | null = null;
-        
+
         for (let c = 0; c < children.length; c++) {
           const child = children[c];
           if (child.classList.contains(SPACER_CLASS)) continue;
-          
+
           const rect = child.getBoundingClientRect();
           const contentRect = contentEl.getBoundingClientRect();
           const childTop = rect.top - contentRect.top;
           const childBottom = childTop + rect.height;
-          
+
           if (childBottom > breakY) {
             targetChild = child;
             break;
           }
         }
-        
+
         if (targetChild) {
           const spacer = document.createElement('div');
           spacer.className = SPACER_CLASS;
           spacer.style.height = `${SPACER_HEIGHT}px`;
           spacer.style.flexShrink = '0';
           spacer.setAttribute('aria-hidden', 'true');
-          
-          // Insert spacer before the element that crosses the page boundary
           contentEl.insertBefore(spacer, targetChild);
           insertedSpacers++;
         }
       }
-      
-      pageCount = numPages;
-    });
 
-    return () => cancelAnimationFrame(raf);
-  });
+      const newHeight = contentEl.scrollHeight;
+      const newPages = Math.max(1, Math.ceil((newHeight - insertedSpacers * SPACER_HEIGHT) / PAGE_CONTENT_HEIGHT));
 
-  // Total height of the paper stack including all pages + gaps
+      if (newPages === numPages) {
+        pageCount = numPages;
+        return;
+      }
+
+      console.debug(`[DocsEmbedFullscreen] Spacer pass ${pass + 1}: pages ${numPages} -> ${newPages}`);
+    }
+
+    const finalSpacerCount = contentEl.querySelectorAll(`.${SPACER_CLASS}`).length;
+    const finalHeight = contentEl.scrollHeight;
+    pageCount = Math.max(1, Math.ceil((finalHeight - finalSpacerCount * SPACER_HEIGHT) / PAGE_CONTENT_HEIGHT));
+  }
+
+  // =============================================
+  // Derived Layout Values
+  // =============================================
+
   let totalPaperHeight = $derived(
     pageCount * (PAGE_CONTENT_HEIGHT + 2 * PAGE_MARGIN_Y) + (pageCount - 1) * PAGE_GAP
   );
 
-  // Build CSS gradient that paints the page background pattern:
-  // white for each page area, transparent (grey shows through) for gaps
   let paperBgStyle = $derived.by(() => {
     if (pageCount <= 1) return '';
-    
-    const pageHeight = PAGE_CONTENT_HEIGHT + 2 * PAGE_MARGIN_Y; // 1056
+
+    const pageHeight = PAGE_CONTENT_HEIGHT + 2 * PAGE_MARGIN_Y;
     const stops: string[] = [];
-    
+
     for (let i = 0; i < pageCount; i++) {
       const pageStart = i * (pageHeight + PAGE_GAP);
       const pageEnd = pageStart + pageHeight;
-      
       stops.push(`white ${pageStart}px, white ${pageEnd}px`);
       if (i < pageCount - 1) {
         stops.push(`transparent ${pageEnd}px, transparent ${pageEnd + PAGE_GAP}px`);
       }
     }
-    
+
     return `background: linear-gradient(to bottom, ${stops.join(', ')});`;
   });
-  
-  // Handle copy document content to clipboard (plain text).
-  // When PII is revealed, copy the restored (original) text.
-  // When PII is hidden, copy placeholder strings so sensitive data is not leaked.
+
+  // Zoom as a ratio for CSS transform
+  let zoomRatio = $derived(zoomPercent / 100);
+  // The visible (scaled) dimensions for the scroll container wrapper
+  let scaledWidth = $derived(Math.ceil(PAGE_WIDTH * zoomRatio));
+  let scaledHeight = $derived(Math.ceil(totalPaperHeight * zoomRatio));
+
+  // =============================================
+  // Action Handlers
+  // =============================================
+
   async function handleCopy() {
     try {
       const contentToCopy = localPiiRevealed && hasPII
         ? restorePIIInText(htmlContent, piiMappings)
         : replacePIIOriginalsWithPlaceholders(htmlContent, piiMappings);
-      const plainText = stripHtmlTags(contentToCopy);
+      let plainText = stripHtmlTags(contentToCopy);
+      plainText = await replaceEmbedRefsWithUrls(plainText);
       const clipResult = await copyToClipboard(plainText);
       if (!clipResult.success) throw new Error(clipResult.error || 'Copy failed');
       console.debug('[DocsEmbedFullscreen] Copied document text to clipboard');
@@ -377,7 +474,6 @@
     }
   }
 
-  // Handle download document as a valid .docx file
   async function handleDownload() {
     try {
       console.debug('[DocsEmbedFullscreen] Starting document download as .docx');
@@ -385,10 +481,11 @@
       const { asBlob } = await import('html-docx-js-typescript');
       const downloadFilename = (displayFilename || 'document').replace(/\.docx$/i, '') + '.docx';
 
-      // Use the PII-processed and sanitized content for download, respecting reveal state.
-      const downloadHtmlContent = localPiiRevealed && hasPII
+      let downloadHtmlContent = localPiiRevealed && hasPII
         ? sanitizeDocumentHtml(restorePIIInText(htmlContent, piiMappings))
         : sanitizeDocumentHtml(replacePIIOriginalsWithPlaceholders(htmlContent, piiMappings));
+
+      downloadHtmlContent = await replaceEmbedRefsWithUrlsInHtml(downloadHtmlContent);
 
       const fullHtml = `<!DOCTYPE html>
 <html lang="en">
@@ -436,10 +533,6 @@ ${downloadHtmlContent}
       notificationStore.error('Failed to download document');
     }
   }
-
-  // Share is handled by UnifiedEmbedFullscreen's built-in share handler
-  // which uses currentEmbedId, appId, and skillId to construct the embed
-  // share context and properly opens the settings panel (including on mobile).
 </script>
 
 <UnifiedEmbedFullscreen
@@ -465,72 +558,79 @@ ${downloadHtmlContent}
 >
   {#snippet content()}
     {#if sanitizedHtml}
+      <!--
+        The doc-viewer-canvas is a position:relative wrapper so the floating
+        zoom bar is always visible at the bottom. No padding-top: the
+        EmbedHeader (gradient banner) inside UnifiedEmbedFullscreen already
+        provides the top clearance from the action buttons.
+      -->
       <div class="doc-viewer-canvas">
         <!--
-          Google Docs-style toolbar: sits below the top action buttons (which are absolute positioned
-          at top: 16px by UnifiedEmbedFullscreen and take ~72px of space).
-          The toolbar has a subtle separator and contains zoom controls + page count.
+          Scrollable grey canvas area. The document pages float centered
+          inside this area. touch-action: pan-x pan-y allows us to intercept
+          pinch gestures while keeping normal scroll.
         -->
-        <div class="doc-toolbar">
-          <div class="doc-toolbar-inner">
-            <button class="zoom-btn" onclick={zoomOut} aria-label="Zoom out" disabled={zoomIndex === 0}>
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <path d="M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-            </button>
-            <button class="zoom-pill" onclick={resetZoom} aria-label="Reset zoom to 100%" title="Click to reset zoom">
-              {zoomLevel}%
-            </button>
-            <button class="zoom-btn" onclick={zoomIn} aria-label="Zoom in" disabled={zoomIndex === ZOOM_LEVELS.length - 1}>
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-            </button>
-            {#if pageCount > 1}
-              <span class="toolbar-separator" aria-hidden="true"></span>
-              <span class="page-count-label">{pageCount} {pageCount === 1 ? 'page' : 'pages'}</span>
-            {/if}
-          </div>
-        </div>
-
-        <!--
-          Scrollable grey canvas area.
-          Contains the scaled paper stack (white pages on grey background).
-        -->
-        <div class="doc-canvas-scroll">
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="doc-canvas-scroll"
+          bind:this={canvasScrollEl}
+          ontouchstart={handleTouchStart}
+          ontouchmove={handleTouchMove}
+          ontouchend={handleTouchEnd}
+        >
+          <!--
+            Scroll-size wrapper: explicit dimensions matching the visual (scaled)
+            size. CSS transform: scale() doesn't affect layout flow, so this
+            wrapper ensures the scrollable area matches what the user sees.
+            margin: 0 auto centers the page horizontally.
+          -->
           <div
-            class="doc-page-scaler"
-            style="--zoom: {zoomLevel / 100}; transform: scale(var(--zoom)); transform-origin: top center;"
+            class="doc-scroll-sizer"
+            style="width: {scaledWidth}px; min-height: {scaledHeight}px;"
           >
-            <!--
-              Paper stack: the white page area.
-              Background gradient draws white (page) and transparent (gap) bands.
-              Absolute-positioned shadow divs sit behind each page for depth.
-            -->
             <div
-              class="doc-paper-stack"
-              style="min-height: {totalPaperHeight}px; {paperBgStyle}"
+              class="doc-page-scaler"
+              style="transform: scale({zoomRatio}); transform-origin: top left;"
             >
-              <!-- Per-page drop shadows for a realistic floating paper look -->
-              {#each Array.from({ length: pageCount }, (__, idx) => idx) as i}
-                <div
-                  class="doc-page-shadow"
-                  style="top: {i * (PAGE_CONTENT_HEIGHT + 2 * PAGE_MARGIN_Y + PAGE_GAP)}px; height: {PAGE_CONTENT_HEIGHT + 2 * PAGE_MARGIN_Y}px;"
-                  aria-hidden="true"
-                ></div>
-              {/each}
+              <div
+                class="doc-paper-stack"
+                style="min-height: {totalPaperHeight}px; {paperBgStyle}"
+              >
+                {#each Array.from({ length: pageCount }, (__, idx) => idx) as i}
+                  <div
+                    class="doc-page-shadow"
+                    style="top: {i * (PAGE_CONTENT_HEIGHT + 2 * PAGE_MARGIN_Y + PAGE_GAP)}px; height: {PAGE_CONTENT_HEIGHT + 2 * PAGE_MARGIN_Y}px;"
+                    aria-hidden="true"
+                  ></div>
+                {/each}
 
-              <!--
-                Content wrapper: inset with page margins (top/bottom/left/right = 96px = ~1 inch at 96dpi).
-                Content flows naturally; injected spacer divs push text past page-break gaps.
-              -->
-              <div class="doc-content-wrapper">
-                <div class="doc-page-content" bind:this={contentEl}>
-                  <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is sanitized via DOMPurify -->
-                  {@html sanitizedHtml}
+                <div class="doc-content-wrapper">
+                  <div class="doc-page-content" bind:this={contentEl}>
+                    <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is sanitized via DOMPurify -->
+                    {@html sanitizedHtml}
+                  </div>
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Floating zoom controls at bottom center — always visible -->
+        <div class="doc-zoom-bar">
+          <div class="doc-zoom-bar-inner">
+            <button class="doc-zoom-btn" onclick={zoomOut} aria-label="Zoom out" disabled={zoomPercent <= ZOOM_MIN}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button class="doc-zoom-level" onclick={resetZoom} aria-label="Reset zoom" title="Click to fit page to screen">
+              {zoomDisplayText}
+            </button>
+            <button class="doc-zoom-btn" onclick={zoomIn} aria-label="Zoom in" disabled={zoomPercent >= ZOOM_MAX}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -545,135 +645,41 @@ ${downloadHtmlContent}
 <style>
   /* ===========================================
      Document Viewer Canvas
-     Full-height flex column that fills the content slot.
-     The top ~72px is occupied by the absolute-positioned
-     action buttons from UnifiedEmbedFullscreen, so we
-     add padding-top to avoid overlap.
+     position: relative so the zoom bar can float at the bottom.
+     No padding-top — the EmbedHeader (inside UnifiedEmbedFullscreen's
+     .content-area) already provides top clearance for the action buttons.
      =========================================== */
 
   .doc-viewer-canvas {
     width: 100%;
-    height: 100%;
+    /* Fill remaining height after EmbedHeader. Using min-height instead
+       of height so the content can grow if needed, but the zoom bar
+       always stays at the visual bottom of this block. */
+    min-height: 400px;
     display: flex;
     flex-direction: column;
-    /* Charcoal/dark grey canvas — matches Google Docs dark mode canvas */
     background: #3c3c3c;
-    /* Push content below the floating top action bar (72px height) */
-    padding-top: 72px;
     box-sizing: border-box;
-  }
-
-  /* ===========================================
-     Google Docs-style Toolbar
-     A thin strip sitting just above the document canvas.
-     Contains zoom controls and page count.
-     Dark background with subtle bottom border to separate from canvas.
-     =========================================== */
-
-  .doc-toolbar {
-    flex-shrink: 0;
-    background: #2e2e2e;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 6px 16px;
-    height: 42px;
-    box-sizing: border-box;
-  }
-
-  .doc-toolbar-inner {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-  }
-
-  /* Zoom ± buttons */
-  .zoom-btn {
-    width: 28px;
-    height: 28px;
-    border-radius: 4px;
-    border: none;
-    background: transparent;
-    color: rgba(255, 255, 255, 0.7);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color 0.1s, color 0.1s;
-    padding: 0;
-    flex-shrink: 0;
-  }
-
-  .zoom-btn:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.12);
-    color: #fff;
-  }
-
-  .zoom-btn:disabled {
-    opacity: 0.25;
-    cursor: not-allowed;
-  }
-
-  /* Zoom level pill — shows current % and resets on click */
-  .zoom-pill {
-    min-width: 54px;
-    height: 28px;
-    border-radius: 4px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    background: rgba(255, 255, 255, 0.06);
-    color: rgba(255, 255, 255, 0.85);
-    font-size: 12px;
-    font-weight: 500;
-    font-family: inherit;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 8px;
-    transition: background-color 0.1s, border-color 0.1s;
-    margin: 0 2px;
-    letter-spacing: 0.3px;
-  }
-
-  .zoom-pill:hover {
-    background: rgba(255, 255, 255, 0.12);
-    border-color: rgba(255, 255, 255, 0.3);
-    color: #fff;
-  }
-
-  /* Thin vertical separator between zoom and page count */
-  .toolbar-separator {
-    width: 1px;
-    height: 16px;
-    background: rgba(255, 255, 255, 0.15);
-    margin: 0 10px;
-    flex-shrink: 0;
-  }
-
-  .page-count-label {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.5);
-    white-space: nowrap;
-    letter-spacing: 0.2px;
+    position: relative;
   }
 
   /* ===========================================
      Scrollable Canvas Area
      The grey area where pages float.
+     Constrained max-height so the zoom bar is always reachable
+     without scrolling past the entire document first.
      =========================================== */
 
   .doc-canvas-scroll {
     flex: 1;
     overflow: auto;
-    display: flex;
-    justify-content: center;
-    /* Generous top/bottom padding so pages don't hug edges.
-       Extra bottom padding for the floating BasicInfosBar. */
-    padding: 32px 40px 100px;
+    /* Padding: small top gap, side padding, bottom for zoom bar overlap */
+    padding: 16px 12px 64px;
     box-sizing: border-box;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+    /* Allow scroll but intercept pinch via JS touch handlers */
+    touch-action: pan-x pan-y;
   }
 
   .doc-canvas-scroll::-webkit-scrollbar {
@@ -695,41 +701,45 @@ ${downloadHtmlContent}
   }
 
   /* ===========================================
+     Scroll-Size Wrapper
+     Explicit dimensions matching the visual (scaled) size.
+     margin: 0 auto centers the page horizontally within
+     the scrollable canvas area.
+     =========================================== */
+
+  .doc-scroll-sizer {
+    flex-shrink: 0;
+    position: relative;
+    margin: 0 auto;
+  }
+
+  /* ===========================================
      Page Scaler
-     A fixed-width container (US Letter: 816px).
-     We scale via CSS transform for zoom so layout
-     measurements stay stable and text stays sharp.
+     A fixed-width container (A4: 794px at 96 DPI).
+     transform-origin: top left so the scroll-sizer
+     wrapper dimensions align with the scaled output.
      =========================================== */
 
   .doc-page-scaler {
-    /* US Letter at 96 dpi = 816px wide */
-    width: 816px;
+    width: 794px; /* A4 width at 96 DPI */
     flex-shrink: 0;
-    transition: transform 0.18s ease;
-    /* Scale from the top-center so the page stays anchored at the top */
-    transform-origin: top center;
+    transition: transform 0.15s ease;
+    transform-origin: top left;
   }
 
   /* ===========================================
      Paper Stack
-     White region representing the document pages.
-     Background gradient paints white for pages and
-     transparent (revealing dark canvas) for gaps.
      =========================================== */
 
   .doc-paper-stack {
     width: 100%;
     position: relative;
-    /* White fallback for single-page documents */
     background: white;
-    /* Outer border-radius makes the edges of the paper block slightly rounded */
     border-radius: 2px;
   }
 
   /* ===========================================
      Per-Page Drop Shadow
-     Each page gets its own absolute-positioned
-     shadow overlay for a floating paper effect.
      =========================================== */
 
   .doc-page-shadow {
@@ -738,7 +748,6 @@ ${downloadHtmlContent}
     right: 0;
     border-radius: 2px;
     pointer-events: none;
-    /* Two-layer shadow: close soft shadow + distant diffuse shadow */
     box-shadow:
       0 2px 6px rgba(0, 0, 0, 0.35),
       0 8px 24px rgba(0, 0, 0, 0.25);
@@ -747,39 +756,31 @@ ${downloadHtmlContent}
 
   /* ===========================================
      Content Wrapper
-     Inset from the paper edges by 1 inch (96px at 96dpi).
-     This is the printable area of each page.
+     Inset from the paper edges by A4 standard margins:
+     96px top/bottom (1 inch), 72px left/right (0.75 inch).
      =========================================== */
 
   .doc-content-wrapper {
     position: relative;
-    /* 1-inch margins on all sides (96px at 96 DPI) */
-    margin: 96px;
+    padding: 96px 72px;
     z-index: 1;
   }
 
   /* ===========================================
      Document Content Typography
-     Matches the style of a clean Word/Google Docs document:
-     - Light-weight body text (not bold)
-     - Calibri/Georgia-like reading experience
-     - Generous line height
-     - Black text on white, proper heading hierarchy
      =========================================== */
 
   .doc-page-content {
-    /* Document body font: prioritise Calibri (Word), then Georgia/serif for elegance */
     font-family: 'Calibri', 'Cambria', Georgia, 'Times New Roman', serif;
-    font-size: 14px;       /* ~11pt — standard Word document body size */
-    font-weight: 400;      /* Normal weight — NOT bold */
-    line-height: 1.65;     /* Comfortable reading line height */
-    color: #202020;        /* Near-black, slightly softer than pure black */
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.65;
+    color: #202020;
     word-break: break-word;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Document H1: Title style */
   .doc-page-content :global(h1) {
     font-size: 24px;
     font-weight: 700;
@@ -791,7 +792,6 @@ ${downloadHtmlContent}
     letter-spacing: -0.3px;
   }
 
-  /* Document H2: Section heading */
   .doc-page-content :global(h2) {
     font-size: 18px;
     font-weight: 600;
@@ -801,7 +801,6 @@ ${downloadHtmlContent}
     letter-spacing: -0.2px;
   }
 
-  /* Document H3: Sub-section heading */
   .doc-page-content :global(h3) {
     font-size: 15px;
     font-weight: 600;
@@ -820,7 +819,6 @@ ${downloadHtmlContent}
     line-height: 1.4;
   }
 
-  /* Paragraph: tight spacing between paragraphs */
   .doc-page-content :global(p) {
     margin: 0 0 10px;
   }
@@ -841,7 +839,6 @@ ${downloadHtmlContent}
     margin: 3px 0;
   }
 
-  /* Blockquote: left-rule style, indented */
   .doc-page-content :global(blockquote) {
     border-left: 3px solid #c0c0c0;
     margin: 16px 0 16px 8px;
@@ -854,7 +851,6 @@ ${downloadHtmlContent}
     margin: 4px 0;
   }
 
-  /* Tables: professional document table style */
   .doc-page-content :global(table) {
     border-collapse: collapse;
     width: 100%;
@@ -883,7 +879,6 @@ ${downloadHtmlContent}
     background: #fafafa;
   }
 
-  /* Inline code: monospaced, subtle background */
   .doc-page-content :global(code) {
     background: #f5f5f5;
     border: 1px solid #e0e0e0;
@@ -895,7 +890,6 @@ ${downloadHtmlContent}
     font-style: normal;
   }
 
-  /* Code blocks */
   .doc-page-content :global(pre) {
     background: #f8f8f8;
     padding: 14px 18px;
@@ -927,7 +921,6 @@ ${downloadHtmlContent}
     color: #0b3a8a;
   }
 
-  /* Horizontal rule: thin line */
   .doc-page-content :global(hr) {
     border: none;
     border-top: 1px solid #d8d8d8;
@@ -967,6 +960,89 @@ ${downloadHtmlContent}
   }
 
   /* ===========================================
+     Floating Zoom Bar
+     position: absolute to the doc-viewer-canvas so it
+     stays at the bottom of the visible area, not at
+     the bottom of the scrollable content.
+     =========================================== */
+
+  .doc-zoom-bar {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  .doc-zoom-bar-inner {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--color-grey-0, #ffffff);
+    border-radius: 28px;
+    padding: 4px 6px;
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.15),
+      0 0 1px rgba(0, 0, 0, 0.1);
+    pointer-events: auto;
+  }
+
+  .doc-zoom-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--color-grey-70, #555);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s, color 0.15s;
+    padding: 0;
+    flex-shrink: 0;
+  }
+
+  .doc-zoom-btn:hover:not(:disabled) {
+    background: var(--color-grey-10, #f0f0f0);
+    color: var(--color-grey-100, #1a1a1a);
+  }
+
+  .doc-zoom-btn:active:not(:disabled) {
+    background: var(--color-grey-20, #e5e5e5);
+  }
+
+  .doc-zoom-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .doc-zoom-level {
+    min-width: 52px;
+    height: 32px;
+    border-radius: 16px;
+    border: 1px solid var(--color-grey-20, #e5e5e5);
+    background: var(--color-grey-5, #fafafa);
+    color: var(--color-grey-80, #333);
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+    transition: background-color 0.15s, border-color 0.15s;
+    letter-spacing: 0.2px;
+  }
+
+  .doc-zoom-level:hover {
+    background: var(--color-grey-10, #f0f0f0);
+    border-color: var(--color-grey-30, #ccc);
+  }
+
+  /* ===========================================
      Empty State
      =========================================== */
 
@@ -979,54 +1055,16 @@ ${downloadHtmlContent}
   }
 
   /* ===========================================
-     Responsive: Mobile (≤ 900px)
-     On narrow screens, drop the fixed page width and
-     render a simple single-column white document.
+     Responsive: Narrow containers
      =========================================== */
 
-  @media (max-width: 900px) {
-    .doc-viewer-canvas {
-      /* Less top padding on mobile since buttons are smaller */
-      padding-top: 72px;
-    }
-
+  @container fullscreen (max-width: 500px) {
     .doc-canvas-scroll {
-      padding: 16px 0 100px;
+      padding: 12px 4px 60px;
     }
 
-    .doc-page-scaler {
-      width: 100%;
-    }
-
-    .doc-paper-stack {
-      border-radius: 0;
-      /* Override gradient bg on mobile — single flat white page */
-      background: white !important;
-      min-height: 0 !important;
-    }
-
-    .doc-page-shadow {
-      display: none;
-    }
-
-    .doc-content-wrapper {
-      margin: 40px 28px 60px;
-    }
-
-    .doc-page-content {
-      font-size: 13px;
-    }
-
-    .doc-page-content :global(h1) {
-      font-size: 20px;
-    }
-
-    .doc-page-content :global(h2) {
-      font-size: 16px;
-    }
-
-    .doc-page-content :global(h3) {
-      font-size: 14px;
+    .doc-zoom-bar {
+      bottom: 10px;
     }
   }
 </style>

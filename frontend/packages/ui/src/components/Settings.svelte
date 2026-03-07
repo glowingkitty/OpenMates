@@ -48,6 +48,7 @@ changes to the documentation (to keep the documentation up to date).
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
     import { isMobileView } from '../stores/uiStateStore'; // Import global isMobileView store
     import { panelState } from '../stores/panelStateStore'; // Import panelState to sync with isSettingsOpen
+    import { pendingMentionStore } from '../stores/pendingMentionStore';
     // Admin status is now read directly from userProfile.is_admin (synced during login)
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
     
@@ -62,6 +63,7 @@ changes to the documentation (to keep the documentation up to date).
     import { baseSettingsViews, AppDetailsWrapper, MateDetailsWrapper } from './settings/settingsRoutes';
     import { matesMetadata } from '../data/matesMetadata';
     import { appSkillsStore } from '../stores/appSkillsStore';
+    import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
     import { modelsMetadata } from '../data/modelsMetadata';
     import { providersMetadata, findProviderByName } from '../data/providersMetadata';
     import { getProviderIconUrl } from '../data/providerIcons';
@@ -277,6 +279,9 @@ changes to the documentation (to keep the documentation up to date).
     // Track the path we navigated from (e.g., 'app_store/all' when opening an app from All Apps).
     // Used to ensure back navigation returns to the correct parent view.
     let cameFromPath = $state<string | null>(null);
+    // Optional human-readable title override for the cameFrom path, used in breadcrumb display.
+    // When set, replaces the auto-derived label for the cameFrom path segment.
+    let cameFromTitleOverride = $state<string | null>(null);
     let breadcrumbLabel = $state($text('settings.settings'));
     let fullBreadcrumbLabel = $state('');
     let navButtonElement: HTMLElement | undefined = $state();
@@ -529,6 +534,15 @@ changes to the documentation (to keep the documentation up to date).
             
             // Handle app_store routes specially - use actual app/skill names from metadata
             if (pathString === 'app_store') {
+                // If the user arrived via the Settings & Memories hub, replace the full
+                // "App Store / {App Name}" chain with just "App Settings & Memories"
+                // so the breadcrumb reads: Settings / App Settings & Memories
+                if (cameFromPath === 'settings_memories') {
+                    // Use the title override if provided, otherwise fall back to the standard key
+                    pathLabels.push(cameFromTitleOverride ?? $text('settings.settings_memories'));
+                    // Skip all remaining app_store sub-segments — they belong to the old chain
+                    break;
+                }
                 // This is the base app_store route - add "App Store" translation
                 const translationKey = 'settings.app_store';
                 pathLabels.push($text(translationKey));
@@ -565,8 +579,8 @@ changes to the documentation (to keep the documentation up to date).
                     if (category && category.name_translation_key) {
                         pathLabels.push($text(category.name_translation_key));
                     }
-                } else if (pathParts.length === 5 && pathParts[1] === 'settings_memories' && pathParts[3] === 'entry') {
-                    // This is the entry detail page segment - add category name
+                } else if ((pathParts.length === 5 || (pathParts.length === 6 && pathParts[5] === 'edit')) && pathParts[1] === 'settings_memories' && pathParts[3] === 'entry') {
+                    // This is the entry detail or edit page segment - add category name
                     const categoryId = pathParts[2];
                     const category = app?.settings_and_memories?.find(c => c.id === categoryId);
                     if (category && category.name_translation_key) {
@@ -748,10 +762,10 @@ changes to the documentation (to keep the documentation up to date).
         'security': 'settings.security.description',
         'newsletter': 'settings.newsletter.description',
         'server': 'settings.server.description',
-        'report_issue': 'settings.report_issue.description',
         'shared': 'settings.shared.description',
         'gift_cards': 'settings.gift_cards.description',
         'app_store': 'settings.app_store.description',
+        'settings_memories': 'settings.settings_memories.description',
     };
 
     /**
@@ -801,6 +815,8 @@ changes to the documentation (to keep the documentation up to date).
         iconName?: string;
         /** Icon gradient type for the item-specific icon */
         iconType?: 'skill' | 'focus' | 'memory';
+        /** Mention syntax inserted into MessageInput when clicking the header identity. */
+        mentionSyntax?: string;
     } | null => {
         if (!isAppSubPage) return null;
 
@@ -830,6 +846,7 @@ changes to the documentation (to keep the documentation up to date).
                     : '',
                 iconName,
                 iconType: 'skill',
+                mentionSyntax: `@skill:${appId}:${itemId}`,
             };
         }
 
@@ -847,6 +864,7 @@ changes to the documentation (to keep the documentation up to date).
                     : '',
                 iconName,
                 iconType: 'focus',
+                mentionSyntax: `@focus:${appId}:${itemId}`,
             };
         }
 
@@ -873,13 +891,18 @@ changes to the documentation (to keep the documentation up to date).
                         : '',
                     iconName,
                     iconType: 'memory',
+                    mentionSyntax: `@memory:${appId}:${itemId}:${cat.type}`,
                 };
             }
             
             if (subRoute.startsWith('/entry/')) {
-                // Entry detail sub-page: show entry title or example title
-                const entryId = subRoute.replace('/entry/', '');
+                // Entry detail sub-page: show entry title on line 1, category name on line 2.
+                // The typeLabel is the category name (e.g. "Trips"), not "Settings & Memories Entry".
+                // Clicking the header copies a @memory-entry mention for real entries (or @memory for examples).
+                const rawEntryId = subRoute.replace('/entry/', '').replace('/edit', '');
+                const entryId = rawEntryId;
                 let entryTitle = categoryName;
+                let mentionSyntax = `@memory:${appId}:${itemId}:${cat.type}`;
                 
                 if (entryId.startsWith('example_')) {
                     // Example entry: get title from example_translation_keys or example_entries
@@ -908,19 +931,50 @@ changes to the documentation (to keep the documentation up to date).
                         // Fallback to legacy title-only key
                         entryTitle = $text(exKeys[exIdx]);
                     }
+                    // Examples use category-level mention (no real entry ID to reference)
+                    mentionSyntax = `@memory:${appId}:${itemId}:${cat.type}`;
+                } else {
+                    // Real entry: look up title from the store (already decrypted in entriesByApp).
+                    // appSettingsMemoriesStore state is a plain Svelte store — read via $appSettingsMemoriesStore.
+                    const storeState = $appSettingsMemoriesStore;
+                    const appEntriesByGroup = storeState.entriesByApp.get(appId) || {};
+                    const categoryEntries = appEntriesByGroup[itemId] ?? [];
+                    const found = categoryEntries.find((e: { id: string }) => e.id === entryId);
+                    if (found) {
+                        // Find is_title field to display as entry title
+                        const titleField = cat.schema_definition?.properties
+                            ? Object.entries(cat.schema_definition.properties).find(
+                                ([, p]) => p.is_title
+                            )?.[0]
+                            : undefined;
+                        const entryValue = (found as { item_value?: Record<string, unknown> }).item_value;
+                        if (titleField && entryValue?.[titleField]) {
+                            entryTitle = String(entryValue[titleField]);
+                        } else if (entryValue) {
+                            // Fallback: use first non-internal string value
+                            for (const [key, value] of Object.entries(entryValue)) {
+                                if (!key.startsWith('_') && key !== 'settings_group' && typeof value === 'string' && value.trim()) {
+                                    entryTitle = value;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    // Real entry uses @memory-entry mention for direct reference
+                    mentionSyntax = `@memory-entry:${appId}:${itemId}:${entryId}`;
                 }
-                // Note: for real (non-example) entries, we'd need to look up the entry
-                // from IndexedDB, but that requires async decryption. The category name
-                // is a reasonable fallback for the header since the entry title is shown
-                // in the content area below.
                 
                 return {
                     appId,
                     itemName: entryTitle,
-                    itemTypeLabel: $text('settings.app_store.settings_memories_entry'),
-                    description: categoryName,
+                    // Line 2 in header = category name (e.g. "Trips"), not "Settings & Memories Entry"
+                    itemTypeLabel: categoryName,
+                    description: cat.description_translation_key
+                        ? $text(cat.description_translation_key)
+                        : '',
                     iconName,
                     iconType: 'memory',
+                    mentionSyntax,
                 };
             }
             
@@ -934,6 +988,7 @@ changes to the documentation (to keep the documentation up to date).
                     : '',
                 iconName,
                 iconType: 'memory',
+                mentionSyntax: `@memory:${appId}:${itemId}:${cat.type}`,
             };
         }
 
@@ -977,6 +1032,17 @@ changes to the documentation (to keep the documentation up to date).
         }
     }
 
+    /**
+     * Insert the current sub-page mention (skill/focus/memory category) into MessageInput
+     * and close settings so the user can continue typing immediately.
+     */
+    function handleSubPageBannerMentionClick() {
+        const mentionSyntax = subPageBannerData?.mentionSyntax;
+        if (!mentionSyntax) return;
+        pendingMentionStore.set(mentionSyntax);
+        panelState.closeSettings();
+    }
+
     /** Decorative header icon opacity: fade out on scroll and on menu close. */
     let headerDecorScrollOpacity = $derived(Math.max(0, 1 - contentScrollTop / 40));
     let headerDecorMenuOpacity = $derived(isMenuVisible ? 1 : 0);
@@ -986,9 +1052,9 @@ changes to the documentation (to keep the documentation up to date).
     let menuItemsCount = $state(0);
 
     // Function to set active settings view with transitions
-    async function handleOpenSettings(event: { detail: { settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string } } | CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string }>) {
+    async function handleOpenSettings(event: { detail: { settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string; cameFromTitle?: string } } | CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string; cameFromTitle?: string }>) {
         const detail = 'detail' in event ? event.detail : event;
-        let { settingsPath, direction: newDirection, icon, cameFrom } = detail;
+        let { settingsPath, direction: newDirection, icon, cameFrom, cameFromTitle } = detail;
         direction = newDirection;
 
         // --- Scroll position memory (All Apps only) ---
@@ -1004,6 +1070,9 @@ changes to the documentation (to keep the documentation up to date).
         // explicitly to preserve the chain, so we accept it from both directions.
         if (cameFrom) {
             cameFromPath = cameFrom;
+            if (cameFromTitle !== undefined) {
+                cameFromTitleOverride = cameFromTitle;
+            }
         } else if (newDirection === 'backward') {
             // Clear cameFromPath when arriving at the destination that was the cameFrom source,
             // or when leaving the app_store section entirely (back to app_store root or main).
@@ -1011,11 +1080,13 @@ changes to the documentation (to keep the documentation up to date).
             const isLeavingAppStore = settingsPath === 'app_store' || !settingsPath.startsWith('app_store');
             if (isReturningToSource || isLeavingAppStore) {
                 cameFromPath = null;
+                cameFromTitleOverride = null;
             }
             // Otherwise (e.g., going from skill → app details), cameFromPath is preserved
         } else if (newDirection === 'forward' && !cameFrom) {
             // Forward navigation without explicit cameFrom clears the previous source
             cameFromPath = null;
+            cameFromTitleOverride = null;
         }
 
         // Reset active account ID
@@ -1032,8 +1103,8 @@ changes to the documentation (to keep the documentation up to date).
         }
 
         // Check if this is a dynamic entry detail route that needs to be registered
-        // Pattern: app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id}
-        const entryDetailPattern = /^app_store\/[^/]+\/settings_memories\/[^/]+\/entry\/[^/]+$/;
+        // Pattern: app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id}[/edit]
+        const entryDetailPattern = /^app_store\/[^/]+\/settings_memories\/[^/]+\/entry\/[^/]+(\/edit)?$/;
         if (entryDetailPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
             // Add this entry detail route dynamically
             dynamicEntryRoutes.add(settingsPath);
@@ -1187,6 +1258,9 @@ changes to the documentation (to keep the documentation up to date).
             } else if (settingsPath === 'shared/share') {
                 // Special case: 'shared/share' uses 'settings.share' (share is at root level, not nested)
                 activeSubMenuTitleKey = 'settings.share';
+            } else if (settingsPath === 'server/software-update') {
+                // Software update page — use the existing root-level key (not settings.server.software_update)
+                activeSubMenuTitleKey = 'settings.software_updates';
             } else if (settingsPath.startsWith('account/storage/')) {
                 // Storage category sub-pages: account/storage/<category>
                 // Use the storage category label keys (e.g. storage_category_images)
@@ -1315,9 +1389,16 @@ changes to the documentation (to keep the documentation up to date).
                     previousPath = `app_store/${appId}/settings_memories/${pathParts[2]}`;
                     previousPathSegments = ['app_store', appId, 'settings_memories', pathParts[2]];
                 } else if (pathParts.length >= 3 && (pathParts[1] === 'skill' || pathParts[1] === 'focus' || pathParts[1] === 'settings_memories')) {
-                    // This is a nested route (category page, skill, focus) - go back to app details page
-                    previousPath = `app_store/${appId}`;
-                    previousPathSegments = ['app_store', appId];
+                    // This is a nested route (category page, skill, focus).
+                    // If the user arrived here from the Settings & Memories hub, go back there.
+                    // Otherwise go back to the app details page.
+                    if (pathParts[1] === 'settings_memories' && cameFromPath === 'settings_memories') {
+                        previousPath = 'settings_memories';
+                        previousPathSegments = ['settings_memories'];
+                    } else {
+                        previousPath = `app_store/${appId}`;
+                        previousPathSegments = ['app_store', appId];
+                    }
                 } else {
                     // Regular app details page — if we arrived from "All Apps", go back there.
                     // Otherwise, go back one level normally (to app_store root).
@@ -1458,10 +1539,13 @@ changes to the documentation (to keep the documentation up to date).
                     direction: 'backward',
                     icon: icon,
                     title: title,
-                    // Preserve cameFromPath when going backward to an intermediate app page
+                    // Preserve cameFromPath (and title) when going backward to an intermediate app page
                     // so the breadcrumb and next back step still reference the original source.
                     cameFrom: (previousPath.startsWith('app_store/') && previousPath !== 'app_store/all' && cameFromPath)
                         ? cameFromPath
+                        : undefined,
+                    cameFromTitle: (previousPath.startsWith('app_store/') && previousPath !== 'app_store/all' && cameFromTitleOverride)
+                        ? cameFromTitleOverride
                         : undefined
                 }
             }));
@@ -1565,34 +1649,31 @@ changes to the documentation (to keep the documentation up to date).
 
     // Click outside handler
     function handleClickOutside(event: MouseEvent) {
-    	if ($isMobileView) {
-    		// CRITICAL: Skip closing if settings was just opened programmatically (e.g., from AppStoreCard click).
-    		// On mobile, the same tap that triggers openSettings() also bubbles up to document,
-    		// causing handleClickOutside to immediately close the just-opened panel.
-    		// A 300ms grace period prevents this race condition while still allowing
-    		// genuine outside clicks to close the panel normally.
-    		if (Date.now() - lastProgrammaticOpenTime < 300) {
-    			return;
-    		}
-    		
-    		const settingsMenu = document.querySelector('.settings-menu');
-    		const profileWrapper = document.querySelector('.profile-container-wrapper');
-    		const closeButton = document.querySelector('.close-icon-container');
-   
-    		// Only close the menu if the click is truly outside all menu-related elements
-    		// This prevents the menu from closing when clicking anywhere within the settings menu
-    		const isClickInsideMenu = settingsMenu && settingsMenu.contains(event.target as Node);
-    		const isClickInsideProfile = profileWrapper && profileWrapper.contains(event.target as Node);
-    		const isClickInsideCloseButton = closeButton && closeButton.contains(event.target as Node);
-    		
-    		// Only close if the click is outside all menu-related elements
-    		if (!isClickInsideMenu && !isClickInsideProfile && !isClickInsideCloseButton) {
-    			isMenuVisible = false;
-    			settingsMenuVisible.set(false);
-    			// CRITICAL: Also close via panelState to keep state in sync
-    			panelState.closeSettings();
-    		}
-    	}
+	    // Close on outside-click only when settings is rendered as an overlay.
+	    // In side-by-side mode (>1100px), outside clicks should not close the panel.
+	    const isOverlayMode = viewportWidth <= 1100;
+	    if (!isMenuVisible || !isOverlayMode) {
+	    	return;
+	    }
+
+	    // CRITICAL: Skip closing if settings was just opened programmatically (e.g., from AppStoreCard click).
+	    // The same tap/click event can bubble to document and would otherwise immediately close the panel.
+	    if (Date.now() - lastProgrammaticOpenTime < 300) {
+	    	return;
+	    }
+
+	    const settingsMenu = document.querySelector('.settings-menu');
+	    const profileWrapper = document.querySelector('.profile-container-wrapper');
+	    const closeButton = document.querySelector('.close-icon-container');
+
+	    const isClickInsideMenu = settingsMenu && settingsMenu.contains(event.target as Node);
+	    const isClickInsideProfile = profileWrapper && profileWrapper.contains(event.target as Node);
+	    const isClickInsideCloseButton = closeButton && closeButton.contains(event.target as Node);
+
+	    // Mirror close button behavior so the same close/reset animation path is used.
+	    if (!isClickInsideMenu && !isClickInsideProfile && !isClickInsideCloseButton) {
+	    	toggleMenu();
+	    }
     }
 
     // Setup listeners
@@ -2325,11 +2406,11 @@ changes to the documentation (to keep the documentation up to date).
                     aria-hidden="true"
                     style="opacity: {headerDecorOpacity}"
                 >
-                    {#each headerChatDecorIcons as decor (decor.key)}
+                    {#each headerChatDecorIcons as decor, index (decor.key)}
                         {@const IconComponent = getLucideIcon(decor.iconName)}
                         <div
                             class="header-chat-icon {decor.side}"
-                            style="top: {decor.topPercent}%; --header-chat-icon-inset: {decor.insetPx}px; --header-chat-icon-rotation: {decor.rotationDeg}deg;"
+                            style="top: {decor.topPercent}%; --header-chat-icon-inset: {decor.insetPx}px; --header-chat-icon-rotation: {decor.rotationDeg}deg; --deco-rotate: {decor.rotationDeg}deg; --float-rx: 6px; --float-ry: 7px; animation-delay: {-index * 2}s;"
                         >
                             <IconComponent size={22} color="rgba(255, 255, 255, 0.45)" />
                         </div>
@@ -2372,6 +2453,7 @@ changes to the documentation (to keep the documentation up to date).
                     iconName: subPageBannerData.iconName,
                     iconType: subPageBannerData.iconType,
                 } : undefined}
+                onSubItemMention={subPageBannerData?.mentionSyntax ? handleSubPageBannerMentionClick : undefined}
             />
         </div>
     {/if}
@@ -2689,11 +2771,19 @@ changes to the documentation (to keep the documentation up to date).
         transform: translateY(-50%) rotate(var(--header-chat-icon-rotation));
         opacity: 0;
         transition: opacity 0.28s ease;
+        /* Orbital float — each icon drifts in a small circle. Per-icon phase
+           offset set via negative animation-delay in the inline style so all
+           8 icons orbit independently (staggered by 2s each). */
+        animation: decoFloat 16s linear infinite;
     }
 
     .header-chat-icons-layer.menu-open .header-chat-icon {
         opacity: 1;
         transition-delay: 0.2s;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .header-chat-icon { animation: none; }
     }
 
     .header-chat-icon.left {

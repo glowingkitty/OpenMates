@@ -181,8 +181,11 @@
                 
                 // For private chats, generate encrypted share link
                 try {
-                    const { chatDB } = await import('../../services/db');
-                    const chatKey = chatDB.getOrGenerateChatKey(activeChatId);
+                    const { chatKeyManager } = await import('../../services/encryption/ChatKeyManager');
+                    let chatKey = chatKeyManager.getKeySync(activeChatId);
+                    if (!chatKey) {
+                        chatKey = await chatKeyManager.getKey(activeChatId);
+                    }
                     
                     if (chatKey) {
                         // Convert chat key to base64 if needed
@@ -235,11 +238,15 @@
      * Collect device information for debugging purposes
      */
     function collectDeviceInfo() {
+        const nav = navigator as Navigator & { deviceMemory?: number };
+
         return {
-            userAgent: navigator.userAgent || '',
+            userAgent: nav.userAgent || '',
             viewportWidth: window.innerWidth || 0,
             viewportHeight: window.innerHeight || 0,
-            isTouchEnabled: 'ontouchstart' in window || navigator.maxTouchPoints > 0
+            isTouchEnabled: 'ontouchstart' in window || nav.maxTouchPoints > 0,
+            logicalCores: nav.hardwareConcurrency ?? null,
+            deviceMemoryGiB: nav.deviceMemory ?? null
         };
     }
     
@@ -268,7 +275,7 @@
             
             // Generate the inspection report (same format as window.inspectChat)
             // This only returns metadata - no plaintext content is included
-            const report = await inspectChat(activeChatId);
+            const report = await inspectChat(activeChatId, { verbose: true });
             
             console.debug('[SettingsReportIssue] Generated IndexedDB inspection report:', report.length, 'chars');
             return report;

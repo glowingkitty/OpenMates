@@ -857,10 +857,10 @@ async def handle_main_processing(
             for key, value in mentioned.items():
                 if isinstance(key, str) and value is not None:
                     loaded_app_settings_and_memories_content[key] = value
-            logger.info(f"{log_prefix} [DEBUG] Pre-filled {len(mentioned)} app settings/memories from client-mentioned cleartext: {list(mentioned.keys())}")
+            logger.debug(f"{log_prefix} Pre-filled {len(mentioned)} app settings/memories from client-mentioned cleartext: {list(mentioned.keys())}")
 
     if preprocessing_results.load_app_settings_and_memories and cache_service:
-        logger.info(f"{log_prefix} [DEBUG] Preprocessing requested app settings/memories: {preprocessing_results.load_app_settings_and_memories}")
+        logger.debug(f"{log_prefix} Preprocessing requested app settings/memories: {preprocessing_results.load_app_settings_and_memories}")
         try:
             # Import helper function for creating requests
             from backend.core.api.app.utils.app_settings_memories_request import (
@@ -1100,6 +1100,15 @@ async def handle_main_processing(
     if discovered_apps_metadata:
         prompt_parts.append(base_instructions.get("base_app_deep_linking_instruction", ""))
     
+    # Add settings/memories deep link instruction so the AI can suggest creating/updating
+    # entries inline in its response. Only include when apps are available (the AI needs
+    # to know the category IDs and field names). The instruction is always-on for simplicity;
+    # the AI will only generate links when the conversation actually reveals preferences.
+    if discovered_apps_metadata:
+        settings_deep_link_instruction = base_instructions.get("base_settings_memories_deep_link_instruction", "")
+        if settings_deep_link_instruction:
+            prompt_parts.append(settings_deep_link_instruction)
+    
     # === BUILD PRESELECTED SKILLS SET ===
     # Build this BEFORE the instruction injection block so we can filter app instructions
     # by whether their skills are preselected. Also used later for tool generation.
@@ -1227,12 +1236,85 @@ async def handle_main_processing(
         logger.info(f"{log_prefix} Skipping base_proactive_skill_usage_instruction - no apps available")
     
     prompt_parts.append(base_instructions.get("base_url_sourcing_instruction", ""))
-    # Add inline embed referencing instruction (only when skill results may be in context)
-    # This teaches the LLM to use [text](embed:embed_ref) syntax to reference specific items
-    # from previous skill results. Only injected when apps/skills are available since the
-    # embed_ref field only appears in tool results from skill calls.
-    if preselected_skills:
+
+    # === EMBED INSTRUCTION GATING ===
+    # Scan message history once to determine which embed types exist in the conversation.
+    # This prevents the LLM from seeing (and misusing) embed syntax when no embed results
+    # are present. Without this guard, the LLM can hallucinate embed reference syntax —
+    # e.g. fabricating > [quote](embed:web-result-1) blocks — even when no web search was run.
+    # See docs/architecture/embed-prompt-gating.md (issue c35ac944).
+    #
+    # Composite skills that produce embed_refs the LLM can reference inline or as cards.
+    # Format must match preselected_skills entries: "app_id-skill_id".
+    _EMBED_PRODUCING_PRESELECTED_IDS = {
+        "web-search", "news-search", "videos-search",
+        "maps-search", "events-search",
+        "travel-search_connections", "travel-search_stays",
+        "shopping-search_products",
+        "web-read",  # Non-composite single-result skills also produce embed_refs
+    }
+    # Subset whose results contain quotable text (web/news search results with
+    # title/description/snippets that the source-quote verification can check against):
+    _QUOTABLE_PRESELECTED_IDS = {"web-search", "news-search", "web-read"}
+
+    # Determine whether embeds already exist in chat history (from prior turns).
+    # Uses the same lightweight substring checks as the preprocessor's skill-forcing logic.
+    _has_any_embeds_in_history = False
+    _has_quotable_embeds_in_history = False
+    for _msg in request_data.message_history:
+        _msg_content = _msg.content if hasattr(_msg, "content") else (
+            _msg.get("content") if isinstance(_msg, dict) else None
+        )
+        if not isinstance(_msg_content, str):
+            continue
+        # Any TOON block with an embed_ref field indicates embed results from a previous turn
+        if not _has_any_embeds_in_history and "embed_ref:" in _msg_content:
+            _has_any_embeds_in_history = True
+        # Quotable embeds: web/news search results and web.read results contain
+        # text-heavy content (title/description/snippets/markdown) worth quoting.
+        # We check for embed_ref alongside app_id/skill_id markers in TOON content.
+        if not _has_quotable_embeds_in_history and "embed_ref:" in _msg_content and (
+            ("app_id: web" in _msg_content and "skill_id: search" in _msg_content) or
+            ("app_id: news" in _msg_content and "skill_id: search" in _msg_content) or
+            ("app_id: web" in _msg_content and "skill_id: read" in _msg_content)
+        ):
+            _has_quotable_embeds_in_history = True
+        if _has_any_embeds_in_history and _has_quotable_embeds_in_history:
+            break
+
+    # Determine whether the current turn is about to produce embeds.
+    # If a composite skill is preselected, the LLM will receive embed_ref slugs in tool results.
+    _current_turn_produces_embeds = bool(
+        preselected_skills and preselected_skills & _EMBED_PRODUCING_PRESELECTED_IDS
+    )
+    # If a quotable skill is preselected, the LLM will receive source_quote_hint in tool results.
+    _current_turn_produces_quotable_embeds = bool(
+        preselected_skills and preselected_skills & _QUOTABLE_PRESELECTED_IDS
+    )
+
+    # Inject inline/preview embed instruction only when the LLM will actually have embed_refs
+    # to reference — either from history or from skills running this turn.
+    _include_embed_referencing = _has_any_embeds_in_history or _current_turn_produces_embeds
+    if _include_embed_referencing:
         prompt_parts.append(base_instructions.get("base_embed_referencing_instruction", ""))
+        logger.debug(
+            f"{log_prefix} [EMBED_PROMPT] Injected embed referencing instruction "
+            f"(history_embeds={_has_any_embeds_in_history}, current_turn_produces={_current_turn_produces_embeds})"
+        )
+    else:
+        logger.debug(f"{log_prefix} [EMBED_PROMPT] Skipped embed referencing instruction — no embeds in history or preselected skills")
+
+    # Inject source quote instruction only when quotable search results exist or are expected.
+    # Quotable embed types: web search results, news search results (contain title/description/snippets).
+    _include_source_quote = _has_quotable_embeds_in_history or _current_turn_produces_quotable_embeds
+    if _include_source_quote:
+        prompt_parts.append(base_instructions.get("base_embed_source_quote_instruction", ""))
+        logger.debug(
+            f"{log_prefix} [EMBED_PROMPT] Injected source quote instruction "
+            f"(history_quotable={_has_quotable_embeds_in_history}, current_turn_quotable={_current_turn_produces_quotable_embeds})"
+        )
+    else:
+        logger.debug(f"{log_prefix} [EMBED_PROMPT] Skipped source quote instruction — no quotable embeds in history or preselected skills")
     # Add code block formatting instruction to ensure proper language and filename syntax
     # This helps with consistent parsing and rendering of code embeds
     prompt_parts.append(base_instructions.get("base_code_block_instruction", ""))
@@ -1399,7 +1481,8 @@ async def handle_main_processing(
     
     # Log available tools for debugging
     tool_names = [tool["function"]["name"] for tool in available_tools_for_llm]
-    logger.info(f"{log_prefix} Available tools for main processing LLM ({len(available_tools_for_llm)} total): {', '.join(tool_names) if tool_names else 'None'}")
+    logger.info(f"{log_prefix} Available tools for main processing LLM: {len(available_tools_for_llm)} total")
+    logger.debug(f"{log_prefix} Tool names: {', '.join(tool_names) if tool_names else 'None'}")
     if preselected_skills:
         logger.info(f"{log_prefix} Using preselected skills filter: {preselected_skills}")
     if assigned_app_ids:
@@ -3226,12 +3309,16 @@ async def handle_main_processing(
                 #   2. The SAME slugs are baked into child embed TOON by update_embed_with_results
                 #      (which reads embed_ref from the result dict if already present)
                 # Generating slugs in two places would produce different random suffixes → ref mismatch.
-                _composite_skill_ids = {"search", "places_search", "events_search", "search_connections", "search_stays"}
                 # Skills whose results contain text-heavy content worth quoting verbatim.
                 # A single source_quote_hint is added at the group level (not per result)
                 # to remind the LLM it can use > [exact text](embed:ref) blockquote syntax.
-                _QUOTABLE_SKILL_IDS = {"search"}
-                if skill_id in _composite_skill_ids and not is_async_skill and not is_multimodal_result:
+                _QUOTABLE_SKILL_IDS = {"search", "read"}
+                # Generate embed_ref slugs for ALL non-async/non-multimodal skills (not just
+                # composite ones). Non-composite skills (e.g. web.read) produce a single result
+                # that also needs an embed_ref so the LLM can reference it and QUOTE_VERIFY
+                # can build its embed_ref→id map. Without this, the LLM invents refs like
+                # "embed:1" which fail verification and get stripped.
+                if not is_async_skill and not is_multimodal_result:
                     try:
                         from backend.core.api.app.services.embed_service import EmbedService as _EmbedSvc
                         _child_type = _EmbedSvc.get_child_embed_type(app_id, skill_id)
@@ -3295,8 +3382,8 @@ async def handle_main_processing(
                         ) if skill_id in _QUOTABLE_SKILL_IDS else None
 
                         # Embed ref display-text hint — added once per tool result group
-                        # for ALL composite skills.  Reinforces that the display text in
-                        # [text](embed:ref) links must be a human-readable description
+                        # for ALL embed-producing skills.  Reinforces that the display text
+                        # in [text](embed:ref) links must be a human-readable description
                         # (e.g. the result's title), NEVER the embed_ref slug or its suffix.
                         # Placed at the wrapper level (~40 tokens total, not per result).
                         _ref_hint = (

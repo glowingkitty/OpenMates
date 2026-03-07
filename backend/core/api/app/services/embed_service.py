@@ -2694,7 +2694,19 @@ class EmbedService:
                 # Structure matches composite results pattern: app_id, skill_id, results array
                 # Also include original_metadata (query, url, provider, etc.) to preserve input parameters
                 flattened_results = [_flatten_for_toon_tabular(result) for result in results]
-                
+
+                # Generate embed_ref for this single embed so the LLM can reference it
+                # and QUOTE_VERIFY can build its embed_ref→id map.
+                # Must match the slug generated in main_processor.py (which pre-generates
+                # slugs from the same results before the LLM sees them).
+                # For the update path (placeholder flow), the slug was already pre-generated
+                # by main_processor.py and injected into the result dict. Use it if present,
+                # otherwise generate a fresh one (fallback for edge cases).
+                _first_result = results[0] if results else {}
+                single_embed_ref = _first_result.get("embed_ref") or self._generate_embed_ref_slug(
+                    skill_id, _first_result
+                )
+
                 # Wrap with app_id and skill_id metadata (same structure as create_embeds_from_skill_results)
                 # Include original_metadata to preserve input parameters (url for videos, query for search, etc.)
                 content_with_metadata = {
@@ -2703,6 +2715,7 @@ class EmbedService:
                     "results": flattened_results,
                     "result_count": len(results),
                     "status": "finished",
+                    "embed_ref": single_embed_ref,
                     **original_metadata  # Preserve query, url, provider, languages, etc. from placeholder
                 }
                 

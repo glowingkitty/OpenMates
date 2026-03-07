@@ -336,10 +336,16 @@
           "text": "AIのコミュニケーション方法の好み"
         },
         "example_1": {
-          "text": "プロフェッショナルで簡潔"
+          "text": "プロフェッショナルで簡潔",
+          "title": {
+            "text": "テクニカルエキスパート"
+          }
         },
         "example_2": {
-          "text": "カジュアルでフレンドリー"
+          "text": "カジュアルでフレンドリー",
+          "title": {
+            "text": "フレンドリーヘルパー"
+          }
         }
       },
       "learning_preferences": {
@@ -348,10 +354,22 @@
           "text": "情報をどのように学習し、消費することを好むか"
         },
         "example_1": {
-          "text": "視覚的学習者"
+          "text": "視覚的学習者",
+          "title": {
+            "text": "ビジュアル学習"
+          },
+          "notes": {
+            "text": "ダイアグラム、チャート、視覚的な説明を好む"
+          }
         },
         "example_2": {
-          "text": "ハンズオン練習"
+          "text": "ハンズオン練習",
+          "title": {
+            "text": "ハンズオン練習"
+          },
+          "notes": {
+            "text": "コード例を使って試すことで最もよく学べる"
+          }
         }
       },
       "interaction_preferences": {
@@ -368,10 +386,28 @@
           "text": "大好きでおすすめしたい本。"
         },
         "example_1": {
-          "text": "1984"
+          "text": "1984",
+          "title": {
+            "text": "グレート・ギャツビー"
+          },
+          "genre": {
+            "text": "古典小説"
+          },
+          "notes": {
+            "text": "アメリカンドリームについての美しい散文"
+          }
         },
         "example_2": {
-          "text": "サピエンス全史"
+          "text": "サピエンス全史",
+          "title": {
+            "text": "サピエンス全史"
+          },
+          "genre": {
+            "text": "ノンフィクション"
+          },
+          "notes": {
+            "text": "人類の歴史の魅力的な概観"
+          }
         },
         "example_3": {
           "text": "デューン 砂の惑星"
@@ -383,10 +419,22 @@
           "text": "現在読んでいる本。"
         },
         "example_1": {
-          "text": "プロジェクト・ヘイル・メアリー"
+          "text": "プロジェクト・ヘイル・メアリー",
+          "title": {
+            "text": "プロジェクト・ヘイル・メアリー"
+          },
+          "notes": {
+            "text": "素晴らしいSF冒険"
+          }
         },
         "example_2": {
-          "text": "ジェームズ・クリアー式 複利で伸びる1つの習慣"
+          "text": "ジェームズ・クリアー式 複利で伸びる1つの習慣",
+          "title": {
+            "text": "ジェームズ・クリアー式 複利で伸びる1つの習慣"
+          },
+          "notes": {
+            "text": "良い習慣を身につけるための実践的な戦略"
+          }
         }
       },
       "to_read_list": {
@@ -395,10 +443,28 @@
           "text": "次に読みたい本。"
         },
         "example_1": {
-          "text": "三体"
+          "text": "三体",
+          "title": {
+            "text": "デューン 砂の惑星"
+          },
+          "genre": {
+            "text": "サイエンスフィクション"
+          },
+          "notes": {
+            "text": "古典的なSF、友人のおすすめ"
+          }
         },
         "example_2": {
-          "text": "ファスト＆スロー"
+          "text": "ファスト＆スロー",
+          "title": {
+            "text": "ファスト＆スロー"
+          },
+          "genre": {
+            "text": "心理学"
+          },
+          "notes": {
+            "text": "認知バイアスを理解したい"
+          }
         },
         "example_3": {
           "text": "大事なことに集中する"
@@ -412,10 +478,16 @@
           "text": "好みの言語とフレームワーク。"
         },
         "example_1": {
-          "text": "Python"
+          "text": "Python",
+          "name": {
+            "text": "Python"
+          }
         },
         "example_2": {
-          "text": "TypeScript"
+          "text": "TypeScript",
+          "name": {
+            "text": "TypeScript"
+          }
         },
         "example_3": {
           "text": "Svelte"
@@ -427,10 +499,22 @@
           "text": "あなたのプロジェクト（進行中、計画中、完了済み）"
         },
         "example_1": {
-          "text": "個人ウェブサイト"
+          "text": "個人ウェブサイト",
+          "name": {
+            "text": "個人ウェブサイト"
+          },
+          "description": {
+            "text": "SvelteKitで構築したポートフォリオサイト"
+          }
         },
         "example_2": {
-          "text": "モバイルアプリ"
+          "text": "モバイルアプリ",
+          "name": {
+            "text": "天気アプリ"
+          },
+          "description": {
+            "text": "ReactとOpenWeather APIを使った天気予報アプリ"
+          }
         },
         "example_3": {
           "text": "APIバックエンド"
@@ -442,10 +526,16 @@
           "text": "学びたい技術やスキル"
         },
         "example_1": {
-          "text": "Rust"
+          "text": "Rust",
+          "name": {
+            "text": "Rust"
+          }
         },
         "example_2": {
-          "text": "機械学習"
+          "text": "機械学習",
+          "name": {
+            "text": "機械学習"
+          }
         },
         "example_3": {
           "text": "Kubernetes"
@@ -459,10 +549,22 @@
           "text": "文書のお好みの文章スタイル。"
         },
         "example_1": {
-          "text": "フォーマルビジネス"
+          "text": "フォーマルビジネス",
+          "name": {
+            "text": "技術ドキュメント"
+          },
+          "description": {
+            "text": "開発者ドキュメントやAPIリファレンス向けの明確で構造的な文章"
+          }
         },
         "example_2": {
-          "text": "学術的"
+          "text": "学術的",
+          "name": {
+            "text": "ブログ記事"
+          },
+          "description": {
+            "text": "ブログ記事向けの親しみやすく会話的なトーン"
+          }
         },
         "example_3": {
           "text": "カジュアルブログ"
@@ -476,10 +578,22 @@
           "text": "あなたの医療予約と訪問。"
         },
         "example_1": {
-          "text": "歯科医 Mueller 先生"
+          "text": "歯科医 Mueller 先生",
+          "where": {
+            "text": "市立病院"
+          },
+          "notes": {
+            "text": "年次健康診断"
+          }
         },
         "example_2": {
-          "text": "眼科検診"
+          "text": "眼科検診",
+          "where": {
+            "text": "ダウンタウン歯科"
+          },
+          "notes": {
+            "text": "歯のクリーニング"
+          }
         }
       },
       "medical_history": {
@@ -488,10 +602,22 @@
           "text": "過去の手術、疾患、アレルギー。"
         },
         "example_1": {
-          "text": "ペニシリンアレルギー"
+          "text": "ペニシリンアレルギー",
+          "name": {
+            "text": "ピーナッツアレルギー"
+          },
+          "details": {
+            "text": "重度のアレルギー反応、エピペン携帯"
+          }
         },
         "example_2": {
-          "text": "膝の手術 2023"
+          "text": "膝の手術 2023",
+          "name": {
+            "text": "COVID-19ワクチン"
+          },
+          "details": {
+            "text": "ファイザーブースター接種"
+          }
         }
       },
       "symptoms_log": {
@@ -514,10 +640,22 @@
           "text": "生成された画像の好みのスタイル"
         },
         "example_1": {
-          "text": "水彩画"
+          "text": "水彩画",
+          "name": {
+            "text": "ミニマリスト"
+          },
+          "description": {
+            "text": "すっきりしたライン、シンプルな構図、落ち着いた配色"
+          }
         },
         "example_2": {
-          "text": "ミニマリスト"
+          "text": "ミニマリスト",
+          "name": {
+            "text": "ビビッドフォトグラフィー"
+          },
+          "description": {
+            "text": "鮮やかな色彩、高コントラスト、ダイナミックな構図"
+          }
         },
         "example_3": {
           "text": "サイバーパンク"
@@ -531,10 +669,31 @@
           "text": "異なる状況でのメールの書き方。"
         },
         "example_1": {
-          "text": "フォーマルビジネス"
+          "text": "フォーマルビジネス",
+          "title": {
+            "text": "プロフェッショナル"
+          },
+          "description": {
+            "text": "ビジネスメール向けのフォーマルな口調"
+          },
+          "when_to_use": {
+            "text": "仕事のメールとクライアントとのやり取り"
+          },
+          "footer": {
+            "text": "よろしくお願いいたします。"
+          }
         },
         "example_2": {
-          "text": "カジュアルチーム"
+          "text": "カジュアルチーム",
+          "title": {
+            "text": "カジュアル"
+          },
+          "description": {
+            "text": "個人メール向けのリラックスしたフレンドリーな口調"
+          },
+          "when_to_use": {
+            "text": "友人や家族"
+          }
         },
         "example_3": {
           "text": "フォローアップとリマインド"
@@ -548,10 +707,22 @@
           "text": "クイックアクセスのための保存されたお気に入りの場所。"
         },
         "example_1": {
-          "text": "自宅"
+          "text": "自宅",
+          "name": {
+            "text": "セントラルパーク"
+          },
+          "address": {
+            "text": "ニューヨーク、NY 10024"
+          }
         },
         "example_2": {
-          "text": "オフィス"
+          "text": "オフィス",
+          "name": {
+            "text": "エッフェル塔"
+          },
+          "address": {
+            "text": "シャン・ド・マルス、75007 パリ"
+          }
         },
         "example_3": {
           "text": "お気に入りのカフェ"
@@ -565,10 +736,28 @@
           "text": "植物コレクションとケアスケジュール"
         },
         "example_1": {
-          "text": "モンステラ・デリシオサ"
+          "text": "モンステラ・デリシオサ",
+          "name": {
+            "text": "モンステラ・デリシオサ"
+          },
+          "location": {
+            "text": "リビングルーム"
+          },
+          "notes": {
+            "text": "間接光が必要、月に一度葉を拭く"
+          }
         },
         "example_2": {
-          "text": "サンスベリア"
+          "text": "サンスベリア",
+          "name": {
+            "text": "バジル"
+          },
+          "location": {
+            "text": "キッチンの窓"
+          },
+          "notes": {
+            "text": "成長を促すために定期的に収穫する"
+          }
         }
       }
     },
@@ -593,10 +782,22 @@
           "text": "学習目標と習得したいトピック"
         },
         "example_1": {
-          "text": "スペイン語B2レベル"
+          "text": "スペイン語B2レベル",
+          "topic": {
+            "text": "データサイエンス"
+          },
+          "notes": {
+            "text": "Python pandasとデータ可視化に集中"
+          }
         },
         "example_2": {
-          "text": "データサイエンスの基礎"
+          "text": "データサイエンスの基礎",
+          "topic": {
+            "text": "スペイン語"
+          },
+          "notes": {
+            "text": "夏までに会話レベルを目指す"
+          }
         }
       },
       "education_history": {
@@ -619,10 +820,22 @@
           "text": "予定と過去の旅行。"
         },
         "example_1": {
-          "text": "日本、2026年3月"
+          "text": "日本、2026年3月",
+          "destination": {
+            "text": "東京、日本"
+          },
+          "notes": {
+            "text": "2週間の休暇で寺院巡りと食文化を満喫"
+          }
         },
         "example_2": {
-          "text": "バルセロナ、2025年夏"
+          "text": "バルセロナ、2025年夏",
+          "destination": {
+            "text": "バルセロナ、スペイン"
+          },
+          "notes": {
+            "text": "夏休み、ビーチと建築巡り"
+          }
         },
         "example_3": {
           "text": "スコットランドのロードトリップ"
@@ -634,10 +847,16 @@
           "text": "お気に入りの航空会社"
         },
         "example_1": {
-          "text": "ルフトハンザ"
+          "text": "ルフトハンザ",
+          "name": {
+            "text": "ルフトハンザ"
+          }
         },
         "example_2": {
-          "text": "スイス航空"
+          "text": "スイス航空",
+          "name": {
+            "text": "シンガポール航空"
+          }
         },
         "example_3": {
           "text": "KLM"
@@ -664,10 +883,16 @@
           "text": "お気に入りの旅行アクティビティと体験。"
         },
         "example_1": {
-          "text": "ビーチを訪れる"
+          "text": "ビーチを訪れる",
+          "name": {
+            "text": "ハイキング"
+          }
         },
         "example_2": {
-          "text": "博物館を巡る"
+          "text": "博物館を巡る",
+          "name": {
+            "text": "美術館・博物館巡り"
+          }
         },
         "example_3": {
           "text": "ハイキング"
@@ -684,10 +909,22 @@
           "text": "あなたが見た映画"
         },
         "example_1": {
-          "text": "インセプション"
+          "text": "インセプション",
+          "title": {
+            "text": "インセプション"
+          },
+          "notes": {
+            "text": "夢の中の夢を描いた驚異の傑作"
+          }
         },
         "example_2": {
-          "text": "ショーシャンクの空に"
+          "text": "ショーシャンクの空に",
+          "title": {
+            "text": "パラサイト 半地下の家族"
+          },
+          "notes": {
+            "text": "予想外の展開を持つ見事な社会風刺"
+          }
         }
       },
       "watched_tv_shows": {
@@ -696,10 +933,22 @@
           "text": "あなたが見た、または見ているテレビ番組"
         },
         "example_1": {
-          "text": "ブレイキング・バッド"
+          "text": "ブレイキング・バッド",
+          "title": {
+            "text": "ブレイキング・バッド"
+          },
+          "notes": {
+            "text": "史上最高のテレビシリーズの一つ"
+          }
         },
         "example_2": {
-          "text": "ストレンジャー・シングス"
+          "text": "ストレンジャー・シングス",
+          "title": {
+            "text": "ザ・ベア"
+          },
+          "notes": {
+            "text": "素晴らしい演技の緊迫したキッチンドラマ"
+          }
         }
       },
       "to_watch_list": {
@@ -708,10 +957,22 @@
           "text": "見たい映画とテレビ番組"
         },
         "example_1": {
-          "text": "オッペンハイマー"
+          "text": "オッペンハイマー",
+          "title": {
+            "text": "オッペンハイマー"
+          },
+          "reason": {
+            "text": "受賞歴のある伝記映画"
+          }
         },
         "example_2": {
-          "text": "ザ・ベア"
+          "text": "ザ・ベア",
+          "title": {
+            "text": "セヴェランス"
+          },
+          "reason": {
+            "text": "ユニークなSF職場スリラー"
+          }
         }
       }
     },
@@ -722,10 +983,16 @@
           "text": "見たい動画"
         },
         "example_1": {
-          "text": "テックカンファレンス基調講演"
+          "text": "テックカンファレンス基調講演",
+          "name": {
+            "text": "コンピュータの仕組み"
+          }
         },
         "example_2": {
-          "text": "料理チュートリアル"
+          "text": "料理チュートリアル",
+          "name": {
+            "text": "上級TypeScript"
+          }
         },
         "example_3": {
           "text": "旅行Vlog"
@@ -784,10 +1051,16 @@
           "text": "後で読むために保存したサイトと記事"
         },
         "example_1": {
-          "text": "興味深いAI研究論文"
+          "text": "興味深いAI研究論文",
+          "notes": {
+            "text": "AIについての興味深い記事"
+          }
         },
         "example_2": {
-          "text": "デザインパターンの記事"
+          "text": "デザインパターンの記事",
+          "notes": {
+            "text": "Web開発のチュートリアル"
+          }
         },
         "example_3": {
           "text": "テックブログ記事"
@@ -1279,9 +1552,9 @@
     },
     "shopping": {
       "search_products": {
-        "text": "商品を検索",
+        "text": "検索",
         "description": {
-          "text": "スーパーの商品を検索して比較する。"
+          "text": "オンラインショップとオンラインスーパーマーケットで商品を検索する。"
         },
         "how_to_use": {
           "1": {
@@ -1324,6 +1597,23 @@
           },
           "3": {
             "text": "Rome で Easter 週のファミリー向け宿泊施設を検索"
+          }
+        }
+      },
+      "get_flight": {
+        "text": "フライト追跡を取得",
+        "description": {
+          "text": "過去のフライトの実際の飛行ルートを地図で確認できます。"
+        },
+        "how_to_use": {
+          "1": {
+            "text": "3月5日のLH2472のフライト経路を表示して"
+          },
+          "2": {
+            "text": "昨日のBA234は迂回しましたか？"
+          },
+          "3": {
+            "text": "AF447は何時に着陸し、どの滑走路が使用されましたか？"
           }
         }
       }
@@ -1758,23 +2048,6 @@
     "generated_by": {
       "text": "{model} によって生成"
     },
-    "settings_memories_suggestions": {
-      "header": {
-        "text": "OpenMatesにこの情報を記憶させますか？"
-      },
-      "reject": {
-        "text": "拒否"
-      },
-      "add": {
-        "text": "追加"
-      },
-      "customize_entry": {
-        "text": "カスタマイズして追加"
-      },
-      "privacy_notice": {
-        "text": "設定とメモリは暗号化されており、あなたのデバイスでのみ復号化できます。"
-      }
-    },
     "credits_needed": {
       "text": "クレジットが必要です..."
     },
@@ -1887,6 +2160,21 @@
       },
       "meal_prep": {
         "text": "健康的な食事準備を計画するのを手伝ってください"
+      },
+      "discover_web_search": {
+        "text": "[web-search] 今日、世界では何が起きているの？"
+      },
+      "discover_image_generate": {
+        "text": "[images-generate] 山の夕日の画像を生成して"
+      },
+      "discover_news_search": {
+        "text": "[news-search] 最新のAIニュースを検索して"
+      },
+      "discover_video_search": {
+        "text": "[videos-search] Pythonプログラミングのチュートリアル動画を検索して"
+      },
+      "discover_math_calculate": {
+        "text": "[math-calculate] 計算: 240の15%はいくらですか？"
       }
     },
     "suggestions": {
@@ -2234,11 +2522,17 @@
       "settings": {
         "text": "設定"
       },
+      "my_embeds": {
+        "text": "マイ埋め込み"
+      },
       "indexing": {
         "text": "検索インデックスを構築中..."
       },
       "apps": {
         "text": "アプリとスキル"
+      },
+      "apps_only": {
+        "text": "アプリ"
       },
       "app_app": {
         "text": "アプリ"
@@ -2251,6 +2545,12 @@
       },
       "app_memory": {
         "text": "メモリ"
+      },
+      "focus_mode_status_activated": {
+        "text": "有効"
+      },
+      "focus_mode_status_deactivated": {
+        "text": "無効"
       },
       "go_to_message": {
         "text": "メッセージに移動"
@@ -2586,6 +2886,38 @@
       },
       "footer_note": {
         "text": "この通知は自動E2Eテスト監視システムから送信されました。"
+      }
+    },
+    "prometheus_alert": {
+      "title": {
+        "text": "Prometheusアラート通知"
+      },
+      "header": {
+        "text": "Prometheusアラート"
+      },
+      "alert_name_label": {
+        "text": "アラート名"
+      },
+      "severity_label": {
+        "text": "重大度"
+      },
+      "summary_label": {
+        "text": "要約"
+      },
+      "description_label": {
+        "text": "説明"
+      },
+      "started_at_label": {
+        "text": "発火時刻"
+      },
+      "ended_at_label": {
+        "text": "解消時刻"
+      },
+      "labels_label": {
+        "text": "ラベル"
+      },
+      "footer_note": {
+        "text": "このアラートは自動Prometheus監視システムから送信されました。"
       }
     },
     "email": {
@@ -2984,6 +3316,18 @@
     },
     "top_up_credits": {
       "text": "クレジットをチャージ"
+    },
+    "action_verification_title": {
+      "text": "操作を確認"
+    },
+    "action_verification_description": {
+      "text": "アカウントの機密操作のための確認コードをリクエストしました。"
+    },
+    "action_verification_expires": {
+      "text": "このコードは10分で期限切れになります。"
+    },
+    "action_verification_subject": {
+      "text": "確認コード：{code}"
     }
   },
   "embeds": {
@@ -3004,6 +3348,9 @@
     },
     "more_results": {
       "text": "+ {count} その他"
+    },
+    "search_no_results": {
+      "text": "0 件の結果"
     },
     "open_search_results": {
       "text": "検索結果を開く"
@@ -3446,7 +3793,7 @@
         "text": "商品が見つかりません。"
       },
       "search_products": {
-        "text": "商品を検索"
+        "text": "検索"
       }
     },
     "math": {
@@ -4695,6 +5042,17 @@
           "text": "Polarプライバシーポリシー"
         }
       },
+      "flightradar24": {
+        "heading": {
+          "text": "3.16 Flightradar24"
+        },
+        "description": {
+          "text": "「フライト追跡を取得」スキルを使用して実際のフライトデータを要求すると、完了したフライトの過去のGPSトラックデータを取得するためにFlightradar24に照会します。Flightradar24はフライト番号と出発日を受け取ります。個人データは共有されません。"
+        },
+        "privacy_policy_link": {
+          "text": "Flightradar24プライバシーポリシー"
+        }
+      },
       "security_measures": {
         "heading": {
           "text": "4. セキュリティ対策"
@@ -5377,7 +5735,19 @@
       "text": "ワークフロー"
     }
   },
-  "notifications": {},
+  "notifications": {
+    "security_reminder": {
+      "title": {
+        "text": "セキュリティリマインダー"
+      },
+      "message": {
+        "text": "二要素認証またはパスキーを設定して、アカウントを適切に保護してください。"
+      },
+      "action": {
+        "text": "セキュリティ設定を開く"
+      }
+    }
+  },
   "onboarding": {},
   "platforms": {
     "via": {
@@ -5440,6 +5810,9 @@
         },
         "error_invalid_chars": {
           "text": "ユーザー名には文字、数字、ドット、アンダースコアのみ使用できます"
+        },
+        "error_taken": {
+          "text": "このユーザー名はすでに使用されています。別のユーザー名を選んでください。"
         },
         "error_failed": {
           "text": "ユーザー名の更新に失敗しました。再試行してください。"
@@ -5726,6 +6099,74 @@
         }
       }
     },
+    "app_settings_memories": {
+      "encrypted_notice": {
+        "text": "設定とメモリのエントリは暗号化されており、あなたのデバイスのみが読み取ることができ、あなたの明示的な同意なしにOpenMatesに処理のために送信されることはありません。"
+      },
+      "diff_previous_value": {
+        "text": "変更前："
+      },
+      "diff_not_set": {
+        "text": "未設定"
+      },
+      "examples_label": {
+        "text": "例："
+      },
+      "my": {
+        "text": "私の"
+      },
+      "settings_and_memories": {
+        "text": "設定とメモリ"
+      },
+      "my_settings_and_memories": {
+        "text": "私の設定とメモリ"
+      },
+      "no_entries_yet": {
+        "text": "まだエントリがありません。"
+      },
+      "examples": {
+        "text": "例"
+      },
+      "no_settings": {
+        "text": "設定とメモリはまだ同期されていません。利用可能になると表示されます。"
+      },
+      "add_entry": {
+        "text": "エントリを追加"
+      },
+      "loading": {
+        "text": "設定とメモリを読み込み中..."
+      },
+      "item_key": {
+        "text": "アイテムキー"
+      },
+      "settings_group": {
+        "text": "設定グループ"
+      },
+      "item_value": {
+        "text": "アイテム値"
+      },
+      "cancel": {
+        "text": "キャンセル"
+      },
+      "creating": {
+        "text": "作成中..."
+      },
+      "placeholder": {
+        "text": "まもなくここでアプリの設定とメモリを管理・作成できるようになります。"
+      },
+      "just_now": {
+        "text": "たった今"
+      },
+      "edit": {
+        "text": "編集"
+      },
+      "delete": {
+        "text": "削除"
+      },
+      "save": {
+        "text": "保存"
+      }
+    },
     "app_store": {
       "description": {
         "text": "mates が使えるアプリを閲覧・管理する。"
@@ -5794,7 +6235,7 @@
           "text": "mates に次のようなことを聞いてみてください："
         },
         "how_to_use_mention": {
-          "text": "またはメッセージで @{skillname}\nと書いて、スキルを明示的にトリガーしてください。"
+          "text": "またはメッセージで {skillname}\nと書いて、スキルを明示的にトリガーしてください。"
         },
         "description": {
           "text": "説明"
@@ -5970,13 +6411,25 @@
         "creating": {
           "text": "作成中..."
         },
-        "text": "設定とメモリ"
+        "text": "設定とメモリ",
+        "hub_no_entries": {
+          "text": "まだ設定やメモリがありません。App Store のアプリを訪問して作成してください。"
+        },
+        "discover_link": {
+          "text": "設定とメモリを持つアプリを発見する"
+        },
+        "entry_count": {
+          "text": "{count} 件"
+        }
       },
       "skill_not_found": {
         "text": "スキルが見つかりません。"
       },
       "back_to_app": {
         "text": "アプリに戻る"
+      },
+      "settings_memories_entry": {
+        "text": "設定＆メモリーエントリ"
       },
       "app_not_found": {
         "text": "アプリが見つかりません。"
@@ -6050,8 +6503,8 @@
                 }
               },
               "gpt_5": {
-                "2": {
-                  "text": "GPT-5.2"
+                "4": {
+                  "text": "GPT-5.4"
                 }
               },
               "gpt_oss_120b": {
@@ -6980,6 +7433,12 @@
     "messengers": {
       "text": "メッセンジャー"
     },
+    "settings_memories": {
+      "text": "アプリ設定とメモリ",
+      "description": {
+        "text": "アプリの設定とメモリをまとめて管理。"
+      }
+    },
     "developers": {
       "text": "開発者"
     },
@@ -7363,6 +7822,48 @@
     "installed": {
       "text": "インストール済み"
     },
+    "current_version": {
+      "text": "現在のバージョン"
+    },
+    "up_to_date": {
+      "text": "ソフトウェアは最新です"
+    },
+    "commits_behind": {
+      "text": "{count} コミット遅れ"
+    },
+    "view_on_github": {
+      "text": "GitHubで表示"
+    },
+    "auto_check_for_updates": {
+      "text": "自動アップデート確認"
+    },
+    "auto_install_updates": {
+      "text": "自動アップデートインストール"
+    },
+    "clear_cache_on_update": {
+      "text": "アップデート時にキャッシュをクリア"
+    },
+    "check_interval": {
+      "text": "確認間隔"
+    },
+    "every_n_hours": {
+      "text": "{count} 時間ごと"
+    },
+    "update_settings": {
+      "text": "アップデート設定"
+    },
+    "server_versions": {
+      "text": "サーバーバージョン"
+    },
+    "no_update_check_error": {
+      "text": "アップデートを確認できませんでした。後でもう一度お試しください。"
+    },
+    "check_now": {
+      "text": "今すぐ確認"
+    },
+    "unreachable": {
+      "text": "到達不能"
+    },
     "profile_image_not_allowed": {
       "text": "プロフィール画像にはヌード、暴力、またはグロテスクなものを含めないでください。"
     },
@@ -7378,65 +7879,6 @@
       },
       "loading": {
         "text": "埋め込みを読み込み中..."
-      }
-    },
-    "app_settings_memories": {
-      "examples_label": {
-        "text": "例："
-      },
-      "my": {
-        "text": "私の"
-      },
-      "settings_and_memories": {
-        "text": "設定とメモリ"
-      },
-      "my_settings_and_memories": {
-        "text": "私の設定とメモリ"
-      },
-      "no_entries_yet": {
-        "text": "まだエントリがありません。"
-      },
-      "examples": {
-        "text": "例"
-      },
-      "no_settings": {
-        "text": "設定とメモリはまだ同期されていません。利用可能になると表示されます。"
-      },
-      "add_entry": {
-        "text": "エントリを追加"
-      },
-      "loading": {
-        "text": "設定とメモリを読み込み中..."
-      },
-      "item_key": {
-        "text": "アイテムキー"
-      },
-      "settings_group": {
-        "text": "設定グループ"
-      },
-      "item_value": {
-        "text": "アイテム値"
-      },
-      "cancel": {
-        "text": "キャンセル"
-      },
-      "creating": {
-        "text": "作成中..."
-      },
-      "placeholder": {
-        "text": "まもなくここでアプリの設定とメモリを管理・作成できるようになります。"
-      },
-      "just_now": {
-        "text": "たった今"
-      },
-      "edit": {
-        "text": "編集"
-      },
-      "delete": {
-        "text": "削除"
-      },
-      "save": {
-        "text": "保存"
       }
     },
     "newsletter": {
@@ -7928,6 +8370,18 @@
       },
       "no_auth_method": {
         "text": "認証方法がありません。サポートにお問い合わせください。"
+      },
+      "email_otp_description": {
+        "text": "メールアドレスに確認コードを送信します。"
+      },
+      "send_verification_code": {
+        "text": "確認コードを送信"
+      },
+      "email_otp_enter_code": {
+        "text": "メールに送信された6桁のコードを入力してください。"
+      },
+      "resend_code": {
+        "text": "コードを再送信"
       },
       "loading": {
         "text": "読み込み中..."
@@ -8421,6 +8875,9 @@
     "username_invalid_chars": {
       "text": "使用可能: 文字, 数字, _, ."
     },
+    "username_taken": {
+      "text": "このユーザー名はすでに使用されています。別のユーザー名を選んでください。"
+    },
     "enter_username": {
       "text": "ユーザー名を入力"
     },
@@ -8437,7 +8894,16 @@
       "text": "パスワードが一致しません"
     },
     "password_too_short": {
-      "text": "最低8文字必要"
+      "text": "最低10文字必要"
+    },
+    "password_too_common": {
+      "text": "このパスワードは一般的すぎます。より強力なものを選んでください。"
+    },
+    "password_needs_lowercase": {
+      "text": "少なくとも1つの小文字が必要"
+    },
+    "password_needs_uppercase": {
+      "text": "少なくとも1つの大文字が必要"
     },
     "password_too_long": {
       "text": "60文字未満"

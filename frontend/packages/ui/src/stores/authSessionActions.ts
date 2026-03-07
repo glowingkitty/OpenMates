@@ -572,18 +572,20 @@ export async function checkAuth(
         // applyServerDarkMode is a no-op when the user already has a local
         // manual preference in localStorage, so local choices always win.
         applyServerDarkMode(userDarkMode);
-
-        // Start admin console log forwarding on session restore if user is admin.
-        // This ensures log forwarding resumes after page refresh without requiring re-login.
-        // Only admin users have logs forwarded - regular users are never affected.
-        console.debug(
-          `[AuthSessionActions] is_admin check for log forwarder: ${data.user.is_admin}`,
-        );
-        if (data.user.is_admin) {
-          clientLogForwarder.start();
-        }
       } catch (dbError) {
         console.error("Failed to save user data to database:", dbError);
+      }
+
+      // Start admin console log forwarding on session restore if user is admin.
+      // IMPORTANT: This is intentionally outside the DB try/catch above so that a database
+      // error (e.g. IndexedDB quota exceeded) does NOT silently prevent log forwarding from
+      // starting. Log forwarding must activate regardless of DB save success.
+      // Only admin users have logs forwarded - regular users are never affected.
+      console.debug(
+        `[AuthSessionActions] is_admin check for log forwarder: ${data.user.is_admin}`,
+      );
+      if (data.user.is_admin) {
+        clientLogForwarder.start();
       }
 
       // Pre-load all settings/memories entries from IndexedDB so they are immediately

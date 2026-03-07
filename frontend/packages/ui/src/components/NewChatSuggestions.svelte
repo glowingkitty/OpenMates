@@ -11,14 +11,66 @@
   import { get } from 'svelte/store';
   import { locale } from 'svelte-i18n';
   import NewChatSuggestionContextMenu from './NewChatSuggestionContextMenu.svelte';
+  import Icon from './Icon.svelte';
+  import { appSkillsStore } from '../stores/appSkillsStore';
 
   let {
     messageInputContent = '',
     onSuggestionClick
   }: {
     messageInputContent?: string;
-    onSuggestionClick: (suggestion: string) => void;
+    onSuggestionClick: (suggestion: string, mentionSyntax?: string) => void;
   } = $props();
+
+  // Apps metadata for icon resolution
+  let appsMetadata = $state(appSkillsStore.getState());
+
+  /**
+   * Parsed suggestion: splits "[app_id-skill_id] body text" into parts.
+   * Returns null prefix/appId/subId if no valid prefix is present.
+   */
+  interface ParsedSuggestionMeta {
+    prefix: string | null;   // e.g. "web-search"
+    appId: string | null;    // e.g. "web"
+    subId: string | null;    // e.g. "search"
+    body: string;            // Text to insert on click (without prefix)
+  }
+
+  /**
+   * Parse a raw suggestion string of the form "[app_id-skill_id] body text".
+   * If no valid prefix is found, body === raw.
+   */
+  function parseSuggestion(raw: string): ParsedSuggestionMeta {
+    const match = raw.match(/^\[([a-z0-9_]+-[a-z0-9_]+)\]\s*(.+)$/i);
+    if (!match) {
+      return { prefix: null, appId: null, subId: null, body: raw };
+    }
+    const prefix = match[1];
+    const body = match[2].trim();
+    const dashIdx = prefix.indexOf('-');
+    const appId = prefix.substring(0, dashIdx);
+    const subId = prefix.substring(dashIdx + 1);
+    return { prefix, appId, subId, body };
+  }
+
+  /**
+   * Resolve the icon image name for a skill or focus mode sub-id.
+   * Returns the icon_image string (svg filename without extension) if found.
+   */
+  function resolveSubIcon(appId: string, subId: string): string | null {
+    const app = appsMetadata?.apps?.[appId];
+    if (!app) return null;
+
+    // Check skills first
+    const skill = app.skills?.find(s => s.id === subId);
+    if (skill?.icon_image) return skill.icon_image.replace(/\.svg$/i, '');
+
+    // Check focus modes
+    const focus = app.focus_modes?.find(f => f.id === subId);
+    if (focus?.icon_image) return focus.icon_image.replace(/\.svg$/i, '');
+
+    return null;
+  }
 
   /**
    * Strip HTML tags from text to display as plain text
@@ -265,7 +317,8 @@
   });
 
   // Get all available suggestions (either all when empty, or filtered when searching)
-  // CRITICAL: Include encrypted value directly to avoid lookup failures
+  // CRITICAL: Include encrypted value directly to avoid lookup failures.
+  // Each item includes parsed prefix metadata so the template can render icon chips.
   let filteredSuggestions = $derived.by(() => {
     if (loading) return [];
 
@@ -280,20 +333,27 @@
           seen.add(s.text);
           return true;
         })
-        .map(s => ({ 
-          text: s.text, 
-          encrypted: s.encrypted,
-          id: s.id,
-          matchIndex: -1, 
-          matchLength: 0 
-        }));
+        .map(s => {
+          const parsed = parseSuggestion(s.text);
+          return { 
+            text: s.text,    // full raw text (for lookup/tracking)
+            body: parsed.body,
+            appId: parsed.appId,
+            subId: parsed.subId,
+            encrypted: s.encrypted,
+            id: s.id,
+            matchIndex: -1, 
+            matchLength: 0 
+          };
+        });
       return uniqueSuggestions;
     }
 
     const searchTerm = messageInputContent.trim();
     const searchTermLower = searchTerm.toLowerCase();
 
-    // Exact substring match (case-insensitive) across FULL pool with encrypted values
+    // Exact substring match (case-insensitive) across FULL pool with encrypted values.
+    // Search over full raw text (including prefix) so e.g. "web" matches "[web-search] ..." suggestions.
     // Remove duplicates by text, keeping the first occurrence
     const seen = new Set<string>();
     const uniqueSuggestions = fullSuggestionsWithEncrypted
@@ -305,10 +365,15 @@
     
     const filtered = uniqueSuggestions
       .map(s => {
-        const lowerSuggestion = s.text.toLowerCase();
-        const matchIndex = lowerSuggestion.indexOf(searchTermLower);
+        const parsed = parseSuggestion(s.text);
+        // Search over body text only for matchIndex (prefix not shown as text)
+        const lowerBody = parsed.body.toLowerCase();
+        const matchIndex = lowerBody.indexOf(searchTermLower);
         return {
           text: s.text,
+          body: parsed.body,
+          appId: parsed.appId,
+          subId: parsed.subId,
           encrypted: s.encrypted,
           id: s.id,
           matchIndex,
@@ -317,7 +382,7 @@
       })
       .filter(item => item.matchIndex !== -1)
       // Exclude exact matches (100% match) - no point showing what user already typed
-      .filter(item => item.text.toLowerCase() !== searchTermLower);
+      .filter(item => item.body.toLowerCase() !== searchTermLower);
 
     // Shuffle filtered results to avoid always showing the same matches first
     // This provides variety when multiple suggestions match the search term
@@ -326,44 +391,60 @@
     return shuffledFiltered;
   });
 
-  function renderHighlightedText(suggestion: { text: string; encrypted?: string; id?: string; matchIndex: number; matchLength: number }) {
-    if (suggestion.matchIndex === -1 || !messageInputContent || !messageInputContent.trim()) {
-      return suggestion.text;
+  /**
+   * Render highlighted body text for a suggestion.
+   * matchIndex/matchLength are relative to the body text (without prefix).
+   */
+  function renderHighlightedText(body: string, matchIndex: number, matchLength: number) {
+    if (matchIndex === -1 || !messageInputContent || !messageInputContent.trim()) {
+      return body;
     }
 
-    const before = suggestion.text.substring(0, suggestion.matchIndex);
-    const match = suggestion.text.substring(suggestion.matchIndex, suggestion.matchIndex + suggestion.matchLength);
-    const after = suggestion.text.substring(suggestion.matchIndex + suggestion.matchLength);
+    const before = body.substring(0, matchIndex);
+    const match = body.substring(matchIndex, matchIndex + matchLength);
+    const after = body.substring(matchIndex + matchLength);
 
     return { before, match, after };
   }
 
   /**
-   * Handle suggestion click - track it for deletion and pass to parent
+   * Handle suggestion click - track it for deletion and pass body-only text to parent.
+   * The raw text (with prefix) is used for lookup/tracking; only body goes into the input.
+   * When the suggestion has a prefix (e.g. [web-search]), we build the @skill mention syntax
+   * so the parent can insert a proper mention node, ensuring the app skill is triggered.
    */
-  function handleSuggestionClickWithTracking(suggestionText: string, suggestionId?: string, encryptedSuggestion?: string) {
+  function handleSuggestionClickWithTracking(
+    rawText: string,
+    body: string,
+    appId: string | null,
+    subId: string | null,
+    suggestionId?: string,
+    encryptedSuggestion?: string
+  ) {
     // For authenticated users, track the suggestion for deletion after sending
     if ($authStore.isAuthenticated) {
       // Use ID or encrypted value from parameter if provided, otherwise try to find it
       let id = suggestionId;
       let encrypted = encryptedSuggestion;
       if (!id || !encrypted) {
-        const suggestionData = fullSuggestionsWithEncrypted.find(s => s.text === suggestionText);
+        const suggestionData = fullSuggestionsWithEncrypted.find(s => s.text === rawText);
         id = id || suggestionData?.id;
         encrypted = encrypted || suggestionData?.encrypted;
       }
 
       if (encrypted && encrypted.trim() !== '') {
-        // Track this suggestion (with encrypted text) so it can be deleted after the message is sent
-        // Note: We still use encrypted for backward compatibility with the tracking system
-        setClickedSuggestion(suggestionText, encrypted);
+        // Track this suggestion (body-only text) so it can be deleted after the message is sent
+        setClickedSuggestion(body, encrypted);
       } else {
         console.warn('[NewChatSuggestions] Could not find encrypted version of clicked suggestion - skipping tracking');
       }
     }
 
-    // Pass to parent handler (which will set it in the message input)
-    onSuggestionClick(suggestionText);
+    // Build mention syntax for skill-prefixed suggestions (e.g. "@skill:web:search")
+    const mentionSyntax = appId && subId ? `@skill:${appId}:${subId}` : undefined;
+
+    // Pass body text + optional mention syntax to parent
+    onSuggestionClick(body, mentionSyntax);
   }
 
   /**
@@ -449,7 +530,15 @@
   /**
    * Handle touch end - cancel long press if it's a quick tap
    */
-  function handleTouchEnd(event: TouchEvent, suggestionText: string, suggestionId?: string, encryptedSuggestion?: string) {
+  function handleTouchEnd(
+    event: TouchEvent,
+    rawText: string,
+    body: string,
+    appId: string | null,
+    subId: string | null,
+    suggestionId?: string,
+    encryptedSuggestion?: string
+  ) {
     const touchDuration = Date.now() - touchStartTime;
 
     // Clear the timer
@@ -460,7 +549,7 @@
 
     // If it was a short tap (less than 500ms), handle as regular click
     if (touchDuration < 500) {
-      handleSuggestionClickWithTracking(suggestionText, suggestionId, encryptedSuggestion);
+      handleSuggestionClickWithTracking(rawText, body, appId, subId, suggestionId, encryptedSuggestion);
     }
 
     // Prevent default to avoid any unwanted behaviors
@@ -630,15 +719,24 @@
     <div class="carousel-container">
       <div class="suggestions-container">
         {#each visibleSuggestions as suggestion (suggestion.text)}
-        {@const highlighted = renderHighlightedText(suggestion)}
+        {@const highlighted = renderHighlightedText(suggestion.body, suggestion.matchIndex, suggestion.matchLength)}
+        {@const subIconName = suggestion.appId && suggestion.subId ? resolveSubIcon(suggestion.appId, suggestion.subId) : null}
         <button
           class="suggestion-item"
-          onclick={() => handleSuggestionClickWithTracking(suggestion.text, suggestion.id, suggestion.encrypted)}
+          onclick={() => handleSuggestionClickWithTracking(suggestion.text, suggestion.body, suggestion.appId, suggestion.subId, suggestion.id, suggestion.encrypted)}
           oncontextmenu={(event) => handleContextMenu(event, suggestion.text, suggestion.id)}
           ontouchstart={(event) => handleTouchStart(event, suggestion.text, suggestion.id)}
-          ontouchend={(event) => handleTouchEnd(event, suggestion.text, suggestion.id, suggestion.encrypted)}
+          ontouchend={(event) => handleTouchEnd(event, suggestion.text, suggestion.body, suggestion.appId, suggestion.subId, suggestion.id, suggestion.encrypted)}
           ontouchmove={handleTouchMove}
         >
+          {#if suggestion.appId}
+            <span class="app-skill-icons">
+              <Icon name={suggestion.appId} type="app" size="16px" noAnimation noMargin />
+              {#if subIconName}
+                <Icon name={subIconName} type="skill" size="14px" noAnimation noMargin />
+              {/if}
+            </span>
+          {/if}
           {#if typeof highlighted === 'string'}
             {highlighted}
           {:else}
@@ -796,10 +894,31 @@
     margin-right: 0;
     filter: none;
     width: 100%;
-    display: block;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0 6px;
     justify-content: flex-start;
-    align-items: flex-start;
+    align-items: center;
     scale: 1;
+  }
+
+  /* App + skill icon pair rendered before the suggestion body text.
+     Shows the gradient app icon (square with rounded edges) alongside
+     the smaller skill-specific icon for clear visual identification. */
+  .app-skill-icons {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    opacity: 0.8;
+  }
+
+  /* Override Icon animation/border so it blends into the suggestion row */
+  .app-skill-icons :global(.icon) {
+    animation: none !important;
+    opacity: 1 !important;
+    border: none !important;
   }
 
   .suggestion-item:hover {

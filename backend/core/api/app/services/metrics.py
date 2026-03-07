@@ -1,6 +1,4 @@
-import time
-from prometheus_client import Counter, Histogram, Gauge, Summary
-from typing import Optional, Dict, Any
+from prometheus_client import Counter, Histogram, Gauge
 import logging
 
 logger = logging.getLogger(__name__)
@@ -66,7 +64,18 @@ class MetricsService:
             'Total number of rate limit hits',
             ['endpoint']
         )
-        
+
+        # Error fingerprint counter — incremented once per unique error fingerprint.
+        # The fingerprint is a short hash of (exception_type, file, function, line).
+        # Allows Prometheus to alert on new or recurring error patterns.
+        # The corresponding Redis sorted set (for top-N queries) is managed by
+        # LoggingMiddleware — see backend/core/api/app/middleware/logging_middleware.py.
+        self.api_error_fingerprints = Counter(
+            'api_error_fingerprint_total',
+            'Total occurrences of each unique error fingerprint (exc_type + location)',
+            ['fingerprint', 'exc_type'],
+        )
+
         logger.info("Metrics service initialized")
     
     async def initialize_metrics(self, directus_service):
@@ -139,3 +148,10 @@ class MetricsService:
     def track_rate_limit_hit(self, endpoint: str):
         """Track when a rate limit is hit"""
         self.api_rate_limit_hits.labels(endpoint=endpoint).inc()
+
+    def track_error_fingerprint(self, fingerprint: str, exc_type: str) -> None:
+        """Increment the Prometheus counter for a specific error fingerprint."""
+        self.api_error_fingerprints.labels(
+            fingerprint=fingerprint,
+            exc_type=exc_type,
+        ).inc()

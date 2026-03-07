@@ -547,6 +547,149 @@
         }
     }
 
+    /**
+     * Handle return from a redirect-based payment method (Revolut Pay, Wero, etc.).
+     * When the user is redirected to the provider's site to authenticate, the browser navigates
+     * away entirely. On return, this is a fresh page load with query params:
+     *   ?payment_intent=pi_xxx&payment_intent_client_secret=pi_xxx_secret_xxx&redirect_status=succeeded
+     * We retrieve the PaymentIntent status and trigger the same success/failure flow as if
+     * confirmPayment() had returned inline (for card payments).
+     * Returns true if a redirect return was detected and handled.
+     */
+    async function handlePaymentRedirectReturn(): Promise<boolean> {
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirectPaymentIntent = urlParams.get('payment_intent');
+        const redirectClientSecret = urlParams.get('payment_intent_client_secret');
+        const redirectStatus = urlParams.get('redirect_status');
+
+        if (!redirectPaymentIntent || !redirectClientSecret) {
+            return false; // Not a redirect return
+        }
+
+        console.log(`[Payment] Detected redirect return: payment_intent=${redirectPaymentIntent}, redirect_status=${redirectStatus}`);
+
+        // Clean redirect params from the URL immediately so refreshing the page
+        // doesn't re-trigger this handler, and so the URL looks clean.
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete('payment_intent');
+        cleanUrl.searchParams.delete('payment_intent_client_secret');
+        cleanUrl.searchParams.delete('redirect_status');
+        cleanUrl.searchParams.delete('redirect_pm_type');
+        window.history.replaceState({}, '', cleanUrl.toString());
+
+        // Show processing state while we verify the payment
+        paymentState = 'processing';
+        isLoading = true;
+        dispatch('paymentStateChange', { state: 'processing' });
+
+        try {
+            // Load Stripe if not already loaded (fresh page load after redirect)
+            if (!stripe) {
+                const configResponse = await fetch(getApiEndpoint(apiEndpoints.payments.config), {
+                    credentials: 'include'
+                });
+                if (!configResponse.ok) throw new Error('Failed to load payment config');
+                const config = await configResponse.json();
+                if (!config.public_key) throw new Error('Stripe public key missing');
+                stripe = await loadStripe(config.public_key);
+                if (!stripe) throw new Error('Failed to load Stripe.js');
+                activeProvider = 'stripe';
+            }
+
+            // Retrieve the PaymentIntent to check its actual status
+            const { paymentIntent } = await stripe.retrievePaymentIntent(redirectClientSecret);
+
+            if (!paymentIntent) {
+                throw new Error('Could not retrieve payment status after redirect');
+            }
+
+            console.log(`[Payment] PaymentIntent status after redirect: ${paymentIntent.status}`);
+            paymentIntentId = paymentIntent.id;
+
+            if (paymentIntent.status === 'succeeded') {
+                // Payment confirmed — trigger the same success flow as inline confirmation
+                await savePaymentMethod(paymentIntentId);
+
+                if (isGiftCard) {
+                    // Gift cards: wait for WebSocket gift_card_created event
+                    isWaitingForConfirmation = true;
+                    paymentConfirmationTimeoutId = setTimeout(() => {
+                        if (isWaitingForConfirmation) {
+                            showDelayedMessage = true;
+                            setTimeout(() => {
+                                if (isWaitingForConfirmation) {
+                                    paymentState = 'success';
+                                    isWaitingForConfirmation = false;
+                                    dispatch('paymentStateChange', {
+                                        state: paymentState,
+                                        payment_intent_id: paymentIntentId,
+                                        provider: 'stripe',
+                                        isDelayed: true
+                                    });
+                                }
+                            }, 2000);
+                        }
+                    }, 20000);
+                } else {
+                    paymentState = 'success';
+                    if (supportContribution) {
+                        notificationStore.success('Support payment successful!', 6000);
+                    }
+                    dispatch('paymentStateChange', {
+                        state: paymentState,
+                        payment_intent_id: paymentIntentId,
+                        provider: 'stripe'
+                    });
+                }
+            } else if (paymentIntent.status === 'processing') {
+                // Payment still processing (e.g., bank transfer in progress)
+                isWaitingForConfirmation = true;
+                paymentConfirmationTimeoutId = setTimeout(() => {
+                    if (isWaitingForConfirmation) {
+                        showDelayedMessage = true;
+                        setTimeout(() => {
+                            if (isWaitingForConfirmation) {
+                                paymentState = 'success';
+                                isWaitingForConfirmation = false;
+                                if (paymentIntentId) savePaymentMethod(paymentIntentId);
+                                dispatch('paymentStateChange', {
+                                    state: paymentState,
+                                    payment_intent_id: paymentIntentId,
+                                    provider: 'stripe',
+                                    isDelayed: true
+                                });
+                            }
+                        }, 2000);
+                    }
+                }, 20000);
+            } else if (paymentIntent.status === 'requires_payment_method') {
+                // Payment failed or was declined — user needs to try again
+                paymentState = 'idle';
+                errorMessage = 'Payment was not completed. Please try again with a different payment method.';
+                if (supportContribution) {
+                    notificationStore.error(errorMessage, 10000);
+                    dispatch('paymentStateChange', { state: 'failure', error: errorMessage });
+                }
+            } else {
+                // Unexpected status
+                paymentState = 'idle';
+                errorMessage = `Payment returned with unexpected status: ${paymentIntent.status}. Please try again.`;
+            }
+        } catch (err) {
+            console.error('[Payment] Error handling redirect return:', err);
+            paymentState = 'idle';
+            errorMessage = `Failed to verify payment after redirect. ${err instanceof Error ? err.message : String(err)}`;
+            if (supportContribution) {
+                notificationStore.error(errorMessage, 10000);
+                dispatch('paymentStateChange', { state: 'failure', error: errorMessage });
+            }
+        } finally {
+            isLoading = false;
+        }
+
+        return true;
+    }
+
     async function handleSubmit() {
         if (!stripe || !elements || !paymentElement) {
             return;
@@ -568,10 +711,23 @@
         errorMessage = null;
         validationErrors = null;
 
+        // Build a return_url for redirect-based payment methods (Revolut Pay, Wero, etc.).
+        // For card payments, redirect: 'if_required' means no redirect occurs and this URL is unused.
+        // For redirect-based methods, the user is sent to the provider's site to authenticate,
+        // then returned to this URL with ?payment_intent=...&redirect_status=... query params.
+        // We use the current page URL (stripped of any prior redirect params) so the user
+        // returns to the exact same view (settings billing or signup).
+        const returnUrl = new URL(window.location.href);
+        // Clean any stale redirect params from a previous return
+        returnUrl.searchParams.delete('payment_intent');
+        returnUrl.searchParams.delete('payment_intent_client_secret');
+        returnUrl.searchParams.delete('redirect_status');
+        returnUrl.searchParams.delete('redirect_pm_type');
+
         const { error, paymentIntent } = await stripe.confirmPayment({
             elements,
             confirmParams: {
-                // return_url is removed to prevent redirection
+                return_url: returnUrl.toString(),
                 payment_method_data: {
                     billing_details: {
                         email: userEmail // Always provide email since we disabled it in the element
@@ -841,15 +997,24 @@
         if (!supportContribution || !supportEmail) {
             getUserEmail();
         }
-        if (initialState === 'idle') {
-            // Apply initial provider override before fetching config, so the correct
-            // provider is requested from the start (e.g. when navigating here via
-            // the "Pay with a non-EU card" button in the saved-methods screen).
-            if (initialProviderOverride) {
-                providerOverride = initialProviderOverride;
+
+        // Check if this is a return from a redirect-based payment method (Revolut Pay, Wero, etc.).
+        // If so, handle it and skip the normal initialization (order already exists).
+        // This is an async IIFE because onMount doesn't accept async directly for the cleanup return.
+        const redirectReturnPromise = handlePaymentRedirectReturn();
+        redirectReturnPromise.then((wasRedirectReturn) => {
+            if (wasRedirectReturn) {
+                console.log('[Payment] Handled redirect return — skipping normal init');
+                return;
             }
-            fetchConfigAndInitialize();
-        }
+            // Normal initialization (no redirect return detected)
+            if (initialState === 'idle') {
+                if (initialProviderOverride) {
+                    providerOverride = initialProviderOverride;
+                }
+                fetchConfigAndInitialize();
+            }
+        });
         
         // Only register WebSocket handlers if not disabled (e.g., when used in Settings, Settings.svelte already handles these)
         // This prevents duplicate handler registrations that cause warnings

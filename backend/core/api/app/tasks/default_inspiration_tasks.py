@@ -20,7 +20,7 @@
 import asyncio
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List
 
 from backend.core.api.app.tasks.celery_config import app
@@ -52,6 +52,53 @@ def _score_pool_entry(entry: Dict[str, Any], now_ts: float) -> float:
     age_seconds = max(now_ts - generated_at, 0)
     age_hours = age_seconds / 3600.0
     return interaction_count / (age_hours + 1)
+
+
+def _entry_id(entry: Dict[str, Any]) -> str:
+    """Return normalized pool entry ID as a string (or empty string)."""
+    return str(entry.get("id", "") or "")
+
+
+def _pick_top_entries_with_exclusions(
+    entries: List[Dict[str, Any]],
+    excluded_pool_entry_ids: set[str],
+    max_count: int,
+) -> List[Dict[str, Any]]:
+    """
+    Pick top entries while avoiding excluded IDs when possible.
+
+    Strategy:
+    1) Prefer entries whose IDs are NOT in excluded_pool_entry_ids.
+    2) If fewer than max_count are available, fill remaining slots with excluded
+       entries to avoid returning fewer than 3 defaults.
+    """
+    selected: List[Dict[str, Any]] = []
+    selected_ids: set[str] = set()
+
+    for entry in entries:
+        if len(selected) >= max_count:
+            break
+        entry_id = _entry_id(entry)
+        if not entry_id or entry_id in selected_ids:
+            continue
+        if entry_id in excluded_pool_entry_ids:
+            continue
+        selected.append(entry)
+        selected_ids.add(entry_id)
+
+    if len(selected) >= max_count:
+        return selected
+
+    for entry in entries:
+        if len(selected) >= max_count:
+            break
+        entry_id = _entry_id(entry)
+        if not entry_id or entry_id in selected_ids:
+            continue
+        selected.append(entry)
+        selected_ids.add(entry_id)
+
+    return selected
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -92,6 +139,7 @@ async def _select_defaults_async(task: BaseServiceTask) -> Dict[str, Any]:
         return {"success": False, "error": "DirectusService not initialized"}
 
     today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    yesterday_str = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
     now_ts = time.time()
 
     # ── Discover which languages have pool entries ─────────────────────────
@@ -135,6 +183,16 @@ async def _select_defaults_async(task: BaseServiceTask) -> Dict[str, Any]:
 
     for lang in all_languages:
         try:
+            previous_defaults = await directus.inspiration_defaults.get_defaults_for_date(
+                date_str=yesterday_str,
+                language=lang,
+            )
+            excluded_pool_entry_ids = {
+                str(item.get("pool_entry_id", "") or "")
+                for item in previous_defaults
+                if item.get("pool_entry_id")
+            }
+
             if lang in pool_languages:
                 entries = await directus.inspiration_pool.get_pool_entries_by_language(
                     lang, limit=50
@@ -149,18 +207,35 @@ async def _select_defaults_async(task: BaseServiceTask) -> Dict[str, Any]:
                 reverse=True,
             )
 
-            # Pick top 3; fill from English if needed
-            selected = scored[:3]
+            # Pick top 3 while avoiding yesterday's defaults when possible.
+            selected = _pick_top_entries_with_exclusions(
+                scored,
+                excluded_pool_entry_ids,
+                3,
+            )
 
             if len(selected) < 3 and lang != "en":
                 # Fill remaining slots from English, avoiding duplicate youtube_ids
                 selected_yt_ids = {e.get("youtube_id") for e in selected}
-                for en_entry in en_scored:
+                en_candidates = _pick_top_entries_with_exclusions(
+                    en_scored,
+                    excluded_pool_entry_ids,
+                    len(en_scored),
+                )
+                for en_entry in en_candidates:
                     if len(selected) >= 3:
                         break
                     if en_entry.get("youtube_id") not in selected_yt_ids:
                         selected.append(en_entry)
                         selected_yt_ids.add(en_entry.get("youtube_id"))
+
+            logger.info(
+                "[DefaultsSelection][%s] lang=%s yesterday_excluded=%d selected=%d",
+                task_id,
+                lang,
+                len(excluded_pool_entry_ids),
+                len(selected),
+            )
 
             if not selected:
                 logger.debug(

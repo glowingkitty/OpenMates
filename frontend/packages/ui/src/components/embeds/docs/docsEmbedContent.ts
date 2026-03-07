@@ -3,7 +3,7 @@
 // Tests: (none yet)
 
 import DOMPurify, { type Config } from "dompurify";
-import { convertEmbedAnchorsToSpans } from "../../../utils/embedLinkUtils";
+import { convertEmbedAnchorsToSpans, convertMarkdownEmbedLinksInHtml } from "../../../utils/embedLinkUtils";
 
 /**
  * DOMPurify configuration for document HTML sanitization
@@ -136,11 +136,17 @@ const SANITIZE_CONFIG: Config = {
 export function sanitizeDocumentHtml(html: string): string {
   if (!html) return "";
 
-  // Pre-process: convert <a href="embed:..."> links to placeholder <span> elements
-  // BEFORE DOMPurify runs, because DOMPurify strips the non-standard "embed:" protocol.
+  // Pre-process: convert embed links to placeholder <span> elements BEFORE DOMPurify runs.
+  // DOMPurify strips the non-standard "embed:" protocol from <a href="embed:..."> tags.
   // The placeholder spans use data attributes (data-embed-ref, data-display-text) that
   // are in the ALLOWED_ATTR list, so DOMPurify preserves them.
-  const preprocessed = convertEmbedAnchorsToSpans(html);
+  //
+  // Two conversion steps are needed:
+  // 1. convertEmbedAnchorsToSpans: handles <a href="embed:ref">text</a> HTML tags
+  // 2. convertMarkdownEmbedLinksInHtml: handles [text](embed:ref) markdown syntax
+  //    that the AI may write inside blockquotes or other HTML text nodes
+  let preprocessed = convertEmbedAnchorsToSpans(html);
+  preprocessed = convertMarkdownEmbedLinksInHtml(preprocessed);
 
   // Sanitize with DOMPurify (RETURN_TRUSTED_TYPE: false ensures string return)
   const sanitized = DOMPurify.sanitize(preprocessed, SANITIZE_CONFIG) as string;

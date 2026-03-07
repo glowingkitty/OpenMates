@@ -336,10 +336,16 @@
           "text": "Hoe je wilt dat de AI communiceert"
         },
         "example_1": {
-          "text": "Professioneel en beknopt"
+          "text": "Professioneel en beknopt",
+          "title": {
+            "text": "Technisch expert"
+          }
         },
         "example_2": {
-          "text": "Casual en vriendelijk"
+          "text": "Casual en vriendelijk",
+          "title": {
+            "text": "Vriendelijke helper"
+          }
         }
       },
       "learning_preferences": {
@@ -348,10 +354,22 @@
           "text": "Hoe je wilt leren en informatie consumeren"
         },
         "example_1": {
-          "text": "Visueel leren"
+          "text": "Visueel leren",
+          "title": {
+            "text": "Visueel leren"
+          },
+          "notes": {
+            "text": "Voorkeur voor diagrammen, grafieken en visuele uitleg"
+          }
         },
         "example_2": {
-          "text": "Praktische oefening"
+          "text": "Praktische oefening",
+          "title": {
+            "text": "Praktische oefening"
+          },
+          "notes": {
+            "text": "Leer het beste door dingen uit te proberen met codevoorbeelden"
+          }
         }
       },
       "interaction_preferences": {
@@ -368,10 +386,28 @@
           "text": "Boeken waar je van hield en zou aanbevelen."
         },
         "example_1": {
-          "text": "1984"
+          "text": "1984",
+          "title": {
+            "text": "De grote Gatsby"
+          },
+          "genre": {
+            "text": "Klassieke fictie"
+          },
+          "notes": {
+            "text": "Prachtig proza over de Amerikaanse droom"
+          }
         },
         "example_2": {
-          "text": "Sapiens"
+          "text": "Sapiens",
+          "title": {
+            "text": "Sapiens"
+          },
+          "genre": {
+            "text": "Non-fictie"
+          },
+          "notes": {
+            "text": "Fascinerend overzicht van de menselijke geschiedenis"
+          }
         },
         "example_3": {
           "text": "Dune"
@@ -383,10 +419,22 @@
           "text": "Boeken die je nu aan het lezen bent."
         },
         "example_1": {
-          "text": "Project Hail Mary"
+          "text": "Project Hail Mary",
+          "title": {
+            "text": "Project Hail Mary"
+          },
+          "notes": {
+            "text": "Geweldig sciencefictionavontuur"
+          }
         },
         "example_2": {
-          "text": "Atomic Habits"
+          "text": "Atomic Habits",
+          "title": {
+            "text": "Atomic Habits"
+          },
+          "notes": {
+            "text": "Praktische strategieën voor het opbouwen van goede gewoontes"
+          }
         }
       },
       "to_read_list": {
@@ -395,10 +443,28 @@
           "text": "Boeken die je hierna wilt lezen."
         },
         "example_1": {
-          "text": "Het drielichamenprobleem"
+          "text": "Het drielichamenprobleem",
+          "title": {
+            "text": "Dune"
+          },
+          "genre": {
+            "text": "Sciencefiction"
+          },
+          "notes": {
+            "text": "Klassieke sciencefiction, aanbevolen door vrienden"
+          }
         },
         "example_2": {
-          "text": "Ons feilbare denken"
+          "text": "Ons feilbare denken",
+          "title": {
+            "text": "Ons feilbare denken"
+          },
+          "genre": {
+            "text": "Psychologie"
+          },
+          "notes": {
+            "text": "Cognitieve vooroordelen willen begrijpen"
+          }
         },
         "example_3": {
           "text": "Deep Work"
@@ -412,10 +478,16 @@
           "text": "Je favoriete talen en frameworks."
         },
         "example_1": {
-          "text": "Python"
+          "text": "Python",
+          "name": {
+            "text": "Python"
+          }
         },
         "example_2": {
-          "text": "TypeScript"
+          "text": "TypeScript",
+          "name": {
+            "text": "TypeScript"
+          }
         },
         "example_3": {
           "text": "Svelte"
@@ -427,10 +499,22 @@
           "text": "Je projecten (actief, gepland of voltooid)"
         },
         "example_1": {
-          "text": "Persoonlijke website"
+          "text": "Persoonlijke website",
+          "name": {
+            "text": "Persoonlijke website"
+          },
+          "description": {
+            "text": "Een portfoliowebsite gebouwd met SvelteKit"
+          }
         },
         "example_2": {
-          "text": "Mobiele app"
+          "text": "Mobiele app",
+          "name": {
+            "text": "Weer-app"
+          },
+          "description": {
+            "text": "Een weersvoorspelling-app met React en OpenWeather API"
+          }
         },
         "example_3": {
           "text": "API-backend"
@@ -442,10 +526,16 @@
           "text": "Technologieën en vaardigheden die je wilt leren"
         },
         "example_1": {
-          "text": "Rust"
+          "text": "Rust",
+          "name": {
+            "text": "Rust"
+          }
         },
         "example_2": {
-          "text": "Machine learning"
+          "text": "Machine learning",
+          "name": {
+            "text": "Machine learning"
+          }
         },
         "example_3": {
           "text": "Kubernetes"
@@ -459,10 +549,22 @@
           "text": "Je voorkeursstijlen voor het schrijven van documenten."
         },
         "example_1": {
-          "text": "Formeel zakelijk"
+          "text": "Formeel zakelijk",
+          "name": {
+            "text": "Technische documentatie"
+          },
+          "description": {
+            "text": "Heldere, gestructureerde teksten voor ontwikkelaarsdocumentatie en API-referenties"
+          }
         },
         "example_2": {
-          "text": "Academisch"
+          "text": "Academisch",
+          "name": {
+            "text": "Blogpost"
+          },
+          "description": {
+            "text": "Boeiende, conversationele toon voor blogartikelen"
+          }
         },
         "example_3": {
           "text": "Informeel blog"
@@ -476,10 +578,22 @@
           "text": "Je medische afspraken en bezoeken."
         },
         "example_1": {
-          "text": "Tandarts Dr. Mueller"
+          "text": "Tandarts Dr. Mueller",
+          "where": {
+            "text": "Stadsziekenhuis"
+          },
+          "notes": {
+            "text": "Jaarlijkse controle"
+          }
         },
         "example_2": {
-          "text": "Oogcontrole"
+          "text": "Oogcontrole",
+          "where": {
+            "text": "Tandartspraktijk Centrum"
+          },
+          "notes": {
+            "text": "Tandreiniging"
+          }
         }
       },
       "medical_history": {
@@ -488,10 +602,22 @@
           "text": "Eerdere operaties, aandoeningen en allergieën."
         },
         "example_1": {
-          "text": "Penicilline-allergie"
+          "text": "Penicilline-allergie",
+          "name": {
+            "text": "Pinda-allergie"
+          },
+          "details": {
+            "text": "Ernstige allergische reactie, EpiPen bij zich dragen"
+          }
         },
         "example_2": {
-          "text": "Knieoperatie 2023"
+          "text": "Knieoperatie 2023",
+          "name": {
+            "text": "COVID-19-vaccin"
+          },
+          "details": {
+            "text": "Pfizer-boostervaccinatie"
+          }
         }
       },
       "symptoms_log": {
@@ -514,10 +640,22 @@
           "text": "Je favoriete stijlen voor gegenereerde afbeeldingen"
         },
         "example_1": {
-          "text": "Aquarel"
+          "text": "Aquarel",
+          "name": {
+            "text": "Minimalistisch"
+          },
+          "description": {
+            "text": "Strakke lijnen, eenvoudige composities, gedempte kleurenpalet"
+          }
         },
         "example_2": {
-          "text": "Minimalistisch"
+          "text": "Minimalistisch",
+          "name": {
+            "text": "Levendige fotografie"
+          },
+          "description": {
+            "text": "Felle kleuren, hoog contrast, dynamische composities"
+          }
         },
         "example_3": {
           "text": "Cyberpunk"
@@ -531,10 +669,31 @@
           "text": "Hoe je e-mails schrijft in verschillende contexten."
         },
         "example_1": {
-          "text": "Formeel zakelijk"
+          "text": "Formeel zakelijk",
+          "title": {
+            "text": "Professioneel"
+          },
+          "description": {
+            "text": "Formele toon voor zakelijke e-mails"
+          },
+          "when_to_use": {
+            "text": "Werk-e-mails en klantcommunicatie"
+          },
+          "footer": {
+            "text": "Met vriendelijke groet,"
+          }
         },
         "example_2": {
-          "text": "Casual team"
+          "text": "Casual team",
+          "title": {
+            "text": "Casual"
+          },
+          "description": {
+            "text": "Ontspannen en vriendelijke toon voor persoonlijke e-mails"
+          },
+          "when_to_use": {
+            "text": "Vrienden en familie"
+          }
         },
         "example_3": {
           "text": "Follow-up en herinneringen"
@@ -548,10 +707,22 @@
           "text": "Je opgeslagen favoriete plaatsen voor snelle toegang."
         },
         "example_1": {
-          "text": "Thuis"
+          "text": "Thuis",
+          "name": {
+            "text": "Central Park"
+          },
+          "address": {
+            "text": "New York, NY 10024"
+          }
         },
         "example_2": {
-          "text": "Kantoor"
+          "text": "Kantoor",
+          "name": {
+            "text": "Eiffeltoren"
+          },
+          "address": {
+            "text": "Champ de Mars, 75007 Parijs"
+          }
         },
         "example_3": {
           "text": "Favoriete koffiebar"
@@ -565,10 +736,28 @@
           "text": "Je plantencollectie met verzorgingsschema's"
         },
         "example_1": {
-          "text": "Monstera Deliciosa"
+          "text": "Monstera Deliciosa",
+          "name": {
+            "text": "Monstera Deliciosa"
+          },
+          "location": {
+            "text": "Woonkamer"
+          },
+          "notes": {
+            "text": "Heeft indirect licht nodig, bladeren maandelijks afvegen"
+          }
         },
         "example_2": {
-          "text": "Vrouwentong"
+          "text": "Vrouwentong",
+          "name": {
+            "text": "Basilicum"
+          },
+          "location": {
+            "text": "Keukenraam"
+          },
+          "notes": {
+            "text": "Regelmatig oogsten om de groei te bevorderen"
+          }
         }
       }
     },
@@ -593,10 +782,22 @@
           "text": "Je leerdoelen en onderwerpen om te beheersen"
         },
         "example_1": {
-          "text": "Spaans B2-niveau"
+          "text": "Spaans B2-niveau",
+          "topic": {
+            "text": "Datawetenschap"
+          },
+          "notes": {
+            "text": "Focus op Python pandas en datavisualisatie"
+          }
         },
         "example_2": {
-          "text": "Data Science basis"
+          "text": "Data Science basis",
+          "topic": {
+            "text": "Spaanse taal"
+          },
+          "notes": {
+            "text": "Streven naar gespreksniveau tegen de zomer"
+          }
         }
       },
       "education_history": {
@@ -619,10 +820,22 @@
           "text": "Je geplande en eerdere reizen met data."
         },
         "example_1": {
-          "text": "Japan, maart 2026"
+          "text": "Japan, maart 2026",
+          "destination": {
+            "text": "Tokio, Japan"
+          },
+          "notes": {
+            "text": "Twee weken vakantie, tempels en eetcultuur verkennen"
+          }
         },
         "example_2": {
-          "text": "Barcelona, zomer 2025"
+          "text": "Barcelona, zomer 2025",
+          "destination": {
+            "text": "Barcelona, Spanje"
+          },
+          "notes": {
+            "text": "Zomervakantie, strand en architectuur"
+          }
         },
         "example_3": {
           "text": "Roadtrip door Schotland"
@@ -634,10 +847,16 @@
           "text": "Je favoriete luchtvaartmaatschappijen"
         },
         "example_1": {
-          "text": "Lufthansa"
+          "text": "Lufthansa",
+          "name": {
+            "text": "Lufthansa"
+          }
         },
         "example_2": {
-          "text": "Swiss"
+          "text": "Swiss",
+          "name": {
+            "text": "Singapore Airlines"
+          }
         },
         "example_3": {
           "text": "KLM"
@@ -664,10 +883,16 @@
           "text": "Je favoriete reisactiviteiten en ervaringen."
         },
         "example_1": {
-          "text": "Stranden bezoeken"
+          "text": "Stranden bezoeken",
+          "name": {
+            "text": "Wandelen"
+          }
         },
         "example_2": {
-          "text": "Musea verkennen"
+          "text": "Musea verkennen",
+          "name": {
+            "text": "Museumbezoeken"
+          }
         },
         "example_3": {
           "text": "Wandelen"
@@ -684,10 +909,22 @@
           "text": "Films die je hebt bekeken"
         },
         "example_1": {
-          "text": "Inception"
+          "text": "Inception",
+          "title": {
+            "text": "Inception"
+          },
+          "notes": {
+            "text": "Geestverruimend meesterwerk over dromen in dromen"
+          }
         },
         "example_2": {
-          "text": "The Shawshank Redemption"
+          "text": "The Shawshank Redemption",
+          "title": {
+            "text": "Parasite"
+          },
+          "notes": {
+            "text": "Briljant sociaal commentaar met onverwachte wendingen"
+          }
         }
       },
       "watched_tv_shows": {
@@ -696,10 +933,22 @@
           "text": "TV-series die je hebt bekeken of bekijkt"
         },
         "example_1": {
-          "text": "Breaking Bad"
+          "text": "Breaking Bad",
+          "title": {
+            "text": "Breaking Bad"
+          },
+          "notes": {
+            "text": "Een van de beste tv-series ooit gemaakt"
+          }
         },
         "example_2": {
-          "text": "Stranger Things"
+          "text": "Stranger Things",
+          "title": {
+            "text": "The Bear"
+          },
+          "notes": {
+            "text": "Intens keukendrama met geweldige prestaties"
+          }
         }
       },
       "to_watch_list": {
@@ -708,10 +957,22 @@
           "text": "Films en TV-series die je wilt bekijken"
         },
         "example_1": {
-          "text": "Oppenheimer"
+          "text": "Oppenheimer",
+          "title": {
+            "text": "Oppenheimer"
+          },
+          "reason": {
+            "text": "Bekroonde biografische film"
+          }
         },
         "example_2": {
-          "text": "The Bear"
+          "text": "The Bear",
+          "title": {
+            "text": "Severance"
+          },
+          "reason": {
+            "text": "Unieke sci-fi werkplekthriller"
+          }
         }
       }
     },
@@ -722,10 +983,16 @@
           "text": "Video's die je wilt bekijken"
         },
         "example_1": {
-          "text": "Tech-conferentie keynote"
+          "text": "Tech-conferentie keynote",
+          "name": {
+            "text": "Hoe computers werken"
+          }
         },
         "example_2": {
-          "text": "Kookhandleiding"
+          "text": "Kookhandleiding",
+          "name": {
+            "text": "Geavanceerd TypeScript"
+          }
         },
         "example_3": {
           "text": "Reisvlog"
@@ -784,10 +1051,16 @@
           "text": "Websites en artikelen opgeslagen voor later"
         },
         "example_1": {
-          "text": "Interessant AI-onderzoeksartikel"
+          "text": "Interessant AI-onderzoeksartikel",
+          "notes": {
+            "text": "Interessant artikel over AI"
+          }
         },
         "example_2": {
-          "text": "Artikel over design patterns"
+          "text": "Artikel over design patterns",
+          "notes": {
+            "text": "Tutorial over webontwikkeling"
+          }
         },
         "example_3": {
           "text": "Techblogbericht"
@@ -1279,9 +1552,9 @@
     },
     "shopping": {
       "search_products": {
-        "text": "Producten zoeken",
+        "text": "Zoeken",
         "description": {
-          "text": "Zoek en vergelijk producten in supermarkten."
+          "text": "Zoek producten in online winkels en online supermarkten."
         },
         "how_to_use": {
           "1": {
@@ -1324,6 +1597,23 @@
           },
           "3": {
             "text": "Vind gezinsvriendelijke accommodaties in Rome voor de Easter week"
+          }
+        }
+      },
+      "get_flight": {
+        "text": "Vluchtroute ophalen",
+        "description": {
+          "text": "Bekijk het werkelijke vliegpad van een voorbije vlucht op een kaart."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Toon de vliegroute van LH2472 op 5 maart"
+          },
+          "2": {
+            "text": "Is mijn vlucht BA234 gisteren omgeleid?"
+          },
+          "3": {
+            "text": "Hoe laat landde AF447 en welke baan werd gebruikt?"
           }
         }
       }
@@ -1758,23 +2048,6 @@
     "generated_by": {
       "text": "gegenereerd door {model}"
     },
-    "settings_memories_suggestions": {
-      "header": {
-        "text": "Moet je OpenMates deze info onthouden?"
-      },
-      "reject": {
-        "text": "Afwijzen"
-      },
-      "add": {
-        "text": "Toevoegen"
-      },
-      "customize_entry": {
-        "text": "Aanpassen en toevoegen"
-      },
-      "privacy_notice": {
-        "text": "Je instellingen en herinneringen zijn versleuteld en kunnen alleen door je apparaten worden ontsleuteld."
-      }
-    },
     "credits_needed": {
       "text": "Credits nodig..."
     },
@@ -1887,6 +2160,21 @@
       },
       "meal_prep": {
         "text": "Help mij een gezonde maaltijdbereiding te plannen"
+      },
+      "discover_web_search": {
+        "text": "[web-search] Wat gebeurt er vandaag in de wereld?"
+      },
+      "discover_image_generate": {
+        "text": "[images-generate] Genereer een afbeelding van een bergzonsondergang"
+      },
+      "discover_news_search": {
+        "text": "[news-search] Vind het laatste AI-nieuws"
+      },
+      "discover_video_search": {
+        "text": "[videos-search] Vind tutorial video's over Python-programmering"
+      },
+      "discover_math_calculate": {
+        "text": "[math-calculate] Los op: hoeveel is 15% van 240?"
       }
     },
     "suggestions": {
@@ -2234,11 +2522,17 @@
       "settings": {
         "text": "Instellingen"
       },
+      "my_embeds": {
+        "text": "Mijn embeds"
+      },
       "indexing": {
         "text": "Zoekindex opbouwen..."
       },
       "apps": {
         "text": "Apps en vaardigheden"
+      },
+      "apps_only": {
+        "text": "Apps"
       },
       "app_app": {
         "text": "App"
@@ -2251,6 +2545,12 @@
       },
       "app_memory": {
         "text": "Geheugen"
+      },
+      "focus_mode_status_activated": {
+        "text": "Geactiveerd"
+      },
+      "focus_mode_status_deactivated": {
+        "text": "Gedeactiveerd"
       },
       "go_to_message": {
         "text": "Ga naar bericht"
@@ -2486,6 +2786,38 @@
         "text": "Deze melding is verzonden door het geautomatiseerde E2E-testmonitoringsysteem."
       }
     },
+    "prometheus_alert": {
+      "title": {
+        "text": "Prometheus-waarschuwingsmelding"
+      },
+      "header": {
+        "text": "Prometheus-waarschuwing"
+      },
+      "alert_name_label": {
+        "text": "Waarschuwingsnaam"
+      },
+      "severity_label": {
+        "text": "Ernst"
+      },
+      "summary_label": {
+        "text": "Samenvatting"
+      },
+      "description_label": {
+        "text": "Beschrijving"
+      },
+      "started_at_label": {
+        "text": "Geactiveerd om"
+      },
+      "ended_at_label": {
+        "text": "Opgelost om"
+      },
+      "labels_label": {
+        "text": "Labels"
+      },
+      "footer_note": {
+        "text": "Deze waarschuwing is verzonden door het geautomatiseerde Prometheus-monitoringsysteem."
+      }
+    },
     "newsletter_confirmation_request": {
       "title": {
         "text": "Bevestig je nieuwsbriefabonnement"
@@ -2643,6 +2975,18 @@
       "open_chat_button": {
         "text": "Chat openen"
       }
+    },
+    "action_verification_title": {
+      "text": "Verifieer je actie"
+    },
+    "action_verification_description": {
+      "text": "Je hebt een verificatiecode aangevraagd voor een gevoelige actie op je account."
+    },
+    "action_verification_expires": {
+      "text": "Deze code verloopt over 10 minuten."
+    },
+    "action_verification_subject": {
+      "text": "Je verificatiecode: {code}"
     }
   },
   "embeds": {
@@ -2663,6 +3007,9 @@
     },
     "more_results": {
       "text": "+ {count} meer"
+    },
+    "search_no_results": {
+      "text": "0 resultaten gevonden"
     },
     "open_search_results": {
       "text": "Zoekresultaten openen"
@@ -3105,7 +3452,7 @@
         "text": "Geen producten gevonden."
       },
       "search_products": {
-        "text": "Producten zoeken"
+        "text": "Zoeken"
       }
     },
     "math": {
@@ -3816,6 +4163,17 @@
           "text": "Privacybeleid van Polar"
         }
       },
+      "flightradar24": {
+        "heading": {
+          "text": "3.16 Flightradar24"
+        },
+        "description": {
+          "text": "Wanneer u echte vliegpadinformatie opvraagt via de vaardigheid \"Vluchtroute ophalen\", raadplegen wij Flightradar24 om historische GPS-trackgegevens op te halen voor voltooide vluchten. Flightradar24 ontvangt het vluchtnummer en de vertrekdatum. Er worden geen persoonlijke gegevens gedeeld."
+        },
+        "privacy_policy_link": {
+          "text": "Privacybeleid van Flightradar24"
+        }
+      },
       "security_measures": {
         "heading": {
           "text": "4. Beveiligingsmaatregelen"
@@ -4350,7 +4708,19 @@
     }
   },
   "navigation": {},
-  "notifications": {},
+  "notifications": {
+    "security_reminder": {
+      "title": {
+        "text": "Beveiligingsherinnering"
+      },
+      "message": {
+        "text": "Beveilig uw account goed door 2FA of een passkey in te stellen."
+      },
+      "action": {
+        "text": "Beveiligingsinstellingen openen"
+      }
+    }
+  },
   "onboarding": {},
   "platforms": {},
   "predefined_responses": {
@@ -4397,6 +4767,9 @@
         },
         "error_invalid_chars": {
           "text": "Gebruikersnaam mag alleen letters, cijfers, punten en underscores bevatten"
+        },
+        "error_taken": {
+          "text": "Deze gebruikersnaam is al in gebruik. Kies een andere naam."
         },
         "error_failed": {
           "text": "Gebruikersnaam bijwerken mislukt. Probeer het opnieuw."
@@ -4626,6 +4999,74 @@
         }
       }
     },
+    "app_settings_memories": {
+      "encrypted_notice": {
+        "text": "Uw instellingen en geheugenitems zijn versleuteld, kunnen alleen door uw apparaten worden gelezen en worden nooit zonder uw uitdrukkelijke toestemming naar OpenMates verzonden voor verwerking."
+      },
+      "diff_previous_value": {
+        "text": "Vorig:"
+      },
+      "diff_not_set": {
+        "text": "Niet ingesteld"
+      },
+      "examples_label": {
+        "text": "Voorbeelden:"
+      },
+      "my": {
+        "text": "Mijn"
+      },
+      "settings_and_memories": {
+        "text": "Instellingen en herinneringen"
+      },
+      "my_settings_and_memories": {
+        "text": "Mijn instellingen en herinneringen"
+      },
+      "no_entries_yet": {
+        "text": "Nog geen items."
+      },
+      "examples": {
+        "text": "Voorbeelden"
+      },
+      "no_settings": {
+        "text": "Nog geen instellingen of herinneringen gesynchroniseerd. Ze verschijnen hier zodra deze beschikbaar zijn."
+      },
+      "add_entry": {
+        "text": "Item toevoegen"
+      },
+      "loading": {
+        "text": "Instellingen en herinneringen laden..."
+      },
+      "item_key": {
+        "text": "Item sleutel"
+      },
+      "settings_group": {
+        "text": "Instellingen groep"
+      },
+      "item_value": {
+        "text": "Item waarde"
+      },
+      "cancel": {
+        "text": "Annuleren"
+      },
+      "creating": {
+        "text": "Aanmaken..."
+      },
+      "placeholder": {
+        "text": "Binnenkort kun je hier je app-instellingen en herinneringen beheren en aanmaken."
+      },
+      "just_now": {
+        "text": "Zojuist"
+      },
+      "edit": {
+        "text": "Bewerken"
+      },
+      "delete": {
+        "text": "Verwijderen"
+      },
+      "save": {
+        "text": "Opslaan"
+      }
+    },
     "app_store": {
       "description": {
         "text": "Blader door en beheer de apps die jouw mates kunnen gebruiken."
@@ -4694,7 +5135,7 @@
           "text": "Vraag je maatjes gewoon iets als:"
         },
         "how_to_use_mention": {
-          "text": "Of vermeld @{skillname}\nin je bericht om de vaardigheid expliciet te activeren."
+          "text": "Of vermeld {skillname}\nin je bericht om de vaardigheid expliciet te activeren."
         },
         "description": {
           "text": "Beschrijving"
@@ -4878,6 +5319,9 @@
       "back_to_app": {
         "text": "Terug naar app"
       },
+      "settings_memories_entry": {
+        "text": "Instellingen en herinneringen item"
+      },
       "app_not_found": {
         "text": "App niet gevonden."
       },
@@ -4950,8 +5394,8 @@
                 }
               },
               "gpt_5": {
-                "2": {
-                  "text": "GPT-5.2"
+                "4": {
+                  "text": "GPT-5.4"
                 }
               },
               "gpt_oss_120b": {
@@ -5980,65 +6424,6 @@
         "text": "Inbeddingen laden..."
       }
     },
-    "app_settings_memories": {
-      "examples_label": {
-        "text": "Voorbeelden:"
-      },
-      "my": {
-        "text": "Mijn"
-      },
-      "settings_and_memories": {
-        "text": "Instellingen en herinneringen"
-      },
-      "my_settings_and_memories": {
-        "text": "Mijn instellingen en herinneringen"
-      },
-      "no_entries_yet": {
-        "text": "Nog geen items."
-      },
-      "examples": {
-        "text": "Voorbeelden"
-      },
-      "no_settings": {
-        "text": "Nog geen instellingen of herinneringen gesynchroniseerd. Ze verschijnen hier zodra deze beschikbaar zijn."
-      },
-      "add_entry": {
-        "text": "Item toevoegen"
-      },
-      "loading": {
-        "text": "Instellingen en herinneringen laden..."
-      },
-      "item_key": {
-        "text": "Item sleutel"
-      },
-      "settings_group": {
-        "text": "Instellingen groep"
-      },
-      "item_value": {
-        "text": "Item waarde"
-      },
-      "cancel": {
-        "text": "Annuleren"
-      },
-      "creating": {
-        "text": "Aanmaken..."
-      },
-      "placeholder": {
-        "text": "Binnenkort kun je hier je app-instellingen en herinneringen beheren en aanmaken."
-      },
-      "just_now": {
-        "text": "Zojuist"
-      },
-      "edit": {
-        "text": "Bewerken"
-      },
-      "delete": {
-        "text": "Verwijderen"
-      },
-      "save": {
-        "text": "Opslaan"
-      }
-    },
     "newsletter": {
       "text": "Nieuwsbrief"
     },
@@ -6517,6 +6902,18 @@
       },
       "no_auth_method": {
         "text": "Geen authenticatiemethode beschikbaar. Neem contact op met ondersteuning."
+      },
+      "email_otp_description": {
+        "text": "We sturen een verificatiecode naar je e-mailadres."
+      },
+      "send_verification_code": {
+        "text": "Verificatiecode verzenden"
+      },
+      "email_otp_enter_code": {
+        "text": "Voer de 6-cijferige code in die naar je e-mail is gestuurd."
+      },
+      "resend_code": {
+        "text": "Code opnieuw verzenden"
       },
       "loading": {
         "text": "Laden..."
@@ -7010,6 +7407,9 @@
     "username_invalid_chars": {
       "text": "Toegestaan: letters, cijfers, _, ."
     },
+    "username_taken": {
+      "text": "Deze gebruikersnaam is al in gebruik. Kies een andere naam."
+    },
     "enter_username": {
       "text": "Voer gebruikersnaam in"
     },
@@ -7026,7 +7426,16 @@
       "text": "Wachtwoorden komen niet overeen"
     },
     "password_too_short": {
-      "text": "Minimaal 8 tekens"
+      "text": "Minimaal 10 tekens"
+    },
+    "password_too_common": {
+      "text": "Dit wachtwoord is te algemeen. Kies een sterker wachtwoord."
+    },
+    "password_needs_lowercase": {
+      "text": "Minimaal één kleine letter"
+    },
+    "password_needs_uppercase": {
+      "text": "Minimaal één hoofdletter"
     },
     "password_too_long": {
       "text": "Minder dan 60 tekens"

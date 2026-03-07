@@ -446,6 +446,19 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     phasedSyncState.reset(); // Reset phased sync state on logout
     aiTypingStore.reset(); // Reset typing indicator state on logout to prevent stale "{mate} is typing" indicators
     dailyInspirationStore.reset(); // Clear user-specific inspirations on logout so defaults are shown to logged-out users
+    // Immediately repopulate public default inspirations in the same tab session.
+    // We intentionally skip IndexedDB on logout because the master key was just
+    // cleared and any personalized encrypted records are not usable anymore.
+    void import("../demo_chats/loadDefaultInspirations")
+      .then(({ loadDefaultInspirations }) =>
+        loadDefaultInspirations({ allowIndexedDB: false }),
+      )
+      .catch((error) => {
+        console.error(
+          "[AuthStore] Failed to reload public default inspirations after logout:",
+          error,
+        );
+      });
 
     // CRITICAL: Clear in-memory chat caches IMMEDIATELY during synchronous logout
     // The chatListCache singleton persists across component mounts/unmounts, so if Chats.svelte

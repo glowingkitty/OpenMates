@@ -16,6 +16,7 @@
     import type { Chat, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
+    import { chatKeyManager } from '../services/encryption/ChatKeyManager';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
     import { skillPreviewService } from '../services/skillPreviewService'; // Import skillPreviewService
     import KeyboardShortcuts from './KeyboardShortcuts.svelte';
@@ -78,6 +79,7 @@
     import { aiTypingStore, type AITypingStatus } from '../stores/aiTypingStore'; // Import the new store
     import { decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
     import { getModelDisplayName } from '../utils/modelDisplayName'; // For clean model name display
+    import { modelsMetadata } from '../data/modelsMetadata'; // For reasoning model detection in typing indicator
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
     import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB, getAllDraftChatIdsWithDrafts } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
@@ -99,7 +101,7 @@
     import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils'; // For resume card category gradient circle
     import { waitLocale } from 'svelte-i18n'; // Import waitLocale for waiting for translations to load
     import { get } from 'svelte/store'; // Import get to read store values
-    import { searchTextHighlightStore } from '../stores/messageHighlightStore'; // For source quote text highlighting in embed fullscreen
+    import { searchTextHighlightStore, codeLineHighlightStore } from '../stores/messageHighlightStore'; // For source quote text + code line highlighting in embed fullscreen
     import { extractEmbedReferences } from '../services/embedResolver'; // Import for embed navigation
     import { tipTapToCanonicalMarkdown } from '../message_parsing/serializers'; // Import for embed navigation
     import PushNotificationBanner from './PushNotificationBanner.svelte'; // Import push notification banner component
@@ -107,6 +109,7 @@
     import DailyInspirationBanner from './DailyInspirationBanner.svelte'; // Daily inspiration carousel above welcome screen
     import ForkProgressBanner from './chats/ForkProgressBanner.svelte'; // Slim banner shown while a fork is in progress
     import { forkProgressStore } from '../stores/forkProgressStore'; // Global fork progress — used to show banner on source chat
+    import { pendingMentionStore } from '../stores/pendingMentionStore'; // For inserting @skill mentions from suggestion clicks
     import type { DailyInspiration } from '../stores/dailyInspirationStore'; // Type for inspiration handler
     import { chatListCache } from '../services/chatListCache'; // For invalidating stale 'sending' status in sidebar cache
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
@@ -216,6 +219,8 @@
         focusChildEmbedId?: string | null;
         /** Quote text to highlight in the fullscreen content (from source quote block click) */
         highlightQuoteText?: string | null;
+        /** Line range to highlight in a code embed fullscreen (from #L42 / #L10-L20 suffix) */
+        focusLineRange?: { start: number; end: number } | null;
     } | null;
 
     type EmbedFullscreenEventDetail = {
@@ -234,6 +239,8 @@
         focusChildEmbedId?: string | null;
         /** Quote text to highlight in the fullscreen content (from source quote block click) */
         highlightQuoteText?: string | null;
+        /** Line range to highlight in a code embed fullscreen (from #L42 / #L10-L20 suffix) */
+        focusLineRange?: { start: number; end: number } | null;
     };
 
     type AiMessageChunkPayload = {
@@ -426,6 +433,10 @@
     
     // State for current user ID (cached to avoid repeated DB lookups)
     let currentUserId = $state<string | null>(null);
+    // Track last-seen auth state to detect actual login/logout transitions.
+    // Only reset currentUserId when auth state truly changes, preventing the infinite loop where:
+    // $effect resets → checkChatOwnership reads & writes currentUserId → effect re-triggers → ∞
+    let lastAuthState = $state<boolean | null>(null);
     
     // State for chat ownership check
     let chatOwnershipResolved = $state<boolean>(true); // Default to true (allow editing)
@@ -479,7 +490,16 @@
         // Track dependencies
         void currentChat?.chat_id;
         void currentChat?.user_id;
-        void $authStore.isAuthenticated;
+        const isAuth = $authStore.isAuthenticated;
+        
+        // Only reset cached user ID when auth state actually CHANGES (login/logout transition),
+        // not on every effect run. Unconditional reset caused an infinite loop:
+        // reset null → checkChatOwnership reads currentUserId (tracked) → fetches from DB →
+        // writes currentUserId → effect re-triggers → reset null → ∞
+        if (isAuth !== lastAuthState) {
+            lastAuthState = isAuth;
+            currentUserId = null;
+        }
         
         // Check ownership asynchronously
         checkChatOwnership();
@@ -722,8 +742,6 @@
                 currentChat = null;
                 currentMessages = [];
                 followUpSuggestions = [];
-                settingsMemoriesSuggestions = [];
-                rejectedSuggestionHashes = null;
                 showWelcome = true;
                 isAtBottom = false;
                 
@@ -1225,7 +1243,7 @@
     async function handleEmbedFullscreen(event: CustomEvent) {
         console.debug('[ActiveChat] Received embedfullscreen event:', event.detail);
         const detail = event.detail as EmbedFullscreenEventDetail;
-        const { embedId, embedData, decodedContent, embedType, attrs, focusChildEmbedId, highlightQuoteText } = detail;
+        const { embedId, embedData, decodedContent, embedType, attrs, focusChildEmbedId, highlightQuoteText, focusLineRange } = detail;
 
         // CRITICAL: Set the URL hash guard BEFORE any async work.
         //
@@ -1291,12 +1309,17 @@
                 } else if (!finalEmbedData && !finalDecodedContent) {
                     // Only error if we have no data at all (neither from EmbedStore nor from event)
                     console.error('[ActiveChat] Embed not found in EmbedStore and no fallback data:', embedId);
+                    // Clean up the URL hash that was set eagerly before async resolution —
+                    // without this, the URL shows #embed-id=xxx but no fullscreen renders.
+                    activeEmbedStore.clearActiveEmbed();
                     return;
                 }
             } catch (error) {
                 console.error('[ActiveChat] Error loading embed for fullscreen:', error);
                 // Fall back to event data if available
                 if (!finalEmbedData && !finalDecodedContent) {
+                    // Clean up the URL hash — resolution failed and no fallback data exists
+                    activeEmbedStore.clearActiveEmbed();
                     return;
                 }
             }
@@ -1561,7 +1584,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             focusChildEmbedId: focusChildEmbedId ?? null,
             // Forwarded from SourceQuoteBlock when a verified source quote is clicked.
             // The fullscreen uses this to scroll to and highlight the quoted text.
-            highlightQuoteText: highlightQuoteText ?? null
+            highlightQuoteText: highlightQuoteText ?? null,
+            // Forwarded from EmbedInlineLink when a code embed link has a #L42 / #L10-L20 suffix.
+            // CodeEmbedFullscreen uses this to highlight + auto-scroll to the target lines.
+            focusLineRange: focusLineRange ?? null
         };
         showEmbedFullscreen = true;
         
@@ -1570,6 +1596,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // the quoted text within the embed content. This is cleared on fullscreen close.
         if (highlightQuoteText) {
             searchTextHighlightStore.set(highlightQuoteText);
+        }
+
+        // If this was triggered by a code embed inline link with a line range suffix,
+        // set the code line highlight store so CodeEmbedFullscreen can highlight
+        // and auto-scroll to the target lines. Cleared on fullscreen close.
+        if (focusLineRange) {
+            codeLineHighlightStore.set(focusLineRange);
         }
         
         // URL hash was already set at the top of this function (before async work) to ensure
@@ -1601,6 +1634,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Only clear if the highlight was set by this feature (not by the search bar).
         if (embedFullscreenData?.highlightQuoteText) {
             searchTextHighlightStore.set(null);
+        }
+
+        // Clear code line highlight if it was set (from inline link #L suffix).
+        if (embedFullscreenData?.focusLineRange) {
+            codeLineHighlightStore.set(null);
         }
         
         showEmbedFullscreen = false;
@@ -1757,6 +1795,28 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Derive video iframe state for template use - use reactive subscription
     // $derived(get(store)) doesn't create a subscription, so we need to use $state with subscription
     let videoIframeState = $state(get(videoIframeStore));
+    type PipCorner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+    let pipCorner = $state<PipCorner>('top-right');
+
+    function handleMovePipToCorner(corner: PipCorner) {
+        if (!videoIframeState.isPipMode) {
+            return;
+        }
+        pipCorner = corner;
+    }
+
+    let videoIframeContainerInlineStyle = $derived.by(() => {
+        if (videoIframeState.isPipMode) {
+            return '';
+        }
+
+        const anchor = videoIframeState.fullscreenAnchor;
+        if (!anchor) {
+            return '';
+        }
+
+        return `top: ${anchor.top}px; left: ${anchor.left}px; width: ${anchor.width}px; max-width: ${anchor.width}px; transform: none;`;
+    });
     
     // Subscribe to videoIframeStore to keep state reactive
     $effect(() => {
@@ -1861,14 +1921,33 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         console.debug('[ActiveChat] Fullscreen opened from PiP restore');
     }
 
-    // Handler for suggestion click - copies suggestion to message input
-    function handleSuggestionClick(suggestion: string) {
-        console.debug('[ActiveChat] Suggestion clicked:', suggestion);
+    // Handler for suggestion click - copies suggestion to message input.
+    // When mentionSyntax is provided (e.g. "@skill:web:search"), we insert the
+    // body text first, then set pendingMentionStore so MessageInput inserts the
+    // @mention chip at the START of the editor. This places the mention before
+    // the body text (e.g. "@Travel-Search Show me flights..."), which avoids
+    // false positives from the PII/sensitive-data detector (an @mention at the
+    // end of text can look like an email address).
+    function handleSuggestionClick(suggestion: string, mentionSyntax?: string) {
+        console.debug('[ActiveChat] Suggestion clicked:', suggestion, mentionSyntax ? `(mention: ${mentionSyntax})` : '');
         if (messageInputFieldRef) {
-            // Set the suggestion text in the message input
-            messageInputFieldRef.setSuggestionText(suggestion);
-            // Focus the input
-            messageInputFieldRef.focus();
+            if (mentionSyntax) {
+                // 1. Insert body text first so the editor has content.
+                messageInputFieldRef.setSuggestionText(suggestion);
+                // 2. Set pending mention — the $effect in MessageInput will insert
+                //    the @mention chip at the START of the editor, pushing body text
+                //    to the right. A trailing space is added after the chip.
+                tick().then(() => {
+                    pendingMentionStore.set(mentionSyntax);
+                    tick().then(() => {
+                        messageInputFieldRef?.focus();
+                    });
+                });
+            } else {
+                // No mention — insert plain text as before
+                messageInputFieldRef.setSuggestionText(suggestion);
+                messageInputFieldRef.focus();
+            }
         }
     }
 
@@ -1885,44 +1964,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
-    // Handler for when user adds a settings/memories suggestion
-    // Removes the suggestion from the list so it no longer displays
-    function handleSettingsMemorySuggestionAdded(suggestion: import('../types/apps').SuggestedSettingsMemoryEntry) {
-        console.info('[ActiveChat] Settings/memories suggestion added:', suggestion.suggested_title);
-        // Remove the added suggestion from the list
-        settingsMemoriesSuggestions = settingsMemoriesSuggestions.filter(
-            s => !(s.app_id === suggestion.app_id && 
-                   s.item_type === suggestion.item_type && 
-                   s.suggested_title === suggestion.suggested_title)
-        );
-    }
-
-    // Handler for when user rejects a settings/memories suggestion
-    // Removes the suggestion from the list (hash is already persisted by the SettingsMemoriesSuggestions component)
-    function handleSettingsMemorySuggestionRejected(suggestion: import('../types/apps').SuggestedSettingsMemoryEntry) {
-        console.info('[ActiveChat] Settings/memories suggestion rejected:', suggestion.suggested_title);
-        // Remove the rejected suggestion from the list
-        settingsMemoriesSuggestions = settingsMemoriesSuggestions.filter(
-            s => !(s.app_id === suggestion.app_id && 
-                   s.item_type === suggestion.item_type && 
-                   s.suggested_title === suggestion.suggested_title)
-        );
-    }
-
-    // Handler for when user opens a suggestion to customize (deep link to create form with prefill)
-    // Removes the suggestion from the list so it does not show twice
-    function handleSettingsMemorySuggestionOpenForCustomize(suggestion: import('../types/apps').SuggestedSettingsMemoryEntry) {
-        console.info('[ActiveChat] Settings/memories suggestion open for customize:', suggestion.suggested_title);
-        settingsMemoriesSuggestions = settingsMemoriesSuggestions.filter(
-            s => !(s.app_id === suggestion.app_id && 
-                   s.item_type === suggestion.item_type && 
-                   s.suggested_title === suggestion.suggested_title)
-        );
-    }
-
     // Handler for post-processing completed event
     async function handlePostProcessingCompleted(event: CustomEvent) {
-        const { chatId, followUpSuggestions: newSuggestions, suggestedSettingsMemories: newSettingsMemories } = event.detail;
+        const { chatId, followUpSuggestions: newSuggestions } = event.detail;
         console.info('[ActiveChat] 📬 Post-processing completed event received:', {
             chatId,
             currentChatId: currentChat?.chat_id,
@@ -1930,8 +1974,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             newSuggestionsCount: newSuggestions?.length || 0,
             newSuggestionsType: typeof newSuggestions,
             isArray: Array.isArray(newSuggestions),
-            currentFollowUpCount: followUpSuggestions.length,
-            newSettingsMemoriesCount: newSettingsMemories?.length || 0
+            currentFollowUpCount: followUpSuggestions.length
         });
 
         // CRITICAL FIX: Always reload suggestions from database for the current chat
@@ -1967,24 +2010,33 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             console.error('[ActiveChat] Failed to parse cleartext follow-up suggestions:', parseError);
                         }
                     } else if (freshChat.encrypted_follow_up_request_suggestions) {
-                        const chatKey = chatDB.getOrGenerateChatKey(chatId);
-                        const { decryptArrayWithChatKey } = await import('../services/cryptoService');
-                        const decryptedSuggestions = await decryptArrayWithChatKey(
-                            freshChat.encrypted_follow_up_request_suggestions,
-                            chatKey
-                        );
-                        
-                        if (decryptedSuggestions && decryptedSuggestions.length > 0) {
-                            followUpSuggestions = decryptedSuggestions;
-                            console.info('[ActiveChat] ✅ Loaded follow-up suggestions from database after post-processing:', decryptedSuggestions.length);
-                        } else {
-                            // Fallback: use suggestions from event if database decryption fails
+                        const chatKey = chatKeyManager.getKeySync(chatId);
+                        if (!chatKey) {
+                            console.debug('[ActiveChat] No chat key for follow-up suggestions decrypt, using event fallback');
                             if (newSuggestions && Array.isArray(newSuggestions) && newSuggestions.length > 0) {
                                 followUpSuggestions = newSuggestions;
-                                console.info('[ActiveChat] ✅ Fallback: Updated followUpSuggestions from event:', $state.snapshot(followUpSuggestions));
                             } else {
                                 followUpSuggestions = [];
-                                console.debug('[ActiveChat] No follow-up suggestions found in database or event');
+                            }
+                        } else {
+                            const { decryptArrayWithChatKey } = await import('../services/cryptoService');
+                            const decryptedSuggestions = await decryptArrayWithChatKey(
+                                freshChat.encrypted_follow_up_request_suggestions,
+                                chatKey
+                            );
+                            
+                            if (decryptedSuggestions && decryptedSuggestions.length > 0) {
+                                followUpSuggestions = decryptedSuggestions;
+                                console.info('[ActiveChat] ✅ Loaded follow-up suggestions from database after post-processing:', decryptedSuggestions.length);
+                            } else {
+                                // Fallback: use suggestions from event if database decryption fails
+                                if (newSuggestions && Array.isArray(newSuggestions) && newSuggestions.length > 0) {
+                                    followUpSuggestions = newSuggestions;
+                                    console.info('[ActiveChat] ✅ Fallback: Updated followUpSuggestions from event:', $state.snapshot(followUpSuggestions));
+                                } else {
+                                    followUpSuggestions = [];
+                                    console.debug('[ActiveChat] No follow-up suggestions found in database or event');
+                                }
                             }
                         }
                     } else if (newSuggestions && Array.isArray(newSuggestions) && newSuggestions.length > 0) {
@@ -1995,49 +2047,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         followUpSuggestions = [];
                         console.debug('[ActiveChat] No follow-up suggestions found');
                     }
-                    
-                    // Load settings/memories suggestions from database
-                    // These are shown as suggestion cards below the AI response
-                    rejectedSuggestionHashes = freshChat.rejected_suggestion_hashes ?? null;
-                    
-                    if (freshChat.encrypted_settings_memories_suggestions) {
-                        try {
-                            const chatKey = chatDB.getOrGenerateChatKey(chatId);
-                            const { decryptWithChatKey } = await import('../services/cryptoService');
-                            const decryptedJson = await decryptWithChatKey(
-                                freshChat.encrypted_settings_memories_suggestions,
-                                chatKey
-                            );
-                            
-                            if (decryptedJson) {
-                                const parsed = JSON.parse(decryptedJson);
-                                if (Array.isArray(parsed) && parsed.length > 0) {
-                                    settingsMemoriesSuggestions = parsed;
-                                    console.info('[ActiveChat] ✅ Loaded settings/memories suggestions from database:', parsed.length);
-                                } else {
-                                    settingsMemoriesSuggestions = [];
-                                }
-                            } else {
-                                settingsMemoriesSuggestions = [];
-                            }
-                        } catch (decryptError) {
-                            console.error('[ActiveChat] Failed to decrypt settings/memories suggestions:', decryptError);
-                            // Fallback to event data
-                            if (newSettingsMemories && Array.isArray(newSettingsMemories) && newSettingsMemories.length > 0) {
-                                settingsMemoriesSuggestions = newSettingsMemories;
-                                console.info('[ActiveChat] ✅ Fallback: Using settings/memories suggestions from event');
-                            } else {
-                                settingsMemoriesSuggestions = [];
-                            }
-                        }
-                    } else if (newSettingsMemories && Array.isArray(newSettingsMemories) && newSettingsMemories.length > 0) {
-                        // Fallback: use suggestions from event if database doesn't have them yet
-                        settingsMemoriesSuggestions = newSettingsMemories;
-                        console.info('[ActiveChat] ✅ Fallback: Using settings/memories suggestions from event (database not updated yet)');
-                    } else {
-                        settingsMemoriesSuggestions = [];
-                        console.debug('[ActiveChat] No settings/memories suggestions found');
-                    }
+
                 } else {
                     console.warn('[ActiveChat] Chat not found in database after post-processing:', chatId);
                     // Fallback: use suggestions from event if chat not found
@@ -2045,10 +2055,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         followUpSuggestions = newSuggestions;
                         console.info('[ActiveChat] ✅ Fallback: Updated followUpSuggestions from event (chat not in DB):', $state.snapshot(followUpSuggestions));
                     }
-                    if (newSettingsMemories && Array.isArray(newSettingsMemories) && newSettingsMemories.length > 0) {
-                        settingsMemoriesSuggestions = newSettingsMemories;
-                        console.info('[ActiveChat] ✅ Fallback: Using settings/memories suggestions from event (chat not in DB)');
-                    }
+
                 }
             } catch (error) {
                 console.error('[ActiveChat] Failed to reload suggestions from database after post-processing:', error);
@@ -2057,10 +2064,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     followUpSuggestions = newSuggestions;
                     console.info('[ActiveChat] ✅ Fallback: Updated followUpSuggestions from event (database error):', $state.snapshot(followUpSuggestions));
                 }
-                if (newSettingsMemories && Array.isArray(newSettingsMemories) && newSettingsMemories.length > 0) {
-                    settingsMemoriesSuggestions = newSettingsMemories;
-                    console.info('[ActiveChat] ✅ Fallback: Using settings/memories suggestions from event (database error)');
-                }
+
             }
         } else {
             console.debug('[ActiveChat] Post-processing completed for different chat, not updating suggestions');
@@ -2119,6 +2123,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let resumeChatTitle = $state<string | null>(null);
     let resumeChatCategory = $state<string | null>(null);
     let resumeChatIcon = $state<string | null>(null);
+    let resumeChatSummary = $state<string | null>(null);
     // When the last-opened chat was credits-rejected (no title, waiting_for_user),
     // show the "Credits needed..." label + user message preview instead of category circle + title.
     let resumeChatIsCreditsError = $state(false);
@@ -2126,7 +2131,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     /**
      * Load the last-opened chat from IndexedDB using $userProfile.last_opened.
-     * Decrypts title, category, and icon for the resume card display.
+     * Decrypts title, category, icon, and summary for the resume card display.
      * Skips draft chats (no title and no messages) so only real chats with
      * content are shown in the "Continue where you left off" card.
      * Returns true if a non-draft chat was found and loaded.
@@ -2139,10 +2144,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const chat = await chatDB.getChat(lastOpenedId);
             if (!chat) return false;
 
-            // Decrypt title, category, and icon using the chat key
+            // Decrypt title, category, icon, and summary using the chat key
             let decryptedTitle: string | null = null;
             let decryptedCategory: string | null = null;
             let decryptedIcon: string | null = null;
+            let decryptedSummary: string | null = null;
 
             const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../services/cryptoService');
             let chatKey = chatDB.getChatKey(chat.chat_id);
@@ -2157,7 +2163,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // Decrypt title
                 if (chat.encrypted_title) {
                     try {
-                        decryptedTitle = await decryptWithChatKey(chat.encrypted_title, chatKey);
+                        decryptedTitle = await decryptWithChatKey(chat.encrypted_title, chatKey, { chatId: chat.chat_id, fieldName: 'encrypted_title' });
                     } catch {
                         // Title decryption failed – fall through to default
                     }
@@ -2165,7 +2171,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // Decrypt category
                 if (chat.encrypted_category) {
                     try {
-                        decryptedCategory = await decryptWithChatKey(chat.encrypted_category, chatKey);
+                        decryptedCategory = await decryptWithChatKey(chat.encrypted_category, chatKey, { chatId: chat.chat_id, fieldName: 'encrypted_category' });
                     } catch {
                         // Category decryption failed – will use fallback
                     }
@@ -2173,9 +2179,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // Decrypt icon
                 if (chat.encrypted_icon) {
                     try {
-                        decryptedIcon = await decryptWithChatKey(chat.encrypted_icon, chatKey);
+                        decryptedIcon = await decryptWithChatKey(chat.encrypted_icon, chatKey, { chatId: chat.chat_id, fieldName: 'encrypted_icon' });
                     } catch {
                         // Icon decryption failed – will use fallback
+                    }
+                }
+                // Decrypt summary (used in the large gradient card on tall viewports)
+                if (chat.encrypted_chat_summary) {
+                    try {
+                        decryptedSummary = await decryptWithChatKey(chat.encrypted_chat_summary, chatKey, { chatId: chat.chat_id, fieldName: 'encrypted_chat_summary' });
+                    } catch {
+                        // Summary decryption failed – card will show title only
                     }
                 }
             }
@@ -2223,6 +2237,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 resumeChatTitle = null;
                 resumeChatCategory = null;
                 resumeChatIcon = null;
+                resumeChatSummary = null;
                 resumeChatIsCreditsError = true;
                 resumeChatUserMessagePreview = userPreview;
                 console.info(`[ActiveChat] Resume chat is credits-error state: ${chat.chat_id}, preview: "${userPreview}"`);
@@ -2233,11 +2248,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const displayTitle = chat.title || decryptedTitle || 'Untitled Chat';
             const displayCategory = chat.category || decryptedCategory || null;
             const displayIcon = chat.icon || decryptedIcon || null;
+            const displaySummary = chat.chat_summary || decryptedSummary || null;
 
             resumeChatData = chat;
             resumeChatTitle = displayTitle;
             resumeChatCategory = displayCategory;
             resumeChatIcon = displayIcon;
+            resumeChatSummary = displaySummary;
             resumeChatIsCreditsError = false;
             resumeChatUserMessagePreview = null;
             console.info(`[ActiveChat] Resume chat loaded: "${displayTitle}" (${chat.chat_id}), category: ${displayCategory}, icon: ${displayIcon}`);
@@ -2255,22 +2272,38 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const isWelcome = showWelcome;
         const isAuth = $authStore.isAuthenticated;
         const lastOpened = $userProfile.last_opened;
+        // Read activeChatStore to make this effect reactive to it
+        const currentActiveChat = $activeChatStore;
 
         // Only show resume card when on welcome screen, authenticated, and last_opened is a real chat ID
-        // (not empty, not '/chat/new' which means the user was already on the new chat screen)
-        if (!isWelcome || !isAuth || !lastOpened || lastOpened === '/chat/new') {
+        // (not empty, not '/chat/new' which means the user was already on the new chat screen,
+        //  not a demo/legal chat which are client-side static content)
+        if (!isWelcome || !isAuth || !lastOpened || lastOpened === '/chat/new' || isPublicChat(lastOpened)) {
             resumeChatData = null;
             resumeChatTitle = null;
             resumeChatCategory = null;
             resumeChatIcon = null;
+            resumeChatSummary = null;
             resumeChatIsCreditsError = false;
             resumeChatUserMessagePreview = null;
             return;
         }
 
+        // DEFENSE-IN-DEPTH: If a chat is already active in the store, don't populate
+        // resume card data — the user is viewing a chat, not the welcome screen.
+        // This guards against stale reactivity triggers where showWelcome is still true
+        // but the store was set by another code path moments before the UI re-renders.
+        if (currentActiveChat) {
+            console.debug(`[ActiveChat] Skipping resume card population — activeChatStore already set to "${currentActiveChat}"`);
+            return;
+        }
+
         let cancelled = false;
-        const maxAttempts = 6;
-        const delayMs = 500; // retry every 500ms for up to 3s
+        // Retry up to 20 times (10 seconds total) to handle cross-device sync
+        // where last_opened_updated arrives before Phase 2/3 delivers the chat data.
+        // Previous 6-attempt / 3-second window was too short on slow connections.
+        const maxAttempts = 20;
+        const delayMs = 500; // retry every 500ms for up to 10s
 
         const tryLoad = async (attempt: number) => {
             if (cancelled) return;
@@ -2286,24 +2319,38 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     });
 
     // ─── Phase 1 Sync Bridge ──────────────────────────────────────────────
-    // When Phase 1 sync completes, Chats.svelte stores the resume chat data
-    // in phasedSyncState. This $effect bridges that store to our local state,
-    // ensuring the resume card appears even if the initial IndexedDB retry loop
-    // above has already exhausted (sync may take longer than 3 seconds on slow
-    // connections or cold starts after login).
+    // When Phase 1 sync completes or a cross-device last_opened_updated broadcast
+    // arrives, Chats.svelte / chatSyncService stores the resume chat data in
+    // phasedSyncState. This $effect bridges that store to our local state,
+    // ensuring the resume card appears (and updates) in real-time.
+    //
+    // NOTE: The `!resumeChatData` guard was intentionally removed so that
+    // cross-device last_opened_updated broadcasts can refresh an already-
+    // populated resume card. Without this, only the first population fires
+    // and subsequent cross-device updates are silently ignored.
     $effect(() => {
         const syncState = $phasedSyncState;
         const isWelcome = showWelcome;
         const isAuth = $authStore.isAuthenticated;
+        const currentActiveChat = $activeChatStore;
 
-        // Only sync from phasedSyncState when on the welcome screen, authenticated,
-        // and we don't already have resume data loaded from IndexedDB
-        if (isWelcome && isAuth && syncState.resumeChatData && !resumeChatData) {
+        // Sync from phasedSyncState when on the welcome screen, authenticated,
+        // no chat is currently active, and phasedSyncState has resume data.
+        // Allows repeated updates (cross-device) by NOT guarding on !resumeChatData.
+        if (isWelcome && isAuth && !currentActiveChat && syncState.resumeChatData) {
+            // Skip if the same chat is already displayed (no need to re-assign)
+            if (resumeChatData?.chat_id === syncState.resumeChatData.chat_id) {
+                return;
+            }
             resumeChatData = syncState.resumeChatData;
             resumeChatTitle = syncState.resumeChatTitle;
             resumeChatCategory = syncState.resumeChatCategory;
             resumeChatIcon = syncState.resumeChatIcon;
-            console.info(`[ActiveChat] Resume chat synced from Phase 1 store: "${syncState.resumeChatTitle}" (${syncState.resumeChatData.chat_id})`);
+            // Reset credits-error state and summary (will be populated by loadResumeChatFromDB if needed)
+            resumeChatSummary = null;
+            resumeChatIsCreditsError = false;
+            resumeChatUserMessagePreview = null;
+            console.info(`[ActiveChat] Resume chat synced from phasedSyncState: "${syncState.resumeChatTitle}" (${syncState.resumeChatData.chat_id})`);
         }
     });
 
@@ -2630,6 +2677,90 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         viewportHeight = window.innerHeight;
     }
 
+    /**
+     * True when the viewport is tall enough to comfortably show the large
+     * ChatEmbedPreview-style gradient card for the resume-chat link.
+     * Threshold: ≥800px covers iPad vertical (768–1024px) and large monitors.
+     * Below this threshold the compact horizontal card is shown instead.
+     */
+    let isTallViewport = $derived(viewportHeight >= 800);
+
+    // Hover tilt effect for the large welcome-screen chat preview card.
+    // Mirrors UnifiedEmbedPreview's 3D hover behavior.
+    let resumeLargeCardElement = $state<HTMLButtonElement | null>(null);
+    let isResumeLargeCardHovering = $state(false);
+    let resumeLargeCardMouseX = $state(0); // Normalized -1..1
+    let resumeLargeCardMouseY = $state(0); // Normalized -1..1
+
+    const RESUME_CARD_TILT_MAX_ANGLE = 3;
+    const RESUME_CARD_TILT_PERSPECTIVE = 800;
+    const RESUME_CARD_TILT_SCALE = 0.985;
+
+    let resumeLargeCardTiltTransform = $derived.by(() => {
+        if (!isResumeLargeCardHovering) {
+            return '';
+        }
+
+        const rotateY = resumeLargeCardMouseX * RESUME_CARD_TILT_MAX_ANGLE;
+        const rotateX = -resumeLargeCardMouseY * RESUME_CARD_TILT_MAX_ANGLE;
+
+        return `perspective(${RESUME_CARD_TILT_PERSPECTIVE}px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${RESUME_CARD_TILT_SCALE})`;
+    });
+
+    /**
+     * Build the inline style string for the large resume card.
+     * Accepts a background CSS declaration and an optional gradient color pair.
+     * Emits --orb-color-a / --orb-color-b CSS custom properties consumed by
+     * the living gradient orb animation (same system as ChatHeader + DailyInspirationBanner).
+     */
+    function getResumeLargeCardStyle(
+        backgroundStyle: string,
+        orbColors?: { start: string; end: string } | null,
+    ): string {
+        const parts = [backgroundStyle];
+        if (orbColors) {
+            parts.push(`--orb-color-a: ${orbColors.start}`);
+            parts.push(`--orb-color-b: ${orbColors.end}`);
+        } else {
+            // Primary blue fallback
+            parts.push('--orb-color-a: #4867cd');
+            parts.push('--orb-color-b: #a0beff');
+        }
+        if (resumeLargeCardTiltTransform) {
+            parts.push(`transform: ${resumeLargeCardTiltTransform}`);
+        }
+        return parts.join('; ');
+    }
+
+    function handleResumeLargeCardMouseEnter(e: MouseEvent) {
+        isResumeLargeCardHovering = true;
+        updateResumeLargeCardMousePosition(e);
+    }
+
+    function handleResumeLargeCardMouseMove(e: MouseEvent) {
+        if (!isResumeLargeCardHovering || !resumeLargeCardElement) {
+            return;
+        }
+
+        updateResumeLargeCardMousePosition(e);
+    }
+
+    function handleResumeLargeCardMouseLeave() {
+        isResumeLargeCardHovering = false;
+        resumeLargeCardMouseX = 0;
+        resumeLargeCardMouseY = 0;
+    }
+
+    function updateResumeLargeCardMousePosition(e: MouseEvent) {
+        if (!resumeLargeCardElement) {
+            return;
+        }
+
+        const rect = resumeLargeCardElement.getBoundingClientRect();
+        resumeLargeCardMouseX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+        resumeLargeCardMouseY = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+    }
+
     // ─── Height-based suggestions overlap detection ──────────────────────────
     // Reliable DOM-measurement approach: measure whether the new-chat suggestions
     // (rendered above the message input) would visually overlap the resume-chat
@@ -2720,10 +2851,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Track settings/memories suggestions for the current chat
     // These are suggested entries generated during AI post-processing Phase 2
     // Shown as horizontally scrollable cards below the last AI response
-    let settingsMemoriesSuggestions = $state<import('../types/apps').SuggestedSettingsMemoryEntry[]>([]);
     
     // Track rejected suggestion hashes for client-side filtering
-    let rejectedSuggestionHashes = $state<string[] | null>(null);
     
     // Track if user has sent a message this session (for push notification banner)
     // Banner should show after user's first message is sent
@@ -3149,9 +3278,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 console.error('[ActiveChat] Failed to parse cleartext follow-up suggestions from fresh DB read:', parseError);
                             }
                         } else if (freshChat?.encrypted_follow_up_request_suggestions) {
-                            // Use getOrGenerateChatKey: by the time the user has focused the input,
+                            // Use chatKeyManager: by the time the user has focused the input,
                             // loadChatKeysFromDatabase should have completed and the correct key is cached.
-                            const chatKey = chatDB.getOrGenerateChatKey(currentChat.chat_id);
+                            const chatKey = chatKeyManager.getKeySync(currentChat.chat_id);
+                            if (!chatKey) {
+                                console.debug('[ActiveChat] No chat key for focus-reload suggestions decrypt, skipping');
+                                return;
+                            }
                             const { decryptArrayWithChatKey } = await import('../services/cryptoService');
                             const decryptedSuggestions = await decryptArrayWithChatKey(
                                 freshChat.encrypted_follow_up_request_suggestions,
@@ -3249,8 +3382,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // When the centered indicator is active (processingPhase is not null),
         // hide the bottom typing indicator to avoid duplicate text.
         // The centered overlay handles sending, processing steps, and typing phases.
-        if (processingPhase !== null) {
+        // Exception: 'compressing' phase shows the shimmer in the bottom indicator
+        // since there is no centered overlay for compression.
+        if (processingPhase !== null && processingPhase.phase !== 'compressing') {
             return [];
+        }
+        
+        // Show "Compressing chat..." shimmer during chat compression
+        if (processingPhase?.phase === 'compressing') {
+            return processingPhase.statusLines;
         }
         
         // Show detailed AI typing indicator once streaming has started
@@ -3273,12 +3413,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             };
             
             // Build multi-line indicator matching the centered overlay format:
-            //   Line 1: "{mate} is typing..."
+            //   Line 1: "{mate} is typing..." or "{mate} is thinking..." for reasoning models
             //   Line 2: "Powered by {model_name}" (if available)
             //   Line 3: "via {provider} {flag}" (if available)
-            const lines: string[] = [
-                $text('enter_message.is_typing').replace('{mate}', mateName)
-            ];
+            // Check if the current model is a reasoning/thinking model (same logic as Chat.svelte)
+            const isReasoningModelForIndicator = (() => {
+                if (!modelName) return false;
+                const model = modelsMetadata.find(m => m.name === modelName || m.id === modelName);
+                return model?.reasoning === true;
+            })();
+            const primaryLine = isReasoningModelForIndicator
+                ? $text('enter_message.is_thinking').replace('{mate}', mateName)
+                : $text('enter_message.is_typing').replace('{mate}', mateName);
+            const lines: string[] = [primaryLine];
             
             // Line 2: "Powered by {model_name}" — convert technical IDs to human-readable names
             const displayModelName = modelName ? getModelDisplayName(modelName) : '';
@@ -3308,7 +3455,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         
         // When centered indicator is active, bottom shows nothing
-        if (processingPhase !== null) return null;
+        // Exception: 'compressing' phase shows as 'typing' shimmer at the bottom
+        if (processingPhase !== null && processingPhase.phase !== 'compressing') return null;
+        
+        if (processingPhase?.phase === 'compressing') return 'typing';
         
         // During streaming, show the typing shimmer
         if (currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id) {
@@ -3670,8 +3820,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 if (isRejection) {
                     chatListCache.invalidateLastMessage(chunk.chat_id);
                 }
+                // CRITICAL: Use the server's full_content_so_far from the final chunk as
+                // the definitive content. This bypasses the streaming regression guard
+                // (line ~3651) which may have blocked a shorter (but correct) content update
+                // from QUOTE_VERIFY. Without this, stripped quotes reappear on reload because
+                // the client persists the unverified pre-strip content.
+                // See: embed source quote verification in stream_consumer.py
+                const serverVerifiedContent = chunk.full_content_so_far;
+                const finalContent = serverVerifiedContent != null
+                    ? serverVerifiedContent
+                    : finalMessageInArray.content;
+
                 const updatedFinalMessage = {
                     ...finalMessageInArray,
+                    content: finalContent,
                     status: finalStatus,
                     // Preserve role as 'system' for rejection messages
                     role: isRejection ? 'system' as const : finalMessageInArray.role,
@@ -4044,7 +4206,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Hide settings/memories suggestions when user sends a new message
         // New suggestions will be generated during post-processing
-        settingsMemoriesSuggestions = [];
         
         // Reset live input text to clear search term for suggestions
         // This ensures suggestions show the default 3 when input is focused again
@@ -4366,6 +4527,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         resumeChatTitle = null;
         resumeChatCategory = null;
         resumeChatIcon = null;
+        resumeChatSummary = null;
         phasedSyncState.clearResumeChatData();
 
         // Mark that we've loaded the initial chat (prevents further auto-selection)
@@ -5341,14 +5503,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         const k = await decryptChatKeyWithMasterKey(chatToDecrypt.encrypted_chat_key);
                         if (k) { chatKey = k; chatDB.setChatKey(incomingChatId, k); }
                     } catch (keyErr) {
-                        console.error('[ActiveChat] handleChatUpdated: Failed to decrypt chat key from encrypted_chat_key:', keyErr);
+                        console.error(`[ActiveChat] handleChatUpdated: Failed to decrypt chat key from encrypted_chat_key: chat_id=${incomingChatId} field=encrypted_chat_key`, keyErr);
                     }
                 }
                 if (!chatKey) {
-                    // Last resort: key not in cache and no encrypted_chat_key in the event payload.
-                    // This path should only be reached for a brand-new chat on the originating device
-                    // where the key was already generated in memory by handleSendMessage.
-                    chatKey = chatDB.getOrGenerateChatKey(incomingChatId);
+                    // Last resort: try chatKeyManager async load from IDB
+                    chatKey = await chatKeyManager.getKey(incomingChatId);
+                    if (!chatKey) {
+                        console.warn('[ActiveChat] handleChatUpdated: No chat key available for', incomingChatId, '— skipping header decryption');
+                    }
                 }
                 if (chatKey) {
                     let decryptedTitle = activeChatDecryptedTitle;
@@ -5356,13 +5519,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     let decryptedIcon = activeChatDecryptedIcon;
 
                     if (chatToDecrypt.encrypted_title) {
-                        try { decryptedTitle = await decryptWithChatKey(chatToDecrypt.encrypted_title, chatKey) ?? ''; } catch { /* keep previous */ }
+                        try { decryptedTitle = await decryptWithChatKey(chatToDecrypt.encrypted_title, chatKey, { chatId: incomingChatId, fieldName: 'encrypted_title' }) ?? ''; } catch { /* keep previous */ }
                     }
                     if (chatToDecrypt.encrypted_category) {
-                        try { decryptedCategory = await decryptWithChatKey(chatToDecrypt.encrypted_category, chatKey); } catch { /* keep previous */ }
+                        try { decryptedCategory = await decryptWithChatKey(chatToDecrypt.encrypted_category, chatKey, { chatId: incomingChatId, fieldName: 'encrypted_category' }); } catch { /* keep previous */ }
                     }
                     if (chatToDecrypt.encrypted_icon) {
-                        try { decryptedIcon = await decryptWithChatKey(chatToDecrypt.encrypted_icon, chatKey); } catch { /* keep previous */ }
+                        try { decryptedIcon = await decryptWithChatKey(chatToDecrypt.encrypted_icon, chatKey, { chatId: incomingChatId, fieldName: 'encrypted_icon' }); } catch { /* keep previous */ }
                     }
 
                     activeChatDecryptedTitle = decryptedTitle ?? '';
@@ -5385,7 +5548,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     }
                 }
             } catch (err) {
-                console.error('[ActiveChat] handleChatUpdated: Failed to decrypt chat header metadata:', err);
+                console.error(`[ActiveChat] handleChatUpdated: Failed to decrypt chat header metadata: chat_id=${incomingChatId}`, err);
             }
         }
 
@@ -5402,21 +5565,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         const k = await decryptChatKeyWithMasterKey(incomingChatMetadata.encrypted_chat_key);
                         if (k) { summaryKey = k; chatDB.setChatKey(incomingChatId, k); }
                     } catch (keyErr) {
-                        console.error('[ActiveChat] handleChatUpdated: Failed to decrypt chat key for summary:', keyErr);
+                        console.error(`[ActiveChat] handleChatUpdated: Failed to decrypt chat key for summary: chat_id=${incomingChatId} field=encrypted_chat_key`, keyErr);
                     }
                 }
                 if (!summaryKey) {
-                    summaryKey = chatDB.getOrGenerateChatKey(incomingChatId);
+                    summaryKey = await chatKeyManager.getKey(incomingChatId);
+                    if (!summaryKey) {
+                        console.warn('[ActiveChat] handleChatUpdated: No chat key for summary decrypt of', incomingChatId);
+                    }
                 }
                 if (summaryKey) {
-                    const decryptedSummary = await decryptWithChatKey(incomingChatMetadata.encrypted_chat_summary, summaryKey);
+                    const decryptedSummary = await decryptWithChatKey(incomingChatMetadata.encrypted_chat_summary, summaryKey, { chatId: incomingChatId, fieldName: 'encrypted_chat_summary' });
                     if (decryptedSummary) {
                         activeChatDecryptedSummary = decryptedSummary;
                         console.debug('[ActiveChat] Chat header summary updated:', decryptedSummary.substring(0, 60) + '...');
                     }
                 }
             } catch (err) {
-                console.error('[ActiveChat] handleChatUpdated: Failed to decrypt chat summary:', err);
+                console.error(`[ActiveChat] handleChatUpdated: Failed to decrypt chat summary: chat_id=${incomingChatId} field=encrypted_chat_summary`, err);
             }
         }
 
@@ -5848,15 +6014,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                       console.debug('[ActiveChat] loadChat: Recovered chat key from encrypted_chat_key for', chatForHeader.chat_id);
                                   }
                               } catch (keyErr) {
-                                  console.error('[ActiveChat] loadChat: Failed to decrypt chat key from encrypted_chat_key:', keyErr);
+                                  console.error(`[ActiveChat] loadChat: Failed to decrypt chat key from encrypted_chat_key: chat_id=${chatForHeader.chat_id} field=encrypted_chat_key`, keyErr);
                               }
                           }
                           if (!chatKey) {
-                              // Genuinely new chat or key unavailable — fall back to generate.
-                              // This should only be reached for chats created on this device
-                              // before the server has stored encrypted_chat_key.
-                              console.warn('[ActiveChat] loadChat: No chat key in cache and no encrypted_chat_key for', chatForHeader.chat_id, '— generating new key (may cause header decryption failure for existing chats)');
-                              chatKey = chatDB.getOrGenerateChatKey(chatForHeader.chat_id);
+                              // Try async load from IDB via ChatKeyManager
+                              chatKey = await chatKeyManager.getKey(chatForHeader.chat_id);
+                              if (!chatKey) {
+                                  console.warn('[ActiveChat] loadChat: No chat key available for', chatForHeader.chat_id, '— header will show placeholders');
+                              }
                           }
                           if (chatKey) {
                               let t = '';
@@ -5864,22 +6030,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                               let ic: string | null = null;
                               let s: string | null = null;
                               if (chatForHeader.encrypted_title) {
-                                  try { t = await decryptWithChatKey(chatForHeader.encrypted_title, chatKey) ?? ''; } catch { /* keep blank */ }
+                                  try { t = await decryptWithChatKey(chatForHeader.encrypted_title, chatKey, { chatId: chatForHeader.chat_id, fieldName: 'encrypted_title' }) ?? ''; } catch { /* keep blank */ }
                               }
                               if (chatForHeader.encrypted_category) {
-                                  try { c = await decryptWithChatKey(chatForHeader.encrypted_category, chatKey); } catch { /* keep null */ }
+                                  try { c = await decryptWithChatKey(chatForHeader.encrypted_category, chatKey, { chatId: chatForHeader.chat_id, fieldName: 'encrypted_category' }); } catch { /* keep null */ }
                               } else if (chatForHeader.category) {
                                   // Fallback: plaintext category (older chats or partial sync)
                                   c = chatForHeader.category;
                               }
                               if (chatForHeader.encrypted_icon) {
-                                  try { ic = await decryptWithChatKey(chatForHeader.encrypted_icon, chatKey); } catch { /* keep null */ }
+                                  try { ic = await decryptWithChatKey(chatForHeader.encrypted_icon, chatKey, { chatId: chatForHeader.chat_id, fieldName: 'encrypted_icon' }); } catch { /* keep null */ }
                               } else if (chatForHeader.icon) {
                                   // Fallback: plaintext icon (older chats or partial sync)
                                   ic = chatForHeader.icon.split(',')[0]?.trim() || null;
                               }
                               if (chatForHeader.encrypted_chat_summary) {
-                                  try { s = await decryptWithChatKey(chatForHeader.encrypted_chat_summary, chatKey); } catch { /* keep null */ }
+                                  try { s = await decryptWithChatKey(chatForHeader.encrypted_chat_summary, chatKey, { chatId: chatForHeader.chat_id, fieldName: 'encrypted_chat_summary' }); } catch { /* keep null */ }
                               }
                               if (t && c) {
                                   activeChatDecryptedTitle = t;
@@ -5890,7 +6056,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                               }
                           }
                       } catch (err) {
-                          console.error('[ActiveChat] loadChat: Failed to decrypt header for existing chat:', err);
+                          console.error(`[ActiveChat] loadChat: Failed to decrypt header for existing chat: chat_id=${chatForHeader.chat_id}`, err);
                       }
                   }
               }
@@ -6211,9 +6377,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         } else if (currentChat.encrypted_follow_up_request_suggestions) {
             // For real chats, decrypt the suggestions from database
             try {
-                const chatKey = chatDB.getOrGenerateChatKey(currentChat.chat_id);
-                const { decryptArrayWithChatKey } = await import('../services/cryptoService');
-                followUpSuggestions = await decryptArrayWithChatKey(currentChat.encrypted_follow_up_request_suggestions, chatKey) || [];
+                const chatKey = chatKeyManager.getKeySync(currentChat.chat_id);
+                if (!chatKey) {
+                    console.debug('[ActiveChat] No chat key for follow-up suggestions in loadChat, skipping');
+                    followUpSuggestions = [];
+                } else {
+                    const { decryptArrayWithChatKey } = await import('../services/cryptoService');
+                    followUpSuggestions = await decryptArrayWithChatKey(currentChat.encrypted_follow_up_request_suggestions, chatKey) || [];
+                }
                 console.debug('[ActiveChat] Loaded follow-up suggestions from database:', $state.snapshot(followUpSuggestions));
             } catch (error) {
                 console.error('[ActiveChat] Failed to load follow-up suggestions:', error);
@@ -6223,41 +6394,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             followUpSuggestions = [];
         }
 
-        // Load settings/memories suggestions from chat metadata
-        // ARCHITECTURE: Settings/memories suggestions are always encrypted for real chats
-        // Public chats don't have settings/memories suggestions (they're demo content)
-        if (!isPublicChat(currentChat.chat_id) && currentChat.encrypted_settings_memories_suggestions) {
-            // Load rejected hashes first (these are stored in cleartext)
-            rejectedSuggestionHashes = currentChat.rejected_suggestion_hashes ?? null;
-            
-            try {
-                const chatKey = chatDB.getOrGenerateChatKey(currentChat.chat_id);
-                const { decryptWithChatKey } = await import('../services/cryptoService');
-                const decryptedJson = await decryptWithChatKey(
-                    currentChat.encrypted_settings_memories_suggestions,
-                    chatKey
-                );
-                
-                if (decryptedJson) {
-                    const parsed = JSON.parse(decryptedJson);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        settingsMemoriesSuggestions = parsed;
-                        console.debug('[ActiveChat] Loaded settings/memories suggestions from database:', parsed.length);
-                    } else {
-                        settingsMemoriesSuggestions = [];
-                    }
-                } else {
-                    settingsMemoriesSuggestions = [];
-                }
-            } catch (error) {
-                console.error('[ActiveChat] Failed to load settings/memories suggestions:', error);
-                settingsMemoriesSuggestions = [];
-            }
-        } else {
-            // Public chats or chats without suggestions - clear the state
-            settingsMemoriesSuggestions = [];
-            rejectedSuggestionHashes = null;
-        }
+
 
         if (chatHistoryRef) {
             // Update messages
@@ -7071,8 +7208,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 currentChat = null;
                 currentMessages = [];
                 followUpSuggestions = []; // Clear follow-up suggestions to prevent showing user responses
-                settingsMemoriesSuggestions = []; // Clear settings/memories suggestions
-                rejectedSuggestionHashes = null;
                 showWelcome = true; // Show welcome screen for new demo chat
                 isAtBottom = false;
                 
@@ -7471,7 +7606,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }) as EventListenerCallback;
 
-        const aiTaskEndedHandler = ((event: CustomEvent<{ chatId: string; status?: string }>) => {
+        const aiTaskEndedHandler = (async (event: CustomEvent<{ chatId: string; status?: string }>) => {
             if (event.detail.chatId === currentChat?.chat_id) {
                 _aiTaskStateTrigger++;
                 
@@ -7485,7 +7620,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // show an endless loading indicator and the sidebar to show stale state.
                 // We do this for ALL task endings (not just cancellation) as a safety fallback
                 // in case the final-chunk handler missed transitioning the message.
+                //
+                // PERSISTENCE ON CANCEL: If the cancelled message has content (partial response),
+                // we also persist it to the server via sendCompletedAIResponse — exactly as if
+                // the response had finished naturally. This ensures cross-device sync works even
+                // when the user stops the response mid-stream.
+                // Empty messages (cancel before any text streamed) are NOT persisted.
                 let needsUpdate = false;
+                const messagesToPersist: ChatMessageModel[] = [];
                 for (let i = 0; i < currentMessages.length; i++) {
                     const msg = currentMessages[i];
                     if (msg.role === 'assistant' && msg.status === 'streaming') {
@@ -7496,10 +7638,28 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             console.error(`[ActiveChat] aiTaskEndedHandler: Failed to save finalized message ${msg.message_id}:`, err);
                         });
                         console.info(`[ActiveChat] aiTaskEndedHandler: Finalized streaming message ${msg.message_id} → synced (task status: ${event.detail.status ?? 'unknown'})`);
+                        // Queue for server persistence if there is actual content
+                        if (finalized.content && finalized.content.trim().length > 0) {
+                            messagesToPersist.push(finalized);
+                        } else {
+                            console.info(`[ActiveChat] aiTaskEndedHandler: Skipping server persistence for empty message ${msg.message_id} (cancelled before any text streamed)`);
+                        }
                     }
                 }
                 if (needsUpdate) {
                     currentMessages = [...currentMessages];
+                }
+
+                // Persist partial responses to server for cross-device sync (non-incognito only)
+                if (messagesToPersist.length > 0 && !currentChat?.is_incognito) {
+                    for (const msg of messagesToPersist) {
+                        try {
+                            console.info(`[ActiveChat] aiTaskEndedHandler: Persisting partial AI response to server (cancel) — message_id: ${msg.message_id}, contentLength: ${msg.content?.length ?? 0}`);
+                            await chatSyncService.sendCompletedAIResponse(msg);
+                        } catch (err) {
+                            console.error(`[ActiveChat] aiTaskEndedHandler: Failed to persist partial AI response ${msg.message_id} to server:`, err);
+                        }
+                    }
                 }
                 
                 // FALLBACK: Mark ALL thinking entries as complete when AI task ends
@@ -7555,9 +7715,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 } : null
             });
             if (chat_id === currentChat?.chat_id) {
-                if (message_id && isThinkingModel(model_name, provider_name)) {
-                    ensureThinkingPlaceholder(message_id, chat_id, category, model_name);
-                }
+                // NOTE: Do NOT call ensureThinkingPlaceholder here.
+                // Showing a placeholder ThinkingSection before any real thinking chunks arrive
+                // causes a blank/empty thinking block to flash in the UI. The thinking section
+                // is created lazily in handleAiThinkingChunk on the first real chunk.
 
                 const messageIndex = currentMessages.findIndex(m => m.message_id === user_message_id);
                 // Update user message status to synced from both 'processing' and 'waiting_for_user'
@@ -7682,6 +7843,42 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }) as EventListenerCallback;
 
+        // ─── Chat Compression event handlers ─────────────────────────────────────────
+        // When the AI worker detects a long chat history, it triggers compression before
+        // preprocessing. These events update the processing phase to show a shimmer indicator.
+        const compressionStartedHandler = ((event: CustomEvent) => {
+            const { chat_id } = event.detail;
+            if (chat_id === currentChat?.chat_id) {
+                console.debug('[ActiveChat] Chat compression started for chat', chat_id);
+                processingPhase = {
+                    phase: 'compressing',
+                    statusLines: [$text('chat.compression.compressing')]
+                };
+            }
+        }) as EventListenerCallback;
+
+        const compressionCompletedHandler = ((event: CustomEvent) => {
+            const { chat_id, error, compressed_message_count } = event.detail;
+            if (chat_id === currentChat?.chat_id) {
+                if (error) {
+                    console.warn('[ActiveChat] Chat compression failed for chat', chat_id, ':', error);
+                } else {
+                    console.debug('[ActiveChat] Chat compression completed for chat', chat_id,
+                        `(${compressed_message_count} messages compressed)`);
+                }
+                // Clear the compressing phase — the normal sending → processing → typing
+                // flow will take over from here as the AI task continues.
+                if (processingPhase?.phase === 'compressing') {
+                    processingPhase = {
+                        phase: 'sending',
+                        statusLines: [$text('enter_message.sending')]
+                    };
+                }
+            }
+        }) as EventListenerCallback;
+
+        chatSyncService.addEventListener('chatCompressionStarted', compressionStartedHandler);
+        chatSyncService.addEventListener('chatCompressionCompleted', compressionCompletedHandler);
         chatSyncService.addEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
         chatSyncService.addEventListener('aiTypingStarted', aiTypingStartedHandler);
         chatSyncService.addEventListener('aiTaskEnded', aiTaskEndedHandler);
@@ -8014,6 +8211,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             unsubscribeDraftState(); // Unsubscribe from draft state
             chatSyncService.removeEventListener('aiMessageChunk', handleAiMessageChunk as EventListenerCallback); // Remove listener
             chatSyncService.removeEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
+            chatSyncService.removeEventListener('chatCompressionStarted', compressionStartedHandler);
+            chatSyncService.removeEventListener('chatCompressionCompleted', compressionCompletedHandler);
             chatSyncService.removeEventListener('aiTypingStarted', aiTypingStartedHandler);
             chatSyncService.removeEventListener('aiTaskEnded', aiTaskEndedHandler);
             // Remove thinking/reasoning event listeners
@@ -8283,26 +8482,152 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                             <!-- Resume card: shown below greeting when there's a chat to resume (authenticated users only) -->
                             {#if resumeChatData}
-                                {@const ChevronRight = getLucideIcon('chevron-right')}
-                                <button 
-                                    class="resume-chat-card"
-                                    onclick={handleResumeLastChat}
-                                    type="button"
-                                >
-                                    {#if resumeChatIsCreditsError}
-                                        <!-- Credits-error layout: no category circle, show label + user message preview -->
-                                        <!-- Matches the draft-only-layout design used in Chat.svelte sidebar -->
-                                        <div class="resume-chat-content resume-chat-credits-content">
-                                            <span class="resume-chat-credits-label">{$text('chat.credits_needed')}</span>
-                                            {#if resumeChatUserMessagePreview}
-                                                <span class="resume-chat-credits-preview">{resumeChatUserMessagePreview.slice(0, 60)}</span>
+                                {#if isTallViewport && !resumeChatIsCreditsError}
+                                    <!-- Tall viewport (≥800px, e.g. iPad vertical, large monitors):
+                                         Large ChatEmbedPreview-style card with full category gradient background.
+                                         Matches the linked-chat card design used in the for-everyone chat. -->
+                                    {@const category = resumeChatCategory || 'general_knowledge'}
+                                    {@const gradientColors = getCategoryGradientColors(category)}
+                                    {@const iconName = getValidIconName(resumeChatIcon || '', category)}
+                                    {@const IconComponent = getLucideIcon(iconName)}
+                                    <button
+                                        bind:this={resumeLargeCardElement}
+                                        class="resume-chat-large-card"
+                                        class:hovering={isResumeLargeCardHovering}
+                                        style={getResumeLargeCardStyle(
+                                            gradientColors
+                                                ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})`
+                                                : 'background: var(--color-primary)',
+                                            gradientColors
+                                        )}
+                                        onclick={handleResumeLastChat}
+                                        onmouseenter={handleResumeLargeCardMouseEnter}
+                                        onmousemove={handleResumeLargeCardMouseMove}
+                                        onmouseleave={handleResumeLargeCardMouseLeave}
+                                        type="button"
+                                    >
+                                        <!-- Living gradient orbs — same technique as ChatHeader/DailyInspirationBanner -->
+                                        <div class="resume-large-orbs" aria-hidden="true">
+                                            <div class="resume-orb resume-orb-1"></div>
+                                            <div class="resume-orb resume-orb-2"></div>
+                                            <div class="resume-orb resume-orb-3"></div>
+                                        </div>
+                                        <!-- Large decorative icons at card edges (matching ChatEmbedPreview) -->
+                                        {#if IconComponent}
+                                            <div class="resume-large-deco resume-large-deco-left">
+                                                <IconComponent size={80} color="white" />
+                                            </div>
+                                            <div class="resume-large-deco resume-large-deco-right">
+                                                <IconComponent size={80} color="white" />
+                                            </div>
+                                        {/if}
+                                        <!-- Centered content: icon + title + summary -->
+                                        <div class="resume-large-content">
+                                            {#if IconComponent}
+                                                <div class="resume-large-icon">
+                                                    <IconComponent size={32} color="white" />
+                                                </div>
+                                            {/if}
+                                            <span class="resume-large-title">{resumeChatTitle || 'Untitled Chat'}</span>
+                                            {#if resumeChatSummary}
+                                                <p class="resume-large-summary">{resumeChatSummary}</p>
                                             {/if}
                                         </div>
-                                    {:else}
-                                        {@const category = resumeChatCategory || 'general_knowledge'}
-                                        {@const gradientColors = getCategoryGradientColors(category)}
-                                        {@const iconName = getValidIconName(resumeChatIcon || '', category)}
-                                        {@const IconComponent = getLucideIcon(iconName)}
+                                    </button>
+                                {:else}
+                                    <!-- Compact card: short screens or credits-error state -->
+                                    {@const ChevronRight = getLucideIcon('chevron-right')}
+                                    <button 
+                                        class="resume-chat-card"
+                                        onclick={handleResumeLastChat}
+                                        type="button"
+                                    >
+                                        {#if resumeChatIsCreditsError}
+                                            <!-- Credits-error layout: no category circle, show label + user message preview -->
+                                            <!-- Matches the draft-only-layout design used in Chat.svelte sidebar -->
+                                            <div class="resume-chat-content resume-chat-credits-content">
+                                                <span class="resume-chat-credits-label">{$text('chat.credits_needed')}</span>
+                                                {#if resumeChatUserMessagePreview}
+                                                    <span class="resume-chat-credits-preview">{resumeChatUserMessagePreview.slice(0, 60)}</span>
+                                                {/if}
+                                            </div>
+                                        {:else}
+                                            {@const category = resumeChatCategory || 'general_knowledge'}
+                                            {@const gradientColors = getCategoryGradientColors(category)}
+                                            {@const iconName = getValidIconName(resumeChatIcon || '', category)}
+                                            {@const IconComponent = getLucideIcon(iconName)}
+                                            <div 
+                                                class="resume-chat-category-circle"
+                                                style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
+                                            >
+                                                <div class="resume-chat-category-icon">
+                                                    <IconComponent size={16} color="white" />
+                                                </div>
+                                            </div>
+                                            <div class="resume-chat-content">
+                                                <span class="resume-chat-title">{resumeChatTitle || 'Untitled Chat'}</span>
+                                            </div>
+                                        {/if}
+                                        <div class="resume-chat-arrow">
+                                            <ChevronRight size={16} color="var(--color-grey-50)" />
+                                        </div>
+                                    </button>
+                                {/if}
+                            <!-- Same card as above, for non-auth: link to for-everyone chat (same design as "last chat" card) -->
+                            {:else if !$authStore.isAuthenticated}
+                                {@const gradientColors = getCategoryGradientColors('openmates_official')}
+                                {@const iconName = getValidIconName('sparkles', 'openmates_official')}
+                                {@const IconComponent = getLucideIcon(iconName)}
+                                {#if isTallViewport}
+                                    <!-- Tall viewport: large gradient card matching ChatEmbedPreview style -->
+                                    <button
+                                        bind:this={resumeLargeCardElement}
+                                        class="resume-chat-large-card"
+                                        class:hovering={isResumeLargeCardHovering}
+                                        style={getResumeLargeCardStyle(
+                                            gradientColors
+                                                ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})`
+                                                : 'background: var(--color-primary)',
+                                            gradientColors
+                                        )}
+                                        onclick={handleOpenIntroChat}
+                                        onmouseenter={handleResumeLargeCardMouseEnter}
+                                        onmousemove={handleResumeLargeCardMouseMove}
+                                        onmouseleave={handleResumeLargeCardMouseLeave}
+                                        type="button"
+                                    >
+                                        <!-- Living gradient orbs -->
+                                        <div class="resume-large-orbs" aria-hidden="true">
+                                            <div class="resume-orb resume-orb-1"></div>
+                                            <div class="resume-orb resume-orb-2"></div>
+                                            <div class="resume-orb resume-orb-3"></div>
+                                        </div>
+                                        {#if IconComponent}
+                                            <div class="resume-large-deco resume-large-deco-left">
+                                                <IconComponent size={80} color="white" />
+                                            </div>
+                                            <div class="resume-large-deco resume-large-deco-right">
+                                                <IconComponent size={80} color="white" />
+                                            </div>
+                                        {/if}
+                                        <div class="resume-large-content">
+                                            {#if IconComponent}
+                                                <div class="resume-large-icon">
+                                                    <IconComponent size={32} color="white" />
+                                                </div>
+                                            {/if}
+                                            <span class="resume-large-title">{$text('demo_chats.for_everyone.title')}</span>
+                                            <p class="resume-large-summary">{$text('demo_chats.for_everyone.description')}</p>
+                                        </div>
+                                    </button>
+                                {:else}
+                                    <!-- Compact card: short screens -->
+                                    {@const ChevronRight = getLucideIcon('chevron-right')}
+                                    <button 
+                                        class="resume-chat-card"
+                                        onclick={handleOpenIntroChat}
+                                        type="button"
+                                    >
                                         <div 
                                             class="resume-chat-category-circle"
                                             style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
@@ -8312,39 +8637,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             </div>
                                         </div>
                                         <div class="resume-chat-content">
-                                            <span class="resume-chat-title">{resumeChatTitle || 'Untitled Chat'}</span>
+                                            <span class="resume-chat-title">{$text('demo_chats.for_everyone.title')}</span>
                                         </div>
-                                    {/if}
-                                    <div class="resume-chat-arrow">
-                                        <ChevronRight size={16} color="var(--color-grey-50)" />
-                                    </div>
-                                </button>
-                            <!-- Same card as above, for non-auth: link to for-everyone chat (same design as "last chat" card) -->
-                            {:else if !$authStore.isAuthenticated}
-                                {@const gradientColors = getCategoryGradientColors('openmates_official')}
-                                {@const iconName = getValidIconName('sparkles', 'openmates_official')}
-                                {@const IconComponent = getLucideIcon(iconName)}
-                                {@const ChevronRight = getLucideIcon('chevron-right')}
-                                <button 
-                                    class="resume-chat-card"
-                                    onclick={handleOpenIntroChat}
-                                    type="button"
-                                >
-                                    <div 
-                                        class="resume-chat-category-circle"
-                                        style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
-                                    >
-                                        <div class="resume-chat-category-icon">
-                                            <IconComponent size={16} color="white" />
+                                        <div class="resume-chat-arrow">
+                                            <ChevronRight size={16} color="var(--color-grey-50)" />
                                         </div>
-                                    </div>
-                                    <div class="resume-chat-content">
-                                        <span class="resume-chat-title">{$text('demo_chats.for_everyone.title')}</span>
-                                    </div>
-                                    <div class="resume-chat-arrow">
-                                        <ChevronRight size={16} color="var(--color-grey-50)" />
-                                    </div>
-                                </button>
+                                    </button>
+                                {/if}
                             {/if}
                         </div>
                     {/if}
@@ -8356,8 +8655,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          currentChatId={currentChat?.chat_id}
                          {processingPhase}
                          {thinkingContentByTask}
-                         {settingsMemoriesSuggestions}
-                         {rejectedSuggestionHashes}
                          chatTitle={activeChatDecryptedTitle}
                          chatCategory={activeChatDecryptedCategory}
                          chatIcon={activeChatDecryptedIcon}
@@ -8368,9 +8665,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          {isCreditsRestored}
                          isIncognito={!!currentChat?.is_incognito}
                          onResend={handleResendAfterCreditsRestored}
-                         onSuggestionAdded={handleSettingsMemorySuggestionAdded}
-                         onSuggestionRejected={handleSettingsMemorySuggestionRejected}
-                         onSuggestionOpenForCustomize={handleSettingsMemorySuggestionOpenForCustomize}
                          on:messagesChange={handleMessagesChange}
                          on:chatUpdated={handleChatUpdated}
                          on:scrollPositionUI={handleScrollPositionUI}
@@ -8683,6 +8977,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
                             results={getVideoSearchResults(embedFullscreenData.decodedContent?.results)}
                             embedId={embedFullscreenData.embedId}
+                            initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
                             onClose={handleCloseEmbedFullscreen}
                             {hasPreviousEmbed}
                             {hasNextEmbed}
@@ -8701,6 +8996,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
                             results={getPlaceSearchResults(embedFullscreenData.decodedContent?.results)}
                             embedId={embedFullscreenData.embedId}
+                            initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
                             onClose={handleCloseEmbedFullscreen}
                             {hasPreviousEmbed}
                             {hasNextEmbed}
@@ -9265,7 +9561,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     <div 
                         class="video-iframe-fullscreen-container" 
                         class:pip-mode={videoIframeState.isPipMode}
+                        class:pip-top-left={videoIframeState.isPipMode && pipCorner === 'top-left'}
+                        class:pip-top-right={videoIframeState.isPipMode && pipCorner === 'top-right'}
+                        class:pip-bottom-left={videoIframeState.isPipMode && pipCorner === 'bottom-left'}
+                        class:pip-bottom-right={videoIframeState.isPipMode && pipCorner === 'bottom-right'}
                         class:fade-out={videoIframeState.isClosing}
+                        style={videoIframeContainerInlineStyle}
                     >
                         <VideoIframe
                             videoId={videoIframeState.videoId}
@@ -9273,6 +9574,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             embedUrl={videoIframeState.embedUrl}
                             isPipMode={videoIframeState.isPipMode}
                             onPipOverlayClick={handlePipOverlayClick}
+                            onMoveToCorner={handleMovePipToCorner}
                         />
                     </div>
                 {/await}
@@ -9860,6 +10162,250 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         opacity: 0.5;
     }
 
+    /* ===========================================
+       Large gradient card — tall viewports (≥800px)
+       Matches the ChatEmbedPreview design used in the
+       for-everyone chat's linked-chat cards.
+       =========================================== */
+
+    .resume-chat-large-card {
+        position: relative;
+        /* Desktop dimensions match ChatEmbedPreview */
+        width: 300px;
+        min-width: 300px;
+        max-width: 300px;
+        height: 200px;
+        min-height: 200px;
+        max-height: 200px;
+        border-radius: 30px;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+        border: none;
+        padding: 0;
+        margin-right: 0;
+        min-width: 0;
+        filter: none;
+        background-color: transparent;
+        scale: 1;
+        /* Re-enable pointer events (parent center-content has pointer-events: none) */
+        pointer-events: auto;
+        margin-top: 16px;
+        /* Shadow matching ChatEmbedPreview */
+        box-shadow:
+            0 8px 24px rgba(0, 0, 0, 0.16),
+            0 2px 6px rgba(0, 0, 0, 0.1);
+        transition:
+            transform 0.15s ease-out,
+            box-shadow 0.2s ease-out;
+    }
+
+    /* Override global button hover/active rules from styles/buttons.css */
+    .resume-chat-large-card:hover,
+    .resume-chat-large-card:active,
+    .resume-chat-large-card.hovering {
+        background-color: transparent;
+        filter: none;
+        scale: 1;
+    }
+
+    .resume-chat-large-card.hovering {
+        box-shadow:
+            0 4px 12px rgba(0, 0, 0, 0.12),
+            0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    /* CSS fallback hover (non-JS scenarios) */
+    .resume-chat-large-card:hover:not(.hovering) {
+        transform: scale(0.98);
+        box-shadow:
+            0 4px 12px rgba(0, 0, 0, 0.12),
+            0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    .resume-chat-large-card:active {
+        transform: scale(0.96) !important;
+        transition: transform 0.05s ease-out;
+    }
+
+    .resume-chat-large-card:focus {
+        outline: 2px solid rgba(255, 255, 255, 0.5);
+        outline-offset: 2px;
+    }
+
+    /* Centered content overlay */
+    .resume-large-content {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 16px 24px;
+        max-width: 260px;
+        width: 100%;
+    }
+
+    .resume-large-icon {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .resume-large-title {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        font-size: 16px;
+        font-weight: 700;
+        color: #ffffff;
+        text-align: center;
+        line-height: 1.3;
+        max-width: 100%;
+    }
+
+    /* Summary line below the title — matches ChatEmbedPreview card-summary */
+    .resume-large-summary {
+        margin: 2px 0 0;
+        font-size: 12px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.85);
+        line-height: 1.4;
+        text-align: center;
+        /* Clamp to 4 lines */
+        display: -webkit-box;
+        -webkit-line-clamp: 4;
+        line-clamp: 4;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    /* ── Living gradient orbs ──────────────────────────────────────────────────
+       Same technique as ChatHeader.svelte and DailyInspirationBanner.svelte.
+       The card is smaller (300×200px) so orbs are proportionally smaller too.
+       --orb-color-a / --orb-color-b are set by getResumeLargeCardStyle(). */
+
+    .resume-large-orbs {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        overflow: hidden;
+        border-radius: 30px; /* match card border-radius so orbs don't bleed */
+    }
+
+    .resume-orb {
+        position: absolute;
+        /* Orbs sized ~same as the card so they fill it generously */
+        width: 280px;
+        height: 240px;
+        background: radial-gradient(
+            ellipse at center,
+            var(--orb-color-b) 0%,
+            var(--orb-color-b) 40%,
+            transparent 85%
+        );
+        filter: blur(22px);
+        opacity: 0.55;
+        will-change: transform, border-radius;
+    }
+
+    .resume-orb-1 {
+        top: -60px;
+        left: -70px;
+        animation:
+            orbMorph1 11s ease-in-out infinite,
+            resumeOrbDrift1 19s ease-in-out infinite;
+    }
+
+    .resume-orb-2 {
+        bottom: -80px;
+        right: -80px;
+        width: 260px;
+        height: 220px;
+        animation:
+            orbMorph2 13s ease-in-out infinite,
+            resumeOrbDrift2 23s ease-in-out infinite;
+    }
+
+    .resume-orb-3 {
+        top: -10px;
+        left: 25%;
+        width: 200px;
+        height: 180px;
+        opacity: 0.38;
+        animation:
+            orbMorph3 17s ease-in-out infinite,
+            resumeOrbDrift3 29s ease-in-out infinite;
+    }
+
+    /* Orb morph uses shared orbMorph1/2/3 keyframes (animations.css).
+       Orb drift uses smaller resumeOrbDrift1/2/3 keyframes (animations.css). */
+    @media (prefers-reduced-motion: reduce) {
+        .resume-orb { animation: none !important; }
+    }
+
+    /* ── Large decorative icons at card corners ─────────────────────────────
+       Two-phase: decoEnter (one-shot) → decoFloat (16s circular orbit).
+       Smaller orbit radius than banners to suit the 300×200 card.
+       Right icon starts half a cycle ahead for opposing orbital phase.
+       All @keyframes in animations.css. */
+    .resume-large-deco {
+        position: absolute;
+        width: 80px;
+        height: 80px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1;
+        pointer-events: none;
+        /* Smaller orbit radius for the compact card */
+        --float-rx: 7px;
+        --float-ry: 8px;
+        --deco-target-opacity: 0.3;
+        animation:
+            decoEnter 0.6s ease-out 0.1s both,
+            decoFloat 16s linear 0.7s infinite;
+    }
+
+    .resume-large-deco-left {
+        left: -10px;
+        bottom: -8px;
+        --deco-rotate: -15deg;
+    }
+
+    .resume-large-deco-right {
+        right: -10px;
+        bottom: -8px;
+        --deco-rotate: 15deg;
+        /* Negative delay: start as if 8s have already elapsed (half-cycle offset).
+           Positive delay would freeze the icon for 8.7s then snap — use negative
+           to begin mid-orbit immediately with no wait or jump. */
+        animation-delay: 0.1s, -8s;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .resume-large-deco {
+            animation: decoEnter 0.6s ease-out 0.1s both !important;
+        }
+    }
+
+    /* Ensure Lucide SVGs inside deco elements render at the right size */
+    .resume-large-deco :global(svg) {
+        width: 80px !important;
+        height: 80px !important;
+    }
+
     
     /* Read-only indicator for shared chats */
     .read-only-indicator {
@@ -10349,7 +10895,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         top: 80px; /* Below header */
         left: 50%;
         transform: translateX(-50%);
-        width: calc(100% - 40px); /* Account for padding */
+        width: 100%;
         max-width: 780px;
         box-sizing: border-box;
         z-index: 100; /* Below fullscreen buttons but above chat content */
@@ -10383,7 +10929,33 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         max-width: 320px;
         z-index: 1000; /* Above everything in ActiveChat */
     }
-    
+
+    .video-iframe-fullscreen-container.pip-mode.pip-top-left {
+        top: 20px;
+        left: 20px;
+        right: auto;
+    }
+
+    .video-iframe-fullscreen-container.pip-mode.pip-top-right {
+        top: 20px;
+        left: auto;
+        right: 20px;
+    }
+
+    .video-iframe-fullscreen-container.pip-mode.pip-bottom-left {
+        top: auto;
+        bottom: 20px;
+        left: 20px;
+        right: auto;
+    }
+
+    .video-iframe-fullscreen-container.pip-mode.pip-bottom-right {
+        top: auto;
+        bottom: 20px;
+        left: auto;
+        right: 20px;
+    }
+
     /* Responsive PiP for small screens */
     @media (max-width: 480px) {
         .video-iframe-fullscreen-container.pip-mode {
@@ -10391,6 +10963,32 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             max-width: 240px;
             top: 10px;
             right: 10px;
+        }
+
+        .video-iframe-fullscreen-container.pip-mode.pip-top-left {
+            top: 10px;
+            left: 10px;
+            right: auto;
+        }
+
+        .video-iframe-fullscreen-container.pip-mode.pip-top-right {
+            top: 10px;
+            right: 10px;
+            left: auto;
+        }
+
+        .video-iframe-fullscreen-container.pip-mode.pip-bottom-left {
+            bottom: 10px;
+            left: 10px;
+            right: auto;
+            top: auto;
+        }
+
+        .video-iframe-fullscreen-container.pip-mode.pip-bottom-right {
+            bottom: 10px;
+            right: 10px;
+            left: auto;
+            top: auto;
         }
     }
 

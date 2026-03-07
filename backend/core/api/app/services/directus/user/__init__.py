@@ -3,7 +3,8 @@ from backend.core.api.app.services.directus.user.user_authentication import (
     login_user, logout_user, logout_all_sessions, refresh_token
 )
 from backend.core.api.app.services.directus.user.user_lookup import (
-    get_user_by_hashed_email, get_total_users_count, get_active_users_since, get_completed_signups_count
+    get_user_by_hashed_email, get_user_by_hashed_username, hash_username,
+    get_total_users_count, get_active_users_since, get_completed_signups_count
 )
 # Import new TFA functions from user_profile
 from backend.core.api.app.services.directus.user.user_profile import (
@@ -19,6 +20,8 @@ __all__ = [
     'logout_all_sessions',
     'refresh_token',
     'get_user_by_hashed_email',
+    'get_user_by_hashed_username',
+    'hash_username',
     'get_total_users_count',
     'get_active_users_since',
     'get_completed_signups_count',

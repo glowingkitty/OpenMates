@@ -86,6 +86,11 @@
     onBack?: () => void;
     subItem?: SubItem;       // When provided: banner shows sub-item identity
     settingsPage?: SettingsPage; // When provided: banner shows standard settings page
+    /**
+     * Optional callback for sub-item identity click (icon + name).
+     * Used to insert an @mention into MessageInput from the app-store header.
+     */
+    onSubItemMention?: () => void;
   }
 
   let {
@@ -97,7 +102,10 @@
     onBack,
     subItem,
     settingsPage,
+    onSubItemMention,
   }: Props = $props();
+
+  let isSubItemMentionClickable = $derived(!!subItem && !!onSubItemMention);
 
   // ─── Sub-item navigation (prev/next arrows) ───────────────────────────────
 
@@ -260,15 +268,19 @@
 
   <!-- ── Identity block: expanded = column (icon above name, centered);
           collapsed = row (icon + name, left-aligned) ── -->
-  <div
+  <button
+    type="button"
     class="identity-block"
     class:collapsed={collapseProgress > 0.5}
+    class:subitem-clickable={isSubItemMentionClickable}
+    disabled={!isSubItemMentionClickable}
     style="
       align-items: {collapseProgress > 0.5 ? 'center' : 'center'};
       flex-direction: {collapseProgress > 0.5 ? 'row' : 'column'};
       justify-content: {collapseProgress > 0.5 ? 'flex-start' : 'center'};
       padding: {collapseProgress > 0.5 ? '0 16px' : '0 16px 4px'};
     "
+    onclick={isSubItemMentionClickable ? onSubItemMention : undefined}
   >
     {#if settingsPage && settingsPageIcon}
       <!-- Standard settings sub-page: show a white mask icon on the gradient -->
@@ -341,7 +353,7 @@
         >{subItem.typeLabel}</span>
       {/if}
     </div>
-  </div>
+  </button>
 
   <!-- ── Collapsible details block — fades out on scroll ── -->
   <div
@@ -495,6 +507,8 @@
   /* ─── Identity block: column (expanded) ↔ row (collapsed) ───────────────── */
 
   .identity-block {
+    all: unset;
+    box-sizing: border-box;
     /* Layout direction, alignment and padding are driven by inline style above.
        flex + gap ensure icon and name are neatly spaced in both orientations. */
     display: flex;
@@ -503,6 +517,23 @@
     /* When expanded (column), this takes up the remaining height before details-block */
     flex: 0 0 auto;
     transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 100%;
+  }
+
+  .identity-block.subitem-clickable {
+    pointer-events: auto;
+    cursor: pointer;
+  }
+
+  .identity-block.subitem-clickable:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+  }
+
+  .identity-block.subitem-clickable:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.9);
+    outline-offset: 2px;
+    border-radius: 10px;
   }
 
   .app-icon-slot {
@@ -722,19 +753,41 @@
   /* ─── Mobile adjustments (≤730px) — matches ChatHeader ─────────────────── */
 
   @media (max-width: 730px) {
-    /* Expanded height is handled by the JS expandedHeight variable reading window.innerWidth.
-       No CSS override needed for the height itself since it is set via inline style.
-       We only need to scale down text sizes for the details block on mobile. */
+    /* Expanded height stays at 190px (set via JS). We tighten internal spacing
+       so the capability-count row remains visible within the fixed banner height. */
+
+    /* Constrain the icon to 40px on mobile (JS sets 50px via inline style) */
+    .app-icon-slot {
+      max-width: 40px !important;
+      max-height: 40px !important;
+      overflow: hidden;
+    }
 
     .app-description {
       font-size: 13px;
+      line-height: 1.2;
       -webkit-line-clamp: 2;
       line-clamp: 2;
     }
 
+    /* Tighten the details block so cap row has room */
     .details-block {
-      padding: 4px 16px 10px;
-      gap: 8px;
+      padding: 0 16px 8px;
+      gap: 5px;
+    }
+
+    /* Reduce gap between icon and name in the identity block */
+    .identity-block {
+      gap: 6px;
+    }
+
+    /* Tighten name/category stacking */
+    .name-category-block {
+      gap: 0;
+    }
+
+    .app-name {
+      line-height: 1.15;
     }
 
     .cap-icon {

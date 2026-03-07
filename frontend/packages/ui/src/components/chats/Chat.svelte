@@ -339,24 +339,24 @@
     // Decrypt icon if present
     if (chat.encrypted_icon) {
       try {
-        const decryptedIcon = await decryptWithChatKey(chat.encrypted_icon, chatKey);
+        const decryptedIcon = await decryptWithChatKey(chat.encrypted_icon, chatKey, { chatId: chat.chat_id, fieldName: 'encrypted_icon' });
         if (decryptedIcon) {
           result.icon = decryptedIcon;
         }
       } catch (error) {
-        console.error(`[Chat] Error decrypting icon for chat ${chat.chat_id}:`, error);
+        console.error(`[Chat] Error decrypting icon for chat ${chat.chat_id}: field=encrypted_icon`, error);
       }
     }
     
     // Decrypt category if present
     if (chat.encrypted_category) {
       try {
-        const decryptedCategory = await decryptWithChatKey(chat.encrypted_category, chatKey);
+        const decryptedCategory = await decryptWithChatKey(chat.encrypted_category, chatKey, { chatId: chat.chat_id, fieldName: 'encrypted_category' });
         if (decryptedCategory) {
           result.category = decryptedCategory;
         }
       } catch (error) {
-        console.error(`[Chat] Error decrypting category for chat ${chat.chat_id}:`, error);
+        console.error(`[Chat] Error decrypting category for chat ${chat.chat_id}: field=encrypted_category`, error);
       }
     }
     
@@ -639,7 +639,7 @@
             draftTextContent = '';
           }
         } catch (error) {
-          console.error('[Chat] Error decrypting draft content:', error);
+          console.error(`[Chat] Error decrypting draft content: chat_id=${currentChat.chat_id} field=encrypted_draft_md`, error);
           draftTextContent = '';
         }
       } else {
@@ -1449,7 +1449,7 @@
             return;
           }
         } else {
-          console.error('[Chat] Cannot hide chat: failed to decrypt chat key from encrypted_chat_key');
+          console.error(`[Chat] Cannot hide chat: failed to decrypt chat key from encrypted_chat_key: chat_id=${chatIdToHide} field=encrypted_chat_key`);
           notificationStore.error('Failed to hide chat. Could not decrypt chat key.');
           return;
         }

@@ -164,19 +164,42 @@
   // ─── Derived state ─────────────────────────────────────────────────────────
 
   /** Gradient background style for the banner. Incognito gets a fixed dark privacy gradient;
-   *  loading/credits-error gets the primary gradient; loaded state uses the category gradient. */
+   *  loading/credits-error gets the primary gradient; loaded state uses the category gradient.
+   *
+   *  Also emits --orb-color-a (the "outside" background color) and --orb-color-b (the "inside"
+   *  orb color) as CSS custom properties consumed by the living gradient orb animation.
+   *  The orbs use radial-gradient(--orb-color-b → transparent) so they glow out of --orb-color-a,
+   *  matching the Creative Code Berlin aesthetic: soft light blooms with no hard edges. */
   let bannerStyle = $derived.by(() => {
     if (isIncognito) {
       // Fixed dark privacy-themed gradient for incognito chats
-      return 'background: linear-gradient(135deg, #1a1a2e 0%, #2d2d44 50%, #1e1e35 100%)';
+      return [
+        'background: linear-gradient(135deg, #1a1a2e 0%, #2d2d44 50%, #1e1e35 100%)',
+        '--orb-color-a: #1a1a2e',
+        '--orb-color-b: #6b6baa',
+      ].join(';');
     }
     if (isLoading || isCreditsError || !category) {
       // Processing state or credits error: use the primary gradient from theme.css
-      return 'background: var(--color-primary)';
+      return [
+        'background: var(--color-primary)',
+        '--orb-color-a: #4867cd',
+        '--orb-color-b: #a0beff',
+      ].join(';');
     }
     const colors = getCategoryGradientColors(category);
-    if (!colors) return 'background: var(--color-primary)';
-    return `background: linear-gradient(135deg, ${colors.start}, ${colors.end})`;
+    if (!colors) {
+      return [
+        'background: var(--color-primary)',
+        '--orb-color-a: #4867cd',
+        '--orb-color-b: #a0beff',
+      ].join(';');
+    }
+    return [
+      `background: linear-gradient(135deg, ${colors.start}, ${colors.end})`,
+      `--orb-color-a: ${colors.start}`,
+      `--orb-color-b: ${colors.end}`,
+    ].join(';');
   });
 
   /** Lucide icon component for the category, resolved from icon name + fallback. */
@@ -270,6 +293,21 @@
   class:is-loaded={isLoaded}
   style={bannerStyle}
 >
+  <!-- ── Living gradient orbs (Creative Code aesthetic) ──────────────────────
+       Three soft radial-gradient blobs that slowly morph shape and drift
+       around the banner. Each uses --orb-color-b as the orb center color and
+       fades to transparent at the edges, glowing against --orb-color-a (the
+       background). Heavy blur removes all hard edges — you only see the light.
+       Prime-number durations (11s / 13s / 17s morph, 19s / 23s / 29s drift)
+       ensure the three orbs never synchronise, keeping the motion organic and
+       non-repeating within any reasonable viewing window.
+       z-index:0 keeps them behind all content (z-index:1+ for content). -->
+  <div class="banner-orbs" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
   <!-- ── Processing state: AI icon + "Creating new chat ..." with shimmer ── -->
   {#if isLoading && !isCreditsError && !isIncognito}
     <div class="processing-content">
@@ -599,18 +637,20 @@
     -webkit-mask-position: center;
     mask-position: center;
     background-color: rgba(255, 255, 255, 0.15);
-    /* Override the decoIconEnter animation to end at a lower opacity */
-    animation: incognitoDecoEnter 0.6s ease-out 0.1s both;
+    /* Incognito icons settle at full opacity — override the shared default (0.4) */
+    --deco-target-opacity: 1;
+    /* Orbital float radius for 126px icons */
+    --float-rx: 10px;
+    --float-ry: 12px;
+    /* Two-phase: entrance → circular orbit loop (keyframes in animations.css) */
+    animation:
+      decoEnter 0.6s ease-out 0.1s both,
+      decoFloat 16s linear 0.7s infinite;
   }
 
-  @keyframes incognitoDecoEnter {
-    from {
-      opacity: 0;
-      transform: translateY(50px) rotate(var(--deco-rotate, 0deg));
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) rotate(var(--deco-rotate, 0deg));
+  @media (prefers-reduced-motion: reduce) {
+    .incognito-deco-icon {
+      animation: decoEnter 0.6s ease-out 0.1s both !important;
     }
   }
 
@@ -625,43 +665,38 @@
     justify-content: center;
     z-index: 1;
     pointer-events: none;
-    /* Entrance animation: fade up from +50px below to actual position */
-    animation: decoIconEnter 0.6s ease-out 0.1s both;
+    /* Orbital float radius for 126px banner icons */
+    --float-rx: 10px;
+    --float-ry: 12px;
+    /* Two-phase: decoEnter (one-shot) → decoFloat (circular orbit, infinite).
+       Keyframes defined in animations.css (shared across all three banner components). */
+    animation:
+      decoEnter 0.6s ease-out 0.1s both,
+      decoFloat 16s linear 0.7s infinite;
   }
 
   .deco-icon-left {
-    /* Anchored just outside the center content block (max-width 480px, half=240px).
-       Offset inward by 20px extra so the icon sits close to the content, not the edge. */
     left: calc(50% - 240px - 106px);
     bottom: -15px;
-    transform: rotate(-15deg);
+    --deco-rotate: -15deg;
+    /* Left icon starts at 0° of orbit (top) */
   }
 
   .deco-icon-right {
-    /* Mirror of deco-icon-left */
     right: calc(50% - 240px - 106px);
     bottom: -15px;
-    transform: rotate(15deg);
-  }
-
-  @keyframes decoIconEnter {
-    from {
-      opacity: 0;
-      transform: translateY(50px) rotate(var(--deco-rotate, 0deg));
-    }
-    to {
-      opacity: 0.4;
-      transform: translateY(0) rotate(var(--deco-rotate, 0deg));
-    }
-  }
-
-  /* Apply rotation via custom properties so the animation preserves it */
-  .deco-icon-left {
-    --deco-rotate: -15deg;
-  }
-
-  .deco-icon-right {
     --deco-rotate: 15deg;
+    /* Negative delay: start as if 8s have already elapsed (half-cycle offset).
+       Positive delay would freeze the icon for 8.7s then snap — use negative
+       to begin mid-orbit immediately with no wait or jump. */
+    animation-delay: 0.1s, -8s;
+  }
+
+  /* Reduced-motion: entrance only, no float */
+  @media (prefers-reduced-motion: reduce) {
+    .deco-icon {
+      animation: decoEnter 0.6s ease-out 0.1s both !important;
+    }
   }
 
   /* ─── Chat navigation arrows ─────────────────────────────────────────────
@@ -712,6 +747,99 @@
   .nav-arrow-right {
     right: 0;
     border-radius: 10px 0 0 10px !important; /* rounded on the left (inner) side */
+  }
+
+  /* ─── Living gradient orbs ──────────────────────────────────────────────────
+     Creative Code Berlin aesthetic: soft radial-gradient light blooms that
+     drift and morph slowly. The background is --orb-color-a; each orb is a
+     radial gradient from --orb-color-b (center, full) → transparent (edge).
+     mix-blend-mode: screen makes overlapping orbs blend additively (light on
+     light), which is exactly what produces the rich multi-color glow seen in
+     generative art backgrounds.
+
+     Architecture:
+       - .banner-orbs: full-bleed absolute container, z-index 0, no pointer events
+       - .orb: each orb is position:absolute, sized large (covers ~80% banner),
+         border-radius morphs between 4 different organic shapes on a loop,
+         translate drifts slowly to a different quadrant and back
+       - filter: blur(55px) on each orb removes all shape definition — only the
+         color light remains visible
+       - The three orbs use prime-number durations to prevent synchronisation
+
+     CSS custom properties set in bannerStyle (TypeScript):
+       --orb-color-a  background / outer color  (= gradient start color)
+       --orb-color-b  orb center / inner color   (= gradient end color)  */
+
+  .banner-orbs {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .orb {
+    position: absolute;
+    /* Large orbs — each covers roughly half the banner so the color fills
+       the space and the blur edge stays well inside the boundary */
+    width: 480px;
+    height: 420px;
+    /* Radial gradient: full --orb-color-b at center, holds solid until 40%,
+       then fades to transparent by 85%. This wide solid core is what makes
+       the color actually visible — the previous 0%→70% was too narrow. */
+    background: radial-gradient(
+      ellipse at center,
+      var(--orb-color-b) 0%,
+      var(--orb-color-b) 40%,
+      transparent 85%
+    );
+    /* No mix-blend-mode: screen — it cancels out against gradient backgrounds.
+       Normal blend at high opacity gives the rich, saturated color effect. */
+    /* Moderate blur — enough to erase hard edges but not so much it kills
+       the color intensity. 28px is the sweet spot for a 240px tall banner. */
+    filter: blur(28px);
+    opacity: 0.55;
+    will-change: transform, border-radius;
+  }
+
+  /* Orb 1 — left-center area
+     Morph: 11s   Drift: 19s   (prime → never sync with others) */
+  .orb-1 {
+    top: -80px;
+    left: -100px;
+    animation:
+      orbMorph1 11s ease-in-out infinite,
+      orbDrift1 19s ease-in-out infinite;
+  }
+
+  /* Orb 2 — right-bottom area */
+  .orb-2 {
+    bottom: -120px;
+    right: -120px;
+    width: 460px;
+    height: 400px;
+    animation:
+      orbMorph2 13s ease-in-out infinite,
+      orbDrift2 23s ease-in-out infinite;
+  }
+
+  /* Orb 3 — center roamer, slightly smaller and more transparent
+     so it blends the two main orbs rather than dominating */
+  .orb-3 {
+    top: -20px;
+    left: 25%;
+    width: 340px;
+    height: 300px;
+    opacity: 0.38;
+    animation:
+      orbMorph3 17s ease-in-out infinite,
+      orbDrift3 29s ease-in-out infinite;
+  }
+
+  /* Orb morph + drift @keyframes are in animations.css (shared globally).
+     Reduced-motion: stop all orb animations, keep as static glows. */
+  @media (prefers-reduced-motion: reduce) {
+    .orb { animation: none !important; }
   }
 
   /* ─── Mobile adjustments (≤730px) ───────────────────────────────────────── */

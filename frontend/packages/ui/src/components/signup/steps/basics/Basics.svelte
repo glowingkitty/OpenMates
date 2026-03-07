@@ -58,6 +58,7 @@
     let showUsernameWarning = $state(false);
     let usernameError = $state('');
     let isUsernameValidationPending = $state(false);
+    let usernameAlreadyTaken = $state(false); // True when the server says the username is taken
 
     const RATE_LIMIT_DURATION = 120000; // 120 seconds in milliseconds
     let isRateLimited = $state(false);
@@ -644,10 +645,65 @@
         checkUsername(username);
     }
 
+    /**
+     * Debounced server-side availability check for the chosen username.
+     * Called after the local format validation passes, so we only hit the
+     * network when the input is already well-formed.
+     */
+    const debouncedCheckUsernameAvailability = debounce(async (value: string) => {
+        if (!value) return;
+
+        // Only check if format is valid (checkUsername sets usernameError on failure)
+        const formatOk = checkUsername(value);
+        if (!formatOk) {
+            isUsernameValidationPending = false;
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                getApiEndpoint(apiEndpoints.auth.check_username_valid),
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'Origin': window.location.origin,
+                    },
+                    body: JSON.stringify({ username: value }),
+                    credentials: 'include',
+                }
+            );
+
+            if (!response.ok) {
+                // Server error — fail silently to avoid blocking the user
+                console.warn('[Basics] Username availability check failed with HTTP', response.status);
+                isUsernameValidationPending = false;
+                return;
+            }
+
+            const data = await response.json();
+
+            if (!data.available) {
+                usernameAlreadyTaken = true;
+                usernameError = $text('signup.username_taken');
+                showUsernameWarning = true;
+            }
+            // If available, leave usernameError/usernameAlreadyTaken as-is from the
+            // format check (which already cleared them above).
+        } catch (err) {
+            console.warn('[Basics] Username availability check error:', err);
+            // Network error — do not block the user
+        } finally {
+            isUsernameValidationPending = false;
+        }
+    }, 600);
+
     // Helper function to check if form is valid using Svelte 5 runes
     let isFormValid = $derived(username && 
                      !usernameError &&
                      !isUsernameValidationPending &&
+                     !usernameAlreadyTaken && // Block submission if username is already taken
                      email && 
                      !emailError &&
                      !isEmailValidationPending &&
@@ -670,14 +726,22 @@
     });
 
     // Update reactive statements to include username validation using Svelte 5 runes
-    // Username validation runs immediately so warnings stay visible as long as input is invalid
+    // Username validation runs immediately (format) + debounced server uniqueness check.
     $effect(() => {
         if (!username) {
             usernameError = '';
             showUsernameWarning = false;
             isUsernameValidationPending = false;
+            usernameAlreadyTaken = false;
         } else {
-            validateUsernameFormat(username); // Immediate validation - no debounce delay
+            usernameAlreadyTaken = false; // Reset on every keystroke; re-checked by the debounced call
+            validateUsernameFormat(username); // Immediate format validation
+
+            // Trigger async uniqueness check after a short pause
+            if (!usernameError) {
+                isUsernameValidationPending = true;
+                debouncedCheckUsernameAvailability(username);
+            }
         }
     });
 

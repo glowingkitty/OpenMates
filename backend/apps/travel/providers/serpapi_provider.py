@@ -17,7 +17,6 @@ API docs: https://serpapi.com/google-flights-api
 """
 
 import logging
-import os
 import re
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 import httpx
@@ -31,6 +30,10 @@ from backend.apps.travel.providers.base_provider import (
     LegResult,
     SegmentResult,
 )
+from backend.shared.providers.serpapi import (
+    SERPAPI_BASE,
+    get_serpapi_key_async as _get_serpapi_key_async,
+)
 
 if TYPE_CHECKING:
     from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -40,8 +43,6 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-
-SERPAPI_BASE = "https://serpapi.com/search"
 
 # Regex to detect if a string is already an IATA code (2-4 uppercase letters)
 _IATA_CODE_RE = re.compile(r"^[A-Z]{2,4}$")
@@ -232,75 +233,6 @@ _CITY_IATA_FALLBACK: Dict[str, str] = {
     "santiago": "SCL", "medellin": "MDE", "quito": "UIO",
     "caracas": "CCS", "montevideo": "MVD",
 }
-
-
-# ---------------------------------------------------------------------------
-# Credential loading
-# ---------------------------------------------------------------------------
-
-# Vault path for the SerpAPI key (follows the standard provider path convention)
-SERPAPI_VAULT_PATH = "kv/data/providers/serpapi"
-SERPAPI_VAULT_KEY = "api_key"
-
-# Module-level cache so we only fetch from Vault once per process
-_serpapi_api_key_cache: Optional[str] = None
-
-
-async def _get_serpapi_key_async(
-    secrets_manager: Optional["SecretsManager"] = None,
-) -> Optional[str]:
-    """
-    Retrieve the SerpAPI key, preferring Vault (via SecretsManager) over env vars.
-
-    Falls back to the SECRET__SERPAPI__API_KEY environment variable only if
-    SecretsManager is not provided or Vault lookup fails. Caches the result
-    in-process so subsequent calls are instant.
-
-    Returns:
-        The API key string if found, None otherwise.
-    """
-    global _serpapi_api_key_cache
-
-    # Return cached key if available
-    if _serpapi_api_key_cache:
-        return _serpapi_api_key_cache
-
-    # 1. Try Vault via SecretsManager (preferred path)
-    if secrets_manager:
-        try:
-            key = await secrets_manager.get_secret(
-                secret_path=SERPAPI_VAULT_PATH,
-                secret_key=SERPAPI_VAULT_KEY,
-            )
-            if key and key.strip():
-                _serpapi_api_key_cache = key.strip()
-                logger.info("Successfully retrieved SerpAPI key from Vault")
-                return _serpapi_api_key_cache
-            else:
-                logger.warning(
-                    f"SerpAPI key not found in Vault at path '{SERPAPI_VAULT_PATH}' "
-                    f"with key '{SERPAPI_VAULT_KEY}'. Falling back to env var."
-                )
-        except Exception as e:
-            logger.warning(
-                f"Failed to retrieve SerpAPI key from Vault: {e}. "
-                "Falling back to env var."
-            )
-
-    # 2. Fallback to environment variable
-    env_key = os.getenv("SECRET__SERPAPI__API_KEY")
-    if env_key and env_key.strip() and env_key.strip() != "IMPORTED_TO_VAULT":
-        _serpapi_api_key_cache = env_key.strip()
-        logger.debug("Retrieved SerpAPI key from environment variable")
-        return _serpapi_api_key_cache
-
-    logger.error(
-        "SerpAPI key not found in Vault or environment variables. "
-        "Ensure the key is stored in Vault at 'kv/data/providers/serpapi' "
-        "with key 'api_key', or set SECRET__SERPAPI__API_KEY in .env. "
-        "Get a key from: https://serpapi.com/manage-api-key"
-    )
-    return None
 
 
 # ---------------------------------------------------------------------------

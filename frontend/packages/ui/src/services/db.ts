@@ -32,6 +32,7 @@ import * as chatKeyManagementOps from "./db/chatKeyManagement";
 import * as messageOps from "./db/messageOperations";
 import * as chatCrudOps from "./db/chatCrudOperations";
 import * as offlineOps from "./db/offlineChangesAndUpdates";
+import { chatKeyManager } from "./encryption/ChatKeyManager";
 
 // Import logout state to prevent database re-initialization during logout
 import { get } from "svelte/store";
@@ -381,6 +382,13 @@ class ChatDatabase {
         if (typeof localStorage !== "undefined") {
           localStorage.setItem("openmates_chats_db_initialized", "true");
         }
+
+        // Wire ChatKeyManager's encrypted chat key fetcher for on-demand key loading.
+        // This enables chatKeyManager.getKey(chatId) to load keys from IDB when not in cache.
+        chatKeyManager.setEncryptedChatKeyFetcher(async (chatId: string) => {
+          const chat = await this.getChat(chatId);
+          return chat?.encrypted_chat_key || null;
+        });
 
         // Load chat keys from database into cache
         try {

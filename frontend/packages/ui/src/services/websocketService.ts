@@ -74,6 +74,7 @@ type KnownMessageTypes =
   | "chat_draft_updated" // Section 7.3 & draft_update_handler.py: Broadcast of draft change (includes new draft_v). Note: Does NOT include last_edited_overall_timestamp (only messages update that)
   | "chat_message_added" // Section 8 & (implicitly by message persistence logic): Broadcast of a new message (includes new message object, messages_v, last_edited_overall_timestamp)
   | "chat_deleted" // delete_chat_handler.py: Broadcast that a chat was deleted (client should remove from local store)
+  | "chat_pinned_updated" // update_chat_pinned_handler.py: Broadcast of pin/unpin change (cross-device sync)
   | "offline_sync_complete" // offline_sync_handler.py: Response to sync_offline_changes, indicating status of processed offline items
   | "request_app_settings_memories" // Server requests app settings/memories from client (zero-knowledge architecture - client decrypts and sends back)
   | "dismiss_app_settings_memories_dialog" // Server auto-rejects pending request (user sent new message without responding to dialog)

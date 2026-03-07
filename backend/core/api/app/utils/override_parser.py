@@ -59,7 +59,7 @@ class UserOverrides:
 # Each pattern captures the relevant parts in groups
 
 # @ai-model:{model_id} or @ai-model:{model_id}:{provider}
-# Examples: @ai-model:claude-opus-4-5, @ai-model:gpt-5.2:openrouter
+# Examples: @ai-model:claude-opus-4-5, @ai-model:gpt-5.4:openrouter
 _MODEL_PATTERN = re.compile(
     r'@ai-model:([a-zA-Z0-9._-]+)(?::([a-zA-Z0-9_-]+))?',
     re.IGNORECASE
@@ -257,11 +257,11 @@ def parse_overrides_from_messages(
 
     Example:
         >>> messages = [
-        ...     {"role": "user", "content": "Hello @ai-model:gpt-5.2"}
+        ...     {"role": "user", "content": "Hello @ai-model:gpt-5.4"}
         ... ]
         >>> overrides, cleaned_messages = parse_overrides_from_messages(messages)
         >>> overrides.model_id
-        'gpt-5.2'
+        'gpt-5.4'
         >>> cleaned_messages[0]["content"]
         'Hello'
     """

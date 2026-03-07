@@ -38,9 +38,21 @@
      *  null if the ref index was empty when the message was parsed.  Always
      *  falls back to a live lookup via embedStore.refIndexVersion. */
     appId?: string | null;
+    /**
+     * For code embeds: the first line to highlight when the fullscreen opens
+     * (1-indexed). Parsed from the #L42 or #L10-L20 suffix in embed: links.
+     * null means no line highlighting.
+     */
+    focusLineStart?: number | null;
+    /**
+     * For code embeds: the last line to highlight (1-indexed, inclusive).
+     * Equal to focusLineStart for single-line references.
+     * null when focusLineStart is null.
+     */
+    focusLineEnd?: number | null;
   }
 
-  let { embedRef, embedId = null, displayText, appId = null }: Props = $props();
+  let { embedRef, embedId = null, displayText, appId = null, focusLineStart = null, focusLineEnd = null }: Props = $props();
 
   // Reactively resolve the effective appId.
   //
@@ -118,24 +130,8 @@
       return;
     }
 
-    // If this embed is a child embed (e.g. a single flight result of type "connection"),
-    // navigate to the parent "app-skill-use" embed but also pass the child embed_id so
-    // the fullscreen can auto-focus that specific result.
-    let targetEmbedId = resolvedEmbedId;
-    let focusChildEmbedId: string | undefined;
-    try {
-      const rawEntry = await embedStore.getRawEntry(`embed:${resolvedEmbedId}`);
-      if (rawEntry?.parent_embed_id) {
-        targetEmbedId = rawEntry.parent_embed_id;
-        focusChildEmbedId = resolvedEmbedId;
-        console.debug(
-          `[EmbedInlineLink] Child embed detected — opening parent ${targetEmbedId}, focusing child ${focusChildEmbedId}`,
-        );
-      }
-    } catch (err) {
-      // getRawEntry failed — proceed with child embed_id as target (may show "not available" error)
-      console.debug(`[EmbedInlineLink] getRawEntry failed, using child embed_id:`, err);
-    }
+    const { targetEmbedId, focusChildEmbedId } =
+      await embedStore.resolveFullscreenTarget(resolvedEmbedId);
 
     console.debug(
       `[EmbedInlineLink] Opening fullscreen for embed_ref "${embedRef}" → ${targetEmbedId}` +
@@ -149,6 +145,10 @@
           embedType: 'app-skill-use', // default type; ActiveChat will look up the real type
           // Pass the child embed_id so the search fullscreen can auto-open the specific result
           focusChildEmbedId,
+          // Pass the line range so CodeEmbedFullscreen can highlight + scroll to the target lines
+          focusLineRange: focusLineStart != null
+            ? { start: focusLineStart, end: focusLineEnd ?? focusLineStart }
+            : undefined,
         },
         bubbles: true,
       }),

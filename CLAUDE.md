@@ -174,45 +174,57 @@ Do not keep iterating with minor variations of the same approach (e.g. adding mo
 
 ### Task Completion Summary (CRITICAL)
 
-**After completing every task (commit, lint, push — all done), end your final response with a structured summary.** Keep it concise — bullet points, not paragraphs. Use "N/A" for sections that don't apply.
+**After completing every task (commit, lint, push — all done), end your final response with a structured summary using the exact emoji format below.** Keep each section concise. Use "N/A" for sections that don't apply.
 
 ```
 ## Task Summary
 
-**Commit:** [abc1234](<commit-url>) (or "No commit" if nothing was committed)
+🏷️ Type: <Bug Fix | Feature | Refactor | Docs | Test>
 
-**Problems Identified:** <root cause, error messages, symptoms — or "N/A" for feature work>
+🔗 Commit: <short-sha> (or "No commit" if nothing was committed)
 
-**User Flow:**
-- Bug fix: 1. User does X → Y happens (expected: Z) / 2. Request reaches <service/endpoint> / 3. Fails at <file:line> because <root cause> / 4. Fix: <what was changed so the flow now works correctly>
-- Feature: 1. User does X / 2. <service/component> handles it by doing Y / 3. User sees/gets Z
+✨ Goal: <1–2 sentence description of what was done and why>
 
-**Changes:** <what changed and why, with file:line references>
+❌ Broken Flow (Before): *(Bug fixes only — omit for features)*
+1. User does X → Y happens (expected: Z)
+2. Request reaches <service/endpoint>
+3. Fails at <file:line> because <root cause>
 
-**Architecture Decisions:** <decision → reasoning → alternatives rejected and why — or "N/A">
+✅ Flow After:
+1. User does X
+2. <service/component> handles it by doing Y
+3. User sees/gets Z
 
-**Testing:** <what was tested, how, results>
+📝 Changes:
 
-**Risks:** <what could break, untested edge cases, things to monitor — or "Low risk">
+| File | Change | Why |
+|------|--------|-----|
+| `path/to/file.ts:123` | Short description | Reason |
 
-**Impact on Costs:** <only include when changes involve external API calls or services with usage-based pricing or request limits>
-- API(s) affected: <name of API/service>
-- Pricing model: <free tier with limits / pay-per-request / flat rate / etc.>
-- Request limits: <e.g., "500 requests/day free tier" or "10,000/month" — or "unlimited/flat rate">
-- Estimated usage: <how many requests per user action, background job frequency, etc.>
-- Cost risk: <e.g., "Low — well within free tier" / "Medium — could exceed free tier under heavy use" / "High — each request costs $X">
-- Mitigation: <caching strategy, rate limiting, fallback behavior if limit is hit — or "None needed">
-- If no external API calls or usage-limited services are involved: "N/A — no cost-impacting changes"
+🏛️ Architecture Decisions: *(omit if N/A)*
+- <decision> → <reasoning> → alternatives rejected: <why rejected>
+
+🧪 Testing: <what was tested, how, results>
+
+⚠️ Risks: <what could break, untested edge cases — or "Low risk">
+
+💸 Cost Impact: <N/A — no cost-impacting changes — OR:>
+- API(s) affected: <name>
+- Pricing model: <free tier / pay-per-request / flat rate>
+- Request limits: <e.g., "500 requests/day free tier">
+- Estimated usage: <requests per user action / job frequency>
+- Cost risk: <Low / Medium / High — with reasoning>
+- Mitigation: <caching, rate limiting, fallback — or "None needed">
 ```
 
-Rules: be honest about risks, be specific with file references, and always explain _why_ alternatives were rejected (not just list them). For bug fixes, the User Flow section must trace the full path from user action to failure point to fix — make it concrete enough that another developer can verify the fix is correct without reading the code. For the Impact on Costs section, always research the actual pricing/limits of any API you integrate — never guess from training data.
+Rules: use the emoji headers exactly as shown. For bug fixes, always include the "❌ Broken Flow (Before)" section. For features, omit it. The Changes table must use `file:line` references. Be honest about risks. Always explain _why_ alternatives were rejected (not just list them). For the Cost Impact section, research actual pricing — never guess from training data.
 
 ### Auto-Commit After Every Task (CRITICAL)
 
 - **ALWAYS commit and push to `dev` after completing a feature or bug fix** — do not wait for the user to ask.
 - Only add files you actually modified in the current session (never `git add .`).
 - Run the linter and fix all errors before committing.
-- Run the linter (`lint_changed.sh`) and fix all errors before committing — this covers TypeScript, Svelte, and ESLint checks. For significant routing, adapter, or Vite config changes, also run `pnpm build` in `frontend/apps/web_app/` to catch bundler-level errors.
+- Run the linter (`lint_changed.sh`) and fix all errors before committing — this covers TypeScript, Svelte, ESLint, and YAML syntax checks. For significant routing, adapter, or Vite config changes, also run `pnpm build` in `frontend/apps/web_app/` to catch bundler-level errors.
 - **When a commit resolves or attempts to fix a reported issue**, include the issue ID and a short anonymous description in the commit body (no PII — no emails, usernames, or user IDs). See `docs/claude/git-and-deployment.md` → "Issue-Linked Commits" for format.
 - See `docs/claude/git-and-deployment.md` for commit message format and full workflow.
 
@@ -327,9 +339,9 @@ See `docs/claude/backend-standards.md` → "Package and Dependency Management" a
 ### Issue Resolution
 
 - **After an issue is completed and the user confirms it is fixed**, delete the issue entry so it no longer appears in the list and storage is cleaned (Directus + S3). Use one of:
-  - **Server (preferred):** `docker exec api python /app/backend/scripts/inspect_issue.py <issue_id> --delete --yes`
+  - **Server (preferred):** `docker exec api python /app/backend/scripts/debug.py issue <issue_id> --delete --yes`
   - **Admin Debug API:** `DELETE /v1/admin/debug/issues/<issue_id>` with admin API key
-  - **Admin Debug CLI:** `docker exec api python /app/backend/scripts/admin_debug_cli.py issue-delete <issue_id>`
+  - **debug.py:** `docker exec api python /app/backend/scripts/debug.py issue --delete <issue_id>`
 
 ### Multiple Assistants (Concurrent Work)
 
@@ -422,19 +434,19 @@ Use the Read tool to load each matching file from `docs/claude/`. Do this BEFORE
 - The user reports a bug, error, or unexpected behavior
 - You need to read Docker logs or troubleshoot a service
 - The task involves investigating why something doesn't work
-- **You need to debug a production issue** (CRITICAL: use Admin Debug CLI, not local docker compose)
+- **You need to debug a production issue** (CRITICAL: use debug.py, not local docker compose)
 - A Vercel deployment failed or the frontend is broken after a push
 
 > **Default assumption:** All reported issues are on the **dev server**, reported by an **admin**, unless the user explicitly states otherwise.
 
-#### `docs/claude/inspection-scripts.md`
+#### `docs/claude/debugging.md` (also covers inspection)
 
 **MUST READ when ANY of these are true:**
 
 - You need to inspect server state (chats, users, issues, cache, AI requests)
 - You need to run diagnostic commands on the running services
 - The user asks you to check or look up data on the server
-- You need to debug production server state remotely (use Admin Debug CLI)
+- You need to debug production server state remotely (use debug.py)
 
 #### `docs/claude/git-and-deployment.md`
 
@@ -529,6 +541,9 @@ Use the Read tool to load each matching file from `docs/claude/`. Do this BEFORE
 
 # Frontend changes
 ./scripts/lint_changed.sh --ts --svelte --path frontend/packages/ui
+
+# i18n / YAML changes
+./scripts/lint_changed.sh --yml --path frontend/packages/ui/src/i18n
 
 # Mixed changes
 ./scripts/lint_changed.sh --py --ts --svelte --path backend --path frontend/

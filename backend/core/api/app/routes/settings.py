@@ -381,6 +381,19 @@ async def update_username(
     if not is_valid:
         raise HTTPException(status_code=400, detail=error_msg)
 
+    # Check username uniqueness server-wide (case-insensitive via SHA-256 hash).
+    # exclude_user_id ensures that keeping the same username is allowed (not a conflict).
+    hashed_username = directus_service.hash_username(new_username)
+    username_taken, _, _ = await directus_service.get_user_by_hashed_username(
+        hashed_username, exclude_user_id=user_id
+    )
+    if username_taken:
+        logger.info(f"Username change rejected for user {user_id}: username already taken")
+        raise HTTPException(
+            status_code=409,
+            detail="This username is already taken. Please choose another one.",
+        )
+
     try:
         # Encrypt the new username with the user's vault key
         encrypted_username, _ = await encryption_service.encrypt_with_user_key(
@@ -388,9 +401,14 @@ async def update_username(
             key_id=vault_key_id,
         )
 
-        # Persist to Directus (source of truth)
+        # Persist to Directus (source of truth) — also update hashed_username so that
+        # future uniqueness checks reflect the change immediately.
         success_directus = await directus_service.update_user(
-            user_id, {"encrypted_username": encrypted_username}
+            user_id,
+            {
+                "encrypted_username": encrypted_username,
+                "hashed_username": hashed_username,
+            },
         )
         if not success_directus:
             logger.error(f"Failed to update encrypted_username in Directus for user {user_id}")
@@ -2140,6 +2158,8 @@ class DeviceInfo(BaseModel):
     viewportWidth: int = Field(..., ge=0, le=10000, description="Viewport width in pixels")
     viewportHeight: int = Field(..., ge=0, le=10000, description="Viewport height in pixels")
     isTouchEnabled: bool = Field(..., description="Whether touch is enabled")
+    logicalCores: Optional[int] = Field(None, ge=0, le=1024, description="Number of logical CPU cores (navigator.hardwareConcurrency)")
+    deviceMemoryGiB: Optional[float] = Field(None, ge=0, le=1024, description="Approximate device RAM in GiB (navigator.deviceMemory)")
 
 
 class IssueReportRequest(BaseModel):
@@ -2339,10 +2359,14 @@ async def report_issue(
             # Format device info in a readable way for the email
             # Sanitize the user agent to prevent any potential injection
             sanitized_user_agent = escape(device_info.userAgent[:500])  # Limit length and escape
+            cpu_str = str(device_info.logicalCores) if device_info.logicalCores is not None else "Unknown"
+            ram_str = f"{device_info.deviceMemoryGiB} GiB" if device_info.deviceMemoryGiB is not None else "Unknown"
             device_info_str = (
                 f"Browser & OS: {sanitized_user_agent}\n"
                 f"Screen Size: {device_info.viewportWidth} × {device_info.viewportHeight} pixels\n"
-                f"Touch Support: {'Yes' if device_info.isTouchEnabled else 'No'}"
+                f"Touch Support: {'Yes' if device_info.isTouchEnabled else 'No'}\n"
+                f"CPU Cores: {cpu_str}\n"
+                f"RAM: {ram_str}"
             )
 
         # Process console logs if provided
@@ -2640,11 +2664,46 @@ class DeleteAccountPreviewResponse(BaseModel):
     auto_refunds: Dict[str, Any]  # Details about the refund (amount, invoices, etc.)
 
 
+# ============================================================================
+# Action verification models — email OTP for sensitive actions
+# Used by password-only users (no 2FA/passkey) who need to verify identity
+# for account deletion and other sensitive operations.
+# ============================================================================
+
+# Allowed action identifiers for email OTP verification
+ALLOWED_VERIFICATION_ACTIONS = {"delete_account"}
+# TTL for action verification codes: 10 minutes
+ACTION_VERIFICATION_CODE_TTL = 600
+
+
+class RequestActionVerificationRequest(BaseModel):
+    """Request model for sending an email OTP code for a sensitive action."""
+    action: str  # The action being verified (e.g. "delete_account")
+
+
+class RequestActionVerificationResponse(BaseModel):
+    """Response model for action verification request."""
+    success: bool
+    message: str
+
+
+class VerifyActionCodeRequest(BaseModel):
+    """Request model for verifying an email OTP code for a sensitive action."""
+    action: str  # The action being verified (e.g. "delete_account")
+    code: str    # The 6-digit verification code
+
+
+class VerifyActionCodeResponse(BaseModel):
+    """Response model for action verification code check."""
+    success: bool
+    message: str
+
+
 class DeleteAccountRequest(BaseModel):
     """Request model for account deletion"""
     confirm_data_deletion: bool  # User must confirm they understand data will be deleted
-    auth_method: str  # "passkey" or "2fa_otp"
-    auth_code: Optional[str] = None  # OTP code for 2FA, or credential_id for passkey
+    auth_method: str  # "passkey", "2fa_otp", or "email_otp"
+    auth_code: Optional[str] = None  # OTP code for 2FA/email, or credential_id for passkey
     email_encryption_key: Optional[str] = None  # Client-side email encryption key for sending refund emails during deletion
 
 
@@ -2808,6 +2867,114 @@ async def _calculate_delete_account_preview(
     )
 
 
+# ============================================================================
+# Action verification endpoints — email OTP for sensitive actions
+# For password-only users who have not set up 2FA or passkey.
+# ============================================================================
+
+@router.post("/request-action-verification", response_model=RequestActionVerificationResponse, include_in_schema=False)
+@limiter.limit("3/minute")
+async def request_action_verification(
+    request: Request,
+    body: RequestActionVerificationRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+    cache_service: CacheService = Depends(get_cache_service),
+):
+    """
+    Send a 6-digit verification code to the user's email for a sensitive action.
+    Only allowed for users who have password auth but no 2FA/passkey.
+    """
+    user_id = current_user.id
+
+    if body.action not in ALLOWED_VERIFICATION_ACTIONS:
+        raise HTTPException(status_code=400, detail=f"Unknown action: {body.action}")
+
+    # Get the user's decrypted email for sending the OTP
+    try:
+        user_profile = await directus_service.get_user_profile(user_id)
+        if not user_profile:
+            raise HTTPException(status_code=404, detail="User profile not found")
+
+        encrypted_email = user_profile.get("encrypted_email")
+        if not encrypted_email:
+            raise HTTPException(status_code=400, detail="No email on file")
+
+        vault_key_id = user_profile.get("vault_key_id", "")
+        decrypted_email = await encryption_service.decrypt_field(
+            encrypted_email, vault_key_id
+        )
+        if not decrypted_email:
+            raise HTTPException(status_code=500, detail="Could not decrypt email")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get user email for action verification: user={user_id}, error={e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve email")
+
+    # Get user language and darkmode preferences
+    language = user_profile.get("language", "en")
+    darkmode = user_profile.get("darkmode", False)
+
+    # Dispatch the Celery task to generate + cache + send the OTP
+    from backend.core.api.app.tasks.celery_config import app as celery_app
+    celery_app.send_task(
+        name="app.tasks.email_tasks.action_verification_email_task.generate_and_send_action_verification_email",
+        kwargs={
+            "user_id": user_id,
+            "email": decrypted_email,
+            "action": body.action,
+            "language": language,
+            "darkmode": darkmode,
+        },
+        queue="email",
+    )
+
+    logger.info(f"Action verification email dispatched for user {user_id}, action={body.action}")
+    return RequestActionVerificationResponse(success=True, message="Verification code sent")
+
+
+@router.post("/verify-action-code", response_model=VerifyActionCodeResponse, include_in_schema=False)
+@limiter.limit("5/minute")
+async def verify_action_code(
+    request: Request,
+    body: VerifyActionCodeRequest,
+    current_user: User = Depends(get_current_user),
+    cache_service: CacheService = Depends(get_cache_service),
+):
+    """
+    Verify a 6-digit email OTP code for a sensitive action.
+    On success, stores a verification token in cache that the action endpoint
+    can check to confirm the user verified their identity.
+    """
+    user_id = current_user.id
+
+    if body.action not in ALLOWED_VERIFICATION_ACTIONS:
+        raise HTTPException(status_code=400, detail=f"Unknown action: {body.action}")
+
+    cache_key = f"action_verification:{user_id}:{body.action}"
+    stored_code = await cache_service.get(cache_key)
+
+    if not stored_code:
+        raise HTTPException(status_code=400, detail="Code expired or not requested")
+
+    if str(stored_code) != str(body.code):
+        logger.warning(f"Invalid action verification code for user {user_id}, action={body.action}")
+        raise HTTPException(status_code=401, detail="Invalid verification code")
+
+    # Code matches — delete it so it can't be reused
+    await cache_service.delete(cache_key)
+
+    # Store a short-lived "verified" token so the action endpoint can trust
+    # that the user passed email OTP recently (valid for 5 minutes).
+    verified_key = f"action_verified:{user_id}:{body.action}"
+    await cache_service.set(verified_key, "verified", ttl=300)
+
+    logger.info(f"Action verification code accepted for user {user_id}, action={body.action}")
+    return VerifyActionCodeResponse(success=True, message="Code verified")
+
+
 @router.get("/delete-account-preview", response_model=DeleteAccountPreviewResponse, include_in_schema=False)
 @limiter.limit("10/minute")
 async def get_delete_account_preview(
@@ -2930,6 +3097,19 @@ async def delete_account(
                 raise HTTPException(status_code=401, detail="Invalid 2FA code")
             
             logger.info(f"2FA authentication verified for account deletion: user {user_id}")
+        elif delete_request.auth_method == "email_otp":
+            # Verify that the user completed email OTP verification recently.
+            # The /verify-action-code endpoint stores a short-lived token in cache
+            # when the code is successfully verified.
+            verified_key = f"action_verified:{user_id}:delete_account"
+            verified_status = await cache_service.get(verified_key)
+            if verified_status != "verified":
+                logger.warning(f"Email OTP not verified for account deletion: user {user_id}")
+                raise HTTPException(status_code=401, detail="Email verification required")
+
+            # Delete the verified token so it can't be reused
+            await cache_service.delete(verified_key)
+            logger.info(f"Email OTP authentication verified for account deletion: user {user_id}")
         else:
             raise HTTPException(status_code=400, detail="Invalid authentication method")
         

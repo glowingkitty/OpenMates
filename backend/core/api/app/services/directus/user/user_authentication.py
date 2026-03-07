@@ -3,7 +3,114 @@ import logging
 from typing import Dict, Any, Optional, Tuple
 import json
 
+from backend.core.api.app.services.directus.user.user_lookup import hash_username
+
 logger = logging.getLogger(__name__)
+
+# Maximum number of suffixes to try when resolving a username collision
+# during hashed_username backfill (e.g. "alice1", "alice2", ... "alice99")
+MAX_USERNAME_COLLISION_RETRIES = 99
+
+
+async def _backfill_hashed_username(
+    self,
+    user_id: str,
+    plaintext_username: str,
+    vault_key_id: str,
+    user_data: Dict[str, Any],
+) -> None:
+    """
+    One-time backfill for legacy users who have no hashed_username yet.
+
+    Called during login after the encrypted username has been decrypted.
+    If the computed hash already belongs to a different user (collision),
+    we append an incrementing numeric suffix ("alice1", "alice2", ...)
+    until an available username is found, then update both
+    encrypted_username and hashed_username in Directus.
+
+    This function is fire-and-forget: failures are logged but never
+    block the login flow.
+
+    Args:
+        self: DirectusService instance (bound method pattern)
+        user_id: The ID of the user being logged in
+        plaintext_username: The decrypted username
+        vault_key_id: The user's Vault transit key ID (for re-encryption)
+        user_data: Mutable login response dict — updated in-place if the
+                   username is changed due to a collision
+    """
+    try:
+        hashed = hash_username(plaintext_username)
+
+        # Check if the hash is already claimed by a different user
+        existing = await self.get_user_by_hashed_username(
+            hashed, exclude_user_id=user_id
+        )
+
+        if not existing:
+            # No collision — just store the hash
+            await self.update_user(user_id, {"hashed_username": hashed})
+            logger.info(
+                f"Backfilled hashed_username for user {user_id}"
+            )
+            return
+
+        # ── Collision: try username + numeric suffix ──────────────
+        logger.warning(
+            f"Username collision during backfill for user {user_id}; "
+            f"attempting auto-rename"
+        )
+
+        for suffix in range(1, MAX_USERNAME_COLLISION_RETRIES + 1):
+            candidate = f"{plaintext_username}{suffix}"
+
+            # Candidate must still pass format rules (max 20 chars)
+            if len(candidate) > 20:
+                logger.error(
+                    f"Cannot resolve username collision for user {user_id}: "
+                    f"all suffix candidates exceed 20-char limit"
+                )
+                return
+
+            candidate_hash = hash_username(candidate)
+            conflict = await self.get_user_by_hashed_username(
+                candidate_hash, exclude_user_id=user_id
+            )
+
+            if not conflict:
+                # Found an available candidate — re-encrypt and persist
+                encrypted_candidate, _ = (
+                    await self.encryption_service.encrypt_with_user_key(
+                        candidate, vault_key_id
+                    )
+                )
+                await self.update_user(user_id, {
+                    "encrypted_username": encrypted_candidate,
+                    "hashed_username": candidate_hash,
+                })
+
+                # Update the in-flight login response so the frontend
+                # sees the new username immediately
+                user_data["username"] = candidate
+
+                logger.info(
+                    f"Resolved username collision for user {user_id}: "
+                    f"auto-renamed to '{candidate}'"
+                )
+                return
+
+        # Exhausted all suffix attempts
+        logger.error(
+            f"Could not resolve username collision for user {user_id} "
+            f"after {MAX_USERNAME_COLLISION_RETRIES} attempts"
+        )
+
+    except Exception as e:
+        # Never block login because of a backfill failure
+        logger.error(
+            f"hashed_username backfill failed for user {user_id}: {e}",
+            exc_info=True,
+        )
 
 async def login_user(self, email: str, password: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
     """
@@ -69,6 +176,17 @@ async def login_user(self, email: str, password: str) -> Tuple[bool, Optional[Di
                         )
                         if decrypted_username:
                             user_data["username"] = decrypted_username
+
+                            # Backfill hashed_username for legacy users
+                            # who signed up before the uniqueness feature
+                            if not user_data.get("hashed_username"):
+                                await _backfill_hashed_username(
+                                    self,
+                                    user_id=user_data.get("id", ""),
+                                    plaintext_username=decrypted_username,
+                                    vault_key_id=vault_key_id,
+                                    user_data=user_data,
+                                )
                         else:
                             # Log error, but don't set default. Let it propagate.
                             logger.error("Username decryption failed!")
@@ -402,6 +520,17 @@ async def login_user_with_lookup_hash(self, hashed_email: str, lookup_hash: str)
                             )
                             if decrypted_username:
                                 user_data["username"] = decrypted_username
+
+                                # Backfill hashed_username for legacy users
+                                # who signed up before the uniqueness feature
+                                if not user_data.get("hashed_username"):
+                                    await _backfill_hashed_username(
+                                        self,
+                                        user_id=user_data.get("id", ""),
+                                        plaintext_username=decrypted_username,
+                                        vault_key_id=vault_key_id,
+                                        user_data=user_data,
+                                    )
                             else:
                                 logger.error("Username decryption failed!")
 

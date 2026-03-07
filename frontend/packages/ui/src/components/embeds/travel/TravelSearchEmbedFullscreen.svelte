@@ -172,11 +172,6 @@
   // All loaded connection results (from child embeds or legacy) — needed for navigation
   let connectionResultsForNav = $state<ConnectionResult[]>([]);
 
-  // Guard: prevent the auto-open $effect from firing more than once.
-  // Without this, closing the child overlay (selectedConnectionIndex → -1) would
-  // re-trigger the effect and immediately re-open it in an infinite loop.
-  let _autoOpenFired = $state(false);
-  
   // Local reactive state — synced from props via $effect below.
   let localQuery = $state<string>('');
   let localProvider = $state<string>('');
@@ -628,38 +623,8 @@
     }
   });
 
-  /**
-   * Auto-open the connection overlay for a specific child embed when the fullscreen
-   * is opened via an inline badge click (initialChildEmbedId is set).
-   *
-   * Fires at most once (_autoOpenFired guard). Without the guard, closing the
-   * child overlay sets selectedConnectionIndex back to -1, which re-triggers the
-   * effect and immediately re-opens the overlay — preventing the user from closing.
-   */
-  $effect(() => {
-    if (!initialChildEmbedId) return;
-    if (_autoOpenFired) return; // fire at most once per mount
-    if (headerConnectionResults.length === 0) return; // results not yet loaded
-
-    const idx = headerConnectionResults.findIndex(r => r.embed_id === initialChildEmbedId);
-    if (idx >= 0) {
-      console.debug(
-        '[TravelSearchEmbedFullscreen] Auto-opening connection overlay for initialChildEmbedId:',
-        initialChildEmbedId,
-        'at index',
-        idx,
-      );
-      _autoOpenFired = true;
-      handleConnectionFullscreen(headerConnectionResults[idx], headerConnectionResults);
-    } else {
-      console.warn(
-        '[TravelSearchEmbedFullscreen] initialChildEmbedId not found in loaded results:',
-        initialChildEmbedId,
-        'available embed_ids:',
-        headerConnectionResults.map(r => r.embed_id),
-      );
-    }
-  });
+  // Auto-open logic for initialChildEmbedId is handled by UnifiedEmbedFullscreen's
+  // onAutoOpenChild callback — no local $effect or _autoOpenFired guard needed.
   
   /**
    * Handle closing the entire search fullscreen.
@@ -693,6 +658,14 @@
   currentEmbedId={embedId}
   onEmbedDataUpdated={handleEmbedDataUpdated}
   onChildrenLoaded={handleChildrenLoaded}
+  {initialChildEmbedId}
+  onAutoOpenChild={(index, children) => {
+    const connections = children as ConnectionResult[];
+    headerConnectionResults = connections;
+    if (connections[index]) {
+      handleConnectionFullscreen(connections[index], connections);
+    }
+  }}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}

@@ -3,7 +3,7 @@ description_translation_key: travel.description
 icon_image: |
   travel.svg
 category: personal
-last_updated: "2025-11-12"
+last_updated: "2026-03-06"
 # Embed type definitions — single source of truth for frontend embed routing.
 embed_types:
   - id: search_connections
@@ -49,6 +49,17 @@ embed_types:
     icon: calendar
     gradient_var: "--color-app-travel"
     i18n_namespace: embeds.travel.price_calendar
+  - id: flight_details
+    category: app-skill-use
+    skill_id: get_flight
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    preview_component: travel/TravelFlightDetailsEmbedPreview.svelte
+    fullscreen_component: travel/TravelFlightDetailsEmbedFullscreen.svelte
+    icon: travel
+    gradient_var: "--color-app-travel"
+    i18n_namespace: embeds.travel.flight_details
 settings_and_memories:
   # Trips: Planned or past trips with destination and dates
   - id: trips
@@ -60,7 +71,6 @@ settings_and_memories:
     example_translation_keys:
       - "travel.trips.example_1"
       - "travel.trips.example_2"
-      - "travel.trips.example_3"
     example_entries:
       - destination: "travel.trips.example_1.destination"
         start_date: "2025-09-01"
@@ -102,7 +112,6 @@ settings_and_memories:
     example_translation_keys:
       - "travel.preferred_airlines.example_1"
       - "travel.preferred_airlines.example_2"
-      - "travel.preferred_airlines.example_3"
     example_entries:
       - name: "travel.preferred_airlines.example_1.name"
       - name: "travel.preferred_airlines.example_2.name"
@@ -125,7 +134,6 @@ settings_and_memories:
     example_translation_keys:
       - "travel.preferred_transport_methods.example_1"
       - "travel.preferred_transport_methods.example_2"
-      - "travel.preferred_transport_methods.example_3"
     example_entries:
       - method: "train"
       - method: "bike"
@@ -157,8 +165,6 @@ settings_and_memories:
     example_translation_keys:
       - "travel.preferred_activities.example_1"
       - "travel.preferred_activities.example_2"
-      - "travel.preferred_activities.example_3"
-      - "travel.preferred_activities.example_4"
     example_entries:
       - name: "travel.preferred_activities.example_1.name"
       - name: "travel.preferred_activities.example_2.name"
@@ -377,3 +383,49 @@ skills:
               - check_out_date
       required:
         - requests
+
+  # -----------------------------------------------------------------------
+  # Get Flight — Flightradar24 real flight track + enrichment metadata
+  # -----------------------------------------------------------------------
+  - id: get_flight
+    name_translation_key: app_skills.travel.get_flight
+    description_translation_key: app_skills.travel.get_flight.description
+    icon_image: travel.svg
+    stage: production
+    preprocessor_hint: >
+      Fetch the real GPS flight track and actual departure/landing times for a specific
+      completed/past flight. Use when the user asks to see how a flight actually went,
+      the real flight path on a map, or actual timing and runway info. Requires the IATA
+      flight number (e.g. 'LH2472') and the departure date. Costs 7 credits per lookup.
+    class_path: backend.apps.travel.skills.get_flight.GetFlightSkill
+    pricing:
+      per_unit:
+        credits: 7
+    providers:
+      - Flightradar24
+    tool_schema:
+      type: object
+      properties:
+        flight_number:
+          type: string
+          description: >
+            IATA flight number including the carrier code prefix
+            (e.g. 'LH2472', 'BA234', 'AF447'). Do NOT include spaces.
+        departure_date:
+          type: string
+          description: >
+            Departure date in YYYY-MM-DD format (e.g. '2026-03-05').
+            Must be a past/completed date — live tracking is not supported.
+        origin_iata:
+          type: string
+          description: >
+            Optional IATA code of the departure airport (e.g. 'MUC').
+            Used for disambiguation when a flight number has multiple legs.
+        destination_iata:
+          type: string
+          description: >
+            Optional IATA code of the destination airport (e.g. 'LHR').
+            Used for diversion detection.
+      required:
+        - flight_number
+        - departure_date

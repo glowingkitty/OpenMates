@@ -5,6 +5,9 @@ import random
 import string
 from typing import Dict, Any, Optional, Tuple
 
+# hash_username is a standalone helper — imported here to avoid circular imports
+from backend.core.api.app.services.directus.user.user_lookup import hash_username
+
 
 
 logger = logging.getLogger(__name__)
@@ -95,6 +98,11 @@ async def create_user(self,
         # Create a password for Directus by hashing the directus_email
         directus_password = await self.encryption_service.hash_email(directus_email)
         
+        # Compute a stable, case-insensitive hash of the username for uniqueness lookups.
+        # This mirrors the hashed_email approach: we never store plaintext usernames
+        # server-side, but we need a way to quickly check for conflicts.
+        username_hash = hash_username(username)
+
         # Encrypt username and credit balance with the user's key
         encrypted_username, key_version = await self.encryption_service.encrypt_with_user_key(username, vault_key_id)
         encrypted_credit_balance, _ = await self.encryption_service.encrypt_with_user_key("0", vault_key_id)
@@ -132,6 +140,7 @@ async def create_user(self,
             "language": language,
             "darkmode": darkmode,
             "hashed_email": hashed_email,  # Store the client-provided hashed email
+            "hashed_username": username_hash,  # Lowercase SHA-256 hash for server-wide uniqueness checks
             "user_email_salt": user_email_salt,  # Store the client-provided email salt
             "lookup_hashes": [lookup_hash],  # Store the client-provided lookup hash in an array
             "account_id": account_id  # Store the generated account ID

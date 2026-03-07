@@ -64,6 +64,61 @@ def persist_chat_title_task(self, chat_id: str, encrypted_title: str, title_v: i
             loop.close()
 
 
+async def _async_persist_chat_pinned_task(chat_id: str, pinned: bool, task_id: str):
+    """Async logic for persisting pinned status to Directus."""
+    logger.info(
+        f"Task _async_persist_chat_pinned_task (task_id: {task_id}): "
+        f"Persisting pinned={pinned} for chat {chat_id}"
+    )
+    directus_service = DirectusService()
+    await directus_service.ensure_auth_token()
+
+    fields_to_update = {"pinned": pinned}
+
+    try:
+        updated = await directus_service.chat.update_chat_fields_in_directus(
+            chat_id=chat_id,
+            fields_to_update=fields_to_update,
+        )
+        if updated:
+            logger.info(
+                f"Successfully persisted pinned={pinned} for chat {chat_id} (task_id: {task_id})"
+            )
+        else:
+            logger.error(
+                f"Failed to persist pinned for chat {chat_id} (task_id: {task_id}). "
+                f"Update operation returned false."
+            )
+    except Exception as e:
+        logger.error(
+            f"Error in _async_persist_chat_pinned_task for chat {chat_id} "
+            f"(task_id: {task_id}): {e}",
+            exc_info=True,
+        )
+
+
+@app.task(name="app.tasks.persistence_tasks.persist_chat_pinned", bind=True)
+def persist_chat_pinned_task(self, chat_id: str, pinned: bool):
+    """Celery sync wrapper for persisting chat pinned status to Directus."""
+    task_id = self.request.id if self and hasattr(self, "request") else "UNKNOWN_TASK_ID"
+    logger.info(f"SYNC_WRAPPER: persist_chat_pinned_task for chat {chat_id}, task_id: {task_id}")
+    loop = None
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(_async_persist_chat_pinned_task(chat_id, pinned, task_id))
+    except Exception as e:
+        logger.error(
+            f"SYNC_WRAPPER_ERROR: persist_chat_pinned_task for chat {chat_id}, "
+            f"task_id: {task_id}: {e}",
+            exc_info=True,
+        )
+        raise
+    finally:
+        if loop:
+            loop.close()
+
+
 async def _async_persist_chat_active_focus_id_task(
     chat_id: str,
     encrypted_active_focus_id: Optional[str],
@@ -2310,122 +2365,7 @@ async def _async_cleanup_uncompleted_signups_task(task_id: str):
         return False
 
 
-# ========================================
-# Settings/Memory Suggestion Rejection Persistence
-# ========================================
 
-async def _async_append_rejected_suggestion_hash(
-    chat_id: str,
-    rejection_hash: str,
-    hashed_user_id: str,
-    user_id: str,
-    task_id: str
-):
-    """
-    Async logic for appending a rejection hash to a chat's rejected_suggestion_hashes array.
-    This enables cross-device sync of rejected settings/memory suggestions.
-    
-    Uses atomic array append to avoid race conditions.
-    """
-    logger.info(
-        f"Task _async_append_rejected_suggestion_hash (task_id: {task_id}): "
-        f"Appending rejection hash to chat {chat_id}"
-    )
-
-    directus_service = DirectusService()
-    await directus_service.ensure_auth_token()
-
-    try:
-        # First, get the current rejected_suggestion_hashes array
-        chat_data = await directus_service.chat.get_chat(chat_id)
-        
-        if not chat_data:
-            logger.error(
-                f"Task _async_append_rejected_suggestion_hash (task_id: {task_id}): "
-                f"Chat {chat_id} not found in Directus"
-            )
-            return
-
-        # Get existing hashes or initialize empty array
-        existing_hashes = chat_data.get("rejected_suggestion_hashes") or []
-        
-        # Avoid duplicates
-        if rejection_hash in existing_hashes:
-            logger.debug(
-                f"Task _async_append_rejected_suggestion_hash (task_id: {task_id}): "
-                f"Hash already exists in chat {chat_id}, skipping"
-            )
-            return
-
-        # Append the new hash
-        updated_hashes = existing_hashes + [rejection_hash]
-        
-        # Update in Directus
-        now_ts = int(datetime.now(timezone.utc).timestamp())
-        update_result = await directus_service.chat.update_chat(
-            chat_id,
-            {
-                "rejected_suggestion_hashes": updated_hashes,
-                "updated_at": now_ts
-            }
-        )
-
-        if update_result:
-            logger.info(
-                f"Task _async_append_rejected_suggestion_hash (task_id: {task_id}): "
-                f"Successfully appended rejection hash to chat {chat_id} "
-                f"(total hashes: {len(updated_hashes)})"
-            )
-        else:
-            logger.error(
-                f"Task _async_append_rejected_suggestion_hash (task_id: {task_id}): "
-                f"Failed to update chat {chat_id} with rejection hash"
-            )
-
-    except Exception as e:
-        logger.error(
-            f"Error in _async_append_rejected_suggestion_hash for chat {chat_id} "
-            f"(task_id: {task_id}): {e}",
-            exc_info=True
-        )
-        raise
-
-
-@app.task(name="app.tasks.persistence_tasks.append_rejected_suggestion_hash", bind=True)
-def append_rejected_suggestion_hash(
-    self,
-    chat_id: str,
-    rejection_hash: str,
-    hashed_user_id: str,
-    user_id: str
-):
-    """
-    Celery task to append a rejection hash to a chat's rejected_suggestion_hashes array.
-    This enables zero-knowledge cross-device sync of rejected settings/memory suggestions.
-    """
-    task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
-    logger.info(
-        f"SYNC_WRAPPER: append_rejected_suggestion_hash for chat {chat_id}, "
-        f"task_id: {task_id}"
-    )
-    
-    loop = None
-    try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(_async_append_rejected_suggestion_hash(
-            chat_id, rejection_hash, hashed_user_id, user_id, task_id
-        ))
-    except Exception as e:
-        logger.error(
-            f"SYNC_WRAPPER_ERROR: append_rejected_suggestion_hash for chat {chat_id}, "
-            f"task_id: {task_id}: {e}",
-            exc_info=True
-        )
-        raise
-    finally:
-        if loop:
-            loop.close()
 
 
 # ==============================================================================
