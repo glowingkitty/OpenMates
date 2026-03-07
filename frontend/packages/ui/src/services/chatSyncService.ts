@@ -359,6 +359,13 @@ export class ChatSynchronizationService extends EventTarget {
         payload as { chat_id: string; unread_count: number },
       ),
     );
+    // Handle pinned status sync from other devices (cross-device pin/unpin)
+    webSocketService.on("chat_pinned_updated", (payload) =>
+      chatUpdateHandlers.handleChatPinnedUpdatedImpl(
+        this,
+        payload as { chat_id: string; pinned: boolean },
+      ),
+    );
     // Handle single message deletion (broadcast from server to all devices)
     webSocketService.on("message_deleted", (payload) => {
       const { chat_id, message_id, embed_ids_to_delete } =

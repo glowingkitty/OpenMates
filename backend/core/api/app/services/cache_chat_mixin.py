@@ -801,6 +801,33 @@ class ChatCacheMixin:
             logger.error(f"Error updating read status for {key}: {e}")
             return False
 
+    async def update_chat_pinned_status(self, user_id: str, chat_id: str, pinned: bool) -> bool:
+        """Updates the pinned status for a chat in the list_item_data cache.
+
+        Args:
+            user_id: The user ID
+            chat_id: The chat ID
+            pinned: Whether the chat should be pinned
+
+        Returns:
+            True if successful, False otherwise
+        """
+        client = await self.client
+        if not client:
+            return False
+        key = self._get_chat_list_item_data_key(user_id, chat_id)
+        try:
+            # Store as string "true"/"false" — Redis hset stores strings;
+            # CachedChatListItemData.pinned is Optional[bool] and Pydantic
+            # coerces "true"/"false" strings correctly on read.
+            await client.hset(key, "pinned", str(pinned).lower())
+            await client.expire(key, self.CHAT_LIST_ITEM_DATA_TTL)
+            logger.debug(f"Updated pinned status for chat {chat_id}: pinned = {pinned}")
+            return True
+        except Exception as e:
+            logger.error(f"Error updating pinned status for {key}: {e}")
+            return False
+
     # 4. user:{user_id}:chat:{chat_id}:messages:ai (List of VAULT-encrypted JSON Message strings for AI inference)
     # 5. user:{user_id}:chat:{chat_id}:messages:sync (List of CLIENT-encrypted JSON Message strings for client sync)
     

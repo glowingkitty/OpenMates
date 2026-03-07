@@ -64,6 +64,61 @@ def persist_chat_title_task(self, chat_id: str, encrypted_title: str, title_v: i
             loop.close()
 
 
+async def _async_persist_chat_pinned_task(chat_id: str, pinned: bool, task_id: str):
+    """Async logic for persisting pinned status to Directus."""
+    logger.info(
+        f"Task _async_persist_chat_pinned_task (task_id: {task_id}): "
+        f"Persisting pinned={pinned} for chat {chat_id}"
+    )
+    directus_service = DirectusService()
+    await directus_service.ensure_auth_token()
+
+    fields_to_update = {"pinned": pinned}
+
+    try:
+        updated = await directus_service.chat.update_chat_fields_in_directus(
+            chat_id=chat_id,
+            fields_to_update=fields_to_update,
+        )
+        if updated:
+            logger.info(
+                f"Successfully persisted pinned={pinned} for chat {chat_id} (task_id: {task_id})"
+            )
+        else:
+            logger.error(
+                f"Failed to persist pinned for chat {chat_id} (task_id: {task_id}). "
+                f"Update operation returned false."
+            )
+    except Exception as e:
+        logger.error(
+            f"Error in _async_persist_chat_pinned_task for chat {chat_id} "
+            f"(task_id: {task_id}): {e}",
+            exc_info=True,
+        )
+
+
+@app.task(name="app.tasks.persistence_tasks.persist_chat_pinned", bind=True)
+def persist_chat_pinned_task(self, chat_id: str, pinned: bool):
+    """Celery sync wrapper for persisting chat pinned status to Directus."""
+    task_id = self.request.id if self and hasattr(self, "request") else "UNKNOWN_TASK_ID"
+    logger.info(f"SYNC_WRAPPER: persist_chat_pinned_task for chat {chat_id}, task_id: {task_id}")
+    loop = None
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(_async_persist_chat_pinned_task(chat_id, pinned, task_id))
+    except Exception as e:
+        logger.error(
+            f"SYNC_WRAPPER_ERROR: persist_chat_pinned_task for chat {chat_id}, "
+            f"task_id: {task_id}: {e}",
+            exc_info=True,
+        )
+        raise
+    finally:
+        if loop:
+            loop.close()
+
+
 async def _async_persist_chat_active_focus_id_task(
     chat_id: str,
     encrypted_active_focus_id: Optional[str],

@@ -44,6 +44,7 @@ from .handlers.websocket_handlers.load_more_chats_handler import handle_load_mor
 from .handlers.websocket_handlers.inspiration_viewed_handler import handle_inspiration_viewed # Handler for daily inspiration view tracking
 from .handlers.websocket_handlers.inspiration_received_handler import handle_inspiration_received  # ACK handler for pending inspiration delivery
 from .handlers.websocket_handlers.sync_inspiration_chat_handler import handle_sync_inspiration_chat  # Handler for syncing inspiration-created chats across devices
+from .handlers.websocket_handlers.update_chat_pinned_handler import handle_update_chat_pinned  # Handler for pin/unpin chat (cross-device sync)
 
 logger = logging.getLogger(__name__)
 
@@ -2422,6 +2423,28 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                 )
+
+            elif message_type == "update_chat":
+                # Handle pin/unpin chat updates (currently the only field sent via update_chat).
+                # Persists to Redis cache + Directus, broadcasts to other devices.
+                if "pinned" in payload:
+                    logger.debug(
+                        f"Handling update_chat (pinned) from user {user_id[:8]}... "
+                        f"chat_id={payload.get('chat_id')}"
+                    )
+                    await handle_update_chat_pinned(
+                        manager=manager,
+                        cache_service=cache_service,
+                        directus_service=directus_service,
+                        user_id=user_id,
+                        device_fingerprint_hash=device_fingerprint_hash,
+                        payload=payload,
+                    )
+                else:
+                    logger.warning(
+                        f"Received update_chat with no recognized fields from "
+                        f"{user_id}/{device_fingerprint_hash}: {list(payload.keys())}"
+                    )
 
             else:
                 logger.warning(f"Received unknown message type from {user_id}/{device_fingerprint_hash}: {message_type}")

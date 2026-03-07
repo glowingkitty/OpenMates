@@ -1217,6 +1217,67 @@ export async function handleChatReadStatusUpdatedImpl(
 }
 
 /**
+ * Handle cross-device pinned status sync.
+ * When a user pins/unpins a chat on Device A, the server broadcasts
+ * `chat_pinned_updated` to all other devices so their chat lists
+ * reflect the updated pin state without requiring a tab reload.
+ */
+export async function handleChatPinnedUpdatedImpl(
+  _serviceInstance: ChatSynchronizationService,
+  payload: { chat_id: string; pinned: boolean },
+): Promise<void> {
+  if (!payload || !payload.chat_id) {
+    console.error(
+      "[ChatSyncService:ChatUpdates] Invalid chat_pinned_updated payload: missing chat_id",
+      payload,
+    );
+    return;
+  }
+
+  const { chat_id, pinned } = payload;
+  console.debug(
+    `[ChatSyncService:ChatUpdates] Received chat_pinned_updated for chat ${chat_id}: pinned=${pinned}`,
+  );
+
+  // 1. Update IndexedDB so pinned state survives page reloads
+  try {
+    const chat = await chatDB.getChat(chat_id);
+    if (chat) {
+      await chatDB.updateChat({ ...chat, pinned: !!pinned });
+    } else {
+      console.debug(
+        `[ChatSyncService:ChatUpdates] Chat ${chat_id} not found in IndexedDB for pinned update (may not be loaded yet)`,
+      );
+    }
+  } catch (err) {
+    console.error(
+      `[ChatSyncService:ChatUpdates] Failed to persist pinned for chat ${chat_id}:`,
+      err,
+    );
+  }
+
+  // 2. Dispatch LOCAL_CHAT_LIST_CHANGED_EVENT so Chats.svelte re-reads and re-sorts
+  //    the chat list reactively (pinned chats appear at top).
+  try {
+    const { LOCAL_CHAT_LIST_CHANGED_EVENT } = await import(
+      "./drafts/draftConstants"
+    );
+    const { chatListCache } = await import("./chatListCache");
+    chatListCache.markDirty();
+    window.dispatchEvent(
+      new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, {
+        detail: { chat_id, pinned: !!pinned },
+      }),
+    );
+  } catch (err) {
+    console.error(
+      `[ChatSyncService:ChatUpdates] Failed to dispatch pin update event for chat ${chat_id}:`,
+      err,
+    );
+  }
+}
+
+/**
  * Handle metadata for encryption - Dual-Phase Architecture
  * Server sends plaintext metadata (title, category) for client-side encryption
  */
