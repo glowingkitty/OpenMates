@@ -51,7 +51,6 @@ import SettingsRecoveryKey from "./security/SettingsRecoveryKey.svelte";
 import SettingsPricing from "./SettingsPricing.svelte";
 
 // Billing
-import SettingsUsage from "./SettingsUsage.svelte";
 import SettingsBilling from "./SettingsBilling.svelte";
 import SettingsBuyCredits from "./billing/SettingsBuyCredits.svelte";
 import SettingsBuyCreditsPayment from "./billing/SettingsBuyCreditsPayment.svelte";
@@ -126,8 +125,6 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "billing/auto-topup/low-balance": SettingsLowBalanceAutotopup,
   "billing/auto-topup/monthly": SettingsMonthlyAutotopup,
   "billing/invoices": SettingsInvoices,
-  // Usage
-  usage: SettingsUsage,
   // Chat
   chat: SettingsChat,
   "chat/notifications": SettingsChatNotifications,

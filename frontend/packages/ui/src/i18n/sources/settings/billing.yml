@@ -23,28 +23,28 @@ description:
   he: נהל את הקרדיטים, המנויים ואמצעי התשלום שלך
   verified_by_human: []
 billing:
-  context: Billing settings menu item
-  en: Billing
-  de: Abrechnung
-  zh: 账单
-  es: Facturación
-  fr: Facturation
-  pt: Cobrança
-  ru: Выставление счетов
-  ja: 請求
-  ko: 청구
-  it: Fatturazione
-  tr: Faturalama
-  vi: Thanh toán
-  id: Penagihan
-  pl: Rozliczenia
-  nl: Facturering
-  ar: الفوترة
-  hi: बिलिंग
-  th: การเรียกเก็บเงิน
-  cs: Fakturace
-  sv: Fakturering
-  he: חיוב
+  context: Billing settings menu item (now includes usage)
+  en: Billing & Usage
+  de: Abrechnung & Nutzung
+  zh: 账单与使用情况
+  es: Facturación y Uso
+  fr: Facturation et Utilisation
+  pt: Cobrança e Uso
+  ru: Выставление счетов и Использование
+  ja: 請求と使用状況
+  ko: 청구 및 사용량
+  it: Fatturazione e Utilizzo
+  tr: Faturalama ve Kullanım
+  vi: Thanh toán và Sử dụng
+  id: Penagihan dan Penggunaan
+  pl: Rozliczenia i Użycie
+  nl: Facturering en Gebruik
+  ar: الفوترة والاستخدام
+  hi: बिलिंग और उपयोग
+  th: การเรียกเก็บเงินและการใช้งาน
+  cs: Fakturace a Použití
+  sv: Fakturering och Användning
+  he: חיוב ושימוש
   verified_by_human: []
 title:
   context: Billing settings page title
