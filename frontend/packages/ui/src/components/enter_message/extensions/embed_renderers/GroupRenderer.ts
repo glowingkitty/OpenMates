@@ -46,6 +46,49 @@ import MapsLocationEmbedPreview from "../../../embeds/maps/MapsLocationEmbedPrev
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
 
 /**
+ * Safely extract a string[] from TOON-decoded content.
+ *
+ * TOON serialization can represent arrays in three ways:
+ *   1. A proper JS array   → `{ carriers: ["LH", "BA"] }`
+ *   2. TOON-flattened keys → `{ carriers_0: "LH", carriers_1: "BA" }`
+ *   3. A bare string       → `{ carriers: "LH" }` (single-element array collapsed)
+ *
+ * This helper normalises all three forms into a `string[]`.
+ * Pattern copied from TravelSearchEmbedFullscreen.svelte (lines 352-381).
+ */
+function extractToonArray(
+  content: Record<string, unknown> | null | undefined,
+  fieldName: string,
+  maxItems = 20,
+): string[] {
+  if (!content) return [];
+
+  const direct = content[fieldName];
+
+  // Case 1: already an array
+  if (Array.isArray(direct)) {
+    return direct.filter((v): v is string => typeof v === "string");
+  }
+
+  // Case 3: bare string (single-element array collapsed by TOON)
+  if (typeof direct === "string" && direct.length > 0) {
+    return [direct];
+  }
+
+  // Case 2: TOON-flattened indexed keys (fieldName_0, fieldName_1, …)
+  const result: string[] = [];
+  for (let i = 0; i < maxItems; i++) {
+    const val = content[`${fieldName}_${i}`];
+    if (typeof val === "string") {
+      result.push(val);
+    } else {
+      break;
+    }
+  }
+  return result;
+}
+
+/**
  * Type signature for individual embed mounter functions.
  * Each registered mounter mounts a Svelte preview component for a specific embed type.
  * The mounter is responsible for:
@@ -3185,9 +3228,15 @@ export class GroupRenderer implements EmbedRenderer {
     const arrival = decodedContent?.arrival || "";
     const duration = decodedContent?.duration || "";
     const stops = decodedContent?.stops ?? 0;
-    const carriers = decodedContent?.carriers || [];
+    // TOON serialization can flatten arrays into indexed keys or bare strings.
+    // Use extractToonArray() for safe extraction (handles all 3 TOON forms).
+    // See TravelSearchEmbedFullscreen.svelte lines 352-381 for the canonical pattern.
+    const carriers = extractToonArray(decodedContent, "carriers");
+    const ccSnake = extractToonArray(decodedContent, "carrier_codes");
     const carrierCodes =
-      decodedContent?.carrier_codes || decodedContent?.carrierCodes || [];
+      ccSnake.length > 0
+        ? ccSnake
+        : extractToonArray(decodedContent, "carrierCodes");
     const bookableSeats =
       decodedContent?.bookable_seats ?? decodedContent?.bookableSeats;
     const isCheapest =
@@ -3324,7 +3373,8 @@ export class GroupRenderer implements EmbedRenderer {
     const ratePerNight =
       decodedContent?.rate_per_night ?? decodedContent?.ratePerNight;
     const totalRate = decodedContent?.total_rate ?? decodedContent?.totalRate;
-    const amenities = decodedContent?.amenities || [];
+    // TOON serialization can flatten arrays — use safe extraction
+    const amenities = extractToonArray(decodedContent, "amenities");
     const isCheapest =
       decodedContent?.is_cheapest ?? decodedContent?.isCheapest ?? false;
     const ecoCertified =
