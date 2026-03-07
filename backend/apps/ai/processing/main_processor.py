@@ -1242,10 +1242,11 @@ async def handle_main_processing(
         "maps-search", "events-search",
         "travel-search_connections", "travel-search_stays",
         "shopping-search_products",
+        "web-read",  # Non-composite single-result skills also produce embed_refs
     }
     # Subset whose results contain quotable text (web/news search results with
     # title/description/snippets that the source-quote verification can check against):
-    _QUOTABLE_PRESELECTED_IDS = {"web-search", "news-search"}
+    _QUOTABLE_PRESELECTED_IDS = {"web-search", "news-search", "web-read"}
 
     # Determine whether embeds already exist in chat history (from prior turns).
     # Uses the same lightweight substring checks as the preprocessor's skill-forcing logic.
@@ -1260,11 +1261,13 @@ async def handle_main_processing(
         # Any TOON block with an embed_ref field indicates embed results from a previous turn
         if not _has_any_embeds_in_history and "embed_ref:" in _msg_content:
             _has_any_embeds_in_history = True
-        # Quotable embeds: web/news search results contain app_id: web or app_id: news
-        # with skill_id: search. We check for the embed_ref field alongside these markers.
+        # Quotable embeds: web/news search results and web.read results contain
+        # text-heavy content (title/description/snippets/markdown) worth quoting.
+        # We check for embed_ref alongside app_id/skill_id markers in TOON content.
         if not _has_quotable_embeds_in_history and "embed_ref:" in _msg_content and (
             ("app_id: web" in _msg_content and "skill_id: search" in _msg_content) or
-            ("app_id: news" in _msg_content and "skill_id: search" in _msg_content)
+            ("app_id: news" in _msg_content and "skill_id: search" in _msg_content) or
+            ("app_id: web" in _msg_content and "skill_id: read" in _msg_content)
         ):
             _has_quotable_embeds_in_history = True
         if _has_any_embeds_in_history and _has_quotable_embeds_in_history:
@@ -3297,12 +3300,16 @@ async def handle_main_processing(
                 #   2. The SAME slugs are baked into child embed TOON by update_embed_with_results
                 #      (which reads embed_ref from the result dict if already present)
                 # Generating slugs in two places would produce different random suffixes → ref mismatch.
-                _composite_skill_ids = {"search", "places_search", "events_search", "search_connections", "search_stays"}
                 # Skills whose results contain text-heavy content worth quoting verbatim.
                 # A single source_quote_hint is added at the group level (not per result)
                 # to remind the LLM it can use > [exact text](embed:ref) blockquote syntax.
-                _QUOTABLE_SKILL_IDS = {"search"}
-                if skill_id in _composite_skill_ids and not is_async_skill and not is_multimodal_result:
+                _QUOTABLE_SKILL_IDS = {"search", "read"}
+                # Generate embed_ref slugs for ALL non-async/non-multimodal skills (not just
+                # composite ones). Non-composite skills (e.g. web.read) produce a single result
+                # that also needs an embed_ref so the LLM can reference it and QUOTE_VERIFY
+                # can build its embed_ref→id map. Without this, the LLM invents refs like
+                # "embed:1" which fail verification and get stripped.
+                if not is_async_skill and not is_multimodal_result:
                     try:
                         from backend.core.api.app.services.embed_service import EmbedService as _EmbedSvc
                         _child_type = _EmbedSvc.get_child_embed_type(app_id, skill_id)
@@ -3366,8 +3373,8 @@ async def handle_main_processing(
                         ) if skill_id in _QUOTABLE_SKILL_IDS else None
 
                         # Embed ref display-text hint — added once per tool result group
-                        # for ALL composite skills.  Reinforces that the display text in
-                        # [text](embed:ref) links must be a human-readable description
+                        # for ALL embed-producing skills.  Reinforces that the display text
+                        # in [text](embed:ref) links must be a human-readable description
                         # (e.g. the result's title), NEVER the embed_ref slug or its suffix.
                         # Placed at the wrapper level (~40 tokens total, not per result).
                         _ref_hint = (
