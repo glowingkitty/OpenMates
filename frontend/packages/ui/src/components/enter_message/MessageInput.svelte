@@ -258,6 +258,10 @@
     // Location precision setting — read from personalDataStore (persisted, encrypted).
     // When impreciseByDefault=true, MapsView opens in area mode (privacy-first default).
     let locationSettingsState = $state({ impreciseByDefault: true });
+    // Performance: Cache PII store reads to avoid calling get() on every detection run.
+    // Updated via store subscriptions; detection reads from cache instead of stores.
+    let cachedPIISettings: PIIDetectionSettings | null = null;
+    let cachedPIIEnabledEntries: PersonalDataEntry[] | null = null;
     personalDataStore.locationSettings.subscribe((s) => { locationSettingsState = s; });
     // Performance: Subscribe to PII-related stores so runPIIDetectionImmediate() reads
     // from cache instead of calling get() on every invocation.
@@ -471,10 +475,6 @@
     // Paste events inject complete content (possibly containing PII) so detection should
     // not wait for a delimiter character.
     let piiPasteDetectionPending = false;
-    // Performance: Cache PII store reads to avoid calling get() on every detection run.
-    // Updated via store subscriptions; detection reads from cache instead of stores.
-    let cachedPIISettings: PIIDetectionSettings | null = null;
-    let cachedPIIEnabledEntries: PersonalDataEntry[] | null = null;
     
     // --- Heavy Parsing Debounce ---
     // handleUnifiedParsing and updateOriginalMarkdown are expensive:
