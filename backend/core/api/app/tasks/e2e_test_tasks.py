@@ -381,3 +381,55 @@ def process_test_result(
         "test_name": test_name,
         "test_file": test_file
     }
+
+
+@app.task(name='e2e_tests.run_daily_all_tests', base=E2ETestTask, bind=True)
+def run_daily_all_tests(self) -> Dict[str, Any]:
+    """
+    Celery Beat scheduled task: daily automated full test run.
+
+    Runs every day at 03:00 UTC (configurable via the Beat schedule in
+    celery_config.py). Shells out to scripts/run-tests-daily.sh which:
+      1. Checks for git commits in the last 24 hours (skips if none)
+      2. Runs the full test suite via run-tests.sh --all
+      3. Writes last-passed-tests.json and last-failed-tests.json
+      4. Archives a per-day JSON result (30-day rolling retention)
+      5. Dispatches a single summary email (Brevo/Mailjet, no SMTP needed)
+         with subject "All tests successful" or "Warning: X of Y tests failed!"
+
+    Persists across server restarts because Celery Beat reconstructs the schedule
+    from the in-memory beat_schedule dict defined in celery_config.py — no
+    external database or state file is required for this schedule to stay active.
+
+    Returns:
+        dict with keys: status, script_exit_code
+    """
+    import subprocess
+    import pathlib
+
+    project_root = pathlib.Path(__file__).resolve().parents[6]  # backend/core/api/app/tasks/ → project root
+    script_path = project_root / "scripts" / "run-tests-daily.sh"
+
+    if not script_path.exists():
+        logger.error(f"run-tests-daily.sh not found at {script_path}")
+        return {"status": "error", "reason": "script not found"}
+
+    logger.info(f"Launching daily test run: {script_path}")
+
+    try:
+        env = os.environ.copy()
+        result = subprocess.run(
+            [str(script_path)],
+            cwd=str(project_root),
+            env=env,
+            capture_output=False,  # inherit stdout/stderr so logs appear in Celery logs
+            check=False,           # don't raise on non-zero exit (test failures are expected)
+        )
+        logger.info(f"Daily test run completed with exit code {result.returncode}")
+        return {
+            "status": "completed" if result.returncode == 0 else "tests_failed",
+            "script_exit_code": result.returncode,
+        }
+    except Exception as e:
+        logger.error(f"Failed to launch run-tests-daily.sh: {e}", exc_info=True)
+        return {"status": "error", "reason": str(e)}
