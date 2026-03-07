@@ -244,3 +244,215 @@ export function stripEmbedLinks(text: string): string {
   EMBED_LINK_MARKDOWN_RE.lastIndex = 0;
   return text.replace(EMBED_LINK_MARKDOWN_RE, "$1");
 }
+
+// ──────────────────────────────────────────────────────────────
+// Markdown embed links inside HTML content
+// ──────────────────────────────────────────────────────────────
+
+/**
+ * Convert markdown-style `[text](embed:ref)` patterns found inside HTML
+ * content into placeholder `<span>` elements that can be hydrated later.
+ *
+ * This handles the case where the AI generates HTML documents containing
+ * embed link markdown syntax inside text nodes (e.g., inside blockquotes
+ * like `<blockquote>[quoted text](embed:mistertour.it-AaM)</blockquote>`).
+ * The `convertEmbedAnchorsToSpans` function only handles `<a href="embed:">` tags,
+ * but the AI may also write raw markdown link syntax inside HTML elements.
+ *
+ * Should be called BEFORE DOMPurify sanitization, alongside convertEmbedAnchorsToSpans.
+ *
+ * @param html - HTML string that may contain markdown embed links in text nodes
+ * @returns Modified HTML with embed links converted to placeholder spans
+ */
+export function convertMarkdownEmbedLinksInHtml(html: string): string {
+  if (!html) return html;
+
+  EMBED_LINK_MARKDOWN_RE.lastIndex = 0;
+  if (!EMBED_LINK_MARKDOWN_RE.test(html)) return html;
+
+  // Reset for actual replacement
+  EMBED_LINK_MARKDOWN_RE.lastIndex = 0;
+  return html.replace(
+    EMBED_LINK_MARKDOWN_RE,
+    (_match: string, displayText: string, embedRef: string) => {
+      return buildPlaceholderSpan(embedRef, displayText);
+    },
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+// URL resolution for export: replace embed: refs with real URLs
+// ──────────────────────────────────────────────────────────────
+
+/**
+ * Resolve an embed_ref to its source web URL by looking up the embed
+ * content via the embed store. Returns the URL or null if not resolvable.
+ *
+ * This function requires the embed to be already loaded and decrypted
+ * in the client-side embed store (IndexedDB).
+ *
+ * @param embedRef - The embed reference slug (e.g. "mistertour.it-AaM")
+ * @returns The source URL or null if not found
+ */
+export async function resolveEmbedRefToUrl(
+  embedRef: string,
+): Promise<string | null> {
+  try {
+    const embedId = embedStore.resolveByRef(embedRef);
+    if (!embedId) return null;
+
+    // Dynamic import to avoid circular dependency.
+    // Both resolveEmbed and decodeToonContent are in embedResolver.
+    const { resolveEmbed, decodeToonContent } = await import(
+      "../services/embedResolver"
+    );
+    const embedData = await resolveEmbed(embedId);
+    if (!embedData?.content) return null;
+
+    // Decode the TOON content to extract the url field
+    const decoded = await decodeToonContent(embedData.content);
+
+    if (decoded && typeof decoded === "object") {
+      const content = decoded as Record<string, unknown>;
+      // The 'url' field contains the actual web URL for search results
+      if (typeof content.url === "string" && content.url) {
+        return content.url;
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error(
+      "[embedLinkUtils] Failed to resolve embed ref to URL:",
+      embedRef,
+      error,
+    );
+    return null;
+  }
+}
+
+/**
+ * Replace all `[display text](embed:ref)` patterns in a text string with
+ * `display text (url)` format, resolving each embed ref to its actual web URL.
+ * If a ref cannot be resolved, just the display text is kept.
+ *
+ * Used for plain-text export (clipboard copy) where embed IDs are meaningless
+ * outside of OpenMates.
+ *
+ * @param text - Text string containing markdown embed link syntax
+ * @returns Promise resolving to text with embed refs replaced by URLs
+ */
+export async function replaceEmbedRefsWithUrls(
+  text: string,
+): Promise<string> {
+  if (!text) return text;
+
+  EMBED_LINK_MARKDOWN_RE.lastIndex = 0;
+  const matches: Array<{
+    fullMatch: string;
+    displayText: string;
+    embedRef: string;
+    index: number;
+  }> = [];
+
+  let match: RegExpExecArray | null;
+  while ((match = EMBED_LINK_MARKDOWN_RE.exec(text)) !== null) {
+    matches.push({
+      fullMatch: match[0],
+      displayText: match[1],
+      embedRef: match[2],
+      index: match.index,
+    });
+  }
+
+  if (matches.length === 0) return text;
+
+  // Resolve all embed refs in parallel
+  const urlResults = await Promise.all(
+    matches.map((m) => resolveEmbedRefToUrl(m.embedRef)),
+  );
+
+  // Replace from end to start so indices remain valid
+  let result = text;
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const m = matches[i];
+    const url = urlResults[i];
+    const replacement = url ? `${m.displayText} (${url})` : m.displayText;
+    result =
+      result.slice(0, m.index) +
+      replacement +
+      result.slice(m.index + m.fullMatch.length);
+  }
+
+  return result;
+}
+
+/**
+ * Replace all embed placeholder spans in an HTML string with proper `<a>` tags
+ * pointing to the resolved web URLs. Used for .docx export where the embed IDs
+ * are meaningless but actual hyperlinks are useful.
+ *
+ * Also handles any remaining markdown-style `[text](embed:ref)` patterns.
+ *
+ * @param html - HTML string with embed placeholder spans or markdown embed links
+ * @returns Promise resolving to HTML with embed refs replaced by real <a> tags
+ */
+export async function replaceEmbedRefsWithUrlsInHtml(
+  html: string,
+): Promise<string> {
+  if (!html) return html;
+
+  // Collect all embed refs from placeholder spans
+  const PLACEHOLDER_RE =
+    /<span\s+class="embed-inline-placeholder"\s+data-embed-ref="([^"]+)"\s+data-display-text="([^"]+)"[^>]*>[^<]*<\/span>/gi;
+
+  const refs = new Set<string>();
+
+  let m: RegExpExecArray | null;
+  while ((m = PLACEHOLDER_RE.exec(html)) !== null) {
+    refs.add(m[1]);
+  }
+
+  // Also collect markdown-style refs
+  EMBED_LINK_MARKDOWN_RE.lastIndex = 0;
+  while ((m = EMBED_LINK_MARKDOWN_RE.exec(html)) !== null) {
+    refs.add(m[2]);
+  }
+
+  if (refs.size === 0) return html;
+
+  // Resolve all unique refs in parallel
+  const refArray = Array.from(refs);
+  const urlResults = await Promise.all(
+    refArray.map((ref) => resolveEmbedRefToUrl(ref)),
+  );
+  const refToUrl = new Map<string, string | null>();
+  refArray.forEach((ref, i) => refToUrl.set(ref, urlResults[i]));
+
+  // Replace placeholder spans with <a> tags (or plain text if no URL)
+  let result = html.replace(
+    PLACEHOLDER_RE,
+    (_match: string, embedRef: string, displayText: string) => {
+      const url = refToUrl.get(embedRef);
+      if (url) {
+        return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(displayText)}</a>`;
+      }
+      return escapeHtml(displayText);
+    },
+  );
+
+  // Replace any remaining markdown-style embed links
+  EMBED_LINK_MARKDOWN_RE.lastIndex = 0;
+  result = result.replace(
+    EMBED_LINK_MARKDOWN_RE,
+    (_match: string, displayText: string, embedRef: string) => {
+      const url = refToUrl.get(embedRef);
+      if (url) {
+        return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(displayText)}</a>`;
+      }
+      return escapeHtml(displayText);
+    },
+  );
+
+  return result;
+}

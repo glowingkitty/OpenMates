@@ -53,7 +53,7 @@
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import type { PIIMapping } from '../../../types/chat';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
-  import { hydrateEmbedLinks } from '../../../utils/embedLinkUtils';
+  import { hydrateEmbedLinks, replaceEmbedRefsWithUrls, replaceEmbedRefsWithUrlsInHtml } from '../../../utils/embedLinkUtils';
   
   /**
    * Props for document embed fullscreen
@@ -366,7 +366,10 @@
       const contentToCopy = localPiiRevealed && hasPII
         ? restorePIIInText(htmlContent, piiMappings)
         : replacePIIOriginalsWithPlaceholders(htmlContent, piiMappings);
-      const plainText = stripHtmlTags(contentToCopy);
+      let plainText = stripHtmlTags(contentToCopy);
+      // Replace embed:ref references with actual web URLs so the copied text
+      // contains useful links instead of internal embed IDs.
+      plainText = await replaceEmbedRefsWithUrls(plainText);
       const clipResult = await copyToClipboard(plainText);
       if (!clipResult.success) throw new Error(clipResult.error || 'Copy failed');
       console.debug('[DocsEmbedFullscreen] Copied document text to clipboard');
@@ -386,9 +389,13 @@
       const downloadFilename = (displayFilename || 'document').replace(/\.docx$/i, '') + '.docx';
 
       // Use the PII-processed and sanitized content for download, respecting reveal state.
-      const downloadHtmlContent = localPiiRevealed && hasPII
+      let downloadHtmlContent = localPiiRevealed && hasPII
         ? sanitizeDocumentHtml(restorePIIInText(htmlContent, piiMappings))
         : sanitizeDocumentHtml(replacePIIOriginalsWithPlaceholders(htmlContent, piiMappings));
+
+      // Replace embed placeholder spans and markdown embed links with real <a href> tags
+      // pointing to the actual web URLs. Internal embed IDs are useless outside of OpenMates.
+      downloadHtmlContent = await replaceEmbedRefsWithUrlsInHtml(downloadHtmlContent);
 
       const fullHtml = `<!DOCTYPE html>
 <html lang="en">
