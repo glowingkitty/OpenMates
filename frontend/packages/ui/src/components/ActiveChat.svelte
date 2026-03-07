@@ -2298,8 +2298,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
 
         let cancelled = false;
-        const maxAttempts = 6;
-        const delayMs = 500; // retry every 500ms for up to 3s
+        // Retry up to 20 times (10 seconds total) to handle cross-device sync
+        // where last_opened_updated arrives before Phase 2/3 delivers the chat data.
+        // Previous 6-attempt / 3-second window was too short on slow connections.
+        const maxAttempts = 20;
+        const delayMs = 500; // retry every 500ms for up to 10s
 
         const tryLoad = async (attempt: number) => {
             if (cancelled) return;
@@ -2315,25 +2318,38 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     });
 
     // ─── Phase 1 Sync Bridge ──────────────────────────────────────────────
-    // When Phase 1 sync completes, Chats.svelte stores the resume chat data
-    // in phasedSyncState. This $effect bridges that store to our local state,
-    // ensuring the resume card appears even if the initial IndexedDB retry loop
-    // above has already exhausted (sync may take longer than 3 seconds on slow
-    // connections or cold starts after login).
+    // When Phase 1 sync completes or a cross-device last_opened_updated broadcast
+    // arrives, Chats.svelte / chatSyncService stores the resume chat data in
+    // phasedSyncState. This $effect bridges that store to our local state,
+    // ensuring the resume card appears (and updates) in real-time.
+    //
+    // NOTE: The `!resumeChatData` guard was intentionally removed so that
+    // cross-device last_opened_updated broadcasts can refresh an already-
+    // populated resume card. Without this, only the first population fires
+    // and subsequent cross-device updates are silently ignored.
     $effect(() => {
         const syncState = $phasedSyncState;
         const isWelcome = showWelcome;
         const isAuth = $authStore.isAuthenticated;
         const currentActiveChat = $activeChatStore;
 
-        // Only sync from phasedSyncState when on the welcome screen, authenticated,
-        // no chat is currently active, and we don't already have resume data loaded from IndexedDB
-        if (isWelcome && isAuth && !currentActiveChat && syncState.resumeChatData && !resumeChatData) {
+        // Sync from phasedSyncState when on the welcome screen, authenticated,
+        // no chat is currently active, and phasedSyncState has resume data.
+        // Allows repeated updates (cross-device) by NOT guarding on !resumeChatData.
+        if (isWelcome && isAuth && !currentActiveChat && syncState.resumeChatData) {
+            // Skip if the same chat is already displayed (no need to re-assign)
+            if (resumeChatData?.chat_id === syncState.resumeChatData.chat_id) {
+                return;
+            }
             resumeChatData = syncState.resumeChatData;
             resumeChatTitle = syncState.resumeChatTitle;
             resumeChatCategory = syncState.resumeChatCategory;
             resumeChatIcon = syncState.resumeChatIcon;
-            console.info(`[ActiveChat] Resume chat synced from Phase 1 store: "${syncState.resumeChatTitle}" (${syncState.resumeChatData.chat_id})`);
+            // Reset credits-error state and summary (will be populated by loadResumeChatFromDB if needed)
+            resumeChatSummary = null;
+            resumeChatIsCreditsError = false;
+            resumeChatUserMessagePreview = null;
+            console.info(`[ActiveChat] Resume chat synced from phasedSyncState: "${syncState.resumeChatTitle}" (${syncState.resumeChatData.chat_id})`);
         }
     });
 
@@ -3365,8 +3381,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // When the centered indicator is active (processingPhase is not null),
         // hide the bottom typing indicator to avoid duplicate text.
         // The centered overlay handles sending, processing steps, and typing phases.
-        if (processingPhase !== null) {
+        // Exception: 'compressing' phase shows the shimmer in the bottom indicator
+        // since there is no centered overlay for compression.
+        if (processingPhase !== null && processingPhase.phase !== 'compressing') {
             return [];
+        }
+        
+        // Show "Compressing chat..." shimmer during chat compression
+        if (processingPhase?.phase === 'compressing') {
+            return processingPhase.statusLines;
         }
         
         // Show detailed AI typing indicator once streaming has started
@@ -3431,7 +3454,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         
         // When centered indicator is active, bottom shows nothing
-        if (processingPhase !== null) return null;
+        // Exception: 'compressing' phase shows as 'typing' shimmer at the bottom
+        if (processingPhase !== null && processingPhase.phase !== 'compressing') return null;
+        
+        if (processingPhase?.phase === 'compressing') return 'typing';
         
         // During streaming, show the typing shimmer
         if (currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id) {
@@ -7816,6 +7842,42 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }) as EventListenerCallback;
 
+        // ─── Chat Compression event handlers ─────────────────────────────────────────
+        // When the AI worker detects a long chat history, it triggers compression before
+        // preprocessing. These events update the processing phase to show a shimmer indicator.
+        const compressionStartedHandler = ((event: CustomEvent) => {
+            const { chat_id } = event.detail;
+            if (chat_id === currentChat?.chat_id) {
+                console.debug('[ActiveChat] Chat compression started for chat', chat_id);
+                processingPhase = {
+                    phase: 'compressing',
+                    statusLines: [$text('chat.compression.compressing')]
+                };
+            }
+        }) as EventListenerCallback;
+
+        const compressionCompletedHandler = ((event: CustomEvent) => {
+            const { chat_id, error, compressed_message_count } = event.detail;
+            if (chat_id === currentChat?.chat_id) {
+                if (error) {
+                    console.warn('[ActiveChat] Chat compression failed for chat', chat_id, ':', error);
+                } else {
+                    console.debug('[ActiveChat] Chat compression completed for chat', chat_id,
+                        `(${compressed_message_count} messages compressed)`);
+                }
+                // Clear the compressing phase — the normal sending → processing → typing
+                // flow will take over from here as the AI task continues.
+                if (processingPhase?.phase === 'compressing') {
+                    processingPhase = {
+                        phase: 'sending',
+                        statusLines: [$text('enter_message.sending')]
+                    };
+                }
+            }
+        }) as EventListenerCallback;
+
+        chatSyncService.addEventListener('chatCompressionStarted', compressionStartedHandler);
+        chatSyncService.addEventListener('chatCompressionCompleted', compressionCompletedHandler);
         chatSyncService.addEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
         chatSyncService.addEventListener('aiTypingStarted', aiTypingStartedHandler);
         chatSyncService.addEventListener('aiTaskEnded', aiTaskEndedHandler);
@@ -8148,6 +8210,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             unsubscribeDraftState(); // Unsubscribe from draft state
             chatSyncService.removeEventListener('aiMessageChunk', handleAiMessageChunk as EventListenerCallback); // Remove listener
             chatSyncService.removeEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
+            chatSyncService.removeEventListener('chatCompressionStarted', compressionStartedHandler);
+            chatSyncService.removeEventListener('chatCompressionCompleted', compressionCompletedHandler);
             chatSyncService.removeEventListener('aiTypingStarted', aiTypingStartedHandler);
             chatSyncService.removeEventListener('aiTaskEnded', aiTaskEndedHandler);
             // Remove thinking/reasoning event listeners

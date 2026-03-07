@@ -56,6 +56,7 @@ export interface PreprocessorStepResult {
  */
 export type ProcessingPhase =
   | { phase: "sending"; statusLines: string[] }
+  | { phase: "compressing"; statusLines: string[] }
   | {
       phase: "processing";
       statusLines: string[];

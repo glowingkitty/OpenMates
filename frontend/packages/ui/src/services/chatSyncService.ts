@@ -571,18 +571,19 @@ export class ChatSynchronizationService extends EventTarget {
           const isOnWelcomeScreen =
             currentChatId === null || currentChatId === NEW_CHAT_SENTINEL;
 
-          // DEFENSE-IN-DEPTH: Also check activeChatStore directly — if a chat is already
-          // loaded/active, never update resume card data from cross-device broadcasts.
-          const { activeChatStore } = await import("../stores/activeChatStore");
-          const storeActiveChat = activeChatStore.get();
-          if (storeActiveChat) {
+          // Check if user is actually viewing a chat (not just a stale URL hash).
+          // Use phasedSyncState.currentActiveChatId as the source of truth since it
+          // is explicitly set/cleared by the UI, unlike activeChatStore which can
+          // retain a stale value from the URL hash fragment after navigation.
+          if (!isOnWelcomeScreen) {
             console.debug(
-              `[ChatSyncService] Skipping resume card update from last_opened_updated — activeChatStore already set to "${storeActiveChat}"`,
+              `[ChatSyncService] Skipping resume card update from last_opened_updated — user is in active chat (currentActiveChatId: ${currentChatId})`,
             );
             return;
           }
 
-          if (isOnWelcomeScreen) {
+          // User is on welcome/new-chat screen — update the resume card
+          {
             const chat = await chatDB.getChat(chat_id);
             if (chat) {
               // Decrypt title, category, icon for the resume card display
@@ -640,11 +641,17 @@ export class ChatSynchronizationService extends EventTarget {
                 );
               }
 
+              // Use force=true to bypass the stale currentActiveChatId guard.
+              // We already verified the user is on the welcome screen above via
+              // phasedSyncState.currentActiveChatId check. The guard inside
+              // setResumeChatData uses the same field, which may retain a stale
+              // chat ID from a previous navigation — force bypasses that.
               phasedSyncState.setResumeChatData(
                 chat,
                 displayTitle,
                 displayCategory,
                 displayIcon,
+                true, // force — caller verified user is on welcome screen
               );
               console.debug(
                 `[ChatSyncService] Updated resume card from cross-device last_opened_updated: "${displayTitle}" (${chat_id})`,
@@ -843,6 +850,27 @@ export class ChatSynchronizationService extends EventTarget {
           chat_tags: string[];
           harmful_response: number;
           top_recommended_apps_for_user?: string[];
+        },
+      ),
+    );
+    // Chat compression events: triggered when long chat histories are summarized
+    webSocketService.on("chat_compression_started", (payload) =>
+      aiHandlers.handleChatCompressionStartedImpl(
+        this,
+        payload as { chat_id: string; task_id: string },
+      ),
+    );
+    webSocketService.on("chat_compression_completed", (payload) =>
+      aiHandlers.handleChatCompressionCompletedImpl(
+        this,
+        payload as {
+          chat_id: string;
+          task_id: string;
+          compressed_message_count?: number;
+          summary_token_estimate?: number;
+          compressed_up_to_timestamp?: number;
+          summary_message_id?: string;
+          error?: string;
         },
       ),
     );

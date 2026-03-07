@@ -922,6 +922,73 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                     )
                     logger.debug(f"AI Typing Listener: Broadcasted '{client_event_name}' to user {user_id_uuid} for skill {app_id}.{skill_id} with status {status}")
 
+                # Handle chat_compression_started event
+                # Published by the AI worker when compression is triggered for a long chat.
+                # Frontend uses this to show a "Compressing chat..." indicator.
+                elif internal_event_type == "chat_compression_started":
+                    client_event_name = redis_payload.get("event_for_client", "chat_compression_started")
+                    user_id_uuid = redis_payload.get("user_id_uuid")
+                    chat_id = redis_payload.get("chat_id")
+                    task_id = redis_payload.get("task_id")
+
+                    if user_id_uuid and chat_id:
+                        client_payload = {
+                            "chat_id": chat_id,
+                            "task_id": task_id,
+                        }
+                        await manager.broadcast_to_user_specific_event(
+                            user_id=user_id_uuid,
+                            event_name=client_event_name,
+                            payload=client_payload,
+                        )
+                        logger.info(
+                            f"AI Typing Listener: Broadcasted '{client_event_name}' "
+                            f"to user {user_id_uuid} for chat {chat_id}"
+                        )
+                    else:
+                        logger.warning(
+                            "AI Typing Listener: Malformed chat_compression_started payload "
+                            f"(missing user_id_uuid or chat_id; summary: {_safe_payload_summary(redis_payload)})"
+                        )
+
+                # Handle chat_compression_completed event
+                # Published by the AI worker when compression finishes (success or error).
+                # Frontend uses this to clear the compression indicator and update chat state.
+                elif internal_event_type == "chat_compression_completed":
+                    client_event_name = redis_payload.get("event_for_client", "chat_compression_completed")
+                    user_id_uuid = redis_payload.get("user_id_uuid")
+                    chat_id = redis_payload.get("chat_id")
+                    task_id = redis_payload.get("task_id")
+
+                    if user_id_uuid and chat_id:
+                        client_payload = {
+                            "chat_id": chat_id,
+                            "task_id": task_id,
+                            "compressed_message_count": redis_payload.get("compressed_message_count"),
+                            "summary_token_estimate": redis_payload.get("summary_token_estimate"),
+                            "compressed_up_to_timestamp": redis_payload.get("compressed_up_to_timestamp"),
+                            "summary_message_id": redis_payload.get("summary_message_id"),
+                        }
+                        # Include error if present (compression failed gracefully)
+                        if redis_payload.get("error"):
+                            client_payload["error"] = redis_payload["error"]
+
+                        await manager.broadcast_to_user_specific_event(
+                            user_id=user_id_uuid,
+                            event_name=client_event_name,
+                            payload=client_payload,
+                        )
+                        logger.info(
+                            f"AI Typing Listener: Broadcasted '{client_event_name}' "
+                            f"to user {user_id_uuid} for chat {chat_id} "
+                            f"(compressed={redis_payload.get('compressed_message_count', 'N/A')} messages)"
+                        )
+                    else:
+                        logger.warning(
+                            "AI Typing Listener: Malformed chat_compression_completed payload "
+                            f"(missing user_id_uuid or chat_id; summary: {_safe_payload_summary(redis_payload)})"
+                        )
+
                 else:
                     logger.warning(f"AI Typing Listener: Received unexpected event type '{internal_event_type}' on channel '{redis_channel_name}'. Skipping.")
 

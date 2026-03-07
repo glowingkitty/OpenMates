@@ -4188,3 +4188,67 @@ export function handleInspirationOpenedImpl(
       );
     });
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Chat Compression Events
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Handles 'chat_compression_started' WebSocket event.
+ *
+ * Published by the AI worker when chat history exceeds the compression threshold.
+ * Dispatches a global event for ActiveChat.svelte to show the "Compressing chat..."
+ * shimmer indicator.
+ */
+export function handleChatCompressionStartedImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: { chat_id: string; task_id: string },
+): void {
+  console.debug(
+    "[ChatSyncService:AI] Received 'chat_compression_started' for chat",
+    payload.chat_id,
+  );
+
+  serviceInstance.dispatchEvent(
+    new CustomEvent("chatCompressionStarted", { detail: payload }),
+  );
+}
+
+/**
+ * Handles 'chat_compression_completed' WebSocket event.
+ *
+ * Published by the AI worker when compression finishes (success or error).
+ * Dispatches a global event for ActiveChat.svelte to clear the compression
+ * indicator and proceed with the normal processing flow.
+ */
+export function handleChatCompressionCompletedImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: {
+    chat_id: string;
+    task_id: string;
+    compressed_message_count?: number;
+    summary_token_estimate?: number;
+    compressed_up_to_timestamp?: number;
+    summary_message_id?: string;
+    error?: string;
+  },
+): void {
+  if (payload.error) {
+    console.warn(
+      "[ChatSyncService:AI] Chat compression failed for chat",
+      payload.chat_id,
+      ":",
+      payload.error,
+    );
+  } else {
+    console.debug(
+      "[ChatSyncService:AI] Chat compression completed for chat",
+      payload.chat_id,
+      `(${payload.compressed_message_count} messages compressed)`,
+    );
+  }
+
+  serviceInstance.dispatchEvent(
+    new CustomEvent("chatCompressionCompleted", { detail: payload }),
+  );
+}

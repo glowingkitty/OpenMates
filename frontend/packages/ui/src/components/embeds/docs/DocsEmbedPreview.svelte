@@ -225,7 +225,7 @@
       {#if sanitizedHtml}
         <!--
           A4-like document preview using CSS transform: scale().
-          We render the document at full size (816px wide, same as fullscreen)
+          We render the document at full size (794px wide, same as fullscreen — A4 at 96 DPI)
           inside a container, then scale it down to fit the preview card.
           This creates an exact miniature of the fullscreen document view.
         -->
@@ -275,7 +275,7 @@
      Document Details - A4-like scaled preview
      
      Strategy: Render the document at full size
-     (816px width, matching the fullscreen view)
+     (794px width — A4 at 96 DPI, matching the fullscreen view)
      then use CSS transform: scale() to shrink it
      into the preview card. This creates an exact
      miniature that matches the fullscreen layout.
@@ -298,16 +298,16 @@
   }
   
   /* Scaler: holds the full-size page and applies transform: scale() */
-  /* Desktop preview is ~276px wide (300 - padding), so scale = 276/816 ≈ 0.338 */
+  /* Desktop preview is ~276px wide (300 - padding), so scale = 276/794 ≈ 0.348 */
   .doc-page-scaler {
-    width: 816px;
-    transform: scale(0.338);
+    width: 794px; /* A4 at 96 DPI */
+    transform: scale(0.348);
     transform-origin: top left;
   }
   
   .doc-details.mobile .doc-page-scaler {
-    /* Mobile preview is ~126px wide (150 - padding), scale = 126/816 ≈ 0.155 */
-    transform: scale(0.155);
+    /* Mobile preview is ~126px wide (150 - padding), scale = 126/794 ≈ 0.159 */
+    transform: scale(0.159);
   }
   
   /* White A4 page - same styling as fullscreen for exact match */
