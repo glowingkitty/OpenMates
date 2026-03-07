@@ -306,10 +306,6 @@ step_4_top_content_svelte:
         resetTwoFAData();
     }
 
-    function handleSkipForNow() {
-        dispatch('step', { step: 'skip_2fa_consent' });
-    }
-
     // Handle the reset button click
     async function handleResetTFA() {
         resetTwoFAData(); // Clear old data
@@ -439,9 +435,6 @@ step_4_top_content_svelte:
             </div>
             {/if}
 
-            <button class="skip-for-now-link" onclick={handleSkipForNow}>
-                {$text('signup.skip_for_now')}
-            </button>
         </div>
     {/if} <!-- End of outer {:else if setupComplete} -->
 </div>
@@ -682,18 +675,4 @@ step_4_top_content_svelte:
         color: var(--color-text-primary, #333);
     }
 
-    .skip-for-now-link {
-        margin-top: 10px;
-        border: none;
-        background: transparent;
-        color: var(--color-grey-60);
-        text-decoration: underline;
-        cursor: pointer;
-        font-size: 13px;
-        padding: 4px 8px;
-    }
-
-    .skip-for-now-link:hover {
-        color: var(--color-grey-80);
-    }
 </style>
