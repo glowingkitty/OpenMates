@@ -141,8 +141,32 @@ async def handle_delete_draft(
     if version_delete_success:
         logger.info(f"User {user_id}, Device {device_fingerprint_hash}: Successfully processed deletion of user-specific draft version from general chat versions for chat_id: {chat_id}.")
     else:
-        # This is not critical enough to stop the whole process, but should be logged.
         logger.warning(f"User {user_id}, Device {device_fingerprint_hash}: Failed to delete user-specific draft version from general chat versions for chat_id: {chat_id}.")
+
+    # Clean up draft-only chats from the sorted set.
+    # If the chat has no messages in Directus (i.e., it was a draft-only new chat),
+    # remove it from chat_ids_versions so it no longer appears in other devices' chat lists.
+    # If the chat has messages, leave it — it's a real chat that should stay visible.
+    try:
+        chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
+        if not chat_metadata:
+            # Chat doesn't exist in Directus — it was draft-only. Remove from sorted set.
+            removed = await cache_service.remove_chat_from_ids_versions(user_id, chat_id)
+            if removed:
+                logger.info(
+                    f"User {user_id}: Removed draft-only chat {chat_id} from chat_ids_versions "
+                    f"after draft deletion (chat has no messages in Directus)."
+                )
+            else:
+                logger.debug(
+                    f"User {user_id}: Chat {chat_id} was not in chat_ids_versions "
+                    f"(already removed or never added)."
+                )
+    except Exception as e_cleanup:
+        logger.error(
+            f"User {user_id}: Error during draft-only chat cleanup for {chat_id}: {e_cleanup}",
+            exc_info=True
+        )
 
     try:
         drafts_collection_name = "drafts"

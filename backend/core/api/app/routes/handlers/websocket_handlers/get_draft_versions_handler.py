@@ -105,13 +105,13 @@ async def handle_get_draft_versions(
             continue
 
         try:
-            # get_user_draft_from_cache returns (encrypted_draft_md, draft_v) or None.
-            # We only need the version — content is not sent here.
+            # get_user_draft_from_cache returns (encrypted_draft_md, draft_v, encrypted_draft_preview) or None.
+            # We only need the version — content and preview are not sent here.
             draft_cache_result = await cache_service.get_user_draft_from_cache(
                 user_id=user_id, chat_id=chat_id
             )
             if draft_cache_result:
-                _, server_draft_v = draft_cache_result
+                _, server_draft_v, _ = draft_cache_result
                 versions[chat_id] = server_draft_v if server_draft_v else 0
             else:
                 # No draft entry in Redis → draft_v = 0 (draft was deleted or never saved)

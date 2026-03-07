@@ -445,9 +445,14 @@ class ChatCacheMixin:
             logger.error(f"Error incrementing draft version for user {user_id}, chat {chat_id}: {e}", exc_info=True)
             return None
 
-    async def update_user_draft_in_cache(self, user_id: str, chat_id: str, encrypted_draft_md: Optional[str], draft_version: int) -> bool:
+    async def update_user_draft_in_cache(
+        self, user_id: str, chat_id: str, encrypted_draft_md: Optional[str],
+        draft_version: int, encrypted_draft_preview: Optional[str] = None
+    ) -> bool:
         """
-        Updates the user's draft content and version in their dedicated draft cache key.
+        Updates the user's draft content, preview, and version in their dedicated draft cache key.
+        The encrypted_draft_preview is stored alongside the draft so initial_sync can include it
+        when syncing draft-only chats to other devices.
         Sets TTL for the draft key.
         """
         client = await self.client
@@ -455,25 +460,33 @@ class ChatCacheMixin:
             return False
         key = self._get_user_chat_draft_key(user_id, chat_id)
         try:
-            payload = {"draft_v": draft_version}
+            cache_payload: Dict[str, Any] = {"draft_v": draft_version}
             if encrypted_draft_md is None:
-                payload["encrypted_draft_md"] = "null" # Store null as a string "null"
+                cache_payload["encrypted_draft_md"] = "null"  # Store null as a string "null"
             else:
-                payload["encrypted_draft_md"] = encrypted_draft_md
-            
-            await client.hmset(key, payload)
-            await client.expire(key, self.USER_DRAFT_TTL) # Assuming USER_DRAFT_TTL is defined
+                cache_payload["encrypted_draft_md"] = encrypted_draft_md
+
+            # Store preview for cross-device sync (chat list display on other devices)
+            if encrypted_draft_preview is None:
+                cache_payload["encrypted_draft_preview"] = "null"
+            else:
+                cache_payload["encrypted_draft_preview"] = encrypted_draft_preview
+
+            await client.hmset(key, cache_payload)
+            await client.expire(key, self.USER_DRAFT_TTL)
             logger.debug(f"Updated draft for user {user_id}, chat {chat_id} with version {draft_version}")
             return True
         except Exception as e:
             logger.error(f"Error updating draft for user {user_id}, chat {chat_id}: {e}")
             return False
 
-    async def get_user_draft_from_cache(self, user_id: str, chat_id: str, refresh_ttl: bool = False) -> Optional[Tuple[Optional[str], int]]:
+    async def get_user_draft_from_cache(
+        self, user_id: str, chat_id: str, refresh_ttl: bool = False
+    ) -> Optional[Tuple[Optional[str], int, Optional[str]]]:
         """
-        Gets the user's draft content (encrypted markdown string) and version from cache.
-        Returns a tuple (encrypted_draft_md, draft_version) or None if not found or error.
-        "null" string for encrypted_draft_md is converted back to None.
+        Gets the user's draft content (encrypted markdown string), version, and preview from cache.
+        Returns a tuple (encrypted_draft_md, draft_version, encrypted_draft_preview) or None if not found or error.
+        "null" string values for encrypted fields are converted back to None.
         """
         client = await self.client
         if not client:
@@ -483,23 +496,27 @@ class ChatCacheMixin:
             draft_data_bytes = await client.hgetall(key)
             if not draft_data_bytes:
                 return None
-            
+
             draft_data = {k.decode('utf-8'): v.decode('utf-8') for k, v in draft_data_bytes.items()}
-            
+
             encrypted_md = draft_data.get("encrypted_draft_md")
             if encrypted_md == "null":
                 encrypted_md = None
-                
+
+            encrypted_preview = draft_data.get("encrypted_draft_preview")
+            if encrypted_preview == "null":
+                encrypted_preview = None
+
             version_str = draft_data.get("draft_v")
-            if version_str is None: # Should not happen if set correctly
+            if version_str is None:
                 logger.warning(f"Draft version missing for user {user_id}, chat {chat_id} in {key}")
                 return None
-            
+
             version = int(version_str)
 
             if refresh_ttl:
                 await client.expire(key, self.USER_DRAFT_TTL)
-            return encrypted_md, version
+            return encrypted_md, version, encrypted_preview
         except Exception as e:
             logger.error(f"Error getting draft for user {user_id}, chat {chat_id} from {key}: {e}")
             return None
@@ -524,6 +541,45 @@ class ChatCacheMixin:
         except Exception as e:
             logger.error(f"Error deleting draft cache key {key} for user {user_id}, chat {chat_id}: {e}", exc_info=True)
             return False
+
+    async def get_all_user_draft_chat_ids(self, user_id: str) -> List[str]:
+        """
+        Scans Redis for all draft keys matching user:{user_id}:chat:*:draft
+        and returns the chat_ids that have drafts. Used by initial_sync to discover
+        draft-only chats that may not be in the chat_ids_versions sorted set.
+        Returns a list of chat_id strings. Empty list on error or if none found.
+        """
+        client = await self.client
+        if not client:
+            logger.error("Redis client not available for get_all_user_draft_chat_ids")
+            return []
+
+        pattern = f"user:{user_id}:chat:*:draft"
+        # The key format is: user:{user_id}:chat:{chat_id}:draft
+        # We need to extract {chat_id} from each matched key.
+        prefix = f"user:{user_id}:chat:"
+        suffix = ":draft"
+        chat_ids: List[str] = []
+
+        try:
+            cursor = 0
+            while True:
+                cursor, keys = await client.scan(cursor, match=pattern, count=100)
+                for key_bytes in keys:
+                    key_str = key_bytes.decode('utf-8') if isinstance(key_bytes, bytes) else key_bytes
+                    # Extract chat_id from: user:{user_id}:chat:{chat_id}:draft
+                    if key_str.startswith(prefix) and key_str.endswith(suffix):
+                        chat_id = key_str[len(prefix):-len(suffix)]
+                        if chat_id:
+                            chat_ids.append(chat_id)
+                if cursor == 0:
+                    break
+
+            logger.debug(f"Found {len(chat_ids)} draft keys for user {user_id[:8]}...")
+            return chat_ids
+        except Exception as e:
+            logger.error(f"Error scanning draft keys for user {user_id[:8]}...: {e}", exc_info=True)
+            return []
 
     async def delete_user_draft_version_from_chat_versions(self, user_id: str, chat_id: str) -> bool:
         """

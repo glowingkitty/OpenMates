@@ -77,9 +77,22 @@ async def handle_initial_sync(
         # Calculate missing chats (server has but client doesn't)
         chats_missing_on_client = list(server_master_chat_ids_set - client_chat_ids_set)
         
-        # Calculate extra chats (client has but server doesn't)
-        chats_to_delete = list(client_chat_ids_set - server_master_chat_ids_set)
-        
+        # Calculate extra chats (client has but server doesn't).
+        # CRITICAL: Exclude chats that have active drafts in Redis — these are draft-only
+        # chats that haven't been added to the sorted set yet, or whose entry expired.
+        # Deleting them on the client would discard the user's unsent work.
+        chats_extra_on_client = client_chat_ids_set - server_master_chat_ids_set
+        all_draft_chat_ids_set: set = set()
+        if chats_extra_on_client:
+            try:
+                all_draft_chat_ids_list = await cache_service.get_all_user_draft_chat_ids(user_id)
+                all_draft_chat_ids_set = set(all_draft_chat_ids_list)
+            except Exception as e_draft_scan:
+                logger.error(f"User {user_id}: Error scanning drafts during delete check: {e_draft_scan}", exc_info=True)
+            chats_to_delete = [cid for cid in chats_extra_on_client if cid not in all_draft_chat_ids_set]
+        else:
+            chats_to_delete = []
+
         if chats_to_delete:
             chat_ids_to_delete_on_client.extend(chats_to_delete)
             logger.info(f"User {user_id}: Suggesting deletion of {len(chat_ids_to_delete_on_client)} chats on client: {chat_ids_to_delete_on_client}")
@@ -124,7 +137,10 @@ async def handle_initial_sync(
                     continue
             
             draft_cache_result = await cache_service.get_user_draft_from_cache(user_id, server_chat_id)
-            user_draft_content_encrypted, user_draft_version_cache = draft_cache_result if draft_cache_result else (None, 0)
+            if draft_cache_result:
+                user_draft_content_encrypted, user_draft_version_cache, user_draft_preview_encrypted = draft_cache_result
+            else:
+                user_draft_content_encrypted, user_draft_version_cache, user_draft_preview_encrypted = None, 0, None
 
             server_versions_for_client = ClientChatComponentVersions(
                 messages_v=cached_server_versions.messages_v,
@@ -192,13 +208,18 @@ async def handle_initial_sync(
                         current_chat_payload_dict["versions"].title_v = cached_server_versions.title_v
 
 
-                # Send encrypted draft content directly (no need to decrypt since client handles encryption)
+                # Send encrypted draft content and preview directly (client handles decryption)
                 encrypted_draft_md = None
                 if user_draft_content_encrypted and user_draft_content_encrypted != "null":
                     encrypted_draft_md = user_draft_content_encrypted
 
-                current_chat_payload_dict["encrypted_title"] = encrypted_title  # This is encrypted content from cache
+                encrypted_draft_preview = None
+                if user_draft_preview_encrypted and user_draft_preview_encrypted != "null":
+                    encrypted_draft_preview = user_draft_preview_encrypted
+
+                current_chat_payload_dict["encrypted_title"] = encrypted_title
                 current_chat_payload_dict["encrypted_draft_md"] = encrypted_draft_md
+                current_chat_payload_dict["encrypted_draft_preview"] = encrypted_draft_preview
                 current_chat_payload_dict["unread_count"] = unread_count
                 current_chat_payload_dict["user_id"] = user_id  # Add user_id for client ownership tracking
                 
@@ -333,6 +354,62 @@ async def handle_initial_sync(
                 
                 chat_sync_data_item = ChatSyncData(**current_chat_payload_dict)
                 chats_to_add_or_update_data.append(chat_sync_data_item)
+
+        # 3b. Discover draft-only chats not in the sorted set
+        # Draft-only new chats are now added to chat_ids_versions by draft_update_handler,
+        # but as a safety net we also scan Redis for draft keys that might have been missed
+        # (e.g., if the sorted set entry expired but the draft key hasn't).
+        try:
+            all_draft_chat_ids = await cache_service.get_all_user_draft_chat_ids(user_id)
+            # IDs of chats already processed from the sorted set
+            already_processed_ids = {item.chat_id for item in chats_to_add_or_update_data}
+            orphan_draft_ids = [
+                cid for cid in all_draft_chat_ids
+                if cid not in server_master_chat_ids_set and cid not in already_processed_ids
+            ]
+
+            if orphan_draft_ids:
+                logger.info(f"User {user_id}: Found {len(orphan_draft_ids)} orphan draft-only chats not in sorted set. Including them in sync.")
+
+            for orphan_chat_id in orphan_draft_ids:
+                orphan_draft_result = await cache_service.get_user_draft_from_cache(user_id, orphan_chat_id)
+                if not orphan_draft_result:
+                    continue
+                orphan_draft_md, orphan_draft_v, orphan_draft_preview = orphan_draft_result
+                if not orphan_draft_md or orphan_draft_md == "null":
+                    continue  # Skip empty drafts
+
+                # Check if client already has this chat — if so, skip
+                if orphan_chat_id in client_chat_ids_set:
+                    continue
+
+                orphan_ts = sync_start_timestamp
+                orphan_payload: Dict[str, Any] = {
+                    "chat_id": orphan_chat_id,
+                    "type": "new_chat",
+                    "versions": ClientChatComponentVersions(
+                        messages_v=0, title_v=0, draft_v=orphan_draft_v
+                    ),
+                    "last_edited_overall_timestamp": orphan_ts,
+                    "created_at": orphan_ts,
+                    "updated_at": orphan_ts,
+                    "encrypted_title": None,
+                    "encrypted_draft_md": orphan_draft_md,
+                    "encrypted_draft_preview": orphan_draft_preview,
+                    "unread_count": 0,
+                    "user_id": user_id,
+                    "messages": [],
+                }
+                chats_to_add_or_update_data.append(ChatSyncData(**orphan_payload))
+                # Also add to server_chat_order so client knows about it
+                server_chat_order.append(orphan_chat_id)
+                logger.debug(f"User {user_id}: Added orphan draft-only chat {orphan_chat_id} to sync response")
+
+                # Re-add to sorted set for future syncs
+                await cache_service.add_chat_to_ids_versions(user_id, orphan_chat_id, orphan_ts)
+        except Exception as e_orphan:
+            logger.error(f"User {user_id}: Error discovering orphan draft chats: {e_orphan}", exc_info=True)
+            # Don't fail the sync — orphan discovery is best-effort
 
         # 4. Construct and Send Response
         response_payload_model = InitialSyncResponsePayloadSchema(

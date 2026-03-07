@@ -212,6 +212,7 @@ class ChatSyncData(BaseModel):
     updated_at: int
     encrypted_title: Optional[str] = None # Encrypted title from cache
     encrypted_draft_md: Optional[str] = None # Encrypted markdown for the user's draft
+    encrypted_draft_preview: Optional[str] = None # Encrypted preview text for the user's draft (shown in chat list)
     encrypted_chat_key: Optional[str] = None # Encrypted chat-specific key for decryption
     encrypted_icon: Optional[str] = None # Encrypted icon name from Lucide library
     encrypted_category: Optional[str] = None # Encrypted category name
