@@ -3971,18 +3971,21 @@
         }
     });
 
-    // Watch for a pending mention inserted from the settings panel (e.g. "Chat with this mate").
-    // When MateDetails.svelte sets pendingMentionStore, we insert the text into the editor
-    // using the same .setMate() path as the mention dropdown so it renders identically
-    // (styled gradient node showing @Sophia, not raw text "@mate:software_development").
+    // Watch for a pending mention (from suggestion clicks or "Chat with this mate" panel).
+    // When pendingMentionStore is set, we insert the mention chip at the START of the
+    // editor so it appears before any body text. This is important for suggestion clicks
+    // where the body text is already in the editor — placing the @mention first produces
+    // "@Travel-Search Show me flights..." instead of "Show me flights...@Travel-Search",
+    // which avoids false PII detection (an @mention at the end looks like an email).
     $effect(() => {
         const mention = $pendingMentionStore;
         if (mention && editor && !editor.isDestroyed) {
-            console.debug('[MessageInput] Inserting pending mention from settings panel:', mention);
+            console.debug('[MessageInput] Inserting pending mention:', mention);
             pendingMentionStore.set(null);
             tick().then(() => {
                 if (!editor || editor.isDestroyed) return;
-                editor.commands.focus('end');
+                // Insert at the start so the mention precedes any existing body text.
+                editor.commands.focus('start');
 
                 // Parse "@mate:{mateId}" to extract the id
                 const mateMatch = mention.match(/^@mate:(.+)$/);

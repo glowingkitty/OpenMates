@@ -428,21 +428,10 @@ async def handle_postprocessing(
     else:
         focus_context = ""
 
-    # Build memory prefix context (only valid in follow-up suggestions, not new-chat)
-    if available_settings_memory_categories:
-        # Convert dot-notation category IDs to dash-notation for the prefix format
-        memory_prefix_lines = "\n".join(
-            f"- {cat['id'].replace('.', '-')}: {cat['description']}"
-            for cat in available_settings_memory_categories
-        )
-        memory_prefix_context = (
-            f"\n\nAvailable memory/settings IDs for follow-up suggestion prefixes (format: app_id-memory_id):\n"
-            f"{memory_prefix_lines}\n"
-            "These IDs can be used as [prefix] ONLY in follow_up_request_suggestions (NOT in new_chat_request_suggestions). "
-            "Use them only when the conversation reveals information worth saving to a memory category."
-        )
-    else:
-        memory_prefix_context = ""
+    # Memory prefixes are no longer used in suggestions — the automated post-processing
+    # Phase 2 (handle_memory_generation) already handles suggesting new memories to the user,
+    # so memory-saving suggestions in follow-ups would be redundant.
+    memory_prefix_context = ""
 
     # Build language instruction for suggestion generation
     # Follow-up suggestions should match the conversation language (output_language) so they
@@ -563,22 +552,20 @@ async def handle_postprocessing(
     
     # Build valid prefix sets for the suggestion sanitizer.
     # Skills and focus modes use dash notation (app_id-skill_id / app_id-focus_id).
-    # Memory categories are stored as dot notation in available_settings_memory_categories
-    # but the LLM is instructed to use dash notation in prefixes, so we convert here.
+    # Memory prefixes are no longer used in suggestions (handled by Phase 2 memory generation).
     valid_skill_ids: set = {s["id"] for s in (available_skills or [])}
     valid_focus_ids: set = {f["id"] for f in (available_focus_modes or [])}
-    valid_memory_ids: set = {
-        cat["id"].replace(".", "-") for cat in (available_settings_memory_categories or [])
-    }
+    # Note: valid_memory_ids no longer needed — memory prefixes removed from suggestions.
 
-    # Sanitize follow-up suggestions: allow skill + focus + memory prefixes
+    # Sanitize follow-up suggestions: allow skill + focus prefixes only (no memory —
+    # memory suggestions are handled by the automated Phase 2 memory generation step)
     raw_follow_up = llm_result.arguments.get("follow_up_request_suggestions", [])
     sanitized_follow_up = sanitize_suggestions(
         suggestions=raw_follow_up,
         valid_skill_ids=valid_skill_ids,
         valid_focus_ids=valid_focus_ids,
-        valid_memory_ids=valid_memory_ids,
-        allow_memory_prefixes=True,
+        valid_memory_ids=set(),  # Memory prefixes removed — handled by Phase 2
+        allow_memory_prefixes=False,
         task_id=task_id,
     )
 

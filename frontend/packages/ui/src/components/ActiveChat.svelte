@@ -1911,22 +1911,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     // Handler for suggestion click - copies suggestion to message input.
-    // When mentionSyntax is provided (e.g. "@skill:web:search"), we first insert
-    // the mention node via pendingMentionStore (which MessageInput watches), then
-    // insert the body text. This ensures the app skill is properly triggered on send.
+    // When mentionSyntax is provided (e.g. "@skill:web:search"), we insert the
+    // body text first, then set pendingMentionStore so MessageInput inserts the
+    // @mention chip at the START of the editor. This places the mention before
+    // the body text (e.g. "@Travel-Search Show me flights..."), which avoids
+    // false positives from the PII/sensitive-data detector (an @mention at the
+    // end of text can look like an email address).
     function handleSuggestionClick(suggestion: string, mentionSyntax?: string) {
         console.debug('[ActiveChat] Suggestion clicked:', suggestion, mentionSyntax ? `(mention: ${mentionSyntax})` : '');
         if (messageInputFieldRef) {
             if (mentionSyntax) {
-                // Insert the @skill mention node first via pendingMentionStore.
-                // MessageInput watches this store and creates a proper GenericMention
-                // TipTap node (styled chip). The store effect also appends a space,
-                // so we insert body text after a short tick to ensure correct order.
-                pendingMentionStore.set(mentionSyntax);
-                // Insert body text after the mention node has been created
+                // 1. Insert body text first so the editor has content.
+                messageInputFieldRef.setSuggestionText(suggestion);
+                // 2. Set pending mention — the $effect in MessageInput will insert
+                //    the @mention chip at the START of the editor, pushing body text
+                //    to the right. A trailing space is added after the chip.
                 tick().then(() => {
-                    messageInputFieldRef?.setSuggestionText(suggestion);
-                    messageInputFieldRef?.focus();
+                    pendingMentionStore.set(mentionSyntax);
+                    tick().then(() => {
+                        messageInputFieldRef?.focus();
+                    });
                 });
             } else {
                 // No mention — insert plain text as before
