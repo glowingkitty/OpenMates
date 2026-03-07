@@ -19,7 +19,7 @@
     onSuggestionClick
   }: {
     messageInputContent?: string;
-    onSuggestionClick: (suggestion: string) => void;
+    onSuggestionClick: (suggestion: string, mentionSyntax?: string) => void;
   } = $props();
 
   // Apps metadata for icon resolution
@@ -410,8 +410,17 @@
   /**
    * Handle suggestion click - track it for deletion and pass body-only text to parent.
    * The raw text (with prefix) is used for lookup/tracking; only body goes into the input.
+   * When the suggestion has a prefix (e.g. [web-search]), we build the @skill mention syntax
+   * so the parent can insert a proper mention node, ensuring the app skill is triggered.
    */
-  function handleSuggestionClickWithTracking(rawText: string, body: string, suggestionId?: string, encryptedSuggestion?: string) {
+  function handleSuggestionClickWithTracking(
+    rawText: string,
+    body: string,
+    appId: string | null,
+    subId: string | null,
+    suggestionId?: string,
+    encryptedSuggestion?: string
+  ) {
     // For authenticated users, track the suggestion for deletion after sending
     if ($authStore.isAuthenticated) {
       // Use ID or encrypted value from parameter if provided, otherwise try to find it
@@ -431,8 +440,11 @@
       }
     }
 
-    // Pass body-only text to parent (no prefix in the message input)
-    onSuggestionClick(body);
+    // Build mention syntax for skill-prefixed suggestions (e.g. "@skill:web:search")
+    const mentionSyntax = appId && subId ? `@skill:${appId}:${subId}` : undefined;
+
+    // Pass body text + optional mention syntax to parent
+    onSuggestionClick(body, mentionSyntax);
   }
 
   /**
@@ -518,7 +530,15 @@
   /**
    * Handle touch end - cancel long press if it's a quick tap
    */
-  function handleTouchEnd(event: TouchEvent, rawText: string, body: string, suggestionId?: string, encryptedSuggestion?: string) {
+  function handleTouchEnd(
+    event: TouchEvent,
+    rawText: string,
+    body: string,
+    appId: string | null,
+    subId: string | null,
+    suggestionId?: string,
+    encryptedSuggestion?: string
+  ) {
     const touchDuration = Date.now() - touchStartTime;
 
     // Clear the timer
@@ -529,7 +549,7 @@
 
     // If it was a short tap (less than 500ms), handle as regular click
     if (touchDuration < 500) {
-      handleSuggestionClickWithTracking(rawText, body, suggestionId, encryptedSuggestion);
+      handleSuggestionClickWithTracking(rawText, body, appId, subId, suggestionId, encryptedSuggestion);
     }
 
     // Prevent default to avoid any unwanted behaviors
@@ -703,18 +723,17 @@
         {@const subIconName = suggestion.appId && suggestion.subId ? resolveSubIcon(suggestion.appId, suggestion.subId) : null}
         <button
           class="suggestion-item"
-          onclick={() => handleSuggestionClickWithTracking(suggestion.text, suggestion.body, suggestion.id, suggestion.encrypted)}
+          onclick={() => handleSuggestionClickWithTracking(suggestion.text, suggestion.body, suggestion.appId, suggestion.subId, suggestion.id, suggestion.encrypted)}
           oncontextmenu={(event) => handleContextMenu(event, suggestion.text, suggestion.id)}
           ontouchstart={(event) => handleTouchStart(event, suggestion.text, suggestion.id)}
-          ontouchend={(event) => handleTouchEnd(event, suggestion.text, suggestion.body, suggestion.id, suggestion.encrypted)}
+          ontouchend={(event) => handleTouchEnd(event, suggestion.text, suggestion.body, suggestion.appId, suggestion.subId, suggestion.id, suggestion.encrypted)}
           ontouchmove={handleTouchMove}
         >
           {#if suggestion.appId}
-            <span class="skill-chip">
+            <span class="app-skill-icons">
+              <Icon name={suggestion.appId} type="app" size="16px" noAnimation noMargin />
               {#if subIconName}
-                <Icon name={subIconName} type="skill" size="16px" noAnimation noMargin />
-              {:else}
-                <Icon name={suggestion.appId} type="app" size="16px" noAnimation noMargin />
+                <Icon name={subIconName} type="skill" size="14px" noAnimation noMargin />
               {/if}
             </span>
           {/if}
@@ -884,16 +903,19 @@
     scale: 1;
   }
 
-  /* Icon chip rendered before the suggestion body text */
-  .skill-chip {
+  /* App + skill icon pair rendered before the suggestion body text.
+     Shows the gradient app icon (square with rounded edges) alongside
+     the smaller skill-specific icon for clear visual identification. */
+  .app-skill-icons {
     display: inline-flex;
     align-items: center;
+    gap: 4px;
     flex-shrink: 0;
-    opacity: 0.7;
+    opacity: 0.8;
   }
 
   /* Override Icon animation/border so it blends into the suggestion row */
-  .skill-chip :global(.icon) {
+  .app-skill-icons :global(.icon) {
     animation: none !important;
     opacity: 1 !important;
     border: none !important;

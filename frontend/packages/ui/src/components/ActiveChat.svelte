@@ -109,6 +109,7 @@
     import DailyInspirationBanner from './DailyInspirationBanner.svelte'; // Daily inspiration carousel above welcome screen
     import ForkProgressBanner from './chats/ForkProgressBanner.svelte'; // Slim banner shown while a fork is in progress
     import { forkProgressStore } from '../stores/forkProgressStore'; // Global fork progress — used to show banner on source chat
+    import { pendingMentionStore } from '../stores/pendingMentionStore'; // For inserting @skill mentions from suggestion clicks
     import type { DailyInspiration } from '../stores/dailyInspirationStore'; // Type for inspiration handler
     import { chatListCache } from '../services/chatListCache'; // For invalidating stale 'sending' status in sidebar cache
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
@@ -1297,12 +1298,17 @@
                 } else if (!finalEmbedData && !finalDecodedContent) {
                     // Only error if we have no data at all (neither from EmbedStore nor from event)
                     console.error('[ActiveChat] Embed not found in EmbedStore and no fallback data:', embedId);
+                    // Clean up the URL hash that was set eagerly before async resolution —
+                    // without this, the URL shows #embed-id=xxx but no fullscreen renders.
+                    activeEmbedStore.clearActiveEmbed();
                     return;
                 }
             } catch (error) {
                 console.error('[ActiveChat] Error loading embed for fullscreen:', error);
                 // Fall back to event data if available
                 if (!finalEmbedData && !finalDecodedContent) {
+                    // Clean up the URL hash — resolution failed and no fallback data exists
+                    activeEmbedStore.clearActiveEmbed();
                     return;
                 }
             }
@@ -1904,14 +1910,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         console.debug('[ActiveChat] Fullscreen opened from PiP restore');
     }
 
-    // Handler for suggestion click - copies suggestion to message input
-    function handleSuggestionClick(suggestion: string) {
-        console.debug('[ActiveChat] Suggestion clicked:', suggestion);
+    // Handler for suggestion click - copies suggestion to message input.
+    // When mentionSyntax is provided (e.g. "@skill:web:search"), we first insert
+    // the mention node via pendingMentionStore (which MessageInput watches), then
+    // insert the body text. This ensures the app skill is properly triggered on send.
+    function handleSuggestionClick(suggestion: string, mentionSyntax?: string) {
+        console.debug('[ActiveChat] Suggestion clicked:', suggestion, mentionSyntax ? `(mention: ${mentionSyntax})` : '');
         if (messageInputFieldRef) {
-            // Set the suggestion text in the message input
-            messageInputFieldRef.setSuggestionText(suggestion);
-            // Focus the input
-            messageInputFieldRef.focus();
+            if (mentionSyntax) {
+                // Insert the @skill mention node first via pendingMentionStore.
+                // MessageInput watches this store and creates a proper GenericMention
+                // TipTap node (styled chip). The store effect also appends a space,
+                // so we insert body text after a short tick to ensure correct order.
+                pendingMentionStore.set(mentionSyntax);
+                // Insert body text after the mention node has been created
+                tick().then(() => {
+                    messageInputFieldRef?.setSuggestionText(suggestion);
+                    messageInputFieldRef?.focus();
+                });
+            } else {
+                // No mention — insert plain text as before
+                messageInputFieldRef.setSuggestionText(suggestion);
+                messageInputFieldRef.focus();
+            }
         }
     }
 
@@ -3847,8 +3868,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 if (isRejection) {
                     chatListCache.invalidateLastMessage(chunk.chat_id);
                 }
+                // CRITICAL: Use the server's full_content_so_far from the final chunk as
+                // the definitive content. This bypasses the streaming regression guard
+                // (line ~3651) which may have blocked a shorter (but correct) content update
+                // from QUOTE_VERIFY. Without this, stripped quotes reappear on reload because
+                // the client persists the unverified pre-strip content.
+                // See: embed source quote verification in stream_consumer.py
+                const serverVerifiedContent = chunk.full_content_so_far;
+                const finalContent = serverVerifiedContent != null
+                    ? serverVerifiedContent
+                    : finalMessageInArray.content;
+
                 const updatedFinalMessage = {
                     ...finalMessageInArray,
+                    content: finalContent,
                     status: finalStatus,
                     // Preserve role as 'system' for rejection messages
                     role: isRejection ? 'system' as const : finalMessageInArray.role,

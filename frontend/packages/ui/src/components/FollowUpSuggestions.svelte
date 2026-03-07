@@ -12,7 +12,7 @@
   }: {
     suggestions: string[];
     messageInputContent?: string;
-    onSuggestionClick: (suggestion: string) => void;
+    onSuggestionClick: (suggestion: string, mentionSyntax?: string) => void;
   } = $props();
 
   // Import text function for translations
@@ -160,11 +160,15 @@
   }
 
   /**
-   * Handle suggestion click - inserts only the body text (without prefix) into the input.
-   * This lets users discover skills via the prefix chip while keeping the sent text clean.
+   * Handle suggestion click - inserts body text and optionally triggers a skill mention.
+   * When a suggestion has a prefix (e.g. [web-search]), we build the @skill mention syntax
+   * so the parent can insert a proper mention node via pendingMentionStore, ensuring the
+   * app skill is triggered on send.
    */
-  function handleSuggestionClick(body: string) {
-    onSuggestionClick(body);
+  function handleSuggestionClick(appId: string | null, subId: string | null, body: string) {
+    // Build mention syntax for skill-prefixed suggestions (e.g. "@skill:web:search")
+    const mentionSyntax = appId && subId ? `@skill:${appId}:${subId}` : undefined;
+    onSuggestionClick(body, mentionSyntax);
   }
 
   // Update currentLocale when language changes to force component re-render
@@ -201,16 +205,15 @@
           onclick={(event) => {
             event.preventDefault();
             event.stopPropagation();
-            handleSuggestionClick(suggestion.body);
+            handleSuggestionClick(suggestion.appId, suggestion.subId, suggestion.body);
           }}
           transition:fade={{ duration: 150 }}
         >
           {#if suggestion.appId}
-            <span class="skill-chip">
+            <span class="app-skill-icons">
+              <Icon name={suggestion.appId} type="app" size="16px" noAnimation noMargin />
               {#if subIconName}
-                <Icon name={subIconName} type="skill" size="16px" noAnimation noMargin />
-              {:else}
-                <Icon name={suggestion.appId} type="app" size="16px" noAnimation noMargin />
+                <Icon name={subIconName} type="skill" size="14px" noAnimation noMargin />
               {/if}
             </span>
           {/if}
@@ -307,16 +310,19 @@
     scale: 1;
   }
 
-  /* Icon chip rendered before the suggestion body text */
-  .skill-chip {
+  /* App + skill icon pair rendered before the suggestion body text.
+     Shows the gradient app icon (square with rounded edges) alongside
+     the smaller skill-specific icon for clear visual identification. */
+  .app-skill-icons {
     display: inline-flex;
     align-items: center;
+    gap: 4px;
     flex-shrink: 0;
-    opacity: 0.7;
+    opacity: 0.8;
   }
 
   /* Override Icon animation/border so it blends into the suggestion row */
-  .skill-chip :global(.icon) {
+  .app-skill-icons :global(.icon) {
     animation: none !important;
     opacity: 1 !important;
     border: none !important;
