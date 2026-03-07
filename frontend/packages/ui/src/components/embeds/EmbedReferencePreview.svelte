@@ -12,6 +12,7 @@
   import { embedStore, embedRefIndexVersion } from '../../services/embedStore';
   import { resolveEmbed } from '../../services/embedResolver';
   import { getEmbedRenderer } from '../enter_message/extensions/embed_renderers';
+  import { normalizeEmbedType } from '../../data/embedRegistry.generated';
   import type { EmbedNodeAttributes } from '../../message_parsing/types';
 
   interface Props {
@@ -35,7 +36,7 @@
     const data = embedData as Record<string, unknown>;
     return {
       id,
-      type: String(data.type || 'app-skill-use'),
+      type: normalizeEmbedType(String(data.type || 'app-skill-use')),
       status: String(data.status || 'finished') as EmbedNodeAttributes['status'],
       contentRef: `embed:${id}`,
       app_id: (data.app_id as string | null) || null,
