@@ -74,6 +74,7 @@
 	let originalHashChatId: string | null = null; // Store original hash chat ID from URL (read before anything modifies it)
 	let deepLinkProcessed = $state(false); // Track if any deep link was processed during onMount to avoid loading welcome chat
 	let pendingDeepLinkHandler: ((event: Event) => void) | null = null; // Store event handler for cleanup
+	let bfcacheRestoreHandler: ((event: PageTransitionEvent) => void) | null = null; // Store BFCache restore handler for cleanup
 	let hasAutoOpenedGiftCardRedeemAfterAuth = $state(false);
 
 	function openGiftCardRedeemSettings(): void {
@@ -1819,6 +1820,48 @@
 		pendingDeepLinkHandler = pendingDeepLinkHandlerWrapper;
 		window.addEventListener('processPendingDeepLink', pendingDeepLinkHandlerWrapper);
 
+		// BFCACHE / PAGE RESUME FIX: On Safari (especially iPad), pages can be restored
+		// from BFCache (back-forward cache) with the entire Svelte app state frozen —
+		// including activeChatStore holding a stale chat ID. Since onMount does NOT re-run
+		// on BFCache restore, the defense-in-depth guard that clears activeChatStore on
+		// init never fires. This causes the old "last opened" chat to remain visible
+		// instead of showing the welcome screen with a "Continue where you left off"
+		// resume card.
+		//
+		// The same problem occurs on visibilitychange after a long background period:
+		// the WebSocket disconnects (clearing phasedSyncState guards), but the stale
+		// activeChatStore value persists. When the fresh sync runs, the old chat stays
+		// visible because nothing clears it.
+		//
+		// Fix: on pageshow (BFCache restore) and visibilitychange (tab/app resume),
+		// clear the active chat so the sync-driven resume card flow takes over.
+		const handleBfcacheRestore = (event: PageTransitionEvent) => {
+			if (!event.persisted) return;
+
+			const currentHash = window.location.hash;
+			const hasHashChat = currentHash.startsWith('#chat-id=');
+
+			console.info(
+				'[+page.svelte] [BFCACHE] Page restored from BFCache — clearing stale active chat',
+				{ hasHashChat, currentHash }
+			);
+
+			// Don't interfere if there's a hash chat in the URL — that takes priority
+			if (hasHashChat) {
+				console.debug('[+page.svelte] [BFCACHE] Hash chat present, skipping active chat clear');
+				return;
+			}
+
+			// Clear the stale active chat from the BFCache-restored state.
+			// This ensures the user sees the welcome screen with the "Continue where you
+			// left off" resume card instead of a potentially stale chat view.
+			// The WebSocket reconnection (handled by websocketService.ts pageshow handler)
+			// will trigger a fresh phased sync, which populates the resume card data.
+			activeChatStore.clearActiveChat();
+		};
+		bfcacheRestoreHandler = handleBfcacheRestore;
+		window.addEventListener('pageshow', handleBfcacheRestore);
+
 		console.debug('[+page.svelte] onMount finished');
 	});
 
@@ -1844,7 +1887,11 @@
 		window.removeEventListener('demoChatSelected', handleDemoChatSelected);
 		// Remove ChatHeader arrow navigation event listener
 		window.removeEventListener('chatHeaderNavigation', handleChatHeaderNavigation);
-		// Note: hashchange, visibilitychange, pagehide, and beforeunload handlers are cleaned up automatically on page unload
+		// Remove BFCache restore handler
+		if (bfcacheRestoreHandler) {
+			window.removeEventListener('pageshow', bfcacheRestoreHandler);
+		}
+		// Note: hashchange, visibilitychange, and beforeunload handlers are cleaned up automatically on page unload
 	});
 
 	/**
