@@ -116,6 +116,18 @@ logger = logging.getLogger(__name__)
 # FastAPI application
 # =============================================================================
 
+# Mark the host git repo as safe so git commands work inside the container
+# (the repo owner UID on the host differs from the container user).
+if _GIT_WORK_DIR:
+    try:
+        subprocess.run(
+            ["git", "config", "--global", "--add", "safe.directory", _GIT_WORK_DIR],
+            check=True,
+            capture_output=True,
+        )
+    except Exception:
+        pass  # Non-fatal — git commands will fail with a clear error later
+
 app = FastAPI(
     title="OpenMates Admin Sidecar",
     description=(
