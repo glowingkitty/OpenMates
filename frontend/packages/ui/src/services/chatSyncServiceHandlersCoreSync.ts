@@ -27,6 +27,98 @@ function yieldToMainThread(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+/**
+ * Decrypt chat title/category/icon and populate phasedSyncState.resumeChatData
+ * so the resume card on the welcome screen is available immediately after Phase 1
+ * completes — regardless of whether Chats.svelte (sidebar) is mounted.
+ *
+ * This is the critical fix for "resume card not showing after login":
+ * Previously, only Chats.svelte's event listener called setResumeChatData(),
+ * but on mobile or when the sidebar isn't open, that listener isn't active.
+ *
+ * @param chat - The Chat object (from IndexedDB or freshly constructed from payload)
+ * @param chatId - The chat ID string
+ */
+async function populateResumeChatDataFromPhase1(
+  chat: Chat,
+  chatId: string,
+): Promise<void> {
+  try {
+    const { phasedSyncState } = await import("../stores/phasedSyncStateStore");
+
+    // Decrypt title, category, icon for the resume card display
+    let displayTitle = "Untitled Chat";
+    let displayCategory: string | null = null;
+    let displayIcon: string | null = null;
+
+    try {
+      const { decryptWithChatKey, decryptChatKeyWithMasterKey } =
+        await import("./cryptoService");
+      let chatKey = chatDB.getChatKey(chatId);
+      if (!chatKey && chat.encrypted_chat_key) {
+        chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
+        if (chatKey) chatDB.setChatKey(chatId, chatKey);
+      }
+      if (chatKey) {
+        if (chat.encrypted_title) {
+          try {
+            displayTitle =
+              (await decryptWithChatKey(chat.encrypted_title, chatKey)) ||
+              displayTitle;
+          } catch {
+            /* fall through to default */
+          }
+        }
+        if (chat.encrypted_category) {
+          try {
+            displayCategory = await decryptWithChatKey(
+              chat.encrypted_category,
+              chatKey,
+            );
+          } catch {
+            /* fall through */
+          }
+        }
+        if (chat.encrypted_icon) {
+          try {
+            displayIcon = await decryptWithChatKey(
+              chat.encrypted_icon,
+              chatKey,
+            );
+          } catch {
+            /* fall through */
+          }
+        }
+      }
+    } catch (decryptErr) {
+      console.warn(
+        "[ChatSyncService:CoreSync] Failed to decrypt fields for Phase 1 resume card:",
+        decryptErr,
+      );
+    }
+
+    // Use force=true because during login the currentActiveChatId might still
+    // hold a stale value from the previous session. The user is on the welcome
+    // screen at this point — Phase 1 runs before any chat is opened.
+    phasedSyncState.setResumeChatData(
+      chat,
+      displayTitle,
+      displayCategory,
+      displayIcon,
+      true, // force — bypass currentActiveChatId guard
+    );
+
+    console.info(
+      `[ChatSyncService:CoreSync] ✅ Populated resume card from Phase 1 for chat "${chatId}": title="${displayTitle}"`,
+    );
+  } catch (err) {
+    console.error(
+      "[ChatSyncService:CoreSync] Failed to populate resume card from Phase 1:",
+      err,
+    );
+  }
+}
+
 export async function handleInitialSyncResponseImpl(
   serviceInstance: ChatSynchronizationService,
   payload: InitialSyncResponsePayload,
@@ -286,6 +378,24 @@ export async function handlePhase1LastChatImpl(
     console.info(
       `[ChatSyncService:CoreSync] Phase 1: Chat ${payload.chat_id} already up-to-date on client. Skipping data save.`,
     );
+
+    // CRITICAL FIX: Even when already synced, populate resume card data directly.
+    // The chat is already in IndexedDB — load it and decrypt for the resume card.
+    // Without this, the resume card only appears if Chats.svelte is mounted.
+    if (payload.chat_id) {
+      try {
+        const existingChat = await chatDB.getChat(payload.chat_id);
+        if (existingChat) {
+          await populateResumeChatDataFromPhase1(existingChat, payload.chat_id);
+        }
+      } catch (resumeErr) {
+        console.warn(
+          "[ChatSyncService:CoreSync] Failed to populate resume card for already-synced chat:",
+          resumeErr,
+        );
+      }
+    }
+
     // Still dispatch event so Chats.svelte knows Phase 1 is complete
     serviceInstance.dispatchEvent(
       new CustomEvent("phase_1_last_chat_ready", { detail: payload }),
@@ -701,6 +811,29 @@ export async function handlePhase1LastChatImpl(
       "[ChatSyncService:CoreSync] Error saving Phase 1 data to IndexedDB:",
       error,
     );
+  }
+
+  // CRITICAL FIX: Populate resume card data directly from Phase 1 data.
+  // This ensures the resume card appears on the welcome screen regardless of
+  // whether Chats.svelte (sidebar) is mounted. Previously, only the sidebar's
+  // event listener called setResumeChatData(), so on mobile or when sidebar was
+  // closed, the resume card never appeared after login.
+  if (payload.chat_id && payload.chat_details) {
+    try {
+      // Reconstruct the Chat object from payload (same as chatWithId built above).
+      // chat_details is Partial<Chat> from the server — cast to Chat since we only
+      // need encrypted_title/category/icon/chat_key fields for the resume card.
+      const chatForResume = {
+        ...payload.chat_details,
+        chat_id: payload.chat_id,
+      } as Chat;
+      await populateResumeChatDataFromPhase1(chatForResume, payload.chat_id);
+    } catch (resumeErr) {
+      console.warn(
+        "[ChatSyncService:CoreSync] Failed to populate resume card from Phase 1 data:",
+        resumeErr,
+      );
+    }
   }
 
   // Now dispatch event so Chats.svelte can open the chat
