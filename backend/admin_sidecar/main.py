@@ -824,19 +824,21 @@ async def get_version() -> JSONResponse:
         except Exception as e:
             logger.warning("[AdminSidecar/version] git log failed: %s", e)
 
-    # Get the nearest version tag (e.g. "v0.5.0-alpha")
+    # Get the latest version tag (e.g. "v0.5.0-alpha").
+    # We use `git tag --sort=-v:refname` (latest by version sort) instead of
+    # `git describe --tags --abbrev=0` because describe only finds tags that
+    # are ancestors of HEAD. On `dev`, tags created on `main` would be missed.
     tag = os.environ.get("BUILD_VERSION_TAG", "")
     if not tag and deployment_mode == "git":
         try:
-            # --abbrev=0 returns the exact tag name without commit suffix
             result = subprocess.run(
-                ["git", "describe", "--tags", "--abbrev=0"],
+                ["git", "tag", "--sort=-v:refname"],
                 capture_output=True, text=True, timeout=5, cwd=work_dir,
             )
-            if result.returncode == 0:
-                tag = result.stdout.strip()
+            if result.returncode == 0 and result.stdout.strip():
+                tag = result.stdout.strip().splitlines()[0]
         except Exception as e:
-            logger.warning("[AdminSidecar/version] git describe --tags failed: %s", e)
+            logger.warning("[AdminSidecar/version] git tag listing failed: %s", e)
 
     # Build the tag URL (GitHub release page)
     tag_url = ""
