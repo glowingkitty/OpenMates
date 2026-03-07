@@ -1597,7 +1597,8 @@ export async function inspectChat(
       }
     }
 
-    const embedShowCount = Math.min(15, chatEmbeds.length);
+    // Show ALL embeds — never truncate. The debug tool must give the complete picture.
+    const embedShowCount = chatEmbeds.length;
     for (let i = 0; i < embedShowCount; i++) {
       const embed = chatEmbeds[i];
       const embedId =
@@ -1648,9 +1649,7 @@ export async function inspectChat(
       );
     }
 
-    if (chatEmbeds.length > embedShowCount) {
-      lines.push(`  ... ${chatEmbeds.length - embedShowCount} more`);
-    }
+    // No truncation — all embeds are always shown above
   } else {
     lines.push("  (none)");
   }

@@ -488,7 +488,7 @@
           </div>
         {:else}
           <div class="no-results">
-            <p>{$text('embeds.no_results')}</p>
+            <p>{$text('embeds.search_no_results')}</p>
           </div>
         {/if}
       {:else}

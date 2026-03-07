@@ -142,6 +142,30 @@ more_results:
   sv: "+ {count} fler"
   he: "ועוד {count}"
   verified_by_human: []
+search_no_results:
+  context: Shown in search embed preview when the search completed but returned zero results
+  en: 0 results found
+  de: 0 Ergebnisse gefunden
+  zh: 找到 0 个结果
+  es: 0 resultados encontrados
+  fr: 0 résultats trouvés
+  pt: 0 resultados encontrados
+  ru: 0 результатов найдено
+  ja: 0 件の結果
+  ko: 검색 결과 0건
+  it: 0 risultati trovati
+  tr: 0 sonuç bulundu
+  vi: Tìm thấy 0 kết quả
+  id: 0 hasil ditemukan
+  pl: Znaleziono 0 wyników
+  nl: 0 resultaten gevonden
+  ar: لم يتم العثور على نتائج
+  hi: 0 परिणाम मिले
+  th: พบ 0 ผลลัพธ์
+  cs: Nalezeno 0 výsledků
+  sv: 0 resultat hittade
+  he: נמצאו 0 תוצאות
+  verified_by_human: []
 open_search_results:
   context: Button label to open search results in fullscreen
   en: Open search results

@@ -474,45 +474,41 @@
           <div class="search-error-message">{errorMessage}</div>
         </div>
       {:else if status === 'finished'}
-        <!-- Finished state: show favicons and remaining count -->
+        <!-- Finished state: show favicons and remaining count, or "0 results found" -->
         <div class="search-results-info">
-          <!-- Favicons row -->
-          {#if faviconResults.length > 0}
-            <div class="favicon-row">
-              {#each faviconResults as result, index}
-                {@const rawFaviconUrl = getFaviconUrl(result)}
-                {@const proxiedFaviconUrl = getProxiedFaviconUrl(rawFaviconUrl)}
-                {#if proxiedFaviconUrl}
-                  <img 
-                    src={proxiedFaviconUrl}
-                    alt=""
-                    class="favicon"
-                    style="z-index: {faviconResults.length - index};"
-                    loading="lazy"
-                    crossorigin="anonymous"
-                    onerror={(e) => { handleImageError(e.currentTarget as HTMLImageElement); }}
-                  />
-                {/if}
-              {/each}
-            </div>
-          {/if}
-          
-          <!-- Remaining count - uses embeds.more_results translation with {count} placeholder -->
-          {#if remainingCount > 0}
-            <span class="remaining-count">
-              {$text('embeds.more_results').replace('{count}', String(remainingCount))}
-            </span>
+          {#if flatResults.length === 0}
+            <!-- Search completed but returned zero results — show clear indication -->
+            <span class="no-results-text">{$text('embeds.search_no_results')}</span>
+          {:else}
+            <!-- Favicons row -->
+            {#if faviconResults.length > 0}
+              <div class="favicon-row">
+                {#each faviconResults as result, index}
+                  {@const rawFaviconUrl = getFaviconUrl(result)}
+                  {@const proxiedFaviconUrl = getProxiedFaviconUrl(rawFaviconUrl)}
+                  {#if proxiedFaviconUrl}
+                    <img 
+                      src={proxiedFaviconUrl}
+                      alt=""
+                      class="favicon"
+                      style="z-index: {faviconResults.length - index};"
+                      loading="lazy"
+                      crossorigin="anonymous"
+                      onerror={(e) => { handleImageError(e.currentTarget as HTMLImageElement); }}
+                    />
+                  {/if}
+                {/each}
+              </div>
+            {/if}
+            
+            <!-- Remaining count - uses embeds.more_results translation with {count} placeholder -->
+            {#if remainingCount > 0}
+              <span class="remaining-count">
+                {$text('embeds.more_results').replace('{count}', String(remainingCount))}
+              </span>
+            {/if}
           {/if}
         </div>
-        
-        <!-- Future: Preview images placeholder (48px height) -->
-        <!-- Uncomment when preview images are implemented:
-        {#if !isMobileLayout && hasPreviewImages}
-          <div class="preview-images-row">
-            Images would go here
-          </div>
-        {/if}
-        -->
       {/if}
     </div>
   {/snippet}
@@ -583,6 +579,14 @@
   
   .web-search-details.mobile .search-results-info {
     margin-top: 2px;
+  }
+  
+  /* Zero results indicator — muted text to clearly show search returned nothing */
+  .no-results-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-grey-60);
+    font-style: italic;
   }
   
   /* Error message styling for debugging (still privacy-safe) */
