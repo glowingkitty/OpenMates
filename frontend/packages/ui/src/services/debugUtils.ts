@@ -1000,6 +1000,8 @@ function buildClientEmbedHealthSummary(params: {
 
   const embedStatus = String(embed.status || "").toLowerCase();
   if (embedStatus === "error") issues.push("embed status is error");
+  else if (embedStatus === "cancelled")
+    warnings.push("embed was cancelled (AI task interrupted)");
   else if (embedStatus === "processing")
     warnings.push("embed is still processing");
 
@@ -1012,6 +1014,7 @@ function buildClientEmbedHealthSummary(params: {
 
   let childMissing = 0;
   let childErrors = 0;
+  let childCancelled = 0;
   for (const child of childEmbeds) {
     if (!child) {
       childMissing += 1;
@@ -1019,8 +1022,11 @@ function buildClientEmbedHealthSummary(params: {
     }
     collectTimestampIssue("child_embed.createdAt", child.createdAt, issues);
     collectTimestampIssue("child_embed.updatedAt", child.updatedAt, issues);
-    if (String(child.status || "").toLowerCase() === "error") {
+    const childStatus = String(child.status || "").toLowerCase();
+    if (childStatus === "error") {
       childErrors += 1;
+    } else if (childStatus === "cancelled") {
+      childCancelled += 1;
     }
   }
 
@@ -1032,6 +1038,11 @@ function buildClientEmbedHealthSummary(params: {
   if (childErrors > 0) {
     warnings.push(
       `${childErrors} child embed(s) are currently in error status`,
+    );
+  }
+  if (childCancelled > 0) {
+    warnings.push(
+      `${childCancelled} child embed(s) were cancelled (AI task interrupted)`,
     );
   }
 
@@ -1178,15 +1189,16 @@ async function attemptChatDecryption(
   report.chatKeyFingerprint = `${keyHexShort}... (${chatKey.length} bytes, source: ${report.chatKeySource})`;
 
   // Step 2: Try decrypting each chat metadata field
-  const { decryptWithChatKey } = await import("./cryptoService");
+  const { decryptWithChatKey, decryptWithMasterKey } =
+    await import("./cryptoService");
 
+  // Chat-key-encrypted metadata fields (all except Draft which uses master key)
   const encryptedMetadataFields: Array<{ field: string; key: string }> = [
     { field: "Title", key: "encrypted_title" },
     { field: "Category", key: "encrypted_category" },
     { field: "Icon", key: "encrypted_icon" },
     { field: "Summary", key: "encrypted_chat_summary" },
     { field: "Tags", key: "encrypted_chat_tags" },
-    { field: "Draft", key: "encrypted_draft_md" },
     {
       field: "Follow-up Suggestions",
       key: "encrypted_follow_up_request_suggestions",
@@ -1222,6 +1234,38 @@ async function attemptChatDecryption(
     } catch (error) {
       report.metadataFields.push({
         field,
+        success: false,
+        preview: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  // Draft field uses MASTER key (not chat key) — decrypt separately
+  // See draftSave.ts:962 where encryptWithMasterKey() is used for draft content
+  const encryptedDraft = chatMeta.encrypted_draft_md as string | undefined;
+  if (encryptedDraft) {
+    try {
+      const decrypted = await decryptWithMasterKey(encryptedDraft);
+      if (decrypted !== null) {
+        const preview =
+          decrypted.length > 40
+            ? decrypted.substring(0, 40) + "..."
+            : decrypted;
+        report.metadataFields.push({
+          field: "Draft",
+          success: true,
+          preview,
+        });
+      } else {
+        report.metadataFields.push({
+          field: "Draft",
+          success: false,
+          preview: "decryption returned null (master key unavailable?)",
+        });
+      }
+    } catch (error) {
+      report.metadataFields.push({
+        field: "Draft",
         success: false,
         preview: error instanceof Error ? error.message : String(error),
       });

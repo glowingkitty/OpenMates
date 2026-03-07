@@ -333,9 +333,25 @@ class ChatCacheMixin:
             logger.error(f"CACHE_OP_ERROR: Error incrementing component '{component}' for key '{key}'. Error: {e}", exc_info=True)
             return None
 
+    # Lua script for atomic set-if-greater: only HSET if new value > current value.
+    # This prevents concurrent tasks from clobbering a higher version with a stale one.
+    # Returns 1 if the value was set, 0 if skipped (current >= new).
+    _SET_IF_GREATER_LUA = """
+    local current = tonumber(redis.call('HGET', KEYS[1], ARGV[1]) or 0)
+    local new_val = tonumber(ARGV[2])
+    if new_val > current then
+        redis.call('HSET', KEYS[1], ARGV[1], new_val)
+        return 1
+    end
+    return 0
+    """
+
     async def set_chat_version_component(self, user_id: str, chat_id: str, component: str, value: int) -> bool:
         """
-        Sets a specific component's version for a chat in the versions hash to an absolute value.
+        Sets a specific component's version for a chat in the versions hash.
+        Uses atomic compare-and-set: only writes if the new value is greater than
+        the current value. This prevents concurrent tasks from clobbering a higher
+        version with a stale one (e.g., cancelled AI task vs. new AI task).
         Returns True on success, False on error.
         The 'component' can be "messages_v", "title_v", or dynamic like f"user_draft_v:{specific_user_id}".
         """
@@ -345,14 +361,17 @@ class ChatCacheMixin:
         key = self._get_chat_versions_key(user_id, chat_id)
         final_ttl = self.CHAT_VERSIONS_TTL
         try:
-            logger.debug(f"CACHE_OP: HSET for key '{key}', component '{component}', value '{value}'")
-            await client.hset(key, component, value)
+            # Use atomic Lua script to only set if new value > current value
+            was_set = await client.eval(self._SET_IF_GREATER_LUA, 1, key, component, value)
+            if was_set:
+                logger.debug(f"CACHE_OP: Set component '{component}' for key '{key}' to '{value}' (was lower).")
+            else:
+                logger.debug(f"CACHE_OP: Skipped setting component '{component}' for key '{key}' to '{value}' (current >= new).")
             # Ensure base messages_v and title_v fields exist if the key itself is new or was missing fields.
             # This is important if hset is creating the hash for the first time with this component.
             await client.hsetnx(key, "messages_v", 0)
             await client.hsetnx(key, "title_v", 0)
             await client.expire(key, final_ttl) # Ensure TTL is set/refreshed
-            logger.debug(f"CACHE_OP: Successfully set component '{component}' for key '{key}' to '{value}'. TTL set to {final_ttl}s.")
             return True
         except Exception as e:
             logger.error(f"CACHE_OP_ERROR: Error setting component '{component}' for key '{key}' to '{value}'. Error: {e}", exc_info=True)
