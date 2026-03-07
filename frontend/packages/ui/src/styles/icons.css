@@ -793,6 +793,13 @@ div.clickable-icon {
   }
 }
 
+.icon_rounded.mail {
+  background: var(--color-app-mail);
+  &::after {
+    background-image: url("@openmates/ui/static/icons/mail.svg");
+  }
+}
+
 @media (max-width: 600px) {
   .icon {
     width: 77.69px;

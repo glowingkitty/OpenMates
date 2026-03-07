@@ -107,7 +107,7 @@
   {taskId}
   {isMobile}
   {onFullscreen}
-  showSkillIcon={true}
+  showSkillIcon={false}
   showStatus={true}
   customStatusText={statusText}
   onEmbedDataUpdated={handleEmbedDataUpdated}
