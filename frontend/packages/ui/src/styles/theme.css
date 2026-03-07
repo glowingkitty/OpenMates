@@ -717,6 +717,53 @@ body {
   -ms-user-select: text;
 }
 
+/* ── Global focus-visible system ─────────────────────────────────────────────
+   Provides a consistent, accessible focus indicator for keyboard navigation.
+
+   Two-color strategy:
+     - Default interactive elements (inputs, links, custom controls, etc.):
+       Orange outline (#ff553b, --color-button-primary) — matches the brand
+       action color and is highly visible on light/dark backgrounds.
+     - Elements that are already orange (buttons with --color-button-primary bg):
+       Blue/indigo outline (#4867cd, --color-primary-start) — contrasts with
+       the orange background. Defined directly in buttons.css to avoid
+       specificity collisions.
+
+   Rules:
+     - Only :focus-visible fires, not :focus — so mouse/touch users never see
+       the ring, only keyboard and programmatic focus users do.
+     - outline: none on :focus (without :focus-visible) suppresses the
+       browser default ring for pointer users without breaking keyboard nav.
+     - Individual component overrides (outline: none without :focus-visible)
+       are a separate cleanup task tracked in docs/architecture.
+*/
+
+/* Remove browser default focus ring for pointer users globally. */
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Default orange focus ring for all focusable elements. */
+*:focus-visible {
+  outline: 3px solid var(--color-button-primary, #ff553b);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Links get a slightly tighter offset since they're inline. */
+a:focus-visible {
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
+/* Inputs and textareas — tighter ring that follows field shape. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--color-button-primary, #ff553b);
+  outline-offset: 2px;
+}
+
 /* Global scrollbar styles - applies to all scrollable elements */
 /* Force scrollbars to ALWAYS be visible in Chrome/Webkit browsers */
 /* Firefox scrollbar styles */

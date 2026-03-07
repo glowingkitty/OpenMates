@@ -8,9 +8,10 @@
 		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
 		<link rel="apple-touch-icon" href="%sveltekit.assets%/favicon.png" />
 		<link rel="manifest" href="%sveltekit.assets%/manifest.json" />
-		<!-- maximum-scale=1 prevents iOS Safari from auto-zooming when focusing inputs with font-size < 16px.
-			 Without this, iOS zooms in on input focus and stays zoomed after keyboard dismiss. -->
-		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+		<!-- maximum-scale=5 allows users (and accessibility tools) to zoom up to 5x while still
+			 preventing iOS Safari from auto-zooming on input focus (all inputs use font-size >= 1rem = 16px).
+			 WCAG 2.1 SC 1.4.4 requires content to be resizable up to 200% without loss of functionality. -->
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
 		<meta name="theme-color" content="#171717" />
 
 		<!--
