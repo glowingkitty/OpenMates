@@ -28,6 +28,8 @@ import SheetEmbedPreview from "../../../embeds/sheets/SheetEmbedPreview.svelte";
 import ReminderEmbedPreview from "../../../embeds/reminder/ReminderEmbedPreview.svelte";
 import TravelSearchEmbedPreview from "../../../embeds/travel/TravelSearchEmbedPreview.svelte";
 import TravelStaysEmbedPreview from "../../../embeds/travel/TravelStaysEmbedPreview.svelte";
+import TravelConnectionEmbedPreview from "../../../embeds/travel/TravelConnectionEmbedPreview.svelte";
+import TravelStayEmbedPreview from "../../../embeds/travel/TravelStayEmbedPreview.svelte";
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
 import ImageViewEmbedPreview from "../../../embeds/images/ImageViewEmbedPreview.svelte";
 import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
@@ -37,9 +39,29 @@ import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte"
 import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
 import PdfSearchEmbedPreview from "../../../embeds/pdf/PdfSearchEmbedPreview.svelte";
 import MailEmbedPreview from "../../../embeds/mail/MailEmbedPreview.svelte";
+import EventEmbedPreview from "../../../embeds/events/EventEmbedPreview.svelte";
+import MapsLocationEmbedPreview from "../../../embeds/maps/MapsLocationEmbedPreview.svelte";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
+
+/**
+ * Type signature for individual embed mounter functions.
+ * Each registered mounter mounts a Svelte preview component for a specific embed type.
+ * The mounter is responsible for:
+ *   1. Extracting typed props from decodedContent / embedData / item attrs
+ *   2. Unmounting any existing component on `content`
+ *   3. Calling mount() and storing the result in mountedComponents
+ *
+ * Architecture: See docs/architecture/embed-rendering.md
+ * To add a new direct embed type, register a new entry in individualMounters (GroupRenderer constructor).
+ */
+type IndividualMounter = (
+  item: EmbedNodeAttributes,
+  embedData: any,
+  decodedContent: any,
+  content: HTMLElement,
+) => Promise<void>;
 
 /**
  * Generic renderer for group embeds (website-group, code-group, doc-group, etc.)
@@ -53,6 +75,121 @@ const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
  */
 export class GroupRenderer implements EmbedRenderer {
   type = "group"; // This is a generic type - actual matching happens in the registry
+
+  /**
+   * Registry of individual-embed mounter functions, keyed by frontend type string.
+   *
+   * When a non-group embed of a registered type arrives in render(), we look up the mounter
+   * here and call it directly. This replaces the previous scattered `if (baseType === ...)` chain.
+   *
+   * To add a new direct embed type to GroupRenderer:
+   *   1. Import the Preview component at the top of this file
+   *   2. Add a `this.individualMounters.set(...)` call in the constructor below
+   *   3. Write the corresponding private `mount{TypeName}Component()` method
+   *   4. Add an HTML fallback method `render{TypeName}Item()` for group HTML rendering
+   *   5. Add a case in renderItemContent() switch for the HTML fallback path
+   *
+   * See docs/claude/embed-types.md for the full registration checklist.
+   */
+  private readonly individualMounters: Map<string, IndividualMounter>;
+
+  constructor() {
+    this.individualMounters = new Map<string, IndividualMounter>([
+      [
+        "web-website",
+        (item, embedData, decodedContent, content) =>
+          this.renderWebsiteComponent(item, embedData, decodedContent, content),
+      ],
+      [
+        "videos-video",
+        (item, embedData, decodedContent, content) =>
+          this.renderVideoComponent(item, embedData, decodedContent, content),
+      ],
+      [
+        "code-code",
+        (item, embedData, decodedContent, content) =>
+          this.renderCodeComponent(item, embedData, decodedContent, content),
+      ],
+      [
+        "docs-doc",
+        (item, embedData, decodedContent, content) =>
+          this.renderDocsComponent(item, embedData, decodedContent, content),
+      ],
+      [
+        "sheets-sheet",
+        (item, embedData, decodedContent, content) =>
+          this.renderSheetComponent(item, embedData, decodedContent, content),
+      ],
+      [
+        "mail-email",
+        (item, embedData, decodedContent, content) =>
+          this.renderMailComponent(item, embedData, decodedContent, content),
+      ],
+      [
+        "travel-connection",
+        (item, embedData, decodedContent, content) =>
+          this.renderTravelConnectionComponent(
+            item,
+            embedData,
+            decodedContent,
+            content,
+          ),
+      ],
+      [
+        "travel-stay",
+        (item, embedData, decodedContent, content) =>
+          this.renderTravelStayComponent(
+            item,
+            embedData,
+            decodedContent,
+            content,
+          ),
+      ],
+      [
+        "events-event",
+        (item, embedData, decodedContent, content) =>
+          this.renderEventComponent(item, embedData, decodedContent, content),
+      ],
+      [
+        "maps-place",
+        (item, embedData, decodedContent, content) =>
+          this.renderMapsPlaceComponent(
+            item,
+            embedData,
+            decodedContent,
+            content,
+          ),
+      ],
+    ]);
+
+    // Startup check: warn if EMBED_RENDERER_MAP contains GroupRenderer types
+    // that are not registered in this.individualMounters (catches future omissions).
+    // Import is deferred to avoid circular deps at module load time.
+    // See docs/claude/embed-types.md for the full registration checklist.
+    if (typeof window !== "undefined") {
+      import("../../../../data/embedRegistry.generated")
+        .then(({ EMBED_RENDERER_MAP }) => {
+          const groupTypes = Object.entries(EMBED_RENDERER_MAP)
+            .filter(([, renderer]) => renderer === "GroupRenderer")
+            .map(([type]) => type)
+            .filter(
+              (type) => !type.endsWith("-group") && type !== "app-skill-use",
+            );
+
+          for (const type of groupTypes) {
+            if (!this.individualMounters.has(type)) {
+              console.warn(
+                `[GroupRenderer] MISSING individual mounter for type "${type}". ` +
+                  `Add it to GroupRenderer.individualMounters. See docs/claude/embed-types.md.`,
+              );
+            }
+          }
+        })
+        .catch(() => {
+          // Registry not available (e.g. in test environment) — skip check
+        });
+    }
+  }
 
   async render(context: EmbedRenderContext): Promise<void> {
     const { attrs, content } = context;
@@ -96,76 +233,18 @@ export class GroupRenderer implements EmbedRenderer {
       attrs.type.endsWith("-group");
 
     if (!isGroup) {
-      // This is an individual embed
+      // This is an individual embed. Look up the mounter in the registry.
+      // Architecture: individual type → mounter map replaces scattered if-chains.
+      // To add a new type, register it in the constructor's individualMounters Map.
       const baseType = attrs.type;
+      const mounter = this.individualMounters.get(baseType);
 
-      // For website embeds, use Svelte component instead of HTML
-      if (baseType === "web-website") {
-        await this.renderWebsiteComponent(
-          attrs,
-          embedData,
-          decodedContent,
-          content,
-        );
+      if (mounter) {
+        await mounter(attrs, embedData, decodedContent, content);
         return;
       }
 
-      // For video embeds, use Svelte component instead of HTML
-      if (baseType === "videos-video") {
-        await this.renderVideoComponent(
-          attrs,
-          embedData,
-          decodedContent,
-          content,
-        );
-        return;
-      }
-
-      // For code embeds, use Svelte component instead of HTML
-      if (baseType === "code-code") {
-        await this.renderCodeComponent(
-          attrs,
-          embedData,
-          decodedContent,
-          content,
-        );
-        return;
-      }
-
-      // For document embeds, use Svelte component instead of HTML
-      if (baseType === "docs-doc") {
-        await this.renderDocsComponent(
-          attrs,
-          embedData,
-          decodedContent,
-          content,
-        );
-        return;
-      }
-
-      // For sheet embeds, use Svelte component instead of HTML
-      if (baseType === "sheets-sheet") {
-        await this.renderSheetComponent(
-          attrs,
-          embedData,
-          decodedContent,
-          content,
-        );
-        return;
-      }
-
-      // For mail embeds, use Svelte component
-      if (baseType === "mail-email") {
-        await this.renderMailComponent(
-          attrs,
-          embedData,
-          decodedContent,
-          content,
-        );
-        return;
-      }
-
-      // For other types, use HTML rendering
+      // No registered mounter — fall back to HTML rendering
       const itemHtml = await this.renderIndividualItem(
         attrs,
         baseType,
@@ -345,6 +424,14 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderSheetItem(item, embedData, decodedContent);
       case "mail-email":
         return this.renderMailItem(item, embedData, decodedContent);
+      case "travel-connection":
+        return this.renderTravelConnectionItem(item, embedData, decodedContent);
+      case "travel-stay":
+        return this.renderTravelStayItem(item, embedData, decodedContent);
+      case "events-event":
+        return this.renderEventItem(item, embedData, decodedContent);
+      case "maps-place":
+        return this.renderMapsPlaceItem(item, embedData, decodedContent);
       default:
         console.error(
           `[GroupRenderer] No renderer found for embed type: ${baseType}`,
@@ -3060,6 +3147,499 @@ export class GroupRenderer implements EmbedRenderer {
     `;
   }
 
+  // =========================================================================
+  // Travel connection embed rendering — individual Svelte component + HTML fallback
+  // =========================================================================
+
+  /**
+   * Render a single travel connection embed using TravelConnectionEmbedPreview.
+   * Called from the render() individual embed path when baseType === 'travel-connection'.
+   */
+  private async renderTravelConnectionComponent(
+    item: EmbedNodeAttributes,
+    embedData: any = null,
+    decodedContent: any = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const price = decodedContent?.price?.toString() || "";
+    const currency = decodedContent?.currency || "EUR";
+    const transportMethod =
+      decodedContent?.transport_method ||
+      decodedContent?.transportMethod ||
+      "airplane";
+    const tripType =
+      decodedContent?.trip_type || decodedContent?.tripType || "one_way";
+    const origin = decodedContent?.origin || "";
+    const destination = decodedContent?.destination || "";
+    const departure = decodedContent?.departure || "";
+    const arrival = decodedContent?.arrival || "";
+    const duration = decodedContent?.duration || "";
+    const stops = decodedContent?.stops ?? 0;
+    const carriers = decodedContent?.carriers || [];
+    const carrierCodes =
+      decodedContent?.carrier_codes || decodedContent?.carrierCodes || [];
+    const bookableSeats =
+      decodedContent?.bookable_seats ?? decodedContent?.bookableSeats;
+    const isCheapest =
+      decodedContent?.is_cheapest ?? decodedContent?.isCheapest ?? false;
+    const status = (decodedContent?.status ||
+      embedData?.status ||
+      item.status ||
+      "finished") as "processing" | "finished" | "error";
+
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    try {
+      // No onFullscreen: TravelConnectionEmbedFullscreen is only accessible as a child
+      // overlay inside TravelSearchEmbedFullscreen (drill-down pattern). There is no
+      // top-level route in ActiveChat.svelte for individual travel-connection embeds.
+      // To enable fullscreen from [!](embed:ref) large previews, add a branch in ActiveChat
+      // for embedType === 'travel-connection' (or app-skill-use with skill_id === 'connection')
+      // and then wire onFullscreen here.
+
+      const component = mount(TravelConnectionEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          price,
+          currency,
+          transportMethod,
+          tripType,
+          origin,
+          destination,
+          departure,
+          arrival,
+          duration,
+          stops,
+          carriers,
+          carrierCodes,
+          bookableSeats,
+          isCheapest,
+          status,
+          isMobile: false,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[GroupRenderer] Mounted TravelConnectionEmbedPreview component:",
+        { embedId, origin, destination, status },
+      );
+    } catch (error) {
+      console.error(
+        "[GroupRenderer] Error mounting TravelConnectionEmbedPreview:",
+        error,
+      );
+      const fallbackHtml = await this.renderTravelConnectionItem(
+        item,
+        embedData,
+        decodedContent,
+      );
+      content.innerHTML = fallbackHtml;
+    }
+  }
+
+  /**
+   * HTML fallback for travel connection embeds (used by renderItemContent switch).
+   */
+  private async renderTravelConnectionItem(
+    _item: EmbedNodeAttributes,
+    _embedData?: any,
+    decodedContent: any = null,
+  ): Promise<string> {
+    const origin = decodedContent?.origin || "";
+    const destination = decodedContent?.destination || "";
+    const price = decodedContent?.price || "";
+    const currency = decodedContent?.currency || "EUR";
+
+    return `
+      <div class="embed-app-icon travel">
+        <span class="icon icon_travel"></span>
+      </div>
+      <div class="embed-text-content">
+        <div class="embed-text-line">${origin || "Origin"} → ${destination || "Destination"}</div>
+        ${price ? `<div class="embed-text-subline">${price} ${currency}</div>` : ""}
+      </div>
+    `;
+  }
+
+  // =========================================================================
+  // Travel stay embed rendering — individual Svelte component + HTML fallback
+  // =========================================================================
+
+  /**
+   * Render a single travel stay embed using TravelStayEmbedPreview.
+   * Called from the render() individual embed path when baseType === 'travel-stay'.
+   */
+  private async renderTravelStayComponent(
+    item: EmbedNodeAttributes,
+    embedData: any = null,
+    decodedContent: any = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const name = decodedContent?.name || "";
+    const thumbnail = decodedContent?.thumbnail || "";
+    const hotelClass =
+      decodedContent?.hotel_class ?? decodedContent?.hotelClass;
+    const overallRating =
+      decodedContent?.overall_rating ?? decodedContent?.overallRating;
+    const reviews = decodedContent?.reviews;
+    const currency = decodedContent?.currency || "EUR";
+    const ratePerNight =
+      decodedContent?.rate_per_night ?? decodedContent?.ratePerNight;
+    const totalRate = decodedContent?.total_rate ?? decodedContent?.totalRate;
+    const amenities = decodedContent?.amenities || [];
+    const isCheapest =
+      decodedContent?.is_cheapest ?? decodedContent?.isCheapest ?? false;
+    const ecoCertified =
+      decodedContent?.eco_certified ?? decodedContent?.ecoCertified ?? false;
+    const freeCancellation =
+      decodedContent?.free_cancellation ??
+      decodedContent?.freeCancellation ??
+      false;
+    const status = (decodedContent?.status ||
+      embedData?.status ||
+      item.status ||
+      "finished") as "processing" | "finished" | "error";
+
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    try {
+      // No onFullscreen: TravelStayEmbedFullscreen is only accessible as a child overlay
+      // inside TravelStaysEmbedFullscreen (drill-down pattern). There is no top-level route
+      // in ActiveChat.svelte for individual travel-stay embeds.
+      // To enable fullscreen from [!](embed:ref) large previews, add a branch in ActiveChat
+      // for embedType === 'travel-stay' (or app-skill-use with skill_id === 'stay')
+      // and then wire onFullscreen here.
+
+      const component = mount(TravelStayEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          name,
+          thumbnail,
+          hotelClass,
+          overallRating,
+          reviews,
+          currency,
+          ratePerNight,
+          totalRate,
+          amenities,
+          isCheapest,
+          ecoCertified,
+          freeCancellation,
+          status,
+          isMobile: false,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[GroupRenderer] Mounted TravelStayEmbedPreview component:",
+        { embedId, name, status },
+      );
+    } catch (error) {
+      console.error(
+        "[GroupRenderer] Error mounting TravelStayEmbedPreview:",
+        error,
+      );
+      const fallbackHtml = await this.renderTravelStayItem(
+        item,
+        embedData,
+        decodedContent,
+      );
+      content.innerHTML = fallbackHtml;
+    }
+  }
+
+  /**
+   * HTML fallback for travel stay embeds (used by renderItemContent switch).
+   */
+  private async renderTravelStayItem(
+    _item: EmbedNodeAttributes,
+    _embedData?: any,
+    decodedContent: any = null,
+  ): Promise<string> {
+    const name = decodedContent?.name || "Accommodation";
+    const ratePerNight =
+      decodedContent?.rate_per_night ?? decodedContent?.ratePerNight;
+    const currency = decodedContent?.currency || "EUR";
+
+    return `
+      <div class="embed-app-icon travel">
+        <span class="icon icon_travel"></span>
+      </div>
+      <div class="embed-text-content">
+        <div class="embed-text-line">${name}</div>
+        ${ratePerNight ? `<div class="embed-text-subline">${ratePerNight} ${currency}/night</div>` : ""}
+      </div>
+    `;
+  }
+
+  // =========================================================================
+  // Events embed rendering — individual Svelte component + HTML fallback
+  // =========================================================================
+
+  /**
+   * Render a single events-event embed using EventEmbedPreview.
+   *
+   * Note: EventEmbedPreview is designed as a drill-down child inside EventsSearchEmbedFullscreen.
+   * When rendered standalone via [!](embed:ref) large preview, we reconstruct the EventResult
+   * struct from the decoded TOON content.
+   *
+   * Fullscreen: not dispatched — EventEmbedFullscreen is only accessible as a child overlay
+   * inside EventsSearchEmbedFullscreen. A top-level route in ActiveChat.svelte would be needed
+   * to support individual-event fullscreen from the [!] large preview path.
+   */
+  private async renderEventComponent(
+    item: EmbedNodeAttributes,
+    embedData: any = null,
+    decodedContent: any = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+    const status = (decodedContent?.status ||
+      embedData?.status ||
+      item.status ||
+      "finished") as "processing" | "finished" | "error";
+
+    // Reconstruct EventResult from decoded TOON content.
+    // Mirrors the transformer in EventsSearchEmbedFullscreen.svelte.
+    const eventResult = {
+      embed_id: embedId,
+      id: decodedContent?.id as string | undefined,
+      provider: decodedContent?.provider as string | undefined,
+      title: decodedContent?.title as string | undefined,
+      description: decodedContent?.description as string | undefined,
+      url: decodedContent?.url as string | undefined,
+      date_start: decodedContent?.date_start as string | undefined,
+      date_end: decodedContent?.date_end as string | undefined,
+      timezone: decodedContent?.timezone as string | undefined,
+      event_type: decodedContent?.event_type as string | undefined,
+      venue: decodedContent?.venue as Record<string, unknown> | undefined,
+      organizer: decodedContent?.organizer as
+        | Record<string, unknown>
+        | undefined,
+      rsvp_count: decodedContent?.rsvp_count as number | undefined,
+      is_paid: decodedContent?.is_paid as boolean | undefined,
+      fee: decodedContent?.fee as Record<string, unknown> | undefined,
+      image_url: decodedContent?.image_url as string | null | undefined,
+    };
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    if (status === "processing") {
+      // Show plain HTML skeleton while loading — EventEmbedPreview requires a full EventResult
+      content.innerHTML = await this.renderEventItem(
+        item,
+        embedData,
+        decodedContent,
+      );
+      return;
+    }
+
+    try {
+      const component = mount(EventEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          event: eventResult,
+          isMobile: false,
+          // No onFullscreen: EventEmbedFullscreen has no top-level route in ActiveChat.
+          // Once a top-level route is added, dispatch embedfullscreen here.
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug("[GroupRenderer] Mounted EventEmbedPreview component:", {
+        embedId,
+        title: eventResult.title,
+        status,
+      });
+    } catch (error) {
+      console.error("[GroupRenderer] Error mounting EventEmbedPreview:", error);
+      content.innerHTML = await this.renderEventItem(
+        item,
+        embedData,
+        decodedContent,
+      );
+    }
+  }
+
+  /**
+   * HTML fallback for events-event embeds (used by renderItemContent switch).
+   */
+  private async renderEventItem(
+    _item: EmbedNodeAttributes,
+    _embedData?: any,
+    decodedContent: any = null,
+  ): Promise<string> {
+    const title = decodedContent?.title || "Event";
+    const dateStart = decodedContent?.date_start || "";
+    const venue =
+      decodedContent?.venue?.city || decodedContent?.venue_city || "";
+
+    return `
+      <div class="embed-app-icon events">
+        <span class="icon icon_events"></span>
+      </div>
+      <div class="embed-text-content">
+        <div class="embed-text-line">${title}</div>
+        ${dateStart ? `<div class="embed-text-subline">${dateStart}${venue ? ` · ${venue}` : ""}</div>` : ""}
+      </div>
+    `;
+  }
+
+  // =========================================================================
+  // Maps place embed rendering — individual Svelte component + HTML fallback
+  // =========================================================================
+
+  /**
+   * Render a single maps-place embed using MapsLocationEmbedPreview.
+   *
+   * Note: maps-place child embeds from a search result carry different data than
+   * the user-inserted maps (direct "location" type). The Preview component accepts
+   * flat fields: name, address, locationType, placeType, mapImageUrl, status.
+   *
+   * Fullscreen: not dispatched — MapsLocationEmbedFullscreen for individual place results
+   * has no top-level route in ActiveChat.svelte. Add one to enable fullscreen from [!] previews.
+   */
+  private async renderMapsPlaceComponent(
+    item: EmbedNodeAttributes,
+    embedData: any = null,
+    decodedContent: any = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+    const status = (decodedContent?.status ||
+      embedData?.status ||
+      item.status ||
+      "finished") as "processing" | "finished" | "error";
+
+    // Extract flat props from TOON content — field names follow the backend schema
+    const name =
+      decodedContent?.name ||
+      (decodedContent?.displayName as string | undefined) ||
+      "";
+    const address =
+      decodedContent?.formatted_address ||
+      (decodedContent?.formattedAddress as string | undefined) ||
+      decodedContent?.address ||
+      "";
+    const locationType =
+      (decodedContent?.location_type as string | undefined) || "";
+    const placeType = (decodedContent?.place_type as string | undefined) || "";
+    const mapImageUrl =
+      (decodedContent?.map_image_url as string | undefined) || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    try {
+      const component = mount(MapsLocationEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          name,
+          address,
+          locationType,
+          placeType,
+          mapImageUrl,
+          status,
+          isMobile: false,
+          // No onFullscreen: MapsLocationEmbedFullscreen has no top-level route in ActiveChat.
+          // Once a top-level route is added, dispatch embedfullscreen here.
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[GroupRenderer] Mounted MapsLocationEmbedPreview component:",
+        {
+          embedId,
+          name,
+          status,
+        },
+      );
+    } catch (error) {
+      console.error(
+        "[GroupRenderer] Error mounting MapsLocationEmbedPreview:",
+        error,
+      );
+      content.innerHTML = await this.renderMapsPlaceItem(
+        item,
+        embedData,
+        decodedContent,
+      );
+    }
+  }
+
+  /**
+   * HTML fallback for maps-place embeds (used by renderItemContent switch).
+   */
+  private async renderMapsPlaceItem(
+    _item: EmbedNodeAttributes,
+    _embedData?: any,
+    decodedContent: any = null,
+  ): Promise<string> {
+    const name =
+      decodedContent?.name ||
+      (decodedContent?.displayName as string | undefined) ||
+      "Place";
+    const address =
+      decodedContent?.formatted_address ||
+      (decodedContent?.formattedAddress as string | undefined) ||
+      decodedContent?.address ||
+      "";
+
+    return `
+      <div class="embed-app-icon maps">
+        <span class="icon icon_maps"></span>
+      </div>
+      <div class="embed-text-content">
+        <div class="embed-text-line">${name}</div>
+        ${address ? `<div class="embed-text-subline">${address}</div>` : ""}
+      </div>
+    `;
+  }
+
   private getGroupDisplayName(baseType: string, count: number): string {
     const typeDisplayNames: { [key: string]: string } = {
       "app-skill-use": "request",
@@ -3069,6 +3649,10 @@ export class GroupRenderer implements EmbedRenderer {
       "docs-doc": "document",
       "sheets-sheet": "spreadsheet",
       "mail-email": "email draft",
+      "travel-connection": "flight",
+      "travel-stay": "accommodation",
+      "events-event": "event",
+      "maps-place": "place",
     };
 
     const displayName = typeDisplayNames[baseType] || baseType;
