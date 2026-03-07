@@ -2276,8 +2276,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const currentActiveChat = $activeChatStore;
 
         // Only show resume card when on welcome screen, authenticated, and last_opened is a real chat ID
-        // (not empty, not '/chat/new' which means the user was already on the new chat screen)
-        if (!isWelcome || !isAuth || !lastOpened || lastOpened === '/chat/new') {
+        // (not empty, not '/chat/new' which means the user was already on the new chat screen,
+        //  not a demo/legal chat which are client-side static content)
+        if (!isWelcome || !isAuth || !lastOpened || lastOpened === '/chat/new' || isPublicChat(lastOpened)) {
             resumeChatData = null;
             resumeChatTitle = null;
             resumeChatCategory = null;
