@@ -849,6 +849,98 @@ Open `frontend/apps/web_app/src/routes/(authenticated)/chat/[chatId]/ActiveChat.
 
 ---
 
+### Step 10b — Register in `GroupRenderer.ts` (if the skill produces groupable child embeds)
+
+Some skills produce **groups** of child embeds (e.g., a "travel search" skill produces multiple `travel-connection` child embeds). These child embed types flow through `GroupRenderer.ts` instead of `AppSkillUseRenderer.ts`. If your skill has a child type listed in `EMBED_GROUPABLE_TYPES` in `embedRegistry.generated.ts`, you **must** register it in `GroupRenderer` as well.
+
+**File:** `frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts`
+
+There are three places to update:
+
+**10b-1 — Add import at top of file:**
+
+```typescript
+import {ChildSkillName}EmbedPreview from '../../../embeds/{appId}/{ChildSkillName}EmbedPreview.svelte';
+```
+
+**10b-2 — Add to `individualMounters` Map in the constructor:**
+
+```typescript
+this.individualMounters.set('{child-type-string}', (item, embedData, decodedContent, content) =>
+  this.render{ChildSkillName}Component(item, embedData, decodedContent, content),
+);
+```
+
+**10b-3 — Add a case to `renderItemContent()` switch (HTML fallback):**
+
+```typescript
+case '{child-type-string}':
+  return this.render{ChildSkillName}Item(item, embedData, decodedContent);
+```
+
+**10b-4 — Add to `getGroupDisplayName()` map:**
+
+```typescript
+'{child-type-string}': $text('embeds.{i18n_key}'),
+```
+
+**10b-5 — Add the two render methods:**
+
+```typescript
+/**
+ * Render {ChildSkillName} embed using Svelte component (individual group item).
+ */
+private async render{ChildSkillName}Component(
+  attrs: EmbedNodeAttributes,
+  embedData: any,
+  decodedContent: any,
+  content: HTMLElement,
+): Promise<void> {
+  const embedId = attrs.contentRef?.startsWith('embed:')
+    ? attrs.contentRef.replace('embed:', '')
+    : (attrs.id ?? '');
+
+  // NOTE: onFullscreen is intentionally undefined here if no dedicated
+  // top-level fullscreen exists (child-overlay-only fullscreens in
+  // parent group embeds should not be duplicated as standalone routes).
+
+  const component = mount({ChildSkillName}EmbedPreview, {
+    target: content,
+    props: {
+      id: embedId,
+      status: (embedData?.status || decodedContent?.status || 'finished') as 'processing' | 'finished' | 'error' | 'cancelled',
+      // Map fields from decodedContent:
+      isMobile: false,
+      onFullscreen: undefined,
+    },
+  });
+  this.groupMountedComponents.set(content, component);
+}
+
+/**
+ * HTML fallback for {ChildSkillName} embeds (used by renderItemContent switch).
+ */
+private async render{ChildSkillName}Item(
+  _item: EmbedNodeAttributes,
+  _embedData?: any,
+  decodedContent: any = null,
+): Promise<string> {
+  const title = decodedContent?.title || '{ChildSkillName}';
+  return `
+    <div class="embed-app-icon {appId}">
+      <span class="icon icon_{appId}"></span>
+    </div>
+    <div class="embed-content">
+      <div class="embed-title">${title}</div>
+    </div>
+  `;
+}
+```
+
+> **Startup warning:** The `GroupRenderer` constructor checks all `EMBED_GROUPABLE_TYPES` against `individualMounters` at startup and logs `[GroupRenderer] WARNING: No individual mounter registered for type "..."` for any missing registration. If you see this warning in the browser console, add the missing mounter.
+
+---
+
 ### Step 11 — Verify in dev preview
 
 Start the frontend dev server and visit:
@@ -858,6 +950,57 @@ Start the frontend dev server and visit:
 ```
 
 Verify all four state variants (`processing`, `finished`, `error`, `cancelled`) and the `mobile` variant look correct before integrating with the backend.
+
+---
+
+## Complete Registration Checklist (App-Skill-Use)
+
+Use this checklist when adding any new app-skill-use embed. Every item must be completed for the embed to work end-to-end.
+
+### Files you MUST touch
+
+| File                                                                                                  | What to add                                                        | Required?         |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ----------------- |
+| `frontend/packages/ui/src/styles/theme.css`                                                           | `--color-app-{appId}-start/end` gradient vars                      | Yes (if new app)  |
+| `frontend/packages/ui/static/icons/{skillIconName}.svg`                                               | Skill icon SVG                                                     | Yes (if new icon) |
+| `frontend/packages/ui/src/components/embeds/{appId}/`                                                 | New folder + Preview + Fullscreen `.svelte` files                  | Yes               |
+| `frontend/packages/ui/src/components/embeds/{appId}/{SkillName}EmbedPreview.svelte`                   | Preview component using `UnifiedEmbedPreview`                      | Yes               |
+| `frontend/packages/ui/src/components/embeds/{appId}/{SkillName}EmbedFullscreen.svelte`                | Fullscreen using `UnifiedEmbedFullscreen`                          | Yes               |
+| `frontend/packages/ui/src/components/embeds/{appId}/{SkillName}EmbedPreview.preview.ts`               | Dev preview mock data                                              | Yes               |
+| `frontend/packages/ui/src/components/embeds/{appId}/{SkillName}EmbedFullscreen.preview.ts`            | Dev preview mock data                                              | Yes               |
+| `frontend/packages/ui/src/components/BasicInfosBar.svelte`                                            | `:global(.skill-icon[...])` CSS block                              | Yes               |
+| `frontend/packages/ui/src/components/EmbedHeader.svelte`                                              | `:global(.skill-icon[...])` CSS block                              | Yes               |
+| `frontend/packages/ui/src/i18n/sources/embeds.yml`                                                    | Skill label for all 20 locales                                     | Yes               |
+| `frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts` | Import + routing block + render method                             | Yes               |
+| `frontend/apps/web_app/src/routes/(authenticated)/chat/[chatId]/ActiveChat.svelte`                    | Fullscreen dispatch case for `app_id` + `skill_id`                 | Yes               |
+| `frontend/packages/ui/src/data/embedRegistry.generated.ts`                                            | Entry in `EMBED_RENDERER_MAP` (auto-generated — verify it's there) | Yes               |
+
+### If your skill produces groupable child embeds
+
+If `EMBED_GROUPABLE_TYPES` in `embedRegistry.generated.ts` includes any child type from your skill, also touch:
+
+| File               | What to add                                                                                                          |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `GroupRenderer.ts` | Import + `individualMounters.set(...)` + `renderItemContent()` case + `getGroupDisplayName()` entry + render methods |
+| `groupHandlers.ts` | Handler registered for the parent group type                                                                         |
+
+### Quick audit command
+
+To check if a type is missing from any registration point, run:
+
+```bash
+# Check if a type is in embedRegistry
+grep -n '"travel-connection"' frontend/packages/ui/src/data/embedRegistry.generated.ts
+
+# Check if GroupRenderer handles it
+grep -n 'travel-connection' frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+
+# Check if groupHandlers handles it
+grep -n 'travel-connection' frontend/packages/ui/src/message_parsing/groupHandlers.ts
+
+# Check if ActiveChat has a fullscreen case
+grep -n 'travel' frontend/apps/web_app/src/routes/\(authenticated\)/chat/\[chatId\]/ActiveChat.svelte
+```
 
 ---
 
