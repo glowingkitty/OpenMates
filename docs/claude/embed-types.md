@@ -1287,6 +1287,89 @@ The fullscreen container has a CSS `container` named `fullscreen`. Use `@contain
 
 ---
 
+## Inline Badge → Child Embed Auto-Open (`initialChildEmbedId`)
+
+When a user clicks an **inline embed link** (e.g., `[Mad Cool 2024 Aftermovie](embed:youtube.com-sss)`) that points to a **child embed** inside a search result, the flow is:
+
+1. `EmbedInlineLink.handleClick()` → `embedStore.resolveFullscreenTarget(childId)` → returns `{ targetEmbedId: parentSearchId, focusChildEmbedId: childId }`
+2. `ActiveChat.handleEmbedFullscreen()` stores `focusChildEmbedId` in `embedFullscreenData`
+3. The parent search fullscreen receives it as `initialChildEmbedId` prop
+
+### How it works (unified in `UnifiedEmbedFullscreen`)
+
+The auto-open logic lives **in `UnifiedEmbedFullscreen.svelte`**, not in each consumer. This eliminates duplicated boilerplate across all search fullscreens:
+
+1. **`initialChildEmbedId?: string`** — prop passed from `ActiveChat.svelte` via `embedFullscreenData.focusChildEmbedId`
+2. **`onAutoOpenChild?: (index: number, children: unknown[]) => void`** — callback invoked when the matching child is found
+3. After `loadChildEmbeds()` finishes and `onChildrenLoaded` fires, UnifiedEmbedFullscreen searches for `initialChildEmbedId` in the loaded children. If found, it calls `onAutoOpenChild(index, children)` exactly once (guarded by `_autoOpenChildFired`).
+
+### Required implementation in each search fullscreen
+
+Every search fullscreen that has a drill-down overlay (child fullscreen) **MUST** implement these three things:
+
+```svelte
+<UnifiedEmbedFullscreen
+  ...
+  {initialChildEmbedId}
+  onAutoOpenChild={(index, children) => {
+    // 1. Populate the local results array for sibling navigation
+    allResults = children as MyResultType[];
+    // 2. Open the child overlay at the matching index
+    const item = allResults[index];
+    if (item) handleItemFullscreen(item);
+  }}
+  onChildrenLoaded={(children) => {
+    // Populate results for manual clicks (when no initialChildEmbedId)
+    allResults = children as MyResultType[];
+  }}
+>
+```
+
+Additionally, the **close handlers** must check `initialChildEmbedId`:
+
+```typescript
+// When child overlay is closed:
+function handleChildClose() {
+  if (initialChildEmbedId) {
+    // Opened via inline badge — close the ENTIRE fullscreen (no parent grid)
+    onClose();
+  } else {
+    // Opened via card click — return to parent results grid
+    selectedIndex = -1;
+  }
+}
+
+// When main close button is clicked:
+function handleMainClose() {
+  if (selectedIndex >= 0 && !initialChildEmbedId) {
+    selectedIndex = -1; // Close child overlay first
+  } else {
+    onClose(); // Close entire fullscreen
+  }
+}
+```
+
+### ActiveChat.svelte: passing the prop
+
+In `ActiveChat.svelte`, every search fullscreen mount **MUST** include:
+
+```svelte
+initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
+```
+
+### Checklist for new search fullscreens
+
+- [ ] Add `initialChildEmbedId?: string` to Props interface
+- [ ] Destructure `initialChildEmbedId` from `$props()`
+- [ ] Pass `{initialChildEmbedId}` to `<UnifiedEmbedFullscreen>`
+- [ ] Pass `onAutoOpenChild` callback that opens the child overlay
+- [ ] Pass `onChildrenLoaded` callback that populates local results array
+- [ ] Check `initialChildEmbedId` in child close handler (close entire fullscreen vs return to grid)
+- [ ] Check `initialChildEmbedId` in main close handler (same logic)
+- [ ] In `ActiveChat.svelte`, pass `initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}`
+
+---
+
 ## Canonical Reference: `web/search`
 
 When in doubt, treat `WebSearchEmbedPreview.svelte` and `WebSearchEmbedFullscreen.svelte` as the canonical examples. They implement every pattern described in this document:

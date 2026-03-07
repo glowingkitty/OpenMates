@@ -162,9 +162,6 @@
    */
   let allEvents = $state<EventResult[]>([]);
 
-  /** Guard: prevent the auto-open $effect from firing more than once per mount. */
-  let _autoOpenFired = $state(false);
-
   /** Open an event's detail fullscreen overlay. */
   function handleEventClick(index: number) {
     selectedEventIndex = index;
@@ -219,36 +216,8 @@
     selectedEventIndex >= 0 ? allEvents[selectedEventIndex] : undefined
   );
 
-  /**
-   * Auto-open the event overlay for a specific child embed when the fullscreen
-   * is opened via an inline badge click (initialChildEmbedId is set).
-   * Fires at most once per mount (_autoOpenFired guard) to prevent re-opening
-   * after the user closes the child overlay.
-   */
-  $effect(() => {
-    if (!initialChildEmbedId) return;
-    if (_autoOpenFired) return; // fire at most once per mount
-    if (allEvents.length === 0) return; // results not yet loaded
-
-    const idx = allEvents.findIndex(e => e.embed_id === initialChildEmbedId);
-    if (idx >= 0) {
-      console.debug(
-        '[EventsSearchEmbedFullscreen] Auto-opening event overlay for initialChildEmbedId:',
-        initialChildEmbedId,
-        'at index',
-        idx,
-      );
-      _autoOpenFired = true;
-      handleEventClick(idx);
-    } else {
-      console.warn(
-        '[EventsSearchEmbedFullscreen] initialChildEmbedId not found in loaded results:',
-        initialChildEmbedId,
-        'available embed_ids:',
-        allEvents.map(e => e.embed_id),
-      );
-    }
-  });
+  // Auto-open logic for initialChildEmbedId is handled by UnifiedEmbedFullscreen's
+  // onAutoOpenChild callback — no local $effect or _autoOpenFired guard needed.
 
   // ── Child embed transformer ──────────────────────────────────────────────────
   /**
@@ -353,6 +322,10 @@
   childEmbedTransformer={transformToEventResult}
   onEmbedDataUpdated={handleEmbedDataUpdated}
   onChildrenLoaded={(children) => { allEvents = children as EventResult[]; }}
+  {initialChildEmbedId}
+  onAutoOpenChild={(index) => {
+    handleEventClick(index);
+  }}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}

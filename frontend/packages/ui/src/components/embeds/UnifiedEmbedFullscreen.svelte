@@ -173,8 +173,31 @@
      * Optional callback fired when child embeds finish loading.
      * Use this to trigger side effects (e.g. map initialization) that depend on
      * loaded children, avoiding the anti-pattern of mutating state inside the template.
+     * The snippet receives no arguments.
      */
     onChildrenLoaded?: (children: unknown[]) => void;
+    
+    /**
+     * Child embed ID to auto-open on mount (set when arriving from an inline badge click).
+     * When provided together with onAutoOpenChild, the fullscreen will automatically
+     * open the child overlay for this embed_id once children finish loading.
+     * 
+     * This eliminates the need for each consumer to duplicate the _autoOpenFired +
+     * $effect + findIndex boilerplate — the logic lives here in the base component.
+     */
+    initialChildEmbedId?: string;
+    
+    /**
+     * Callback invoked when initialChildEmbedId matches a loaded child embed.
+     * The consumer should open the appropriate child overlay at the given index.
+     * 
+     * @param index - The index of the matching child in the loaded children array
+     * @param children - The full array of loaded children (for navigation context)
+     * 
+     * Fired at most once per mount. If the child is not found, a console warning
+     * is logged but no callback is invoked.
+     */
+    onAutoOpenChild?: (index: number, children: unknown[]) => void;
     
     /* ============================================
        Embed Navigation Props
@@ -276,6 +299,9 @@
     onNavigateNext,
     // Child embed loading callback
     onChildrenLoaded,
+    // Auto-open child embed props (inline badge click → child overlay)
+    initialChildEmbedId,
+    onAutoOpenChild,
     // Embed data update props
     currentEmbedId,
     onEmbedDataUpdated,
@@ -294,6 +320,9 @@
   
   /** Loaded child embeds (transformed if transformer provided) */
   let loadedChildren = $state<unknown[]>([]);
+  
+  /** Guard: prevent auto-open from firing more than once per mount */
+  let _autoOpenChildFired = $state(false);
   
   /** Whether child embeds are currently being loaded */
   let isLoadingChildren = $state(false);
@@ -406,6 +435,31 @@
     // Notify parent component that children finished loading (e.g. for map initialization)
     if (children.length > 0 && onChildrenLoaded) {
       onChildrenLoaded(children);
+    }
+    
+    // Auto-open a specific child embed if initialChildEmbedId was set (inline badge click).
+    // Fires at most once (guarded by _autoOpenChildFired) to prevent re-opening after close.
+    if (initialChildEmbedId && onAutoOpenChild && !_autoOpenChildFired && children.length > 0) {
+      const idx = children.findIndex((child: unknown) => {
+        if (child && typeof child === 'object' && 'embed_id' in child) {
+          return (child as { embed_id: string }).embed_id === initialChildEmbedId;
+        }
+        return false;
+      });
+      if (idx >= 0) {
+        _autoOpenChildFired = true;
+        console.debug('[UnifiedEmbedFullscreen] Auto-opening child overlay for initialChildEmbedId:', initialChildEmbedId, 'at index', idx);
+        onAutoOpenChild(idx, children);
+      } else {
+        console.warn(
+          '[UnifiedEmbedFullscreen] initialChildEmbedId not found in loaded children:',
+          initialChildEmbedId,
+          'available embed_ids:',
+          children
+            .filter((c: unknown): c is { embed_id: string } => !!c && typeof c === 'object' && 'embed_id' in c)
+            .map((c) => c.embed_id)
+        );
+      }
     }
   }
   

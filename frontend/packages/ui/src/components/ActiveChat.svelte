@@ -9001,6 +9001,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
                             results={getVideoSearchResults(embedFullscreenData.decodedContent?.results)}
                             embedId={embedFullscreenData.embedId}
+                            initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
                             onClose={handleCloseEmbedFullscreen}
                             {hasPreviousEmbed}
                             {hasNextEmbed}
@@ -9019,6 +9020,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
                             results={getPlaceSearchResults(embedFullscreenData.decodedContent?.results)}
                             embedId={embedFullscreenData.embedId}
+                            initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
                             onClose={handleCloseEmbedFullscreen}
                             {hasPreviousEmbed}
                             {hasNextEmbed}

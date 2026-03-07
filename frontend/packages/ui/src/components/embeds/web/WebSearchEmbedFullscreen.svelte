@@ -151,9 +151,6 @@
   /** Flat array of all loaded web results — populated when children finish loading */
   let allWebResults = $state<WebSearchResult[]>([]);
 
-  /** Guard: prevent the auto-open $effect from firing more than once per mount. */
-  let _autoOpenFired = $state(false);
-  
   /** Currently selected website for fullscreen view (derived from index) */
   let selectedWebsite = $derived(selectedWebsiteIndex >= 0 ? allWebResults[selectedWebsiteIndex] ?? null : null);
   
@@ -414,36 +411,8 @@
   // which uses currentEmbedId, appId, and skillId to construct the embed
   // share context and properly opens the settings panel (including on mobile).
 
-  /**
-   * Auto-open the website overlay for a specific child embed when the fullscreen
-   * is opened via an inline badge click (initialChildEmbedId is set).
-   * Fires at most once per mount (_autoOpenFired guard) to prevent re-opening
-   * after the user closes the child overlay.
-   */
-  $effect(() => {
-    if (!initialChildEmbedId) return;
-    if (_autoOpenFired) return; // fire at most once per mount
-    if (allWebResults.length === 0) return; // results not yet loaded
-
-    const idx = allWebResults.findIndex(r => r.embed_id === initialChildEmbedId);
-    if (idx >= 0) {
-      console.debug(
-        '[WebSearchEmbedFullscreen] Auto-opening website overlay for initialChildEmbedId:',
-        initialChildEmbedId,
-        'at index',
-        idx,
-      );
-      _autoOpenFired = true;
-      handleWebsiteFullscreen(allWebResults[idx]);
-    } else {
-      console.warn(
-        '[WebSearchEmbedFullscreen] initialChildEmbedId not found in loaded results:',
-        initialChildEmbedId,
-        'available embed_ids:',
-        allWebResults.map(r => r.embed_id),
-      );
-    }
-  });
+  // Auto-open logic for initialChildEmbedId is handled by UnifiedEmbedFullscreen's
+  // onAutoOpenChild callback — no local $effect or _autoOpenFired guard needed.
 </script>
 
 <!-- 
@@ -477,6 +446,13 @@
   legacyResults={legacyResults}
   currentEmbedId={embedId}
   onEmbedDataUpdated={handleEmbedDataUpdated}
+  onChildrenLoaded={(children) => { allWebResults = children as WebSearchResult[]; }}
+  {initialChildEmbedId}
+  onAutoOpenChild={(index, children) => {
+    allWebResults = children as WebSearchResult[];
+    const website = allWebResults[index];
+    if (website) handleWebsiteFullscreen(website);
+  }}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
