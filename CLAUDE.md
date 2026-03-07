@@ -222,10 +222,14 @@ Rules: use the emoji headers exactly as shown. For bug fixes, always include the
 ### Auto-Commit After Every Task (CRITICAL)
 
 - **ALWAYS commit and push to `dev` after completing a feature or bug fix** — do not wait for the user to ask.
-- Only add files you actually modified in the current session (never `git add .`).
-- Run the linter and fix all errors before committing.
-- Run the linter (`lint_changed.sh`) and fix all errors before committing — this covers TypeScript, Svelte, ESLint, and YAML syntax checks. For significant routing, adapter, or Vite config changes, also run `pnpm build` in `frontend/apps/web_app/` to catch bundler-level errors.
-- **When a commit resolves or attempts to fix a reported issue**, include the issue ID and a short anonymous description in the commit body (no PII — no emails, usernames, or user IDs). See `docs/claude/git-and-deployment.md` → "Issue-Linked Commits" for format.
+- **Use `sessions.py` for deployment** — it tracks which files you modified and handles lint + commit + push:
+  ```bash
+  python3 scripts/sessions.py prepare-deploy --session <ID>   # preview + lint
+  python3 scripts/sessions.py deploy --session <ID> --title "fix: description" --message "body"
+  ```
+- If deploying manually: only add files you actually modified (never `git add .`). Run the linter (`lint_changed.sh`) first.
+- For significant routing, adapter, or Vite config changes, also run `pnpm build` in `frontend/apps/web_app/` to catch bundler-level errors.
+- **When a commit resolves or attempts to fix a reported issue**, include the issue ID and a short anonymous description in the commit body (no PII). See `docs/claude/git-and-deployment.md` → "Issue-Linked Commits" for format.
 - See `docs/claude/git-and-deployment.md` for commit message format and full workflow.
 
 ### Research Before Implementing New Apps, Skills, or Features (CRITICAL)
@@ -350,24 +354,40 @@ See `docs/claude/backend-standards.md` → "Package and Dependency Management" a
 - **Check git status** before committing; files may already be committed by another assistant. Only add and commit what you actually changed this session.
 - **If the API or a service appears down**, another assistant may be in the middle of rebuilding/restarting Docker containers. Before assuming a real failure, check whether a restart is in progress and wait for it to complete. See the "Service Unavailable During Concurrent Work" section in `docs/claude/debugging.md`.
 
-#### Session Coordination (CRITICAL)
+#### Session Coordination via `scripts/sessions.py` (CRITICAL)
 
-All concurrent sessions coordinate through a shared file: **`.claude/sessions.md`** (gitignored, lives only on the dev server). **You MUST use this file** to avoid duplicate work and conflicts.
+All concurrent sessions coordinate through **`.claude/sessions.json`** (gitignored), managed by `scripts/sessions.py`. File edit tracking is automated via hooks in `.claude/settings.json`.
 
 **On session start:**
 
-1. Generate a random 4-char hex session ID: `python3 -c "import secrets; print(secrets.token_hex(2))"`
-2. Register yourself in the Active Sessions table in `.claude/sessions.md`
+```bash
+python3 scripts/sessions.py start --task "brief task description"
+```
+
+This generates your session ID, registers you, prunes stale sessions (>24h), shows active sessions, lock status, stale architecture docs, and a project index. **Save the session ID** — you need it for all subsequent commands.
 
 **Before rebuilding Docker containers:**
 
-1. Read `.claude/sessions.md` → check the Docker Rebuild Lock
-2. If another session holds the lock → **wait and poll every 30s**
-3. If no lock is held → claim the lock, rebuild, then release the lock immediately
+```bash
+python3 scripts/sessions.py lock --session <ID> --type docker
+# ... rebuild ...
+python3 scripts/sessions.py unlock --session <ID> --type docker
+```
 
-**Lock staleness:** If a lock's `Last updated` is 5+ minutes old, assume the holding session crashed and take over.
+**Deploying (lint + commit + push):**
 
-See `docs/claude/concurrent-sessions.md` for the full protocol, lock format, and file ownership tracking.
+```bash
+python3 scripts/sessions.py prepare-deploy --session <ID>
+python3 scripts/sessions.py deploy --session <ID> --title "fix: description" --message "body"
+```
+
+**On session end:**
+
+```bash
+python3 scripts/sessions.py end --session <ID>
+```
+
+See `docs/claude/concurrent-sessions.md` for the full protocol.
 
 ### Svelte 5 (CRITICAL)
 

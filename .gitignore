@@ -211,7 +211,12 @@ backend/preview/Caddyfile
 .roo*
 .turbo
 
-.claude
+# Claude Code — ignore runtime state, allow config/hooks/skills
+.claude/sessions.json
+.claude/sessions.json.tmp
+.claude/sessions.md
+.claude/project-index.json
+.claude/settings.local.json
 .cursor
 .svelte-kit
 

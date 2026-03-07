@@ -6,154 +6,132 @@ Load this document when multiple assistants may be working simultaneously, when 
 
 ## Overview
 
-Multiple Claude Code sessions can work on the codebase at the same time. To avoid conflicts (duplicate Vercel fixes, simultaneous Docker rebuilds, file edit collisions), all sessions coordinate through a shared file: **`.claude/sessions.md`**.
+Multiple Claude Code sessions can work on the codebase at the same time. To avoid conflicts (duplicate Vercel fixes, simultaneous Docker rebuilds, file edit collisions), all sessions coordinate through **`scripts/sessions.py`**, which manages state in **`.claude/sessions.json`** (gitignored).
 
-This file is **gitignored** — it lives only on the dev server and is never committed.
+File edit tracking is automated via hooks in `.claude/settings.json` — every Edit/Write operation is automatically recorded to the active session's `modified_files` list.
 
 ---
 
-## Session Identity
+## Quick Reference
 
-Each session must identify itself with a unique short ID.
+| Action | Command |
+| --- | --- |
+| Start session | `python3 scripts/sessions.py start --task "description"` |
+| End session | `python3 scripts/sessions.py end --session <ID>` |
+| Check status | `python3 scripts/sessions.py status` |
+| Update task | `python3 scripts/sessions.py update --session <ID> --task "new desc"` |
+| Claim file for writing | `python3 scripts/sessions.py claim --session <ID> --file <path>` |
+| Release file claim | `python3 scripts/sessions.py release --session <ID> --file <path>` |
+| Track file as modified | `python3 scripts/sessions.py track --session <ID> --file <path>` |
+| Acquire lock | `python3 scripts/sessions.py lock --session <ID> --type docker\|vercel` |
+| Release lock | `python3 scripts/sessions.py unlock --session <ID> --type docker\|vercel` |
+| Preview deployment | `python3 scripts/sessions.py prepare-deploy --session <ID>` |
+| Deploy (lint+commit+push) | `python3 scripts/sessions.py deploy --session <ID> --title "msg" --message "body"` |
 
-### Generating Your Session ID
+---
 
-On your **first interaction** in a new session, generate a random 4-character hex ID:
+## Session Lifecycle
+
+### Starting a Session
 
 ```bash
-# Generate a random session ID
-python3 -c "import secrets; print(secrets.token_hex(2))"
+python3 scripts/sessions.py start --task "fix embed decryption for shared chats"
 ```
 
-This gives you something like `a7f3` or `e1b2`. Use this as your session ID for the entire conversation.
+This command:
 
-### Registering Your Session
+1. Generates a random 4-char hex session ID
+2. Registers the session in `.claude/sessions.json`
+3. Prunes stale sessions older than 24 hours
+4. Clears stale locks older than 5 minutes
+5. Outputs context to stdout:
+   - Your session ID (save this for all subsequent commands)
+   - Other active sessions and what files they own
+   - Active locks
+   - Stale architecture docs (code newer than doc by >24h)
+   - Compact project index (backend apps, frontend components, API routes, providers)
 
-After generating your ID, add yourself to the **Active Sessions** table in `.claude/sessions.md`:
+### Ending a Session
 
-```markdown
-| a7f3 | 2026-02-20T10:00:00Z | 2026-02-20T10:00:00Z | - |
+```bash
+python3 scripts/sessions.py end --session <ID>
 ```
 
-Update the `Last Active` timestamp whenever you make a significant action (commit, push, start a build).
+This command:
+
+1. Warns about any uncommitted modified files
+2. Lists architecture docs that may need updating based on files you modified
+3. Removes the session from `.claude/sessions.json`
+
+---
+
+## File Tracking
+
+### Automatic Tracking (via hooks)
+
+The `.claude/settings.json` configures two hooks:
+
+- **PostToolUse** on `Edit|Write`: Automatically records every file you edit to your session's `modified_files` list (async, non-blocking)
+- **PreToolUse** on `Edit|Write`: Checks if another session has claimed the file for writing — blocks the edit if so (exit code 2)
+
+This means **you do not need to manually track most files**. The hooks handle it.
+
+### Manual Tracking
+
+If you modify a file through Bash or other indirect means:
+
+```bash
+python3 scripts/sessions.py track --session <ID> --file path/to/file.py
+```
+
+### Write Claims (Exclusive Locks)
+
+For operations where you need exclusive write access to a file (e.g., a complex multi-step edit):
+
+```bash
+# Claim before editing
+python3 scripts/sessions.py claim --session <ID> --file path/to/file.py
+
+# Release after editing
+python3 scripts/sessions.py release --session <ID> --file path/to/file.py
+```
+
+If another session has claimed the file, `claim` exits with code 2 and prints which session owns it.
+
+**Note:** Write claims are for the `writing` lock (active editing protection). The `modified_files` list is separate — it tracks all files touched in the session, regardless of write claims.
 
 ---
 
 ## Lock Protocol
 
-Locks are used to prevent multiple sessions from performing the same operation simultaneously. There are two locks:
+Locks prevent multiple sessions from performing the same infrastructure operation simultaneously.
 
-1. **Vercel Deployment Lock** — claimed when fixing a Vercel build error
-2. **Docker Rebuild Lock** — claimed when rebuilding/restarting Docker containers
+### Lock Types
+
+| Lock | When to use |
+| --- | --- |
+| `docker` (→ `docker_rebuild`) | Before rebuilding/restarting Docker containers |
+| `vercel` (→ `vercel_deploy`) | Before fixing a Vercel build error |
 
 ### Acquiring a Lock
 
-Before attempting a Vercel fix or Docker rebuild:
+```bash
+python3 scripts/sessions.py lock --session <ID> --type docker
+```
 
-1. **Read** `.claude/sessions.md`
-2. **Check the relevant lock section:**
-   - If `Status: NONE` → proceed to step 3
-   - If `Status: IN_PROGRESS`:
-     - Parse the `Last updated` timestamp
-     - If it is **less than 5 minutes old** → another session is actively working. **Do NOT claim the lock.** Go to step 4.
-     - If it is **5 minutes or older** → the lock is stale (the holding session likely crashed). Proceed to step 3 to take over.
-3. **Claim the lock** by editing the file:
-
-   ```markdown
-   ## Vercel Deployment Lock
-
-   - **Status:** IN_PROGRESS
-   - **Claimed by:** a7f3
-   - **Error:** Type error in ChatMessage.svelte line 42
-   - **Since:** 2026-02-20T10:35:00Z
-   - **Last updated:** 2026-02-20T10:35:00Z
-   ```
-
-4. **If another session holds the lock (step 2, <5 min):**
-   - Wait 30 seconds
-   - Re-read `.claude/sessions.md`
-   - Check if the lock has been released or if it's now stale
-   - Repeat until the lock is available (up to ~5 minutes of waiting)
-   - If you've waited 5+ minutes and the lock was never updated, treat it as stale and claim it
-
-### Holding a Lock
-
-While holding a lock:
-
-- **Update the `Last updated` timestamp at least every 60 seconds**, or at each meaningful step (e.g., after committing a fix, after pushing, while waiting for Vercel)
-- This tells other sessions you're still alive and working
+- If the lock is free → acquired
+- If held by another session for <5 minutes → **BLOCKED** (exit code 1). Wait and retry.
+- If held for >5 minutes → treated as stale, automatically taken over with a warning.
 
 ### Releasing a Lock
 
-**Immediately** after the fix is confirmed (Vercel shows "Ready", Docker containers are up), release the lock:
-
-```markdown
-## Vercel Deployment Lock
-
-- **Status:** NONE
-- **Claimed by:** -
-- **Error:** -
-- **Since:** -
-- **Last updated:** -
+```bash
+python3 scripts/sessions.py unlock --session <ID> --type docker
 ```
 
-### Staleness Timeout
+**Release locks immediately** after the operation completes.
 
-- A lock is considered **stale** if `Last updated` is **5 minutes or older**
-- Stale locks can be overwritten by any session — the holding session is assumed to have crashed
-- This prevents deadlocks from crashed sessions
-
----
-
-## Vercel Deployment Coordination
-
-### When You Push Frontend Changes
-
-After pushing and waiting for the Vercel build:
-
-1. Check `vercel ls open-mates-webapp 2>&1 | head -5`
-2. If the status is **"Ready"** → done, no lock needed
-3. If the status is **"Error"**:
-   - **Read `.claude/sessions.md`** and check the Vercel lock
-   - If another session already claimed the lock → wait and poll (see "Acquiring a Lock" above)
-   - If no lock is held → claim the lock, then proceed to fix the error
-   - After fixing, pushing, and confirming "Ready" → release the lock
-
-### When Another Session Is Fixing a Vercel Error
-
-If you see `Status: IN_PROGRESS` on the Vercel lock:
-
-1. **Do NOT attempt your own fix** — this would create conflicting commits
-2. Wait 30 seconds, then re-read the file
-3. Repeat until the lock is released
-4. Once released, run `vercel ls` again to confirm the deployment is now "Ready"
-5. If the deployment is still broken after the lock was released, you may claim the lock and attempt your own fix
-
----
-
-## Docker Rebuild Coordination
-
-### Before Rebuilding Containers
-
-1. **Read `.claude/sessions.md`** and check the Docker Rebuild Lock
-2. If another session holds the lock → wait (same polling protocol as Vercel)
-3. If no lock is held → claim the lock with the services you're rebuilding:
-
-   ```markdown
-   ## Docker Rebuild Lock
-
-   - **Status:** IN_PROGRESS
-   - **Claimed by:** a7f3
-   - **Services:** api, task-worker
-   - **Since:** 2026-02-20T11:00:00Z
-   - **Last updated:** 2026-02-20T11:00:00Z
-   ```
-
-4. Rebuild and restart the containers
-5. Verify they're healthy
-6. **Release the lock immediately**
-
-### Why This Matters
+### Why Locks Matter
 
 Simultaneous Docker rebuilds can:
 
@@ -163,95 +141,112 @@ Simultaneous Docker rebuilds can:
 
 ---
 
-## File Ownership Tracking
+## Deployment Workflow
 
-The **Active Sessions** table helps avoid merge conflicts by showing which files each session is editing.
+### Preview (prepare-deploy)
 
-### Updating Your Entry
-
-Before editing a file, update your `Currently Editing` column:
-
-```markdown
-| a7f3 | 2026-02-20T10:00:00Z | 2026-02-20T10:35:00Z | frontend/packages/ui/src/components/ChatMessage.svelte |
+```bash
+python3 scripts/sessions.py prepare-deploy --session <ID>
 ```
 
-For multiple files, separate with commas:
+This shows:
 
-```markdown
-| a7f3 | 2026-02-20T10:00:00Z | 2026-02-20T10:35:00Z | ChatMessage.svelte, ChatInput.svelte |
+- Files to be committed (tracked + git-dirty)
+- Files already committed
+- Files excluded from commit
+- Dirty files not tracked by this session (other sessions' work)
+- Lint results
+- Related architecture docs to verify
+- Exact git commands to run manually if preferred
+
+### Deploy (lint + commit + push)
+
+```bash
+python3 scripts/sessions.py deploy --session <ID> \
+  --title "fix: prevent duplicate messages after reconnect" \
+  --message "Symptom: users saw duplicates after WebSocket reconnect\nCause: handler re-subscribed without clearing\nFix: clear subscriptions before re-establishing"
 ```
 
-### After Committing
+This:
 
-After you commit and push, clear your `Currently Editing` to `-` (since those files are now committed and available to others).
+1. Runs the linter on all files to be committed — **aborts if lint fails**
+2. `git add` each file in the session's `modified_files` (minus exclusions)
+3. `git commit` with the provided title and message
+4. `git push origin dev`
+5. Lists related architecture docs that may need updating
 
-### When You See a Conflict
+To exclude specific files from the commit:
 
-If another session is editing a file you need:
-
-- **If it's a minor overlap** (e.g., different functions in the same file): proceed carefully, re-read the file before editing
-- **If it's a major overlap** (e.g., same component, same function): wait for the other session to commit first, then pull and continue
+```bash
+python3 scripts/sessions.py deploy --session <ID> --title "..." --exclude path/to/skip.py
+```
 
 ---
 
-## Session Cleanup
+## Data Format
 
-### When Your Session Ends
+The `.claude/sessions.json` file has this structure:
 
-Remove your row from the Active Sessions table. If you forget, other sessions will treat entries with `Last Active` older than 30 minutes as inactive.
-
-### Stale Session Entries
-
-Any session may clean up Active Sessions entries where `Last Active` is more than 30 minutes old — these sessions are assumed to have ended.
-
----
-
-## Quick Reference
-
-| Action                   | Protocol                                                 |
-| ------------------------ | -------------------------------------------------------- |
-| Starting a session       | Generate ID, register in Active Sessions                 |
-| Pushing frontend changes | Check Vercel → if error, check lock → claim or wait      |
-| Rebuilding Docker        | Check Docker lock → claim or wait                        |
-| Editing a file           | Update `Currently Editing` column                        |
-| After committing         | Clear `Currently Editing` to `-`                         |
-| Seeing a lock held       | Wait 30s, re-read, repeat. After 5 min stale → take over |
-| Finishing a fix          | Release lock immediately (set Status to NONE)            |
-| Session ending           | Remove your row from Active Sessions                     |
-
----
-
-## File Location
-
-The coordination file is at: **`.claude/sessions.md`** (project root)
-
-This file is gitignored. If it doesn't exist, create it from the template. The template is documented in this file — see the sections above for the expected format, or copy from a fresh state:
-
-```markdown
-# Claude Session Coordination
-
-> This file is used by concurrent Claude Code sessions to avoid conflicts.
-> It is gitignored and lives only on the dev server.
-> DO NOT commit this file. See docs/claude/concurrent-sessions.md for the full protocol.
-
-## Vercel Deployment Lock
-
-- **Status:** NONE
-- **Claimed by:** -
-- **Error:** -
-- **Since:** -
-- **Last updated:** -
-
-## Docker Rebuild Lock
-
-- **Status:** NONE
-- **Claimed by:** -
-- **Services:** -
-- **Since:** -
-- **Last updated:** -
-
-## Active Sessions
-
-| Session ID | Started | Last Active | Currently Editing |
-| ---------- | ------- | ----------- | ----------------- |
+```json
+{
+  "locks": {
+    "docker_rebuild": {
+      "status": "NONE"
+    },
+    "vercel_deploy": {
+      "status": "NONE"
+    }
+  },
+  "sessions": {
+    "a3f2": {
+      "task": "Fix embed decryption for shared chats",
+      "started": "2026-03-06T18:00:00Z",
+      "last_active": "2026-03-06T18:15:00Z",
+      "modified_files": [
+        "backend/apps/ai/skills/embed_resolve/skill.py",
+        "frontend/packages/ui/src/components/embeds/EmbedCard.svelte"
+      ],
+      "writing": null
+    }
+  }
+}
 ```
+
+When a lock is held:
+
+```json
+{
+  "docker_rebuild": {
+    "status": "IN_PROGRESS",
+    "claimed_by": "a3f2",
+    "since": "2026-03-06T18:00:00Z",
+    "last_updated": "2026-03-06T18:05:00Z"
+  }
+}
+```
+
+---
+
+## Stale Architecture Doc Detection
+
+The session start command automatically checks for stale architecture docs by comparing:
+
+- Last modified date of each `docs/architecture/*.md` file
+- Last modified dates of related code files (mapped in `docs/architecture/code-mapping.yml`)
+
+If code files are newer than their architecture doc by more than 24 hours, the doc is flagged as potentially stale.
+
+The session end command also checks which architecture docs are related to the files you modified, and reminds you to verify they are still accurate.
+
+---
+
+## Migration from sessions.md
+
+The old `.claude/sessions.md` markdown-based coordination file has been replaced by `.claude/sessions.json`. The old file is no longer used. Key improvements:
+
+- **Automatic file tracking** via hooks (no manual "Currently Editing" updates)
+- **Structured JSON** instead of fragile markdown tables
+- **Automatic stale cleanup** (sessions >24h, locks >5min)
+- **Integrated deployment** (lint + commit + push with file tracking)
+- **Architecture doc staleness detection** built in
+- **Write collision prevention** via PreToolUse hooks
