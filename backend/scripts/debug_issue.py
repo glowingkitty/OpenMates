@@ -21,6 +21,10 @@ Usage:
     docker exec api python /app/backend/scripts/debug.py issue <issue_id>
     docker exec api python /app/backend/scripts/debug.py issue abc12345-6789-0123-4567-890123456789
 
+    # Fetch issue from production server (required for production-only issues)
+    docker exec api python /app/backend/scripts/debug.py issue <issue_id> --production
+    docker exec api python /app/backend/scripts/debug.py issue --list --production
+
 Options:
     --no-logs           Skip fetching the full YAML report from S3
     --full-logs         Show all data untruncated: all log lines AND full text fields (description,
@@ -34,6 +38,8 @@ Options:
     --include-processed Include processed issues in --list results
     --delete            Delete the issue (Directus + S3). Use after confirming the issue is fixed.
     --yes               Skip confirmation when using --delete (required for non-interactive use)
+    --production        Fetch data from the production Admin Debug API instead of local Directus
+    --dev               Fetch data from the dev Admin Debug API (implies --production)
 """
 
 import asyncio
@@ -60,9 +66,210 @@ from debug_utils import (
     format_timestamp,
     truncate_string,
     censor_email,
+    get_api_key_from_vault,
+    make_prod_api_request,
+    PROD_API_URL,
+    DEV_API_URL,
 )
 
 script_logger = configure_script_logging('debug_issue', extra_suppress=['botocore', 'boto3'])
+
+async def fetch_issue_from_production_api(
+    issue_id: str,
+    include_logs: bool = True,
+    use_dev: bool = False,
+) -> Optional[Dict[str, Any]]:
+    """Fetch issue data from the production (or dev) Admin Debug API.
+
+    The production API decrypts all Vault-encrypted fields server-side and
+    fetches the S3 YAML report, so the response contains plaintext fields
+    directly (contact_email, chat_or_embed_url, etc.).
+
+    Args:
+        issue_id: The issue ID (UUID format).
+        include_logs: Whether to include the full S3 YAML report.
+        use_dev: If True, hit the dev API instead of production.
+
+    Returns:
+        Parsed JSON response from the API, or None if not found (404).
+    """
+    api_key = await get_api_key_from_vault()
+    base_url = DEV_API_URL if use_dev else PROD_API_URL
+
+    source_label = "dev" if use_dev else "production"
+    script_logger.info(
+        f"Fetching issue from {source_label} API: "
+        f"{base_url}/issues/{issue_id}"
+    )
+
+    return await make_prod_api_request(
+        f"issues/{issue_id}",
+        api_key,
+        base_url,
+        params={"include_logs": include_logs},
+        entity_label=f"Issue {issue_id}",
+    )
+
+
+async def fetch_issues_list_from_production_api(
+    limit: int = 50,
+    offset: int = 0,
+    search: Optional[str] = None,
+    include_processed: bool = False,
+    use_dev: bool = False,
+) -> Optional[Dict[str, Any]]:
+    """Fetch issue list from the production (or dev) Admin Debug API.
+
+    Args:
+        limit: Maximum number of issues to return.
+        offset: Pagination offset.
+        search: Optional search text for title/description.
+        include_processed: Include processed issues.
+        use_dev: If True, hit the dev API instead of production.
+
+    Returns:
+        Parsed JSON response with issues list, or None on error.
+    """
+    api_key = await get_api_key_from_vault()
+    base_url = DEV_API_URL if use_dev else PROD_API_URL
+
+    source_label = "dev" if use_dev else "production"
+    script_logger.info(f"Listing issues from {source_label} API: {base_url}/issues")
+
+    params: Dict[str, Any] = {
+        "limit": limit,
+        "offset": offset,
+        "include_processed": include_processed,
+    }
+    if search:
+        params["search"] = search
+
+    return await make_prod_api_request(
+        "issues",
+        api_key,
+        base_url,
+        params=params,
+        entity_label="Issue list",
+    )
+
+
+async def delete_issue_via_production_api(
+    issue_id: str,
+    use_dev: bool = False,
+) -> Optional[Dict[str, Any]]:
+    """Delete an issue via the production (or dev) Admin Debug API.
+
+    The production API handles S3 cleanup and Directus deletion server-side.
+
+    Args:
+        issue_id: The issue ID to delete.
+        use_dev: If True, hit the dev API instead of production.
+
+    Returns:
+        Parsed JSON response, or None if not found.
+    """
+    api_key = await get_api_key_from_vault()
+    base_url = DEV_API_URL if use_dev else PROD_API_URL
+
+    source_label = "dev" if use_dev else "production"
+    script_logger.info(f"Deleting issue via {source_label} API: {base_url}/issues/{issue_id}")
+
+    return await make_prod_api_request(
+        f"issues/{issue_id}",
+        api_key,
+        base_url,
+        method="DELETE",
+        entity_label=f"Issue {issue_id}",
+    )
+
+
+def map_production_issue_to_local_format(api_response: Dict[str, Any]) -> Dict[str, Any]:
+    """Map the production API IssueDetailResponse to the format expected by format functions.
+
+    The production API returns decrypted fields directly (contact_email,
+    chat_or_embed_url, etc.), so we map them to the 'decrypted' dict format
+    used by the local code path. The 'issue' dict mirrors Directus fields.
+
+    Args:
+        api_response: Parsed JSON from GET /issues/{issue_id}.
+
+    Returns:
+        Dict with 'issue' and 'decrypted' keys matching local format.
+    """
+    # Build a pseudo-Directus issue record from the API response
+    issue = {
+        "id": api_response.get("id"),
+        "title": api_response.get("title", ""),
+        "description": api_response.get("description"),
+        "timestamp": api_response.get("timestamp", ""),
+        "created_at": api_response.get("created_at", ""),
+        "updated_at": api_response.get("updated_at", ""),
+        "processed": api_response.get("processed", False),
+        "is_from_admin": api_response.get("is_from_admin", False),
+        "reported_by_user_id": api_response.get("reported_by_user_id"),
+        # Mark encrypted fields as present if decrypted values exist
+        "encrypted_contact_email": "present" if api_response.get("contact_email") else None,
+        "encrypted_chat_or_embed_url": "present" if api_response.get("chat_or_embed_url") else None,
+        "encrypted_estimated_location": "present" if api_response.get("estimated_location") else None,
+        "encrypted_device_info": "present" if api_response.get("device_info") else None,
+        "encrypted_issue_report_yaml_s3_key": "present" if api_response.get("full_report") else None,
+        "encrypted_screenshot_s3_key": None,  # Not available via API
+    }
+
+    # Decrypted fields are already plaintext in the API response
+    decrypted = {
+        "contact_email": api_response.get("contact_email"),
+        "chat_or_embed_url": api_response.get("chat_or_embed_url"),
+        "estimated_location": api_response.get("estimated_location"),
+        "device_info": api_response.get("device_info"),
+    }
+
+    # Full report is already decrypted and parsed by the API
+    full_report = api_response.get("full_report")
+
+    return {
+        "issue": issue,
+        "decrypted": decrypted,
+        "full_report": full_report,
+    }
+
+
+def map_production_issues_list(api_response: Dict[str, Any]) -> tuple:
+    """Map the production API IssuesListResponse to the format expected by format_list_output.
+
+    Args:
+        api_response: Parsed JSON from GET /issues.
+
+    Returns:
+        Tuple of (issues_list, decrypted_list) matching the local format.
+    """
+    issues = []
+    decrypted_list = []
+
+    for item in api_response.get("issues", []):
+        issue = {
+            "id": item.get("id"),
+            "title": item.get("title", ""),
+            "description": item.get("description"),
+            "timestamp": item.get("timestamp", ""),
+            "created_at": item.get("created_at", ""),
+            "processed": item.get("processed", False),
+            "is_from_admin": item.get("is_from_admin", False),
+            "reported_by_user_id": item.get("reported_by_user_id"),
+            "encrypted_issue_report_yaml_s3_key": None,  # Not in list response
+            "encrypted_screenshot_s3_key": None,
+        }
+        issues.append(issue)
+
+        decrypted = {
+            "contact_email": item.get("contact_email"),
+            "chat_or_embed_url": item.get("chat_or_embed_url"),
+            "estimated_location": None,
+            "device_info": None,
+        }
+        decrypted_list.append(decrypted)
+
+    return issues, decrypted_list
 
 
 async def get_issue(directus_service: DirectusService, issue_id: str) -> Optional[Dict[str, Any]]:
@@ -1048,6 +1255,16 @@ async def main():
         action='store_true',
         help='Skip confirmation when using --delete (required for non-interactive use)'
     )
+    parser.add_argument(
+        '--production',
+        action='store_true',
+        help='Fetch data from the production Admin Debug API instead of local Directus'
+    )
+    parser.add_argument(
+        '--dev',
+        action='store_true',
+        help='When used with --production, hit the dev API instead of prod'
+    )
 
     args = parser.parse_args()
 
@@ -1059,164 +1276,299 @@ async def main():
     if args.delete and not args.issue_id:
         parser.error("--delete requires an issue_id")
 
-    # Initialize services
-    cache_service = CacheService()
-    encryption_service = EncryptionService()
-    directus_service = DirectusService(
-        cache_service=cache_service,
-        encryption_service=encryption_service
-    )
+    # --- Determine remote vs local mode ---
+    is_remote = args.production or args.dev
+    if args.dev and not args.production:
+        # --dev implies --production (it selects which remote API to hit)
+        is_remote = True
 
-    # Initialize S3 service (needed for fetching YAML reports)
-    secrets_manager = SecretsManager()
-    s3_service = None
+    if is_remote:
+        # ===================== PRODUCTION / DEV API MODE =====================
+        source_label = "dev" if args.dev else "production"
+        script_logger.info(f"Using {source_label} Admin Debug API")
 
-    try:
-        if args.list:
-            # ===================== LIST MODE =====================
-            script_logger.info(
-                f"Listing issues (limit={args.list_limit}, search={args.search}, "
-                f"include_processed={args.include_processed})"
-            )
+        try:
+            if args.list:
+                # ---- Remote list mode ----
+                script_logger.info(
+                    f"Listing issues from {source_label} (limit={args.list_limit}, "
+                    f"search={args.search}, include_processed={args.include_processed})"
+                )
 
-            issues = await list_issues(
-                directus_service,
-                limit=args.list_limit,
-                search=args.search,
-                include_processed=args.include_processed
-            )
+                api_response = await fetch_issues_list_from_production_api(
+                    limit=args.list_limit,
+                    search=args.search,
+                    include_processed=args.include_processed,
+                    use_dev=args.dev,
+                )
 
-            # Decrypt email for each issue (for display in list)
-            decrypted_list = []
-            for issue in issues:
-                decrypted = await decrypt_issue_fields(encryption_service, issue)
-                decrypted_list.append(decrypted)
-
-            if args.json:
-                # Censor emails in JSON list output
-                censored_decrypted_list = []
-                for d in decrypted_list:
-                    censored = dict(d)
-                    if censored.get('contact_email'):
-                        censored['contact_email'] = censor_email(censored['contact_email'])
-                    censored_decrypted_list.append(censored)
-
-                output_data = {
-                    'generated_at': datetime.now().isoformat(),
-                    'total': len(issues),
-                    'issues': [
-                        {
-                            **issue,
-                            'decrypted': censored
-                        }
-                        for issue, censored in zip(issues, censored_decrypted_list)
-                    ]
-                }
-                print(json.dumps(output_data, indent=2, default=str))
-            else:
-                print(format_list_output(issues, decrypted_list))
-
-        else:
-            # ===================== DETAIL MODE (or DELETE) =====================
-            # 1. Fetch issue metadata
-            issue = await get_issue(directus_service, args.issue_id)
-
-            if args.delete:
-                # Delete flow: confirm then delete from S3 and Directus
-                if not issue:
-                    script_logger.error(f"Issue not found: {args.issue_id}")
+                if api_response is None:
+                    script_logger.error(f"Failed to fetch issues from {source_label} API")
                     sys.exit(1)
+
+                issues, decrypted_list = map_production_issues_list(api_response)
+
+                if args.json:
+                    censored_decrypted_list = []
+                    for d in decrypted_list:
+                        censored = dict(d)
+                        if censored.get('contact_email'):
+                            censored['contact_email'] = censor_email(censored['contact_email'])
+                        censored_decrypted_list.append(censored)
+
+                    output_data = {
+                        'generated_at': datetime.now().isoformat(),
+                        'total': len(issues),
+                        'source': source_label,
+                        'issues': [
+                            {**issue, 'decrypted': censored}
+                            for issue, censored in zip(issues, censored_decrypted_list)
+                        ]
+                    }
+                    print(json.dumps(output_data, indent=2, default=str))
+                else:
+                    print(format_list_output(issues, decrypted_list))
+
+            elif args.delete:
+                # ---- Remote delete mode ----
                 if not args.yes:
                     if sys.stdin.isatty():
                         try:
-                            reply = input(f"Delete issue {args.issue_id}? [y/N]: ").strip().lower()
-                            if reply != "y" and reply != "yes":
+                            reply = input(
+                                f"Delete issue {args.issue_id} from {source_label}? [y/N]: "
+                            ).strip().lower()
+                            if reply not in ("y", "yes"):
                                 script_logger.info("Delete cancelled.")
                                 sys.exit(0)
                         except (EOFError, KeyboardInterrupt):
                             script_logger.info("Delete cancelled.")
                             sys.exit(0)
                     else:
-                        script_logger.error("Use --yes to confirm deletion (required when not running interactively).")
+                        script_logger.error(
+                            "Use --yes to confirm deletion (required when not running interactively)."
+                        )
                         sys.exit(1)
-                # Init S3 if issue has any S3 key (YAML report or screenshot)
-                if issue.get("encrypted_issue_report_yaml_s3_key") or issue.get("encrypted_screenshot_s3_key"):
+
+                result = await delete_issue_via_production_api(
+                    args.issue_id, use_dev=args.dev
+                )
+                if result is None:
+                    script_logger.error(f"Issue not found on {source_label}: {args.issue_id}")
+                    sys.exit(1)
+                if result.get("success"):
+                    script_logger.info(result.get("message", f"Issue {args.issue_id} deleted"))
+                else:
+                    script_logger.error(result.get("message", "Delete failed"))
+                    sys.exit(1)
+
+            else:
+                # ---- Remote detail mode ----
+                script_logger.info(f"Inspecting issue: {args.issue_id}")
+
+                api_response = await fetch_issue_from_production_api(
+                    args.issue_id,
+                    include_logs=not args.no_logs,
+                    use_dev=args.dev,
+                )
+
+                if api_response is None:
+                    script_logger.error(
+                        f"Issue not found on {source_label}: {args.issue_id}"
+                    )
+                    sys.exit(1)
+
+                mapped = map_production_issue_to_local_format(api_response)
+                issue = mapped["issue"]
+                decrypted = mapped["decrypted"]
+                s3_report = mapped["full_report"]
+
+                # Screenshot pre-signed URLs are not available via the API
+                screenshot_presigned_url = None
+
+                if args.json:
+                    print(format_detail_json(
+                        args.issue_id, issue, decrypted, s3_report,
+                        screenshot_presigned_url=screenshot_presigned_url,
+                    ))
+                else:
+                    print(format_detail_output(
+                        args.issue_id, issue, decrypted, s3_report,
+                        full_logs=args.full_logs,
+                        screenshot_presigned_url=screenshot_presigned_url,
+                    ))
+
+        except Exception as e:
+            script_logger.error(f"Error during inspection: {e}", exc_info=True)
+            raise
+
+    else:
+        # ===================== LOCAL MODE (original code path) =====================
+        # Initialize services
+        cache_service = CacheService()
+        encryption_service = EncryptionService()
+        directus_service = DirectusService(
+            cache_service=cache_service,
+            encryption_service=encryption_service
+        )
+
+        # Initialize S3 service (needed for fetching YAML reports)
+        secrets_manager = SecretsManager()
+        s3_service = None
+
+        try:
+            if args.list:
+                # ===================== LIST MODE =====================
+                script_logger.info(
+                    f"Listing issues (limit={args.list_limit}, search={args.search}, "
+                    f"include_processed={args.include_processed})"
+                )
+
+                issues = await list_issues(
+                    directus_service,
+                    limit=args.list_limit,
+                    search=args.search,
+                    include_processed=args.include_processed
+                )
+
+                # Decrypt email for each issue (for display in list)
+                decrypted_list = []
+                for issue in issues:
+                    decrypted = await decrypt_issue_fields(encryption_service, issue)
+                    decrypted_list.append(decrypted)
+
+                if args.json:
+                    # Censor emails in JSON list output
+                    censored_decrypted_list = []
+                    for d in decrypted_list:
+                        censored = dict(d)
+                        if censored.get('contact_email'):
+                            censored['contact_email'] = censor_email(censored['contact_email'])
+                        censored_decrypted_list.append(censored)
+
+                    output_data = {
+                        'generated_at': datetime.now().isoformat(),
+                        'total': len(issues),
+                        'issues': [
+                            {
+                                **issue,
+                                'decrypted': censored
+                            }
+                            for issue, censored in zip(issues, censored_decrypted_list)
+                        ]
+                    }
+                    print(json.dumps(output_data, indent=2, default=str))
+                else:
+                    print(format_list_output(issues, decrypted_list))
+
+            else:
+                # ===================== DETAIL MODE (or DELETE) =====================
+                # 1. Fetch issue metadata
+                issue = await get_issue(directus_service, args.issue_id)
+
+                if args.delete:
+                    # Delete flow: confirm then delete from S3 and Directus
+                    if not issue:
+                        script_logger.error(f"Issue not found: {args.issue_id}")
+                        sys.exit(1)
+                    if not args.yes:
+                        if sys.stdin.isatty():
+                            try:
+                                reply = input(f"Delete issue {args.issue_id}? [y/N]: ").strip().lower()
+                                if reply != "y" and reply != "yes":
+                                    script_logger.info("Delete cancelled.")
+                                    sys.exit(0)
+                            except (EOFError, KeyboardInterrupt):
+                                script_logger.info("Delete cancelled.")
+                                sys.exit(0)
+                        else:
+                            script_logger.error(
+                                "Use --yes to confirm deletion "
+                                "(required when not running interactively)."
+                            )
+                            sys.exit(1)
+                    # Init S3 if issue has any S3 key (YAML report or screenshot)
+                    if (
+                        issue.get("encrypted_issue_report_yaml_s3_key")
+                        or issue.get("encrypted_screenshot_s3_key")
+                    ):
+                        try:
+                            await secrets_manager.initialize()
+                            s3_service = S3UploadService(secrets_manager=secrets_manager)
+                            await s3_service.initialize()
+                        except Exception as e:
+                            script_logger.warning(
+                                f"S3 init failed; will delete from Directus only: {e}"
+                            )
+                    success, message = await delete_issue(
+                        directus_service, encryption_service, s3_service, args.issue_id, issue
+                    )
+                    if success:
+                        script_logger.info(message)
+                    else:
+                        script_logger.error(message)
+                        sys.exit(1)
+                    return
+
+                # Inspect flow
+                script_logger.info(f"Inspecting issue: {args.issue_id}")
+
+                # 2. Decrypt fields
+                decrypted: Dict[str, Optional[str]] = {}
+                if issue:
+                    decrypted = await decrypt_issue_fields(encryption_service, issue)
+
+                # 3. Fetch S3 report and generate screenshot pre-signed URL (if applicable)
+                s3_report = None
+                screenshot_presigned_url: Optional[str] = None
+                needs_s3 = (
+                    (not args.no_logs and issue and issue.get('encrypted_issue_report_yaml_s3_key'))
+                    or (issue and issue.get('encrypted_screenshot_s3_key'))
+                )
+                if needs_s3:
+                    script_logger.info("Initializing S3 service for report/screenshot...")
                     try:
                         await secrets_manager.initialize()
                         s3_service = S3UploadService(secrets_manager=secrets_manager)
                         await s3_service.initialize()
+
+                        # Fetch YAML report (unless --no-logs)
+                        if not args.no_logs and issue and issue.get('encrypted_issue_report_yaml_s3_key'):
+                            script_logger.info("Fetching S3 YAML report...")
+                            s3_report = await fetch_s3_report(encryption_service, s3_service, issue)
+
+                        # Generate fresh 7-day pre-signed URL for the screenshot PNG
+                        if issue and issue.get('encrypted_screenshot_s3_key'):
+                            script_logger.info("Generating screenshot pre-signed URL...")
+                            screenshot_presigned_url = await get_screenshot_presigned_url(
+                                encryption_service, s3_service, issue
+                            )
                     except Exception as e:
-                        script_logger.warning(f"S3 init failed; will delete from Directus only: {e}")
-                success, message = await delete_issue(
-                    directus_service, encryption_service, s3_service, args.issue_id, issue
-                )
-                if success:
-                    script_logger.info(message)
+                        script_logger.warning(f"Failed to initialize S3 service: {e}")
+
+                # 4. Format and output results
+                if args.json:
+                    print(format_detail_json(
+                        args.issue_id, issue, decrypted, s3_report,
+                        screenshot_presigned_url=screenshot_presigned_url
+                    ))
                 else:
-                    script_logger.error(message)
-                    sys.exit(1)
-                return
+                    print(format_detail_output(
+                        args.issue_id, issue, decrypted, s3_report,
+                        full_logs=args.full_logs,
+                        screenshot_presigned_url=screenshot_presigned_url
+                    ))
 
-            # Inspect flow
-            script_logger.info(f"Inspecting issue: {args.issue_id}")
-
-            # 2. Decrypt fields
-            decrypted: Dict[str, Optional[str]] = {}
-            if issue:
-                decrypted = await decrypt_issue_fields(encryption_service, issue)
-
-            # 3. Fetch S3 report and generate screenshot pre-signed URL (if applicable)
-            s3_report = None
-            screenshot_presigned_url: Optional[str] = None
-            needs_s3 = (
-                (not args.no_logs and issue and issue.get('encrypted_issue_report_yaml_s3_key'))
-                or (issue and issue.get('encrypted_screenshot_s3_key'))
-            )
-            if needs_s3:
-                script_logger.info("Initializing S3 service for report/screenshot...")
+        except Exception as e:
+            script_logger.error(f"Error during inspection: {e}", exc_info=True)
+            raise
+        finally:
+            # Clean up
+            await directus_service.close()
+            if secrets_manager:
                 try:
-                    await secrets_manager.initialize()
-                    s3_service = S3UploadService(secrets_manager=secrets_manager)
-                    await s3_service.initialize()
-
-                    # Fetch YAML report (unless --no-logs)
-                    if not args.no_logs and issue and issue.get('encrypted_issue_report_yaml_s3_key'):
-                        script_logger.info("Fetching S3 YAML report...")
-                        s3_report = await fetch_s3_report(encryption_service, s3_service, issue)
-
-                    # Generate fresh 7-day pre-signed URL for the screenshot PNG
-                    if issue and issue.get('encrypted_screenshot_s3_key'):
-                        script_logger.info("Generating screenshot pre-signed URL...")
-                        screenshot_presigned_url = await get_screenshot_presigned_url(
-                            encryption_service, s3_service, issue
-                        )
-                except Exception as e:
-                    script_logger.warning(f"Failed to initialize S3 service: {e}")
-
-            # 4. Format and output results
-            if args.json:
-                print(format_detail_json(
-                    args.issue_id, issue, decrypted, s3_report,
-                    screenshot_presigned_url=screenshot_presigned_url
-                ))
-            else:
-                print(format_detail_output(
-                    args.issue_id, issue, decrypted, s3_report,
-                    full_logs=args.full_logs,
-                    screenshot_presigned_url=screenshot_presigned_url
-                ))
-
-    except Exception as e:
-        script_logger.error(f"Error during inspection: {e}", exc_info=True)
-        raise
-    finally:
-        # Clean up
-        await directus_service.close()
-        if secrets_manager:
-            try:
-                await secrets_manager.aclose()
-            except Exception:
-                pass
+                    await secrets_manager.aclose()
+                except Exception:
+                    pass
 
 
 if __name__ == "__main__":
