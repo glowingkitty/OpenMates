@@ -924,6 +924,46 @@ async def _async_process_ai_skill_ask_task(
                         f"{len(new_cache_messages) - 1} recent)"
                     )
 
+                    # Persist compression summary to Directus for long-term storage.
+                    # The summary is vault-encrypted (server-side), stored with
+                    # encrypted_category so the sync layer can identify it.
+                    try:
+                        encrypted_category_value, _ = (
+                            await encryption_service_instance.encrypt_with_user_key(
+                                COMPRESSION_SUMMARY_CATEGORY, user_vault_key_id
+                            )
+                        )
+                        now_ts_persist = int(time.time())
+                        celery_config.app.send_task(
+                            "app.tasks.persistence_tasks.persist_new_chat_message",
+                            kwargs={
+                                "message_id": summary_message_id,
+                                "chat_id": request_data.chat_id,
+                                "hashed_user_id": request_data.user_id_hash,
+                                "role": "system",
+                                "encrypted_sender_name": None,
+                                "encrypted_category": encrypted_category_value,
+                                "encrypted_model_name": None,
+                                "encrypted_content": encrypted_summary,
+                                "created_at": summary_timestamp,
+                                "new_chat_messages_version": None,
+                                "new_last_edited_overall_timestamp": now_ts_persist,
+                                "encrypted_chat_key": None,
+                                "user_id": request_data.user_id,
+                            },
+                            queue="persistence",
+                        )
+                        logger.info(
+                            f"[Task ID: {task_id}] Dispatched Celery task to persist "
+                            f"compression summary {summary_message_id} to Directus"
+                        )
+                    except Exception as e_persist:
+                        # Non-fatal: summary is still in AI cache
+                        logger.warning(
+                            f"[Task ID: {task_id}] Failed to dispatch compression "
+                            f"summary persistence (non-fatal): {e_persist}"
+                        )
+
                     # Update request_data.message_history with compressed version
                     # so preprocessing and main processing use the compressed history
                     compressed_history: list = []

@@ -12,8 +12,9 @@ from pydantic import BaseModel, Field, field_validator
 
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.limiter import limiter
-from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_cache_service
 from backend.core.api.app.models.user import User
+from backend.core.api.app.services.cache import CacheService
 
 logger = logging.getLogger(__name__)
 
@@ -901,3 +902,106 @@ async def admin_list_gift_cards(
     except Exception as e:
         logger.error(f"Error listing gift cards: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to list gift cards")
+
+
+
+# --- Compression Threshold Admin Override ---
+# Architecture: See docs/architecture/chat-compression.md
+# Allows admins to set a custom compression trigger threshold (in tokens)
+# that overrides the default 100k threshold for their own account only.
+# This is stored in Redis and read by the AI worker during compression checks.
+
+ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY = "admin:compression_threshold_override"
+
+
+class CompressionThresholdRequest(BaseModel):
+    """Request body for setting the admin compression threshold override."""
+    threshold: int = Field(
+        ...,
+        ge=1000,
+        le=500000,
+        description="Compression trigger threshold in estimated tokens (1000-500000)"
+    )
+
+
+class CompressionThresholdResponse(BaseModel):
+    """Response for compression threshold operations."""
+    success: bool = Field(default=True)
+    threshold: Optional[int] = Field(
+        None, description="Current threshold override (null if using default)"
+    )
+    default_threshold: int = Field(
+        default=100000, description="Default compression threshold"
+    )
+
+
+@router.get("/compression-threshold", response_model=CompressionThresholdResponse)
+@limiter.limit("30/minute")
+async def get_compression_threshold(
+    request: Request,
+    admin_user: User = Depends(require_admin),
+    cache_service: CacheService = Depends(get_cache_service),
+):
+    """Get the admin's current compression threshold override."""
+    try:
+        raw = await cache_service.redis.hget(
+            ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY, admin_user.id
+        )
+        threshold = int(raw) if raw else None
+        return CompressionThresholdResponse(
+            success=True,
+            threshold=threshold,
+            default_threshold=100000,
+        )
+    except Exception as e:
+        logger.error(f"Error getting compression threshold: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to get compression threshold")
+
+
+@router.post("/compression-threshold", response_model=CompressionThresholdResponse)
+@limiter.limit("10/minute")
+async def set_compression_threshold(
+    request: Request,
+    body: CompressionThresholdRequest,
+    admin_user: User = Depends(require_admin),
+    cache_service: CacheService = Depends(get_cache_service),
+):
+    """Set a custom compression threshold override for the admin's account."""
+    try:
+        await cache_service.redis.hset(
+            ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY, admin_user.id, str(body.threshold)
+        )
+        logger.info(
+            f"Admin {admin_user.id} set compression threshold to {body.threshold} tokens"
+        )
+        return CompressionThresholdResponse(
+            success=True,
+            threshold=body.threshold,
+            default_threshold=100000,
+        )
+    except Exception as e:
+        logger.error(f"Error setting compression threshold: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to set compression threshold")
+
+
+@router.delete("/compression-threshold", response_model=CompressionThresholdResponse)
+@limiter.limit("10/minute")
+async def delete_compression_threshold(
+    request: Request,
+    admin_user: User = Depends(require_admin),
+    cache_service: CacheService = Depends(get_cache_service),
+):
+    """Remove the admin's compression threshold override (revert to default)."""
+    try:
+        await cache_service.redis.hdel(
+            ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY, admin_user.id
+        )
+        logger.info(f"Admin {admin_user.id} removed compression threshold override")
+        return CompressionThresholdResponse(
+            success=True,
+            threshold=None,
+            default_threshold=100000,
+        )
+    except Exception as e:
+        logger.error(f"Error deleting compression threshold: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to delete compression threshold")

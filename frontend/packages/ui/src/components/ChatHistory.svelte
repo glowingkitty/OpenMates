@@ -41,8 +41,7 @@
   } from '../stores/appSettingsMemoriesPermissionStore';
   import type { PendingPermissionRequest, AppSettingsMemoriesCategory } from '../services/chatSyncServiceHandlersAppSettings';
   import { formatDisplayName, getAppGradient } from '../services/chatSyncServiceHandlersAppSettings';
-  // Note: 'text' from '@repo/ui' was previously used for preprocessing step card labels.
-  // Those step cards have been removed, so the import is no longer needed.
+  import { text } from '@repo/ui'; // Used for compression summary UI labels
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -389,8 +388,45 @@
    * Request system messages drive the permission dialog (not rendered as chat bubbles).
    * Response system messages are displayed as part of the user's message (included/rejected badge).
    */
+  // --- Compression / forgotten messages ---
+  // Whether the user has toggled "Show earlier messages" to see messages before the compression summary.
+  let showForgottenMessages = $state(false);
+
+  /**
+   * Find the index of the compression summary system message in the messages array.
+   * Returns -1 if no compression summary exists. Used to split messages into
+   * "forgotten" (before summary) and "active" (summary + after) groups.
+   */
+  let compressionSummaryIndex = $derived.by(() => {
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      if (
+        msg.role === 'system' &&
+        (msg.category === 'compression_summary' ||
+         msg.original_message?.category === 'compression_summary')
+      ) {
+        return i;
+      }
+    }
+    return -1;
+  });
+
+  /** True when this chat has a compression summary, so the forgotten messages UI should appear. */
+  let hasCompressionSummary = $derived(compressionSummaryIndex >= 0);
+
+  /** Messages before the compression summary (the "forgotten" ones). */
+  let forgottenMessages = $derived.by(() => {
+    if (!hasCompressionSummary) return [] as typeof messages;
+    return messages.slice(0, compressionSummaryIndex);
+  });
+
   let displayMessages = $derived.by(() => {
-    return messages.filter(msg => {
+    // Start with either all messages or only post-summary messages
+    let base = hasCompressionSummary && !showForgottenMessages
+      ? messages.slice(compressionSummaryIndex)
+      : messages;
+
+    return base.filter(msg => {
       if (msg.role === 'system') {
         const response = parseAppSettingsMemoriesResponse(msg.original_message?.content);
         // Filter out app_settings_memories_response system messages
@@ -1482,6 +1518,24 @@
              transition:fade={{ duration: 100 }} 
              onoutroend={handleOutroEnd}>
 
+            <!-- "Show earlier messages" toggle: appears when compression summary exists.
+                 When collapsed, messages before the summary are hidden. -->
+            {#if hasCompressionSummary}
+              <div class="forgotten-messages-toggle">
+                <button
+                  class="forgotten-messages-btn"
+                  onclick={() => { showForgottenMessages = !showForgottenMessages; }}
+                >
+                  {showForgottenMessages
+                    ? $text('chat.compression.hide_forgotten')
+                    : $text('chat.compression.show_forgotten')}
+                  {#if !showForgottenMessages && forgottenMessages.length > 0}
+                    <span class="forgotten-count">({forgottenMessages.length})</span>
+                  {/if}
+                </button>
+              </div>
+            {/if}
+
             {#each displayMessages as msg, msgIndex (msg.id)}
                 <!-- Disable fade/flip animations for streaming and processing messages
                      to prevent visual glitches when content height changes rapidly.
@@ -1681,6 +1735,39 @@
   .message-wrapper :global(.chat-message) {
     width: 100%;
     max-width: 900px;
+  }
+
+  /* "Show earlier messages" toggle button for compressed chats.
+     Appears above the message list when a compression summary exists. */
+  .forgotten-messages-toggle {
+    display: flex;
+    justify-content: center;
+    padding: 8px 0 4px;
+  }
+
+  .forgotten-messages-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-grey-60, #888);
+    background: var(--color-grey-15, rgba(255, 255, 255, 0.05));
+    border: 1px solid var(--color-grey-20, rgba(255, 255, 255, 0.08));
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  .forgotten-messages-btn:hover {
+    background: var(--color-grey-20, rgba(255, 255, 255, 0.08));
+    color: var(--color-grey-80, #ccc);
+  }
+
+  .forgotten-count {
+    font-weight: 400;
+    opacity: 0.7;
   }
 
   /* Wrapper for the ChatHeader banner at the top of new chats.

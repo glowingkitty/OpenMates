@@ -209,6 +209,35 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   });
 
   // Determine display name for assistant messages using $derived (Svelte 5 runes mode)
+  // Compression summary expand/collapse state
+  let compressionExpanded = $state(false);
+
+  // Whether this is a compression summary system message
+  let isCompressionSummary = $derived(
+    category === 'compression_summary' || original_message?.category === 'compression_summary'
+  );
+
+  // Get the plaintext content for compression summary display
+  let compressionSummaryText = $derived.by(() => {
+    if (!isCompressionSummary) return '';
+    if (typeof original_message?.content === 'string') return original_message.content;
+    if (typeof content === 'string') return content;
+    return '';
+  });
+
+  // Show first 3 lines of compression summary by default, full text when expanded
+  let compressionPreviewLines = $derived.by(() => {
+    if (!compressionSummaryText) return '';
+    const lines = compressionSummaryText.split('\n');
+    if (lines.length <= 4 || compressionExpanded) return compressionSummaryText;
+    return lines.slice(0, 4).join('\n') + '...';
+  });
+
+  let compressionNeedsExpand = $derived.by(() => {
+    if (!compressionSummaryText) return false;
+    return compressionSummaryText.split('\n').length > 4;
+  });
+
   // Special handling for openmates_official category
   let displayName = $derived(role === 'user' ? '' : 
                     sender_name ? (sender_name.charAt(0).toUpperCase() + sender_name.slice(1)) : 
@@ -1960,7 +1989,28 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
        the original plaintext from original_message.content for display.
        Uses effectiveRole instead of role so that legacy assistant messages with
        waiting_for_user status (persisted before role fix) also render as system notices. -->
-  <div class="chat-message system">
+  <div class="chat-message system" class:compression-summary={isCompressionSummary}>
+    {#if isCompressionSummary}
+      <!-- Compression summary: wider card with expand/collapse.
+           Rendered as a styled card instead of the small centered notice. -->
+      <div class="compression-summary-card">
+        <div class="compression-summary-header">
+          <span class="compression-summary-icon">&#x1F4DD;</span>
+          <span class="compression-summary-title">{$text('chat.compression.summary_title')}</span>
+        </div>
+        <div class="compression-summary-body" class:expanded={compressionExpanded}>
+          <pre class="compression-summary-text">{compressionPreviewLines}</pre>
+        </div>
+        {#if compressionNeedsExpand}
+          <button
+            class="compression-summary-toggle"
+            onclick={() => { compressionExpanded = !compressionExpanded; }}
+          >
+            {compressionExpanded ? $text('chat.compression.show_less') : $text('chat.compression.show_more')}
+          </button>
+        {/if}
+      </div>
+    {:else}
     <div class="system-message-notice">
       {#if status === 'waiting_for_user' && isCreditsRestored}
         <!-- Credits restored: show positive message + Resend button.
@@ -1991,6 +2041,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
         {/if}
       {/if}
     </div>
+    {/if}
   </div>
 {:else}
 <div class="chat-message {effectiveRole}" class:pending={status === 'sending' || status === 'waiting_for_internet'} class:assistant={effectiveRole === 'assistant'} class:user={effectiveRole === 'user'} class:mobile-stacked={effectiveRole === 'assistant' && shouldStackMobile}>
@@ -2323,6 +2374,75 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
   .credits-restored-btn {
     background: var(--color-success, #28a745);
+  }
+
+  /* Compression summary card: wider card with expand/collapse for AI-generated chat summaries.
+     Replaces the small centered notice with a readable card showing the summary content. */
+  .chat-message.compression-summary {
+    justify-content: center;
+    padding: 12px 16px;
+  }
+
+  .compression-summary-card {
+    max-width: 90%;
+    width: 600px;
+    background: var(--color-grey-15, rgba(255, 255, 255, 0.05));
+    border: 1px solid var(--color-grey-20, rgba(255, 255, 255, 0.08));
+    border-radius: 16px;
+    padding: 16px 20px;
+    text-align: left;
+  }
+
+  .compression-summary-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .compression-summary-icon {
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .compression-summary-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-grey-80, #ccc);
+  }
+
+  .compression-summary-body {
+    overflow: hidden;
+  }
+
+  .compression-summary-text {
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--color-grey-60, #888);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    margin: 0;
+    padding: 0;
+    background: none;
+    border: none;
+  }
+
+  .compression-summary-toggle {
+    display: block;
+    margin-top: 8px;
+    padding: 4px 0;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-button-primary, #e65c3a);
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+
+  .compression-summary-toggle:hover {
+    opacity: 0.7;
   }
 
   .chat-app-cards-container {
