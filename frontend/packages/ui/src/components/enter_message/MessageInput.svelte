@@ -259,6 +259,10 @@
     // When impreciseByDefault=true, MapsView opens in area mode (privacy-first default).
     let locationSettingsState = $state({ impreciseByDefault: true });
     personalDataStore.locationSettings.subscribe((s) => { locationSettingsState = s; });
+    // Performance: Subscribe to PII-related stores so runPIIDetectionImmediate() reads
+    // from cache instead of calling get() on every invocation.
+    personalDataStore.settings.subscribe((s) => { cachedPIISettings = s; });
+    personalDataStore.enabledEntries.subscribe((entries) => { cachedPIIEnabledEntries = entries; });
     let defaultImprecise = $derived(locationSettingsState.impreciseByDefault);
     let isMessageFieldFocused = $state(false);
     
@@ -467,6 +471,10 @@
     // Paste events inject complete content (possibly containing PII) so detection should
     // not wait for a delimiter character.
     let piiPasteDetectionPending = false;
+    // Performance: Cache PII store reads to avoid calling get() on every detection run.
+    // Updated via store subscriptions; detection reads from cache instead of stores.
+    let cachedPIISettings: PIIDetectionSettings | null = null;
+    let cachedPIIEnabledEntries: PersonalDataEntry[] | null = null;
     
     // --- Heavy Parsing Debounce ---
     // handleUnifiedParsing and updateOriginalMarkdown are expensive:
@@ -750,32 +758,13 @@
             const isRecentlyClosed = isFollowedByWhitespace && isInRecentContent && (lastChar === ' ' || lastChar === '\n') && isStandaloneUrl;
             
             if (isRecentlyClosed) {
-                console.debug('[MessageInput] Found newly closed standalone URL:', {
-                    url,
-                    startPos,
-                    endPos,
-                    charAfterUrl,
-                    distanceFromEnd,
-                    threshold: recentContentThreshold,
-                    isStandaloneUrl,
-                    textBeforeUrl: textBeforeUrl.substring(Math.max(0, textBeforeUrl.length - 20)) // Last 20 chars for debugging
-                });
-                
                 closedUrls.push({
                     url,
                     startPos,
                     endPos
                 });
-            } else if (isFollowedByWhitespace && isInRecentContent && (lastChar === ' ' || lastChar === '\n') && !isStandaloneUrl) {
-                // Log when we skip a URL because it's part of a sentence
-                console.debug('[MessageInput] Skipping URL conversion - URL is part of a sentence:', {
-                    url,
-                    textBeforeUrl: textBeforeUrl.substring(Math.max(0, textBeforeUrl.length - 30)) // Last 30 chars for debugging
-                });
             }
         }
-        
-        console.debug('[MessageInput] Total closed URLs detected:', closedUrls.length);
         
         return closedUrls;
     }
@@ -901,6 +890,13 @@
                 // Use chain().setContent(content, { emitUpdate: false }).run() to match the working draft loading pattern
                 editor.chain().setContent(parsedDoc, { emitUpdate: false }).run();
                 console.debug('[MessageInput] Updated editor with unified parser result');
+                
+                // After embed conversion, the URL text that may have triggered a PII
+                // false positive is gone from the editor. Invalidate the PII text cache
+                // and re-run detection so the stale banner (e.g. "Found 1 phone number"
+                // from a URL path segment) is cleared.
+                lastPIIText = '';
+                runPIIDetectionImmediate(editor);
             }
             
         } finally {
@@ -1095,10 +1091,6 @@
                     
                     // Only highlight standalone URLs - skip URLs that are part of sentences
                     if (!isStandaloneUrl) {
-                        console.debug('[MessageInput] Skipping URL highlight - URL is part of a sentence:', {
-                            url: url.substring(0, 50),
-                            textBeforeUrl: textBeforeUrl.substring(Math.max(0, textBeforeUrl.length - 30))
-                        });
                         continue;
                     }
                     
@@ -1230,12 +1222,6 @@
                 const containerWidth = scrollContainer.offsetWidth;
                 const isMobile = containerWidth < 450;
                 
-                console.debug('[MessageInput] Updating embed group layout:', {
-                    containerWidth,
-                    isMobile,
-                    threshold: 450
-                });
-                
                 // Apply mobile class only when container is narrow
                 // Desktop is the default layout (no class needed)
                 if (isMobile) {
@@ -1282,7 +1268,7 @@
                 embedGroupResizeObserver.observe(container as HTMLElement);
             });
             
-            console.debug('[MessageInput] Observing', scrollContainers.length, 'embed group containers for resize');
+            // Performance: removed per-keystroke console.debug for embed group observer count
         } catch (error) {
             console.error('[MessageInput] Error setting up embed group observers:', error);
         }
@@ -1833,6 +1819,20 @@
     function checkMentionTrigger(editor: Editor) {
         const { from } = editor.state.selection;
 
+        // Performance: Short-circuit when we know the dropdown isn't showing and
+        // the user hasn't typed '@'. The full textBetween + extractMentionQuery
+        // path is only needed when an '@' character is nearby or the dropdown is
+        // already visible (user may be backspacing out of a mention).
+        if (!showMentionDropdown) {
+            // Quick check: look at a small window around the cursor for '@'
+            const quickText = editor.state.doc.textBetween(
+                Math.max(0, from - 50), from, '\n'
+            );
+            if (!quickText.includes('@')) {
+                return;
+            }
+        }
+
         // Get text from document start to cursor position using ProseMirror's textBetween
         // This properly handles the document structure and gives us the actual character position
         const textBeforeCursor = editor.state.doc.textBetween(0, from, '\n');
@@ -2009,10 +2009,10 @@
      *
      * For immediate needs (e.g. exclusion changes), use runPIIDetectionImmediate().
      */
-    function runPIIDetection(editor: Editor, forcedByPaste = false) {
+    function runPIIDetection(editor: Editor, forcedByPaste = false, currentText?: string) {
         if (!editor || editor.isDestroyed) return;
         
-        const text = editor.getText();
+        const text = currentText ?? editor.getText();
         
         // Skip if text hasn't changed (e.g. cursor movement, selection change)
         if (text === lastPIIText) return;
@@ -2026,19 +2026,17 @@
             return;
         }
         
-        // Determine if the latest character typed is a delimiter (word boundary).
-        // Compare current text to last detected text to find what was just typed.
-        const lastChar = text.length > 0 ? text[text.length - 1] : '';
-        const isDelimiter = PII_TRIGGER_CHARS.has(lastChar);
-        
-        if (forcedByPaste || isDelimiter) {
-            // Trigger 1 & 2: Delimiter typed or paste event — run immediately
+        // Performance optimization: Only run PII detection immediately on paste.
+        // On delimiter keystrokes (space, comma, etc.), heavy parsing already runs
+        // immediately — stacking PII detection on top causes input lag. The debounce
+        // timer still fires after PII_DEBOUNCE_MS as a safety net.
+        if (forcedByPaste) {
+            // Paste: content arrives complete, detect immediately
             if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); piiDebounceTimer = null; }
             runPIIDetectionImmediate(editor);
         } else {
-            // Trigger 3: No delimiter — schedule fallback debounce.
-            // This catches cases where the user finishes typing PII but doesn't type
-            // a trailing delimiter before sending.
+            // Regular typing and delimiters: debounce to avoid stacking with heavy parsing.
+            // PII_DEBOUNCE_MS (800ms) ensures detection runs shortly after the user pauses.
             if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); }
             piiDebounceTimer = setTimeout(() => {
                 piiDebounceTimer = null;
@@ -2073,8 +2071,9 @@
             return;
         }
         
-        // Read current privacy settings from the personalDataStore
-        const piiSettings: PIIDetectionSettings = get(personalDataStore.settings);
+        // Performance: Read from cached store values (updated via subscription)
+        // instead of calling get() on every detection run.
+        const piiSettings: PIIDetectionSettings = cachedPIISettings ?? get(personalDataStore.settings);
         
         // If master toggle is off, skip all PII detection
         if (!piiSettings.masterEnabled) {
@@ -2089,8 +2088,8 @@
             if (!enabled) disabledCategories.add(category);
         }
         
-        // Get user-defined personal data entries that are enabled
-        const enabledEntries: PersonalDataEntry[] = get(personalDataStore.enabledEntries);
+        // Performance: Read from cached store values instead of get()
+        const enabledEntries: PersonalDataEntry[] = cachedPIIEnabledEntries ?? get(personalDataStore.enabledEntries);
         const personalDataForDetection: PersonalDataForDetection[] = enabledEntries.map(
             (entry) => {
                 const result: PersonalDataForDetection = {
@@ -2274,16 +2273,23 @@
         // Always trigger save/delete operation - the draft service handles both scenarios
         triggerSaveDraft(currentChatId);
 
-        // PII Detection: hybrid trigger — immediate on delimiter chars and paste events,
-        // debounce fallback for regular typing. See runPIIDetection() for details.
+        // Performance: Stagger PII detection and heavy parsing on delimiter keystrokes.
+        // Both are expensive — running them simultaneously on every space/comma causes
+        // noticeable input lag. Strategy:
+        //   - Heavy parsing runs immediately on delimiters (needed for URL detection/embeds)
+        //   - PII detection runs immediately ONLY on paste (content arrives complete)
+        //   - On delimiters, PII detection stays on its 800ms debounce timer
+        // This halves synchronous work on delimiter keystrokes while keeping paste instant.
         const wasPaste = piiPasteDetectionPending;
         piiPasteDetectionPending = false;
-        runPIIDetection(editor, wasPaste);
+        
+        // PII Detection: immediate only on paste events; delimiter-triggered detection
+        // uses the debounce fallback to avoid stacking with heavy parsing.
+        runPIIDetection(editor, wasPaste, currentText);
 
         // Heavy parsing (markdown serialization + unified parser + decorations):
-        // Debounced to delimiter boundaries to avoid running the full parser on every
-        // keystroke. Runs immediately on space/newline/punctuation and paste, with a
-        // 400ms fallback timer for regular characters.
+        // Runs immediately on delimiter characters and paste, with a 400ms fallback
+        // timer for regular characters.
         scheduleHeavyParsing(editor, currentText, wasPaste);
 
         // Dispatch live text change event so parent components can react on each keystroke
@@ -2300,8 +2306,13 @@
         tick().then(() => {
             checkScrollable();
             updateHeight();
-            updateEmbedGroupLayouts(); // Update embed group layouts when content changes
-            observeEmbedGroupContainers(); // Re-observe any new embed groups
+            // Performance: Only run embed group DOM queries if embeds might exist.
+            // These call querySelectorAll('.web-website-preview-group') on every keystroke,
+            // which is wasted work when the editor has no embed nodes.
+            if (editorElement?.querySelector('[data-embed-id]')) {
+                updateEmbedGroupLayouts();
+                observeEmbedGroupContainers();
+            }
         });
     }
 
@@ -3915,6 +3926,16 @@
             setTimeout(() => {
                 console.debug(`[MessageInput] Draft flush completed for previous chat ${previousChatId}`);
             }, 100);
+            
+            // Reset PII detection state for the new chat.
+            // Without this, stale PII matches from the previous chat persist
+            // (the "Sensitive data detected" banner stays visible even when the
+            // new chat's editor is empty or contains no PII).
+            detectedPII = [];
+            piiExclusions = new Set();
+            currentPIIDecorations = [];
+            lastPIIText = '';
+            if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); piiDebounceTimer = null; }
         }
         previousChatId = currentChatId;
     });

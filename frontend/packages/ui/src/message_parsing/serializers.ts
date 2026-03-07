@@ -1,7 +1,7 @@
 // Serializers for the unified message parsing architecture
 // Handles conversion between different formats and clipboard operations
 
-import { EmbedNodeAttributes, EmbedType, EmbedClipboardData } from "./types";
+import { EmbedNodeAttributes, EmbedClipboardData } from "./types";
 import { groupHandlerRegistry } from "./groupHandlers";
 import { parseMarkdownToTiptap } from "../components/enter_message/utils/markdownParser";
 import { copyToClipboard } from "../utils/clipboardUtils";
@@ -53,20 +53,9 @@ export function tipTapToCanonicalMarkdown(doc: any): string {
   const filteredLines = lines.filter((line) => line.length > 0);
   const finalResult = filteredLines.join("\n\n");
 
-  console.debug("[tipTapToCanonicalMarkdown] Serialization details:", {
-    totalLines: lines.length,
-    filteredLines: filteredLines.length,
-    resultLength: finalResult.length,
-    resultPreview:
-      finalResult.substring(0, 150) + (finalResult.length > 150 ? "..." : ""),
-    linesDebug: filteredLines.map((line, i) => ({
-      index: i,
-      type: line.startsWith("```") ? "embed" : "text",
-      length: line.length,
-      endsWithNewline: line.endsWith("\n"),
-      preview: line.substring(0, 50) + (line.length > 50 ? "..." : ""),
-    })),
-  });
+  // Performance: Removed console.debug with .map() that allocated an array of
+  // debug objects on every call. This function runs on every delimiter keystroke
+  // and the allocation was measurable overhead in typing benchmarks.
 
   return finalResult;
 }

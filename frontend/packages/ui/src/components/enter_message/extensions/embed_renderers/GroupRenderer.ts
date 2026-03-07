@@ -1987,8 +1987,18 @@ export class GroupRenderer implements EmbedRenderer {
     const image =
       decodedContent?.thumbnail_original || decodedContent?.image || item.image;
 
-    // Determine status
-    const status = item.status || (websiteUrl ? "finished" : "processing");
+    // Determine status.
+    // When embed data has been successfully decoded (e.g. metadata fetched by
+    // urlMetadataService), override the node's "processing" status to "finished"
+    // so the preview renders the full card (image, description) instead of just
+    // the hostname. In compose mode, embedParsing.ts sets status="processing"
+    // for all write-mode embeds, but by the time GroupRenderer runs, the data
+    // is already available in EmbedStore.
+    const hasResolvedData =
+      decodedContent && (decodedContent.url || decodedContent.title);
+    const status = hasResolvedData
+      ? "finished"
+      : item.status || (websiteUrl ? "finished" : "processing");
 
     // Get embed ID
     const embedId = item.contentRef?.replace("embed:", "") || "";
