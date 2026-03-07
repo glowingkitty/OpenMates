@@ -133,6 +133,7 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.default_inspiration_tasks'},  # Daily defaults selection from pool (replaces old admin-curated pipeline)
     {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.web_analytics_tasks'},  # Web analytics flush tasks (privacy-preserving aggregate counters)
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.app_analytics_tasks'},  # App analytics daily aggregation tasks
+    {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.software_update_tasks'},  # Software update auto-check tasks
     # Add new task configurations here, e.g.:
     # {'name': 'new_queue', 'module': 'backend.core.api.app.tasks.new_tasks'}, # Example updated
 ]
@@ -946,6 +947,9 @@ _EXPLICIT_TASK_ROUTES = {
 
     # App analytics tasks (daily aggregation of raw app_analytics events)
     "app_analytics.aggregate_daily": "persistence",
+
+    # Software update auto-check task
+    "software_update.auto_check": "server_stats",
 }
 
 def get_expected_queue_for_task(task_name: str) -> Optional[str]:
@@ -1185,6 +1189,14 @@ app.conf.beat_schedule = {
         'task': 'app_analytics.aggregate_daily',
         'schedule': crontab(hour=3, minute=0),  # Daily at 03:00 UTC
         'options': {'queue': 'persistence'},
+    },
+    # Software update auto-check - periodically checks GitHub for new commits.
+    # Runs every hour; the task itself enforces the user-configured interval
+    # (default 6 hours) and skips if not enough time has passed.
+    'software-update-auto-check': {
+        'task': 'software_update.auto_check',
+        'schedule': timedelta(seconds=3600),  # Every 1 hour
+        'options': {'queue': 'server_stats'},
     },
 }
 app.conf.timezone = 'UTC'

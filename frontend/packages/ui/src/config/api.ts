@@ -172,6 +172,8 @@ export const apiEndpoints = {
       check: "/v1/settings/software_update/check", // Check for software updates
       install: "/v1/settings/software_update/install", // Install software update
       install_status: "/v1/settings/software_update/install_status", // Get status of software update installation
+      versions: "/v1/settings/software_update/versions", // Get version info for all services
+      config: "/v1/settings/software_update/config", // Get/update auto-update configuration
     },
     deleteAccountPreview: "/v1/settings/delete-account-preview", // Get preview of account deletion consequences
     deleteAccount: "/v1/settings/delete-account", // Delete user account

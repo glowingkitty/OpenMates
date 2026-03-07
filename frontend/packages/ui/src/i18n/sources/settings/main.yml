@@ -4252,6 +4252,342 @@ installed:
   sv: ""
   he: מותקן
   verified_by_human: []
+current_version:
+  context: Label for the currently installed software version section
+  en: Current version
+  de: Aktuelle Version
+  zh: 当前版本
+  es: Versión actual
+  fr: Version actuelle
+  pt: ""
+  ru: ""
+  ja: 現在のバージョン
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: الإصدار الحالي
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: גרסה נוכחית
+  verified_by_human: []
+up_to_date:
+  context: Message shown when the software is already up to date
+  en: Your software is up to date
+  de: Ihre Software ist auf dem neuesten Stand
+  zh: 您的软件已是最新版本
+  es: Su software está actualizado
+  fr: Votre logiciel est à jour
+  pt: ""
+  ru: ""
+  ja: ソフトウェアは最新です
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: برنامجك محدث
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: התוכנה שלך מעודכנת
+  verified_by_human: []
+commits_behind:
+  context: "Message showing how many commits behind the current version is, e.g. '5 commits behind'"
+  en: "{count} commit(s) behind"
+  de: "{count} Commit(s) zurück"
+  zh: "落后 {count} 个提交"
+  es: "{count} commit(s) atrás"
+  fr: "{count} commit(s) en retard"
+  pt: ""
+  ru: ""
+  ja: "{count} コミット遅れ"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: "متأخر بـ {count} تحديث(ات)"
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: "{count} קומיט(ים) מאחור"
+  verified_by_human: []
+view_on_github:
+  context: Link text to view a commit on GitHub
+  en: View on GitHub
+  de: Auf GitHub ansehen
+  zh: 在 GitHub 上查看
+  es: Ver en GitHub
+  fr: Voir sur GitHub
+  pt: ""
+  ru: ""
+  ja: GitHubで表示
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: عرض على GitHub
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: צפה ב-GitHub
+  verified_by_human: []
+auto_check_for_updates:
+  context: Toggle label for automatically checking for updates
+  en: Auto-check for updates
+  de: Automatisch nach Updates suchen
+  zh: 自动检查更新
+  es: Buscar actualizaciones automáticamente
+  fr: Vérifier automatiquement les mises à jour
+  pt: ""
+  ru: ""
+  ja: 自動アップデート確認
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: التحقق التلقائي من التحديثات
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: בדיקה אוטומטית לעדכונים
+  verified_by_human: []
+auto_install_updates:
+  context: Toggle label for automatically installing updates when found
+  en: Auto-install updates
+  de: Updates automatisch installieren
+  zh: 自动安装更新
+  es: Instalar actualizaciones automáticamente
+  fr: Installer automatiquement les mises à jour
+  pt: ""
+  ru: ""
+  ja: 自動アップデートインストール
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: تثبيت التحديثات تلقائياً
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: התקנה אוטומטית של עדכונים
+  verified_by_human: []
+clear_cache_on_update:
+  context: Toggle label for clearing cache when installing updates
+  en: Clear cache on update
+  de: Cache beim Update leeren
+  zh: 更新时清除缓存
+  es: Limpiar caché al actualizar
+  fr: Vider le cache lors de la mise à jour
+  pt: ""
+  ru: ""
+  ja: アップデート時にキャッシュをクリア
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: مسح ذاكرة التخزين المؤقت عند التحديث
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ניקוי מטמון בעדכון
+  verified_by_human: []
+check_interval:
+  context: Label for the update check interval setting
+  en: Check interval
+  de: Prüfintervall
+  zh: 检查间隔
+  es: Intervalo de verificación
+  fr: Intervalle de vérification
+  pt: ""
+  ru: ""
+  ja: 確認間隔
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: فترة التحقق
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: מרווח בדיקה
+  verified_by_human: []
+every_n_hours:
+  context: "Label for check interval value, e.g. 'Every 6 hours'"
+  en: "Every {count} hours"
+  de: "Alle {count} Stunden"
+  zh: "每 {count} 小时"
+  es: "Cada {count} horas"
+  fr: "Toutes les {count} heures"
+  pt: ""
+  ru: ""
+  ja: "{count} 時間ごと"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: "كل {count} ساعة"
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: "כל {count} שעות"
+  verified_by_human: []
+update_settings:
+  context: Section heading for update settings/configuration
+  en: Update settings
+  de: Update-Einstellungen
+  zh: 更新设置
+  es: Configuración de actualización
+  fr: Paramètres de mise à jour
+  pt: ""
+  ru: ""
+  ja: アップデート設定
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: إعدادات التحديث
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: הגדרות עדכון
+  verified_by_human: []
+server_versions:
+  context: Section heading for server version information
+  en: Server versions
+  de: Serverversionen
+  zh: 服务器版本
+  es: Versiones del servidor
+  fr: Versions du serveur
+  pt: ""
+  ru: ""
+  ja: サーバーバージョン
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: إصدارات الخادم
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: גרסאות שרת
+  verified_by_human: []
+no_update_check_error:
+  context: Error message when the update check API call fails
+  en: Could not check for updates. Try again later.
+  de: Konnte nicht nach Updates suchen. Versuchen Sie es später erneut.
+  zh: 无法检查更新。请稍后再试。
+  es: No se pudo buscar actualizaciones. Inténtelo más tarde.
+  fr: Impossible de vérifier les mises à jour. Réessayez plus tard.
+  pt: ""
+  ru: ""
+  ja: アップデートを確認できませんでした。後でもう一度お試しください。
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: لم يتمكن من التحقق من وجود تحديثات. حاول مرة أخرى لاحقاً.
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: לא ניתן לבדוק עדכונים. נסה שוב מאוחר יותר.
+  verified_by_human: []
+check_now:
+  context: Button text to manually trigger an update check
+  en: Check now
+  de: Jetzt prüfen
+  zh: 立即检查
+  es: Comprobar ahora
+  fr: Vérifier maintenant
+  pt: ""
+  ru: ""
+  ja: 今すぐ確認
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: تحقق الآن
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: בדוק עכשיו
+  verified_by_human: []
+unreachable:
+  context: Status shown when a server cannot be reached
+  en: Unreachable
+  de: Nicht erreichbar
+  zh: 无法访问
+  es: Inalcanzable
+  fr: Injoignable
+  pt: ""
+  ru: ""
+  ja: 到達不能
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: غير قابل للوصول
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: לא ניתן להגיע
+  verified_by_human: []
 profile_image_not_allowed:
   context: Error message shown when profile image contains nudity or violence or gore
   en: "No nudity, violence or gore
