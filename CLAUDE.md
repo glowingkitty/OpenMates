@@ -4,6 +4,26 @@ This document provides essential guidelines for AI assistants working on the Ope
 
 ---
 
+## MANDATORY: Session Lifecycle (Do This First and Last)
+
+**Every session — no exceptions — must run these commands:**
+
+```bash
+# 1. FIRST thing, before any work:
+python3 scripts/sessions.py start --task "brief description of what you are doing"
+# → Saves your session ID (e.g. "a3f2"). You MUST use this ID in all subsequent commands.
+
+# 2. After EVERY file you edit or create (manually — automation is not reliable):
+python3 scripts/sessions.py track --session <ID> --file path/to/file.py
+
+# 3. LAST thing, after committing:
+python3 scripts/sessions.py end --session <ID>
+```
+
+**Why this matters:** Multiple assistants work on this codebase simultaneously. Without registering, your files are invisible to other sessions — risking edit collisions and broken deployments. The `start` output also gives you active session info, lock status, stale docs, and a project index — essential context.
+
+---
+
 ## Project Overview
 
 OpenMates is a multi-platform application with:
@@ -222,11 +242,12 @@ Rules: use the emoji headers exactly as shown. For bug fixes, always include the
 ### Auto-Commit After Every Task (CRITICAL)
 
 - **ALWAYS commit and push to `dev` after completing a feature or bug fix** — do not wait for the user to ask.
-- **Use `sessions.py` for deployment** — it tracks which files you modified and handles lint + commit + push:
+- **Use `sessions.py` for deployment** — it commits only the files you tracked and handles lint + commit + push:
   ```bash
   python3 scripts/sessions.py prepare-deploy --session <ID>   # preview + lint
   python3 scripts/sessions.py deploy --session <ID> --title "fix: description" --message "body"
   ```
+  Make sure you have called `sessions.py track --session <ID> --file <path>` for every file you modified before deploying.
 - If deploying manually: only add files you actually modified (never `git add .`). Run the linter (`lint_changed.sh`) first.
 - For significant routing, adapter, or Vite config changes, also run `pnpm build` in `frontend/apps/web_app/` to catch bundler-level errors.
 - **When a commit resolves or attempts to fix a reported issue**, include the issue ID and a short anonymous description in the commit body (no PII). See `docs/claude/git-and-deployment.md` → "Issue-Linked Commits" for format.
@@ -356,15 +377,20 @@ See `docs/claude/backend-standards.md` → "Package and Dependency Management" a
 
 #### Session Coordination via `scripts/sessions.py` (CRITICAL)
 
-All concurrent sessions coordinate through **`.claude/sessions.json`** (gitignored), managed by `scripts/sessions.py`. File edit tracking is automated via the OpenCode plugin (`.opencode/plugins/session-tracker.ts`).
+All concurrent sessions coordinate through **`.claude/sessions.json`** (gitignored), managed by `scripts/sessions.py`. **File tracking is manual — you must call `track` after every edit.**
 
-**On session start:**
+**On session start** (absolute first action):
 
 ```bash
 python3 scripts/sessions.py start --task "brief task description"
+# Save the 4-char session ID printed — required for all other commands.
 ```
 
-This generates your session ID, registers you, prunes stale sessions (>24h), shows active sessions, lock status, stale architecture docs, and a project index. **Save the session ID** — you need it for all subsequent commands.
+**After every file edit or creation:**
+
+```bash
+python3 scripts/sessions.py track --session <ID> --file path/to/modified/file.py
+```
 
 **Before rebuilding Docker containers:**
 
@@ -381,7 +407,7 @@ python3 scripts/sessions.py prepare-deploy --session <ID>
 python3 scripts/sessions.py deploy --session <ID> --title "fix: description" --message "body"
 ```
 
-**On session end:**
+**On session end** (after committing):
 
 ```bash
 python3 scripts/sessions.py end --session <ID>

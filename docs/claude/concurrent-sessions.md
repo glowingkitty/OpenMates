@@ -8,9 +8,11 @@ Load this document when multiple assistants may be working simultaneously, when 
 
 Multiple Claude Code sessions can work on the codebase at the same time. To avoid conflicts (duplicate Vercel fixes, simultaneous Docker rebuilds, file edit collisions), all sessions coordinate through **`scripts/sessions.py`**, which manages state in **`.claude/sessions.json`** (gitignored).
 
-File edit tracking is automated via the **OpenCode plugin** (`.opencode/plugins/session-tracker.ts`) — every Edit/Write operation is automatically recorded to the active session's `modified_files` list.
+File edit tracking is **manual** — after every file you edit or create, run:
 
-> **Note:** If you are using Claude Code (not OpenCode), file tracking is handled by `.claude/settings.json` hooks instead. The behaviour is identical from the agent's perspective.
+```bash
+python3 scripts/sessions.py track --session <ID> --file path/to/file.py
+```
 
 ---
 
@@ -69,24 +71,15 @@ This command:
 
 ## File Tracking
 
-### Automatic Tracking (via OpenCode plugin)
+### Tracking (Manual — Required)
 
-The `.opencode/plugins/session-tracker.ts` plugin handles two operations automatically:
-
-- **After edit/write**: Records every file you edit to your session's `modified_files` list (async, non-blocking). Calls `sessions.py track --file <path>` using the most-recently-active session.
-- **Before edit/write**: Checks if another session has claimed the file for writing — throws an error to block the edit if so. Calls `sessions.py check-write --file <path>`.
-
-This means **you do not need to manually track most files**. The plugin handles it.
-
-The plugin is loaded automatically from `.opencode/plugins/` when OpenCode starts. It requires Bun (bundled with OpenCode) and the `@opencode-ai/plugin` package (installed via `.opencode/package.json` at startup).
-
-### Manual Tracking
-
-If you modify a file through Bash or other indirect means:
+After **every** file you edit or create, record it:
 
 ```bash
 python3 scripts/sessions.py track --session <ID> --file path/to/file.py
 ```
+
+Do this for every file — including files modified via Bash, Python scripts, or any other indirect means. The `deploy` command only commits files you have tracked, so missing a `track` call means that file won't be included in the commit.
 
 ### Write Claims (Exclusive Locks)
 
@@ -248,7 +241,7 @@ The session end command also checks which architecture docs are related to the f
 
 The old `.claude/sessions.md` markdown-based coordination file has been replaced by `.claude/sessions.json`. The old file is no longer used. Key improvements:
 
-- **Automatic file tracking** via OpenCode plugin (no manual "Currently Editing" updates)
+- **File tracking via explicit `track` commands** (no manual "Currently Editing" table updates)
 - **Structured JSON** instead of fragile markdown tables
 - **Automatic stale cleanup** (sessions >24h, locks >5min)
 - **Integrated deployment** (lint + commit + push with file tracking)
