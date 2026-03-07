@@ -8,7 +8,9 @@ Load this document when multiple assistants may be working simultaneously, when 
 
 Multiple Claude Code sessions can work on the codebase at the same time. To avoid conflicts (duplicate Vercel fixes, simultaneous Docker rebuilds, file edit collisions), all sessions coordinate through **`scripts/sessions.py`**, which manages state in **`.claude/sessions.json`** (gitignored).
 
-File edit tracking is automated via hooks in `.claude/settings.json` — every Edit/Write operation is automatically recorded to the active session's `modified_files` list.
+File edit tracking is automated via the **OpenCode plugin** (`.opencode/plugins/session-tracker.ts`) — every Edit/Write operation is automatically recorded to the active session's `modified_files` list.
+
+> **Note:** If you are using Claude Code (not OpenCode), file tracking is handled by `.claude/settings.json` hooks instead. The behaviour is identical from the agent's perspective.
 
 ---
 
@@ -67,14 +69,16 @@ This command:
 
 ## File Tracking
 
-### Automatic Tracking (via hooks)
+### Automatic Tracking (via OpenCode plugin)
 
-The `.claude/settings.json` configures two hooks:
+The `.opencode/plugins/session-tracker.ts` plugin handles two operations automatically:
 
-- **PostToolUse** on `Edit|Write`: Automatically records every file you edit to your session's `modified_files` list (async, non-blocking)
-- **PreToolUse** on `Edit|Write`: Checks if another session has claimed the file for writing — blocks the edit if so (exit code 2)
+- **After edit/write**: Records every file you edit to your session's `modified_files` list (async, non-blocking). Calls `sessions.py track --file <path>` using the most-recently-active session.
+- **Before edit/write**: Checks if another session has claimed the file for writing — throws an error to block the edit if so. Calls `sessions.py check-write --file <path>`.
 
-This means **you do not need to manually track most files**. The hooks handle it.
+This means **you do not need to manually track most files**. The plugin handles it.
+
+The plugin is loaded automatically from `.opencode/plugins/` when OpenCode starts. It requires Bun (bundled with OpenCode) and the `@opencode-ai/plugin` package (installed via `.opencode/package.json` at startup).
 
 ### Manual Tracking
 
@@ -244,7 +248,7 @@ The session end command also checks which architecture docs are related to the f
 
 The old `.claude/sessions.md` markdown-based coordination file has been replaced by `.claude/sessions.json`. The old file is no longer used. Key improvements:
 
-- **Automatic file tracking** via hooks (no manual "Currently Editing" updates)
+- **Automatic file tracking** via OpenCode plugin (no manual "Currently Editing" updates)
 - **Structured JSON** instead of fragile markdown tables
 - **Automatic stale cleanup** (sessions >24h, locks >5min)
 - **Integrated deployment** (lint + commit + push with file tracking)

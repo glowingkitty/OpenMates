@@ -636,18 +636,40 @@ def cmd_release(args: argparse.Namespace) -> None:
 
 
 def cmd_track(args: argparse.Namespace) -> None:
-    """Track a file as modified by this session (without write lock)."""
+    """Track a file as modified by this session (without write lock).
+
+    If --session is omitted, falls back to the most-recently-active session.
+    This allows the OpenCode plugin to call `track --file <path>` without
+    knowing the session ID (it uses whichever session is currently active).
+    """
     data = _load_sessions()
+    sessions = data.get("sessions", {})
     sid = args.session
 
-    if sid not in data.get("sessions", {}):
+    if not sid:
+        # Fall back to most-recently-active session (OpenCode plugin path)
+        if not sessions:
+            return  # No active session — silently ignore
+        sid = max(
+            sessions.keys(),
+            key=lambda s: sessions[s].get("last_active", ""),
+        )
+
+    if sid not in sessions:
         print(f"Error: Session {sid} not found.", file=sys.stderr)
         sys.exit(1)
 
     filepath = args.file
-    if filepath not in data["sessions"][sid].get("modified_files", []):
-        data["sessions"][sid].setdefault("modified_files", []).append(filepath)
-        data["sessions"][sid]["last_active"] = _now_iso()
+    # Make relative to project root for consistent storage
+    try:
+        filepath = str(Path(filepath).resolve().relative_to(PROJECT_ROOT))
+    except ValueError:
+        pass  # Already relative or outside project
+
+    if filepath not in sessions[sid].get("modified_files", []):
+        sessions[sid].setdefault("modified_files", []).append(filepath)
+        sessions[sid]["last_active"] = _now_iso()
+        data["sessions"] = sessions
         _save_sessions(data)
         print(f"Tracked '{filepath}' as modified in session {sid}.")
     else:
@@ -703,17 +725,23 @@ def cmd_track_stdin(args: argparse.Namespace) -> None:
 
 
 def cmd_check_write(args: argparse.Namespace) -> None:
-    """Check if a file can be written (for PreToolUse hook). Exit 2 to block."""
+    """Check if a file can be written (for PreToolUse hook). Exit 2 to block.
+
+    Accepts file path via:
+      --file <path>   (OpenCode plugin passes it directly)
+      stdin JSON      (Claude Code hook passes {"tool_input": {"filePath": ...}})
+    """
     data = _load_sessions()
 
-    # Read tool input from stdin
-    try:
-        stdin_data = json.load(sys.stdin)
-    except (json.JSONDecodeError, EOFError):
-        sys.exit(0)  # Can't parse — don't block
-
-    tool_input = stdin_data.get("tool_input", {})
-    filepath = tool_input.get("filePath") or tool_input.get("file_path", "")
+    # Prefer --file arg (OpenCode plugin); fall back to stdin JSON (Claude Code hook)
+    filepath = getattr(args, "file", None) or ""
+    if not filepath:
+        try:
+            stdin_data = json.load(sys.stdin)
+        except (json.JSONDecodeError, EOFError):
+            sys.exit(0)  # Can't parse — don't block
+        tool_input = stdin_data.get("tool_input", {})
+        filepath = tool_input.get("filePath") or tool_input.get("file_path", "")
 
     if not filepath:
         sys.exit(0)
@@ -901,7 +929,12 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
 
         if lint_flags:
             print("Running linter...")
-            lint_cmd = ["./scripts/lint_changed.sh"] + lint_flags
+            # Pass each file as --path <file> so only session-committed files
+            # are checked (not all dirty files from concurrent sessions).
+            path_args: list[str] = []
+            for f in to_commit:
+                path_args += ["--path", f]
+            lint_cmd = ["./scripts/lint_changed.sh"] + lint_flags + path_args
             rc, stdout, stderr = _run_cmd(lint_cmd)
             if rc != 0:
                 print("LINT ERRORS — fix before deploying:")
@@ -980,8 +1013,13 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
     if lint_flags:
         print("Running linter...")
+        # Pass each file as --path <file> so the linter only checks files
+        # being committed (not all dirty files from other sessions).
+        path_args: list[str] = []
+        for f in to_commit:
+            path_args += ["--path", f]
         rc, stdout, stderr = _run_cmd(
-            ["./scripts/lint_changed.sh"] + lint_flags
+            ["./scripts/lint_changed.sh"] + lint_flags + path_args
         )
         if rc != 0:
             print("LINT FAILED — aborting deploy:", file=sys.stderr)
@@ -1088,7 +1126,7 @@ def main() -> None:
     # track
     p_track = sub.add_parser("track", help="Track a file as modified")
     p_track.add_argument(
-        "--session", "-s", required=True, help="Session ID"
+        "--session", "-s", help="Session ID (omit to use most-recently-active session)"
     )
     p_track.add_argument("--file", "-f", required=True, help="File path")
 
@@ -1099,8 +1137,11 @@ def main() -> None:
     p_track_stdin.add_argument("--session", "-s", help="Session ID")
 
     # check-write (for PreToolUse hook)
-    sub.add_parser(
+    p_check_write = sub.add_parser(
         "check-write", help="Check if file write is allowed (for hooks)"
+    )
+    p_check_write.add_argument(
+        "--file", "-f", help="File path (optional; falls back to stdin JSON)"
     )
 
     # lock
