@@ -433,6 +433,10 @@
     
     // State for current user ID (cached to avoid repeated DB lookups)
     let currentUserId = $state<string | null>(null);
+    // Track last-seen auth state to detect actual login/logout transitions.
+    // Only reset currentUserId when auth state truly changes, preventing the infinite loop where:
+    // $effect resets → checkChatOwnership reads & writes currentUserId → effect re-triggers → ∞
+    let lastAuthState = $state<boolean | null>(null);
     
     // State for chat ownership check
     let chatOwnershipResolved = $state<boolean>(true); // Default to true (allow editing)
@@ -486,12 +490,16 @@
         // Track dependencies
         void currentChat?.chat_id;
         void currentChat?.user_id;
-        void $authStore.isAuthenticated;
+        const isAuth = $authStore.isAuthenticated;
         
-        // CRITICAL: Reset cached user ID when auth state changes to force re-fetch from IndexedDB.
-        // Without this, logout+login keeps the stale ID from the previous session, causing the
-        // ownership check to fail and incorrectly showing "This is a shared chat" for the user's own chats.
-        currentUserId = null;
+        // Only reset cached user ID when auth state actually CHANGES (login/logout transition),
+        // not on every effect run. Unconditional reset caused an infinite loop:
+        // reset null → checkChatOwnership reads currentUserId (tracked) → fetches from DB →
+        // writes currentUserId → effect re-triggers → reset null → ∞
+        if (isAuth !== lastAuthState) {
+            lastAuthState = isAuth;
+            currentUserId = null;
+        }
         
         // Check ownership asynchronously
         checkChatOwnership();
