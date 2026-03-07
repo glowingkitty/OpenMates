@@ -1109,6 +1109,15 @@ app.conf.beat_schedule = {
         'options': {'queue': 'e2e_tests'},  # Route to e2e_tests queue
         'kwargs': {'environment': 'development'},
     },
+    # Full automated daily test run — shells out to scripts/run-tests-daily.sh
+    # Skips automatically if no git commits were made in the last 24 hours.
+    # Sends a single summary email: "All tests successful" or "Warning: X of Y tests failed!"
+    # 03:00 UTC = 04:00 CET (avoids the 02:xx UTC maintenance window for other jobs)
+    'e2e-tests-daily-full': {
+        'task': 'e2e_tests.run_daily_all_tests',
+        'schedule': crontab(hour=3, minute=0),  # Daily at 03:00 UTC (04:00 CET / Berlin time)
+        'options': {'queue': 'e2e_tests'},
+    },
     # 'cleanup-uncompleted-signups': {
     #     'task': 'app.tasks.persistence_tasks.cleanup_uncompleted_signups',
     #     'schedule': crontab(hour=3, minute=0),  # Every day at 3 AM UTC
