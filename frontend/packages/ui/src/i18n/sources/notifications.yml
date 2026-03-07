@@ -190,3 +190,79 @@ push.ios_install_step4:
   en: 4. Then you can enable notifications
   de: 4. Dann können Sie Benachrichtigungen aktivieren
   he: 4. לאחר מכן תוכל להפעיל התראות
+
+# Security reminder notification (shown after login when user has no 2FA/passkey)
+security_reminder.title:
+  context: Title for the security reminder notification shown after login when user has no 2FA or passkey configured
+  en: Security Reminder
+  de: Sicherheitshinweis
+  zh: 安全提醒
+  es: Recordatorio de seguridad
+  fr: Rappel de sécurité
+  pt: Lembrete de segurança
+  ru: Напоминание о безопасности
+  ja: セキュリティリマインダー
+  ko: 보안 알림
+  it: Promemoria di sicurezza
+  tr: Güvenlik hatırlatması
+  vi: Nhắc nhở bảo mật
+  id: Pengingat keamanan
+  pl: Przypomnienie o bezpieczeństwie
+  nl: Beveiligingsherinnering
+  ar: تذكير أمني
+  hi: सुरक्षा अनुस्मारक
+  th: การแจ้งเตือนความปลอดภัย
+  cs: Bezpečnostní připomínka
+  sv: Säkerhetspåminnelse
+  he: תזכורת אבטחה
+  verified_by_human: []
+
+security_reminder.message:
+  context: Message in the security reminder notification prompting the user to set up 2FA or passkey
+  en: Properly secure your account by setting up 2FA or a passkey.
+  de: Sichern Sie Ihr Konto richtig ab, indem Sie 2FA oder einen Passkey einrichten.
+  zh: 通过设置两步验证或通行密钥来正确保护您的账户。
+  es: Proteja correctamente su cuenta configurando 2FA o una clave de acceso.
+  fr: Sécurisez correctement votre compte en configurant la 2FA ou une clé d'accès.
+  pt: Proteja adequadamente sua conta configurando 2FA ou uma chave de acesso.
+  ru: Надёжно защитите свой аккаунт, настроив двухфакторную аутентификацию или ключ доступа.
+  ja: 二要素認証またはパスキーを設定して、アカウントを適切に保護してください。
+  ko: 2FA 또는 패스키를 설정하여 계정을 올바르게 보호하세요.
+  it: Proteggi correttamente il tuo account configurando la 2FA o una passkey.
+  tr: 2FA veya bir geçiş anahtarı ayarlayarak hesabınızı düzgün şekilde güvence altına alın.
+  vi: Bảo mật tài khoản đúng cách bằng cách thiết lập 2FA hoặc passkey.
+  id: Amankan akun Anda dengan benar dengan mengatur 2FA atau passkey.
+  pl: Prawidłowo zabezpiecz swoje konto, konfigurując 2FA lub klucz dostępu.
+  nl: Beveilig uw account goed door 2FA of een passkey in te stellen.
+  ar: قم بتأمين حسابك بشكل صحيح عن طريق إعداد المصادقة الثنائية أو مفتاح المرور.
+  hi: 2FA या पासकी सेट करके अपने खाते को ठीक से सुरक्षित करें।
+  th: รักษาความปลอดภัยบัญชีของคุณอย่างเหมาะสมโดยตั้งค่า 2FA หรือ Passkey
+  cs: Řádně zabezpečte svůj účet nastavením 2FA nebo přístupového klíče.
+  sv: Säkra ditt konto ordentligt genom att ställa in 2FA eller en nyckel.
+  he: אבטח את חשבונך כראוי על ידי הגדרת אימות דו-שלבי או מפתח גישה.
+  verified_by_human: []
+
+security_reminder.action:
+  context: Action button label on the security reminder notification that opens security settings
+  en: Open security settings
+  de: Sicherheitseinstellungen öffnen
+  zh: 打开安全设置
+  es: Abrir ajustes de seguridad
+  fr: Ouvrir les paramètres de sécurité
+  pt: Abrir configurações de segurança
+  ru: Открыть настройки безопасности
+  ja: セキュリティ設定を開く
+  ko: 보안 설정 열기
+  it: Apri impostazioni di sicurezza
+  tr: Güvenlik ayarlarını aç
+  vi: Mở cài đặt bảo mật
+  id: Buka pengaturan keamanan
+  pl: Otwórz ustawienia bezpieczeństwa
+  nl: Beveiligingsinstellingen openen
+  ar: فتح إعدادات الأمان
+  hi: सुरक्षा सेटिंग्स खोलें
+  th: เปิดการตั้งค่าความปลอดภัย
+  cs: Otevřít nastavení zabezpečení
+  sv: Öppna säkerhetsinställningar
+  he: פתח הגדרות אבטחה
+  verified_by_human: []

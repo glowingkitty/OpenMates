@@ -88,6 +88,10 @@
     let isRateLimited = $state(false);
     let rateLimitTimer: ReturnType<typeof setTimeout>;
 
+    // Guard flag to prevent infinite auto-resubmit loops.
+    // Set to true while an auto-resubmit is in-flight; reset after the response is processed.
+    let isAutoResubmitting = $state(false);
+
     // TFA app display logic using Svelte 5 runes
     let currentAppIndex = $state(0);
     let animationInterval: number | null = null;
@@ -263,7 +267,80 @@
                     // Import isSignupPath helper for checking signup paths
                     const { isSignupPath } = await import('../stores/signupState');
                     const isInSignupFlow = isSignupPath(data.user?.last_opened) || false;
-                    
+
+                    // AUTO-RESUBMIT: Users who skipped 2FA during signup get back an anti-enumeration
+                    // response on first login attempt (success=true, tfa_required=true, tfa_enabled=false,
+                    // last_opened=null, message="2FA required") because the backend can't distinguish them
+                    // from non-existent accounts when no tfa_code is supplied.
+                    //
+                    // Fix: when 2FA is not configured and no code was submitted yet, automatically
+                    // re-send the same credentials with tfa_code="" so the backend takes the
+                    // Scenario 1 path (no 2FA) and returns a real login response.
+                    //
+                    // Security: if the account doesn't actually exist, the backend returns
+                    // success=false with message="login.code_wrong" on the re-submit, which
+                    // causes the OTP field to appear — preserving anti-enumeration protection.
+                    //
+                    // See docs/architecture/auth.md for the full anti-enumeration design.
+                    if (!isTfaConfigured && !tfaCode && !isAutoResubmitting && data.message === '2FA required') {
+                        console.debug('[PasswordAndTfaOtp] No 2FA configured and no code submitted — auto-resubmitting with empty tfa_code to bypass anti-enumeration gate');
+                        isAutoResubmitting = true;
+                        try {
+                            // Re-use the already-computed hashed_email and lookup_hash from the outer scope.
+                            const resubmitBody: any = {
+                                hashed_email,
+                                lookup_hash,
+                                stay_logged_in: stayLoggedIn,
+                                tfa_code: '',
+                                code_type: 'otp'
+                            };
+                            const emailEncKey = cryptoService.getEmailEncryptionKeyForApi();
+                            if (emailEncKey) resubmitBody.email_encryption_key = emailEncKey;
+                            resubmitBody.session_id = getSessionId();
+
+                            const resubmitResponse = await fetch(getApiEndpoint(apiEndpoints.auth.login), {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json',
+                                    'Origin': window.location.origin
+                                },
+                                body: JSON.stringify(resubmitBody),
+                                credentials: 'include'
+                            });
+
+                            if (resubmitResponse.status === 429) {
+                                console.warn('[PasswordAndTfaOtp] Rate limit hit on auto-resubmit');
+                                isRateLimited = true;
+                                localStorage.setItem('passwordTfaRateLimit', Date.now().toString());
+                                setRateLimitTimer(RATE_LIMIT_DURATION);
+                                return;
+                            }
+
+                            const resubmitData = await resubmitResponse.json();
+                            console.debug('[PasswordAndTfaOtp] Auto-resubmit response:', {
+                                ok: resubmitResponse.ok,
+                                status: resubmitResponse.status,
+                                success: resubmitData.success,
+                                tfa_required: resubmitData.tfa_required,
+                                message: resubmitData.message
+                            });
+
+                            if (resubmitResponse.ok && resubmitData.success && !resubmitData.tfa_required) {
+                                // Real user with no 2FA — backend took the Scenario 1 path and logged them in.
+                                await handleSuccessfulLogin(resubmitData);
+                                return;
+                            }
+
+                            // Account doesn't exist (anti-enumeration) or some other issue —
+                            // fall through to show OTP field so UX is consistent with wrong-password behaviour.
+                            console.debug('[PasswordAndTfaOtp] Auto-resubmit did not yield a clean login — showing OTP field (anti-enumeration)');
+                        } finally {
+                            isAutoResubmitting = false;
+                        }
+                        // Fall through: tfaRequiredState = true will be set below
+                    }
+
                     // If account exists but 2FA is not configured (user hasn't finished signup),
                     // hide the 2FA field and redirect to signup to complete setup
                     if (data.user && !isTfaConfigured && isInSignupFlow) {
@@ -546,26 +623,50 @@
             }
             
             // Check if user is in signup flow BEFORE updating profile
-            // A user is in signup flow if:
-            // 1. last_opened starts with '/signup/' or '#signup/' (explicit signup path), OR
-            // 2. tfa_enabled is false (2FA not set up - signup incomplete)
-            // This handles cases where last_opened was overwritten to demo-for-everyoneryone in a previous session
-            const { isInSignupProcess, currentSignupStep, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath } = await import('../stores/signupState');
-            const inSignupFlow = isSignupPath(data.user?.last_opened) || 
-                                (data.user?.tfa_enabled === false);
+            // A user is in signup flow ONLY if last_opened explicitly indicates a signup path.
+            // Do NOT infer signup from tfa_enabled=false — users who completed signup but skipped
+            // 2FA setup have tfa_enabled=false and should NOT be forced back into the signup flow.
+            // This aligns with authLoginLogoutActions.ts and authSessionActions.ts which also
+            // do not use tfa_enabled=false for signup detection (to protect passkey users too).
+            const { isInSignupProcess, currentSignupStep, getStepFromPath, isSignupPath } = await import('../stores/signupState');
+            const inSignupFlow = isSignupPath(data.user?.last_opened);
             console.debug('[PasswordAndTfaOtp] Login success, in signup flow:', inSignupFlow, {
                 last_opened: data.user?.last_opened,
                 tfa_enabled: data.user?.tfa_enabled
             });
             
+            // If user completed signup but has no 2FA, show a reminder notification.
+            // This only fires on fresh login (not page reload — session restore uses authSessionActions.ts).
+            if (!inSignupFlow && data.user?.tfa_enabled === false) {
+                console.debug('[PasswordAndTfaOtp] User has no 2FA — showing security reminder notification');
+                try {
+                    const { notificationStore } = await import('../stores/notificationStore');
+                    const { text } = await import('../i18n/translations');
+                    const { get } = await import('svelte/store');
+                    const t = get(text);
+                    notificationStore.addNotificationWithOptions('warning', {
+                        title: t('notifications.security_reminder.title'),
+                        message: t('notifications.security_reminder.message'),
+                        actionLabel: t('notifications.security_reminder.action'),
+                        onAction: () => {
+                            // Deep-link into security settings
+                            if (typeof window !== 'undefined') {
+                                window.location.hash = '#settings/account/security';
+                            }
+                        },
+                        duration: 0, // Persistent until dismissed
+                        dismissible: true,
+                    });
+                } catch (notifError) {
+                    console.warn('[PasswordAndTfaOtp] Failed to show 2FA reminder notification:', notifError);
+                }
+            }
+            
             // If in signup flow, set signup state IMMEDIATELY before any other operations
             // This prevents WebSocket from sending set_active_chat and overwriting last_opened
             if (inSignupFlow) {
-                // Determine step: use last_opened if it's a signup path, otherwise default to one_time_codes
-                // (the actual OTP setup step, not the app reminder step)
-                const stepName = isSignupPath(data.user?.last_opened)
-                    ? getStepFromPath(data.user.last_opened)
-                    : STEP_ONE_TIME_CODES; // Default to one_time_codes (OTP setup) if last_opened doesn't indicate signup
+                // Determine step: use last_opened if it's a signup path
+                const stepName = getStepFromPath(data.user.last_opened);
                 currentSignupStep.set(stepName);
                 isInSignupProcess.set(true);
                 console.debug('[PasswordAndTfaOtp] Signup flow detected - set isInSignupProcess=true immediately, step:', stepName);

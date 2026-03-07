@@ -488,6 +488,11 @@
         void currentChat?.user_id;
         void $authStore.isAuthenticated;
         
+        // CRITICAL: Reset cached user ID when auth state changes to force re-fetch from IndexedDB.
+        // Without this, logout+login keeps the stale ID from the previous session, causing the
+        // ownership check to fail and incorrectly showing "This is a shared chat" for the user's own chats.
+        currentUserId = null;
+        
         // Check ownership asynchronously
         checkChatOwnership();
     });
