@@ -103,7 +103,7 @@
 
 <div
     class="settings-main-header app-details-header"
-    style="height: {headerHeight}px; background: var(--color-app-openmates, var(--color-primary)); --orb-color-a: var(--color-app-openmates-start); --orb-color-b: var(--color-app-openmates-end);"
+    style="height: {headerHeight}px; background: var(--color-app-openmates, var(--color-primary)); --orb-color-a: #3b4fbf; --orb-color-b: #7ba0f7;"
 >
     <!-- Living gradient orbs — three morphing radial-gradient blobs.
          Uses the banner-sized orbDrift keyframes (same as ChatHeader, 240px banner). -->
@@ -240,8 +240,8 @@
         position: absolute;
         width: 220px;
         height: 220px;
-        opacity: 0.55;
-        filter: blur(28px);
+        opacity: 0.75;
+        filter: blur(24px);
     }
 
     /* Orb 1 — color-b (end), top-left anchor */
@@ -299,6 +299,8 @@
         display: flex;
         flex: 1;
         align-items: center;
+        position: relative;
+        z-index: 1;
         transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
