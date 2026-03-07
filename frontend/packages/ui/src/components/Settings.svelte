@@ -2406,11 +2406,11 @@ changes to the documentation (to keep the documentation up to date).
                     aria-hidden="true"
                     style="opacity: {headerDecorOpacity}"
                 >
-                    {#each headerChatDecorIcons as decor (decor.key)}
+                    {#each headerChatDecorIcons as decor, index (decor.key)}
                         {@const IconComponent = getLucideIcon(decor.iconName)}
                         <div
                             class="header-chat-icon {decor.side}"
-                            style="top: {decor.topPercent}%; --header-chat-icon-inset: {decor.insetPx}px; --header-chat-icon-rotation: {decor.rotationDeg}deg;"
+                            style="top: {decor.topPercent}%; --header-chat-icon-inset: {decor.insetPx}px; --header-chat-icon-rotation: {decor.rotationDeg}deg; --deco-rotate: {decor.rotationDeg}deg; --float-rx: 6px; --float-ry: 7px; animation-delay: {-index * 2}s;"
                         >
                             <IconComponent size={22} color="rgba(255, 255, 255, 0.45)" />
                         </div>
@@ -2771,11 +2771,19 @@ changes to the documentation (to keep the documentation up to date).
         transform: translateY(-50%) rotate(var(--header-chat-icon-rotation));
         opacity: 0;
         transition: opacity 0.28s ease;
+        /* Orbital float — each icon drifts in a small circle. Per-icon phase
+           offset set via negative animation-delay in the inline style so all
+           8 icons orbit independently (staggered by 2s each). */
+        animation: decoFloat 16s linear infinite;
     }
 
     .header-chat-icons-layer.menu-open .header-chat-icon {
         opacity: 1;
         transition-delay: 0.2s;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .header-chat-icon { animation: none; }
     }
 
     .header-chat-icon.left {

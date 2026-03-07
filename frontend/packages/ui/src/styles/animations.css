@@ -3,7 +3,8 @@
  *
  * Shared CSS @keyframes for the living gradient orb system and decorative icon
  * float animation used across ChatHeader, DailyInspirationBanner, ActiveChat
- * resume card, and EmbedHeader.
+ * resume card, EmbedHeader, ChatEmbedPreview, SettingsMainHeader, and the
+ * Settings header decorative icons.
  *
  * Architecture: keyframes are always global in CSS (not scoped by Svelte), so
  * defining them once here and importing via +layout.svelte eliminates ~200 lines
