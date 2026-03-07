@@ -14,8 +14,9 @@
   - Navigation arrows at left/right edges for prev/next embed browsing
 
   Icon logic:
-  - skillIconName set AND showSkillIcon true → skill icon (CSS mask-image SVG)
-  - Otherwise → app icon (icon_rounded CSS class)
+  - skillIconName set → skill icon (CSS mask-image SVG, flat white, no circle/gradient)
+  - Otherwise → app icon (icon_rounded CSS class with colored circle background)
+  - showSkillIcon prop is no longer consulted for the center icon (only BasicInfosBar uses it)
 -->
 
 <script lang="ts">
@@ -68,13 +69,25 @@
     onHeaderIconClick,
   }: Props = $props();
 
-  /** Use skill icon in center header when skillIconName is set and showSkillIcon is true. */
-  let useSkillIcon = $derived(showSkillIcon && !!skillIconName);
+  /**
+   * Use skill icon in center header when skillIconName is provided.
+   * Always prefer the skill icon (flat white mask, no circle/gradient) over the
+   * icon_rounded app icon. showSkillIcon is no longer considered here because it
+   * was designed for BasicInfosBar (preview cards), not the fullscreen header.
+   * Without this, embeds that set showSkillIcon={false} (e.g. SheetEmbedFullscreen)
+   * would fall back to the icon_rounded class, which renders a circle with a colored
+   * gradient background — not the intended flat icon.
+   */
+  // Always use the skill icon when skillIconName is available, regardless of showSkillIcon.
+  // showSkillIcon is accepted as a prop for API compatibility but intentionally ignored
+  // in EmbedHeader — it was designed for BasicInfosBar (preview cards), not the fullscreen
+  // gradient header. We reference it inside $derived to satisfy Svelte's reactive tracking.
+  let useSkillIcon = $derived((void showSkillIcon, !!skillIconName));
 
   /**
    * Use skill icon for decorative side icons when skillIconName is provided.
    * Decorative icons always use the plain skill icon (no gradient) when available,
-   * regardless of showSkillIcon — which only controls the small center icon.
+   * regardless of showSkillIcon (which is now only used by BasicInfosBar).
    * This prevents the full app icon (with gradient background) from appearing in the banner.
    */
   let useDecoSkillIcon = $derived(!!skillIconName);

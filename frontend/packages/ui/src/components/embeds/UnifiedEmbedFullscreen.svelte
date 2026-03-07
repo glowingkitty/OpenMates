@@ -677,11 +677,31 @@
   /**
    * Deep-link from the embed header icon to the app-store skill settings page.
    * Falls back to the app page when skillId is unavailable.
+   *
+   * Virtual embed types (e.g. "sheets", "docs" as direct embed) have an appId
+   * that does NOT correspond to a real app in appsMetadata. For those, we link
+   * to the app_store root instead of a non-existent app page.
    */
   async function handleEmbedHeaderIconClick() {
     try {
-      const targetPath = skillId ? `app_store/${appId}/skill/${skillId}` : `app_store/${appId}`;
       const { navigateToSettings } = await import('../../stores/settingsNavigationStore');
+      const { appsMetadata } = await import('../../data/appsMetadata');
+
+      // Check if the appId corresponds to a real registered app.
+      // Virtual embed types (sheets, docs-as-embed, etc.) won't have an entry.
+      const isRealApp = appId in appsMetadata;
+
+      let targetPath: string;
+      if (isRealApp && skillId) {
+        // Real app with a specific skill → deep-link to the skill settings page
+        targetPath = `app_store/${appId}/skill/${skillId}`;
+      } else if (isRealApp) {
+        // Real app, no specific skill → app details page
+        targetPath = `app_store/${appId}`;
+      } else {
+        // Virtual/direct embed type (e.g. "sheets") → app store root
+        targetPath = 'app_store';
+      }
 
       navigateToSettings(targetPath, 'App Store', appId || 'app_store');
       settingsMenuVisible.set(true);
