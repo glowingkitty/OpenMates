@@ -24,8 +24,8 @@
     var(--icon-skill-background-end) 90.06%
   );
   /* Settings & memories icons: pink gradient */
-  --icon-memory-background-start: #dd03b5;
-  --icon-memory-background-end: #cb00a5;
+  --icon-memory-background-start: #b5008e;
+  --icon-memory-background-end: #f03ed0;
   --icon-memory-background: linear-gradient(
     135deg,
     var(--icon-memory-background-start) 9.04%,
@@ -65,8 +65,8 @@
   /* App colors */
 
   /* App/AI */
-  --color-app-ai-start: #cb7d5d;
-  --color-app-ai-end: #cb685d;
+  --color-app-ai-start: #b85a3a;
+  --color-app-ai-end: #e8956e;
   --color-app-ai: linear-gradient(
     135deg,
     var(--color-app-ai-start) 9.04%,
@@ -101,8 +101,8 @@
   );
 
   /* App/Finance */
-  --color-app-finance-start: #119106;
-  --color-app-finance-end: #15780d;
+  --color-app-finance-start: #0a6e04;
+  --color-app-finance-end: #2cb81e;
   --color-app-finance: linear-gradient(
     135deg,
     var(--color-app-finance-start) 9.04%,
@@ -110,8 +110,8 @@
   );
 
   /* App/Fitness */
-  --color-app-fitness-start: #b80065;
-  --color-app-fitness-end: #88004b;
+  --color-app-fitness-start: #8a0048;
+  --color-app-fitness-end: #d63084;
   --color-app-fitness: linear-gradient(
     135deg,
     var(--color-app-fitness-start) 9.04%,
@@ -146,8 +146,8 @@
   );
 
   /* App/News */
-  --color-app-news-start: #f53f5b;
-  --color-app-news-end: #dd0b2b;
+  --color-app-news-start: #c90820;
+  --color-app-news-end: #f95a6e;
   --color-app-news: linear-gradient(
     135deg,
     var(--color-app-news-start) 9.04%,
@@ -209,8 +209,8 @@
   );
 
   /* App/Notes */
-  --color-app-notes-start: #ffa500;
-  --color-app-notes-end: #c49f0f;
+  --color-app-notes-start: #b87a00;
+  --color-app-notes-end: #f5c23a;
   --color-app-notes: linear-gradient(
     135deg,
     var(--color-app-notes-start) 9.04%,
@@ -236,8 +236,8 @@
   );
 
   /* App/Diagrams */
-  --color-app-diagrams-start: #ffb200;
-  --color-app-diagrams-end: #e6bd43;
+  --color-app-diagrams-start: #d49200;
+  --color-app-diagrams-end: #ffd24d;
   --color-app-diagrams: linear-gradient(
     135deg,
     var(--color-app-diagrams-start) 9.04%,
@@ -263,8 +263,8 @@
   );
 
   /* App/Calendar */
-  --color-app-calendar-start: #009688;
-  --color-app-calendar-end: #26a69a;
+  --color-app-calendar-start: #007a6e;
+  --color-app-calendar-end: #3cc4b6;
   --color-app-calendar: linear-gradient(
     135deg,
     var(--color-app-calendar-start) 9.04%,
@@ -272,8 +272,8 @@
   );
 
   /* App/Mail */
-  --color-app-mail-start: #df4a3a;
-  --color-app-mail-end: #b93622;
+  --color-app-mail-start: #a82e1c;
+  --color-app-mail-end: #ef6a58;
   --color-app-mail: linear-gradient(
     135deg,
     var(--color-app-mail-start) 9.04%,
@@ -308,8 +308,8 @@
   );
 
   /* App/Videos */
-  --color-app-videos-start: #a70b09;
-  --color-app-videos-end: #ff1512;
+  --color-app-videos-start: #8a0806;
+  --color-app-videos-end: #f44a3c;
   --color-app-videos: linear-gradient(
     135deg,
     var(--color-app-videos-start) 9.04%,
@@ -317,8 +317,8 @@
   );
 
   /* App/Music */
-  --color-app-music-start: #ae2a39;
-  --color-app-music-end: #78000e;
+  --color-app-music-start: #7a0010;
+  --color-app-music-end: #c94458;
   --color-app-music: linear-gradient(
     135deg,
     var(--color-app-music-start) 9.04%,
@@ -344,8 +344,8 @@
   );
 
   /* App/Design */
-  --color-app-design-start: #101010;
-  --color-app-design-end: #2e2e2e;
+  --color-app-design-start: #0a0a0a;
+  --color-app-design-end: #3d3d3d;
   --color-app-design: linear-gradient(
     135deg,
     var(--color-app-design-start) 9.04%,
@@ -353,8 +353,8 @@
   );
 
   /* App/PCB Design */
-  --color-app-pcbdesign-start: #233888;
-  --color-app-pcbdesign-end: #2e4ec8;
+  --color-app-pcbdesign-start: #1a2c6e;
+  --color-app-pcbdesign-end: #4a6ee8;
   --color-app-pcbdesign: linear-gradient(
     135deg,
     var(--color-app-pcbdesign-start) 9.04%,
@@ -362,8 +362,8 @@
   );
 
   /* App/PDF */
-  --color-app-pdf-start: #b50d0e;
-  --color-app-pdf-end: #f42c2d;
+  --color-app-pdf-start: #8f0808;
+  --color-app-pdf-end: #e84545;
   --color-app-pdf: linear-gradient(
     135deg,
     var(--color-app-pdf-start) 9.04%,
@@ -371,8 +371,8 @@
   );
 
   /* App/PDF Editor */
-  --color-app-pdfeditor-start: #b50d0e;
-  --color-app-pdfeditor-end: #f42c2d;
+  --color-app-pdfeditor-start: #8f0808;
+  --color-app-pdfeditor-end: #e84545;
   --color-app-pdfeditor: linear-gradient(
     135deg,
     var(--color-app-pdfeditor-start) 9.04%,
@@ -389,8 +389,8 @@
   );
 
   /* App/Photos (Images) */
-  --color-app-photos-start: #001e36;
-  --color-app-photos-end: #073a62;
+  --color-app-photos-start: #001a30;
+  --color-app-photos-end: #1a5a8f;
   --color-app-photos: linear-gradient(
     135deg,
     var(--color-app-photos-start) 9.04%,
@@ -398,8 +398,8 @@
   );
 
   /* Legacy: Keep --color-app-images for backwards compatibility */
-  --color-app-images-start: #001e36;
-  --color-app-images-end: #073a62;
+  --color-app-images-start: #001a30;
+  --color-app-images-end: #1a5a8f;
   --color-app-images: linear-gradient(
     135deg,
     var(--color-app-images-start) 9.04%,
@@ -443,8 +443,8 @@
   );
 
   /* App/Books */
-  --color-app-books-start: #e89a31;
-  --color-app-books-end: #e17a2f;
+  --color-app-books-start: #c06a18;
+  --color-app-books-end: #f0aa4a;
   --color-app-books: linear-gradient(
     135deg,
     var(--color-app-books-start) 9.04%,
@@ -497,8 +497,8 @@
   );
 
   /* App/Time */
-  --color-app-time-start: #c57300;
-  --color-app-time-end: #dc9d31;
+  --color-app-time-start: #a35e00;
+  --color-app-time-end: #e8b44a;
   --color-app-time: linear-gradient(
     135deg,
     var(--color-app-time-start) 9.04%,
@@ -551,8 +551,8 @@
   );
 
   /* App/Calculator */
-  --color-app-calculator-start: #0ea308;
-  --color-app-calculator-end: #45a15d;
+  --color-app-calculator-start: #067c02;
+  --color-app-calculator-end: #40c45e;
   --color-app-calculator: linear-gradient(
     135deg,
     var(--color-app-calculator-start) 9.04%,
@@ -830,8 +830,8 @@ main::-webkit-scrollbar-thumb {
 
   /* App/Code - dark mode */
   --color-app-code-start: #1b8fe3;
-  /* App/Docs - dark mode */
-  --color-app-videos-start: #f32b29;
+  /* App/Videos - dark mode */
+  --color-app-videos-start: #c92220;
 }
 
 /* ── Offline image placeholder ───────────────────────────────────────────────
