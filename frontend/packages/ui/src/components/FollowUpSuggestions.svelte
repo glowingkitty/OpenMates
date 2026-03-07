@@ -38,19 +38,40 @@
 
   /**
    * Parse a raw suggestion string of the form "[app_id-skill_id] body text".
-   * The prefix bracket content uses a dash separator (e.g. "web-search", "jobs-career_insights").
-   * If no valid prefix is found, body === raw.
+   * The prefix bracket content uses a dash separator between app and skill
+   * (e.g. "web-search", "jobs-career_insights"). LLMs sometimes generate dashes
+   * in the skill name portion (e.g. "reminder-set-reminder") instead of underscores
+   * ("reminder-set_reminder") — we correct for this by replacing dashes in the
+   * subId portion with underscores, then validate against the known app skills store.
+   * If no valid app+skill pair is found, appId/subId are set to null so no icons render.
    */
   function parseSuggestion(raw: string): ParsedSuggestion {
-    const match = raw.match(/^\[([a-z0-9_]+-[a-z0-9_]+)\]\s*(.+)$/i);
+    // Allow dashes anywhere in the prefix (LLMs may use dashes instead of underscores in skill names)
+    const match = raw.match(/^\[([a-z0-9_-]+)\]\s*(.+)$/i);
     if (!match) {
       return { raw, prefix: null, appId: null, subId: null, body: raw };
     }
     const prefix = match[1];
     const body = match[2].trim();
     const dashIdx = prefix.indexOf('-');
+    if (dashIdx === -1) {
+      return { raw, prefix: null, appId: null, subId: null, body: raw };
+    }
     const appId = prefix.substring(0, dashIdx);
-    const subId = prefix.substring(dashIdx + 1);
+    // Replace any remaining dashes in the subId with underscores to correct LLM errors
+    // (e.g. "set-reminder" -> "set_reminder")
+    const subIdRaw = prefix.substring(dashIdx + 1);
+    const subId = subIdRaw.replace(/-/g, '_');
+
+    // Validate that appId and subId correspond to a real skill or focus mode
+    const app = appsMetadata?.apps?.[appId];
+    const isValidSkill = app?.skills?.some(s => s.id === subId) ?? false;
+    const isValidFocus = app?.focus_modes?.some(f => f.id === subId) ?? false;
+    if (!isValidSkill && !isValidFocus) {
+      // Unknown skill — keep body text but don't render any app/skill icons
+      return { raw, prefix: null, appId: null, subId: null, body };
+    }
+
     return { raw, prefix, appId, subId, body };
   }
 
