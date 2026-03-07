@@ -4,19 +4,29 @@
 # Pipeline:
 # 1. Brave video search → raw results (YouTube + others mixed)
 # 2. Filter to YouTube-only results by extracting video IDs from URLs
-# 3. Attempt YouTube Data API enrichment (view counts, likes, duration)
+# 3. Anti-corporate channel filtering (two layers):
+#    a. Fast-path: check channel name against seed blocklist patterns
+#    b. LLM-based: classify remaining channels as corporate or independent
+#    Both layers ensure no company/brand PR channels reach the inspirations.
+# 4. Attempt YouTube Data API enrichment (view counts, likes, duration)
 #    — gracefully falls back to Brave-provided metadata if API is unavailable
-# 4. Sort by view count descending
-# 5. Return top N candidates for LLM selection
+# 5. Sort by view count descending
+# 6. Return top N candidates for LLM selection
 #
 # Privacy: No user data is passed to or stored by Brave or YouTube.
+#
+# Architecture: Anti-corporate filtering is documented in
+# docs/architecture/daily-inspiration-content-policy.md (if it exists).
 
 import logging
 import re
-from typing import Any, Dict, List, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set
 
 import httpx
+import yaml
 
+from backend.apps.ai.utils.llm_utils import LLMPreprocessingCallResult, call_preprocessing_llm
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.providers.brave.brave_search import search_videos
 
@@ -31,6 +41,212 @@ YOUTUBE_DATA_API_URL = "https://www.googleapis.com/youtube/v3/videos"
 # Vault path for YouTube API key
 YOUTUBE_SECRET_PATH = "kv/data/providers/youtube"
 YOUTUBE_API_KEY_NAME = "api_key"
+
+# LLM model for lightweight channel classification (cheap, fast)
+CHANNEL_CLASSIFIER_MODEL_ID = "mistral/mistral-small-latest"
+
+# Path to the corporate channel seed blocklist YAML
+_CORPORATE_PATTERNS_PATH = (
+    Path(__file__).parent.parent.parent.parent
+    / "shared" / "config" / "corporate_channel_patterns.yml"
+)
+
+# Cache the loaded seed patterns so we don't re-parse the YAML on every request
+_corporate_seed_patterns: Optional[List[str]] = None
+
+
+def _load_corporate_seed_patterns() -> List[str]:
+    """
+    Load and cache the flat list of corporate channel name patterns from YAML.
+
+    Returns a list of lowercase patterns for case-insensitive substring matching.
+    On failure, logs a warning and returns an empty list (degraded but non-breaking).
+    """
+    global _corporate_seed_patterns
+    if _corporate_seed_patterns is not None:
+        return _corporate_seed_patterns
+
+    try:
+        with open(_CORPORATE_PATTERNS_PATH, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+
+        patterns: List[str] = []
+        # Flatten all category lists into a single list of lowercase patterns
+        for category_patterns in data.values():
+            if isinstance(category_patterns, list):
+                for pattern in category_patterns:
+                    if isinstance(pattern, str):
+                        patterns.append(pattern.lower())
+
+        _corporate_seed_patterns = patterns
+        logger.info(
+            f"[DailyInspiration] Loaded {len(patterns)} corporate channel seed patterns from YAML"
+        )
+        return patterns
+    except Exception as e:
+        logger.warning(
+            f"[DailyInspiration] Failed to load corporate channel patterns from "
+            f"{_CORPORATE_PATTERNS_PATH}: {e} — fast-path filter disabled"
+        )
+        _corporate_seed_patterns = []
+        return []
+
+
+def _is_corporate_channel_fast_path(channel_name: Optional[str]) -> bool:
+    """
+    Fast-path check: return True if the channel name matches a known corporate pattern.
+
+    Uses case-insensitive substring matching against the seed blocklist. This catches
+    the most obvious corporate channels (e.g. 'BMW', 'Shell', 'Pfizer') without needing
+    an LLM call.
+
+    Args:
+        channel_name: The YouTube channel name, or None if not available.
+
+    Returns:
+        True if the channel is likely corporate, False otherwise (including when
+        channel_name is None — unknown channels are passed to LLM classification).
+    """
+    if not channel_name:
+        return False
+    lower = channel_name.lower()
+    patterns = _load_corporate_seed_patterns()
+    return any(pattern in lower for pattern in patterns)
+
+
+async def _classify_channels_with_llm(
+    candidates: List[Dict[str, Any]],
+    secrets_manager: SecretsManager,
+    task_id: str = "daily_inspiration",
+) -> Set[str]:
+    """
+    Use an LLM to classify YouTube channel names as 'corporate' or 'independent'.
+
+    Sends a batch of (channel_name, video_title) pairs to a lightweight model and
+    returns the set of youtube_ids whose channels were classified as corporate.
+
+    This is the second layer of anti-corporate filtering — it catches channels that
+    don't match the seed patterns but are still clearly corporate (e.g. 'Bayer Science',
+    'Shell Energy', 'Google DeepMind PR', etc.).
+
+    Args:
+        candidates: List of candidate dicts with 'youtube_id', 'channel_name', 'title'.
+        secrets_manager: For LLM API key retrieval.
+        task_id: For logging context.
+
+    Returns:
+        Set of youtube_ids that were classified as corporate and should be rejected.
+        Returns empty set on LLM failure (fail-open: prefer some corporate content
+        over silently dropping all candidates).
+    """
+    # Only classify candidates where we actually have a channel name
+    classifiable = [c for c in candidates if c.get("channel_name")]
+    if not classifiable:
+        logger.debug(f"[DailyInspiration][{task_id}] No channel names available for LLM classification")
+        return set()
+
+    # Build channel list for classification
+    channel_entries = []
+    for c in classifiable:
+        channel_entries.append(
+            f'- youtube_id: "{c["youtube_id"]}" | channel: "{c["channel_name"]}" | title: "{c["title"][:80]}"'
+        )
+
+    channel_list_text = "\n".join(channel_entries)
+
+    messages = [
+        {
+            "role": "user",
+            "content": (
+                "Classify each YouTube channel as 'corporate' or 'independent'.\n\n"
+                "A channel is CORPORATE if it is owned by or officially represents a company, "
+                "brand, or corporation of any kind — car manufacturers, oil companies, pharma, "
+                "tech giants, banks, retailers, defense contractors, chemical companies, food "
+                "corporations, consumer brands, PR agencies, lobbying groups, etc.\n\n"
+                "A channel is INDEPENDENT if it belongs to an individual creator, educator, "
+                "journalist, university, non-profit, documentary maker, or research institution "
+                "that is NOT commercially owned by a corporation.\n\n"
+                "Examples of CORPORATE channels: BMW, Shell, Pfizer, Google, Ford, Bayer, "
+                "ExxonMobil, Nestlé, McKinsey, 'Tesla Official', 'Shell Energy', 'Bayer Science'.\n\n"
+                "Examples of INDEPENDENT channels: Kurzgesagt, Veritasium, 3Blue1Brown, "
+                "TED-Ed, SciShow, National Geographic (editorially independent), universities.\n\n"
+                f"Channels to classify:\n{channel_list_text}\n\n"
+                "For each entry, return its youtube_id and whether it is 'corporate' or 'independent'."
+            ),
+        }
+    ]
+
+    tool_definition = {
+        "type": "function",
+        "function": {
+            "name": "classify_channels",
+            "description": "Classify YouTube channels as corporate or independent.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "classifications": {
+                        "type": "array",
+                        "description": "Classification result for each channel.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "youtube_id": {
+                                    "type": "string",
+                                    "description": "The YouTube video ID.",
+                                },
+                                "classification": {
+                                    "type": "string",
+                                    "enum": ["corporate", "independent"],
+                                    "description": "Whether the channel is corporate or independent.",
+                                },
+                            },
+                            "required": ["youtube_id", "classification"],
+                        },
+                    }
+                },
+                "required": ["classifications"],
+            },
+        },
+    }
+
+    try:
+        result: LLMPreprocessingCallResult = await call_preprocessing_llm(
+            task_id=f"{task_id}_channel_classifier",
+            model_id=CHANNEL_CLASSIFIER_MODEL_ID,
+            message_history=messages,
+            tool_definition=tool_definition,
+            secrets_manager=secrets_manager,
+        )
+
+        if result.error_message or not result.arguments:
+            logger.warning(
+                f"[DailyInspiration][{task_id}] Channel classifier LLM call failed: "
+                f"{result.error_message} — skipping LLM classification (fail-open)"
+            )
+            return set()
+
+        classifications = result.arguments.get("classifications", [])
+        corporate_ids: Set[str] = set()
+        for item in classifications:
+            if isinstance(item, dict) and item.get("classification") == "corporate":
+                youtube_id = item.get("youtube_id")
+                if youtube_id:
+                    corporate_ids.add(youtube_id)
+
+        logger.info(
+            f"[DailyInspiration][{task_id}] LLM channel classifier: "
+            f"{len(corporate_ids)} corporate / {len(classifiable) - len(corporate_ids)} independent "
+            f"out of {len(classifiable)} classified"
+        )
+        return corporate_ids
+
+    except Exception as e:
+        logger.warning(
+            f"[DailyInspiration][{task_id}] Channel classifier LLM call raised exception: {e} "
+            f"— skipping LLM classification (fail-open)",
+            exc_info=True,
+        )
+        return set()
 
 
 def _extract_youtube_id(url: str) -> Optional[str]:
@@ -177,6 +393,7 @@ async def find_video_candidates(
     language: str = "en",
     country: str = "us",
     search_lang: str = "en",
+    task_id: str = "daily_inspiration",
 ) -> List[Dict[str, Any]]:
     """
     Find and enrich YouTube video candidates for a given topic phrase.
@@ -184,9 +401,12 @@ async def find_video_candidates(
     Full pipeline:
     1. Brave video search for the phrase (using the user's locale for better results)
     2. Filter to YouTube-only results
-    3. YouTube Data API enrichment (view count, duration)
-    4. Sort by view count descending
-    5. Return top TOP_CANDIDATES_FOR_LLM results
+    3. Anti-corporate channel filtering — two layers:
+       a. Fast-path: reject channels matching known corporate seed patterns
+       b. LLM classification: reject remaining corporate channels identified by LLM
+    4. YouTube Data API enrichment (view count, duration)
+    5. Sort by view count descending
+    6. Return top TOP_CANDIDATES_FOR_LLM results
 
     Args:
         topic_phrase: The inspiration phrase to search for (e.g., "Why cats always land on feet")
@@ -195,6 +415,7 @@ async def find_video_candidates(
                   actual Brave params are passed via ``country`` and ``search_lang``.
         country: ISO 3166-1 alpha-2 country code for Brave search localisation
         search_lang: Language code for Brave search results
+        task_id: For logging context (passed through from the generation task)
 
     Returns:
         List of enriched candidate dicts (up to TOP_CANDIDATES_FOR_LLM), each with:
@@ -212,8 +433,11 @@ async def find_video_candidates(
     )
 
     try:
+        # Append "independent creator" to bias search results toward individual educators
+        # and away from corporate official channels. This doesn't fully prevent corporate
+        # results, but reduces their prevalence in the raw Brave results.
         search_result = await search_videos(
-            query=f"{topic_phrase} educational",
+            query=f"{topic_phrase} educational independent creator",
             secrets_manager=secrets_manager,
             count=BRAVE_RESULTS_PER_QUERY,
             country=country,
@@ -242,7 +466,7 @@ async def find_video_candidates(
         if not youtube_id:
             continue  # Not a YouTube video — skip
 
-        # Option 2: Reject videos that Brave explicitly marks as not family-friendly.
+        # Reject videos that Brave explicitly marks as not family-friendly.
         # Brave's `family_friendly` field defaults to True when absent, so we only
         # skip results where it is explicitly False. Combined with safesearch="strict"
         # at the query level, this gives us a two-layer content filter.
@@ -294,6 +518,70 @@ async def find_video_candidates(
     logger.debug(
         f"[DailyInspiration] Found {len(candidates)} YouTube candidates for '{topic_phrase}'"
     )
+
+    # ── Anti-corporate channel filtering (two layers) ────────────────────────
+    # Principle: inspirations must come from independent humans (educators,
+    # journalists, documentary makers, universities) — never from corporate
+    # PR channels of any company or brand. This filtering happens BEFORE YouTube
+    # enrichment to avoid wasting API quota on videos we'll reject anyway.
+
+    # Layer 1: Fast-path seed blocklist — reject channels matching known corporate patterns
+    # without needing an LLM call. Catches obvious cases like BMW, Shell, Pfizer, etc.
+    fast_path_rejected: List[str] = []
+    after_fast_path: List[Dict[str, Any]] = []
+    for candidate in candidates:
+        if _is_corporate_channel_fast_path(candidate.get("channel_name")):
+            fast_path_rejected.append(
+                f"{candidate.get('channel_name')} ({candidate['youtube_id']})"
+            )
+        else:
+            after_fast_path.append(candidate)
+
+    if fast_path_rejected:
+        logger.info(
+            f"[DailyInspiration][{task_id}] Fast-path blocked {len(fast_path_rejected)} "
+            f"corporate channel(s) for '{topic_phrase}': {fast_path_rejected}"
+        )
+    candidates = after_fast_path
+
+    if not candidates:
+        logger.warning(
+            f"[DailyInspiration][{task_id}] All candidates rejected by fast-path corporate filter "
+            f"for '{topic_phrase}' — no independent creators found"
+        )
+        return []
+
+    # Layer 2: LLM-based channel classification — classify remaining candidates as
+    # corporate or independent. Catches channels not in the seed list but still clearly
+    # corporate (e.g. 'Bayer Science', 'Shell Energy', 'Google DeepMind Official').
+    # Fails open: if the LLM call fails, all remaining candidates proceed unfiltered.
+    corporate_youtube_ids = await _classify_channels_with_llm(
+        candidates, secrets_manager, task_id=task_id
+    )
+    if corporate_youtube_ids:
+        llm_rejected = [
+            f"{c.get('channel_name')} ({c['youtube_id']})"
+            for c in candidates
+            if c["youtube_id"] in corporate_youtube_ids
+        ]
+        logger.info(
+            f"[DailyInspiration][{task_id}] LLM blocked {len(corporate_youtube_ids)} "
+            f"corporate channel(s) for '{topic_phrase}': {llm_rejected}"
+        )
+        candidates = [c for c in candidates if c["youtube_id"] not in corporate_youtube_ids]
+
+    if not candidates:
+        logger.warning(
+            f"[DailyInspiration][{task_id}] All candidates rejected by LLM corporate filter "
+            f"for '{topic_phrase}' — no independent creators found"
+        )
+        return []
+
+    logger.info(
+        f"[DailyInspiration][{task_id}] {len(candidates)} independent channel candidates "
+        f"remaining after anti-corporate filtering for '{topic_phrase}'"
+    )
+    # ── End anti-corporate channel filtering ─────────────────────────────────
 
     # Enrich with YouTube Data API (view counts, duration)
     candidates = await _enrich_with_youtube(candidates, secrets_manager)

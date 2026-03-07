@@ -43,6 +43,81 @@ _OPENMATES_TOPIC_KEYWORDS = [
     "open mate",
 ]
 
+# Lowercase substrings that identify corporate/greenwashing topic suggestions.
+# Topics that are inherently framed around corporate narratives or that are
+# likely to surface corporate PR videos (e.g. "automotive sustainability") are
+# excluded from the inspiration pipeline. The principle: inspirations should
+# spark genuine curiosity, not surface company PR disguised as education.
+# These patterns catch topic suggestions that would inevitably produce
+# search results dominated by corporate greenwashing content.
+_CORPORATE_GREENWASHING_KEYWORDS = [
+    # Industry-as-hero greenwashing frames
+    "industry sustainability",
+    "industry going green",
+    "industry transition",
+    "industry transformation",
+    "industry innovation",
+    "industry future",
+    "industry 2030",
+    "industry 2050",
+    "industry net zero",
+    "industry carbon",
+    "industry clean",
+    "industry racing",
+    "industry leading",
+    "corporate sustainability",
+    "corporate responsibility",
+    "corporate innovation",
+    "corporate social",
+    "esg investment",
+    "green investment",
+    # Automotive-specific greenwashing
+    "automotive sustainability",
+    "automotive innovation",
+    "car industry green",
+    "car company future",
+    "electric car company",
+    "ev company",
+    # Oil/energy greenwashing
+    "oil company clean",
+    "oil company green",
+    "oil company renewable",
+    "fossil fuel transition",
+    "gas company sustainable",
+    "energy company future",
+    "energy company clean",
+    # Pharma/biotech PR
+    "pharma innovation",
+    "pharma pipeline",
+    "pharmaceutical company",
+    "drug company",
+    # Big tech PR
+    "big tech responsibility",
+    "tech giant",
+    "tech company innovation",
+    # Generic corporate PR patterns
+    "company going green",
+    "brand sustainability",
+    "brand innovation",
+]
+
+
+def _is_corporate_greenwashing_topic(phrase: str) -> bool:
+    """
+    Return True if a topic suggestion is likely to surface corporate greenwashing content.
+
+    Catches topic suggestions framed around industry or corporate narratives that
+    would inevitably return corporate PR videos from Brave search — even when the
+    content appears educational. For example, "automotive industry sustainability"
+    would return BMW/Toyota official channel videos instead of independent analysis.
+
+    Uses substring matching (case-insensitive). False positives are acceptable —
+    the user's other topic suggestions or generic fallbacks are used instead.
+    """
+    lower = phrase.lower()
+    return any(kw in lower for kw in _CORPORATE_GREENWASHING_KEYWORDS)
+
+
 # Lowercase substrings that identify sensitive/harmful topic suggestions.
 # Topics touching drugs, explicit sexual content, or graphic violence are excluded
 # from the inspiration pipeline so the feature stays educational and family-friendly.
@@ -233,6 +308,18 @@ def _build_tool_definition(language: str) -> Dict[str, Any]:
                 "of these topics, skip it and select the next best educational candidate instead. "
                 "If no suitable candidate exists for a slot, omit that slot rather than using "
                 "inappropriate content. "
+                "CRITICAL — NO CORPORATE CHANNELS: NEVER select videos uploaded by a corporate channel. "
+                "A corporate channel is any channel owned by or representing a company, brand, or "
+                "corporation of any kind — this includes but is not limited to car manufacturers, oil "
+                "companies, pharmaceutical companies, tech corporations, banks, consumer brands, defense "
+                "contractors, chemical companies, and any other business entity. "
+                "Check the channel name: if it matches or resembles a company or brand name, reject it. "
+                "ALWAYS prefer independent creators, individual educators, journalists, universities, "
+                "documentary makers, and non-profit research institutions. "
+                "Corporate PR content reframed as education (e.g. a car manufacturer's video about their "
+                "sustainability efforts, an oil company's video about clean energy, a pharma company "
+                "explaining their drug pipeline) is NEVER acceptable — reject it regardless of how "
+                "educational the title sounds. "
                 "CRITICAL — NO COMMERCIAL PROMOTION: Inspirations must NEVER promote, advertise, or "
                 "recommend specific products, brands, apps, or commercial services. Do NOT write phrases "
                 "or assistant messages that read like marketing copy, product reviews, or endorsements. "
@@ -365,8 +452,11 @@ def _build_generation_prompt(
             view_str = f"{c['view_count']:,}" if c.get("view_count") else "unknown"
             dur = c.get("duration_seconds")
             dur_str = f"{dur // 60}m{dur % 60:02d}s" if dur else "unknown"
+            # Include channel name so the LLM can apply the anti-corporate-channel rule
+            channel_str = c.get("channel_name") or "unknown"
             slot_lines.append(
                 f"  [{i + 1}] YouTube ID: {c['youtube_id']} | "
+                f"Channel: {channel_str} | "
                 f"Title: {c['title']} | "
                 f"Views: {view_str} | "
                 f"Duration: {dur_str}"
@@ -415,6 +505,11 @@ def _build_generation_prompt(
             "illegal drugs or drug use, explicit sexual content or pornography, graphic violence or "
             "gore, self-harm or suicide methods, or weapons/explosives instructions. If a candidate "
             "video touches these topics, skip it entirely and use the next best option. "
+            "NO CORPORATE CHANNELS: NEVER select a video from a corporate channel. Check the channel "
+            "name — if the channel belongs to any company, brand, or corporation (car maker, oil "
+            "company, pharma company, tech giant, bank, retailer, defense contractor, etc.), reject "
+            "it immediately. Prefer independent creators, educators, journalists, universities, and "
+            "documentary makers. Corporate PR dressed up as education is never acceptable. "
             "IMPORTANT: Do NOT write content that promotes, advertises, or recommends specific "
             "products, brands, apps, or commercial services. All phrases and messages must be "
             "educational and curiosity-driven. "
@@ -466,18 +561,20 @@ async def generate_inspirations(
     if topic_suggestions:
         # Deduplicate while preserving order (dict.fromkeys keeps first occurrence)
         unique_pool = list(dict.fromkeys(topic_suggestions))
-        # Remove any suggestions that reference OpenMates or touch sensitive content
-        # (drugs, explicit sexual content, graphic violence) to keep inspirations
-        # educational and family-friendly.
+        # Remove any suggestions that reference OpenMates, touch sensitive content
+        # (drugs, explicit sexual content, graphic violence), or are framed around
+        # corporate/greenwashing narratives that would surface company PR videos.
         filtered_pool = [
             p for p in unique_pool
-            if not _is_openmates_topic(p) and not _is_sensitive_topic(p)
+            if not _is_openmates_topic(p)
+            and not _is_sensitive_topic(p)
+            and not _is_corporate_greenwashing_topic(p)
         ]
         excluded = len(unique_pool) - len(filtered_pool)
         if excluded > 0:
             logger.info(
                 f"[DailyInspiration][{task_id}] Excluded {excluded} topic suggestion(s) "
-                f"(OpenMates-related or sensitive content) from inspiration generation"
+                f"(OpenMates-related, sensitive, or corporate greenwashing content) from inspiration generation"
             )
         # Randomly sample up to `count` phrases from the filtered 3-day pool
         sample_size = min(count, len(filtered_pool))
@@ -506,6 +603,7 @@ async def generate_inspirations(
         candidates = await find_video_candidates(
             phrase, secrets_manager, language=language,
             country=search_params["country"], search_lang=search_params["search_lang"],
+            task_id=task_id,
         )
         if not candidates:
             logger.warning(
@@ -523,11 +621,14 @@ async def generate_inspirations(
         return []
 
     # Step 3: Single LLM call to generate all inspiration items.
-    # Filter OpenMates references and sensitive topics from the topic_suggestions context
-    # passed to the LLM, so the model never sees them as inspiration seeds even indirectly.
+    # Filter OpenMates references, sensitive topics, and corporate greenwashing frames
+    # from the topic_suggestions context passed to the LLM, so the model never sees
+    # them as inspiration seeds even indirectly.
     filtered_topic_suggestions = [
         p for p in topic_suggestions
-        if not _is_openmates_topic(p) and not _is_sensitive_topic(p)
+        if not _is_openmates_topic(p)
+        and not _is_sensitive_topic(p)
+        and not _is_corporate_greenwashing_topic(p)
     ]
     messages = _build_generation_prompt(
         filtered_topic_suggestions, video_candidates_per_slot, count, language=language,

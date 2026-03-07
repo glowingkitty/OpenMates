@@ -1,0 +1,164 @@
+# backend/shared/config/corporate_channel_patterns.yml
+#
+# Seed blocklist of obvious corporate YouTube channel name patterns.
+# Used as a fast-path filter in the Daily Inspiration video pipeline to
+# immediately reject channels owned by companies, brands, or corporations
+# without needing an LLM call.
+#
+# Design principle: Inspirations come from independent humans — educators,
+# journalists, documentary makers, universities — never from corporate PR
+# channels. This blocklist catches the most obvious cases; the LLM-based
+# channel classification step catches the rest.
+#
+# Matching is: case-insensitive substring match against the channel name.
+# A channel is blocked if its name contains ANY of the listed patterns.
+#
+# Rules for adding entries:
+# - Only include company/brand names, not topics or content types
+# - Keep patterns short enough to catch variations (e.g. "BMW" catches
+#   "BMW Official", "BMW Deutschland", "BMW Group", etc.)
+# - Do NOT add individual creators, educational channels, or universities
+# - Add entries alphabetically within each category
+
+# Automotive manufacturers and their subsidiaries
+automotive:
+  - "Audi"
+  - "BMW"
+  - "BYD Auto"
+  - "Chevrolet"
+  - "Citroën"
+  - "Dacia"
+  - "Dodge"
+  - "Ferrari"
+  - "Fiat"
+  - "Ford Motor"
+  - "Genesis Motors"
+  - "GM Official"
+  - "General Motors"
+  - "Honda Motor"
+  - "Hyundai Motor"
+  - "Jaguar"
+  - "Jeep"
+  - "Kia Official"
+  - "Lamborghini"
+  - "Land Rover"
+  - "Lucid Motors"
+  - "Maserati"
+  - "Mazda"
+  - "Mercedes-Benz"
+  - "Nissan"
+  - "Peugeot"
+  - "Porsche"
+  - "RAM Trucks"
+  - "Renault"
+  - "Rivian"
+  - "Rolls-Royce"
+  - "SEAT Official"
+  - "Skoda"
+  - "Stellantis"
+  - "Subaru"
+  - "Suzuki"
+  - "Tesla Official"
+  - "Toyota Motor"
+  - "Volkswagen"
+  - "Volvo Cars"
+
+# Oil, gas, and fossil fuel companies
+oil_gas:
+  - "BP"
+  - "Aramco"
+  - "Chevron"
+  - "ConocoPhillips"
+  - "ExxonMobil"
+  - "Equinor"
+  - "Gazprom"
+  - "Halliburton"
+  - "Koch Industries"
+  - "Occidental Petroleum"
+  - "Pemex"
+  - "Petrobras"
+  - "Shell"
+  - "Sinopec"
+  - "Schlumberger"
+  - "SLB"
+  - "TotalEnergies"
+  - "Valero"
+
+# Pharmaceutical and biotech corporations
+pharma:
+  - "AbbVie"
+  - "AstraZeneca"
+  - "Bayer AG"
+  - "Biogen"
+  - "Bristol Myers Squibb"
+  - "Daiichi Sankyo"
+  - "Eli Lilly"
+  - "Genentech"
+  - "Gilead Sciences"
+  - "GlaxoSmithKline"
+  - "GSK"
+  - "Johnson & Johnson"
+  - "Merck"
+  - "Moderna"
+  - "Novartis"
+  - "Novo Nordisk"
+  - "Pfizer"
+  - "Regeneron"
+  - "Roche"
+  - "Sanofi"
+  - "Takeda"
+
+# Big Tech corporate/PR channels (not developer education channels)
+big_tech:
+  - "Apple Official"
+  - "Amazon Official"
+  - "Amazon Web Services"
+  - "AWS Official"
+  - "Alphabet"
+  - "Google Official"
+  - "Google Business"
+  - "Microsoft Official"
+  - "Meta Official"
+  - "Meta Business"
+  - "Facebook Official"
+  - "Instagram Official"
+  - "WhatsApp Official"
+  - "Oracle"
+  - "Salesforce"
+  - "SAP"
+  - "ServiceNow"
+
+# Defense, weapons, and aerospace contractors
+defense:
+  - "BAE Systems"
+  - "Boeing Defense"
+  - "General Dynamics"
+  - "Lockheed Martin"
+  - "Northrop Grumman"
+  - "Raytheon"
+  - "RTX"
+  - "Thales Group"
+
+# Tobacco, alcohol, and vaping corporations
+tobacco_alcohol:
+  - "Altria"
+  - "JUUL"
+  - "Philip Morris"
+  - "British American Tobacco"
+  - "Imperial Brands"
+
+# Fast fashion and major retail corporations known for harmful practices
+fast_fashion:
+  - "H&M Official"
+  - "Shein Official"
+  - "Zara Official"
+
+# Chemical and agribusiness corporations
+chemical_agri:
+  - "BASF"
+  - "Bayer Crop"
+  - "Corteva"
+  - "Dow Chemical"
+  - "DuPont"
+  - "Monsanto"
+  - "Syngenta"
