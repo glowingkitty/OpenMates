@@ -3200,6 +3200,15 @@ export class GroupRenderer implements EmbedRenderer {
     }
     content.innerHTML = "";
 
+    // Guard: target element must be attached to the DOM before mounting a Svelte component.
+    // During streaming, TipTap may detach/recreate node views asynchronously.
+    if (!content.isConnected) {
+      console.warn(
+        "[GroupRenderer] Skipping TravelConnectionEmbedPreview mount — target detached from DOM",
+      );
+      return;
+    }
+
     try {
       // No onFullscreen: TravelConnectionEmbedFullscreen is only accessible as a child
       // overlay inside TravelSearchEmbedFullscreen (drill-down pattern). There is no
@@ -3237,16 +3246,22 @@ export class GroupRenderer implements EmbedRenderer {
         { embedId, origin, destination, status },
       );
     } catch (error) {
+      const err = error as Error;
       console.error(
         "[GroupRenderer] Error mounting TravelConnectionEmbedPreview:",
-        error,
+        err?.name,
+        err?.message,
+        err?.stack,
       );
-      const fallbackHtml = await this.renderTravelConnectionItem(
-        item,
-        embedData,
-        decodedContent,
-      );
-      content.innerHTML = fallbackHtml;
+      // Guard: only fall back if content is still in DOM
+      if (content.isConnected) {
+        const fallbackHtml = await this.renderTravelConnectionItem(
+          item,
+          embedData,
+          decodedContent,
+        );
+        content.innerHTML = fallbackHtml;
+      }
     }
   }
 
@@ -3326,6 +3341,13 @@ export class GroupRenderer implements EmbedRenderer {
     }
     content.innerHTML = "";
 
+    if (!content.isConnected) {
+      console.warn(
+        "[GroupRenderer] Skipping TravelStayEmbedPreview mount — target detached from DOM",
+      );
+      return;
+    }
+
     try {
       // No onFullscreen: TravelStayEmbedFullscreen is only accessible as a child overlay
       // inside TravelStaysEmbedFullscreen (drill-down pattern). There is no top-level route
@@ -3361,16 +3383,21 @@ export class GroupRenderer implements EmbedRenderer {
         { embedId, name, status },
       );
     } catch (error) {
+      const err = error as Error;
       console.error(
         "[GroupRenderer] Error mounting TravelStayEmbedPreview:",
-        error,
+        err?.name,
+        err?.message,
+        err?.stack,
       );
-      const fallbackHtml = await this.renderTravelStayItem(
-        item,
-        embedData,
-        decodedContent,
-      );
-      content.innerHTML = fallbackHtml;
+      if (content.isConnected) {
+        const fallbackHtml = await this.renderTravelStayItem(
+          item,
+          embedData,
+          decodedContent,
+        );
+        content.innerHTML = fallbackHtml;
+      }
     }
   }
 
@@ -3458,6 +3485,13 @@ export class GroupRenderer implements EmbedRenderer {
     }
     content.innerHTML = "";
 
+    if (!content.isConnected) {
+      console.warn(
+        "[GroupRenderer] Skipping EventEmbedPreview mount — target detached from DOM",
+      );
+      return;
+    }
+
     if (status === "processing") {
       // Show plain HTML skeleton while loading — EventEmbedPreview requires a full EventResult
       content.innerHTML = await this.renderEventItem(
@@ -3487,12 +3521,20 @@ export class GroupRenderer implements EmbedRenderer {
         status,
       });
     } catch (error) {
-      console.error("[GroupRenderer] Error mounting EventEmbedPreview:", error);
-      content.innerHTML = await this.renderEventItem(
-        item,
-        embedData,
-        decodedContent,
+      const err = error as Error;
+      console.error(
+        "[GroupRenderer] Error mounting EventEmbedPreview:",
+        err?.name,
+        err?.message,
+        err?.stack,
       );
+      if (content.isConnected) {
+        content.innerHTML = await this.renderEventItem(
+          item,
+          embedData,
+          decodedContent,
+        );
+      }
     }
   }
 
@@ -3572,6 +3614,13 @@ export class GroupRenderer implements EmbedRenderer {
     }
     content.innerHTML = "";
 
+    if (!content.isConnected) {
+      console.warn(
+        "[GroupRenderer] Skipping MapsLocationEmbedPreview mount — target detached from DOM",
+      );
+      return;
+    }
+
     try {
       const component = mount(MapsLocationEmbedPreview, {
         target: content,
@@ -3599,15 +3648,20 @@ export class GroupRenderer implements EmbedRenderer {
         },
       );
     } catch (error) {
+      const err = error as Error;
       console.error(
         "[GroupRenderer] Error mounting MapsLocationEmbedPreview:",
-        error,
+        err?.name,
+        err?.message,
+        err?.stack,
       );
-      content.innerHTML = await this.renderMapsPlaceItem(
-        item,
-        embedData,
-        decodedContent,
-      );
+      if (content.isConnected) {
+        content.innerHTML = await this.renderMapsPlaceItem(
+          item,
+          embedData,
+          decodedContent,
+        );
+      }
     }
   }
 

@@ -8,7 +8,7 @@
   // See docs/architecture/embeds.md for renderer routing.
   // Tests: frontend/packages/ui/src/message_parsing/__tests__/parse_message.test.ts
 
-  import { onDestroy, onMount } from 'svelte';
+  import { onDestroy } from 'svelte';
   import { embedStore, embedRefIndexVersion } from '../../services/embedStore';
   import { resolveEmbed } from '../../services/embedResolver';
   import { getEmbedRenderer } from '../enter_message/extensions/embed_renderers';
@@ -26,6 +26,14 @@
   let containerEl = $state<HTMLElement | null>(null);
   let errorText = $state<string | null>(null);
   let loading = $state(true);
+
+  /**
+   * Monotonically increasing render version to prevent stale async callbacks
+   * from overwriting newer renders. Each call to renderResolvedPreview()
+   * captures the current version and aborts if it has been superseded
+   * by a later invocation before the async work completes.
+   */
+  let renderVersion = 0;
 
   let resolvedEmbedId = $derived.by(() => {
     void $embedRefIndexVersion;
@@ -52,6 +60,10 @@
   async function renderResolvedPreview(): Promise<void> {
     if (!containerEl) return;
 
+    // Bump version so any in-flight async render from a previous call
+    // will detect it has been superseded and skip its DOM update.
+    const thisVersion = ++renderVersion;
+
     containerEl.innerHTML = '';
     errorText = null;
 
@@ -63,8 +75,20 @@
     loading = true;
     try {
       const embedData = await resolveEmbed(resolvedEmbedId);
+
+      // Abort if a newer render has been started while we were awaiting
+      if (thisVersion !== renderVersion) return;
+
       if (!embedData) {
         loading = false;
+        return;
+      }
+
+      // Guard: container must still be attached to the DOM.
+      // During streaming, TipTap may destroy and recreate node views,
+      // leaving containerEl detached before the async resolve completes.
+      if (!containerEl.isConnected) {
+        console.warn('[EmbedReferencePreview] containerEl detached from DOM, aborting render');
         return;
       }
 
@@ -85,8 +109,15 @@
       if (maybePromise instanceof Promise) {
         await maybePromise;
       }
+
+      // Final staleness check after render completes
+      if (thisVersion !== renderVersion) return;
+
       loading = false;
     } catch (error) {
+      // Only update UI if this render is still the latest
+      if (thisVersion !== renderVersion) return;
+
       console.error('[EmbedReferencePreview] Failed to render embed_ref preview:', {
         embedRef,
         resolvedEmbedId,
@@ -97,10 +128,8 @@
     }
   }
 
-  onMount(() => {
-    renderResolvedPreview();
-  });
-
+  // Use $effect for reactive re-rendering when dependencies change.
+  // onMount is NOT needed separately because $effect runs on mount too.
   $effect(() => {
     void variant;
     void resolvedEmbedId;
