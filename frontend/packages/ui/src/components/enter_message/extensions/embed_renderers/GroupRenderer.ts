@@ -721,13 +721,138 @@ export class GroupRenderer implements EmbedRenderer {
     return true;
   }
 
+  /**
+   * Determine whether a finished embed has results by pre-resolving its data.
+   *
+   * For search-type skills (web, news, events, videos, maps, travel, health,
+   * shopping), an embed "has results" if its decoded content contains a
+   * non-empty `results` array or the embed record carries non-empty `embed_ids`
+   * (child embeds). Processing/error embeds are not checked — they return
+   * `null` so callers can skip them in the sort.
+   *
+   * Returns `true` (has results), `false` (finished but no results), or
+   * `null` (not applicable — status is not 'finished').
+   */
+  private async checkEmbedHasResults(
+    item: EmbedNodeAttributes,
+  ): Promise<boolean | null> {
+    // Only evaluate finished embeds — processing/error embeds are not sortable
+    if (item.status !== "finished") return null;
+
+    const embedId = item.contentRef?.startsWith("embed:")
+      ? item.contentRef.replace("embed:", "")
+      : "";
+
+    if (!embedId) return null;
+
+    try {
+      const embedData = await resolveEmbed(embedId);
+      const decodedContent = embedData?.content
+        ? await decodeToonContent(embedData.content)
+        : null;
+
+      const results = decodedContent?.results;
+      const embedIds = embedData?.embed_ids;
+
+      // An embed has results if either:
+      // 1. Its decoded content contains a non-empty results array
+      // 2. Its embed record has non-empty embed_ids (child embeds)
+      const hasResults =
+        (Array.isArray(results) && results.length > 0) ||
+        (Array.isArray(embedIds) && embedIds.length > 0);
+
+      return hasResults;
+    } catch {
+      // If we can't resolve, don't penalise — treat as having results
+      return true;
+    }
+  }
+
+  /**
+   * Sort finished app-skill-use group items so embeds with results appear
+   * before embeds with no results. Processing and error embeds retain their
+   * exact positions — only the finished items are reordered among themselves.
+   *
+   * Architecture: This runs at render time (not parse time) because embed
+   * data is loaded asynchronously and may not be available during document
+   * parsing. The sort is stable — finished items within the same has-results
+   * tier keep their original relative order.
+   *
+   * The input `items` array has already been reversed by the caller
+   * (newest-first for horizontal scroll), so "first" here means leftmost
+   * in the carousel — the position the user sees first.
+   */
+  private async sortItemsByResults(
+    items: EmbedNodeAttributes[],
+  ): Promise<EmbedNodeAttributes[]> {
+    // Pre-resolve result presence for all items in parallel
+    const resultChecks = await Promise.all(
+      items.map((item) => this.checkEmbedHasResults(item)),
+    );
+
+    // Separate finished items from non-finished items, preserving positions
+    const finishedIndices: number[] = [];
+    const finishedItems: { item: EmbedNodeAttributes; hasResults: boolean }[] =
+      [];
+
+    for (let i = 0; i < items.length; i++) {
+      if (resultChecks[i] !== null) {
+        finishedIndices.push(i);
+        finishedItems.push({
+          item: items[i],
+          hasResults: resultChecks[i] as boolean,
+        });
+      }
+    }
+
+    // If there are no finished items or all have the same result status, skip sorting
+    if (finishedItems.length <= 1) return items;
+    const allSame = finishedItems.every(
+      (fi) => fi.hasResults === finishedItems[0].hasResults,
+    );
+    if (allSame) return items;
+
+    // Stable sort: items with results first, items without results after
+    finishedItems.sort((a, b) => {
+      if (a.hasResults === b.hasResults) return 0;
+      return a.hasResults ? -1 : 1;
+    });
+
+    // Rebuild the items array: non-finished items stay in place,
+    // finished items are placed back into their original slot positions
+    // but in the new sorted order
+    const sorted = [...items];
+    for (let i = 0; i < finishedIndices.length; i++) {
+      sorted[finishedIndices[i]] = finishedItems[i].item;
+    }
+
+    // Log the reordering for debugging
+    const reordered = sorted.some((item, i) => item !== items[i]);
+    if (reordered) {
+      console.debug(
+        "[GroupRenderer] Reordered finished group items by results presence:",
+        finishedItems.map((fi, i) => ({
+          position: finishedIndices[i],
+          id: fi.item.id || fi.item.contentRef,
+          hasResults: fi.hasResults,
+        })),
+      );
+    }
+
+    return sorted;
+  }
+
   private async renderAppSkillUseGroup(args: {
     baseType: string;
     groupDisplayName: string;
     items: EmbedNodeAttributes[];
     content: HTMLElement;
   }): Promise<void> {
-    const { baseType, groupDisplayName, items, content } = args;
+    const { baseType, groupDisplayName, content } = args;
+
+    // Sort finished items so embeds with results appear before those without.
+    // This ensures users see useful results first in the horizontal scroll row.
+    const items = await this.sortItemsByResults(args.items);
 
     // DEBUG: Log incoming items to verify contentRef is set
     console.debug("[GroupRenderer] renderAppSkillUseGroup called:", {
