@@ -6,6 +6,7 @@ from typing import Dict, Any, List, Optional, AsyncIterator, Union
 import json
 import httpx
 import datetime
+import zoneinfo
 import os
 import copy
 import hashlib
@@ -1025,15 +1026,31 @@ async def handle_main_processing(
             # Continue without app settings/memories - don't fail the entire request
 
     prompt_parts = []
-    now = datetime.datetime.now(datetime.timezone.utc)
-    date_time_str = now.strftime("%Y-%m-%d %H:%M:%S %Z")
-    prompt_parts.append(f"Current date and time: {date_time_str}")
-    
-    # Add user's timezone to the system prompt if available
-    # This allows the AI to provide timezone-aware responses (e.g., reminders, scheduling)
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+
+    # Resolve user's timezone — fall back to UTC if not set or unrecognised
     user_timezone = request_data.user_preferences.get("timezone") if request_data.user_preferences else None
+    try:
+        user_tz = zoneinfo.ZoneInfo(user_timezone) if user_timezone else datetime.timezone.utc
+    except (zoneinfo.ZoneInfoNotFoundError, KeyError):
+        logger.warning(f"Unrecognised timezone '{user_timezone}', falling back to UTC")
+        user_tz = datetime.timezone.utc
+        user_timezone = None  # Don't include an invalid tz name in the prompt
+
+    # Convert current time to user's local timezone so the LLM works in local time directly
+    now_local = now_utc.astimezone(user_tz)
+    date_time_str = now_local.strftime("%Y-%m-%d %H:%M:%S %Z")
+
     if user_timezone:
-        prompt_parts.append(f"User's timezone: {user_timezone}")
+        # Include both local time and timezone name so the LLM never needs to convert
+        prompt_parts.append(
+            f"Current date and time (in user's timezone): {date_time_str}\n"
+            f"User's timezone: {user_timezone}"
+        )
+    else:
+        # No timezone info — fall back to UTC and note it
+        date_time_str_utc = now_utc.strftime("%Y-%m-%d %H:%M:%S %Z")
+        prompt_parts.append(f"Current date and time: {date_time_str_utc} (user timezone unknown)")
     # Add temporal awareness instruction right after the date to emphasize its importance
     # This ensures the LLM properly filters past vs future events based on the current date
     prompt_parts.append(base_instructions.get("base_temporal_awareness_instruction", ""))
