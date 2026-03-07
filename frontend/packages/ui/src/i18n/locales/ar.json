@@ -2048,23 +2048,6 @@
     "generated_by": {
       "text": "تم إنشاؤه بواسطة {model}"
     },
-    "settings_memories_suggestions": {
-      "header": {
-        "text": "هل يجب أن يتذكر OpenMates الخاص بك هذه المعلومات؟"
-      },
-      "reject": {
-        "text": "رفض"
-      },
-      "add": {
-        "text": "إضافة"
-      },
-      "customize_entry": {
-        "text": "تخصيص وإضافة"
-      },
-      "privacy_notice": {
-        "text": "إعداداتك وذكرياتك مشفرة ولا يمكن فك تشفيرها إلا بواسطة أجهزتك."
-      }
-    },
     "credits_needed": {
       "text": "الاعتمادات مطلوبة..."
     },
@@ -3024,6 +3007,9 @@
     },
     "more_results": {
       "text": "+ {count} أكثر"
+    },
+    "search_no_results": {
+      "text": "لم يتم العثور على نتائج"
     },
     "open_search_results": {
       "text": "فتح نتائج البحث"
@@ -4722,7 +4708,19 @@
     }
   },
   "navigation": {},
-  "notifications": {},
+  "notifications": {
+    "security_reminder": {
+      "title": {
+        "text": "تذكير أمني"
+      },
+      "message": {
+        "text": "قم بتأمين حسابك بشكل صحيح عن طريق إعداد المصادقة الثنائية أو مفتاح المرور."
+      },
+      "action": {
+        "text": "فتح إعدادات الأمان"
+      }
+    }
+  },
   "onboarding": {},
   "platforms": {},
   "predefined_responses": {
@@ -4769,6 +4767,9 @@
         },
         "error_invalid_chars": {
           "text": "يمكن أن يحتوي اسم المستخدم فقط على حروف وأرقام ونقاط وشرطات سفلية"
+        },
+        "error_taken": {
+          "text": "اسم المستخدم هذا مأخوذ بالفعل. يرجى اختيار اسم آخر."
         },
         "error_failed": {
           "text": "فشل تحديث اسم المستخدم. يرجى المحاولة مرة أخرى."
@@ -5227,6 +5228,12 @@
       },
       "encrypted_notice": {
         "text": "إدخالات إعداداتك وذكرياتك مشفرة، ولا يمكن قراءتها إلا بواسطة أجهزتك، ولا يتم إرسالها أبدًا إلى OpenMates للمعالجة دون موافقتك الصريحة."
+      },
+      "diff_previous_value": {
+        "text": "السابق:"
+      },
+      "diff_not_set": {
+        "text": "غير محدد"
       },
       "examples_label": {
         "text": "أمثلة:"
@@ -7384,6 +7391,48 @@
     "installed": {
       "text": "مثبت"
     },
+    "current_version": {
+      "text": "الإصدار الحالي"
+    },
+    "up_to_date": {
+      "text": "برنامجك محدث"
+    },
+    "commits_behind": {
+      "text": "متأخر بـ {count} تحديث(ات)"
+    },
+    "view_on_github": {
+      "text": "عرض على GitHub"
+    },
+    "auto_check_for_updates": {
+      "text": "التحقق التلقائي من التحديثات"
+    },
+    "auto_install_updates": {
+      "text": "تثبيت التحديثات تلقائياً"
+    },
+    "clear_cache_on_update": {
+      "text": "مسح ذاكرة التخزين المؤقت عند التحديث"
+    },
+    "check_interval": {
+      "text": "فترة التحقق"
+    },
+    "every_n_hours": {
+      "text": "كل {count} ساعة"
+    },
+    "update_settings": {
+      "text": "إعدادات التحديث"
+    },
+    "server_versions": {
+      "text": "إصدارات الخادم"
+    },
+    "no_update_check_error": {
+      "text": "لم يتمكن من التحقق من وجود تحديثات. حاول مرة أخرى لاحقاً."
+    },
+    "check_now": {
+      "text": "تحقق الآن"
+    },
+    "unreachable": {
+      "text": "غير قابل للوصول"
+    },
     "profile_image_not_allowed": {
       "text": "لا يُسمح بالعري أو العنف أو المحتوى الدموي في صور الملف الشخصي."
     },
@@ -8419,6 +8468,9 @@
     },
     "username_invalid_chars": {
       "text": "مسموح: أحرف، أرقام، _، ."
+    },
+    "username_taken": {
+      "text": "اسم المستخدم هذا مأخوذ بالفعل. يرجى اختيار اسم آخر."
     },
     "enter_username": {
       "text": "أدخل اسم المستخدم"

@@ -2048,23 +2048,6 @@
     "generated_by": {
       "text": "由 {model} 生成"
     },
-    "settings_memories_suggestions": {
-      "header": {
-        "text": "你的 OpenMates 应该记住这些信息吗？"
-      },
-      "reject": {
-        "text": "拒绝"
-      },
-      "add": {
-        "text": "添加"
-      },
-      "customize_entry": {
-        "text": "自定义并添加"
-      },
-      "privacy_notice": {
-        "text": "您的设置和记忆已加密，只有您的设备才能解密。"
-      }
-    },
     "credits_needed": {
       "text": "需要积分..."
     },
@@ -3365,6 +3348,9 @@
     },
     "more_results": {
       "text": "+ {count} 更多"
+    },
+    "search_no_results": {
+      "text": "找到 0 个结果"
     },
     "open_search_results": {
       "text": "打开搜索结果"
@@ -5749,7 +5735,19 @@
       "text": "工作流程"
     }
   },
-  "notifications": {},
+  "notifications": {
+    "security_reminder": {
+      "title": {
+        "text": "安全提醒"
+      },
+      "message": {
+        "text": "通过设置两步验证或通行密钥来正确保护您的账户。"
+      },
+      "action": {
+        "text": "打开安全设置"
+      }
+    }
+  },
   "onboarding": {},
   "platforms": {
     "via": {
@@ -5812,6 +5810,9 @@
         },
         "error_invalid_chars": {
           "text": "用户名只能包含字母、数字、点和下划线"
+        },
+        "error_taken": {
+          "text": "该用户名已被使用，请选择其他用户名。"
         },
         "error_failed": {
           "text": "更新用户名失败，请重试。"
@@ -6101,6 +6102,12 @@
     "app_settings_memories": {
       "encrypted_notice": {
         "text": "您的设置和记忆条目已加密，只有您的设备才能读取，未经您的明确同意，绝不会发送给 OpenMates 进行处理。"
+      },
+      "diff_previous_value": {
+        "text": "之前："
+      },
+      "diff_not_set": {
+        "text": "未设置"
       },
       "examples_label": {
         "text": "示例："
@@ -7824,6 +7831,48 @@
     "installed": {
       "text": "已安装"
     },
+    "current_version": {
+      "text": "当前版本"
+    },
+    "up_to_date": {
+      "text": "您的软件已是最新版本"
+    },
+    "commits_behind": {
+      "text": "落后 {count} 个提交"
+    },
+    "view_on_github": {
+      "text": "在 GitHub 上查看"
+    },
+    "auto_check_for_updates": {
+      "text": "自动检查更新"
+    },
+    "auto_install_updates": {
+      "text": "自动安装更新"
+    },
+    "clear_cache_on_update": {
+      "text": "更新时清除缓存"
+    },
+    "check_interval": {
+      "text": "检查间隔"
+    },
+    "every_n_hours": {
+      "text": "每 {count} 小时"
+    },
+    "update_settings": {
+      "text": "更新设置"
+    },
+    "server_versions": {
+      "text": "服务器版本"
+    },
+    "no_update_check_error": {
+      "text": "无法检查更新。请稍后再试。"
+    },
+    "check_now": {
+      "text": "立即检查"
+    },
+    "unreachable": {
+      "text": "无法访问"
+    },
     "profile_image_not_allowed": {
       "text": "在个人资料图片中\n不允许裸露、暴力或血腥。"
     },
@@ -8819,6 +8868,9 @@
     },
     "username_invalid_chars": {
       "text": "允许: 字母, 数字, _, ."
+    },
+    "username_taken": {
+      "text": "该用户名已被使用，请选择其他用户名。"
     },
     "enter_username": {
       "text": "输入用户名"

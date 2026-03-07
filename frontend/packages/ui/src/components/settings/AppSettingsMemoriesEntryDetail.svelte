@@ -20,6 +20,8 @@
     import { text } from '@repo/ui';
     import Icon from '../Icon.svelte';
     import { appSettingsMemoriesStore, appSettingsMemoriesForApp } from '../../stores/appSettingsMemoriesStore';
+    import { updateEntryPrefillStore } from '../../stores/updateEntryPrefillStore';
+    import { get } from 'svelte/store';
     import type { Readable } from 'svelte/store';
     import {
         MAX_LENGTH_SHORT,
@@ -151,6 +153,12 @@
     // Detect whether the user has made changes compared to the initial state
     let hasFormChanges = $derived(JSON.stringify(formState) !== initialFormSnapshot);
     
+    // Old values for diff display when the AI suggests updates via deep link.
+    // Maps field name -> original value (before prefill was applied).
+    // Only populated when the user arrives via an AI update deep link with prefill data.
+    let oldValuesForDiff = $state<Record<string, unknown>>({});
+    let hasPrefillDiff = $derived(Object.keys(oldValuesForDiff).length > 0);
+    
     // Initialize form state when entry changes or mode switches to edit
     $effect(() => {
         const currentEntryId = entry?.id || null;
@@ -176,6 +184,25 @@
                     formState = genericState;
                     initialFormSnapshot = JSON.stringify(genericState);
                 }
+                // Apply prefill from AI-generated update deep link (if present)
+                const prefill = get(updateEntryPrefillStore);
+                if (prefill && prefill.entryId === currentEntryId && Object.keys(prefill.prefillFields).length > 0) {
+                    const diffOldValues: Record<string, unknown> = {};
+                    for (const [fieldName, newValue] of Object.entries(prefill.prefillFields)) {
+                        if (fieldName in formState) {
+                            // Record old value for diff display
+                            diffOldValues[fieldName] = formState[fieldName];
+                            // Apply prefilled new value
+                            formState[fieldName] = newValue;
+                        }
+                    }
+                    oldValuesForDiff = diffOldValues;
+                    // initialFormSnapshot was already set above from entry.item_value,
+                    // so hasFormChanges will correctly detect the prefilled fields as changes
+                    updateEntryPrefillStore.set(null);
+                    console.info('[AppSettingsMemoriesEntryDetail] Applied prefill from AI deep link:', Object.keys(prefill.prefillFields));
+                }
+                
                 formInitialized = true;
                 lastEntryId = currentEntryId;
             });
@@ -225,6 +252,7 @@
      */
     function startEdit() {
         formInitialized = false; // Force re-initialization
+        oldValuesForDiff = {}; // Clear any previous diff state
         mode = 'edit';
     }
     
@@ -234,6 +262,7 @@
     function cancelEdit() {
         formInitialized = false;
         saveError = '';
+        oldValuesForDiff = {}; // Clear diff state
         mode = 'view';
     }
     
@@ -668,6 +697,19 @@
                                 disabled={isSaving}
                             />
                         {/if}
+                        <!-- Diff hint: show old value when AI prefilled this field -->
+                        {#if hasPrefillDiff && fieldName in oldValuesForDiff}
+                            <div class="diff-hint">
+                                <span class="diff-label">{$text("settings.app_settings_memories.diff_previous_value")}</span>
+                                <span class="diff-old-value">
+                                    {#if oldValuesForDiff[fieldName] === '' || oldValuesForDiff[fieldName] === null || oldValuesForDiff[fieldName] === undefined}
+                                        <em class="not-set">{$text("settings.app_settings_memories.diff_not_set")}</em>
+                                    {:else}
+                                        {String(oldValuesForDiff[fieldName])}
+                                    {/if}
+                                </span>
+                            </div>
+                        {/if}
                     </div>
                 {/each}
             {:else}
@@ -1014,5 +1056,32 @@
         flex-shrink: 0;
         margin-top: 1px;
         opacity: 0.7;
+    }
+    /* Diff hint styles — shown when AI suggests updates via deep link */
+    .diff-hint {
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+        margin-top: 4px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        background-color: var(--color-surface-hover, rgba(0, 0, 0, 0.04));
+        font-size: 0.8rem;
+        color: var(--color-text-secondary, #666);
+    }
+    
+    .diff-label {
+        font-weight: 500;
+        white-space: nowrap;
+        color: var(--color-text-tertiary, #888);
+    }
+    
+    .diff-old-value {
+        word-break: break-word;
+    }
+    
+    .diff-old-value .not-set {
+        font-style: italic;
+        opacity: 0.6;
     }
 </style>

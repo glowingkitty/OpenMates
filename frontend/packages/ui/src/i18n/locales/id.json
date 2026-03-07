@@ -2048,23 +2048,6 @@
     "generated_by": {
       "text": "dibuat oleh {model}"
     },
-    "settings_memories_suggestions": {
-      "header": {
-        "text": "Apakah OpenMates Anda harus mengingat info ini?"
-      },
-      "reject": {
-        "text": "Tolak"
-      },
-      "add": {
-        "text": "Tambah"
-      },
-      "customize_entry": {
-        "text": "Sesuaikan dan tambahkan"
-      },
-      "privacy_notice": {
-        "text": "Pengaturan & memori Anda dienkripsi dan hanya dapat didekripsi oleh perangkat Anda."
-      }
-    },
     "credits_needed": {
       "text": "Kredit diperlukan..."
     },
@@ -3024,6 +3007,9 @@
     },
     "more_results": {
       "text": "+ {count} lagi"
+    },
+    "search_no_results": {
+      "text": "0 hasil ditemukan"
     },
     "open_search_results": {
       "text": "Buka hasil pencarian"
@@ -4722,7 +4708,19 @@
     }
   },
   "navigation": {},
-  "notifications": {},
+  "notifications": {
+    "security_reminder": {
+      "title": {
+        "text": "Pengingat keamanan"
+      },
+      "message": {
+        "text": "Amankan akun Anda dengan benar dengan mengatur 2FA atau passkey."
+      },
+      "action": {
+        "text": "Buka pengaturan keamanan"
+      }
+    }
+  },
   "onboarding": {},
   "platforms": {},
   "predefined_responses": {
@@ -4769,6 +4767,9 @@
         },
         "error_invalid_chars": {
           "text": "Nama pengguna hanya boleh mengandung huruf, angka, titik, dan garis bawah"
+        },
+        "error_taken": {
+          "text": "Nama pengguna ini sudah digunakan. Silakan pilih yang lain."
         },
         "error_failed": {
           "text": "Gagal memperbarui nama pengguna. Silakan coba lagi."
@@ -5001,6 +5002,12 @@
     "app_settings_memories": {
       "encrypted_notice": {
         "text": "Entri pengaturan dan memori Anda dienkripsi, hanya dapat dibaca oleh perangkat Anda dan tidak pernah dikirim ke OpenMates untuk diproses tanpa persetujuan eksplisit Anda."
+      },
+      "diff_previous_value": {
+        "text": "Sebelumnya:"
+      },
+      "diff_not_set": {
+        "text": "Belum diatur"
       },
       "examples_label": {
         "text": "Contoh:"
@@ -7399,6 +7406,9 @@
     },
     "username_invalid_chars": {
       "text": "Diizinkan: huruf, angka, _, ."
+    },
+    "username_taken": {
+      "text": "Nama pengguna ini sudah digunakan. Silakan pilih yang lain."
     },
     "enter_username": {
       "text": "Masukkan nama pengguna"

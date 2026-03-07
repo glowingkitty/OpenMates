@@ -165,8 +165,6 @@ export interface Chat {
   encrypted_chat_tags?: string | null; // Encrypted array of max 10 tags for categorizing the chat
   encrypted_follow_up_request_suggestions?: string | null; // Encrypted array of 6 follow-up request suggestions
   encrypted_top_recommended_apps_for_chat?: string | null; // Encrypted array of up to 5 recommended app IDs for this chat, generated during post-processing
-  encrypted_settings_memories_suggestions?: string | null; // Encrypted array of suggested settings/memories entries from post-processing. Overwritten with each new assistant response.
-  rejected_suggestion_hashes?: string[] | null; // Array of SHA-256 hashes of rejected settings/memories suggestions for cross-device sync
   encrypted_chat_key?: string | null; // Chat-specific encryption key, encrypted with user's master key for device sync
   encrypted_icon?: string | null; // Encrypted icon name from Lucide library, generated during pre-processing
   encrypted_category?: string | null; // Encrypted category name, generated during pre-processing

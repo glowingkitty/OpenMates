@@ -2048,23 +2048,6 @@
     "generated_by": {
       "text": "{model}에 의해 생성됨"
     },
-    "settings_memories_suggestions": {
-      "header": {
-        "text": "OpenMates가 이 정보를 기억해야 하나요?"
-      },
-      "reject": {
-        "text": "거부"
-      },
-      "add": {
-        "text": "추가"
-      },
-      "customize_entry": {
-        "text": "맞춤 설정 후 추가"
-      },
-      "privacy_notice": {
-        "text": "설정과 메모리는 암호화되어 있으며 귀하의 기기에서만 복호화할 수 있습니다."
-      }
-    },
     "credits_needed": {
       "text": "크레딧이 필요합니다..."
     },
@@ -3024,6 +3007,9 @@
     },
     "more_results": {
       "text": "+ {count} 더"
+    },
+    "search_no_results": {
+      "text": "검색 결과 0건"
     },
     "open_search_results": {
       "text": "검색 결과 열기"
@@ -4722,7 +4708,19 @@
     }
   },
   "navigation": {},
-  "notifications": {},
+  "notifications": {
+    "security_reminder": {
+      "title": {
+        "text": "보안 알림"
+      },
+      "message": {
+        "text": "2FA 또는 패스키를 설정하여 계정을 올바르게 보호하세요."
+      },
+      "action": {
+        "text": "보안 설정 열기"
+      }
+    }
+  },
   "onboarding": {},
   "platforms": {},
   "predefined_responses": {
@@ -4769,6 +4767,9 @@
         },
         "error_invalid_chars": {
           "text": "사용자 이름은 문자, 숫자, 점 및 밑줄만 포함할 수 있습니다"
+        },
+        "error_taken": {
+          "text": "이 사용자 이름은 이미 사용 중입니다. 다른 이름을 선택해 주세요."
         },
         "error_failed": {
           "text": "사용자 이름을 업데이트하지 못했습니다. 다시 시도해 주세요."
@@ -5001,6 +5002,12 @@
     "app_settings_memories": {
       "encrypted_notice": {
         "text": "귀하의 설정 및 메모리 항목은 암호화되어 있으며, 귀하의 기기에서만 읽을 수 있고, 귀하의 명시적인 동의 없이는 처리를 위해 OpenMates로 전송되지 않습니다."
+      },
+      "diff_previous_value": {
+        "text": "이전:"
+      },
+      "diff_not_set": {
+        "text": "설정되지 않음"
       },
       "examples_label": {
         "text": "예시:"
@@ -7399,6 +7406,9 @@
     },
     "username_invalid_chars": {
       "text": "허용: 문자, 숫자, _, ."
+    },
+    "username_taken": {
+      "text": "이 사용자 이름은 이미 사용 중입니다. 다른 이름을 선택해 주세요."
     },
     "enter_username": {
       "text": "사용자 이름 입력"

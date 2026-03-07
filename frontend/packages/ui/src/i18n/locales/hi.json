@@ -2048,23 +2048,6 @@
     "generated_by": {
       "text": "{model} द्वारा जनरेट किया गया"
     },
-    "settings_memories_suggestions": {
-      "header": {
-        "text": "क्या आपके OpenMates को यह जानकारी याद रखनी चाहिए?"
-      },
-      "reject": {
-        "text": "अस्वीकार करें"
-      },
-      "add": {
-        "text": "जोड़ें"
-      },
-      "customize_entry": {
-        "text": "अनुकूलित करें और जोड़ें"
-      },
-      "privacy_notice": {
-        "text": "आपकी सेटिंग्स और यादें एन्क्रिप्टेड हैं और केवल आपके डिवाइस द्वारा डिक्रिप्ट की जा सकती हैं।"
-      }
-    },
     "credits_needed": {
       "text": "क्रेडिट की आवश्यकता..."
     },
@@ -3024,6 +3007,9 @@
     },
     "more_results": {
       "text": "+ {count} अधिक"
+    },
+    "search_no_results": {
+      "text": "0 परिणाम मिले"
     },
     "open_search_results": {
       "text": "खोज परिणाम खोलें"
@@ -4722,7 +4708,19 @@
     }
   },
   "navigation": {},
-  "notifications": {},
+  "notifications": {
+    "security_reminder": {
+      "title": {
+        "text": "सुरक्षा अनुस्मारक"
+      },
+      "message": {
+        "text": "2FA या पासकी सेट करके अपने खाते को ठीक से सुरक्षित करें।"
+      },
+      "action": {
+        "text": "सुरक्षा सेटिंग्स खोलें"
+      }
+    }
+  },
   "onboarding": {},
   "platforms": {},
   "predefined_responses": {
@@ -4769,6 +4767,9 @@
         },
         "error_invalid_chars": {
           "text": "उपयोगकर्ता नाम में केवल अक्षर, संख्याएं, डॉट्स और अंडरस्कोर हो सकते हैं"
+        },
+        "error_taken": {
+          "text": "यह उपयोगकर्ता नाम पहले से उपयोग में है। कृपया कोई अन्य नाम चुनें।"
         },
         "error_failed": {
           "text": "उपयोगकर्ता नाम अपडेट करने में विफल। कृपया पुनः प्रयास करें।"
@@ -5001,6 +5002,12 @@
     "app_settings_memories": {
       "encrypted_notice": {
         "text": "आपकी सेटिंग्स और यादों की प्रविष्टियाँ एन्क्रिप्टेड हैं, केवल आपके डिवाइस द्वारा पढ़ी जा सकती हैं और आपकी स्पष्ट सहमति के बिना प्रसंस्करण के लिए कभी भी OpenMates को नहीं भेजी जाती हैं।"
+      },
+      "diff_previous_value": {
+        "text": "पिछला:"
+      },
+      "diff_not_set": {
+        "text": "सेट नहीं किया गया"
       },
       "examples_label": {
         "text": "उदाहरण:"
@@ -7399,6 +7406,9 @@
     },
     "username_invalid_chars": {
       "text": "अनुमत: अक्षर, संख्याएं, _, ."
+    },
+    "username_taken": {
+      "text": "यह उपयोगकर्ता नाम पहले से उपयोग में है। कृपया कोई अन्य नाम चुनें।"
     },
     "enter_username": {
       "text": "उपयोगकर्ता नाम दर्ज करें"

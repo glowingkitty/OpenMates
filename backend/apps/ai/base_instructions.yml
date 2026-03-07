@@ -623,27 +623,6 @@ postprocess_response_tool:
         chat_summary:
           type: "string"
           description: "An updated concise summary of the full conversation including this latest exchange (max 20 words) in the USER'S SYSTEM LANGUAGE (as specified in system message). Capture the main topic, key decisions or outcomes, and what was accomplished or resolved. Be specific — include names, technologies, or details that distinguish this chat from others."
-        relevant_settings_memory_categories:
-          type: "array"
-          description: |
-            Up to 3 settings/memory category IDs where NEW entries could be created based on the conversation.
-            ONLY include categories if the conversation clearly reveals user preferences, facts, or information worth remembering.
-
-            Selection criteria:
-            - User explicitly stated a preference, fact about themselves, or interest (e.g., "I love Python", "I'm planning a trip to Japan")
-            - Information is concrete and specific enough to create a meaningful entry
-            - The category exists in the provided list of available categories
-
-            DO NOT include categories if:
-            - User was just asking questions without revealing personal preferences
-            - Information is too vague or general to create a useful entry
-            - The conversation is purely informational without personal context
-
-            Return an EMPTY array [] if no categories are clearly relevant.
-            Format: ["app_id.item_type", ...] (e.g., ["code.preferred_tech", "travel.trips"])
-          items:
-            type: "string"
-          maxItems: 3
         daily_inspiration_topic_suggestions:
           type: "array"
           description: "3 concise topic/interest phrases (2-5 words each, in English) based on what the user discussed or showed curiosity about. Used to personalize daily inspiration content. Capture specific topics, not broad categories. Always generate exactly 3. Never include brand names, product names, or app names — capture the underlying concept instead (e.g. 'knowledge graph note-taking' not 'Obsidian app'). PROHIBITED: never generate topics about illegal drugs/substance abuse, explicit sexual content, graphic violence, self-harm, or weapons — find an adjacent educational angle or a different interest instead."
@@ -765,6 +744,43 @@ base_app_settings_memories_usage_instruction: |
   - User: "What do you know about me?" → "Based on your settings, I know that you prefer working with ..."
   - User: "What's my favorite tech?" → "According to your preferences, your favorite technologies are ..."
   - User: "Tell me about myself" → "From what you've shared, I can see that..."
+
+
+base_settings_memories_deep_link_instruction: |
+  **Settings & Memories Deep Links**
+
+  When the conversation reveals user preferences, personal facts, or information worth remembering,
+  you can suggest saving or updating settings/memories entries by including deep links in your response.
+
+  **Create a new entry:**
+  ```
+  [descriptive link text](/#settings/app_store/{app_id}/settings_memories/{category_id}/create?prefill={"field":"value","field2":"value2"})
+  ```
+
+  **Update an existing entry (when you have the entry data in context):**
+  ```
+  [descriptive link text](/#settings/app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id}/edit?prefill={"field":"new_value"})
+  ```
+
+  **Rules:**
+  - The `prefill` parameter is a JSON object with field names and values from the category schema.
+  - Only include fields you are **100% certain** about from the conversation. Omit uncertain fields.
+  - For update links, only include fields that are **actually changing** — not the entire entry.
+  - The link text should be natural and descriptive (e.g., "Save Python to your tech preferences", "Update your trip notes").
+  - **Do NOT suggest entries when the user is merely asking questions** without revealing preferences.
+  - Better to suggest nothing than to suggest something uncertain.
+  - Maximum 2 deep links per response — don't overwhelm the user.
+  - Avoid special characters like parentheses `()` inside JSON string values — they break the markdown link syntax.
+  - Use simple, short values in the prefill. If a value is very long (like multi-line notes), keep it concise.
+  - If the JSON is complex, prefer creating a link with fewer prefill fields rather than risking broken syntax.
+
+  **Available categories and their schemas are provided in your context when settings/memories data is loaded.**
+  Only use category IDs and field names that exist in the loaded schemas.
+
+  **Examples:**
+  - User says "I really love Python": `[Save "Python" to your tech preferences](/#settings/app_store/code/settings_memories/preferred_tech/create?prefill={"name":"Python"})`
+  - User says "I'm planning a trip to Tokyo next month": `[Save your Tokyo trip](/#settings/app_store/travel/settings_memories/trips/create?prefill={"destination":"Tokyo"})`
+  - User has existing "Python" entry and says "I'd say I'm advanced now": `[Update your Python proficiency](/#settings/app_store/code/settings_memories/preferred_tech/entry/{entry_id}/edit?prefill={"proficiency":"advanced"})`
 
 base_embed_referencing_instruction: |
   **Inline Embed References**
@@ -920,65 +936,4 @@ base_url_sourcing_instruction: |
   **Remember:** It's better to not include a URL at all than to hallucinate or guess a URL that might be wrong. Your credibility depends on accuracy, not on having links for everything.
 
 # Phase 2: Memory Generation Tool
-# This tool is used after Phase 1 (category selection in post-processing) to generate
-# actual settings/memory entries with proper schema compliance.
-generate_settings_memories_tool:
-  type: "function"
-  function:
-    name: "generate_settings_memory_entries"
-    description: |
-      Generate suggested settings/memory entries based on the conversation.
 
-      This is Phase 2 of the settings/memories suggestion pipeline. Phase 1 has already
-      identified relevant categories - now you need to generate actual entries for those categories.
-
-      **CRITICAL PRINCIPLES:**
-
-      1. **Only fill fields you're CERTAIN about**
-         - If the user said "I love Python", fill name: "Python" but DON'T assume proficiency
-         - If the user mentioned "planning a trip to Japan", fill destination: "Japan" but DON'T guess dates
-         - Leave uncertain fields EMPTY - the user can add them later
-         
-      2. **Extract explicit information only**
-         - User: "I prefer React over Vue" → name: "React" ✓
-         - User: "I've been using Python for 5 years" → DO NOT assume "expert" level
-         - User: "Thinking about learning Rust" → This is interest, not preference - consider if appropriate
-         
-      3. **suggested_title is for deduplication**
-         - Use the most identifying value (usually the 'name' field)
-         - Keep it short and recognizable
-         - Will be compared against existing entries on the client
-         
-      4. **Quality over quantity**
-         - Better to suggest 1 high-quality entry than 3 uncertain ones
-         - If nothing concrete was mentioned, return an empty array
-         - Maximum 3 suggestions per response
-    parameters:
-      type: "object"
-      properties:
-        suggested_entries:
-          type: "array"
-          description: "Up to 3 suggested settings/memory entries. Return empty array if nothing concrete to suggest."
-          items:
-            type: "object"
-            properties:
-              app_id:
-                type: "string"
-                description: "App ID (e.g., 'code', 'travel')"
-              item_type:
-                type: "string"
-                description: "Category ID within the app (e.g., 'preferred_tech', 'trips')"
-              suggested_title:
-                type: "string"
-                description: "Short title for client-side deduplication (e.g., 'Python', 'Japan Trip')"
-              item_value:
-                type: "object"
-                description: "Entry data matching category schema. ONLY include fields you're certain about."
-            required:
-              - "app_id"
-              - "item_type"
-              - "suggested_title"
-              - "item_value"
-          maxItems: 3
-      required:
-        - "suggested_entries"

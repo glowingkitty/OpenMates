@@ -2048,23 +2048,6 @@
     "generated_by": {
       "text": "{model} によって生成"
     },
-    "settings_memories_suggestions": {
-      "header": {
-        "text": "OpenMatesにこの情報を記憶させますか？"
-      },
-      "reject": {
-        "text": "拒否"
-      },
-      "add": {
-        "text": "追加"
-      },
-      "customize_entry": {
-        "text": "カスタマイズして追加"
-      },
-      "privacy_notice": {
-        "text": "設定とメモリは暗号化されており、あなたのデバイスでのみ復号化できます。"
-      }
-    },
     "credits_needed": {
       "text": "クレジットが必要です..."
     },
@@ -3365,6 +3348,9 @@
     },
     "more_results": {
       "text": "+ {count} その他"
+    },
+    "search_no_results": {
+      "text": "0 件の結果"
     },
     "open_search_results": {
       "text": "検索結果を開く"
@@ -5749,7 +5735,19 @@
       "text": "ワークフロー"
     }
   },
-  "notifications": {},
+  "notifications": {
+    "security_reminder": {
+      "title": {
+        "text": "セキュリティリマインダー"
+      },
+      "message": {
+        "text": "二要素認証またはパスキーを設定して、アカウントを適切に保護してください。"
+      },
+      "action": {
+        "text": "セキュリティ設定を開く"
+      }
+    }
+  },
   "onboarding": {},
   "platforms": {
     "via": {
@@ -5812,6 +5810,9 @@
         },
         "error_invalid_chars": {
           "text": "ユーザー名には文字、数字、ドット、アンダースコアのみ使用できます"
+        },
+        "error_taken": {
+          "text": "このユーザー名はすでに使用されています。別のユーザー名を選んでください。"
         },
         "error_failed": {
           "text": "ユーザー名の更新に失敗しました。再試行してください。"
@@ -6101,6 +6102,12 @@
     "app_settings_memories": {
       "encrypted_notice": {
         "text": "設定とメモリのエントリは暗号化されており、あなたのデバイスのみが読み取ることができ、あなたの明示的な同意なしにOpenMatesに処理のために送信されることはありません。"
+      },
+      "diff_previous_value": {
+        "text": "変更前："
+      },
+      "diff_not_set": {
+        "text": "未設定"
       },
       "examples_label": {
         "text": "例："
@@ -7815,6 +7822,48 @@
     "installed": {
       "text": "インストール済み"
     },
+    "current_version": {
+      "text": "現在のバージョン"
+    },
+    "up_to_date": {
+      "text": "ソフトウェアは最新です"
+    },
+    "commits_behind": {
+      "text": "{count} コミット遅れ"
+    },
+    "view_on_github": {
+      "text": "GitHubで表示"
+    },
+    "auto_check_for_updates": {
+      "text": "自動アップデート確認"
+    },
+    "auto_install_updates": {
+      "text": "自動アップデートインストール"
+    },
+    "clear_cache_on_update": {
+      "text": "アップデート時にキャッシュをクリア"
+    },
+    "check_interval": {
+      "text": "確認間隔"
+    },
+    "every_n_hours": {
+      "text": "{count} 時間ごと"
+    },
+    "update_settings": {
+      "text": "アップデート設定"
+    },
+    "server_versions": {
+      "text": "サーバーバージョン"
+    },
+    "no_update_check_error": {
+      "text": "アップデートを確認できませんでした。後でもう一度お試しください。"
+    },
+    "check_now": {
+      "text": "今すぐ確認"
+    },
+    "unreachable": {
+      "text": "到達不能"
+    },
     "profile_image_not_allowed": {
       "text": "プロフィール画像にはヌード、暴力、またはグロテスクなものを含めないでください。"
     },
@@ -8825,6 +8874,9 @@
     },
     "username_invalid_chars": {
       "text": "使用可能: 文字, 数字, _, ."
+    },
+    "username_taken": {
+      "text": "このユーザー名はすでに使用されています。別のユーザー名を選んでください。"
     },
     "enter_username": {
       "text": "ユーザー名を入力"

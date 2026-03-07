@@ -2048,23 +2048,6 @@
     "generated_by": {
       "text": "genererad av {model}"
     },
-    "settings_memories_suggestions": {
-      "header": {
-        "text": "Ska din OpenMates komma ihåg den här informationen?"
-      },
-      "reject": {
-        "text": "Avvisa"
-      },
-      "add": {
-        "text": "Lägg till"
-      },
-      "customize_entry": {
-        "text": "Anpassa och lägg till"
-      },
-      "privacy_notice": {
-        "text": "Dina inställningar och minnen är krypterade och kan endast dekrypteras av dina enheter."
-      }
-    },
     "credits_needed": {
       "text": "Krediter behövs..."
     },
@@ -3066,6 +3049,9 @@
     },
     "more_results": {
       "text": "+ {count} fler"
+    },
+    "search_no_results": {
+      "text": "0 resultat hittade"
     },
     "open_search_results": {
       "text": "Öppna sökresultat"
@@ -4746,7 +4732,19 @@
     }
   },
   "navigation": {},
-  "notifications": {},
+  "notifications": {
+    "security_reminder": {
+      "title": {
+        "text": "Säkerhetspåminnelse"
+      },
+      "message": {
+        "text": "Säkra ditt konto ordentligt genom att ställa in 2FA eller en nyckel."
+      },
+      "action": {
+        "text": "Öppna säkerhetsinställningar"
+      }
+    }
+  },
   "onboarding": {},
   "platforms": {},
   "predefined_responses": {
@@ -5025,6 +5023,12 @@
     "app_settings_memories": {
       "encrypted_notice": {
         "text": "Dina inställningar och minnesposter är krypterade, kan bara läsas av dina enheter och skickas aldrig till OpenMates för bearbetning utan ditt uttryckliga samtycke."
+      },
+      "diff_previous_value": {
+        "text": "Föregående:"
+      },
+      "diff_not_set": {
+        "text": "Inte inställt"
       },
       "examples_label": {
         "text": "Exempel:"

@@ -94,3 +94,53 @@ encrypted_notice:
   sv: "Dina inställningar och minnesposter är krypterade, kan bara läsas av dina enheter och skickas aldrig till OpenMates för bearbetning utan ditt uttryckliga samtycke."
   he: "הרשומות של ההגדרות והזיכרונות שלך מוצפנות, ניתנות לקריאה רק על ידי המכשירים שלך ולעולם לא נשלחות ל-OpenMates לעיבוד ללא הסכמתך המפורשת."
   verified_by_human: []
+
+diff_previous_value:
+  context: Label shown next to the old value when AI suggests updating a settings/memories field via deep link
+  en: "Previous:"
+  de: "Vorher:"
+  zh: "之前："
+  es: "Anterior:"
+  fr: "Précédent :"
+  pt: "Anterior:"
+  ru: "Ранее:"
+  ja: "変更前："
+  ko: "이전:"
+  it: "Precedente:"
+  tr: "Önceki:"
+  vi: "Trước đó:"
+  id: "Sebelumnya:"
+  pl: "Poprzednio:"
+  nl: "Vorig:"
+  ar: "السابق:"
+  hi: "पिछला:"
+  th: "ก่อนหน้า:"
+  cs: "Předchozí:"
+  sv: "Föregående:"
+  he: "קודם:"
+  verified_by_human: []
+
+diff_not_set:
+  context: Placeholder shown in diff hint when the previous value of a field was empty/not set
+  en: Not set
+  de: Nicht gesetzt
+  zh: 未设置
+  es: No establecido
+  fr: Non défini
+  pt: Não definido
+  ru: Не задано
+  ja: 未設定
+  ko: 설정되지 않음
+  it: Non impostato
+  tr: Ayarlanmamış
+  vi: Chưa đặt
+  id: Belum diatur
+  pl: Nie ustawiono
+  nl: Niet ingesteld
+  ar: غير محدد
+  hi: सेट नहीं किया गया
+  th: ยังไม่ได้ตั้งค่า
+  cs: Nenastaveno
+  sv: Inte inställt
+  he: לא הוגדר
+  verified_by_human: []

@@ -2048,23 +2048,6 @@
     "generated_by": {
       "text": "được tạo bởi {model}"
     },
-    "settings_memories_suggestions": {
-      "header": {
-        "text": "OpenMates của bạn có nên nhớ những thông tin này không?"
-      },
-      "reject": {
-        "text": "Từ chối"
-      },
-      "add": {
-        "text": "Thêm"
-      },
-      "customize_entry": {
-        "text": "Tùy chỉnh và thêm"
-      },
-      "privacy_notice": {
-        "text": "Cài đặt và ký ức của bạn được mã hóa và chỉ có thể được giải mã bởi thiết bị của bạn."
-      }
-    },
     "credits_needed": {
       "text": "Cần tín dụng..."
     },
@@ -3024,6 +3007,9 @@
     },
     "more_results": {
       "text": "+ {count} thêm"
+    },
+    "search_no_results": {
+      "text": "Tìm thấy 0 kết quả"
     },
     "open_search_results": {
       "text": "Mở kết quả tìm kiếm"
@@ -4722,7 +4708,19 @@
     }
   },
   "navigation": {},
-  "notifications": {},
+  "notifications": {
+    "security_reminder": {
+      "title": {
+        "text": "Nhắc nhở bảo mật"
+      },
+      "message": {
+        "text": "Bảo mật tài khoản đúng cách bằng cách thiết lập 2FA hoặc passkey."
+      },
+      "action": {
+        "text": "Mở cài đặt bảo mật"
+      }
+    }
+  },
   "onboarding": {},
   "platforms": {},
   "predefined_responses": {
@@ -4769,6 +4767,9 @@
         },
         "error_invalid_chars": {
           "text": "Tên người dùng chỉ có thể chứa chữ cái, số, dấu chấm và dấu gạch dưới"
+        },
+        "error_taken": {
+          "text": "Tên người dùng này đã được sử dụng. Vui lòng chọn tên khác."
         },
         "error_failed": {
           "text": "Không thể cập nhật tên người dùng. Vui lòng thử lại."
@@ -5001,6 +5002,12 @@
     "app_settings_memories": {
       "encrypted_notice": {
         "text": "Các mục cài đặt và ký ức của bạn được mã hóa, chỉ có thể được đọc bởi thiết bị của bạn và không bao giờ được gửi đến OpenMates để xử lý mà không có sự đồng ý rõ ràng của bạn."
+      },
+      "diff_previous_value": {
+        "text": "Trước đó:"
+      },
+      "diff_not_set": {
+        "text": "Chưa đặt"
       },
       "examples_label": {
         "text": "Ví dụ:"
@@ -7399,6 +7406,9 @@
     },
     "username_invalid_chars": {
       "text": "Cho phép: chữ cái, số, _, ."
+    },
+    "username_taken": {
+      "text": "Tên người dùng này đã được sử dụng. Vui lòng chọn tên khác."
     },
     "enter_username": {
       "text": "Nhập tên người dùng"

@@ -2048,23 +2048,6 @@
     "generated_by": {
       "text": "generado por {model}"
     },
-    "settings_memories_suggestions": {
-      "header": {
-        "text": "¿Tu OpenMates debería recordar esta información?"
-      },
-      "reject": {
-        "text": "Rechazar"
-      },
-      "add": {
-        "text": "Añadir"
-      },
-      "customize_entry": {
-        "text": "Personalizar y añadir"
-      },
-      "privacy_notice": {
-        "text": "Tus ajustes y memorias están cifrados y solo pueden ser descifrados por tus dispositivos."
-      }
-    },
     "credits_needed": {
       "text": "Créditos necesarios..."
     },
@@ -3365,6 +3348,9 @@
     },
     "more_results": {
       "text": "+ {count} más"
+    },
+    "search_no_results": {
+      "text": "0 resultados encontrados"
     },
     "open_search_results": {
       "text": "Abrir resultados de búsqueda"
@@ -5903,7 +5889,19 @@
       "text": "Flujos de trabajo"
     }
   },
-  "notifications": {},
+  "notifications": {
+    "security_reminder": {
+      "title": {
+        "text": "Recordatorio de seguridad"
+      },
+      "message": {
+        "text": "Proteja correctamente su cuenta configurando 2FA o una clave de acceso."
+      },
+      "action": {
+        "text": "Abrir ajustes de seguridad"
+      }
+    }
+  },
   "onboarding": {},
   "platforms": {
     "via": {
@@ -5966,6 +5964,9 @@
         },
         "error_invalid_chars": {
           "text": "El nombre de usuario solo puede contener letras, números, puntos y guiones bajos"
+        },
+        "error_taken": {
+          "text": "Este nombre de usuario ya está en uso. Por favor, elige otro."
         },
         "error_failed": {
           "text": "No se pudo actualizar el nombre de usuario. Inténtalo de nuevo."
@@ -6255,6 +6256,12 @@
     "app_settings_memories": {
       "encrypted_notice": {
         "text": "Sus entradas de configuración y memorias están cifradas, solo pueden ser leídas por sus dispositivos y nunca se envían a OpenMates para su procesamiento sin su consentimiento explícito."
+      },
+      "diff_previous_value": {
+        "text": "Anterior:"
+      },
+      "diff_not_set": {
+        "text": "No establecido"
       },
       "examples_label": {
         "text": "Ejemplos:"
@@ -7993,6 +8000,48 @@
     "installed": {
       "text": "Instalado"
     },
+    "current_version": {
+      "text": "Versión actual"
+    },
+    "up_to_date": {
+      "text": "Su software está actualizado"
+    },
+    "commits_behind": {
+      "text": "{count} commit(s) atrás"
+    },
+    "view_on_github": {
+      "text": "Ver en GitHub"
+    },
+    "auto_check_for_updates": {
+      "text": "Buscar actualizaciones automáticamente"
+    },
+    "auto_install_updates": {
+      "text": "Instalar actualizaciones automáticamente"
+    },
+    "clear_cache_on_update": {
+      "text": "Limpiar caché al actualizar"
+    },
+    "check_interval": {
+      "text": "Intervalo de verificación"
+    },
+    "every_n_hours": {
+      "text": "Cada {count} horas"
+    },
+    "update_settings": {
+      "text": "Configuración de actualización"
+    },
+    "server_versions": {
+      "text": "Versiones del servidor"
+    },
+    "no_update_check_error": {
+      "text": "No se pudo buscar actualizaciones. Inténtelo más tarde."
+    },
+    "check_now": {
+      "text": "Comprobar ahora"
+    },
+    "unreachable": {
+      "text": "Inalcanzable"
+    },
     "profile_image_not_allowed": {
       "text": "No se permiten desnudos, violencia o sangre\nen las imágenes de perfil."
     },
@@ -9003,6 +9052,9 @@
     },
     "username_invalid_chars": {
       "text": "Permitido: letras, números, _, ."
+    },
+    "username_taken": {
+      "text": "Este nombre de usuario ya está en uso. Por favor, elige otro."
     },
     "enter_username": {
       "text": "Ingrese nombre de usuario"

@@ -9,7 +9,6 @@ import { chatListCache } from "./chatListCache"; // Import for cache invalidatio
 import { flushPendingMessagesForChat } from "./chatSyncServiceHandlersChatUpdates"; // Flush messages queued while chat key was unavailable
 import { flushPendingSystemMessagesForChat } from "./chatSyncServiceHandlersAppSettings"; // Flush system messages queued while chat key was unavailable
 import type { EmbedType } from "../message_parsing/types";
-import type { SuggestedSettingsMemoryEntry } from "../types/apps";
 import { activeChatStore } from "../stores/activeChatStore";
 import { notificationStore } from "../stores/notificationStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
@@ -1737,7 +1736,6 @@ export async function handlePostProcessingCompletedImpl(
     chat_tags: string[];
     harmful_response: number;
     top_recommended_apps_for_user?: string[]; // Optional: Top 5 recommended app IDs
-    suggested_settings_memories?: SuggestedSettingsMemoryEntry[]; // Optional: Settings/memories suggestions from Phase 2
   },
 ): Promise<void> {
   console.info(
@@ -1751,7 +1749,6 @@ export async function handlePostProcessingCompletedImpl(
     let encryptedChatSummary: string | null = null;
     let encryptedChatTags: string | null = null;
     let encryptedTopRecommendedApps: string | null = null;
-    let encryptedSettingsMemoriesSuggestions: string | null = null;
 
     const chat = await chatDB.getChat(payload.chat_id);
     if (!chat) {
@@ -1857,34 +1854,12 @@ export async function handlePostProcessingCompletedImpl(
       );
     }
 
-    // Encrypt and save settings/memories suggestions (overwrites previous suggestions)
-    // These are shown to user as suggestion cards with "Add" and "Reject" options
-    if (
-      payload.suggested_settings_memories &&
-      payload.suggested_settings_memories.length > 0
-    ) {
-      // Encrypt the suggestions array as JSON string with chat key
-      const suggestionsJson = JSON.stringify(
-        payload.suggested_settings_memories.slice(0, 3), // Max 3 suggestions
-      );
-      encryptedSettingsMemoriesSuggestions = await encryptWithChatKey(
-        suggestionsJson,
-        chatKey,
-      );
-      chat.encrypted_settings_memories_suggestions =
-        encryptedSettingsMemoriesSuggestions;
-      console.debug(
-        `[ChatSyncService:AI] Saved ${payload.suggested_settings_memories.length} settings/memories suggestions for chat ${payload.chat_id}`,
-      );
-    }
-
     // Update chat with all encrypted metadata at once
     if (
       payload.follow_up_request_suggestions?.length > 0 ||
       payload.chat_summary ||
       payload.chat_tags?.length > 0 ||
-      encryptedTopRecommendedApps ||
-      encryptedSettingsMemoriesSuggestions
+      encryptedTopRecommendedApps
     ) {
       await chatDB.updateChat(chat);
       // CRITICAL: Invalidate metadata cache so context menu shows updated summary
@@ -1913,8 +1888,7 @@ export async function handlePostProcessingCompletedImpl(
       encryptedNewChatSuggestions.length > 0 ||
       encryptedChatSummary ||
       encryptedChatTags ||
-      encryptedTopRecommendedApps ||
-      encryptedSettingsMemoriesSuggestions
+      encryptedTopRecommendedApps
     ) {
       const { sendPostProcessingMetadataImpl } =
         await import("./chatSyncServiceSenders");
@@ -1926,7 +1900,6 @@ export async function handlePostProcessingCompletedImpl(
         encryptedChatSummary || "",
         encryptedChatTags || "",
         encryptedTopRecommendedApps || "",
-        encryptedSettingsMemoriesSuggestions || "",
       );
       console.debug(
         `[ChatSyncService:AI] Sent encrypted post-processing metadata to server for Directus sync`,
@@ -1950,12 +1923,10 @@ export async function handlePostProcessingCompletedImpl(
         taskId: payload.task_id,
         followUpSuggestions: payload.follow_up_request_suggestions,
         harmfulResponse: payload.harmful_response,
-        // Include settings/memories suggestions for UI to display suggestion cards
-        suggestedSettingsMemories: payload.suggested_settings_memories || [],
       },
     });
     console.info(
-      `[ChatSyncService:AI] 🚀 Dispatching 'postProcessingCompleted' event for chat ${payload.chat_id} with ${payload.follow_up_request_suggestions?.length || 0} follow-up suggestions and ${payload.suggested_settings_memories?.length || 0} settings/memories suggestions`,
+      `[ChatSyncService:AI] 🚀 Dispatching 'postProcessingCompleted' event for chat ${payload.chat_id} with ${payload.follow_up_request_suggestions?.length || 0} follow-up suggestions`,
     );
     serviceInstance.dispatchEvent(event);
     console.debug(`[ChatSyncService:AI] ✅ Event dispatched successfully`);

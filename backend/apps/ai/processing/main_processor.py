@@ -1100,6 +1100,15 @@ async def handle_main_processing(
     if discovered_apps_metadata:
         prompt_parts.append(base_instructions.get("base_app_deep_linking_instruction", ""))
     
+    # Add settings/memories deep link instruction so the AI can suggest creating/updating
+    # entries inline in its response. Only include when apps are available (the AI needs
+    # to know the category IDs and field names). The instruction is always-on for simplicity;
+    # the AI will only generate links when the conversation actually reveals preferences.
+    if discovered_apps_metadata:
+        settings_deep_link_instruction = base_instructions.get("base_settings_memories_deep_link_instruction", "")
+        if settings_deep_link_instruction:
+            prompt_parts.append(settings_deep_link_instruction)
+    
     # === BUILD PRESELECTED SKILLS SET ===
     # Build this BEFORE the instruction injection block so we can filter app instructions
     # by whether their skills are preselected. Also used later for tool generation.

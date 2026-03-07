@@ -40,11 +40,8 @@ from backend.apps.ai.processing.preprocessor import handle_preprocessing, Prepro
 from backend.apps.ai.processing.postprocessor import (
     handle_postprocessing,
     PostProcessingResult,
-    handle_memory_generation,
-    extract_settings_memory_categories,
     extract_available_skills,
     extract_available_focus_modes,
-    get_category_schemas,
 )
 from .stream_consumer import _consume_main_processing_stream
 
@@ -1534,11 +1531,6 @@ async def _async_process_ai_skill_ask_task(
             if not available_app_ids:
                 logger.warning(f"[Task ID: {task_id}] No available app IDs found in discovered_apps_metadata for post-processing validation")
 
-            # Extract settings/memory categories for Phase 1 (lightweight category selection)
-            available_settings_memory_categories = extract_settings_memory_categories(
-                discovered_apps_metadata
-            ) if discovered_apps_metadata else []
-            logger.debug(f"[Task ID: {task_id}] Extracted {len(available_settings_memory_categories)} settings/memory categories for post-processing")
 
             # Extract production skills and focus modes for structured suggestion prefix generation.
             # These are injected into the postprocessor prompt so the LLM can produce
@@ -1585,7 +1577,7 @@ async def _async_process_ai_skill_ask_task(
                 secrets_manager=secrets_manager,
                 cache_service=cache_service_instance,
                 available_app_ids=available_app_ids,
-                available_settings_memory_categories=available_settings_memory_categories,
+
                 available_skills=available_skills_for_postproc,
                 available_focus_modes=available_focus_modes_for_postproc,
                 is_incognito=getattr(request_data, 'is_incognito', False),  # Pass incognito flag
@@ -1593,36 +1585,7 @@ async def _async_process_ai_skill_ask_task(
                 user_system_language=user_system_language,
             )
 
-            # Phase 2: Memory generation (only if Phase 1 identified relevant categories)
-            if (postprocessing_result 
-                and postprocessing_result.relevant_settings_memory_categories 
-                and discovered_apps_metadata):
-                
-                logger.info(f"[Task ID: {task_id}] Phase 2: Generating memory entries for categories: {postprocessing_result.relevant_settings_memory_categories}")
-                
-                # Get full schemas for the selected categories
-                category_schemas = get_category_schemas(
-                    discovered_apps_metadata,
-                    postprocessing_result.relevant_settings_memory_categories
-                )
-                
-                if category_schemas:
-                    # Generate actual entry suggestions
-                    suggested_entries = await handle_memory_generation(
-                        task_id=task_id,
-                        user_message=last_user_message,
-                        assistant_response=aggregated_final_response,
-                        relevant_categories=postprocessing_result.relevant_settings_memory_categories,
-                        category_schemas=category_schemas,
-                        base_instructions=base_instructions,
-                        secrets_manager=secrets_manager,
-                    )
-                    
-                    # Update the postprocessing result with generated entries
-                    postprocessing_result.suggested_settings_memories = suggested_entries
-                    logger.info(f"[Task ID: {task_id}] Phase 2 complete: Generated {len(suggested_entries)} memory entry suggestions")
-                else:
-                    logger.warning(f"[Task ID: {task_id}] Phase 2 skipped: No schemas found for selected categories")
+
 
         if postprocessing_result and cache_service_instance:
             # Publish post-processing results to Redis for WebSocket delivery to client
@@ -1634,11 +1597,7 @@ async def _async_process_ai_skill_ask_task(
                 logger.info(f"[Task ID: {task_id}] Using post-processing chat_summary (length: {len(postprocessing_result.chat_summary)})")
             else:
                 logger.info(f"[Task ID: {task_id}] Falling back to preprocessing chat_summary (post-processing didn't provide one)")
-            # Convert suggested_settings_memories to serializable format
-            suggested_settings_memories_serialized = [
-                entry.model_dump() for entry in postprocessing_result.suggested_settings_memories
-            ] if postprocessing_result.suggested_settings_memories else []
-            
+
             postprocessing_payload = {
                 "type": "post_processing_completed",
                 "event_for_client": "post_processing_completed",
@@ -1652,8 +1611,7 @@ async def _async_process_ai_skill_ask_task(
                 "chat_tags": chat_tags,  # From preprocessing (full history context)
                 "harmful_response": postprocessing_result.harmful_response,
                 "top_recommended_apps_for_user": postprocessing_result.top_recommended_apps_for_user,
-                # Phase 2: Suggested settings/memories entries (sent as plaintext, client encrypts)
-                "suggested_settings_memories": suggested_settings_memories_serialized,
+
             }
 
             postprocessing_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}"

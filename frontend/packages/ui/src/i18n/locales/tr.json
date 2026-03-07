@@ -2048,23 +2048,6 @@
     "generated_by": {
       "text": "{model} tarafından oluşturuldu"
     },
-    "settings_memories_suggestions": {
-      "header": {
-        "text": "OpenMates'iniz bu bilgileri hatırlamalı mı?"
-      },
-      "reject": {
-        "text": "Reddet"
-      },
-      "add": {
-        "text": "Ekle"
-      },
-      "customize_entry": {
-        "text": "Özelleştir ve ekle"
-      },
-      "privacy_notice": {
-        "text": "Ayarlarınız ve anılarınız şifrelenmiştir ve yalnızca cihazlarınız tarafından şifresi çözülebilir."
-      }
-    },
     "credits_needed": {
       "text": "Kredi gerekli..."
     },
@@ -3024,6 +3007,9 @@
     },
     "more_results": {
       "text": "+ {count} daha"
+    },
+    "search_no_results": {
+      "text": "0 sonuç bulundu"
     },
     "open_search_results": {
       "text": "Arama sonuçlarını aç"
@@ -4722,7 +4708,19 @@
     }
   },
   "navigation": {},
-  "notifications": {},
+  "notifications": {
+    "security_reminder": {
+      "title": {
+        "text": "Güvenlik hatırlatması"
+      },
+      "message": {
+        "text": "2FA veya bir geçiş anahtarı ayarlayarak hesabınızı düzgün şekilde güvence altına alın."
+      },
+      "action": {
+        "text": "Güvenlik ayarlarını aç"
+      }
+    }
+  },
   "onboarding": {},
   "platforms": {},
   "predefined_responses": {
@@ -4769,6 +4767,9 @@
         },
         "error_invalid_chars": {
           "text": "Kullanıcı adı yalnızca harf, rakam, nokta ve alt çizgi içerebilir"
+        },
+        "error_taken": {
+          "text": "Bu kullanıcı adı zaten alınmış. Lütfen başka birini seçin."
         },
         "error_failed": {
           "text": "Kullanıcı adı güncellenemedi. Lütfen tekrar deneyin."
@@ -5001,6 +5002,12 @@
     "app_settings_memories": {
       "encrypted_notice": {
         "text": "Ayarlarınız ve anı girişleriniz şifrelenmiştir, yalnızca cihazlarınız tarafından okunabilir ve açık onayınız olmadan işleme için hiçbir zaman OpenMates'e gönderilmez."
+      },
+      "diff_previous_value": {
+        "text": "Önceki:"
+      },
+      "diff_not_set": {
+        "text": "Ayarlanmamış"
       },
       "examples_label": {
         "text": "Örnekler:"
@@ -7399,6 +7406,9 @@
     },
     "username_invalid_chars": {
       "text": "İzin verilen: harfler, rakamlar, _, ."
+    },
+    "username_taken": {
+      "text": "Bu kullanıcı adı zaten alınmış. Lütfen başka birini seçin."
     },
     "enter_username": {
       "text": "Kullanıcı adı girin"

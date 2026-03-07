@@ -2048,23 +2048,6 @@
     "generated_by": {
       "text": "generováno modelem {model}"
     },
-    "settings_memories_suggestions": {
-      "header": {
-        "text": "Má si váš OpenMates tyto informace zapamatovat?"
-      },
-      "reject": {
-        "text": "Odmítnout"
-      },
-      "add": {
-        "text": "Přidat"
-      },
-      "customize_entry": {
-        "text": "Přizpůsobit a přidat"
-      },
-      "privacy_notice": {
-        "text": "Vaše nastavení a vzpomínky jsou šifrovány a mohou být dešifrovány pouze vašimi zařízeními."
-      }
-    },
     "credits_needed": {
       "text": "Jsou potřeba kredity..."
     },
@@ -3030,6 +3013,9 @@
     },
     "more_results": {
       "text": "+ {count} dalších"
+    },
+    "search_no_results": {
+      "text": "Nalezeno 0 výsledků"
     },
     "open_search_results": {
       "text": "Otevřít výsledky hledání"
@@ -4728,7 +4714,19 @@
     }
   },
   "navigation": {},
-  "notifications": {},
+  "notifications": {
+    "security_reminder": {
+      "title": {
+        "text": "Bezpečnostní připomínka"
+      },
+      "message": {
+        "text": "Řádně zabezpečte svůj účet nastavením 2FA nebo přístupového klíče."
+      },
+      "action": {
+        "text": "Otevřít nastavení zabezpečení"
+      }
+    }
+  },
   "onboarding": {},
   "platforms": {},
   "predefined_responses": {
@@ -4775,6 +4773,9 @@
         },
         "error_invalid_chars": {
           "text": "Uživatelské jméno může obsahovat pouze písmena, číslice, tečky a podtržítka"
+        },
+        "error_taken": {
+          "text": "Toto uživatelské jméno je již obsazeno. Prosím zvolte jiné."
         },
         "error_failed": {
           "text": "Aktualizace uživatelského jména selhala. Zkuste to prosím znovu."
@@ -5007,6 +5008,12 @@
     "app_settings_memories": {
       "encrypted_notice": {
         "text": "Vaše záznamy nastavení a vzpomínek jsou šifrovány, mohou být čteny pouze vašimi zařízeními a nikdy nejsou odesílány k zpracování do OpenMates bez vašeho výslovného souhlasu."
+      },
+      "diff_previous_value": {
+        "text": "Předchozí:"
+      },
+      "diff_not_set": {
+        "text": "Nenastaveno"
       },
       "examples_label": {
         "text": "Příklady:"
@@ -7405,6 +7412,9 @@
     },
     "username_invalid_chars": {
       "text": "Povoleno: písmena, číslice, _, ."
+    },
+    "username_taken": {
+      "text": "Toto uživatelské jméno je již obsazeno. Prosím zvolte jiné."
     },
     "enter_username": {
       "text": "Zadejte uživatelské jméno"

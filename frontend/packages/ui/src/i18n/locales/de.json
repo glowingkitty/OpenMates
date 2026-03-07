@@ -2075,23 +2075,6 @@
     "generated_by": {
       "text": "generiert von {model}"
     },
-    "settings_memories_suggestions": {
-      "header": {
-        "text": "Soll dein OpenMates diese Infos speichern?"
-      },
-      "reject": {
-        "text": "Ablehnen"
-      },
-      "add": {
-        "text": "Hinzufügen"
-      },
-      "customize_entry": {
-        "text": "Anpassen und hinzufügen"
-      },
-      "privacy_notice": {
-        "text": "Deine Einstellungen & Erinnerungen sind verschlüsselt und können nur von deinen Geräten entschlüsselt werden."
-      }
-    },
     "pii_hide": {
       "text": "Sensible Daten ausblenden"
     },
@@ -3483,6 +3466,9 @@
     },
     "more_results": {
       "text": "+ {count} weitere"
+    },
+    "search_no_results": {
+      "text": "0 Ergebnisse gefunden"
     },
     "open_search_results": {
       "text": "Suchergebnisse öffnen"
@@ -6198,6 +6184,17 @@
       "ios_install_step4": {
         "text": "4. Dann können Sie Benachrichtigungen aktivieren"
       }
+    },
+    "security_reminder": {
+      "title": {
+        "text": "Sicherheitshinweis"
+      },
+      "message": {
+        "text": "Sichern Sie Ihr Konto richtig ab, indem Sie 2FA oder einen Passkey einrichten."
+      },
+      "action": {
+        "text": "Sicherheitseinstellungen öffnen"
+      }
     }
   },
   "onboarding": {
@@ -6281,6 +6278,9 @@
         },
         "error_invalid_chars": {
           "text": "Benutzername darf nur Buchstaben, Zahlen, Punkte und Unterstriche enthalten"
+        },
+        "error_taken": {
+          "text": "Dieser Benutzername ist bereits vergeben. Bitte wähle einen anderen."
         },
         "error_failed": {
           "text": "Benutzername konnte nicht aktualisiert werden. Bitte versuche es erneut."
@@ -6739,6 +6739,12 @@
       },
       "encrypted_notice": {
         "text": "Deine Einstellungen und Erinnerungseinträge sind verschlüsselt, können nur von deinen Geräten gelesen werden und werden niemals ohne deine ausdrückliche Zustimmung zur Verarbeitung an OpenMates gesendet."
+      },
+      "diff_previous_value": {
+        "text": "Vorher:"
+      },
+      "diff_not_set": {
+        "text": "Nicht gesetzt"
       },
       "examples_label": {
         "text": "Beispiele:"
@@ -8857,6 +8863,48 @@
     "installed": {
       "text": "Installiert"
     },
+    "current_version": {
+      "text": "Aktuelle Version"
+    },
+    "up_to_date": {
+      "text": "Ihre Software ist auf dem neuesten Stand"
+    },
+    "commits_behind": {
+      "text": "{count} Commit(s) zurück"
+    },
+    "view_on_github": {
+      "text": "Auf GitHub ansehen"
+    },
+    "auto_check_for_updates": {
+      "text": "Automatisch nach Updates suchen"
+    },
+    "auto_install_updates": {
+      "text": "Updates automatisch installieren"
+    },
+    "clear_cache_on_update": {
+      "text": "Cache beim Update leeren"
+    },
+    "check_interval": {
+      "text": "Prüfintervall"
+    },
+    "every_n_hours": {
+      "text": "Alle {count} Stunden"
+    },
+    "update_settings": {
+      "text": "Update-Einstellungen"
+    },
+    "server_versions": {
+      "text": "Serverversionen"
+    },
+    "no_update_check_error": {
+      "text": "Konnte nicht nach Updates suchen. Versuchen Sie es später erneut."
+    },
+    "check_now": {
+      "text": "Jetzt prüfen"
+    },
+    "unreachable": {
+      "text": "Nicht erreichbar"
+    },
     "profile_image_not_allowed": {
       "text": "Keine Nacktheit, Gewalt oder Blut\nin Profilbildern."
     },
@@ -9892,6 +9940,9 @@
     },
     "username_invalid_chars": {
       "text": "Erlaubt: Buchstaben, Zahlen, _, ."
+    },
+    "username_taken": {
+      "text": "Dieser Benutzername ist bereits vergeben. Bitte wähle einen anderen."
     },
     "enter_username": {
       "text": "Benutzername eingeben"

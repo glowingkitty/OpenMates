@@ -916,7 +916,6 @@ _EXPLICIT_TASK_ROUTES = {
     "app.tasks.persistence_tasks.persist_ai_response_to_directus": "persistence",
     "app.tasks.persistence_tasks.persist_encrypted_chat_metadata": "persistence",
     "app.tasks.persistence_tasks.persist_new_chat_suggestions": "persistence",
-    "app.tasks.persistence_tasks.append_rejected_suggestion_hash": "persistence",
     "app.tasks.persistence_tasks.persist_embed_fallback": "persistence",
     "app.tasks.persistence_tasks.process_pending_embeds": "persistence",
     

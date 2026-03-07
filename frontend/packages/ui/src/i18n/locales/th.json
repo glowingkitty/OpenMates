@@ -2048,23 +2048,6 @@
     "generated_by": {
       "text": "สร้างโดย {model}"
     },
-    "settings_memories_suggestions": {
-      "header": {
-        "text": "OpenMates ของคุณควรจดจำข้อมูลเหล่านี้ไหม?"
-      },
-      "reject": {
-        "text": "ปฏิเสธ"
-      },
-      "add": {
-        "text": "เพิ่ม"
-      },
-      "customize_entry": {
-        "text": "ปรับแต่งและเพิ่ม"
-      },
-      "privacy_notice": {
-        "text": "การตั้งค่าและความทรงจำของคุณถูกเข้ารหัสและสามารถถอดรหัสได้โดยอุปกรณ์ของคุณเท่านั้น"
-      }
-    },
     "credits_needed": {
       "text": "ต้องการเครดิต..."
     },
@@ -3030,6 +3013,9 @@
     },
     "more_results": {
       "text": "+ {count} เพิ่มเติม"
+    },
+    "search_no_results": {
+      "text": "พบ 0 ผลลัพธ์"
     },
     "open_search_results": {
       "text": "เปิดผลการค้นหา"
@@ -4728,7 +4714,19 @@
     }
   },
   "navigation": {},
-  "notifications": {},
+  "notifications": {
+    "security_reminder": {
+      "title": {
+        "text": "การแจ้งเตือนความปลอดภัย"
+      },
+      "message": {
+        "text": "รักษาความปลอดภัยบัญชีของคุณอย่างเหมาะสมโดยตั้งค่า 2FA หรือ Passkey"
+      },
+      "action": {
+        "text": "เปิดการตั้งค่าความปลอดภัย"
+      }
+    }
+  },
   "onboarding": {},
   "platforms": {},
   "predefined_responses": {
@@ -4775,6 +4773,9 @@
         },
         "error_invalid_chars": {
           "text": "ชื่อผู้ใช้สามารถประกอบด้วยตัวอักษร ตัวเลข จุด และขีดล่างเท่านั้น"
+        },
+        "error_taken": {
+          "text": "ชื่อผู้ใช้นี้ถูกใช้ไปแล้ว กรุณาเลือกชื่ออื่น"
         },
         "error_failed": {
           "text": "ไม่สามารถอัปเดตชื่อผู้ใช้ได้ กรุณาลองอีกครั้ง"
@@ -5007,6 +5008,12 @@
     "app_settings_memories": {
       "encrypted_notice": {
         "text": "รายการการตั้งค่าและความทรงจำของคุณได้รับการเข้ารหัส สามารถอ่านได้เฉพาะโดยอุปกรณ์ของคุณเท่านั้น และจะไม่ถูกส่งไปยัง OpenMates เพื่อประมวลผลโดยไม่ได้รับความยินยอมอย่างชัดแจ้งจากคุณ"
+      },
+      "diff_previous_value": {
+        "text": "ก่อนหน้า:"
+      },
+      "diff_not_set": {
+        "text": "ยังไม่ได้ตั้งค่า"
       },
       "examples_label": {
         "text": "ตัวอย่าง:"
@@ -7405,6 +7412,9 @@
     },
     "username_invalid_chars": {
       "text": "อนุญาต: ตัวอักษร, ตัวเลข, _, ."
+    },
+    "username_taken": {
+      "text": "ชื่อผู้ใช้นี้ถูกใช้ไปแล้ว กรุณาเลือกชื่ออื่น"
     },
     "enter_username": {
       "text": "ใส่ชื่อผู้ใช้"

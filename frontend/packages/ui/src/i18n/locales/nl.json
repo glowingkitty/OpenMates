@@ -2048,23 +2048,6 @@
     "generated_by": {
       "text": "gegenereerd door {model}"
     },
-    "settings_memories_suggestions": {
-      "header": {
-        "text": "Moet je OpenMates deze info onthouden?"
-      },
-      "reject": {
-        "text": "Afwijzen"
-      },
-      "add": {
-        "text": "Toevoegen"
-      },
-      "customize_entry": {
-        "text": "Aanpassen en toevoegen"
-      },
-      "privacy_notice": {
-        "text": "Je instellingen en herinneringen zijn versleuteld en kunnen alleen door je apparaten worden ontsleuteld."
-      }
-    },
     "credits_needed": {
       "text": "Credits nodig..."
     },
@@ -3024,6 +3007,9 @@
     },
     "more_results": {
       "text": "+ {count} meer"
+    },
+    "search_no_results": {
+      "text": "0 resultaten gevonden"
     },
     "open_search_results": {
       "text": "Zoekresultaten openen"
@@ -4722,7 +4708,19 @@
     }
   },
   "navigation": {},
-  "notifications": {},
+  "notifications": {
+    "security_reminder": {
+      "title": {
+        "text": "Beveiligingsherinnering"
+      },
+      "message": {
+        "text": "Beveilig uw account goed door 2FA of een passkey in te stellen."
+      },
+      "action": {
+        "text": "Beveiligingsinstellingen openen"
+      }
+    }
+  },
   "onboarding": {},
   "platforms": {},
   "predefined_responses": {
@@ -4769,6 +4767,9 @@
         },
         "error_invalid_chars": {
           "text": "Gebruikersnaam mag alleen letters, cijfers, punten en underscores bevatten"
+        },
+        "error_taken": {
+          "text": "Deze gebruikersnaam is al in gebruik. Kies een andere naam."
         },
         "error_failed": {
           "text": "Gebruikersnaam bijwerken mislukt. Probeer het opnieuw."
@@ -5001,6 +5002,12 @@
     "app_settings_memories": {
       "encrypted_notice": {
         "text": "Uw instellingen en geheugenitems zijn versleuteld, kunnen alleen door uw apparaten worden gelezen en worden nooit zonder uw uitdrukkelijke toestemming naar OpenMates verzonden voor verwerking."
+      },
+      "diff_previous_value": {
+        "text": "Vorig:"
+      },
+      "diff_not_set": {
+        "text": "Niet ingesteld"
       },
       "examples_label": {
         "text": "Voorbeelden:"
@@ -7399,6 +7406,9 @@
     },
     "username_invalid_chars": {
       "text": "Toegestaan: letters, cijfers, _, ."
+    },
+    "username_taken": {
+      "text": "Deze gebruikersnaam is al in gebruik. Kies een andere naam."
     },
     "enter_username": {
       "text": "Voer gebruikersnaam in"

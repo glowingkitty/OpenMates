@@ -2048,23 +2048,6 @@
     "generated_by": {
       "text": "wygenerowane przez {model}"
     },
-    "settings_memories_suggestions": {
-      "header": {
-        "text": "Czy Twój OpenMates powinien zapamiętać te informacje?"
-      },
-      "reject": {
-        "text": "Odrzuć"
-      },
-      "add": {
-        "text": "Dodaj"
-      },
-      "customize_entry": {
-        "text": "Dostosuj i dodaj"
-      },
-      "privacy_notice": {
-        "text": "Twoje ustawienia i wspomnienia są zaszyfrowane i mogą być odszyfrowane tylko przez Twoje urządzenia."
-      }
-    },
     "credits_needed": {
       "text": "Potrzebne kredyty..."
     },
@@ -3024,6 +3007,9 @@
     },
     "more_results": {
       "text": "+ {count} więcej"
+    },
+    "search_no_results": {
+      "text": "Znaleziono 0 wyników"
     },
     "open_search_results": {
       "text": "Otwórz wyniki wyszukiwania"
@@ -4722,7 +4708,19 @@
     }
   },
   "navigation": {},
-  "notifications": {},
+  "notifications": {
+    "security_reminder": {
+      "title": {
+        "text": "Przypomnienie o bezpieczeństwie"
+      },
+      "message": {
+        "text": "Prawidłowo zabezpiecz swoje konto, konfigurując 2FA lub klucz dostępu."
+      },
+      "action": {
+        "text": "Otwórz ustawienia bezpieczeństwa"
+      }
+    }
+  },
   "onboarding": {},
   "platforms": {},
   "predefined_responses": {
@@ -4769,6 +4767,9 @@
         },
         "error_invalid_chars": {
           "text": "Nazwa użytkownika może zawierać tylko litery, cyfry, kropki i podkreślenia"
+        },
+        "error_taken": {
+          "text": "Ta nazwa użytkownika jest już zajęta. Proszę wybrać inną."
         },
         "error_failed": {
           "text": "Nie udało się zaktualizować nazwy użytkownika. Spróbuj ponownie."
@@ -5001,6 +5002,12 @@
     "app_settings_memories": {
       "encrypted_notice": {
         "text": "Twoje wpisy ustawień i wspomnień są zaszyfrowane, mogą być odczytane tylko przez Twoje urządzenia i nigdy nie są wysyłane do OpenMates do przetwarzania bez Twojej wyraźnej zgody."
+      },
+      "diff_previous_value": {
+        "text": "Poprzednio:"
+      },
+      "diff_not_set": {
+        "text": "Nie ustawiono"
       },
       "examples_label": {
         "text": "Przykłady:"
@@ -7399,6 +7406,9 @@
     },
     "username_invalid_chars": {
       "text": "Dozwolone: litery, cyfry, _, ."
+    },
+    "username_taken": {
+      "text": "Ta nazwa użytkownika jest już zajęta. Proszę wybrać inną."
     },
     "enter_username": {
       "text": "Wprowadź nazwę użytkownika"

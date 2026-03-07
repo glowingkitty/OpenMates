@@ -2048,23 +2048,6 @@
     "generated_by": {
       "text": "généré par {model}"
     },
-    "settings_memories_suggestions": {
-      "header": {
-        "text": "Votre OpenMates devrait-il mémoriser ces informations?"
-      },
-      "reject": {
-        "text": "Rejeter"
-      },
-      "add": {
-        "text": "Ajouter"
-      },
-      "customize_entry": {
-        "text": "Personnaliser et ajouter"
-      },
-      "privacy_notice": {
-        "text": "Vos paramètres et souvenirs sont chiffrés et ne peuvent être déchiffrés que par vos appareils."
-      }
-    },
     "credits_needed": {
       "text": "Crédits nécessaires..."
     },
@@ -3365,6 +3348,9 @@
     },
     "more_results": {
       "text": "+ {count} autres"
+    },
+    "search_no_results": {
+      "text": "0 résultats trouvés"
     },
     "open_search_results": {
       "text": "Ouvrir les résultats de recherche"
@@ -5860,7 +5846,19 @@
       "text": "Flux de travail"
     }
   },
-  "notifications": {},
+  "notifications": {
+    "security_reminder": {
+      "title": {
+        "text": "Rappel de sécurité"
+      },
+      "message": {
+        "text": "Sécurisez correctement votre compte en configurant la 2FA ou une clé d'accès."
+      },
+      "action": {
+        "text": "Ouvrir les paramètres de sécurité"
+      }
+    }
+  },
   "onboarding": {},
   "platforms": {
     "via": {
@@ -5923,6 +5921,9 @@
         },
         "error_invalid_chars": {
           "text": "Le nom d'utilisateur ne peut contenir que des lettres, des chiffres, des points et des traits de soulignement"
+        },
+        "error_taken": {
+          "text": "Ce nom d'utilisateur est déjà pris. Veuillez en choisir un autre."
         },
         "error_failed": {
           "text": "Impossible de mettre à jour le nom d'utilisateur. Veuillez réessayer."
@@ -6212,6 +6213,12 @@
     "app_settings_memories": {
       "encrypted_notice": {
         "text": "Vos entrées de paramètres et de souvenirs sont chiffrées, ne peuvent être lues que par vos appareils et ne sont jamais envoyées à OpenMates pour traitement sans votre consentement explicite."
+      },
+      "diff_previous_value": {
+        "text": "Précédent :"
+      },
+      "diff_not_set": {
+        "text": "Non défini"
       },
       "examples_label": {
         "text": "Exemples :"
@@ -7938,6 +7945,48 @@
     "installed": {
       "text": "Installé"
     },
+    "current_version": {
+      "text": "Version actuelle"
+    },
+    "up_to_date": {
+      "text": "Votre logiciel est à jour"
+    },
+    "commits_behind": {
+      "text": "{count} commit(s) en retard"
+    },
+    "view_on_github": {
+      "text": "Voir sur GitHub"
+    },
+    "auto_check_for_updates": {
+      "text": "Vérifier automatiquement les mises à jour"
+    },
+    "auto_install_updates": {
+      "text": "Installer automatiquement les mises à jour"
+    },
+    "clear_cache_on_update": {
+      "text": "Vider le cache lors de la mise à jour"
+    },
+    "check_interval": {
+      "text": "Intervalle de vérification"
+    },
+    "every_n_hours": {
+      "text": "Toutes les {count} heures"
+    },
+    "update_settings": {
+      "text": "Paramètres de mise à jour"
+    },
+    "server_versions": {
+      "text": "Versions du serveur"
+    },
+    "no_update_check_error": {
+      "text": "Impossible de vérifier les mises à jour. Réessayez plus tard."
+    },
+    "check_now": {
+      "text": "Vérifier maintenant"
+    },
+    "unreachable": {
+      "text": "Injoignable"
+    },
     "profile_image_not_allowed": {
       "text": "Pas de nudité, de violence ou de sang\ndans les images de profil."
     },
@@ -8948,6 +8997,9 @@
     },
     "username_invalid_chars": {
       "text": "Autorisé: lettres, chiffres, _, ."
+    },
+    "username_taken": {
+      "text": "Ce nom d'utilisateur est déjà pris. Veuillez en choisir un autre."
     },
     "enter_username": {
       "text": "Entrez votre nom d'utilisateur"

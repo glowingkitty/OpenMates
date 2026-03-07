@@ -843,7 +843,6 @@ export class ChatSynchronizationService extends EventTarget {
           chat_tags: string[];
           harmful_response: number;
           top_recommended_apps_for_user?: string[];
-          suggested_settings_memories?: import("../types/apps").SuggestedSettingsMemoryEntry[];
         },
       ),
     );
@@ -852,49 +851,6 @@ export class ChatSynchronizationService extends EventTarget {
         this,
         payload as { chat_id: string; task_id?: string },
       ),
-    );
-
-    // Handler for settings/memory suggestion rejection broadcast from other devices
-    // When user rejects a suggestion on one device, other devices receive this to update their local state
-    webSocketService.on(
-      "settings_memory_suggestion_rejected",
-      async (payload) => {
-        const { chat_id, rejection_hash } = payload as {
-          chat_id: string;
-          rejection_hash: string;
-        };
-        console.info(
-          `[ChatSyncService] Received suggestion rejection broadcast for chat ${chat_id}`,
-        );
-        try {
-          // Update local chat record with the new rejection hash
-          const chat = await chatDB.getChat(chat_id);
-          if (chat) {
-            const existingHashes = chat.rejected_suggestion_hashes ?? [];
-            if (!existingHashes.includes(rejection_hash)) {
-              chat.rejected_suggestion_hashes = [
-                ...existingHashes,
-                rejection_hash,
-              ];
-              await chatDB.updateChat(chat);
-              console.debug(
-                `[ChatSyncService] Added rejection hash to chat ${chat_id} from other device`,
-              );
-              // Dispatch event so UI can update if needed
-              this.dispatchEvent(
-                new CustomEvent("suggestionRejected", {
-                  detail: { chatId: chat_id, rejectionHash: rejection_hash },
-                }),
-              );
-            }
-          }
-        } catch (error) {
-          console.error(
-            `[ChatSyncService] Error handling rejection broadcast for chat ${chat_id}:`,
-            error,
-          );
-        }
-      },
     );
 
     webSocketService.on("message_queued", (payload) =>

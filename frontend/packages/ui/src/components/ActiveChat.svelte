@@ -742,8 +742,6 @@
                 currentChat = null;
                 currentMessages = [];
                 followUpSuggestions = [];
-                settingsMemoriesSuggestions = [];
-                rejectedSuggestionHashes = null;
                 showWelcome = true;
                 isAtBottom = false;
                 
@@ -1966,44 +1964,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
-    // Handler for when user adds a settings/memories suggestion
-    // Removes the suggestion from the list so it no longer displays
-    function handleSettingsMemorySuggestionAdded(suggestion: import('../types/apps').SuggestedSettingsMemoryEntry) {
-        console.info('[ActiveChat] Settings/memories suggestion added:', suggestion.suggested_title);
-        // Remove the added suggestion from the list
-        settingsMemoriesSuggestions = settingsMemoriesSuggestions.filter(
-            s => !(s.app_id === suggestion.app_id && 
-                   s.item_type === suggestion.item_type && 
-                   s.suggested_title === suggestion.suggested_title)
-        );
-    }
-
-    // Handler for when user rejects a settings/memories suggestion
-    // Removes the suggestion from the list (hash is already persisted by the SettingsMemoriesSuggestions component)
-    function handleSettingsMemorySuggestionRejected(suggestion: import('../types/apps').SuggestedSettingsMemoryEntry) {
-        console.info('[ActiveChat] Settings/memories suggestion rejected:', suggestion.suggested_title);
-        // Remove the rejected suggestion from the list
-        settingsMemoriesSuggestions = settingsMemoriesSuggestions.filter(
-            s => !(s.app_id === suggestion.app_id && 
-                   s.item_type === suggestion.item_type && 
-                   s.suggested_title === suggestion.suggested_title)
-        );
-    }
-
-    // Handler for when user opens a suggestion to customize (deep link to create form with prefill)
-    // Removes the suggestion from the list so it does not show twice
-    function handleSettingsMemorySuggestionOpenForCustomize(suggestion: import('../types/apps').SuggestedSettingsMemoryEntry) {
-        console.info('[ActiveChat] Settings/memories suggestion open for customize:', suggestion.suggested_title);
-        settingsMemoriesSuggestions = settingsMemoriesSuggestions.filter(
-            s => !(s.app_id === suggestion.app_id && 
-                   s.item_type === suggestion.item_type && 
-                   s.suggested_title === suggestion.suggested_title)
-        );
-    }
-
     // Handler for post-processing completed event
     async function handlePostProcessingCompleted(event: CustomEvent) {
-        const { chatId, followUpSuggestions: newSuggestions, suggestedSettingsMemories: newSettingsMemories } = event.detail;
+        const { chatId, followUpSuggestions: newSuggestions } = event.detail;
         console.info('[ActiveChat] 📬 Post-processing completed event received:', {
             chatId,
             currentChatId: currentChat?.chat_id,
@@ -2011,8 +1974,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             newSuggestionsCount: newSuggestions?.length || 0,
             newSuggestionsType: typeof newSuggestions,
             isArray: Array.isArray(newSuggestions),
-            currentFollowUpCount: followUpSuggestions.length,
-            newSettingsMemoriesCount: newSettingsMemories?.length || 0
+            currentFollowUpCount: followUpSuggestions.length
         });
 
         // CRITICAL FIX: Always reload suggestions from database for the current chat
@@ -2085,53 +2047,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         followUpSuggestions = [];
                         console.debug('[ActiveChat] No follow-up suggestions found');
                     }
-                    
-                    // Load settings/memories suggestions from database
-                    // These are shown as suggestion cards below the AI response
-                    rejectedSuggestionHashes = freshChat.rejected_suggestion_hashes ?? null;
-                    
-                    if (freshChat.encrypted_settings_memories_suggestions) {
-                        try {
-                            const chatKey = chatKeyManager.getKeySync(chatId);
-                            if (!chatKey) {
-                                console.debug('[ActiveChat] No chat key for settings/memories decrypt, skipping');
-                                throw new Error('Chat key not available');
-                            }
-                            const { decryptWithChatKey } = await import('../services/cryptoService');
-                            const decryptedJson = await decryptWithChatKey(
-                                freshChat.encrypted_settings_memories_suggestions,
-                                chatKey
-                            );
-                            
-                            if (decryptedJson) {
-                                const parsed = JSON.parse(decryptedJson);
-                                if (Array.isArray(parsed) && parsed.length > 0) {
-                                    settingsMemoriesSuggestions = parsed;
-                                    console.info('[ActiveChat] ✅ Loaded settings/memories suggestions from database:', parsed.length);
-                                } else {
-                                    settingsMemoriesSuggestions = [];
-                                }
-                            } else {
-                                settingsMemoriesSuggestions = [];
-                            }
-                        } catch (decryptError) {
-                            console.error(`[ActiveChat] Failed to decrypt settings/memories suggestions: chat_id=${chatId} field=encrypted_settings_memories_suggestions`, decryptError);
-                            // Fallback to event data
-                            if (newSettingsMemories && Array.isArray(newSettingsMemories) && newSettingsMemories.length > 0) {
-                                settingsMemoriesSuggestions = newSettingsMemories;
-                                console.info('[ActiveChat] ✅ Fallback: Using settings/memories suggestions from event');
-                            } else {
-                                settingsMemoriesSuggestions = [];
-                            }
-                        }
-                    } else if (newSettingsMemories && Array.isArray(newSettingsMemories) && newSettingsMemories.length > 0) {
-                        // Fallback: use suggestions from event if database doesn't have them yet
-                        settingsMemoriesSuggestions = newSettingsMemories;
-                        console.info('[ActiveChat] ✅ Fallback: Using settings/memories suggestions from event (database not updated yet)');
-                    } else {
-                        settingsMemoriesSuggestions = [];
-                        console.debug('[ActiveChat] No settings/memories suggestions found');
-                    }
+
                 } else {
                     console.warn('[ActiveChat] Chat not found in database after post-processing:', chatId);
                     // Fallback: use suggestions from event if chat not found
@@ -2139,10 +2055,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         followUpSuggestions = newSuggestions;
                         console.info('[ActiveChat] ✅ Fallback: Updated followUpSuggestions from event (chat not in DB):', $state.snapshot(followUpSuggestions));
                     }
-                    if (newSettingsMemories && Array.isArray(newSettingsMemories) && newSettingsMemories.length > 0) {
-                        settingsMemoriesSuggestions = newSettingsMemories;
-                        console.info('[ActiveChat] ✅ Fallback: Using settings/memories suggestions from event (chat not in DB)');
-                    }
+
                 }
             } catch (error) {
                 console.error('[ActiveChat] Failed to reload suggestions from database after post-processing:', error);
@@ -2151,10 +2064,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     followUpSuggestions = newSuggestions;
                     console.info('[ActiveChat] ✅ Fallback: Updated followUpSuggestions from event (database error):', $state.snapshot(followUpSuggestions));
                 }
-                if (newSettingsMemories && Array.isArray(newSettingsMemories) && newSettingsMemories.length > 0) {
-                    settingsMemoriesSuggestions = newSettingsMemories;
-                    console.info('[ActiveChat] ✅ Fallback: Using settings/memories suggestions from event (database error)');
-                }
+
             }
         } else {
             console.debug('[ActiveChat] Post-processing completed for different chat, not updating suggestions');
@@ -2924,10 +2834,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Track settings/memories suggestions for the current chat
     // These are suggested entries generated during AI post-processing Phase 2
     // Shown as horizontally scrollable cards below the last AI response
-    let settingsMemoriesSuggestions = $state<import('../types/apps').SuggestedSettingsMemoryEntry[]>([]);
     
     // Track rejected suggestion hashes for client-side filtering
-    let rejectedSuggestionHashes = $state<string[] | null>(null);
     
     // Track if user has sent a message this session (for push notification banner)
     // Banner should show after user's first message is sent
@@ -4271,7 +4179,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Hide settings/memories suggestions when user sends a new message
         // New suggestions will be generated during post-processing
-        settingsMemoriesSuggestions = [];
         
         // Reset live input text to clear search term for suggestions
         // This ensures suggestions show the default 3 when input is focused again
@@ -6460,46 +6367,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             followUpSuggestions = [];
         }
 
-        // Load settings/memories suggestions from chat metadata
-        // ARCHITECTURE: Settings/memories suggestions are always encrypted for real chats
-        // Public chats don't have settings/memories suggestions (they're demo content)
-        if (!isPublicChat(currentChat.chat_id) && currentChat.encrypted_settings_memories_suggestions) {
-            // Load rejected hashes first (these are stored in cleartext)
-            rejectedSuggestionHashes = currentChat.rejected_suggestion_hashes ?? null;
-            
-            try {
-                const chatKey = chatKeyManager.getKeySync(currentChat.chat_id);
-                if (!chatKey) {
-                    console.debug('[ActiveChat] No chat key for settings/memories suggestions in loadChat, skipping');
-                    throw new Error('Chat key not available');
-                }
-                const { decryptWithChatKey } = await import('../services/cryptoService');
-                const decryptedJson = await decryptWithChatKey(
-                    currentChat.encrypted_settings_memories_suggestions,
-                    chatKey,
-                    { chatId: currentChat.chat_id, fieldName: 'encrypted_settings_memories_suggestions' }
-                );
-                
-                if (decryptedJson) {
-                    const parsed = JSON.parse(decryptedJson);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        settingsMemoriesSuggestions = parsed;
-                        console.debug('[ActiveChat] Loaded settings/memories suggestions from database:', parsed.length);
-                    } else {
-                        settingsMemoriesSuggestions = [];
-                    }
-                } else {
-                    settingsMemoriesSuggestions = [];
-                }
-            } catch (error) {
-                console.error(`[ActiveChat] Failed to load settings/memories suggestions: chat_id=${currentChat.chat_id} field=encrypted_settings_memories_suggestions`, error);
-                settingsMemoriesSuggestions = [];
-            }
-        } else {
-            // Public chats or chats without suggestions - clear the state
-            settingsMemoriesSuggestions = [];
-            rejectedSuggestionHashes = null;
-        }
+
 
         if (chatHistoryRef) {
             // Update messages
@@ -7313,8 +7181,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 currentChat = null;
                 currentMessages = [];
                 followUpSuggestions = []; // Clear follow-up suggestions to prevent showing user responses
-                settingsMemoriesSuggestions = []; // Clear settings/memories suggestions
-                rejectedSuggestionHashes = null;
                 showWelcome = true; // Show welcome screen for new demo chat
                 isAtBottom = false;
                 
@@ -8724,8 +8590,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          currentChatId={currentChat?.chat_id}
                          {processingPhase}
                          {thinkingContentByTask}
-                         {settingsMemoriesSuggestions}
-                         {rejectedSuggestionHashes}
                          chatTitle={activeChatDecryptedTitle}
                          chatCategory={activeChatDecryptedCategory}
                          chatIcon={activeChatDecryptedIcon}
@@ -8736,9 +8600,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          {isCreditsRestored}
                          isIncognito={!!currentChat?.is_incognito}
                          onResend={handleResendAfterCreditsRestored}
-                         onSuggestionAdded={handleSettingsMemorySuggestionAdded}
-                         onSuggestionRejected={handleSettingsMemorySuggestionRejected}
-                         onSuggestionOpenForCustomize={handleSettingsMemorySuggestionOpenForCustomize}
                          on:messagesChange={handleMessagesChange}
                          on:chatUpdated={handleChatUpdated}
                          on:scrollPositionUI={handleScrollPositionUI}
