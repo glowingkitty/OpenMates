@@ -12,10 +12,13 @@
 #   GET  /admin/logs          — fetch recent Docker Compose logs (plain text)
 #   POST /admin/update        — git pull + docker compose build + docker compose up -d
 #   GET  /admin/update/status — poll the current/last update status (JSON)
+#   GET  /admin/version       — current version info: commit SHA, tag, branch (PUBLIC)
 #   GET  /health              — liveness probe
 #
 # Authentication:
-#   All /admin/* endpoints require X-Admin-Log-Key matching ADMIN_LOG_API_KEY env var.
+#   Most /admin/* endpoints require X-Admin-Log-Key matching ADMIN_LOG_API_KEY env var.
+#   Exception: /admin/version is public — version info is not sensitive and the
+#   sidecar is only reachable from localhost/Docker network.
 #
 # Configuration (all via environment variables):
 #   ADMIN_LOG_API_KEY      — shared secret for X-Admin-Log-Key header (required)
@@ -740,29 +743,32 @@ async def get_update_status(
 
 @app.get(
     "/admin/version",
-    summary="Get current version info (commit SHA, branch, deployment mode)",
+    summary="Get current version info (commit SHA, branch, tag, deployment mode)",
     description=(
-        "Returns the current git commit SHA, branch name, build timestamp, and "
-        "deployment mode (git or docker) for this server. "
-        "Requires X-Admin-Log-Key header matching ADMIN_LOG_API_KEY env var."
+        "Returns the current git commit SHA, branch name, version tag, build "
+        "timestamp, and deployment mode (git or docker) for this server. "
+        "This endpoint is PUBLIC (no auth required) because version info is not "
+        "sensitive and the sidecar is only reachable from localhost/Docker network."
     ),
 )
-async def get_version(
-    x_admin_log_key: Optional[str] = Header(None),
-) -> JSONResponse:
+async def get_version() -> JSONResponse:
     """
     Return current version info for this server.
 
+    This endpoint is intentionally public (no _require_admin_key) because:
+    - Version info is not sensitive (it's public on GitHub)
+    - The sidecar is bound to 127.0.0.1 / Docker network only
+    - The core API needs to call this without an admin key on first startup
+
     Detects deployment mode by checking for .git directory:
-    - If .git exists in GIT_WORK_DIR → git mode
-    - Otherwise → docker mode
+    - If .git exists in GIT_WORK_DIR -> git mode
+    - Otherwise -> docker mode
 
     Version info is read from:
     1. BUILD_COMMIT_SHA / BUILD_BRANCH / BUILD_TIMESTAMP env vars (if set at build time)
     2. git commands (if running in git mode with volume-mounted repo)
+    3. git describe --tags for the nearest release tag
     """
-    _require_admin_key(x_admin_log_key)
-
     work_dir = _GIT_WORK_DIR
     git_dir = os.path.join(work_dir, ".git")
 
@@ -806,6 +812,25 @@ async def get_version(
         except Exception as e:
             logger.warning("[AdminSidecar/version] git log failed: %s", e)
 
+    # Get the nearest version tag (e.g. "v0.5.0-alpha")
+    tag = os.environ.get("BUILD_VERSION_TAG", "")
+    if not tag and deployment_mode == "git":
+        try:
+            # --abbrev=0 returns the exact tag name without commit suffix
+            result = subprocess.run(
+                ["git", "describe", "--tags", "--abbrev=0"],
+                capture_output=True, text=True, timeout=5, cwd=work_dir,
+            )
+            if result.returncode == 0:
+                tag = result.stdout.strip()
+        except Exception as e:
+            logger.warning("[AdminSidecar/version] git describe --tags failed: %s", e)
+
+    # Build the tag URL (GitHub release page)
+    tag_url = ""
+    if tag:
+        tag_url = f"https://github.com/glowingkitty/OpenMates/releases/tag/{tag}"
+
     commit_info = None
     if sha:
         commit_info = {
@@ -813,6 +838,8 @@ async def get_version(
             "short_sha": sha[:7],
             "message": message,
             "date": build_timestamp,
+            "tag": tag,
+            "tag_url": tag_url,
         }
 
     return JSONResponse(
@@ -822,6 +849,8 @@ async def get_version(
             "branch": branch,
             "build_timestamp": build_timestamp,
             "commit": commit_info,
+            "tag": tag,
+            "tag_url": tag_url,
             "service_update_target": _SERVICE_UPDATE_TARGET,
         },
     )

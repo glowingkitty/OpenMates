@@ -1258,6 +1258,9 @@ changes to the documentation (to keep the documentation up to date).
             } else if (settingsPath === 'shared/share') {
                 // Special case: 'shared/share' uses 'settings.share' (share is at root level, not nested)
                 activeSubMenuTitleKey = 'settings.share';
+            } else if (settingsPath === 'server/software-update') {
+                // Software update page — use the existing root-level key (not settings.server.software_update)
+                activeSubMenuTitleKey = 'settings.software_updates';
             } else if (settingsPath.startsWith('account/storage/')) {
                 // Storage category sub-pages: account/storage/<category>
                 // Use the storage category label keys (e.g. storage_category_images)

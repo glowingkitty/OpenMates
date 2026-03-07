@@ -145,12 +145,17 @@ def _detect_deployment_mode() -> DeploymentMode:
     return DeploymentMode.DOCKER
 
 
-def _get_current_commit_info() -> Optional[CommitInfo]:
+async def _get_current_commit_info() -> Optional[CommitInfo]:
     """
-    Get the current commit info from build-time environment variables
-    or by running git commands if available.
+    Get the current commit info.
+
+    Priority:
+    1. Build-time env vars (BUILD_COMMIT_SHA etc.) — for Docker Hub images
+    2. Core admin sidecar /admin/version endpoint — for git-cloned deployments
+       (the API container doesn't have git, but the sidecar mounts the repo)
+    3. Git commands as last resort (works if source is volume-mounted into /app)
     """
-    # First try build-time env vars (injected by Docker build args)
+    # 1. Try build-time env vars (injected by Docker build args)
     sha = os.environ.get(ENV_BUILD_COMMIT_SHA, "")
     if sha:
         short_sha = sha[:7]
@@ -160,9 +165,34 @@ def _get_current_commit_info() -> Optional[CommitInfo]:
             message=os.environ.get("BUILD_COMMIT_MESSAGE", ""),
             date=os.environ.get(ENV_BUILD_TIMESTAMP, ""),
             url=f"{GITHUB_REPO_URL}/commit/{sha}",
+            tag=os.environ.get("BUILD_VERSION_TAG", ""),
+            tag_url=(
+                f"{GITHUB_REPO_URL}/releases/tag/{os.environ.get('BUILD_VERSION_TAG', '')}"
+                if os.environ.get("BUILD_VERSION_TAG", "") else ""
+            ),
         )
 
-    # Fall back to git command (works when source is volume-mounted)
+    # 2. Try core admin sidecar (has git access via volume mount)
+    core_sidecar_url = os.environ.get(ENV_CORE_SIDECAR_URL, "")
+    if core_sidecar_url:
+        sidecar_data = await _call_sidecar_public(
+            core_sidecar_url, "/admin/version"
+        )
+        if sidecar_data and sidecar_data.get("commit"):
+            commit_data = sidecar_data["commit"]
+            sha = commit_data.get("sha", "")
+            if sha:
+                return CommitInfo(
+                    sha=sha,
+                    short_sha=sha[:7],
+                    message=commit_data.get("message", ""),
+                    date=commit_data.get("date", ""),
+                    url=f"{GITHUB_REPO_URL}/commit/{sha}",
+                    tag=commit_data.get("tag", ""),
+                    tag_url=commit_data.get("tag_url", ""),
+                )
+
+    # 3. Fall back to git command (works when source is volume-mounted)
     try:
         sha = subprocess.run(
             ["git", "rev-parse", "HEAD"],
@@ -174,19 +204,32 @@ def _get_current_commit_info() -> Optional[CommitInfo]:
 
         short_sha = sha[:7]
 
-        # Get commit message
         message = subprocess.run(
             ["git", "log", "-1", "--format=%s"],
             capture_output=True, text=True, timeout=5,
             cwd="/app"
         ).stdout.strip()
 
-        # Get commit date
         date = subprocess.run(
             ["git", "log", "-1", "--format=%aI"],
             capture_output=True, text=True, timeout=5,
             cwd="/app"
         ).stdout.strip()
+
+        # Try to get the nearest tag
+        tag = ""
+        try:
+            tag_result = subprocess.run(
+                ["git", "describe", "--tags", "--abbrev=0"],
+                capture_output=True, text=True, timeout=5,
+                cwd="/app"
+            )
+            if tag_result.returncode == 0:
+                tag = tag_result.stdout.strip()
+        except Exception:
+            pass
+
+        tag_url = f"{GITHUB_REPO_URL}/releases/tag/{tag}" if tag else ""
 
         return CommitInfo(
             sha=sha,
@@ -194,18 +237,39 @@ def _get_current_commit_info() -> Optional[CommitInfo]:
             message=message,
             date=date,
             url=f"{GITHUB_REPO_URL}/commit/{sha}",
+            tag=tag,
+            tag_url=tag_url,
         )
     except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
         logger.warning("Could not get current commit info via git: %s", e)
         return None
 
 
-def _get_current_branch() -> str:
-    """Get the current git branch name."""
+async def _get_current_branch() -> str:
+    """
+    Get the current git branch name.
+
+    Priority:
+    1. BUILD_BRANCH env var (Docker Hub builds)
+    2. Core admin sidecar /admin/version endpoint
+    3. Git command as last resort
+    """
     branch = os.environ.get(ENV_BUILD_BRANCH, "")
     if branch:
         return branch
 
+    # Try core admin sidecar
+    core_sidecar_url = os.environ.get(ENV_CORE_SIDECAR_URL, "")
+    if core_sidecar_url:
+        sidecar_data = await _call_sidecar_public(
+            core_sidecar_url, "/admin/version"
+        )
+        if sidecar_data:
+            branch = sidecar_data.get("branch", "")
+            if branch:
+                return branch
+
+    # Fall back to git
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
@@ -304,6 +368,42 @@ async def _count_commits_behind(current_sha: str, latest_sha: str, branch: str) 
     return 0
 
 
+async def _call_sidecar_public(
+    base_url: str,
+    path: str,
+) -> Optional[dict]:
+    """
+    Make an HTTP GET request to a public (no-auth) sidecar endpoint.
+
+    Used for /admin/version which is intentionally unauthenticated.
+    Returns parsed JSON response or None on failure.
+    """
+    if not base_url:
+        return None
+
+    url = f"{base_url.rstrip('/')}{path}"
+    try:
+        async with httpx.AsyncClient(timeout=SIDECAR_REQUEST_TIMEOUT) as client:
+            response = await client.get(url)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                logger.warning(
+                    "Sidecar public request GET %s returned %d: %s",
+                    url, response.status_code, response.text[:200]
+                )
+                return None
+    except httpx.ConnectError:
+        logger.warning("Could not connect to sidecar at %s", base_url)
+        return None
+    except httpx.TimeoutException:
+        logger.warning("Sidecar public request timed out: GET %s", url)
+        return None
+    except Exception as e:
+        logger.error("Sidecar public request failed: GET %s: %s", url, e, exc_info=True)
+        return None
+
+
 async def _call_sidecar(
     base_url: str,
     path: str,
@@ -312,7 +412,7 @@ async def _call_sidecar(
     json_body: Optional[dict] = None,
 ) -> Optional[dict]:
     """
-    Make an HTTP request to an admin sidecar endpoint.
+    Make an HTTP request to an authenticated admin sidecar endpoint.
 
     Returns parsed JSON response or None on failure.
     """
@@ -360,17 +460,25 @@ async def _get_sidecar_version(
         reachable=False,
     )
 
-    result = await _call_sidecar(base_url, "/admin/version", api_key)
+    # /admin/version is public (no auth required) — try without key first
+    result = await _call_sidecar_public(base_url, "/admin/version")
+    if not result:
+        # Fall back to authenticated call for older sidecars
+        result = await _call_sidecar(base_url, "/admin/version", api_key)
     if result:
         info.reachable = True
         if "commit" in result and result["commit"]:
             sha = result["commit"].get("sha", "")
+            tag = result["commit"].get("tag", "") or result.get("tag", "")
+            tag_url = result["commit"].get("tag_url", "") or result.get("tag_url", "")
             info.commit = CommitInfo(
                 sha=sha,
                 short_sha=sha[:7] if sha else "",
                 message=result["commit"].get("message", ""),
                 date=result["commit"].get("date", ""),
                 url=f"{GITHUB_REPO_URL}/commit/{sha}" if sha else "",
+                tag=tag,
+                tag_url=tag_url,
             )
         info.branch = result.get("branch", "")
         info.build_timestamp = result.get("build_timestamp", "")
@@ -430,8 +538,8 @@ async def check_for_updates(
         return result
 
     # Git mode: compare current commit with latest on GitHub
-    current_commit = _get_current_commit_info()
-    branch = _get_current_branch()
+    current_commit = await _get_current_commit_info()
+    branch = await _get_current_branch()
 
     latest_commit = await _fetch_latest_github_commit(branch)
 
@@ -766,11 +874,11 @@ async def get_versions(
     deployment_mode = _detect_deployment_mode()
     services: list[ServiceVersionInfo] = []
 
-    # Core API (this service)
+    # Core API (this service) — version info from sidecar or build env vars
     core_info = ServiceVersionInfo(
         name="core",
-        commit=_get_current_commit_info(),
-        branch=_get_current_branch(),
+        commit=await _get_current_commit_info(),
+        branch=await _get_current_branch(),
         build_timestamp=os.environ.get(ENV_BUILD_TIMESTAMP, ""),
         deployment_mode=deployment_mode,
         reachable=True,

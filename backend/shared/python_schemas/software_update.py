@@ -70,6 +70,8 @@ class CommitInfo(BaseModel):
     message: str = Field("", description="Commit message (first line)")
     date: str = Field("", description="Commit date (ISO 8601)")
     url: str = Field("", description="GitHub URL to view this commit")
+    tag: str = Field("", description="Version tag (e.g. 'v0.5.0-alpha') if a release tag exists")
+    tag_url: str = Field("", description="URL to the release page for this tag")
 
 
 class ServiceVersionInfo(BaseModel):

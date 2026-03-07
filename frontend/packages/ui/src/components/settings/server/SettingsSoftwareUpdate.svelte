@@ -39,6 +39,8 @@ component:
         message: string;
         date: string;
         url: string;
+        tag: string;
+        tag_url: string;
     }
 
     interface UpdateCheckResult {
@@ -433,32 +435,43 @@ component:
 {:else}
     <!-- Normal view: version info + update action + settings -->
     <div in:fade={{ duration: 300 }}>
-        <!-- Version info header -->
+        <!-- Installed version info -->
+        <div class="version-header">
+            <span class="version-header-label">{$text('settings.installed')}</span>
+            <div class="version-links">
+                {#if currentCommit?.tag}
+                    <a
+                        href={currentCommit.tag_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="version-tag-link"
+                    >
+                        {currentCommit.tag}
+                    </a>
+                {/if}
+                {#if currentCommit?.short_sha}
+                    <a
+                        href={currentCommit.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="commit-link"
+                    >
+                        {currentCommit.short_sha}
+                    </a>
+                {:else}
+                    <span class="version-unknown">—</span>
+                {/if}
+            </div>
+        </div>
+
         {#if hasUpdate && latestCommit}
-            <SettingsItem
-                type="heading"
-                icon="subsetting_icon download"
-                subtitleTop={$text('settings.new_update_available')}
-                title={latestCommit.short_sha}
-            />
+            <!-- Update available -->
+            <div class="update-available-banner">
+                <span class="download-icon small"></span>
+                <p class="update-available-text">{$text('settings.new_update_available')}</p>
+            </div>
 
             <div class="version-info">
-                <div class="version-row">
-                    <span class="version-label">{$text('settings.current_version')}:</span>
-                    {#if currentCommit}
-                        <a
-                            href={currentCommit.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="commit-link"
-                        >
-                            {currentCommit.short_sha}
-                        </a>
-                    {:else}
-                        <span class="version-value">—</span>
-                    {/if}
-                </div>
-
                 {#if commitsBehind > 0}
                     <p class="commits-behind">
                         {$text('settings.commits_behind').replace('{count}', String(commitsBehind))}
@@ -480,30 +493,10 @@ component:
             <p class="restart-notice">{@html $text('settings.server_will_be_restarted')}</p>
         {:else}
             <!-- Up to date -->
-            <SettingsItem
-                type="heading"
-                icon="subsetting_icon download"
-                subtitleTop={$text('settings.installed')}
-                title={currentCommit?.short_sha ?? '—'}
-            />
-
             <div class="up-to-date-container">
                 <span class="check-icon small"></span>
                 <p class="up-to-date-text">{$text('settings.up_to_date')}</p>
             </div>
-
-            {#if currentCommit?.url}
-                <div class="version-info">
-                    <a
-                        href={currentCommit.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="github-link"
-                    >
-                        {$text('settings.view_on_github')}
-                    </a>
-                </div>
-            {/if}
 
             <div class="check-button-container">
                 <button class="secondary-button" onclick={() => checkForUpdates()}>
@@ -649,19 +642,28 @@ component:
         background: var(--color-primary);
     }
 
-    .check-icon.small {
+    .check-icon.small,
+    .download-icon.small {
         width: 20px;
         height: 20px;
     }
 
     .search-icon {
-        -webkit-mask: url('@openmates/ui/static/icons/search.svg') no-repeat center;
-        mask: url('@openmates/ui/static/icons/search.svg') no-repeat center;
+        -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
+        mask-image: url('@openmates/ui/static/icons/search.svg');
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
     }
 
     .download-icon {
-        -webkit-mask: url('@openmates/ui/static/icons/download.svg') no-repeat center;
-        mask: url('@openmates/ui/static/icons/download.svg') no-repeat center;
+        -webkit-mask-image: url('@openmates/ui/static/icons/download.svg');
+        mask-image: url('@openmates/ui/static/icons/download.svg');
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
     }
 
     .download-icon.animated {
@@ -669,14 +671,22 @@ component:
     }
 
     .check-icon {
-        -webkit-mask: url('@openmates/ui/static/icons/check.svg') no-repeat center;
-        mask: url('@openmates/ui/static/icons/check.svg') no-repeat center;
+        -webkit-mask-image: url('@openmates/ui/static/icons/check.svg');
+        mask-image: url('@openmates/ui/static/icons/check.svg');
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
         background: #58BC00;
     }
 
     .error-icon {
-        -webkit-mask: url('@openmates/ui/static/icons/close.svg') no-repeat center;
-        mask: url('@openmates/ui/static/icons/close.svg') no-repeat center;
+        -webkit-mask-image: url('@openmates/ui/static/icons/close.svg');
+        mask-image: url('@openmates/ui/static/icons/close.svg');
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
         background: #FF4444;
     }
 
@@ -713,6 +723,63 @@ component:
         margin: 0;
     }
 
+    /* Version header (Installed + tag + commit) */
+    .version-header {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        margin-top: 24px;
+        padding: 0 20px;
+    }
+
+    .version-header-label {
+        color: var(--color-grey-60);
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .version-links {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .version-tag-link {
+        color: var(--color-text);
+        font-size: 18px;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .version-tag-link:hover {
+        text-decoration: underline;
+        color: var(--color-primary);
+    }
+
+    .version-unknown {
+        color: var(--color-grey-50);
+        font-size: 14px;
+    }
+
+    /* Update available banner */
+    .update-available-banner {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 16px;
+    }
+
+    .update-available-text {
+        color: var(--color-primary);
+        font-size: 14px;
+        margin: 0;
+    }
+
     /* Version info */
     .version-info {
         display: flex;
@@ -721,17 +788,6 @@ component:
         gap: 6px;
         margin-top: 12px;
         padding: 0 20px;
-    }
-
-    .version-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .version-label {
-        color: var(--color-grey-60);
-        font-size: 13px;
     }
 
     .version-value {
@@ -769,16 +825,6 @@ component:
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-    }
-
-    .github-link {
-        color: var(--color-primary);
-        font-size: 13px;
-        text-decoration: none;
-    }
-
-    .github-link:hover {
-        text-decoration: underline;
     }
 
     /* Buttons */
