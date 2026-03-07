@@ -63,10 +63,11 @@
   /** Category gradient colors for the card background. Falls back to primary if not found. */
   let categoryGradientColors = $derived(getCategoryGradientColors(category));
   
-  /** Inline style for the gradient background */
+  /** Inline style for the gradient background + orb CSS custom properties.
+   *  --orb-color-a (start) and --orb-color-b (end) feed the living gradient orbs. */
   let gradientStyle = $derived(
     categoryGradientColors
-      ? `background: linear-gradient(135deg, ${categoryGradientColors.start}, ${categoryGradientColors.end})`
+      ? `background: linear-gradient(135deg, ${categoryGradientColors.start}, ${categoryGradientColors.end}); --orb-color-a: ${categoryGradientColors.start}; --orb-color-b: ${categoryGradientColors.end}`
       : 'background: var(--color-primary)'
   );
   
@@ -154,7 +155,16 @@
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}
 >
-  <!-- Large decorative icons at card edges (like ChatHeader) -->
+  <!-- Living gradient orbs — three morphing blobs (same system as ActiveChat resume card).
+       Uses smaller resumeOrbDrift keyframes + blur(22px) to suit the 300×200px card. -->
+  <div class="chat-preview-orbs" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <!-- Large decorative icons at card edges — two-phase: decoEnter → decoFloat orbital.
+       Smaller orbit radius (7×8px) for the compact card. -->
   {#if CategoryIconComponent}
     <div class="deco-icon deco-icon-left">
       <CategoryIconComponent size={80} color="white" />
@@ -289,8 +299,85 @@
   }
 
   /* ===========================================
+     Living gradient orbs (300×200px card)
+     Same system as ActiveChat resume card:
+     smaller drift (resumeOrbDrift), blur(22px).
+     Shared keyframes in animations.css.
+     =========================================== */
+
+  .chat-preview-orbs {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+    border-radius: 30px; /* match card border-radius so orbs don't bleed */
+  }
+
+  .orb {
+    position: absolute;
+    width: 280px;
+    height: 240px;
+    filter: blur(22px);
+    opacity: 0.55;
+    will-change: transform, border-radius;
+  }
+
+  /* Orb 1 — color-b (end), top-left anchor */
+  .orb-1 {
+    top: -60px;
+    left: -70px;
+    background: radial-gradient(
+      ellipse at center,
+      var(--orb-color-b, #fff) 0%,
+      var(--orb-color-b, #fff) 40%,
+      transparent 85%
+    );
+    animation:
+      orbMorph1 11s ease-in-out infinite,
+      resumeOrbDrift1 19s ease-in-out infinite;
+  }
+
+  /* Orb 2 — color-a (start), bottom-right anchor */
+  .orb-2 {
+    bottom: -80px;
+    right: -80px;
+    width: 260px;
+    height: 220px;
+    background: radial-gradient(
+      ellipse at center,
+      var(--orb-color-a, #fff) 0%,
+      var(--orb-color-a, #fff) 40%,
+      transparent 85%
+    );
+    animation:
+      orbMorph2 13s ease-in-out infinite,
+      resumeOrbDrift2 23s ease-in-out infinite;
+  }
+
+  /* Orb 3 — color-b (end), center-left for depth */
+  .orb-3 {
+    top: -10px;
+    left: 25%;
+    width: 200px;
+    height: 180px;
+    opacity: 0.38;
+    background: radial-gradient(
+      ellipse at center,
+      var(--orb-color-b, #fff) 0%,
+      var(--orb-color-b, #fff) 40%,
+      transparent 85%
+    );
+    animation:
+      orbMorph3 17s ease-in-out infinite,
+      resumeOrbDrift3 29s ease-in-out infinite;
+  }
+
+  /* ===========================================
      Decorative icons at card edges
-     Matching ChatHeader.svelte deco-icon pattern
+     Two-phase: decoEnter (one-shot) → decoFloat (16s orbital).
+     Smaller orbit (7×8px) for 300×200px card.
+     Shared keyframes in animations.css.
      =========================================== */
 
   .deco-icon {
@@ -302,24 +389,45 @@
     justify-content: center;
     z-index: 1;
     pointer-events: none;
-    opacity: 0.3;
+    --float-rx: 7px;
+    --float-ry: 8px;
+    --deco-target-opacity: 0.3;
+    animation:
+      decoEnter 0.6s ease-out 0.1s both,
+      decoFloat 16s linear 0.7s infinite;
   }
 
   .deco-icon-left {
     left: -10px;
     bottom: -8px;
-    transform: rotate(-15deg);
+    --deco-rotate: -15deg;
   }
 
   .deco-icon-right {
     right: -10px;
     bottom: -8px;
-    transform: rotate(15deg);
+    --deco-rotate: 15deg;
+    /* Negative delay: start mid-orbit (half-cycle) immediately — no freeze */
+    animation-delay: 0.1s, -8s;
   }
 
   /* Ensure Lucide SVGs inside deco icons render at the right size */
   .deco-icon :global(svg) {
     width: 80px !important;
     height: 80px !important;
+  }
+
+  /* ===========================================
+     Accessibility: disable all animations
+     =========================================== */
+
+  @media (prefers-reduced-motion: reduce) {
+    .orb {
+      animation: none;
+    }
+
+    .deco-icon {
+      animation: decoEnter 0.6s ease-out 0.1s both !important;
+    }
   }
 </style>
