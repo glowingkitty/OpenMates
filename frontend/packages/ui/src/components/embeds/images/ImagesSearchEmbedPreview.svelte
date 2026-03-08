@@ -18,7 +18,7 @@
   import { handleImageError } from '../../../utils/offlineImageHandler';
 
   /** Proxy base URL - all external images must go through this to protect user IP */
-  const PROXY_BASE = 'https://preview.openmates.org/proxy?url=';
+  const PROXY_BASE = 'https://preview.openmates.org/api/v1/image?url=';
 
   /**
    * Single image search result (child embed content schema).
@@ -84,7 +84,7 @@
   let results   = $derived(localResults);
   let taskId    = $derived(localTaskId);
 
-  const skillIconName = 'search';
+  const skillIconName = 'image-search';
   let skillName = $derived($text('app_skills.images.search'));
 
   // Show first 4 thumbnails in the mosaic

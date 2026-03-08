@@ -2,7 +2,8 @@
   frontend/packages/ui/src/components/embeds/images/ImageResultEmbedPreview.svelte
 
   Preview card for a single image_result child embed.
-  Displays thumbnail image, title, and source domain.
+  Displays a thumbnail image covering the full preview container,
+  similar to ImageEmbedPreview's full-bleed image style.
 
   Used by ImagesSearchEmbedFullscreen as child cards in the image grid.
   External images are proxied by the caller (ImagesSearchEmbedFullscreen).
@@ -44,61 +45,48 @@
 </script>
 
 <div class="image-result-card">
-  <!-- Image area -->
-  <div class="image-area" class:loaded={imageLoaded} class:failed={imageFailed}>
-    {#if thumbnailUrl && !imageFailed}
-      <img
-        src={thumbnailUrl}
-        alt={title || ''}
-        class="result-image"
-        class:visible={imageLoaded}
-        onload={handleLoad}
-        onerror={handleFail}
-        use:handleImageError
-      />
-    {:else}
-      <!-- Fallback placeholder -->
-      <div class="image-placeholder">
-        <span class="placeholder-icon clickable-icon icon_image"></span>
-      </div>
-    {/if}
-  </div>
+  {#if thumbnailUrl && !imageFailed}
+    <img
+      src={thumbnailUrl}
+      alt={title || ''}
+      class="result-image"
+      class:visible={imageLoaded}
+      onload={handleLoad}
+      onerror={handleFail}
+      use:handleImageError
+    />
+  {:else}
+    <!-- Fallback placeholder -->
+    <div class="image-placeholder">
+      <span class="placeholder-icon clickable-icon icon_image"></span>
+    </div>
+  {/if}
 
-  <!-- Source info below image -->
-  <div class="card-info">
-    {#if faviconUrl || sourceDomain}
-      <div class="source-line">
-        {#if faviconUrl}
-          <img src={faviconUrl} alt="" class="favicon" use:handleImageError />
-        {/if}
-        {#if sourceDomain}
+  <!-- Overlay info at bottom -->
+  {#if (title || sourceDomain) && imageLoaded}
+    <div class="card-overlay">
+      {#if sourceDomain}
+        <div class="source-line">
+          {#if faviconUrl}
+            <img src={faviconUrl} alt="" class="favicon" use:handleImageError />
+          {/if}
           <span class="source-domain">{sourceDomain}</span>
-        {/if}
-      </div>
-    {/if}
-    {#if title}
-      <span class="result-title">{title}</span>
-    {/if}
-  </div>
+        </div>
+      {/if}
+      {#if title}
+        <span class="result-title">{title}</span>
+      {/if}
+    </div>
+  {/if}
 </div>
 
 <style>
   .image-result-card {
-    display: flex;
-    flex-direction: column;
-    border-radius: 10px;
-    overflow: hidden;
-    background: var(--color-grey-5, #fafafa);
-    border: 1px solid var(--color-grey-15, #eee);
-    width: 100%;
-  }
-
-  /* Image area: fixed aspect ratio container */
-  .image-area {
+    position: relative;
     width: 100%;
     aspect-ratio: 4/3;
+    border-radius: 10px;
     overflow: hidden;
-    position: relative;
     background: var(--color-grey-15, #ebebeb);
   }
 
@@ -131,19 +119,23 @@
     background: var(--color-grey-40, #bbb) !important;
   }
 
-  /* Source info */
-  .card-info {
-    padding: 8px 10px;
+  /* Overlay at bottom with gradient for readability */
+  .card-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 20px 10px 8px;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.55));
     display: flex;
     flex-direction: column;
-    gap: 3px;
-    min-height: 0;
+    gap: 2px;
   }
 
   .source-line {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
   }
 
   .favicon {
@@ -151,11 +143,12 @@
     height: 12px;
     flex-shrink: 0;
     object-fit: contain;
+    border-radius: 2px;
   }
 
   .source-domain {
     font-size: 10px;
-    color: var(--color-grey-50, #888);
+    color: rgba(255, 255, 255, 0.75);
     line-height: 1.3;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -166,8 +159,8 @@
   .result-title {
     font-size: 11px;
     font-weight: 500;
-    color: var(--color-grey-80, #333);
-    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.95);
+    line-height: 1.3;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
@@ -178,24 +171,14 @@
 
   /* Dark mode */
   :global(.dark) .image-result-card {
-    background: var(--color-grey-90, #1a1a1a);
-    border-color: var(--color-grey-80, #333);
+    background: var(--color-grey-85, #222);
   }
 
-  :global(.dark) .image-area,
   :global(.dark) .image-placeholder {
     background: var(--color-grey-85, #222);
   }
 
   :global(.dark) .placeholder-icon {
     background: var(--color-grey-70, #555) !important;
-  }
-
-  :global(.dark) .result-title {
-    color: var(--color-grey-20, #ddd);
-  }
-
-  :global(.dark) .source-domain {
-    color: var(--color-grey-50, #888);
   }
 </style>

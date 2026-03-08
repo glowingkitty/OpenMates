@@ -51,6 +51,7 @@
   import ImagesSearchEmbedPreviewLarge from './images/ImagesSearchEmbedPreviewLarge.svelte';
   import ImageGenerateEmbedPreviewLarge from './images/ImageGenerateEmbedPreviewLarge.svelte';
   import ImageViewEmbedPreviewLarge from './images/ImageViewEmbedPreviewLarge.svelte';
+  import ImageResultEmbedPreviewLarge from './images/ImageResultEmbedPreviewLarge.svelte';
   import EventsSearchEmbedPreviewLarge from './events/EventsSearchEmbedPreviewLarge.svelte';
   import HealthSearchEmbedPreviewLarge from './health/HealthSearchEmbedPreviewLarge.svelte';
   import ShoppingSearchEmbedPreviewLarge from './shopping/ShoppingSearchEmbedPreviewLarge.svelte';
@@ -193,6 +194,7 @@
     | typeof ImagesSearchEmbedPreviewLarge
     | typeof ImageGenerateEmbedPreviewLarge
     | typeof ImageViewEmbedPreviewLarge
+    | typeof ImageResultEmbedPreviewLarge
     | typeof EventsSearchEmbedPreviewLarge
     | typeof HealthSearchEmbedPreviewLarge
     | typeof ShoppingSearchEmbedPreviewLarge
@@ -227,6 +229,7 @@
     if (aid === 'images') {
       if (sid === 'generate' || sid === 'generate_draft') return ImageGenerateEmbedPreviewLarge;
       if (sid === 'view') return ImageViewEmbedPreviewLarge;
+      if (sid === 'image_result') return ImageResultEmbedPreviewLarge;
       return ImagesSearchEmbedPreviewLarge;
     }
     if (aid === 'events') return EventsSearchEmbedPreviewLarge;
@@ -288,6 +291,8 @@
         <ImageGenerateEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
       {:else if largeComponent === ImageViewEmbedPreviewLarge}
         <ImageViewEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === ImageResultEmbedPreviewLarge}
+        <ImageResultEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
       {:else if largeComponent === EventsSearchEmbedPreviewLarge}
         <EventsSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
       {:else if largeComponent === HealthSearchEmbedPreviewLarge}
@@ -372,6 +377,8 @@
       <ImageGenerateEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
     {:else if largeComponent === ImageViewEmbedPreviewLarge}
       <ImageViewEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === ImageResultEmbedPreviewLarge}
+      <ImageResultEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
     {:else if largeComponent === EventsSearchEmbedPreviewLarge}
       <EventsSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
     {:else if largeComponent === HealthSearchEmbedPreviewLarge}

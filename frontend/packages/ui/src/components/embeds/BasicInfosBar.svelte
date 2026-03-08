@@ -299,6 +299,11 @@
     mask-image: url('@openmates/ui/static/icons/image.svg');
   }
   
+  .basic-infos-bar .skill-icon[data-skill-icon="image-search"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/image-search.svg');
+    mask-image: url('@openmates/ui/static/icons/image-search.svg');
+  }
+  
   .basic-infos-bar .skill-icon[data-skill-icon="ai"] {
     -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
     mask-image: url('@openmates/ui/static/icons/ai.svg');

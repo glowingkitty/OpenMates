@@ -76,7 +76,7 @@
   skillIconName="image-search"
   {embedHeaderTitle}
   {embedHeaderSubtitle}
-  showSkillIcon={false}
+  showSkillIcon={true}
   {onClose}
   currentEmbedId={embedId}
   {hasPreviousEmbed}
@@ -148,7 +148,7 @@
             rel="noopener noreferrer"
             class="source-link"
           >
-            <span class="clickable-icon icon_external_link link-icon"></span>
+            <span class="clickable-icon icon_web link-icon"></span>
             <span>{$text('embeds.image_search.view_source')}</span>
           </a>
         {/if}

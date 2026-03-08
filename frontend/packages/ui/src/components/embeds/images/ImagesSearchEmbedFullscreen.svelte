@@ -22,7 +22,7 @@
   import { text } from '@repo/ui';
 
   /** Proxy base URL - all external images must go through this to protect user IP */
-  const PROXY_BASE = 'https://preview.openmates.org/proxy?url=';
+  const PROXY_BASE = 'https://preview.openmates.org/api/v1/image?url=';
 
   /**
    * Single image result (child embed content schema).
@@ -226,7 +226,7 @@
       {:else}
         <!-- Empty state -->
         <div class="empty-state">
-          <span class="empty-icon clickable-icon icon_image-search"></span>
+          <span class="empty-icon clickable-icon icon_image"></span>
           <p class="empty-text">{$text('embeds.image_search.error')}</p>
         </div>
       {/if}
