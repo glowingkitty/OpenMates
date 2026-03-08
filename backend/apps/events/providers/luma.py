@@ -5,6 +5,13 @@
 # Uses Luma's internal API at api2.luma.com — discovered by intercepting
 # browser network traffic on luma.com. No API key or auth required.
 #
+# Proxy fallback: All HTTP requests are attempted without a proxy first.
+# If Luma rejects the direct request (HTTP 403/429/5xx or connection error),
+# the request is retried once via the Webshare rotating residential proxy
+# (same credentials used for Meetup). proxy_url is passed in from the skill
+# layer. This makes the provider future-proof against Cloudflare bot-protection
+# being enabled on luma.com or api2.luma.com.
+#
 # Architecture: Reverse-engineered from luma.com web app (March 2026).
 # See docs/apis/luma.md for full integration summary.
 #
@@ -39,6 +46,11 @@ _HTTP_TIMEOUT = 20.0
 
 # Maximum description length to return (characters). ProseMirror docs can be large.
 _MAX_DESCRIPTION_CHARS = 2000
+
+# HTTP status codes indicating Luma is rejecting direct (non-proxy) requests.
+# On these codes, the request is retried once via the Webshare proxy.
+# 429 = rate-limited, 403 = bot-blocked, 5xx = server-side rejection.
+_REJECTION_STATUS_CODES = {403, 429, 500, 502, 503, 504}
 
 # Headers mimicking what luma.com sends. Origin+Referer are required for CORS.
 _HEADERS = {
@@ -222,6 +234,7 @@ async def search_events_async(
     query: Optional[str] = None,
     count: int = 10,
     fetch_descriptions: bool = True,
+    proxy_url: Optional[str] = None,
 ) -> Tuple[List[Dict[str, Any]], int]:
     """
     Search Luma.com for events in a specific city (async).
@@ -239,13 +252,17 @@ async def search_events_async(
         fetch_descriptions: If True (default), fetch full descriptions from event
                             pages in parallel. Adds 1 HTTP request per event.
                             Set to False for faster results without descriptions.
+        proxy_url:          Optional Webshare rotating residential proxy URL
+                            (e.g. "http://user-rotate:pass@p.webshare.io:80/").
+                            Used as fallback if the direct request is rejected.
+                            When None, no proxy fallback is attempted.
 
     Returns:
         Tuple of (events_list, total_available).
 
     Raises:
         ValueError: City not supported by Luma.
-        RuntimeError: HTTP or API error from Luma.
+        RuntimeError: HTTP or API error from Luma (after proxy retry if applicable).
     """
     place_id, _slug, city_name = resolve_city(city)
     count = max(1, count)
@@ -270,8 +287,13 @@ async def search_events_async(
 
         t0 = time.time()
         try:
-            async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT, follow_redirects=True) as client:
-                resp = await client.get(_EVENTS_ENDPOINT, params=params, headers=_HEADERS)
+            resp = await _get_with_proxy_fallback(
+                url=_EVENTS_ENDPOINT,
+                params=params,
+                headers=_HEADERS,
+                proxy_url=proxy_url,
+                label="Luma API",
+            )
         except httpx.RequestError as exc:
             raise RuntimeError(f"HTTP request to Luma API failed: {exc}") from exc
 
@@ -302,7 +324,7 @@ async def search_events_async(
     # Fetch descriptions in parallel from lu.ma/<slug> pages.
     if fetch_descriptions and events:
         slugs = [ev.get("_url_slug") for ev in events]
-        descriptions = await _fetch_descriptions_parallel(slugs)
+        descriptions = await _fetch_descriptions_parallel(slugs, proxy_url=proxy_url)
         for ev, desc in zip(events, descriptions):
             ev["description"] = desc
             ev.pop("_url_slug", None)
@@ -392,30 +414,132 @@ def _normalise_event(entry: Dict[str, Any], city_fallback: str = "") -> Dict[str
     }
 
 
+async def _get_with_proxy_fallback(
+    url: str,
+    headers: Dict[str, str],
+    proxy_url: Optional[str] = None,
+    params: Optional[Dict[str, Any]] = None,
+    label: str = "",
+) -> httpx.Response:
+    """
+    Perform an async GET request, retrying via proxy on rejection.
+
+    Strategy:
+      1. Attempt the request without a proxy (direct).
+      2. If the response status is in _REJECTION_STATUS_CODES (403/429/5xx),
+         OR a connection/network error occurs, AND proxy_url is provided:
+         retry exactly once via the Webshare rotating residential proxy.
+      3. Return the response from whichever attempt last completed (or raise
+         if both attempts failed with network errors).
+
+    This keeps Luma requests direct (cheaper, faster) under normal conditions
+    while providing automatic fallback if Cloudflare bot-protection activates.
+
+    Args:
+        url:       Full URL to GET.
+        headers:   HTTP headers dict to send with the request.
+        proxy_url: Optional Webshare rotating proxy URL. If None, no retry is done.
+        params:    Optional query parameters dict.
+        label:     Short description for log messages (e.g. "Luma API", "lu.ma/abc").
+
+    Returns:
+        httpx.Response from the successful (or last) attempt.
+
+    Raises:
+        httpx.RequestError: If the direct request fails with a network error and
+                            proxy_url is None, or if the proxy retry also fails.
+    """
+    # --- Attempt 1: direct (no proxy) ---
+    direct_error: Optional[Exception] = None
+    direct_resp: Optional[httpx.Response] = None
+    try:
+        async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT, follow_redirects=True) as client:
+            direct_resp = await client.get(url, params=params, headers=headers)
+    except httpx.RequestError as exc:
+        direct_error = exc
+        logger.debug("%s: direct request network error: %s", label, exc)
+
+    # Return immediately if direct request returned a non-rejection HTTP status.
+    if direct_resp is not None and direct_resp.status_code not in _REJECTION_STATUS_CODES:
+        return direct_resp
+
+    # No proxy configured — either re-raise the network error or return the response.
+    if not proxy_url:
+        if direct_error:
+            raise direct_error
+        return direct_resp  # type: ignore[return-value]
+
+    # Log reason for proxy retry.
+    if direct_error:
+        logger.info(
+            "%s: direct request failed (%s) — retrying via Webshare proxy", label, direct_error
+        )
+    else:
+        logger.info(
+            "%s: direct request returned HTTP %d — retrying via Webshare proxy",
+            label,
+            direct_resp.status_code,  # type: ignore[union-attr]
+        )
+
+    # --- Attempt 2: via Webshare rotating residential proxy ---
+    try:
+        async with httpx.AsyncClient(
+            proxy=proxy_url,
+            timeout=_HTTP_TIMEOUT,
+            follow_redirects=True,
+        ) as client:
+            proxy_resp = await client.get(url, params=params, headers=headers)
+        logger.debug("%s: proxy retry returned HTTP %d", label, proxy_resp.status_code)
+        return proxy_resp
+    except httpx.RequestError as proxy_exc:
+        logger.warning("%s: proxy retry also failed with network error: %s", label, proxy_exc)
+        # Proxy network error: if direct also had a network error, raise proxy error.
+        # If direct returned a rejection status, return that so caller sees the HTTP status.
+        if direct_error:
+            raise proxy_exc
+        return direct_resp  # type: ignore[return-value]
+
+
 async def _fetch_descriptions_parallel(
     slugs: List[Optional[str]],
+    proxy_url: Optional[str] = None,
 ) -> List[Optional[str]]:
     """
     Fetch event descriptions in parallel from lu.ma/<slug> pages.
 
     Extracts from __NEXT_DATA__ -> description_mirror (ProseMirror AST).
     Falls back to og:description meta tag (truncated ~155 chars).
-    Returns None for any slug that fails.
+    Returns None for any slug that fails. Proxy fallback applied per-request.
+
+    Args:
+        slugs:     List of Luma URL slugs (None entries return None immediately).
+        proxy_url: Optional proxy URL passed to each individual fetch for fallback.
     """
-    tasks = [_fetch_single_description(slug) for slug in slugs]
+    tasks = [_fetch_single_description(slug, proxy_url=proxy_url) for slug in slugs]
     return list(await asyncio.gather(*tasks))
 
 
-async def _fetch_single_description(slug: Optional[str]) -> Optional[str]:
-    """Fetch description for a single Luma event page. Returns None on error."""
+async def _fetch_single_description(
+    slug: Optional[str],
+    proxy_url: Optional[str] = None,
+) -> Optional[str]:
+    """
+    Fetch description for a single Luma event page. Returns None on error.
+
+    Tries direct request first; retries via proxy on rejection if proxy_url set.
+    """
     if not slug:
         return None
 
     url = f"https://lu.ma/{slug}"
     try:
-        async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT, follow_redirects=True) as client:
-            resp = await client.get(url, headers=_HEADERS_HTML)
-    except httpx.RequestError as exc:
+        resp = await _get_with_proxy_fallback(
+            url=url,
+            headers=_HEADERS_HTML,
+            proxy_url=proxy_url,
+            label=f"lu.ma/{slug}",
+        )
+    except (httpx.RequestError, RuntimeError) as exc:
         logger.debug("Luma description fetch failed for %r: %s", slug, exc)
         return None
 

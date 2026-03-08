@@ -270,6 +270,7 @@ class SearchSkill(BaseSkill):
         query: str,
         location_str: str,
         count: int,
+        proxy_url: Optional[str] = None,
     ) -> Tuple[List[Dict[str, Any]], int, Optional[str]]:
         """
         Search Luma and return (events, total_available, error_or_None).
@@ -277,6 +278,9 @@ class SearchSkill(BaseSkill):
 
         If the city is not in Luma's 78 featured cities, returns empty list
         (not an error — Luma simply doesn't cover that city).
+
+        proxy_url is passed to luma_provider.search_events_async() for use as a
+        fallback if Luma rejects the direct request. See luma.py for retry logic.
         """
         try:
             events, total = await luma_provider.search_events_async(
@@ -284,6 +288,7 @@ class SearchSkill(BaseSkill):
                 query=query,
                 count=count,
                 fetch_descriptions=True,
+                proxy_url=proxy_url,
             )
             return events, total, None
         except ValueError:
@@ -458,6 +463,7 @@ class SearchSkill(BaseSkill):
                 query=query,
                 location_str=luma_city,
                 count=count,
+                proxy_url=proxy_url,
             )
             if luma_err and not luma_events:
                 return (request_id, [], f"Luma search failed: {luma_err}", 0)
@@ -484,6 +490,7 @@ class SearchSkill(BaseSkill):
                 query=query,
                 location_str=luma_city,
                 count=per_provider_count,
+                proxy_url=proxy_url,
             )
 
             (meetup_events, meetup_total, meetup_err), (luma_events, luma_total, _luma_err) = (
@@ -567,6 +574,8 @@ class SearchSkill(BaseSkill):
 
         # Load Webshare rotating residential proxy credentials from Vault.
         # Used for Meetup requests to avoid server-side IP rate limiting.
+        # Also passed to Luma as a fallback proxy — Luma uses it only if the
+        # direct request is rejected (HTTP 403/429/5xx). See luma.py for details.
         proxy_url: Optional[str] = None
         if secrets_manager:
             try:
