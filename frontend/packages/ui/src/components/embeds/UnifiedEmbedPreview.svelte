@@ -321,10 +321,28 @@
   let mouseY = $state(0); // Normalized -1 to 1 (center = 0)
   
   // Configuration for the tilt effect
-  // NOTE: Keep values subtle for a polished feel without being distracting
-  const TILT_MAX_ANGLE = 3; // Maximum tilt angle in degrees (subtle effect)
-  const TILT_PERSPECTIVE = 800; // Perspective distance in pixels (higher = more subtle)
-  const TILT_SCALE = 0.985; // Scale on hover (closer to 1 = more subtle)
+  // NOTE: Keep values subtle for a polished feel without being distracting.
+  // Large preview cards (.unified-embed-preview-large ancestor) use even more
+  // reduced tilt because the 3D effect is too pronounced on wider/taller cards.
+  const TILT_MAX_ANGLE_STANDARD = 3;      // Standard card max tilt (degrees)
+  const TILT_MAX_ANGLE_LARGE = 1;         // Large card max tilt (degrees)
+  const TILT_PERSPECTIVE_STANDARD = 800;   // Standard perspective (px)
+  const TILT_PERSPECTIVE_LARGE = 1200;     // Large perspective — more subtle (px)
+  const TILT_SCALE_STANDARD = 0.985;       // Standard scale on hover
+  const TILT_SCALE_LARGE = 0.995;          // Large scale — barely noticeable
+
+  // Detect whether this card is inside a large preview wrapper.
+  // Checked once when previewElement is bound (not reactive to DOM changes).
+  let isLargeContext = $state(false);
+  $effect(() => {
+    if (previewElement) {
+      isLargeContext = !!previewElement.closest('.unified-embed-preview-large');
+    }
+  });
+
+  let TILT_MAX_ANGLE = $derived(isLargeContext ? TILT_MAX_ANGLE_LARGE : TILT_MAX_ANGLE_STANDARD);
+  let TILT_PERSPECTIVE = $derived(isLargeContext ? TILT_PERSPECTIVE_LARGE : TILT_PERSPECTIVE_STANDARD);
+  let TILT_SCALE = $derived(isLargeContext ? TILT_SCALE_LARGE : TILT_SCALE_STANDARD);
   
   /**
    * Calculate CSS transform string for the 3D tilt effect

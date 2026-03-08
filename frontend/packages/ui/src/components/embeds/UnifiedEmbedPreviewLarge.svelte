@@ -14,7 +14,7 @@
   //   - BasicInfosBar stays at the standard ~300px width, horizontally centered
   //     within the wider card so it does not stretch across the full card width
   //   - BasicInfosBar protrudes 15px below the card via translateY (overflow:visible)
-  //   - Image content is still clipped at rounded corners via overflow:hidden on .details-section
+  //   - Image corners are clipped via border-radius on .website-preview-image (not .details-section)
   //
   // Tests: frontend/packages/ui/src/message_parsing/__tests__/parse_message.test.ts
 
@@ -53,14 +53,10 @@
     overflow: visible !important;
   }
 
-  /* Clip the image content at the card's rounded corners even though the outer
-     container has overflow:visible.  The details-section wraps the image/text
-     area and sits above the BasicInfosBar, so clipping here keeps images within
-     the rounded card edges without affecting the protruding info bar. */
-  .unified-embed-preview-large :global(.desktop-layout .details-section) {
-    overflow: hidden;
-    border-radius: 30px;
-  }
+  /* The details-section must NOT have overflow:hidden — that would clip the
+     BasicInfosBar which protrudes below via translateY(15px).  Instead, per-type
+     large components (e.g. WebsiteEmbedPreviewLarge) apply border-radius and
+     overflow:hidden directly on the image element to clip rounded corners. */
 
   /* Also ensure the desktop-layout itself allows the info bar to overflow */
   .unified-embed-preview-large :global(.desktop-layout) {

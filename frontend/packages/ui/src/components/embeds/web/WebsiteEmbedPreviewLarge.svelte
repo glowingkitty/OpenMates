@@ -42,15 +42,16 @@
   }
 
   /* Description text: 30% width, up to 15 lines visible in the taller card.
-     flex: 0 1 30% allows shrinking but not growing beyond 30%. */
+     flex: 0 1 30% allows shrinking but not growing beyond 30%.
+     !important needed to override scoped styles in WebsiteEmbedPreview base (40%). */
   .website-embed-preview-large :global(.website-description) {
-    max-width: 30%;
-    width: 30%;
-    flex: 0 1 30%;
-    min-width: 0;
-    overflow: hidden;
-    -webkit-line-clamp: 15;
-    line-clamp: 15;
+    max-width: 30% !important;
+    width: 30% !important;
+    flex: 0 1 30% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    -webkit-line-clamp: 15 !important;
+    line-clamp: 15 !important;
   }
 
   /* The content row must stretch to fill the full details area height so the
@@ -61,14 +62,19 @@
   }
 
   /* Let the preview image fill all remaining horizontal space and cover the
-     full height of the content area (350px card height). */
+     full height of the content area (350px card height).
+     !important needed to override scoped base styles (height: 171px).
+     border-radius clips the right corners to match the card shape — the
+     outer .details-section does NOT have overflow:hidden so the BasicInfosBar
+     can protrude below. */
   .website-embed-preview-large :global(.website-preview-image:not(.full-width)) {
-    flex: 1 1 0;
-    min-width: 0;
-    height: 350px;
-    max-height: none;
-    transform: none;
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    height: 350px !important;
+    max-height: none !important;
+    transform: none !important;
     overflow: hidden;
+    border-radius: 0 30px 30px 0;
   }
 
   /* Ensure the img itself covers the full container */

@@ -1,3 +1,20 @@
+<script module lang="ts">
+  // Module-level state shared across ALL instances of EmbedPreviewLarge.
+  // Each carousel "run" (consecutive large embeds) shares a single writable
+  // store keyed by the first card's embedRef (runRef). This MUST be module-level
+  // so that all instances in the same run read/write the same store.
+  import { writable } from 'svelte/store';
+
+  const carouselStateMap = new Map<string, ReturnType<typeof writable<number>>>();
+
+  function getCarouselStore(key: string) {
+    if (!carouselStateMap.has(key)) {
+      carouselStateMap.set(key, writable(0));
+    }
+    return carouselStateMap.get(key)!;
+  }
+</script>
+
 <script lang="ts">
   // frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
   //
@@ -11,7 +28,7 @@
   //
   // Carousel layout:
   //   - The FIRST card (carouselIndex === 0) is always rendered and acts as the
-  //     carousel shell. It holds the left/right arrows and dot indicators.
+  //     carousel shell. It holds the left/right arrows for navigation.
   //   - When carouselIndex > 0 the card overlays on top of the first card using
   //     position: absolute; only the active card is shown (display: none for others).
   //   - The first card's content uses visibility: hidden (not display: none) when
@@ -19,7 +36,6 @@
   //
   // Tests: frontend/packages/ui/src/message_parsing/__tests__/parse_message.test.ts
 
-  import { writable } from 'svelte/store';
   import { getLucideIcon } from '../../utils/categoryUtils';
   import UnifiedEmbedPreviewLarge from './UnifiedEmbedPreviewLarge.svelte';
   import EmbedReferencePreview from './EmbedReferencePreview.svelte';
@@ -79,16 +95,8 @@
   }: Props = $props();
 
   // ── Carousel state ──────────────────────────────────────────────────────
-  // All cards in the same "run" (consecutive large embeds) share one Svelte
-  // writable store keyed by a run identifier so navigation is synchronised.
-  const carouselStateMap = new Map<string, ReturnType<typeof writable<number>>>();
-
-  function getCarouselStore(key: string) {
-    if (!carouselStateMap.has(key)) {
-      carouselStateMap.set(key, writable(0));
-    }
-    return carouselStateMap.get(key)!;
-  }
+  // carouselStateMap and getCarouselStore live in the <script module> block
+  // so all instances share the same stores. See module script above.
 
   // All cards in a run share the same carousel store. The store key is the
   // first card's embedRef (runRef prop set by parse_message.ts Phase B).
@@ -109,7 +117,6 @@
   let isVisible = $derived(currentIndex === carouselIndex);
   let isFirstCard = $derived(carouselIndex === 0);
   let hasMultiple = $derived(carouselTotal > 1);
-  let dotIndices = $derived(Array.from({ length: carouselTotal }, (_, i) => i));
 
   function handlePrevious(e: MouseEvent) {
     e.preventDefault();
@@ -247,7 +254,7 @@
   Carousel layout:
   - First card (carouselIndex === 0):
     - Wrapper is ALWAYS rendered (never hidden) so it serves as the persistent
-      carousel shell holding the navigation arrows and dot indicators.
+      carousel shell holding the navigation arrows.
     - The embed content inside uses visibility:hidden when another slide is active
       so the shell retains its 350px height and the arrows stay positioned correctly.
   - Non-first cards (carouselIndex > 0):
@@ -316,7 +323,7 @@
       {/if}
     </div>
 
-    <!-- Navigation arrows and dots: always inside the first card shell -->
+    <!-- Navigation arrows: always inside the first card shell -->
     {#if hasMultiple}
       <button
         class="carousel-arrow carousel-arrow-left"
@@ -335,12 +342,6 @@
       >
         <ChevronRight size={22} color="rgba(255,255,255,0.85)" />
       </button>
-
-      <div class="embed-preview-large-dots" aria-hidden="true">
-        {#each dotIndices as i}
-          <span class="dot" class:dot--active={i === currentIndex}></span>
-        {/each}
-      </div>
     {/if}
   </div>
 
@@ -416,10 +417,10 @@
 
   /* ── First card: carousel shell ─────────────────────────────────────────── */
   /* Always visible. min-height matches the large card height (350px) +
-     translateY overflow (15px) + dots below (approx 22px) so arrows are
+     translateY overflow (15px) so arrows are
      always correctly positioned even when the first card's content is hidden. */
   .embed-preview-large-shell {
-    min-height: 387px;
+    min-height: 365px;
   }
 
   /* Hide the first card's embed content (not the shell) when another slide is active.
@@ -440,8 +441,8 @@
   .embed-preview-large-overlay {
     /* Overlay is stacked directly after the shell in the DOM flow.
        Use negative margin-top to visually overlap the shell. The shell keeps its
-       height via min-height so the total layout space is the shell's 387px. */
-    margin-top: calc(-387px);
+       height via min-height so the total layout space is the shell's 365px. */
+    margin-top: calc(-365px);
     /* Ensure the overlay sits above the (now invisible) shell content */
     position: relative;
     z-index: 2;
@@ -451,35 +452,13 @@
     display: none;
   }
 
-  /* ── Dots ────────────────────────────────────────────────────────────────── */
-  .embed-preview-large-dots {
-    display: flex;
-    justify-content: center;
-    gap: 5px;
-    margin-top: 4px;
-    margin-bottom: 2px;
-  }
-
-  .dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--color-grey-40);
-    transition: background 0.2s ease, transform 0.2s ease;
-  }
-
-  .dot--active {
-    background: var(--color-font-primary);
-    transform: scale(1.2);
-  }
-
   /* ── Carousel arrows ─────────────────────────────────────────────────────── */
   /* Positioned absolute within the shell. top/bottom span the card area (350px)
-     leaving room for the 22px dots row below. */
+     positioned to span the card area. */
   .carousel-arrow {
     position: absolute;
     top: 6px;
-    bottom: 43px;
+    bottom: 6px;
     padding: 0 !important;
     min-width: unset !important;
     width: 40px !important;
