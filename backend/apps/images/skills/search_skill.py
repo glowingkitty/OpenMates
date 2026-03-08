@@ -551,6 +551,16 @@ class SearchSkill(BaseSkill):
             secrets_manager: Injected by BaseApp for provider API key resolution.
             **kwargs: Pipeline context (file_path_index, user_vault_key_id, etc.).
         """
+        # Get or create SecretsManager using BaseSkill helper (loads API keys from Vault)
+        secrets_manager, error_response = await self._get_or_create_secrets_manager(
+            secrets_manager=secrets_manager,
+            skill_name="ImagesSearchSkill",
+            error_response_factory=lambda msg: SearchResponse(results=[], error=msg),
+            logger=logger
+        )
+        if error_response:
+            return error_response
+
         requests_list = request.requests
         if not requests_list:
             return SearchResponse(results=[], provider="Brave Search", error="No requests provided")
