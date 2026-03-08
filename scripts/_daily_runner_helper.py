@@ -94,6 +94,7 @@ def dispatch_email() -> None:
     passed = summary.get("passed", 0)
     failed = summary.get("failed", 0)
     skipped = summary.get("skipped", 0)
+    not_started = summary.get("not_started", 0)
 
     # Build suite summaries for the email template
     suites = []
@@ -103,11 +104,13 @@ def dispatch_email() -> None:
         tests = suite_data.get("tests", [])
         suite_passed = sum(1 for t in tests if t.get("status") == "passed")
         suite_failed = sum(1 for t in tests if t.get("status") == "failed")
+        suite_not_started = sum(1 for t in tests if t.get("status") == "not_started")
         suites.append({
             "name": suite_name,
             "total": len(tests),
             "passed": suite_passed,
             "failed": suite_failed,
+            "not_started": suite_not_started,
             "status": suite_data.get("status", "unknown"),
         })
 
@@ -141,6 +144,7 @@ def dispatch_email() -> None:
                 passed,
                 failed,
                 skipped,
+                not_started,
                 suites,
                 failed_tests,
             ],

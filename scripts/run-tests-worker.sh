@@ -11,6 +11,13 @@
 #   $3 - Work directory for result output
 #   $4 - Project root directory
 #
+# Abort-on-first-failure behaviour:
+#   All workers share a single $WORK_DIR/abort_signal file. The first worker to
+#   record a failure writes this file. Every worker checks it before starting
+#   each new spec: if it exists, the spec is recorded as "not_started" and
+#   skipped rather than launched. Already-running specs are never interrupted --
+#   they always run to completion.
+#
 # Output:
 #   Writes $WORK_DIR/pw_result_<slot>.json with an array of test results.
 # =============================================================================
@@ -21,12 +28,37 @@ SPECS_RAW="$2"
 WORK_DIR="$3"
 PROJECT_ROOT="$4"
 
+# Shared abort signal file. Written atomically by the first worker that records
+# a failure. All workers check this before starting the next spec.
+ABORT_SIGNAL="$WORK_DIR/abort_signal"
+
 # Split pipe-separated specs into an array
 IFS='|' read -ra SPECS <<< "$SPECS_RAW"
 
 RESULTS=()
 
 for spec in "${SPECS[@]}"; do
+  # --- Abort check: if any earlier spec (on any slot) failed, don't start new ones ---
+  if [[ -f "$ABORT_SIGNAL" ]]; then
+    abort_reason="$(cat "$ABORT_SIGNAL")"
+    echo "    [Slot $SLOT] - $spec -- not started ($abort_reason)"
+
+    result="$(python3 -c "
+import json, sys
+entry = {
+    'file': sys.argv[1],
+    'slot': int(sys.argv[2]),
+    'status': 'not_started',
+    'duration_seconds': 0,
+    'skip_reason': sys.argv[3],
+}
+print(json.dumps(entry))
+" "$spec" "$SLOT" "$abort_reason")"
+
+    RESULTS+=("$result")
+    continue
+  fi
+
   echo "    [Slot $SLOT] Running: $spec"
   local_start="$(date +%s)"
 
@@ -58,6 +90,15 @@ for spec in "${SPECS[@]}"; do
     if [[ -z "$error" ]]; then
       error="Exit code $spec_exit"
     fi
+
+    # Write the abort signal so all other workers stop launching new specs.
+    # Use a temp-file + mv -n for an atomic create -- only the first writer's
+    # message is kept; subsequent attempts silently discard their temp file.
+    if [[ ! -f "$ABORT_SIGNAL" ]]; then
+      abort_tmp="$(mktemp "$WORK_DIR/abort_signal.XXXXXX")"
+      echo "aborted: $spec failed on slot $SLOT" > "$abort_tmp"
+      mv -n "$abort_tmp" "$ABORT_SIGNAL" 2>/dev/null || rm -f "$abort_tmp"
+    fi
   fi
 
   # Truncate stdout for LLM readability
@@ -83,9 +124,9 @@ print(json.dumps(entry))
   RESULTS+=("$result")
 
   if [[ "$status" == "passed" ]]; then
-    echo "    [Slot $SLOT] ✓ $spec (${local_dur}s)"
+    echo "    [Slot $SLOT] + $spec (${local_dur}s)"
   else
-    echo "    [Slot $SLOT] ✗ $spec (${local_dur}s)"
+    echo "    [Slot $SLOT] x $spec (${local_dur}s)"
   fi
 done
 

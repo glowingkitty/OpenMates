@@ -63,6 +63,7 @@
             <span style="color: #4CAF50; font-weight: bold;">{{ passed }} passed</span>&nbsp;|&nbsp;
             {% if failed > 0 %}<span style="color: #F44336; font-weight: bold;">{{ failed }} failed</span>{% else %}<span style="color: #4CAF50;">0 failed</span>{% endif %}
             {% if skipped > 0 %}&nbsp;|&nbsp;<span style="color: #FF9800;">{{ skipped }} skipped</span>{% endif %}
+            {% if not_started > 0 %}&nbsp;|&nbsp;<span style="color: #9E9E9E;">{{ not_started }} not started</span>{% endif %}
           </mj-text>
 
           <!-- Suite Breakdown -->
