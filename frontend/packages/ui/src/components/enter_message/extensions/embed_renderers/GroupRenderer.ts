@@ -33,6 +33,7 @@ import TravelStayEmbedPreview from "../../../embeds/travel/TravelStayEmbedPrevie
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
 import ImageViewEmbedPreview from "../../../embeds/images/ImageViewEmbedPreview.svelte";
 import ImageResultEmbedPreview from "../../../embeds/images/ImageResultEmbedPreview.svelte";
+import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPreview.svelte";
 import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
 import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPreview.svelte";
 import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
@@ -1350,6 +1351,25 @@ export class GroupRenderer implements EmbedRenderer {
             handleImageViewFullscreen,
           );
         }
+        return;
+      }
+
+      // Handle images.search skill — image search results
+      if (appId === "images" && skillId === "search") {
+        const component = mount(ImagesSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            provider: provider || "Brave",
+            status,
+            results,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
         return;
       }
 

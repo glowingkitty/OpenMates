@@ -256,7 +256,7 @@ export const EMBED_METADATA: Record<string, EmbedTypeMetadata> = {
     "appId": "images"
   },
   "app:images:search": {
-    "icon": "image-search",
+    "icon": "search",
     "gradientVar": "--color-app-images",
     "i18nNamespace": "embeds.images.search",
     "appId": "images",
@@ -265,7 +265,7 @@ export const EMBED_METADATA: Record<string, EmbedTypeMetadata> = {
     "childFrontendType": "images-image-result"
   },
   "images-image-result": {
-    "icon": "image-search",
+    "icon": "search",
     "gradientVar": "--color-app-images",
     "i18nNamespace": "embeds.images.search",
     "appId": "images"

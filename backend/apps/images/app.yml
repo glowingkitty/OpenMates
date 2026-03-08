@@ -98,6 +98,59 @@ embed_types:
         type: string
       - name: content_hash
         type: string
+  # Image search result — parent embed produced by images.search skill
+  - id: search
+    category: app-skill-use
+    skill_id: search
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: image_result
+    child_frontend_type: images-image-result
+    preview_component: images/ImagesSearchEmbedPreview.svelte
+    fullscreen_component: images/ImagesSearchEmbedFullscreen.svelte
+    child_preview_component: images/ImageResultEmbedPreview.svelte
+    child_fullscreen_component: images/ImageResultEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-images"
+    i18n_namespace: embeds.images.search
+    content_fields:
+      - name: query
+        type: string
+      - name: provider
+        type: string
+      - name: result_count
+        type: number
+      - name: embed_ids
+        type: string
+        description: "Pipe-separated child embed IDs"
+  # Individual image search result — child embed of images.search
+  - id: image_result
+    category: direct
+    frontend_type: images-image-result
+    backend_type: image_result
+    has_children: false
+    preview_component: images/ImageResultEmbedPreview.svelte
+    fullscreen_component: images/ImageResultEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-images"
+    i18n_namespace: embeds.images.search
+    content_fields:
+      - name: title
+        type: string
+      - name: source_page_url
+        type: string
+      - name: image_url
+        type: string
+        description: "Direct URL to the full-resolution image"
+      - name: thumbnail_url
+        type: string
+        description: "Proxied thumbnail URL"
+      - name: source
+        type: string
+        description: "Source domain name"
+      - name: favicon_url
+        type: string
 settings_and_memories:
   # Preferred styles: Image styles and aesthetics the user prefers
   - id: preferred_styles
@@ -137,6 +190,69 @@ instructions:
       Correct example: User uploads "photo.jpg" and says "add a dragon" → call images-generate with requests: [{"prompt": "...", "reference_images": ["photo.jpg"]}]
       Wrong: calling images-view first and then images-generate without reference_images.
 skills:
+  - id: search
+    name_translation_key: images.search
+    description_translation_key: images.search.description
+    api_config:
+      expose_get: false
+      expose_post: false
+    preprocessor_hint: >
+      Search for images by text description or find visually similar images using reverse image search.
+      Use text mode (query) when the user asks to "find images of X", "search for X images", or wants
+      to discover images matching a description.
+      Use reverse image search (file_path) when the user uploads an image and asks to "find similar
+      images", "find where this image appears", "reverse image search this", or wants to find
+      visually matching content. Pass the exact embed_ref (filename) from the toon block.
+      Each search result image can itself be used as input to images-search for further reverse search.
+    stage: production
+    class_path: |
+      backend.apps.images.skills.search_skill.SearchSkill
+    providers:
+      - Brave
+      - SerpAPI
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: |
+            REQUIRED: Array of image search request objects (up to 5 parallel searches).
+            Each object must contain either 'query' (text search) or 'file_path'
+            (reverse image search with an embed_ref from the conversation).
+            Example text search: {"requests": [{"query": "golden retriever puppies"}]}
+            Example reverse search: {"requests": [{"file_path": "my_photo.jpg"}]}
+          items:
+            type: object
+            properties:
+              query:
+                type: string
+                description: |
+                  Text description of images to search for (e.g. "sunset over mountains").
+                  Use this for discovering images by topic or visual description.
+                  Mutually exclusive with file_path.
+              file_path:
+                type: string
+                description: |
+                  The original filename (embed_ref) of an image in the conversation to
+                  reverse-search. Use the exact embed_ref value from the toon block.
+                  Works for uploaded images AND for image search result embeds.
+                  Mutually exclusive with query.
+              count:
+                type: integer
+                description: Number of image results to return (default 10, max 20).
+                default: 10
+                minimum: 1
+                maximum: 20
+              country:
+                type: string
+                description: Country code for localised results (default "us").
+                default: "us"
+              search_lang:
+                type: string
+                description: Language code for search (default "en").
+                default: "en"
+      required:
+        - requests
   - id: generate
     name_translation_key: images.generate
     description_translation_key: images.generate.description
