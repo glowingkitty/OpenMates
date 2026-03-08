@@ -4,11 +4,9 @@
     import { cubicOut } from 'svelte/easing';
     import { userProfile } from '../../stores/userProfile';
     import { authStore } from '../../stores/authStore';
-    import { webSocketService } from '../../services/websocketService';
     import { incognitoMode } from '../../stores/incognitoModeStore'; // Import incognito mode store
-    import { allAppsInitialFilter } from '../../stores/allAppsFilterStore';
     import SettingsItem from '../SettingsItem.svelte';
-    import { createEventDispatcher, onMount, tick } from 'svelte';
+    import { createEventDispatcher, tick } from 'svelte';
     import type { SvelteComponent } from 'svelte';
 
     // Props using Svelte 5 runes
@@ -17,6 +15,7 @@
         direction = 'forward',
         username = '',
         accountId = null,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         isInSignupMode = false,
         settingsViews = {},
         isIncognitoEnabled = $bindable(false),
@@ -139,21 +138,6 @@
         // Stop propagation to prevent document click handler from closing menu
         if (event) event.stopPropagation();
 
-        // Redirect "Settings & Memories" to the All Apps page with a capability filter
-        // so users see only apps that define settings & memories categories.
-        if (viewName === 'settings_memories') {
-            allAppsInitialFilter.set('settings_memories');
-            dispatch('openSettings', {
-                settingsPath: 'app_store/all',
-                direction: 'forward',
-                icon: 'memory',
-                title: $text('settings.app_store.show_all_apps'),
-                cameFrom: 'app_store',
-                cameFromTitle: $text('settings.settings_memories'),
-            });
-            return;
-        }
-        
         dispatch('openSettings', { 
             settingsPath: viewName, 
             direction: 'forward',
@@ -389,7 +373,7 @@
             {/if}
 
             <!-- Regular Settings -->
-            {#each Object.entries(settingsViews).filter(([key, _]) => isTopLevelView(key)) as [key, _]}
+            {#each Object.entries(settingsViews).filter(([key]) => isTopLevelView(key)) as [key]}
                 <SettingsItem 
                     icon={key} 
                     title={$text(`settings.${key}`)} 
@@ -419,7 +403,7 @@
                 <Component 
                     activeSettingsView={key}
                     accountId={accountId}
-                    on:openSettings={(event: any) => dispatch('openSettings', event.detail)}
+                    on:openSettings={(event: CustomEvent) => dispatch('openSettings', event.detail)}
                     on:navigateBack={() => dispatch('navigateBack')}
                     on:chatSelected={(event: CustomEvent) => dispatch('chatSelected', event.detail)}
                     on:closeSettings={() => dispatch('closeSettings')}

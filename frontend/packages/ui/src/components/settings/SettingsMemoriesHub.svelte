@@ -18,6 +18,7 @@
     import SettingsItem from '../SettingsItem.svelte';
     import type { AppMetadata, MemoryFieldMetadata } from '../../types/apps';
     import { text } from '@repo/ui';
+    import { allAppsInitialFilter } from '../../stores/allAppsFilterStore';
 
     const dispatch = createEventDispatcher();
 
@@ -152,14 +153,18 @@
     }
 
     /**
-     * Navigate to the App Store for discovering apps with settings & memories.
+     * Navigate to All Apps with the "Settings & Memories" filter pre-set,
+     * so the user sees only apps that define settings & memories categories.
      */
     function openAppStore() {
+        allAppsInitialFilter.set('settings_memories');
         dispatch('openSettings', {
-            settingsPath: 'app_store',
+            settingsPath: 'app_store/all',
             direction: 'forward',
             icon: 'app_store',
-            title: $text('settings.app_store'),
+            title: $text('settings.app_store.show_all_apps'),
+            cameFrom: 'settings_memories',
+            cameFromTitle: $text('settings.settings_memories'),
         });
     }
 </script>
@@ -248,9 +253,6 @@
         font-size: 0.9rem;
     }
 
-    .app-section {
-        /* Each app's heading + category rows grouped together */
-    }
 
     .app-section.section-gap {
         margin-top: 1.5rem;
