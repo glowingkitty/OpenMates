@@ -416,10 +416,10 @@
 
   /* ── First card: carousel shell ─────────────────────────────────────────── */
   /* Always visible. min-height matches the large card height (350px) +
-     dots below (approx 22px) so arrows are always correctly positioned
-     even when the first card's content is hidden. */
+     translateY overflow (15px) + dots below (approx 22px) so arrows are
+     always correctly positioned even when the first card's content is hidden. */
   .embed-preview-large-shell {
-    min-height: 372px;
+    min-height: 387px;
   }
 
   /* Hide the first card's embed content (not the shell) when another slide is active.
@@ -440,8 +440,8 @@
   .embed-preview-large-overlay {
     /* Overlay is stacked directly after the shell in the DOM flow.
        Use negative margin-top to visually overlap the shell. The shell keeps its
-       height via min-height so the total layout space is the shell's 372px. */
-    margin-top: calc(-372px);
+       height via min-height so the total layout space is the shell's 387px. */
+    margin-top: calc(-387px);
     /* Ensure the overlay sits above the (now invisible) shell content */
     position: relative;
     z-index: 2;
@@ -479,7 +479,7 @@
   .carousel-arrow {
     position: absolute;
     top: 6px;
-    bottom: 28px;
+    bottom: 43px;
     padding: 0 !important;
     min-width: unset !important;
     width: 40px !important;

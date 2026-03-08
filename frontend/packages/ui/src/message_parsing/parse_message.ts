@@ -285,12 +285,18 @@ function _hoistBlockEmbedPreviews(doc: any): any {
       (c: any) => !(c.type === "text" && !c.text?.trim()),
     );
 
-    // If the paragraph contains exactly one block-preview embed, hoist it
-    if (
-      meaningful.length === 1 &&
-      BLOCK_EMBED_PREVIEW_TYPES.has(meaningful[0].type)
-    ) {
-      hoisted.push(meaningful[0]);
+    // If the paragraph contains ONLY block-preview embeds (one or more), hoist
+    // each one individually.  This handles the common case where the LLM writes
+    // multiple [!](embed:ref) links on consecutive lines without blank lines
+    // between them — markdown-it wraps them in a single paragraph.  Hoisting
+    // each embed individually lets Phase B group them into a carousel.
+    const allBlockPreviews =
+      meaningful.length > 0 &&
+      meaningful.every((c: any) => BLOCK_EMBED_PREVIEW_TYPES.has(c.type));
+    if (allBlockPreviews) {
+      for (const embedNode of meaningful) {
+        hoisted.push(embedNode);
+      }
     } else {
       hoisted.push(node);
     }

@@ -6,10 +6,10 @@
   card to full assistant-response width with BasicInfosBar constrained to 300px.
 
   Website-specific large layout overrides:
-  - Description text: capped at 150px max-width (half the standard 300px card width)
-    so the text column does not stretch uncomfortably wide on the large card.
-  - Preview image: fills the remaining horizontal space (flex:1) so it scales up
-    proportionally instead of being capped at the standard 150px thumbnail width.
+  - Description text: capped at 30% width so it does not stretch too wide.
+    -webkit-line-clamp: 15 allows more text to show in the taller card.
+  - Preview image: fills the remaining horizontal space (flex:1) at 350px height
+    so it scales up proportionally.
 
   Architecture: See docs/architecture/embeds.md for the large-preview pipeline.
   Tests: frontend/packages/ui/src/message_parsing/__tests__/parse_message.test.ts
@@ -41,14 +41,16 @@
     width: 100%;
   }
 
-  /* Limit description text to exactly 150px (half of the standard 300px card width).
-     flex: 0 0 150px prevents any growing or shrinking — the image takes all extra space. */
+  /* Description text: 30% width, up to 15 lines visible in the taller card.
+     flex: 0 1 30% allows shrinking but not growing beyond 30%. */
   .website-embed-preview-large :global(.website-description) {
-    max-width: 150px;
-    width: 150px;
-    flex: 0 0 150px;
+    max-width: 30%;
+    width: 30%;
+    flex: 0 1 30%;
     min-width: 0;
     overflow: hidden;
+    -webkit-line-clamp: 15;
+    line-clamp: 15;
   }
 
   /* The content row must stretch to fill the full details area height so the
@@ -59,11 +61,11 @@
   }
 
   /* Let the preview image fill all remaining horizontal space and cover the
-     full height of the content area. Remove any fixed pixel height from base. */
+     full height of the content area (350px card height). */
   .website-embed-preview-large :global(.website-preview-image:not(.full-width)) {
     flex: 1 1 0;
     min-width: 0;
-    height: 100%;
+    height: 350px;
     max-height: none;
     transform: none;
     overflow: hidden;
