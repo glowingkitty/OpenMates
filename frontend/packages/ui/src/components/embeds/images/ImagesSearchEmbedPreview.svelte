@@ -85,7 +85,7 @@
   let taskId    = $derived(localTaskId);
 
   const skillIconName = 'search';
-  let skillName = $derived($text('images.search'));
+  let skillName = $derived($text('app_skills.images.search'));
 
   // Show first 4 thumbnails in the mosaic
   const MAX_PREVIEW_THUMBNAILS = 4;
