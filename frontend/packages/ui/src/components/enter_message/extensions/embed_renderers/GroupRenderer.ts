@@ -43,6 +43,7 @@ import PdfSearchEmbedPreview from "../../../embeds/pdf/PdfSearchEmbedPreview.sve
 import MailEmbedPreview from "../../../embeds/mail/MailEmbedPreview.svelte";
 import EventEmbedPreview from "../../../embeds/events/EventEmbedPreview.svelte";
 import MapsLocationEmbedPreview from "../../../embeds/maps/MapsLocationEmbedPreview.svelte";
+import { proxyFavicon, proxyImage } from "../../../../utils/imageProxy";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -2316,10 +2317,10 @@ export class GroupRenderer implements EmbedRenderer {
       const displayDescription = websiteDescription || "";
       const faviconUrl =
         favicon ||
-        `https://preview.openmates.org/api/v1/favicon?url=${encodeURIComponent(websiteUrl)}`;
+        proxyFavicon(websiteUrl);
       const imageUrl =
         image ||
-        `https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(websiteUrl)}`;
+        proxyImage(websiteUrl);
 
       // Add click handler for fullscreen
       const embedId = item.contentRef?.replace("embed:", "") || "";

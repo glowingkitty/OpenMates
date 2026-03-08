@@ -22,6 +22,7 @@ import { get } from "svelte/store";
 import { embedStore } from "../../../services/embedStore";
 import { generateUUID } from "../../../message_parsing/utils";
 import { userProfile } from "../../../stores/userProfile";
+import { getMetadataUrl, getYouTubeMetadataUrl } from "../../../utils/imageProxy";
 
 // =============================================================================
 // Types
@@ -82,7 +83,6 @@ export interface EmbedCreationResult {
 // Preview Server API
 // =============================================================================
 
-const PREVIEW_SERVER_URL = "https://preview.openmates.org";
 
 /**
  * Fetches metadata for a given URL from preview.openmates.org
@@ -104,7 +104,7 @@ export async function fetchUrlMetadata(
 
     // Use GET endpoint to avoid CORS preflight (POST with JSON requires OPTIONS preflight)
     const response = await fetch(
-      `${PREVIEW_SERVER_URL}/api/v1/metadata?url=${encodeURIComponent(url)}`,
+      getMetadataUrl(url),
     );
 
     if (!response.ok) {
@@ -171,7 +171,7 @@ export async function fetchYouTubeMetadata(
 
     // Use GET endpoint for YouTube metadata
     const response = await fetch(
-      `${PREVIEW_SERVER_URL}/api/v1/youtube?url=${encodeURIComponent(url)}`,
+      getYouTubeMetadataUrl(url),
     );
 
     if (!response.ok) {

@@ -16,9 +16,8 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { handleImageError } from '../../../utils/offlineImageHandler';
+  import { proxyImage } from '../../../utils/imageProxy';
 
-  /** Proxy base URL - all external images must go through this to protect user IP */
-  const PROXY_BASE = 'https://preview.openmates.org/api/v1/image?url=';
 
   /**
    * Single image search result (child embed content schema).
@@ -84,7 +83,7 @@
   let results   = $derived(localResults);
   let taskId    = $derived(localTaskId);
 
-  const skillIconName = 'image-search';
+  const skillIconName = 'search';
   let skillName = $derived($text('app_skills.images.search'));
 
   // Show first 4 thumbnails in the mosaic
@@ -95,10 +94,10 @@
 
   let remainingCount = $derived(Math.max(0, results.length - MAX_PREVIEW_THUMBNAILS));
 
-  /** Proxy an external image URL through preview.openmates.org */
+
   function proxyUrl(url: string | undefined): string | undefined {
     if (!url) return undefined;
-    return PROXY_BASE + encodeURIComponent(url);
+    return proxyImage(url);
   }
 
   /**

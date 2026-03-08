@@ -54,7 +54,6 @@ These represent a backend skill execution result. The embed JSON reference in th
   "embed_id": "<uuid>",
   "app_id": "weather",
   "skill_id": "forecast"
-}
 ```
 
 **Rendering path:**
@@ -148,7 +147,6 @@ Both files maintain a list of `:global(.skill-icon[data-skill-icon="..."])` bloc
 :global(.skill-icon[data-skill-icon="{skillIconName}"]) {
   -webkit-mask-image: url("@openmates/ui/static/icons/{skillIconName}.svg");
   mask-image: url("@openmates/ui/static/icons/{skillIconName}.svg");
-}
 ```
 
 > **Why global?** These components are mounted into the TipTap editor via `mount()`, which creates shadow-like component boundaries. Local scoped styles cannot reach them.
@@ -767,7 +765,6 @@ import {SkillName}EmbedPreview from '../../../embeds/{appId}/{SkillName}EmbedPre
 // For {appId} {skillId}, render {SkillName} preview using Svelte component
 if (appId === '{appId}' && skillId === '{skillId}') {
   return this.render{SkillName}Component(attrs, embedData, decodedContent, content);
-}
 ```
 
 **9c — Add the render method** at the bottom of the class, following the exact pattern of every existing render method:
@@ -834,7 +831,6 @@ private render{SkillName}Component(
   console.debug('[AppSkillUseRenderer] Mounted {SkillName}EmbedPreview:', {
     embedId, query, status,
   });
-}
 ```
 
 ---
@@ -915,7 +911,6 @@ private async render{ChildSkillName}Component(
     },
   });
   this.groupMountedComponents.set(content, component);
-}
 
 /**
  * HTML fallback for {ChildSkillName} embeds (used by renderItemContent switch).
@@ -934,7 +929,6 @@ private async render{ChildSkillName}Item(
       <div class="embed-title">${title}</div>
     </div>
   `;
-}
 ```
 
 > **Startup warning:** The `GroupRenderer` constructor checks all `EMBED_GROUPABLE_TYPES` against `individualMounters` at startup and logs `[GroupRenderer] WARNING: No individual mounter registered for type "..."` for any missing registration. If you see this warning in the browser console, add the missing mounter.
@@ -1086,7 +1080,6 @@ export class {TypeName}Renderer implements EmbedRenderer {
     }
     return '';
   }
-}
 ```
 
 ### Step 4 — Register in `index.ts`
@@ -1182,15 +1175,11 @@ The `details` snippet fills the space **above** the BasicInfosBar. It receives `
 
 ### External Images — Always Proxy
 
-**NEVER load external images directly.** All third-party images (favicons, thumbnails, avatars) must be proxied for user privacy:
+**NEVER load external images directly.** Import helpers from `utils/imageProxy.ts`. See `docs/claude/image-proxy.md` for the full API, max-width presets, and anti-patterns.
 
 ```typescript
-const PREVIEW_SERVER = "https://preview.openmates.org";
-
-function proxyImage(url: string | undefined, maxWidth = 38): string {
-  if (!url) return "";
-  return `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(url)}&max_width=${maxWidth}`;
-}
+import { proxyImage, proxyFavicon, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
+// Use: proxyImage(url, MAX_WIDTH_PREVIEW_THUMBNAIL)
 ```
 
 ### Status States
@@ -1225,7 +1214,6 @@ Long text **must** be clamped. Use this pattern:
   overflow: hidden;
   text-overflow: ellipsis;
   word-break: break-word;
-}
 ```
 
 ---
@@ -1337,7 +1325,6 @@ function handleChildClose() {
     // Opened via card click — return to parent results grid
     selectedIndex = -1;
   }
-}
 
 // When main close button is clicked:
 function handleMainClose() {
@@ -1346,7 +1333,6 @@ function handleMainClose() {
   } else {
     onClose(); // Close entire fullscreen
   }
-}
 ```
 
 ### ActiveChat.svelte: passing the prop

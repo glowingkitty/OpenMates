@@ -23,6 +23,7 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import type { BaseSkillPreviewData } from '../../../types/appSkills';
   import { text } from '@repo/ui';
+  import { proxyFavicon, proxyImage, MAX_WIDTH_CONTENT_IMAGE } from '../../../utils/imageProxy';
   
   /**
    * Web read result interface based on read_skill.py
@@ -189,7 +190,7 @@
     }
     // Generate favicon URL from effectiveUrl if available
     if (effectiveUrl) {
-      return `https://preview.openmates.org/api/v1/favicon?url=${encodeURIComponent(effectiveUrl)}`;
+      return proxyFavicon(effectiveUrl);
     }
     return undefined;
   });
@@ -241,14 +242,12 @@
    * 2. Resize images to reasonable dimensions (reduce bandwidth)
    * 3. Cache images for better performance
    */
-  const IMAGE_PROXY_BASE_URL = 'https://preview.openmates.org/api/v1/image';
   
   /**
    * Maximum image width for proxied images
    * 800px is reasonable for the content card (max-width: 722px)
    * Allows some margin for retina displays while avoiding huge downloads
    */
-  const IMAGE_PROXY_MAX_WIDTH = 800;
   
   /**
    * Convert an image URL to use the preview server proxy
@@ -258,18 +257,7 @@
    * @returns Proxied image URL via preview.openmates.org
    */
   function proxyImageUrl(imageUrl: string): string {
-    // Skip if already using our proxy or if it's a data URL
-    if (imageUrl.startsWith(IMAGE_PROXY_BASE_URL) || imageUrl.startsWith('data:')) {
-      return imageUrl;
-    }
-    
-    // Build proxied URL with max_width parameter
-    const params = new URLSearchParams({
-      url: imageUrl,
-      max_width: IMAGE_PROXY_MAX_WIDTH.toString()
-    });
-    
-    return `${IMAGE_PROXY_BASE_URL}?${params.toString()}`;
+    return proxyImage(imageUrl, MAX_WIDTH_CONTENT_IMAGE);
   }
   
   /**

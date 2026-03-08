@@ -29,6 +29,7 @@
   import { text } from '@repo/ui';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { handleImageError } from '../../../utils/offlineImageHandler';
+  import { proxyImage, MAX_WIDTH_VIDEO_FULLSCREEN, MAX_WIDTH_CHANNEL_THUMBNAIL } from '../../../utils/imageProxy';
   
   // Import VideoMetadata type from preview component
   import type { VideoMetadata } from './VideoEmbedPreview.svelte';
@@ -37,11 +38,6 @@
   // Constants: Preview Server Image Proxy
   // ===========================================
   
-  // Preview server base URL for image proxying
-  // This ensures user privacy by not making direct requests to YouTube/Google CDN
-  const PREVIEW_SERVER = 'https://preview.openmates.org';
-  // Max width for fullscreen thumbnail (2x for retina displays on 780px container)
-  const FULLSCREEN_IMAGE_MAX_WIDTH = 1560;
   
   /**
    * Props for video embed fullscreen
@@ -183,14 +179,13 @@
   // This prevents users' browsers from making direct requests to YouTube/Google CDN
   let thumbnailUrl = $derived.by(() => {
     if (!rawThumbnailUrl) return '';
-    return `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(rawThumbnailUrl)}&max_width=${FULLSCREEN_IMAGE_MAX_WIDTH}`;
+    return proxyImage(rawThumbnailUrl, MAX_WIDTH_VIDEO_FULLSCREEN);
   });
   
   // Proxied channel thumbnail URL (29x29px display, 58px for retina)
-  const CHANNEL_THUMBNAIL_MAX_WIDTH = 58;
   let channelThumbnailUrl = $derived.by(() => {
     if (!rawChannelThumbnail) return '';
-    return `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(rawChannelThumbnail)}&max_width=${CHANNEL_THUMBNAIL_MAX_WIDTH}`;
+    return proxyImage(rawChannelThumbnail, MAX_WIDTH_CHANNEL_THUMBNAIL);
   });
   
   // ===========================================
@@ -601,7 +596,7 @@
               const img = e.target as HTMLImageElement;
               if (img.src.includes('maxresdefault')) {
                 const fallbackRaw = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-                img.src = `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(fallbackRaw)}&max_width=${FULLSCREEN_IMAGE_MAX_WIDTH}`;
+                img.src = proxyImage(fallbackRaw, MAX_WIDTH_VIDEO_FULLSCREEN);
               } else {
                 handleImageError(img);
               }

@@ -35,6 +35,7 @@
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { handleImageError } from '../../../utils/offlineImageHandler';
+  import { proxyImage, MAX_WIDTH_VIDEO_PREVIEW, MAX_WIDTH_CHANNEL_THUMBNAIL } from '../../../utils/imageProxy';
   
   // ===========================================
   // Types
@@ -132,10 +133,6 @@
   // Map skillId to icon name
   const skillIconName = 'video';
   
-  // Preview server base URL for image proxying
-  const PREVIEW_SERVER = 'https://preview.openmates.org';
-  // Max width for preview thumbnail (2x for retina displays)
-  const PREVIEW_IMAGE_MAX_WIDTH = 640;
   
   // ===========================================
   // Video ID Extraction (Fallback)
@@ -210,16 +207,14 @@
   // during development; the direct YouTube CDN URL is always the reliable fallback.
   // onerror below implements the two-step retry so the image always renders.
   let thumbnailUrl = $derived(rawThumbnailUrl
-    ? `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(rawThumbnailUrl)}&max_width=${PREVIEW_IMAGE_MAX_WIDTH}`
+    ? proxyImage(rawThumbnailUrl, MAX_WIDTH_VIDEO_PREVIEW)
     : '');
 
   // Proxied channel thumbnail URL through preview server for privacy
   // Channel thumbnails are small circular profile pictures
-  // Display size: 29x29px, request 2x for retina (58px)
-  const CHANNEL_THUMBNAIL_MAX_WIDTH = 58;
   let channelThumbnailUrl = $derived.by(() => {
     if (!channelThumbnail) return '';
-    return `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(channelThumbnail)}&max_width=${CHANNEL_THUMBNAIL_MAX_WIDTH}`;
+    return proxyImage(channelThumbnail, MAX_WIDTH_CHANNEL_THUMBNAIL);
   });
   
   // Get hostname for fallback display

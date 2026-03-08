@@ -122,6 +122,7 @@
         CodeGetDocsResult
     } from '../types/appSkills';
     import type { EmbedStoreEntry } from '../message_parsing/types';
+    import { proxyImage, MAX_WIDTH_VIDEO_FULLSCREEN } from '../utils/imageProxy';
     
     // Lightweight type aliases to keep complex event payloads and component refs explicit.
     type EventListenerCallback = (event: Event) => void;
@@ -1873,16 +1874,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Proxied thumbnail URL through preview server for privacy
         // If thumbnailUrl is already set and proxied, use it; otherwise construct and proxy
-        const PREVIEW_SERVER = 'https://preview.openmates.org';
-        const FULLSCREEN_IMAGE_MAX_WIDTH = 1560; // 2x for retina on 780px container
         let pipThumbnailUrl = currentState.thumbnailUrl;
         if (!pipThumbnailUrl && pipVideoId) {
             // Construct raw URL and proxy it
             const rawThumbnailUrl = `https://img.youtube.com/vi/${pipVideoId}/maxresdefault.jpg`;
-            pipThumbnailUrl = `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(rawThumbnailUrl)}&max_width=${FULLSCREEN_IMAGE_MAX_WIDTH}`;
+            pipThumbnailUrl = proxyImage(rawThumbnailUrl, MAX_WIDTH_VIDEO_FULLSCREEN);
         } else if (pipThumbnailUrl && (pipThumbnailUrl.includes('img.youtube.com') || pipThumbnailUrl.includes('i.ytimg.com'))) {
             // If it's a direct YouTube URL, proxy it
-            pipThumbnailUrl = `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(pipThumbnailUrl)}&max_width=${FULLSCREEN_IMAGE_MAX_WIDTH}`;
+            pipThumbnailUrl = proxyImage(pipThumbnailUrl, MAX_WIDTH_VIDEO_FULLSCREEN);
         }
         
         // Exit PiP mode - this will trigger CSS transition back to fullscreen position

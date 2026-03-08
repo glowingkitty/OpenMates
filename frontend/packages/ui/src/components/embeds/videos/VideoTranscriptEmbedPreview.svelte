@@ -27,6 +27,7 @@
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
+  import { proxyImage, getYouTubeMetadataUrl, MAX_WIDTH_CHANNEL_THUMBNAIL } from '../../../utils/imageProxy';
   import { chatSyncService } from '../../../services/chatSyncService';
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import type { VideoTranscriptSkillPreviewData, SkillExecutionStatus } from '../../../types/appSkills';
@@ -135,10 +136,6 @@
   let isLoadingMetadata = $state(false);
   let fetchedForUrl = $state<string | null>(null);
   
-  // Preview server base URL for image proxying
-  const PREVIEW_SERVER = 'https://preview.openmates.org';
-  // Channel thumbnail size: 29x29px display, 2x for retina = 58px
-  const CHANNEL_THUMBNAIL_MAX_WIDTH = 58;
   
   /**
    * Map SkillExecutionStatus to UnifiedEmbedPreview status
@@ -233,7 +230,7 @@
     
     try {
       const response = await fetch(
-        `${PREVIEW_SERVER}/api/v1/youtube?url=${encodeURIComponent(urlToFetch)}`
+        getYouTubeMetadataUrl(urlToFetch)
       );
       
       if (!response.ok) {
@@ -341,7 +338,7 @@
   // Channel thumbnails are small circular profile pictures (29x29px display)
   let channelThumbnailUrl = $derived.by(() => {
     if (!rawChannelThumbnailUrl) return '';
-    return `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(rawChannelThumbnailUrl)}&max_width=${CHANNEL_THUMBNAIL_MAX_WIDTH}`;
+    return proxyImage(rawChannelThumbnailUrl, MAX_WIDTH_CHANNEL_THUMBNAIL);
   });
   
   // Calculate total word count across all results

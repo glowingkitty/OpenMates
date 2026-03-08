@@ -29,6 +29,7 @@
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import type { BaseSkillPreviewData } from '../../../types/appSkills';
   import { text } from '@repo/ui';
+  import { proxyFavicon } from '../../../utils/imageProxy';
   
   /**
    * Web read result interface based on read_skill.py
@@ -206,7 +207,7 @@
     // Always use preview server proxy, even if we have a direct favicon URL
     // This ensures privacy and consistent caching behavior
     if (effectiveUrl) {
-      return `https://preview.openmates.org/api/v1/favicon?url=${encodeURIComponent(effectiveUrl)}`;
+      return proxyFavicon(effectiveUrl);
     }
     return undefined;
   });

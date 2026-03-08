@@ -20,9 +20,8 @@
   import ImageResultEmbedPreview from './ImageResultEmbedPreview.svelte';
   import ImageResultEmbedFullscreen from './ImageResultEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
+  import { proxyImage } from '../../../utils/imageProxy';
 
-  /** Proxy base URL - all external images must go through this to protect user IP */
-  const PROXY_BASE = 'https://preview.openmates.org/api/v1/image?url=';
 
   /**
    * Single image result (child embed content schema).
@@ -166,14 +165,14 @@
   /** Proxy an external image URL */
   function proxyUrl(url: string | undefined): string | undefined {
     if (!url) return undefined;
-    return PROXY_BASE + encodeURIComponent(url);
+    return proxyImage(url);
   }
 </script>
 
 <UnifiedEmbedFullscreen
   appId="images"
   skillId="search"
-  skillIconName="image-search"
+  skillIconName="search"
   {embedHeaderTitle}
   {embedHeaderSubtitle}
   showSkillIcon={true}

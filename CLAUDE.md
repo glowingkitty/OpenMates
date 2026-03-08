@@ -43,7 +43,7 @@ Tags control which instruction docs are preloaded. They are auto-inferred from t
 | `test` | testing.md |
 | `i18n` | i18n.md, manage-translations.md |
 | `figma` | figma-to-code.md |
-| `embed` | embed-types.md |
+| `embed` | embed-types.md, image-proxy.md |
 | `api` | add-api.md |
 | `planning` | planning.md |
 | `feature` | planning.md, feature-workflow.md |
@@ -142,6 +142,7 @@ Before writing any new function, class, Pydantic model, or Svelte component:
 3. **Shared architecture decision comments** — Write once in `docs/architecture/`, reference with a one-line comment: `# See docs/architecture/<topic>.md for design rationale`. Do NOT copy multi-line decision blocks across files.
 4. **Pydantic model reuse** — If multiple skills need similar Request/Response shapes, create base models in `backend/shared/python_schemas/` and extend per-skill.
 5. **Unified Svelte components first** — Always use `UnifiedEmbedPreview.svelte` and `UnifiedEmbedFullscreen.svelte` as the base for embed components. Only add app-specific logic in the `details`/`content` snippets. See `docs/claude/embed-types.md`.
+6. **External image URLs** — Never hardcode the preview server domain. Use `proxyImage()`, `proxyFavicon()`, `getMetadataUrl()`, or `getYouTubeMetadataUrl()` from `frontend/packages/ui/src/utils/imageProxy.ts`. See `docs/claude/image-proxy.md`.
 
 ### Architecture Decision Documentation
 
@@ -522,6 +523,7 @@ python3 scripts/sessions.py context --doc <name>
 | `manage-translations.md` | i18n | Translation management, coverage stats |
 | `figma-to-code.md` | figma | Implementing Figma designs |
 | `embed-types.md` | embed | Embed preview/fullscreen components |
+| `image-proxy.md` | embed | External image loading via preview server proxy |
 | `add-api.md` | api | External API integrations |
 | `planning.md` | planning, feature | Implementation planning |
 | `feature-workflow.md` | feature | Full feature lifecycle (requirements to deploy) |
@@ -548,3 +550,4 @@ python3 scripts/sessions.py context --doc <name>
 ```
 
 **CRITICAL**: Before every git commit, run the linter on all modified files and fix all errors. Only commit when the linter shows NO errors.
+
