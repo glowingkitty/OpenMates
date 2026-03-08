@@ -2105,6 +2105,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
               {selectable}
               {piiMappings}
               {piiRevealed}
+              {role}
               on:message-embed-click={handleEmbedClick}
           />
         {:else if hasExampleChatsPlaceholder}
@@ -2124,6 +2125,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
               {selectable}
               {piiMappings}
               {piiRevealed}
+              {role}
               on:message-embed-click={handleEmbedClick}
           />
         {/if}

@@ -681,6 +681,181 @@ function _convertSourceQuoteNode(node: any): any {
  * @param opts - Parsing options including feature flags
  * @returns TipTap document JSON with unified embed nodes
  */
+// ─── Single assistant embed → large preview promotion ─────────────────────────
+//
+// When an assistant message contains exactly ONE embed of certain content-creation
+// types (docs, code, sheets, mail, math), that embed is promoted from a regular
+// inline `embed` node to a full-width `embedPreviewLarge` block node.
+//
+// This gives single generated documents/code/sheets/mails/math results a more
+// prominent, immersive presentation — the same treatment as [!](embed:ref) syntax
+// but applied automatically based on message structure.
+//
+// When multiple embeds exist (grouped or individual), rendering stays unchanged
+// so the horizontal scroll group layout is preserved.
+//
+// User messages are never affected — this only applies to role === "assistant".
+
+/** Embed types eligible for automatic large preview promotion in assistant messages */
+const LARGE_PROMOTION_ELIGIBLE_TYPES = new Set([
+  "docs-doc",
+  "code-code",
+  "sheets-sheet",
+  "mail-email",
+  "math-plot",
+]);
+
+/** App-skill-use embeds eligible for large preview promotion (checked via app_id + skill_id) */
+const LARGE_PROMOTION_ELIGIBLE_SKILLS: ReadonlyArray<{ app_id: string; skill_id: string }> = [
+  { app_id: "math", skill_id: "calculate" },
+];
+
+/**
+ * Collect all embed nodes from a TipTap document tree (depth-first).
+ * Returns an array of { node, parent, index } for each embed found.
+ */
+function collectEmbedNodes(doc: any): Array<{ node: any; parent: any; index: number }> {
+  const results: Array<{ node: any; parent: any; index: number }> = [];
+
+  function walk(node: any, parent: any, index: number) {
+    if (!node) return;
+    if (node.type === "embed") {
+      results.push({ node, parent, index });
+    }
+    if (Array.isArray(node.content)) {
+      node.content.forEach((child: any, i: number) => walk(child, node, i));
+    }
+  }
+
+  if (Array.isArray(doc.content)) {
+    doc.content.forEach((child: any, i: number) => walk(child, doc, i));
+  }
+
+  return results;
+}
+
+/**
+ * Check if an embed node is eligible for large preview promotion.
+ * Matches by direct type (e.g. "docs-doc") or by app_id + skill_id for app-skill-use.
+ */
+function isEligibleForLargePromotion(attrs: any): boolean {
+  if (!attrs) return false;
+
+  // Direct type match (docs, code blocks, sheets, mail, math-plot)
+  if (LARGE_PROMOTION_ELIGIBLE_TYPES.has(attrs.type)) {
+    return true;
+  }
+
+  // App-skill-use match (math:calculate)
+  if (attrs.type === "app-skill-use" && attrs.app_id && attrs.skill_id) {
+    return LARGE_PROMOTION_ELIGIBLE_SKILLS.some(
+      (s) => s.app_id === attrs.app_id && s.skill_id === attrs.skill_id,
+    );
+  }
+
+  return false;
+}
+
+/**
+ * Derive the appId hint for the embedPreviewLarge node from embed attrs.
+ * Used for fast routing in EmbedPreviewLarge.svelte before async resolution.
+ */
+function getAppIdFromEmbedAttrs(attrs: any): string | null {
+  if (!attrs) return null;
+  // For app-skill-use, use the explicit app_id
+  if (attrs.app_id) return attrs.app_id;
+  // For direct types, extract the app prefix (e.g. "docs-doc" → "docs")
+  if (typeof attrs.type === "string" && attrs.type.includes("-")) {
+    return attrs.type.split("-")[0];
+  }
+  return null;
+}
+
+/**
+ * Promote a single eligible embed in an assistant message to an embedPreviewLarge node.
+ *
+ * Conditions for promotion:
+ * 1. role is "assistant"
+ * 2. Exactly ONE embed node exists in the entire document (no groups, no multi-embeds)
+ * 3. That embed's type is in the eligible set
+ *
+ * When promoted, the embed node is replaced with an embedPreviewLarge block node
+ * at document level (hoisted out of its paragraph if needed).
+ */
+function promoteSingleAssistantEmbedsToLarge(doc: any, role?: string): any {
+  // Only promote for assistant messages in read mode
+  if (role !== "assistant") return doc;
+
+  const embedNodes = collectEmbedNodes(doc);
+
+  // Must be exactly 1 embed (no groups — groups have type ending in "-group")
+  if (embedNodes.length !== 1) return doc;
+
+  const { node: embedNode, parent, index } = embedNodes[0];
+  const attrs = embedNode.attrs;
+
+  if (!isEligibleForLargePromotion(attrs)) return doc;
+
+  // Extract embed ID from contentRef ("embed:<uuid>") or from id
+  const embedId = attrs.contentRef?.startsWith("embed:")
+    ? attrs.contentRef.replace("embed:", "")
+    : attrs.id || null;
+
+  if (!embedId) return doc;
+
+  const appId = getAppIdFromEmbedAttrs(attrs);
+
+  // Create the embedPreviewLarge node
+  const largeNode = {
+    type: "embedPreviewLarge",
+    attrs: {
+      embedRef: embedId,
+      embedId: embedId,
+      appId: appId,
+      carouselIndex: 0,
+      carouselTotal: 1,
+    },
+  };
+
+  console.debug(
+    "[promoteSingleAssistantEmbedsToLarge] Promoting single embed to large preview:",
+    { type: attrs.type, embedId, appId },
+  );
+
+  // Replace the embed node with the large node.
+  // If the parent is a paragraph containing only this embed (and maybe whitespace),
+  // replace the entire paragraph with the large node at document level.
+  if (parent && parent.type === "paragraph" && parent.content) {
+    const meaningfulChildren = parent.content.filter(
+      (c: any) => c.type !== "text" || (c.text && c.text.trim().length > 0),
+    );
+    if (meaningfulChildren.length === 1 && meaningfulChildren[0] === embedNode) {
+      // Paragraph contains only this embed — replace the whole paragraph at doc level
+      const docContent = doc.content || [];
+      const paraIndex = docContent.indexOf(parent);
+      if (paraIndex !== -1) {
+        const newContent = [...docContent];
+        newContent[paraIndex] = largeNode;
+        return { ...doc, content: newContent };
+      }
+    }
+  }
+
+  // Fallback: replace in-place within the parent
+  if (parent && Array.isArray(parent.content)) {
+    const newContent = [...parent.content];
+    newContent[index] = largeNode;
+    return {
+      ...doc,
+      content: (doc.content || []).map((node: any) =>
+        node === parent ? { ...parent, content: newContent } : node,
+      ),
+    };
+  }
+
+  return doc;
+}
+
 export function parse_message(
   markdown: string,
   mode: "write" | "read",
@@ -735,6 +910,13 @@ export function parse_message(
 
   // Group consecutive embeds of the same type at the document level where we can see actual text between them
   let unifiedDoc = groupConsecutiveEmbedsInDocument(docWithIndividualEmbeds);
+
+  // Promote single eligible embeds to large preview in assistant messages.
+  // This must run AFTER grouping (so we know the embed is truly alone, not part of a group)
+  // and BEFORE convertEmbedLinks (so the hoisting logic in _hoistBlockEmbedPreviews handles it).
+  if (mode === "read" && opts.role === "assistant") {
+    unifiedDoc = promoteSingleAssistantEmbedsToLarge(unifiedDoc, opts.role);
+  }
 
   // Convert embed: link marks to embedInline atom nodes, then detect
   // blockquotes that are source quotes and convert them (read mode only)

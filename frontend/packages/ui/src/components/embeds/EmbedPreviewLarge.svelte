@@ -272,7 +272,7 @@
       return TravelSearchEmbedPreviewLarge;
     }
     if (aid === 'math') {
-      if (sid === 'plot' || (!sid && !resolvedEmbedId)) return MathPlotEmbedPreviewLarge;
+      if (sid === 'plot' || !sid) return MathPlotEmbedPreviewLarge;
       return MathCalculateEmbedPreviewLarge;
     }
     if (aid === 'code') {

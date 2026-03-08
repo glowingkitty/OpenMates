@@ -34,7 +34,8 @@
         _embedUpdateTimestamp = 0,
         selectable = false,
         piiMappings = undefined,
-        piiRevealed = false
+        piiRevealed = false,
+        role = undefined
     }: { 
         content: any; 
         isStreaming?: boolean; 
@@ -42,6 +43,7 @@
         selectable?: boolean;
         piiMappings?: PIIMapping[];
         piiRevealed?: boolean; // Whether PII original values are visible (false = placeholders shown, true = originals shown)
+        role?: "user" | "assistant" | "system"; // Message role — passed to parse_message for single-embed large promotion
     } = $props(); // The message content from Tiptap JSON
 
     let editorElement: HTMLElement;
@@ -469,7 +471,7 @@
                 // Handle special translation keys
                 if (inputContent === 'chat.an_error_occured') {
                     const translatedText = $text('chat.an_error_occured');
-                    return parse_message(translatedText, 'read', { unifiedParsingEnabled: true });
+                    return parse_message(translatedText, 'read', { unifiedParsingEnabled: true, role });
                 }
 
                 // Performance optimization: Check cache before parsing
@@ -478,7 +480,7 @@
                 // This handles the case where embed data becomes available after initial render
                 // (the markdown is unchanged but embeds can now be decrypted and rendered)
                 const currentLocale = $locale || 'en';
-                const cacheKey = `${currentLocale}:${inputContent}`;
+                const cacheKey = `${currentLocale}:${role || 'unknown'}:${inputContent}`;
                 
                 // Bypass cache if embed update is pending - forces fresh parsing and re-rendering
                 // This is necessary because embed NodeViews need to call resolveEmbed() again
@@ -496,7 +498,7 @@
                 }
 
                 // Parse markdown text to TipTap JSON with unified parsing (includes embed parsing)
-                const parsed = parse_message(inputContent, 'read', { unifiedParsingEnabled: true });
+                const parsed = parse_message(inputContent, 'read', { unifiedParsingEnabled: true, role });
                 
                 // Only cache if not bypassing (avoid polluting cache with stale embed state)
                 if (!bypassCache) {
@@ -521,7 +523,7 @@
                     } else if (isMarkdownContent(textContent)) {
                         // If the text content looks like markdown, parse it with unified parsing
                         logger.debug('Converting TipTap JSON with markdown text to proper markdown structure');
-                        return parse_message(textContent, 'read', { unifiedParsingEnabled: true });
+                        return parse_message(textContent, 'read', { unifiedParsingEnabled: true, role });
                     }
                 }
                 
@@ -537,7 +539,7 @@
             const stringContent = String(inputContent);
             if (isMarkdownContent(stringContent)) {
                 logger.debug('Converting unknown content type to markdown');
-                return parse_message(stringContent, 'read', { unifiedParsingEnabled: true });
+                return parse_message(stringContent, 'read', { unifiedParsingEnabled: true, role });
             }
             
             // Fallback: return content as-is (should already be processed)
@@ -549,7 +551,7 @@
             // Final fallback: try to parse as markdown text
             try {
                 const stringContent = typeof inputContent === 'string' ? inputContent : String(inputContent);
-                return parse_message(stringContent, 'read', { unifiedParsingEnabled: true });
+                return parse_message(stringContent, 'read', { unifiedParsingEnabled: true, role });
             } catch (markdownError) {
                 logger.debug("Markdown parsing also failed, returning simple paragraph", markdownError);
                 
