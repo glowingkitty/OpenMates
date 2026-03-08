@@ -199,6 +199,19 @@
           const decoded = await decodeToonContent(data.content);
           if (decoded?.skill_id) resolvedSkillId = decoded.skill_id as string;
           if (decoded?.app_id) resolvedAppId = decoded.app_id as string;
+          // CRITICAL: For child embeds (e.g. image_result, web_result), the TOON content
+          // stores the parent's skill_id (e.g. "search"), but the actual child type is in
+          // the `type` field (e.g. "image_result"). Use `type` as skill_id when it
+          // represents a child embed type to ensure correct component routing.
+          if (decoded?.type && typeof decoded.type === 'string') {
+            const childType = decoded.type as string;
+            // Child types that should override the parent skill_id for routing
+            if (['image_result', 'web_result', 'news_result', 'video_result',
+                 'location', 'flight', 'stay', 'event', 'product', 'job',
+                 'health_result', 'recipe', 'price_calendar_result'].includes(childType)) {
+              resolvedSkillId = childType;
+            }
+          }
         } catch {
           // ignore decode errors; will fall through to generic fallback
         }
