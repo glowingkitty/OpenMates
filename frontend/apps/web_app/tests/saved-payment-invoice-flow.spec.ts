@@ -50,8 +50,13 @@ const {
 	createStepScreenshotter,
 	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount
+	getTestAccount,
+	fillStripeCardDetails
 } = require('./signup-flow-helpers');
+
+// Stripe test card that always succeeds in sandbox (no 3DS required).
+// This card is used both for seeding a saved payment method and for verifying the saved-method flow.
+const STRIPE_TEST_CARD = '4242424242424242';
 
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
@@ -90,6 +95,12 @@ async function loginToTestAccount(
 	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
 	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
 	await headerLoginButton.click();
+
+	// The header button opens the signup/alpha-disclaimer view by default.
+	// Click the "Login" tab to switch to the login form.
+	const loginTab = page.locator('.login-tabs').getByRole('button', { name: /^login$/i });
+	await expect(loginTab).toBeVisible({ timeout: 10000 });
+	await loginTab.click();
 
 	const emailInput = page.locator('input[name="username"][type="email"]');
 	await expect(emailInput).toBeVisible({ timeout: 10000 });
@@ -179,15 +190,13 @@ test('purchases credits with saved payment method, then verifies invoice is down
 	const settingsMenu = page.locator('.settings-menu.visible');
 	await expect(settingsMenu).toBeVisible({ timeout: 8000 });
 
-	// Wait for credits balance — confirms authenticated state fully loaded.
-	await expect(page.locator('.settings-menu.visible .credits-container')).toBeVisible({
-		timeout: 15000
-	});
+	// Wait for settings menu items to load (confirms authenticated state fully propagated).
+	// The credits-container is rendered inside SettingsMainHeader, which may not be queried
+	// directly — instead wait for the Billing menu item to appear as a loaded-state signal.
+	await expect(
+		page.locator('.settings-menu.visible .menu-item[role="menuitem"]').first()
+	).toBeVisible({ timeout: 15000 });
 
-	// Capture initial credits balance for later comparison
-	const creditsAmountEl = page.locator('.settings-menu.visible .credits-amount');
-	const initialCreditsText = await creditsAmountEl.textContent();
-	log('Initial credits balance: ' + initialCreditsText);
 	await screenshot(page, 'settings-menu-open');
 
 	// ─── Step 3: Navigate to Settings → Billing → Buy Credits ─────────────────────
@@ -223,36 +232,109 @@ test('purchases credits with saved payment method, then verifies invoice is down
 	log('Selected first pricing tier.');
 	await screenshot(page, 'tier-selected');
 
-	// ─── Step 5: Use saved payment method ─────────────────────────────────────────
+	// ─── Step 5: Ensure a saved payment method exists (seed if needed) ────────────
 	// After tier selection, SettingsBuyCreditsPayment loads.
-	// If the test account has saved payment methods (it should — previous Stripe
-	// test runs save the card), the saved methods list is shown.
-	// Otherwise, fall back to the Stripe form flow (like settings-buy-credits-stripe.spec.ts).
+	// If the test account already has a saved Stripe payment method, great.
+	// If not, we do a full fresh Stripe payment first to seed one — then repeat
+	// the Buy Credits flow and use the now-saved method the second time.
+	//
+	// This makes the test self-contained regardless of test account state.
 
-	// Wait for either saved methods list or Stripe iframe
-	await page.waitForTimeout(3000); // Allow component to load and detect saved methods
+	await page.waitForTimeout(3000); // Allow payment component to load and detect saved methods
 
 	const savedMethodItem = page.locator('.payment-method-item').first();
 	const hasSavedMethods = await savedMethodItem.isVisible({ timeout: 10000 }).catch(() => false);
 
 	if (!hasSavedMethods) {
-		// No saved payment methods — skip this test (settings-buy-credits-stripe.spec.ts covers the fresh card flow)
-		log('No saved payment methods found on this test account. Skipping saved-method-specific test.');
-		test.skip(true, 'Test account has no saved payment methods — cannot test saved method flow.');
-		return;
+		// No saved payment methods yet — do a fresh Stripe payment first to seed one.
+		log('No saved payment methods found — doing a fresh Stripe payment to seed the saved method.');
+		await screenshot(page, 'no-saved-methods-fresh-form');
+
+		// Wait for any iframe (Polar or Stripe) to confirm the payment component loaded.
+		await page.waitForSelector('iframe', { state: 'visible', timeout: 20000 });
+
+		// If an "Add payment method" button is visible (saved methods exist on Stripe),
+		// click it to reveal the fresh Stripe form.
+		const addPaymentMethodBtn = page.getByRole('button', { name: /add payment method/i });
+		if (await addPaymentMethodBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+			await addPaymentMethodBtn.click();
+			log('Clicked "Add payment method" button.');
+			await page.waitForTimeout(2000);
+		}
+
+		// The default provider may be Polar (non-EU). Switch to Stripe (EU card) to
+		// seed a saved payment method — Polar does not support saved methods.
+		const switchToEuCardBtn = page.getByRole('button', { name: /EU card|with an EU card/i });
+		if (await switchToEuCardBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+			await switchToEuCardBtn.click();
+			log('Switched to EU card (Stripe) provider for seeding.');
+			await page.waitForTimeout(3000);
+		}
+
+		// Wait for the Stripe Payment Element iframe to load.
+		await expect(page.locator('iframe[title="Secure payment input frame"]')).toBeVisible({
+			timeout: 30000
+		});
+		log('Stripe payment iframe loaded.');
+		await screenshot(page, 'stripe-payment-form-seed');
+
+		// Fill the Stripe card form
+		await fillStripeCardDetails(page, STRIPE_TEST_CARD);
+		await screenshot(page, 'stripe-card-filled-seed');
+		log('Stripe test card filled for seeding.');
+
+		// Submit — "Buy for 2 EUR" style button (avoid matching "Pay with a non-EU card")
+		const seedPayButton = page.getByRole('button', { name: /buy for \d|^pay$/i });
+		await expect(seedPayButton).toBeVisible({ timeout: 15000 });
+		await seedPayButton.click();
+		log('Clicked Pay button for seed payment.');
+
+		// Wait for success
+		await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 120000 });
+		log('Seed payment successful — saved method should now be stored on Stripe customer.');
+		await screenshot(page, 'seed-purchase-success');
+
+		// Click Done to go back to billing
+		const doneBtnSeed = page.getByRole('button', { name: /done/i });
+		await expect(doneBtnSeed).toBeVisible({ timeout: 10000 });
+		await doneBtnSeed.click();
+		await page.waitForTimeout(1000);
+
+		// Navigate back to Buy Credits
+		const buyCreditsItemAgain = page
+			.locator('.settings-menu.visible .menu-item[role="menuitem"]')
+			.filter({ hasText: /buy credits/i });
+		await expect(buyCreditsItemAgain).toBeVisible({ timeout: 10000 });
+		await buyCreditsItemAgain.click();
+		log('Navigated back to Buy Credits after seed payment.');
+		await screenshot(page, 'buy-credits-page-second');
+
+		// Select first tier again
+		await expect(async () => {
+			const tierItemsAgain = page.locator('.settings-menu.visible .menu-item[role="menuitem"]');
+			const countAgain = await tierItemsAgain.count();
+			expect(countAgain).toBeGreaterThanOrEqual(3);
+		}).toPass({ timeout: 15000 });
+
+		const firstTierAgain = page.locator('.settings-menu.visible .menu-item[role="menuitem"]').first();
+		await expect(firstTierAgain).toBeVisible({ timeout: 5000 });
+		await firstTierAgain.click();
+		log('Selected first pricing tier (second attempt).');
+		await page.waitForTimeout(3000); // Allow component to load saved methods
+		await screenshot(page, 'tier-selected-second');
 	}
 
+	// At this point the test account should have a saved Stripe method.
+	const savedMethodItemNow = page.locator('.payment-method-item').first();
+	await expect(savedMethodItemNow).toBeVisible({ timeout: 15000 });
 	log('Saved payment methods detected.');
 	await screenshot(page, 'saved-methods-list');
 
-	// The first saved method should already have a toggle — select it
-	const methodToggle = savedMethodItem.locator('label, .toggle, input[type="checkbox"]').first();
+	// The first saved method should already be selected — check for Buy Now being enabled.
 	const buyNowBtn = page.getByRole('button', { name: /buy now/i });
+	const methodToggle = savedMethodItemNow.locator('label, .toggle, input[type="checkbox"]').first();
 
-	// Check if the method is already selected (toggle checked)
-	const isAlreadySelected = await savedMethodItem.locator('input[type="checkbox"]:checked').count() > 0
-		|| await buyNowBtn.isEnabled().catch(() => false);
-
+	const isAlreadySelected = await buyNowBtn.isEnabled().catch(() => false);
 	if (!isAlreadySelected) {
 		await methodToggle.click();
 		log('Toggled first saved payment method.');

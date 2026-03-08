@@ -81,11 +81,6 @@ Supports both saved payment methods and new payment form
     let stripe: any = $state(null);
     let isProcessingPayment = $state(false);
 
-    // Dual-provider state for the saved-method flow.
-    // The <Payment> component handles provider detection internally when showPaymentForm is true.
-    // When showing the saved-method list (Stripe-only), we also detect the active provider
-    // so we can show or hide the saved-method UI and the switch-to-Polar button.
-    let detectedProvider: 'stripe' | 'polar' | null = $state(null);
     // providerOverride: if the user explicitly switches provider from the saved-method view
     let savedMethodProviderOverride: 'stripe' | 'polar' | null = $state(null);
 
@@ -150,34 +145,15 @@ Supports both saved payment methods and new payment form
      * if on Stripe. Polar does not support saved methods (Stripe-only feature).
      */
     async function detectProviderAndLoadMethods() {
+        // Saved payment methods are always stored in Stripe regardless of the active payment
+        // provider (Stripe for EU users, Polar for non-EU users). The backend always uses the
+        // Stripe provider when listing saved methods, so we don't need to detect the active
+        // provider here — just check for saved Stripe methods directly.
         isLoadingPaymentMethods = true;
         try {
-            // Build config URL — append provider_override if the user has explicitly switched
-            let configUrl = getApiEndpoint(apiEndpoints.payments.config);
-            if (savedMethodProviderOverride) {
-                configUrl += `?provider_override=${savedMethodProviderOverride}`;
-            }
-
-            const configResponse = await fetch(configUrl, { credentials: 'include' });
-            if (configResponse.ok) {
-                const config = await configResponse.json();
-                detectedProvider = (config.provider as 'stripe' | 'polar') || 'stripe';
-            } else {
-                // If config fails, assume Stripe (safe default)
-                detectedProvider = 'stripe';
-            }
-
-            // Saved payment methods are Stripe-only
-            if (detectedProvider === 'polar') {
-                hasSavedPaymentMethods = false;
-                showPaymentForm = true;
-                return;
-            }
-
             await checkPaymentMethods();
         } catch (error) {
-            console.error('Error detecting provider:', error);
-            detectedProvider = 'stripe';
+            console.error('Error loading payment methods:', error);
             showPaymentForm = true;
         } finally {
             isLoadingPaymentMethods = false;
@@ -222,7 +198,6 @@ Supports both saved payment methods and new payment form
         hasSavedPaymentMethods = false;
         paymentMethods = [];
         selectedPaymentMethodId = null;
-        detectedProvider = null;
         isLoadingPaymentMethods = true;
         await detectProviderAndLoadMethods();
     }
@@ -393,7 +368,7 @@ Supports both saved payment methods and new payment form
     <div class="loading-container">
         <p>{$text('settings.billing.loading_payment_methods')}</p>
     </div>
-{:else if hasSavedPaymentMethods && !showPaymentForm && detectedProvider === 'stripe'}
+{:else if hasSavedPaymentMethods && !showPaymentForm}
     <!-- Show saved payment methods (Stripe-only feature) -->
     <div class="payment-methods-container">
         <h3>{$text('settings.billing.select_payment_method')}</h3>
