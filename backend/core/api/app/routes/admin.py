@@ -4,6 +4,7 @@ REST API endpoints for server administration functionality.
 """
 
 import logging
+import os
 import random
 import string
 from typing import Dict, Any, List, Optional
@@ -1148,14 +1149,15 @@ async def trigger_test_run(
     cache_service: CacheService = Depends(get_cache_service),
 ) -> TriggerTestRunResponse:
     """
-    Trigger an out-of-schedule full test run.
+    Trigger an out-of-schedule full test run via the admin sidecar.
 
-    Dispatches the e2e_tests.run_daily_all_tests Celery task to the e2e_tests
-    queue. The task-worker picks it up and runs scripts/run-tests-daily.sh
-    with --force (skips the 24h commit-activity gate).
+    The sidecar executes scripts/run-tests-daily.sh on the host filesystem
+    (where Node.js, pnpm, pytest, and Docker CLI are available). The --force
+    flag is passed to skip the 24h commit-activity gate.
     Only one run can be active at a time.
     Admin-only endpoint.
     """
+    import httpx
     from datetime import datetime, timezone
 
     # Check if a run is already in progress
@@ -1182,26 +1184,48 @@ async def trigger_test_run(
     except Exception as e:
         logger.warning(f"Failed to set test run status in cache: {e}")
 
-    # Dispatch the Celery task to the e2e_tests queue.
-    # This is the same task that Celery Beat dispatches daily at 03:00 UTC.
+    # Trigger test run via the admin sidecar HTTP endpoint.
+    # The sidecar runs the script on the host filesystem where all tools exist.
+    # Manual triggers always use --force to skip the commit-activity gate.
+    sidecar_url = os.environ.get("CORE_SIDECAR_URL", "http://core-admin-sidecar:8001")
+    sidecar_key = os.environ.get("SECRET__CORE_SERVER__ADMIN_LOG_API_KEY", "")
+
     try:
-        from backend.core.api.app.tasks.celery_config import app as celery_configured_app
-        celery_configured_app.send_task(
-            "e2e_tests.run_daily_all_tests",
-            queue="e2e_tests",
-        )
-    except Exception as e:
-        logger.error(f"Failed to dispatch test run task: {e}", exc_info=True)
-        # Clear the running flag since we couldn't dispatch
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(
+                f"{sidecar_url}/admin/run-tests",
+                params={"force": "true"},
+                headers={"X-Admin-Log-Key": sidecar_key},
+            )
+            if resp.status_code == 409:
+                return TriggerTestRunResponse(
+                    success=False,
+                    message="A test run is already in progress on the sidecar",
+                    already_running=True,
+                )
+            if resp.status_code != 202:
+                raise Exception(f"Sidecar returned {resp.status_code}: {resp.text[:200]}")
+    except httpx.ConnectError:
+        logger.error("Failed to connect to admin sidecar at %s", sidecar_url)
         try:
             await cache_service.redis.delete(MANUAL_TEST_RUN_CACHE_KEY)
         except Exception:
             pass
-        raise HTTPException(status_code=500, detail=f"Failed to dispatch test run: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="Admin sidecar not reachable. Ensure core-admin-sidecar container is running.",
+        )
+    except Exception as e:
+        logger.error(f"Failed to trigger test run via sidecar: {e}", exc_info=True)
+        try:
+            await cache_service.redis.delete(MANUAL_TEST_RUN_CACHE_KEY)
+        except Exception:
+            pass
+        raise HTTPException(status_code=500, detail=f"Failed to trigger test run: {e}")
 
-    logger.info(f"Manual test run dispatched by admin {admin_user.id}")
+    logger.info(f"Manual test run triggered via sidecar by admin {admin_user.id}")
     return TriggerTestRunResponse(
         success=True,
-        message="Test run dispatched. Results will appear once the run completes.",
+        message="Test run started on the host. Results will appear once the run completes.",
         already_running=False,
     )

@@ -12,8 +12,7 @@
 #   ./scripts/run-tests-daily.sh --force   # skip the commit-activity check
 #
 # Environment variables required:
-#   SERVER_OWNER_EMAIL   — recipient for the summary email
-#   CELERY_BROKER_URL    — Redis/Dragonfly URL (default: redis://cache:6379/0)
+#   ADMIN_NOTIFY_EMAIL   — recipient for the summary email
 #
 # Output files (always written to test-results/):
 #   last-run.json              — full run data (written by run-tests.sh)
@@ -83,16 +82,15 @@ echo "[daily-runner] Archived result to $DAILY_ARCHIVE"
 ls -1t "$RESULTS_DIR"/daily-run-*.json 2>/dev/null | tail -n +31 | xargs -r rm -f
 echo "[daily-runner] Pruned old daily archives (keeping last 30)"
 
-# --- Dispatch summary email via Celery ---
-ADMIN_EMAIL="${SERVER_OWNER_EMAIL:-}"
+# --- Dispatch summary email via internal API ---
+ADMIN_EMAIL="${ADMIN_NOTIFY_EMAIL:-}"
 if [[ -z "$ADMIN_EMAIL" ]]; then
-  echo "[daily-runner] WARNING: SERVER_OWNER_EMAIL not set — skipping email dispatch."
+  echo "[daily-runner] WARNING: ADMIN_NOTIFY_EMAIL not set — skipping email dispatch."
   exit 0
 fi
 
 echo "[daily-runner] Dispatching test run summary email to $ADMIN_EMAIL..."
-export SERVER_OWNER_EMAIL="$ADMIN_EMAIL"
-export CELERY_BROKER_URL="${CELERY_BROKER_URL:-redis://cache:6379/0}"
+export ADMIN_NOTIFY_EMAIL="$ADMIN_EMAIL"
 
 python3 "$SCRIPT_DIR/_daily_runner_helper.py" dispatch-email
 

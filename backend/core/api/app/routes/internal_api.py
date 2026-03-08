@@ -1376,6 +1376,76 @@ async def cache_upload_embed(
         raise HTTPException(status_code=500, detail=f"Failed to cache upload embed: {str(e)}")
 
 
+# --- Test Run Summary Email Dispatch ---
+# Called by scripts/_daily_runner_helper.py (running on the host via admin-sidecar)
+# to dispatch the test run summary email through Celery without needing celery
+# installed on the host.
+
+class TestRunSummaryEmailPayload(BaseModel):
+    """Payload for dispatching a test run summary email via Celery."""
+    recipient_email: str
+    run_id: str
+    git_sha: str
+    git_branch: str
+    duration_seconds: int
+    total: int
+    passed: int
+    failed: int
+    skipped: int
+    not_started: int
+    suites: List[Dict[str, Any]]
+    failed_tests: List[Dict[str, Any]]
+
+
+@router.post("/dispatch-test-summary-email")
+async def dispatch_test_summary_email(
+    payload: TestRunSummaryEmailPayload,
+    request: Request,
+) -> Dict[str, Any]:
+    """
+    Dispatch the test run summary email Celery task.
+
+    Called by the host-side daily runner helper script (which runs inside the
+    admin-sidecar container where celery is not installed). This endpoint
+    accepts the same data that would have been passed as Celery task args and
+    dispatches the task onto the 'email' queue.
+
+    Security: Protected by INTERNAL_API_SHARED_TOKEN (same as all /internal/* routes).
+    """
+    logger.info(
+        f"[InternalAPI] Dispatching test run summary email to {payload.recipient_email} "
+        f"(run_id={payload.run_id}, failed={payload.failed}, total={payload.total})"
+    )
+
+    try:
+        from backend.core.api.app.tasks.celery_config import app as celery_app
+
+        celery_app.send_task(
+            name="app.tasks.email_tasks.test_run_summary_email_task.send_test_run_summary",
+            args=[
+                payload.recipient_email,
+                payload.run_id,
+                payload.git_sha,
+                payload.git_branch,
+                payload.duration_seconds,
+                payload.total,
+                payload.passed,
+                payload.failed,
+                payload.skipped,
+                payload.not_started,
+                payload.suites,
+                payload.failed_tests,
+            ],
+            queue="email",
+        )
+
+        logger.info("[InternalAPI] Test run summary email task dispatched successfully")
+        return {"status": "dispatched"}
+    except Exception as e:
+        logger.error(f"[InternalAPI] Failed to dispatch test summary email: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to dispatch email task: {str(e)}")
+
+
 # --- E2E Test Notification Endpoints ---
 
 class TestFailureNotificationPayload(BaseModel):

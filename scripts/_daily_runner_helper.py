@@ -5,7 +5,7 @@ scripts/_daily_runner_helper.py
 Internal helper for run-tests-daily.sh.
 Handles the Python-heavy steps of the daily test run:
   - split-results: parse last-run.json, write last-passed-tests.json and last-failed-tests.json
-  - dispatch-email: read last-run.json, dispatch the summary email Celery task
+  - dispatch-email: read last-run.json, dispatch the summary email via internal API
 
 Not intended to be called directly by users; use run-tests-daily.sh instead.
 """
@@ -72,20 +72,61 @@ def split_results() -> None:
     )
 
 
+def _read_env_file(project_root: str) -> dict:
+    """
+    Read key=value pairs from .env file at project root.
+    Returns a dict of env vars. Does not modify os.environ.
+    """
+    env_path = os.path.join(project_root, ".env")
+    env_vars = {}
+    if not os.path.isfile(env_path):
+        return env_vars
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" in line:
+                key, _, value = line.partition("=")
+                env_vars[key.strip()] = value.strip()
+    return env_vars
+
+
 def dispatch_email() -> None:
     """
-    Read last-run.json and dispatch the Celery test_run_summary email task.
+    Read last-run.json and dispatch the test run summary email via the
+    internal API endpoint POST /internal/dispatch-test-summary-email.
 
-    Uses the CELERY_BROKER_URL env var (default: redis://cache:6379/0) to
-    connect to the same Dragonfly/Redis broker the Docker workers use.
-    The task is queued on the 'email' queue, picked up by task-worker.
+    This script runs inside the admin-sidecar container (which does not have
+    celery installed), so we use an HTTP call to the API container instead of
+    importing celery directly. The API container dispatches the Celery email
+    task on our behalf.
+
+    Required env vars (read from .env if not in environment):
+        ADMIN_NOTIFY_EMAIL          — recipient for the summary email
+        INTERNAL_API_SHARED_TOKEN   — auth token for /internal/* endpoints
     """
+    import urllib.request
+    import urllib.error
+
     results_dir = os.environ.get("RESULTS_DIR", "test-results")
-    admin_email = os.environ.get("SERVER_OWNER_EMAIL", "")
-    broker_url = os.environ.get("CELERY_BROKER_URL", "redis://cache:6379/0")
+
+    # Determine project root (parent of scripts/)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir)
+
+    # Read .env for values not already in the environment
+    dot_env = _read_env_file(project_root)
+
+    admin_email = os.environ.get("ADMIN_NOTIFY_EMAIL") or dot_env.get("ADMIN_NOTIFY_EMAIL", "")
+    internal_token = os.environ.get("INTERNAL_API_SHARED_TOKEN") or dot_env.get("INTERNAL_API_SHARED_TOKEN", "")
 
     if not admin_email:
-        print("[daily-runner] ERROR: SERVER_OWNER_EMAIL not set — cannot dispatch email.", file=sys.stderr)
+        print("[daily-runner] ERROR: ADMIN_NOTIFY_EMAIL not set — cannot dispatch email.", file=sys.stderr)
+        sys.exit(1)
+
+    if not internal_token:
+        print("[daily-runner] ERROR: INTERNAL_API_SHARED_TOKEN not set — cannot dispatch email.", file=sys.stderr)
         sys.exit(1)
 
     data = _load_last_run(results_dir)
@@ -128,34 +169,50 @@ def dispatch_email() -> None:
                     "error": error[:MAX_ERROR_SNIPPET_LEN] if error else None,
                 })
 
-    # Dispatch the Celery task
+    # Dispatch via internal API endpoint (runs inside Docker network: api:8000)
+    api_url = "http://api:8000/internal/dispatch-test-summary-email"
+    payload = {
+        "recipient_email": admin_email,
+        "run_id": data.get("run_id", ""),
+        "git_sha": data.get("git_sha", ""),
+        "git_branch": data.get("git_branch", ""),
+        "duration_seconds": int(data.get("duration_seconds", 0)),
+        "total": total,
+        "passed": passed,
+        "failed": failed,
+        "skipped": skipped,
+        "not_started": not_started,
+        "suites": suites,
+        "failed_tests": failed_tests,
+    }
+
     try:
-        from celery import Celery  # available in the project venv
-        celery_app = Celery(broker=broker_url)
-        celery_app.send_task(
-            name="app.tasks.email_tasks.test_run_summary_email_task.send_test_run_summary",
-            args=[
-                admin_email,
-                data.get("run_id", ""),
-                data.get("git_sha", ""),
-                data.get("git_branch", ""),
-                int(data.get("duration_seconds", 0)),
-                total,
-                passed,
-                failed,
-                skipped,
-                not_started,
-                suites,
-                failed_tests,
-            ],
-            queue="email",
+        body = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            api_url,
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "X-Internal-Service-Token": internal_token,
+            },
+            method="POST",
         )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            resp.read()  # consume response body
+            print(
+                f"[daily-runner] Email task dispatched successfully via internal API "
+                f"(failed={failed}, total={total}, recipient={admin_email})"
+            )
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
         print(
-            f"[daily-runner] Email task dispatched successfully "
-            f"(failed={failed}, total={total}, recipient={admin_email})"
+            f"[daily-runner] ERROR dispatching email via internal API: "
+            f"HTTP {e.code} — {err_body[:500]}",
+            file=sys.stderr,
         )
+        sys.exit(1)
     except Exception as e:
-        print(f"[daily-runner] ERROR dispatching Celery email task: {e}", file=sys.stderr)
+        print(f"[daily-runner] ERROR dispatching email via internal API: {e}", file=sys.stderr)
         sys.exit(1)
 
 
