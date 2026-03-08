@@ -82,7 +82,8 @@ function isCurrencyLikeDollar(text: string, dollarIndex: number): boolean {
   }
 
   const nextChar = text[numberEnd];
-  return !nextChar || /[\s)\],.;:!?%]/.test(nextChar);
+  // Accept end of string, whitespace, punctuation, or markdown syntax characters (* for bold/italic, ~ for strikethrough)
+  return !nextChar || /[\s)\],.;:!?%*~]/.test(nextChar);
 }
 
 // Helper function to extract math formulas from markdown and replace with placeholders

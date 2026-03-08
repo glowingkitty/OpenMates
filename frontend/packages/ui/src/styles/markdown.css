@@ -57,6 +57,7 @@
 /* Text formatting */
 .markdown-bold {
   font-weight: 600;
+  color: var(--color-bold-text, #503ba0);
 }
 
 .markdown-italic {

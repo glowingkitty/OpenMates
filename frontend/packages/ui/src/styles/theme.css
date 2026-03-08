@@ -47,6 +47,7 @@
   --color-font-tertiary: #6b6b6b;
   --color-font-button: #ffffff;
   --color-font-field-placeholder: #9e9e9e;
+  --color-bold-text: #503ba0;
 
   /* Button Colors */
   --color-button-primary: #ff553b;
@@ -865,6 +866,7 @@ main::-webkit-scrollbar-thumb {
   --color-font-primary: #e6e6e6;
   --color-font-secondary: #cfcfcf;
   --color-font-tertiary: #c0c0c0;
+  --color-bold-text: #c9bbff;
 
   --color-footer-start: #293d7f;
   --color-footer-end: #263969;
