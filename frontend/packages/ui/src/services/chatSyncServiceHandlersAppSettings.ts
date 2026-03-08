@@ -2155,6 +2155,7 @@ interface ReminderFiredPayload {
   content: string; // PLAINTEXT reminder content
   chat_title?: string; // For new_chat target
   user_id: string; // User's UUID (used for WebSocket routing)
+  fired_at?: number; // Unix timestamp when the reminder actually fired (set by backend)
 }
 
 /**
@@ -2203,6 +2204,12 @@ export async function handleReminderFiredImpl(
       );
       return;
     }
+    // Use fired_at from the backend payload for correct message ordering.
+    // When the user was offline, the reminder fires server-side (fired_at) but the
+    // pending delivery is only received when the user reconnects. Using Date.now()
+    // would give the system message a timestamp AFTER the AI response it triggered.
+    const firedAt = payload.fired_at || Math.floor(Date.now() / 1000);
+
     const { encryptWithChatKey } = await import("./cryptoService");
     const { webSocketService } = await import("./websocketService");
 
@@ -2237,7 +2244,7 @@ export async function handleReminderFiredImpl(
       // Store the chat key
       chatDB.setChatKey(chat_id, chatKey);
 
-      const now = Math.floor(Date.now() / 1000);
+      const now = firedAt;
 
       // Encrypt the title with the new chat key
       const titleText = chat_title || "Reminder";
@@ -2278,7 +2285,7 @@ export async function handleReminderFiredImpl(
     }
 
     // Create the system message
-    const now = Math.floor(Date.now() / 1000);
+    const now = firedAt;
     const systemMessage = {
       message_id: message_id,
       chat_id: chat_id,
