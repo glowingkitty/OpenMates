@@ -36,6 +36,7 @@ Usage:
 """
 
 import argparse
+import fcntl
 import glob as glob_mod
 import json
 import os
@@ -55,8 +56,10 @@ SESSIONS_FILE = PROJECT_ROOT / ".claude" / "sessions.json"
 PROJECT_INDEX_FILE = PROJECT_ROOT / ".claude" / "project-index.json"
 CODE_MAPPING_FILE = PROJECT_ROOT / "docs" / "architecture" / "code-mapping.yml"
 STALE_SESSION_HOURS = 24
+STALE_EMPTY_SESSION_HOURS = 6  # Sessions with zero tracked files expire faster
 STALE_LOCK_MINUTES = 5
 STALE_DOC_HOURS = 24
+RECENT_COMMITS_COUNT = 10  # Number of recent git commits to show at session start
 CLAUDE_DOCS_DIR = PROJECT_ROOT / "docs" / "claude"
 ARCH_DOCS_DIR = PROJECT_ROOT / "docs" / "architecture"
 
@@ -172,6 +175,23 @@ ARCH_DOC_DESCRIPTIONS: dict[str, str] = {
     "zero-knowledge-storage": "Client-side encryption for all storage",
 }
 
+# Maps tags to keywords for filtering architecture docs at session start.
+TAG_TO_ARCH_KEYWORDS: dict[str, list[str]] = {
+    "frontend": ["web-app", "svelte", "component", "message-input", "message-parsing",
+                 "message-previews", "embed", "sync", "passkey", "signup", "payment",
+                 "translations", "status-page", "docs-web"],
+    "backend": ["api", "skill", "processing", "worker", "celery", "health", "server",
+                "logging", "model", "file-upload", "daily", "vector", "mates",
+                "hallucination", "pii", "prompt-injection", "sensitive-data"],
+    "debug": ["logging", "health", "admin-console", "device-session", "sync"],
+    "test": ["health"],
+    "embed": ["embed", "message-preview"],
+    "i18n": ["translation"],
+    "security": ["security", "zero-knowledge", "encryption", "passkey", "pii",
+                 "prompt-injection", "email-privacy", "sensitive-data"],
+    "api": ["rest-api", "api", "developer"],
+}
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -219,13 +239,31 @@ def _load_sessions() -> dict:
 
 
 def _save_sessions(data: dict) -> None:
-    """Atomically write sessions.json."""
+    """Atomically write sessions.json with advisory file lock.
+
+    Uses fcntl.flock to prevent concurrent write races when multiple
+    Claude sessions modify sessions.json simultaneously.
+    """
     SESSIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    tmp = SESSIONS_FILE.with_suffix(".tmp")
-    with open(tmp, "w") as f:
-        json.dump(data, f, indent=2)
-        f.write("\n")
-    tmp.replace(SESSIONS_FILE)
+    lock_path = SESSIONS_FILE.with_suffix(".lock")
+    try:
+        with open(lock_path, "w") as lock_fd:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            try:
+                tmp = SESSIONS_FILE.with_suffix(".tmp")
+                with open(tmp, "w") as f:
+                    json.dump(data, f, indent=2)
+                    f.write("\n")
+                tmp.replace(SESSIONS_FILE)
+            finally:
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
+    except OSError:
+        # Fallback: write without lock (better than failing entirely)
+        tmp = SESSIONS_FILE.with_suffix(".tmp")
+        with open(tmp, "w") as f:
+            json.dump(data, f, indent=2)
+            f.write("\n")
+        tmp.replace(SESSIONS_FILE)
 
 
 def _default_sessions() -> dict:
@@ -448,14 +486,14 @@ def _load_or_generate_index() -> dict:
     return index
 
 
-def _run_cmd(cmd: list[str], cwd: str | None = None) -> tuple[int, str, str]:
+def _run_cmd(cmd: list[str], cwd: str | None = None, timeout: int = 120) -> tuple[int, str, str]:
     """Run a command and return (returncode, stdout, stderr)."""
     result = subprocess.run(
         cmd,
         cwd=cwd or str(PROJECT_ROOT),
         capture_output=True,
         text=True,
-        timeout=120,
+        timeout=timeout,
     )
     return result.returncode, result.stdout.strip(), result.stderr.strip()
 
@@ -485,6 +523,63 @@ def _get_dirty_files() -> set[str]:
         if path_part:
             dirty.add(path_part)
     return dirty
+
+
+
+def _get_recent_commits(count: int = RECENT_COMMITS_COUNT) -> list[str]:
+    """Return recent git commits as one-line summaries with relative timestamps."""
+    rc, stdout, _ = _run_cmd([
+        "git", "log", f"--max-count={count}",
+        "--format=%h %ar %s",
+        "--no-merges",
+    ])
+    if rc != 0 or not stdout:
+        return []
+    return stdout.splitlines()
+
+
+def _get_git_status_summary() -> dict:
+    """Return a compact git status summary for session start context."""
+    result = {"branch": "unknown", "tracking": "", "uncommitted": [], "unpushed": 0}
+
+    # Current branch
+    rc, stdout, _ = _run_cmd(["git", "rev-parse", "--abbrev-ref", "HEAD"])
+    if rc == 0:
+        result["branch"] = stdout.strip()
+
+    # Tracking status (ahead/behind)
+    rc, stdout, _ = _run_cmd([
+        "git", "rev-list", "--left-right", "--count", "@{upstream}...HEAD"
+    ])
+    if rc == 0 and stdout.strip():
+        parts = stdout.strip().split()
+        if len(parts) == 2:
+            behind, ahead = int(parts[0]), int(parts[1])
+            result["unpushed"] = ahead
+            if ahead == 0 and behind == 0:
+                result["tracking"] = "up to date with remote"
+            else:
+                parts_str = []
+                if ahead:
+                    parts_str.append(f"{ahead} ahead")
+                if behind:
+                    parts_str.append(f"{behind} behind")
+                result["tracking"] = ", ".join(parts_str)
+
+    # Uncommitted files (compact: just the paths with status)
+    rc, stdout, _ = _run_cmd(["git", "status", "--porcelain"])
+    if rc == 0 and stdout:
+        for line in stdout.splitlines():
+            if len(line) >= 4:
+                status = line[:2].strip()
+                path = line[3:]
+                if " -> " in path:
+                    path = path.split(" -> ", 1)[1]
+                path = path.strip().strip('"')
+                if path:
+                    result["uncommitted"].append(f"{status} {path}")
+
+    return result
 
 
 def _infer_tags(task: str) -> list[str]:
@@ -549,21 +644,24 @@ def _get_arch_doc_index() -> list[dict]:
 
 
 def cmd_start(args: argparse.Namespace) -> None:
-    """Start a new session with tag-based doc preloading."""
+    """Start a new session with tag-based doc preloading and git context."""
     data = _load_sessions()
 
     # Prune stale sessions and locks
     pruned = _prune_stale(data)
     cleared_locks = _prune_stale_locks(data)
 
-    # Generate session ID
+    # Generate session ID (with collision guard)
     sid = secrets.token_hex(2)
+    attempts = 0
+    while sid in data.get("sessions", {}) and attempts < 10:
+        sid = secrets.token_hex(2)
+        attempts += 1
 
     # Resolve tags: explicit --tags override auto-inference from --task
     tags = []
     if hasattr(args, "tags") and args.tags:
         tags = [t.strip() for t in args.tags.split(",") if t.strip()]
-        # Warn about unrecognized tags
         valid_tags = set(TAG_TO_DOCS.keys())
         unknown = [t for t in tags if t not in valid_tags]
         if unknown:
@@ -575,7 +673,7 @@ def cmd_start(args: argparse.Namespace) -> None:
     elif args.task:
         tags = _infer_tags(args.task)
 
-    # Register session (now includes tags)
+    # Register session
     data["sessions"][sid] = {
         "task": args.task or "(pending)",
         "tags": tags,
@@ -596,21 +694,65 @@ def cmd_start(args: argparse.Namespace) -> None:
         print(f"Tags: {', '.join(tags)}")
     print()
 
-    # Active sessions (only show sessions that overlap with our tags/files)
-    other_sessions = {
-        k: v for k, v in data.get("sessions", {}).items() if k != sid
-    }
+    # Git status
+    git_status = _get_git_status_summary()
+    print("== GIT STATUS ==")
+    branch_info = git_status["branch"]
+    if git_status["tracking"]:
+        branch_info += f" ({git_status['tracking']})"
+    print(f"  Branch: {branch_info}")
+    uncommitted = git_status.get("uncommitted", [])
+    if uncommitted:
+        print(f"  Uncommitted files ({len(uncommitted)}):")
+        for uf in uncommitted[:20]:
+            print(f"    {uf}")
+        if len(uncommitted) > 20:
+            print(f"    ... and {len(uncommitted) - 20} more")
+    else:
+        print("  Working tree: clean")
+    print()
+
+    # Recent commits
+    recent_commits = _get_recent_commits()
+    if recent_commits:
+        print(f"== RECENT COMMITS ({len(recent_commits)}) ==")
+        for commit_line in recent_commits:
+            print(f"  {commit_line}")
+        print()
+
+    # Active sessions — only show sessions with tracked files or active in last 2h
+    other_sessions = {}
+    hidden_count = 0
+    for k, v in data.get("sessions", {}).items():
+        if k == sid:
+            continue
+        has_files = bool(v.get("modified_files"))
+        has_writing = bool(v.get("writing"))
+        last_active = v.get("last_active", "")
+        recently_active = last_active and _hours_since(last_active) < 2
+        if has_files or has_writing or recently_active:
+            other_sessions[k] = v
+        else:
+            hidden_count += 1
+
     if other_sessions:
-        print(f"== ACTIVE SESSIONS ({len(other_sessions)}) ==")
+        count_str = f"{len(other_sessions)}"
+        if hidden_count:
+            count_str += f" shown, {hidden_count} idle hidden"
+        print(f"== ACTIVE SESSIONS ({count_str}) ==")
         for osid, info in other_sessions.items():
             files_str = ""
             if info.get("writing"):
                 files_str = f" [WRITING: {info['writing']}]"
             elif info.get("modified_files"):
-                files_str = (
-                    f" [modified: {len(info['modified_files'])} files]"
-                )
-            print(f"  {osid}: {info.get('task', '?')}{files_str}")
+                files_str = f" [modified: {len(info['modified_files'])} files]"
+            tags_str = ""
+            if info.get("tags"):
+                tags_str = f" ({','.join(info['tags'])})"
+            print(f"  {osid}: {info.get('task', '?')[:80]}{tags_str}{files_str}")
+        print()
+    elif hidden_count:
+        print(f"[{hidden_count} idle sessions hidden (no tracked files, inactive >2h)]")
         print()
 
     # Locks
@@ -628,22 +770,27 @@ def cmd_start(args: argparse.Namespace) -> None:
             )
         print()
 
-    # Stale docs (only show if relevant to tags)
+    # Stale docs — filtered by session tags
     stale = _check_stale_docs()
-    if stale:
-        print("== STALE ARCHITECTURE DOCS ==")
+    if stale and tags:
+        relevant_stale = []
         for s in stale:
-            print(
-                f"  ! docs/architecture/{s['doc']} "
-                f"(updated {s['doc_modified']}) "
-                f"\u2014 code changed {s['code_modified']} in {s['code_file']}"
-            )
+            doc_stem = s["doc"].replace(".md", "")
+            desc = ARCH_DOC_DESCRIPTIONS.get(doc_stem, "").lower()
+            tag_related = any(tag in desc or tag in doc_stem for tag in tags)
+            if tag_related:
+                relevant_stale.append(s)
+        stale = relevant_stale
+
+    if stale:
+        print(f"== STALE ARCHITECTURE DOCS ({len(stale)}) ==")
+        for s in stale:
+            print(f"  ! {s['doc']} (doc: {s['doc_modified']}, code: {s['code_modified']})")
         print()
 
-    # Project index — show compact version filtered by tags
+    # Project index — filtered by tags
     index = _load_or_generate_index()
     print("== PROJECT INDEX ==")
-    # Show relevant sections based on tags
     show_backend = not tags or any(t in tags for t in ("backend", "debug", "api", "security", "test"))
     show_frontend = not tags or any(t in tags for t in ("frontend", "embed", "figma", "i18n", "test"))
 
@@ -664,25 +811,53 @@ def cmd_start(args: argparse.Namespace) -> None:
             print(f"Frontend components: {', '.join(comps)}")
     print()
 
-    # Architecture doc index (always show — compact, helps LLM decide what to load)
+    # Architecture doc index — filtered by tags
     arch_index = _get_arch_doc_index()
     if arch_index:
-        print("== ARCHITECTURE DOCS (load with: sessions.py context --doc <name>) ==")
-        for entry in arch_index:
-            desc = f" \u2014 {entry['description']}" if entry["description"] else ""
-            print(f"  {entry['name']}{desc}")
-        print()
+        if tags:
+            filter_keywords = set()
+            for tag in tags:
+                filter_keywords.update(TAG_TO_ARCH_KEYWORDS.get(tag, []))
+                filter_keywords.add(tag)
+
+            relevant_docs = []
+            other_docs = []
+            for entry in arch_index:
+                desc = (entry.get("description", "") or "").lower()
+                name = entry["name"].lower()
+                is_relevant = any(kw in name or kw in desc for kw in filter_keywords)
+                if is_relevant:
+                    relevant_docs.append(entry)
+                else:
+                    other_docs.append(entry)
+            if relevant_docs:
+                print("== ARCHITECTURE DOCS (relevant to tags, load with: sessions.py context --doc <name>) ==")
+                for entry in relevant_docs:
+                    desc_str = f" \u2014 {entry['description']}" if entry["description"] else ""
+                    print(f"  {entry['name']}{desc_str}")
+                if other_docs:
+                    print(f"  [{len(other_docs)} more docs available]")
+                print()
+            else:
+                print("== ARCHITECTURE DOCS (load with: sessions.py context --doc <name>) ==")
+                for entry in arch_index:
+                    desc_str = f" \u2014 {entry['description']}" if entry["description"] else ""
+                    print(f"  {entry['name']}{desc_str}")
+                print()
+        else:
+            print("== ARCHITECTURE DOCS (load with: sessions.py context --doc <name>) ==")
+            for entry in arch_index:
+                desc_str = f" \u2014 {entry['description']}" if entry["description"] else ""
+                print(f"  {entry['name']}{desc_str}")
+            print()
 
     # Cleanup report
     if pruned:
         print(f"[Pruned {len(pruned)} stale sessions: {', '.join(pruned)}]")
     if cleared_locks:
-        print(
-            f"[Cleared {len(cleared_locks)} stale locks: "
-            f"{', '.join(cleared_locks)}]"
-        )
+        print(f"[Cleared {len(cleared_locks)} stale locks: {', '.join(cleared_locks)}]")
 
-    # --- Preload instruction docs based on tags ---
+    # Preload instruction docs based on tags
     docs_to_load = _resolve_docs_for_tags(tags, include_deploy=False)
     if docs_to_load:
         print()
@@ -696,7 +871,6 @@ def cmd_start(args: argparse.Namespace) -> None:
                 print(doc_content.rstrip())
             else:
                 print(f"  [!] docs/claude/{doc_name} not found")
-        # Note deferred docs
         all_possible = set()
         for tag in tags:
             all_possible.update(TAG_TO_DOCS.get(tag, []))
@@ -706,7 +880,6 @@ def cmd_start(args: argparse.Namespace) -> None:
         print()
 
     print("== END SESSION CONTEXT ==")
-
 
 
 def cmd_end(args: argparse.Namespace) -> None:
@@ -919,6 +1092,19 @@ def cmd_track(args: argparse.Namespace) -> None:
     except ValueError:
         pass  # Already relative or outside project
 
+    # Check for collisions with other sessions
+    for other_sid, other_info in sessions.items():
+        if other_sid == sid:
+            continue
+        other_files = other_info.get("modified_files", [])
+        if filepath in other_files:
+            other_task = other_info.get("task", "?")[:60]
+            print(
+                f"WARNING: File '{filepath}' is also tracked by session "
+                f"{other_sid} ('{other_task}'). "
+                f"Coordinate to avoid overwriting each other's changes."
+            )
+
     if filepath not in sessions[sid].get("modified_files", []):
         sessions[sid].setdefault("modified_files", []).append(filepath)
         sessions[sid]["last_active"] = _now_iso()
@@ -1100,6 +1286,40 @@ def cmd_unlock(args: argparse.Namespace) -> None:
     print(f"Lock '{lock_type}' released.")
 
 
+LINT_TIMEOUT = 300  # Lint can be slow for tsc/svelte-check across many files
+
+
+def _get_lint_flags(files: list[str]) -> list[str]:
+    """Determine lint_changed.sh flags based on file extensions."""
+    flags = []
+    exts = {os.path.splitext(f)[1] for f in files}
+    if ".py" in exts:
+        flags.append("--py")
+    if ".ts" in exts:
+        flags.append("--ts")
+    if ".svelte" in exts:
+        flags.append("--svelte")
+    if ".yml" in exts or ".yaml" in exts:
+        flags.append("--yml")
+    if ".css" in exts:
+        flags.append("--css")
+    if ".html" in exts:
+        flags.append("--html")
+    return flags
+
+
+def _run_lint(files: list[str]) -> tuple[int, str, str]:
+    """Run linter on specific files. Returns (returncode, stdout, stderr)."""
+    lint_flags = _get_lint_flags(files)
+    if not lint_flags:
+        return 0, "", ""
+    path_args: list[str] = []
+    for f in files:
+        path_args += ["--path", f]
+    cmd = ["./scripts/lint_changed.sh"] + lint_flags + path_args
+    return _run_cmd(cmd, timeout=LINT_TIMEOUT)
+
+
 def cmd_prepare_deploy(args: argparse.Namespace) -> None:
     """Show deployment plan: files to commit, lint status, suggested commands."""
     data = _load_sessions()
@@ -1157,33 +1377,10 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
 
     # Run linter on files to commit
     if to_commit:
-        # Determine file types for linter flags
-        py_files = [f for f in to_commit if f.endswith(".py")]
-        ts_files = [f for f in to_commit if f.endswith(".ts")]
-        svelte_files = [f for f in to_commit if f.endswith(".svelte")]
-        yml_files = [
-            f for f in to_commit if f.endswith((".yml", ".yaml"))
-        ]
-
-        lint_flags = []
-        if py_files:
-            lint_flags.append("--py")
-        if ts_files:
-            lint_flags.append("--ts")
-        if svelte_files:
-            lint_flags.append("--svelte")
-        if yml_files:
-            lint_flags.append("--yml")
-
+        lint_flags = _get_lint_flags(to_commit)
         if lint_flags:
             print("Running linter...")
-            # Pass each file as --path <file> so only session-committed files
-            # are checked (not all dirty files from concurrent sessions).
-            path_args: list[str] = []
-            for f in to_commit:
-                path_args += ["--path", f]
-            lint_cmd = ["./scripts/lint_changed.sh"] + lint_flags + path_args
-            rc, stdout, stderr = _run_cmd(lint_cmd)
+            rc, stdout, stderr = _run_lint(to_commit)
             if rc != 0:
                 print("LINT ERRORS — fix before deploying:")
                 if stdout:
@@ -1238,32 +1435,11 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         print("No files to commit.")
         sys.exit(0)
 
-    # 1. Run linter
-    py_files = [f for f in to_commit if f.endswith(".py")]
-    ts_files = [f for f in to_commit if f.endswith(".ts")]
-    svelte_files = [f for f in to_commit if f.endswith(".svelte")]
-    yml_files = [f for f in to_commit if f.endswith((".yml", ".yaml"))]
-
-    lint_flags = []
-    if py_files:
-        lint_flags.append("--py")
-    if ts_files:
-        lint_flags.append("--ts")
-    if svelte_files:
-        lint_flags.append("--svelte")
-    if yml_files:
-        lint_flags.append("--yml")
-
+    # 1. Run linter (with CSS/HTML support and longer timeout)
+    lint_flags = _get_lint_flags(to_commit)
     if lint_flags:
         print("Running linter...")
-        # Pass each file as --path <file> so the linter only checks files
-        # being committed (not all dirty files from other sessions).
-        path_args: list[str] = []
-        for f in to_commit:
-            path_args += ["--path", f]
-        rc, stdout, stderr = _run_cmd(
-            ["./scripts/lint_changed.sh"] + lint_flags + path_args
-        )
+        rc, stdout, stderr = _run_lint(to_commit)
         if rc != 0:
             print("LINT FAILED — aborting deploy:", file=sys.stderr)
             if stdout:
@@ -1321,6 +1497,12 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         print("Verify these architecture docs are still accurate:")
         for doc in related:
             print(f"  - docs/architecture/{doc}")
+
+    # Auto-end session if --end flag is set
+    if getattr(args, "end_session", False):
+        del data["sessions"][sid]
+        _save_sessions(data)
+        print(f"\nSession {sid} ended.")
 
 
 
@@ -1427,6 +1609,40 @@ def cmd_summary(args: argparse.Namespace) -> None:
                     print(f"  = {f}")
 
     print("== END SUMMARY ==")
+
+
+def cmd_lint(args: argparse.Namespace) -> None:
+    """Run linter on tracked files without deploying (for mid-session checks)."""
+    data = _load_sessions()
+    sid = args.session
+
+    if sid not in data.get("sessions", {}):
+        print(f"Error: Session {sid} not found.", file=sys.stderr)
+        sys.exit(1)
+
+    session = data["sessions"][sid]
+    modified = session.get("modified_files", [])
+
+    if not modified:
+        print("No tracked files to lint.")
+        return
+
+    print(f"Linting {len(modified)} tracked files...")
+    lint_flags = _get_lint_flags(modified)
+    if not lint_flags:
+        print("No lintable file types found.")
+        return
+
+    rc, stdout, stderr = _run_lint(modified)
+    if rc != 0:
+        print("LINT ERRORS:")
+        if stdout:
+            print(stdout)
+        if stderr:
+            print(stderr)
+        sys.exit(1)
+    else:
+        print("Lint: ALL PASSED")
 
 
 def cmd_deploy_docs(args: argparse.Namespace) -> None:
@@ -1662,6 +1878,20 @@ def main() -> None:
         nargs="*",
         help="File paths to exclude",
     )
+    p_deploy.add_argument(
+        "--end",
+        action="store_true",
+        dest="end_session",
+        help="End the session after successful deploy",
+    )
+
+    # lint (run linter on tracked files without deploying)
+    p_lint = sub.add_parser(
+        "lint", help="Run linter on tracked files (no commit/push)"
+    )
+    p_lint.add_argument(
+        "--session", "-s", required=True, help="Session ID"
+    )
 
     # context (on-demand doc loading)
     p_context = sub.add_parser(
@@ -1709,6 +1939,7 @@ def main() -> None:
         "unlock": cmd_unlock,
         "prepare-deploy": cmd_prepare_deploy,
         "deploy": cmd_deploy,
+        "lint": cmd_lint,
         "context": cmd_context,
         "summary": cmd_summary,
         "deploy-docs": cmd_deploy_docs,
