@@ -1366,6 +1366,12 @@
             "text": "แปลงไอคอน PNG นี้เป็น SVG เพื่อให้ดูคมชัดในทุกขนาด"
           }
         }
+      },
+      "search": {
+        "text": "ค้นหา",
+        "description": {
+          "text": "ค้นหารูปภาพด้วยข้อความหรือค้นหารูปภาพที่คล้ายกัน"
+        }
       }
     },
     "maps": {
@@ -2100,6 +2106,29 @@
         "text": "ขยายกระบวนการคิด"
       }
     },
+    "compression": {
+      "compressing": {
+        "text": "กำลังบีบอัดแชท..."
+      },
+      "summary_title": {
+        "text": "สรุปแชท"
+      },
+      "show_more": {
+        "text": "แสดงสรุปทั้งหมด"
+      },
+      "show_less": {
+        "text": "แสดงน้อยลง"
+      },
+      "show_forgotten": {
+        "text": "แสดงข้อความก่อนหน้า"
+      },
+      "hide_forgotten": {
+        "text": "ซ่อนข้อความก่อนหน้า"
+      },
+      "messages_compressed": {
+        "text": "สรุป {count} ข้อความ"
+      }
+    },
     "new_chat_suggestions": {
       "quantum_computing": {
         "text": "สอนฉันเกี่ยวกับการคำนวณควอนตัมในแง่ง่าย ๆ"
@@ -2784,6 +2813,35 @@
       },
       "footer_note": {
         "text": "การแจ้งเตือนนี้ถูกส่งโดยระบบตรวจสอบการทดสอบ E2E อัตโนมัติ"
+      }
+    },
+    "test_run_summary": {
+      "title": {
+        "text": "สรุปการรันทดสอบรายวัน"
+      },
+      "header_success": {
+        "text": "ทดสอบทั้งหมดผ่าน"
+      },
+      "header_failure": {
+        "text": "{failed} จาก {total} การทดสอบล้มเหลว"
+      },
+      "run_details_label": {
+        "text": "รายละเอียดการรัน"
+      },
+      "git_label": {
+        "text": "Git"
+      },
+      "duration_label": {
+        "text": "ระยะเวลา"
+      },
+      "suites_label": {
+        "text": "ชุดทดสอบ"
+      },
+      "failed_tests_label": {
+        "text": "การทดสอบที่ล้มเหลว"
+      },
+      "footer_note": {
+        "text": "รายงานนี้สร้างโดยระบบตรวจสอบการทดสอบอัตโนมัติรายวัน"
       }
     },
     "prometheus_alert": {
@@ -3496,6 +3554,27 @@
       },
       "copy_failed": {
         "text": "คัดลอกฉบับร่างอีเมลไม่สำเร็จ"
+      }
+    },
+    "image_search": {
+      "text": "ค้นหาภาพ",
+      "searching": {
+        "text": "กำลังค้นหาภาพ..."
+      },
+      "results_count": {
+        "text": "พบ {count} ภาพ"
+      },
+      "view_source": {
+        "text": "ดูแหล่งที่มา"
+      },
+      "open_image": {
+        "text": "เปิดภาพ"
+      },
+      "reverse_search": {
+        "text": "ค้นหาย้อนกลับ"
+      },
+      "error": {
+        "text": "การค้นหาภาพล้มเหลว"
       }
     }
   },
@@ -4725,6 +4804,14 @@
       "action": {
         "text": "เปิดการตั้งค่าความปลอดภัย"
       }
+    },
+    "credits_depleted": {
+      "message": {
+        "text": "เครดิตของคุณหมดแล้ว ซื้อเพิ่มเพื่อใช้ OpenMates ต่อไป"
+      },
+      "buy_credits": {
+        "text": "ซื้อเครดิต"
+      }
     }
   },
   "onboarding": {},
@@ -5102,6 +5189,18 @@
         },
         "no_apps_found": {
           "text": "ไม่พบแอปที่ตรงกับการค้นหาของคุณ"
+        },
+        "filter_all": {
+          "text": "ทั้งหมด"
+        },
+        "filter_settings_memories": {
+          "text": "การตั้งค่าและความทรงจำ"
+        },
+        "filter_focus_modes": {
+          "text": "โหมดโฟกัส"
+        },
+        "filter_skills": {
+          "text": "ทักษะ"
         }
       },
       "categories": {
@@ -5446,7 +5545,7 @@
       }
     },
     "billing": {
-      "text": "การเรียกเก็บเงิน",
+      "text": "การเรียกเก็บเงินและการใช้งาน",
       "title": {
         "text": "การเรียกเก็บเงินและเครดิต"
       },
@@ -6277,6 +6376,9 @@
         "invalid_prefix": {
           "text": "คำนำหน้าต้องมี 1-4 ตัวอักษร (A-Z, 2-9 ยกเว้น O, I, 0, 1)"
         }
+      },
+      "tests": {
+        "text": "การทดสอบ"
       }
     },
     "server_stats": {

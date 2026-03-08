@@ -1366,6 +1366,12 @@
             "text": "Chuyển đổi icon PNG này sang SVG để trông sắc nét ở mọi kích thước"
           }
         }
+      },
+      "search": {
+        "text": "Tìm kiếm",
+        "description": {
+          "text": "Tìm kiếm hình ảnh bằng văn bản hoặc tìm hình ảnh tương tự."
+        }
       }
     },
     "maps": {
@@ -2100,6 +2106,29 @@
         "text": "Mở rộng quá trình suy nghĩ"
       }
     },
+    "compression": {
+      "compressing": {
+        "text": "Đang nén cuộc trò chuyện..."
+      },
+      "summary_title": {
+        "text": "Tóm tắt cuộc trò chuyện"
+      },
+      "show_more": {
+        "text": "Hiển thị tóm tắt đầy đủ"
+      },
+      "show_less": {
+        "text": "Thu gọn"
+      },
+      "show_forgotten": {
+        "text": "Hiển thị tin nhắn trước đó"
+      },
+      "hide_forgotten": {
+        "text": "Ẩn tin nhắn trước đó"
+      },
+      "messages_compressed": {
+        "text": "Đã tóm tắt {count} tin nhắn"
+      }
+    },
     "new_chat_suggestions": {
       "quantum_computing": {
         "text": "Dạy tôi về điện toán lượng tử bằng những thuật ngữ đơn giản"
@@ -2784,6 +2813,35 @@
       },
       "footer_note": {
         "text": "Thông báo này được gửi bởi hệ thống giám sát kiểm tra E2E tự động."
+      }
+    },
+    "test_run_summary": {
+      "title": {
+        "text": "Tóm tắt chạy kiểm tra hàng ngày"
+      },
+      "header_success": {
+        "text": "Tất cả kiểm tra đã qua"
+      },
+      "header_failure": {
+        "text": "{failed} trong {total} kiểm tra thất bại"
+      },
+      "run_details_label": {
+        "text": "Chi tiết chạy"
+      },
+      "git_label": {
+        "text": "Git"
+      },
+      "duration_label": {
+        "text": "Thời gian"
+      },
+      "suites_label": {
+        "text": "Bộ kiểm tra"
+      },
+      "failed_tests_label": {
+        "text": "Kiểm tra thất bại"
+      },
+      "footer_note": {
+        "text": "Báo cáo này được tạo bởi hệ thống giám sát kiểm tra tự động hàng ngày."
       }
     },
     "prometheus_alert": {
@@ -3490,6 +3548,27 @@
       },
       "copy_failed": {
         "text": "Sao chep ban nhap email that bai."
+      }
+    },
+    "image_search": {
+      "text": "Tìm kiếm hình ảnh",
+      "searching": {
+        "text": "Đang tìm kiếm hình ảnh..."
+      },
+      "results_count": {
+        "text": "Tìm thấy {count} hình ảnh"
+      },
+      "view_source": {
+        "text": "Xem nguồn"
+      },
+      "open_image": {
+        "text": "Mở hình ảnh"
+      },
+      "reverse_search": {
+        "text": "Tìm kiếm ngược"
+      },
+      "error": {
+        "text": "Tìm kiếm hình ảnh thất bại"
       }
     }
   },
@@ -4719,6 +4798,14 @@
       "action": {
         "text": "Mở cài đặt bảo mật"
       }
+    },
+    "credits_depleted": {
+      "message": {
+        "text": "Bạn đã hết tín dụng. Mua thêm để tiếp tục sử dụng OpenMates."
+      },
+      "buy_credits": {
+        "text": "Mua tín dụng"
+      }
     }
   },
   "onboarding": {},
@@ -5096,6 +5183,18 @@
         },
         "no_apps_found": {
           "text": "Không tìm thấy ứng dụng nào phù hợp với tìm kiếm của bạn."
+        },
+        "filter_all": {
+          "text": "Tất cả"
+        },
+        "filter_settings_memories": {
+          "text": "Cài đặt và ký ức"
+        },
+        "filter_focus_modes": {
+          "text": "Chế độ tập trung"
+        },
+        "filter_skills": {
+          "text": "Kỹ năng"
         }
       },
       "categories": {
@@ -5440,7 +5539,7 @@
       }
     },
     "billing": {
-      "text": "Thanh toán",
+      "text": "Thanh toán và Sử dụng",
       "title": {
         "text": "Thanh toán & Tín dụng"
       },
@@ -6271,6 +6370,9 @@
         "invalid_prefix": {
           "text": "Tiền tố phải có 1-4 ký tự (A-Z, 2-9, trừ O, I, 0, 1)"
         }
+      },
+      "tests": {
+        "text": "Kiểm thử"
       }
     },
     "server_stats": {

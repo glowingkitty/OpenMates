@@ -1366,6 +1366,12 @@
             "text": "Przekonwertuj tę ikonę PNG na SVG, żeby wyglądała ostro w każdym rozmiarze"
           }
         }
+      },
+      "search": {
+        "text": "Szukaj",
+        "description": {
+          "text": "Szukaj obrazów po tekście lub znajdź podobne obrazy."
+        }
       }
     },
     "maps": {
@@ -2100,6 +2106,29 @@
         "text": "Rozwiń proces myślenia"
       }
     },
+    "compression": {
+      "compressing": {
+        "text": "Kompresja czatu..."
+      },
+      "summary_title": {
+        "text": "Podsumowanie czatu"
+      },
+      "show_more": {
+        "text": "Pokaż pełne podsumowanie"
+      },
+      "show_less": {
+        "text": "Pokaż mniej"
+      },
+      "show_forgotten": {
+        "text": "Pokaż wcześniejsze wiadomości"
+      },
+      "hide_forgotten": {
+        "text": "Ukryj wcześniejsze wiadomości"
+      },
+      "messages_compressed": {
+        "text": "{count} wiadomości podsumowanych"
+      }
+    },
     "new_chat_suggestions": {
       "quantum_computing": {
         "text": "Nauczaj mnie o komputacji kwantowej w prostych słowach"
@@ -2784,6 +2813,35 @@
       },
       "footer_note": {
         "text": "To powiadomienie zostało wysłane przez zautomatyzowany system monitorowania testów E2E."
+      }
+    },
+    "test_run_summary": {
+      "title": {
+        "text": "Dzienny raport z uruchomienia testów"
+      },
+      "header_success": {
+        "text": "Wszystkie testy zaliczone"
+      },
+      "header_failure": {
+        "text": "{failed} z {total} testów nie powiodło się"
+      },
+      "run_details_label": {
+        "text": "Szczegóły uruchomienia"
+      },
+      "git_label": {
+        "text": "Git"
+      },
+      "duration_label": {
+        "text": "Czas trwania"
+      },
+      "suites_label": {
+        "text": "Zestawy testów"
+      },
+      "failed_tests_label": {
+        "text": "Nieudane testy"
+      },
+      "footer_note": {
+        "text": "Ten raport został wygenerowany przez zautomatyzowany system codziennego monitorowania testów."
       }
     },
     "prometheus_alert": {
@@ -3490,6 +3548,27 @@
       },
       "copy_failed": {
         "text": "Nie udalo sie skopiowac szkicu e-maila."
+      }
+    },
+    "image_search": {
+      "text": "Wyszukiwanie obrazów",
+      "searching": {
+        "text": "Wyszukiwanie obrazów..."
+      },
+      "results_count": {
+        "text": "Znaleziono {count} obrazów"
+      },
+      "view_source": {
+        "text": "Zobacz źródło"
+      },
+      "open_image": {
+        "text": "Otwórz obraz"
+      },
+      "reverse_search": {
+        "text": "Wyszukiwanie wsteczne"
+      },
+      "error": {
+        "text": "Wyszukiwanie obrazów nie powiodło się"
       }
     }
   },
@@ -4719,6 +4798,14 @@
       "action": {
         "text": "Otwórz ustawienia bezpieczeństwa"
       }
+    },
+    "credits_depleted": {
+      "message": {
+        "text": "Twoje kredyty się skończyły. Kup więcej, aby kontynuować korzystanie z OpenMates."
+      },
+      "buy_credits": {
+        "text": "Kup Kredyty"
+      }
     }
   },
   "onboarding": {},
@@ -5096,6 +5183,18 @@
         },
         "no_apps_found": {
           "text": "Nie znaleziono aplikacji pasujących do wyszukiwania."
+        },
+        "filter_all": {
+          "text": "Wszystkie"
+        },
+        "filter_settings_memories": {
+          "text": "Ustawienia i wspomnienia"
+        },
+        "filter_focus_modes": {
+          "text": "Tryby skupienia"
+        },
+        "filter_skills": {
+          "text": "Umiejętności"
         }
       },
       "categories": {
@@ -5440,7 +5539,7 @@
       }
     },
     "billing": {
-      "text": "Rozliczenia",
+      "text": "Rozliczenia i Użycie",
       "title": {
         "text": "Rozliczenia i Kredyty"
       },
@@ -6271,6 +6370,9 @@
         "invalid_prefix": {
           "text": "Prefiks musi mieć 1-4 znaki (A-Z, 2-9, bez O, I, 0, 1)"
         }
+      },
+      "tests": {
+        "text": "Testy"
       }
     },
     "server_stats": {

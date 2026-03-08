@@ -1366,6 +1366,12 @@
             "text": "Převeď tuto PNG ikonu na SVG, aby vypadala ostře v jakékoliv velikosti"
           }
         }
+      },
+      "search": {
+        "text": "Hledat",
+        "description": {
+          "text": "Hledejte obrázky podle textu nebo najděte podobné obrázky."
+        }
       }
     },
     "maps": {
@@ -2100,6 +2106,29 @@
         "text": "Rozbalit myšlenkový proces"
       }
     },
+    "compression": {
+      "compressing": {
+        "text": "Komprimace chatu..."
+      },
+      "summary_title": {
+        "text": "Shrnutí chatu"
+      },
+      "show_more": {
+        "text": "Zobrazit celé shrnutí"
+      },
+      "show_less": {
+        "text": "Zobrazit méně"
+      },
+      "show_forgotten": {
+        "text": "Zobrazit starší zprávy"
+      },
+      "hide_forgotten": {
+        "text": "Skrýt starší zprávy"
+      },
+      "messages_compressed": {
+        "text": "{count} zpráv shrnuto"
+      }
+    },
     "new_chat_suggestions": {
       "quantum_computing": {
         "text": "Vysvětli mi kvantové počítače prostřednictvím jednoduchých výrazů"
@@ -2784,6 +2813,35 @@
       },
       "footer_note": {
         "text": "Toto oznámení bylo zasláno automatizovaným systémem monitorování E2E testů."
+      }
+    },
+    "test_run_summary": {
+      "title": {
+        "text": "Denní souhrn testů"
+      },
+      "header_success": {
+        "text": "Všechny testy prošly"
+      },
+      "header_failure": {
+        "text": "{failed} z {total} testů selhalo"
+      },
+      "run_details_label": {
+        "text": "Podrobnosti spuštění"
+      },
+      "git_label": {
+        "text": "Git"
+      },
+      "duration_label": {
+        "text": "Délka"
+      },
+      "suites_label": {
+        "text": "Sady testů"
+      },
+      "failed_tests_label": {
+        "text": "Selhané testy"
+      },
+      "footer_note": {
+        "text": "Tato zpráva byla vygenerována automatizovaným denním systémem monitorování testů."
       }
     },
     "prometheus_alert": {
@@ -3496,6 +3554,27 @@
       },
       "copy_failed": {
         "text": "Kopirovani konceptu e-mailu se nezdarilo."
+      }
+    },
+    "image_search": {
+      "text": "Vyhledávání obrázků",
+      "searching": {
+        "text": "Vyhledávám obrázky..."
+      },
+      "results_count": {
+        "text": "Nalezeno {count} obrázků"
+      },
+      "view_source": {
+        "text": "Zobrazit zdroj"
+      },
+      "open_image": {
+        "text": "Otevřít obrázek"
+      },
+      "reverse_search": {
+        "text": "Zpětné vyhledávání"
+      },
+      "error": {
+        "text": "Vyhledávání obrázků selhalo"
       }
     }
   },
@@ -4725,6 +4804,14 @@
       "action": {
         "text": "Otevřít nastavení zabezpečení"
       }
+    },
+    "credits_depleted": {
+      "message": {
+        "text": "Vyčerpali jste kredity. Zakupte další pro pokračování v používání OpenMates."
+      },
+      "buy_credits": {
+        "text": "Koupit Kredity"
+      }
     }
   },
   "onboarding": {},
@@ -5102,6 +5189,18 @@
         },
         "no_apps_found": {
           "text": "Nebyly nalezeny žádné aplikace odpovídající vašemu hledání."
+        },
+        "filter_all": {
+          "text": "Vše"
+        },
+        "filter_settings_memories": {
+          "text": "Nastavení a vzpomínky"
+        },
+        "filter_focus_modes": {
+          "text": "Režimy zaměření"
+        },
+        "filter_skills": {
+          "text": "Dovednosti"
         }
       },
       "categories": {
@@ -5446,7 +5545,7 @@
       }
     },
     "billing": {
-      "text": "Fakturace",
+      "text": "Fakturace a Použití",
       "title": {
         "text": "Fakturace a Kredity"
       },
@@ -6277,6 +6376,9 @@
         "invalid_prefix": {
           "text": "Prefix musí mít 1-4 znaky (A-Z, 2-9, kromě O, I, 0, 1)"
         }
+      },
+      "tests": {
+        "text": "Testy"
       }
     },
     "server_stats": {

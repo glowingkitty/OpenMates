@@ -1366,6 +1366,12 @@
             "text": "Konvertera den här PNG-ikonen till SVG så att den ser skarp ut i alla storlekar"
           }
         }
+      },
+      "search": {
+        "text": "Sök",
+        "description": {
+          "text": "Sök efter bilder med text eller hitta liknande bilder."
+        }
       }
     },
     "maps": {
@@ -2100,6 +2106,29 @@
         "text": "Fäll ut tankeprocess"
       }
     },
+    "compression": {
+      "compressing": {
+        "text": "Komprimerar chatten..."
+      },
+      "summary_title": {
+        "text": "Chattsammanfattning"
+      },
+      "show_more": {
+        "text": "Visa fullständig sammanfattning"
+      },
+      "show_less": {
+        "text": "Visa mindre"
+      },
+      "show_forgotten": {
+        "text": "Visa tidigare meddelanden"
+      },
+      "hide_forgotten": {
+        "text": "Dölj tidigare meddelanden"
+      },
+      "messages_compressed": {
+        "text": "{count} meddelanden sammanfattade"
+      }
+    },
     "new_chat_suggestions": {
       "quantum_computing": {
         "text": "Lär mig om kvantberäkning i enkla termer"
@@ -2822,6 +2851,35 @@
         "text": "Detta meddelande skickades av det automatiserade E2E-testövervakningssystemet."
       }
     },
+    "test_run_summary": {
+      "title": {
+        "text": "Daglig testkörningssammanfattning"
+      },
+      "header_success": {
+        "text": "Alla tester godkända"
+      },
+      "header_failure": {
+        "text": "{failed} av {total} tester misslyckades"
+      },
+      "run_details_label": {
+        "text": "Körningsdetaljer"
+      },
+      "git_label": {
+        "text": "Git"
+      },
+      "duration_label": {
+        "text": "Längd"
+      },
+      "suites_label": {
+        "text": "Testsviter"
+      },
+      "failed_tests_label": {
+        "text": "Misslyckade tester"
+      },
+      "footer_note": {
+        "text": "Denna rapport genererades av det automatiserade dagliga testövervakningssystemet."
+      }
+    },
     "prometheus_alert": {
       "title": {
         "text": "Prometheus-larmmeddelande"
@@ -3532,6 +3590,27 @@
       },
       "copy_failed": {
         "text": "Det gick inte att kopiera e-postutkastet."
+      }
+    },
+    "image_search": {
+      "text": "Bildsökning",
+      "searching": {
+        "text": "Söker efter bilder..."
+      },
+      "results_count": {
+        "text": "{count} bilder hittades"
+      },
+      "view_source": {
+        "text": "Visa källa"
+      },
+      "open_image": {
+        "text": "Öppna bild"
+      },
+      "reverse_search": {
+        "text": "Omvänd sökning"
+      },
+      "error": {
+        "text": "Bildsökning misslyckades"
       }
     }
   },
@@ -4743,6 +4822,14 @@
       "action": {
         "text": "Öppna säkerhetsinställningar"
       }
+    },
+    "credits_depleted": {
+      "message": {
+        "text": "Du har slut på krediter. Köp mer för att fortsätta använda OpenMates."
+      },
+      "buy_credits": {
+        "text": "Köp Krediter"
+      }
     }
   },
   "onboarding": {},
@@ -5117,6 +5204,18 @@
         },
         "no_apps_found": {
           "text": "Inga appar hittades som matchar din sökning."
+        },
+        "filter_all": {
+          "text": "Alla"
+        },
+        "filter_settings_memories": {
+          "text": "Inställningar och minnen"
+        },
+        "filter_focus_modes": {
+          "text": "Fokuslägen"
+        },
+        "filter_skills": {
+          "text": "Färdigheter"
         }
       },
       "categories": {
@@ -5461,7 +5560,7 @@
       }
     },
     "billing": {
-      "text": "Fakturering",
+      "text": "Fakturering och Användning",
       "title": {
         "text": "Fakturering och Krediter"
       },
@@ -6292,6 +6391,9 @@
         "invalid_prefix": {
           "text": "Prefix måste vara 1-4 tecken (A-Z, 2-9, exklusive O, I, 0, 1)"
         }
+      },
+      "tests": {
+        "text": "Tester"
       }
     },
     "server_stats": {

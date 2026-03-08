@@ -1366,6 +1366,12 @@
             "text": "इस PNG आइकन को SVG में बदलें ताकि यह किसी भी आकार में तेज दिखे"
           }
         }
+      },
+      "search": {
+        "text": "खोज",
+        "description": {
+          "text": "टेक्स्ट द्वारा चित्र खोजें या समान चित्र खोजें।"
+        }
       }
     },
     "maps": {
@@ -2100,6 +2106,29 @@
         "text": "विचार प्रक्रिया विस्तार करें"
       }
     },
+    "compression": {
+      "compressing": {
+        "text": "चैट संपीड़ित हो रही है..."
+      },
+      "summary_title": {
+        "text": "चैट सारांश"
+      },
+      "show_more": {
+        "text": "पूरा सारांश दिखाएं"
+      },
+      "show_less": {
+        "text": "कम दिखाएं"
+      },
+      "show_forgotten": {
+        "text": "पुराने संदेश दिखाएं"
+      },
+      "hide_forgotten": {
+        "text": "पुराने संदेश छुपाएं"
+      },
+      "messages_compressed": {
+        "text": "{count} संदेश सारांशित"
+      }
+    },
     "new_chat_suggestions": {
       "quantum_computing": {
         "text": "मुझे क्वांटम कंप्यूटिंग के बारे में सरल शब्दों में सिखाएं"
@@ -2784,6 +2813,35 @@
       },
       "footer_note": {
         "text": "यह अधिसूचना स्वचालित E2E परीक्षण निगरानी प्रणाली द्वारा भेजी गई थी।"
+      }
+    },
+    "test_run_summary": {
+      "title": {
+        "text": "दैनिक परीक्षण रन सारांश"
+      },
+      "header_success": {
+        "text": "सभी परीक्षण पास हुए"
+      },
+      "header_failure": {
+        "text": "{total} में से {failed} परीक्षण विफल"
+      },
+      "run_details_label": {
+        "text": "रन विवरण"
+      },
+      "git_label": {
+        "text": "Git"
+      },
+      "duration_label": {
+        "text": "अवधि"
+      },
+      "suites_label": {
+        "text": "परीक्षण सूट"
+      },
+      "failed_tests_label": {
+        "text": "विफल परीक्षण"
+      },
+      "footer_note": {
+        "text": "यह रिपोर्ट स्वचालित दैनिक परीक्षण निगरानी प्रणाली द्वारा उत्पन्न की गई थी।"
       }
     },
     "prometheus_alert": {
@@ -3490,6 +3548,27 @@
       },
       "copy_failed": {
         "text": "ईमेल ड्राफ्ट कॉपी नहीं हो सका।"
+      }
+    },
+    "image_search": {
+      "text": "छवि खोज",
+      "searching": {
+        "text": "छवियाँ खोजी जा रही हैं..."
+      },
+      "results_count": {
+        "text": "{count} छवियाँ मिलीं"
+      },
+      "view_source": {
+        "text": "स्रोत देखें"
+      },
+      "open_image": {
+        "text": "छवि खोलें"
+      },
+      "reverse_search": {
+        "text": "रिवर्स सर्च"
+      },
+      "error": {
+        "text": "छवि खोज विफल रही"
       }
     }
   },
@@ -4719,6 +4798,14 @@
       "action": {
         "text": "सुरक्षा सेटिंग्स खोलें"
       }
+    },
+    "credits_depleted": {
+      "message": {
+        "text": "आपके क्रेडिट समाप्त हो गए। OpenMates का उपयोग जारी रखने के लिए और खरीदें।"
+      },
+      "buy_credits": {
+        "text": "क्रेडिट खरीदें"
+      }
     }
   },
   "onboarding": {},
@@ -5096,6 +5183,18 @@
         },
         "no_apps_found": {
           "text": "आपकी खोज से मेल खाने वाले कोई ऐप नहीं मिले।"
+        },
+        "filter_all": {
+          "text": "सभी"
+        },
+        "filter_settings_memories": {
+          "text": "सेटिंग्स और यादें"
+        },
+        "filter_focus_modes": {
+          "text": "फोकस मोड"
+        },
+        "filter_skills": {
+          "text": "कौशल"
         }
       },
       "categories": {
@@ -5440,7 +5539,7 @@
       }
     },
     "billing": {
-      "text": "बिलिंग",
+      "text": "बिलिंग और उपयोग",
       "title": {
         "text": "बिलिंग और क्रेडिट"
       },
@@ -6271,6 +6370,9 @@
         "invalid_prefix": {
           "text": "उपसर्ग 1-4 वर्ण होना चाहिए (A-Z, 2-9, O, I, 0, 1 को छोड़कर)"
         }
+      },
+      "tests": {
+        "text": "परीक्षण"
       }
     },
     "server_stats": {

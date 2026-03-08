@@ -1366,6 +1366,12 @@
             "text": "Convertis cette icône PNG en SVG pour qu'elle soit nette à n'importe quelle taille"
           }
         }
+      },
+      "search": {
+        "text": "Rechercher",
+        "description": {
+          "text": "Recherchez des images par texte ou trouvez des images similaires."
+        }
       }
     },
     "maps": {
@@ -2098,6 +2104,29 @@
       },
       "expand": {
         "text": "Développer le processus de réflexion"
+      }
+    },
+    "compression": {
+      "compressing": {
+        "text": "Compression du chat..."
+      },
+      "summary_title": {
+        "text": "Résumé du chat"
+      },
+      "show_more": {
+        "text": "Afficher le résumé complet"
+      },
+      "show_less": {
+        "text": "Afficher moins"
+      },
+      "show_forgotten": {
+        "text": "Afficher les messages précédents"
+      },
+      "hide_forgotten": {
+        "text": "Masquer les messages précédents"
+      },
+      "messages_compressed": {
+        "text": "{count} messages résumés"
       }
     },
     "new_chat_suggestions": {
@@ -2886,6 +2915,35 @@
       },
       "footer_note": {
         "text": "Cette notification a été envoyée par le système de surveillance automatisé des tests E2E."
+      }
+    },
+    "test_run_summary": {
+      "title": {
+        "text": "Résumé quotidien des tests"
+      },
+      "header_success": {
+        "text": "Tous les tests réussis"
+      },
+      "header_failure": {
+        "text": "{failed} sur {total} tests échoués"
+      },
+      "run_details_label": {
+        "text": "Détails de l'exécution"
+      },
+      "git_label": {
+        "text": "Git"
+      },
+      "duration_label": {
+        "text": "Durée"
+      },
+      "suites_label": {
+        "text": "Suites de tests"
+      },
+      "failed_tests_label": {
+        "text": "Tests échoués"
+      },
+      "footer_note": {
+        "text": "Ce rapport a été généré par le système de surveillance automatisé des tests quotidiens."
       }
     },
     "prometheus_alert": {
@@ -3831,6 +3889,27 @@
       },
       "copy_failed": {
         "text": "Impossible de copier le brouillon d'e-mail."
+      }
+    },
+    "image_search": {
+      "text": "Recherche d'images",
+      "searching": {
+        "text": "Recherche d'images en cours..."
+      },
+      "results_count": {
+        "text": "{count} images trouvées"
+      },
+      "view_source": {
+        "text": "Voir la source"
+      },
+      "open_image": {
+        "text": "Ouvrir l'image"
+      },
+      "reverse_search": {
+        "text": "Recherche inversée"
+      },
+      "error": {
+        "text": "La recherche d'images a échoué"
       }
     }
   },
@@ -5857,6 +5936,14 @@
       "action": {
         "text": "Ouvrir les paramètres de sécurité"
       }
+    },
+    "credits_depleted": {
+      "message": {
+        "text": "Vous avez épuisé vos crédits. Achetez-en plus pour continuer à utiliser OpenMates."
+      },
+      "buy_credits": {
+        "text": "Acheter des Crédits"
+      }
     }
   },
   "onboarding": {},
@@ -6307,6 +6394,18 @@
         },
         "no_apps_found": {
           "text": "Aucune application trouvée correspondant à votre recherche."
+        },
+        "filter_all": {
+          "text": "Toutes"
+        },
+        "filter_settings_memories": {
+          "text": "Paramètres et souvenirs"
+        },
+        "filter_focus_modes": {
+          "text": "Modes de concentration"
+        },
+        "filter_skills": {
+          "text": "Compétences"
         }
       },
       "categories": {
@@ -6666,7 +6765,7 @@
       "description": {
         "text": "Gérez vos crédits, abonnements et moyens de paiement"
       },
-      "text": "Facturation",
+      "text": "Facturation et Utilisation",
       "title": {
         "text": "Facturation et Crédits"
       },
@@ -7770,6 +7869,9 @@
         "invalid_prefix": {
           "text": "Le préfixe doit contenir 1-4 caractères (A-Z, 2-9, excluant O, I, 0, 1)"
         }
+      },
+      "tests": {
+        "text": "Tests"
       }
     },
     "server_stats": {

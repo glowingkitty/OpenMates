@@ -1366,6 +1366,12 @@
             "text": "Konvertiere dieses PNG-Icon in SVG, damit es in jeder Größe scharf aussieht"
           }
         }
+      },
+      "search": {
+        "text": "Suchen",
+        "description": {
+          "text": "Bilder per Text suchen oder ähnliche Bilder finden."
+        }
       }
     },
     "maps": {
@@ -6268,6 +6274,14 @@
       "action": {
         "text": "Sicherheitseinstellungen öffnen"
       }
+    },
+    "credits_depleted": {
+      "message": {
+        "text": "Dein Guthaben ist aufgebraucht. Kaufe mehr, um OpenMates weiter zu nutzen."
+      },
+      "buy_credits": {
+        "text": "Credits kaufen"
+      }
     }
   },
   "onboarding": {
@@ -6906,6 +6920,18 @@
         },
         "no_apps_found": {
           "text": "Keine Apps gefunden, die Ihrer Suche entsprechen."
+        },
+        "filter_all": {
+          "text": "Alle"
+        },
+        "filter_settings_memories": {
+          "text": "Einstellungen & Erinnerungen"
+        },
+        "filter_focus_modes": {
+          "text": "Fokusmodi"
+        },
+        "filter_skills": {
+          "text": "Fähigkeiten"
         }
       },
       "categories": {
@@ -8760,6 +8786,57 @@
         },
         "invalid_prefix": {
           "text": "Präfix muss 1-4 Zeichen sein (A-Z, 2-9, ohne O, I, 0, 1)"
+        }
+      },
+      "tests": {
+        "text": "Tests",
+        "subtitle": {
+          "text": "Testergebnisse anzeigen und manuelle Testläufe starten"
+        },
+        "description": {
+          "text": "Automatische Testlauf-Ergebnisse und Planung"
+        },
+        "last_run": {
+          "text": "Letzter Lauf"
+        },
+        "next_run": {
+          "text": "Nächster Lauf"
+        },
+        "duration": {
+          "text": "Dauer"
+        },
+        "never": {
+          "text": "Nie"
+        },
+        "start_tests": {
+          "text": "Tests starten"
+        },
+        "starting": {
+          "text": "Wird gestartet..."
+        },
+        "running": {
+          "text": "Tests laufen..."
+        },
+        "total": {
+          "text": "Gesamt"
+        },
+        "passed": {
+          "text": "Bestanden"
+        },
+        "failed": {
+          "text": "Fehlgeschlagen"
+        },
+        "skipped": {
+          "text": "Übersprungen"
+        },
+        "not_started": {
+          "text": "Nicht gestartet"
+        },
+        "suite_breakdown": {
+          "text": "Suite-Aufschlüsselung"
+        },
+        "no_results": {
+          "text": "Noch keine Testergebnisse verfügbar. Führen Sie die Tests aus, um hier Ergebnisse zu sehen."
         }
       }
     },

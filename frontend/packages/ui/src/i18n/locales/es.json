@@ -1366,6 +1366,12 @@
             "text": "Convierte este ícono PNG a SVG para que se vea nítido en cualquier tamaño"
           }
         }
+      },
+      "search": {
+        "text": "Buscar",
+        "description": {
+          "text": "Busca imágenes por texto o encuentra imágenes similares."
+        }
       }
     },
     "maps": {
@@ -2098,6 +2104,29 @@
       },
       "expand": {
         "text": "Expandir proceso de pensamiento"
+      }
+    },
+    "compression": {
+      "compressing": {
+        "text": "Comprimiendo chat..."
+      },
+      "summary_title": {
+        "text": "Resumen del chat"
+      },
+      "show_more": {
+        "text": "Mostrar resumen completo"
+      },
+      "show_less": {
+        "text": "Mostrar menos"
+      },
+      "show_forgotten": {
+        "text": "Mostrar mensajes anteriores"
+      },
+      "hide_forgotten": {
+        "text": "Ocultar mensajes anteriores"
+      },
+      "messages_compressed": {
+        "text": "{count} mensajes resumidos"
       }
     },
     "new_chat_suggestions": {
@@ -2886,6 +2915,35 @@
       },
       "footer_note": {
         "text": "Esta notificación fue enviada por el sistema automatizado de monitoreo de pruebas E2E."
+      }
+    },
+    "test_run_summary": {
+      "title": {
+        "text": "Resumen diario de ejecución de pruebas"
+      },
+      "header_success": {
+        "text": "Todas las pruebas superadas"
+      },
+      "header_failure": {
+        "text": "{failed} de {total} pruebas fallidas"
+      },
+      "run_details_label": {
+        "text": "Detalles de ejecución"
+      },
+      "git_label": {
+        "text": "Git"
+      },
+      "duration_label": {
+        "text": "Duración"
+      },
+      "suites_label": {
+        "text": "Suites de prueba"
+      },
+      "failed_tests_label": {
+        "text": "Pruebas fallidas"
+      },
+      "footer_note": {
+        "text": "Este informe fue generado por el sistema automatizado de monitoreo de pruebas diarias."
       }
     },
     "prometheus_alert": {
@@ -3831,6 +3889,27 @@
       },
       "copy_failed": {
         "text": "No se pudo copiar el borrador del correo."
+      }
+    },
+    "image_search": {
+      "text": "Búsqueda de imágenes",
+      "searching": {
+        "text": "Buscando imágenes..."
+      },
+      "results_count": {
+        "text": "{count} imágenes encontradas"
+      },
+      "view_source": {
+        "text": "Ver fuente"
+      },
+      "open_image": {
+        "text": "Abrir imagen"
+      },
+      "reverse_search": {
+        "text": "Búsqueda inversa"
+      },
+      "error": {
+        "text": "La búsqueda de imágenes falló"
       }
     }
   },
@@ -5900,6 +5979,14 @@
       "action": {
         "text": "Abrir ajustes de seguridad"
       }
+    },
+    "credits_depleted": {
+      "message": {
+        "text": "Te has quedado sin créditos. Compra más para seguir usando OpenMates."
+      },
+      "buy_credits": {
+        "text": "Comprar Créditos"
+      }
     }
   },
   "onboarding": {},
@@ -6350,6 +6437,18 @@
         },
         "no_apps_found": {
           "text": "No se encontraron aplicaciones que coincidan con tu búsqueda."
+        },
+        "filter_all": {
+          "text": "Todas"
+        },
+        "filter_settings_memories": {
+          "text": "Configuración y recuerdos"
+        },
+        "filter_focus_modes": {
+          "text": "Modos de enfoque"
+        },
+        "filter_skills": {
+          "text": "Habilidades"
         }
       },
       "categories": {
@@ -6709,7 +6808,7 @@
       "description": {
         "text": "Gestiona tus créditos, suscripciones y métodos de pago"
       },
-      "text": "Facturación",
+      "text": "Facturación y Uso",
       "title": {
         "text": "Facturación y Créditos"
       },
@@ -7825,6 +7924,9 @@
         "invalid_prefix": {
           "text": "El prefijo debe tener 1-4 caracteres (A-Z, 2-9, excluyendo O, I, 0, 1)"
         }
+      },
+      "tests": {
+        "text": "Pruebas"
       }
     },
     "server_stats": {

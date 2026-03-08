@@ -1366,6 +1366,12 @@
             "text": "Converta este ícone PNG em SVG para que fique nítido em qualquer tamanho"
           }
         }
+      },
+      "search": {
+        "text": "Pesquisar",
+        "description": {
+          "text": "Pesquise imagens por texto ou encontre imagens semelhantes."
+        }
       }
     },
     "maps": {
@@ -2100,6 +2106,29 @@
         "text": "Expandir processo de pensamento"
       }
     },
+    "compression": {
+      "compressing": {
+        "text": "Comprimindo o chat..."
+      },
+      "summary_title": {
+        "text": "Resumo do chat"
+      },
+      "show_more": {
+        "text": "Mostrar resumo completo"
+      },
+      "show_less": {
+        "text": "Mostrar menos"
+      },
+      "show_forgotten": {
+        "text": "Mostrar mensagens anteriores"
+      },
+      "hide_forgotten": {
+        "text": "Ocultar mensagens anteriores"
+      },
+      "messages_compressed": {
+        "text": "{count} mensagens resumidas"
+      }
+    },
     "new_chat_suggestions": {
       "quantum_computing": {
         "text": "Ensine-me sobre computação quântica em termos simples"
@@ -2784,6 +2813,35 @@
       },
       "footer_note": {
         "text": "Esta notificação foi enviada pelo sistema automatizado de monitoramento de testes E2E."
+      }
+    },
+    "test_run_summary": {
+      "title": {
+        "text": "Resumo diário de execução de testes"
+      },
+      "header_success": {
+        "text": "Todos os testes passaram"
+      },
+      "header_failure": {
+        "text": "{failed} de {total} testes falharam"
+      },
+      "run_details_label": {
+        "text": "Detalhes da execução"
+      },
+      "git_label": {
+        "text": "Git"
+      },
+      "duration_label": {
+        "text": "Duração"
+      },
+      "suites_label": {
+        "text": "Suites de teste"
+      },
+      "failed_tests_label": {
+        "text": "Testes com falha"
+      },
+      "footer_note": {
+        "text": "Este relatório foi gerado pelo sistema automatizado de monitoramento diário de testes."
       }
     },
     "prometheus_alert": {
@@ -3490,6 +3548,27 @@
       },
       "copy_failed": {
         "text": "Falha ao copiar o rascunho de e-mail."
+      }
+    },
+    "image_search": {
+      "text": "Pesquisa de imagens",
+      "searching": {
+        "text": "Pesquisando imagens..."
+      },
+      "results_count": {
+        "text": "{count} imagens encontradas"
+      },
+      "view_source": {
+        "text": "Ver fonte"
+      },
+      "open_image": {
+        "text": "Abrir imagem"
+      },
+      "reverse_search": {
+        "text": "Busca reversa"
+      },
+      "error": {
+        "text": "A pesquisa de imagens falhou"
       }
     }
   },
@@ -4719,6 +4798,14 @@
       "action": {
         "text": "Abrir configurações de segurança"
       }
+    },
+    "credits_depleted": {
+      "message": {
+        "text": "Você ficou sem créditos. Compre mais para continuar usando o OpenMates."
+      },
+      "buy_credits": {
+        "text": "Comprar Créditos"
+      }
     }
   },
   "onboarding": {},
@@ -5096,6 +5183,18 @@
         },
         "no_apps_found": {
           "text": "Nenhum aplicativo encontrado para sua pesquisa."
+        },
+        "filter_all": {
+          "text": "Todos"
+        },
+        "filter_settings_memories": {
+          "text": "Configurações e memórias"
+        },
+        "filter_focus_modes": {
+          "text": "Modos de foco"
+        },
+        "filter_skills": {
+          "text": "Habilidades"
         }
       },
       "categories": {
@@ -5440,7 +5539,7 @@
       }
     },
     "billing": {
-      "text": "Cobrança",
+      "text": "Cobrança e Uso",
       "title": {
         "text": "Cobrança e Créditos"
       },
@@ -6271,6 +6370,9 @@
         "invalid_prefix": {
           "text": "O prefixo deve ter 1-4 caracteres (A-Z, 2-9, excluindo O, I, 0, 1)"
         }
+      },
+      "tests": {
+        "text": "Testes"
       }
     },
     "server_stats": {

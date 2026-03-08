@@ -1366,6 +1366,12 @@
             "text": "Converteer dit PNG-pictogram naar SVG zodat het scherp is op elke grootte"
           }
         }
+      },
+      "search": {
+        "text": "Zoeken",
+        "description": {
+          "text": "Zoek afbeeldingen op tekst of vind vergelijkbare afbeeldingen."
+        }
       }
     },
     "maps": {
@@ -2100,6 +2106,29 @@
         "text": "Denkproces uitklappen"
       }
     },
+    "compression": {
+      "compressing": {
+        "text": "Chat wordt gecomprimeerd..."
+      },
+      "summary_title": {
+        "text": "Chatsamenvatting"
+      },
+      "show_more": {
+        "text": "Volledige samenvatting tonen"
+      },
+      "show_less": {
+        "text": "Minder tonen"
+      },
+      "show_forgotten": {
+        "text": "Eerdere berichten tonen"
+      },
+      "hide_forgotten": {
+        "text": "Eerdere berichten verbergen"
+      },
+      "messages_compressed": {
+        "text": "{count} berichten samengevat"
+      }
+    },
     "new_chat_suggestions": {
       "quantum_computing": {
         "text": "Leer me over quantum computing in eenvoudige termen"
@@ -2784,6 +2813,35 @@
       },
       "footer_note": {
         "text": "Deze melding is verzonden door het geautomatiseerde E2E-testmonitoringsysteem."
+      }
+    },
+    "test_run_summary": {
+      "title": {
+        "text": "Dagelijkse testoverzicht"
+      },
+      "header_success": {
+        "text": "Alle tests geslaagd"
+      },
+      "header_failure": {
+        "text": "{failed} van {total} tests mislukt"
+      },
+      "run_details_label": {
+        "text": "Uitvoerdetails"
+      },
+      "git_label": {
+        "text": "Git"
+      },
+      "duration_label": {
+        "text": "Duur"
+      },
+      "suites_label": {
+        "text": "Testsuites"
+      },
+      "failed_tests_label": {
+        "text": "Mislukte tests"
+      },
+      "footer_note": {
+        "text": "Dit rapport is gegenereerd door het geautomatiseerde dagelijkse testmonitoringsysteem."
       }
     },
     "prometheus_alert": {
@@ -3490,6 +3548,27 @@
       },
       "copy_failed": {
         "text": "E-mailconcept kopieren mislukt."
+      }
+    },
+    "image_search": {
+      "text": "Afbeeldingen zoeken",
+      "searching": {
+        "text": "Zoeken naar afbeeldingen..."
+      },
+      "results_count": {
+        "text": "{count} afbeeldingen gevonden"
+      },
+      "view_source": {
+        "text": "Bron bekijken"
+      },
+      "open_image": {
+        "text": "Afbeelding openen"
+      },
+      "reverse_search": {
+        "text": "Achterwaarts zoeken"
+      },
+      "error": {
+        "text": "Afbeeldingen zoeken mislukt"
       }
     }
   },
@@ -4719,6 +4798,14 @@
       "action": {
         "text": "Beveiligingsinstellingen openen"
       }
+    },
+    "credits_depleted": {
+      "message": {
+        "text": "Je hebt geen credits meer. Koop er meer om OpenMates te blijven gebruiken."
+      },
+      "buy_credits": {
+        "text": "Credits Kopen"
+      }
     }
   },
   "onboarding": {},
@@ -5096,6 +5183,18 @@
         },
         "no_apps_found": {
           "text": "Geen apps gevonden die overeenkomen met uw zoekopdracht."
+        },
+        "filter_all": {
+          "text": "Alle"
+        },
+        "filter_settings_memories": {
+          "text": "Instellingen en herinneringen"
+        },
+        "filter_focus_modes": {
+          "text": "Focusmodi"
+        },
+        "filter_skills": {
+          "text": "Vaardigheden"
         }
       },
       "categories": {
@@ -5440,7 +5539,7 @@
       }
     },
     "billing": {
-      "text": "Facturering",
+      "text": "Facturering en Gebruik",
       "title": {
         "text": "Facturering en Credits"
       },
@@ -6271,6 +6370,9 @@
         "invalid_prefix": {
           "text": "Voorvoegsel moet 1-4 tekens zijn (A-Z, 2-9, exclusief O, I, 0, 1)"
         }
+      },
+      "tests": {
+        "text": "Tests"
       }
     },
     "server_stats": {

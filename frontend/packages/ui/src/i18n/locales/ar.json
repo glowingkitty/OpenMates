@@ -1366,6 +1366,12 @@
             "text": "حوّل هذه الأيقونة PNG إلى SVG لتبدو واضحة في أي حجم"
           }
         }
+      },
+      "search": {
+        "text": "ابحث",
+        "description": {
+          "text": "ابحث عن الصور بالنص أو اعثر على صور مشابهة."
+        }
       }
     },
     "maps": {
@@ -2100,6 +2106,29 @@
         "text": "توسيع عملية التفكير"
       }
     },
+    "compression": {
+      "compressing": {
+        "text": "جاري ضغط المحادثة..."
+      },
+      "summary_title": {
+        "text": "ملخص المحادثة"
+      },
+      "show_more": {
+        "text": "عرض الملخص الكامل"
+      },
+      "show_less": {
+        "text": "عرض أقل"
+      },
+      "show_forgotten": {
+        "text": "عرض الرسائل السابقة"
+      },
+      "hide_forgotten": {
+        "text": "إخفاء الرسائل السابقة"
+      },
+      "messages_compressed": {
+        "text": "تم تلخيص {count} رسالة"
+      }
+    },
     "new_chat_suggestions": {
       "quantum_computing": {
         "text": "علمني عن الحوسبة الكمية بعبارات بسيطة"
@@ -2784,6 +2813,35 @@
       },
       "footer_note": {
         "text": "تم إرسال هذا الإشعار بواسطة نظام مراقبة اختبار E2E الآلي."
+      }
+    },
+    "test_run_summary": {
+      "title": {
+        "text": "ملخص تشغيل الاختبار اليومي"
+      },
+      "header_success": {
+        "text": "جميع الاختبارات ناجحة"
+      },
+      "header_failure": {
+        "text": "{failed} من {total} اختبارات فشلت"
+      },
+      "run_details_label": {
+        "text": "تفاصيل التشغيل"
+      },
+      "git_label": {
+        "text": "Git"
+      },
+      "duration_label": {
+        "text": "المدة"
+      },
+      "suites_label": {
+        "text": "مجموعات الاختبار"
+      },
+      "failed_tests_label": {
+        "text": "الاختبارات الفاشلة"
+      },
+      "footer_note": {
+        "text": "تم إنشاء هذا التقرير بواسطة نظام المراقبة اليومية التلقائية للاختبارات."
       }
     },
     "prometheus_alert": {
@@ -3490,6 +3548,27 @@
       },
       "copy_failed": {
         "text": "فشل نسخ مسودة البريد."
+      }
+    },
+    "image_search": {
+      "text": "البحث عن صور",
+      "searching": {
+        "text": "جارٍ البحث عن صور..."
+      },
+      "results_count": {
+        "text": "تم العثور على {count} صورة"
+      },
+      "view_source": {
+        "text": "عرض المصدر"
+      },
+      "open_image": {
+        "text": "فتح الصورة"
+      },
+      "reverse_search": {
+        "text": "البحث العكسي"
+      },
+      "error": {
+        "text": "فشل البحث عن الصور"
       }
     }
   },
@@ -4719,6 +4798,14 @@
       "action": {
         "text": "فتح إعدادات الأمان"
       }
+    },
+    "credits_depleted": {
+      "message": {
+        "text": "لقد نفد رصيدك. اشترِ المزيد لمواصلة استخدام OpenMates."
+      },
+      "buy_credits": {
+        "text": "شراء الاعتمادات"
+      }
     }
   },
   "onboarding": {},
@@ -5322,6 +5409,18 @@
         },
         "no_apps_found": {
           "text": "لم يتم العثور على تطبيقات تطابق بحثك."
+        },
+        "filter_all": {
+          "text": "الكل"
+        },
+        "filter_settings_memories": {
+          "text": "الإعدادات والذكريات"
+        },
+        "filter_focus_modes": {
+          "text": "أوضاع التركيز"
+        },
+        "filter_skills": {
+          "text": "المهارات"
         }
       },
       "categories": {
@@ -5681,7 +5780,7 @@
       "description": {
         "text": "إدارة رصيدك واشتراكاتك وطرق الدفع"
       },
-      "text": "الفوترة",
+      "text": "الفوترة والاستخدام",
       "title": {
         "text": "الفوترة والاعتمادات"
       },
@@ -7216,6 +7315,9 @@
         "invalid_prefix": {
           "text": "يجب أن تكون البادئة 1-4 أحرف (A-Z, 2-9, باستثناء O, I, 0, 1)"
         }
+      },
+      "tests": {
+        "text": "الاختبارات"
       }
     },
     "server_stats": {

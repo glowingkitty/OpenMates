@@ -1372,6 +1372,12 @@
             "text": "Convert this PNG icon into SVG so it looks sharp at any size"
           }
         }
+      },
+      "search": {
+        "text": "Search",
+        "description": {
+          "text": "Search for images by text or find similar images."
+        }
       }
     },
     "maps": {
@@ -6637,6 +6643,14 @@
       "action": {
         "text": "Open security settings"
       }
+    },
+    "credits_depleted": {
+      "message": {
+        "text": "You ran out of credits. Buy more to continue using OpenMates."
+      },
+      "buy_credits": {
+        "text": "Buy Credits"
+      }
     }
   },
   "onboarding": {
@@ -7275,6 +7289,18 @@
         },
         "no_apps_found": {
           "text": "No apps found matching your search."
+        },
+        "filter_all": {
+          "text": "All"
+        },
+        "filter_settings_memories": {
+          "text": "Settings & Memories"
+        },
+        "filter_focus_modes": {
+          "text": "Focus Modes"
+        },
+        "filter_skills": {
+          "text": "Skills"
         }
       },
       "categories": {
@@ -7632,7 +7658,7 @@
     },
     "billing": {
       "description": {
-        "text": "Manage your credits, subscriptions and payment methods"
+        "text": "Manage your credits, purchases, and what you used credits for."
       },
       "text": "Billing & Usage",
       "title": {
@@ -9168,6 +9194,57 @@
         },
         "invalid_prefix": {
           "text": "Prefix must be 1-4 characters (A-Z, 2-9, excluding O, I, 0, 1)"
+        }
+      },
+      "tests": {
+        "text": "Tests",
+        "subtitle": {
+          "text": "View test results and trigger manual test runs"
+        },
+        "description": {
+          "text": "Automated test run results and scheduling"
+        },
+        "last_run": {
+          "text": "Last run"
+        },
+        "next_run": {
+          "text": "Next run"
+        },
+        "duration": {
+          "text": "Duration"
+        },
+        "never": {
+          "text": "Never"
+        },
+        "start_tests": {
+          "text": "Start tests"
+        },
+        "starting": {
+          "text": "Starting..."
+        },
+        "running": {
+          "text": "Tests running..."
+        },
+        "total": {
+          "text": "Total"
+        },
+        "passed": {
+          "text": "Passed"
+        },
+        "failed": {
+          "text": "Failed"
+        },
+        "skipped": {
+          "text": "Skipped"
+        },
+        "not_started": {
+          "text": "Not started"
+        },
+        "suite_breakdown": {
+          "text": "Suite breakdown"
+        },
+        "no_results": {
+          "text": "No test results available yet. Run the tests to see results here."
         }
       }
     },
