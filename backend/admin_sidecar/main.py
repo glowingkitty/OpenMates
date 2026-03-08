@@ -99,6 +99,19 @@ _update_in_progress = False
 # Result of the most recent completed update (None if none has run yet)
 _last_update_result: Optional[dict] = None
 
+# =============================================================================
+# Test run state (in-memory — resets on sidecar restart)
+# =============================================================================
+
+# Whether a test run is currently executing
+_test_run_in_progress = False
+
+# Result of the most recent completed test run (None if none has run yet)
+_last_test_run_result: Optional[dict] = None
+
+# Timeout for the full test run (vitest + pytest + playwright can take a while)
+_STEP_TIMEOUT_TESTS = 1800  # 30 minutes
+
 
 # =============================================================================
 # Logging
@@ -868,6 +881,246 @@ async def get_version() -> JSONResponse:
             "service_update_target": _SERVICE_UPDATE_TARGET,
         },
     )
+
+
+
+# =============================================================================
+# Test run helpers
+# =============================================================================
+
+def _run_test_script(force: bool = False) -> tuple[bool, str, int]:
+    """
+    Execute scripts/run-tests-daily.sh on the host filesystem synchronously.
+
+    The admin-sidecar has the host filesystem bind-mounted at the same path
+    (GIT_WORK_DIR), so the script and all host-side tools (node, pnpm, python3,
+    git, docker) are accessible. We prepend common host binary paths to PATH
+    so that node/pnpm/npx are found even though they are not installed inside
+    this container.
+
+    Args:
+        force: If True, pass --force to skip the 24h commit-activity gate.
+
+    Returns:
+        (success: bool, output: str, exit_code: int)
+    """
+    work_dir = _GIT_WORK_DIR
+    script_path = os.path.join(work_dir, "scripts", "run-tests-daily.sh")
+
+    if not os.path.isfile(script_path):
+        msg = f"run-tests-daily.sh not found at {script_path}"
+        logger.error("[AdminSidecar/tests] %s", msg)
+        return False, msg, 1
+
+    # Build the command
+    cmd = [script_path]
+    if force:
+        cmd.append("--force")
+
+    # Extend PATH with common host binary locations so that node, pnpm, npx,
+    # and the host Python venv are found. The host filesystem is mounted at the
+    # same path (GIT_WORK_DIR), so /usr/bin/node etc. are accessible.
+    env = os.environ.copy()
+    host_paths = [
+        "/usr/local/sbin",
+        "/usr/local/bin",
+        "/usr/sbin",
+        "/usr/bin",
+        "/sbin",
+        "/bin",
+        "/home/superdev/.npm-global/bin",   # npx lives here on the host
+        "/home/superdev/.local/bin",         # pip-installed CLI tools
+    ]
+    env["PATH"] = ":".join(host_paths) + ":" + env.get("PATH", "")
+
+    logger.info(
+        "[AdminSidecar/tests] Launching test run: %s (force=%s)", script_path, force
+    )
+
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=work_dir,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=_STEP_TIMEOUT_TESTS,
+        )
+        combined = (result.stdout or "") + (result.stderr or "")
+        # Truncate to keep memory reasonable
+        if len(combined) > 50000:
+            combined = combined[:25000] + "\n...truncated...\n" + combined[-25000:]
+
+        logger.info(
+            "[AdminSidecar/tests] Test run completed with exit code %d", result.returncode
+        )
+        return result.returncode == 0, combined, result.returncode
+
+    except subprocess.TimeoutExpired:
+        msg = f"Test run timed out after {_STEP_TIMEOUT_TESTS}s"
+        logger.error("[AdminSidecar/tests] %s", msg)
+        return False, msg, -1
+
+    except Exception as exc:
+        msg = f"Failed to launch test run: {exc}"
+        logger.error("[AdminSidecar/tests] %s", msg, exc_info=True)
+        return False, msg, -1
+
+
+async def _run_tests_background(started_at: str, force: bool) -> None:
+    """
+    Run the test suite in a background thread and store the result.
+    Releases the in-progress lock when done.
+    """
+    global _test_run_in_progress, _last_test_run_result
+
+    logger.info("[AdminSidecar/tests] Background test run starting (started_at=%s, force=%s)", started_at, force)
+    wall_start = time.monotonic()
+
+    try:
+        success, output, exit_code = await asyncio.to_thread(_run_test_script, force)
+        elapsed_s = round(time.monotonic() - wall_start, 1)
+
+        status = "completed" if success else "tests_failed"
+        if exit_code == -1:
+            status = "error"
+
+        logger.info(
+            "[AdminSidecar/tests] Test run finished: status=%s, exit_code=%d, duration=%.1fs",
+            status, exit_code, elapsed_s,
+        )
+
+        _last_test_run_result = {
+            "status": status,
+            "started_at": started_at,
+            "finished_at": datetime.datetime.utcnow().isoformat() + "Z",
+            "duration_s": elapsed_s,
+            "exit_code": exit_code,
+            "output_tail": output[-3000:] if output else "",
+        }
+    except Exception as exc:
+        elapsed_s = round(time.monotonic() - wall_start, 1)
+        logger.error(
+            "[AdminSidecar/tests] Unexpected error in background test run: %s",
+            exc, exc_info=True,
+        )
+        _last_test_run_result = {
+            "status": "error",
+            "started_at": started_at,
+            "finished_at": datetime.datetime.utcnow().isoformat() + "Z",
+            "duration_s": elapsed_s,
+            "exit_code": -1,
+            "error": str(exc),
+        }
+    finally:
+        _test_run_in_progress = False
+        logger.info("[AdminSidecar/tests] Lock released")
+
+
+# =============================================================================
+# Test run routes
+# =============================================================================
+
+@app.post(
+    "/admin/run-tests",
+    summary="Trigger a full test run on the host",
+    description=(
+        "Runs scripts/run-tests-daily.sh on the host filesystem in the background. "
+        "Returns 202 immediately. Use GET /admin/run-tests/status to poll progress. "
+        "Requires X-Admin-Log-Key header."
+    ),
+)
+async def post_run_tests(
+    force: bool = Query(
+        default=False,
+        description="Pass --force to skip the 24h commit-activity gate",
+    ),
+    x_admin_log_key: Optional[str] = Header(None),
+) -> JSONResponse:
+    """
+    Trigger a full test run: vitest + pytest + Playwright via run-tests-daily.sh.
+
+    The script runs on the host filesystem (bind-mounted at GIT_WORK_DIR).
+    Returns 202 immediately; test execution runs in the background.
+    Results are written to test-results/last-run.json on disk.
+
+    Returns 409 if a test run is already in progress.
+    """
+    global _test_run_in_progress
+
+    _require_admin_key(x_admin_log_key)
+
+    if _test_run_in_progress:
+        logger.warning("[AdminSidecar/tests] Test run already in progress — rejecting request")
+        raise HTTPException(
+            status_code=409,
+            detail="A test run is already in progress. Use GET /admin/run-tests/status to monitor.",
+        )
+
+    _test_run_in_progress = True
+    started_at = datetime.datetime.utcnow().isoformat() + "Z"
+    logger.info(
+        "[AdminSidecar/tests] Test run triggered at %s (force=%s)", started_at, force
+    )
+
+    asyncio.create_task(_run_tests_background(started_at, force))
+
+    return JSONResponse(
+        status_code=202,
+        content={
+            "status": "accepted",
+            "started_at": started_at,
+            "force": force,
+            "message": (
+                "Test run started. Results will be written to test-results/last-run.json. "
+                "Poll GET /admin/run-tests/status for progress."
+            ),
+        },
+    )
+
+
+@app.get(
+    "/admin/run-tests/status",
+    summary="Poll the current or last test run status",
+    description=(
+        "Returns whether tests are currently running, or the result of the last "
+        "completed test run. Requires X-Admin-Log-Key header."
+    ),
+)
+async def get_test_run_status(
+    x_admin_log_key: Optional[str] = Header(None),
+) -> JSONResponse:
+    """
+    Poll test run progress.
+
+    Possible 'status' values:
+      - "in_progress"  — a test run is currently executing
+      - "completed"    — tests all passed
+      - "tests_failed" — some tests failed (results in test-results/)
+      - "error"        — script failed to execute or timed out
+      - "never_run"    — no test run has been triggered since sidecar restart
+    """
+    _require_admin_key(x_admin_log_key)
+
+    if _test_run_in_progress:
+        return JSONResponse(
+            status_code=200,
+            content={
+                "status": "in_progress",
+                "message": "Test run is currently executing.",
+            },
+        )
+
+    if _last_test_run_result is None:
+        return JSONResponse(
+            status_code=200,
+            content={
+                "status": "never_run",
+                "message": "No test run has been triggered since this sidecar started.",
+            },
+        )
+
+    return JSONResponse(status_code=200, content=_last_test_run_result)
 
 
 # =============================================================================
