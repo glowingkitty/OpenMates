@@ -46,6 +46,7 @@ def send_test_run_summary(
     passed: int,
     failed: int,
     skipped: int,
+    not_started: int,
     suites: List[Dict[str, Any]],
     failed_tests: List[Dict[str, Any]],
 ) -> bool:
@@ -62,6 +63,7 @@ def send_test_run_summary(
         passed: Number of tests that passed.
         failed: Number of tests that failed.
         skipped: Number of tests that were skipped.
+        not_started: Number of tests not started due to earlier failure.
         suites: List of suite summary dicts with keys:
             name, total, passed, failed, status
         failed_tests: List of failed test dicts with keys:
@@ -87,6 +89,7 @@ def send_test_run_summary(
                 passed=passed,
                 failed=failed,
                 skipped=skipped,
+                not_started=not_started,
                 suites=suites,
                 failed_tests=failed_tests,
             )
@@ -122,6 +125,7 @@ async def _async_send_test_run_summary(
     passed: int,
     failed: int,
     skipped: int,
+    not_started: int,
     suites: List[Dict[str, Any]],
     failed_tests: List[Dict[str, Any]],
 ) -> bool:
@@ -194,6 +198,7 @@ async def _async_send_test_run_summary(
             "passed": passed,
             "failed": failed,
             "skipped": skipped,
+            "not_started": not_started,
             "suites": sanitized_suites,
             "failed_tests": sanitized_failed,
         }
