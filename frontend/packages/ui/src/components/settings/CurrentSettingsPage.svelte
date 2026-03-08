@@ -6,6 +6,7 @@
     import { authStore } from '../../stores/authStore';
     import { webSocketService } from '../../services/websocketService';
     import { incognitoMode } from '../../stores/incognitoModeStore'; // Import incognito mode store
+    import { allAppsInitialFilter } from '../../stores/allAppsFilterStore';
     import SettingsItem from '../SettingsItem.svelte';
     import { createEventDispatcher, onMount, tick } from 'svelte';
     import type { SvelteComponent } from 'svelte';
@@ -137,6 +138,21 @@
     function showSettingsView(viewName, event) {
         // Stop propagation to prevent document click handler from closing menu
         if (event) event.stopPropagation();
+
+        // Redirect "Settings & Memories" to the All Apps page with a capability filter
+        // so users see only apps that define settings & memories categories.
+        if (viewName === 'settings_memories') {
+            allAppsInitialFilter.set('settings_memories');
+            dispatch('openSettings', {
+                settingsPath: 'app_store/all',
+                direction: 'forward',
+                icon: 'memory',
+                title: $text('settings.app_store.show_all_apps'),
+                cameFrom: 'app_store',
+                cameFromTitle: $text('settings.settings_memories'),
+            });
+            return;
+        }
         
         dispatch('openSettings', { 
             settingsPath: viewName, 

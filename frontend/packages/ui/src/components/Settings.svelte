@@ -64,6 +64,7 @@ changes to the documentation (to keep the documentation up to date).
     import { matesMetadata } from '../data/matesMetadata';
     import { appSkillsStore } from '../stores/appSkillsStore';
     import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
+    import { allAppsInitialFilter } from '../stores/allAppsFilterStore';
     import { modelsMetadata } from '../data/modelsMetadata';
     import { providersMetadata, findProviderByName } from '../data/providersMetadata';
     import { getProviderIconUrl } from '../data/providerIcons';
@@ -1055,6 +1056,17 @@ changes to the documentation (to keep the documentation up to date).
         const detail = 'detail' in event ? event.detail : event;
         let { settingsPath, direction: newDirection, icon, cameFrom, cameFromTitle } = detail;
         direction = newDirection;
+
+        // --- Redirect "Settings & Memories" to All Apps with capability filter ---
+        // The root menu item and deep links targeting settings_memories now go to
+        // app_store/all with the filter store pre-set instead of SettingsMemoriesHub.
+        if (settingsPath === 'settings_memories' && newDirection === 'forward') {
+            allAppsInitialFilter.set('settings_memories');
+            settingsPath = 'app_store/all';
+            icon = 'memory';
+            cameFrom = 'app_store';
+            cameFromTitle = undefined;
+        }
 
         // --- Scroll position memory (All Apps only) ---
         // Save the scroll offset when leaving "All Apps" going forward, so pressing
