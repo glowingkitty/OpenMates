@@ -3569,6 +3569,12 @@
       },
       "error": {
         "text": "Görsel arama başarısız"
+      },
+      "error_title": {
+        "text": "Arama başarısız"
+      },
+      "more_results": {
+        "text": "daha fazla"
       }
     }
   },
@@ -5051,6 +5057,9 @@
       },
       "change_password": {
         "text": "Şifreyi değiştir"
+      },
+      "chats": {
+        "text": "Sohbetler"
       }
     },
     "ai_ask": {
@@ -5840,6 +5849,9 @@
       },
       "invoices_error_loading": {
         "text": "Faturalar yüklenirken hata oluştu"
+      },
+      "invoices_generating": {
+        "text": "Fatura oluşturuluyor..."
       }
     },
     "gift_cards": {

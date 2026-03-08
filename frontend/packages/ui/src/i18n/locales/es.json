@@ -3910,6 +3910,12 @@
       },
       "error": {
         "text": "La búsqueda de imágenes falló"
+      },
+      "error_title": {
+        "text": "Búsqueda fallida"
+      },
+      "more_results": {
+        "text": "más"
       }
     }
   },
@@ -6305,6 +6311,12 @@
       },
       "timezone_info": {
         "text": "Su zona horaria se utiliza para programar recordatorios y mostrar horas. Se detectó automáticamente desde su navegador, pero puede cambiarla aquí."
+      },
+      "chats": {
+        "text": "Chats",
+        "description": {
+          "text": "Administra y revisa tu historial de chats"
+        }
       }
     },
     "ai_ask": {
@@ -7109,6 +7121,9 @@
       },
       "invoices_error_loading": {
         "text": "Error al cargar las facturas"
+      },
+      "invoices_generating": {
+        "text": "Generando factura..."
       }
     },
     "chat": {

@@ -3611,6 +3611,12 @@
       },
       "error": {
         "text": "Bildsökning misslyckades"
+      },
+      "error_title": {
+        "text": "Sökning misslyckades"
+      },
+      "more_results": {
+        "text": "fler"
       }
     }
   },
@@ -5861,6 +5867,9 @@
       },
       "invoices_error_loading": {
         "text": "Fel vid laddning av fakturor"
+      },
+      "invoices_generating": {
+        "text": "Genererar faktura..."
       }
     },
     "gift_cards": {

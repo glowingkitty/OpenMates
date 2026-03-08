@@ -6714,6 +6714,18 @@
         },
         "delete_none": {
           "text": "Keine Chats gefunden, die älter als der ausgewählte Zeitraum sind"
+        },
+        "preview_button": {
+          "text": "Vorschau"
+        },
+        "preview_result": {
+          "text": "{count} Chats werden gelöscht"
+        },
+        "preview_none": {
+          "text": "Keine Chats werden gelöscht"
+        },
+        "preview_loading": {
+          "text": "Wird geprüft..."
         }
       }
     },

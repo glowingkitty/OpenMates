@@ -3569,6 +3569,12 @@
       },
       "error": {
         "text": "Wyszukiwanie obrazów nie powiodło się"
+      },
+      "error_title": {
+        "text": "Wyszukiwanie nieudane"
+      },
+      "more_results": {
+        "text": "więcej"
       }
     }
   },
@@ -5840,6 +5846,9 @@
       },
       "invoices_error_loading": {
         "text": "Błąd ładowania faktur"
+      },
+      "invoices_generating": {
+        "text": "Generowanie faktury..."
       }
     },
     "gift_cards": {

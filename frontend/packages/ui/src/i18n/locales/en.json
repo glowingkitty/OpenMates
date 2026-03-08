@@ -7083,6 +7083,18 @@
         },
         "delete_none": {
           "text": "No chats found older than the selected period"
+        },
+        "preview_button": {
+          "text": "Preview"
+        },
+        "preview_result": {
+          "text": "{count} chats will be deleted"
+        },
+        "preview_none": {
+          "text": "No chats will be deleted"
+        },
+        "preview_loading": {
+          "text": "Checking..."
         }
       }
     },

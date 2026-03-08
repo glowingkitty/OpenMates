@@ -3569,6 +3569,12 @@
       },
       "error": {
         "text": "Ricerca immagini fallita"
+      },
+      "error_title": {
+        "text": "Ricerca fallita"
+      },
+      "more_results": {
+        "text": "altri"
       }
     }
   },
@@ -5051,6 +5057,9 @@
       },
       "change_password": {
         "text": "Cambia password"
+      },
+      "chats": {
+        "text": "Chat"
       }
     },
     "ai_ask": {
@@ -5843,6 +5852,9 @@
       },
       "invoices_error_loading": {
         "text": "Errore nel caricamento delle fatture"
+      },
+      "invoices_generating": {
+        "text": "Generazione fattura..."
       }
     },
     "gift_cards": {

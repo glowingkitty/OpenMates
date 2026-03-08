@@ -3910,6 +3910,12 @@
       },
       "error": {
         "text": "图片搜索失败"
+      },
+      "error_title": {
+        "text": "搜索失败"
+      },
+      "more_results": {
+        "text": "更多"
       }
     }
   },
@@ -6151,6 +6157,9 @@
       },
       "timezone_info": {
         "text": "您的时区用于安排提醒和显示时间。它已从您的浏览器自动检测，但您可以在此处更改。"
+      },
+      "chats": {
+        "text": "聊天"
       }
     },
     "ai_ask": {
@@ -6952,6 +6961,9 @@
       },
       "invoices_error_loading": {
         "text": "加载发票时出错"
+      },
+      "invoices_generating": {
+        "text": "正在生成发票..."
       }
     },
     "chat": {

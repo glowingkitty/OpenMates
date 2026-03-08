@@ -3569,6 +3569,12 @@
       },
       "error": {
         "text": "Afbeeldingen zoeken mislukt"
+      },
+      "error_title": {
+        "text": "Zoeken mislukt"
+      },
+      "more_results": {
+        "text": "meer"
       }
     }
   },
@@ -5840,6 +5846,9 @@
       },
       "invoices_error_loading": {
         "text": "Fout bij het laden van facturen"
+      },
+      "invoices_generating": {
+        "text": "Factuur genereren..."
       }
     },
     "gift_cards": {

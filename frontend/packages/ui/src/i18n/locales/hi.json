@@ -3569,6 +3569,12 @@
       },
       "error": {
         "text": "छवि खोज विफल रही"
+      },
+      "error_title": {
+        "text": "खोज विफल रही"
+      },
+      "more_results": {
+        "text": "और"
       }
     }
   },
@@ -5051,6 +5057,9 @@
       },
       "change_password": {
         "text": "पासवर्ड बदलें"
+      },
+      "chats": {
+        "text": "चैट"
       }
     },
     "ai_ask": {
@@ -5840,6 +5849,9 @@
       },
       "invoices_error_loading": {
         "text": "चालान लोड करने में त्रुटि"
+      },
+      "invoices_generating": {
+        "text": "चालान बनाया जा रहा है..."
       }
     },
     "gift_cards": {

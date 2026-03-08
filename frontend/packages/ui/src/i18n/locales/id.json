@@ -3569,6 +3569,12 @@
       },
       "error": {
         "text": "Pencarian gambar gagal"
+      },
+      "error_title": {
+        "text": "Pencarian gagal"
+      },
+      "more_results": {
+        "text": "lainnya"
       }
     }
   },
@@ -5840,6 +5846,9 @@
       },
       "invoices_error_loading": {
         "text": "Gagal memuat faktur"
+      },
+      "invoices_generating": {
+        "text": "Membuat faktur..."
       }
     },
     "gift_cards": {

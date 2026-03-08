@@ -3910,6 +3910,12 @@
       },
       "error": {
         "text": "La recherche d'images a échoué"
+      },
+      "error_title": {
+        "text": "Recherche échouée"
+      },
+      "more_results": {
+        "text": "plus"
       }
     }
   },
@@ -6262,6 +6268,12 @@
       },
       "timezone_info": {
         "text": "Votre fuseau horaire est utilisé pour planifier les rappels et afficher les heures. Il a été détecté automatiquement depuis votre navigateur, mais vous pouvez le modifier ici."
+      },
+      "chats": {
+        "text": "Chats",
+        "description": {
+          "text": "Gérez et consultez votre historique de chats"
+        }
       }
     },
     "ai_ask": {
@@ -7066,6 +7078,9 @@
       },
       "invoices_error_loading": {
         "text": "Erreur lors du chargement des factures"
+      },
+      "invoices_generating": {
+        "text": "Génération de la facture..."
       }
     },
     "chat": {

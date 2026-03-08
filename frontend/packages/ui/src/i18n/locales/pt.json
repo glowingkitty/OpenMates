@@ -3569,6 +3569,12 @@
       },
       "error": {
         "text": "A pesquisa de imagens falhou"
+      },
+      "error_title": {
+        "text": "Pesquisa falhou"
+      },
+      "more_results": {
+        "text": "mais"
       }
     }
   },
@@ -5051,6 +5057,9 @@
       },
       "change_password": {
         "text": "Alterar senha"
+      },
+      "chats": {
+        "text": "Chats"
       }
     },
     "ai_ask": {
@@ -5840,6 +5849,9 @@
       },
       "invoices_error_loading": {
         "text": "Erro ao carregar faturas"
+      },
+      "invoices_generating": {
+        "text": "Gerando fatura..."
       }
     },
     "gift_cards": {

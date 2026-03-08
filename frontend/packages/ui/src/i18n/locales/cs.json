@@ -3575,6 +3575,12 @@
       },
       "error": {
         "text": "Vyhledávání obrázků selhalo"
+      },
+      "error_title": {
+        "text": "Hledání selhalo"
+      },
+      "more_results": {
+        "text": "více"
       }
     }
   },
@@ -5846,6 +5852,9 @@
       },
       "invoices_error_loading": {
         "text": "Chyba při načítání faktur"
+      },
+      "invoices_generating": {
+        "text": "Generování faktury..."
       }
     },
     "gift_cards": {

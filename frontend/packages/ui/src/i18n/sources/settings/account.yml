@@ -2438,3 +2438,31 @@ chats.delete_none:
   ar: لم يتم العثور على محادثات أقدم من الفترة المحددة
   he: לא נמצאו צ'אטים ישנים יותר מהתקופה הנבחרת
   verified_by_human: []
+chats.preview_button:
+  context: Button label to preview how many chats will be deleted before confirming
+  en: Preview
+  de: Vorschau
+  ar: معاينة
+  he: תצוגה מקדימה
+  verified_by_human: []
+chats.preview_result:
+  context: Text showing how many chats will be deleted, {count} is the number, shown after clicking Preview
+  en: "{count} chats will be deleted"
+  de: "{count} Chats werden gelöscht"
+  ar: "سيتم حذف {count} محادثة"
+  he: "{count} צ'אטים יימחקו"
+  verified_by_human: []
+chats.preview_none:
+  context: Text shown in preview when no chats would be deleted for the selected period
+  en: No chats will be deleted
+  de: Keine Chats werden gelöscht
+  ar: لن يتم حذف أي محادثات
+  he: לא יימחקו צ'אטים
+  verified_by_human: []
+chats.preview_loading:
+  context: Loading text shown while the preview count is being fetched
+  en: Checking...
+  de: Wird geprüft...
+  ar: جارٍ التحقق...
+  he: בודק...
+  verified_by_human: []

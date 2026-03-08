@@ -6022,6 +6022,18 @@
         },
         "delete_none": {
           "text": "לא נמצאו צ'אטים ישנים יותר מהתקופה הנבחרת"
+        },
+        "preview_button": {
+          "text": "תצוגה מקדימה"
+        },
+        "preview_result": {
+          "text": "{count} צ'אטים יימחקו"
+        },
+        "preview_none": {
+          "text": "לא יימחקו צ'אטים"
+        },
+        "preview_loading": {
+          "text": "בודק..."
         }
       }
     },

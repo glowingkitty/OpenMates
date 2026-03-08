@@ -3569,6 +3569,12 @@
       },
       "error": {
         "text": "이미지 검색 실패"
+      },
+      "error_title": {
+        "text": "검색 실패"
+      },
+      "more_results": {
+        "text": "더보기"
       }
     }
   },
@@ -5051,6 +5057,9 @@
       },
       "change_password": {
         "text": "비밀번호 변경"
+      },
+      "chats": {
+        "text": "채팅"
       }
     },
     "ai_ask": {
@@ -5840,6 +5849,9 @@
       },
       "invoices_error_loading": {
         "text": "청구서 로딩 오류"
+      },
+      "invoices_generating": {
+        "text": "청구서 생성 중..."
       }
     },
     "gift_cards": {

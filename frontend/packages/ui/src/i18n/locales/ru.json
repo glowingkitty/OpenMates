@@ -3569,6 +3569,12 @@
       },
       "error": {
         "text": "Поиск изображений не удался"
+      },
+      "error_title": {
+        "text": "Поиск не удался"
+      },
+      "more_results": {
+        "text": "ещё"
       }
     }
   },
@@ -5051,6 +5057,9 @@
       },
       "change_password": {
         "text": "Изменить пароль"
+      },
+      "chats": {
+        "text": "Чаты"
       }
     },
     "ai_ask": {
@@ -5840,6 +5849,9 @@
       },
       "invoices_error_loading": {
         "text": "Ошибка загрузки счетов"
+      },
+      "invoices_generating": {
+        "text": "Создание счёта..."
       }
     },
     "gift_cards": {

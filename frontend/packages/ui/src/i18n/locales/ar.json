@@ -5203,6 +5203,18 @@
         },
         "delete_none": {
           "text": "لم يتم العثور على محادثات أقدم من الفترة المحددة"
+        },
+        "preview_button": {
+          "text": "معاينة"
+        },
+        "preview_result": {
+          "text": "سيتم حذف {count} محادثة"
+        },
+        "preview_none": {
+          "text": "لن يتم حذف أي محادثات"
+        },
+        "preview_loading": {
+          "text": "جارٍ التحقق..."
         }
       }
     },

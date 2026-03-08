@@ -4788,97 +4788,20 @@ async def delete_storage_files(
 
 
 # ─── Chat Statistics & Management ────────────────────────────────────────────
-
-
-class ChatCreationDataPoint(BaseModel):
-    """A single data point: count of chats created in a given time bucket."""
-    date: str = Field(description="ISO date string (YYYY-MM-DD) representing the bucket start")
-    count: int = Field(description="Number of chats created on this date")
+# Architecture: docs/architecture/security.md (hashed_user_id privacy model)
+# created_at is stored as a Unix timestamp integer in Directus, NOT ISO string.
+# Total count uses meta=total_count with limit=1 (single request, no pagination).
+# Delete and preview filters use int Unix cutoff: int(time.time()) - days*86400.
 
 
 class ChatStatsResponse(BaseModel):
     """Response for GET /v1/settings/chats."""
     total_count: int = Field(description="Total number of chats in the account")
-    creation_timeline: list[ChatCreationDataPoint] = Field(
-        default_factory=list,
-        description="Per-day creation counts sorted ascending by date"
-    )
 
 
-@router.get("/chats", response_model=ChatStatsResponse, include_in_schema=False)
-@limiter.limit("30/minute")
-async def get_chat_stats(
-    request: Request,
-    current_user: User = Depends(get_current_user),
-    directus_service: DirectusService = Depends(get_directus_service),
-) -> ChatStatsResponse:
-    """
-    Return chat statistics for the current user's account.
-
-    Fetches all chat creation timestamps (created_at) from Directus using the
-    hashed_user_id (privacy-preserving lookup) and groups them by calendar day
-    to build a timeline graph suitable for display in Settings > Account > Chats.
-
-    The endpoint is intentionally read-only and does NOT return encrypted chat
-    content — only the aggregate count and creation dates.
-    """
-    import hashlib as _hashlib
-    from collections import Counter as _Counter
-
-    user_id = current_user.id
-    hashed_user_id = _hashlib.sha256(user_id.encode()).hexdigest()
-
-    logger.info(f"[ChatStats] Fetching chat stats for user {user_id}")
-
-    # Paginate through all chats to collect created_at timestamps.
-    # Directus default page limit is 100; we loop until we have all.
-    all_created_at: list[str] = []
-    offset = 0
-    page_size = 500
-
-    try:
-        while True:
-            params = {
-                'filter[hashed_user_id][_eq]': hashed_user_id,
-                'fields': 'id,created_at',
-                'limit': page_size,
-                'offset': offset,
-                'sort': 'created_at',
-            }
-            page = await directus_service.get_items('chats', params=params)
-            if not page or not isinstance(page, list):
-                break
-            for item in page:
-                created_at = item.get('created_at')
-                if created_at:
-                    all_created_at.append(str(created_at))
-            if len(page) < page_size:
-                break
-            offset += page_size
-
-        total_count = len(all_created_at)
-
-        # Group by calendar day (YYYY-MM-DD)
-        day_counts: _Counter = _Counter()
-        for ts in all_created_at:
-            # Directus returns ISO 8601: "2025-03-01T14:22:00.000Z" or similar
-            day = ts[:10]  # take YYYY-MM-DD prefix
-            day_counts[day] += 1
-
-        timeline = [
-            ChatCreationDataPoint(date=day, count=count)
-            for day, count in sorted(day_counts.items())
-        ]
-
-        logger.info(f"[ChatStats] user {user_id}: {total_count} chats, {len(timeline)} days")
-
-        return ChatStatsResponse(total_count=total_count, creation_timeline=timeline)
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"[ChatStats] Unexpected error for user {user_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to fetch chat statistics")
+class ChatPreviewResponse(BaseModel):
+    """Response for GET /v1/settings/chats/preview."""
+    count: int = Field(description="Number of chats that would be deleted")
 
 
 class DeleteOldChatsRequest(BaseModel):
@@ -4892,6 +4815,111 @@ class DeleteOldChatsRequest(BaseModel):
 class DeleteOldChatsResponse(BaseModel):
     """Response for POST /v1/settings/chats/delete-old."""
     deleted_count: int = Field(description="Number of chats permanently deleted")
+    deleted_ids: list[str] = Field(
+        default_factory=list,
+        description="IDs of deleted chats so the client can clean up IndexedDB"
+    )
+
+
+@router.get("/chats", response_model=ChatStatsResponse, include_in_schema=False)
+@limiter.limit("30/minute")
+async def get_chat_stats(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> ChatStatsResponse:
+    """
+    Return total chat count for the current user's account.
+
+    Uses Directus meta=total_count with limit=1 -- a single lightweight request
+    that returns the accurate server-side total without pagination.
+    created_at is a Unix int; this endpoint does not filter by date.
+    """
+    import hashlib as _hashlib
+
+    user_id = current_user.id
+    hashed_user_id = _hashlib.sha256(user_id.encode()).hexdigest()
+
+    logger.info(f"[ChatStats] Fetching total count for user {user_id}")
+
+    try:
+        token = await directus_service.ensure_auth_token(admin_required=False)
+        headers = {"Authorization": f"Bearer {token}"}
+        url = f"{directus_service.base_url}/items/chats"
+        params = {
+            'filter[hashed_user_id][_eq]': hashed_user_id,
+            'limit': 1,
+            'meta': 'total_count',
+            'fields': 'id',
+        }
+        response = await directus_service._make_api_request("GET", url, headers=headers, params=params)
+        response.raise_for_status()
+        body = response.json()
+        total_count = body.get('meta', {}).get('total_count', 0) or 0
+
+        logger.info(f"[ChatStats] user {user_id}: {total_count} total chats")
+        return ChatStatsResponse(total_count=total_count)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[ChatStats] Unexpected error for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch chat statistics")
+
+
+@router.get("/chats/preview", response_model=ChatPreviewResponse, include_in_schema=False)
+@limiter.limit("30/minute")
+async def preview_old_chats(
+    request: Request,
+    older_than_days: int,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> ChatPreviewResponse:
+    """
+    Preview how many chats would be deleted for a given age threshold.
+
+    Uses meta=total_count with a Unix timestamp cutoff filter so the client
+    can show "X chats will be deleted" before the user confirms.
+    created_at is stored as a Unix int, so the cutoff is also a Unix int.
+    """
+    import hashlib as _hashlib
+
+    if older_than_days < 1:
+        raise HTTPException(status_code=422, detail="older_than_days must be >= 1")
+
+    user_id = current_user.id
+    hashed_user_id = _hashlib.sha256(user_id.encode()).hexdigest()
+    cutoff_unix = int(time.time()) - (older_than_days * 86400)
+
+    logger.info(
+        f"[ChatPreview] user {user_id}: preview older_than_days={older_than_days} "
+        f"cutoff_unix={cutoff_unix}"
+    )
+
+    try:
+        token = await directus_service.ensure_auth_token(admin_required=False)
+        headers = {"Authorization": f"Bearer {token}"}
+        url = f"{directus_service.base_url}/items/chats"
+        params = {
+            'filter[hashed_user_id][_eq]': hashed_user_id,
+            'filter[created_at][_lt]': cutoff_unix,
+            'limit': 1,
+            'meta': 'total_count',
+            'fields': 'id',
+        }
+        response = await directus_service._make_api_request("GET", url, headers=headers, params=params)
+        response.raise_for_status()
+        body = response.json()
+        count = body.get('meta', {}).get('total_count', 0) or 0
+
+        logger.info(f"[ChatPreview] user {user_id}: {count} chats would be deleted")
+        return ChatPreviewResponse(count=count)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[ChatPreview] Unexpected error for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to preview chat deletion")
 
 
 @router.post("/chats/delete-old", response_model=DeleteOldChatsResponse, include_in_schema=False)
@@ -4907,64 +4935,65 @@ async def delete_old_chats(
     Permanently delete all chats older than ``older_than_days`` days.
 
     Only chats belonging to the authenticated user (matched via hashed_user_id)
-    are deleted. The operation is irreversible — compliance event is logged.
+    are deleted. The operation is irreversible -- compliance event is logged.
     Related messages and drafts are also deleted via the existing
     ``persist_delete_chat`` helper which handles cascading cleanup.
+
+    Returns the list of deleted chat IDs so the client can clean up IndexedDB.
+    created_at is a Unix int -- filter uses Unix int cutoff (not ISO string).
     """
     import hashlib as _hashlib
 
     user_id = current_user.id
     hashed_user_id = _hashlib.sha256(user_id.encode()).hexdigest()
     cutoff_days = request_data.older_than_days
+    cutoff_unix = int(time.time()) - (cutoff_days * 86400)
     client_ip = _extract_client_ip(
         request.headers, request.client.host if request.client else None
     )
 
-    cutoff_dt = datetime.now(timezone.utc) - timedelta(days=cutoff_days)
-    cutoff_iso = cutoff_dt.strftime('%Y-%m-%dT%H:%M:%S')
-
     logger.info(
-        f"[DeleteOldChats] user {user_id}: deleting chats created before {cutoff_iso} "
-        f"(older_than_days={cutoff_days})"
+        f"[DeleteOldChats] user {user_id}: deleting chats older_than_days={cutoff_days} "
+        f"cutoff_unix={cutoff_unix}"
     )
 
-    # Collect all chat IDs older than the cutoff
+    # Collect all chat IDs older than the cutoff using Unix int filter
     chat_ids_to_delete: list[str] = []
     offset = 0
-    page_size = 500
+    PAGE_SIZE = 500
 
     try:
         while True:
             params = {
                 'filter[hashed_user_id][_eq]': hashed_user_id,
-                'filter[created_at][_lt]': cutoff_iso,
+                'filter[created_at][_lt]': cutoff_unix,
                 'fields': 'id',
-                'limit': page_size,
+                'limit': PAGE_SIZE,
                 'offset': offset,
             }
             page = await directus_service.get_items('chats', params=params)
             if not page or not isinstance(page, list):
                 break
             chat_ids_to_delete.extend(item['id'] for item in page if item.get('id'))
-            if len(page) < page_size:
+            if len(page) < PAGE_SIZE:
                 break
-            offset += page_size
+            offset += PAGE_SIZE
 
         if not chat_ids_to_delete:
             logger.info(f"[DeleteOldChats] user {user_id}: no chats to delete")
-            return DeleteOldChatsResponse(deleted_count=0)
+            return DeleteOldChatsResponse(deleted_count=0, deleted_ids=[])
 
         logger.info(
             f"[DeleteOldChats] user {user_id}: found {len(chat_ids_to_delete)} chats to delete"
         )
 
-        # Delete each chat — reuse the existing helper that handles cascading
-        deleted_count = 0
+        # Delete each chat -- reuse the existing helper that handles cascading
+        deleted_ids: list[str] = []
         for chat_id in chat_ids_to_delete:
             try:
                 success = await directus_service.persist_delete_chat(chat_id)
                 if success:
-                    deleted_count += 1
+                    deleted_ids.append(chat_id)
                 else:
                     logger.warning(
                         f"[DeleteOldChats] persist_delete_chat returned False for {chat_id}"
@@ -4973,6 +5002,8 @@ async def delete_old_chats(
                 logger.warning(
                     f"[DeleteOldChats] Error deleting chat {chat_id}: {del_err}"
                 )
+
+        deleted_count = len(deleted_ids)
 
         # Compliance log
         compliance_service.log_auth_event(
@@ -4983,7 +5014,7 @@ async def delete_old_chats(
             details={
                 "deleted_count": deleted_count,
                 "older_than_days": cutoff_days,
-                "cutoff_date": cutoff_iso,
+                "cutoff_unix": cutoff_unix,
             },
         )
 
@@ -4991,10 +5022,11 @@ async def delete_old_chats(
             f"[DeleteOldChats] user {user_id}: deleted {deleted_count}/{len(chat_ids_to_delete)} chats"
         )
 
-        return DeleteOldChatsResponse(deleted_count=deleted_count)
+        return DeleteOldChatsResponse(deleted_count=deleted_count, deleted_ids=deleted_ids)
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"[DeleteOldChats] Unexpected error for user {user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to delete old chats")
+

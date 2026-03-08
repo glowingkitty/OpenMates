@@ -3569,6 +3569,12 @@
       },
       "error": {
         "text": "Tìm kiếm hình ảnh thất bại"
+      },
+      "error_title": {
+        "text": "Tìm kiếm thất bại"
+      },
+      "more_results": {
+        "text": "thêm"
       }
     }
   },
@@ -5840,6 +5846,9 @@
       },
       "invoices_error_loading": {
         "text": "Lỗi tải hóa đơn"
+      },
+      "invoices_generating": {
+        "text": "Đang tạo hóa đơn..."
       }
     },
     "gift_cards": {

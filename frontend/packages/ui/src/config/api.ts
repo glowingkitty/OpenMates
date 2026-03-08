@@ -167,7 +167,8 @@ export const apiEndpoints = {
       lowBalance: "/v1/settings/auto-topup/low-balance", // Update low balance auto top-up settings (requires 2FA)
     },
     autoDeleteChats: "/v1/settings/auto-delete-chats", // Persist chat auto-deletion period
-    chatStats: "/v1/settings/chats", // GET: chat count + creation timeline for Settings > Account > Chats
+    chatStats: "/v1/settings/chats", // GET: total chat count for Settings > Account > Chats
+    previewOldChats: "/v1/settings/chats/preview", // GET: count of chats older than N days (preview before delete)
     deleteOldChats: "/v1/settings/chats/delete-old", // POST: permanently delete chats older than N days
     aiModelDefaults: "/v1/settings/ai-model-defaults", // Persist default AI model preferences (simple/complex)
     software_update: {
