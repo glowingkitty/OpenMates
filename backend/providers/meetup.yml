@@ -18,6 +18,10 @@ api_base_url: "https://api.meetup.com/gql2"
 # - Unauthenticated GraphQL endpoint; rate limits are enforced server-side by Meetup
 # - Meetup does not publish exact rate limits for unauthenticated access
 
+# Set to true for providers that do not require an API key (unauthenticated/public APIs).
+# The App Store availability check will always show the skill as available.
+no_api_key: true
+
 # Pricing information
 # Users are charged per events search request
 pricing:
