@@ -121,32 +121,9 @@
   let isFirstCard = $derived(carouselIndex === 0);
   let hasMultiple = $derived(carouselTotal > 1);
 
-  // ── Responsive width detection ─────────────────────────────────────────
-  // When the surrounding chat message container is too narrow (< 480px),
-  // fall back to the regular (non-large) embed preview rendering.
-  // Uses a ResizeObserver on the wrapper element to detect available width.
-  const LARGE_MIN_WIDTH = 480;
-  let wrapperElement = $state<HTMLElement | undefined>(undefined);
-  let containerWidth = $state(Infinity);
-  let useSmallFallback = $derived(containerWidth < LARGE_MIN_WIDTH);
 
-  import { onMount, onDestroy } from 'svelte';
-  let resizeObserver: ResizeObserver | null = null;
 
-  onMount(() => {
-    if (wrapperElement) {
-      resizeObserver = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          containerWidth = entry.contentRect.width;
-        }
-      });
-      resizeObserver.observe(wrapperElement);
-    }
-  });
 
-  onDestroy(() => {
-    resizeObserver?.disconnect();
-  });
 
   function handlePrevious(e: MouseEvent) {
     e.preventDefault();
@@ -319,14 +296,11 @@
 {#if isFirstCard}
   <!-- First card: always-visible carousel shell.
        bind:this for ResizeObserver width detection (responsive fallback). -->
-  <div class="embed-preview-large-wrapper embed-preview-large-shell" class:embed-small-fallback={useSmallFallback} bind:this={wrapperElement}>
+  <div class="embed-preview-large-wrapper embed-preview-large-shell">
     <!-- Embed content: hidden (not removed) when another slide is active.
-         When container is too narrow (< 480px), falls back to regular (non-large) preview. -->
+         Always renders the large preview component (no small-fallback). -->
     <div class="embed-preview-large-content" class:embed-preview-large-content--hidden={!isVisible}>
-      {#if useSmallFallback}
-        <!-- Small container fallback: render regular embed preview instead of large -->
-        <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === WebsiteEmbedPreviewLarge}
+      {#if largeComponent === WebsiteEmbedPreviewLarge}
         <WebsiteEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
       {:else if largeComponent === WebSearchEmbedPreviewLarge}
         <WebSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
@@ -389,7 +363,7 @@
 
     <!-- Navigation arrows: always inside the first card shell.
          Hidden when using small fallback (regular preview). -->
-    {#if hasMultiple && !useSmallFallback}
+    {#if hasMultiple}
       <button
         class="carousel-arrow carousel-arrow-left"
         type="button"
@@ -416,12 +390,8 @@
   <div
     class="embed-preview-large-wrapper embed-preview-large-overlay"
     class:embed-preview-large-overlay--hidden={!isVisible}
-    class:embed-small-fallback={useSmallFallback}
   >
-    {#if useSmallFallback}
-      <!-- Small container fallback: render regular embed preview instead of large -->
-      <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === WebsiteEmbedPreviewLarge}
+    {#if largeComponent === WebsiteEmbedPreviewLarge}
       <WebsiteEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
     {:else if largeComponent === WebSearchEmbedPreviewLarge}
       <WebSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
@@ -498,12 +468,6 @@
     min-height: 365px;
   }
 
-  /* When container is small enough for fallback, reduce shell height to
-     match the regular (non-large) embed preview height */
-  .embed-preview-large-shell.embed-small-fallback {
-    min-height: unset;
-  }
-
   /* Hide the first card's embed content (not the shell) when another slide is active.
      visibility:hidden keeps the element in the flow, preserving the shell height. */
   .embed-preview-large-content {
@@ -527,11 +491,6 @@
     /* Ensure the overlay sits above the (now invisible) shell content */
     position: relative;
     z-index: 2;
-  }
-
-  /* When in small fallback mode, don't overlap as the height is different */
-  .embed-preview-large-overlay.embed-small-fallback {
-    margin-top: 0;
   }
 
   .embed-preview-large-overlay--hidden {

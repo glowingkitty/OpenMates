@@ -3,8 +3,12 @@
 
   Large preview variant for Image Result embeds ([!](embed:ref) syntax).
   Shows the image covering the full card width with a gradient overlay at bottom
-  displaying the source favicon, domain, and title. BasicInfosBar shows the images
-  app icon with "image" skill icon.
+  displaying the source favicon, domain, and title.
+
+  BasicInfosBar shows the source domain with favicon (no skill icon),
+  matching the pattern from WebsiteEmbedPreview.
+
+  Click dispatches embedfullscreen event to deep-link into fullscreen view.
 
   Uses UnifiedEmbedPreview directly (not EmbedReferencePreview) to have full control
   over the image display layout in the details snippet.
@@ -79,7 +83,7 @@
     }
   }
 
-  let skillName = $derived($text('embeds.image_search') || 'Image');
+  let skillName = $derived(sourceDomain || $text('embeds.image_search') || 'Image');
 
   /** Handle updates from UnifiedEmbedPreview (processing -> finished transitions) */
   function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
@@ -96,6 +100,33 @@
     }
   }
 
+  /**
+   * Dispatch embedfullscreen event to deep-link into fullscreen view.
+   * This matches the pattern used by renderers and ChatMessage.svelte.
+   * ActiveChat listens for this event and opens the corresponding fullscreen component.
+   */
+  function handleFullscreen() {
+    const eid = resolvedEmbedId || embedRef;
+    if (!eid) return;
+
+    const event = new CustomEvent('embedfullscreen', {
+      bubbles: true,
+      cancelable: true,
+      detail: {
+        embedId: eid,
+        embedType: 'app-skill-use',
+        attrs: {
+          embedRef,
+          app_id: 'images',
+          skill_id: 'image_result',
+        },
+        embedData: null,
+        decodedContent: null,
+      },
+    });
+    document.dispatchEvent(event);
+  }
+
   let imageLoaded = $state(false);
 </script>
 
@@ -107,12 +138,15 @@
       skillId="image_result"
       skillIconName="image"
       {status}
-      {skillName}
+      skillName={sourceDomain || 'Image'}
       isMobile={false}
-      showSkillIcon={true}
+      showSkillIcon={false}
+      faviconUrl={faviconUrl}
+      showStatus={false}
       hasFullWidthImage={true}
       customHeight={350}
       onEmbedDataUpdated={handleEmbedDataUpdated}
+      onFullscreen={handleFullscreen}
     >
       {#snippet details()}
         <div class="image-result-details">
