@@ -1,16 +1,17 @@
 // Generic embed grouping functionality
-// Handles grouping consecutive embeds of the same type at the document level
-// Also handles grouping non-consecutive app-skill-use embeds (scattered grouping)
+// Handles grouping consecutive embeds at the document level.
+// For app-skill-use embeds: ALL consecutive ones are grouped together regardless of app_id/skill_id.
+// For other types: consecutive same-type embeds are grouped together.
+// Also handles merging non-consecutive (scattered) app-skill-use embeds into one group.
 
-import { EmbedNodeAttributes } from "./types";
-import { generateUUID } from "./utils";
 import { groupHandlerRegistry } from "./groupHandlers";
 
 /**
- * Group consecutive embeds of the same type in a TipTap document structure
- * This function operates on the actual document to accurately determine what's consecutive
+ * Group consecutive embeds in a TipTap document structure.
+ * For app-skill-use embeds: groups ALL consecutive ones together (regardless of app_id/skill_id).
+ * For other types: groups consecutive same-type embeds together.
  * @param doc - TipTap document with individual embed nodes
- * @returns TipTap document with grouped consecutive embeds
+ * @returns TipTap document with grouped embeds
  */
 export function groupConsecutiveEmbedsInDocument(doc: any): any {
   if (!doc || !doc.content) {
@@ -33,11 +34,11 @@ export function groupConsecutiveEmbedsInDocument(doc: any): any {
     contentWithParagraphGrouping,
   );
 
-  // Finally, group non-consecutive (scattered) app-skill-use embeds with same app_id+skill_id.
+  // Finally, group non-consecutive (scattered) app-skill-use embeds into one group.
   // This handles the common case where the LLM outputs text between tool calls,
   // breaking consecutive grouping but the embeds should still be grouped.
-  // Example: Search1 → "Let me search more" → Search2 → Search3
-  // All three searches should be grouped even though text separates them.
+  // Example: Search1 → "Let me search more" → ImageSearch1 → Search2
+  // All skill embeds are merged into one group even though text separates them.
   const scatteredGroupedContent = groupScatteredAppSkillEmbeds(
     consecutiveGroupedContent,
   );
@@ -112,8 +113,9 @@ function removeEmptyParagraphsAfterEmbeds(content: any[]): any[] {
 }
 
 /**
- * Group consecutive paragraphs that contain embeds of the same type
- * This handles cases where embed references are in separate paragraphs (e.g., JSON code blocks separated by blank lines)
+ * Group consecutive paragraphs that contain embeds.
+ * For app-skill-use embeds: groups all consecutive ones regardless of app_id/skill_id.
+ * For other types: groups consecutive same-type embeds.
  * @param content - Array of content nodes (paragraphs, etc.)
  * @returns Modified content with grouped embed paragraphs
  */
@@ -149,8 +151,14 @@ function groupConsecutiveEmbedParagraphs(content: any[]): any[] {
       const embedNode = node.content[0];
       const embedType = embedNode.attrs.type;
 
-      // Check if this embed can continue the current group (allowing blank-line paragraphs in-between)
-      if (currentGroupType === embedType && currentGroup.length > 0) {
+      // Check if this embed can continue the current group.
+      // For app-skill-use embeds, we group ALL consecutive ones together regardless
+      // of app_id/skill_id to save vertical space. For other types, require same type.
+      const sameTypeOrBothAppSkill =
+        (currentGroupType === embedType) ||
+        (currentGroupType === "app-skill-use" && embedType === "app-skill-use");
+
+      if (sameTypeOrBothAppSkill && currentGroup.length > 0) {
         const canGroupWithLast = groupHandlerRegistry.canGroup(
           currentGroup[currentGroup.length - 1].content[0].attrs,
           embedNode.attrs,
@@ -307,7 +315,9 @@ function flushEmbedParagraphGroup(group: any[], embedType: string): any[] {
 }
 
 /**
- * Group consecutive embeds of the same type within a paragraph
+ * Group consecutive embeds within a paragraph.
+ * For app-skill-use embeds: groups all consecutive ones regardless of app_id/skill_id.
+ * For other types: groups consecutive same-type embeds.
  * @param paragraph - TipTap paragraph node
  * @returns Modified paragraph with grouped embeds
  */
@@ -326,9 +336,15 @@ function groupConsecutiveEmbedsInParagraph(paragraph: any): any {
     if (node.type === "embed") {
       const embedType = node.attrs.type;
 
-      // Check if this embed can continue the current group
-      if (currentGroupType === embedType && currentGroup.length > 0) {
-        // Same type - check if they can actually be grouped using the handler
+      // Check if this embed can continue the current group.
+      // For app-skill-use embeds, group ALL consecutive ones together regardless
+      // of app_id/skill_id to save vertical space.
+      const sameTypeOrBothAppSkill =
+        (currentGroupType === embedType) ||
+        (currentGroupType === "app-skill-use" && embedType === "app-skill-use");
+
+      if (sameTypeOrBothAppSkill && currentGroup.length > 0) {
+        // Check if they can actually be grouped using the handler
         const canGroupWithLast = groupHandlerRegistry.canGroup(
           currentGroup[currentGroup.length - 1].attrs,
           node.attrs,
@@ -350,7 +366,7 @@ function groupConsecutiveEmbedsInParagraph(paragraph: any): any {
             },
           );
         } else {
-          // Same type but can't be grouped (e.g., different language for code)
+          // Can't be grouped (e.g., different language for code)
           // Flush current group and start new one
           if (currentGroup.length > 0) {
             const groupedNode = flushEmbedGroup(
@@ -488,18 +504,21 @@ function flushEmbedGroup(group: any[], embedType: string): any[] {
 }
 
 /**
- * Group non-consecutive (scattered) app-skill-use embeds with the same app_id+skill_id.
+ * Group non-consecutive (scattered) app-skill-use embeds into a single group.
  *
  * During streaming, the LLM often outputs text between tool calls (e.g., "Let me search for X"),
- * which breaks consecutive grouping. This function collects all ungrouped app-skill-use embeds
- * across the entire document that share the same app_id+skill_id and merges them into the first
+ * which breaks consecutive grouping. This function collects ALL ungrouped app-skill-use embeds
+ * and app-skill-use-group nodes across the entire document and merges them into the first
  * occurrence's position, keeping the text structure intact.
+ *
+ * All app-skill-use embeds are merged into one group regardless of app_id/skill_id,
+ * matching the consecutive grouping behavior.
  *
  * Algorithm:
  * 1. Scan document for all app-skill-use embeds and app-skill-use-group embeds
- * 2. Collect embeds by grouping key (app_id + skill_id)
- * 3. For groups with >1 embed: merge all into first position, remove others
- * 4. For existing groups: merge any scattered individual embeds into the group
+ * 2. Collect all into a single list
+ * 3. If >1 location found: merge all into first position, remove others
+ * 4. For existing groups: expand their items into the merged group
  *
  * @param content - Array of content nodes (already processed by consecutive grouping)
  * @returns Modified content with scattered embeds grouped
@@ -516,8 +535,8 @@ function groupScatteredAppSkillEmbeds(content: any[]): any[] {
     groupedItems?: any[];
   };
 
-  // Map from grouping key (app_id:skill_id) to list of locations
-  const embedsByKey = new Map<string, EmbedLocation[]>();
+  // Single list for ALL app-skill-use embeds (no longer keyed by app_id:skill_id)
+  const allLocations: EmbedLocation[] = [];
 
   for (let i = 0; i < content.length; i++) {
     const node = content[i];
@@ -532,10 +551,8 @@ function groupScatteredAppSkillEmbeds(content: any[]): any[] {
       if (embedNode?.type === "embed" && embedNode.attrs) {
         const attrs = embedNode.attrs;
 
-        if (attrs.type === "app-skill-use" && attrs.app_id && attrs.skill_id) {
-          const key = `${attrs.app_id}:${attrs.skill_id}`;
-          if (!embedsByKey.has(key)) embedsByKey.set(key, []);
-          embedsByKey.get(key)!.push({
+        if (attrs.type === "app-skill-use") {
+          allLocations.push({
             nodeIndex: i,
             isInParagraph: true,
             attrs,
@@ -543,13 +560,9 @@ function groupScatteredAppSkillEmbeds(content: any[]): any[] {
           });
         } else if (
           attrs.type === "app-skill-use-group" &&
-          attrs.app_id &&
-          attrs.skill_id &&
           attrs.groupedItems
         ) {
-          const key = `${attrs.app_id}:${attrs.skill_id}`;
-          if (!embedsByKey.has(key)) embedsByKey.set(key, []);
-          embedsByKey.get(key)!.push({
+          allLocations.push({
             nodeIndex: i,
             isInParagraph: true,
             attrs,
@@ -561,75 +574,58 @@ function groupScatteredAppSkillEmbeds(content: any[]): any[] {
     }
   }
 
-  // Phase 2: Check if any key has multiple locations (needs merging)
-  let needsMerging = false;
-  const allLocations = Array.from(embedsByKey.values());
-  for (const locations of allLocations) {
-    if (locations.length > 1) {
-      needsMerging = true;
-      break;
-    }
-  }
-
-  if (!needsMerging) {
+  // Phase 2: Check if merging is needed (>1 scattered locations)
+  if (allLocations.length <= 1) {
     return content;
   }
 
-  // Phase 3: Merge scattered embeds
-  // Mark indices to remove (will be set to null and filtered out)
+  // Phase 3: Merge all scattered embeds into one group at the first location
   const indicesToRemove = new Set<number>();
 
-  const allEntries = Array.from(embedsByKey.entries());
-  for (const [key, locations] of allEntries) {
-    if (locations.length <= 1) continue;
+  console.debug("[groupScatteredAppSkillEmbeds] Merging scattered embeds:", {
+    count: allLocations.length,
+    indices: allLocations.map((l) => l.nodeIndex),
+  });
 
-    console.debug("[groupScatteredAppSkillEmbeds] Merging scattered embeds:", {
-      key,
-      count: locations.length,
-      indices: locations.map((l) => l.nodeIndex),
+  // Collect all individual embed attrs (expand existing groups)
+  const allEmbedAttrs: any[] = [];
+  for (const loc of allLocations) {
+    if (loc.isGroup && loc.groupedItems) {
+      // Existing group - add all its items
+      allEmbedAttrs.push(...loc.groupedItems);
+    } else {
+      // Individual embed
+      allEmbedAttrs.push(loc.attrs);
+    }
+  }
+
+  // Create a merged group using the group handler
+  const groupAttrs = groupHandlerRegistry.createGroup(allEmbedAttrs);
+
+  if (groupAttrs) {
+    // Replace the first location with the merged group
+    const firstLoc = allLocations[0];
+    content[firstLoc.nodeIndex] = {
+      type: "paragraph",
+      content: [
+        {
+          type: "embed",
+          attrs: groupAttrs,
+        },
+      ],
+    };
+
+    // Mark all other locations for removal
+    for (let i = 1; i < allLocations.length; i++) {
+      indicesToRemove.add(allLocations[i].nodeIndex);
+    }
+
+    console.debug("[groupScatteredAppSkillEmbeds] Created merged group:", {
+      groupId: groupAttrs.id,
+      itemCount: groupAttrs.groupCount,
+      firstIndex: firstLoc.nodeIndex,
+      removedIndices: allLocations.slice(1).map((l) => l.nodeIndex),
     });
-
-    // Collect all individual embed attrs (expand existing groups)
-    const allEmbedAttrs: any[] = [];
-    for (const loc of locations) {
-      if (loc.isGroup && loc.groupedItems) {
-        // Existing group - add all its items
-        allEmbedAttrs.push(...loc.groupedItems);
-      } else {
-        // Individual embed
-        allEmbedAttrs.push(loc.attrs);
-      }
-    }
-
-    // Create a merged group using the group handler
-    const groupAttrs = groupHandlerRegistry.createGroup(allEmbedAttrs);
-
-    if (groupAttrs) {
-      // Replace the first location with the merged group
-      const firstLoc = locations[0];
-      content[firstLoc.nodeIndex] = {
-        type: "paragraph",
-        content: [
-          {
-            type: "embed",
-            attrs: groupAttrs,
-          },
-        ],
-      };
-
-      // Mark all other locations for removal
-      for (let i = 1; i < locations.length; i++) {
-        indicesToRemove.add(locations[i].nodeIndex);
-      }
-
-      console.debug("[groupScatteredAppSkillEmbeds] Created merged group:", {
-        key,
-        groupId: groupAttrs.id,
-        itemCount: groupAttrs.groupCount,
-        firstIndex: firstLoc.nodeIndex,
-        removedIndices: locations.slice(1).map((l) => l.nodeIndex),
-      });
-    }
   }
 
   // Phase 4: Remove merged nodes

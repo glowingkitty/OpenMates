@@ -617,7 +617,7 @@ export class GroupRenderer implements EmbedRenderer {
    *   1. Find the existing scroll-container.
    *   2. Build a set of IDs already rendered (from data-embed-item-id).
    *   3. Append only the items that are genuinely new.
-   *   4. Update the header text (e.g. "3 requests" → "4 requests").
+   *   4. Update the header text (e.g. "3 app skills used:" → "4 app skills used:").
    *
    * Returns `true` if the incremental path succeeded. Returns `false` if a full
    * re-render is required (e.g. first render, items reordered, items removed).
@@ -4016,8 +4016,12 @@ export class GroupRenderer implements EmbedRenderer {
   }
 
   private getGroupDisplayName(baseType: string, count: number): string {
+    // App skill use groups use a distinct label format: "{count} app skills used:"
+    if (baseType === "app-skill-use") {
+      return `${count} app skill${count > 1 ? "s" : ""} used:`;
+    }
+
     const typeDisplayNames: { [key: string]: string } = {
-      "app-skill-use": "request",
       "web-website": "website",
       "videos-video": "video",
       "code-code": "code file",
