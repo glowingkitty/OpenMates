@@ -36,6 +36,7 @@ import {
 import { phasedSyncState } from "./phasedSyncStateStore"; // Import phased sync state to reset on login
 import { text } from "../i18n/translations"; // Import text store for translations
 import { chatListCache } from "../services/chatListCache"; // Import chatListCache to clear stale chat data on session expiry
+import { chatMetadataCache } from "../services/chatMetadataCache"; // Import chatMetadataCache to clear stale decrypted title/metadata cache on logout
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage"; // Import to clear shared chat keys on session expiry
 import { clientLogForwarder } from "../services/clientLogForwarder"; // Import admin console log forwarder
 import { appSettingsMemoriesStore } from "./appSettingsMemoriesStore"; // Import to pre-load entries for @ mention dropdown
@@ -642,8 +643,12 @@ export async function checkAuth(
         // won't fire to clear the cache. Clearing here ensures stale chats never appear.
         chatListCache.clear();
         chatDB.clearAllChatKeys();
+        // CRITICAL: Clear the decrypted metadata cache (title, category, icon, etc.) to prevent
+        // stale entries (especially those with title: null from failed decryption during logout
+        // transition) from being served after re-login, causing "Untitled chat" in the sidebar.
+        chatMetadataCache.clearAll();
         console.debug(
-          "[AuthSessionActions] Cleared chatListCache and chatDB.chatKeys on session expiry",
+          "[AuthSessionActions] Cleared chatListCache, chatMetadataCache, and chatDB.chatKeys on session expiry",
         );
 
         // CRITICAL: Set isAuthenticated=false IMMEDIATELY to close the auth gate.
@@ -837,6 +842,7 @@ export async function checkAuth(
         // CRITICAL: Clear in-memory chat caches during orphaned database cleanup
         chatListCache.clear();
         chatDB.clearAllChatKeys();
+        chatMetadataCache.clearAll();
         clearAllSharedChatKeys().catch(() => {});
         console.debug(
           "[AuthSessionActions] Cleared in-memory chat caches during orphaned database cleanup",

@@ -1483,6 +1483,19 @@ let _chatUpdatedFlushPending = false;
 			// Belt-and-suspenders: clear sessionStorage drafts here too in case this event
 			// fires before authLoginLogoutActions.ts had a chance to (e.g. session expiry path)
 			clearAllSessionStorageDrafts();
+			// CRITICAL: Cancel any pending debounced updateChatListFromDB call to prevent
+			// it from firing after logout and repopulating allChatsFromDB with stale data.
+			if (updateChatListDebounceTimer) {
+				clearTimeout(updateChatListDebounceTimer);
+				updateChatListDebounceTimer = null;
+			}
+			
+			// Belt-and-suspenders: clear in-memory caches here too in case authSessionActions
+			// has not run yet or Chats.svelte was destroyed when logout happened.
+			chatListCache.clear();
+			// CRITICAL: Clear decrypted metadata cache to prevent stale entries (title: null)
+			// from being served after re-login, causing "Untitled chat" in the sidebar.
+			chatMetadataCache.clearAll();
 			
 			// Reset display state to show all demo chats
 			loadTier = 'all_local';
@@ -2457,6 +2470,20 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 		// All other callers (sync events, chat updates) pass no limit to get the complete set.
 		const chatsFromDb = await chatDB.getAllChats(undefined, limit ? { limit } : undefined);
 		console.debug(`[Chats] chatDB.getAllChats() returned ${chatsFromDb.length} chats`);
+
+		// CRITICAL: Post-read auth check. If auth flipped to false during the async IDB read
+		// (e.g., session expiry fired while getAllChats was reading the cursor), the results
+		// are stale encrypted chats that will show as "Untitled chat". Discard them.
+		// NOTE: This is different from a pre-read check (which was removed to fix disappearing
+		// chats during server restarts). A post-read check only discards results when auth
+		// genuinely changed during the read. The offline-first $effect will re-trigger a
+		// reload from IDB when syncing restarts, so worst case is a brief empty → populated.
+		if (!$authStore.isAuthenticated) {
+			console.debug('[Chats] Auth became false during IDB read — discarding stale results');
+			allChatsFromDB = [];
+			chatListCache.clear();
+			return;
+		}
 		
 		allChatsFromDB = chatsFromDb; // This assignment triggers reactive updates for sorted/grouped lists - Corrected variable
 		chatListCache.setCache(chatsFromDb); // Update global cache

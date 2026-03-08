@@ -26,6 +26,7 @@ import { aiTypingStore } from "./aiTypingStore";
 import { dailyInspirationStore } from "./dailyInspirationStore";
 import { webSocketService } from "../services/websocketService";
 import { chatListCache } from "../services/chatListCache";
+import { chatMetadataCache } from "../services/chatMetadataCache";
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage";
 import { clearAllSessionStorageDrafts } from "../services/drafts/sessionStorageDraftService";
 import { resetChatNavigationList } from "./chatNavigationStore";
@@ -465,6 +466,9 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     // is destroyed (e.g., sidebar closed on mobile) when logout happens, its authStore subscriber
     // won't fire to clear the cache. Clearing here ensures stale chats never appear after logout.
     chatListCache.clear();
+    // CRITICAL: Clear the decrypted metadata cache (title, category, icon, etc.) to prevent
+    // stale entries with title: null from being served after re-login, causing "Untitled chat".
+    chatMetadataCache.clearAll();
     // CRITICAL: Clear sessionStorage drafts so that the unauthenticated allChats
     // derived in Chats.svelte does NOT build virtual "Untitled chat" ghost entries
     // from stale draft IDs left over from the previous session. This runs BEFORE
@@ -479,7 +483,7 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     // and show hasPrev=true on the intro chat immediately after logout.
     resetChatNavigationList();
     console.debug(
-      "[AuthStore] Cleared chatListCache and chatDB.chatKeys during logout",
+      "[AuthStore] Cleared chatListCache, chatMetadataCache, and chatDB.chatKeys during logout",
     );
 
     // Clear shared chat keys in the background (async, non-blocking)
@@ -687,6 +691,7 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
       cryptoService.clearAllEmailData();
       // CRITICAL: Clear in-memory chat caches even during error recovery
       chatListCache.clear();
+      chatMetadataCache.clearAll();
       chatDB.clearAllChatKeys();
       clearAllSharedChatKeys().catch(() => {});
       // CRITICAL: Clear session_id from sessionStorage for security
