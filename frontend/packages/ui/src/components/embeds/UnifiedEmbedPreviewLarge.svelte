@@ -11,7 +11,8 @@
   // Design spec:
   //   - Card fills the FULL width of the assistant response container (no max-width cap)
   //   - Card is taller than the standard 200px desktop card (350px)
-  //   - BasicInfosBar stays at ~300px width, horizontally centered within the wider card
+  //   - BasicInfosBar stays at the standard ~300px width, horizontally centered
+  //     within the wider card so it does not stretch across the full card width
   //
   // Tests: frontend/packages/ui/src/message_parsing/__tests__/parse_message.test.ts
 
@@ -37,7 +38,7 @@
   }
 
   /* Override desktop card sizing to fill the full assistant response width and be taller.
-     The standard desktop card is 300×200px; the large variant expands to full width
+     The standard desktop card is 300x200px; the large variant expands to full width
      with no max-width cap so it uses the complete available response column width. */
   .unified-embed-preview-large :global(.unified-embed-preview.desktop) {
     width: 100% !important;
@@ -48,13 +49,16 @@
     max-height: 350px !important;
   }
 
-  /* BasicInfosBar stays at ~300px width (matching the standard card width) and is
-     horizontally centered within the wider card via auto margins.
-     This prevents the info bar from stretching across the entire large card. */
-  .unified-embed-preview-large :global(.basic_infos) {
+  /* BasicInfosBar (.basic-infos-bar.desktop) stays at ~300px width (matching the
+     standard card width) and is horizontally centered within the wider card via
+     auto margins. This prevents the info bar from stretching across the full card.
+     The real DOM class rendered by BasicInfosBar is .basic-infos-bar.desktop. */
+  .unified-embed-preview-large :global(.basic-infos-bar.desktop) {
     width: 300px;
     max-width: 300px;
+    min-width: unset;
     margin-left: auto;
     margin-right: auto;
+    flex-shrink: 0;
   }
 </style>

@@ -3,11 +3,20 @@
   //
   // Purpose: Render [!](embed:ref) using per-type EmbedPreviewLarge components
   // (WebsiteEmbedPreviewLarge, WebSearchEmbedPreviewLarge, etc.) based on appId,
-  // with carousel behavior for consecutive large preview nodes.
+  // with carousel/slideshow behavior for consecutive large preview nodes.
   //
   // Architecture: routes to per-type XxxEmbedPreviewLarge.svelte files, each of
   // which wraps EmbedReferencePreview in UnifiedEmbedPreviewLarge for full-width
   // large presentation. Per-type files can be individually customised over time.
+  //
+  // Carousel layout:
+  //   - The FIRST card (carouselIndex === 0) is always rendered and acts as the
+  //     carousel shell. It holds the left/right arrows and dot indicators.
+  //   - When carouselIndex > 0 the card overlays on top of the first card using
+  //     position: absolute; only the active card is shown (display: none for others).
+  //   - The first card's content uses visibility: hidden (not display: none) when
+  //     another card is active so the shell keeps its 350px height for the arrows.
+  //
   // Tests: frontend/packages/ui/src/message_parsing/__tests__/parse_message.test.ts
 
   import { writable } from 'svelte/store';
@@ -67,17 +76,23 @@
   }: Props = $props();
 
   // ── Carousel state ──────────────────────────────────────────────────────
+  // All cards in the same "run" (consecutive large embeds) share one Svelte
+  // writable store keyed by a run identifier so navigation is synchronised.
   const carouselStateMap = new Map<string, ReturnType<typeof writable<number>>>();
 
-  function getCarouselStore(runKey: string) {
-    if (!carouselStateMap.has(runKey)) {
-      carouselStateMap.set(runKey, writable(0));
+  function getCarouselStore(key: string) {
+    if (!carouselStateMap.has(key)) {
+      carouselStateMap.set(key, writable(0));
     }
-    return carouselStateMap.get(runKey)!;
+    return carouselStateMap.get(key)!;
   }
 
+  // The first card uses its own embedRef as the key; subsequent cards derive the
+  // same key by stripping the per-embed suffix so they share the same store.
   let runKey = $derived(
-    carouselIndex === 0 ? embedRef : `_run_${embedRef.replace(/-[a-zA-Z0-9]{3}$/, '')}_${carouselTotal}`,
+    carouselIndex === 0
+      ? embedRef
+      : `_run_${embedRef.replace(/-[a-zA-Z0-9]{3}$/, '')}_${carouselTotal}`,
   );
   let carouselStore = $derived(getCarouselStore(runKey));
 
@@ -129,7 +144,6 @@
   $effect(() => {
     const currentEmbedId = resolvedEmbedId;
     if (!currentEmbedId) {
-      // Use appId hint from parse-time when embed not yet resolved
       resolvedAppId = appId;
       resolvedSkillId = null;
       return;
@@ -137,9 +151,7 @@
 
     resolveEmbed(currentEmbedId).then(async (data) => {
       if (!data) return;
-      // appId from store (may be more accurate than parse-time hint)
       if (data.app_id) resolvedAppId = data.app_id as string;
-      // Decode content to get skill_id
       if (data.content) {
         try {
           const decoded = await decodeToonContent(data.content);
@@ -192,7 +204,6 @@
     if (aid === 'web') {
       if (sid === 'search') return WebSearchEmbedPreviewLarge;
       if (sid === 'read') return WebReadEmbedPreviewLarge;
-      // website embed (no skill — direct type)
       return WebsiteEmbedPreviewLarge;
     }
     if (aid === 'news') return NewsSearchEmbedPreviewLarge;
@@ -223,13 +234,118 @@
     if (aid === 'mail') return MailEmbedPreviewLarge;
     if (aid === 'sheets') return SheetEmbedPreviewLarge;
 
-    // Generic fallback: use EmbedReferencePreview inside UnifiedEmbedPreviewLarge
     return null;
   });
 </script>
 
-{#if isVisible || isFirstCard}
-  <div class="embed-preview-large-wrapper" class:embed-preview-large-wrapper--hidden={!isVisible}>
+<!--
+  Carousel layout:
+  - First card (carouselIndex === 0):
+    - Wrapper is ALWAYS rendered (never hidden) so it serves as the persistent
+      carousel shell holding the navigation arrows and dot indicators.
+    - The embed content inside uses visibility:hidden when another slide is active
+      so the shell retains its 350px height and the arrows stay positioned correctly.
+  - Non-first cards (carouselIndex > 0):
+    - Rendered as position:absolute overlays on top of the first card's shell.
+    - display:none when not the active slide; visible otherwise.
+    - Not rendered at all (via {#if}) when carouselTotal === 1 (no carousel).
+-->
+
+{#if isFirstCard}
+  <!-- First card: always-visible carousel shell -->
+  <div class="embed-preview-large-wrapper embed-preview-large-shell">
+    <!-- Embed content: hidden (not removed) when another slide is active -->
+    <div class="embed-preview-large-content" class:embed-preview-large-content--hidden={!isVisible}>
+      {#if largeComponent === WebsiteEmbedPreviewLarge}
+        <WebsiteEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === WebSearchEmbedPreviewLarge}
+        <WebSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === WebReadEmbedPreviewLarge}
+        <WebReadEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === NewsSearchEmbedPreviewLarge}
+        <NewsSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === VideosSearchEmbedPreviewLarge}
+        <VideosSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === MapsSearchEmbedPreviewLarge}
+        <MapsSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === MapsLocationEmbedPreviewLarge}
+        <MapsLocationEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === ImagesSearchEmbedPreviewLarge}
+        <ImagesSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === ImageGenerateEmbedPreviewLarge}
+        <ImageGenerateEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === ImageViewEmbedPreviewLarge}
+        <ImageViewEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === EventsSearchEmbedPreviewLarge}
+        <EventsSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === HealthSearchEmbedPreviewLarge}
+        <HealthSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === ShoppingSearchEmbedPreviewLarge}
+        <ShoppingSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === TravelSearchEmbedPreviewLarge}
+        <TravelSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === TravelStaysEmbedPreviewLarge}
+        <TravelStaysEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === TravelPriceCalendarEmbedPreviewLarge}
+        <TravelPriceCalendarEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === MathCalculateEmbedPreviewLarge}
+        <MathCalculateEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === CodeGetDocsEmbedPreviewLarge}
+        <CodeGetDocsEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === ReminderEmbedPreviewLarge}
+        <ReminderEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === PdfViewEmbedPreviewLarge}
+        <PdfViewEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === RecordingEmbedPreviewLarge}
+        <RecordingEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === DocsEmbedPreviewLarge}
+        <DocsEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === MailEmbedPreviewLarge}
+        <MailEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === SheetEmbedPreviewLarge}
+        <SheetEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else}
+        <UnifiedEmbedPreviewLarge>
+          <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} variant="large" />
+        </UnifiedEmbedPreviewLarge>
+      {/if}
+    </div>
+
+    <!-- Navigation arrows and dots: always inside the first card shell -->
+    {#if hasMultiple}
+      <button
+        class="carousel-arrow carousel-arrow-left"
+        type="button"
+        onclick={handlePrevious}
+        aria-label="Previous"
+      >
+        <ChevronLeft size={22} color="rgba(255,255,255,0.85)" />
+      </button>
+
+      <button
+        class="carousel-arrow carousel-arrow-right"
+        type="button"
+        onclick={handleNext}
+        aria-label="Next"
+      >
+        <ChevronRight size={22} color="rgba(255,255,255,0.85)" />
+      </button>
+
+      <div class="embed-preview-large-dots" aria-hidden="true">
+        {#each dotIndices as i}
+          <span class="dot" class:dot--active={i === currentIndex}></span>
+        {/each}
+      </div>
+    {/if}
+  </div>
+
+{:else if hasMultiple}
+  <!-- Non-first cards: absolute overlay on top of the first card's shell.
+       display:none when not the active slide. -->
+  <div
+    class="embed-preview-large-wrapper embed-preview-large-overlay"
+    class:embed-preview-large-overlay--hidden={!isVisible}
+  >
     {#if largeComponent === WebsiteEmbedPreviewLarge}
       <WebsiteEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
     {:else if largeComponent === WebSearchEmbedPreviewLarge}
@@ -279,50 +395,58 @@
     {:else if largeComponent === SheetEmbedPreviewLarge}
       <SheetEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
     {:else}
-      <!-- Generic fallback for embed types without a dedicated large component -->
       <UnifiedEmbedPreviewLarge>
         <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} variant="large" />
       </UnifiedEmbedPreviewLarge>
-    {/if}
-
-    {#if isFirstCard && hasMultiple}
-      <button
-        class="carousel-arrow carousel-arrow-left"
-        type="button"
-        onclick={handlePrevious}
-        aria-label="Previous"
-      >
-        <ChevronLeft size={22} color="rgba(255,255,255,0.85)" />
-      </button>
-
-      <button
-        class="carousel-arrow carousel-arrow-right"
-        type="button"
-        onclick={handleNext}
-        aria-label="Next"
-      >
-        <ChevronRight size={22} color="rgba(255,255,255,0.85)" />
-      </button>
-
-      <div class="embed-preview-large-dots" aria-hidden="true">
-        {#each dotIndices as i}
-          <span class="dot" class:dot--active={i === currentIndex}></span>
-        {/each}
-      </div>
     {/if}
   </div>
 {/if}
 
 <style>
+  /* ── Shared wrapper ──────────────────────────────────────────────────────── */
   .embed-preview-large-wrapper {
     position: relative;
     width: 100%;
   }
 
-  .embed-preview-large-wrapper--hidden {
+  /* ── First card: carousel shell ─────────────────────────────────────────── */
+  /* Always visible. min-height matches the large card height (350px) +
+     dots below (approx 22px) so arrows are always correctly positioned
+     even when the first card's content is hidden. */
+  .embed-preview-large-shell {
+    min-height: 372px;
+  }
+
+  /* Hide the first card's embed content (not the shell) when another slide is active.
+     visibility:hidden keeps the element in the flow, preserving the shell height. */
+  .embed-preview-large-content {
+    width: 100%;
+  }
+
+  .embed-preview-large-content--hidden {
+    visibility: hidden;
+  }
+
+  /* ── Non-first cards: absolute overlay ──────────────────────────────────── */
+  /* Positioned absolutely on top of the first card shell. The shell's
+     position:relative establishes the containing block, but since TipTap renders
+     each EmbedPreviewLarge as a sibling node, we rely on the natural DOM stacking.
+     top:0 aligns with the top of the shell (which is the previous sibling). */
+  .embed-preview-large-overlay {
+    /* Overlay is stacked directly after the shell in the DOM flow.
+       Use negative margin-top to visually overlap the shell. The shell keeps its
+       height via min-height so the total layout space is the shell's 372px. */
+    margin-top: calc(-372px);
+    /* Ensure the overlay sits above the (now invisible) shell content */
+    position: relative;
+    z-index: 2;
+  }
+
+  .embed-preview-large-overlay--hidden {
     display: none;
   }
 
+  /* ── Dots ────────────────────────────────────────────────────────────────── */
   .embed-preview-large-dots {
     display: flex;
     justify-content: center;
@@ -344,10 +468,13 @@
     transform: scale(1.2);
   }
 
+  /* ── Carousel arrows ─────────────────────────────────────────────────────── */
+  /* Positioned absolute within the shell. top/bottom span the card area (350px)
+     leaving room for the 22px dots row below. */
   .carousel-arrow {
     position: absolute;
-    top: 8px;
-    bottom: 26px;
+    top: 6px;
+    bottom: 28px;
     padding: 0 !important;
     min-width: unset !important;
     width: 40px !important;
