@@ -46,6 +46,7 @@ import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPr
 import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
 import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPreview.svelte";
 import MathCalculateEmbedPreview from "../../../embeds/math/MathCalculateEmbedPreview.svelte";
+import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPreview.svelte";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -367,6 +368,16 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           content,
         );
       }
+      // For images search, render images search preview using Svelte component
+      if (appId === "images" && skillId === "search") {
+        return this.renderImagesSearchComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
 
       // For events search, render events search preview using Svelte component
       if (appId === "events" && skillId === "search") {
@@ -1354,6 +1365,56 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         "[AppSkillUseRenderer] Error mounting EventsSearchEmbedPreview:",
         error,
       );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render the images search preview component (images/search skill).
+   * Shows thumbnail mosaic and handles processing -> finished transition.
+   */
+  private renderImagesSearchComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const query    = decodedContent?.query    || (attrs as any).query || "";
+    const provider = decodedContent?.provider || "Brave";
+    const status   = decodedContent?.status   || embedData?.status   || attrs.status || "processing";
+    const taskId      = decodedContent?.task_id       || "";
+    const skillTaskId = decodedContent?.skill_task_id || "";
+    const results  = decodedContent?.results  || [];
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try { unmount(existingComponent); } catch (e) {
+        console.warn("[AppSkillUseRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => { this.openFullscreen(attrs, embedData, decodedContent); };
+      const component = mount(ImagesSearchEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query,
+          provider,
+          status: status as "processing" | "finished" | "error",
+          results,
+          taskId,
+          skillTaskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+      mountedComponents.set(content, component);
+      console.debug("[AppSkillUseRenderer] Mounted ImagesSearchEmbedPreview component");
+    } catch (error) {
+      console.error("[AppSkillUseRenderer] Error mounting ImagesSearchEmbedPreview:", error);
       this.renderGenericSkill(attrs, embedData, decodedContent, content);
     }
   }

@@ -15,7 +15,7 @@ import logging
 import os
 import asyncio
 import httpx
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
@@ -756,3 +756,126 @@ async def search_news(
             "sanitize_output": sanitize_output  # Pass through sanitize_output flag
         }
 
+
+
+async def search_images(
+    query: str,
+    secrets_manager: "SecretsManager",
+    count: int = 10,
+    country: str = "us",
+    search_lang: str = "en",
+    safesearch: str = "moderate",
+) -> Dict[str, Any]:
+    """
+    Performs an image search using the Brave Search Images API.
+
+    Uses the dedicated /images/search endpoint to find images matching a text query.
+    Each result includes a proxied thumbnail URL, the direct full-res image URL,
+    the source page URL, and domain metadata.
+
+    Args:
+        query: Text query describing the images to find.
+        secrets_manager: SecretsManager instance for retrieving the API key.
+        count: Number of results to return (default: 10, max: 20).
+        country: Country code for localised results (default: "us").
+        search_lang: Language code for search (default: "en").
+        safesearch: Safe search level — "off", "moderate", or "strict".
+
+    Returns:
+        Dict with structure:
+        {
+            "query": str,
+            "results": List[Dict],  # image_result objects
+            "error": Optional[str],
+        }
+        Each result contains: title, source_page_url, image_url, thumbnail_url, source, favicon_url.
+    """
+    api_key = await _get_brave_api_key(secrets_manager)
+    if not api_key:
+        raise ValueError(
+            "Brave Search API key not available. "
+            "Please configure it in Vault or set SECRET__BRAVE__API_KEY."
+        )
+
+    params: Dict[str, Any] = {
+        "q": query,
+        "count": min(count, 20),  # Brave Images API max is 20
+        "country": country,
+        "search_lang": search_lang,
+        "safesearch": safesearch,
+        "spellcheck": "1",
+    }
+
+    url = f"{BRAVE_API_BASE_URL}/images/search"
+    headers = {
+        "Accept": "application/json",
+        "Accept-Encoding": "gzip",
+        "X-Subscription-Token": api_key,
+    }
+
+    masked_key = f"{api_key[:4]}****{api_key[-4:]}" if len(api_key) > 8 else "****"
+    logger.debug(
+        "Performing Brave image search: query='%s', count=%d, country=%s, api_key_preview=%s",
+        query, count, country, masked_key,
+    )
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await _request_with_429_retry(
+                client=client, url=url, params=params, headers=headers,
+                query=query, search_type="images"
+            )
+            result_data = response.json()
+
+        raw_results = result_data.get("results", [])
+        formatted: List[Dict[str, Any]] = []
+        for item in raw_results:
+            # thumbnail.src is the Brave-proxied thumbnail URL — safe to embed directly
+            thumbnail_url = (
+                item.get("thumbnail", {}).get("src")
+                if isinstance(item.get("thumbnail"), dict)
+                else None
+            )
+            # properties.url is the direct full-resolution image URL
+            image_url = (
+                item.get("properties", {}).get("url")
+                if isinstance(item.get("properties"), dict)
+                else None
+            )
+            # meta_url.favicon is the source site favicon URL
+            favicon_url = (
+                item.get("meta_url", {}).get("favicon")
+                if isinstance(item.get("meta_url"), dict)
+                else None
+            )
+
+            formatted.append({
+                "type": "image_result",
+                "title": item.get("title", ""),
+                "source_page_url": item.get("url", ""),
+                "image_url": image_url or "",
+                "thumbnail_url": thumbnail_url or "",
+                "source": item.get("source", ""),
+                "favicon_url": favicon_url or "",
+            })
+
+        logger.info(
+            "Brave image search completed: %d results for query '%s'",
+            len(formatted), query,
+        )
+        return {"query": query, "results": formatted, "error": None}
+
+    except httpx.HTTPStatusError as e:
+        error_msg = (
+            f"Brave Image Search API error: {e.response.status_code} — {e.response.text[:200]}"
+        )
+        logger.error(error_msg)
+        return {"query": query, "results": [], "error": error_msg}
+    except httpx.RequestError as e:
+        error_msg = f"Brave Image Search API request error: {str(e)}"
+        logger.error(error_msg)
+        return {"query": query, "results": [], "error": error_msg}
+    except Exception as e:
+        error_msg = f"Unexpected error in Brave image search: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        return {"query": query, "results": [], "error": error_msg}

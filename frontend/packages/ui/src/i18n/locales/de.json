@@ -2148,6 +2148,29 @@
         "text": "Denkprozess ausklappen"
       }
     },
+    "compression": {
+      "compressing": {
+        "text": "Chat wird komprimiert..."
+      },
+      "summary_title": {
+        "text": "Chat-Zusammenfassung"
+      },
+      "show_more": {
+        "text": "Vollständige Zusammenfassung anzeigen"
+      },
+      "show_less": {
+        "text": "Weniger anzeigen"
+      },
+      "show_forgotten": {
+        "text": "Frühere Nachrichten anzeigen"
+      },
+      "hide_forgotten": {
+        "text": "Frühere Nachrichten ausblenden"
+      },
+      "messages_compressed": {
+        "text": "{count} Nachrichten zusammengefasst"
+      }
+    },
     "new_chat_suggestions": {
       "quantum_computing": {
         "text": "Erkläre mir Quantencomputing in einfachen Worten"
@@ -3004,6 +3027,35 @@
       },
       "footer_note": {
         "text": "Diese Benachrichtigung wurde vom automatisierten E2E-Testüberwachungssystem gesendet."
+      }
+    },
+    "test_run_summary": {
+      "title": {
+        "text": "Tägliche Testlauf-Zusammenfassung"
+      },
+      "header_success": {
+        "text": "Alle Tests bestanden"
+      },
+      "header_failure": {
+        "text": "{failed} von {total} Tests fehlgeschlagen"
+      },
+      "run_details_label": {
+        "text": "Laufdetails"
+      },
+      "git_label": {
+        "text": "Git"
+      },
+      "duration_label": {
+        "text": "Dauer"
+      },
+      "suites_label": {
+        "text": "Test-Suiten"
+      },
+      "failed_tests_label": {
+        "text": "Fehlgeschlagene Tests"
+      },
+      "footer_note": {
+        "text": "Dieser Bericht wurde vom automatisierten täglichen Testüberwachungssystem erstellt."
       }
     },
     "prometheus_alert": {
@@ -3955,6 +4007,27 @@
       },
       "copy_failed": {
         "text": "E-Mail-Entwurf konnte nicht kopiert werden."
+      }
+    },
+    "image_search": {
+      "text": "Bildersuche",
+      "searching": {
+        "text": "Bilder werden gesucht..."
+      },
+      "results_count": {
+        "text": "{count} Bilder gefunden"
+      },
+      "view_source": {
+        "text": "Quelle ansehen"
+      },
+      "open_image": {
+        "text": "Bild öffnen"
+      },
+      "reverse_search": {
+        "text": "Rückwärtssuche"
+      },
+      "error": {
+        "text": "Bildersuche fehlgeschlagen"
       }
     }
   },
@@ -7192,7 +7265,7 @@
       "description": {
         "text": "Verwalte deine Credits, Abonnements und Zahlungsmethoden"
       },
-      "text": "Abrechnung",
+      "text": "Abrechnung & Nutzung",
       "title": {
         "text": "Abrechnung & Guthaben"
       },

@@ -2053,6 +2053,139 @@ async def download_s3_file(
         raise HTTPException(status_code=500, detail=f"S3 download failed: {str(e)}")
 
 
+
+# ---------------------------------------------------------------------------
+# S3 temporary public image upload (for reverse image search via Google Lens)
+# ---------------------------------------------------------------------------
+
+class UploadTempImageRequest(BaseModel):
+    """Request body for /internal/s3/upload-temp-image."""
+    image_bytes_b64: str = Field(
+        ...,
+        description="Base64-encoded plaintext image bytes to upload.",
+    )
+    content_type: str = Field(
+        default="image/webp",
+        description="MIME type of the image (e.g. 'image/webp', 'image/jpeg').",
+    )
+    filename: str = Field(
+        ...,
+        description="Filename used as the S3 object key suffix (e.g. 'abc123.webp').",
+    )
+
+
+class UploadTempImageResponse(BaseModel):
+    """Response from /internal/s3/upload-temp-image."""
+    public_url: str = Field(..., description="Public HTTP URL accessible by Google Lens.")
+    s3_key: str = Field(..., description="S3 object key for cleanup after search.")
+
+
+@router.post("/s3/upload-temp-image", response_model=UploadTempImageResponse)
+async def upload_temp_image(
+    request: Request,
+    body: UploadTempImageRequest,
+    s3_service: S3UploadService = Depends(get_s3_service),
+) -> UploadTempImageResponse:
+    """
+    Upload a plaintext image to the temporary public S3 bucket for Google Lens reverse search.
+
+    The 'temp_images' bucket is public-read with a 1-day lifecycle policy, so Google's
+    crawlers can fetch the image URL without auth. The skill calls this endpoint, obtains
+    the public URL, passes it to SerpAPI Google Lens, then optionally deletes the file.
+
+    Protected by INTERNAL_API_SHARED_TOKEN like all /internal/* routes.
+
+    Args:
+        body.image_bytes_b64: Base64-encoded plaintext image bytes.
+        body.content_type: MIME type of the image.
+        body.filename: Suffix for the S3 key (e.g. 'abc123.webp').
+
+    Returns:
+        public_url: Publicly accessible URL Google Lens can fetch.
+        s3_key:     Object key for the caller to delete after use.
+    """
+    import base64 as _b64
+    import uuid as _uuid
+    from backend.core.api.app.services.s3.config import get_bucket_name
+
+    if not body.image_bytes_b64.strip():
+        raise HTTPException(status_code=400, detail="image_bytes_b64 is required")
+
+    try:
+        image_bytes = _b64.b64decode(body.image_bytes_b64)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid base64 image data: {exc}")
+
+    # Max 20 MB
+    MAX_TEMP_IMAGE_BYTES = 20 * 1024 * 1024
+    if len(image_bytes) > MAX_TEMP_IMAGE_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Image too large: {len(image_bytes)} bytes (max {MAX_TEMP_IMAGE_BYTES})",
+        )
+
+    # Generate a unique S3 key with a short random prefix so filenames cannot be guessed
+    unique_prefix = _uuid.uuid4().hex[:16]
+    s3_key = f"reverse_search/{unique_prefix}_{body.filename}"
+
+    environment = os.getenv("SERVER_ENVIRONMENT", "development")
+    bucket_name = get_bucket_name("temp_images", environment)
+
+    try:
+        await s3_service.upload_file(
+            bucket_key="temp_images",
+            file_key=s3_key,
+            content=image_bytes,
+            content_type=body.content_type,
+        )
+    except Exception as exc:
+        logger.error(
+            "[UploadTempImage] S3 upload failed for key %s: %s", s3_key, exc, exc_info=True
+        )
+        raise HTTPException(status_code=500, detail=f"Temp image upload failed: {exc}")
+
+    # Construct the public URL for the uploaded object
+    # Format: https://{bucket_name}.{region}.your-objectstorage.com/{s3_key}
+    public_url = f"https://{bucket_name}.{s3_service.base_domain}/{s3_key}"
+    logger.info(
+        "[UploadTempImage] Uploaded %d bytes to %s (key=%s)",
+        len(image_bytes), bucket_name, s3_key,
+    )
+
+    return UploadTempImageResponse(public_url=public_url, s3_key=s3_key)
+
+
+@router.delete("/s3/temp-image")
+async def delete_temp_image(
+    request: Request,
+    s3_key: str = Query(..., description="S3 object key to delete from temp_images bucket"),
+    s3_service: S3UploadService = Depends(get_s3_service),
+) -> Dict[str, Any]:
+    """
+    Delete a previously uploaded temporary public image from the temp_images bucket.
+
+    Called by the search skill after Google Lens finishes, so plaintext images do not
+    linger in the public bucket longer than necessary. The 1-day lifecycle policy is
+    a safety net; this endpoint provides immediate cleanup.
+
+    Protected by INTERNAL_API_SHARED_TOKEN like all /internal/* routes.
+    """
+    if not s3_key or not s3_key.strip():
+        raise HTTPException(status_code=400, detail="s3_key is required")
+    if ".." in s3_key or s3_key.startswith("/") or "://" in s3_key:
+        raise HTTPException(status_code=400, detail="Invalid s3_key")
+
+    try:
+        await s3_service.delete_file(bucket_key="temp_images", file_key=s3_key)
+        logger.info("[DeleteTempImage] Deleted temp image: %s", s3_key)
+        return {"status": "deleted", "s3_key": s3_key}
+    except Exception as exc:
+        logger.error(
+            "[DeleteTempImage] Failed to delete %s: %s", s3_key, exc, exc_info=True
+        )
+        raise HTTPException(status_code=500, detail=f"Failed to delete temp image: {exc}")
+
+
 # ---------------------------------------------------------------------------
 # Alertmanager webhook receiver
 # ---------------------------------------------------------------------------

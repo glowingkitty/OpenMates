@@ -8,8 +8,8 @@
 // To add a new embed type, add an entry to the relevant app.yml
 // under the embed_types section, then rebuild.
 //
-// Generated: 2026-03-06T13:48:11.015Z
-// Total embed types: 28
+// Generated: 2026-03-08T00:26:56.967Z
+// Total embed types: 30
 
 /**
  * Maps server/backend embed type strings to frontend type strings.
@@ -24,6 +24,7 @@ export const EMBED_TYPE_NORMALIZATION_MAP: Record<string, string> = {
   "document": "docs-doc",
   "event": "events-event",
   "image": "image",
+  "image_result": "images-image-result",
   "mail": "mail-email",
   "place": "maps-place",
   "location": "maps",
@@ -45,6 +46,7 @@ export const EMBED_TYPE_NORMALIZATION_MAP: Record<string, string> = {
  */
 export const EMBED_CHILD_TYPE_MAP: Record<string, string> = {
   "events:search": "event",
+  "images:search": "image_result",
   "maps:search": "place",
   "news:search": "website",
   "shopping:search_products": "website",
@@ -70,6 +72,8 @@ export const EMBED_PREVIEW_COMPONENTS: Record<string, string> = {
   "app:images:generate": "images/ImageGenerateEmbedPreview.svelte",
   "app:images:generate_draft": "images/ImageGenerateEmbedPreview.svelte",
   "image": "images/ImageEmbedPreview.svelte",
+  "app:images:search": "images/ImagesSearchEmbedPreview.svelte",
+  "images-image-result": "images/ImageResultEmbedPreview.svelte",
   "mail-email": "mail/MailEmbedPreview.svelte",
   "app:maps:search": "maps/MapsSearchEmbedPreview.svelte",
   "maps-place": "maps/MapsLocationEmbedPreview.svelte",
@@ -111,6 +115,8 @@ export const EMBED_FULLSCREEN_COMPONENTS: Record<string, string> = {
   "app:images:generate": "images/ImageGenerateEmbedFullscreen.svelte",
   "app:images:generate_draft": "images/ImageGenerateEmbedFullscreen.svelte",
   "image": "images/ImageEmbedFullscreen.svelte",
+  "app:images:search": "images/ImagesSearchEmbedFullscreen.svelte",
+  "images-image-result": "images/ImageResultEmbedFullscreen.svelte",
   "mail-email": "mail/MailEmbedFullscreen.svelte",
   "app:maps:search": "maps/MapsSearchEmbedFullscreen.svelte",
   "maps-place": "maps/MapsLocationEmbedFullscreen.svelte",
@@ -150,6 +156,8 @@ export const EMBED_RENDERER_MAP: Record<string, string> = {
   "events-event": "GroupRenderer",
   "events-event-group": "GroupRenderer",
   "image": "ImageRenderer",
+  "images-image-result": "GroupRenderer",
+  "images-image-result-group": "GroupRenderer",
   "mail-email": "GroupRenderer",
   "mail-email-group": "GroupRenderer",
   "maps-place": "GroupRenderer",
@@ -245,6 +253,21 @@ export const EMBED_METADATA: Record<string, EmbedTypeMetadata> = {
     "icon": "image",
     "gradientVar": "--color-app-images",
     "i18nNamespace": "embeds.images.view",
+    "appId": "images"
+  },
+  "app:images:search": {
+    "icon": "image-search",
+    "gradientVar": "--color-app-images",
+    "i18nNamespace": "embeds.images.search",
+    "appId": "images",
+    "skillId": "search",
+    "hasChildren": true,
+    "childFrontendType": "images-image-result"
+  },
+  "images-image-result": {
+    "icon": "image-search",
+    "gradientVar": "--color-app-images",
+    "i18nNamespace": "embeds.images.search",
     "appId": "images"
   },
   "mail-email": {
@@ -398,6 +421,7 @@ export const EMBED_GROUPABLE_TYPES: string[] = [
   "code-code",
   "docs-doc",
   "events-event",
+  "images-image-result",
   "mail-email",
   "maps-place",
   "sheets-sheet",
@@ -505,6 +529,42 @@ export interface ImageEmbedContent {
   aes_key?: string;
   aes_nonce?: string;
   content_hash?: string;
+  [key: string]: unknown;
+}
+
+/** Content fields for images:search embeds (finished state). */
+export interface ImagesSearchEmbedContent {
+  /** App identifier */
+  app_id: string;
+  /** Skill identifier */
+  skill_id: string;
+  /** Embed status */
+  status: string;
+  query?: string;
+  provider?: string;
+  result_count?: number;
+  /** Pipe-separated child embed IDs */
+  embed_ids?: string;
+  [key: string]: unknown;
+}
+
+/** Content fields for images:image_result embeds (finished state). */
+export interface ImagesImageResultEmbedContent {
+  /** App identifier */
+  app_id: string;
+  /** Skill identifier */
+  skill_id: string;
+  /** Embed status */
+  status: string;
+  title?: string;
+  source_page_url?: string;
+  /** Direct URL to the full-resolution image */
+  image_url?: string;
+  /** Proxied thumbnail URL */
+  thumbnail_url?: string;
+  /** Source domain name */
+  source?: string;
+  favicon_url?: string;
   [key: string]: unknown;
 }
 

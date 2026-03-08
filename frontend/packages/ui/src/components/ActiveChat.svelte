@@ -41,6 +41,7 @@
     import HealthSearchEmbedFullscreen from './embeds/health/HealthSearchEmbedFullscreen.svelte';
     import ShoppingSearchEmbedFullscreen from './embeds/shopping/ShoppingSearchEmbedFullscreen.svelte';
     import EventsSearchEmbedFullscreen from './embeds/events/EventsSearchEmbedFullscreen.svelte';
+    import ImagesSearchEmbedFullscreen from './embeds/images/ImagesSearchEmbedFullscreen.svelte';
     import ImageGenerateEmbedFullscreen from './embeds/images/ImageGenerateEmbedFullscreen.svelte';
     import ImageEmbedFullscreen from './embeds/images/ImageEmbedFullscreen.svelte';
     import MathCalculateEmbedFullscreen from './embeds/math/MathCalculateEmbedFullscreen.svelte';
@@ -3055,6 +3056,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // This lets us replace (not append) on first real chunk and avoid persisting placeholders.
     let thinkingPlaceholderMessageIds = $state<Set<string>>(new Set());
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     function isThinkingModel(modelName?: string | null, providerName?: string | null): boolean {
         const normalizedModel = (modelName || '').toLowerCase();
         const normalizedProvider = (providerName || '').toLowerCase();
@@ -3065,6 +3067,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         );
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     function ensureThinkingPlaceholder(messageId: string, chatId: string, category?: string, modelName?: string) {
         // Translated placeholder text for user-facing display
         const placeholderText = $text('chat.thinking.placeholder');
@@ -7700,6 +7703,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }) as EventListenerCallback;
 
         const aiTypingStartedHandler = (async (event: CustomEvent) => {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { chat_id, user_message_id, message_id, category, model_name, provider_name, server_region, is_continuation } = event.detail;
             console.log('[ActiveChat] aiTypingStartedHandler fired', { 
                 chat_id, 
@@ -9112,6 +9116,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                              status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
                              errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
                              embedId={embedFullscreenData.embedId}
+                             onClose={handleCloseEmbedFullscreen}
+                             {hasPreviousEmbed}
+                             {hasNextEmbed}
+                             onNavigatePrevious={handleNavigatePreviousEmbed}
+                             onNavigateNext={handleNavigateNextEmbed}
+                             navigateDirection={embedNavigateDirection}
+                             showChatButton={showChatButtonInFullscreen}
+                             onShowChat={handleShowChat}
+                         />
+                     {:else if appId === 'images' && skillId === 'search'}
+                         <!-- Images Search Fullscreen -->
+                         <!-- Results are stored as child embeds — pass embedIds for child loading -->
+                         <ImagesSearchEmbedFullscreen
+                             query={embedFullscreenData.decodedContent?.query || ''}
+                             provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
+                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
+                             status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
+                             embedId={embedFullscreenData.embedId}
+                             initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
                              onClose={handleCloseEmbedFullscreen}
                              {hasPreviousEmbed}
                              {hasNextEmbed}
