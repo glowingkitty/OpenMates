@@ -99,6 +99,44 @@ Standards for modifying frontend code in `frontend/` - Svelte 5 components, Type
 
 ---
 
+## UI Bug Investigation Workflow (CRITICAL)
+
+When a UI/visual issue is reported, **always ask for a share link before attempting to reproduce the bug manually.**
+
+### Step 1: Ask for a Share Link
+
+If the user hasn't provided one, ask:
+
+> "Could you share a link to the chat or embed where this happens?  
+> (Open the chat → Share button → copy the link)  
+> This lets me inspect the actual content and render it directly."
+
+### Step 2: Use the Share Link with Firecrawl
+
+Once you have the share URL, open it in a Firecrawl browser session to observe the visual bug directly — no login, no manual reproduction needed:
+
+```
+firecrawl_browser_create
+→ agent-browser open "<share-url>"
+→ agent-browser screenshot          # observe the actual visual bug
+→ agent-browser snapshot -i -c      # inspect DOM structure if needed
+```
+
+### Step 3: Also Inspect the Content (Optional)
+
+The same share URL can decrypt and display the message/embed content involved:
+
+```bash
+docker exec api python /app/backend/scripts/debug.py chat <chat_id> \
+  --share-url "<share-url>"
+```
+
+### When You Cannot Get a Share Link
+
+Fall back to manual reproduction on `https://app.dev.openmates.org` using a Firecrawl session. See `docs/claude/debugging.md` → "Browser-Based Debugging with Firecrawl" for the full workflow.
+
+---
+
 ## Frontend Development Workflow
 
 ### No Local Dev Server (CRITICAL)
