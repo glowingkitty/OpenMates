@@ -1,17 +1,51 @@
 <script lang="ts">
   // frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
   //
-  // Purpose: Render [!](embed:ref) using existing embed-specific preview cards
-  // (videos, images, code, websites, etc.) in an expanded "large" presentation.
-  //
-  // Architecture: reuses EmbedReferencePreview + UnifiedEmbedPreviewLarge wrapper,
+  // Purpose: Render [!](embed:ref) using per-type EmbedPreviewLarge components
+  // (WebsiteEmbedPreviewLarge, WebSearchEmbedPreviewLarge, etc.) based on appId,
   // with carousel behavior for consecutive large preview nodes.
+  //
+  // Architecture: routes to per-type XxxEmbedPreviewLarge.svelte files, each of
+  // which wraps EmbedReferencePreview in UnifiedEmbedPreviewLarge for full-width
+  // large presentation. Per-type files can be individually customised over time.
   // Tests: frontend/packages/ui/src/message_parsing/__tests__/parse_message.test.ts
 
   import { writable } from 'svelte/store';
   import { getLucideIcon } from '../../utils/categoryUtils';
-  import EmbedReferencePreview from './EmbedReferencePreview.svelte';
   import UnifiedEmbedPreviewLarge from './UnifiedEmbedPreviewLarge.svelte';
+  import EmbedReferencePreview from './EmbedReferencePreview.svelte';
+
+  // Per-type large preview imports
+  import WebsiteEmbedPreviewLarge from './web/WebsiteEmbedPreviewLarge.svelte';
+  import WebSearchEmbedPreviewLarge from './web/WebSearchEmbedPreviewLarge.svelte';
+  import WebReadEmbedPreviewLarge from './web/WebReadEmbedPreviewLarge.svelte';
+  import NewsSearchEmbedPreviewLarge from './news/NewsSearchEmbedPreviewLarge.svelte';
+  import VideosSearchEmbedPreviewLarge from './videos/VideosSearchEmbedPreviewLarge.svelte';
+  import MapsSearchEmbedPreviewLarge from './maps/MapsSearchEmbedPreviewLarge.svelte';
+  import MapsLocationEmbedPreviewLarge from './maps/MapsLocationEmbedPreviewLarge.svelte';
+  import ImagesSearchEmbedPreviewLarge from './images/ImagesSearchEmbedPreviewLarge.svelte';
+  import ImageGenerateEmbedPreviewLarge from './images/ImageGenerateEmbedPreviewLarge.svelte';
+  import ImageViewEmbedPreviewLarge from './images/ImageViewEmbedPreviewLarge.svelte';
+  import EventsSearchEmbedPreviewLarge from './events/EventsSearchEmbedPreviewLarge.svelte';
+  import HealthSearchEmbedPreviewLarge from './health/HealthSearchEmbedPreviewLarge.svelte';
+  import ShoppingSearchEmbedPreviewLarge from './shopping/ShoppingSearchEmbedPreviewLarge.svelte';
+  import TravelSearchEmbedPreviewLarge from './travel/TravelSearchEmbedPreviewLarge.svelte';
+  import TravelStaysEmbedPreviewLarge from './travel/TravelStaysEmbedPreviewLarge.svelte';
+  import TravelPriceCalendarEmbedPreviewLarge from './travel/TravelPriceCalendarEmbedPreviewLarge.svelte';
+  import MathCalculateEmbedPreviewLarge from './math/MathCalculateEmbedPreviewLarge.svelte';
+  import CodeGetDocsEmbedPreviewLarge from './code/CodeGetDocsEmbedPreviewLarge.svelte';
+  import ReminderEmbedPreviewLarge from './reminder/ReminderEmbedPreviewLarge.svelte';
+  import PdfViewEmbedPreviewLarge from './pdf/PdfViewEmbedPreviewLarge.svelte';
+  import RecordingEmbedPreviewLarge from './audio/RecordingEmbedPreviewLarge.svelte';
+  import DocsEmbedPreviewLarge from './docs/DocsEmbedPreviewLarge.svelte';
+  import MailEmbedPreviewLarge from './mail/MailEmbedPreviewLarge.svelte';
+  import SheetEmbedPreviewLarge from './sheets/SheetEmbedPreviewLarge.svelte';
+
+  import {
+    embedStore,
+    embedRefIndexVersion,
+  } from '../../services/embedStore';
+  import { resolveEmbed, decodeToonContent } from '../../services/embedResolver';
 
   const ChevronLeft = getLucideIcon('chevron-left');
   const ChevronRight = getLucideIcon('chevron-right');
@@ -27,10 +61,12 @@
   let {
     embedRef,
     embedId = null,
+    appId = null,
     carouselIndex,
     carouselTotal,
   }: Props = $props();
 
+  // ── Carousel state ──────────────────────────────────────────────────────
   const carouselStateMap = new Map<string, ReturnType<typeof writable<number>>>();
 
   function getCarouselStore(runKey: string) {
@@ -69,13 +105,185 @@
     e.stopPropagation();
     carouselStore.update((i) => (i + 1) % carouselTotal);
   }
+
+  // ── Embed type resolution ────────────────────────────────────────────────
+  // Resolve the embed to determine appId + skillId so we can route to the
+  // correct per-type large component. appId from parse-time props is used as
+  // a fast hint; skillId is resolved asynchronously from embed store content.
+
+  let resolvedEmbedId = $derived.by(() => {
+    void $embedRefIndexVersion;
+    return embedId || embedStore.resolveByRef(embedRef) || null;
+  });
+
+  let resolvedAppId = $state<string | null>(null);
+  let resolvedSkillId = $state<string | null>(null);
+
+  // Initialize resolvedAppId from prop on mount
+  $effect(() => {
+    if (resolvedAppId === null) {
+      resolvedAppId = appId;
+    }
+  });
+
+  $effect(() => {
+    const currentEmbedId = resolvedEmbedId;
+    if (!currentEmbedId) {
+      // Use appId hint from parse-time when embed not yet resolved
+      resolvedAppId = appId;
+      resolvedSkillId = null;
+      return;
+    }
+
+    resolveEmbed(currentEmbedId).then(async (data) => {
+      if (!data) return;
+      // appId from store (may be more accurate than parse-time hint)
+      if (data.app_id) resolvedAppId = data.app_id as string;
+      // Decode content to get skill_id
+      if (data.content) {
+        try {
+          const decoded = await decodeToonContent(data.content);
+          if (decoded?.skill_id) resolvedSkillId = decoded.skill_id as string;
+          if (decoded?.app_id) resolvedAppId = decoded.app_id as string;
+        } catch {
+          // ignore decode errors; will fall through to generic fallback
+        }
+      }
+    }).catch(() => {
+      // ignore; will use appId hint
+    });
+  });
+
+  /**
+   * Map appId + skillId to the correct large preview component.
+   * Returns null to use the generic UnifiedEmbedPreviewLarge fallback.
+   */
+  type LargeComponent =
+    | typeof WebsiteEmbedPreviewLarge
+    | typeof WebSearchEmbedPreviewLarge
+    | typeof WebReadEmbedPreviewLarge
+    | typeof NewsSearchEmbedPreviewLarge
+    | typeof VideosSearchEmbedPreviewLarge
+    | typeof MapsSearchEmbedPreviewLarge
+    | typeof MapsLocationEmbedPreviewLarge
+    | typeof ImagesSearchEmbedPreviewLarge
+    | typeof ImageGenerateEmbedPreviewLarge
+    | typeof ImageViewEmbedPreviewLarge
+    | typeof EventsSearchEmbedPreviewLarge
+    | typeof HealthSearchEmbedPreviewLarge
+    | typeof ShoppingSearchEmbedPreviewLarge
+    | typeof TravelSearchEmbedPreviewLarge
+    | typeof TravelStaysEmbedPreviewLarge
+    | typeof TravelPriceCalendarEmbedPreviewLarge
+    | typeof MathCalculateEmbedPreviewLarge
+    | typeof CodeGetDocsEmbedPreviewLarge
+    | typeof ReminderEmbedPreviewLarge
+    | typeof PdfViewEmbedPreviewLarge
+    | typeof RecordingEmbedPreviewLarge
+    | typeof DocsEmbedPreviewLarge
+    | typeof MailEmbedPreviewLarge
+    | typeof SheetEmbedPreviewLarge
+    | null;
+
+  let largeComponent = $derived.by((): LargeComponent => {
+    const aid = resolvedAppId;
+    const sid = resolvedSkillId;
+
+    if (aid === 'web') {
+      if (sid === 'search') return WebSearchEmbedPreviewLarge;
+      if (sid === 'read') return WebReadEmbedPreviewLarge;
+      // website embed (no skill — direct type)
+      return WebsiteEmbedPreviewLarge;
+    }
+    if (aid === 'news') return NewsSearchEmbedPreviewLarge;
+    if (aid === 'videos') return VideosSearchEmbedPreviewLarge;
+    if (aid === 'maps') {
+      if (sid === 'location') return MapsLocationEmbedPreviewLarge;
+      return MapsSearchEmbedPreviewLarge;
+    }
+    if (aid === 'images') {
+      if (sid === 'generate' || sid === 'generate_draft') return ImageGenerateEmbedPreviewLarge;
+      if (sid === 'view') return ImageViewEmbedPreviewLarge;
+      return ImagesSearchEmbedPreviewLarge;
+    }
+    if (aid === 'events') return EventsSearchEmbedPreviewLarge;
+    if (aid === 'health') return HealthSearchEmbedPreviewLarge;
+    if (aid === 'shopping') return ShoppingSearchEmbedPreviewLarge;
+    if (aid === 'travel') {
+      if (sid === 'search_stays') return TravelStaysEmbedPreviewLarge;
+      if (sid === 'price_calendar') return TravelPriceCalendarEmbedPreviewLarge;
+      return TravelSearchEmbedPreviewLarge;
+    }
+    if (aid === 'math') return MathCalculateEmbedPreviewLarge;
+    if (aid === 'code') return CodeGetDocsEmbedPreviewLarge;
+    if (aid === 'reminder') return ReminderEmbedPreviewLarge;
+    if (aid === 'pdf') return PdfViewEmbedPreviewLarge;
+    if (aid === 'audio' || aid === 'recording') return RecordingEmbedPreviewLarge;
+    if (aid === 'docs') return DocsEmbedPreviewLarge;
+    if (aid === 'mail') return MailEmbedPreviewLarge;
+    if (aid === 'sheets') return SheetEmbedPreviewLarge;
+
+    // Generic fallback: use EmbedReferencePreview inside UnifiedEmbedPreviewLarge
+    return null;
+  });
 </script>
 
 {#if isVisible || isFirstCard}
   <div class="embed-preview-large-wrapper" class:embed-preview-large-wrapper--hidden={!isVisible}>
-    <UnifiedEmbedPreviewLarge>
-      <EmbedReferencePreview {embedRef} {embedId} variant="large" />
-    </UnifiedEmbedPreviewLarge>
+    {#if largeComponent === WebsiteEmbedPreviewLarge}
+      <WebsiteEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === WebSearchEmbedPreviewLarge}
+      <WebSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === WebReadEmbedPreviewLarge}
+      <WebReadEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === NewsSearchEmbedPreviewLarge}
+      <NewsSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === VideosSearchEmbedPreviewLarge}
+      <VideosSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === MapsSearchEmbedPreviewLarge}
+      <MapsSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === MapsLocationEmbedPreviewLarge}
+      <MapsLocationEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === ImagesSearchEmbedPreviewLarge}
+      <ImagesSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === ImageGenerateEmbedPreviewLarge}
+      <ImageGenerateEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === ImageViewEmbedPreviewLarge}
+      <ImageViewEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === EventsSearchEmbedPreviewLarge}
+      <EventsSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === HealthSearchEmbedPreviewLarge}
+      <HealthSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === ShoppingSearchEmbedPreviewLarge}
+      <ShoppingSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === TravelSearchEmbedPreviewLarge}
+      <TravelSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === TravelStaysEmbedPreviewLarge}
+      <TravelStaysEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === TravelPriceCalendarEmbedPreviewLarge}
+      <TravelPriceCalendarEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === MathCalculateEmbedPreviewLarge}
+      <MathCalculateEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === CodeGetDocsEmbedPreviewLarge}
+      <CodeGetDocsEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === ReminderEmbedPreviewLarge}
+      <ReminderEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === PdfViewEmbedPreviewLarge}
+      <PdfViewEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === RecordingEmbedPreviewLarge}
+      <RecordingEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === DocsEmbedPreviewLarge}
+      <DocsEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === MailEmbedPreviewLarge}
+      <MailEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === SheetEmbedPreviewLarge}
+      <SheetEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else}
+      <!-- Generic fallback for embed types without a dedicated large component -->
+      <UnifiedEmbedPreviewLarge>
+        <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} variant="large" />
+      </UnifiedEmbedPreviewLarge>
+    {/if}
 
     {#if isFirstCard && hasMultiple}
       <button
