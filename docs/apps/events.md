@@ -87,33 +87,38 @@
 
 ### Luma
 
-**Official API:** Yes (REST, base URL: `https://public-api.luma.com`)
+**Official API:** Yes (REST, base URL: `https://public-api.luma.com`) — but NOT used for discovery.
 
-**Pricing:**
+**Official API Limitations:**
 
 - **Requires Luma Plus** paid subscription — free accounts cannot generate API keys
-- Not suitable for event discovery integration
+- **Organizer-scoped only:** only returns events your own Luma calendar manages
+- No endpoint to search or discover public events globally
+- Not suitable for OpenMates event discovery
 
-**API Capabilities:**
+**Internal API (Reverse-Engineered) — IMPLEMENTED:**
 
-- **Event Management:** Create and manage events on your own calendar
-- **Guest Management:** Send invitations, manage registrations, handle waitlists
-- **Calendar Listing:** List events managed by your calendar (`GET /v1/calendar/list-events`)
+Luma's own web app (`luma.com/berlin` etc.) uses an internal API at `api2.luma.com`
+that was discovered by intercepting browser network traffic. **No API key or auth required.**
 
-**Critical Limitation — No Global Event Discovery:**
+- **Host:** `https://api2.luma.com`
+- **Key endpoint:** `GET /discover/get-paginated-events?discover_place_api_id=<id>&query=AI`
+- **Coverage:** 78 featured cities globally (Europe, Americas, Asia, Africa, Oceania)
+- **Search:** Keyword filtering (`query` param), cursor-based pagination
+- **Auth:** None — standard browser User-Agent + CORS headers only
 
-- The API is entirely **organizer-scoped**: it only returns events your own Luma calendar manages
-- There is no endpoint to search or discover public events across all of Luma
-- Luma does have a public web UI for browsing events by city (e.g., lu.ma/berlin), but this is not exposed via API
+**City Scope Limitation:**
 
-**Requirements:**
+The discover feature only covers 78 curated featured cities. There is no
+arbitrary lat/lon search or free-text city name lookup. Cities must be in
+Luma's featured list (see `CITY_PLACE_IDS` in the provider).
 
-- **Subscription:** Active Luma Plus subscription required
-- **API Key:** Generated from Luma dashboard, passed as `x-luma-api-key` header
+**Verdict:** Implemented via internal API reverse engineering. Useful for tech/startup
+events in major global cities. See `docs/apis/luma.md` for full integration details.
 
-**Verdict:** Not useful for OpenMates event discovery. Organizer tools only.
+**Test Script:** `scripts/api_tests/test_luma_api.py`
 
-**Documentation:** [Luma API Documentation](https://docs.luma.com/reference/getting-started-with-your-api)
+**Documentation:** [Luma Official API](https://docs.luma.com/reference/getting-started-with-your-api) | [Integration Docs](docs/apis/luma.md)
 
 ### rausgegangen.de
 
