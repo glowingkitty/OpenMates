@@ -23,7 +23,7 @@
     function checkTouchDevice() {
         isTouchDevice = ('ontouchstart' in window) || 
             (navigator.maxTouchPoints > 0) || 
-            // @ts-ignore
+            // @ts-expect-error -- msMaxTouchPoints is a non-standard MS property
             (navigator.msMaxTouchPoints > 0);
         console.debug('Touch device detected:', isTouchDevice); // Debug log
     }

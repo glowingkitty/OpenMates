@@ -291,7 +291,8 @@
     let mentionQuery = $state('');
 
     let mentionDropdownY = $state(0);
-    let _isScrollable = $state(false);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
+    let isScrollable = $state(false);
     let showMenu = $state(false);
     let menuX = $state(0);
     let menuY = $state(0);
@@ -685,7 +686,7 @@
         const codeBlockPatterns = [
             /```json_embed\n[\s\S]*?\n```/g,           // json_embed blocks
             /```document_html\n[\s\S]*?\n```/g,        // document_html blocks
-            /```[\w]*[:\w\/\.]*\n[\s\S]*?\n```/g       // regular code blocks (with optional language and path)
+            /```[\w]*[:\w/.]*\n[\s\S]*?\n```/g       // regular code blocks (with optional language and path)
         ];
         
         for (const pattern of codeBlockPatterns) {
@@ -1025,7 +1026,7 @@
                     case 'code': className = 'unclosed-block-code'; break;
                     case 'table': className = 'unclosed-block-table'; break;
                     case 'document_html': className = 'unclosed-block-html'; break;
-                    case 'url':
+                    case 'url': {
                         // Check if this is a YouTube URL from the block content
                         // Use the same pattern as EMBED_PATTERNS.YOUTUBE_URL for consistency
                         // Note: This is a fallback - YouTube URLs should be detected as 'video' type in streamingSemantics
@@ -1039,6 +1040,7 @@
                             className = 'unclosed-block-url';
                         }
                         break;
+                    }
                     case 'video':
                         // YouTube videos should always use red color (#A70B09)
                         className = 'unclosed-block-video';

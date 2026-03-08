@@ -144,13 +144,13 @@
             const contentRef = `embed:${embedId}`;
             const embedData = await embedStore.get(contentRef);
             
-            if (!embedData || !embedData.content) {
+            if (!embedData || typeof embedData === 'string' || !embedData.content) {
                 console.warn('[SettingsShare] No embed content available for preview');
                 return null;
             }
             
             // Decode the content
-            const decodedContent = await decodeToonContent(embedData.content);
+            const decodedContent = await decodeToonContent(embedData.content as string);
             if (!decodedContent) {
                 console.warn('[SettingsShare] Failed to decode embed content');
                 return null;
@@ -158,9 +158,9 @@
 
             console.debug('[SettingsShare] Delegating to embedPreviewRegistry for:', {
                 embedId,
-                app_id: embedData.app_id || decodedContent.app_id,
-                skill_id: embedData.skill_id || decodedContent.skill_id,
-                type: embedData.type,
+                app_id: (embedData.app_id as string) || decodedContent.app_id,
+                skill_id: (embedData.skill_id as string) || decodedContent.skill_id,
+                type: embedData.type as string,
             });
 
             // onFullscreen is a no-op in the share preview — there is no active chat to
@@ -996,11 +996,11 @@
                                 console.debug(`[SettingsShare] Decrypting embed ${i + 1}/${embedEntries.length}: ${embedEntry.embed_id}`);
                                 const embedData = await embedStore.get(contentRef);
                                 
-                                if (embedData && embedData.content) {
+                                if (embedData && typeof embedData !== 'string' && embedData.content) {
                                     decryptedEmbeds.push({
                                         embed_id: embedEntry.embed_id || '',
                                         type: embedEntry.type || 'unknown',
-                                        content: embedData.content || '',
+                                        content: String(embedData.content),
                                         created_at: embedEntry.createdAt || Date.now()
                                     });
                                     console.debug(`[SettingsShare] ✅ Successfully decrypted embed: ${embedEntry.embed_id}`);
@@ -1015,8 +1015,21 @@
                         console.debug(`[SettingsShare] Successfully decrypted ${decryptedEmbeds.length}/${embedEntries.length} embeds for community sharing`);
                     }
                 } catch (error) {
-                    console.error(`[SettingsShare] Error decrypting messages/embeds for community sharing: chat_id=${currentChatId}`, error);
-                    // Continue anyway - backend will handle missing data
+                    // Check if this is an embed validation error (missing embeds = cannot share)
+                    // vs a transient decryption error (can still proceed without community sharing)
+                    if (error instanceof Error && error.message.includes('embeds in your messages')) {
+                        // CRITICAL: Embed validation failure — surface to user and block community sharing.
+                        // This prevents demo chats from being created with embed references in
+                        // messages but no embed data, which results in empty embed preview cards.
+                        console.error(`[SettingsShare] ❌ Embed validation failed, blocking community sharing: chat_id=${currentChatId}`, error);
+                    } else {
+                        console.error(`[SettingsShare] Error decrypting messages/embeds for community sharing: chat_id=${currentChatId}`, error);
+                    }
+                    // Both cases: disable community sharing but allow regular sharing to proceed.
+                    // The user still gets their share link — only the community submission is skipped.
+                    shareWithCommunity = false;
+                    decryptedMessages = null;
+                    decryptedEmbeds = null;
                 }
             }
             

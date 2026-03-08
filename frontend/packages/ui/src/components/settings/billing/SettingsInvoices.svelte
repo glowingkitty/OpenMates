@@ -477,7 +477,7 @@ Invoices Settings - View and download past invoices
         if (invoices.length > 0 && !isLoading) {
             // Check for refund deep link in URL hash (e.g., #settings/billing/invoices/{invoice_id}/refund)
             const hash = window.location.hash;
-            const refundMatch = hash.match(/^#settings\/billing\/invoices\/([^\/]+)\/refund$/);
+            const refundMatch = hash.match(/^#settings\/billing\/invoices\/([^/]+)\/refund$/);
             
             if (refundMatch) {
                 const refundInvoiceId = refundMatch[1];

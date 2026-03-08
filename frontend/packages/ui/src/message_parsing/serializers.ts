@@ -400,6 +400,7 @@ export async function writeMessageWithEmbedsToClipboard(
 function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
   switch (attrs.type) {
     case "web-website":
+      {
       // Check if this is a proper embed with embed_id (stored in EmbedStore)
       if (attrs.contentRef?.startsWith("embed:")) {
         // Serialize to proper embed reference format
@@ -423,6 +424,7 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       const jsonContent = JSON.stringify(websiteData, null, 2);
       return `\`\`\`json_embed\n${jsonContent}\n\`\`\``;
 
+      }
     case "videos-video":
       // Check if this is a proper embed with embed_id (stored in EmbedStore)
       if (attrs.contentRef?.startsWith("embed:")) {
@@ -435,6 +437,7 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       return attrs.url || "";
 
     case "code-code":
+      {
       // Check if this is a proper embed with embed_id (stored in EmbedStore)
       if (attrs.contentRef?.startsWith("embed:")) {
         // Serialize to proper embed reference format - this allows drafts to restore the embed
@@ -450,7 +453,9 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       const codeContent = attrs.code || "";
       return `\`\`\`${languagePrefix}${pathSuffix}\n${codeContent}\n\`\`\``;
 
+      }
     case "docs-doc":
+      {
       // Check if this is a proper embed with embed_id (stored in EmbedStore)
       if (attrs.contentRef?.startsWith("embed:")) {
         const embed_id = attrs.contentRef.replace("embed:", "");
@@ -469,7 +474,9 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       docResult += "```";
       return docResult;
 
+      }
     case "sheets-sheet":
+      {
       let tableResult = "";
       if (attrs.title) {
         tableResult += `<!-- title: "${attrs.title}" -->\n\n`;
@@ -480,6 +487,7 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       tableResult += "| Data     | Data     |";
       return tableResult;
 
+      }
     case "image":
       // User-uploaded images: serialized as embed references when contentRef is set
       // (contentRef is set by handleSend after storing TOON content in EmbedStore)
@@ -594,6 +602,7 @@ function serializeParagraph(node: TipTapNode): string {
               text = `\`${text}\``;
               break;
             case "link":
+              {
               // If the link text is the same as the href (plain URL), output just the URL
               // This preserves user input without adding unnecessary markdown link syntax
               const href = String(mark.attrs?.href || "");
@@ -605,6 +614,7 @@ function serializeParagraph(node: TipTapNode): string {
                 text = `[${text}](${href})`;
               }
               break;
+              }
           }
         }
       }

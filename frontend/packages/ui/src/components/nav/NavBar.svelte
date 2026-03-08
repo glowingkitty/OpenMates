@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
+    import { slide } from 'svelte/transition';
     import { text } from '@repo/ui';
     import { getApiEndpoint, apiEndpoints } from '../../config/api';
     import Avatar from '../common/Avatar.svelte';

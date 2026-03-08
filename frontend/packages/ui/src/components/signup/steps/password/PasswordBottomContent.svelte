@@ -89,15 +89,17 @@
     }
     
     // Get password data from parent component using Svelte 5 runes
+    /* eslint-disable @typescript-eslint/no-unused-vars -- props used in Svelte template */
     let { 
         password = '',
-        _passwordRepeat = '',
+        passwordRepeat = '',
         isFormValid = false
     }: {
         password?: string,
         passwordRepeat?: string,
         isFormValid?: boolean
     } = $props();
+    /* eslint-enable @typescript-eslint/no-unused-vars */
     
     // Create a local variable to track form validity
     // Update local variable when props change using Svelte 5 runes

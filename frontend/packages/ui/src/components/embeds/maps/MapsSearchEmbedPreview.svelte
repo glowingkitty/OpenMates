@@ -14,7 +14,7 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-  // @ts-ignore - @repo/ui module exists at runtime
+  // @ts-expect-error -- @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   import { chatSyncService } from '../../../services/chatSyncService';
   

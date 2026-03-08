@@ -48,7 +48,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
     // Helper function to dispatch navigation events to parent
     function navigateToSubview(path: string) {
         // Convert path to translation key format (replace hyphens and slashes with underscores)
-        const translationKey = path.replace(/[-\/]/g, '_');
+        const translationKey = path.replace(/[-/]/g, '_');
 
         // Map path to icon name
         const iconMap: Record<string, string> = {

@@ -74,7 +74,8 @@
     let password = $state('');
     let isLoading = $state(false);
     let showTfaView = $state(false); // State to control 2FA view visibility
-    let _tfaErrorMessage = $state<string | null>(null); // State for 2FA error messages
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
+    let tfaErrorMessage = $state<string | null>(null); // State for 2FA error messages
     let verifyDeviceErrorMessage = $state<string | null>(null); // State for device verification errors
     let stayLoggedIn = $state(false); // New state for "Stay logged in" checkbox
     
@@ -96,7 +97,8 @@
     
     // Conditional UI (passkey autofill) state
     let conditionalUIAbortController: AbortController | null = null; // For cancelling conditional UI passkey request
-    let _isConditionalUISupported = $state(false); // Track if browser supports conditional UI
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
+    let isConditionalUISupported = $state(false); // Track if browser supports conditional UI
     
     // Helper function to safely cast string to LoginStep
     function setLoginStep(step: string): void {
@@ -138,7 +140,8 @@
 
     // Add email validation state using $state (Svelte 5 runes mode)
     let emailError = $state('');
-    let _showEmailWarning = $state(false);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
+    let showEmailWarning = $state(false);
     let isEmailValidationPending = $state(false);
     let loginFailedWarning = $state(false);
     let loginErrorMessage = $state<string | null>(null);

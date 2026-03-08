@@ -167,21 +167,24 @@ function convertEmbedLinksInNode(
         };
       }
 
-      // ── Embed preview small: [](embed:ref) ────────────────────────────────
-      // The LLM signals a small preview card (same visual as existing embed
-      // preview cards, rendered inline in the message flow) by using an empty
-      // display text. This becomes a block-level embedPreviewSmall node.
+      // ── Fallback for [](embed:ref) — treat as [!](embed:ref) ───────────
+      // Empty display text (from LLM hallucination or omission) is treated
+      // the same as "!" — a visually highlighted embed preview block.
+      // The embedPreviewSmall concept has been removed; all block-level
+      // embed previews use the unified embedPreviewLarge node type, which
+      // renders responsively (compact at ≤300px, expanded when wider).
       if (displayText === "") {
-        // Strip any accidental #L suffix (preview cards don't use line highlighting)
         const { cleanRef } = _parseLineFragment(rawRef);
         const appId =
           _getEmbedStore()?.resolveAppIdByRef(cleanRef) ?? fallbackAppId;
         return {
-          type: "embedPreviewSmall",
+          type: "embedPreviewLarge",
           attrs: {
             embedRef: cleanRef,
             embedId: null,
             appId,
+            carouselIndex: 0,
+            carouselTotal: 1,
           },
         };
       }
@@ -246,7 +249,7 @@ function convertEmbedLinks(doc: any): any {
   const fallbackAppId = collectEmbedAppIds(doc);
   // Pass 2: convert embed: links, using fallbackAppId when ref index has no entry.
   const withInlineNodes = convertEmbedLinksInNode(doc, fallbackAppId);
-  // Pass 3: hoist embedPreviewSmall/embedPreviewLarge nodes out of their
+  // Pass 3: hoist embedPreviewLarge nodes out of their
   // paragraph wrappers to become true block-level document nodes.
   return _hoistBlockEmbedPreviews(withInlineNodes);
 }
@@ -255,15 +258,14 @@ function convertEmbedLinks(doc: any): any {
 //
 // When the LLM writes [](embed:ref) or [!](embed:ref), markdown-it wraps the
 // link inside a <p> tag, resulting in a paragraph node containing a single
-// embedPreviewSmall/embedPreviewLarge child. We hoist those nodes to the
+// embedPreviewLarge child. We hoist those nodes to the
 // document level so TipTap treats them as block-level elements.
 //
 // A paragraph qualifies for hoisting if ALL its meaningful content is a single
-// embedPreviewSmall or embedPreviewLarge atom. Purely whitespace-only text
+// embedPreviewLarge atom. Purely whitespace-only text
 // siblings are discarded.
 
 const BLOCK_EMBED_PREVIEW_TYPES = new Set([
-  "embedPreviewSmall",
   "embedPreviewLarge",
 ]);
 

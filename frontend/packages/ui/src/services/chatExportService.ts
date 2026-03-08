@@ -681,13 +681,13 @@ function needsQuoting(str: string): boolean {
 
   // Quote if contains special YAML characters that could cause parsing issues
   // This includes: : # @ ` | > & * ! ? % { [ ] } , ' " \
-  const specialChars = /[:#@`|>&*!?%{}\[\]\\,"']/;
+  const specialChars = /[:#@`|>&*!?%{}[\]\\,"']/;
   if (specialChars.test(str)) {
     return true;
   }
 
   // Quote if starts with special characters that could be confused with YAML syntax
-  if (/^[:\-+.#@`|>&*!?%{}\[\]\\]/.test(str)) {
+  if (/^[:\-+.#@`|>&*!?%{}[\]\\]/.test(str)) {
     return true;
   }
 
@@ -707,6 +707,7 @@ function needsQuoting(str: string): boolean {
   }
 
   // Quote if contains control characters (except newline which we handle separately)
+  // eslint-disable-next-line no-control-regex -- intentionally matches control characters for YAML quoting
   if (/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/.test(str)) {
     return true;
   }

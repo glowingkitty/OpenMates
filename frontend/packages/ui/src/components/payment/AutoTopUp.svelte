@@ -38,7 +38,8 @@ Matches the design from the signup flow screenshot.
     let lowBalanceEnabled = $state(false);
     let monthlyEnabled = $state(false);
     let isProcessing = $state(false);
-    let _isLoadingSettings = $state(true);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
+    let isLoadingSettings = $state(true);
     let lowBalanceEmailError: string | null = $state(null);
     
     // State for subscription details

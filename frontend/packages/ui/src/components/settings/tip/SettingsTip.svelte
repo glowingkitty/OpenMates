@@ -35,7 +35,8 @@
     let isTipping = $state(false);
     let ownerId = $state<string | undefined>(undefined);
     let contentType = $state<'video' | 'website'>('video');
-    let _videoUrl = $state<string | undefined>(undefined);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
+    let videoUrl = $state<string | undefined>(undefined);
     // TODO: Re-enable when preview server is implemented
     // let isLoadingChannelId = $state(false);
     let currentCredits = $derived(get(userProfile).credits || 0);

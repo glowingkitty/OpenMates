@@ -35,7 +35,8 @@
     } = $props();
     
     // State for showing passkey button (updated after lookup)
-    let _showPasskeyButton = $state(false);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
+    let showPasskeyButton = $state(false);
 
     // Form data
     let emailInputValue = $state(''); // Separate variable for the input field value

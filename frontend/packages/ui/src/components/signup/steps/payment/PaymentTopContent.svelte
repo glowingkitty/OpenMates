@@ -74,7 +74,8 @@ step_10_top_content_svelte:
     } = $props();
     
     // Track if payment form is visible
-    let _isPaymentFormVisible = false;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
+    let isPaymentFormVisible = false;
     let showGiftCardInput = $state(false);
     let pendingGiftCardCode = $state('');
     

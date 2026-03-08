@@ -20,7 +20,8 @@
     let navigationPath: string[] = [];
     let breadcrumbLabel = $text('settings.settings');
     let fullBreadcrumbLabel = '';
-    let _shortBreadcrumbLabel = '';
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
+    let shortBreadcrumbLabel = '';
     let navButtonElement;
     let showSubmenuInfo = false; // Derived from activeSettingsView
     let navButtonLeft = false; // Derived from activeSettingsView

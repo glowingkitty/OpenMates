@@ -22,15 +22,19 @@
     let revolutPublicKey: string | null = null;
     let revolutEnvironment: 'production' | 'sandbox' = 'sandbox';
     let orderToken: string | null = null;
-    let _lastOrderId: string | null = null;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
+    let lastOrderId: string | null = null;
     let cardFieldInstance: any = null;
-    let _cardFieldLoaded: boolean = false;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
+    let cardFieldLoaded: boolean = false;
     let _paymentRequestInstance: any = null;
     let _paymentRequestTargetElement: HTMLElement | null = null;
     let _showPaymentRequestButton = false;
-    let _isLoading = false;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
+    let isLoading = false;
     let errorMessage: string | null = null;
-    let _validationErrors: string | null = null;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
+    let validationErrors: string | null = null;
     let _pollTimeoutId: any = null;
     let _isPollingStopped = false;
     let cardSubmitTimeoutId: any = null;

@@ -43,7 +43,8 @@
     } = $props();
 
     // Track if form was submitted
-    let _attemptedSubmit = false;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
+    let attemptedSubmit = false;
 
     // Event dispatcher for parent communication
     const dispatch = createEventDispatcher();

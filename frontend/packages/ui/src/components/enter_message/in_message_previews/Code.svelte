@@ -31,6 +31,7 @@
     import { scale } from 'svelte/transition';
 
     // Props using Svelte 5 runes
+    /* eslint-disable @typescript-eslint/no-unused-vars -- props used in Svelte template */
     let { 
         src,
         filename,
@@ -38,7 +39,7 @@
         language = 'plaintext',
         content = undefined,
         lineCount = undefined,
-        _numberedContent = undefined
+        numberedContent = undefined
     }: {
         src: string;
         filename: string;
@@ -48,6 +49,7 @@
         lineCount?: number | undefined;
         numberedContent?: string | undefined;
     } = $props();
+    /* eslint-enable @typescript-eslint/no-unused-vars */
 
     let codePreview: string = '';
     let isTransitioningToFullscreen = false;

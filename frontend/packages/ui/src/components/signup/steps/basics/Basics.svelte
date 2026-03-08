@@ -23,7 +23,8 @@
     // --- End Inactivity Timer ---
 
     // Props using Svelte 5 runes mode
-    let { isValidated = false, _is_admin = false }: { isValidated?: boolean, _is_admin?: boolean } = $props();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
+    let { isValidated = false, is_admin = false }: { isValidated?: boolean, is_admin?: boolean } = $props();
     
     // Form state using Svelte 5 runes
     let inviteCode = $state('');

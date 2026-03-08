@@ -39,7 +39,8 @@ const STAY_LOGGED_IN_FLAG = 'openmates_was_stay_logged_in';
 // Module-level memory storage for stayLoggedIn=false sessions
 // Keys in memory are automatically cleared when the page closes (no async cleanup needed)
 let memoryMasterKey: CryptoKey | null = null;
-let _memoryKeyStayLoggedIn: boolean | null = null; // Track if memory key should persist
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- reassigned in module functions
+let memoryKeyStayLoggedIn: boolean | null = null; // Track if memory key should persist
 
 /**
  * Opens the IndexedDB database and creates the object store if needed
