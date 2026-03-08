@@ -4,6 +4,7 @@ REST API endpoints for server administration functionality.
 """
 
 import logging
+import os
 import random
 import string
 from typing import Dict, Any, List, Optional
@@ -12,8 +13,9 @@ from pydantic import BaseModel, Field, field_validator
 
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.limiter import limiter
-from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_cache_service
 from backend.core.api.app.models.user import User
+from backend.core.api.app.services.cache import CacheService
 
 logger = logging.getLogger(__name__)
 
@@ -901,3 +903,329 @@ async def admin_list_gift_cards(
     except Exception as e:
         logger.error(f"Error listing gift cards: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to list gift cards")
+
+
+
+# --- Compression Threshold Admin Override ---
+# Architecture: See docs/architecture/chat-compression.md
+# Allows admins to set a custom compression trigger threshold (in tokens)
+# that overrides the default 100k threshold for their own account only.
+# This is stored in Redis and read by the AI worker during compression checks.
+
+ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY = "admin:compression_threshold_override"
+
+
+class CompressionThresholdRequest(BaseModel):
+    """Request body for setting the admin compression threshold override."""
+    threshold: int = Field(
+        ...,
+        ge=1000,
+        le=500000,
+        description="Compression trigger threshold in estimated tokens (1000-500000)"
+    )
+
+
+class CompressionThresholdResponse(BaseModel):
+    """Response for compression threshold operations."""
+    success: bool = Field(default=True)
+    threshold: Optional[int] = Field(
+        None, description="Current threshold override (null if using default)"
+    )
+    default_threshold: int = Field(
+        default=100000, description="Default compression threshold"
+    )
+
+
+@router.get("/compression-threshold", response_model=CompressionThresholdResponse)
+@limiter.limit("30/minute")
+async def get_compression_threshold(
+    request: Request,
+    admin_user: User = Depends(require_admin),
+    cache_service: CacheService = Depends(get_cache_service),
+):
+    """Get the admin's current compression threshold override."""
+    try:
+        raw = await cache_service.redis.hget(
+            ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY, admin_user.id
+        )
+        threshold = int(raw) if raw else None
+        return CompressionThresholdResponse(
+            success=True,
+            threshold=threshold,
+            default_threshold=100000,
+        )
+    except Exception as e:
+        logger.error(f"Error getting compression threshold: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to get compression threshold")
+
+
+@router.post("/compression-threshold", response_model=CompressionThresholdResponse)
+@limiter.limit("10/minute")
+async def set_compression_threshold(
+    request: Request,
+    body: CompressionThresholdRequest,
+    admin_user: User = Depends(require_admin),
+    cache_service: CacheService = Depends(get_cache_service),
+):
+    """Set a custom compression threshold override for the admin's account."""
+    try:
+        await cache_service.redis.hset(
+            ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY, admin_user.id, str(body.threshold)
+        )
+        logger.info(
+            f"Admin {admin_user.id} set compression threshold to {body.threshold} tokens"
+        )
+        return CompressionThresholdResponse(
+            success=True,
+            threshold=body.threshold,
+            default_threshold=100000,
+        )
+    except Exception as e:
+        logger.error(f"Error setting compression threshold: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to set compression threshold")
+
+
+@router.delete("/compression-threshold", response_model=CompressionThresholdResponse)
+@limiter.limit("10/minute")
+async def delete_compression_threshold(
+    request: Request,
+    admin_user: User = Depends(require_admin),
+    cache_service: CacheService = Depends(get_cache_service),
+):
+    """Remove the admin's compression threshold override (revert to default)."""
+    try:
+        await cache_service.redis.hdel(
+            ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY, admin_user.id
+        )
+        logger.info(f"Admin {admin_user.id} removed compression threshold override")
+        return CompressionThresholdResponse(
+            success=True,
+            threshold=None,
+            default_threshold=100000,
+        )
+    except Exception as e:
+        logger.error(f"Error deleting compression threshold: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to delete compression threshold")
+
+
+# =============================================================================
+# Test Results API — Admin-only endpoints for viewing test results and
+# triggering out-of-schedule test runs from the settings dashboard.
+#
+# Test results live as JSON files on disk (written by scripts/run-tests.sh and
+# scripts/run-tests-daily.sh). No database model needed — this endpoint reads
+# the existing files directly.
+#
+# Architecture: File-based test results, no DB persistence.
+# See scripts/run-tests.sh and scripts/run-tests-daily.sh for the file format.
+# =============================================================================
+
+# Cache key for tracking whether a manual test run is currently in progress
+MANUAL_TEST_RUN_CACHE_KEY = "admin:manual_test_run"
+# How long to keep the "in progress" flag before it auto-expires (seconds)
+MANUAL_TEST_RUN_TTL_SECONDS = 3600  # 1 hour max
+
+
+class TestResultsResponse(BaseModel):
+    """Response model for GET /v1/admin/test-results."""
+    has_results: bool = Field(description="Whether any test results are available")
+    last_run: Optional[Dict[str, Any]] = Field(None, description="Full last-run.json data")
+    last_run_timestamp: Optional[str] = Field(None, description="ISO timestamp of last run")
+    next_scheduled_run_utc: str = Field(description="ISO timestamp of next scheduled daily run (03:00 UTC)")
+    hours_until_next_run: float = Field(description="Hours until next scheduled daily run")
+    is_running: bool = Field(False, description="Whether a test run is currently in progress")
+    run_started_at: Optional[str] = Field(None, description="ISO timestamp when current run started (if running)")
+
+
+class TriggerTestRunResponse(BaseModel):
+    """Response model for POST /v1/admin/tests/run."""
+    success: bool = Field(description="Whether the test run was triggered")
+    message: str = Field(description="Status message")
+    already_running: bool = Field(False, description="True if a run was already in progress")
+
+
+def _get_project_root():
+    """Get the project root directory (works both on host and inside Docker)."""
+    import pathlib
+    # Walk up from this file to find the project root. Inside Docker the app
+    # is mounted at /app, so we look for the test-results or scripts directory
+    # as a project root indicator.
+    candidate = pathlib.Path(__file__).resolve()
+    for parent in candidate.parents:
+        if (parent / "scripts").is_dir() or (parent / "test-results").is_dir():
+            return parent
+    # Fallback: inside Docker /app is always the project root
+    return pathlib.Path("/app")
+
+
+def _compute_next_daily_run_utc() -> tuple:
+    """
+    Compute the next daily test run time (03:00 UTC).
+    Returns (iso_timestamp, hours_until).
+    """
+    from datetime import datetime, timezone, timedelta
+
+    now = datetime.now(timezone.utc)
+    # Next 03:00 UTC
+    today_run = now.replace(hour=3, minute=0, second=0, microsecond=0)
+    if now >= today_run:
+        next_run = today_run + timedelta(days=1)
+    else:
+        next_run = today_run
+
+    hours_until = (next_run - now).total_seconds() / 3600
+    return next_run.isoformat(), round(hours_until, 1)
+
+
+@router.get("/test-results", response_model=TestResultsResponse)
+@limiter.limit("30/minute")
+async def get_test_results(
+    request: Request,
+    admin_user: User = Depends(require_admin),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> TestResultsResponse:
+    """
+    Get the latest test run results and scheduling info.
+
+    Reads test-results/last-run.json from disk and computes scheduling metadata.
+    Admin-only endpoint.
+    """
+    import json
+    project_root = _get_project_root()
+    last_run_path = project_root / "test-results" / "last-run.json"
+
+    next_run_utc, hours_until = _compute_next_daily_run_utc()
+
+    # Check if a manual run is in progress
+    is_running = False
+    run_started_at = None
+    try:
+        run_data = await cache_service.redis.hgetall(MANUAL_TEST_RUN_CACHE_KEY)
+        if run_data and run_data.get("status") == "running":
+            is_running = True
+            run_started_at = run_data.get("started_at")
+    except Exception as e:
+        logger.warning(f"Failed to check test run status from cache: {e}")
+
+    if not last_run_path.exists():
+        return TestResultsResponse(
+            has_results=False,
+            last_run=None,
+            last_run_timestamp=None,
+            next_scheduled_run_utc=next_run_utc,
+            hours_until_next_run=hours_until,
+            is_running=is_running,
+            run_started_at=run_started_at,
+        )
+
+    try:
+        with open(last_run_path, "r") as f:
+            last_run = json.load(f)
+
+        last_run_timestamp = last_run.get("run_id")
+
+        return TestResultsResponse(
+            has_results=True,
+            last_run=last_run,
+            last_run_timestamp=last_run_timestamp,
+            next_scheduled_run_utc=next_run_utc,
+            hours_until_next_run=hours_until,
+            is_running=is_running,
+            run_started_at=run_started_at,
+        )
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse last-run.json: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to parse test results file")
+    except Exception as e:
+        logger.error(f"Failed to read test results: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to read test results")
+
+
+@router.post("/tests/run", response_model=TriggerTestRunResponse)
+@limiter.limit("5/minute")
+async def trigger_test_run(
+    request: Request,
+    admin_user: User = Depends(require_admin),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> TriggerTestRunResponse:
+    """
+    Trigger an out-of-schedule full test run via the admin sidecar.
+
+    The sidecar executes scripts/run-tests-daily.sh on the host filesystem
+    (where Node.js, pnpm, pytest, and Docker CLI are available). The --force
+    flag is passed to skip the 24h commit-activity gate.
+    Only one run can be active at a time.
+    Admin-only endpoint.
+    """
+    import httpx
+    from datetime import datetime, timezone
+
+    # Check if a run is already in progress
+    try:
+        run_data = await cache_service.redis.hgetall(MANUAL_TEST_RUN_CACHE_KEY)
+        if run_data and run_data.get("status") == "running":
+            return TriggerTestRunResponse(
+                success=False,
+                message="A test run is already in progress",
+                already_running=True,
+            )
+    except Exception as e:
+        logger.warning(f"Failed to check test run status: {e}")
+
+    # Mark run as in progress
+    started_at = datetime.now(timezone.utc).isoformat()
+    try:
+        await cache_service.redis.hset(MANUAL_TEST_RUN_CACHE_KEY, mapping={
+            "status": "running",
+            "started_at": started_at,
+            "triggered_by": admin_user.id,
+        })
+        await cache_service.redis.expire(MANUAL_TEST_RUN_CACHE_KEY, MANUAL_TEST_RUN_TTL_SECONDS)
+    except Exception as e:
+        logger.warning(f"Failed to set test run status in cache: {e}")
+
+    # Trigger test run via the admin sidecar HTTP endpoint.
+    # The sidecar runs the script on the host filesystem where all tools exist.
+    # Manual triggers always use --force to skip the commit-activity gate.
+    sidecar_url = os.environ.get("CORE_SIDECAR_URL", "http://core-admin-sidecar:8001")
+    sidecar_key = os.environ.get("SECRET__CORE_SERVER__ADMIN_LOG_API_KEY", "")
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(
+                f"{sidecar_url}/admin/run-tests",
+                params={"force": "true"},
+                headers={"X-Admin-Log-Key": sidecar_key},
+            )
+            if resp.status_code == 409:
+                return TriggerTestRunResponse(
+                    success=False,
+                    message="A test run is already in progress on the sidecar",
+                    already_running=True,
+                )
+            if resp.status_code != 202:
+                raise Exception(f"Sidecar returned {resp.status_code}: {resp.text[:200]}")
+    except httpx.ConnectError:
+        logger.error("Failed to connect to admin sidecar at %s", sidecar_url)
+        try:
+            await cache_service.redis.delete(MANUAL_TEST_RUN_CACHE_KEY)
+        except Exception:
+            pass
+        raise HTTPException(
+            status_code=503,
+            detail="Admin sidecar not reachable. Ensure core-admin-sidecar container is running.",
+        )
+    except Exception as e:
+        logger.error(f"Failed to trigger test run via sidecar: {e}", exc_info=True)
+        try:
+            await cache_service.redis.delete(MANUAL_TEST_RUN_CACHE_KEY)
+        except Exception:
+            pass
+        raise HTTPException(status_code=500, detail=f"Failed to trigger test run: {e}")
+
+    logger.info(f"Manual test run triggered via sidecar by admin {admin_user.id}")
+    return TriggerTestRunResponse(
+        success=True,
+        message="Test run started on the host. Results will appear once the run completes.",
+        already_running=False,
+    )

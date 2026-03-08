@@ -34,6 +34,7 @@
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { handleImageError } from '../../../utils/offlineImageHandler';
+  import { proxyImage, proxyFavicon, getMetadataUrl, MAX_WIDTH_FAVICON, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
   
   // ===========================================
   // Types
@@ -218,7 +219,7 @@
     try {
       // Use GET endpoint to avoid CORS preflight (POST with JSON requires OPTIONS preflight)
       const response = await fetch(
-        `https://preview.openmates.org/api/v1/metadata?url=${encodeURIComponent(urlToFetch)}`
+        getMetadataUrl(urlToFetch)
       );
       
       if (!response.ok) {
@@ -289,23 +290,22 @@
   let faviconUrl = $derived.by(() => {
     if (effectiveFavicon) {
       // Proxy the direct favicon URL through image endpoint
-      return `https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(effectiveFavicon)}&max_width=38`;
+      return proxyImage(effectiveFavicon, MAX_WIDTH_FAVICON);
     }
     // Fall back to favicon endpoint which extracts favicon from page URL
-    return `https://preview.openmates.org/api/v1/favicon?url=${encodeURIComponent(url)}`;
+    return proxyFavicon(url);
   });
   
   // Preview image URL - proxy through preview server with max_width for optimization
   // The preview thumbnail is now larger (full-width ~260px), so we request 520px for retina displays
   // Note: We only proxy if we have an actual image URL (not the webpage URL itself)
-  const PREVIEW_IMAGE_MAX_WIDTH = 520; // 2x for retina displays (260px container)
   
   let imageUrl = $derived.by(() => {
     if (!effectiveImage) {
       return null; // No fallback to webpage URL - would cause 415 error
     }
     // Proxy through preview server with max_width to optimize image size
-    return `https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(effectiveImage)}&max_width=${PREVIEW_IMAGE_MAX_WIDTH}`;
+    return proxyImage(effectiveImage, MAX_WIDTH_PREVIEW_THUMBNAIL);
   });
   
   // Track image loading errors for graceful fallback
@@ -475,7 +475,8 @@
     font-size: 14px;
     color: var(--color-grey-70);
     line-height: 1.4;
-    flex: 1;
+    flex: 0 1 40%;
+    max-width: 40%;
     min-width: 0;
     /* Limit lines with ellipsis */
     display: -webkit-box;
@@ -501,7 +502,8 @@
      =========================================== */
   
   .website-preview-image {
-    width: 150px;
+    flex: 1;
+    min-width: 0;
     height: 171px;
     transform: translateX(20px);
   }

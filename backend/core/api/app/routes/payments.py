@@ -2748,12 +2748,19 @@ async def list_payment_methods(
             logger.info(f"User {current_user.id} has no Stripe customer ID - returning empty list")
             return ListPaymentMethodsResponse(payment_methods=[])
         
-        # Check if payment provider is Stripe
-        if payment_service.provider_name != "stripe":
-            raise HTTPException(status_code=400, detail="Payment methods only supported with Stripe")
-        
+        # Saved payment methods are always Stripe-specific (Stripe customer + PaymentMethod objects).
+        # We must use the Stripe provider directly, regardless of the currently active geo-detected
+        # provider — a Polar-region user may still have Stripe payment methods saved from a prior EU
+        # session, or from a Stripe-provider override. The active provider does NOT determine whether
+        # the user has saved Stripe methods.
+        stripe_provider = payment_service._stripe_provider
+        if stripe_provider is None:
+            # Revolut-only mode: no Stripe provider available at all
+            logger.info(f"No Stripe provider available -- returning empty payment methods list for user {current_user.id}")
+            return ListPaymentMethodsResponse(payment_methods=[])
+
         # List payment methods from Stripe
-        payment_methods = await payment_service.provider.list_payment_methods(
+        payment_methods = await stripe_provider.list_payment_methods(
             current_user.stripe_customer_id
         )
         
@@ -2930,6 +2937,26 @@ async def process_payment_with_saved_method(
         # Generate order ID (use PaymentIntent ID)
         order_id = order_result.get("id")
         client_secret = order_result.get("client_secret")
+        
+        # Cache the order — CRITICAL for webhook processing.
+        # Without this, the payment_intent.succeeded webhook cannot find the order
+        # and invoice creation + credit addition will be silently skipped.
+        cache_success = await cache_service.set_order(
+            order_id=order_id,
+            user_id=current_user.id,
+            credits_amount=payment_request.credits_amount,
+            status="created",
+            ttl=3600,  # 1 hour TTL to handle webhook delays/retries
+            email_encryption_key=payment_request.email_encryption_key,
+            currency=payment_request.currency,
+            provider="stripe",
+        )
+        
+        if not cache_success:
+            logger.error(
+                f"CRITICAL: Failed to cache order {order_id} for user {current_user.id}. "
+                f"Webhook processing will fail — invoice and credits will not be created!"
+            )
         
         logger.info(f"Created PaymentIntent {order_id} with saved payment method for user {current_user.id}")
         

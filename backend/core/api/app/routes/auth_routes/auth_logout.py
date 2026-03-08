@@ -56,6 +56,19 @@ async def logout(
             # await cache_service.delete(user_key) # No longer needed
             logger.info(f"Removed session cache for token {token_hash[:6]}...{token_hash[-6:]}")
 
+            # Log logout compliance event (GDPR-compatible: no IP stored for routine logouts)
+            if user_id:
+                device_hash, _, _, _, _, _, _, _ = generate_device_fingerprint_hash(request, user_id=user_id)
+                compliance_service = ComplianceService()
+                compliance_service.log_auth_event_safe(
+                    event_type="logout",
+                    user_id=user_id,
+                    device_fingerprint=device_hash,
+                    location="",
+                    status="success",
+                    details={"token_hash_prefix": token_hash[:6]}
+                )
+
             # If we have the user_id, persist drafts and then check if this was the last active device
             if user_id:
                 user_tokens_key = f"user_tokens:{user_id}"
@@ -225,6 +238,18 @@ async def logout_all(
                 await cache_service.delete_user_cache(user_id)
                 await cache_service.clear_user_cache_primed_flag(user_id) # Clear primed flag
                 logger.info(f"Cleared all user-related cache (including primed_flag) for user {user_id[:6]}... (logout all)")
+
+            # Log logout-all compliance event (GDPR-compatible: no IP stored)
+            if user_id:
+                compliance_service = ComplianceService()
+                compliance_service.log_auth_event_safe(
+                    event_type="logout_all",
+                    user_id=user_id,
+                    device_fingerprint="all_devices",
+                    location="",
+                    status="success",
+                    details={}
+                )
         
         # Clear all auth cookies for this session regardless of server response
         for cookie in request.cookies:

@@ -29,6 +29,7 @@ instructions:
         - For random times, specify a date range and optional daily time window
         - Use the user's timezone from the system prompt by default. Only ask if not available or if the user explicitly mentions a different timezone.
         - Ask the user if they want a new chat or follow-up in current chat
+        - Use response_type "simple" by default for basic reminders (e.g., "remind me about this", "remind me to check this later"). Use "full" only when the user explicitly wants a detailed AI-generated follow-up with new information (e.g., "remind me and give me the latest updates", "remind me and research...").
         
         If the user doesn't have email notifications configured, recommend they set it up
         to ensure they receive reminder notifications even when not actively using the app.
@@ -93,6 +94,14 @@ skills:
         new_chat_title:
           type: string
           description: "Title for the new chat. Required if target_type is 'new_chat'."
+
+        response_type:
+          type: string
+          enum:
+            - simple
+            - full
+          default: simple
+          description: "How the AI responds when the reminder fires. 'simple' sends a brief predefined nudge message without LLM inference (lower cost, faster). 'full' triggers a complete AI response with context and web searches. Default is 'simple' — use 'full' only when the user explicitly wants a detailed AI-generated follow-up (e.g., 'remind me and give me an update on...')."
 
         repeat:
           type: object

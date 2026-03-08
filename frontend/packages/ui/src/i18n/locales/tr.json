@@ -1366,6 +1366,12 @@
             "text": "Bu PNG simgesini SVG'ye dönüştür, böylece her boyutta keskin görünsün"
           }
         }
+      },
+      "search": {
+        "text": "Ara",
+        "description": {
+          "text": "Metinle görsel ara veya benzer görseller bul."
+        }
       }
     },
     "maps": {
@@ -2100,6 +2106,29 @@
         "text": "Düşünce sürecini genişlet"
       }
     },
+    "compression": {
+      "compressing": {
+        "text": "Sohbet sıkıştırılıyor..."
+      },
+      "summary_title": {
+        "text": "Sohbet özeti"
+      },
+      "show_more": {
+        "text": "Tam özeti göster"
+      },
+      "show_less": {
+        "text": "Daha az göster"
+      },
+      "show_forgotten": {
+        "text": "Önceki mesajları göster"
+      },
+      "hide_forgotten": {
+        "text": "Önceki mesajları gizle"
+      },
+      "messages_compressed": {
+        "text": "{count} mesaj özetlendi"
+      }
+    },
     "new_chat_suggestions": {
       "quantum_computing": {
         "text": "Kuantum bilişimi basit terimlerle öğret"
@@ -2784,6 +2813,35 @@
       },
       "footer_note": {
         "text": "Bu bildirim otomatik E2E test izleme sistemi tarafından gönderildi."
+      }
+    },
+    "test_run_summary": {
+      "title": {
+        "text": "Günlük Test Çalıştırma Özeti"
+      },
+      "header_success": {
+        "text": "Tüm testler geçti"
+      },
+      "header_failure": {
+        "text": "{total} testten {failed} tanesi başarısız"
+      },
+      "run_details_label": {
+        "text": "Çalıştırma ayrıntıları"
+      },
+      "git_label": {
+        "text": "Git"
+      },
+      "duration_label": {
+        "text": "Süre"
+      },
+      "suites_label": {
+        "text": "Test paketleri"
+      },
+      "failed_tests_label": {
+        "text": "Başarısız testler"
+      },
+      "footer_note": {
+        "text": "Bu rapor otomatik günlük test izleme sistemi tarafından oluşturuldu."
       }
     },
     "prometheus_alert": {
@@ -3490,6 +3548,27 @@
       },
       "copy_failed": {
         "text": "E-posta taslagi kopyalanamadi."
+      }
+    },
+    "image_search": {
+      "text": "Görsel arama",
+      "searching": {
+        "text": "Görseller aranıyor..."
+      },
+      "results_count": {
+        "text": "{count} görsel bulundu"
+      },
+      "view_source": {
+        "text": "Kaynağı görüntüle"
+      },
+      "open_image": {
+        "text": "Görseli aç"
+      },
+      "reverse_search": {
+        "text": "Ters arama"
+      },
+      "error": {
+        "text": "Görsel arama başarısız"
       }
     }
   },
@@ -4719,6 +4798,14 @@
       "action": {
         "text": "Güvenlik ayarlarını aç"
       }
+    },
+    "credits_depleted": {
+      "message": {
+        "text": "Krediniz tükendi. OpenMates'i kullanmaya devam etmek için daha fazla satın alın."
+      },
+      "buy_credits": {
+        "text": "Kredi Satın Al"
+      }
     }
   },
   "onboarding": {},
@@ -5096,6 +5183,18 @@
         },
         "no_apps_found": {
           "text": "Aramanızla eşleşen uygulama bulunamadı."
+        },
+        "filter_all": {
+          "text": "Tümü"
+        },
+        "filter_settings_memories": {
+          "text": "Ayarlar ve anılar"
+        },
+        "filter_focus_modes": {
+          "text": "Odak modları"
+        },
+        "filter_skills": {
+          "text": "Beceriler"
         }
       },
       "categories": {
@@ -5440,7 +5539,7 @@
       }
     },
     "billing": {
-      "text": "Faturalama",
+      "text": "Faturalama ve Kullanım",
       "title": {
         "text": "Faturalama ve Krediler"
       },
@@ -6271,6 +6370,9 @@
         "invalid_prefix": {
           "text": "Ön ek 1-4 karakter olmalıdır (A-Z, 2-9, O, I, 0, 1 hariç)"
         }
+      },
+      "tests": {
+        "text": "Testler"
       }
     },
     "server_stats": {

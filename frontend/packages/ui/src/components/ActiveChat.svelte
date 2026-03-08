@@ -41,6 +41,7 @@
     import HealthSearchEmbedFullscreen from './embeds/health/HealthSearchEmbedFullscreen.svelte';
     import ShoppingSearchEmbedFullscreen from './embeds/shopping/ShoppingSearchEmbedFullscreen.svelte';
     import EventsSearchEmbedFullscreen from './embeds/events/EventsSearchEmbedFullscreen.svelte';
+    import ImagesSearchEmbedFullscreen from './embeds/images/ImagesSearchEmbedFullscreen.svelte';
     import ImageGenerateEmbedFullscreen from './embeds/images/ImageGenerateEmbedFullscreen.svelte';
     import ImageEmbedFullscreen from './embeds/images/ImageEmbedFullscreen.svelte';
     import MathCalculateEmbedFullscreen from './embeds/math/MathCalculateEmbedFullscreen.svelte';
@@ -121,6 +122,7 @@
         CodeGetDocsResult
     } from '../types/appSkills';
     import type { EmbedStoreEntry } from '../message_parsing/types';
+    import { proxyImage, MAX_WIDTH_VIDEO_FULLSCREEN } from '../utils/imageProxy';
     
     // Lightweight type aliases to keep complex event payloads and component refs explicit.
     type EventListenerCallback = (event: Event) => void;
@@ -1666,13 +1668,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Extracts embed IDs from chat messages and provides navigation between them
     
     /**
-     * Extract all embed IDs from messages in order of appearance
-     * This creates a flat list of all embeds that can be displayed in fullscreen
+     * Extract all embed IDs from messages in **visual** order.
+     *
+     * The data (markdown) order lists embeds oldest-first, but grouped
+     * embeds are rendered reversed (most-recent-first — see
+     * GroupRenderer.ts line ~346).  To make the fullscreen prev/next
+     * arrows match what the user sees on screen, we reverse each
+     * consecutive run of same-type groupable embeds before returning.
+     *
+     * Groupable types that get reversed: web-website, videos-video,
+     * code-code, docs-doc, sheets-sheet, app-skill-use.
+     * Single (ungrouped) embeds keep their original order.
+     *
      * @param messages - Array of chat messages
-     * @returns Array of embed IDs in order of appearance
+     * @returns Array of embed IDs in visual (on-screen) order
      */
     function extractEmbedIdsFromMessages(messages: ChatMessageModel[]): string[] {
-        const embedIds: string[] = [];
+        // Collect embed refs with their types so we can detect app-skill-use runs.
+        const embedRefs: Array<{ type: string; embed_id: string }> = [];
         
         // Collect all embed IDs that are known to have errored.
         // _embedErrors is populated by the embedUpdated event handler when
@@ -1686,6 +1699,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 }
             }
         }
+        
+        const seenIds = new Set<string>();
         
         for (const message of messages) {
             // Get message content as markdown string
@@ -1706,13 +1721,68 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     continue;
                 }
                 // Avoid duplicates
-                if (!embedIds.includes(ref.embed_id)) {
-                    embedIds.push(ref.embed_id);
+                if (!seenIds.has(ref.embed_id)) {
+                    seenIds.add(ref.embed_id);
+                    embedRefs.push({ type: ref.type, embed_id: ref.embed_id });
                 }
             }
         }
         
-        return embedIds;
+        // Build the visual-order list by reversing consecutive runs of same-type
+        // embeds.  GroupRenderer.ts reverses ALL group types before rendering
+        // (most-recent-first), so we mirror that reversal here so the
+        // fullscreen prev/next arrows match the on-screen layout.
+        //
+        // Groupable types: web-website, videos-video, code-code, docs-doc,
+        // sheets-sheet, app-skill-use (see groupHandlers.ts).
+        // For app-skill-use, ANY consecutive app-skill-use embeds form a
+        // single group regardless of app_id/skill_id.  For other types,
+        // only consecutive embeds of the exact same type form a group.
+        const GROUPABLE_TYPES = new Set([
+            'web-website', 'videos-video', 'code-code',
+            'docs-doc', 'sheets-sheet', 'app-skill-use',
+        ]);
+        
+        const visualOrderIds: string[] = [];
+        let currentRun: string[] = [];
+        let currentRunType: string | null = null;
+        
+        const flushRun = () => {
+            if (currentRun.length > 1) {
+                // Multiple consecutive same-type embeds form a group that is
+                // rendered reversed — mirror that reversal for navigation.
+                visualOrderIds.push(...currentRun.reverse());
+            } else if (currentRun.length === 1) {
+                // Single embed — no group, no reversal needed.
+                visualOrderIds.push(currentRun[0]);
+            }
+            currentRun = [];
+            currentRunType = null;
+        };
+        
+        for (const ref of embedRefs) {
+            if (!GROUPABLE_TYPES.has(ref.type)) {
+                // Non-groupable embed type — flush any active run, add as-is
+                flushRun();
+                visualOrderIds.push(ref.embed_id);
+                continue;
+            }
+            
+            // Consecutive embeds of the same groupable type form a visual group.
+            // (For app-skill-use this also holds — all app-skill-use are same type.)
+            const canContinueRun = currentRunType === ref.type;
+            
+            if (currentRun.length > 0 && !canContinueRun) {
+                flushRun();
+            }
+            
+            currentRun.push(ref.embed_id);
+            currentRunType = ref.type;
+        }
+        // Flush any trailing run
+        flushRun();
+        
+        return visualOrderIds;
     }
     
     /**
@@ -1872,16 +1942,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Proxied thumbnail URL through preview server for privacy
         // If thumbnailUrl is already set and proxied, use it; otherwise construct and proxy
-        const PREVIEW_SERVER = 'https://preview.openmates.org';
-        const FULLSCREEN_IMAGE_MAX_WIDTH = 1560; // 2x for retina on 780px container
         let pipThumbnailUrl = currentState.thumbnailUrl;
         if (!pipThumbnailUrl && pipVideoId) {
             // Construct raw URL and proxy it
             const rawThumbnailUrl = `https://img.youtube.com/vi/${pipVideoId}/maxresdefault.jpg`;
-            pipThumbnailUrl = `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(rawThumbnailUrl)}&max_width=${FULLSCREEN_IMAGE_MAX_WIDTH}`;
+            pipThumbnailUrl = proxyImage(rawThumbnailUrl, MAX_WIDTH_VIDEO_FULLSCREEN);
         } else if (pipThumbnailUrl && (pipThumbnailUrl.includes('img.youtube.com') || pipThumbnailUrl.includes('i.ytimg.com'))) {
             // If it's a direct YouTube URL, proxy it
-            pipThumbnailUrl = `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(pipThumbnailUrl)}&max_width=${FULLSCREEN_IMAGE_MAX_WIDTH}`;
+            pipThumbnailUrl = proxyImage(pipThumbnailUrl, MAX_WIDTH_VIDEO_FULLSCREEN);
         }
         
         // Exit PiP mode - this will trigger CSS transition back to fullscreen position
@@ -3055,6 +3123,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // This lets us replace (not append) on first real chunk and avoid persisting placeholders.
     let thinkingPlaceholderMessageIds = $state<Set<string>>(new Set());
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     function isThinkingModel(modelName?: string | null, providerName?: string | null): boolean {
         const normalizedModel = (modelName || '').toLowerCase();
         const normalizedProvider = (providerName || '').toLowerCase();
@@ -3065,6 +3134,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         );
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     function ensureThinkingPlaceholder(messageId: string, chatId: string, category?: string, modelName?: string) {
         // Translated placeholder text for user-facing display
         const placeholderText = $text('chat.thinking.placeholder');
@@ -7700,6 +7770,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }) as EventListenerCallback;
 
         const aiTypingStartedHandler = (async (event: CustomEvent) => {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { chat_id, user_message_id, message_id, category, model_name, provider_name, server_region, is_continuation } = event.detail;
             console.log('[ActiveChat] aiTypingStartedHandler fired', { 
                 chat_id, 
@@ -9112,6 +9183,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                              status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
                              errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
                              embedId={embedFullscreenData.embedId}
+                             onClose={handleCloseEmbedFullscreen}
+                             {hasPreviousEmbed}
+                             {hasNextEmbed}
+                             onNavigatePrevious={handleNavigatePreviousEmbed}
+                             onNavigateNext={handleNavigateNextEmbed}
+                             navigateDirection={embedNavigateDirection}
+                             showChatButton={showChatButtonInFullscreen}
+                             onShowChat={handleShowChat}
+                         />
+                     {:else if appId === 'images' && skillId === 'search'}
+                         <!-- Images Search Fullscreen -->
+                         <!-- Results are stored as child embeds — pass embedIds for child loading -->
+                         <ImagesSearchEmbedFullscreen
+                             query={embedFullscreenData.decodedContent?.query || ''}
+                             provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
+                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
+                             status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
+                             embedId={embedFullscreenData.embedId}
+                             initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
                              onClose={handleCloseEmbedFullscreen}
                              {hasPreviousEmbed}
                              {hasNextEmbed}

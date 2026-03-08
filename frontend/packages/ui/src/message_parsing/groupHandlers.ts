@@ -723,45 +723,16 @@ export class AppSkillUseGroupHandler implements EmbedGroupHandler {
   embedType = "app-skill-use";
 
   canGroup(nodeA: EmbedNodeAttributes, nodeB: EmbedNodeAttributes): boolean {
-    // App skill use embeds can only be grouped if they have the SAME app_id AND skill_id
-    // This ensures that different skill types (e.g., web.search vs code.get_docs) are NOT grouped together
-    // Each unique app_id+skill_id combination should be in its own group
+    // Group ALL consecutive app-skill-use embeds together regardless of app_id/skill_id.
+    // This creates a single horizontal scroll group for all consecutive skill results,
+    // saving vertical space and reducing scrolling. Different skill types (e.g.,
+    // web.search + images.search) will each render their own Svelte preview component
+    // inside the shared group.
     if (nodeA.type !== "app-skill-use" || nodeB.type !== "app-skill-use") {
       return false;
     }
 
-    // CRITICAL: If either embed is missing app_id or skill_id, they CANNOT be grouped.
-    // This prevents undefined === undefined from incorrectly grouping different skill types together.
-    // Without this check, web.search and code.get_docs would be grouped together when their
-    // app_id/skill_id haven't been resolved yet from the EmbedStore.
-    if (!nodeA.app_id || !nodeA.skill_id || !nodeB.app_id || !nodeB.skill_id) {
-      console.debug(
-        "[AppSkillUseGroupHandler] canGroup: Missing app_id or skill_id, cannot group:",
-        {
-          nodeA_app_id: nodeA.app_id,
-          nodeA_skill_id: nodeA.skill_id,
-          nodeB_app_id: nodeB.app_id,
-          nodeB_skill_id: nodeB.skill_id,
-        },
-      );
-      return false;
-    }
-
-    // Both must have the same app_id and skill_id to be grouped
-    const sameAppId = nodeA.app_id === nodeB.app_id;
-    const sameSkillId = nodeA.skill_id === nodeB.skill_id;
-
-    console.debug("[AppSkillUseGroupHandler] canGroup check:", {
-      nodeA_app_id: nodeA.app_id,
-      nodeA_skill_id: nodeA.skill_id,
-      nodeB_app_id: nodeB.app_id,
-      nodeB_skill_id: nodeB.skill_id,
-      sameAppId,
-      sameSkillId,
-      canGroup: sameAppId && sameSkillId,
-    });
-
-    return sameAppId && sameSkillId;
+    return true;
   }
 
   createGroup(embedNodes: EmbedNodeAttributes[]): EmbedNodeAttributes {
@@ -811,13 +782,9 @@ export class AppSkillUseGroupHandler implements EmbedGroupHandler {
       serializableGroupedItems,
     );
 
-    // CRITICAL: Propagate app_id and skill_id to the group-level attrs.
-    // The scattered grouping algorithm (groupScatteredAppSkillEmbeds) checks
-    // attrs.app_id && attrs.skill_id on group nodes to merge them with
-    // additional scattered individual embeds. Without these at the group level,
-    // existing groups won't be detected for merging.
-    // Also propagate query and provider for rendering purposes.
-    const firstEmbed = embedNodes[0];
+    // Mixed groups may contain embeds from different apps/skills.
+    // Group-level app_id/skill_id are omitted since items may vary.
+    // Each item retains its own app_id/skill_id for individual rendering.
     const result = {
       id: groupId,
       type: "app-skill-use-group",
@@ -825,10 +792,6 @@ export class AppSkillUseGroupHandler implements EmbedGroupHandler {
       contentRef: null,
       groupedItems: serializableGroupedItems,
       groupCount: sortedEmbeds.length,
-      app_id: firstEmbed.app_id,
-      skill_id: firstEmbed.skill_id,
-      query: firstEmbed.query,
-      provider: firstEmbed.provider,
     } as EmbedNodeAttributes;
 
     console.log("[AppSkillUseGroupHandler] Created group:", result);

@@ -97,6 +97,11 @@ export interface ParseMessageOptions {
   // Feature flag for unified parsing
   unifiedParsingEnabled?: boolean;
 
+  // Message role — used to determine if single embeds of certain types
+  // (docs, code, sheets, mail, math) should be promoted to large preview.
+  // Only "assistant" messages get this promotion; user messages render as-is.
+  role?: "user" | "assistant" | "system";
+
   // Additional options can be added here
   [key: string]: any;
 }

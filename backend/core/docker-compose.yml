@@ -41,6 +41,8 @@ services:
       - ../../backend/config:/config
       # Added: Mount .cursor directory for debug logging
       - ../../.cursor:/app/.cursor
+      # Mount test-results directory for admin test results API endpoint
+      - ../../test-results:/app/test-results
     networks:
       - openmates
     depends_on:
@@ -1673,6 +1675,11 @@ services:
 
       # Git repository root on the host (where `git pull` runs)
       GIT_WORK_DIR: "${GIT_WORK_DIR}"
+
+      # Needed by scripts/_daily_runner_helper.py to dispatch test summary email
+      # via the internal API (POST /internal/dispatch-test-summary-email)
+      ADMIN_NOTIFY_EMAIL: "${ADMIN_NOTIFY_EMAIL:-}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
 
       PORT: "8001"
     # Bind to localhost only — the core API calls it via Docker network

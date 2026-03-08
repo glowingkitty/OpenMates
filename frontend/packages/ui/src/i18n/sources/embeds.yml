@@ -3935,3 +3935,178 @@ mail.copy_failed:
   sv: Det gick inte att kopiera e-postutkastet.
   he: ההעתקה של טיוטת האימייל נכשלה.
   verified_by_human: []
+
+image_search:
+  context: Image Search skill label shown in BasicInfosBar
+  en: Image Search
+  de: Bildersuche
+  zh: 图片搜索
+  es: Búsqueda de imágenes
+  fr: Recherche d'images
+  pt: Pesquisa de imagens
+  ru: Поиск изображений
+  ja: 画像検索
+  ko: 이미지 검색
+  it: Ricerca immagini
+  tr: Görsel arama
+  vi: Tìm kiếm hình ảnh
+  id: Pencarian gambar
+  pl: Wyszukiwanie obrazów
+  nl: Afbeeldingen zoeken
+  ar: البحث عن صور
+  hi: छवि खोज
+  th: ค้นหาภาพ
+  cs: Vyhledávání obrázků
+  sv: Bildsökning
+  he: חיפוש תמונות
+  verified_by_human: []
+
+image_search.searching:
+  context: Subtitle shown while image search is processing
+  en: Searching for images...
+  de: Bilder werden gesucht...
+  zh: 正在搜索图片...
+  es: Buscando imágenes...
+  fr: Recherche d'images en cours...
+  pt: Pesquisando imagens...
+  ru: Поиск изображений...
+  ja: 画像を検索中...
+  ko: 이미지 검색 중...
+  it: Ricerca immagini in corso...
+  tr: Görseller aranıyor...
+  vi: Đang tìm kiếm hình ảnh...
+  id: Mencari gambar...
+  pl: Wyszukiwanie obrazów...
+  nl: Zoeken naar afbeeldingen...
+  ar: جارٍ البحث عن صور...
+  hi: छवियाँ खोजी जा रही हैं...
+  th: กำลังค้นหาภาพ...
+  cs: Vyhledávám obrázky...
+  sv: Söker efter bilder...
+  he: מחפש תמונות...
+  verified_by_human: []
+
+image_search.results_count:
+  context: Subtitle shown after image search finishes, {count} is number of images found
+  en: "{count} images found"
+  de: "{count} Bilder gefunden"
+  zh: 找到 {count} 张图片
+  es: "{count} imágenes encontradas"
+  fr: "{count} images trouvées"
+  pt: "{count} imagens encontradas"
+  ru: "Найдено {count} изображений"
+  ja: "{count} 枚の画像が見つかりました"
+  ko: "이미지 {count}개 발견"
+  it: "{count} immagini trovate"
+  tr: "{count} görsel bulundu"
+  vi: "Tìm thấy {count} hình ảnh"
+  id: "{count} gambar ditemukan"
+  pl: "Znaleziono {count} obrazów"
+  nl: "{count} afbeeldingen gevonden"
+  ar: "تم العثور على {count} صورة"
+  hi: "{count} छवियाँ मिलीं"
+  th: "พบ {count} ภาพ"
+  cs: "Nalezeno {count} obrázků"
+  sv: "{count} bilder hittades"
+  he: "נמצאו {count} תמונות"
+  verified_by_human: []
+
+image_search.view_source:
+  context: Link label to view the source page of an image result
+  en: View source
+  de: Quelle ansehen
+  zh: 查看来源
+  es: Ver fuente
+  fr: Voir la source
+  pt: Ver fonte
+  ru: Просмотреть источник
+  ja: ソースを見る
+  ko: 출처 보기
+  it: Vedi fonte
+  tr: Kaynağı görüntüle
+  vi: Xem nguồn
+  id: Lihat sumber
+  pl: Zobacz źródło
+  nl: Bron bekijken
+  ar: عرض المصدر
+  hi: स्रोत देखें
+  th: ดูแหล่งที่มา
+  cs: Zobrazit zdroj
+  sv: Visa källa
+  he: הצג מקור
+  verified_by_human: []
+
+image_search.open_image:
+  context: Link label to open a full-size image in a new tab
+  en: Open image
+  de: Bild öffnen
+  zh: 打开图片
+  es: Abrir imagen
+  fr: Ouvrir l'image
+  pt: Abrir imagem
+  ru: Открыть изображение
+  ja: 画像を開く
+  ko: 이미지 열기
+  it: Apri immagine
+  tr: Görseli aç
+  vi: Mở hình ảnh
+  id: Buka gambar
+  pl: Otwórz obraz
+  nl: Afbeelding openen
+  ar: فتح الصورة
+  hi: छवि खोलें
+  th: เปิดภาพ
+  cs: Otevřít obrázek
+  sv: Öppna bild
+  he: פתח תמונה
+  verified_by_human: []
+
+image_search.reverse_search:
+  context: Button label to do reverse image search on a result image
+  en: Reverse search
+  de: Rückwärtssuche
+  zh: 反向搜索
+  es: Búsqueda inversa
+  fr: Recherche inversée
+  pt: Busca reversa
+  ru: Обратный поиск
+  ja: 逆画像検索
+  ko: 역방향 검색
+  it: Ricerca inversa
+  tr: Ters arama
+  vi: Tìm kiếm ngược
+  id: Pencarian terbalik
+  pl: Wyszukiwanie wsteczne
+  nl: Achterwaarts zoeken
+  ar: البحث العكسي
+  hi: रिवर्स सर्च
+  th: ค้นหาย้อนกลับ
+  cs: Zpětné vyhledávání
+  sv: Omvänd sökning
+  he: חיפוש הפוך
+  verified_by_human: []
+
+image_search.error:
+  context: Error message shown when image search fails
+  en: Image search failed
+  de: Bildersuche fehlgeschlagen
+  zh: 图片搜索失败
+  es: La búsqueda de imágenes falló
+  fr: La recherche d'images a échoué
+  pt: A pesquisa de imagens falhou
+  ru: Поиск изображений не удался
+  ja: 画像検索に失敗しました
+  ko: 이미지 검색 실패
+  it: Ricerca immagini fallita
+  tr: Görsel arama başarısız
+  vi: Tìm kiếm hình ảnh thất bại
+  id: Pencarian gambar gagal
+  pl: Wyszukiwanie obrazów nie powiodło się
+  nl: Afbeeldingen zoeken mislukt
+  ar: فشل البحث عن الصور
+  hi: छवि खोज विफल रही
+  th: การค้นหาภาพล้มเหลว
+  cs: Vyhledávání obrázků selhalo
+  sv: Bildsökning misslyckades
+  he: חיפוש תמונות נכשל
+  verified_by_human: []

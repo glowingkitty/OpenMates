@@ -102,6 +102,19 @@ BUCKETS = {
         'access': 'private',
         'lifecycle_policy': 2555,  # 7 years auto-delete (in days)
     },
+    # Temporary public images bucket for reverse image search (Google Lens via SerpAPI).
+    # Plaintext (decrypted) images are uploaded here with a very short TTL.
+    # The bucket is public-read so Google's crawlers can fetch the image URL.
+    # Files are auto-deleted after 1 day via lifecycle policy.
+    # See: backend/apps/images/skills/search_skill.py → _upload_temp_public_image
+    'temp_images': {
+        'name': 'openmates-temp-images',
+        'dev_name': 'dev-openmates-temp-images',
+        'allowed_types': ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+        'max_size': 20 * 1024 * 1024,  # 20MB max per temp image
+        'access': 'public-read',
+        'lifecycle_policy': 1,  # 1 day auto-delete (in days)
+    },
     'issue_logs': {
         'name': 'openmates-issue-logs',
         'dev_name': 'dev-openmates-issue-logs',

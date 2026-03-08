@@ -1366,6 +1366,12 @@
             "text": "Konvertiere dieses PNG-Icon in SVG, damit es in jeder Größe scharf aussieht"
           }
         }
+      },
+      "search": {
+        "text": "Suchen",
+        "description": {
+          "text": "Bilder per Text suchen oder ähnliche Bilder finden."
+        }
       }
     },
     "maps": {
@@ -2146,6 +2152,29 @@
       },
       "expand": {
         "text": "Denkprozess ausklappen"
+      }
+    },
+    "compression": {
+      "compressing": {
+        "text": "Chat wird komprimiert..."
+      },
+      "summary_title": {
+        "text": "Chat-Zusammenfassung"
+      },
+      "show_more": {
+        "text": "Vollständige Zusammenfassung anzeigen"
+      },
+      "show_less": {
+        "text": "Weniger anzeigen"
+      },
+      "show_forgotten": {
+        "text": "Frühere Nachrichten anzeigen"
+      },
+      "hide_forgotten": {
+        "text": "Frühere Nachrichten ausblenden"
+      },
+      "messages_compressed": {
+        "text": "{count} Nachrichten zusammengefasst"
       }
     },
     "new_chat_suggestions": {
@@ -3004,6 +3033,35 @@
       },
       "footer_note": {
         "text": "Diese Benachrichtigung wurde vom automatisierten E2E-Testüberwachungssystem gesendet."
+      }
+    },
+    "test_run_summary": {
+      "title": {
+        "text": "Tägliche Testlauf-Zusammenfassung"
+      },
+      "header_success": {
+        "text": "Alle Tests bestanden"
+      },
+      "header_failure": {
+        "text": "{failed} von {total} Tests fehlgeschlagen"
+      },
+      "run_details_label": {
+        "text": "Laufdetails"
+      },
+      "git_label": {
+        "text": "Git"
+      },
+      "duration_label": {
+        "text": "Dauer"
+      },
+      "suites_label": {
+        "text": "Test-Suiten"
+      },
+      "failed_tests_label": {
+        "text": "Fehlgeschlagene Tests"
+      },
+      "footer_note": {
+        "text": "Dieser Bericht wurde vom automatisierten täglichen Testüberwachungssystem erstellt."
       }
     },
     "prometheus_alert": {
@@ -3955,6 +4013,27 @@
       },
       "copy_failed": {
         "text": "E-Mail-Entwurf konnte nicht kopiert werden."
+      }
+    },
+    "image_search": {
+      "text": "Bildersuche",
+      "searching": {
+        "text": "Bilder werden gesucht..."
+      },
+      "results_count": {
+        "text": "{count} Bilder gefunden"
+      },
+      "view_source": {
+        "text": "Quelle ansehen"
+      },
+      "open_image": {
+        "text": "Bild öffnen"
+      },
+      "reverse_search": {
+        "text": "Rückwärtssuche"
+      },
+      "error": {
+        "text": "Bildersuche fehlgeschlagen"
       }
     }
   },
@@ -6195,6 +6274,14 @@
       "action": {
         "text": "Sicherheitseinstellungen öffnen"
       }
+    },
+    "credits_depleted": {
+      "message": {
+        "text": "Dein Guthaben ist aufgebraucht. Kaufe mehr, um OpenMates weiter zu nutzen."
+      },
+      "buy_credits": {
+        "text": "Credits kaufen"
+      }
     }
   },
   "onboarding": {
@@ -6833,6 +6920,18 @@
         },
         "no_apps_found": {
           "text": "Keine Apps gefunden, die Ihrer Suche entsprechen."
+        },
+        "filter_all": {
+          "text": "Alle"
+        },
+        "filter_settings_memories": {
+          "text": "Einstellungen & Erinnerungen"
+        },
+        "filter_focus_modes": {
+          "text": "Fokusmodi"
+        },
+        "filter_skills": {
+          "text": "Fähigkeiten"
         }
       },
       "categories": {
@@ -7192,7 +7291,7 @@
       "description": {
         "text": "Verwalte deine Credits, Abonnements und Zahlungsmethoden"
       },
-      "text": "Abrechnung",
+      "text": "Abrechnung & Nutzung",
       "title": {
         "text": "Abrechnung & Guthaben"
       },
@@ -8687,6 +8786,57 @@
         },
         "invalid_prefix": {
           "text": "Präfix muss 1-4 Zeichen sein (A-Z, 2-9, ohne O, I, 0, 1)"
+        }
+      },
+      "tests": {
+        "text": "Tests",
+        "subtitle": {
+          "text": "Testergebnisse anzeigen und manuelle Testläufe starten"
+        },
+        "description": {
+          "text": "Automatische Testlauf-Ergebnisse und Planung"
+        },
+        "last_run": {
+          "text": "Letzter Lauf"
+        },
+        "next_run": {
+          "text": "Nächster Lauf"
+        },
+        "duration": {
+          "text": "Dauer"
+        },
+        "never": {
+          "text": "Nie"
+        },
+        "start_tests": {
+          "text": "Tests starten"
+        },
+        "starting": {
+          "text": "Wird gestartet..."
+        },
+        "running": {
+          "text": "Tests laufen..."
+        },
+        "total": {
+          "text": "Gesamt"
+        },
+        "passed": {
+          "text": "Bestanden"
+        },
+        "failed": {
+          "text": "Fehlgeschlagen"
+        },
+        "skipped": {
+          "text": "Übersprungen"
+        },
+        "not_started": {
+          "text": "Nicht gestartet"
+        },
+        "suite_breakdown": {
+          "text": "Suite-Aufschlüsselung"
+        },
+        "no_results": {
+          "text": "Noch keine Testergebnisse verfügbar. Führen Sie die Tests aus, um hier Ergebnisse zu sehen."
         }
       }
     },

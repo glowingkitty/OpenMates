@@ -7,6 +7,7 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 # Import the main fingerprint generator and the model
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash
+from backend.core.api.app.services.compliance import ComplianceService
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,14 @@ async def get_current_user_ws(
 
     if not auth_refresh_token:
         logger.warning("WebSocket connection denied: Missing 'auth_refresh_token' in both cookie and query parameters.")
+        ComplianceService.log_auth_event_safe(
+            event_type="ws_auth_failed",
+            user_id=None,
+            device_fingerprint="unknown",
+            location="",
+            status="failed",
+            details={"reason": "missing_token"}
+        )
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Authentication required")
         # Return None to signal authentication failure - connection already closed, no need to raise
         return None
@@ -131,6 +140,14 @@ async def get_current_user_ws(
 
         if not device_hash_recognized:
             logger.warning(f"WebSocket connection denied after {max_retries} retries: Unknown device hash {device_hash[:8]}... for user {user_id}.")
+            ComplianceService.log_auth_event_safe(
+                event_type="ws_auth_failed",
+                user_id=user_id,
+                device_fingerprint=device_hash,
+                location="",
+                status="failed",
+                details={"reason": "device_mismatch"}
+            )
             reason = "Device mismatch"
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason=reason)
             return None
@@ -138,6 +155,14 @@ async def get_current_user_ws(
         # Authentication successful, device known
         # Return CONNECTION HASH for WebSocket routing (allows multiple browser instances)
         logger.debug(f"WebSocket authenticated: User {user_id}, Device {device_hash[:8]}..., Connection {connection_hash[:8]}...")
+        ComplianceService.log_auth_event_safe(
+            event_type="ws_auth_success",
+            user_id=user_id,
+            device_fingerprint=device_hash,
+            location="",
+            status="success",
+            details={}
+        )
         return {"user_id": user_id, "device_fingerprint_hash": connection_hash, "user_data": user_data}
 
     except Exception as e:

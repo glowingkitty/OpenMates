@@ -2044,6 +2044,8 @@ class EmbedService:
             return "event"
         elif app_id == "events" and skill_id == "search":
             return "event"
+        elif app_id == "images" and skill_id == "search":
+            return "image_result"
         else:
             return "website"  # Default: web search, news, videos, etc.
 
@@ -2158,6 +2160,15 @@ class EmbedService:
             elif child_type == "event":
                 name = result.get("name") or result.get("title") or ""
                 slug = _slugify(name) if name else "event"
+
+            elif child_type == "image_result":
+                # Image search result: use source domain (from source_page_url or image_url)
+                url = result.get("source_page_url") or result.get("image_url") or ""
+                if url:
+                    slug = _extract_domain(url)
+                else:
+                    title = result.get("title") or result.get("source") or ""
+                    slug = _slugify(title) if title else "image"
 
             else:
                 # Generic fallback: try title/name fields

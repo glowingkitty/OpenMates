@@ -591,3 +591,57 @@ vectorize.how_to_use.3:
   sv: Konvertera den här PNG-ikonen till SVG så att den ser skarp ut i alla storlekar
   he: המר את אייקון ה-PNG הזה ל-SVG כדי שייראה חד בכל גודל
   verified_by_human: [en, de]
+
+search:
+  context: Skill name for image search
+  en: Search
+  de: Suchen
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: ابحث
+  hi: खोज
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  he: חיפוש
+  verified_by_human:
+    - en
+    - de
+
+search.description:
+  context: Description for image search skill
+  en: Search for images by text or find similar images.
+  de: Bilder per Text suchen oder ähnliche Bilder finden.
+  zh: 通过文字搜索图片或找到相似图片。
+  es: Busca imágenes por texto o encuentra imágenes similares.
+  fr: Recherchez des images par texte ou trouvez des images similaires.
+  pt: Pesquise imagens por texto ou encontre imagens semelhantes.
+  ru: Ищите изображения по тексту или находите похожие изображения.
+  ja: テキストで画像を検索したり、類似画像を見つけたりします。
+  ko: 텍스트로 이미지를 검색하거나 유사한 이미지를 찾습니다.
+  it: Cerca immagini per testo o trova immagini simili.
+  tr: Metinle görsel ara veya benzer görseller bul.
+  vi: Tìm kiếm hình ảnh bằng văn bản hoặc tìm hình ảnh tương tự.
+  id: Cari gambar dengan teks atau temukan gambar serupa.
+  pl: Szukaj obrazów po tekście lub znajdź podobne obrazy.
+  nl: Zoek afbeeldingen op tekst of vind vergelijkbare afbeeldingen.
+  ar: ابحث عن الصور بالنص أو اعثر على صور مشابهة.
+  hi: टेक्स्ट द्वारा चित्र खोजें या समान चित्र खोजें।
+  th: ค้นหารูปภาพด้วยข้อความหรือค้นหารูปภาพที่คล้ายกัน
+  cs: Hledejte obrázky podle textu nebo najděte podobné obrázky.
+  sv: Sök efter bilder med text eller hitta liknande bilder.
+  he: חיפוש תמונות לפי טקסט או מציאת תמונות דומות.
+  verified_by_human:
+    - en
+    - de

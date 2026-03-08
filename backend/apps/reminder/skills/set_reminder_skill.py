@@ -124,6 +124,7 @@ class SetReminderSkill(BaseSkill):
         target_type: str = "new_chat",
         new_chat_title: Optional[str] = None,
         repeat: Optional[Dict[str, Any]] = None,
+        response_type: str = "simple",
         # Context parameters passed by skill executor
         secrets_manager: Optional[SecretsManager] = None,
         cache_service=None,
@@ -148,6 +149,7 @@ class SetReminderSkill(BaseSkill):
             target_type: 'new_chat' or 'existing_chat'
             new_chat_title: Title for new chat (required if target_type is 'new_chat')
             repeat: Optional repeat configuration dict
+            response_type: "simple" for a brief nudge (no LLM), "full" for complete AI response
             secrets_manager: Secrets manager instance
             cache_service: Cache service instance
             encryption_service: Encryption service for vault operations
@@ -411,6 +413,7 @@ class SetReminderSkill(BaseSkill):
                 "occurrence_count": 0,
                 "status": "pending",
                 "timezone": timezone,
+                "response_type": response_type if response_type in ("simple", "full") else "simple",
             }
 
             # Store reminder in cache

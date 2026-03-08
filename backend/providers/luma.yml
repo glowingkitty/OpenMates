@@ -1,0 +1,41 @@
+# backend/providers/luma.yml
+#
+# Configuration for Luma (lu.ma) event provider.
+# Used by the Events app for searching local and online events.
+#
+# Luma uses an unauthenticated internal REST API (api2.luma.com) discovered
+# by intercepting browser network traffic. No API key or auth is required.
+# Covers 78 featured cities worldwide.
+# See docs/apis/luma.md for full integration details.
+
+provider_id: "luma"
+name: "Luma"
+description: "Modern event platform for discovering and hosting in-person and online events, conferences, and meetups across 78 major cities worldwide."
+logo_svg: "logos/luma.svg"
+region: "US" # Luma HQ is in San Francisco, US
+
+# API endpoint configuration
+# Luma uses an internal REST API discovered by reverse-engineering the luma.com web app.
+# No API key is required — requests mimic browser traffic with Origin/Referer headers.
+api_base_url: "https://api2.luma.com"
+
+# Coverage notes:
+# - Supports exactly 78 featured cities (hardcoded city-to-place-ID mapping)
+# - Searches outside these 78 cities return empty results (not an error)
+# - City list was scraped from api2.luma.com/discover/bootstrap-page (March 2026)
+# - Both physical and online events are supported
+
+# Rate limiting / access notes:
+# - No API key required; unauthenticated public REST API
+# - Direct requests attempted first; proxy fallback on 403/429/5xx responses
+# - Proxy: Webshare rotating residential proxy (same as Meetup provider)
+# - Luma does not publish exact rate limits for unauthenticated access
+
+# Set to true for providers that do not require an API key (unauthenticated/public APIs).
+# The App Store availability check will always show the skill as available.
+no_api_key: true
+
+# Pricing information
+# Users are charged per events search request (same rate as Meetup)
+pricing:
+  per_request_credits: 5 # 5 credits per events search request (set in app.yml)

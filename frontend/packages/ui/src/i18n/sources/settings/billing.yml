@@ -1,6 +1,6 @@
 description:
   context: Short description shown in the billing settings page gradient banner header
-  en: Manage your credits, subscriptions and payment methods
+  en: Manage your credits, purchases, and what you used credits for.
   de: Verwalte deine Credits, Abonnements und Zahlungsmethoden
   zh: 管理您的积分、订阅和支付方式
   es: Gestiona tus créditos, suscripciones y métodos de pago
@@ -23,28 +23,28 @@ description:
   he: נהל את הקרדיטים, המנויים ואמצעי התשלום שלך
   verified_by_human: []
 billing:
-  context: Billing settings menu item
-  en: Billing
-  de: Abrechnung
-  zh: 账单
-  es: Facturación
-  fr: Facturation
-  pt: Cobrança
-  ru: Выставление счетов
-  ja: 請求
-  ko: 청구
-  it: Fatturazione
-  tr: Faturalama
-  vi: Thanh toán
-  id: Penagihan
-  pl: Rozliczenia
-  nl: Facturering
-  ar: الفوترة
-  hi: बिलिंग
-  th: การเรียกเก็บเงิน
-  cs: Fakturace
-  sv: Fakturering
-  he: חיוב
+  context: Billing settings menu item (now includes usage)
+  en: Billing & Usage
+  de: Abrechnung & Nutzung
+  zh: 账单与使用情况
+  es: Facturación y Uso
+  fr: Facturation et Utilisation
+  pt: Cobrança e Uso
+  ru: Выставление счетов и Использование
+  ja: 請求と使用状況
+  ko: 청구 및 사용량
+  it: Fatturazione e Utilizzo
+  tr: Faturalama ve Kullanım
+  vi: Thanh toán và Sử dụng
+  id: Penagihan dan Penggunaan
+  pl: Rozliczenia i Użycie
+  nl: Facturering en Gebruik
+  ar: الفوترة والاستخدام
+  hi: बिलिंग और उपयोग
+  th: การเรียกเก็บเงินและการใช้งาน
+  cs: Fakturace a Použití
+  sv: Fakturering och Användning
+  he: חיוב ושימוש
   verified_by_human: []
 title:
   context: Billing settings page title
@@ -2429,4 +2429,28 @@ invoices_error_loading:
   cs: Chyba při načítání faktur
   sv: Fel vid laddning av fakturor
   he: שגיאה בטעינת חשבוניות
+  verified_by_human: []
+invoices_generating:
+  context: Message shown on invoice download button while invoice PDF is being generated after payment
+  en: Generating invoice...
+  de: Rechnung wird erstellt...
+  zh: 正在生成发票...
+  es: Generando factura...
+  fr: Génération de la facture...
+  pt: Gerando fatura...
+  ru: Создание счёта...
+  ja: 請求書を生成中...
+  ko: 청구서 생성 중...
+  it: Generazione fattura...
+  tr: Fatura oluşturuluyor...
+  vi: Đang tạo hóa đơn...
+  id: Membuat faktur...
+  pl: Generowanie faktury...
+  nl: Factuur genereren...
+  ar: إنشاء الفاتورة...
+  hi: चालान बनाया जा रहा है...
+  th: กำลังสร้างใบแจ้งหนี้...
+  cs: Generování faktury...
+  sv: Genererar faktura...
+  he: מפיק חשבונית...
   verified_by_human: []

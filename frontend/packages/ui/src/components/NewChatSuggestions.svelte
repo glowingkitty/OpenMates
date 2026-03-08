@@ -38,18 +38,39 @@
 
   /**
    * Parse a raw suggestion string of the form "[app_id-skill_id] body text".
-   * If no valid prefix is found, body === raw.
+   * LLMs sometimes generate dashes in the skill name portion (e.g. "reminder-set-reminder")
+   * instead of underscores ("reminder-set_reminder"). We correct for this by replacing
+   * dashes in the subId portion with underscores, then validate against the known app
+   * skills store. If no valid app+skill pair is found, appId/subId are set to null so
+   * no icons render.
    */
   function parseSuggestion(raw: string): ParsedSuggestionMeta {
-    const match = raw.match(/^\[([a-z0-9_]+-[a-z0-9_]+)\]\s*(.+)$/i);
+    // Allow dashes anywhere in the prefix (LLMs may use dashes instead of underscores in skill names)
+    const match = raw.match(/^\[([a-z0-9_-]+)\]\s*(.+)$/i);
     if (!match) {
       return { prefix: null, appId: null, subId: null, body: raw };
     }
     const prefix = match[1];
     const body = match[2].trim();
     const dashIdx = prefix.indexOf('-');
+    if (dashIdx === -1) {
+      return { prefix: null, appId: null, subId: null, body: raw };
+    }
     const appId = prefix.substring(0, dashIdx);
-    const subId = prefix.substring(dashIdx + 1);
+    // Replace any remaining dashes in the subId with underscores to correct LLM errors
+    // (e.g. "set-reminder" -> "set_reminder")
+    const subIdRaw = prefix.substring(dashIdx + 1);
+    const subId = subIdRaw.replace(/-/g, '_');
+
+    // Validate that appId and subId correspond to a real skill or focus mode
+    const app = appsMetadata?.apps?.[appId];
+    const isValidSkill = app?.skills?.some(s => s.id === subId) ?? false;
+    const isValidFocus = app?.focus_modes?.some(f => f.id === subId) ?? false;
+    if (!isValidSkill && !isValidFocus) {
+      // Unknown skill — keep body text but don't render any app/skill icons
+      return { prefix: null, appId: null, subId: null, body };
+    }
+
     return { prefix, appId, subId, body };
   }
 

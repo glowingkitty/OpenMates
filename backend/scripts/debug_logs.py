@@ -143,12 +143,21 @@ EVENT_PATTERNS: List[Tuple[str, str, str]] = [
     # Auth
     (r"login.?success|Login successful|finalize_login_session", "auth", "login_success"),
     (r"login.?failed|Authentication failed|login_failed", "auth", "login_failed"),
+    (r"login_known_device", "auth", "login_known_device"),
+    (r"login_new_device", "auth", "login_new_device"),
     (r"User account created|signup.*success", "auth", "signup"),
+    (r"token_refresh_success|Token refreshed successfully", "auth", "token_refresh_success"),
+    (r"token_refresh_failed|Failed to refresh token", "auth", "token_refresh_failed"),
     (r"Token.*refresh|token_refresh|Token expires soon|Token refreshed", "auth", "token_refresh"),
     (r"forced.?logout|Forced logout", "auth", "forced_logout"),
+    (r'"logout_all"', "auth", "logout_all"),
+    (r'"logout"', "auth", "logout"),
+    (r"session_expired", "auth", "session_expired"),
     (r"2FA.*verif|tfa.*success|2fa_verified|tfa_enabled", "auth", "2fa_event"),
     (r"Session valid for user", "auth", "session_valid"),
     (r"Re-auth triggered", "auth", "re_auth_triggered"),
+    (r"ws_auth_success", "auth", "ws_auth_success"),
+    (r"ws_auth_failed", "auth", "ws_auth_failed"),
 
     # Chat / message processing
     (r"\[PERF\] Message handler started", "chat", "message_received"),

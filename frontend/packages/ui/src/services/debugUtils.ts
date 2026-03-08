@@ -9,10 +9,11 @@
  *   window.debug()                         — quick client health check
  *   window.debug.help()                    — show all available commands
  *   await window.debug.chat('chat-id')     — copyable chat inspection report
- *   await window.debug.embed('embed-id')   — copyable embed inspection report
+ *   await window.debug.embed('embed-id')   — embed report (fields truncated to 50 chars)
+ *   await window.debug.embed('id', {full:true}) — embed report with full untruncated values
  *   await window.debug.decrypt('embed-id') — decrypt and show raw embed content
  *   await window.debug.chats()             — list all chats with consistency check
- *   await window.debug.message('msg-id')   — raw message data
+ *   await window.debug.message('msg-id')   — message health check with decrypted fields
  *   window.debug.logs(20)                  — last N console logs (filter: logs(20, 'error'))
  *   window.debug.errors(50)                — last N errors+warnings (survives noise)
  *   await window.debug.state()             — current store state snapshot
@@ -643,6 +644,560 @@ export async function debugGetMessage(
 
   return message || null;
 }
+
+// ============================================================================
+// INSPECT MESSAGE - Health check report for a single message
+// ============================================================================
+
+/**
+ * Result of attempting to decrypt a single message's encrypted fields
+ */
+type MessageFieldDecryptResult = {
+  field: string;
+  success: boolean;
+  /** First 40 chars of decrypted value (or error message) */
+  preview: string;
+};
+
+/**
+ * Build a health summary for a single message, checking for common issues.
+ */
+function buildClientMessageHealthSummary(params: {
+  message: Record<string, unknown> | undefined;
+  chatMeta: Record<string, unknown> | undefined;
+  fieldResults: MessageFieldDecryptResult[];
+}): { isHealthy: boolean; issues: string[]; warnings: string[] } {
+  const issues: string[] = [];
+  const warnings: string[] = [];
+  const { message, chatMeta, fieldResults } = params;
+
+  if (!message) {
+    issues.push("message not found in IndexedDB");
+    return { isHealthy: false, issues, warnings };
+  }
+
+  // Timestamp check
+  collectTimestampIssue("message.created_at", message.created_at, issues);
+
+  // Content check
+  const role = String(message.role || "");
+  const hasAnyContent = Boolean(message.encrypted_content || message.content);
+  if ((role === "user" || role === "assistant") && !hasAnyContent) {
+    issues.push(`${role} message has no content (encrypted or plain)`);
+  }
+
+  // Status check
+  const status = String(message.status || "");
+  if (status === "error" || status === "failed") {
+    issues.push(`message status is "${status}"`);
+  } else if (status === "pending" || status === "sending") {
+    warnings.push(`message status is "${status}" (may still be in transit)`);
+  }
+
+  // Chat metadata check
+  if (!chatMeta) {
+    warnings.push(
+      "parent chat not found in IndexedDB (orphaned message or chat not loaded)",
+    );
+  }
+
+  // Decryption failures
+  const decryptFailed = fieldResults.filter((f) => !f.success);
+  if (decryptFailed.length > 0) {
+    issues.push(
+      `${decryptFailed.length}/${fieldResults.length} encrypted fields failed to decrypt`,
+    );
+  }
+
+  return { isHealthy: issues.length === 0, issues, warnings };
+}
+
+/**
+ * Attempt to decrypt all encrypted fields on a message for debug inspection.
+ * Returns structured results for each field.
+ */
+async function attemptMessageDecryption(
+  chatId: string,
+  message: Record<string, unknown>,
+): Promise<{
+  chatKeyAvailable: boolean;
+  chatKeyFingerprint: string;
+  chatKeyFull?: string;
+  chatKeySource: "cache" | "unwrapped" | "none";
+  fields: MessageFieldDecryptResult[];
+}> {
+  const result = {
+    chatKeyAvailable: false,
+    chatKeyFingerprint: "N/A",
+    chatKeyFull: undefined as string | undefined,
+    chatKeySource: "none" as "cache" | "unwrapped" | "none",
+    fields: [] as MessageFieldDecryptResult[],
+  };
+
+  // Step 1: Obtain the chat key
+  let chatKey: Uint8Array | null = null;
+  try {
+    const { chatDB } = await import("./db");
+    chatKey = chatDB.getChatKey(chatId);
+    if (chatKey) {
+      result.chatKeySource = "cache";
+    }
+  } catch {
+    // chatDB not available
+  }
+
+  // If not in cache, try to unwrap from chat metadata
+  if (!chatKey) {
+    try {
+      const db = await openDB();
+      const chatMeta = await getFromStore<Record<string, unknown>>(
+        db,
+        CHATS_STORE,
+        chatId,
+      );
+      db.close();
+
+      if (chatMeta?.encrypted_chat_key) {
+        const { decryptChatKeyWithMasterKey } = await import("./cryptoService");
+        chatKey = await decryptChatKeyWithMasterKey(
+          chatMeta.encrypted_chat_key as string,
+        );
+        if (chatKey) {
+          result.chatKeySource = "unwrapped";
+        }
+      }
+    } catch {
+      // Master key not available
+    }
+  }
+
+  if (!chatKey) {
+    result.chatKeyAvailable = false;
+    result.chatKeyFingerprint = "N/A (no key available)";
+    return result;
+  }
+
+  result.chatKeyAvailable = true;
+  const keyHexFull = Array.from(chatKey)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  result.chatKeyFull = keyHexFull;
+  result.chatKeyFingerprint = `${keyHexFull.slice(0, 16)}... (${chatKey.length} bytes, source: ${result.chatKeySource})`;
+
+  // Step 2: Decrypt each encrypted field on the message
+  const { decryptWithChatKey } = await import("./cryptoService");
+
+  // All message-level encrypted fields
+  const encryptedMessageFields: Array<{ field: string; key: string }> = [
+    { field: "Content", key: "encrypted_content" },
+    { field: "Category", key: "encrypted_category" },
+    { field: "Model Name", key: "encrypted_model_name" },
+    { field: "Sender Name", key: "encrypted_sender_name" },
+    { field: "PII Mappings", key: "encrypted_pii_mappings" },
+    { field: "Thinking Content", key: "encrypted_thinking_content" },
+    { field: "Thinking Signature", key: "encrypted_thinking_signature" },
+  ];
+
+  for (const { field, key } of encryptedMessageFields) {
+    const encryptedValue = message[key] as string | undefined;
+    if (!encryptedValue) continue; // Field not present — skip
+
+    try {
+      const decrypted = await decryptWithChatKey(encryptedValue, chatKey, {
+        chatId,
+        fieldName: `message.${field}`,
+      });
+      if (decrypted !== null) {
+        const preview =
+          decrypted.length > 40
+            ? decrypted.substring(0, 40) + "..."
+            : decrypted;
+        result.fields.push({ field, success: true, preview });
+      } else {
+        result.fields.push({
+          field,
+          success: false,
+          preview: "decryption returned null",
+        });
+      }
+    } catch (error) {
+      result.fields.push({
+        field,
+        success: false,
+        preview: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Inspect a single message and generate a formatted health-check report,
+ * similar to `inspectChat` but scoped to a single message.
+ *
+ * Shows: health status, decrypted fields (content, category, model, etc.),
+ * message metadata, and parent chat context.
+ *
+ * Usage in console:
+ *   await window.debug.message('message-id')                       — health check report
+ *   await window.debug.message('message-id', { verbose: true })    — full details
+ *   await window.debug.message('message-id', { download: true })   — download as .txt
+ *
+ * @param messageId - The message_id (client_message_id) to inspect
+ * @param options - Optional configuration
+ * @returns The formatted report string
+ */
+export async function inspectMessage(
+  messageId: string,
+  options: { download?: boolean; verbose?: boolean; hideKeys?: boolean } = {},
+): Promise<string> {
+  const forceVerbose = options.verbose || options.download || false;
+  const hideKeys = options.hideKeys ?? false;
+  const db = await openDB();
+
+  // ---- Look up message ----
+  const message = await getFromStore<Record<string, unknown>>(
+    db,
+    MESSAGES_STORE,
+    messageId,
+  );
+
+  // ---- Look up parent chat metadata ----
+  const chatId = message ? (message.chat_id as string) : undefined;
+  const chatMeta = chatId
+    ? await getFromStore<Record<string, unknown>>(db, CHATS_STORE, chatId)
+    : undefined;
+
+  db.close();
+
+  if (!message) {
+    const report = `MESSAGE ${messageId}\n\n🔴 NOT FOUND in IndexedDB`;
+    const color = UNHEALTHY_BANNER_COLOR;
+    console.log(
+      `%c🔴 CLIENT MESSAGE HEALTH CHECK: ISSUES DETECTED`,
+      `${HEALTH_BANNER_STYLE} color: ${color};`,
+    );
+    console.log(report);
+    return report;
+  }
+
+  // ---- Attempt decryption ----
+  const decryptReport = await attemptMessageDecryption(chatId || "", message);
+
+  // ---- Build health summary ----
+  const healthSummary = buildClientMessageHealthSummary({
+    message,
+    chatMeta,
+    fieldResults: decryptReport.fields,
+  });
+
+  // Add key availability issue
+  if (!decryptReport.chatKeyAvailable && message.encrypted_content) {
+    healthSummary.issues.push(
+      "chat key could not be obtained — encrypted fields cannot be decrypted",
+    );
+    healthSummary.isHealthy = false;
+  }
+
+  // ---- Build report ----
+  const lines: string[] = [];
+
+  // Header
+  const role = (message.role as string) || "unknown";
+  const createdStr = formatTimestamp(message.created_at as number);
+  const serverId = (message.id as string) || "N/A";
+  const clientMsgId =
+    (message.client_message_id as string) ||
+    (message.message_id as string) ||
+    messageId;
+  lines.push(`MESSAGE ${clientMsgId}  |  ${createdStr}`);
+  lines.push(
+    `Chat: ${chatId || "N/A"}  |  Role: ${role}  |  Status: ${message.status || "N/A"}`,
+  );
+
+  // Key info
+  const keyDisplay = decryptReport.chatKeyAvailable
+    ? hideKeys
+      ? `${decryptReport.chatKeyFingerprint} [pass hideKeys:false to show full key]`
+      : `${decryptReport.chatKeyFull ?? decryptReport.chatKeyFingerprint} (${(decryptReport.chatKeyFull?.length ?? 0) / 2} bytes, source: ${decryptReport.chatKeySource})`
+    : decryptReport.chatKeyFingerprint;
+  lines.push(`Key: ${keyDisplay}`);
+
+  // Health status
+  if (healthSummary.isHealthy) {
+    lines.push("");
+    lines.push("🟢 HEALTHY");
+  } else {
+    lines.push("");
+    lines.push(`🔴 ISSUES DETECTED (${healthSummary.issues.length}):`);
+    for (const issue of healthSummary.issues.slice(
+      0,
+      MAX_HEALTH_ITEMS_TO_SHOW,
+    )) {
+      lines.push(`   • ${issue}`);
+    }
+    if (healthSummary.issues.length > MAX_HEALTH_ITEMS_TO_SHOW) {
+      lines.push(
+        `   • ... and ${healthSummary.issues.length - MAX_HEALTH_ITEMS_TO_SHOW} more`,
+      );
+    }
+  }
+  if (healthSummary.warnings.length > 0) {
+    for (const w of healthSummary.warnings.slice(0, 3)) {
+      lines.push(`   ⚠ ${w}`);
+    }
+  }
+
+  // Decrypted fields table
+  lines.push("");
+  lines.push("DECRYPTED FIELDS");
+
+  // All possible encrypted fields with their labels
+  const allMessageFieldDefs: Array<{
+    label: string;
+    key: string;
+    shortLabel: string;
+  }> = [
+    { label: "Content", key: "encrypted_content", shortLabel: "Content" },
+    { label: "Category", key: "encrypted_category", shortLabel: "Category" },
+    {
+      label: "Model Name",
+      key: "encrypted_model_name",
+      shortLabel: "Model",
+    },
+    {
+      label: "Sender Name",
+      key: "encrypted_sender_name",
+      shortLabel: "Sender",
+    },
+    {
+      label: "PII Mappings",
+      key: "encrypted_pii_mappings",
+      shortLabel: "PII",
+    },
+    {
+      label: "Thinking Content",
+      key: "encrypted_thinking_content",
+      shortLabel: "Thinking",
+    },
+    {
+      label: "Thinking Signature",
+      key: "encrypted_thinking_signature",
+      shortLabel: "ThinkSig",
+    },
+  ];
+
+  for (const fd of allMessageFieldDefs) {
+    const encValue = message[fd.key] as string | undefined;
+    if (!encValue) {
+      lines.push(`  · ${fd.shortLabel.padEnd(12)} (not present)`);
+      continue;
+    }
+    // Find matching decryption result
+    const decResult = decryptReport.fields.find((f) => f.field === fd.label);
+    if (decResult) {
+      if (decResult.success) {
+        const preview =
+          decResult.preview.length > 30
+            ? decResult.preview.substring(0, 30) + "..."
+            : decResult.preview;
+        lines.push(`  🟢 ${fd.shortLabel.padEnd(12)} "${preview}"`);
+      } else {
+        lines.push(`  🔴 ${fd.shortLabel.padEnd(12)} DECRYPT FAILED`);
+      }
+    } else {
+      // Encrypted data present but no decrypt attempt (key unavailable)
+      lines.push(
+        `  🔴 ${fd.shortLabel.padEnd(12)} encrypted (${encValue.length} chars, KEY UNAVAILABLE)`,
+      );
+    }
+  }
+
+  // Message IDs and metadata
+  lines.push("");
+  lines.push("IDENTIFIERS");
+  lines.push(`  Client ID:     ${clientMsgId}`);
+  lines.push(`  Server ID:     ${serverId}`);
+  lines.push(`  Chat ID:       ${chatId || "N/A"}`);
+  if (message.user_message_id) {
+    lines.push(`  User Msg ID:   ${message.user_message_id}`);
+  }
+
+  // State
+  lines.push("");
+  lines.push("STATE");
+  lines.push(`  Role:          ${role}`);
+  lines.push(`  Status:        ${message.status || "N/A"}`);
+  lines.push(`  Created:       ${createdStr}`);
+  lines.push(
+    `  Has Thinking:  ${message.has_thinking ?? false}${message.thinking_token_count ? `  (${message.thinking_token_count} tokens)` : ""}`,
+  );
+
+  // Parent chat context
+  if (chatMeta) {
+    lines.push("");
+    lines.push("PARENT CHAT");
+    // Decrypt chat title for context
+    const titleResult = decryptReport.chatKeyAvailable
+      ? await (async () => {
+          try {
+            const encTitle = chatMeta.encrypted_title as string | undefined;
+            if (!encTitle) return "(no title)";
+            const { decryptWithChatKey } = await import("./cryptoService");
+            const { chatDB } = await import("./db");
+            let chatKey = chatDB.getChatKey(chatId!);
+            if (!chatKey && chatMeta.encrypted_chat_key) {
+              const { decryptChatKeyWithMasterKey } =
+                await import("./cryptoService");
+              chatKey = await decryptChatKeyWithMasterKey(
+                chatMeta.encrypted_chat_key as string,
+              );
+            }
+            if (!chatKey) return "(key unavailable)";
+            const decrypted = await decryptWithChatKey(encTitle, chatKey, {
+              chatId: chatId!,
+              fieldName: "title",
+            });
+            return decrypted
+              ? `"${truncate(decrypted, 50)}"`
+              : "(decrypt failed)";
+          } catch {
+            return "(decrypt error)";
+          }
+        })()
+      : "(key unavailable)";
+
+    lines.push(`  Title:         ${titleResult}`);
+    lines.push(`  Messages V:    ${chatMeta.messages_v ?? "N/A"}`);
+    lines.push(
+      `  Private:       ${chatMeta.is_private ?? false}  |  Shared: ${chatMeta.is_shared ?? false}  |  Hidden: ${chatMeta.is_hidden ?? false}`,
+    );
+  }
+
+  // Verbose details
+  if (forceVerbose) {
+    lines.push("");
+    lines.push("─".repeat(60));
+    lines.push("VERBOSE DETAILS");
+    lines.push("─".repeat(60));
+
+    // Encrypted field sizes
+    lines.push("");
+    lines.push("  Encrypted Field Sizes:");
+    for (const fd of allMessageFieldDefs) {
+      const encValue = message[fd.key] as string | undefined;
+      if (encValue) {
+        lines.push(
+          `    ${fd.shortLabel.padEnd(16)} ${encValue.length} chars`,
+        );
+      }
+    }
+
+    // Full decrypted content (if available)
+    const contentResult = decryptReport.fields.find(
+      (f) => f.field === "Content",
+    );
+    if (contentResult?.success) {
+      lines.push("");
+      lines.push("  Full Decrypted Content:");
+      // Re-decrypt to get full content (not truncated preview)
+      try {
+        const { decryptWithChatKey } = await import("./cryptoService");
+        const { chatDB } = await import("./db");
+        let chatKey = chatDB.getChatKey(chatId!);
+        if (!chatKey && chatMeta?.encrypted_chat_key) {
+          const { decryptChatKeyWithMasterKey } =
+            await import("./cryptoService");
+          chatKey = await decryptChatKeyWithMasterKey(
+            chatMeta.encrypted_chat_key as string,
+          );
+        }
+        if (chatKey) {
+          const fullContent = await decryptWithChatKey(
+            message.encrypted_content as string,
+            chatKey,
+            { chatId: chatId!, fieldName: "message.content" },
+          );
+          if (fullContent) {
+            // Indent each line of content
+            const contentLines = fullContent.split("\n");
+            for (const cl of contentLines) {
+              lines.push(`    ${cl}`);
+            }
+          }
+        }
+      } catch {
+        lines.push("    (error re-decrypting full content)");
+      }
+    }
+
+    // Raw non-encrypted fields
+    lines.push("");
+    lines.push("  Raw Fields:");
+    const skipFields = new Set([
+      "id",
+      "message_id",
+      "client_message_id",
+      "chat_id",
+      "role",
+      "status",
+      "created_at",
+      "user_message_id",
+      "has_thinking",
+      "thinking_token_count",
+    ]);
+    const encryptedFieldKeys = new Set(allMessageFieldDefs.map((f) => f.key));
+    for (const [key, value] of Object.entries(message)) {
+      if (skipFields.has(key) || encryptedFieldKeys.has(key)) continue;
+      if (value === null || value === undefined) continue;
+      const display =
+        typeof value === "string"
+          ? truncate(value, 60)
+          : JSON.stringify(value);
+      lines.push(`    ${key.padEnd(24)} ${display}`);
+    }
+  }
+
+  // Footer with verbose hint
+  if (!forceVerbose) {
+    lines.push("");
+    lines.push(
+      `💡 verbose: await window.debug.message("${messageId.substring(0, 8)}...", {verbose: true})`,
+    );
+  }
+
+  lines.push("");
+
+  const report = lines.join("\n");
+
+  // Log with health banner
+  const isHealthy = healthSummary.isHealthy;
+  const color = isHealthy ? HEALTHY_BANNER_COLOR : UNHEALTHY_BANNER_COLOR;
+  const statusLabel = isHealthy ? "HEALTHY" : "ISSUES DETECTED";
+  const icon = isHealthy ? "🟢" : "🔴";
+  console.log(
+    `%c${icon} CLIENT MESSAGE HEALTH CHECK: ${statusLabel}`,
+    `${HEALTH_BANNER_STYLE} color: ${color};`,
+  );
+  console.log(report);
+
+  if (options.download) {
+    const blob = new Blob([report], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `message_inspection_${messageId}_${Date.now()}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    console.log("📥 Report downloaded!");
+  }
+
+  return report;
+}
+
 
 // ============================================================================
 // INSPECT CHAT - Single copyable report output
@@ -1862,9 +2417,11 @@ export async function inspectChat(
  */
 export async function inspectEmbed(
   embedId: string,
-  options: { download?: boolean; hideKeys?: boolean } = {},
+  options: { download?: boolean; hideKeys?: boolean; full?: boolean } = {},
 ): Promise<string> {
   const hideKeys = options.hideKeys ?? false;
+  const showFull = options.full ?? false;
+  const CONTENT_TRUNCATE_LEN = 50;
   const db = await openDB();
   const lines: string[] = [];
 
@@ -2038,49 +2595,42 @@ export async function inspectEmbed(
       `    ${embed.data ? "✅" : "❌"} data ${embed.data ? `(${typeof embed.data === "string" ? (embed.data as string).length : "object"})` : ""}`,
     );
 
-    // Decrypt status
+    // Decrypt status and all decoded content fields
     lines.push("");
     lines.push("  Decryption:");
     if (decryptOk && decoded) {
       lines.push("    🟢 Decrypt: OK");
-      // Show decoded key fields
-      const appId = (decoded.app_id as string) || "N/A";
-      const skillId = (decoded.skill_id as string) || "N/A";
-      const query = (decoded.query as string) || "N/A";
-      const provider = (decoded.provider as string) || "N/A";
-      const decodedStatus = (decoded.status as string) || "N/A";
-      lines.push(`    app_id:      ${appId}`);
-      lines.push(`    skill_id:    ${skillId}`);
-      lines.push(`    query:       ${truncate(query, 60)}`);
-      lines.push(`    provider:    ${provider}`);
-      lines.push(`    status:      ${decodedStatus}`);
-      if (decoded.results && Array.isArray(decoded.results)) {
-        lines.push(
-          `    results:     ${(decoded.results as unknown[]).length} items`,
-        );
+      lines.push("");
+      lines.push("  Decoded Content Fields:");
+      // Show ALL decoded fields with their values (truncated unless full mode)
+      const maxLen = showFull ? 99999 : CONTENT_TRUNCATE_LEN;
+      for (const [fieldName, fieldValue] of Object.entries(decoded)) {
+        let display: string;
+        if (fieldValue === null || fieldValue === undefined) {
+          display = "null";
+        } else if (Array.isArray(fieldValue)) {
+          if (showFull) {
+            try { display = JSON.stringify(fieldValue); } catch { display = `Array(${fieldValue.length})`; }
+          } else {
+            display = `Array(${fieldValue.length})`;
+          }
+        } else if (typeof fieldValue === "object") {
+          if (showFull) {
+            try { display = JSON.stringify(fieldValue); } catch { display = `Object(${Object.keys(fieldValue as Record<string, unknown>).length} keys)`; }
+          } else {
+            display = `Object(${Object.keys(fieldValue as Record<string, unknown>).length} keys)`;
+          }
+        } else {
+          display = String(fieldValue);
+        }
+        // Truncate display string
+        if (display.length > maxLen) {
+          display = display.substring(0, maxLen) + "...";
+        }
+        lines.push(`    ${fieldName.padEnd(20)} = ${display}`);
       }
-      if (decoded.embed_ids && Array.isArray(decoded.embed_ids)) {
-        lines.push(
-          `    embed_ids:   ${(decoded.embed_ids as unknown[]).length} items`,
-        );
-      }
-      // Show other fields count
-      const knownFields = [
-        "app_id",
-        "skill_id",
-        "query",
-        "provider",
-        "status",
-        "task_id",
-        "results",
-        "embed_ids",
-        "result_count",
-      ];
-      const otherFields = Object.keys(decoded).filter(
-        (k) => !knownFields.includes(k),
-      );
-      if (otherFields.length > 0) {
-        lines.push(`    other:       ${otherFields.join(", ")}`);
+      if (!showFull) {
+        lines.push(`    (pass {full: true} to show untruncated values)`);
       }
     } else if (
       embed.encrypted_content &&
@@ -2096,10 +2646,19 @@ export async function inspectEmbed(
     lines.push("  ❌ Embed NOT FOUND in IndexedDB");
   }
 
-  // Children
+  // Children — decode and show content fields for each child
   if (hasChildren) {
     lines.push("");
     lines.push(`CHILDREN (${(embed!.embed_ids as string[]).length})`);
+    const maxChildLen = showFull ? 99999 : CONTENT_TRUNCATE_LEN;
+    let resolveEmbedFn: ((id: string) => Promise<{ content?: string } | null>) | null = null;
+    let decodeToonFn: ((content: string) => Promise<unknown>) | null = null;
+    try {
+      const mod = await import("./embedResolver");
+      resolveEmbedFn = mod.resolveEmbed;
+      decodeToonFn = mod.decodeToonContent;
+    } catch { /* embedResolver unavailable */ }
+
     for (let i = 0; i < (embed!.embed_ids as string[]).length; i++) {
       const childId = (embed!.embed_ids as string[])[i];
       const child = childEmbedRecords[i];
@@ -2110,6 +2669,37 @@ export async function inspectEmbed(
       lines.push(
         `  ${(i + 1).toString().padStart(3)}  ${childStatus.padEnd(10)} ${childHasContent ? "✅ content" : "❌ no content"}  ${childId}`,
       );
+
+      // Try to decode child content and show fields
+      if (childHasContent && resolveEmbedFn && decodeToonFn) {
+        try {
+          const resolvedChild = await resolveEmbedFn(childId);
+          if (resolvedChild?.content) {
+            const childDecoded = await decodeToonFn(resolvedChild.content);
+            if (childDecoded && typeof childDecoded === "object") {
+              for (const [fName, fValue] of Object.entries(childDecoded as Record<string, unknown>)) {
+                let disp: string;
+                if (fValue === null || fValue === undefined) {
+                  disp = "null";
+                } else if (Array.isArray(fValue)) {
+                  disp = showFull ? JSON.stringify(fValue) : `Array(${fValue.length})`;
+                } else if (typeof fValue === "object") {
+                  disp = showFull ? JSON.stringify(fValue) : `Object(${Object.keys(fValue as Record<string, unknown>).length} keys)`;
+                } else {
+                  disp = String(fValue);
+                }
+                if (disp.length > maxChildLen) disp = disp.substring(0, maxChildLen) + "...";
+                lines.push(`        ${fName.padEnd(20)} = ${disp}`);
+              }
+            }
+          }
+        } catch {
+          lines.push(`        (decode failed)`);
+        }
+      }
+    }
+    if (!showFull && (embed!.embed_ids as string[]).length > 0) {
+      lines.push(`  (pass {full: true} to show untruncated field values)`);
     }
   }
 
@@ -3383,9 +3973,11 @@ function showDebugHelp(): void {
       '  await window.debug.chat("id", {download: true})  — download report as .txt\n' +
       '  await window.debug.chatVerbose("id")      — verbose console dump\n' +
       "  await window.debug.chats()                — list all chats + consistency check\n" +
-      '  await window.debug.message("id")          — raw message data\n\n' +
+      '  await window.debug.message("id")          — message health check & decrypted fields\n' +
+      '  await window.debug.message("id", {verbose: true})  — full details with content\n\n' +
       "  Embeds:\n" +
       '  await window.debug.embed("id")            — embed inspection report\n' +
+      '  await window.debug.embed("id", {full: true})      — show all fields untruncated\n' +
       '  await window.debug.embed("id", {download: true})  — download embed report\n' +
       '  await window.debug.decrypt("embedId")     — decrypt & show embed content\n\n' +
       "  Downloads:\n" +
@@ -3778,11 +4370,14 @@ export function initDebugUtils(): void {
     /** List all chats with consistency check */
     chats: () => debugAllChats(),
 
-    /** Get raw message data by ID */
-    message: (messageId: string) => debugGetMessage(messageId),
+    /** Message health check report with decrypted fields */
+    message: (
+      messageId: string,
+      opts: { download?: boolean; verbose?: boolean; hideKeys?: boolean } = {},
+    ) => inspectMessage(messageId, opts),
 
     /** Generate a copyable embed inspection report */
-    embed: (embedId: string, opts: { download?: boolean } = {}) =>
+    embed: (embedId: string, opts: { download?: boolean; full?: boolean } = {}) =>
       inspectEmbed(embedId, opts),
 
     /** Decrypt and show raw embed content */

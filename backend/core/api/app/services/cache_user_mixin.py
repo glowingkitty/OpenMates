@@ -134,7 +134,11 @@ class UserCacheMixin:
             return False
 
     async def update_user(self, user_id: str, updated_fields: Dict) -> bool:
-        """Update specific fields of cached user data."""
+        """
+        Update specific fields of cached user data.
+        Preserves the existing key TTL so that partial updates (e.g. last_online_timestamp)
+        do not reset a stay_logged_in user's 30-day cache back to the default 24-hour USER_TTL.
+        """
         try:
             if not user_id or not updated_fields:
                 logger.warning("Update user cache skipped: missing user_id or updated_fields.")
@@ -142,6 +146,12 @@ class UserCacheMixin:
 
             user_cache_key = f"{self.USER_KEY_PREFIX}{user_id}"
             logger.debug(f"Attempting cache UPDATE for user ID: {user_id} (Key: '{user_cache_key}')")
+
+            # Read existing TTL BEFORE the get+set cycle so we can preserve it.
+            # This prevents resetting a 30-day stay_logged_in session to 24h on every
+            # /session call that updates last_online_timestamp or last_session_country.
+            existing_ttl = await self.get_key_ttl(user_cache_key)
+
             current_data = await self.get(user_cache_key)
 
             if not current_data or not isinstance(current_data, dict):
@@ -151,8 +161,11 @@ class UserCacheMixin:
             logger.debug(f"Updating fields for user '{user_id}': {list(updated_fields.keys())}")
             current_data.update(updated_fields)
 
-            user_update_success = await self.set(user_cache_key, current_data, ttl=self.USER_TTL)
-            logger.debug(f"Cache SET result for user key '{user_cache_key}' after update: {user_update_success}")
+            # Use the existing TTL if the key has one (> 0), otherwise fall back to USER_TTL.
+            # existing_ttl: -2 = key gone, -1 = no expiry, >0 = seconds remaining.
+            ttl_to_use = existing_ttl if existing_ttl > 0 else self.USER_TTL
+            user_update_success = await self.set(user_cache_key, current_data, ttl=ttl_to_use)
+            logger.debug(f"Cache SET result for user key '{user_cache_key}' after update: {user_update_success} (ttl={ttl_to_use}s, preserved from existing={existing_ttl}s)")
 
             return user_update_success
         except Exception as e:

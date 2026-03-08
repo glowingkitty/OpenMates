@@ -22,6 +22,7 @@
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { handleImageError } from '../../../utils/offlineImageHandler';
+  import { proxyFavicon, proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
   
   /**
    * Props for news embed fullscreen
@@ -228,14 +229,13 @@
   let faviconUrl = $derived(
     meta_url_favicon || 
     favicon || 
-    `https://preview.openmates.org/api/v1/favicon?url=${encodeURIComponent(url)}`
+    proxyFavicon(url)
   );
   
   // Header image URL - proxy through preview server with max_width for optimization
   // The header image container is max 511px wide, so we request 1024px for retina displays
   // Note: We only proxy if we have an actual image URL (not the webpage URL itself)
   // If no image URL is available, we simply don't show a header image
-  const HEADER_IMAGE_MAX_WIDTH = 1024; // 2x for retina displays (container is 511px max)
   
   let imageUrl = $derived.by(() => {
     const originalImageUrl = thumbnail_original || image || thumbnail;
@@ -244,7 +244,7 @@
     }
     // Proxy through preview server with max_width to optimize image size
     // This also provides caching and privacy benefits
-    return `https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(originalImageUrl)}&max_width=${HEADER_IMAGE_MAX_WIDTH}`;
+    return proxyImage(originalImageUrl, MAX_WIDTH_HEADER_IMAGE);
   });
   
   /**

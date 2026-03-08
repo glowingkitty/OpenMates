@@ -32,6 +32,8 @@ import TravelConnectionEmbedPreview from "../../../embeds/travel/TravelConnectio
 import TravelStayEmbedPreview from "../../../embeds/travel/TravelStayEmbedPreview.svelte";
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
 import ImageViewEmbedPreview from "../../../embeds/images/ImageViewEmbedPreview.svelte";
+import ImageResultEmbedPreview from "../../../embeds/images/ImageResultEmbedPreview.svelte";
+import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPreview.svelte";
 import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
 import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPreview.svelte";
 import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
@@ -41,6 +43,7 @@ import PdfSearchEmbedPreview from "../../../embeds/pdf/PdfSearchEmbedPreview.sve
 import MailEmbedPreview from "../../../embeds/mail/MailEmbedPreview.svelte";
 import EventEmbedPreview from "../../../embeds/events/EventEmbedPreview.svelte";
 import MapsLocationEmbedPreview from "../../../embeds/maps/MapsLocationEmbedPreview.svelte";
+import { proxyFavicon, proxyImage } from "../../../../utils/imageProxy";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -197,6 +200,16 @@ export class GroupRenderer implements EmbedRenderer {
         "maps-place",
         (item, embedData, decodedContent, content) =>
           this.renderMapsPlaceComponent(
+            item,
+            embedData,
+            decodedContent,
+            content,
+          ),
+      ],
+      [
+        "images-image-result",
+        (item, embedData, decodedContent, content) =>
+          this.renderImageResultComponent(
             item,
             embedData,
             decodedContent,
@@ -475,6 +488,8 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderEventItem(item, embedData, decodedContent);
       case "maps-place":
         return this.renderMapsPlaceItem(item, embedData, decodedContent);
+      case "images-image-result":
+        return this.renderImageResultItem(item, embedData, decodedContent);
       default:
         console.error(
           `[GroupRenderer] No renderer found for embed type: ${baseType}`,
@@ -602,7 +617,7 @@ export class GroupRenderer implements EmbedRenderer {
    *   1. Find the existing scroll-container.
    *   2. Build a set of IDs already rendered (from data-embed-item-id).
    *   3. Append only the items that are genuinely new.
-   *   4. Update the header text (e.g. "3 requests" → "4 requests").
+   *   4. Update the header text (e.g. "3 app skills used:" → "4 app skills used:").
    *
    * Returns `true` if the incremental path succeeded. Returns `false` if a full
    * re-render is required (e.g. first render, items reordered, items removed).
@@ -1337,6 +1352,25 @@ export class GroupRenderer implements EmbedRenderer {
             handleImageViewFullscreen,
           );
         }
+        return;
+      }
+
+      // Handle images.search skill — image search results
+      if (appId === "images" && skillId === "search") {
+        const component = mount(ImagesSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            provider: provider || "Brave",
+            status,
+            results,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
         return;
       }
 
@@ -2283,10 +2317,10 @@ export class GroupRenderer implements EmbedRenderer {
       const displayDescription = websiteDescription || "";
       const faviconUrl =
         favicon ||
-        `https://preview.openmates.org/api/v1/favicon?url=${encodeURIComponent(websiteUrl)}`;
+        proxyFavicon(websiteUrl);
       const imageUrl =
         image ||
-        `https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(websiteUrl)}`;
+        proxyImage(websiteUrl);
 
       // Add click handler for fullscreen
       const embedId = item.contentRef?.replace("embed:", "") || "";
@@ -3879,9 +3913,115 @@ export class GroupRenderer implements EmbedRenderer {
     `;
   }
 
+  /**
+   * Render a single images-image-result embed using ImageResultEmbedPreview.
+   */
+  private async renderImageResultComponent(
+    item: EmbedNodeAttributes,
+    embedData: any = null,
+    decodedContent: any = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+    const status = (decodedContent?.status ||
+      embedData?.status ||
+      item.status ||
+      "finished") as "processing" | "finished" | "error";
+
+    const title = (decodedContent?.title as string | undefined) || "";
+    const sourceDomain =
+      (decodedContent?.source_domain as string | undefined) || "";
+    const thumbnailUrl =
+      (decodedContent?.thumbnail_url as string | undefined) || "";
+    const faviconUrl =
+      (decodedContent?.favicon_url as string | undefined) || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    if (!content.isConnected) {
+      console.warn(
+        "[GroupRenderer] Skipping ImageResultEmbedPreview mount — target detached from DOM",
+      );
+      return;
+    }
+
+    try {
+      const component = mount(ImageResultEmbedPreview, {
+        target: content,
+        props: {
+          title,
+          sourceDomain,
+          thumbnailUrl,
+          faviconUrl,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[GroupRenderer] Mounted ImageResultEmbedPreview component:",
+        {
+          embedId,
+          title,
+          status,
+        },
+      );
+    } catch (error) {
+      const err = error as Error;
+      console.error(
+        "[GroupRenderer] Error mounting ImageResultEmbedPreview:",
+        err?.name,
+        err?.message,
+        err?.stack,
+      );
+      if (content.isConnected) {
+        content.innerHTML = await this.renderImageResultItem(
+          item,
+          embedData,
+          decodedContent,
+        );
+      }
+    }
+  }
+
+  /**
+   * HTML fallback for images-image-result embeds (used by renderItemContent switch).
+   */
+  private async renderImageResultItem(
+    _item: EmbedNodeAttributes,
+    _embedData?: any,
+    decodedContent: any = null,
+  ): Promise<string> {
+    const title =
+      (decodedContent?.title as string | undefined) || "Image result";
+    const sourceDomain =
+      (decodedContent?.source_domain as string | undefined) || "";
+
+    return `
+      <div class="embed-app-icon images">
+        <span class="icon icon_images"></span>
+      </div>
+      <div class="embed-text-content">
+        <div class="embed-text-line">${title}</div>
+        ${sourceDomain ? `<div class="embed-text-subline">${sourceDomain}</div>` : ""}
+      </div>
+    `;
+  }
+
   private getGroupDisplayName(baseType: string, count: number): string {
+    // App skill use groups use a distinct label format: "{count} app skills used:"
+    if (baseType === "app-skill-use") {
+      return `${count} app skill${count > 1 ? "s" : ""} used:`;
+    }
+
     const typeDisplayNames: { [key: string]: string } = {
-      "app-skill-use": "request",
       "web-website": "website",
       "videos-video": "video",
       "code-code": "code file",
@@ -3892,6 +4032,7 @@ export class GroupRenderer implements EmbedRenderer {
       "travel-stay": "accommodation",
       "events-event": "event",
       "maps-place": "place",
+      "images-image-result": "image",
     };
 
     const displayName = typeDisplayNames[baseType] || baseType;

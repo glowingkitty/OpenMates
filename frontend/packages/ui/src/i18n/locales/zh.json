@@ -1366,6 +1366,12 @@
             "text": "将这个 PNG 图标转换为 SVG，使其在任何尺寸下都清晰"
           }
         }
+      },
+      "search": {
+        "text": "搜索",
+        "description": {
+          "text": "通过文字搜索图片或找到相似图片。"
+        }
       }
     },
     "maps": {
@@ -2098,6 +2104,29 @@
       },
       "expand": {
         "text": "展开思考过程"
+      }
+    },
+    "compression": {
+      "compressing": {
+        "text": "正在压缩聊天记录..."
+      },
+      "summary_title": {
+        "text": "聊天摘要"
+      },
+      "show_more": {
+        "text": "显示完整摘要"
+      },
+      "show_less": {
+        "text": "收起"
+      },
+      "show_forgotten": {
+        "text": "显示早期消息"
+      },
+      "hide_forgotten": {
+        "text": "隐藏早期消息"
+      },
+      "messages_compressed": {
+        "text": "已汇总 {count} 条消息"
       }
     },
     "new_chat_suggestions": {
@@ -2886,6 +2915,35 @@
       },
       "footer_note": {
         "text": "此通知由自动E2E测试监控系统发送。"
+      }
+    },
+    "test_run_summary": {
+      "title": {
+        "text": "每日测试运行摘要"
+      },
+      "header_success": {
+        "text": "所有测试通过"
+      },
+      "header_failure": {
+        "text": "{total}个测试中{failed}个失败"
+      },
+      "run_details_label": {
+        "text": "运行详情"
+      },
+      "git_label": {
+        "text": "Git"
+      },
+      "duration_label": {
+        "text": "持续时间"
+      },
+      "suites_label": {
+        "text": "测试套件"
+      },
+      "failed_tests_label": {
+        "text": "失败的测试"
+      },
+      "footer_note": {
+        "text": "此报告由自动每日测试监控系统生成。"
       }
     },
     "prometheus_alert": {
@@ -3831,6 +3889,27 @@
       },
       "copy_failed": {
         "text": "复制邮件草稿失败。"
+      }
+    },
+    "image_search": {
+      "text": "图片搜索",
+      "searching": {
+        "text": "正在搜索图片..."
+      },
+      "results_count": {
+        "text": "找到 {count} 张图片"
+      },
+      "view_source": {
+        "text": "查看来源"
+      },
+      "open_image": {
+        "text": "打开图片"
+      },
+      "reverse_search": {
+        "text": "反向搜索"
+      },
+      "error": {
+        "text": "图片搜索失败"
       }
     }
   },
@@ -5746,6 +5825,14 @@
       "action": {
         "text": "打开安全设置"
       }
+    },
+    "credits_depleted": {
+      "message": {
+        "text": "您的点数已用完。购买更多以继续使用 OpenMates。"
+      },
+      "buy_credits": {
+        "text": "购买积分"
+      }
     }
   },
   "onboarding": {},
@@ -6196,6 +6283,18 @@
         },
         "no_apps_found": {
           "text": "未找到与您搜索相符的应用。"
+        },
+        "filter_all": {
+          "text": "全部"
+        },
+        "filter_settings_memories": {
+          "text": "设置和记忆"
+        },
+        "filter_focus_modes": {
+          "text": "专注模式"
+        },
+        "filter_skills": {
+          "text": "技能"
         }
       },
       "categories": {
@@ -6552,7 +6651,7 @@
       "description": {
         "text": "管理您的积分、订阅和支付方式"
       },
-      "text": "账单",
+      "text": "账单与使用情况",
       "title": {
         "text": "账单和积分"
       },
@@ -7656,6 +7755,9 @@
         "invalid_prefix": {
           "text": "前缀必须是1-4个字符（A-Z, 2-9，不含O, I, 0, 1）"
         }
+      },
+      "tests": {
+        "text": "测试"
       }
     },
     "server_stats": {

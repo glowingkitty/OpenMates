@@ -751,7 +751,6 @@ changes to the documentation (to keep the documentation up to date).
     const settingsPageDescriptionKeys: Record<string, string> = {
         'pricing': 'settings.pricing.description',
         'privacy': 'settings.privacy.description',
-        'usage': 'settings.usage.description',
         'billing': 'settings.billing.description',
         'account': 'settings.account.description',
         'interface': 'settings.interface.description',

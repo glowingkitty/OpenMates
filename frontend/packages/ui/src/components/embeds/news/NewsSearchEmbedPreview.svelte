@@ -20,6 +20,7 @@
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
+  import { proxyImage, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
   import { chatSyncService } from '../../../services/chatSyncService';
   import { handleImageError } from '../../../utils/offlineImageHandler';
   
@@ -249,9 +250,6 @@
   // Map skillId to icon name - this is skill-specific logic
   const skillIconName = 'search';
   
-  // Preview server base URL for image proxying
-  // ALL external images must be proxied for user privacy (hides user IP from external servers)
-  const PREVIEW_SERVER = 'https://preview.openmates.org';
   
   /**
    * Proxy a favicon URL through the preview server for privacy.
@@ -262,7 +260,7 @@
    */
   function getProxiedFaviconUrl(faviconUrl: string | undefined): string {
     if (!faviconUrl) return '';
-    return `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(faviconUrl)}&max_width=38`;
+    return proxyImage(faviconUrl, MAX_WIDTH_FAVICON);
   }
   
   // Get "via {provider}" text from translations

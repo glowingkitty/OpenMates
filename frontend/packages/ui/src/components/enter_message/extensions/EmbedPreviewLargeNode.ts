@@ -62,6 +62,14 @@ export const EmbedPreviewLargeNode = Node.create<EmbedPreviewLargeNodeOptions>({
       carouselTotal: {
         default: 1,
       },
+      /**
+       * embedRef of the first card in this run. All cards in the run share the
+       * same runRef so EmbedPreviewLarge can use it as the carousel store key
+       * for synchronised navigation. Defaults to empty string (single card).
+       */
+      runRef: {
+        default: '',
+      },
     };
   },
 
@@ -82,6 +90,7 @@ export const EmbedPreviewLargeNode = Node.create<EmbedPreviewLargeNodeOptions>({
               element.getAttribute("data-carousel-total") ?? "1",
               10,
             ),
+            runRef: element.getAttribute("data-run-ref") ?? "",
           };
         },
       },
@@ -98,6 +107,7 @@ export const EmbedPreviewLargeNode = Node.create<EmbedPreviewLargeNodeOptions>({
         "data-app-id": HTMLAttributes.appId,
         "data-carousel-index": HTMLAttributes.carouselIndex,
         "data-carousel-total": HTMLAttributes.carouselTotal,
+        "data-run-ref": HTMLAttributes.runRef,
         class: "embed-preview-large-node",
         contenteditable: "false",
       }),
@@ -124,6 +134,7 @@ export const EmbedPreviewLargeNode = Node.create<EmbedPreviewLargeNodeOptions>({
               appId: node.attrs.appId as string | null,
               carouselIndex: node.attrs.carouselIndex as number,
               carouselTotal: node.attrs.carouselTotal as number,
+              runRef: node.attrs.runRef as string,
             },
           }) as Record<string, unknown>;
         } catch (err) {
@@ -146,7 +157,8 @@ export const EmbedPreviewLargeNode = Node.create<EmbedPreviewLargeNodeOptions>({
             updatedNode.attrs.embedId === node.attrs.embedId &&
             updatedNode.attrs.appId === node.attrs.appId &&
             updatedNode.attrs.carouselIndex === node.attrs.carouselIndex &&
-            updatedNode.attrs.carouselTotal === node.attrs.carouselTotal;
+            updatedNode.attrs.carouselTotal === node.attrs.carouselTotal &&
+            updatedNode.attrs.runRef === node.attrs.runRef;
           if (attrsMatch) {
             node = updatedNode;
             return true;

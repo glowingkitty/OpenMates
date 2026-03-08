@@ -249,3 +249,33 @@ export function getApiEndpoint(path: string = ""): string {
   const apiBase = getApiUrl();
   return `${apiBase}${path}`;
 }
+
+// Preview server URLs from environment
+// VITE_PREVIEW_URL: Single URL for self-hosted deployments (takes precedence)
+// VITE_PREVIEW_URL_DEV/PROD: Environment-specific preview server URLs for cloud deployments
+// The preview server proxies external images for privacy, resizing, and caching.
+export const previewUrls = {
+  development:
+    import.meta.env.VITE_PREVIEW_URL_DEV ||
+    "https://preview.openmates.org",
+  production:
+    import.meta.env.VITE_PREVIEW_URL_PROD ||
+    "https://preview.openmates.org",
+} as const;
+
+// Helper to get the preview server base URL
+export function getPreviewUrl(): string {
+  // VITE_PREVIEW_URL takes precedence — used for self-hosted deployments
+  if (import.meta.env.VITE_PREVIEW_URL) {
+    return import.meta.env.VITE_PREVIEW_URL;
+  }
+
+  switch (import.meta.env.VITE_ENV) {
+    case "production":
+      return previewUrls.production;
+    case "preview":
+      return previewUrls.development;
+    default:
+      return previewUrls.development;
+  }
+}

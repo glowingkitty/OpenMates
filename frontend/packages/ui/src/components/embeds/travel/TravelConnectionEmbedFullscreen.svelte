@@ -22,6 +22,7 @@
   import 'leaflet/dist/leaflet.css';
   import type { Map as LeafletMap, TileLayer } from 'leaflet';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
+  import { proxyImage, MAX_WIDTH_AIRLINE_LOGO_FULLSCREEN } from '../../../utils/imageProxy';
   
   /** Segment data within a leg */
   interface SegmentData {
@@ -1393,7 +1394,7 @@
                       <div class="segment-details-block">
                         <div class="segment-details">
                           {#if segment.airline_logo}
-                            <img class="segment-airline-logo" src={`https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(segment.airline_logo)}&max_width=36`} alt={segment.carrier} />
+                            <img class="segment-airline-logo" src={proxyImage(segment.airline_logo, MAX_WIDTH_AIRLINE_LOGO_FULLSCREEN)} alt={segment.carrier} />
                           {/if}
                           <span class="carrier-name">{segment.carrier}</span>
                           {#if segment.number}

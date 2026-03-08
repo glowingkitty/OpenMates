@@ -525,6 +525,48 @@ vercel --cwd frontend/apps/web_app           # preview (dev)
 
 ---
 
+## UI Bug Investigation: Request a Share Link First (CRITICAL)
+
+**When a UI/frontend issue is reported**, before reproducing it manually, ask the user for a **shared chat or embed link**. The share URL lets you:
+
+1. **Inspect the actual content** involved in the bug (decrypted messages, embed data) via `debug.py --share-url`
+2. **Open the shared view directly in Firecrawl** to observe the visual/rendering bug without needing to log in or reproduce it from scratch
+
+### Decision Tree for UI Issues
+
+```
+UI/frontend bug reported?
+├── User provided a share link (e.g. https://app.openmates.org/share/chat/<id>#key=<blob>)
+│   ├── 1. Inspect content: debug.py chat <id> --share-url "<url>"
+│   └── 2. Open in Firecrawl: firecrawl_browser_create → agent-browser open "<share-url>"
+│          → agent-browser screenshot   # observe the visual bug directly
+│
+└── No share link provided
+    └── Ask the user:
+        "Could you share a link to the chat or embed where this happens?
+         (Open the chat → Share button → copy the link)
+         This lets me see both the content and the visual rendering directly."
+        → If they provide one → follow the branch above
+        → If they can't / won't → reproduce manually on app.dev.openmates.org (see below)
+```
+
+### Why Share Links Are Better Than Manual Reproduction
+
+- The share link opens the **exact affected content** — no need to guess which chat or reproduce a complex state
+- Firecrawl can open the share URL directly and screenshot the rendered output, showing the real visual bug
+- `debug.py --share-url` decrypts the message/embed content so you can see what the AI/embed was processing
+- Saves the full reproduce-from-scratch loop when the bug is content-specific (e.g. a specific embed type, long message, unusual layout)
+
+### Share Link Format
+
+| Type         | URL format                                                              |
+| ------------ | ----------------------------------------------------------------------- |
+| Chat share   | `https://app.openmates.org/share/chat/<chat_id>#key=<blob>`             |
+| Embed share  | `https://app.openmates.org/share/embed/<embed_id>#key=<blob>`           |
+| Dev share    | `https://app.dev.openmates.org/share/chat/<chat_id>#key=<blob>`         |
+
+---
+
 ## Browser-Based Debugging with Firecrawl
 
 Use Firecrawl to **reproduce bugs and verify fixes** on `https://app.dev.openmates.org`. Use it for frontend/UI issues where "what the user sees" is the key question. For production or backend-only bugs, use the Unified Debug CLI and logs instead.

@@ -1366,6 +1366,12 @@
             "text": "このPNGアイコンをSVGに変換して、どのサイズでも鮮明に見えるようにして"
           }
         }
+      },
+      "search": {
+        "text": "検索",
+        "description": {
+          "text": "テキストで画像を検索したり、類似画像を見つけたりします。"
+        }
       }
     },
     "maps": {
@@ -2098,6 +2104,29 @@
       },
       "expand": {
         "text": "思考プロセスを展開する"
+      }
+    },
+    "compression": {
+      "compressing": {
+        "text": "チャットを圧縮中..."
+      },
+      "summary_title": {
+        "text": "チャット要約"
+      },
+      "show_more": {
+        "text": "完全な要約を表示"
+      },
+      "show_less": {
+        "text": "折りたたむ"
+      },
+      "show_forgotten": {
+        "text": "以前のメッセージを表示"
+      },
+      "hide_forgotten": {
+        "text": "以前のメッセージを非表示"
+      },
+      "messages_compressed": {
+        "text": "{count} 件のメッセージを要約"
       }
     },
     "new_chat_suggestions": {
@@ -2886,6 +2915,35 @@
       },
       "footer_note": {
         "text": "この通知は自動E2Eテスト監視システムから送信されました。"
+      }
+    },
+    "test_run_summary": {
+      "title": {
+        "text": "日次テスト実行サマリー"
+      },
+      "header_success": {
+        "text": "全テスト合格"
+      },
+      "header_failure": {
+        "text": "{total}件中{failed}件のテストが失敗"
+      },
+      "run_details_label": {
+        "text": "実行詳細"
+      },
+      "git_label": {
+        "text": "Git"
+      },
+      "duration_label": {
+        "text": "所要時間"
+      },
+      "suites_label": {
+        "text": "テストスイート"
+      },
+      "failed_tests_label": {
+        "text": "失敗したテスト"
+      },
+      "footer_note": {
+        "text": "このレポートは自動日次テスト監視システムによって生成されました。"
       }
     },
     "prometheus_alert": {
@@ -3831,6 +3889,27 @@
       },
       "copy_failed": {
         "text": "メール下書きのコピーに失敗しました。"
+      }
+    },
+    "image_search": {
+      "text": "画像検索",
+      "searching": {
+        "text": "画像を検索中..."
+      },
+      "results_count": {
+        "text": "{count} 枚の画像が見つかりました"
+      },
+      "view_source": {
+        "text": "ソースを見る"
+      },
+      "open_image": {
+        "text": "画像を開く"
+      },
+      "reverse_search": {
+        "text": "逆画像検索"
+      },
+      "error": {
+        "text": "画像検索に失敗しました"
       }
     }
   },
@@ -5746,6 +5825,14 @@
       "action": {
         "text": "セキュリティ設定を開く"
       }
+    },
+    "credits_depleted": {
+      "message": {
+        "text": "クレジットが不足しています。OpenMates を引き続き使用するにはクレジットを購入してください。"
+      },
+      "buy_credits": {
+        "text": "クレジットを購入"
+      }
     }
   },
   "onboarding": {},
@@ -6196,6 +6283,18 @@
         },
         "no_apps_found": {
           "text": "検索に一致するアプリが見つかりませんでした。"
+        },
+        "filter_all": {
+          "text": "すべて"
+        },
+        "filter_settings_memories": {
+          "text": "設定と記憶"
+        },
+        "filter_focus_modes": {
+          "text": "フォーカスモード"
+        },
+        "filter_skills": {
+          "text": "スキル"
         }
       },
       "categories": {
@@ -6552,7 +6651,7 @@
       "description": {
         "text": "クレジット、サブスクリプション、支払い方法を管理する"
       },
-      "text": "請求",
+      "text": "請求と使用状況",
       "title": {
         "text": "請求とクレジット"
       },
@@ -7647,6 +7746,9 @@
         "invalid_prefix": {
           "text": "プレフィックスは1-4文字（A-Z, 2-9、O, I, 0, 1を除く）"
         }
+      },
+      "tests": {
+        "text": "テスト"
       }
     },
     "server_stats": {

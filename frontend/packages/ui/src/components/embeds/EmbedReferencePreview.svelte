@@ -87,8 +87,8 @@
       // Guard: container must still be attached to the DOM.
       // During streaming, TipTap may destroy and recreate node views,
       // leaving containerEl detached before the async resolve completes.
-      if (!containerEl.isConnected) {
-        console.warn('[EmbedReferencePreview] containerEl detached from DOM, aborting render');
+      if (!containerEl || !containerEl.isConnected) {
+        console.warn('[EmbedReferencePreview] containerEl detached/null after resolve, aborting render');
         return;
       }
 

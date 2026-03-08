@@ -381,3 +381,98 @@ def process_test_result(
         "test_name": test_name,
         "test_file": test_file
     }
+
+
+@app.task(name='e2e_tests.run_daily_all_tests', base=E2ETestTask, bind=True)
+def run_daily_all_tests(self, force: bool = False) -> Dict[str, Any]:
+    """
+    Celery Beat scheduled task: daily automated full test run.
+
+    Runs every day at 03:00 UTC (configurable via the Beat schedule in
+    celery_config.py). Triggers test execution via the admin-sidecar HTTP
+    endpoint, which runs scripts/run-tests-daily.sh on the host filesystem
+    where all required tools (Node.js, pnpm, pytest, Docker CLI) are available.
+
+    The sidecar runs the script in the background and writes results to
+    test-results/last-run.json. This task polls the sidecar for completion
+    and then clears the cache run-in-progress flag.
+
+    For daily Beat runs, force=False (respects the 24h commit-activity gate).
+    For manual triggers via the admin API, force=True is passed.
+
+    Returns:
+        dict with keys: status, sidecar_response
+    """
+    import time as _time
+
+    sidecar_url = os.environ.get("CORE_SIDECAR_URL", "http://core-admin-sidecar:8001")
+    sidecar_key = os.environ.get("SECRET__CORE_SERVER__ADMIN_LOG_API_KEY", "")
+
+    logger.info(
+        "Daily test run: triggering via admin sidecar at %s (force=%s)",
+        sidecar_url, force,
+    )
+
+    try:
+        import httpx
+
+        # Trigger the test run on the sidecar (returns 202 immediately)
+        with httpx.Client(timeout=15.0) as client:
+            resp = client.post(
+                f"{sidecar_url}/admin/run-tests",
+                params={"force": str(force).lower()},
+                headers={"X-Admin-Log-Key": sidecar_key},
+            )
+
+        if resp.status_code == 409:
+            logger.warning("Test run already in progress on sidecar — skipping")
+            return {"status": "already_running", "sidecar_response": resp.json()}
+
+        if resp.status_code != 202:
+            logger.error(
+                "Sidecar returned unexpected status %d: %s",
+                resp.status_code, resp.text[:500],
+            )
+            return {"status": "error", "reason": f"sidecar returned {resp.status_code}"}
+
+        logger.info("Test run accepted by sidecar, polling for completion...")
+
+        # Poll the sidecar for completion (check every 30s, up to 35 min)
+        max_polls = 70
+        for i in range(max_polls):
+            _time.sleep(30)
+            try:
+                with httpx.Client(timeout=10.0) as client:
+                    status_resp = client.get(
+                        f"{sidecar_url}/admin/run-tests/status",
+                        headers={"X-Admin-Log-Key": sidecar_key},
+                    )
+                if status_resp.status_code == 200:
+                    status_data = status_resp.json()
+                    if status_data.get("status") != "in_progress":
+                        logger.info(
+                            "Test run completed: status=%s (poll %d)",
+                            status_data.get("status"), i + 1,
+                        )
+                        return {"status": status_data.get("status"), "sidecar_response": status_data}
+            except Exception as poll_err:
+                logger.warning("Poll %d failed: %s", i + 1, poll_err)
+
+        logger.error("Test run polling timed out after %d polls", max_polls)
+        return {"status": "timeout", "reason": "polling timed out"}
+
+    except Exception as e:
+        logger.error("Failed to trigger test run via sidecar: %s", e, exc_info=True)
+        return {"status": "error", "reason": str(e)}
+
+    finally:
+        # Clear the "manual test run in progress" cache flag (set by the admin
+        # API endpoint POST /v1/admin/tests/run). Safe to call even when the
+        # run was triggered by Celery Beat (the key simply won't exist).
+        try:
+            import redis as redis_lib
+            broker_url = os.environ.get("CELERY_BROKER_URL", "redis://cache:6379/0")
+            r = redis_lib.from_url(broker_url)
+            r.delete("admin:manual_test_run")
+        except Exception as cache_err:
+            logger.warning(f"Failed to clear manual test run cache flag: {cache_err}")

@@ -443,6 +443,10 @@ function getSkillMentionResults(): SkillMentionResult[] {
     const appDisplayName = capitalizeWords(appId);
 
     for (const skill of app.skills) {
+      // Skip the ai.ask skill — it is the implicit entry-point for all AI requests
+      // and makes no sense to surface in the @mention dropdown or suggestion chips.
+      if (appId === "ai" && skill.id === "ask") continue;
+
       // Hyphenated: "Code-Get-Docs" (app name + skill id with hyphens)
       const skillDisplayName = capitalizeWords(skill.id.replace(/_/g, "-"));
 

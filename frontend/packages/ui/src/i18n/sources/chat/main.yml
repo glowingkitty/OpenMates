@@ -1036,3 +1036,153 @@ compression.compressing:
   sv: Komprimerar chatten...
   he: דוחס את השיחה...
   verified_by_human: []
+
+compression.summary_title:
+  context: Title shown on the compression summary system message card
+  en: Chat Summary
+  de: Chat-Zusammenfassung
+  zh: 聊天摘要
+  es: Resumen del chat
+  fr: Résumé du chat
+  pt: Resumo do chat
+  ru: Сводка чата
+  ja: チャット要約
+  ko: 채팅 요약
+  it: Riepilogo della chat
+  tr: Sohbet özeti
+  vi: Tóm tắt cuộc trò chuyện
+  id: Ringkasan obrolan
+  pl: Podsumowanie czatu
+  nl: Chatsamenvatting
+  ar: ملخص المحادثة
+  hi: चैट सारांश
+  th: สรุปแชท
+  cs: Shrnutí chatu
+  sv: Chattsammanfattning
+  he: סיכום השיחה
+  verified_by_human: []
+
+compression.show_more:
+  context: Button text to expand the full compression summary
+  en: Show full summary
+  de: Vollständige Zusammenfassung anzeigen
+  zh: 显示完整摘要
+  es: Mostrar resumen completo
+  fr: Afficher le résumé complet
+  pt: Mostrar resumo completo
+  ru: Показать полную сводку
+  ja: 完全な要約を表示
+  ko: 전체 요약 보기
+  it: Mostra riepilogo completo
+  tr: Tam özeti göster
+  vi: Hiển thị tóm tắt đầy đủ
+  id: Tampilkan ringkasan lengkap
+  pl: Pokaż pełne podsumowanie
+  nl: Volledige samenvatting tonen
+  ar: عرض الملخص الكامل
+  hi: पूरा सारांश दिखाएं
+  th: แสดงสรุปทั้งหมด
+  cs: Zobrazit celé shrnutí
+  sv: Visa fullständig sammanfattning
+  he: הצג סיכום מלא
+  verified_by_human: []
+
+compression.show_less:
+  context: Button text to collapse the compression summary
+  en: Show less
+  de: Weniger anzeigen
+  zh: 收起
+  es: Mostrar menos
+  fr: Afficher moins
+  pt: Mostrar menos
+  ru: Свернуть
+  ja: 折りたたむ
+  ko: 접기
+  it: Mostra meno
+  tr: Daha az göster
+  vi: Thu gọn
+  id: Tampilkan lebih sedikit
+  pl: Pokaż mniej
+  nl: Minder tonen
+  ar: عرض أقل
+  hi: कम दिखाएं
+  th: แสดงน้อยลง
+  cs: Zobrazit méně
+  sv: Visa mindre
+  he: הצג פחות
+  verified_by_human: []
+
+compression.show_forgotten:
+  context: Button text to show messages that were compressed/forgotten
+  en: Show earlier messages
+  de: Frühere Nachrichten anzeigen
+  zh: 显示早期消息
+  es: Mostrar mensajes anteriores
+  fr: Afficher les messages précédents
+  pt: Mostrar mensagens anteriores
+  ru: Показать ранние сообщения
+  ja: 以前のメッセージを表示
+  ko: 이전 메시지 보기
+  it: Mostra messaggi precedenti
+  tr: Önceki mesajları göster
+  vi: Hiển thị tin nhắn trước đó
+  id: Tampilkan pesan sebelumnya
+  pl: Pokaż wcześniejsze wiadomości
+  nl: Eerdere berichten tonen
+  ar: عرض الرسائل السابقة
+  hi: पुराने संदेश दिखाएं
+  th: แสดงข้อความก่อนหน้า
+  cs: Zobrazit starší zprávy
+  sv: Visa tidigare meddelanden
+  he: הצג הודעות קודמות
+  verified_by_human: []
+
+compression.hide_forgotten:
+  context: Button text to hide the earlier compressed/forgotten messages
+  en: Hide earlier messages
+  de: Frühere Nachrichten ausblenden
+  zh: 隐藏早期消息
+  es: Ocultar mensajes anteriores
+  fr: Masquer les messages précédents
+  pt: Ocultar mensagens anteriores
+  ru: Скрыть ранние сообщения
+  ja: 以前のメッセージを非表示
+  ko: 이전 메시지 숨기기
+  it: Nascondi messaggi precedenti
+  tr: Önceki mesajları gizle
+  vi: Ẩn tin nhắn trước đó
+  id: Sembunyikan pesan sebelumnya
+  pl: Ukryj wcześniejsze wiadomości
+  nl: Eerdere berichten verbergen
+  ar: إخفاء الرسائل السابقة
+  hi: पुराने संदेश छुपाएं
+  th: ซ่อนข้อความก่อนหน้า
+  cs: Skrýt starší zprávy
+  sv: Dölj tidigare meddelanden
+  he: הסתר הודעות קודמות
+  verified_by_human: []
+
+compression.messages_compressed:
+  context: Subtitle text in the compression summary showing how many messages were summarized
+  en: "{count} messages summarized"
+  de: "{count} Nachrichten zusammengefasst"
+  zh: "已汇总 {count} 条消息"
+  es: "{count} mensajes resumidos"
+  fr: "{count} messages résumés"
+  pt: "{count} mensagens resumidas"
+  ru: "{count} сообщений сводка"
+  ja: "{count} 件のメッセージを要約"
+  ko: "{count}개 메시지 요약됨"
+  it: "{count} messaggi riassunti"
+  tr: "{count} mesaj özetlendi"
+  vi: "Đã tóm tắt {count} tin nhắn"
+  id: "{count} pesan diringkas"
+  pl: "{count} wiadomości podsumowanych"
+  nl: "{count} berichten samengevat"
+  ar: "تم تلخيص {count} رسالة"
+  hi: "{count} संदेश सारांशित"
+  th: "สรุป {count} ข้อความ"
+  cs: "{count} zpráv shrnuto"
+  sv: "{count} meddelanden sammanfattade"
+  he: "{count} הודעות סוכמו"
+  verified_by_human: []

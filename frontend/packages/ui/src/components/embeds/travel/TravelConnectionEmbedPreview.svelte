@@ -14,6 +14,7 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import { proxyImage, MAX_WIDTH_AIRLINE_LOGO } from '../../../utils/imageProxy';
   
   /**
    * Props for travel connection embed preview
@@ -129,7 +130,7 @@
     // Show max 3 airline logos
     return carrierCodes.slice(0, 3).map(code => ({
       code,
-      url: `https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(`https://images.kiwi.com/airlines/64/${code}.png`)}&max_width=32`,
+      url: proxyImage(`https://images.kiwi.com/airlines/64/${code}.png`, MAX_WIDTH_AIRLINE_LOGO),
     }));
   });
   

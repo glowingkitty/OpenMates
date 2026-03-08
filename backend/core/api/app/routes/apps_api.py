@@ -327,20 +327,29 @@ def get_provider_api_key_env_vars(provider_id: str) -> List[str]:
     return [default_key]
 
 
-async def check_provider_api_key_available(provider_id: str, secrets_manager: SecretsManager) -> bool:
+async def check_provider_api_key_available(provider_id: str, secrets_manager: SecretsManager, config_manager: "ConfigManager | None" = None) -> bool:
     """
     Check if an API key is available for a provider.
-    
+
     Checks both Vault and environment variables to determine if the API key is configured.
+    Providers with no_api_key: true in their YAML are always considered available.
     This is used to determine if a skill should be shown as available.
-    
+
     Args:
         provider_id: Provider ID (e.g., "brave", "firecrawl", "youtube")
         secrets_manager: SecretsManager instance for checking Vault
-        
+        config_manager: Optional ConfigManager for reading provider YAML flags
+
     Returns:
-        True if API key is available, False otherwise
+        True if API key is available (or provider needs no key), False otherwise
     """
+    # If the provider YAML declares no_api_key: true, it never needs a key — always available.
+    if config_manager is not None:
+        provider_config = config_manager.get_provider_config(provider_id)
+        if provider_config and provider_config.get("no_api_key") is True:
+            logger.debug(f"Provider '{provider_id}' has no_api_key=true — always available")
+            return True
+
     # Get the Vault path and key name for this provider
     # Standard pattern: kv/data/providers/{provider_id}
     vault_path = f"kv/data/providers/{provider_id}"
@@ -371,30 +380,32 @@ async def check_provider_api_key_available(provider_id: str, secrets_manager: Se
     return False
 
 
-async def is_skill_available(skill: AppSkillDefinition, app_id: str, secrets_manager: SecretsManager) -> bool:
+async def is_skill_available(skill: AppSkillDefinition, app_id: str, secrets_manager: SecretsManager, config_manager: "ConfigManager | None" = None) -> bool:
     """
     Check if a skill is available based on API key availability for its providers.
-    
-    A skill is considered available if at least one of its providers has a configured API key.
+
+    A skill is considered available if at least one of its providers has a configured API key,
+    or if a provider declares no_api_key: true (no key required).
     If a skill has no providers, it's considered available (no API key required).
-    
+
     Args:
         skill: The skill definition
         app_id: The app ID for provider name mapping
         secrets_manager: SecretsManager instance for checking API keys
-        
+        config_manager: Optional ConfigManager for reading provider YAML flags
+
     Returns:
-        True if the skill is available (at least one provider has API key), False otherwise
+        True if the skill is available (at least one provider is accessible), False otherwise
     """
     # If skill has no providers, it's available (no API key required)
     if not skill.providers or len(skill.providers) == 0:
         logger.debug(f"Skill '{skill.id}' has no providers, considering it available")
         return True
-    
-    # Check if at least one provider has an available API key
+
+    # Check if at least one provider has an available API key (or needs no key)
     for provider_name in skill.providers:
         provider_id = map_provider_name_to_id(provider_name, app_id)
-        is_available = await check_provider_api_key_available(provider_id, secrets_manager)
+        is_available = await check_provider_api_key_available(provider_id, secrets_manager, config_manager)
         if is_available:
             logger.debug(f"Skill '{skill.id}' is available - provider '{provider_id}' has API key configured")
             return True
@@ -1041,7 +1052,7 @@ async def list_apps(
                     continue
                 
                 # Check if skill is available based on API key configuration
-                skill_available = await is_skill_available(skill, app_id, secrets_manager)
+                skill_available = await is_skill_available(skill, app_id, secrets_manager, config_manager)
                 if not skill_available:
                     logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no API keys configured for providers")
                     continue

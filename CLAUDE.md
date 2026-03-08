@@ -4,6 +4,77 @@ This document provides essential guidelines for AI assistants working on the Ope
 
 ---
 
+## MANDATORY: Session Lifecycle (Do This First and Last)
+
+**Every session — no exceptions — must run these commands:**
+
+```bash
+# 1. FIRST thing, before any work:
+python3 scripts/sessions.py start --task "brief description of what you are doing"
+# → Saves your session ID (e.g. "a3f2"). You MUST use this ID in all subsequent commands.
+# → Tags are auto-inferred from the task description (e.g. "fix button" → frontend,debug).
+#   Override with --tags "frontend,test" if auto-inference is wrong.
+# → Relevant instruction docs (from docs/claude/) are printed inline based on tags.
+#   READ THEM — they contain project-specific rules that override general knowledge.
+# → Architecture doc index is printed so you can load specific ones later with:
+#   python3 scripts/sessions.py context --doc <name>
+
+# 2. After EVERY file you edit or create (manually — automation is not reliable):
+python3 scripts/sessions.py track --session <ID> --file path/to/file.py
+
+# 3. Before deploying (loads git/deployment docs deferred from session start):
+python3 scripts/sessions.py deploy-docs
+
+# 4. LAST thing, after committing:
+python3 scripts/sessions.py end --session <ID>
+```
+
+**Why this matters:** Multiple assistants work on this codebase simultaneously. Without registering, your files are invisible to other sessions — risking edit collisions and broken deployments. The `start` output gives you active session info, lock status, stale docs, a project index, and **all relevant instruction docs inline** — so you don't need separate Read calls.
+
+### Available Tags
+
+Tags control which instruction docs are preloaded. They are auto-inferred from the task description, or set explicitly with `--tags`:
+
+| Tag | Loads |
+| --- | --- |
+| `frontend` | frontend-standards.md |
+| `backend` | backend-standards.md |
+| `debug` | debugging.md |
+| `test` | testing.md |
+| `i18n` | i18n.md, manage-translations.md |
+| `figma` | figma-to-code.md |
+| `embed` | embed-types.md, image-proxy.md |
+| `api` | add-api.md |
+| `planning` | planning.md |
+| `feature` | planning.md, feature-workflow.md |
+| `logging` | logging-and-docs.md |
+| `concurrent` | concurrent-sessions.md |
+| `security` | backend-standards.md |
+
+Git/deployment docs (`git-and-deployment.md`) are **deferred to deploy phase** — load them with `python3 scripts/sessions.py deploy-docs` before committing.
+
+### On-Demand Doc Loading
+
+To load any doc mid-session (instruction or architecture):
+
+```bash
+python3 scripts/sessions.py context --doc <name>
+# Examples:
+python3 scripts/sessions.py context --doc sync           # → docs/architecture/sync.md
+python3 scripts/sessions.py context --doc debugging       # → docs/claude/debugging.md
+python3 scripts/sessions.py context --doc embed-types     # → docs/claude/embed-types.md
+```
+
+### Session Summary (for handoff)
+
+To see a compact summary of a session (useful when picking up another session's work):
+
+```bash
+python3 scripts/sessions.py summary --session <ID>
+```
+
+---
+
 ## Project Overview
 
 OpenMates is a multi-platform application with:
@@ -71,6 +142,7 @@ Before writing any new function, class, Pydantic model, or Svelte component:
 3. **Shared architecture decision comments** — Write once in `docs/architecture/`, reference with a one-line comment: `# See docs/architecture/<topic>.md for design rationale`. Do NOT copy multi-line decision blocks across files.
 4. **Pydantic model reuse** — If multiple skills need similar Request/Response shapes, create base models in `backend/shared/python_schemas/` and extend per-skill.
 5. **Unified Svelte components first** — Always use `UnifiedEmbedPreview.svelte` and `UnifiedEmbedFullscreen.svelte` as the base for embed components. Only add app-specific logic in the `details`/`content` snippets. See `docs/claude/embed-types.md`.
+6. **External image URLs** — Never hardcode the preview server domain. Use `proxyImage()`, `proxyFavicon()`, `getMetadataUrl()`, or `getYouTubeMetadataUrl()` from `frontend/packages/ui/src/utils/imageProxy.ts`. See `docs/claude/image-proxy.md`.
 
 ### Architecture Decision Documentation
 
@@ -222,10 +294,15 @@ Rules: use the emoji headers exactly as shown. For bug fixes, always include the
 ### Auto-Commit After Every Task (CRITICAL)
 
 - **ALWAYS commit and push to `dev` after completing a feature or bug fix** — do not wait for the user to ask.
-- Only add files you actually modified in the current session (never `git add .`).
-- Run the linter and fix all errors before committing.
-- Run the linter (`lint_changed.sh`) and fix all errors before committing — this covers TypeScript, Svelte, ESLint, and YAML syntax checks. For significant routing, adapter, or Vite config changes, also run `pnpm build` in `frontend/apps/web_app/` to catch bundler-level errors.
-- **When a commit resolves or attempts to fix a reported issue**, include the issue ID and a short anonymous description in the commit body (no PII — no emails, usernames, or user IDs). See `docs/claude/git-and-deployment.md` → "Issue-Linked Commits" for format.
+- **Use `sessions.py` for deployment** — it commits only the files you tracked and handles lint + commit + push:
+  ```bash
+  python3 scripts/sessions.py prepare-deploy --session <ID>   # preview + lint
+  python3 scripts/sessions.py deploy --session <ID> --title "fix: description" --message "body"
+  ```
+  Make sure you have called `sessions.py track --session <ID> --file <path>` for every file you modified before deploying.
+- If deploying manually: only add files you actually modified (never `git add .`). Run the linter (`lint_changed.sh`) first.
+- For significant routing, adapter, or Vite config changes, also run `pnpm build` in `frontend/apps/web_app/` to catch bundler-level errors.
+- **When a commit resolves or attempts to fix a reported issue**, include the issue ID and a short anonymous description in the commit body (no PII). See `docs/claude/git-and-deployment.md` → "Issue-Linked Commits" for format.
 - See `docs/claude/git-and-deployment.md` for commit message format and full workflow.
 
 ### Research Before Implementing New Apps, Skills, or Features (CRITICAL)
@@ -350,24 +427,48 @@ See `docs/claude/backend-standards.md` → "Package and Dependency Management" a
 - **Check git status** before committing; files may already be committed by another assistant. Only add and commit what you actually changed this session.
 - **If the API or a service appears down**, another assistant may be in the middle of rebuilding/restarting Docker containers. Before assuming a real failure, check whether a restart is in progress and wait for it to complete. See the "Service Unavailable During Concurrent Work" section in `docs/claude/debugging.md`.
 
-#### Session Coordination (CRITICAL)
+#### Session Coordination via `scripts/sessions.py` (CRITICAL)
 
-All concurrent sessions coordinate through a shared file: **`.claude/sessions.md`** (gitignored, lives only on the dev server). **You MUST use this file** to avoid duplicate work and conflicts.
+All concurrent sessions coordinate through **`.claude/sessions.json`** (gitignored), managed by `scripts/sessions.py`. **File tracking is manual — you must call `track` after every edit.**
 
-**On session start:**
+**On session start** (absolute first action):
 
-1. Generate a random 4-char hex session ID: `python3 -c "import secrets; print(secrets.token_hex(2))"`
-2. Register yourself in the Active Sessions table in `.claude/sessions.md`
+```bash
+python3 scripts/sessions.py start --task "brief task description"
+# Tags auto-inferred from task. Override: --tags "backend,test"
+# Save the 4-char session ID printed — required for all other commands.
+# READ the instruction docs printed in the output — they are loaded based on tags.
+```
+
+**After every file edit or creation:**
+
+```bash
+python3 scripts/sessions.py track --session <ID> --file path/to/modified/file.py
+```
 
 **Before rebuilding Docker containers:**
 
-1. Read `.claude/sessions.md` → check the Docker Rebuild Lock
-2. If another session holds the lock → **wait and poll every 30s**
-3. If no lock is held → claim the lock, rebuild, then release the lock immediately
+```bash
+python3 scripts/sessions.py lock --session <ID> --type docker
+# ... rebuild ...
+python3 scripts/sessions.py unlock --session <ID> --type docker
+```
 
-**Lock staleness:** If a lock's `Last updated` is 5+ minutes old, assume the holding session crashed and take over.
+**Deploying (lint + commit + push):**
 
-See `docs/claude/concurrent-sessions.md` for the full protocol, lock format, and file ownership tracking.
+```bash
+python3 scripts/sessions.py deploy-docs                                       # load deferred git docs
+python3 scripts/sessions.py prepare-deploy --session <ID>
+python3 scripts/sessions.py deploy --session <ID> --title "fix: description" --message "body"
+```
+
+**On session end** (after committing):
+
+```bash
+python3 scripts/sessions.py end --session <ID>
+```
+
+See `docs/claude/concurrent-sessions.md` for the full protocol.
 
 ### Svelte 5 (CRITICAL)
 
@@ -394,142 +495,41 @@ docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/cor
 
 ---
 
-## MANDATORY: Read Sub-Documents Before Working
+## Instruction Docs (Loaded Automatically via Tags)
 
-**CRITICAL RULE: Before starting ANY task, you MUST determine which sub-documents below apply and READ THEM IN FULL using the Read tool. Do NOT skip this step. Do NOT assume you know the contents. These documents contain project-specific rules that override general knowledge. Failing to read them leads to incorrect code that must be rewritten.**
+**The `sessions.py start` command automatically loads relevant instruction docs based on tags.** You do NOT need to manually determine which docs to read — the tag system handles this.
 
-### Step 1: Determine which documents to read
+If you need a doc that wasn't loaded at session start, use:
 
-For EVERY task, scan the trigger conditions below. If ANY condition matches, you MUST read that file before writing any code or making any changes.
+```bash
+python3 scripts/sessions.py context --doc <name>
+```
 
-### Step 2: Read all matching documents
+### Special Cases
 
-Use the Read tool to load each matching file from `docs/claude/`. Do this BEFORE planning or writing code.
+- **Vercel deployment failures:** Run `python3 scripts/sessions.py debug-vercel` — it auto-starts a session and prints build logs. Most common cause: failed `pnpm prepare` validation.
+- **Default assumption:** All reported issues are on the **dev server**, reported by an **admin**, unless stated otherwise.
+- **Git/deployment docs:** Deferred to deploy phase. Run `python3 scripts/sessions.py deploy-docs` before committing.
 
----
+### Available Instruction Docs
 
-### Required Documents by Trigger
-
-#### `docs/claude/frontend-standards.md`
-
-**MUST READ when ANY of these are true:**
-
-- You are editing, creating, or reviewing files under `frontend/`
-- The task involves Svelte components, TypeScript, CSS, or stores
-- You are touching `.svelte`, `.ts`, or `.css` files in the frontend
-
-#### `docs/claude/backend-standards.md`
-
-**MUST READ when ANY of these are true:**
-
-- You are editing, creating, or reviewing files under `backend/`
-- The task involves Python code, FastAPI routes, Pydantic models, or database queries
-- You are touching `.py` files in the backend
-- You are creating or modifying an app skill (includes REST API documentation requirements)
-
-#### `docs/claude/debugging.md`
-
-**MUST READ when ANY of these are true:**
-
-- The user reports a bug, error, or unexpected behavior
-- You need to read Docker logs or troubleshoot a service
-- The task involves investigating why something doesn't work
-- **You need to debug a production issue** (CRITICAL: use debug.py, not local docker compose)
-- A Vercel deployment failed or the frontend is broken after a push
-
-> **Default assumption:** All reported issues are on the **dev server**, reported by an **admin**, unless the user explicitly states otherwise.
-
-#### `docs/claude/debugging.md` (also covers inspection)
-
-**MUST READ when ANY of these are true:**
-
-- You need to inspect server state (chats, users, issues, cache, AI requests)
-- You need to run diagnostic commands on the running services
-- The user asks you to check or look up data on the server
-- You need to debug production server state remotely (use debug.py)
-
-#### `docs/claude/git-and-deployment.md`
-
-**MUST READ when ANY of these are true:**
-
-- You are about to commit, push, or interact with git
-- The task involves deployment, branch management, or PRs
-- You need to understand the branch-to-server mapping
-
-#### `docs/claude/testing.md`
-
-**MUST READ when ANY of these are true:**
-
-- You are creating, modifying, or running tests
-- The user asks you to verify changes with tests
-
-#### `docs/claude/figma-to-code.md`
-
-**MUST READ when ANY of these are true:**
-
-- The user provides a Figma link or references a Figma design
-- The task involves implementing a UI design or matching a visual mockup
-
-#### `docs/claude/i18n.md`
-
-**MUST READ when ANY of these are true:**
-
-- You are adding or modifying user-facing strings (labels, messages, errors shown to users)
-- You are editing translation/i18n files
-
-#### `docs/claude/manage-translations.md`
-
-**MUST READ when ANY of these are true:**
-
-- You are looking for missing translations to fill in
-- You are asked to translate keys for a specific language
-- You need to find which file a translation key lives in
-- You are validating or auditing the translation files
-- You are running `manage_translations.py` or deciding which command to use
-- The user asks about translation completeness, coverage, or statistics for any language
-- The user asks which translations are missing or how many are left
-- The user asks anything about the state of translations (even informational questions)
-
-#### `docs/claude/planning.md`
-
-**MUST READ when ANY of these are true:**
-
-- You are implementing a new feature, significant refactor, or multi-file change
-- The task is non-trivial and requires understanding data flow or component interaction
-- You need to plan before writing code
-
-#### `docs/claude/concurrent-sessions.md`
-
-**MUST READ when ANY of these are true:**
-
-- You are about to rebuild or restart Docker containers
-- You are starting a new session (to register yourself)
-- Another assistant's work may conflict with yours (e.g., editing the same files)
-
-#### `docs/claude/add-api.md`
-
-**MUST READ when ANY of these are true:**
-
-- The user asks to integrate a new external API or data provider
-- You are adding a new third-party API connection (events, maps, payments, social, etc.)
-- The user asks to reverse-engineer or scrape a website as a data source
-- You need to build a test script for an API integration
-
-#### `docs/claude/embed-types.md`
-
-**MUST READ when ANY of these are true:**
-
-- You are creating a new embed type (Preview + Fullscreen component pair)
-- You are adding a new `app_id` / `skill_id` to the embed renderer routing
-- You are creating a new direct-type embed renderer class
-- You are modifying how embed cards render in the chat message stream
-
-#### `docs/claude/logging-and-docs.md`
-
-**MUST READ when ANY of these are true:**
-
-- You are adding logging statements or error handling
-- You are updating project documentation
+| Document | Tags that load it | When it applies |
+| --- | --- | --- |
+| `frontend-standards.md` | frontend | Svelte, TypeScript, CSS, stores |
+| `backend-standards.md` | backend, security | Python, FastAPI, Pydantic, Docker |
+| `debugging.md` | debug | Bugs, errors, server inspection, Docker logs |
+| `testing.md` | test | Creating/running tests |
+| `i18n.md` | i18n | User-facing strings, translations |
+| `manage-translations.md` | i18n | Translation management, coverage stats |
+| `figma-to-code.md` | figma | Implementing Figma designs |
+| `embed-types.md` | embed | Embed preview/fullscreen components |
+| `image-proxy.md` | embed | External image loading via preview server proxy |
+| `add-api.md` | api | External API integrations |
+| `planning.md` | planning, feature | Implementation planning |
+| `feature-workflow.md` | feature | Full feature lifecycle (requirements to deploy) |
+| `logging-and-docs.md` | logging | Logging statements, error handling |
+| `concurrent-sessions.md` | concurrent | Docker rebuilds, session conflicts |
+| `git-and-deployment.md` | *(deploy phase)* | Commit format, deployment, PRs |
 
 ---
 
@@ -550,3 +550,4 @@ Use the Read tool to load each matching file from `docs/claude/`. Do this BEFORE
 ```
 
 **CRITICAL**: Before every git commit, run the linter on all modified files and fix all errors. Only commit when the linter shows NO errors.
+

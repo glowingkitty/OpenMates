@@ -10,6 +10,7 @@ Invoices Settings - View and download past invoices
     import { notificationStore } from '../../../stores/notificationStore';
     import * as cryptoService from '../../../services/cryptoService';
     import { webSocketService } from '../../../services/websocketService';
+    import { pendingInvoiceStore } from '../../../stores/pendingInvoiceStore';
     import { replaceState } from '$app/navigation';
 
     // Invoice interface
@@ -31,6 +32,9 @@ Invoices Settings - View and download past invoices
     let refundingInvoiceId: string | null = $state(null);  // Track which invoice is being refunded
     let creditNoteReadyInvoices = $state<Set<string>>(new Set());  // Track which invoices have credit note PDFs ready
     let isInitialLoad = $state(true);  // Track if this is the initial page load
+    // Optimistic "processing" invoices — shown immediately after payment succeeds,
+    // before the Celery task creates the real invoice in DB.
+    let pendingInvoices: Invoice[] = $state([]);
 
     // Format date for display
     function formatDate(dateStr: string): string {
@@ -153,6 +157,24 @@ Invoices Settings - View and download past invoices
             } else {
                 invoices = data.invoices;
                 console.log(`Loaded ${invoices.length} invoices`);
+                
+                // Remove pending (optimistic) invoices that now have real DB counterparts.
+                // Match by order_id which is used as the invoice id for pending invoices.
+                if (pendingInvoices.length > 0) {
+                    const realIds = new Set(invoices.map(inv => inv.id));
+                    // Also match by date proximity — the real invoice may have a different ID
+                    // but same credits_purchased amount within a 5-minute window
+                    const now = Date.now();
+                    pendingInvoices = pendingInvoices.filter(pending => {
+                        // Remove if a real invoice with matching ID exists
+                        if (realIds.has(pending.id)) return false;
+                        // Remove if pending invoice is older than 5 minutes (task should be done)
+                        const pendingTime = new Date(pending.date).getTime();
+                        if (now - pendingTime > 5 * 60 * 1000) return false;
+                        // Keep — still waiting for the real invoice to appear
+                        return true;
+                    });
+                }
                 
                 // Only mark invoices as ready on initial load (not after refresh)
                 // Invoices that were already refunded before page load should have credit notes ready
@@ -509,21 +531,69 @@ Invoices Settings - View and download past invoices
         creditNoteReadyInvoices = new Set([...creditNoteReadyInvoices, payload.invoice_id]);
     }
 
+    // Handle payment_completed websocket event — re-fetch invoices so the new one appears
+    // immediately instead of requiring a manual page refresh.
+    function handlePaymentCompleted(payload: { order_id: string; credits_purchased: number }) {
+        console.log('Payment completed, refreshing invoices. Order:', payload.order_id);
+        fetchInvoices();
+    }
+
     onMount(() => {
+        // Check if a payment just completed — if so, add an optimistic pending invoice
+        // so the user sees it immediately while the Celery task generates the real one.
+        const unsubscribe = pendingInvoiceStore.subscribe((pending) => {
+            if (pending) {
+                addPendingInvoice(pending.orderId, pending.creditsAmount, pending.amountSmallestUnit, pending.currency, pending.isGiftCard);
+                pendingInvoiceStore.set(null);  // Consume — only process once
+            }
+        });
+        unsubscribe();  // Synchronous read — unsubscribe immediately
+
         fetchInvoices();
         
         // Listen for credit note ready events
         webSocketService.on('credit_note_ready', handleCreditNoteReady);
+        // Listen for payment completed — auto-refresh invoices when a purchase finishes
+        webSocketService.on('payment_completed', handlePaymentCompleted);
     });
 
     onDestroy(() => {
-        // Clean up websocket listener
+        // Clean up websocket listeners
         webSocketService.off('credit_note_ready', handleCreditNoteReady);
+        webSocketService.off('payment_completed', handlePaymentCompleted);
     });
+
+    // Merge real invoices with pending (optimistic) ones for display.
+    // Pending invoices appear at the top until the real invoice arrives from the DB.
+    const allInvoices = $derived([...pendingInvoices, ...invoices]);
 
     // Group invoices by month for display
     // Using $derived to reactively compute grouped invoices whenever invoices change
-    const groupedInvoices = $derived(groupInvoicesByMonth(invoices));
+    const groupedInvoices = $derived(groupInvoicesByMonth(allInvoices));
+
+    /**
+     * Add an optimistic "processing" invoice to the list.
+     * Called by SettingsBuyCreditsPayment after confirmCardPayment succeeds,
+     * so the invoice appears immediately in the invoices page even before
+     * the backend Celery task creates the real invoice in the DB.
+     */
+    export function addPendingInvoice(orderId: string, creditsAmount: number, amountSmallestUnit: number, currency: string, isGiftCard = false) {
+        // Don't add if already exists (e.g. double-click)
+        if (pendingInvoices.some(p => p.id === orderId) || invoices.some(i => i.id === orderId)) {
+            return;
+        }
+        pendingInvoices = [...pendingInvoices, {
+            id: orderId,
+            date: new Date().toISOString(),
+            amount: String(amountSmallestUnit),
+            credits_purchased: creditsAmount,
+            filename: '',  // No file yet — invoice PDF is being generated
+            currency: currency.toLowerCase(),
+            is_gift_card: isGiftCard,
+            refunded_at: null,
+            refund_status: null,
+        }];
+    }
 </script>
 
 <!-- TODO add info about how long invoices are kept before being automatically deleted (10 years?) -->
@@ -611,15 +681,27 @@ Invoices Settings - View and download past invoices
                                 </button>
                             {/if}
                         {:else}
-                            <!-- When not refunded, show Download and Refund buttons -->
-                            <button
-                                class="download-button"
-                                onclick={() => downloadInvoice(invoice)}
-                                title={$text('settings.billing.invoices_download_invoice')}
-                            >
-                                <div class="download-icon"></div>
-                                <span>{$text('settings.billing.invoices_download')}</span>
-                            </button>
+                            <!-- When not refunded, show Download (or Processing) and Refund buttons -->
+                            {#if !invoice.filename}
+                                <!-- Invoice PDF is still being generated (optimistic/pending invoice) -->
+                                <button
+                                    class="download-button processing"
+                                    disabled
+                                    title={$text('settings.billing.invoices_generating')}
+                                >
+                                    <div class="loading-spinner-small"></div>
+                                    <span>{$text('settings.billing.invoices_generating')}</span>
+                                </button>
+                            {:else}
+                                <button
+                                    class="download-button"
+                                    onclick={() => downloadInvoice(invoice)}
+                                    title={$text('settings.billing.invoices_download_invoice')}
+                                >
+                                    <div class="download-icon"></div>
+                                    <span>{$text('settings.billing.invoices_download')}</span>
+                                </button>
+                            {/if}
                             {#if isInvoiceEligibleForRefund(invoice)}
                                 <button
                                     class="refund-button"

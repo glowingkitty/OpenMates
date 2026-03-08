@@ -537,7 +537,9 @@ with open(work_dir + '/playwright_suite.json', 'w') as f:
 
 passed = sum(1 for t in tests if t['status'] == 'passed')
 failed = sum(1 for t in tests if t['status'] == 'failed')
-print(f'  Playwright: {passed} passed, {failed} failed ({dur}s, {workers} workers)')
+not_started = sum(1 for t in tests if t['status'] == 'not_started')
+not_started_suffix = f', {not_started} not started' if not_started else ''
+print(f'  Playwright: {passed} passed, {failed} failed{not_started_suffix} ({dur}s, {workers} workers)')
 " "$WORK_DIR" "$suite_dur" "$MAX_WORKERS"
 }
 
@@ -603,6 +605,7 @@ total = 0
 passed = 0
 failed = 0
 skipped = 0
+not_started = 0
 for s in suites.values():
     for t in s.get('tests', []):
         total += 1
@@ -611,6 +614,8 @@ for s in suites.values():
             passed += 1
         elif st == 'failed':
             failed += 1
+        elif st == 'not_started':
+            not_started += 1
         else:
             skipped += 1
 
@@ -629,6 +634,7 @@ result = {
         'passed': passed,
         'failed': failed,
         'skipped': skipped,
+        'not_started': not_started,
     },
     'suites': suites,
 }
@@ -645,7 +651,8 @@ with open(last_run, 'w') as f:
 # Print summary
 print()
 print('═══ Summary ═══')
-print(f'  Total: {total}  Passed: {passed}  Failed: {failed}  Skipped: {skipped}')
+not_started_part = f'  Not started: {not_started}' if not_started else ''
+print(f'  Total: {total}  Passed: {passed}  Failed: {failed}  Skipped: {skipped}{not_started_part}')
 print(f'  Duration: {total_dur}s')
 print(f'  Results: {run_file}')
 if failed > 0:

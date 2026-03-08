@@ -231,17 +231,24 @@
 
   /**
    * Calculate the zoom percentage that fits the page width to the container.
-   * Returns a continuous percentage, not snapped to step levels.
+   * Returns a continuous percentage capped at 100% — the document should
+   * never be larger than actual A4 size by default (user can zoom in manually).
    */
   function calculateFitZoomPercent(): number {
     if (!canvasScrollEl) return ZOOM_STEP_LEVELS[DEFAULT_DESKTOP_ZOOM_INDEX];
 
     const CANVAS_HORIZONTAL_PADDING = 48;
     const availableWidth = canvasScrollEl.clientWidth - CANVAS_HORIZONTAL_PADDING;
+
+    // Container not laid out yet (e.g. during slide-in animation) — return default
+    if (availableWidth <= 0) return ZOOM_STEP_LEVELS[DEFAULT_DESKTOP_ZOOM_INDEX];
+
     const fitPercent = Math.floor((availableWidth / PAGE_WIDTH) * 100);
 
-    // Clamp to valid range
-    return Math.max(ZOOM_MIN, Math.min(fitPercent, ZOOM_MAX));
+    // Cap at 100%: A4 pages shouldn't render larger than real size by default.
+    // Users can zoom past 100% manually via +/pinch if they want.
+    const MAX_FIT_ZOOM = 100;
+    return Math.max(ZOOM_MIN, Math.min(fitPercent, MAX_FIT_ZOOM));
   }
 
   // =============================================
@@ -292,19 +299,27 @@
   // Auto-fit zoom on mount
   // =============================================
   onMount(() => {
-    const raf = requestAnimationFrame(() => {
+    // Auto-fit zoom: try immediately, then observe resize events.
+    // During the slide-in animation the container may have 0 width,
+    // so we keep re-trying until we get a valid measurement.
+    function tryAutoFit() {
+      if (!canvasScrollEl) return false;
+      const CANVAS_HORIZONTAL_PADDING = 48;
+      const w = canvasScrollEl.clientWidth - CANVAS_HORIZONTAL_PADDING;
+      if (w <= 0) return false; // not laid out yet
       zoomPercent = calculateFitZoomPercent();
       zoomInitialized = true;
-    });
+      return true;
+    }
 
-    // Re-calculate on container resize only if not yet initialized
+    // First attempt via rAF
+    const raf = requestAnimationFrame(() => tryAutoFit());
+
+    // ResizeObserver for when the container finishes animating in
     let resizeObserver: ResizeObserver | undefined;
     if (canvasScrollEl) {
       resizeObserver = new ResizeObserver(() => {
-        if (!zoomInitialized) {
-          zoomPercent = calculateFitZoomPercent();
-          zoomInitialized = true;
-        }
+        if (!zoomInitialized) tryAutoFit();
       });
       resizeObserver.observe(canvasScrollEl);
     }
@@ -380,13 +395,15 @@
         let targetChild: Element | null = null;
 
         for (let c = 0; c < children.length; c++) {
-          const child = children[c];
+          const child = children[c] as HTMLElement;
           if (child.classList.contains(SPACER_CLASS)) continue;
 
-          const rect = child.getBoundingClientRect();
-          const contentRect = contentEl.getBoundingClientRect();
-          const childTop = rect.top - contentRect.top;
-          const childBottom = childTop + rect.height;
+          // Use offsetTop/offsetHeight instead of getBoundingClientRect:
+          // getBoundingClientRect returns post-CSS-transform (scaled) values,
+          // but breakY is in logical (unscaled) pixels. offsetTop/offsetHeight
+          // are not affected by ancestor transforms.
+          const childTop = child.offsetTop;
+          const childBottom = childTop + child.offsetHeight;
 
           if (childBottom > breakY) {
             targetChild = child;
@@ -559,10 +576,9 @@ ${downloadHtmlContent}
   {#snippet content()}
     {#if sanitizedHtml}
       <!--
-        The doc-viewer-canvas is a position:relative wrapper so the floating
-        zoom bar is always visible at the bottom. No padding-top: the
-        EmbedHeader (gradient banner) inside UnifiedEmbedFullscreen already
-        provides the top clearance from the action buttons.
+        Grey canvas area containing the document pages. The zoom bar is
+        placed AFTER this element (not inside it) with position: sticky
+        so it always floats at the bottom of the scroll viewport.
       -->
       <div class="doc-viewer-canvas">
         <!--
@@ -615,23 +631,26 @@ ${downloadHtmlContent}
           </div>
         </div>
 
-        <!-- Floating zoom controls at bottom center — always visible -->
-        <div class="doc-zoom-bar">
-          <div class="doc-zoom-bar-inner">
-            <button class="doc-zoom-btn" onclick={zoomOut} aria-label="Zoom out" disabled={zoomPercent <= ZOOM_MIN}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-            </button>
-            <button class="doc-zoom-level" onclick={resetZoom} aria-label="Reset zoom" title="Click to fit page to screen">
-              {zoomDisplayText}
-            </button>
-            <button class="doc-zoom-btn" onclick={zoomIn} aria-label="Zoom in" disabled={zoomPercent >= ZOOM_MAX}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-            </button>
-          </div>
+      </div>
+
+      <!-- Floating zoom controls — sticky to bottom of scroll viewport.
+           Placed AFTER .doc-viewer-canvas in the .content-area scroll flow
+           so position: sticky keeps it at the bottom of the visible area. -->
+      <div class="doc-zoom-bar">
+        <div class="doc-zoom-bar-inner">
+          <button class="doc-zoom-btn" onclick={zoomOut} aria-label="Zoom out" disabled={zoomPercent <= ZOOM_MIN}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <button class="doc-zoom-level" onclick={resetZoom} aria-label="Reset zoom" title="Click to fit page to screen">
+            {zoomDisplayText}
+          </button>
+          <button class="doc-zoom-btn" onclick={zoomIn} aria-label="Zoom in" disabled={zoomPercent >= ZOOM_MAX}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
         </div>
       </div>
     {:else}
@@ -645,22 +664,17 @@ ${downloadHtmlContent}
 <style>
   /* ===========================================
      Document Viewer Canvas
-     position: relative so the zoom bar can float at the bottom.
-     No padding-top — the EmbedHeader (inside UnifiedEmbedFullscreen's
-     .content-area) already provides top clearance for the action buttons.
+     Grey background area containing the document pages.
+     No position: relative needed — zoom bar is outside this element.
      =========================================== */
 
   .doc-viewer-canvas {
     width: 100%;
-    /* Fill remaining height after EmbedHeader. Using min-height instead
-       of height so the content can grow if needed, but the zoom bar
-       always stays at the visual bottom of this block. */
     min-height: 400px;
     display: flex;
     flex-direction: column;
     background: #3c3c3c;
     box-sizing: border-box;
-    position: relative;
   }
 
   /* ===========================================
@@ -961,18 +975,24 @@ ${downloadHtmlContent}
 
   /* ===========================================
      Floating Zoom Bar
-     position: absolute to the doc-viewer-canvas so it
-     stays at the bottom of the visible area, not at
-     the bottom of the scrollable content.
+     position: sticky keeps the bar at the bottom of the
+     visible scroll area (.content-area in UnifiedEmbedFullscreen).
+     negative margin-top overlaps it onto the canvas instead of
+     adding extra space below the document.
      =========================================== */
 
   .doc-zoom-bar {
-    position: absolute;
+    position: sticky;
     bottom: 16px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 10;
+    z-index: 1000;
     pointer-events: none;
+    display: flex;
+    justify-content: center;
+    /* Negative margin-top pulls the bar up so it overlaps the document
+       canvas instead of adding extra space below it. The bar height
+       (~44px) + bottom (16px) = 60px overlap. */
+    margin-top: -60px;
+    padding-bottom: 16px;
   }
 
   .doc-zoom-bar-inner {
@@ -1060,11 +1080,13 @@ ${downloadHtmlContent}
 
   @container fullscreen (max-width: 500px) {
     .doc-canvas-scroll {
-      padding: 12px 4px 60px;
+      padding: 12px 4px 24px;
     }
 
     .doc-zoom-bar {
       bottom: 10px;
+      margin-top: -56px;
+      padding-bottom: 10px;
     }
   }
 </style>

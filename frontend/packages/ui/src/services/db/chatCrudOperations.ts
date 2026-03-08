@@ -15,7 +15,7 @@ import {
   decryptChatKeyWithMasterKey,
 } from "../cryptoService";
 import { get } from "svelte/store";
-import { forcedLogoutInProgress } from "../../stores/signupState";
+import { forcedLogoutInProgress, isLoggingOut } from "../../stores/signupState";
 
 // Type for ChatDatabase instance to avoid circular import
 // Only includes properties/methods needed by this module
@@ -618,6 +618,18 @@ export async function getAllChats(
   console.debug(
     `[ChatDatabase] getAllChats called with transaction: ${!!transaction}, limit: ${limit ?? "none"}`,
   );
+
+  // CRITICAL: During forced logout or active logout, skip reading encrypted chats from IDB.
+  // Without this guard, an in-flight getAllChats call during the logout transition reads all
+  // encrypted chats, fails to decrypt them (keys cleared), and caches { title: null } entries
+  // in chatMetadataCache — which are then served after re-login, causing "Untitled chat".
+  // This is consistent with getChat() which already has this guard (line ~741).
+  if (get(forcedLogoutInProgress) || get(isLoggingOut)) {
+    console.debug(
+      "[ChatDatabase] Skipping getAllChats during logout — returning empty array",
+    );
+    return [];
+  }
   await dbInstance.init();
   return new Promise((resolve, reject) => {
     const execute = async () => {

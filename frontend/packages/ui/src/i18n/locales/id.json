@@ -1366,6 +1366,12 @@
             "text": "Konversikan ikon PNG ini ke SVG agar terlihat tajam di ukuran mana pun"
           }
         }
+      },
+      "search": {
+        "text": "Cari",
+        "description": {
+          "text": "Cari gambar dengan teks atau temukan gambar serupa."
+        }
       }
     },
     "maps": {
@@ -2100,6 +2106,29 @@
         "text": "Perluas proses berpikir"
       }
     },
+    "compression": {
+      "compressing": {
+        "text": "Mengompres obrolan..."
+      },
+      "summary_title": {
+        "text": "Ringkasan obrolan"
+      },
+      "show_more": {
+        "text": "Tampilkan ringkasan lengkap"
+      },
+      "show_less": {
+        "text": "Tampilkan lebih sedikit"
+      },
+      "show_forgotten": {
+        "text": "Tampilkan pesan sebelumnya"
+      },
+      "hide_forgotten": {
+        "text": "Sembunyikan pesan sebelumnya"
+      },
+      "messages_compressed": {
+        "text": "{count} pesan diringkas"
+      }
+    },
     "new_chat_suggestions": {
       "quantum_computing": {
         "text": "Ajari saya tentang komputasi kuantum dalam istilah yang sederhana"
@@ -2784,6 +2813,35 @@
       },
       "footer_note": {
         "text": "Pemberitahuan ini dikirim oleh sistem pemantauan tes E2E otomatis."
+      }
+    },
+    "test_run_summary": {
+      "title": {
+        "text": "Ringkasan Tes Harian"
+      },
+      "header_success": {
+        "text": "Semua tes lulus"
+      },
+      "header_failure": {
+        "text": "{failed} dari {total} tes gagal"
+      },
+      "run_details_label": {
+        "text": "Detail jalankan"
+      },
+      "git_label": {
+        "text": "Git"
+      },
+      "duration_label": {
+        "text": "Durasi"
+      },
+      "suites_label": {
+        "text": "Suite tes"
+      },
+      "failed_tests_label": {
+        "text": "Tes yang gagal"
+      },
+      "footer_note": {
+        "text": "Laporan ini dibuat oleh sistem pemantauan tes harian otomatis."
       }
     },
     "prometheus_alert": {
@@ -3490,6 +3548,27 @@
       },
       "copy_failed": {
         "text": "Gagal menyalin draf email."
+      }
+    },
+    "image_search": {
+      "text": "Pencarian gambar",
+      "searching": {
+        "text": "Mencari gambar..."
+      },
+      "results_count": {
+        "text": "{count} gambar ditemukan"
+      },
+      "view_source": {
+        "text": "Lihat sumber"
+      },
+      "open_image": {
+        "text": "Buka gambar"
+      },
+      "reverse_search": {
+        "text": "Pencarian terbalik"
+      },
+      "error": {
+        "text": "Pencarian gambar gagal"
       }
     }
   },
@@ -4719,6 +4798,14 @@
       "action": {
         "text": "Buka pengaturan keamanan"
       }
+    },
+    "credits_depleted": {
+      "message": {
+        "text": "Kredit Anda habis. Beli lebih banyak untuk melanjutkan penggunaan OpenMates."
+      },
+      "buy_credits": {
+        "text": "Beli Kredit"
+      }
     }
   },
   "onboarding": {},
@@ -5096,6 +5183,18 @@
         },
         "no_apps_found": {
           "text": "Tidak ada aplikasi yang cocok dengan pencarian Anda."
+        },
+        "filter_all": {
+          "text": "Semua"
+        },
+        "filter_settings_memories": {
+          "text": "Pengaturan dan memori"
+        },
+        "filter_focus_modes": {
+          "text": "Mode Fokus"
+        },
+        "filter_skills": {
+          "text": "Keterampilan"
         }
       },
       "categories": {
@@ -5440,7 +5539,7 @@
       }
     },
     "billing": {
-      "text": "Penagihan",
+      "text": "Penagihan dan Penggunaan",
       "title": {
         "text": "Penagihan & Kredit"
       },
@@ -6271,6 +6370,9 @@
         "invalid_prefix": {
           "text": "Awalan harus 1-4 karakter (A-Z, 2-9, kecuali O, I, 0, 1)"
         }
+      },
+      "tests": {
+        "text": "Pengujian"
       }
     },
     "server_stats": {

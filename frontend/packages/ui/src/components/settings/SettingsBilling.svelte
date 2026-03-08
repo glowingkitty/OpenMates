@@ -8,23 +8,14 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
     import { apiEndpoints, getApiEndpoint } from '../../config/api';
     import { userProfile } from '../../stores/userProfile';
     import SettingsItem from '../SettingsItem.svelte';
+    import SettingsUsage from './SettingsUsage.svelte';
 
     const dispatch = createEventDispatcher();
     
-    let isLoading = $state(false);
     let errorMessage: string | null = $state(null);
 
     // Current user credits
     let currentCredits = $state(0);
-
-    // Subscription state
-    let hasActiveSubscription = $state(false);
-    let subscriptionDetails: any = $state(null);
-
-    // Low balance auto top-up state
-    let lowBalanceEnabled = $state(false);
-    // Fixed threshold: always 100 credits (cannot be changed to simplify setup)
-    const lowBalanceThreshold = 100;
 
     // Format credits with dots as thousand separators
     function formatCredits(credits: number): string {
@@ -34,15 +25,10 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
     // Load user profile data
     userProfile.subscribe(profile => {
         currentCredits = profile.credits || 0;
-
-        // Load low balance settings from profile
-        lowBalanceEnabled = profile.auto_topup_low_balance_enabled || false;
-        // Threshold is fixed at 100 credits and cannot be changed
     });
 
-    // Fetch subscription details
+    // Fetch subscription details (kept for future use — subscription display coming soon)
     async function fetchSubscriptionDetails() {
-        isLoading = true;
         errorMessage = null;
 
         try {
@@ -50,22 +36,12 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
                 credentials: 'include'
             });
 
-            if (response.ok) {
-                const data = await response.json();
-                subscriptionDetails = data?.subscription ?? null;
-                hasActiveSubscription = Boolean(data?.has_subscription && subscriptionDetails?.status === 'active');
-            } else if (response.status === 404) {
-                // Endpoint not available (payments disabled) or legacy "no subscription" response
-                hasActiveSubscription = false;
-                subscriptionDetails = null;
-            } else {
+            if (!response.ok && response.status !== 404) {
                 throw new Error('Failed to fetch subscription details');
             }
         } catch (error) {
             console.error('Error fetching subscription:', error);
             errorMessage = 'Failed to load subscription details';
-        } finally {
-            isLoading = false;
         }
     }
 
@@ -128,6 +104,15 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
     onClick={() => navigateToSubview('invoices')}
 />
 
+<!-- Usage Section -->
+<div class="usage-section">
+    <h3 class="usage-section-headline">{$text('settings.usage')}</h3>
+    <SettingsUsage
+        on:chatSelected={(e) => dispatch('chatSelected', e.detail)}
+        on:closeSettings={() => dispatch('closeSettings')}
+    />
+</div>
+
 {#if errorMessage}
     <div class="settings-error">{errorMessage}</div>
 {/if}
@@ -184,6 +169,21 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
         mask-size: contain;
         mask-repeat: no-repeat;
         background-color: var(--color-grey-90);
+    }
+
+    /* Usage Section */
+    .usage-section {
+        margin-top: 16px;
+    }
+
+    .usage-section-headline {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--color-grey-60);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 0 10px 6px 10px;
+        margin: 0;
     }
 
     /* Error uses global .settings-error from settings.css */

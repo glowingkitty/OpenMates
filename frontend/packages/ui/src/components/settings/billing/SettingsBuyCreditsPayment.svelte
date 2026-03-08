@@ -35,6 +35,7 @@ Supports both saved payment methods and new payment form
     import { loadStripe } from '@stripe/stripe-js';
     import PaymentAuth from './PaymentAuth.svelte';
     import { webSocketService } from '../../../services/websocketService';
+    import { pendingInvoiceStore } from '../../../stores/pendingInvoiceStore';
 
     const dispatch = createEventDispatcher();
     
@@ -80,11 +81,6 @@ Supports both saved payment methods and new payment form
     let stripe: any = $state(null);
     let isProcessingPayment = $state(false);
 
-    // Dual-provider state for the saved-method flow.
-    // The <Payment> component handles provider detection internally when showPaymentForm is true.
-    // When showing the saved-method list (Stripe-only), we also detect the active provider
-    // so we can show or hide the saved-method UI and the switch-to-Polar button.
-    let detectedProvider: 'stripe' | 'polar' | null = $state(null);
     // providerOverride: if the user explicitly switches provider from the saved-method view
     let savedMethodProviderOverride: 'stripe' | 'polar' | null = $state(null);
 
@@ -149,34 +145,15 @@ Supports both saved payment methods and new payment form
      * if on Stripe. Polar does not support saved methods (Stripe-only feature).
      */
     async function detectProviderAndLoadMethods() {
+        // Saved payment methods are always stored in Stripe regardless of the active payment
+        // provider (Stripe for EU users, Polar for non-EU users). The backend always uses the
+        // Stripe provider when listing saved methods, so we don't need to detect the active
+        // provider here — just check for saved Stripe methods directly.
         isLoadingPaymentMethods = true;
         try {
-            // Build config URL — append provider_override if the user has explicitly switched
-            let configUrl = getApiEndpoint(apiEndpoints.payments.config);
-            if (savedMethodProviderOverride) {
-                configUrl += `?provider_override=${savedMethodProviderOverride}`;
-            }
-
-            const configResponse = await fetch(configUrl, { credentials: 'include' });
-            if (configResponse.ok) {
-                const config = await configResponse.json();
-                detectedProvider = (config.provider as 'stripe' | 'polar') || 'stripe';
-            } else {
-                // If config fails, assume Stripe (safe default)
-                detectedProvider = 'stripe';
-            }
-
-            // Saved payment methods are Stripe-only
-            if (detectedProvider === 'polar') {
-                hasSavedPaymentMethods = false;
-                showPaymentForm = true;
-                return;
-            }
-
             await checkPaymentMethods();
         } catch (error) {
-            console.error('Error detecting provider:', error);
-            detectedProvider = 'stripe';
+            console.error('Error loading payment methods:', error);
             showPaymentForm = true;
         } finally {
             isLoadingPaymentMethods = false;
@@ -221,7 +198,6 @@ Supports both saved payment methods and new payment form
         hasSavedPaymentMethods = false;
         paymentMethods = [];
         selectedPaymentMethodId = null;
-        detectedProvider = null;
         isLoadingPaymentMethods = true;
         await detectProviderAndLoadMethods();
     }
@@ -332,6 +308,14 @@ Supports both saved payment methods and new payment form
                 // Payment successful — store purchased credits for confirmation screen
                 if (hasNavigatedToConfirmation) return; // WebSocket may have already handled this
                 hasNavigatedToConfirmation = true;
+                // Store pending invoice so SettingsInvoices shows an optimistic row
+                // while the Celery task generates the real invoice PDF.
+                pendingInvoiceStore.set({
+                    orderId: data.order_id,
+                    creditsAmount: selectedCreditsAmount,
+                    amountSmallestUnit: selectedPrice(),
+                    currency: selectedCurrency,
+                });
                 purchasedCreditsStore.set(selectedCreditsAmount);
                 dispatch('openSettings', {
                     settingsPath: 'billing/buy-credits/confirmation',
@@ -344,7 +328,9 @@ Supports both saved payment methods and new payment form
             }
         } catch (error) {
             console.error('Error processing payment:', error);
-            alert(error instanceof Error ? error.message : 'An error occurred while processing your payment');
+            // Never show raw Stripe/server error messages to users — use a generic translated message.
+            // Technical details are logged to console above for debugging.
+            alert($text('signup.payment_failed'));
         } finally {
             isProcessingPayment = false;
         }
@@ -382,7 +368,7 @@ Supports both saved payment methods and new payment form
     <div class="loading-container">
         <p>{$text('settings.billing.loading_payment_methods')}</p>
     </div>
-{:else if hasSavedPaymentMethods && !showPaymentForm && detectedProvider === 'stripe'}
+{:else if hasSavedPaymentMethods && !showPaymentForm}
     <!-- Show saved payment methods (Stripe-only feature) -->
     <div class="payment-methods-container">
         <h3>{$text('settings.billing.select_payment_method')}</h3>

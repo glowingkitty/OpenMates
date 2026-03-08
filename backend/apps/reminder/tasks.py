@@ -29,6 +29,14 @@ REMINDER_MESSAGE_TEMPLATE = """🔔 **Reminder**
 ---
 *This reminder was set on {created_date}*"""
 
+# Simple assistant nudge message for response_type="simple" reminders.
+# Sent as a predefined assistant message without LLM inference, saving cost and latency.
+# The prompt is included so the user knows what the reminder was about.
+SIMPLE_REMINDER_RESPONSE_TEMPLATE = """As a reminder, you wanted to come back to this chat!
+
+> {prompt}
+
+Feel free to ask if you need any help with this."""
 
 @app.task(name="reminder.process_due_reminders", base=BaseServiceTask, bind=True)
 def process_due_reminders(self):
@@ -86,8 +94,9 @@ async def _process_due_reminders_async(task: BaseServiceTask):
                 repeat_config = reminder.get("repeat_config")
                 timezone = reminder.get("timezone", "UTC")
                 created_at = reminder.get("created_at", current_time)
+                response_type = reminder.get("response_type", "simple")
 
-                logger.info(f"Processing reminder {reminder_id} for user {user_id}")
+                logger.info(f"Processing reminder {reminder_id} for user {user_id} (response_type={response_type})")
 
                 # Decrypt the prompt
                 encrypted_prompt = reminder.get("encrypted_prompt")
@@ -246,32 +255,67 @@ async def _process_due_reminders_async(task: BaseServiceTask):
                     logger.warning(f"Failed to send email notification for reminder {reminder_id}: {email_error}")
 
                 # ======================================================
-                # DISPATCH AI ASK REQUEST
+                # DISPATCH REMINDER RESPONSE
                 # 
-                # Trigger an AI response for the reminder. The AI will
-                # receive the reminder prompt as the user message and
-                # generate a helpful follow-up. This runs regardless of
-                # whether the user is online.
-                #
-                # - If user is online: AI streams via WebSocket normally
-                # - If user is offline: existing offline handling stores
-                #   the response in pending delivery queue (60d) + sends email
+                # response_type controls how the AI responds when the
+                # reminder fires:
+                # - "simple": Predefined nudge message. No LLM inference,
+                #   no cost, instant delivery. Used for basic "remind me
+                #   to come back" type reminders.
+                # - "full": Full AI ask request with context, web searches,
+                #   and LLM inference. Used when the user explicitly wants
+                #   a detailed follow-up (e.g., "remind me and give me an
+                #   update on...").
                 # ======================================================
-                try:
-                    await _dispatch_reminder_ai_request(
-                        user_id=user_id,
-                        chat_id=target_chat_id,
-                        message_id=message_id,
-                        prompt=prompt,
-                        target_type=target_type,
-                        chat_title=chat_title,
-                        reminder=reminder,
-                        encryption_service=encryption_service,
-                        cache_service=cache_service,
-                    )
-                except Exception as ai_error:
-                    # AI dispatch failure should not fail the reminder itself
-                    logger.warning(f"Failed to dispatch AI request for reminder {reminder_id}: {ai_error}")
+                if response_type == "full":
+                    try:
+                        await _dispatch_reminder_ai_request(
+                            user_id=user_id,
+                            chat_id=target_chat_id,
+                            message_id=message_id,
+                            prompt=prompt,
+                            target_type=target_type,
+                            chat_title=chat_title,
+                            reminder=reminder,
+                            encryption_service=encryption_service,
+                            cache_service=cache_service,
+                        )
+                    except Exception as ai_error:
+                        # AI dispatch failure should not fail the reminder itself
+                        logger.warning(f"Failed to dispatch AI request for reminder {reminder_id}: {ai_error}")
+                else:
+                    # Simple response: predefined assistant message without LLM inference
+                    try:
+                        simple_response = SIMPLE_REMINDER_RESPONSE_TEMPLATE.format(prompt=prompt)
+                        simple_message_id = str(uuid.uuid4())
+                        simple_delivery_payload = {
+                            "type": "ai_response",
+                            "chat_id": target_chat_id,
+                            "message_id": simple_message_id,
+                            "content": simple_response,
+                            "user_id": user_id,
+                            "fired_at": current_time,
+                        }
+
+                        # Deliver via WebSocket (same pattern as AI responses)
+                        try:
+                            await task.publish_websocket_event(
+                                user_id_hash=user_id,
+                                event="pending_ai_response",
+                                payload=simple_delivery_payload
+                            )
+                            logger.info(f"Published simple reminder response for reminder {reminder_id}")
+                        except Exception as ws_error:
+                            logger.error(f"Failed to publish simple response WebSocket event for reminder {reminder_id}: {ws_error}")
+
+                        # Queue as pending delivery (safety net for offline users)
+                        await cache_service.add_pending_reminder_delivery(
+                            user_id=user_id,
+                            delivery_payload=simple_delivery_payload
+                        )
+                        logger.debug(f"Queued simple response pending delivery for reminder {reminder_id}")
+                    except Exception as simple_error:
+                        logger.warning(f"Failed to send simple reminder response for reminder {reminder_id}: {simple_error}")
 
                 # Handle repeating vs one-time
                 if repeat_config:

@@ -51,7 +51,6 @@ import SettingsRecoveryKey from "./security/SettingsRecoveryKey.svelte";
 import SettingsPricing from "./SettingsPricing.svelte";
 
 // Billing
-import SettingsUsage from "./SettingsUsage.svelte";
 import SettingsBilling from "./SettingsBilling.svelte";
 import SettingsBuyCredits from "./billing/SettingsBuyCredits.svelte";
 import SettingsBuyCreditsPayment from "./billing/SettingsBuyCreditsPayment.svelte";
@@ -103,6 +102,7 @@ import SettingsSoftwareUpdate from "./server/SettingsSoftwareUpdate.svelte";
 import SettingsCommunitySuggestions from "./server/SettingsCommunitySuggestions.svelte";
 import SettingsStats from "./server/SettingsStats.svelte";
 import SettingsGiftCardGenerator from "./server/SettingsGiftCardGenerator.svelte";
+import SettingsTests from "./server/SettingsTests.svelte";
 
 // Mates
 import SettingsMates from "./SettingsMates.svelte";
@@ -126,8 +126,6 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "billing/auto-topup/low-balance": SettingsLowBalanceAutotopup,
   "billing/auto-topup/monthly": SettingsMonthlyAutotopup,
   "billing/invoices": SettingsInvoices,
-  // Usage
-  usage: SettingsUsage,
   // Chat
   chat: SettingsChat,
   "chat/notifications": SettingsChatNotifications,
@@ -178,6 +176,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "server/community-suggestions": SettingsCommunitySuggestions,
   "server/stats": SettingsStats,
   "server/gift-cards": SettingsGiftCardGenerator,
+  "server/tests": SettingsTests,
 
   // Incognito
   "incognito/info": SettingsIncognitoInfo,

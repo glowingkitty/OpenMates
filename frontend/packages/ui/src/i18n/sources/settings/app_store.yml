@@ -238,6 +238,102 @@ all_apps.no_apps_found:
   sv: Inga appar hittades som matchar din sökning.
   he: לא נמצאו אפליקציות התואמות לחיפוש שלך.
   verified_by_human: []
+all_apps.filter_all:
+  context: Filter chip label to show all apps (no filtering) on the All Apps page
+  en: All
+  de: Alle
+  zh: 全部
+  es: Todas
+  fr: Toutes
+  pt: Todos
+  ru: Все
+  ja: すべて
+  ko: 전체
+  it: Tutte
+  tr: Tümü
+  vi: Tất cả
+  id: Semua
+  pl: Wszystkie
+  nl: Alle
+  ar: الكل
+  hi: सभी
+  th: ทั้งหมด
+  cs: Vše
+  sv: Alla
+  he: הכל
+  verified_by_human: []
+all_apps.filter_settings_memories:
+  context: Filter chip label to show only apps that have Settings & Memories categories on the All Apps page
+  en: Settings & Memories
+  de: Einstellungen & Erinnerungen
+  zh: 设置和记忆
+  es: Configuración y recuerdos
+  fr: Paramètres et souvenirs
+  pt: Configurações e memórias
+  ru: Настройки и воспоминания
+  ja: 設定と記憶
+  ko: 설정 및 메모리
+  it: Impostazioni e ricordi
+  tr: Ayarlar ve anılar
+  vi: Cài đặt và ký ức
+  id: Pengaturan dan memori
+  pl: Ustawienia i wspomnienia
+  nl: Instellingen en herinneringen
+  ar: الإعدادات والذكريات
+  hi: सेटिंग्स और यादें
+  th: การตั้งค่าและความทรงจำ
+  cs: Nastavení a vzpomínky
+  sv: Inställningar och minnen
+  he: הגדרות וזיכרונות
+  verified_by_human: []
+all_apps.filter_focus_modes:
+  context: Filter chip label to show only apps that have Focus Modes on the All Apps page
+  en: Focus Modes
+  de: Fokusmodi
+  zh: 专注模式
+  es: Modos de enfoque
+  fr: Modes de concentration
+  pt: Modos de foco
+  ru: Режимы фокуса
+  ja: フォーカスモード
+  ko: 포커스 모드
+  it: Modalità di focus
+  tr: Odak modları
+  vi: Chế độ tập trung
+  id: Mode Fokus
+  pl: Tryby skupienia
+  nl: Focusmodi
+  ar: أوضاع التركيز
+  hi: फोकस मोड
+  th: โหมดโฟกัส
+  cs: Režimy zaměření
+  sv: Fokuslägen
+  he: מצבי ריכוז
+  verified_by_human: []
+all_apps.filter_skills:
+  context: Filter chip label to show only apps that have Skills on the All Apps page
+  en: Skills
+  de: Fähigkeiten
+  zh: 技能
+  es: Habilidades
+  fr: Compétences
+  pt: Habilidades
+  ru: Навыки
+  ja: スキル
+  ko: 스킬
+  it: Abilità
+  tr: Beceriler
+  vi: Kỹ năng
+  id: Keterampilan
+  pl: Umiejętności
+  nl: Vaardigheden
+  ar: المهارات
+  hi: कौशल
+  th: ทักษะ
+  cs: Dovednosti
+  sv: Färdigheter
+  he: מיומנויות
+  verified_by_human: []
 categories.top_picks:
   en: Top picks for you
   de: Top Empfehlungen für dich
