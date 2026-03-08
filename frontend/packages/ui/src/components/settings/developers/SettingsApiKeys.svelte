@@ -1,7 +1,6 @@
 <script lang="ts">
     import { onMount, createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
-    import { authStore } from '../../../stores/authStore';
     import { getApiEndpoint } from '../../../config/api';
     import {
         encryptWithMasterKeyDirect,
@@ -10,11 +9,10 @@
         encryptKey,
         getKeyFromStorage,
         uint8ArrayToBase64,
-        base64ToUint8Array
     } from '../../../services/cryptoService';
     import { copyToClipboard as clipboardCopy } from '../../../utils/clipboardUtils';
 
-    const dispatch = createEventDispatcher();
+    const _dispatch = createEventDispatcher();
 
     // State using Svelte 5 $state() runes
     let apiKeys = $state<any[]>([]);

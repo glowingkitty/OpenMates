@@ -37,7 +37,7 @@
     // Get app metadata to get skill names
     let storeState = $state(appSkillsStore.getState());
     let app = $derived(storeState.apps[appId]);
-    let skills = $derived(app?.skills || []);
+    let _skills = $derived(app?.skills || []);
     
     // Sort embeds by most recent first and filter out invalid embeds
     // Only show embeds that have been validated as renderable

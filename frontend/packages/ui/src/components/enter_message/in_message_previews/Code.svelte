@@ -26,8 +26,9 @@
     import 'highlight.js/lib/languages/shell';
     import 'highlight.js/lib/languages/sql';
     import { createEventDispatcher } from 'svelte';
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     import { scale } from 'svelte/transition';
-    import { cubicOut } from 'svelte/easing';
 
     // Props using Svelte 5 runes
     let { 
@@ -37,7 +38,7 @@
         language = 'plaintext',
         content = undefined,
         lineCount = undefined,
-        numberedContent = undefined
+        _numberedContent = undefined
     }: {
         src: string;
         filename: string;
@@ -181,7 +182,7 @@
                             ALLOWED_TAGS: ['span'],
                             ALLOWED_ATTR: ['class']
                         });
-                    } catch (error) {
+                    } catch (_error) {
                         console.warn(`Fallback to auto-detection for language: ${highlightLanguage}`);
                         const highlighted = hljs.highlightAuto(sanitizedCode).value;
                         codeElement.innerHTML = DOMPurify.sanitize(highlighted, {
@@ -251,7 +252,7 @@
     }
 </script>
 
-<InlinePreviewBase {id} type="code" {src} {filename} height="200px" on:view={e => handleMenuAction('view')} on:fullscreen={handleFullscreen}>
+<InlinePreviewBase {id} type="code" {src} {filename} height="200px" on:view={_e => handleMenuAction('view')} on:fullscreen={handleFullscreen}>
     <div 
         class="preview-container"
         class:transitioning={isTransitioningToFullscreen}

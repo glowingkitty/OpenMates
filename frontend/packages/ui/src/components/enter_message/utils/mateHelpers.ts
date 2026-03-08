@@ -23,7 +23,7 @@ export const VALID_MATES = [
  * @param editor The TipTap editor instance.
  * @param content The current editor content as a string (not used directly here, but kept for consistency).
  */
-export function detectAndReplaceMates(editor: Editor, content: string) {
+export function detectAndReplaceMates(editor: Editor, _content: string) {
     if (!editor) return;
 
         // Get current cursor position

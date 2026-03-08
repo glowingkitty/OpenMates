@@ -83,7 +83,7 @@
     }
   }
 
-  let skillName = $derived(sourceDomain || $text('embeds.image_search') || 'Image');
+  let _skillName = $derived(sourceDomain || $text('embeds.image_search') || 'Image');
 
   /** Handle updates from UnifiedEmbedPreview (processing -> finished transitions) */
   function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {

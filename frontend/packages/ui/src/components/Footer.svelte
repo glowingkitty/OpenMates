@@ -4,16 +4,14 @@
     import { externalLinks, routes, getWebsiteUrl } from '../config/links';
     import { isPageVisible } from '../config/pages';
     import { text } from '@repo/ui';
-    import { locale, locales } from 'svelte-i18n';
+    import { locale } from 'svelte-i18n';
     import { browser } from '$app/environment';
     import { waitLocale } from 'svelte-i18n';
     import { loadMetaTags, getMetaTags } from '../config/meta';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
-    import { panelState } from '../stores/panelStateStore';
-    import { settingsMenuVisible } from './Settings.svelte';
 
     // Type definition for footer links
-    type FooterLink = {
+    type _FooterLink = {
         href: string;
         text: string;
         translation_key: string;
@@ -186,7 +184,7 @@
     initializeLocale();
 
     // Handle language change
-    const handleLanguageChange = async (event: Event) => {
+    const _handleLanguageChange = async (event: Event) => {
         if (!browser) return;
         
         const select = event.target as HTMLSelectElement;

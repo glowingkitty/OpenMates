@@ -13,7 +13,7 @@
 -->
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { createEventDispatcher, onMount } from 'svelte';
+    import { createEventDispatcher } from 'svelte';
     import { notificationStore } from '../../../stores/notificationStore';
     import { userProfile } from '../../../stores/userProfile';
     import { tipStore } from '../../../stores/tipStore';
@@ -25,7 +25,7 @@
     
     // Props
     let { 
-        activeSettingsView = 'tip'
+        _activeSettingsView = 'tip'
     }: {
         activeSettingsView?: string;
     } = $props();
@@ -35,7 +35,7 @@
     let isTipping = $state(false);
     let ownerId = $state<string | undefined>(undefined);
     let contentType = $state<'video' | 'website'>('video');
-    let videoUrl = $state<string | undefined>(undefined);
+    let _videoUrl = $state<string | undefined>(undefined);
     // TODO: Re-enable when preview server is implemented
     // let isLoadingChannelId = $state(false);
     let currentCredits = $derived(get(userProfile).credits || 0);

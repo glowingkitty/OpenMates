@@ -3,8 +3,8 @@
     
     // Define types for message content parts
     type AppCardData = {
-      component: new (...args: any[]) => SvelteComponent;
-      props: Record<string, any>;
+      component: new (...args: unknown[]) => SvelteComponent;
+      props: Record<string, unknown>;
     };
     
     // Use a discriminated union so that "text" parts only have a string and "app-cards" parts only have AppCardData[]
@@ -36,7 +36,7 @@
         appCards?: AppCardData[] | undefined;
         defaultHidden?: boolean;
         animated?: boolean;
-        children: any;
+        children: import('svelte').Snippet;
     } = $props();
   
     // If appCards is provided, add it to messageParts using Svelte 5 runes
@@ -59,7 +59,7 @@
      * @param messageParts - The message parts to convert.
      * @returns The markdown string.
      */
-    function createMarkdown(messageParts: MessagePart[]): string {
+    function _createMarkdown(messageParts: MessagePart[]): string {
       let markdown = "";
       // Iterate over each part of the message.
       if (Array.isArray(messageParts)) {

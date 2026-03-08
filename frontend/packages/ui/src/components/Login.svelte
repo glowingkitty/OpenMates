@@ -3,9 +3,12 @@
     import { text } from '@repo/ui';
     import AppIconGrid from './AppIconGrid.svelte';
     import { createEventDispatcher } from 'svelte';
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     import { authStore, isCheckingAuth, needsDeviceVerification, deviceVerificationType, deviceVerificationReason, login, checkAuth, logout } from '../stores/authStore'; // Import login and checkAuth functions
     import { currentSignupStep, isInSignupProcess, STEP_ALPHA_DISCLAIMER, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath, STEP_PAYMENT } from '../stores/signupState';
-    import { clearIncompleteSignupData, clearSignupData } from '../stores/signupStore';
+    import { clearSignupData } from '../stores/signupStore';
     import { requireInviteCode } from '../stores/signupRequirements';
     import { get } from 'svelte/store';
     import { onMount, onDestroy } from 'svelte';
@@ -38,6 +41,31 @@
         CHUNK_ERROR_NOTIFICATION_DURATION 
     } from '../utils/chunkErrorHandler';
     import { notificationStore } from '../stores/notificationStore';
+
+    /** PRF extension results from WebAuthn client */
+    interface PRFExtensionResults {
+        enabled?: boolean;
+        results?: { first?: ArrayBuffer | ArrayBufferView | string };
+    }
+
+    /** Server response from passkey assertion initiation */
+    interface PasskeyInitiateData {
+        success: boolean;
+        message?: string;
+        challenge: string;
+        rp: { id: string };
+        timeout: number;
+        userVerification: string;
+        allowCredentials?: PasskeyCredentialDescriptor[];
+        extensions?: { prf?: { eval?: { first?: string } } };
+    }
+
+    /** WebAuthn passkey credential from server initiation response */
+    interface PasskeyCredentialDescriptor {
+        type: string;
+        id: string;
+        transports?: string[];
+    }
     
     const dispatch = createEventDispatcher();
 
@@ -46,14 +74,20 @@
     let password = $state('');
     let isLoading = $state(false);
     let showTfaView = $state(false); // State to control 2FA view visibility
-    let tfaErrorMessage = $state<string | null>(null); // State for 2FA error messages
+    let _tfaErrorMessage = $state<string | null>(null); // State for 2FA error messages
     let verifyDeviceErrorMessage = $state<string | null>(null); // State for device verification errors
     let stayLoggedIn = $state(false); // New state for "Stay logged in" checkbox
     
     // New state variables for multi-step login flow using $state (Svelte 5 runes mode)
     type LoginStep = 'email' | 'password' | 'passkey' | 'security_key' | 'recovery_key' | 'backup_code';
     let currentLoginStep = $state<LoginStep>('email'); // Start with email-only step
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     let availableLoginMethods = $state<string[]>([]); // Will be populated from server response
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     let preferredLoginMethod = $state('password'); // Default to password
     let tfaAppName = $state<string | null>(null); // Will be populated from lookup response
     let tfaEnabled = $state(true); // Default to true for security (prevents user enumeration)
@@ -62,7 +96,7 @@
     
     // Conditional UI (passkey autofill) state
     let conditionalUIAbortController: AbortController | null = null; // For cancelling conditional UI passkey request
-    let isConditionalUISupported = $state(false); // Track if browser supports conditional UI
+    let _isConditionalUISupported = $state(false); // Track if browser supports conditional UI
     
     // Helper function to safely cast string to LoginStep
     function setLoginStep(step: string): void {
@@ -104,7 +138,7 @@
 
     // Add email validation state using $state (Svelte 5 runes mode)
     let emailError = $state('');
-    let showEmailWarning = $state(false);
+    let _showEmailWarning = $state(false);
     let isEmailValidationPending = $state(false);
     let loginFailedWarning = $state(false);
     let loginErrorMessage = $state<string | null>(null);
@@ -218,7 +252,7 @@
     }
 
     // Add debounce helper
-    function debounce<T extends (...args: any[]) => void>(
+    function debounce<T extends (...args: unknown[]) => void>(
         fn: T,
         delay: number
     ): (...args: Parameters<T>) => void {
@@ -281,7 +315,7 @@
     let hasValidEmail = $derived(email && !emailError && !isEmailValidationPending);
     
     // Update helper for form validation to be false by default using $derived (Svelte 5 runes mode)
-    let isFormValid = $derived(hasValidEmail && 
+    let _isFormValid = $derived(hasValidEmail && 
                      password && 
                      !loginFailedWarning);
 
@@ -572,7 +606,7 @@
                 timeout: initiateData.timeout,
                 userVerification: initiateData.userVerification as UserVerificationRequirement,
                 allowCredentials: initiateData.allowCredentials?.length > 0 
-                    ? initiateData.allowCredentials.map((cred: any) => ({
+                    ? initiateData.allowCredentials.map((cred: PasskeyCredentialDescriptor) => ({
                         type: cred.type,
                         id: base64UrlToArrayBuffer(cred.id),
                         transports: cred.transports
@@ -590,7 +624,7 @@
             console.log('[Login] WebAuthn request options prepared:', {
                 rpId: publicKeyCredentialRequestOptions.rpId,
                 hasExtensions: !!publicKeyCredentialRequestOptions.extensions,
-                hasPrfExtension: !!(publicKeyCredentialRequestOptions.extensions as any)?.prf,
+                hasPrfExtension: !!(publicKeyCredentialRequestOptions.extensions as Record<string, unknown>)?.prf,
                 allowCredentialsCount: publicKeyCredentialRequestOptions.allowCredentials?.length || 0
             });
             
@@ -601,16 +635,16 @@
                     publicKey: publicKeyCredentialRequestOptions,
                     signal: passkeyLoginAbortController?.signal
                 }) as PublicKeyCredential;
-            } catch (error: any) {
+            } catch (error: unknown) {
                 // Handle expected cancellations first (don't log as errors)
-                if (error.name === 'AbortError') {
+                if (error instanceof Error && error.name === 'AbortError') {
                     // Request was aborted (e.g., user navigated to signup) - expected behavior
                     console.log('[Login] Passkey login was cancelled');
                     isPasskeyLoading = false;
                     isLoading = false;
                     return;
                 }
-                if (error.name === 'NotAllowedError') {
+                if (error instanceof Error && error.name === 'NotAllowedError') {
                     // NotAllowedError can occur when:
                     // 1. User cancelled the passkey prompt
                     // 2. Request timed out
@@ -647,7 +681,7 @@
             // Step 4: Check PRF extension support
             const clientExtensionResults = assertion.getClientExtensionResults();
             console.log('[Login] Client extension results:', clientExtensionResults);
-            const prfResults = clientExtensionResults?.prf as any;
+            const prfResults = clientExtensionResults?.prf as PRFExtensionResults | undefined;
             console.log('[Login] PRF results:', prfResults);
             
             // Check if PRF is enabled and has results
@@ -707,10 +741,11 @@
                 console.log('[Login] PRF signature is TypedArray, converting to Uint8Array');
                 prfSignature = new Uint8Array(prfSignatureBuffer.buffer, prfSignatureBuffer.byteOffset, prfSignatureBuffer.byteLength);
             } else {
+                const unknownBuffer = prfSignatureBuffer as unknown;
                 console.error('[Login] PRF signature is in unknown format', {
-                    type: typeof prfSignatureBuffer,
-                    constructor: prfSignatureBuffer?.constructor?.name,
-                    value: prfSignatureBuffer
+                    type: typeof unknownBuffer,
+                    constructor: (unknownBuffer as { constructor?: { name?: string } })?.constructor?.name,
+                    value: unknownBuffer
                 });
                 loginFailedWarning = true;
                 isPasskeyLoading = false;
@@ -1028,9 +1063,9 @@
                 inSignupFlow: inSignupFlow
             });
             
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error during passkey login:', error);
-            if (error.name === 'AbortError') {
+            if (error instanceof Error && error.name === 'AbortError') {
                 // User cancelled - already handled
                 return;
             }
@@ -1157,14 +1192,14 @@
                     mediation: 'conditional',
                     signal: conditionalUIAbortController?.signal
                 }) as PublicKeyCredential;
-            } catch (error: any) {
-                if (error.name === 'AbortError') {
+            } catch (error: unknown) {
+                if (error instanceof Error && error.name === 'AbortError') {
                     console.log('[Login] Conditional UI passkey request was cancelled');
                     return;
                 }
                 // NotAllowedError can happen if user focuses input but doesn't select a passkey
                 // or if the request times out - we should restart it in this case
-                if (error.name === 'NotAllowedError') {
+                if (error instanceof Error && error.name === 'NotAllowedError') {
                     console.log('[Login] Conditional UI request completed without selection - will restart automatically if needed');
                     // Reset abort controller so it can be restarted
                     conditionalUIAbortController = null;
@@ -1193,8 +1228,8 @@
             // Reset abort controller after successful processing so it can be restarted if needed
             conditionalUIAbortController = null;
             
-        } catch (error: any) {
-            if (error.name === 'AbortError') {
+        } catch (error: unknown) {
+            if (error instanceof Error && error.name === 'AbortError') {
                 console.log('[Login] Conditional UI request aborted');
                 return;
             }
@@ -1217,7 +1252,7 @@
      */
     async function processPasskeyAssertion(
         assertion: PublicKeyCredential, 
-        initiateData: any,
+        initiateData: PasskeyInitiateData,
         cryptoService: typeof import('../services/cryptoService')
     ) {
         try {
@@ -1228,7 +1263,7 @@
             // Check PRF extension support
             const clientExtensionResults = assertion.getClientExtensionResults();
             console.log('[Login] Client extension results:', clientExtensionResults);
-            const prfResults = clientExtensionResults?.prf as any;
+            const prfResults = clientExtensionResults?.prf as PRFExtensionResults | undefined;
             console.log('[Login] PRF results:', prfResults);
             
             // Validate PRF extension results
@@ -1549,7 +1584,7 @@
                 inSignupFlow: inSignupFlow
             });
             
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('[Login] Error processing passkey assertion:', error);
             
             // Check for chunk loading errors (stale cache after deployment)
@@ -1923,10 +1958,10 @@
     
     // Store references to Signup component's internal handlers
     // These will be set up to call Signup's handlers when invoked
-    let signupCloseToDemo: (() => Promise<void>) | null = null;
-    let signupStepFromNav: ((event: { step: string }) => void) | null = null;
-    let signupSkip: (() => void) | null = null;
-    let signupLogout: (() => Promise<void>) | null = null;
+    let _signupCloseToDemo: (() => Promise<void>) | null = null;
+    let _signupStepFromNav: ((event: { step: string }) => void) | null = null;
+    let _signupSkip: (() => void) | null = null;
+    let _signupLogout: (() => Promise<void>) | null = null;
     
     // Handlers for SignupNav - these call the callbacks passed to Signup
     // Signup will update these callbacks (via bindable) to call its internal handlers
@@ -2303,7 +2338,7 @@
                                                     // Reset account recovery mode when going back to email
                                                     isInAccountRecoveryMode = false;
                                                 }}
-                                                on:switchToBackupCode={(e) => {
+                                                on:switchToBackupCode={(_e) => {
                                                     // Handle switch to backup code
                                                     currentLoginStep = 'backup_code';
                                                 }}

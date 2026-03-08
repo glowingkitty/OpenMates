@@ -64,7 +64,7 @@ const mockRequest = {
 };
 
 // Mock IDBCursor
-const mockCursor = {
+const _mockCursor = {
   value: null,
   continue: vi.fn(),
   update: vi.fn(),
@@ -253,7 +253,7 @@ describe('ChatDatabase', () => {
       });
 
       it('should decrypt chat key for future use', () => {
-        const decryptedChat = (chatDB as any).decryptChatFromStorage(encryptedChat);
+        const _decryptedChat = (chatDB as any).decryptChatFromStorage(encryptedChat);
         
         expect(cryptoService.decryptChatKeyWithMasterKey).toHaveBeenCalledWith(
           'encrypted-chat-key'
@@ -271,7 +271,7 @@ describe('ChatDatabase', () => {
 
       it('should handle chat without encrypted chat key', () => {
         const chatWithoutEncryptedKey = { ...encryptedChat, encrypted_chat_key: null };
-        const decryptedChat = (chatDB as any).decryptChatFromStorage(chatWithoutEncryptedKey);
+        const _decryptedChat = (chatDB as any).decryptChatFromStorage(chatWithoutEncryptedKey);
         
         expect(cryptoService.decryptChatKeyWithMasterKey).not.toHaveBeenCalled();
       });
@@ -503,8 +503,8 @@ describe('ChatDatabase', () => {
         chatDB.clearAllChatKeys();
         
         // Generate new keys - should be different
-        const newKey1 = chatDB.getOrGenerateChatKey(chatId1);
-        const newKey2 = chatDB.getOrGenerateChatKey(chatId2);
+        const _newKey1 = chatDB.getOrGenerateChatKey(chatId1);
+        const _newKey2 = chatDB.getOrGenerateChatKey(chatId2);
         
         expect(cryptoService.generateChatKey).toHaveBeenCalledTimes(4); // 2 before clear + 2 after clear
       });

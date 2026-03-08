@@ -7,7 +7,6 @@ Shows the gift card code and allows downloading it as a text file
     import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import { text } from '@repo/ui';
     import { webSocketService } from '../../../services/websocketService';
-    import SettingsItem from '../../SettingsItem.svelte';
     import { copyToClipboard as clipboardCopy } from '../../../utils/clipboardUtils';
 
     const dispatch = createEventDispatcher();

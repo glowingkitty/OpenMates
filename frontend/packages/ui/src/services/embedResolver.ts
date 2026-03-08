@@ -89,7 +89,7 @@ async function initToonDecoder() {
 /**
  * Embed data structure from server/cache
  */
-interface EmbedData {
+export interface EmbedData {
   embed_id: string;
   type: string; // Decrypted type (client-side only)
   // See embedStateMachine.ts for the canonical status type and valid transitions
@@ -99,6 +99,7 @@ interface EmbedData {
   embed_ids?: string[]; // For composite embeds (app_skill_use)
   file_path?: string; // For code embeds: relative file path (e.g., "src/components/Button.tsx")
   createdAt: number;
+  [key: string]: unknown; // Dynamic fields from TOON-decoded embed content
   updatedAt: number;
 }
 

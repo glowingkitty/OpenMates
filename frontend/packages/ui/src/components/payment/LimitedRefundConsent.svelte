@@ -15,6 +15,8 @@
         dispatch('consentChanged', { consented: hasConsentedToLimitedRefund });
     });
     
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     function openRefundInfo() {
         // Open refund info in new tab
         window.open(getWebsiteUrl(routes.docs.userGuide_signup_10_1), '_blank');

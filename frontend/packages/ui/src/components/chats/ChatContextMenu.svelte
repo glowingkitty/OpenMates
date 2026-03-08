@@ -489,7 +489,7 @@
                 </button>
             {/if}
 
-            {#if chat && !chat.is_incognito && !(chat as any).is_hidden && !isPublicChat(chat.chat_id)}
+            {#if chat && !chat.is_incognito && !chat.is_hidden && !isPublicChat(chat.chat_id)}
                 <button
                     class="menu-item hide"
                     class:disabled={!$authStore.isAuthenticated}
@@ -505,7 +505,7 @@
                 </button>
             {/if}
 
-            {#if chat && (chat as any).is_hidden}
+            {#if chat && chat.is_hidden}
                 <button
                     class="menu-item unhide"
                     class:disabled={!$authStore.isAuthenticated}

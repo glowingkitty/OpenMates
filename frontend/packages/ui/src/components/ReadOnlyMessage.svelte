@@ -13,7 +13,7 @@
     import { EmbedPreviewSmallNode } from '../components/enter_message/extensions/EmbedPreviewSmallNode';
     import { EmbedPreviewLargeNode } from '../components/enter_message/extensions/EmbedPreviewLargeNode';
     import { MarkdownExtensions } from '../components/enter_message/extensions/MarkdownExtensions';
-    import { parseMarkdownToTiptap, isMarkdownContent } from '../components/enter_message/utils/markdownParser';
+    import { isMarkdownContent } from '../components/enter_message/utils/markdownParser';
     import { parse_message } from '../message_parsing/parse_message';
     import { applyIncrementalUpdate } from '../message_parsing/streamingDocDiff';
     import { createEventDispatcher } from 'svelte';
@@ -37,7 +37,7 @@
         piiRevealed = false,
         role = undefined
     }: { 
-        content: any; 
+        content: string | Record<string, unknown> | null; 
         isStreaming?: boolean; 
         _embedUpdateTimestamp?: number;
         selectable?: boolean;
@@ -146,16 +146,16 @@
     // when the timer fires, so no content is ever lost.
     const STREAMING_DEBOUNCE_MS = 80;
     let streamingDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-    let pendingStreamContent: any = null;
+    let pendingStreamContent: string | Record<string, unknown> | null = null;
 
     // Logger for debugging
     const logger = {
-        debug: (...args: any[]) => console.debug('[ReadOnlyMessage]', ...args),
-        info: (...args: any[]) => console.info('[ReadOnlyMessage]', ...args)
+        debug: (...args: unknown[]) => console.debug('[ReadOnlyMessage]', ...args),
+        info: (...args: unknown[]) => console.info('[ReadOnlyMessage]', ...args)
     };
 
     // Handle embed interactions directly from the editor element
-    function handleEmbedClick(event: CustomEvent) {
+    function _handleEmbedClick(event: CustomEvent) {
         event.stopPropagation();
         const target = event.target as HTMLElement;
         // Look for any embed container with either data attribute
@@ -359,7 +359,7 @@
     /**
      * Handle touch end - cancel long-press timer
      */
-    function handleTouchEnd(event: TouchEvent) {
+    function handleTouchEnd(_event: TouchEvent) {
         clearTouchTimer();
     }
 
@@ -460,7 +460,7 @@
         touchTarget = null;
     }
 
-    function processContent(inputContent: any) {
+    function processContent(inputContent: string | Record<string, unknown> | null) {
         if (!inputContent) return null;
         
         try {
@@ -955,7 +955,7 @@
      * @param streaming - Whether this is a streaming update
      * @param forceFullReplace - Force setContent() even during streaming (locale/embed updates)
      */
-    function applyContentUpdate(processedContent: any, streaming: boolean, forceFullReplace: boolean) {
+    function applyContentUpdate(processedContent: Record<string, unknown> | null, streaming: boolean, forceFullReplace: boolean) {
         if (!editor || editor.isDestroyed) return;
         
         if (streaming && !forceFullReplace) {

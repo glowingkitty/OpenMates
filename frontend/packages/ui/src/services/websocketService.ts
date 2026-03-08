@@ -387,7 +387,7 @@ class WebSocketService extends EventTarget {
   }
 
   private registerPongHandler(): void {
-    this.on("pong", (payload: any) => {
+    this.on("pong", (_payload: any) => {
       // Pong received, clear pong timeout
       console.debug("[WebSocketService] Pong received, clearing timeout");
       if (this.pongTimeoutId) {
@@ -1109,7 +1109,7 @@ class WebSocketService extends EventTarget {
       }
       try {
         await this.connect(); // Wait for connection
-      } catch (error) {
+      } catch (_error) {
         if (type !== "ping") {
           console.error(
             "[WebSocketService] Connection failed, cannot send message:",

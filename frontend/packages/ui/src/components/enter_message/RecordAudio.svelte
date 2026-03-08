@@ -79,9 +79,9 @@
     let pendingReleaseCancel: boolean | null = null;
 
     const logger = {
-        debug: (...args: any[]) => console.debug('[RecordAudio]', ...args),
-        info:  (...args: any[]) => console.info('[RecordAudio]',  ...args),
-        error: (...args: any[]) => console.error('[RecordAudio]', ...args),
+        debug: (...args: unknown[]) => console.debug('[RecordAudio]', ...args),
+        info:  (...args: unknown[]) => console.info('[RecordAudio]',  ...args),
+        error: (...args: unknown[]) => console.error('[RecordAudio]', ...args),
     };
 
     // --- Lifecycle ---

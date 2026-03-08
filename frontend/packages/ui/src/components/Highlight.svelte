@@ -21,7 +21,7 @@
     } = $props();
 
     // Add a prop to track visibility
-    let isVisible = false;
+    let _isVisible = false;
     let highlightElement: HTMLElement;
     let observer: IntersectionObserver;
 

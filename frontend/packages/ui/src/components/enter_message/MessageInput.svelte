@@ -41,6 +41,8 @@
     import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
     import Toggle from '../Toggle.svelte';
     import { Decoration, DecorationSet } from 'prosemirror-view';
+    import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
+    import type { Content } from '@tiptap/core';
     import type { FocusModeMetadata } from '../../types/apps';
 
     // Utils
@@ -53,7 +55,6 @@
     // Unified parser imports
     import { parse_message } from '../../message_parsing/parse_message';
     import { tipTapToCanonicalMarkdown, parseEmbedClipboardData } from '../../message_parsing/serializers';
-    import { isDesktop } from '../../utils/platform';
     
     // URL metadata service - creates proper embeds with embed_id for LLM context
     import { createEmbedFromUrl } from './services/urlMetadataService';
@@ -97,7 +98,6 @@
         handleRecordTouchEnd as handleRecordTouchEndLogic,
         handleStopRecordingCleanup
     } from './handlers/recordingHandlers';
-    import { handleKeyboardShortcut } from './handlers/keyboardShortcutHandler';
     
     // PII Detection
     import { detectPII, type PIIMatch, type PIIDetectionOptions, type PersonalDataForDetection } from './services/piiDetectionService';
@@ -117,6 +117,22 @@
         findPendingSendByEmbedId,
     } from '../../stores/pendingUploadStore';
     import { embedStore } from '../../services/embedStore';
+
+    /** Unclosed block from streaming semantics analysis (code blocks, tables, URLs, etc.) */
+    interface UnclosedBlock {
+        type: string;
+        startLine: number;
+        content: string;
+        tokenStartCol?: number;
+        tokenEndCol?: number;
+    }
+
+    /** Minimal TipTap document structure returned by parse_message() */
+    interface ParsedTipTapDoc {
+        type: string;
+        content?: { type: string; content?: { type: string; attrs?: Record<string, unknown> }[] }[];
+        _streamingData?: { unclosedBlocks: UnclosedBlock[] };
+    }
 
     const dispatch = createEventDispatcher();
 
@@ -275,13 +291,13 @@
     let mentionQuery = $state('');
 
     let mentionDropdownY = $state(0);
-    let isScrollable = $state(false);
+    let _isScrollable = $state(false);
     let showMenu = $state(false);
     let menuX = $state(0);
     let menuY = $state(0);
     let selectedEmbedId: string | null = null;
     let menuType = $state<'default' | 'pdf' | 'web'>('default');
-    let selectedNode = $state<{ node: any; pos: number } | null>(null);
+    let selectedNode = $state<{ node: ProseMirrorNode; pos: number } | null>(null);
     let isMenuInteraction = false;
     let previousHeight = 0;
 
@@ -458,7 +474,7 @@
     let piiExclusions = $state<Set<string>>(new Set());
     // Cache of current PII Decoration objects to merge with unclosed-block decorations.
     // Stored separately so they survive when applyHighlightingColors rebuilds the decoration set.
-    let currentPIIDecorations: any[] = [];
+    let currentPIIDecorations: Decoration[] = [];
     // Cache the last text we ran PII detection on to skip redundant work
     let lastPIIText = '';
     // Debounce timer for PII detection - safety net fallback for edge cases
@@ -622,7 +638,7 @@
      * Check if a parsed document contains preview embeds (closed code blocks, tables, etc.)
      * Preview embeds have contentRef starting with 'preview:'
      */
-    function hasPreviewEmbeds(doc: any): boolean {
+    function hasPreviewEmbeds(doc: ParsedTipTapDoc): boolean {
         if (!doc || !doc.content) return false;
         
         for (const node of doc.content) {
@@ -972,7 +988,7 @@
      * Apply TipTap decorations to highlight unclosed blocks in write mode
      * Uses TipTap's native decoration system to avoid DOM conflicts
      */
-    function applyHighlightingColors(editor: Editor, unclosedBlocks: any[]) {
+    function applyHighlightingColors(editor: Editor, unclosedBlocks: UnclosedBlock[]) {
         // Debug: unclosed blocks for decoration (logged only at info level to reduce keystroke overhead)
 
         const { state, view } = editor;
@@ -1066,8 +1082,8 @@
                     const url = block.content;
                     let urlStartPos: number;
                     
-                    if (typeof (block as any).tokenStartCol === 'number') {
-                        urlStartPos = startLineOffset + (block as any).tokenStartCol;
+                    if (typeof block.tokenStartCol === 'number') {
+                        urlStartPos = startLineOffset + block.tokenStartCol;
                     } else {
                         const startIndex = text.indexOf(url, startLineOffset);
                         if (startIndex === -1) continue; // URL not found, skip
@@ -1095,9 +1111,9 @@
                     }
                     
                     // Use precise character positions when available (preferred)
-                    if (typeof (block as any).tokenStartCol === 'number' && typeof (block as any).tokenEndCol === 'number') {
-                        const tokenStartCol = (block as any).tokenStartCol as number;
-                        const tokenEndCol = (block as any).tokenEndCol as number;
+                    if (typeof block.tokenStartCol === 'number' && typeof block.tokenEndCol === 'number') {
+                        const tokenStartCol = block.tokenStartCol as number;
+                        const tokenEndCol = block.tokenEndCol as number;
                         const from = clampToDoc(startLineOffset + tokenStartCol + 1);
                         const to = clampToDoc(startLineOffset + tokenEndCol + 1);
                         if (from < to) {
@@ -1156,9 +1172,9 @@
                 }
 
                 // Markdown token highlighting: use tokenStartCol/tokenEndCol when present
-                if (block.type === 'markdown' && typeof (block as any).tokenStartCol === 'number' && typeof (block as any).tokenEndCol === 'number') {
-                    const tokenStartCol = (block as any).tokenStartCol as number;
-                    const tokenEndCol = (block as any).tokenEndCol as number;
+                if (block.type === 'markdown' && typeof block.tokenStartCol === 'number' && typeof block.tokenEndCol === 'number') {
+                    const tokenStartCol = block.tokenStartCol as number;
+                    const tokenEndCol = block.tokenEndCol as number;
                     const from = clampToDoc(startLineOffset + tokenStartCol + 1);
                     const to = clampToDoc(startLineOffset + tokenEndCol + 1);
                     if (from < to) decorations.push({ from, to, className, type: block.type });
@@ -1243,7 +1259,7 @@
             embedGroupResizeObserver.disconnect();
         }
         
-        embedGroupResizeObserver = new ResizeObserver((entries) => {
+        embedGroupResizeObserver = new ResizeObserver((_entries) => {
             // Debounce the layout updates to avoid excessive recalculations
             clearTimeout(layoutUpdateTimeout);
             layoutUpdateTimeout = setTimeout(() => {
@@ -1372,7 +1388,7 @@
             onUpdate: handleEditorUpdate,
             editorProps: {
                 // Handle paste events at the ProseMirror level to intercept before default handling
-                handlePaste: (view, event, slice) => {
+                handlePaste: (view, event, _slice) => {
                     // ── Embed paste detection (highest priority) ───────────────────────
                     // Two detection paths:
                     //
@@ -2612,9 +2628,9 @@
             // Optimistic state update: clear activeAITasks Map to prevent new messages from being queued
             // This ensures the frontend state matches what we're trying to do (cancel the task)
             if (chatSyncService && currentChatId) {
-                const taskInfo = (chatSyncService as any).activeAITasks.get(currentChatId);
+                const taskInfo = chatSyncService.activeAITasks.get(currentChatId);
                 if (taskInfo && taskInfo.taskId === taskId) {
-                    (chatSyncService as any).activeAITasks.delete(currentChatId);
+                    chatSyncService.activeAITasks.delete(currentChatId);
                     console.debug('[MessageInput] Optimistically cleared activeAITasks entry on cancel');
                 }
             }
@@ -2757,8 +2773,8 @@
         customEvent.stopPropagation?.();
 
         // Find the matching TipTap node by embed ID
-        let foundNode: { node: any; pos: number } | null = null;
-        editor.state.doc.descendants((node: any, pos: number) => {
+        let foundNode: { node: ProseMirrorNode; pos: number } | null = null;
+        editor.state.doc.descendants((node: ProseMirrorNode, pos: number) => {
             if (foundNode) return false;
             // Match by id attr (used by inline embeds) or by contentRef containing embed ID
             if (node.attrs?.id === embedId ||
@@ -2796,7 +2812,7 @@
         }
 
         // Determine menu type from the node attrs
-        const nodeAttrs = (foundNode as { node: any; pos: number }).node.attrs ?? {};
+        const nodeAttrs = (foundNode as { node: ProseMirrorNode; pos: number }).node.attrs ?? {};
         let resolvedMenuType: 'default' | 'pdf' | 'web' = 'default';
         if (nodeAttrs.type === 'website' || nodeAttrs.type === 'web') {
             resolvedMenuType = 'web';
@@ -2809,7 +2825,7 @@
         menuY = calcMenuY;
         selectedEmbedId = embedId;
         menuType = resolvedMenuType;
-        selectedNode = foundNode as { node: any; pos: number };
+        selectedNode = foundNode as { node: ProseMirrorNode; pos: number };
         showMenu = true;
 
         console.debug('[MessageInput] Opened embed context menu via embed-context-menu event:', {
@@ -2847,7 +2863,9 @@
     function handleJsonCodeBlockBackspace(event: KeyboardEvent) {
         if (!editor) return;
         
-        const { from, to } = editor.state.selection;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
+
+        const { from, to: _to } = editor.state.selection;
         
         // Check for json_embed blocks first (new format)
         const textBeforeCursor = editor.state.doc.textBetween(Math.max(0, from - 300), from);
@@ -2905,7 +2923,7 @@
                     }
                     return;
                 }
-            } catch (error) {
+            } catch (_error) {
                 console.debug('[MessageInput] Not a valid json_embed block, using default backspace');
             }
         }
@@ -3355,8 +3373,7 @@
      *
      * Returns null if the text cannot be determined.
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async function getEmbedTextContent(node: any): Promise<string | null> {
+    async function getEmbedTextContent(node: ProseMirrorNode): Promise<string | null> {
         const attrs = node.attrs ?? {};
 
         // Recording embed: use the transcript directly
@@ -3716,7 +3733,7 @@
         window.dispatchEvent(new CustomEvent('openSignupInterface'));
     }
 
-    function handleInsertSpace() {
+    function _handleInsertSpace() {
         if (editor && !editor.isDestroyed) {
             editor.commands.insertContent(' ');
         }
@@ -3754,7 +3771,7 @@
     function onRecordMouseDown(event: CustomEvent<{ originalEvent: MouseEvent }>) {
         handleRecordMouseDownLogic(event.detail.originalEvent);
     }
-    async function onRecordMouseUp(event: CustomEvent<{ originalEvent: MouseEvent }>) {
+    async function onRecordMouseUp(_event: CustomEvent<{ originalEvent: MouseEvent }>) {
         // Wait for Svelte to render RecordAudio (bind:this is set after the #if block mounts).
         // If the user releases exactly when the 200ms hold timer fires, showRecordAudioUI
         // becomes true but the DOM update hasn't committed yet, so recordAudioComponent is
@@ -3762,7 +3779,7 @@
         await tick();
         handleRecordMouseUpLogic(recordAudioComponent);
     }
-    async function onRecordMouseLeave(event: CustomEvent<{ originalEvent: MouseEvent }>) {
+    async function onRecordMouseLeave(_event: CustomEvent<{ originalEvent: MouseEvent }>) {
         // When the recording overlay is active, the overlay covers the mic button and
         // the browser fires a synthetic mouseleave. Ignore it — RecordAudio's own
         // document-level listeners handle all stop/cancel logic from this point.
@@ -3775,7 +3792,7 @@
     function onRecordTouchStart(event: CustomEvent<{ originalEvent: TouchEvent }>) {
         handleRecordTouchStartLogic(event.detail.originalEvent);
     }
-    async function onRecordTouchEnd(event: CustomEvent<{ originalEvent: TouchEvent }>) {
+    async function onRecordTouchEnd(_event: CustomEvent<{ originalEvent: TouchEvent }>) {
         // Same tick() reasoning as onRecordMouseUp.
         await tick();
         handleRecordTouchEndLogic(recordAudioComponent);
@@ -3815,7 +3832,7 @@
         }
         return '';
     }
-    export function setDraftContent(chatId: string | null, draftContent: any | null, version: number, shouldFocus: boolean = false) {
+    export function setDraftContent(chatId: string | null, draftContent: Content | null, version: number, shouldFocus: boolean = false) {
         // CRITICAL: setCurrentChatContext already sets the editor content (to draftContent or initial content)
         // So we don't need to clear it again if draftContent is null - that would trigger unnecessary update events
         // The setCurrentChatContext function handles setting the editor content with emitUpdate: false to prevent triggering saves

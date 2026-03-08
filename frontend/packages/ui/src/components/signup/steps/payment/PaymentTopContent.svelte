@@ -74,7 +74,7 @@ step_10_top_content_svelte:
     } = $props();
     
     // Track if payment form is visible
-    let isPaymentFormVisible = false;
+    let _isPaymentFormVisible = false;
     let showGiftCardInput = $state(false);
     let pendingGiftCardCode = $state('');
     

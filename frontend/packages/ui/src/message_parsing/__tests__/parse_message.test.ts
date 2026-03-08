@@ -1,7 +1,7 @@
 // Unit tests for the unified message parsing architecture
 // Tests the main parse_message function and related utilities
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse_message, parseEmbedNodes, handleStreamingSemantics, enhanceDocumentWithEmbeds } from '../parse_message';
 import { EmbedNodeAttributes } from '../types';
 

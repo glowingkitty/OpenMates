@@ -1,10 +1,8 @@
-import { debounce, isEqual } from "lodash-es"; // Import isEqual
+import { debounce } from "lodash-es"; // Import isEqual
 import { get } from "svelte/store";
 import { chatDB } from "../db";
-import { webSocketService } from "../websocketService";
 import {
   websocketStatus,
-  type WebSocketStatus,
 } from "../../stores/websocketStatusStore";
 import type { Chat, TiptapJSON, OfflineChange } from "../../types/chat";
 import { draftEditorUIState, initialDraftEditorState } from "./draftState"; // Renamed import
@@ -12,7 +10,7 @@ import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./draftConstants";
 import { getEditorInstance, clearEditorAndResetDraftState } from "./draftCore";
 import { chatSyncService } from "../chatSyncService"; // Import the new service
 import { tipTapToCanonicalMarkdown } from "../../message_parsing/serializers"; // Import markdown converter
-import { encryptWithMasterKey, decryptWithMasterKey } from "../cryptoService"; // Import encryption functions
+import { encryptWithMasterKey } from "../cryptoService"; // Import encryption functions
 import { extractUrlFromJsonEmbedBlock } from "../../components/enter_message/services/urlMetadataService"; // For URL extraction
 import { chatMetadataCache } from "../chatMetadataCache"; // For cache invalidation
 import { authStore } from "../../stores/authStore"; // Import auth store to check authentication status
@@ -20,7 +18,6 @@ import { isPublicChat } from "../../demo_chats/convertToChat"; // Import to dete
 import {
   saveSessionStorageDraft,
   deleteSessionStorageDraft,
-  getSessionStorageDraftPreview,
 } from "./sessionStorageDraftService"; // Import sessionStorage draft service
 import { modelsMetadata } from "../../data/modelsMetadata"; // For model name lookup
 import { matesMetadata } from "../../data/matesMetadata"; // For mate name lookup
@@ -668,7 +665,7 @@ export const saveDraftDebounced = debounce(
           );
           return; // Don't save drafts for incognito chats
         }
-      } catch (error) {
+      } catch (_error) {
         // Not an incognito chat, continue normally
       }
     }
@@ -1103,7 +1100,7 @@ export const saveDraftDebounced = debounce(
           if (existingChat) {
             isIncognitoChat = true;
           }
-        } catch (error) {
+        } catch (_error) {
           // Not an incognito chat or error - continue to check IndexedDB
         }
 

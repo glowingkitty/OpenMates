@@ -5,7 +5,7 @@
  * State is stored in volatile memory only (never persisted).
  */
 
-import { writable, derived } from 'svelte/store';
+import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 import { hiddenChatService } from '../services/hiddenChatService';
 
@@ -20,7 +20,7 @@ interface HiddenChatState {
 }
 
 function createHiddenChatStore() {
-    const { subscribe, set, update } = writable<HiddenChatState>({
+    const { subscribe, set: _set, update } = writable<HiddenChatState>({
         isUnlocked: false,
         isLockedOut: false,
         lockoutRemainingSeconds: 0,
@@ -169,7 +169,7 @@ function createHiddenChatStore() {
     /**
      * Stop lockout check interval
      */
-    function stopLockoutCheckInterval(): void {
+    function _stopLockoutCheckInterval(): void {
         if (lockoutCheckInterval) {
             clearInterval(lockoutCheckInterval);
             lockoutCheckInterval = null;

@@ -11,7 +11,7 @@
   let currentApp = $state('');
   
   // Add state for mobile view using Svelte 5 $state
-  let isMobile = $state(false);
+  let _isMobile = $state(false);
   let screenWidth = $state(0);
 
   // Define icon grids based on the original layout

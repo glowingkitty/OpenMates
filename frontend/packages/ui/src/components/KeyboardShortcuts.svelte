@@ -6,10 +6,10 @@
 
   // Track if this is the first instance to register global listener
   // This prevents multiple KeyboardShortcuts instances from registering duplicate listeners
-  let isGlobalListenerRegistered = false;
+  let _isGlobalListenerRegistered = false;
 
   onMount(() => {
-    const desktop = isDesktop();
+    const _desktop = isDesktop();
 
     /**
      * Handle keyboard shortcuts with event capturing
@@ -27,7 +27,7 @@
                             activeElement?.classList.contains('ProseMirror');
 
       // Log keydown events for debugging (but skip password/code inputs to avoid logging sensitive data)
-      const isPasswordInput = activeElement?.getAttribute('type') === 'password' || 
+      const _isPasswordInput = activeElement?.getAttribute('type') === 'password' || 
                              activeElement?.getAttribute('inputmode') === 'numeric' ||
                              activeElement?.classList.contains('overscroll-unlock-input') ||
                              activeElement?.classList.contains('hidden-chat-unlock-input');

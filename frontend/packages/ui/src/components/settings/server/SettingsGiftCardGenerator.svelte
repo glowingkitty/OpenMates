@@ -17,7 +17,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
     import { copyToClipboard } from '../../../utils/clipboardUtils';
 
     // --- Constants ---
-    const QR_CODE_SIZE = 200;
+    const _QR_CODE_SIZE = 200;
     const QR_FULLSCREEN_SIZE = Math.min(600, typeof window !== 'undefined' ? Math.min(window.innerWidth, window.innerHeight) - 40 : 600);
     const COPIED_RESET_MS = 2000;
 

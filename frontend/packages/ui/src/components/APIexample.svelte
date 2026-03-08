@@ -20,7 +20,7 @@
         }, 1500);
     });
 
-    function formatOutput(outputDict: Record<string, any>): string {
+    function _formatOutput(outputDict: Record<string, any>): string {
         let formatted = ['<span class="syntax">{"{"}</span>'];
         for (const [key, value] of Object.entries(outputDict)) {
             let displayValue = '';

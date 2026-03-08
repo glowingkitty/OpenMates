@@ -4,15 +4,16 @@ import { draftEditorUIState, initialDraftEditorState } from './draftState'; // R
 import type { DraftEditorState } from './draftTypes'; // Renamed type
 import { registerWebSocketHandlers, unregisterWebSocketHandlers } from './draftWebsocket'; // Will be created next
 import { saveDraftDebounced } from './draftSave'; // Will be created next
-import { authStore } from '../../stores/authStore'; // Import authStore for authentication checks
+import { authStore } from '../../stores/authStore';
+import type { Editor } from '@tiptap/core'; // Import authStore for authentication checks
 
-let editorInstance: any | null = null; // Keep a reference to the Tiptap editor
+let editorInstance: Editor | null = null; // Keep a reference to the Tiptap editor
 
 /**
  * Initializes the draft service with the Tiptap editor instance.
  * MUST be called by MessageInput onMount.
  */
-export function initializeDraftService(editor: any) {
+export function initializeDraftService(editor: Editor) {
 	if (editorInstance) {
 		console.warn('[DraftService] initializeDraftService called more than once.');
 		// Optionally clean up previous instance if re-initialization is intended
@@ -45,7 +46,7 @@ export function cleanupDraftService() {
 /**
  * Returns the current editor instance. Use with caution.
  */
-export function getEditorInstance(): any | null {
+export function getEditorInstance(): Editor | null {
 	return editorInstance;
 }
 
@@ -56,7 +57,7 @@ export function getEditorInstance(): any | null {
  */
 export async function setCurrentChatContext(
 	chatId: string | null,
-	draftContent: any | null,
+	draftContent: Record<string, unknown> | string | null,
 	version: number
 ) {
 	console.info(`[DraftService] Setting context: chatId=${chatId}, version=${version}`);
@@ -92,7 +93,7 @@ export async function setCurrentChatContext(
 		const contentToSet = draftContent ?? getInitialContent();
 		console.debug('[DraftService] Setting editor content:', contentToSet);
 		// Use different methods to avoid triggering 'update' event which calls triggerSaveDraft
-		editorInstance.chain().setContent(contentToSet, false).run();
+		editorInstance.chain().setContent(contentToSet, { emitUpdate: false }).run();
 		// Do NOT auto-focus the editor - user must manually click to focus
 		// This prevents unwanted focus when switching between chats
 		console.debug('[DraftService] Skipped auto-focus - user must click to focus');
@@ -149,7 +150,7 @@ export async function clearEditorAndResetDraftState(shouldFocus: boolean = true,
 	// Use chain().clearContent() to avoid triggering update event
 	editorInstance.chain().clearContent(false).run();
 	// Set to initial state, also without emitting update
-	editorInstance.chain().setContent(getInitialContent(), false).run();
+	editorInstance.chain().setContent(getInitialContent(), { emitUpdate: false }).run();
 
 	// CRITICAL: Only reset the entire draft state if we're NOT preserving context
 	// When preserving context, we keep the currentChatId and other state intact

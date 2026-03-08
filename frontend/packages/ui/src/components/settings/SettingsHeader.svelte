@@ -1,7 +1,4 @@
 <script lang="ts">
-    import { get } from 'svelte/store';
-    import { fly, fade, slide } from 'svelte/transition';
-    import { cubicOut } from 'svelte/easing';
     import { text } from '@repo/ui'; // Reverted to original import path based on feedback
     import { panelState } from '../../stores/panelStateStore';
     import { getWebsiteUrl, routes } from '../../config/links';
@@ -12,7 +9,7 @@
     let { 
         activeSettingsView = 'main',
         activeSubMenuIcon = '',
-        activeSubMenuTitle = ''
+        _activeSubMenuTitle = ''
     }: {
         activeSettingsView?: string;
         activeSubMenuIcon?: string;
@@ -23,7 +20,7 @@
     let navigationPath: string[] = [];
     let breadcrumbLabel = $text('settings.settings');
     let fullBreadcrumbLabel = '';
-    let shortBreadcrumbLabel = '';
+    let _shortBreadcrumbLabel = '';
     let navButtonElement;
     let showSubmenuInfo = false; // Derived from activeSettingsView
     let navButtonLeft = false; // Derived from activeSettingsView
@@ -49,7 +46,7 @@
                 const style = window.getComputedStyle(document.body);
                 const fontWeight = style.getPropertyValue('--font-weight-bold') || '700';
                 context.font = `${fontWeight} ${font}`;
-            } catch (e) {
+            } catch (_e) {
                 console.warn('Could not get computed style, using default font weight');
             }
         }
@@ -208,7 +205,7 @@
     });
 
     // Subscribe to both text and navigation store to handle language updates using Svelte 5 runes
-    let breadcrumbs = $derived($settingsNavigationStore.breadcrumbs.map(crumb => ({
+    let _breadcrumbs = $derived($settingsNavigationStore.breadcrumbs.map(crumb => ({
         ...crumb,
         // Apply translations to breadcrumb titles
         title: crumb.translationKey ? $text(crumb.translationKey) : crumb.title

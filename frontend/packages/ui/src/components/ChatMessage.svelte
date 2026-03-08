@@ -11,7 +11,7 @@
   // Legacy embed nodes import removed - now using unified embed system
   import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
   import Icon from './Icon.svelte';
-  import type { MessageStatus, MessageRole } from '../types/chat';
+  import type { MessageStatus, MessageRole, Message } from '../types/chat';
   import { text, settingsDeepLink, panelState } from '@repo/ui'; // For translations
   import { getModelDisplayName, getModelByNameOrId } from '../utils/modelDisplayName';
   import { getMatesById } from '../data/matesMetadata';
@@ -20,17 +20,36 @@ import { messageHighlightStore, searchTextHighlightStore } from '../stores/messa
 import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadStore';
   import { chatDB } from '../services/db';
   import { chatSyncService } from '../services/chatSyncService';
-  import { uint8ArrayToUrlSafeBase64 } from '../services/cryptoService';
   import type { AppSettingsMemoriesResponseContent, AppSettingsMemoriesResponseCategory } from '../services/chatSyncServiceHandlersAppSettings';
   import { appSkillsStore } from '../stores/appSkillsStore';
   import { writeEmbedToClipboard, writeMessageWithEmbedsToClipboard } from '../message_parsing/serializers';
+  import type { TipTapNode } from '../message_parsing/types';
   import { copyToClipboard } from '../utils/clipboardUtils';
   
   // Define types for message content parts
   type AppCardData = {
-    component: new (...args: any[]) => SvelteComponent;
-    props: Record<string, any>;
+    component: new (...args: unknown[]) => SvelteComponent;
+    props: Record<string, unknown>;
   };
+
+  /** Minimal ProseMirror node shape used for embed context menus */
+  interface ProseMirrorNodeLike {
+    type: { name: string };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ProseMirror node attrs are dynamically keyed with mixed value types
+    attrs: Record<string, any>;
+    content?: ProseMirrorNodeLike[];
+  }
+
+  /** Embed share context passed to share settings */
+  interface EmbedShareContext {
+    type: string;
+    embed_id: string;
+    url?: string;
+    title?: string;
+    filename?: string;
+    language?: string;
+    lineCount?: number;
+  }
   
   // Use a discriminated union so that "text" parts only have a string and "app-cards" parts only have AppCardData[]
   type TextMessagePart = {
@@ -84,10 +103,10 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     messageParts?: MessagePart[];
     appCards?: AppCardData[];
     defaultHidden?: boolean;
-    content: any;
+    content: string | Record<string, unknown> | null;
     animated?: boolean;
     is_truncated?: boolean;
-    original_message?: any;
+    original_message?: (Partial<Message> & { is_incognito?: boolean }) | null;
     containerWidth?: number;
     _embedUpdateTimestamp?: number; // Used to force re-render when embed data becomes available
     hasEmbedErrors?: boolean; // Whether any embeds in this message failed (shows error banner)
@@ -271,7 +290,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   let menuX = $state(0);
   let menuY = $state(0);
   let menuType = $state<'default' | 'pdf' | 'web' | 'video-transcript' | 'video' | 'code' | 'focusMode'>('default');
-  let selectedNode = $state<any>(null);
+  let selectedNode = $state<ProseMirrorNodeLike | null>(null);
   let embedType = $state<'code' | 'video' | 'website' | 'pdf' | 'focusMode' | 'default'>('default');
   let selectedAppId = $state<string | null>(null);
   let selectedSkillId = $state<string | null>(null);
@@ -895,10 +914,10 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           if (rawMarkdown) {
             const tiptapDoc = parse_message(rawMarkdown, 'read', { unifiedParsingEnabled: true });
             // Walk the TipTap document to collect embed nodes
-            const collectEmbeds = (nodes: any[]): void => {
+            const collectEmbeds = (nodes: TipTapNode[]): void => {
               for (const node of nodes ?? []) {
                 if (node.type === 'embed' && node.attrs?.contentRef?.startsWith('embed:')) {
-                  embedAttrs.push(node.attrs);
+                  embedAttrs.push(node.attrs as unknown as import('../message_parsing/types').EmbedNodeAttributes);
                 }
                 if (node.content) collectEmbeds(node.content);
               }
@@ -946,14 +965,14 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     const el = messageContentElement;
     if (el) {
       // ONLY attach keydown, remove click to avoid intrusive menu on tap
-      el.addEventListener('keydown', handleMessageKeyDown as any);
+      el.addEventListener('keydown', handleMessageKeyDown as EventListener);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleGlobalClick);
       document.removeEventListener('touchstart', handleGlobalClick);
       if (el) {
-        el.removeEventListener('keydown', handleMessageKeyDown as any);
+        el.removeEventListener('keydown', handleMessageKeyDown as EventListener);
       }
     };
   });
@@ -1047,7 +1066,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     showMenu = true;
   }
 
-  function getEmbedIdFromNode(node: any): string | null {
+  function getEmbedIdFromNode(node: ProseMirrorNodeLike | null): string | null {
     // CRITICAL: Prioritize contentRef over attrs.id because attrs.id is a TipTap-generated UUID
     // (from generateUUID() in embedParsing.ts) and NOT the actual embed ID stored in EmbedStore.
     // The real embed ID lives in contentRef as "embed:<embed_id>".
@@ -1077,7 +1096,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     return type || 'embed';
   }
 
-  async function openEmbedShareSettings(embedContext: any) {
+  async function openEmbedShareSettings(embedContext: EmbedShareContext) {
     const { navigateToSettings } = await import('../stores/settingsNavigationStore');
     const { settingsDeepLink } = await import('../stores/settingsDeepLinkStore');
     const { panelState } = await import('../stores/panelStateStore');
@@ -1183,7 +1202,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
       try {
         const shareType = inferEmbedShareType();
-        const embedContext: any = { type: shareType, embed_id: embedId };
+        const embedContext: EmbedShareContext = { type: shareType, embed_id: embedId };
 
         // Best-effort metadata for nicer header display in SettingsShare
         if (shareType === 'website' || shareType === 'video') {
@@ -1347,7 +1366,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
                 let md = `*Query:*\n"${query}"\n\n`;
                 md += `*Provider:*\n${provider}\n\n`;
                 md += `*Results:*\n`;
-                results.forEach((result: any) => {
+                results.forEach((result: { url?: string }) => {
                   if (result.url) md += `- ${result.url}\n`;
                 });
                 return md.trimEnd();
@@ -1400,8 +1419,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
                 const decodedContent = await decodeToonContent(embedData.content);
                 const results = decodedContent.results || [];
                 return results
-                  .filter((r: any) => r.transcript)
-                  .map((r: any) => {
+                  .filter((r: { transcript?: string; url?: string; word_count?: number; metadata?: { title?: string } }) => r.transcript)
+                  .map((r: { transcript?: string; url?: string; word_count?: number; metadata?: { title?: string } }) => {
                     let content = '';
                     if (r.metadata?.title) content += `# ${r.metadata.title}\n\n`;
                     if (r.url) content += `Source: ${r.url}\n\n`;
@@ -1437,8 +1456,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           const firstResult = results[0] || {};
           const videoTitle = firstResult.metadata?.title || firstResult.url || 'Video Transcript';
           const downloadText = results
-            .filter((r: any) => r.transcript)
-            .map((r: any) => {
+            .filter((r: { transcript?: string; url?: string; word_count?: number; metadata?: { title?: string } }) => r.transcript)
+            .map((r: { transcript?: string; url?: string; word_count?: number; metadata?: { title?: string } }) => {
               let content = '';
               if (r.metadata?.title) content += `# ${r.metadata.title}\n\n`;
               if (r.url) content += `Source: ${r.url}\n\n`;
@@ -1590,7 +1609,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
                   let md = `*Query:*\n"${query}"\n\n`;
                   if (provider) md += `*Provider:*\n${provider}\n\n`;
                   md += `*Results:*\n`;
-                  results.forEach((r: any) => {
+                  results.forEach((r: { url?: string }) => {
                     if (r.url) md += `- ${r.url}\n`;
                   });
                   return md.trimEnd();

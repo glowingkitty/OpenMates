@@ -5,7 +5,7 @@
  * to computed values like the user's profile image URL.
  */
 
-import { derived, get } from 'svelte/store';
+import { derived } from 'svelte/store';
 import { authStore } from './authState'; // Import the core auth state store
 import { userProfile } from './userProfile'; // Import the user profile store
 

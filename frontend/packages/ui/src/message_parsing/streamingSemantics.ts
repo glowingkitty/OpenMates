@@ -2,7 +2,7 @@
 // Handles detection and processing of incomplete content during writing
 // Uses the shared CodeBlockStateMachine for reliable code fence detection
 
-import { EmbedNodeAttributes } from './types';
+import { EmbedNodeAttributes, EmbedStoreLike } from './types';
 import { EMBED_PATTERNS, generateUUID, CodeBlockStateMachine } from './utils';
 
 /**
@@ -292,7 +292,7 @@ function detectMarkdownSyntax(
  */
 export async function finalizeStreamingContent(
   embedNodes: EmbedNodeAttributes[],
-  embedStore: any
+  embedStore: EmbedStoreLike
 ): Promise<EmbedNodeAttributes[]> {
   const finalizedNodes: EmbedNodeAttributes[] = [];
   

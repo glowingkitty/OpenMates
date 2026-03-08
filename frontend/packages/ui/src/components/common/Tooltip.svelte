@@ -28,7 +28,7 @@
         console.debug('Touch device detected:', isTouchDevice); // Debug log
     }
     
-    function showTooltipWithDelay(event: MouseEvent) {
+    function showTooltipWithDelay(_event: MouseEvent) {
         // Don't show tooltip on touch devices
         if (isTouchDevice) {
             console.debug('Preventing tooltip on touch device'); // Debug log

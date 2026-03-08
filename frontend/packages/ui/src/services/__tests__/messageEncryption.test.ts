@@ -36,7 +36,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { chatDB } from '../db';
-import { generateChatKey, encryptWithChatKey, decryptWithChatKey } from '../cryptoService';
+import { generateChatKey } from '../cryptoService';
 import type { Message } from '../../types/chat';
 
 // Mock IndexedDB
@@ -62,7 +62,7 @@ const mockTransaction = {
   abort: vi.fn(),
 };
 
-const mockRequest = {
+const _mockRequest = {
   result: null,
   error: null,
   onsuccess: null,

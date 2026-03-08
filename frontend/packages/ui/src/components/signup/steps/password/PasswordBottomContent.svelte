@@ -21,7 +21,6 @@
     import { text } from '@repo/ui';
     import { fade } from 'svelte/transition';
     import { createEventDispatcher } from 'svelte';
-    import { getWebsiteUrl, routes } from '../../../../config/links';
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import { signupStore } from '../../../../stores/signupStore';
     import { requireInviteCode } from '../../../../stores/signupRequirements';
@@ -92,7 +91,7 @@
     // Get password data from parent component using Svelte 5 runes
     let { 
         password = '',
-        passwordRepeat = '',
+        _passwordRepeat = '',
         isFormValid = false
     }: {
         password?: string,

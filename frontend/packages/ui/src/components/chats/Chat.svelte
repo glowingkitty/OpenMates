@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Chat, TiptapJSON, Message, AITypingStartedPayload, AITaskInitiatedPayload } from '../../types/chat';
+  import type { Chat, TiptapJSON, Message } from '../../types/chat';
   import { onMount, onDestroy } from 'svelte';
   import { chatSyncService } from '../../services/chatSyncService';
   import { chatDB } from '../../services/db';
@@ -8,7 +8,6 @@
   import { text } from '@repo/ui'; // Use text store from @repo/ui
   import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
   import { decryptWithMasterKey, decryptWithChatKey } from '../../services/cryptoService';
-  import { parse_message } from '../../message_parsing/parse_message';
   import { extractUrlFromJsonEmbedBlock } from '../enter_message/services/urlMetadataService';
   import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants';
   import { chatMetadataCache, type DecryptedChatMetadata } from '../../services/chatMetadataCache';
@@ -18,7 +17,7 @@
   import { downloadChatAsZip } from '../../services/zipExportService';
   import { piiVisibilityStore } from '../../stores/piiVisibilityStore';
   import type { DecryptedChatData } from '../../types/chat';
-  import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isDemoChat, isLegalChat, getDemoChatById, getLegalChatById } from '../../demo_chats'; // Import demo chat utilities
+  import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isDemoChat, isLegalChat } from '../../demo_chats'; // Import demo chat utilities
   import { authStore } from '../../stores/authStore'; // Import authStore to check authentication
   import { getSessionStorageDraftPreview } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
   import { userProfile } from '../../stores/userProfile'; // Import userProfile to update hidden_demo_chats
@@ -138,8 +137,8 @@
     // Type guard: ensure content is an array before mapping
     if (!Array.isArray(jsonContent.content)) return '';
     try {
-      return jsonContent.content.map((node: any) =>
-        node.content?.map((contentNode: any) =>
+      return jsonContent.content.map((node: { type?: string; content?: Array<{ type?: string; text?: string }>; text?: string }) =>
+        node.content?.map((contentNode: { type?: string; text?: string }) =>
           contentNode.type === 'text' ? contentNode.text : ''
         ).join('')
       ).join('\n').trim() || '';
@@ -680,9 +679,9 @@
               lastMessageFromDB = await chatDB.getLastMessageForChat(currentChat.chat_id);
               // Cache the result (even if null)
               chatListCache.setLastMessage(currentChat.chat_id, lastMessageFromDB);
-            } catch (error: any) {
+            } catch (error: unknown) {
               // If database is being deleted or unavailable, use null
-              if (error?.message?.includes('being deleted') || error?.message?.includes('cannot be initialized')) {
+              if (error instanceof Error && (error.message?.includes('being deleted') || error.message?.includes('cannot be initialized'))) {
                 console.debug(`[Chat] Database is being deleted, skipping last message load for ${currentChat.chat_id}`);
                 chatListCache.setLastMessage(currentChat.chat_id, null); // Cache null to avoid retrying
               } else {
@@ -863,9 +862,9 @@
             await updateDisplayInfo(freshChat);
             return;
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           // If database is being deleted, skip update (component will unmount anyway)
-          if (error?.message?.includes('being deleted') || error?.message?.includes('cannot be initialized')) {
+          if (error instanceof Error && (error.message?.includes('being deleted') || error.message?.includes('cannot be initialized'))) {
             console.debug(`[Chat] Database is being deleted, skipping fresh chat fetch for ${chat.chat_id}`);
             return;
           }
@@ -912,9 +911,9 @@
           // when it receives the event and refreshes from the database
           await updateDisplayInfo(freshChat);
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         // If database is being deleted, skip update (component will unmount anyway)
-        if (error?.message?.includes('being deleted') || error?.message?.includes('cannot be initialized')) {
+        if (error instanceof Error && (error.message?.includes('being deleted') || error.message?.includes('cannot be initialized'))) {
           console.debug(`[Chat] Database is being deleted, skipping fresh chat fetch for ${chat.chat_id}`);
           return;
         }
@@ -1264,9 +1263,9 @@
         : await (async () => {
           try {
             return await chatDB.getMessagesForChat(chat.chat_id);
-          } catch (error: any) {
+          } catch (error: unknown) {
             // If database is being deleted, return empty array
-            if (error?.message?.includes('being deleted') || error?.message?.includes('cannot be initialized')) {
+            if (error instanceof Error && (error.message?.includes('being deleted') || error.message?.includes('cannot be initialized'))) {
               console.debug(`[Chat] Database is being deleted, skipping message load for ${chat.chat_id}`);
               return [];
             }
@@ -1329,9 +1328,9 @@
         : await (async () => {
           try {
             return await chatDB.getMessagesForChat(chat.chat_id);
-          } catch (error: any) {
+          } catch (error: unknown) {
             // If database is being deleted, return empty array
-            if (error?.message?.includes('being deleted') || error?.message?.includes('cannot be initialized')) {
+            if (error instanceof Error && (error.message?.includes('being deleted') || error.message?.includes('cannot be initialized'))) {
               console.debug(`[Chat] Database is being deleted, skipping message load for ${chat.chat_id}`);
               return [];
             }
@@ -1409,7 +1408,7 @@
     
     try {
       // Check if hidden chats are unlocked
-      const { hiddenChatStore } = await import('../../stores/hiddenChatStore');
+      const { hiddenChatStore: _hiddenChatStore } = await import('../../stores/hiddenChatStore');
       const { hiddenChatService } = await import('../../services/hiddenChatService');
       
       // If hidden chats are locked, prompt for password first
@@ -1951,7 +1950,7 @@
                   type="checkbox"
                   class="chat-checkbox"
                   checked={isSelected}
-                  onchange={(e) => {
+                  onchange={(_e) => {
                     if (onToggleSelection && chat) {
                       onToggleSelection(chat.chat_id);
                     }

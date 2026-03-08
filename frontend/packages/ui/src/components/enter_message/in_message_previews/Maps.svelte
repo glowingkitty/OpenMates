@@ -25,14 +25,14 @@
     // Initialize address with name or a default value
     let address: string = name || 'Loading location...';
     let coordinates: { lat: number; lon: number } | null = null;
-    let L: any;
-    let customIcon: any = null;
+    let L: typeof import('leaflet');
+    let customIcon: import('leaflet').DivIcon | null = null;
     let lastGeocodedLocation: string | null = null;
 
     // Logger for debugging
     const logger = {
-        debug: (...args: any[]) => console.debug('[MapsPreview]', ...args),
-        info: (...args: any[]) => console.info('[MapsPreview]', ...args)
+        debug: (...args: unknown[]) => console.debug('[MapsPreview]', ...args),
+        info: (...args: unknown[]) => console.info('[MapsPreview]', ...args)
     };
 
     // Add function to get current locale
@@ -41,11 +41,11 @@
     }
 
     // Function to format address consistently across components
-    function formatAddress(data: any): string {
+    function formatAddress(data: Record<string, Record<string, string>>): string {
         const locale = getCurrentLocale();
         
         // Helper function to get localized name
-        function getLocalizedName(obj: any, key: string) {
+        function getLocalizedName(obj: Record<string, string> | undefined, key: string) {
             if (!obj) return null;
             
             // Try locale-specific name first

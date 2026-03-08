@@ -9,7 +9,7 @@
     import { text } from '@repo/ui';
     import { isInSignupProcess, isLoggingOut } from '../stores/signupState'; // Import the signup state and logging out state
     import { panelState } from '../stores/panelStateStore'; // Import panel state store
-    import { isMobileView, loginInterfaceOpen } from '../stores/uiStateStore'; // Import mobile view state and login interface visibility
+    import { loginInterfaceOpen } from '../stores/uiStateStore'; // Import mobile view state and login interface visibility
     import { authStore } from '../stores/authStore'; // Import auth store to check login status
 
     // Props using Svelte 5 runes
@@ -40,7 +40,7 @@
         { href: routes.docs.main, text: $text('navigation.docs') }
     ].filter(item => item.href && isPageVisible(item.href)));
 
-    interface NavItem {
+    interface _NavItem {
         href: string;
         text: string;
     }
@@ -182,7 +182,7 @@
     let loginButtonText = $derived(isMobile ? $text('signup.sign_up') : `${$text('login.login')} / ${$text('signup.sign_up')}`);
 
     // Update menu toggle logic to consider the logging out state as well
-    const toggleMenu = () => {
+    const _toggleMenu = () => {
         if (isLoggedIn && !$isInSignupProcess && !$isLoggingOut) {
             isMenuOpen.set(!$isMenuOpen);
         }
@@ -203,7 +203,7 @@
     });
 
     // Add custom transition function
-    function slideFade(node: HTMLElement, { 
+    function _slideFade(node: HTMLElement, { 
         duration = 200 
     }) {
         const width = node.offsetWidth; // Get the natural width

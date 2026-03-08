@@ -103,7 +103,7 @@ export interface ParseMessageOptions {
   role?: "user" | "assistant" | "system";
 
   // Additional options can be added here
-  [key: string]: any;
+  [key: string]: string | boolean | undefined;
 }
 
 export interface EmbedStoreEntry {
@@ -113,12 +113,12 @@ export interface EmbedStoreEntry {
   // Old embeds stored entire object as JSON string in this field
   // Migration will convert old data field to separate fields below
   // New embeds should NOT use this field - use separate fields instead
-  data?: any;
+  data?: string;
 
   type: EmbedType;
   createdAt: number; // Server-provided timestamp (preserved from server, not overwritten)
   updatedAt: number; // Server-provided timestamp (preserved from server, not overwritten)
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 
   // App metadata (stored unencrypted in IndexedDB only, not sent to server)
   // This allows efficient filtering and querying by app_id without decrypting all embeds
@@ -163,5 +163,38 @@ export interface EmbedClipboardData {
   filename?: string;
   contentRef: string;
   contentHash?: string;
-  inlineContent?: any;
+  inlineContent?: Record<string, string | number | undefined>;
+}
+
+
+// TipTap document node interfaces used across the message parsing module
+// These replace `any` types for TipTap JSON structures
+
+/** A mark applied to a text node (bold, italic, code, link) */
+export interface TipTapMark {
+  type: string;
+  attrs?: Record<string, string | number | boolean | undefined>;
+}
+
+/** A single node within a TipTap document tree */
+export interface TipTapNode {
+  type: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- TipTap attrs can be EmbedNodeAttributes or arbitrary key-value pairs; a union type would require type guards at every access site with no safety benefit since the code already checks node.type before accessing attrs
+  attrs?: Record<string, any>;
+  content?: TipTapNode[];
+  text?: string;
+  marks?: TipTapMark[];
+}
+
+/** A TipTap document root node */
+export interface TipTapDoc {
+  type?: string;
+  content?: TipTapNode[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Must be compatible with TipTapDocument from documentEnhancement.ts which uses Record<string, any>
+  [key: string]: any;
+}
+
+/** Minimal interface for EmbedStore operations used in streamingSemantics */
+export interface EmbedStoreLike {
+  rekeyStreamToCid(streamKey: string): Promise<string>;
 }

@@ -35,7 +35,7 @@
     } = $props();
     
     // State for showing passkey button (updated after lookup)
-    let showPasskeyButton = $state(false);
+    let _showPasskeyButton = $state(false);
 
     // Form data
     let emailInputValue = $state(''); // Separate variable for the input field value

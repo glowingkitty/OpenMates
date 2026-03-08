@@ -19,7 +19,7 @@
     } = $props();
 
     // Common click handler for all previews
-    function handleClick(e: MouseEvent) {
+    function handleClick(_e: MouseEvent) {
         document.dispatchEvent(new CustomEvent('embedclick', { 
             bubbles: true, 
             detail: { 

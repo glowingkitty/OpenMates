@@ -8,7 +8,7 @@ import {
   createEmbedClipboardData,
   parseEmbedClipboardData
 } from '../serializers';
-import { EmbedNodeAttributes, EmbedClipboardData } from '../types';
+import { EmbedNodeAttributes, EmbedClipboardData, TipTapDoc } from '../types';
 
 describe('tipTapToCanonicalMarkdown', () => {
   it('should convert simple paragraph to markdown', () => {
@@ -187,9 +187,9 @@ describe('tipTapToCanonicalMarkdown', () => {
   });
 
   it('should return empty string for null/undefined document', () => {
-    expect(tipTapToCanonicalMarkdown(null)).toBe('');
-    expect(tipTapToCanonicalMarkdown(undefined)).toBe('');
-    expect(tipTapToCanonicalMarkdown({})).toBe('');
+    expect(tipTapToCanonicalMarkdown(null as unknown as TipTapDoc)).toBe('');
+    expect(tipTapToCanonicalMarkdown(undefined as unknown as TipTapDoc)).toBe('');
+    expect(tipTapToCanonicalMarkdown({} as TipTapDoc)).toBe('');
   });
 });
 
@@ -272,7 +272,7 @@ describe('clipboard operations', () => {
         filename: 'script.py',
         contentRef: 'cid:sha256:xyz789',
         contentHash: 'xyz789',
-        inlineContent: 'print("hello")'
+        inlineContent: { content: 'print("hello")' }
       };
 
       const attrs = parseEmbedClipboardData(clipboardData);

@@ -15,7 +15,7 @@ import { browser } from '$app/environment';
  */
 function createIncognitoModeStore() {
     const STORAGE_KEY = 'incognito_mode_enabled';
-    const { subscribe, set: setStore, update } = writable<boolean>(false);
+    const { subscribe, set: setStore, update: _update } = writable<boolean>(false);
 
     // Initialize from sessionStorage on client
     if (browser) {

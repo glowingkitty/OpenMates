@@ -234,7 +234,7 @@
     let cleanup = () => {};
 
     // Add at the top with other types
-    type MessagePart = {
+    type _MessagePart = {
         type: 'text' | 'app-cards';
         content: string | any[];  // or be more specific with AppCardData[] if available
     };
@@ -244,7 +244,7 @@
     let isVisible = false;
     let isPaused = false;
     let animationStarted = false;
-    let lastAnimationTime = 0;
+    let _lastAnimationTime = 0;
 
     // Add a new variable to track completion
     let isCompleted = false;
@@ -407,7 +407,7 @@
     }
 
     // Function to highlight app icon
-    function highlightAppIcon(appName: string) {
+    function _highlightAppIcon(appName: string) {
         const targetIcon = document.querySelector(`.icon-wrapper[data-app="${appName}"]`);
         if (targetIcon) {
             // Determine if the icon is on the left or right side
@@ -449,7 +449,7 @@
     });
 
     // Demonstration of new helper for highlight animations (instead of inlining logic)
-    function manageHighlightAnimation() {
+    function _manageHighlightAnimation() {
         if (!animationStarted) {
             animationStarted = true;
             isCompleted = false;
@@ -465,7 +465,7 @@
     }
 
     // Similarly, extract the header animation handling
-    function manageHeaderAnimation() {
+    function _manageHeaderAnimation() {
         if (isPaused || (!animationInProgress && !singleExample)) {
             requestAnimationFrame(() => animateMessages());
         }

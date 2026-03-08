@@ -13,6 +13,7 @@ import {
   decodeToonContent,
 } from "./embedResolver";
 import { restorePIIInText } from "../components/enter_message/services/piiDetectionService";
+import type { TipTapDoc } from "../message_parsing/types";
 import { copyToClipboard } from "../utils/clipboardUtils";
 
 /**
@@ -169,8 +170,8 @@ function formatTimestamp(timestamp: number | undefined | null): string | null {
 async function loadEmbedsRecursively(
   embedIds: string[],
   loadedEmbedIds: Set<string> = new Set(),
-): Promise<any[]> {
-  const embedsForExport: any[] = [];
+): Promise<Record<string, unknown>[]> {
+  const embedsForExport: Record<string, unknown>[] = [];
 
   // Filter out already loaded embeds
   const newEmbedIds = embedIds.filter((id) => !loadedEmbedIds.has(id));
@@ -226,7 +227,7 @@ async function loadEmbedsRecursively(
       const decodedContent = await decodeToonContent(embed.content);
 
       // Create export object with embed metadata and decoded content
-      const embedExport: any = {
+      const embedExport: Record<string, unknown> = {
         embed_id: embed.embed_id,
         type: embed.type,
         status: embed.status,
@@ -245,13 +246,14 @@ async function loadEmbedsRecursively(
 
       // Check for embed_ids in the decoded content (for composite embeds)
       if (decodedContent && typeof decodedContent === "object") {
+        const decoded = decodedContent as Record<string, unknown>;
         // Check if decoded content has embed_ids (could be array or pipe-separated string)
-        if (Array.isArray(decodedContent.embed_ids)) {
-          childEmbedIds.push(...decodedContent.embed_ids);
-        } else if (typeof decodedContent.embed_ids === "string") {
+        if (Array.isArray(decoded.embed_ids)) {
+          childEmbedIds.push(...(decoded.embed_ids as string[]));
+        } else if (typeof decoded.embed_ids === "string") {
           // Handle pipe-separated string format
           childEmbedIds.push(
-            ...decodedContent.embed_ids.split("|").filter((id) => id.trim()),
+            ...decoded.embed_ids.split("|").filter((id: string) => id.trim()),
           );
         }
       }
@@ -311,7 +313,7 @@ async function loadEmbedsRecursively(
  * @param messages - Array of messages in the chat
  * @returns Array of embed data with decoded content
  */
-async function getAllEmbedsForChat(messages: Message[]): Promise<any[]> {
+async function getAllEmbedsForChat(messages: Message[]): Promise<Record<string, unknown>[]> {
   try {
     console.debug("[ChatExportService] Collecting embeds for chat export");
 
@@ -378,35 +380,37 @@ export async function convertChatToYaml(
   includeLink: boolean = false,
   piiOptions?: PIIExportOptions,
 ): Promise<string> {
-  const yamlData: any = {
-    chat: {
-      title: null,
-      exported_at: new Date().toISOString(),
-      message_count: messages.length,
-      draft: null,
-      summary: null,
-    },
-    messages: [],
+  const chatMeta: Record<string, unknown> = {
+    title: null as string | null,
+    exported_at: new Date().toISOString(),
+    message_count: messages.length,
+    draft: null as string | null,
+    summary: null as string | null,
+  };
+  const yamlMessages: Record<string, unknown>[] = [];
+  const yamlData: Record<string, unknown> = {
+    chat: chatMeta,
+    messages: yamlMessages,
     embeds: [], // Separate field for embeds with decoded content
   };
 
   // Add chat link at the top if requested (for clipboard copy)
   if (includeLink) {
-    yamlData.chat.link = generateChatLink(chat.chat_id);
+    chatMeta.link = generateChatLink(chat.chat_id);
     console.debug(
       "[ChatExportService] Including chat link in YAML:",
-      yamlData.chat.link,
+      chatMeta.link,
     );
   }
 
   // Try to get decrypted title and summary from cache
   const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
   if (metadata?.title) {
-    yamlData.chat.title = metadata.title;
+    chatMeta.title = metadata.title;
     console.debug("[ChatExportService] Using decrypted title:", metadata.title);
   } else if (chat.title) {
     // Fallback for demo chats which use plaintext title
-    yamlData.chat.title = chat.title;
+    chatMeta.title = chat.title;
     console.debug(
       "[ChatExportService] Using plaintext title (demo chat):",
       chat.title,
@@ -416,17 +420,17 @@ export async function convertChatToYaml(
   }
 
   if (metadata?.summary) {
-    yamlData.chat.summary = metadata.summary;
+    chatMeta.summary = metadata.summary;
     console.debug(
       "[ChatExportService] Using decrypted summary:",
       metadata.summary.substring(0, 50),
     );
-  } else if ((chat as any).summary) {
+  } else if (chat.chat_summary) {
     // Fallback for demo chats which use plaintext summary
-    yamlData.chat.summary = (chat as any).summary;
+    chatMeta.summary = chat.chat_summary;
     console.debug(
       "[ChatExportService] Using plaintext summary (demo chat):",
-      (chat as any).summary.substring(0, 50),
+      chat.chat_summary!.substring(0, 50),
     );
   }
 
@@ -444,7 +448,7 @@ export async function convertChatToYaml(
 
       if (isCleartextDraft) {
         // This is a cleartext draft from sessionStorage - use it directly
-        yamlData.chat.draft = chat.encrypted_draft_md;
+        chatMeta.draft = chat.encrypted_draft_md;
         console.debug(
           "[ChatExportService] Included cleartext draft from sessionStorage in export",
         );
@@ -455,7 +459,7 @@ export async function convertChatToYaml(
           chat.encrypted_draft_md,
         );
         if (decryptedDraft) {
-          yamlData.chat.draft = decryptedDraft;
+          chatMeta.draft = decryptedDraft;
           console.debug(
             "[ChatExportService] Successfully included encrypted draft in export",
           );
@@ -478,7 +482,7 @@ export async function convertChatToYaml(
   // When PII is hidden, original values in message content are replaced with placeholders
   for (const message of messages) {
     const messageData = await convertMessageToYaml(message, piiOptions);
-    yamlData.messages.push(messageData);
+    yamlMessages.push(messageData);
   }
 
   // Add embeds with decoded content (separate field)
@@ -521,9 +525,9 @@ function safeTimestampToISO(
 async function convertMessageToYaml(
   message: Message,
   piiOptions?: PIIExportOptions,
-): Promise<any> {
+): Promise<Record<string, unknown>> {
   try {
-    const messageData: any = {
+    const messageData: Record<string, unknown> = {
       role: message.role,
       completed_at:
         safeTimestampToISO(message.created_at) ?? new Date().toISOString(), // Fallback to now if timestamp is invalid
@@ -531,7 +535,7 @@ async function convertMessageToYaml(
 
     // Add assistant category if available
     if (message.role === "assistant") {
-      const category = message.category || (message as any).assistant_category;
+      const category = message.category || (message as unknown as Record<string, unknown>).assistant_category;
       if (category) {
         messageData.assistant_category = category;
       }
@@ -543,7 +547,7 @@ async function convertMessageToYaml(
       messageData.content = applyPIIToContent(message.content, piiOptions);
     } else if (message.content && typeof message.content === "object") {
       // TipTap JSON content - convert to markdown for YAML, then apply PII handling
-      const markdown = await convertTiptapToMarkdown(message.content);
+      const markdown = await convertTiptapToMarkdown(message.content as unknown as TipTapDoc);
       messageData.content = applyPIIToContent(markdown, piiOptions);
     } else {
       messageData.content = "";
@@ -613,7 +617,7 @@ async function convertMessageToYaml(
  * Converts TipTap JSON content to markdown
  * This is a simplified version - you might want to use a more robust converter
  */
-async function convertTiptapToMarkdown(content: any): Promise<string> {
+async function convertTiptapToMarkdown(content: TipTapDoc): Promise<string> {
   if (!content || !content.content) {
     return "";
   }
@@ -723,11 +727,11 @@ function needsQuoting(str: string): boolean {
 /**
  * Converts JavaScript object to YAML string
  */
-function convertToYamlString(data: any): string {
+function convertToYamlString(data: Record<string, unknown>): string {
   // Simple YAML conversion - in production you might want to use a proper YAML library
   const yamlLines: string[] = [];
 
-  function convertValue(key: string, value: any, indent: number = 0): void {
+  function convertValue(key: string, value: unknown, indent: number = 0): void {
     const spaces = "  ".repeat(indent);
 
     if (value === null || value === undefined) {

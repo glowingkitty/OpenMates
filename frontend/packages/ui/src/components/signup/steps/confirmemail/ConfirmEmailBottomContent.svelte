@@ -3,13 +3,9 @@
     import { onMount } from 'svelte';
     import { createEventDispatcher } from 'svelte';
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
-    import { authStore } from '../../../../stores/authStore';
     import { currentSignupStep, isInSignupProcess } from '../../../../stores/signupState';
-    import { userDB } from '../../../../services/userDB';
-    import { updateProfile } from '../../../../stores/userProfile';
-    import { signupStore, clearSignupData } from '../../../../stores/signupStore';
+    import { signupStore } from '../../../../stores/signupStore';
     import { get } from 'svelte/store';
-    import * as cryptoService from '../../../../services/cryptoService';
     
     let otpCode = $state('');
     let otpInput: HTMLInputElement;
