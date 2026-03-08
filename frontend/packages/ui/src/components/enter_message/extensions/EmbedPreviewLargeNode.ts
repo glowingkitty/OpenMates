@@ -2,8 +2,9 @@
 //
 // TipTap block-level atom node for "large embed preview" cards.
 //
-// The LLM writes [!](embed:some-ref-k8D) (exclamation-mark display text) in its
-// response.  parse_message.ts detects this pattern, converts the markdown link
+// The LLM writes [!](embed:some-ref-k8D) (exclamation-mark display text) or
+// [](embed:ref) (empty display text, auto-fallback) in its response.
+// parse_message.ts detects these patterns, converts the markdown link
 // into an `embedPreviewLarge` block node, and hoists it out of its parent
 // paragraph so it renders as a block element.
 //
@@ -12,7 +13,7 @@
 // design as DailyInspirationBanner).  A single isolated node is rendered as a
 // full-width card without arrows.
 //
-// Architecture: analogous to EmbedPreviewSmallNode but wider / taller card.
+// Architecture: block atom with Svelte NodeView (EmbedPreviewLarge.svelte).
 // Tests: (none yet)
 
 import { Node, mergeAttributes } from "@tiptap/core";

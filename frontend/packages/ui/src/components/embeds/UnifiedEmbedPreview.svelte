@@ -322,7 +322,7 @@
   
   // Configuration for the tilt effect
   // NOTE: Keep values subtle for a polished feel without being distracting.
-  // Large preview cards (.unified-embed-preview-large ancestor) use even more
+  // Large preview cards (.embed-preview-large-container ancestor) use even more
   // reduced tilt because the 3D effect is too pronounced on wider/taller cards.
   const TILT_MAX_ANGLE_STANDARD = 3;      // Standard card max tilt (degrees)
   const TILT_MAX_ANGLE_LARGE = 1;         // Large card max tilt (degrees)
@@ -331,12 +331,14 @@
   const TILT_SCALE_STANDARD = 0.985;       // Standard scale on hover
   const TILT_SCALE_LARGE = 0.995;          // Large scale — barely noticeable
 
-  // Detect whether this card is inside a large preview wrapper.
+  // Detect whether this card is inside a large preview context.
   // Checked once when previewElement is bound (not reactive to DOM changes).
+  // The embed-preview-large-container parent sets container queries that
+  // expand the card when the container is wider than 300px.
   let isLargeContext = $state(false);
   $effect(() => {
     if (previewElement) {
-      isLargeContext = !!previewElement.closest('.unified-embed-preview-large');
+      isLargeContext = !!previewElement.closest('.embed-preview-large-container');
     }
   });
 
@@ -926,5 +928,83 @@
     -webkit-line-clamp: 3;
     line-clamp: 3;
     -webkit-box-orient: vertical;
+  }
+
+  /* ===========================================
+     Responsive Expanded Layout (Container Query)
+     ===========================================
+     When this card is inside a container named "embed-preview" (set by
+     EmbedPreviewLarge.svelte) wider than 300px, the card expands to
+     full-width × 350px with the BasicInfosBar constrained to 300px and
+     protruding 15px below the card. This replaces the old separate
+     UnifiedEmbedPreviewLarge component.
+     =========================================== */
+
+  @container embed-preview (min-width: 301px) {
+    .unified-embed-preview.desktop {
+      width: 100% !important;
+      min-width: unset !important;
+      max-width: unset !important;
+      height: 350px !important;
+      min-height: 350px !important;
+      max-height: 350px !important;
+      overflow: visible !important;
+    }
+
+    .desktop-layout {
+      overflow: visible !important;
+    }
+
+    /* BasicInfosBar stays at ~300px width, centered, protruding below the card */
+    .desktop-layout :global(.basic-infos-bar.desktop) {
+      width: 300px;
+      max-width: 300px;
+      min-width: unset;
+      margin-left: auto;
+      margin-right: auto;
+      flex-shrink: 0;
+      transform: translateY(15px);
+    }
+
+    /* ── Website-specific expanded overrides ────────────────────────────────
+       Description text: 30% width, 16 lines visible in the taller card.
+       Preview image: fills remaining space at 350px height.
+       These MUST live here (not in WebsiteEmbedPreview) because on share
+       pages the appId may not resolve, so the fallback path renders directly
+       and still needs correct expanded styling. */
+
+    .desktop-layout :global(.website-description) {
+      max-width: 30% !important;
+      width: 30% !important;
+      flex: 0 1 30% !important;
+      min-width: 0 !important;
+      overflow: hidden !important;
+      -webkit-line-clamp: 16 !important;
+      line-clamp: 16 !important;
+      margin-left: 20px !important;
+    }
+
+    .desktop-layout :global(.website-content-row) {
+      align-items: stretch;
+      height: 100%;
+    }
+
+    .desktop-layout :global(.website-preview-image:not(.full-width)) {
+      flex: 1 1 0 !important;
+      min-width: 0 !important;
+      height: 350px !important;
+      max-height: none !important;
+      transform: none !important;
+      overflow: hidden !important;
+      border-radius: 0 30px 30px 0 !important;
+    }
+
+    .desktop-layout :global(.website-preview-image:not(.full-width) img) {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      display: block;
+    }
   }
 </style>

@@ -47,6 +47,8 @@ import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchE
 import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPreview.svelte";
 import MathCalculateEmbedPreview from "../../../embeds/math/MathCalculateEmbedPreview.svelte";
 import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPreview.svelte";
+import ImageResultEmbedPreview from "../../../embeds/images/ImageResultEmbedPreview.svelte";
+import { proxyImage } from "../../../../utils/imageProxy";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -371,6 +373,16 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       // For images search, render images search preview using Svelte component
       if (appId === "images" && skillId === "search") {
         return this.renderImagesSearchComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      // For image_result embeds (standalone image from image search)
+      if (appId === "images" && skillId === "image_result") {
+        return this.renderImageResultComponent(
           attrs,
           embedData,
           decodedContent,
@@ -1415,6 +1427,64 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       console.debug("[AppSkillUseRenderer] Mounted ImagesSearchEmbedPreview component");
     } catch (error) {
       console.error("[AppSkillUseRenderer] Error mounting ImagesSearchEmbedPreview:", error);
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render a standalone image_result embed preview.
+   * Uses ImageResultEmbedPreview in standalone mode (wraps in UnifiedEmbedPreview).
+   */
+  private renderImageResultComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const title = decodedContent?.title || "";
+    const sourceDomain = decodedContent?.source || "";
+    const status = decodedContent?.status || embedData?.status || attrs.status || "processing";
+    const taskId = decodedContent?.task_id || "";
+
+    // Proxy external image URLs
+    const rawImageUrl = decodedContent?.image_url || "";
+    const rawThumbnailUrl = decodedContent?.thumbnail_url || "";
+    const rawFaviconUrl = decodedContent?.favicon_url || "";
+    const imageUrl = rawImageUrl ? proxyImage(rawImageUrl) : undefined;
+    const thumbnailUrl = rawThumbnailUrl ? proxyImage(rawThumbnailUrl) : undefined;
+    const faviconUrl = rawFaviconUrl ? proxyImage(rawFaviconUrl) : undefined;
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try { unmount(existingComponent); } catch (e) {
+        console.warn("[AppSkillUseRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => { this.openFullscreen(attrs, embedData, decodedContent); };
+      const component = mount(ImageResultEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          title,
+          sourceDomain,
+          thumbnailUrl,
+          imageUrl,
+          faviconUrl,
+          status: status as "processing" | "finished" | "error",
+          taskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+          standalone: true,
+        },
+      });
+      mountedComponents.set(content, component);
+      console.debug("[AppSkillUseRenderer] Mounted ImageResultEmbedPreview (standalone)");
+    } catch (error) {
+      console.error("[AppSkillUseRenderer] Error mounting ImageResultEmbedPreview:", error);
       this.renderGenericSkill(attrs, embedData, decodedContent, content);
     }
   }

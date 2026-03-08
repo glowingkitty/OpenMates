@@ -18,62 +18,32 @@
 <script lang="ts">
   // frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
   //
-  // Purpose: Render [!](embed:ref) using per-type EmbedPreviewLarge components
-  // (WebsiteEmbedPreviewLarge, WebSearchEmbedPreviewLarge, etc.) based on appId,
-  // with carousel/slideshow behavior for consecutive large preview nodes.
+  // Purpose: Render [!](embed:ref) and [](embed:ref) as visually highlighted
+  // embed preview blocks. Uses EmbedReferencePreview to delegate to the standard
+  // renderer pipeline — the same components used for inline skill embeds.
   //
-  // Architecture: routes to per-type XxxEmbedPreviewLarge.svelte files, each of
-  // which wraps EmbedReferencePreview in UnifiedEmbedPreviewLarge for full-width
-  // large presentation. Per-type files can be individually customised over time.
+  // Responsive behavior:
+  //   - When container width ≤ 300px: compact card (300×200px standard layout)
+  //   - When container width > 300px: expanded card (full-width × 350px)
+  //   CSS container queries handle the switch automatically via the
+  //   .embed-preview-large-container wrapper which sets container-type.
   //
-  // Carousel layout:
-  //   - The FIRST card (carouselIndex === 0) is always rendered and acts as the
-  //     carousel shell. It holds the left/right arrows for navigation.
-  //   - When carouselIndex > 0 the card overlays on top of the first card using
-  //     position: absolute; only the active card is shown (display: none for others).
-  //   - The first card's content uses visibility: hidden (not display: none) when
-  //     another card is active so the shell keeps its 350px height for the arrows.
+  // Carousel layout (for consecutive runs of highlighted embeds):
+  //   - The FIRST card (carouselIndex === 0) is always rendered as the "shell"
+  //     and holds the left/right navigation arrows.
+  //   - Non-first cards overlay on top using negative margin.
+  //   - Only the active card is visible; others use display:none or visibility:hidden.
   //
+  // Architecture: See docs/architecture/embeds.md for rendering pipeline.
   // Tests: frontend/packages/ui/src/message_parsing/__tests__/parse_message.test.ts
 
+  import { onMount } from 'svelte';
   import { getLucideIcon } from '../../utils/categoryUtils';
-  import UnifiedEmbedPreviewLarge from './UnifiedEmbedPreviewLarge.svelte';
   import EmbedReferencePreview from './EmbedReferencePreview.svelte';
-
-  // Per-type large preview imports
-  import WebsiteEmbedPreviewLarge from './web/WebsiteEmbedPreviewLarge.svelte';
-  import WebSearchEmbedPreviewLarge from './web/WebSearchEmbedPreviewLarge.svelte';
-  import WebReadEmbedPreviewLarge from './web/WebReadEmbedPreviewLarge.svelte';
-  import NewsSearchEmbedPreviewLarge from './news/NewsSearchEmbedPreviewLarge.svelte';
-  import VideosSearchEmbedPreviewLarge from './videos/VideosSearchEmbedPreviewLarge.svelte';
-  import MapsSearchEmbedPreviewLarge from './maps/MapsSearchEmbedPreviewLarge.svelte';
-  import MapsLocationEmbedPreviewLarge from './maps/MapsLocationEmbedPreviewLarge.svelte';
-  import ImagesSearchEmbedPreviewLarge from './images/ImagesSearchEmbedPreviewLarge.svelte';
-  import ImageGenerateEmbedPreviewLarge from './images/ImageGenerateEmbedPreviewLarge.svelte';
-  import ImageViewEmbedPreviewLarge from './images/ImageViewEmbedPreviewLarge.svelte';
-  import ImageResultEmbedPreviewLarge from './images/ImageResultEmbedPreviewLarge.svelte';
-  import EventsSearchEmbedPreviewLarge from './events/EventsSearchEmbedPreviewLarge.svelte';
-  import HealthSearchEmbedPreviewLarge from './health/HealthSearchEmbedPreviewLarge.svelte';
-  import ShoppingSearchEmbedPreviewLarge from './shopping/ShoppingSearchEmbedPreviewLarge.svelte';
-  import TravelSearchEmbedPreviewLarge from './travel/TravelSearchEmbedPreviewLarge.svelte';
-  import TravelStaysEmbedPreviewLarge from './travel/TravelStaysEmbedPreviewLarge.svelte';
-  import TravelPriceCalendarEmbedPreviewLarge from './travel/TravelPriceCalendarEmbedPreviewLarge.svelte';
-  import MathCalculateEmbedPreviewLarge from './math/MathCalculateEmbedPreviewLarge.svelte';
-  import MathPlotEmbedPreviewLarge from './math/MathPlotEmbedPreviewLarge.svelte';
-  import CodeGetDocsEmbedPreviewLarge from './code/CodeGetDocsEmbedPreviewLarge.svelte';
-  import CodeEmbedPreviewLarge from './code/CodeEmbedPreviewLarge.svelte';
-  import ReminderEmbedPreviewLarge from './reminder/ReminderEmbedPreviewLarge.svelte';
-  import PdfViewEmbedPreviewLarge from './pdf/PdfViewEmbedPreviewLarge.svelte';
-  import RecordingEmbedPreviewLarge from './audio/RecordingEmbedPreviewLarge.svelte';
-  import DocsEmbedPreviewLarge from './docs/DocsEmbedPreviewLarge.svelte';
-  import MailEmbedPreviewLarge from './mail/MailEmbedPreviewLarge.svelte';
-  import SheetEmbedPreviewLarge from './sheets/SheetEmbedPreviewLarge.svelte';
-
   import {
     embedStore,
     embedRefIndexVersion,
   } from '../../services/embedStore';
-  import { resolveEmbed, decodeToonContent } from '../../services/embedResolver';
 
   const ChevronLeft = getLucideIcon('chevron-left');
   const ChevronRight = getLucideIcon('chevron-right');
@@ -91,19 +61,13 @@
   let {
     embedRef,
     embedId = null,
-    appId = null,
+    appId: _appId = null,
     carouselIndex,
     carouselTotal,
     runRef = '',
   }: Props = $props();
 
   // ── Carousel state ──────────────────────────────────────────────────────
-  // carouselStateMap and getCarouselStore live in the <script module> block
-  // so all instances share the same stores. See module script above.
-
-  // All cards in a run share the same carousel store. The store key is the
-  // first card's embedRef (runRef prop set by parse_message.ts Phase B).
-  // Single cards (carouselTotal === 1) use their own embedRef as the key.
   let runKey = $derived(
     runRef && runRef.length > 0 ? runRef : embedRef,
   );
@@ -121,10 +85,6 @@
   let isFirstCard = $derived(carouselIndex === 0);
   let hasMultiple = $derived(carouselTotal > 1);
 
-
-
-
-
   function handlePrevious(e: MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
@@ -137,232 +97,50 @@
     carouselStore.update((i) => (i + 1) % carouselTotal);
   }
 
-  // ── Embed type resolution ────────────────────────────────────────────────
-  // Resolve the embed to determine appId + skillId so we can route to the
-  // correct per-type large component. appId from parse-time props is used as
-  // a fast hint; skillId is resolved asynchronously from embed store content.
-
+  // ── Embed ID resolution ─────────────────────────────────────────────────
   let resolvedEmbedId = $derived.by(() => {
     void $embedRefIndexVersion;
     return embedId || embedStore.resolveByRef(embedRef) || null;
   });
 
-  let resolvedAppId = $state<string | null>(null);
-  let resolvedSkillId = $state<string | null>(null);
+  // ── Responsive layout detection via ResizeObserver ──────────────────────
+  // Container queries drive the CSS, but we also need the JS-side shell
+  // min-height to match. Instead of nesting container queries (which don't
+  // work for self-sizing), we use a ResizeObserver to detect the actual
+  // container width and set the shell min-height accordingly.
+  let wrapperEl = $state<HTMLElement | null>(null);
+  let isExpanded = $state(false);
 
-  // Initialize resolvedAppId from prop on mount
-  $effect(() => {
-    if (resolvedAppId === null) {
-      resolvedAppId = appId;
-    }
-  });
-
-  $effect(() => {
-    const currentEmbedId = resolvedEmbedId;
-    if (!currentEmbedId) {
-      resolvedAppId = appId;
-      resolvedSkillId = null;
-      return;
-    }
-
-    resolveEmbed(currentEmbedId).then(async (data) => {
-      if (!data) return;
-      // app_id is not in the EmbedData type; it's in decoded content (handled below).
-      // Use unknown cast to access it if present at runtime (older embed records stored it at root level).
-      const rootAppId = (data as unknown as Record<string, unknown>).app_id;
-      if (rootAppId) resolvedAppId = rootAppId as string;
-      if (data.content) {
-        try {
-          const decoded = await decodeToonContent(data.content);
-          if (decoded?.skill_id) resolvedSkillId = decoded.skill_id as string;
-          if (decoded?.app_id) resolvedAppId = decoded.app_id as string;
-          // CRITICAL: For child embeds (e.g. image_result, web_result), the TOON content
-          // stores the parent's skill_id (e.g. "search"), but the actual child type is in
-          // the `type` field (e.g. "image_result"). Use `type` as skill_id when it
-          // represents a child embed type to ensure correct component routing.
-          if (decoded?.type && typeof decoded.type === 'string') {
-            const childType = decoded.type as string;
-            // Child types that should override the parent skill_id for routing
-            if (['image_result', 'web_result', 'news_result', 'video_result',
-                 'location', 'flight', 'stay', 'event', 'product', 'job',
-                 'health_result', 'recipe', 'price_calendar_result'].includes(childType)) {
-              resolvedSkillId = childType;
-            }
-          }
-        } catch {
-          // ignore decode errors; will fall through to generic fallback
-        }
+  onMount(() => {
+    if (!wrapperEl) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        isExpanded = entry.contentRect.width > 300;
       }
-    }).catch(() => {
-      // ignore; will use appId hint
     });
+    ro.observe(wrapperEl);
+    return () => ro.disconnect();
   });
 
-  /**
-   * Map appId + skillId to the correct large preview component.
-   * Returns null to use the generic UnifiedEmbedPreviewLarge fallback.
-   */
-  type LargeComponent =
-    | typeof WebsiteEmbedPreviewLarge
-    | typeof WebSearchEmbedPreviewLarge
-    | typeof WebReadEmbedPreviewLarge
-    | typeof NewsSearchEmbedPreviewLarge
-    | typeof VideosSearchEmbedPreviewLarge
-    | typeof MapsSearchEmbedPreviewLarge
-    | typeof MapsLocationEmbedPreviewLarge
-    | typeof ImagesSearchEmbedPreviewLarge
-    | typeof ImageGenerateEmbedPreviewLarge
-    | typeof ImageViewEmbedPreviewLarge
-    | typeof ImageResultEmbedPreviewLarge
-    | typeof EventsSearchEmbedPreviewLarge
-    | typeof HealthSearchEmbedPreviewLarge
-    | typeof ShoppingSearchEmbedPreviewLarge
-    | typeof TravelSearchEmbedPreviewLarge
-    | typeof TravelStaysEmbedPreviewLarge
-    | typeof TravelPriceCalendarEmbedPreviewLarge
-    | typeof MathCalculateEmbedPreviewLarge
-    | typeof MathPlotEmbedPreviewLarge
-    | typeof CodeGetDocsEmbedPreviewLarge
-    | typeof CodeEmbedPreviewLarge
-    | typeof ReminderEmbedPreviewLarge
-    | typeof PdfViewEmbedPreviewLarge
-    | typeof RecordingEmbedPreviewLarge
-    | typeof DocsEmbedPreviewLarge
-    | typeof MailEmbedPreviewLarge
-    | typeof SheetEmbedPreviewLarge
-    | null;
-
-  let largeComponent = $derived.by((): LargeComponent => {
-    const aid = resolvedAppId;
-    const sid = resolvedSkillId;
-
-    if (aid === 'web') {
-      if (sid === 'search') return WebSearchEmbedPreviewLarge;
-      if (sid === 'read') return WebReadEmbedPreviewLarge;
-      return WebsiteEmbedPreviewLarge;
-    }
-    if (aid === 'news') return NewsSearchEmbedPreviewLarge;
-    if (aid === 'videos') return VideosSearchEmbedPreviewLarge;
-    if (aid === 'maps') {
-      if (sid === 'location') return MapsLocationEmbedPreviewLarge;
-      return MapsSearchEmbedPreviewLarge;
-    }
-    if (aid === 'images') {
-      if (sid === 'generate' || sid === 'generate_draft') return ImageGenerateEmbedPreviewLarge;
-      if (sid === 'view') return ImageViewEmbedPreviewLarge;
-      if (sid === 'image_result') return ImageResultEmbedPreviewLarge;
-      return ImagesSearchEmbedPreviewLarge;
-    }
-    if (aid === 'events') return EventsSearchEmbedPreviewLarge;
-    if (aid === 'health') return HealthSearchEmbedPreviewLarge;
-    if (aid === 'shopping') return ShoppingSearchEmbedPreviewLarge;
-    if (aid === 'travel') {
-      if (sid === 'search_stays') return TravelStaysEmbedPreviewLarge;
-      if (sid === 'price_calendar') return TravelPriceCalendarEmbedPreviewLarge;
-      return TravelSearchEmbedPreviewLarge;
-    }
-    if (aid === 'math') {
-      if (sid === 'plot' || !sid) return MathPlotEmbedPreviewLarge;
-      return MathCalculateEmbedPreviewLarge;
-    }
-    if (aid === 'code') {
-      if (sid === 'get_docs') return CodeGetDocsEmbedPreviewLarge;
-      return CodeEmbedPreviewLarge;
-    }
-    if (aid === 'reminder') return ReminderEmbedPreviewLarge;
-    if (aid === 'pdf') return PdfViewEmbedPreviewLarge;
-    if (aid === 'audio' || aid === 'recording') return RecordingEmbedPreviewLarge;
-    if (aid === 'docs') return DocsEmbedPreviewLarge;
-    if (aid === 'mail') return MailEmbedPreviewLarge;
-    if (aid === 'sheets') return SheetEmbedPreviewLarge;
-
-    return null;
-  });
+  let shellMinHeight = $derived(isExpanded ? 365 : 215);
 </script>
 
-<!--
-  Carousel layout:
-  - First card (carouselIndex === 0):
-    - Wrapper is ALWAYS rendered (never hidden) so it serves as the persistent
-      carousel shell holding the navigation arrows.
-    - The embed content inside uses visibility:hidden when another slide is active
-      so the shell retains its 350px height and the arrows stay positioned correctly.
-  - Non-first cards (carouselIndex > 0):
-    - Rendered as position:absolute overlays on top of the first card's shell.
-    - display:none when not the active slide; visible otherwise.
-    - Not rendered at all (via {#if}) when carouselTotal === 1 (no carousel).
--->
-
 {#if isFirstCard}
-  <!-- First card: always-visible carousel shell.
-       bind:this for ResizeObserver width detection (responsive fallback). -->
-  <div class="embed-preview-large-wrapper embed-preview-large-shell">
-    <!-- Embed content: hidden (not removed) when another slide is active.
-         Always renders the large preview component (no small-fallback). -->
-    <div class="embed-preview-large-content" class:embed-preview-large-content--hidden={!isVisible}>
-      {#if largeComponent === WebsiteEmbedPreviewLarge}
-        <WebsiteEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === WebSearchEmbedPreviewLarge}
-        <WebSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === WebReadEmbedPreviewLarge}
-        <WebReadEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === NewsSearchEmbedPreviewLarge}
-        <NewsSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === VideosSearchEmbedPreviewLarge}
-        <VideosSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === MapsSearchEmbedPreviewLarge}
-        <MapsSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === MapsLocationEmbedPreviewLarge}
-        <MapsLocationEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === ImagesSearchEmbedPreviewLarge}
-        <ImagesSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === ImageGenerateEmbedPreviewLarge}
-        <ImageGenerateEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === ImageViewEmbedPreviewLarge}
-        <ImageViewEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === ImageResultEmbedPreviewLarge}
-        <ImageResultEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === EventsSearchEmbedPreviewLarge}
-        <EventsSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === HealthSearchEmbedPreviewLarge}
-        <HealthSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === ShoppingSearchEmbedPreviewLarge}
-        <ShoppingSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === TravelSearchEmbedPreviewLarge}
-        <TravelSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === TravelStaysEmbedPreviewLarge}
-        <TravelStaysEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === TravelPriceCalendarEmbedPreviewLarge}
-        <TravelPriceCalendarEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === MathCalculateEmbedPreviewLarge}
-        <MathCalculateEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === MathPlotEmbedPreviewLarge}
-        <MathPlotEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === CodeGetDocsEmbedPreviewLarge}
-        <CodeGetDocsEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === CodeEmbedPreviewLarge}
-        <CodeEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === ReminderEmbedPreviewLarge}
-        <ReminderEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === PdfViewEmbedPreviewLarge}
-        <PdfViewEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === RecordingEmbedPreviewLarge}
-        <RecordingEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === DocsEmbedPreviewLarge}
-        <DocsEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === MailEmbedPreviewLarge}
-        <MailEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else if largeComponent === SheetEmbedPreviewLarge}
-        <SheetEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-      {:else}
-        <UnifiedEmbedPreviewLarge>
-          <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} variant="large" />
-        </UnifiedEmbedPreviewLarge>
-      {/if}
+  <!-- First card: always-visible carousel shell -->
+  <div
+    bind:this={wrapperEl}
+    class="embed-preview-large-wrapper"
+    style="min-height: {shellMinHeight}px;"
+  >
+    <div class="embed-preview-large-container">
+      <div
+        class="embed-preview-large-content"
+        class:embed-preview-large-content--hidden={!isVisible}
+      >
+        <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} variant="large" />
+      </div>
     </div>
 
-    <!-- Navigation arrows: always inside the first card shell.
-         Hidden when using small fallback (regular preview). -->
     {#if hasMultiple}
       <button
         class="carousel-arrow carousel-arrow-left"
@@ -383,73 +161,16 @@
       </button>
     {/if}
   </div>
-
 {:else if hasMultiple}
-  <!-- Non-first cards: absolute overlay on top of the first card's shell.
-       display:none when not the active slide. -->
+  <!-- Non-first cards: absolute overlay -->
   <div
     class="embed-preview-large-wrapper embed-preview-large-overlay"
     class:embed-preview-large-overlay--hidden={!isVisible}
+    style="margin-top: -{shellMinHeight}px;"
   >
-    {#if largeComponent === WebsiteEmbedPreviewLarge}
-      <WebsiteEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === WebSearchEmbedPreviewLarge}
-      <WebSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === WebReadEmbedPreviewLarge}
-      <WebReadEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === NewsSearchEmbedPreviewLarge}
-      <NewsSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === VideosSearchEmbedPreviewLarge}
-      <VideosSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === MapsSearchEmbedPreviewLarge}
-      <MapsSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === MapsLocationEmbedPreviewLarge}
-      <MapsLocationEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === ImagesSearchEmbedPreviewLarge}
-      <ImagesSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === ImageGenerateEmbedPreviewLarge}
-      <ImageGenerateEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === ImageViewEmbedPreviewLarge}
-      <ImageViewEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === ImageResultEmbedPreviewLarge}
-      <ImageResultEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === EventsSearchEmbedPreviewLarge}
-      <EventsSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === HealthSearchEmbedPreviewLarge}
-      <HealthSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === ShoppingSearchEmbedPreviewLarge}
-      <ShoppingSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === TravelSearchEmbedPreviewLarge}
-      <TravelSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === TravelStaysEmbedPreviewLarge}
-      <TravelStaysEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === TravelPriceCalendarEmbedPreviewLarge}
-      <TravelPriceCalendarEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === MathCalculateEmbedPreviewLarge}
-      <MathCalculateEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === MathPlotEmbedPreviewLarge}
-      <MathPlotEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === CodeGetDocsEmbedPreviewLarge}
-      <CodeGetDocsEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === CodeEmbedPreviewLarge}
-      <CodeEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === ReminderEmbedPreviewLarge}
-      <ReminderEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === PdfViewEmbedPreviewLarge}
-      <PdfViewEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === RecordingEmbedPreviewLarge}
-      <RecordingEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === DocsEmbedPreviewLarge}
-      <DocsEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === MailEmbedPreviewLarge}
-      <MailEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else if largeComponent === SheetEmbedPreviewLarge}
-      <SheetEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
-    {:else}
-      <UnifiedEmbedPreviewLarge>
-        <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} variant="large" />
-      </UnifiedEmbedPreviewLarge>
-    {/if}
+    <div class="embed-preview-large-container">
+      <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} variant="large" />
+    </div>
   </div>
 {/if}
 
@@ -460,16 +181,17 @@
     width: 100%;
   }
 
-  /* ── First card: carousel shell ─────────────────────────────────────────── */
-  /* Always visible. min-height matches the large card height (350px) +
-     translateY overflow (15px) so arrows are
-     always correctly positioned even when the first card's content is hidden. */
-  .embed-preview-large-shell {
-    min-height: 365px;
+  /* ── Container query context ─────────────────────────────────────────────
+     Establishes a CSS container named "embed-preview" so that child components
+     (UnifiedEmbedPreview) can use @container queries to switch between
+     compact (≤300px) and expanded (>300px) layouts. */
+  .embed-preview-large-container {
+    container-type: inline-size;
+    container-name: embed-preview;
+    width: 100%;
   }
 
-  /* Hide the first card's embed content (not the shell) when another slide is active.
-     visibility:hidden keeps the element in the flow, preserving the shell height. */
+
   .embed-preview-large-content {
     width: 100%;
   }
@@ -478,17 +200,9 @@
     visibility: hidden;
   }
 
-  /* ── Non-first cards: absolute overlay ──────────────────────────────────── */
-  /* Positioned absolutely on top of the first card shell. The shell's
-     position:relative establishes the containing block, but since TipTap renders
-     each EmbedPreviewLarge as a sibling node, we rely on the natural DOM stacking.
-     top:0 aligns with the top of the shell (which is the previous sibling). */
+  /* ── Non-first cards: overlay ────────────────────────────────────────────── */
+  /* margin-top is set dynamically via style binding based on isExpanded */
   .embed-preview-large-overlay {
-    /* Overlay is stacked directly after the shell in the DOM flow.
-       Use negative margin-top to visually overlap the shell. The shell keeps its
-       height via min-height so the total layout space is the shell's 365px. */
-    margin-top: calc(-365px);
-    /* Ensure the overlay sits above the (now invisible) shell content */
     position: relative;
     z-index: 2;
   }
@@ -498,8 +212,6 @@
   }
 
   /* ── Carousel arrows ─────────────────────────────────────────────────────── */
-  /* Positioned absolute within the shell. top/bottom span the card area (350px)
-     positioned to span the card area. */
   .carousel-arrow {
     position: absolute;
     top: 50%;
