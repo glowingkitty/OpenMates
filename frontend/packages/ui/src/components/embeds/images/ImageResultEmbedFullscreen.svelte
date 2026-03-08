@@ -73,10 +73,9 @@
 <UnifiedEmbedFullscreen
   appId="images"
   skillId="image_result"
-  skillIconName="image-search"
   {embedHeaderTitle}
   {embedHeaderSubtitle}
-  showSkillIcon={true}
+  showSkillIcon={false}
   {onClose}
   currentEmbedId={embedId}
   {hasPreviousEmbed}

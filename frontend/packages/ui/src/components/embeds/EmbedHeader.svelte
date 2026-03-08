@@ -654,10 +654,6 @@
     -webkit-mask-image: url('@openmates/ui/static/icons/image.svg');
     mask-image: url('@openmates/ui/static/icons/image.svg');
   }
-  :global([data-skill-icon="image-search"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/image-search.svg');
-    mask-image: url('@openmates/ui/static/icons/image-search.svg');
-  }
   :global([data-skill-icon="ai"]) {
     -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
     mask-image: url('@openmates/ui/static/icons/ai.svg');

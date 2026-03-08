@@ -9,7 +9,8 @@
  *   window.debug()                         — quick client health check
  *   window.debug.help()                    — show all available commands
  *   await window.debug.chat('chat-id')     — copyable chat inspection report
- *   await window.debug.embed('embed-id')   — copyable embed inspection report
+ *   await window.debug.embed('embed-id')   — embed report (fields truncated to 50 chars)
+ *   await window.debug.embed('id', {full:true}) — embed report with full untruncated values
  *   await window.debug.decrypt('embed-id') — decrypt and show raw embed content
  *   await window.debug.chats()             — list all chats with consistency check
  *   await window.debug.message('msg-id')   — message health check with decrypted fields
@@ -2416,9 +2417,11 @@ export async function inspectChat(
  */
 export async function inspectEmbed(
   embedId: string,
-  options: { download?: boolean; hideKeys?: boolean } = {},
+  options: { download?: boolean; hideKeys?: boolean; full?: boolean } = {},
 ): Promise<string> {
   const hideKeys = options.hideKeys ?? false;
+  const showFull = options.full ?? false;
+  const CONTENT_TRUNCATE_LEN = 50;
   const db = await openDB();
   const lines: string[] = [];
 
@@ -2592,49 +2595,42 @@ export async function inspectEmbed(
       `    ${embed.data ? "✅" : "❌"} data ${embed.data ? `(${typeof embed.data === "string" ? (embed.data as string).length : "object"})` : ""}`,
     );
 
-    // Decrypt status
+    // Decrypt status and all decoded content fields
     lines.push("");
     lines.push("  Decryption:");
     if (decryptOk && decoded) {
       lines.push("    🟢 Decrypt: OK");
-      // Show decoded key fields
-      const appId = (decoded.app_id as string) || "N/A";
-      const skillId = (decoded.skill_id as string) || "N/A";
-      const query = (decoded.query as string) || "N/A";
-      const provider = (decoded.provider as string) || "N/A";
-      const decodedStatus = (decoded.status as string) || "N/A";
-      lines.push(`    app_id:      ${appId}`);
-      lines.push(`    skill_id:    ${skillId}`);
-      lines.push(`    query:       ${truncate(query, 60)}`);
-      lines.push(`    provider:    ${provider}`);
-      lines.push(`    status:      ${decodedStatus}`);
-      if (decoded.results && Array.isArray(decoded.results)) {
-        lines.push(
-          `    results:     ${(decoded.results as unknown[]).length} items`,
-        );
+      lines.push("");
+      lines.push("  Decoded Content Fields:");
+      // Show ALL decoded fields with their values (truncated unless full mode)
+      const maxLen = showFull ? 99999 : CONTENT_TRUNCATE_LEN;
+      for (const [fieldName, fieldValue] of Object.entries(decoded)) {
+        let display: string;
+        if (fieldValue === null || fieldValue === undefined) {
+          display = "null";
+        } else if (Array.isArray(fieldValue)) {
+          if (showFull) {
+            try { display = JSON.stringify(fieldValue); } catch { display = `Array(${fieldValue.length})`; }
+          } else {
+            display = `Array(${fieldValue.length})`;
+          }
+        } else if (typeof fieldValue === "object") {
+          if (showFull) {
+            try { display = JSON.stringify(fieldValue); } catch { display = `Object(${Object.keys(fieldValue as Record<string, unknown>).length} keys)`; }
+          } else {
+            display = `Object(${Object.keys(fieldValue as Record<string, unknown>).length} keys)`;
+          }
+        } else {
+          display = String(fieldValue);
+        }
+        // Truncate display string
+        if (display.length > maxLen) {
+          display = display.substring(0, maxLen) + "...";
+        }
+        lines.push(`    ${fieldName.padEnd(20)} = ${display}`);
       }
-      if (decoded.embed_ids && Array.isArray(decoded.embed_ids)) {
-        lines.push(
-          `    embed_ids:   ${(decoded.embed_ids as unknown[]).length} items`,
-        );
-      }
-      // Show other fields count
-      const knownFields = [
-        "app_id",
-        "skill_id",
-        "query",
-        "provider",
-        "status",
-        "task_id",
-        "results",
-        "embed_ids",
-        "result_count",
-      ];
-      const otherFields = Object.keys(decoded).filter(
-        (k) => !knownFields.includes(k),
-      );
-      if (otherFields.length > 0) {
-        lines.push(`    other:       ${otherFields.join(", ")}`);
+      if (!showFull) {
+        lines.push(`    (pass {full: true} to show untruncated values)`);
       }
     } else if (
       embed.encrypted_content &&
@@ -2650,10 +2646,19 @@ export async function inspectEmbed(
     lines.push("  ❌ Embed NOT FOUND in IndexedDB");
   }
 
-  // Children
+  // Children — decode and show content fields for each child
   if (hasChildren) {
     lines.push("");
     lines.push(`CHILDREN (${(embed!.embed_ids as string[]).length})`);
+    const maxChildLen = showFull ? 99999 : CONTENT_TRUNCATE_LEN;
+    let resolveEmbedFn: ((id: string) => Promise<{ content?: string } | null>) | null = null;
+    let decodeToonFn: ((content: string) => Promise<unknown>) | null = null;
+    try {
+      const mod = await import("./embedResolver");
+      resolveEmbedFn = mod.resolveEmbed;
+      decodeToonFn = mod.decodeToonContent;
+    } catch { /* embedResolver unavailable */ }
+
     for (let i = 0; i < (embed!.embed_ids as string[]).length; i++) {
       const childId = (embed!.embed_ids as string[])[i];
       const child = childEmbedRecords[i];
@@ -2664,6 +2669,37 @@ export async function inspectEmbed(
       lines.push(
         `  ${(i + 1).toString().padStart(3)}  ${childStatus.padEnd(10)} ${childHasContent ? "✅ content" : "❌ no content"}  ${childId}`,
       );
+
+      // Try to decode child content and show fields
+      if (childHasContent && resolveEmbedFn && decodeToonFn) {
+        try {
+          const resolvedChild = await resolveEmbedFn(childId);
+          if (resolvedChild?.content) {
+            const childDecoded = await decodeToonFn(resolvedChild.content);
+            if (childDecoded && typeof childDecoded === "object") {
+              for (const [fName, fValue] of Object.entries(childDecoded as Record<string, unknown>)) {
+                let disp: string;
+                if (fValue === null || fValue === undefined) {
+                  disp = "null";
+                } else if (Array.isArray(fValue)) {
+                  disp = showFull ? JSON.stringify(fValue) : `Array(${fValue.length})`;
+                } else if (typeof fValue === "object") {
+                  disp = showFull ? JSON.stringify(fValue) : `Object(${Object.keys(fValue as Record<string, unknown>).length} keys)`;
+                } else {
+                  disp = String(fValue);
+                }
+                if (disp.length > maxChildLen) disp = disp.substring(0, maxChildLen) + "...";
+                lines.push(`        ${fName.padEnd(20)} = ${disp}`);
+              }
+            }
+          }
+        } catch {
+          lines.push(`        (decode failed)`);
+        }
+      }
+    }
+    if (!showFull && (embed!.embed_ids as string[]).length > 0) {
+      lines.push(`  (pass {full: true} to show untruncated field values)`);
     }
   }
 
@@ -3941,6 +3977,7 @@ function showDebugHelp(): void {
       '  await window.debug.message("id", {verbose: true})  — full details with content\n\n' +
       "  Embeds:\n" +
       '  await window.debug.embed("id")            — embed inspection report\n' +
+      '  await window.debug.embed("id", {full: true})      — show all fields untruncated\n' +
       '  await window.debug.embed("id", {download: true})  — download embed report\n' +
       '  await window.debug.decrypt("embedId")     — decrypt & show embed content\n\n' +
       "  Downloads:\n" +
@@ -4340,7 +4377,7 @@ export function initDebugUtils(): void {
     ) => inspectMessage(messageId, opts),
 
     /** Generate a copyable embed inspection report */
-    embed: (embedId: string, opts: { download?: boolean } = {}) =>
+    embed: (embedId: string, opts: { download?: boolean; full?: boolean } = {}) =>
       inspectEmbed(embedId, opts),
 
     /** Decrypt and show raw embed content */
