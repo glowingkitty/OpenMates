@@ -193,7 +193,7 @@
             {/if}
             {#if notification.onAction && notification.actionLabel}
                 <button
-                    class="notification-action-btn"
+                    class="notification-action-btn notification-action-btn-primary"
                     onclick={(e: MouseEvent) => {
                         e.stopPropagation();
                         notification.onAction?.();
@@ -442,6 +442,26 @@
     
     .notification-action-btn:active {
         opacity: 0.8;
+    }
+    
+    /* Primary action button - orange style matching buttons.css default */
+    .notification-action-btn-primary {
+        color: var(--color-white-fixed, #fff);
+        background-color: var(--color-button-primary);
+        border-radius: 12px;
+        padding: 8px 18px;
+        font-weight: 600;
+        filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.15));
+    }
+    
+    .notification-action-btn-primary:hover {
+        background-color: var(--color-button-primary-hover);
+    }
+    
+    .notification-action-btn-primary:active {
+        background-color: var(--color-button-primary-pressed);
+        filter: none;
+        opacity: 1;
     }
     
     /* Type-specific icon background colors */

@@ -948,12 +948,14 @@ export class ChatSynchronizationService extends EventTarget {
           const { text } = await import("../i18n/translations");
           const t = get(text);
 
-          notificationStore.addNotificationWithOptions("warning", {
-            message: t("app_skills.audio.transcribe.no_credits"),
-            actionLabel: t("billing.buy_credits"),
+          const notifId = notificationStore.addNotificationWithOptions("warning", {
+            message: t("notifications.credits_depleted.message"),
+            actionLabel: t("notifications.credits_depleted.buy_credits"),
             onAction: () => {
               settingsDeepLink.set("billing/buy-credits");
               panelState.openSettings();
+              // Dismiss the notification after navigating to buy credits
+              notificationStore.removeNotification(notifId);
             },
             duration: 0, // persistent until dismissed
             dismissible: true,
