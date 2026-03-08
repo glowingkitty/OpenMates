@@ -76,4 +76,51 @@
     flex-shrink: 0;
     transform: translateY(15px);
   }
+
+  /* ── Website-specific large layout overrides ────────────────────────────
+     These MUST live here (not in WebsiteEmbedPreviewLarge.svelte) because
+     on share pages and demo chats the appId is not resolved so the per-type
+     large component is not mounted — the generic fallback path renders
+     EmbedReferencePreview directly inside UnifiedEmbedPreviewLarge.
+     The overrides target .website-* classes which only exist for website embeds. */
+
+  /* Description text: 30% width, 16 lines, margin-left spacing from image. */
+  .unified-embed-preview-large :global(.website-description) {
+    max-width: 30% !important;
+    width: 30% !important;
+    flex: 0 1 30% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    -webkit-line-clamp: 16 !important;
+    line-clamp: 16 !important;
+    margin-left: 20px !important;
+  }
+
+  /* Content row must stretch full height for the image to fill the card. */
+  .unified-embed-preview-large :global(.website-content-row) {
+    align-items: stretch;
+    height: 100%;
+  }
+
+  /* Preview image: fill remaining space, 350px height, rounded right corners.
+     border-radius clips corners here (not on details-section) so BasicInfosBar
+     can protrude below via overflow:visible on the parent. */
+  .unified-embed-preview-large :global(.website-preview-image:not(.full-width)) {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    height: 350px !important;
+    max-height: none !important;
+    transform: none !important;
+    overflow: hidden !important;
+    border-radius: 0 30px 30px 0 !important;
+  }
+
+  /* Ensure the img itself covers the full container. */
+  .unified-embed-preview-large :global(.website-preview-image:not(.full-width) img) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+  }
 </style>
