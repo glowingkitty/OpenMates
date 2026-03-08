@@ -10,6 +10,10 @@
   - Error: error message
 
   Architecture: See docs/architecture/embeds.md
+  The parent embed content stores query, provider, result_count, and embed_ids
+  (child embed IDs) — NOT the actual image results array. To show thumbnail
+  previews, this component must load child embeds and extract thumbnail_url
+  from their decoded TOON content when results are not directly available.
 -->
 
 <script lang="ts">
@@ -68,6 +72,8 @@
   let localStatus   = $state<'processing' | 'finished' | 'error'>('processing');
   let localResults  = $state<ImageResult[]>([]);
   let localTaskId   = $state<string | undefined>(undefined);
+  /** Track whether child-embed loading is already in progress to avoid duplicates */
+  let isLoadingChildren = $state(false);
 
   $effect(() => {
     localQuery       = queryProp       || '';
@@ -100,8 +106,12 @@
   /**
    * Handle embed data updates from server (processing -> finished transition).
    * UnifiedEmbedPreview calls this when an embedUpdated event arrives.
+   *
+   * CRITICAL: The parent embed content stores embed_ids (child embed IDs) but NOT
+   * the actual results array with image URLs. When status transitions to "finished"
+   * and results is empty, we must load child embeds to extract thumbnail URLs.
    */
-  function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> | null }) {
+  async function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> | null }) {
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
       localStatus = data.status;
     }
@@ -109,7 +119,72 @@
       const c = data.decodedContent as Record<string, unknown>;
       if (c.query)    localQuery    = c.query    as string;
       if (c.provider) localProvider = c.provider as string;
-      if (Array.isArray(c.results)) localResults = c.results as ImageResult[];
+      if (Array.isArray(c.results) && (c.results as unknown[]).length > 0) {
+        localResults = c.results as ImageResult[];
+      }
+
+      // CRITICAL FIX: When status is "finished" and we have embed_ids but no results,
+      // load child embeds asynchronously to get thumbnail URLs for the preview strip.
+      // This handles the architecture where the parent embed only stores references,
+      // not the actual image data (same pattern as WebSearchEmbedPreview).
+      if (data.status === 'finished' && (!c.results || !Array.isArray(c.results) || (c.results as unknown[]).length === 0)) {
+        const embedIds = c.embed_ids;
+        if (embedIds) {
+          // Parse embed_ids (can be pipe-separated string or array)
+          const childEmbedIds: string[] = typeof embedIds === 'string'
+            ? (embedIds as string).split('|').filter((cid: string) => cid.length > 0)
+            : Array.isArray(embedIds) ? (embedIds as string[]) : [];
+
+          if (childEmbedIds.length > 0 && !isLoadingChildren) {
+            console.debug(`[ImagesSearchEmbedPreview] Loading child embeds for thumbnails (${childEmbedIds.length} embed_ids)`);
+            loadChildEmbedsForPreview(childEmbedIds);
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Load child embeds to extract thumbnail URLs for the preview strip.
+   * Uses retry logic because child embeds might not be persisted yet
+   * (they arrive via websocket after the parent embed).
+   */
+  async function loadChildEmbedsForPreview(childEmbedIds: string[]) {
+    if (isLoadingChildren) return;
+    isLoadingChildren = true;
+
+    try {
+      const { loadEmbedsWithRetry, decodeToonContent } = await import('../../../services/embedResolver');
+
+      // Use retry logic — child embeds may not be fully persisted yet
+      const childEmbeds = await loadEmbedsWithRetry(childEmbedIds, 5, 300);
+
+      if (childEmbeds.length > 0) {
+        const imageResults = await Promise.all(childEmbeds.map(async (embed) => {
+          const content = embed.content ? await decodeToonContent(embed.content) : null;
+          if (!content) return null;
+
+          return {
+            title:           (content.title as string) || '',
+            source_page_url: (content.source_page_url as string) || '',
+            image_url:       (content.image_url as string) || '',
+            thumbnail_url:   (content.thumbnail_url as string) || '',
+            source:          (content.source as string) || '',
+            favicon_url:     (content.favicon_url as string) || '',
+          } as ImageResult;
+        }));
+
+        const validResults = imageResults.filter(r => r !== null) as ImageResult[];
+        if (validResults.length > 0) {
+          localResults = validResults;
+          console.debug(`[ImagesSearchEmbedPreview] Loaded ${validResults.length} image results from child embeds`);
+        }
+      }
+    } catch (error) {
+      console.warn('[ImagesSearchEmbedPreview] Error loading child embeds for preview:', error);
+      // Continue without thumbnails — preview will show query/provider text instead
+    } finally {
+      isLoadingChildren = false;
     }
   }
 </script>
