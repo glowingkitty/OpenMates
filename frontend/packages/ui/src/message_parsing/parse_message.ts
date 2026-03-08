@@ -305,6 +305,9 @@ function _hoistBlockEmbedPreviews(doc: any): any {
   function flushRun(endExclusive: number) {
     if (runStart < 0) return;
     const runLen = endExclusive - runStart;
+    // The first card's embedRef is the shared runRef — all cards in the run
+    // use it as the carousel store key so their navigation is synchronised.
+    const runRef = hoisted[runStart].attrs.embedRef as string;
     for (let i = runStart; i < endExclusive; i++) {
       finalContent.push({
         ...hoisted[i],
@@ -312,6 +315,7 @@ function _hoistBlockEmbedPreviews(doc: any): any {
           ...hoisted[i].attrs,
           carouselIndex: i - runStart,
           carouselTotal: runLen,
+          runRef,
         },
       });
     }

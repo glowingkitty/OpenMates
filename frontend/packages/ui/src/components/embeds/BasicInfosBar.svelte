@@ -220,7 +220,6 @@
     padding: 0 0 0 0;
     flex-shrink: 0;
     z-index: 1;
-    transform: translateY(15px);
   }
   
   /* App icon circle: 61x61px with gradient background, contains 26x26px icon */

@@ -65,6 +65,8 @@
     appId?: string | null;
     carouselIndex: number;
     carouselTotal: number;
+    /** embedRef of the first card in the run — shared carousel store key */
+    runRef?: string;
   }
 
   let {
@@ -73,6 +75,7 @@
     appId = null,
     carouselIndex,
     carouselTotal,
+    runRef = '',
   }: Props = $props();
 
   // ── Carousel state ──────────────────────────────────────────────────────
@@ -87,12 +90,11 @@
     return carouselStateMap.get(key)!;
   }
 
-  // The first card uses its own embedRef as the key; subsequent cards derive the
-  // same key by stripping the per-embed suffix so they share the same store.
+  // All cards in a run share the same carousel store. The store key is the
+  // first card's embedRef (runRef prop set by parse_message.ts Phase B).
+  // Single cards (carouselTotal === 1) use their own embedRef as the key.
   let runKey = $derived(
-    carouselIndex === 0
-      ? embedRef
-      : `_run_${embedRef.replace(/-[a-zA-Z0-9]{3}$/, '')}_${carouselTotal}`,
+    runRef && runRef.length > 0 ? runRef : embedRef,
   );
   let carouselStore = $derived(getCarouselStore(runKey));
 
@@ -151,7 +153,10 @@
 
     resolveEmbed(currentEmbedId).then(async (data) => {
       if (!data) return;
-      if (data.app_id) resolvedAppId = data.app_id as string;
+      // app_id is not in the EmbedData type; it's in decoded content (handled below).
+      // Use unknown cast to access it if present at runtime (older embed records stored it at root level).
+      const rootAppId = (data as unknown as Record<string, unknown>).app_id;
+      if (rootAppId) resolvedAppId = rootAppId as string;
       if (data.content) {
         try {
           const decoded = await decodeToonContent(data.content);

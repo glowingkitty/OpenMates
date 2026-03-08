@@ -41,30 +41,40 @@
     width: 100%;
   }
 
-  /* Limit description text to half the standard card width (150px) so it does not
-     stretch uncomfortably wide on the large card. flex:none prevents it from
-     growing to fill remaining space (the image takes that role). */
+  /* Limit description text to exactly 150px (half of the standard 300px card width).
+     flex: 0 0 150px prevents any growing or shrinking — the image takes all extra space. */
   .website-embed-preview-large :global(.website-description) {
     max-width: 150px;
-    flex: none;
+    width: 150px;
+    flex: 0 0 150px;
+    min-width: 0;
+    overflow: hidden;
   }
 
-  /* Let the preview image fill the remaining horizontal space and scale up
-     proportionally. Remove the fixed 150px width and translateX offset from
-     the standard card layout. */
+  /* The content row must stretch to fill the full details area height so the
+     image can fill the full card height (minus the BasicInfosBar). */
+  .website-embed-preview-large :global(.website-content-row) {
+    align-items: stretch;
+    height: 100%;
+  }
+
+  /* Let the preview image fill all remaining horizontal space and cover the
+     full height of the content area. Remove any fixed pixel height from base. */
   .website-embed-preview-large :global(.website-preview-image:not(.full-width)) {
-    width: auto;
-    flex: 1;
+    flex: 1 1 0;
     min-width: 0;
     height: 100%;
+    max-height: none;
     transform: none;
+    overflow: hidden;
   }
 
-  /* Ensure the image inside fills the expanded container */
+  /* Ensure the img itself covers the full container */
   .website-embed-preview-large :global(.website-preview-image:not(.full-width) img) {
     width: 100%;
     height: 100%;
     object-fit: cover;
     object-position: center;
+    display: block;
   }
 </style>
