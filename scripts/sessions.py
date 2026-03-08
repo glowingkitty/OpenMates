@@ -43,6 +43,7 @@ import secrets
 import subprocess
 import sys
 from datetime import datetime, timezone
+import fnmatch
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -91,7 +92,7 @@ TAG_KEYWORDS: dict[str, list[str]] = {
         "frontend", "front-end", "front end", "sveltekit", "vite",
     ],
     "backend": [
-        "python", "fastapi", "api", "endpoint", "route", "pydantic",
+        "python", "fastapi", "api endpoint", "api route", "pydantic",
         "docker", "worker", "celery", "backend", "back-end", "back end",
         "skill", "directus", "database", "db", "sql", "migration",
     ],
@@ -118,7 +119,7 @@ TAG_KEYWORDS: dict[str, list[str]] = {
         "api key", "webhook",
     ],
     "feature": [
-        "implement", "new feature", "add feature", "build",
+        "implement", "new feature", "add feature", "build feature",
     ],
     "logging": [
         "logging", "log level", "log format",
@@ -265,14 +266,6 @@ def _prune_stale_locks(data: dict) -> list[str]:
     return cleared
 
 
-def _get_file_mtime(path: str) -> float:
-    """Get modification time of a file, returning 0 if it doesn't exist."""
-    full = PROJECT_ROOT / path
-    if full.exists():
-        return full.stat().st_mtime
-    return 0.0
-
-
 def _check_stale_docs() -> list[dict]:
     """Check for architecture docs that are stale relative to their mapped code.
 
@@ -364,9 +357,6 @@ def _find_related_docs(modified_files: list[str]) -> list[str]:
                 # Check if the modified file would match the glob pattern
                 full_pattern = str(PROJECT_ROOT / pattern)
                 full_file = str(PROJECT_ROOT / mod_file)
-                # Use fnmatch-style check
-                import fnmatch
-
                 if fnmatch.fnmatch(full_file, full_pattern):
                     related.add(doc_name)
                     break
@@ -471,6 +461,32 @@ def _run_cmd(cmd: list[str], cwd: str | None = None) -> tuple[int, str, str]:
 
 
 
+def _get_dirty_files() -> set[str]:
+    """Parse `git status --porcelain` and return set of dirty file paths.
+
+    Handles all porcelain v1 status formats including renames/copies
+    (e.g., "R  old -> new") and quoted paths.
+    """
+    rc, stdout, _ = _run_cmd(["git", "status", "--porcelain"])
+    dirty = set()
+    if rc != 0 or not stdout:
+        return dirty
+    for line in stdout.splitlines():
+        if len(line) < 4:
+            continue
+        # Porcelain v1 format: XY<space>path
+        # For renames/copies: XY<space>old -> new
+        path_part = line[3:]
+        # Handle renames: take the NEW path (after " -> ")
+        if " -> " in path_part:
+            path_part = path_part.split(" -> ", 1)[1]
+        # Strip quotes that git adds for paths with special chars
+        path_part = path_part.strip().strip('"')
+        if path_part:
+            dirty.add(path_part)
+    return dirty
+
+
 def _infer_tags(task: str) -> list[str]:
     """Infer tags from a task description using keyword matching.
 
@@ -547,6 +563,15 @@ def cmd_start(args: argparse.Namespace) -> None:
     tags = []
     if hasattr(args, "tags") and args.tags:
         tags = [t.strip() for t in args.tags.split(",") if t.strip()]
+        # Warn about unrecognized tags
+        valid_tags = set(TAG_TO_DOCS.keys())
+        unknown = [t for t in tags if t not in valid_tags]
+        if unknown:
+            print(
+                f"Warning: unrecognized tags: {', '.join(unknown)}. "
+                f"Valid tags: {', '.join(sorted(valid_tags))}",
+                file=sys.stderr,
+            )
     elif args.task:
         tags = _infer_tags(args.task)
 
@@ -662,7 +687,6 @@ def cmd_start(args: argparse.Namespace) -> None:
     if docs_to_load:
         print()
         print(f"== INSTRUCTION DOCS ({len(docs_to_load)} loaded based on tags: {', '.join(tags)}) ==")
-        deferred = []
         for doc_name in docs_to_load:
             doc_content = _load_doc_content(doc_name)
             if doc_content:
@@ -702,14 +726,8 @@ def cmd_end(args: argparse.Namespace) -> None:
 
     # Check for uncommitted modified files
     if modified:
-        rc, stdout, _ = _run_cmd(["git", "status", "--porcelain"])
-        if rc == 0 and stdout:
-            dirty_files = set()
-            for line in stdout.splitlines():
-                # git status --porcelain format: XY filename
-                if len(line) > 3:
-                    dirty_files.add(line[3:].strip())
-
+        dirty_files = _get_dirty_files()
+        if dirty_files:
             uncommitted = [f for f in modified if f in dirty_files]
             if uncommitted:
                 print("== WARNING: UNCOMMITTED MODIFIED FILES ==")
@@ -1095,13 +1113,8 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
     modified = session.get("modified_files", [])
     exclude = set(args.exclude or [])
 
-    # Get git status
-    rc, git_status, _ = _run_cmd(["git", "status", "--porcelain"])
-    dirty_files = set()
-    if rc == 0:
-        for line in git_status.splitlines():
-            if len(line) > 3:
-                dirty_files.add(line[3:].strip())
+    # Get dirty files from git
+    dirty_files = _get_dirty_files()
 
     # Files to commit = modified_files that are dirty in git, minus exclusions
     to_commit = [
@@ -1214,13 +1227,8 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     modified = session.get("modified_files", [])
     exclude = set(args.exclude or [])
 
-    # Get git status to find actually dirty files
-    rc, git_status, _ = _run_cmd(["git", "status", "--porcelain"])
-    dirty_files = set()
-    if rc == 0:
-        for line in git_status.splitlines():
-            if len(line) > 3:
-                dirty_files.add(line[3:].strip())
+    # Get dirty files from git
+    dirty_files = _get_dirty_files()
 
     to_commit = [
         f for f in modified if f in dirty_files and f not in exclude
@@ -1405,12 +1413,8 @@ def cmd_summary(args: argparse.Namespace) -> None:
 
     # Check git status for uncommitted files
     if modified:
-        rc, git_status, _ = _run_cmd(["git", "status", "--porcelain"])
-        if rc == 0 and git_status:
-            dirty_files = set()
-            for line in git_status.splitlines():
-                if len(line) > 3:
-                    dirty_files.add(line[3:].strip())
+        dirty_files = _get_dirty_files()
+        if dirty_files:
             uncommitted = [f for f in modified if f in dirty_files]
             committed = [f for f in modified if f not in dirty_files]
             if uncommitted:
@@ -1447,6 +1451,7 @@ def cmd_debug_vercel(args: argparse.Namespace) -> None:
     """Start a session and print the Vercel build logs for the latest web app deployment."""
     # Auto-start a session
     args.task = "debug Vercel deployment failure"
+    args.tags = None
     cmd_start(args)
 
     print()
