@@ -663,6 +663,7 @@
             try {
                 const { chatDB } = await import('../../../services/db');
                 const { getMessagesForChat } = await import('../../../services/db/messageOperations');
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any -- chatDB satisfies ChatDatabaseInstance at runtime
                 const messages = await getMessagesForChat(chatDB as any, chatId);
                 if (messages && messages.length > 0) {
                     chatHasPII = messages.some(m => m.pii_mappings && m.pii_mappings.length > 0);
@@ -905,6 +906,7 @@
                     
                     // Get all messages for this chat (already decrypted by getMessagesForChat)
                     // NOTE: message.content from DB has PLACEHOLDERS (e.g., "[EMAIL_1]")
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- chatDB satisfies ChatDatabaseInstance at runtime
                     const messages = await getMessagesForChat(chatDB as any, currentChatId);
                     if (messages && messages.length > 0) {
                         // Build cumulative PII mappings from user messages for restoration
@@ -1653,7 +1655,9 @@
                     title="Click to enlarge QR code"
                 >
                     {#if qrCodeSvg}
-                        {@html qrCodeSvg}
+                        <!-- eslint-disable-next-line svelte/no-at-html-tags -- QR code is generated from trusted library -->
+                        <!-- eslint-disable-next-line svelte/no-at-html-tags -- QR code is generated from trusted library -->
+                {@html qrCodeSvg}
                     {:else}
                         <div class="qr-code-placeholder">Generating QR code...</div>
                     {/if}
@@ -1695,6 +1699,7 @@
         <!-- Centered QR Code - Uses full viewport with 20px padding, maintaining aspect ratio -->
         <div class="qr-large-container">
             {#if qrCodeSvg}
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -- QR code is generated from trusted library -->
                 {@html qrCodeSvg}
             {/if}
         </div>
