@@ -413,7 +413,9 @@ def _normalise_event(entry: Dict[str, Any], city_fallback: str = "") -> Dict[str
             {"name": h.get("name"), "avatar_url": h.get("avatar_url")}
             for h in hosts if isinstance(h, dict)
         ],
-        "rsvp_count": entry.get("guest_count"),  # May be None if hidden by organiser
+        # show_guest_list=False means the organiser hid the guest list; guest_count=0
+        # in that case is the API default, not a real zero. Return None when hidden.
+        "rsvp_count": entry.get("guest_count") if ev.get("show_guest_list", True) else None,
         "is_paid": bool((entry.get("ticket_info") or {}).get("is_paid")),
         "cover_url": ev.get("cover_url"),
         "city": geo.get("city") or city_fallback,
