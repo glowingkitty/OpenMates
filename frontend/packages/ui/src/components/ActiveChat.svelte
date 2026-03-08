@@ -1668,13 +1668,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Extracts embed IDs from chat messages and provides navigation between them
     
     /**
-     * Extract all embed IDs from messages in order of appearance
-     * This creates a flat list of all embeds that can be displayed in fullscreen
+     * Extract all embed IDs from messages in **visual** order.
+     *
+     * The data (markdown) order lists embeds oldest-first, but grouped
+     * embeds are rendered reversed (most-recent-first — see
+     * GroupRenderer.ts line ~346).  To make the fullscreen prev/next
+     * arrows match what the user sees on screen, we reverse each
+     * consecutive run of same-type groupable embeds before returning.
+     *
+     * Groupable types that get reversed: web-website, videos-video,
+     * code-code, docs-doc, sheets-sheet, app-skill-use.
+     * Single (ungrouped) embeds keep their original order.
+     *
      * @param messages - Array of chat messages
-     * @returns Array of embed IDs in order of appearance
+     * @returns Array of embed IDs in visual (on-screen) order
      */
     function extractEmbedIdsFromMessages(messages: ChatMessageModel[]): string[] {
-        const embedIds: string[] = [];
+        // Collect embed refs with their types so we can detect app-skill-use runs.
+        const embedRefs: Array<{ type: string; embed_id: string }> = [];
         
         // Collect all embed IDs that are known to have errored.
         // _embedErrors is populated by the embedUpdated event handler when
@@ -1688,6 +1699,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 }
             }
         }
+        
+        const seenIds = new Set<string>();
         
         for (const message of messages) {
             // Get message content as markdown string
@@ -1708,13 +1721,68 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     continue;
                 }
                 // Avoid duplicates
-                if (!embedIds.includes(ref.embed_id)) {
-                    embedIds.push(ref.embed_id);
+                if (!seenIds.has(ref.embed_id)) {
+                    seenIds.add(ref.embed_id);
+                    embedRefs.push({ type: ref.type, embed_id: ref.embed_id });
                 }
             }
         }
         
-        return embedIds;
+        // Build the visual-order list by reversing consecutive runs of same-type
+        // embeds.  GroupRenderer.ts reverses ALL group types before rendering
+        // (most-recent-first), so we mirror that reversal here so the
+        // fullscreen prev/next arrows match the on-screen layout.
+        //
+        // Groupable types: web-website, videos-video, code-code, docs-doc,
+        // sheets-sheet, app-skill-use (see groupHandlers.ts).
+        // For app-skill-use, ANY consecutive app-skill-use embeds form a
+        // single group regardless of app_id/skill_id.  For other types,
+        // only consecutive embeds of the exact same type form a group.
+        const GROUPABLE_TYPES = new Set([
+            'web-website', 'videos-video', 'code-code',
+            'docs-doc', 'sheets-sheet', 'app-skill-use',
+        ]);
+        
+        const visualOrderIds: string[] = [];
+        let currentRun: string[] = [];
+        let currentRunType: string | null = null;
+        
+        const flushRun = () => {
+            if (currentRun.length > 1) {
+                // Multiple consecutive same-type embeds form a group that is
+                // rendered reversed — mirror that reversal for navigation.
+                visualOrderIds.push(...currentRun.reverse());
+            } else if (currentRun.length === 1) {
+                // Single embed — no group, no reversal needed.
+                visualOrderIds.push(currentRun[0]);
+            }
+            currentRun = [];
+            currentRunType = null;
+        };
+        
+        for (const ref of embedRefs) {
+            if (!GROUPABLE_TYPES.has(ref.type)) {
+                // Non-groupable embed type — flush any active run, add as-is
+                flushRun();
+                visualOrderIds.push(ref.embed_id);
+                continue;
+            }
+            
+            // Consecutive embeds of the same groupable type form a visual group.
+            // (For app-skill-use this also holds — all app-skill-use are same type.)
+            const canContinueRun = currentRunType === ref.type;
+            
+            if (currentRun.length > 0 && !canContinueRun) {
+                flushRun();
+            }
+            
+            currentRun.push(ref.embed_id);
+            currentRunType = ref.type;
+        }
+        // Flush any trailing run
+        flushRun();
+        
+        return visualOrderIds;
     }
     
     /**
