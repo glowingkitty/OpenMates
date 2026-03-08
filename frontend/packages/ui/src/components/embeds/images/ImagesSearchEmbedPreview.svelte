@@ -6,7 +6,7 @@
 
   Details content structure:
   - Processing: query text + "via {provider}" + skeleton
-  - Finished: 3-4 thumbnail images as a mini-mosaic (proxied via preview.openmates.org)
+  - Finished: horizontal row of thumbnail images at the top, clipped to card width
   - Error: error message
 
   Architecture: See docs/architecture/embeds.md
@@ -86,13 +86,10 @@
   const skillIconName = 'search';
   let skillName = $derived($text('app_skills.images.search'));
 
-  // Show first 4 thumbnails in the mosaic
-  const MAX_PREVIEW_THUMBNAILS = 4;
+  // Show thumbnails that have a URL — render as many as fit in the row
   let previewThumbnails = $derived(
-    results.slice(0, MAX_PREVIEW_THUMBNAILS).filter(r => r.thumbnail_url || r.image_url)
+    results.filter(r => r.thumbnail_url || r.image_url)
   );
-
-  let remainingCount = $derived(Math.max(0, results.length - MAX_PREVIEW_THUMBNAILS));
 
 
   function proxyUrl(url: string | undefined): string | undefined {
@@ -129,6 +126,7 @@
   {onFullscreen}
   showStatus={true}
   showSkillIcon={true}
+  hasFullWidthImage={status === 'finished' && previewThumbnails.length > 0}
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details()}
@@ -139,21 +137,16 @@
           <span class="error-text">{$text('embeds.image_search.error')}</span>
         </div>
       {:else if status === 'finished' && previewThumbnails.length > 0}
-        <!-- Thumbnail mosaic -->
-        <div class="thumbnail-mosaic" class:single={previewThumbnails.length === 1}>
+        <!-- Horizontal thumbnail strip at the top — overflows hidden at card width -->
+        <div class="thumbnail-strip">
           {#each previewThumbnails as result, i (i)}
-            <div class="thumb-slot">
-              <img
-                src={proxyUrl(result.thumbnail_url || result.image_url)}
-                alt={result.title || ''}
-                class="thumb-img"
-                use:handleImageError
-              />
-            </div>
+            <img
+              src={proxyUrl(result.thumbnail_url || result.image_url)}
+              alt={result.title || ''}
+              class="thumb-img"
+              use:handleImageError
+            />
           {/each}
-          {#if remainingCount > 0}
-            <div class="more-badge">+{remainingCount}</div>
-          {/if}
         </div>
       {:else}
         <!-- Processing or no results yet: show query -->
@@ -211,48 +204,24 @@
     line-height: 1.4;
   }
 
-  /* Thumbnail mosaic (finished state) */
-  .thumbnail-mosaic {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr 1fr;
+  /* Horizontal thumbnail strip — single row, overflow hidden at card edge */
+  .thumbnail-strip {
+    display: flex;
+    flex-direction: row;
+    gap: 2px;
     width: 100%;
     height: 100%;
     overflow: hidden;
-    position: relative;
-    gap: 1px;
-    background: var(--color-grey-20, #eee);
-  }
-
-  .thumbnail-mosaic.single {
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr;
-  }
-
-  .thumb-slot {
-    overflow: hidden;
-    background: var(--color-grey-15, #f5f5f5);
   }
 
   .thumb-img {
-    width: 100%;
     height: 100%;
+    flex-shrink: 0;
     object-fit: cover;
     display: block;
-  }
-
-  /* "+N more" overlay badge */
-  .more-badge {
-    position: absolute;
-    bottom: 8px;
-    right: 8px;
-    background: rgba(0, 0, 0, 0.6);
-    color: #fff;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 3px 7px;
-    border-radius: 10px;
-    backdrop-filter: blur(4px);
+    /* Each thumb takes a proportional width; auto-width based on image aspect ratio */
+    min-width: 60px;
+    max-width: 50%;
   }
 
   /* Skeleton lines */
@@ -313,8 +282,6 @@
   :global(.dark) .query-text     { color: var(--color-grey-40, #aaa); }
   :global(.dark) .via-text       { color: var(--color-grey-50, #888); }
   :global(.dark) .skeleton-line  { background: var(--color-grey-80, #333); }
-  :global(.dark) .thumb-slot     { background: var(--color-grey-85, #222); }
-  :global(.dark) .thumbnail-mosaic { background: var(--color-grey-85, #222); }
 
   :global(.dark) .error-state {
     background: var(--color-error-95, #2a1515);
