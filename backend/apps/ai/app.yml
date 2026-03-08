@@ -174,6 +174,10 @@ skills:
     name_translation_key: ai.ask
     description_translation_key: ai.ask.description
     icon_image: ai.svg
+    # Internal: this is the main AI entry-point skill, invoked implicitly on every
+    # request. It should never appear in the @mention dropdown, app suggestions, or
+    # follow-up / new-chat skill suggestions — all AI requests already use it.
+    internal: true
     stage: production
     class_path: |
       ai.skills.ask_skill.AskSkill
