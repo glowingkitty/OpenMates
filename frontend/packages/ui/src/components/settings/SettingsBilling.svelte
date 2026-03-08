@@ -108,12 +108,12 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 <SettingsItem
     type="submenu"
     icon="subsetting_icon icon_gift"
-    title={$text('settings.gift_cards.gift_cards')}
+    title={$text('settings.gift_cards')}
     onClick={() => dispatch('openSettings', {
         settingsPath: 'billing/gift-cards',
         direction: 'forward',
         icon: 'icon_gift',
-        title: $text('settings.gift_cards.gift_cards')
+        title: $text('settings.gift_cards')
     })}
 />
 
