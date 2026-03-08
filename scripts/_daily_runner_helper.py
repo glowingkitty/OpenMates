@@ -169,8 +169,13 @@ def dispatch_email() -> None:
                     "error": error[:MAX_ERROR_SNIPPET_LEN] if error else None,
                 })
 
-    # Dispatch via internal API endpoint (runs inside Docker network: api:8000)
-    api_url = "http://api:8000/internal/dispatch-test-summary-email"
+    # Dispatch via internal API endpoint.
+    # When running on the host (via docker+chroot from admin-sidecar), use
+    # localhost:8000 since port 8000 is forwarded from the API container.
+    api_url = os.environ.get(
+        "INTERNAL_API_URL",
+        "http://localhost:8000",
+    ).rstrip("/") + "/internal/dispatch-test-summary-email"
     payload = {
         "recipient_email": admin_email,
         "run_id": data.get("run_id", ""),

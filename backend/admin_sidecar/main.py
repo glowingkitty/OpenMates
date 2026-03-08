@@ -890,13 +890,19 @@ async def get_version() -> JSONResponse:
 
 def _run_test_script(force: bool = False) -> tuple[bool, str, int]:
     """
-    Execute scripts/run-tests-daily.sh on the host filesystem synchronously.
+    Execute scripts/run-tests-daily.sh on the **host** via ``docker run`` + ``chroot``.
 
-    The admin-sidecar has the host filesystem bind-mounted at the same path
-    (GIT_WORK_DIR), so the script and all host-side tools (node, pnpm, python3,
-    git, docker) are accessible. We prepend common host binary paths to PATH
-    so that node/pnpm/npx are found even though they are not installed inside
-    this container.
+    This container has the Docker socket but does NOT have host binaries (node,
+    pnpm, npx, pytest) in its filesystem namespace. To run the test script with
+    full access to all host tools, we use the Docker socket to launch a
+    throwaway container that:
+      1. Mounts the host root filesystem at /host_root
+      2. Uses ``chroot /host_root`` to enter the host's filesystem namespace
+      3. Runs the test script with full access to host binaries
+
+    This is safe because the sidecar already has the Docker socket mounted,
+    which is equivalent to root access on the host. The throwaway container
+    is removed immediately after the run.
 
     Args:
         force: If True, pass --force to skip the 24h commit-activity gate.
@@ -905,43 +911,53 @@ def _run_test_script(force: bool = False) -> tuple[bool, str, int]:
         (success: bool, output: str, exit_code: int)
     """
     work_dir = _GIT_WORK_DIR
-    script_path = os.path.join(work_dir, "scripts", "run-tests-daily.sh")
+    script_rel = "scripts/run-tests-daily.sh"
 
+    # Verify the script exists on the bind-mounted host filesystem
+    script_path = os.path.join(work_dir, script_rel)
     if not os.path.isfile(script_path):
         msg = f"run-tests-daily.sh not found at {script_path}"
         logger.error("[AdminSidecar/tests] %s", msg)
         return False, msg, 1
 
-    # Build the command
-    cmd = [script_path]
+    # Build the inner command that runs inside chroot
+    inner_cmd = f"cd {work_dir} && ./{script_rel}"
     if force:
-        cmd.append("--force")
+        inner_cmd += " --force"
 
-    # Extend PATH with common host binary locations so that node, pnpm, npx,
-    # and the host Python venv are found. The host filesystem is mounted at the
-    # same path (GIT_WORK_DIR), so /usr/bin/node etc. are accessible.
-    env = os.environ.copy()
-    host_paths = [
-        "/usr/local/sbin",
-        "/usr/local/bin",
-        "/usr/sbin",
-        "/usr/bin",
-        "/sbin",
-        "/bin",
-        "/home/superdev/.npm-global/bin",   # npx lives here on the host
-        "/home/superdev/.local/bin",         # pip-installed CLI tools
+    # Pass env vars the test script needs (email recipient, internal API token)
+    admin_email = os.environ.get("ADMIN_NOTIFY_EMAIL", "")
+    internal_token = os.environ.get("INTERNAL_API_SHARED_TOKEN", "")
+
+    # Use `docker run` with host root mounted at /host_root, then chroot into it.
+    # --rm: auto-remove container after exit
+    # --pid=host: share host PID namespace (needed for test processes)
+    # --network=host: share host network (needed for API calls, browser tests)
+    # -v /:/host_root: mount host root filesystem
+    # debian:bookworm-slim: minimal image with chroot and bash
+    cmd = [
+        "docker", "run", "--rm",
+        "--pid=host",
+        "--network=host",
+        "-v", "/:/host_root",
+        "debian:bookworm-slim",
+        "chroot", "/host_root",
+        "/bin/bash", "-c",
+        (
+            f"export ADMIN_NOTIFY_EMAIL='{admin_email}' && "
+            f"export INTERNAL_API_SHARED_TOKEN='{internal_token}' && "
+            f"{inner_cmd}"
+        ),
     ]
-    env["PATH"] = ":".join(host_paths) + ":" + env.get("PATH", "")
 
     logger.info(
-        "[AdminSidecar/tests] Launching test run: %s (force=%s)", script_path, force
+        "[AdminSidecar/tests] Launching test run via docker+chroot: %s (force=%s)",
+        script_path, force,
     )
 
     try:
         result = subprocess.run(
             cmd,
-            cwd=work_dir,
-            env=env,
             capture_output=True,
             text=True,
             timeout=_STEP_TIMEOUT_TESTS,
@@ -952,7 +968,8 @@ def _run_test_script(force: bool = False) -> tuple[bool, str, int]:
             combined = combined[:25000] + "\n...truncated...\n" + combined[-25000:]
 
         logger.info(
-            "[AdminSidecar/tests] Test run completed with exit code %d", result.returncode
+            "[AdminSidecar/tests] Test run completed with exit code %d",
+            result.returncode,
         )
         return result.returncode == 0, combined, result.returncode
 
