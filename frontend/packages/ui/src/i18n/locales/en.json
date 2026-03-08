@@ -7012,6 +7012,78 @@
       },
       "timezone_info": {
         "text": "Your timezone is used for scheduling reminders and displaying times. It was automatically detected from your browser but you can change it here."
+      },
+      "chats": {
+        "text": "Chats",
+        "description": {
+          "text": "Manage and review your chat history"
+        },
+        "total_count": {
+          "text": "{count} Chats"
+        },
+        "loading": {
+          "text": "Loading..."
+        },
+        "error": {
+          "text": "Failed to load chat statistics"
+        },
+        "retry": {
+          "text": "Retry"
+        },
+        "timeline_title": {
+          "text": "Chat Creation Over Time"
+        },
+        "timeline_empty": {
+          "text": "No chats yet"
+        },
+        "delete_section_title": {
+          "text": "Delete Old Chats"
+        },
+        "delete_section_desc": {
+          "text": "Permanently delete chats older than the selected period. This cannot be undone."
+        },
+        "delete_older_than": {
+          "text": "Older than"
+        },
+        "delete_option_1d": {
+          "text": "1 day"
+        },
+        "delete_option_7d": {
+          "text": "7 days"
+        },
+        "delete_option_14d": {
+          "text": "14 days"
+        },
+        "delete_option_30d": {
+          "text": "30 days"
+        },
+        "delete_option_90d": {
+          "text": "90 days"
+        },
+        "delete_button": {
+          "text": "Delete Old Chats"
+        },
+        "delete_confirm_title": {
+          "text": "Delete Old Chats?"
+        },
+        "delete_confirm_desc": {
+          "text": "This will permanently delete all chats older than {days} days. This action cannot be undone."
+        },
+        "delete_confirm_button": {
+          "text": "Delete"
+        },
+        "delete_cancel_button": {
+          "text": "Cancel"
+        },
+        "delete_deleting": {
+          "text": "Deleting..."
+        },
+        "delete_success": {
+          "text": "{count} chats deleted"
+        },
+        "delete_none": {
+          "text": "No chats found older than the selected period"
+        }
       }
     },
     "ai_ask": {

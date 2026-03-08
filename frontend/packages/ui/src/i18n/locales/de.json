@@ -4034,6 +4034,12 @@
       },
       "error": {
         "text": "Bildersuche fehlgeschlagen"
+      },
+      "error_title": {
+        "text": "Suche fehlgeschlagen"
+      },
+      "more_results": {
+        "text": "mehr"
       }
     }
   },
@@ -6637,6 +6643,78 @@
       },
       "timezone_info": {
         "text": "Ihre Zeitzone wird für die Planung von Erinnerungen und die Anzeige von Zeiten verwendet. Sie wurde automatisch von Ihrem Browser erkannt, aber Sie können sie hier ändern."
+      },
+      "chats": {
+        "text": "Chats",
+        "description": {
+          "text": "Chatverlauf verwalten und überprüfen"
+        },
+        "total_count": {
+          "text": "{count} Chats"
+        },
+        "loading": {
+          "text": "Laden..."
+        },
+        "error": {
+          "text": "Chat-Statistiken konnten nicht geladen werden"
+        },
+        "retry": {
+          "text": "Erneut versuchen"
+        },
+        "timeline_title": {
+          "text": "Chat-Verlauf im Zeitverlauf"
+        },
+        "timeline_empty": {
+          "text": "Noch keine Chats"
+        },
+        "delete_section_title": {
+          "text": "Alte Chats löschen"
+        },
+        "delete_section_desc": {
+          "text": "Chats, die älter als der ausgewählte Zeitraum sind, werden dauerhaft gelöscht. Dieser Vorgang kann nicht rückgängig gemacht werden."
+        },
+        "delete_older_than": {
+          "text": "Älter als"
+        },
+        "delete_option_1d": {
+          "text": "1 Tag"
+        },
+        "delete_option_7d": {
+          "text": "7 Tage"
+        },
+        "delete_option_14d": {
+          "text": "14 Tage"
+        },
+        "delete_option_30d": {
+          "text": "30 Tage"
+        },
+        "delete_option_90d": {
+          "text": "90 Tage"
+        },
+        "delete_button": {
+          "text": "Alte Chats löschen"
+        },
+        "delete_confirm_title": {
+          "text": "Alte Chats löschen?"
+        },
+        "delete_confirm_desc": {
+          "text": "Dadurch werden alle Chats, die älter als {days} Tage sind, dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden."
+        },
+        "delete_confirm_button": {
+          "text": "Löschen"
+        },
+        "delete_cancel_button": {
+          "text": "Abbrechen"
+        },
+        "delete_deleting": {
+          "text": "Wird gelöscht..."
+        },
+        "delete_success": {
+          "text": "{count} Chats gelöscht"
+        },
+        "delete_none": {
+          "text": "Keine Chats gefunden, die älter als der ausgewählte Zeitraum sind"
+        }
       }
     },
     "ai_ask": {
@@ -7592,6 +7670,9 @@
       },
       "invoices_error_loading": {
         "text": "Fehler beim Laden der Rechnungen"
+      },
+      "invoices_generating": {
+        "text": "Rechnung wird erstellt..."
       }
     },
     "chat": {

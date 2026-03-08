@@ -2257,3 +2257,184 @@ timezone_info:
   sv: ""
   he: אזור הזמן שלך משמש לתזמון תזכורות ולהצגת זמנים. הוא זוהה אוטומטית מהדפדפן שלך, אך ניתן לשנות אותו כאן.
   verified_by_human: []
+
+chats:
+  context: Chats submenu item label in Account settings — also used as the page title
+  en: Chats
+  de: Chats
+  es: Chats
+  fr: Chats
+  pt: Chats
+  ru: Чаты
+  ja: チャット
+  ko: 채팅
+  it: Chat
+  tr: Sohbetler
+  zh: 聊天
+  ar: المحادثات
+  hi: चैट
+  he: צ'אטים
+  verified_by_human: []
+chats.description:
+  context: Short description shown in the Chats settings page header
+  en: Manage and review your chat history
+  de: Chatverlauf verwalten und überprüfen
+  es: Administra y revisa tu historial de chats
+  fr: Gérez et consultez votre historique de chats
+  ar: إدارة ومراجعة سجل المحادثات
+  he: ניהול ובדיקת היסטוריית הצ'אטים
+  verified_by_human: []
+chats.total_count:
+  context: Label showing total number of chats in the account, e.g. "142 Chats"
+  en: "{count} Chats"
+  de: "{count} Chats"
+  ar: "{count} محادثات"
+  he: "{count} צ'אטים"
+  verified_by_human: []
+chats.loading:
+  context: Loading state text while chat stats are being fetched
+  en: Loading...
+  de: Laden...
+  ar: جارٍ التحميل...
+  he: טוען...
+  verified_by_human: []
+chats.error:
+  context: Error message when chat stats fail to load
+  en: Failed to load chat statistics
+  de: Chat-Statistiken konnten nicht geladen werden
+  ar: فشل تحميل إحصائيات المحادثات
+  he: טעינת נתוני הצ'אט נכשלה
+  verified_by_human: []
+chats.retry:
+  context: Button label to retry loading chat stats after error
+  en: Retry
+  de: Erneut versuchen
+  ar: إعادة المحاولة
+  he: נסה שוב
+  verified_by_human: []
+chats.timeline_title:
+  context: Section heading above the chat creation timeline graph
+  en: Chat Creation Over Time
+  de: Chat-Verlauf im Zeitverlauf
+  ar: إنشاء المحادثات عبر الزمن
+  he: יצירת צ'אטים לאורך זמן
+  verified_by_human: []
+chats.timeline_empty:
+  context: Text shown when there are no chats to display in the timeline
+  en: No chats yet
+  de: Noch keine Chats
+  ar: لا توجد محادثات بعد
+  he: אין צ'אטים עדיין
+  verified_by_human: []
+chats.delete_section_title:
+  context: Section heading for the "Delete old chats" area
+  en: Delete Old Chats
+  de: Alte Chats löschen
+  ar: حذف المحادثات القديمة
+  he: מחק צ'אטים ישנים
+  verified_by_human: []
+chats.delete_section_desc:
+  context: Description below the delete old chats section title explaining what the operation does
+  en: Permanently delete chats older than the selected period. This cannot be undone.
+  de: Chats, die älter als der ausgewählte Zeitraum sind, werden dauerhaft gelöscht. Dieser Vorgang kann nicht rückgängig gemacht werden.
+  ar: حذف المحادثات الأقدم من الفترة المحددة بشكل دائم. لا يمكن التراجع عن هذا الإجراء.
+  he: מחיקה סופית של צ'אטים ישנים יותר מהתקופה הנבחרת. לא ניתן לבטל פעולה זו.
+  verified_by_human: []
+chats.delete_older_than:
+  context: Dropdown label — "Older than X days"
+  en: Older than
+  de: Älter als
+  ar: أقدم من
+  he: ישן מ-
+  verified_by_human: []
+chats.delete_option_1d:
+  context: Dropdown option — delete chats older than 1 day
+  en: 1 day
+  de: 1 Tag
+  ar: يوم واحد
+  he: יום אחד
+  verified_by_human: []
+chats.delete_option_7d:
+  context: Dropdown option — delete chats older than 7 days
+  en: 7 days
+  de: 7 Tage
+  ar: 7 أيام
+  he: 7 ימים
+  verified_by_human: []
+chats.delete_option_14d:
+  context: Dropdown option — delete chats older than 14 days
+  en: 14 days
+  de: 14 Tage
+  ar: 14 يومًا
+  he: 14 ימים
+  verified_by_human: []
+chats.delete_option_30d:
+  context: Dropdown option — delete chats older than 30 days
+  en: 30 days
+  de: 30 Tage
+  ar: 30 يومًا
+  he: 30 ימים
+  verified_by_human: []
+chats.delete_option_90d:
+  context: Dropdown option — delete chats older than 90 days
+  en: 90 days
+  de: 90 Tage
+  ar: 90 يومًا
+  he: 90 ימים
+  verified_by_human: []
+chats.delete_button:
+  context: Button to trigger deletion of old chats
+  en: Delete Old Chats
+  de: Alte Chats löschen
+  ar: حذف المحادثات القديمة
+  he: מחק צ'אטים ישנים
+  verified_by_human: []
+chats.delete_confirm_title:
+  context: Confirmation dialog title before deleting old chats
+  en: Delete Old Chats?
+  de: Alte Chats löschen?
+  ar: حذف المحادثات القديمة؟
+  he: למחוק צ'אטים ישנים?
+  verified_by_human: []
+chats.delete_confirm_desc:
+  context: Confirmation dialog body explaining what will be deleted, {days} is the number of days
+  en: "This will permanently delete all chats older than {days} days. This action cannot be undone."
+  de: "Dadurch werden alle Chats, die älter als {days} Tage sind, dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden."
+  ar: "سيؤدي هذا إلى حذف جميع المحادثات الأقدم من {days} أيام بشكل دائم. لا يمكن التراجع عن هذا الإجراء."
+  he: "פעולה זו תמחק לצמיתות את כל הצ'אטים הישנים מ-{days} ימים. לא ניתן לבטל פעולה זו."
+  verified_by_human: []
+chats.delete_confirm_button:
+  context: Confirmation button to proceed with deletion of old chats
+  en: Delete
+  de: Löschen
+  ar: حذف
+  he: מחק
+  verified_by_human: []
+chats.delete_cancel_button:
+  context: Cancel button in the delete confirmation dialog
+  en: Cancel
+  de: Abbrechen
+  ar: إلغاء
+  he: ביטול
+  verified_by_human: []
+chats.delete_deleting:
+  context: Status text shown while deletion is in progress
+  en: Deleting...
+  de: Wird gelöscht...
+  ar: جارٍ الحذف...
+  he: מוחק...
+  verified_by_human: []
+chats.delete_success:
+  context: Success message shown after chats are deleted, {count} is the number deleted
+  en: "{count} chats deleted"
+  de: "{count} Chats gelöscht"
+  ar: "تم حذف {count} محادثات"
+  he: "{count} צ'אטים נמחקו"
+  verified_by_human: []
+chats.delete_none:
+  context: Message shown when no chats were found to delete
+  en: No chats found older than the selected period
+  de: Keine Chats gefunden, die älter als der ausgewählte Zeitraum sind
+  ar: لم يتم العثور على محادثات أقدم من الفترة المحددة
+  he: לא נמצאו צ'אטים ישנים יותר מהתקופה הנבחרת
+  verified_by_human: []

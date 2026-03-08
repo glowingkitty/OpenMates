@@ -129,6 +129,19 @@ Account Settings - Main menu for account-related settings including Security, Ex
             title: $text('settings.account.delete')
         });
     }
+
+    /**
+     * Navigate to Chats submenu.
+     * Shows total chat count, creation timeline graph, and bulk delete tools.
+     */
+    function navigateToChats() {
+        dispatch('openSettings', {
+            settingsPath: 'account/chats',
+            direction: 'forward',
+            icon: 'chat',
+            title: $text('settings.account.chats')
+        });
+    }
 </script>
 
 <SettingsItem
@@ -180,6 +193,13 @@ Account Settings - Main menu for account-related settings including Security, Ex
     icon="storage"
     title={$text('settings.storage')}
     onClick={navigateToStorage}
+/>
+
+<SettingsItem
+    type="submenu"
+    icon="chat"
+    title={$text('settings.account.chats')}
+    onClick={navigateToChats}
 />
 
 <SettingsItem

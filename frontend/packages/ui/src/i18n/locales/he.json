@@ -4047,6 +4047,12 @@
       },
       "error": {
         "text": "חיפוש תמונות נכשל"
+      },
+      "error_title": {
+        "text": "החיפוש נכשל"
+      },
+      "more_results": {
+        "text": "עוד"
       }
     }
   },
@@ -5945,6 +5951,78 @@
       },
       "timezone_info": {
         "text": "אזור הזמן שלך משמש לתזמון תזכורות ולהצגת זמנים. הוא זוהה אוטומטית מהדפדפן שלך, אך ניתן לשנות אותו כאן."
+      },
+      "chats": {
+        "text": "צ'אטים",
+        "description": {
+          "text": "ניהול ובדיקת היסטוריית הצ'אטים"
+        },
+        "total_count": {
+          "text": "{count} צ'אטים"
+        },
+        "loading": {
+          "text": "טוען..."
+        },
+        "error": {
+          "text": "טעינת נתוני הצ'אט נכשלה"
+        },
+        "retry": {
+          "text": "נסה שוב"
+        },
+        "timeline_title": {
+          "text": "יצירת צ'אטים לאורך זמן"
+        },
+        "timeline_empty": {
+          "text": "אין צ'אטים עדיין"
+        },
+        "delete_section_title": {
+          "text": "מחק צ'אטים ישנים"
+        },
+        "delete_section_desc": {
+          "text": "מחיקה סופית של צ'אטים ישנים יותר מהתקופה הנבחרת. לא ניתן לבטל פעולה זו."
+        },
+        "delete_older_than": {
+          "text": "ישן מ-"
+        },
+        "delete_option_1d": {
+          "text": "יום אחד"
+        },
+        "delete_option_7d": {
+          "text": "7 ימים"
+        },
+        "delete_option_14d": {
+          "text": "14 ימים"
+        },
+        "delete_option_30d": {
+          "text": "30 ימים"
+        },
+        "delete_option_90d": {
+          "text": "90 ימים"
+        },
+        "delete_button": {
+          "text": "מחק צ'אטים ישנים"
+        },
+        "delete_confirm_title": {
+          "text": "למחוק צ'אטים ישנים?"
+        },
+        "delete_confirm_desc": {
+          "text": "פעולה זו תמחק לצמיתות את כל הצ'אטים הישנים מ-{days} ימים. לא ניתן לבטל פעולה זו."
+        },
+        "delete_confirm_button": {
+          "text": "מחק"
+        },
+        "delete_cancel_button": {
+          "text": "ביטול"
+        },
+        "delete_deleting": {
+          "text": "מוחק..."
+        },
+        "delete_success": {
+          "text": "{count} צ'אטים נמחקו"
+        },
+        "delete_none": {
+          "text": "לא נמצאו צ'אטים ישנים יותר מהתקופה הנבחרת"
+        }
       }
     },
     "ai_ask": {
@@ -6903,6 +6981,9 @@
       },
       "invoices_error_loading": {
         "text": "שגיאה בטעינת חשבוניות"
+      },
+      "invoices_generating": {
+        "text": "מפיק חשבונית..."
       }
     },
     "chat": {

@@ -37,6 +37,7 @@ import SettingsTimezone from "./account/SettingsTimezone.svelte";
 import SettingsUsername from "./account/SettingsUsername.svelte";
 import SettingsEmail from "./account/SettingsEmail.svelte";
 import SettingsDeleteAccount from "./account/SettingsDeleteAccount.svelte";
+import SettingsAccountChats from "./account/SettingsAccountChats.svelte";
 import SettingsExportAccount from "./account/SettingsExportAccount.svelte";
 import SettingsStorage from "./account/SettingsStorage.svelte";
 import SettingsStorageFiles from "./account/SettingsStorageFiles.svelte";
@@ -191,6 +192,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "account/security/2fa": SettingsTwoFactorAuth,
   "account/security/recovery-key": SettingsRecoveryKey,
   "account/export": SettingsExportAccount,
+  "account/chats": SettingsAccountChats,
   "account/storage": SettingsStorage,
   // Per-category file list sub-pages — all use the same component.
   // The category is derived from the last path segment inside the component.

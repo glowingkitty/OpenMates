@@ -3569,6 +3569,12 @@
       },
       "error": {
         "text": "فشل البحث عن الصور"
+      },
+      "error_title": {
+        "text": "فشل البحث"
+      },
+      "more_results": {
+        "text": "المزيد"
       }
     }
   },
@@ -5126,6 +5132,78 @@
       },
       "timezone_info": {
         "text": "تُستخدم منطقتك الزمنية لجدولة التذكيرات وعرض الأوقات. تم اكتشافها تلقائيًا من متصفحك ولكن يمكنك تغييرها هنا."
+      },
+      "chats": {
+        "text": "المحادثات",
+        "description": {
+          "text": "إدارة ومراجعة سجل المحادثات"
+        },
+        "total_count": {
+          "text": "{count} محادثات"
+        },
+        "loading": {
+          "text": "جارٍ التحميل..."
+        },
+        "error": {
+          "text": "فشل تحميل إحصائيات المحادثات"
+        },
+        "retry": {
+          "text": "إعادة المحاولة"
+        },
+        "timeline_title": {
+          "text": "إنشاء المحادثات عبر الزمن"
+        },
+        "timeline_empty": {
+          "text": "لا توجد محادثات بعد"
+        },
+        "delete_section_title": {
+          "text": "حذف المحادثات القديمة"
+        },
+        "delete_section_desc": {
+          "text": "حذف المحادثات الأقدم من الفترة المحددة بشكل دائم. لا يمكن التراجع عن هذا الإجراء."
+        },
+        "delete_older_than": {
+          "text": "أقدم من"
+        },
+        "delete_option_1d": {
+          "text": "يوم واحد"
+        },
+        "delete_option_7d": {
+          "text": "7 أيام"
+        },
+        "delete_option_14d": {
+          "text": "14 يومًا"
+        },
+        "delete_option_30d": {
+          "text": "30 يومًا"
+        },
+        "delete_option_90d": {
+          "text": "90 يومًا"
+        },
+        "delete_button": {
+          "text": "حذف المحادثات القديمة"
+        },
+        "delete_confirm_title": {
+          "text": "حذف المحادثات القديمة؟"
+        },
+        "delete_confirm_desc": {
+          "text": "سيؤدي هذا إلى حذف جميع المحادثات الأقدم من {days} أيام بشكل دائم. لا يمكن التراجع عن هذا الإجراء."
+        },
+        "delete_confirm_button": {
+          "text": "حذف"
+        },
+        "delete_cancel_button": {
+          "text": "إلغاء"
+        },
+        "delete_deleting": {
+          "text": "جارٍ الحذف..."
+        },
+        "delete_success": {
+          "text": "تم حذف {count} محادثات"
+        },
+        "delete_none": {
+          "text": "لم يتم العثور على محادثات أقدم من الفترة المحددة"
+        }
       }
     },
     "ai_ask": {
@@ -6084,6 +6162,9 @@
       },
       "invoices_error_loading": {
         "text": "خطأ في تحميل الفواتير"
+      },
+      "invoices_generating": {
+        "text": "إنشاء الفاتورة..."
       }
     },
     "chat": {
