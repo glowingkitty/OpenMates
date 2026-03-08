@@ -483,6 +483,13 @@ Use the Read tool to load each matching file from `docs/claude/`. Do this BEFORE
 - **You need to debug a production issue** (CRITICAL: use debug.py, not local docker compose)
 - A Vercel deployment failed or the frontend is broken after a push
 
+> **When asked to debug a Vercel deployment failure**, run this first:
+> ```bash
+> python3 scripts/sessions.py debug-vercel
+> ```
+> This auto-starts your session and prints the latest deployment status and logs.
+> The most common cause is a failed `pnpm prepare` validation — look for ❌ lines in the output.
+
 > **Default assumption:** All reported issues are on the **dev server**, reported by an **admin**, unless the user explicitly states otherwise.
 
 #### `docs/claude/debugging.md` (also covers inspection)
