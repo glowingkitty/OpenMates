@@ -32,6 +32,7 @@ import TravelConnectionEmbedPreview from "../../../embeds/travel/TravelConnectio
 import TravelStayEmbedPreview from "../../../embeds/travel/TravelStayEmbedPreview.svelte";
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
 import ImageViewEmbedPreview from "../../../embeds/images/ImageViewEmbedPreview.svelte";
+import ImageResultEmbedPreview from "../../../embeds/images/ImageResultEmbedPreview.svelte";
 import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
 import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPreview.svelte";
 import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
@@ -197,6 +198,16 @@ export class GroupRenderer implements EmbedRenderer {
         "maps-place",
         (item, embedData, decodedContent, content) =>
           this.renderMapsPlaceComponent(
+            item,
+            embedData,
+            decodedContent,
+            content,
+          ),
+      ],
+      [
+        "images-image-result",
+        (item, embedData, decodedContent, content) =>
+          this.renderImageResultComponent(
             item,
             embedData,
             decodedContent,
@@ -475,6 +486,8 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderEventItem(item, embedData, decodedContent);
       case "maps-place":
         return this.renderMapsPlaceItem(item, embedData, decodedContent);
+      case "images-image-result":
+        return this.renderImageResultItem(item, embedData, decodedContent);
       default:
         console.error(
           `[GroupRenderer] No renderer found for embed type: ${baseType}`,
@@ -3879,6 +3892,108 @@ export class GroupRenderer implements EmbedRenderer {
     `;
   }
 
+  /**
+   * Render a single images-image-result embed using ImageResultEmbedPreview.
+   */
+  private async renderImageResultComponent(
+    item: EmbedNodeAttributes,
+    embedData: any = null,
+    decodedContent: any = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+    const status = (decodedContent?.status ||
+      embedData?.status ||
+      item.status ||
+      "finished") as "processing" | "finished" | "error";
+
+    const title = (decodedContent?.title as string | undefined) || "";
+    const sourceDomain =
+      (decodedContent?.source_domain as string | undefined) || "";
+    const thumbnailUrl =
+      (decodedContent?.thumbnail_url as string | undefined) || "";
+    const faviconUrl =
+      (decodedContent?.favicon_url as string | undefined) || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    if (!content.isConnected) {
+      console.warn(
+        "[GroupRenderer] Skipping ImageResultEmbedPreview mount — target detached from DOM",
+      );
+      return;
+    }
+
+    try {
+      const component = mount(ImageResultEmbedPreview, {
+        target: content,
+        props: {
+          title,
+          sourceDomain,
+          thumbnailUrl,
+          faviconUrl,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[GroupRenderer] Mounted ImageResultEmbedPreview component:",
+        {
+          embedId,
+          title,
+          status,
+        },
+      );
+    } catch (error) {
+      const err = error as Error;
+      console.error(
+        "[GroupRenderer] Error mounting ImageResultEmbedPreview:",
+        err?.name,
+        err?.message,
+        err?.stack,
+      );
+      if (content.isConnected) {
+        content.innerHTML = await this.renderImageResultItem(
+          item,
+          embedData,
+          decodedContent,
+        );
+      }
+    }
+  }
+
+  /**
+   * HTML fallback for images-image-result embeds (used by renderItemContent switch).
+   */
+  private async renderImageResultItem(
+    _item: EmbedNodeAttributes,
+    _embedData?: any,
+    decodedContent: any = null,
+  ): Promise<string> {
+    const title =
+      (decodedContent?.title as string | undefined) || "Image result";
+    const sourceDomain =
+      (decodedContent?.source_domain as string | undefined) || "";
+
+    return `
+      <div class="embed-app-icon images">
+        <span class="icon icon_images"></span>
+      </div>
+      <div class="embed-text-content">
+        <div class="embed-text-line">${title}</div>
+        ${sourceDomain ? `<div class="embed-text-subline">${sourceDomain}</div>` : ""}
+      </div>
+    `;
+  }
+
   private getGroupDisplayName(baseType: string, count: number): string {
     const typeDisplayNames: { [key: string]: string } = {
       "app-skill-use": "request",
@@ -3892,6 +4007,7 @@ export class GroupRenderer implements EmbedRenderer {
       "travel-stay": "accommodation",
       "events-event": "event",
       "maps-place": "place",
+      "images-image-result": "image",
     };
 
     const displayName = typeDisplayNames[baseType] || baseType;
