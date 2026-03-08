@@ -3,7 +3,7 @@ description_translation_key: events.description
 icon_image: |
   events.svg
 category: personal
-last_updated: "2026-03-02"
+last_updated: "2026-03-08"
 settings_and_memories: []
 instructions: []
 # Embed type definitions — single source of truth for frontend embed routing.
@@ -49,6 +49,7 @@ skills:
         credits: 5
     providers:
       - Meetup
+      - Luma
     # Follow-up suggestions shown to users after search results
     suggestions_follow_up_requests:
       - "Find more events this week"
@@ -66,9 +67,11 @@ skills:
       properties:
         provider:
           type: string
-          description: "The event provider to use. Only 'Meetup' is supported."
+          description: "The event provider to use. 'auto' (default) queries both Meetup and Luma in parallel for the best coverage."
           enum:
+            - "auto"
             - "Meetup"
+            - "Luma"
         requests:
           type: array
           description: |
