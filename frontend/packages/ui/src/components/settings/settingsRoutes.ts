@@ -102,6 +102,7 @@ import SettingsSoftwareUpdate from "./server/SettingsSoftwareUpdate.svelte";
 import SettingsCommunitySuggestions from "./server/SettingsCommunitySuggestions.svelte";
 import SettingsStats from "./server/SettingsStats.svelte";
 import SettingsGiftCardGenerator from "./server/SettingsGiftCardGenerator.svelte";
+import SettingsTests from "./server/SettingsTests.svelte";
 
 // Mates
 import SettingsMates from "./SettingsMates.svelte";
@@ -175,6 +176,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "server/community-suggestions": SettingsCommunitySuggestions,
   "server/stats": SettingsStats,
   "server/gift-cards": SettingsGiftCardGenerator,
+  "server/tests": SettingsTests,
 
   // Incognito
   "incognito/info": SettingsIncognitoInfo,

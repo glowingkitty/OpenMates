@@ -8781,3 +8781,411 @@ tip.tip_creator:
   sv: Dricks till skaparen
   he: טיפ ליוצר
   verified_by_human: []
+server.tests:
+  context: Admin test results menu item in server settings
+  en: Tests
+  de: Tests
+  zh: 测试
+  es: Pruebas
+  fr: Tests
+  pt: Testes
+  ru: Тесты
+  ja: テスト
+  ko: 테스트
+  it: Test
+  tr: Testler
+  vi: Kiểm thử
+  id: Pengujian
+  pl: Testy
+  nl: Tests
+  ar: الاختبارات
+  hi: परीक्षण
+  th: การทดสอบ
+  cs: Testy
+  sv: Tester
+  he: בדיקות
+  verified_by_human: []
+server.tests.subtitle:
+  context: Subtitle for test settings menu item
+  en: View test results and trigger manual test runs
+  de: Testergebnisse anzeigen und manuelle Testläufe starten
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+server.tests.description:
+  context: Description shown at top of test settings page
+  en: Automated test run results and scheduling
+  de: Automatische Testlauf-Ergebnisse und Planung
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+server.tests.last_run:
+  context: Label for when the last test run occurred
+  en: Last run
+  de: Letzter Lauf
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+server.tests.next_run:
+  context: Label for when the next scheduled test run is
+  en: Next run
+  de: Nächster Lauf
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+server.tests.duration:
+  context: Label for test run duration
+  en: Duration
+  de: Dauer
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+server.tests.never:
+  context: Shown when no test run has ever occurred
+  en: Never
+  de: Nie
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+server.tests.start_tests:
+  context: Button text to start a manual test run
+  en: Start tests
+  de: Tests starten
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+server.tests.starting:
+  context: Button text while test run is being triggered
+  en: Starting...
+  de: Wird gestartet...
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+server.tests.running:
+  context: Button text while tests are running
+  en: Tests running...
+  de: Tests laufen...
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+server.tests.total:
+  context: Label for total number of tests
+  en: Total
+  de: Gesamt
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+server.tests.passed:
+  context: Label for number of tests passed
+  en: Passed
+  de: Bestanden
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+server.tests.failed:
+  context: Label for number of tests failed
+  en: Failed
+  de: Fehlgeschlagen
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+server.tests.skipped:
+  context: Label for number of tests skipped
+  en: Skipped
+  de: Übersprungen
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+server.tests.not_started:
+  context: Label for number of tests not started (aborted)
+  en: Not started
+  de: Nicht gestartet
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+server.tests.suite_breakdown:
+  context: Section title for per-suite test breakdown
+  en: Suite breakdown
+  de: Suite-Aufschlüsselung
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+server.tests.no_results:
+  context: Message shown when no test results are available
+  en: No test results available yet. Run the tests to see results here.
+  de: Noch keine Testergebnisse verfügbar. Führen Sie die Tests aus, um hier Ergebnisse zu sehen.
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []

@@ -17,6 +17,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsCommunitySuggestions from './server/SettingsCommunitySuggestions.svelte';
     import SettingsStats from './server/SettingsStats.svelte';
     import SettingsGiftCardGenerator from './server/SettingsGiftCardGenerator.svelte';
+    import SettingsTests from './server/SettingsTests.svelte';
 
     const dispatch = createEventDispatcher();
     
@@ -93,6 +94,24 @@ changes to the documentation (to keep the documentation up to date).
         scrollToTop();
     }
 
+
+    function showTestsSettings(event = null) {
+        if (event) event.stopPropagation();
+
+        currentView = 'tests';
+        childComponent = SettingsTests;
+
+        dispatch('openSettings', {
+            settingsPath: 'server/tests',
+            direction: 'forward',
+            icon: 'check',
+            title: $text('settings.server.tests'),
+            translationKey: 'settings.server.tests'
+        });
+
+        scrollToTop();
+    }
+
     function scrollToTop() {
         // Find settings content element and scroll to top
         const settingsContent = document.querySelector('.settings-content-wrapper');
@@ -138,6 +157,12 @@ changes to the documentation (to keep the documentation up to date).
         subtitleTop={$text('settings.server.gift_cards.subtitle')}
         onClick={() => showGiftCardGenerator()}
     />
+    <SettingsItem
+        icon="check"
+        title={$text('settings.server.tests')}
+        subtitleTop={$text('settings.server.tests.subtitle')}
+        onClick={() => showTestsSettings()}
+    />
 {:else if currentView === 'softwareUpdate' && childComponent}
     {@const Component = childComponent}
     <Component
@@ -154,6 +179,11 @@ changes to the documentation (to keep the documentation up to date).
         on:back={handleBack}
     />
 {:else if currentView === 'giftCards' && childComponent}
+    {@const Component = childComponent}
+    <Component
+        on:back={handleBack}
+    />
+{:else if currentView === 'tests' && childComponent}
     {@const Component = childComponent}
     <Component
         on:back={handleBack}

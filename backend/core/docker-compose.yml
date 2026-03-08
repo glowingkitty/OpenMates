@@ -41,6 +41,8 @@ services:
       - ../../backend/config:/config
       # Added: Mount .cursor directory for debug logging
       - ../../.cursor:/app/.cursor
+      # Mount test-results directory for admin test results API endpoint
+      - ../../test-results:/app/test-results
     networks:
       - openmates
     depends_on:

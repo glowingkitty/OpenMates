@@ -426,10 +426,23 @@ def run_daily_all_tests(self) -> Dict[str, Any]:
             check=False,           # don't raise on non-zero exit (test failures are expected)
         )
         logger.info(f"Daily test run completed with exit code {result.returncode}")
-        return {
+        status_result = {
             "status": "completed" if result.returncode == 0 else "tests_failed",
             "script_exit_code": result.returncode,
         }
     except Exception as e:
         logger.error(f"Failed to launch run-tests-daily.sh: {e}", exc_info=True)
-        return {"status": "error", "reason": str(e)}
+        status_result = {"status": "error", "reason": str(e)}
+    finally:
+        # Clear the "manual test run in progress" cache flag (set by the admin
+        # API endpoint POST /v1/admin/tests/run). Safe to call even when the
+        # run was triggered by Celery Beat (the key simply won't exist).
+        try:
+            import redis as redis_lib
+            broker_url = os.environ.get("CELERY_BROKER_URL", "redis://cache:6379/0")
+            r = redis_lib.from_url(broker_url)
+            r.delete("admin:manual_test_run")
+        except Exception as cache_err:
+            logger.warning(f"Failed to clear manual test run cache flag: {cache_err}")
+
+    return status_result
