@@ -475,7 +475,8 @@
     font-size: 14px;
     color: var(--color-grey-70);
     line-height: 1.4;
-    flex: 1;
+    flex: 0 1 40%;
+    max-width: 40%;
     min-width: 0;
     /* Limit lines with ellipsis */
     display: -webkit-box;
@@ -501,7 +502,8 @@
      =========================================== */
   
   .website-preview-image {
-    width: 150px;
+    flex: 1;
+    min-width: 0;
     height: 171px;
     transform: translateX(20px);
   }
