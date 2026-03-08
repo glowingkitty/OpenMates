@@ -3,14 +3,23 @@
 Script to inspect user data including metadata, decrypted fields, counts of related items,
 recent activities, cache status, and daily inspiration state.
 
-Usage:
+Usage (local — queries local Directus + Redis on dev server):
     docker exec -it api python /app/backend/scripts/debug.py user <email_address>
     docker exec -it api python /app/backend/scripts/debug.py user user@example.com
+
+Usage (production — fetch from prod API):
+    docker exec -it api python /app/backend/scripts/debug.py user <email> --production
+    docker exec -it api python /app/backend/scripts/debug.py user <email> --production --json
+    docker exec -it api python /app/backend/scripts/debug.py user <email> --dev  # hit dev API instead of prod
 
 Options:
     --json              Output as JSON instead of formatted text
     --no-cache          Skip cache checks (faster if Redis is down)
     --recent-limit N    Limit number of recent activities to display (default: 5)
+    --production        Fetch data from the production Admin Debug API (requires Vault API key)
+    --dev               With --production, use the dev API instead of prod
+
+Tests: None (inspection script, not production code)
 """
 
 import asyncio
@@ -32,8 +41,11 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 from debug_utils import (
     configure_script_logging,
     format_timestamp,
+    get_api_key_from_vault,
+    get_base_url,
     hash_email_sha256,
     hash_user_id,
+    make_prod_api_request,
 )
 
 script_logger = configure_script_logging('debug_user')
@@ -416,14 +428,21 @@ def format_output_text(
     cache_info: Dict[str, Any],
     daily_inspirations: Optional[List[Dict[str, Any]]] = None,
     daily_inspiration_cache: Optional[Dict[str, Any]] = None,
+    source_label: Optional[str] = None,
 ) -> str:
     """Format results as text."""
     lines = []
     lines.append("=" * 100)
-    lines.append("USER INSPECTION REPORT")
+    title = "USER INSPECTION REPORT"
+    if source_label:
+        title += f"  [{source_label.upper()} SERVER]"
+    lines.append(title)
     lines.append("=" * 100)
     lines.append(f"Email: {email}")
     lines.append(f"Generated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    if source_label:
+        lines.append(f"Source: {source_label} Admin Debug API")
+        lines.append("Note: Vault decryption and daily inspirations are not available remotely")
     lines.append("=" * 100)
     
     if not user_data:
@@ -608,15 +627,185 @@ def format_output_text(
     return "\n".join(lines)
 
 
+async def fetch_user_from_production_api(
+    email: str,
+    *,
+    recent_limit: int = 5,
+    include_cache: bool = True,
+    use_dev: bool = False,
+) -> Dict[str, Any]:
+    """Fetch user data from the production (or dev) Admin Debug API.
+
+    Queries the /inspect/user/{email} endpoint on the remote server.
+
+    Args:
+        email: User email address to look up.
+        recent_limit: Max recent activities to return (default: 5).
+        include_cache: Whether to include cache status (default: True).
+        use_dev: If True, hit the dev API instead of production.
+
+    Returns:
+        The API response data dict.
+
+    Raises:
+        SystemExit: On auth failures, connection errors, or timeouts.
+    """
+    api_key = await get_api_key_from_vault()
+    base_url = get_base_url(use_dev=use_dev)
+    source_label = "dev" if use_dev else "production"
+
+    script_logger.info(
+        f"Fetching user from {source_label} API: "
+        f"{base_url}/inspect/user/{email}"
+    )
+
+    import urllib.parse
+    encoded_email = urllib.parse.quote(email, safe="")
+
+    result = await make_prod_api_request(
+        f"inspect/user/{encoded_email}",
+        api_key,
+        base_url,
+        params={"recent_limit": recent_limit, "include_cache": include_cache},
+        entity_label="User",
+    )
+
+    if result is None:
+        print(f"User with email {email} not found on {source_label} server.")
+        sys.exit(1)
+
+    return result
+
+
+def map_production_user_response(api_response: Dict[str, Any]) -> Dict[str, Any]:
+    """Map the production Admin Debug API response to the local data format.
+
+    The production API returns a nested structure; this function extracts and
+    remaps fields so the same formatter function can be used for both local
+    and remote data.
+
+    Args:
+        api_response: The full JSON response from the production API.
+
+    Returns:
+        Dict with keys: user_data, counts, recent_chats, cache_info.
+    """
+    data = api_response.get("data", {})
+
+    user_metadata = data.get("user_metadata", {})
+    item_counts = data.get("item_counts", {})
+    recent_chats = data.get("recent_chats", [])
+    cache_info_raw = data.get("cache", {})
+
+    # Map cache info to the format expected by format_output_text
+    cache_info = {
+        "primed": cache_info_raw.get("primed", False),
+        "chat_ids_versions_count": cache_info_raw.get("chat_ids_versions_count", 0),
+        "active_chats_lru": [],
+        "keys_found": cache_info_raw.get("sample_keys", []),
+    }
+
+    # Build activities dict from recent_chats (the API only returns chats)
+    activities = {
+        "chats": recent_chats,
+        "embeds": [],
+        "usage": [],
+        "invoices": [],
+    }
+
+    return {
+        "user_data": user_metadata,
+        "counts": item_counts,
+        "activities": activities,
+        "cache_info": cache_info,
+    }
+
+
 async def main():
     parser = argparse.ArgumentParser(description='Inspect user data')
     parser.add_argument('email', type=str, help='User email address')
     parser.add_argument('--json', action='store_true', help='Output as JSON')
     parser.add_argument('--no-cache', action='store_true', help='Skip cache checks')
     parser.add_argument('--recent-limit', type=int, default=5, help='Limit recent activities')
+    parser.add_argument(
+        '--production',
+        action='store_true',
+        help='Fetch data from the production Admin Debug API instead of local Directus'
+    )
+    parser.add_argument(
+        '--dev',
+        action='store_true',
+        help='When used with --production, hit the dev API instead of prod'
+    )
     
     args = parser.parse_args()
+
+    # --- Validate flag combinations ---
+    is_remote = args.production or args.dev
+
+    if args.dev and not args.production:
+        # --dev implies --production (it selects which remote API to hit)
+        is_remote = True
     
+    if is_remote:
+        # ---- PRODUCTION / DEV API MODE ----
+        # Fetch all data in a single API call, then map to local format.
+        # Vault decryption and daily inspirations are NOT available remotely.
+        source_label = "dev" if args.dev else "production"
+        script_logger.info(f"Using {source_label} Admin Debug API")
+
+        try:
+            api_response = await fetch_user_from_production_api(
+                args.email,
+                recent_limit=args.recent_limit,
+                include_cache=not args.no_cache,
+                use_dev=args.dev,
+            )
+
+            mapped = map_production_user_response(api_response)
+            user_data = mapped["user_data"]
+            counts = mapped["counts"]
+            activities = mapped["activities"]
+            cache_info = mapped["cache_info"]
+
+            # Vault decryption is not available in production mode
+            decrypted: Dict[str, Any] = {}
+            # Daily inspirations are not returned by the API
+            daily_inspirations: Optional[List[Dict[str, Any]]] = None
+            daily_inspiration_cache: Optional[Dict[str, Any]] = None
+
+            if args.json:
+                output = {
+                    "source": source_label,
+                    "email": args.email,
+                    "user_metadata": user_data,
+                    "decrypted_fields": decrypted,
+                    "item_counts": counts,
+                    "recent_activities": activities,
+                    "cache_status": cache_info,
+                    "daily_inspirations": None,
+                }
+                print(json.dumps(output, indent=2, default=str))
+            else:
+                output = format_output_text(
+                    args.email, user_data, decrypted, counts, activities, cache_info,
+                    daily_inspirations=daily_inspirations,
+                    daily_inspiration_cache=daily_inspiration_cache,
+                    source_label=source_label,
+                )
+                print(output)
+
+        except SystemExit:
+            raise
+        except Exception as e:
+            script_logger.error(f"Error during {source_label} inspection: {e}", exc_info=True)
+            if args.json:
+                print(json.dumps({"error": str(e)}))
+            else:
+                print(f"❌ Error: {str(e)}")
+        return
+
+    # ---- LOCAL MODE (default) ----
     sm = SecretsManager()
     await sm.initialize()
     
@@ -655,15 +844,15 @@ async def main():
             cache_info = await check_user_cache(cache_service, user_id)
 
         # 6. Fetch daily inspirations (Directus records + cache summary)
-        daily_inspirations: Optional[List[Dict[str, Any]]] = await get_daily_inspirations(
+        daily_inspirations_list: Optional[List[Dict[str, Any]]] = await get_daily_inspirations(
             directus_service, user_id
         )
-        daily_inspiration_cache: Optional[Dict[str, Any]] = None
+        daily_inspiration_cache_data: Optional[Dict[str, Any]] = None
         if not args.no_cache:
-            daily_inspiration_cache = await get_daily_inspiration_cache(cache_service, user_id)
+            daily_inspiration_cache_data = await get_daily_inspiration_cache(cache_service, user_id)
 
         # Add stored inspiration count to the counts dict
-        counts["user_daily_inspirations"] = len(daily_inspirations) if daily_inspirations else 0
+        counts["user_daily_inspirations"] = len(daily_inspirations_list) if daily_inspirations_list else 0
 
         # 7. Output results
         if args.json:
@@ -675,17 +864,17 @@ async def main():
                 "recent_activities": activities,
                 "cache_status": cache_info,
                 "daily_inspirations": {
-                    "records": daily_inspirations,
-                    "count": len(daily_inspirations) if daily_inspirations else 0,
-                    "cache": daily_inspiration_cache,
+                    "records": daily_inspirations_list,
+                    "count": len(daily_inspirations_list) if daily_inspirations_list else 0,
+                    "cache": daily_inspiration_cache_data,
                 },
             }
             print(json.dumps(output, indent=2, default=str))
         else:
             output = format_output_text(
                 args.email, user_data, decrypted, counts, activities, cache_info,
-                daily_inspirations=daily_inspirations,
-                daily_inspiration_cache=daily_inspiration_cache,
+                daily_inspirations=daily_inspirations_list,
+                daily_inspiration_cache=daily_inspiration_cache_data,
             )
             print(output)
             
