@@ -764,7 +764,7 @@ async def search_images(
     count: int = 10,
     country: str = "us",
     search_lang: str = "en",
-    safesearch: str = "moderate",
+    safesearch: str = "strict",
 ) -> Dict[str, Any]:
     """
     Performs an image search using the Brave Search Images API.
@@ -773,13 +773,16 @@ async def search_images(
     Each result includes a proxied thumbnail URL, the direct full-res image URL,
     the source page URL, and domain metadata.
 
+    NOTE: The Images API only accepts "strict" or "off" for safesearch — "moderate"
+    is NOT a valid value (unlike the web/news/videos endpoints) and will cause a 422.
+
     Args:
         query: Text query describing the images to find.
         secrets_manager: SecretsManager instance for retrieving the API key.
-        count: Number of results to return (default: 10, max: 20).
+        count: Number of results to return (default: 10, max: 200).
         country: Country code for localised results (default: "us").
         search_lang: Language code for search (default: "en").
-        safesearch: Safe search level — "off", "moderate", or "strict".
+        safesearch: Safe search level — "off" or "strict" only (default: "strict").
 
     Returns:
         Dict with structure:
@@ -799,7 +802,7 @@ async def search_images(
 
     params: Dict[str, Any] = {
         "q": query,
-        "count": min(count, 20),  # Brave Images API max is 20
+        "count": min(count, 200),  # Brave Images API max is 200
         "country": country,
         "search_lang": search_lang,
         "safesearch": safesearch,
