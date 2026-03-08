@@ -562,14 +562,15 @@
 
   .nav-arrow {
     position: absolute;
-    top: 0;
-    bottom: 0;
+    top: 50%;
+    transform: translateY(-50%);
     padding: 0 !important;
     min-width: unset !important;
-    width: 40px !important;
-    height: 100% !important;
-    border-radius: 0 !important;
-    background-color: transparent !important;
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 50% !important;
+    background-color: var(--color-grey-50) !important;
+    opacity: 0.5;
     filter: none !important;
     margin: 0 !important;
     border: none;
@@ -577,31 +578,29 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background-color 0.15s ease;
+    transition: opacity 0.15s ease;
     z-index: 20;
     pointer-events: auto;
     flex-shrink: 0;
   }
 
   .nav-arrow:hover {
-    background-color: rgba(255, 255, 255, 0.1) !important;
+    opacity: 0.75;
     scale: none !important;
   }
 
   .nav-arrow:active {
-    background-color: rgba(255, 255, 255, 0.18) !important;
+    opacity: 0.9;
     scale: none !important;
     filter: none !important;
   }
 
   .nav-arrow-left {
-    left: 0;
-    border-radius: 0 10px 10px 0 !important;
+    left: 8px;
   }
 
   .nav-arrow-right {
-    right: 0;
-    border-radius: 10px 0 0 10px !important;
+    right: 8px;
   }
 
   /* CSS-triangle chevrons for nav arrows */

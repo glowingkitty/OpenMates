@@ -59,7 +59,9 @@
   import TravelStaysEmbedPreviewLarge from './travel/TravelStaysEmbedPreviewLarge.svelte';
   import TravelPriceCalendarEmbedPreviewLarge from './travel/TravelPriceCalendarEmbedPreviewLarge.svelte';
   import MathCalculateEmbedPreviewLarge from './math/MathCalculateEmbedPreviewLarge.svelte';
+  import MathPlotEmbedPreviewLarge from './math/MathPlotEmbedPreviewLarge.svelte';
   import CodeGetDocsEmbedPreviewLarge from './code/CodeGetDocsEmbedPreviewLarge.svelte';
+  import CodeEmbedPreviewLarge from './code/CodeEmbedPreviewLarge.svelte';
   import ReminderEmbedPreviewLarge from './reminder/ReminderEmbedPreviewLarge.svelte';
   import PdfViewEmbedPreviewLarge from './pdf/PdfViewEmbedPreviewLarge.svelte';
   import RecordingEmbedPreviewLarge from './audio/RecordingEmbedPreviewLarge.svelte';
@@ -118,6 +120,33 @@
   let isVisible = $derived(currentIndex === carouselIndex);
   let isFirstCard = $derived(carouselIndex === 0);
   let hasMultiple = $derived(carouselTotal > 1);
+
+  // ── Responsive width detection ─────────────────────────────────────────
+  // When the surrounding chat message container is too narrow (< 480px),
+  // fall back to the regular (non-large) embed preview rendering.
+  // Uses a ResizeObserver on the wrapper element to detect available width.
+  const LARGE_MIN_WIDTH = 480;
+  let wrapperElement = $state<HTMLElement | undefined>(undefined);
+  let containerWidth = $state(Infinity);
+  let useSmallFallback = $derived(containerWidth < LARGE_MIN_WIDTH);
+
+  import { onMount, onDestroy } from 'svelte';
+  let resizeObserver: ResizeObserver | null = null;
+
+  onMount(() => {
+    if (wrapperElement) {
+      resizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          containerWidth = entry.contentRect.width;
+        }
+      });
+      resizeObserver.observe(wrapperElement);
+    }
+  });
+
+  onDestroy(() => {
+    resizeObserver?.disconnect();
+  });
 
   function handlePrevious(e: MouseEvent) {
     e.preventDefault();
@@ -202,7 +231,9 @@
     | typeof TravelStaysEmbedPreviewLarge
     | typeof TravelPriceCalendarEmbedPreviewLarge
     | typeof MathCalculateEmbedPreviewLarge
+    | typeof MathPlotEmbedPreviewLarge
     | typeof CodeGetDocsEmbedPreviewLarge
+    | typeof CodeEmbedPreviewLarge
     | typeof ReminderEmbedPreviewLarge
     | typeof PdfViewEmbedPreviewLarge
     | typeof RecordingEmbedPreviewLarge
@@ -240,8 +271,14 @@
       if (sid === 'price_calendar') return TravelPriceCalendarEmbedPreviewLarge;
       return TravelSearchEmbedPreviewLarge;
     }
-    if (aid === 'math') return MathCalculateEmbedPreviewLarge;
-    if (aid === 'code') return CodeGetDocsEmbedPreviewLarge;
+    if (aid === 'math') {
+      if (sid === 'plot' || (!sid && !resolvedEmbedId)) return MathPlotEmbedPreviewLarge;
+      return MathCalculateEmbedPreviewLarge;
+    }
+    if (aid === 'code') {
+      if (sid === 'get_docs') return CodeGetDocsEmbedPreviewLarge;
+      return CodeEmbedPreviewLarge;
+    }
     if (aid === 'reminder') return ReminderEmbedPreviewLarge;
     if (aid === 'pdf') return PdfViewEmbedPreviewLarge;
     if (aid === 'audio' || aid === 'recording') return RecordingEmbedPreviewLarge;
@@ -267,11 +304,16 @@
 -->
 
 {#if isFirstCard}
-  <!-- First card: always-visible carousel shell -->
-  <div class="embed-preview-large-wrapper embed-preview-large-shell">
-    <!-- Embed content: hidden (not removed) when another slide is active -->
+  <!-- First card: always-visible carousel shell.
+       bind:this for ResizeObserver width detection (responsive fallback). -->
+  <div class="embed-preview-large-wrapper embed-preview-large-shell" class:embed-small-fallback={useSmallFallback} bind:this={wrapperElement}>
+    <!-- Embed content: hidden (not removed) when another slide is active.
+         When container is too narrow (< 480px), falls back to regular (non-large) preview. -->
     <div class="embed-preview-large-content" class:embed-preview-large-content--hidden={!isVisible}>
-      {#if largeComponent === WebsiteEmbedPreviewLarge}
+      {#if useSmallFallback}
+        <!-- Small container fallback: render regular embed preview instead of large -->
+        <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === WebsiteEmbedPreviewLarge}
         <WebsiteEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
       {:else if largeComponent === WebSearchEmbedPreviewLarge}
         <WebSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
@@ -307,8 +349,12 @@
         <TravelPriceCalendarEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
       {:else if largeComponent === MathCalculateEmbedPreviewLarge}
         <MathCalculateEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === MathPlotEmbedPreviewLarge}
+        <MathPlotEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
       {:else if largeComponent === CodeGetDocsEmbedPreviewLarge}
         <CodeGetDocsEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+      {:else if largeComponent === CodeEmbedPreviewLarge}
+        <CodeEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
       {:else if largeComponent === ReminderEmbedPreviewLarge}
         <ReminderEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
       {:else if largeComponent === PdfViewEmbedPreviewLarge}
@@ -328,8 +374,9 @@
       {/if}
     </div>
 
-    <!-- Navigation arrows: always inside the first card shell -->
-    {#if hasMultiple}
+    <!-- Navigation arrows: always inside the first card shell.
+         Hidden when using small fallback (regular preview). -->
+    {#if hasMultiple && !useSmallFallback}
       <button
         class="carousel-arrow carousel-arrow-left"
         type="button"
@@ -356,8 +403,12 @@
   <div
     class="embed-preview-large-wrapper embed-preview-large-overlay"
     class:embed-preview-large-overlay--hidden={!isVisible}
+    class:embed-small-fallback={useSmallFallback}
   >
-    {#if largeComponent === WebsiteEmbedPreviewLarge}
+    {#if useSmallFallback}
+      <!-- Small container fallback: render regular embed preview instead of large -->
+      <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === WebsiteEmbedPreviewLarge}
       <WebsiteEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
     {:else if largeComponent === WebSearchEmbedPreviewLarge}
       <WebSearchEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
@@ -393,8 +444,12 @@
       <TravelPriceCalendarEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
     {:else if largeComponent === MathCalculateEmbedPreviewLarge}
       <MathCalculateEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === MathPlotEmbedPreviewLarge}
+      <MathPlotEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
     {:else if largeComponent === CodeGetDocsEmbedPreviewLarge}
       <CodeGetDocsEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
+    {:else if largeComponent === CodeEmbedPreviewLarge}
+      <CodeEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
     {:else if largeComponent === ReminderEmbedPreviewLarge}
       <ReminderEmbedPreviewLarge {embedRef} embedId={resolvedEmbedId} />
     {:else if largeComponent === PdfViewEmbedPreviewLarge}
@@ -430,6 +485,12 @@
     min-height: 365px;
   }
 
+  /* When container is small enough for fallback, reduce shell height to
+     match the regular (non-large) embed preview height */
+  .embed-preview-large-shell.embed-small-fallback {
+    min-height: unset;
+  }
+
   /* Hide the first card's embed content (not the shell) when another slide is active.
      visibility:hidden keeps the element in the flow, preserving the shell height. */
   .embed-preview-large-content {
@@ -455,6 +516,11 @@
     z-index: 2;
   }
 
+  /* When in small fallback mode, don't overlap as the height is different */
+  .embed-preview-large-overlay.embed-small-fallback {
+    margin-top: 0;
+  }
+
   .embed-preview-large-overlay--hidden {
     display: none;
   }
@@ -464,14 +530,15 @@
      positioned to span the card area. */
   .carousel-arrow {
     position: absolute;
-    top: 6px;
-    bottom: 6px;
+    top: 50%;
+    transform: translateY(-50%);
     padding: 0 !important;
     min-width: unset !important;
-    width: 40px !important;
-    height: auto !important;
-    border-radius: 0 !important;
-    background-color: transparent !important;
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 50% !important;
+    background-color: var(--color-grey-50) !important;
+    opacity: 0.5;
     filter: none !important;
     margin: 0 !important;
     border: none;
@@ -479,29 +546,27 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background-color 0.15s ease;
+    transition: opacity 0.15s ease;
     z-index: 20;
     pointer-events: auto;
   }
 
   .carousel-arrow:hover {
-    background-color: rgba(255, 255, 255, 0.1) !important;
+    opacity: 0.75;
     scale: none !important;
   }
 
   .carousel-arrow:active {
-    background-color: rgba(255, 255, 255, 0.18) !important;
+    opacity: 0.9;
     scale: none !important;
     filter: none !important;
   }
 
   .carousel-arrow-left {
-    left: 0;
-    border-radius: 0 10px 10px 0 !important;
+    left: 8px;
   }
 
   .carousel-arrow-right {
-    right: 0;
-    border-radius: 10px 0 0 10px !important;
+    right: 8px;
   }
 </style>

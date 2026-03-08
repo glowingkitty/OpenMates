@@ -7,7 +7,8 @@
 
   Website-specific large layout overrides:
   - Description text: capped at 30% width so it does not stretch too wide.
-    -webkit-line-clamp: 15 allows more text to show in the taller card.
+    -webkit-line-clamp: 16 allows more text to show in the taller card.
+    margin-left: 20px adds spacing between description and image.
   - Preview image: fills the remaining horizontal space (flex:1) at 350px height
     so it scales up proportionally.
 
@@ -41,8 +42,9 @@
     width: 100%;
   }
 
-  /* Description text: 30% width, up to 15 lines visible in the taller card.
+  /* Description text: 30% width, up to 16 lines visible in the taller card.
      flex: 0 1 30% allows shrinking but not growing beyond 30%.
+     margin-left: 20px adds spacing between description and image.
      !important needed to override scoped styles in WebsiteEmbedPreview base (40%). */
   .website-embed-preview-large :global(.website-description) {
     max-width: 30% !important;
@@ -50,8 +52,9 @@
     flex: 0 1 30% !important;
     min-width: 0 !important;
     overflow: hidden !important;
-    -webkit-line-clamp: 15 !important;
-    line-clamp: 15 !important;
+    -webkit-line-clamp: 16 !important;
+    line-clamp: 16 !important;
+    margin-left: 20px !important;
   }
 
   /* The content row must stretch to fill the full details area height so the
@@ -73,8 +76,8 @@
     height: 350px !important;
     max-height: none !important;
     transform: none !important;
-    overflow: hidden;
-    border-radius: 0 30px 30px 0;
+    overflow: hidden !important;
+    border-radius: 0 30px 30px 0 !important;
   }
 
   /* Ensure the img itself covers the full container */
