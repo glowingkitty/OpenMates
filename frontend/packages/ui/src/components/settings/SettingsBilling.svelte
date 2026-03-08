@@ -104,6 +104,19 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
     onClick={() => navigateToSubview('invoices')}
 />
 
+<!-- Gift Cards Menu Item -->
+<SettingsItem
+    type="submenu"
+    icon="subsetting_icon icon_gift"
+    title={$text('settings.gift_cards.gift_cards')}
+    onClick={() => dispatch('openSettings', {
+        settingsPath: 'billing/gift-cards',
+        direction: 'forward',
+        icon: 'icon_gift',
+        title: $text('settings.gift_cards.gift_cards')
+    })}
+/>
+
 <!-- Usage Section -->
 <div class="usage-section">
     <h3 class="usage-section-headline">{$text('settings.usage')}</h3>

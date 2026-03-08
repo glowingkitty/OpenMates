@@ -79,7 +79,7 @@
 
 	function openGiftCardRedeemSettings(): void {
 		hasAutoOpenedGiftCardRedeemAfterAuth = true;
-		settingsDeepLink.set('gift_cards/redeem');
+		settingsDeepLink.set('billing/gift-cards/redeem');
 		setTimeout(() => panelState.openSettings(), 100);
 	}
 

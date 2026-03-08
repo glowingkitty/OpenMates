@@ -241,7 +241,6 @@ changes to the documentation (to keep the documentation up to date).
             if (isSelfHosted) {
                 // Remove billing and gift card routes
                 if (key === 'billing' || key.startsWith('billing/') || 
-                    key === 'gift_cards' || key.startsWith('gift_cards/') ||
                     key === 'shared/tip') { // Tips also require payment
                     return filtered; // Skip this route
                 }
@@ -762,7 +761,6 @@ changes to the documentation (to keep the documentation up to date).
         'newsletter': 'settings.newsletter.description',
         'server': 'settings.server.description',
         'shared': 'settings.shared.description',
-        'gift_cards': 'settings.gift_cards.description',
         'app_store': 'settings.app_store.description',
         'settings_memories': 'settings.settings_memories.description',
     };
@@ -1513,6 +1511,10 @@ changes to the documentation (to keep the documentation up to date).
                     icon = 'reload';
                 } else if (previousPath === 'billing/auto-topup/monthly') {
                     icon = 'calendar';
+                } else if (previousPath === 'billing/gift-cards') {
+                    icon = 'icon_gift';
+                } else if (previousPath === 'billing/gift-cards/buy') {
+                    icon = 'icon_gift';
                 } else if (previousPath === 'app_store') {
                     icon = 'app_store';
                 } else if (previousPath === 'app_store/all') {

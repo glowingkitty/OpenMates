@@ -17,7 +17,7 @@ Gift Cards Settings - Main menu for gift card operations
      */
     function navigateToSubview(path: string, iconName: string = 'coins', translationKey: string = path) {
         dispatch('openSettings', {
-            settingsPath: `gift_cards/${path}`,
+            settingsPath: `billing/gift-cards/${path}`,
             direction: 'forward',
             icon: iconName,
             title: $text(`settings.gift_cards.${translationKey}`)

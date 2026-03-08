@@ -147,13 +147,13 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "app_store/all": SettingsAllApps,
   // Mates
   mates: SettingsMates,
-  // Gift Cards
-  gift_cards: SettingsGiftCards,
-  "gift_cards/redeem": SettingsGiftCardsRedeem,
-  "gift_cards/redeemed": SettingsGiftCardsRedeemed,
-  "gift_cards/buy": SettingsGiftCardsBuy,
-  "gift_cards/buy/payment": SettingsGiftCardsBuyPayment,
-  "gift_cards/buy/confirmation": SettingsGiftCardsPurchaseConfirmation,
+  // Gift Cards — nested under Billing & Usage
+  "billing/gift-cards": SettingsGiftCards,
+  "billing/gift-cards/redeem": SettingsGiftCardsRedeem,
+  "billing/gift-cards/redeemed": SettingsGiftCardsRedeemed,
+  "billing/gift-cards/buy": SettingsGiftCardsBuy,
+  "billing/gift-cards/buy/payment": SettingsGiftCardsBuyPayment,
+  "billing/gift-cards/buy/confirmation": SettingsGiftCardsPurchaseConfirmation,
   // Shared
   shared: SettingsShared,
   "shared/share": SettingsShare,
