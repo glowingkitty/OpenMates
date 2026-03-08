@@ -12,15 +12,66 @@ This document provides essential guidelines for AI assistants working on the Ope
 # 1. FIRST thing, before any work:
 python3 scripts/sessions.py start --task "brief description of what you are doing"
 # → Saves your session ID (e.g. "a3f2"). You MUST use this ID in all subsequent commands.
+# → Tags are auto-inferred from the task description (e.g. "fix button" → frontend,debug).
+#   Override with --tags "frontend,test" if auto-inference is wrong.
+# → Relevant instruction docs (from docs/claude/) are printed inline based on tags.
+#   READ THEM — they contain project-specific rules that override general knowledge.
+# → Architecture doc index is printed so you can load specific ones later with:
+#   python3 scripts/sessions.py context --doc <name>
 
 # 2. After EVERY file you edit or create (manually — automation is not reliable):
 python3 scripts/sessions.py track --session <ID> --file path/to/file.py
 
-# 3. LAST thing, after committing:
+# 3. Before deploying (loads git/deployment docs deferred from session start):
+python3 scripts/sessions.py deploy-docs
+
+# 4. LAST thing, after committing:
 python3 scripts/sessions.py end --session <ID>
 ```
 
-**Why this matters:** Multiple assistants work on this codebase simultaneously. Without registering, your files are invisible to other sessions — risking edit collisions and broken deployments. The `start` output also gives you active session info, lock status, stale docs, and a project index — essential context.
+**Why this matters:** Multiple assistants work on this codebase simultaneously. Without registering, your files are invisible to other sessions — risking edit collisions and broken deployments. The `start` output gives you active session info, lock status, stale docs, a project index, and **all relevant instruction docs inline** — so you don't need separate Read calls.
+
+### Available Tags
+
+Tags control which instruction docs are preloaded. They are auto-inferred from the task description, or set explicitly with `--tags`:
+
+| Tag | Loads |
+| --- | --- |
+| `frontend` | frontend-standards.md |
+| `backend` | backend-standards.md |
+| `debug` | debugging.md |
+| `test` | testing.md |
+| `i18n` | i18n.md, manage-translations.md |
+| `figma` | figma-to-code.md |
+| `embed` | embed-types.md |
+| `api` | add-api.md |
+| `planning` | planning.md |
+| `feature` | planning.md, feature-workflow.md |
+| `logging` | logging-and-docs.md |
+| `concurrent` | concurrent-sessions.md |
+| `security` | backend-standards.md |
+
+Git/deployment docs (`git-and-deployment.md`) are **deferred to deploy phase** — load them with `python3 scripts/sessions.py deploy-docs` before committing.
+
+### On-Demand Doc Loading
+
+To load any doc mid-session (instruction or architecture):
+
+```bash
+python3 scripts/sessions.py context --doc <name>
+# Examples:
+python3 scripts/sessions.py context --doc sync           # → docs/architecture/sync.md
+python3 scripts/sessions.py context --doc debugging       # → docs/claude/debugging.md
+python3 scripts/sessions.py context --doc embed-types     # → docs/claude/embed-types.md
+```
+
+### Session Summary (for handoff)
+
+To see a compact summary of a session (useful when picking up another session's work):
+
+```bash
+python3 scripts/sessions.py summary --session <ID>
+```
 
 ---
 
@@ -383,7 +434,9 @@ All concurrent sessions coordinate through **`.claude/sessions.json`** (gitignor
 
 ```bash
 python3 scripts/sessions.py start --task "brief task description"
+# Tags auto-inferred from task. Override: --tags "backend,test"
 # Save the 4-char session ID printed — required for all other commands.
+# READ the instruction docs printed in the output — they are loaded based on tags.
 ```
 
 **After every file edit or creation:**
@@ -403,6 +456,7 @@ python3 scripts/sessions.py unlock --session <ID> --type docker
 **Deploying (lint + commit + push):**
 
 ```bash
+python3 scripts/sessions.py deploy-docs                                       # load deferred git docs
 python3 scripts/sessions.py prepare-deploy --session <ID>
 python3 scripts/sessions.py deploy --session <ID> --title "fix: description" --message "body"
 ```
@@ -440,149 +494,40 @@ docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/cor
 
 ---
 
-## MANDATORY: Read Sub-Documents Before Working
+## Instruction Docs (Loaded Automatically via Tags)
 
-**CRITICAL RULE: Before starting ANY task, you MUST determine which sub-documents below apply and READ THEM IN FULL using the Read tool. Do NOT skip this step. Do NOT assume you know the contents. These documents contain project-specific rules that override general knowledge. Failing to read them leads to incorrect code that must be rewritten.**
+**The `sessions.py start` command automatically loads relevant instruction docs based on tags.** You do NOT need to manually determine which docs to read — the tag system handles this.
 
-### Step 1: Determine which documents to read
+If you need a doc that wasn't loaded at session start, use:
 
-For EVERY task, scan the trigger conditions below. If ANY condition matches, you MUST read that file before writing any code or making any changes.
+```bash
+python3 scripts/sessions.py context --doc <name>
+```
 
-### Step 2: Read all matching documents
+### Special Cases
 
-Use the Read tool to load each matching file from `docs/claude/`. Do this BEFORE planning or writing code.
+- **Vercel deployment failures:** Run `python3 scripts/sessions.py debug-vercel` — it auto-starts a session and prints build logs. Most common cause: failed `pnpm prepare` validation.
+- **Default assumption:** All reported issues are on the **dev server**, reported by an **admin**, unless stated otherwise.
+- **Git/deployment docs:** Deferred to deploy phase. Run `python3 scripts/sessions.py deploy-docs` before committing.
 
----
+### Available Instruction Docs
 
-### Required Documents by Trigger
-
-#### `docs/claude/frontend-standards.md`
-
-**MUST READ when ANY of these are true:**
-
-- You are editing, creating, or reviewing files under `frontend/`
-- The task involves Svelte components, TypeScript, CSS, or stores
-- You are touching `.svelte`, `.ts`, or `.css` files in the frontend
-
-#### `docs/claude/backend-standards.md`
-
-**MUST READ when ANY of these are true:**
-
-- You are editing, creating, or reviewing files under `backend/`
-- The task involves Python code, FastAPI routes, Pydantic models, or database queries
-- You are touching `.py` files in the backend
-- You are creating or modifying an app skill (includes REST API documentation requirements)
-
-#### `docs/claude/debugging.md`
-
-**MUST READ when ANY of these are true:**
-
-- The user reports a bug, error, or unexpected behavior
-- You need to read Docker logs or troubleshoot a service
-- The task involves investigating why something doesn't work
-- **You need to debug a production issue** (CRITICAL: use debug.py, not local docker compose)
-- A Vercel deployment failed or the frontend is broken after a push
-
-> **When asked to debug a Vercel deployment failure**, run this first:
-> ```bash
-> python3 scripts/sessions.py debug-vercel
-> ```
-> This auto-starts your session and prints the latest deployment status and logs.
-> The most common cause is a failed `pnpm prepare` validation — look for ❌ lines in the output.
-
-> **Default assumption:** All reported issues are on the **dev server**, reported by an **admin**, unless the user explicitly states otherwise.
-
-#### `docs/claude/debugging.md` (also covers inspection)
-
-**MUST READ when ANY of these are true:**
-
-- You need to inspect server state (chats, users, issues, cache, AI requests)
-- You need to run diagnostic commands on the running services
-- The user asks you to check or look up data on the server
-- You need to debug production server state remotely (use debug.py)
-
-#### `docs/claude/git-and-deployment.md`
-
-**MUST READ when ANY of these are true:**
-
-- You are about to commit, push, or interact with git
-- The task involves deployment, branch management, or PRs
-- You need to understand the branch-to-server mapping
-
-#### `docs/claude/testing.md`
-
-**MUST READ when ANY of these are true:**
-
-- You are creating, modifying, or running tests
-- The user asks you to verify changes with tests
-
-#### `docs/claude/figma-to-code.md`
-
-**MUST READ when ANY of these are true:**
-
-- The user provides a Figma link or references a Figma design
-- The task involves implementing a UI design or matching a visual mockup
-
-#### `docs/claude/i18n.md`
-
-**MUST READ when ANY of these are true:**
-
-- You are adding or modifying user-facing strings (labels, messages, errors shown to users)
-- You are editing translation/i18n files
-
-#### `docs/claude/manage-translations.md`
-
-**MUST READ when ANY of these are true:**
-
-- You are looking for missing translations to fill in
-- You are asked to translate keys for a specific language
-- You need to find which file a translation key lives in
-- You are validating or auditing the translation files
-- You are running `manage_translations.py` or deciding which command to use
-- The user asks about translation completeness, coverage, or statistics for any language
-- The user asks which translations are missing or how many are left
-- The user asks anything about the state of translations (even informational questions)
-
-#### `docs/claude/planning.md`
-
-**MUST READ when ANY of these are true:**
-
-- You are implementing a new feature, significant refactor, or multi-file change
-- The task is non-trivial and requires understanding data flow or component interaction
-- You need to plan before writing code
-
-#### `docs/claude/concurrent-sessions.md`
-
-**MUST READ when ANY of these are true:**
-
-- You are about to rebuild or restart Docker containers
-- You are starting a new session (to register yourself)
-- Another assistant's work may conflict with yours (e.g., editing the same files)
-
-#### `docs/claude/add-api.md`
-
-**MUST READ when ANY of these are true:**
-
-- The user asks to integrate a new external API or data provider
-- You are adding a new third-party API connection (events, maps, payments, social, etc.)
-- The user asks to reverse-engineer or scrape a website as a data source
-- You need to build a test script for an API integration
-
-#### `docs/claude/embed-types.md`
-
-**MUST READ when ANY of these are true:**
-
-- You are creating a new embed type (Preview + Fullscreen component pair)
-- You are adding a new `app_id` / `skill_id` to the embed renderer routing
-- You are creating a new direct-type embed renderer class
-- You are modifying how embed cards render in the chat message stream
-
-#### `docs/claude/logging-and-docs.md`
-
-**MUST READ when ANY of these are true:**
-
-- You are adding logging statements or error handling
-- You are updating project documentation
+| Document | Tags that load it | When it applies |
+| --- | --- | --- |
+| `frontend-standards.md` | frontend | Svelte, TypeScript, CSS, stores |
+| `backend-standards.md` | backend, security | Python, FastAPI, Pydantic, Docker |
+| `debugging.md` | debug | Bugs, errors, server inspection, Docker logs |
+| `testing.md` | test | Creating/running tests |
+| `i18n.md` | i18n | User-facing strings, translations |
+| `manage-translations.md` | i18n | Translation management, coverage stats |
+| `figma-to-code.md` | figma | Implementing Figma designs |
+| `embed-types.md` | embed | Embed preview/fullscreen components |
+| `add-api.md` | api | External API integrations |
+| `planning.md` | planning, feature | Implementation planning |
+| `feature-workflow.md` | feature | Full feature lifecycle (requirements to deploy) |
+| `logging-and-docs.md` | logging | Logging statements, error handling |
+| `concurrent-sessions.md` | concurrent | Docker rebuilds, session conflicts |
+| `git-and-deployment.md` | *(deploy phase)* | Commit format, deployment, PRs |
 
 ---
 

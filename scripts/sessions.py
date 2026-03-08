@@ -3,21 +3,34 @@
 Session lifecycle manager for concurrent Claude Code sessions.
 
 Manages session registration, file tracking, concurrent edit safety,
-architecture doc staleness detection, and automated deployment (lint + commit + push).
+tag-based instruction doc preloading, architecture doc staleness detection,
+and automated deployment (lint + commit + push).
 
-Architecture context: Replaces the legacy .claude/sessions.md markdown-based coordination.
-See docs/claude/concurrent-sessions.md for the full protocol.
+Architecture context: See docs/claude/concurrent-sessions.md for the full protocol.
 
 Usage:
-    python3 scripts/sessions.py start   --task "fix embed decryption"
+    # Session lifecycle
+    python3 scripts/sessions.py start   --task "fix embed decryption" [--tags frontend,debug]
     python3 scripts/sessions.py end     --session a3f2
     python3 scripts/sessions.py status
     python3 scripts/sessions.py update  --session a3f2 --task "new description"
+    python3 scripts/sessions.py summary --session a3f2
+
+    # File tracking
+    python3 scripts/sessions.py track   --session a3f2 --file path/to/file.py
     python3 scripts/sessions.py claim   --session a3f2 --file path/to/file.py
     python3 scripts/sessions.py release --session a3f2 --file path/to/file.py
-    python3 scripts/sessions.py track   --session a3f2 --file path/to/file.py
+
+    # On-demand doc loading
+    python3 scripts/sessions.py context --doc debugging
+    python3 scripts/sessions.py context --doc sync
+    python3 scripts/sessions.py deploy-docs
+
+    # Infrastructure locks
     python3 scripts/sessions.py lock    --session a3f2 --type docker
     python3 scripts/sessions.py unlock  --session a3f2 --type docker
+
+    # Deployment
     python3 scripts/sessions.py prepare-deploy --session a3f2
     python3 scripts/sessions.py deploy  --session a3f2 --title "fix: msg" --message "body"
 """
@@ -43,6 +56,120 @@ CODE_MAPPING_FILE = PROJECT_ROOT / "docs" / "architecture" / "code-mapping.yml"
 STALE_SESSION_HOURS = 24
 STALE_LOCK_MINUTES = 5
 STALE_DOC_HOURS = 24
+CLAUDE_DOCS_DIR = PROJECT_ROOT / "docs" / "claude"
+ARCH_DOCS_DIR = PROJECT_ROOT / "docs" / "architecture"
+
+# ---------------------------------------------------------------------------
+# Tag system — maps task tags to relevant docs/claude/*.md files
+# ---------------------------------------------------------------------------
+
+# Tags that map to instruction docs (loaded at session start)
+TAG_TO_DOCS: dict[str, list[str]] = {
+    "frontend": ["frontend-standards.md"],
+    "backend": ["backend-standards.md"],
+    "debug": ["debugging.md"],
+    "test": ["testing.md"],
+    "i18n": ["i18n.md", "manage-translations.md"],
+    "figma": ["figma-to-code.md"],
+    "embed": ["embed-types.md"],
+    "api": ["add-api.md"],
+    "planning": ["planning.md"],
+    "feature": ["planning.md", "feature-workflow.md"],
+    "logging": ["logging-and-docs.md"],
+    "concurrent": ["concurrent-sessions.md"],
+    "security": ["backend-standards.md"],
+}
+
+# Docs deferred until deploy phase (not loaded at session start)
+DEPLOY_PHASE_DOCS = {"git-and-deployment.md"}
+
+# Keywords in task descriptions that auto-infer tags
+TAG_KEYWORDS: dict[str, list[str]] = {
+    "frontend": [
+        "svelte", "component", "css", "style", "button", "page", "layout",
+        "ui", "ux", "nav", "sidebar", "modal", "toast", "settings page",
+        "frontend", "front-end", "front end", "sveltekit", "vite",
+    ],
+    "backend": [
+        "python", "fastapi", "api", "endpoint", "route", "pydantic",
+        "docker", "worker", "celery", "backend", "back-end", "back end",
+        "skill", "directus", "database", "db", "sql", "migration",
+    ],
+    "debug": [
+        "fix", "bug", "broken", "error", "crash", "fail", "issue",
+        "debug", "investigate", "troubleshoot", "not working", "500",
+        "404", "timeout", "undefined", "null", "missing",
+    ],
+    "test": [
+        "test", "spec", "e2e", "playwright", "pytest", "vitest",
+        "coverage", "assertion",
+    ],
+    "i18n": [
+        "translat", "i18n", "locale", "language", "localization",
+    ],
+    "figma": [
+        "figma", "design", "mockup", "wireframe",
+    ],
+    "embed": [
+        "embed", "preview card", "fullscreen preview",
+    ],
+    "api": [
+        "api integration", "third-party", "external api", "provider",
+        "api key", "webhook",
+    ],
+    "feature": [
+        "implement", "new feature", "add feature", "build",
+    ],
+    "logging": [
+        "logging", "log level", "log format",
+    ],
+    "security": [
+        "security", "encryption", "auth", "passkey", "csrf", "xss",
+        "injection", "vulnerability",
+    ],
+}
+
+# Architecture doc descriptions (for the compact index)
+ARCH_DOC_DESCRIPTIONS: dict[str, str] = {
+    "account-backup": "User account export/backup functionality",
+    "account-recovery": "Recovery flow for users who lose login access",
+    "admin-console-log-forwarding": "Client log forwarding to admin console",
+    "ai-model-selection": "AI model routing and selection logic",
+    "app-skills": "Skill architecture: request/response, execution model",
+    "daily-inspiration": "Daily inspiration generation and delivery pipeline",
+    "developer-settings": "Developer API access and device management",
+    "device-sessions": "Device authorization and session management",
+    "docs-web-app": "Documentation system at /docs",
+    "email-privacy": "Client-side email encryption for privacy",
+    "embeds": "Embed type system, storage, and rendering pipeline",
+    "file-upload-pipeline": "File upload processing (images, PDFs)",
+    "followup-suggestions": "Follow-up suggestion generation",
+    "hallucination-mitigation": "Measures to reduce LLM hallucinations",
+    "health-checks": "Service health check endpoints and monitoring",
+    "logging": "Logging standards and configuration",
+    "mates": "Digital team mate system architecture",
+    "message-input-field": "Message input field component architecture",
+    "message-parsing": "Message content parsing and rendering",
+    "message-previews-grouping": "Message preview cards and grouping",
+    "message-processing": "Message pipeline: preprocessing to postprocessing",
+    "passkeys": "WebAuthn/passkey authentication flow",
+    "payment-processing": "Payment processing via Stripe",
+    "pii-protection": "PII detection and protection measures",
+    "preprocessing-model-comparison": "Preprocessing model benchmarks",
+    "prompt-injection": "Prompt injection prevention measures",
+    "rest-api": "REST API documentation and standards",
+    "security": "Zero-knowledge architecture and security model",
+    "sensitive-data-redaction": "Sensitive data redaction pipeline",
+    "servers": "Server infrastructure and deployment",
+    "signup-and-auth": "Signup and authentication flows",
+    "status-page": "Public status page architecture",
+    "sync": "Cross-device synchronization protocol",
+    "thinking-models": "Thinking/reasoning model integration",
+    "translations": "Translation system and i18n pipeline",
+    "vector-personalization": "Vector-based personalization system",
+    "web-app": "Web application architecture overview",
+    "zero-knowledge-storage": "Client-side encryption for all storage",
+}
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -343,13 +470,70 @@ def _run_cmd(cmd: list[str], cwd: str | None = None) -> tuple[int, str, str]:
     return result.returncode, result.stdout.strip(), result.stderr.strip()
 
 
+
+def _infer_tags(task: str) -> list[str]:
+    """Infer tags from a task description using keyword matching.
+
+    Returns a deduplicated, sorted list of tag names.
+    """
+    if not task:
+        return []
+    task_lower = task.lower()
+    matched = set()
+    for tag, keywords in TAG_KEYWORDS.items():
+        for kw in keywords:
+            if kw in task_lower:
+                matched.add(tag)
+                break
+    return sorted(matched)
+
+
+def _resolve_docs_for_tags(tags: list[str], *, include_deploy: bool = False) -> list[str]:
+    """Given a list of tags, return the deduplicated list of doc filenames to load.
+
+    By default, deploy-phase docs (git-and-deployment.md) are excluded.
+    Pass include_deploy=True to include them (e.g., during prepare-deploy).
+    """
+    docs = set()
+    for tag in tags:
+        for doc in TAG_TO_DOCS.get(tag, []):
+            if not include_deploy and doc in DEPLOY_PHASE_DOCS:
+                continue
+            docs.add(doc)
+    return sorted(docs)
+
+
+def _load_doc_content(filename: str) -> str | None:
+    """Load the full content of a docs/claude/ file. Returns None if not found."""
+    path = CLAUDE_DOCS_DIR / filename
+    if not path.exists():
+        return None
+    try:
+        with open(path) as f:
+            return f.read()
+    except OSError:
+        return None
+
+
+def _get_arch_doc_index() -> list[dict]:
+    """Return a compact index of available architecture docs with descriptions."""
+    index = []
+    if not ARCH_DOCS_DIR.exists():
+        return index
+    for f in sorted(ARCH_DOCS_DIR.iterdir()):
+        if f.suffix != ".md" or f.stem == "README":
+            continue
+        desc = ARCH_DOC_DESCRIPTIONS.get(f.stem, "")
+        index.append({"name": f.stem, "file": f.name, "description": desc})
+    return index
+
 # ---------------------------------------------------------------------------
 # Commands
 # ---------------------------------------------------------------------------
 
 
 def cmd_start(args: argparse.Namespace) -> None:
-    """Start a new session."""
+    """Start a new session with tag-based doc preloading."""
     data = _load_sessions()
 
     # Prune stale sessions and locks
@@ -359,9 +543,17 @@ def cmd_start(args: argparse.Namespace) -> None:
     # Generate session ID
     sid = secrets.token_hex(2)
 
-    # Register session
+    # Resolve tags: explicit --tags override auto-inference from --task
+    tags = []
+    if hasattr(args, "tags") and args.tags:
+        tags = [t.strip() for t in args.tags.split(",") if t.strip()]
+    elif args.task:
+        tags = _infer_tags(args.task)
+
+    # Register session (now includes tags)
     data["sessions"][sid] = {
         "task": args.task or "(pending)",
+        "tags": tags,
         "started": _now_iso(),
         "last_active": _now_iso(),
         "modified_files": [],
@@ -375,9 +567,11 @@ def cmd_start(args: argparse.Namespace) -> None:
     print(f"Started: {_now_iso()}")
     if args.task:
         print(f"Task: {args.task}")
+    if tags:
+        print(f"Tags: {', '.join(tags)}")
     print()
 
-    # Active sessions
+    # Active sessions (only show sessions that overlap with our tags/files)
     other_sessions = {
         k: v for k, v in data.get("sessions", {}).items() if k != sid
     }
@@ -409,7 +603,7 @@ def cmd_start(args: argparse.Namespace) -> None:
             )
         print()
 
-    # Stale docs
+    # Stale docs (only show if relevant to tags)
     stale = _check_stale_docs()
     if stale:
         print("== STALE ARCHITECTURE DOCS ==")
@@ -417,25 +611,41 @@ def cmd_start(args: argparse.Namespace) -> None:
             print(
                 f"  ! docs/architecture/{s['doc']} "
                 f"(updated {s['doc_modified']}) "
-                f"— code changed {s['code_modified']} in {s['code_file']}"
+                f"\u2014 code changed {s['code_modified']} in {s['code_file']}"
             )
         print()
 
-    # Project index (compact summary)
+    # Project index — show compact version filtered by tags
     index = _load_or_generate_index()
-    apps = index.get("backend_apps", [])
-    if apps:
-        print("== PROJECT INDEX ==")
-        print(f"Backend apps ({len(apps)}): {', '.join(apps)}")
-        comps = index.get("frontend_components", [])
-        if comps:
-            print(f"Frontend components: {', '.join(comps)}")
+    print("== PROJECT INDEX ==")
+    # Show relevant sections based on tags
+    show_backend = not tags or any(t in tags for t in ("backend", "debug", "api", "security", "test"))
+    show_frontend = not tags or any(t in tags for t in ("frontend", "embed", "figma", "i18n", "test"))
+
+    if show_backend:
+        apps = index.get("backend_apps", [])
+        if apps:
+            print(f"Backend apps ({len(apps)}): {', '.join(apps)}")
         routes = index.get("api_routes", [])
         if routes:
             print(f"API routes ({len(routes)}): {', '.join(routes)}")
         providers = index.get("shared_providers", [])
         if providers:
             print(f"Shared providers: {', '.join(providers)}")
+
+    if show_frontend:
+        comps = index.get("frontend_components", [])
+        if comps:
+            print(f"Frontend components: {', '.join(comps)}")
+    print()
+
+    # Architecture doc index (always show — compact, helps LLM decide what to load)
+    arch_index = _get_arch_doc_index()
+    if arch_index:
+        print("== ARCHITECTURE DOCS (load with: sessions.py context --doc <name>) ==")
+        for entry in arch_index:
+            desc = f" \u2014 {entry['description']}" if entry["description"] else ""
+            print(f"  {entry['name']}{desc}")
         print()
 
     # Cleanup report
@@ -447,7 +657,32 @@ def cmd_start(args: argparse.Namespace) -> None:
             f"{', '.join(cleared_locks)}]"
         )
 
+    # --- Preload instruction docs based on tags ---
+    docs_to_load = _resolve_docs_for_tags(tags, include_deploy=False)
+    if docs_to_load:
+        print()
+        print(f"== INSTRUCTION DOCS ({len(docs_to_load)} loaded based on tags: {', '.join(tags)}) ==")
+        deferred = []
+        for doc_name in docs_to_load:
+            doc_content = _load_doc_content(doc_name)
+            if doc_content:
+                print(f"\n{'=' * 60}")
+                print(f"FILE: docs/claude/{doc_name}")
+                print(f"{'=' * 60}")
+                print(doc_content.rstrip())
+            else:
+                print(f"  [!] docs/claude/{doc_name} not found")
+        # Note deferred docs
+        all_possible = set()
+        for tag in tags:
+            all_possible.update(TAG_TO_DOCS.get(tag, []))
+        deferred = sorted(all_possible & DEPLOY_PHASE_DOCS)
+        if deferred:
+            print(f"\n[Deferred to deploy phase: {', '.join(deferred)}]")
+        print()
+
     print("== END SESSION CONTEXT ==")
+
 
 
 def cmd_end(args: argparse.Namespace) -> None:
@@ -1081,6 +1316,133 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
 
 
+def cmd_context(args: argparse.Namespace) -> None:
+    """Load and print a specific doc on demand (instruction doc or architecture doc)."""
+    doc_name = args.doc
+
+    # Try instruction doc first (docs/claude/)
+    # Allow with or without .md extension
+    if not doc_name.endswith(".md"):
+        doc_name_md = doc_name + ".md"
+    else:
+        doc_name_md = doc_name
+        doc_name = doc_name[:-3]
+
+    # Check docs/claude/
+    claude_path = CLAUDE_DOCS_DIR / doc_name_md
+    if claude_path.exists():
+        with open(claude_path) as f:
+            content = f.read()
+        print(f"== docs/claude/{doc_name_md} ==")
+        print(content.rstrip())
+        print(f"\n== END {doc_name_md} ==")
+        return
+
+    # Check docs/architecture/
+    arch_path = ARCH_DOCS_DIR / doc_name_md
+    if arch_path.exists():
+        with open(arch_path) as f:
+            content = f.read()
+        print(f"== docs/architecture/{doc_name_md} ==")
+        print(content.rstrip())
+        print(f"\n== END {doc_name_md} ==")
+        return
+
+    # Not found — show available docs
+    print(f"Error: Document '{doc_name}' not found.", file=sys.stderr)
+    print("\nAvailable instruction docs (docs/claude/):", file=sys.stderr)
+    if CLAUDE_DOCS_DIR.exists():
+        for f in sorted(CLAUDE_DOCS_DIR.iterdir()):
+            if f.suffix == ".md":
+                print(f"  {f.stem}", file=sys.stderr)
+    print("\nAvailable architecture docs (docs/architecture/):", file=sys.stderr)
+    if ARCH_DOCS_DIR.exists():
+        for f in sorted(ARCH_DOCS_DIR.iterdir()):
+            if f.suffix == ".md" and f.stem != "README":
+                print(f"  {f.stem}", file=sys.stderr)
+    sys.exit(1)
+
+
+def cmd_summary(args: argparse.Namespace) -> None:
+    """Print a compact session summary for handoff to another session."""
+    data = _load_sessions()
+    sid = args.session
+
+    session = data.get("sessions", {}).get(sid)
+    if not session:
+        print(f"Error: Session {sid} not found.", file=sys.stderr)
+        sys.exit(1)
+
+    modified = session.get("modified_files", [])
+    tags = session.get("tags", [])
+
+    print("== SESSION SUMMARY ==")
+    print(f"Session ID: {sid}")
+    print(f"Task: {session.get('task', '?')}")
+    print(f"Tags: {', '.join(tags) if tags else '(none)'}")
+    print(f"Started: {session.get('started', '?')}")
+    print(f"Last active: {session.get('last_active', '?')}")
+    print()
+
+    if modified:
+        print(f"Modified files ({len(modified)}):")
+        for f in sorted(modified):
+            print(f"  {f}")
+        print()
+
+        # Related architecture docs
+        related = _find_related_docs(modified)
+        if related:
+            print("Related architecture docs:")
+            for doc in related:
+                print(f"  docs/architecture/{doc}")
+            print()
+
+    writing = session.get("writing")
+    if writing:
+        print(f"Currently writing: {writing}")
+        print()
+
+    # Check git status for uncommitted files
+    if modified:
+        rc, git_status, _ = _run_cmd(["git", "status", "--porcelain"])
+        if rc == 0 and git_status:
+            dirty_files = set()
+            for line in git_status.splitlines():
+                if len(line) > 3:
+                    dirty_files.add(line[3:].strip())
+            uncommitted = [f for f in modified if f in dirty_files]
+            committed = [f for f in modified if f not in dirty_files]
+            if uncommitted:
+                print(f"Uncommitted ({len(uncommitted)}):")
+                for f in sorted(uncommitted):
+                    print(f"  ! {f}")
+            if committed:
+                print(f"Already committed ({len(committed)}):")
+                for f in sorted(committed):
+                    print(f"  = {f}")
+
+    print("== END SUMMARY ==")
+
+
+def cmd_deploy_docs(args: argparse.Namespace) -> None:
+    """Load deployment-phase instruction docs (git, deployment standards).
+
+    Call this before prepare-deploy/deploy to get the deployment docs
+    that were deferred during session start.
+    """
+    # Load all deploy-phase docs
+    for doc_name in sorted(DEPLOY_PHASE_DOCS):
+        doc_content = _load_doc_content(doc_name)
+        if doc_content:
+            print(f"== docs/claude/{doc_name} ==")
+            print(doc_content.rstrip())
+            print(f"\n== END {doc_name} ==")
+        else:
+            print(f"[!] docs/claude/{doc_name} not found")
+    print()
+
+
 def cmd_debug_vercel(args: argparse.Namespace) -> None:
     """Start a session and print the Vercel build logs for the latest web app deployment."""
     # Auto-start a session
@@ -1156,7 +1518,7 @@ def cmd_debug_vercel(args: argparse.Namespace) -> None:
         print()
         print("Tip: For ERROR deployments the build log is only available in")
         print("     the Vercel dashboard. Check the 'Build Logs' tab at:")
-        print(f"     https://vercel.com/dashboard")
+        print("     https://vercel.com/dashboard")
         print()
         print("     Common fix: run `cd frontend/packages/ui && pnpm prepare`")
         print("     locally and look for ❌ validation errors in the output.")
@@ -1179,6 +1541,13 @@ def main() -> None:
     # start
     p_start = sub.add_parser("start", help="Start a new session")
     p_start.add_argument("--task", "-t", help="Task description")
+    p_start.add_argument(
+        "--tags",
+        help="Comma-separated tags (e.g., 'frontend,debug'). "
+        "Auto-inferred from --task if omitted. "
+        "Valid: frontend, backend, debug, test, i18n, figma, embed, "
+        "api, planning, feature, logging, concurrent, security",
+    )
 
     # end
     p_end = sub.add_parser("end", help="End a session")
@@ -1289,6 +1658,30 @@ def main() -> None:
         help="File paths to exclude",
     )
 
+    # context (on-demand doc loading)
+    p_context = sub.add_parser(
+        "context", help="Load a doc on demand (instruction or architecture)"
+    )
+    p_context.add_argument(
+        "--doc", "-d", required=True,
+        help="Document name (e.g., 'debugging', 'sync', 'embed-types')",
+    )
+
+    # summary (session handoff)
+    p_summary = sub.add_parser(
+        "summary", help="Print session summary for handoff"
+    )
+    p_summary.add_argument(
+        "--session", "-s", required=True, help="Session ID"
+    )
+
+    # deploy-docs (load deferred deployment docs)
+    sub.add_parser(
+        "deploy-docs",
+        help="Load deployment-phase docs (git, deployment standards) "
+        "deferred from session start",
+    )
+
     # debug-vercel
     sub.add_parser(
         "debug-vercel",
@@ -1311,6 +1704,9 @@ def main() -> None:
         "unlock": cmd_unlock,
         "prepare-deploy": cmd_prepare_deploy,
         "deploy": cmd_deploy,
+        "context": cmd_context,
+        "summary": cmd_summary,
+        "deploy-docs": cmd_deploy_docs,
         "debug-vercel": cmd_debug_vercel,
     }
 
