@@ -35,6 +35,7 @@ Supports both saved payment methods and new payment form
     import { loadStripe } from '@stripe/stripe-js';
     import PaymentAuth from './PaymentAuth.svelte';
     import { webSocketService } from '../../../services/websocketService';
+    import { pendingInvoiceStore } from '../../../stores/pendingInvoiceStore';
 
     const dispatch = createEventDispatcher();
     
@@ -332,6 +333,14 @@ Supports both saved payment methods and new payment form
                 // Payment successful — store purchased credits for confirmation screen
                 if (hasNavigatedToConfirmation) return; // WebSocket may have already handled this
                 hasNavigatedToConfirmation = true;
+                // Store pending invoice so SettingsInvoices shows an optimistic row
+                // while the Celery task generates the real invoice PDF.
+                pendingInvoiceStore.set({
+                    orderId: data.order_id,
+                    creditsAmount: selectedCreditsAmount,
+                    amountSmallestUnit: selectedPrice(),
+                    currency: selectedCurrency,
+                });
                 purchasedCreditsStore.set(selectedCreditsAmount);
                 dispatch('openSettings', {
                     settingsPath: 'billing/buy-credits/confirmation',
@@ -344,7 +353,9 @@ Supports both saved payment methods and new payment form
             }
         } catch (error) {
             console.error('Error processing payment:', error);
-            alert(error instanceof Error ? error.message : 'An error occurred while processing your payment');
+            // Never show raw Stripe/server error messages to users — use a generic translated message.
+            // Technical details are logged to console above for debugging.
+            alert($text('signup.payment_failed'));
         } finally {
             isProcessingPayment = false;
         }

@@ -1005,38 +1005,25 @@ class StripeService:
     ) -> Optional[Dict[str, Any]]:
         """
         Create a PaymentIntent using a pre-created price and saved payment method.
+        Retrieves the price first to get amount/currency, since Stripe requires
+        amount upfront when creating a PaymentIntent.
         """
         try:
+            # Retrieve price first — Stripe requires amount and currency at creation time
+            price = stripe.Price.retrieve(price_id)
+            
             payment_intent = stripe.PaymentIntent.create(
-                amount=None,  # Amount comes from price
-                currency=None,  # Currency comes from price
+                amount=price.unit_amount,
+                currency=price.currency,
                 customer=customer_id,
                 payment_method=payment_method_id,
                 payment_method_types=["card"],
-                confirmation_method="manual",
-                confirm=False,  # Don't confirm immediately - let frontend handle confirmation
-                return_url=None,  # No redirect needed
+                confirm=False,  # Don't confirm — frontend calls confirmCardPayment() with publishable key
                 metadata={
                     "credits_amount": str(credits_amount),
                     "email": email,
                     "order_type": "credit_purchase"
                 },
-                automatic_payment_methods={"enabled": False},  # Disable automatic payment methods when using saved method
-                payment_method_options={
-                    "card": {
-                        "capture_method": "automatic"
-                    }
-                }
-            )
-            
-            # Attach the price to the PaymentIntent
-            # Note: Stripe doesn't directly support attaching prices to PaymentIntents
-            # We need to set the amount from the price
-            price = stripe.Price.retrieve(price_id)
-            payment_intent = stripe.PaymentIntent.modify(
-                payment_intent.id,
-                amount=price.unit_amount,
-                currency=price.currency
             )
             
             logger.info(f"Created PaymentIntent {payment_intent.id} with saved payment method {payment_method_id} for {credits_amount} credits")
@@ -1073,20 +1060,12 @@ class StripeService:
                 customer=customer_id,
                 payment_method=payment_method_id,
                 payment_method_types=["card"],
-                confirmation_method="manual",
-                confirm=False,  # Don't confirm immediately - let frontend handle confirmation
-                return_url=None,
+                confirm=False,  # Don't confirm — frontend calls confirmCardPayment() with publishable key
                 metadata={
                     "credits_amount": str(credits_amount),
                     "email": email,
                     "order_type": "credit_purchase"
                 },
-                automatic_payment_methods={"enabled": False},  # Disable automatic payment methods when using saved method
-                payment_method_options={
-                    "card": {
-                        "capture_method": "automatic"
-                    }
-                }
             )
             
             logger.info(f"Created dynamic PaymentIntent {payment_intent.id} with saved payment method {payment_method_id} for {credits_amount} credits")

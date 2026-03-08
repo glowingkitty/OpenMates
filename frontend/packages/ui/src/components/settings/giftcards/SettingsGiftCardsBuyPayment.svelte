@@ -29,6 +29,7 @@ Supports both saved payment methods and new payment form
     import PaymentAuth from '../billing/PaymentAuth.svelte';
     import { notificationStore } from '../../../stores/notificationStore';
     import { userProfile, updateProfile } from '../../../stores/userProfile';
+    import { pendingInvoiceStore } from '../../../stores/pendingInvoiceStore';
 
     const dispatch = createEventDispatcher();
     
@@ -309,6 +310,15 @@ Supports both saved payment methods and new payment form
                 // Payment successful - wait for gift card creation
                 orderId = paymentIntent.id;
                 isWaitingForGiftCard = true;
+                // Store pending invoice so SettingsInvoices shows an optimistic row
+                // while the Celery task generates the real invoice PDF.
+                pendingInvoiceStore.set({
+                    orderId: paymentIntent.id,
+                    creditsAmount: selectedCreditsAmount,
+                    amountSmallestUnit: selectedPrice(),
+                    currency: selectedCurrency,
+                    isGiftCard: true,
+                });
                 
                 // Show notification that we're waiting for gift card code
                 notificationStore.info(
@@ -335,7 +345,9 @@ Supports both saved payment methods and new payment form
             }
         } catch (error) {
             console.error('Error processing payment:', error);
-            alert(error instanceof Error ? error.message : 'An error occurred while processing your payment');
+            // Never show raw Stripe/server error messages to users — use a generic translated message.
+            // Technical details are logged to console above for debugging.
+            alert($text('signup.payment_failed'));
         } finally {
             isProcessingPayment = false;
         }

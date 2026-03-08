@@ -2931,6 +2931,26 @@ async def process_payment_with_saved_method(
         order_id = order_result.get("id")
         client_secret = order_result.get("client_secret")
         
+        # Cache the order — CRITICAL for webhook processing.
+        # Without this, the payment_intent.succeeded webhook cannot find the order
+        # and invoice creation + credit addition will be silently skipped.
+        cache_success = await cache_service.set_order(
+            order_id=order_id,
+            user_id=current_user.id,
+            credits_amount=payment_request.credits_amount,
+            status="created",
+            ttl=3600,  # 1 hour TTL to handle webhook delays/retries
+            email_encryption_key=payment_request.email_encryption_key,
+            currency=payment_request.currency,
+            provider="stripe",
+        )
+        
+        if not cache_success:
+            logger.error(
+                f"CRITICAL: Failed to cache order {order_id} for user {current_user.id}. "
+                f"Webhook processing will fail — invoice and credits will not be created!"
+            )
+        
         logger.info(f"Created PaymentIntent {order_id} with saved payment method for user {current_user.id}")
         
         return ProcessPaymentWithSavedMethodResponse(
