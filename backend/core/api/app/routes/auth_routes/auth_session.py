@@ -17,6 +17,7 @@ from backend.core.api.app.routes.auth_routes.auth_common import verify_authentic
 from backend.core.api.app.routes.auth_routes.auth_utils import get_cookie_domain
 from backend.core.api.app.schemas.user import UserResponse
 from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS, TOKEN_REFRESH_THRESHOLD_SECONDS
+from backend.core.api.app.services.compliance import ComplianceService
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -80,6 +81,15 @@ async def get_session(
         # Handle authentication failures (invalid/expired token, etc.)
         if not is_auth or not user_data:
             logger.info(f"Session validation failed (basic auth): {auth_status or 'Unknown reason'}")
+            # Log session expiry/failure as compliance event
+            ComplianceService.log_auth_event_safe(
+                event_type="session_expired",
+                user_id=None,
+                device_fingerprint="unknown",
+                location="",
+                status="failed",
+                details={"reason": auth_status or "unknown"}
+            )
             return SessionResponse(
                 success=False, 
                 message="Not logged in", 
@@ -380,10 +390,26 @@ async def get_session(
                     # Update refresh_token variable so Step 9 uses the NEW token, not the old rotated one
                     refresh_token = new_refresh_token
                     logger.info(f"Token refreshed successfully for user_id={user_id} with stay_logged_in={stay_logged_in}, cache_ttl={cache_ttl}s")
+                    ComplianceService.log_auth_event_safe(
+                        event_type="token_refresh_success",
+                        user_id=user_id,
+                        device_fingerprint="session",
+                        location="",
+                        status="success",
+                        details={"cache_ttl": cache_ttl}
+                    )
                 else:
                     logger.warning(f"No new refresh token in response for user_id={user_id}")
             else:
                 logger.error(f"Failed to refresh token for user_id={user_id}")
+                ComplianceService.log_auth_event_safe(
+                    event_type="token_refresh_failed",
+                    user_id=user_id,
+                    device_fingerprint="session",
+                    location="",
+                    status="failed",
+                    details={"reason": "directus_refresh_failed"}
+                )
                 # If refresh fails, treat session as invalid
                 return SessionResponse(success=False, message="Session expired", token_refresh_needed=True, require_invite_code=require_invite_code)
         

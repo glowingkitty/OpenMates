@@ -1249,6 +1249,18 @@ async def finalize_login_session(
                 logger.error(f"Failed to dispatch new device email task for user {user_id[:6]}: {task_exc}", exc_info=True)
         # --- End New Device Hash Handling ---
 
+        else:
+            # Known device — log successful login for compliance audit trail.
+            # Uses log_auth_event_safe (no IP stored) per privacy policy.
+            compliance_service.log_auth_event_safe(
+                event_type="login_known_device",
+                user_id=user_id,
+                device_fingerprint=current_device_hash,
+                location=device_location_str,
+                status="success",
+                details={}
+            )
+
         # Update last online timestamp in Directus
         current_time = int(time.time()) # Define current_time here
         await directus_service.update_user(user_id, {"last_online_timestamp": str(current_time)})

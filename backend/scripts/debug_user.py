@@ -23,6 +23,8 @@ Tests: None (inspection script, not production code)
 """
 
 import asyncio
+import time
+import aiohttp
 import argparse
 import json
 import sys
@@ -419,6 +421,78 @@ async def get_daily_inspiration_cache(
     return summary
 
 
+LOKI_URL = "http://loki:3100"
+AUTH_EVENT_TYPES = [
+    "login_known_device", "login_new_device", "login_success_recovery_key",
+    "login_success_backup_code", "login_failed",
+    "logout", "logout_all",
+    "token_refresh_success", "token_refresh_failed",
+    "session_expired",
+    "ws_auth_success", "ws_auth_failed",
+]
+
+
+async def get_session_history(user_id: str, since_hours: int = 24) -> List[Dict[str, Any]]:
+    """
+    Query Loki compliance logs for auth events related to a specific user.
+    Returns a list of auth event dicts sorted by timestamp (newest first).
+    """
+    events: List[Dict[str, Any]] = []
+    start_ns = str(int((time.time() - since_hours * 3600) * 1_000_000_000))
+    end_ns = str(int(time.time() * 1_000_000_000))
+
+    # Query compliance logs for this user_id
+    query = f'{{job="compliance-logs"}} |~ "{user_id[:12]}"'
+    params = {
+        "query": query,
+        "limit": "500",
+        "start": start_ns,
+        "end": end_ns,
+        "direction": "backward",
+    }
+
+    try:
+        timeout = aiohttp.ClientTimeout(total=15)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(f"{LOKI_URL}/loki/api/v1/query_range", params=params) as resp:
+                if resp.status != 200:
+                    script_logger.warning(f"Loki query failed ({resp.status})")
+                    return events
+                data = await resp.json()
+    except Exception as e:
+        script_logger.warning(f"Cannot connect to Loki for session history: {e}")
+        return events
+
+    results = data.get("data", {}).get("result", [])
+    for stream in results:
+        for value in stream.get("values", []):
+            _, message = value[0], value[1]
+            try:
+                parsed = json.loads(message)
+            except (json.JSONDecodeError, TypeError):
+                continue
+
+            # Filter to auth events only
+            event_type = parsed.get("event_type", "")
+            if event_type not in AUTH_EVENT_TYPES:
+                continue
+
+            # Verify user_id matches (the regex may have matched a substring)
+            if parsed.get("user_id") != user_id and parsed.get("user_id") != "anonymous":
+                continue
+
+            events.append({
+                "timestamp": parsed.get("timestamp", ""),
+                "event_type": event_type,
+                "status": parsed.get("status", ""),
+                "device_fingerprint": parsed.get("device_fingerprint", ""),
+                "location": parsed.get("location", ""),
+                "details": parsed.get("details", {}),
+            })
+
+    return events
+
+
 def format_output_text(
     email: str,
     user_data: Optional[Dict[str, Any]],
@@ -429,6 +503,7 @@ def format_output_text(
     daily_inspirations: Optional[List[Dict[str, Any]]] = None,
     daily_inspiration_cache: Optional[Dict[str, Any]] = None,
     source_label: Optional[str] = None,
+    session_history: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     """Format results as text."""
     lines = []
@@ -618,6 +693,32 @@ def format_output_text(
                 lines.append(f"     ID:           {inspiration_id}")
                 lines.append(f"     embed_id:     {embed_id}   opened_chat: {opened_chat}")
                 lines.append(f"     Encrypted:    {enc_summary}")
+
+    # Session History — Auth events from compliance logs (Loki)
+    lines.append("")
+    lines.append("-" * 100)
+    lines.append(f"SESSION HISTORY — Auth Events (Last 24h)  [{len(session_history) if session_history else 0} event(s)]")
+    lines.append("-" * 100)
+    if session_history is None:
+        lines.append("  [Skipped — Loki query not available in this context]")
+    elif not session_history:
+        lines.append("  No auth events found in the last 24 hours.")
+    else:
+        for evt in session_history:
+            ts = evt.get("timestamp", "?")
+            etype = evt.get("event_type", "?")
+            status = evt.get("status", "?")
+            device_fp = evt.get("device_fingerprint", "")
+            details = evt.get("details", {})
+            detail_str = ""
+            if isinstance(details, dict):
+                # Show non-empty detail fields
+                detail_parts = [f"{k}={v}" for k, v in details.items() if v]
+                if detail_parts:
+                    detail_str = f"  ({', '.join(detail_parts)})"
+            fp_short = f"  device={device_fp[:8]}..." if device_fp and device_fp not in ("unknown", "session", "all_devices", "") else ""
+            status_icon = "\u2705" if status == "success" else "\u274c"
+            lines.append(f"  {status_icon} {ts}  {etype:<25}  {status}{fp_short}{detail_str}")
 
     lines.append("")
     lines.append("=" * 100)
@@ -854,7 +955,10 @@ async def main():
         # Add stored inspiration count to the counts dict
         counts["user_daily_inspirations"] = len(daily_inspirations_list) if daily_inspirations_list else 0
 
-        # 7. Output results
+        # 7b. Fetch session history from Loki compliance logs
+        session_history = await get_session_history(user_id)
+
+        # 8. Output results
         if args.json:
             output = {
                 "email": args.email,
@@ -868,6 +972,7 @@ async def main():
                     "count": len(daily_inspirations_list) if daily_inspirations_list else 0,
                     "cache": daily_inspiration_cache_data,
                 },
+                "session_history": session_history,
             }
             print(json.dumps(output, indent=2, default=str))
         else:
@@ -875,6 +980,7 @@ async def main():
                 args.email, user_data, decrypted, counts, activities, cache_info,
                 daily_inspirations=daily_inspirations_list,
                 daily_inspiration_cache=daily_inspiration_cache_data,
+                session_history=session_history,
             )
             print(output)
             

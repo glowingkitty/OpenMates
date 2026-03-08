@@ -101,6 +101,21 @@ class CacheServiceBase:
                 self._client = None
         return self._client
 
+    async def get_key_ttl(self, key: str) -> int:
+        """
+        Get the remaining TTL (in seconds) for a cache key.
+        Returns -2 if the key does not exist, -1 if the key has no expiry,
+        or the remaining seconds otherwise.
+        """
+        try:
+            client = await self.client
+            if not client:
+                return -2
+            return await client.ttl(key)
+        except Exception as e:
+            logger.error(f"Cache TTL error for key '{key}': {str(e)}")
+            return -2
+
     async def get(self, key: str) -> Any:
         """Get a value from cache"""
         try:
