@@ -152,7 +152,6 @@
             : Array.isArray(embedIds) ? (embedIds as string[]) : [];
 
           if (childEmbedIds.length > 0 && !isLoadingChildren) {
-            console.debug(`[ImagesSearchEmbedPreview] Loading child embeds for thumbnails (${childEmbedIds.length} embed_ids)`);
             loadChildEmbedsForPreview(childEmbedIds);
           }
         }
@@ -191,7 +190,6 @@
         const validResults = imageResults.filter(r => r !== null) as ImageResult[];
         if (validResults.length > 0) {
           localResults = validResults;
-          console.debug(`[ImagesSearchEmbedPreview] Loaded ${validResults.length} image results from child embeds`);
         }
       }
     } catch (error) {
@@ -254,7 +252,7 @@
                 {/each}
               </div>
               {#if remainingCount > 0}
-                <span class="remaining-count">+ {remainingCount} {$text('embeds.web_search.more_results') || 'more'}</span>
+                <span class="remaining-count">+ {remainingCount} {$text('embeds.image_search.more_results') || 'more'}</span>
               {/if}
             </div>
           {/if}

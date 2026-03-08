@@ -4110,3 +4110,53 @@ image_search.error:
   sv: Bildsökning misslyckades
   he: חיפוש תמונות נכשל
   verified_by_human: []
+
+image_search.error_title:
+  context: Title shown when image search fails (short heading above error message)
+  en: Search failed
+  de: Suche fehlgeschlagen
+  zh: 搜索失败
+  es: Búsqueda fallida
+  fr: Recherche échouée
+  pt: Pesquisa falhou
+  ru: Поиск не удался
+  ja: 検索に失敗しました
+  ko: 검색 실패
+  it: Ricerca fallita
+  tr: Arama başarısız
+  vi: Tìm kiếm thất bại
+  id: Pencarian gagal
+  pl: Wyszukiwanie nieudane
+  nl: Zoeken mislukt
+  ar: فشل البحث
+  hi: खोज विफल रही
+  th: การค้นหาล้มเหลว
+  cs: Hledání selhalo
+  sv: Sökning misslyckades
+  he: החיפוש נכשל
+  verified_by_human: []
+
+image_search.more_results:
+  context: Text shown after a count of remaining image search results not displayed (e.g. "+ 5 more")
+  en: more
+  de: mehr
+  zh: 更多
+  es: más
+  fr: plus
+  pt: mais
+  ru: ещё
+  ja: さらに
+  ko: 더보기
+  it: altri
+  tr: daha fazla
+  vi: thêm
+  id: lainnya
+  pl: więcej
+  nl: meer
+  ar: المزيد
+  hi: और
+  th: เพิ่มเติม
+  cs: více
+  sv: fler
+  he: עוד
+  verified_by_human: []

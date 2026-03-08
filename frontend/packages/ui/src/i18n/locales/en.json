@@ -4094,6 +4094,12 @@
       },
       "error": {
         "text": "Image search failed"
+      },
+      "error_title": {
+        "text": "Search failed"
+      },
+      "more_results": {
+        "text": "more"
       }
     }
   },
@@ -7964,6 +7970,9 @@
       },
       "invoices_error_loading": {
         "text": "Error loading invoices"
+      },
+      "invoices_generating": {
+        "text": "Generating invoice..."
       }
     },
     "chat": {
