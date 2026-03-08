@@ -75,7 +75,8 @@
   skillId="image_result"
   {embedHeaderTitle}
   {embedHeaderSubtitle}
-  showSkillIcon={false}
+  skillIconName="image"
+  showSkillIcon={true}
   {onClose}
   currentEmbedId={embedId}
   {hasPreviousEmbed}

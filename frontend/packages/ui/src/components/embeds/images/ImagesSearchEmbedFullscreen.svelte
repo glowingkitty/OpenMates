@@ -189,6 +189,10 @@
   childEmbedTransformer={transformToImageResult}
   onChildrenLoaded={(children) => { allResults = children as ImageResult[]; }}
   {initialChildEmbedId}
+  onAutoOpenChild={(index, children) => {
+    allResults = children as ImageResult[];
+    selectedIndex = index;
+  }}
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet content(ctx)}
