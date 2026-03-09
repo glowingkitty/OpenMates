@@ -18,6 +18,9 @@ Tests: none yet — new settings sub-page.
 <script lang="ts">
     import { text } from '@repo/ui';
     import { getApiEndpoint, apiEndpoints } from '../../../config/api';
+    import { chatDB } from '../../../services/db';
+    import { chatListCache } from '../../../services/chatListCache';
+    import { chatSyncService } from '../../../services/chatSyncService';
 
     // =========================================================================
     // STATE
@@ -151,76 +154,45 @@ Tests: none yet — new settings sub-page.
     // =========================================================================
 
     /**
-     * Delete chat records from IndexedDB for the given IDs.
-     * Uses the same DB name/store the chat store uses.
+     * Delete chat records and all associated data (messages, embeds, files) from IndexedDB
+     * for the given chat IDs, then update the in-memory chatListCache and notify Chats.svelte
+     * so its sidebar refreshes immediately without requiring a page reload or sidebar reopen.
+     *
+     * Uses chatDB.deleteChat() which handles the full cascade:
+     *   - Deletes the chat entry from the 'chats' store
+     *   - Deletes all messages from the 'messages' store via the chat_id index
+     *   - Cleans up all associated embeds via embedStore.deleteEmbedsForChat()
+     *
+     * After local deletion, dispatches a 'chatDeleted' CustomEvent on chatSyncService so
+     * Chats.svelte's handleChatDeletedEvent() fires and removes the chat from allChatsFromDB.
      */
     async function cleanupIndexedDB(chatIds: string[]): Promise<void> {
-        try {
-            const dbName = 'openmates';
-            const db = await new Promise<IDBDatabase>((resolve, reject) => {
-                const req = indexedDB.open(dbName);
-                req.onsuccess = () => resolve(req.result);
-                req.onerror = () => reject(req.error);
-            });
+        const errors: string[] = [];
 
-            const storeNames = Array.from(db.objectStoreNames);
-            const chatStores = storeNames.filter(name =>
-                name === 'chats' || name === 'messages' || name === 'chat_messages'
-            );
+        for (const id of chatIds) {
+            try {
+                // Full cascade delete: chat + messages + embeds
+                await chatDB.deleteChat(id);
 
-            if (chatStores.length === 0) {
-                db.close();
-                return;
+                // Remove from the global in-memory cache immediately
+                chatListCache.removeChat(id);
+
+                // Notify Chats.svelte so its allChatsFromDB state is updated and the
+                // sidebar list refreshes without the user needing to close/reopen it.
+                chatSyncService.dispatchEvent(
+                    new CustomEvent('chatDeleted', { detail: { chat_id: id } })
+                );
+            } catch (err) {
+                // Log per-chat errors but continue — partial cleanup is better than none
+                console.error(`[SettingsAccountChats] Failed to delete chat ${id} from IndexedDB:`, err);
+                errors.push(id);
             }
+        }
 
-            const tx = db.transaction(chatStores, 'readwrite');
-            const deletePromises: Promise<void>[] = [];
-
-            // Delete from chats store by chat ID (keyPath = chat_id)
-            if (storeNames.includes('chats')) {
-                const store = tx.objectStore('chats');
-                for (const id of chatIds) {
-                    deletePromises.push(new Promise<void>((res, rej) => {
-                        const r = store.delete(id);
-                        r.onsuccess = () => res();
-                        r.onerror = () => rej(r.error);
-                    }));
-                }
-            }
-
-            // Delete associated messages using the chat_id index
-            if (storeNames.includes('messages')) {
-                const msgStore = tx.objectStore('messages');
-                const chatIdIndex = msgStore.index('chat_id');
-                for (const id of chatIds) {
-                    // Use index cursor to find and delete all messages for this chat
-                    deletePromises.push(new Promise<void>((res, rej) => {
-                        const req = chatIdIndex.openKeyCursor(IDBKeyRange.only(id));
-                        req.onsuccess = () => {
-                            const cursor = req.result;
-                            if (cursor) {
-                                msgStore.delete(cursor.primaryKey);
-                                cursor.continue();
-                            } else {
-                                res(); // No more messages for this chat_id
-                            }
-                        };
-                        req.onerror = () => rej(req.error);
-                    }));
-                }
-            }
-
-            await Promise.allSettled(deletePromises);
-            await new Promise<void>((res, rej) => {
-                tx.oncomplete = () => res();
-                tx.onerror = () => rej(tx.error);
-            });
-
-            db.close();
-            console.warn(`[SettingsAccountChats] Cleaned up ${chatIds.length} chats and their messages from IndexedDB`);
-        } catch (err) {
-            // Non-fatal: IndexedDB cleanup failure doesn't block the UI
-            console.warn('[SettingsAccountChats] IndexedDB cleanup failed (non-fatal):', err);
+        if (errors.length > 0) {
+            console.warn(`[SettingsAccountChats] IndexedDB cleanup: ${chatIds.length - errors.length}/${chatIds.length} chats cleaned, ${errors.length} failed`);
+        } else {
+            console.debug(`[SettingsAccountChats] IndexedDB cleanup complete: ${chatIds.length} chats deleted (messages + embeds included)`);
         }
     }
 </script>

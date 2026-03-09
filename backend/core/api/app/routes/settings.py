@@ -23,6 +23,7 @@ from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
 from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, AiModelDefaultsRequest, StorageOverviewResponse, StorageCategoryBreakdown, StorageFileItem, StorageFilesListResponse, StorageDeleteFilesRequest, StorageDeleteFilesResponse  # Import request/response models
 from backend.apps.reminder.utils import format_reminder_time
+from backend.core.api.app.routes.websockets import manager as ws_manager
 
 # Create an optional API key scheme that doesn't fail if missing (for endpoints that support both session and API key auth)
 optional_api_key_scheme = HTTPBearer(
@@ -5033,6 +5034,29 @@ async def delete_old_chats(
         logger.info(
             f"[DeleteOldChats] user {user_id}: deleted {deleted_count}/{len(chat_ids_to_delete)} chats"
         )
+
+        # Broadcast chat_deleted to all connected devices for this user so every device
+        # removes the deleted chats from IndexedDB immediately via the WS sync pipeline.
+        # Mirrors the broadcast in delete_chat_handler.py (WebSocket path).
+        for deleted_id in deleted_ids:
+            try:
+                await ws_manager.broadcast_to_user(
+                    {
+                        "type": "chat_deleted",
+                        "payload": {"chat_id": deleted_id, "tombstone": True},
+                    },
+                    user_id,
+                    exclude_device_hash=None,
+                )
+            except Exception as broadcast_err:
+                # Non-fatal: client will re-sync on next connection
+                logger.warning(
+                    f"[DeleteOldChats] Failed to broadcast chat_deleted for {deleted_id}: {broadcast_err}"
+                )
+        if deleted_ids:
+            logger.info(
+                f"[DeleteOldChats] Broadcasted chat_deleted for {len(deleted_ids)} chats to user {user_id}"
+            )
 
         return DeleteOldChatsResponse(deleted_count=deleted_count, deleted_ids=deleted_ids)
 
