@@ -50,6 +50,12 @@ importers:
       '@fontsource-variable/lexend-deca':
         specifier: ^5.2.9
         version: 5.2.10
+      '@openobserve/browser-logs':
+        specifier: ^0.3.1
+        version: 0.3.1(@openobserve/browser-rum@0.3.1)
+      '@openobserve/browser-rum':
+        specifier: ^0.3.1
+        version: 0.3.1(@openobserve/browser-logs@0.3.1)
       '@repo/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -1175,6 +1181,28 @@ packages:
   '@nodelib/fs.walk@1.2.8':
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
+
+  '@openobserve/browser-core@0.3.1':
+    resolution: {integrity: sha512-Q5BazD4GsL/+fQGPVfSfKveGwYhor0KnMF1exSfce07ngVTf3ZBttKVHjZSVdrpiR/0Jm1DCbeyZt8xqgXA9Xw==}
+
+  '@openobserve/browser-logs@0.3.1':
+    resolution: {integrity: sha512-TootKFGsfaXA1KLuheU6XC7Sv9CQWILY5zRAVdOLJKdfPGQ3d5wBPyZIqUe91WeE3lGLCI8YF/7X9iqRcfj90g==}
+    peerDependencies:
+      '@openobserve/browser-rum': 0.3.1
+    peerDependenciesMeta:
+      '@openobserve/browser-rum':
+        optional: true
+
+  '@openobserve/browser-rum-core@0.3.1':
+    resolution: {integrity: sha512-cv2WEtntLVabMFbzP4XvlpuYOx6ToFYheJyGUs4jagv/nlW6U+a4DnajSK0Mtgmizz4H3IDVI4LmxHNuRxAHbA==}
+
+  '@openobserve/browser-rum@0.3.1':
+    resolution: {integrity: sha512-g6Np152uE7NoJsq4niQyzgg1LsFm6iuIQ45mcYxQaPBEacBNIoWRP4GU3IcF7WmJMnqCg3YSau4HtetCexu6fQ==}
+    peerDependencies:
+      '@openobserve/browser-logs': 0.3.1
+    peerDependenciesMeta:
+      '@openobserve/browser-logs':
+        optional: true
 
   '@playwright/test@1.57.0':
     resolution: {integrity: sha512-6TyEnHgd6SArQO8UO2OMTxshln3QMWBtPGrOCgs3wVEmQmwyuNtB10IZMfmYDE0riwNR1cu4q+pPcxMVtaG3TA==}
@@ -6510,6 +6538,25 @@ snapshots:
     dependencies:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.19.1
+
+  '@openobserve/browser-core@0.3.1': {}
+
+  '@openobserve/browser-logs@0.3.1(@openobserve/browser-rum@0.3.1)':
+    dependencies:
+      '@openobserve/browser-core': 0.3.1
+    optionalDependencies:
+      '@openobserve/browser-rum': 0.3.1(@openobserve/browser-logs@0.3.1)
+
+  '@openobserve/browser-rum-core@0.3.1':
+    dependencies:
+      '@openobserve/browser-core': 0.3.1
+
+  '@openobserve/browser-rum@0.3.1(@openobserve/browser-logs@0.3.1)':
+    dependencies:
+      '@openobserve/browser-core': 0.3.1
+      '@openobserve/browser-rum-core': 0.3.1
+    optionalDependencies:
+      '@openobserve/browser-logs': 0.3.1(@openobserve/browser-rum@0.3.1)
 
   '@playwright/test@1.57.0':
     dependencies:
