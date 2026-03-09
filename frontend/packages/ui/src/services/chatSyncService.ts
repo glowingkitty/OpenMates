@@ -732,6 +732,12 @@ export class ChatSynchronizationService extends EventTarget {
         module.handleReminderFiredImpl(this, payload),
       );
 
+      // Handle user_notification events — server-initiated toasts with optional deep-link buttons.
+      // Currently emitted by set_reminder_skill when the user has no email notifications active.
+      webSocketService.on("user_notification", (payload) =>
+        module.handleUserNotificationImpl(payload),
+      );
+
       // Handle pending AI response events (AI completed while user was offline)
       // Delivered from the pending delivery queue on WebSocket reconnect
       // Contains plaintext AI response; handler encrypts with chat key and persists

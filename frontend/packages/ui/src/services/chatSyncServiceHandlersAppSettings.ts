@@ -2415,3 +2415,75 @@ export async function handleReminderFiredImpl(
     );
   }
 }
+
+
+// ---------------------------------------------------------------------------
+// user_notification — server-initiated toast with optional deep-link button
+// ---------------------------------------------------------------------------
+
+/**
+ * Payload emitted by the backend as a "user_notification" WebSocket event.
+ * Currently produced by set_reminder_skill when the user has no active email
+ * notifications, so they are warned in real-time at the moment the reminder is set.
+ */
+interface UserNotificationPayload {
+  notification_type?: "info" | "success" | "warning" | "error";
+  message: string;
+  /** Optional label for an action button rendered inside the toast */
+  action_label?: string;
+  /** Settings deep-link path (e.g. "chat/notifications") to open when the button is tapped */
+  action_deep_link?: string;
+  /** Override auto-dismiss duration in ms (default: 12 000) */
+  duration?: number;
+}
+
+/**
+ * Handles the "user_notification" WebSocket event.
+ *
+ * Renders a toast notification via notificationStore and, when an
+ * action_deep_link is provided, attaches a button that navigates the user
+ * directly to the referenced settings page via settingsDeepLink.
+ */
+export async function handleUserNotificationImpl(
+  payload: UserNotificationPayload,
+): Promise<void> {
+  try {
+    const {
+      notification_type = "warning",
+      message,
+      action_label,
+      action_deep_link,
+      duration = 12000,
+    } = payload;
+
+    console.warn("[ChatSyncService:UserNotification] Received user_notification:", {
+      notification_type,
+      message,
+      action_deep_link,
+    });
+
+    let onAction: (() => void) | undefined;
+
+    if (action_label && action_deep_link) {
+      // Lazy-import the settings deep-link store to avoid circular deps
+      onAction = async () => {
+        const { settingsDeepLink } = await import("../stores/settingsDeepLinkStore");
+        settingsDeepLink.set(action_deep_link);
+      };
+    }
+
+    notificationStore.addNotificationWithOptions(notification_type, {
+      message,
+      duration,
+      dismissible: true,
+      ...(action_label && onAction
+        ? { actionLabel: action_label, onAction }
+        : {}),
+    });
+  } catch (error) {
+    console.error(
+      "[ChatSyncService:UserNotification] Error handling user_notification:",
+      error,
+    );
+  }
+}

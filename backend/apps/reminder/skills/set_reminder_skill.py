@@ -428,21 +428,60 @@ class SetReminderSkill(BaseSkill):
             # Format trigger time for response
             trigger_at_formatted = format_reminder_time(trigger_at, timezone)
 
-            # Check if user has email notifications configured
+            # Check if user has email notifications configured.
+            # If not, send a real-time WebSocket notification prompting the user to
+            # activate email notifications so they don't miss the reminder when offline.
+            # The notification includes an action button that deep-links to the
+            # email notification settings page (chat/notifications).
             email_warning = None
             try:
+                email_notifications_active = False
                 if directus_service:
                     user_profile = await directus_service.get_user_profile(user_id)
                     if user_profile and user_profile[1]:
-                        # Check for email notification settings
-                        notification_email = user_profile[1].get("notification_email")
-                        email_notifications_enabled = user_profile[1].get("email_notifications_enabled", False)
-                        
-                        if not notification_email or not email_notifications_enabled:
-                            email_warning = (
-                                "Tip: Set up email notifications in your account settings "
-                                "to receive reminder alerts even when you're not using the app."
-                            )
+                        email_notifications_active = bool(
+                            user_profile[1].get("email_notifications_enabled", False)
+                        )
+
+                if not email_notifications_active:
+                    email_warning = (
+                        "Tip: Set up email notifications in your account settings "
+                        "to receive reminder alerts even when you're not using the app."
+                    )
+                    # Publish a user_notification WebSocket event so the client
+                    # immediately shows a toast with a deep-link button to settings.
+                    # Channel format matches base_task.publish_websocket_event:
+                    #   websocket:user:{user_id}
+                    # The websockets.py "Embed Data Listener" relays any event on
+                    # websocket:user:* to the correct device via broadcast_to_user_specific_event.
+                    ws_channel = f"websocket:user:{user_id}"
+                    ws_payload = {
+                        "event": "user_notification",
+                        "type": "user_notification",
+                        "event_for_client": "user_notification",
+                        "payload": {
+                            "user_id": user_id,
+                            "notification_type": "warning",
+                            "message": (
+                                "Activate email notifications now to not miss your reminder."
+                            ),
+                            "action_label": "Go to Settings",
+                            "action_deep_link": "chat/notifications",
+                            "duration": 12000,
+                        },
+                    }
+                    try:
+                        await cache_service.publish_event(ws_channel, ws_payload)
+                        logger.info(
+                            f"Published email-notifications prompt WebSocket event "
+                            f"for user {user_id[:8]}..."
+                        )
+                    except Exception as ws_err:
+                        # WS notification failure must not fail reminder creation
+                        logger.warning(
+                            f"Could not publish email-notification prompt WS event "
+                            f"for user {user_id[:8]}...: {ws_err}"
+                        )
             except Exception as e:
                 logger.debug(f"Could not check email notification settings: {e}")
 
