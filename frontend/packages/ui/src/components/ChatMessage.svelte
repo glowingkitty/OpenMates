@@ -2126,7 +2126,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
         
         {#if $chatDebugStore.rawTextMode}
           <!-- Debug mode: render raw stored content without any processing -->
-          <pre class="debug-raw-content">{debugRawContent}</pre>
+          <pre class="debug-raw-content selectable">{debugRawContent}</pre>
         {:else if showFullMessage && fullContent}
           <ReadOnlyMessage 
               bind:this={readOnlyMessageComponent}
@@ -2608,6 +2608,11 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     margin: 0;
     line-height: 1.5;
     overflow-x: auto;
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    -webkit-touch-callout: default;
   }
 
   .pending {
