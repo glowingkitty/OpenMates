@@ -176,6 +176,19 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
             title: $text('settings.security.recovery_key_title')
         });
     }
+
+    /**
+     * Navigate to Active Sessions submenu.
+     * Dispatches navigation event to parent Settings component.
+     */
+    function navigateToSessions() {
+        dispatch('openSettings', {
+            settingsPath: 'account/security/sessions',
+            direction: 'forward',
+            icon: 'devices',
+            title: $text('settings.sessions.title')
+        });
+    }
 </script>
 
 <!-- Passkeys Section -->
@@ -211,4 +224,14 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
     title={$text('settings.security.recovery_key_title')}
     subtitle={recoveryKeySubtitle}
     onClick={navigateToRecoveryKey}
+/>
+
+
+<!-- Active Sessions Section -->
+<SettingsItem
+    type="submenu"
+    icon="devices"
+    title={$text('settings.sessions.title')}
+    subtitle={$text('settings.sessions.description_short')}
+    onClick={navigateToSessions}
 />

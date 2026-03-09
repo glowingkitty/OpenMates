@@ -981,6 +981,32 @@ export class ChatSynchronizationService extends EventTarget {
       }
     });
 
+    // FORCE LOGOUT LISTENER
+    // When a session is revoked remotely (via Active Sessions settings), the server
+    // broadcasts a force_logout event via Redis → WebSocket. This handler triggers
+    // the full logout flow on this device, clearing all local state.
+    webSocketService.on("force_logout", (payload) => {
+      const reason = (payload as { reason?: string })?.reason || "session_revoked";
+      console.warn(
+        `[ChatSyncService] Received force_logout event (reason: ${reason}). Triggering logout.`,
+      );
+      // Set the forced-logout flag so reconnect logic doesn't fight the logout
+      forcedLogoutInProgress.set(true);
+      // Import and call the logout action
+      import("../stores/authLoginLogoutActions")
+        .then(({ logout }) => {
+          logout().catch((err) => {
+            console.error("[ChatSyncService] Error during forced logout:", err);
+          });
+        })
+        .catch((err) => {
+          console.error(
+            "[ChatSyncService] Failed to import logout action for force_logout:",
+            err,
+          );
+        });
+    });
+
     // DATA INCONSISTENCY RE-SYNC LISTENER
     // When Phase 2/3 detects that local message count < server message count,
     // a chatDataInconsistency event is dispatched. Without this listener, the

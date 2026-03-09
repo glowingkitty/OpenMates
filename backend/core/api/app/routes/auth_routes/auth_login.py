@@ -15,7 +15,7 @@ from backend.core.api.app.services.metrics import MetricsService
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from typing import Optional
-from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip, get_geo_data_from_ip, parse_user_agent # Updated imports
+from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip, get_geo_data_from_ip, parse_user_agent, truncate_ip, derive_device_name # Updated imports
 from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_directus_service, get_cache_service, get_metrics_service,
     get_compliance_service, get_encryption_service
@@ -1349,7 +1349,23 @@ async def finalize_login_session(
             token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
             user_tokens_key = f"user_tokens:{user_id}"
             current_tokens = await cache_service.get(user_tokens_key) or {}
-            current_tokens[token_hash] = int(time.time())
+            # Store rich session metadata for the Active Sessions feature.
+            # Sensitive fields (device_name, ip_truncated, city, country_code) are
+            # replaced by client-encrypted blobs after the client calls
+            # POST /v1/auth/sessions/register-meta.  Until then the plaintext
+            # fields serve as server-side fallback for listing sessions.
+            user_agent = request.headers.get("User-Agent", "unknown")
+            current_tokens[token_hash] = {
+                "created_at": int(time.time()),
+                "device_hash": current_device_hash,
+                "stay_logged_in": login_data.stay_logged_in,
+                "device_name": derive_device_name(user_agent),
+                "ip_truncated": truncate_ip(client_ip),
+                "country_code": country_code or "Unknown",
+                "city": device_location_str.split(",")[0].strip() if device_location_str else None,
+                "encrypted_meta": None,
+                "encrypted_meta_iv": None,
+            }
             # Token list TTL should be longer than individual session TTL
             token_list_ttl = cache_ttl * 7 if login_data.stay_logged_in else cache_service.SESSION_TTL * 7
             await cache_service.set(user_tokens_key, current_tokens, ttl=token_list_ttl)

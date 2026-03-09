@@ -10,7 +10,7 @@ from backend.core.api.app.services.cache import CacheService
 # Import new fingerprinting and risk assessment functions
 # generate_device_fingerprint, DeviceFingerprint, should_require_2fa are already imported correctly
 from backend.core.api.app.utils.device_fingerprint import (
-    generate_device_fingerprint_hash, _extract_client_ip
+    generate_device_fingerprint_hash, _extract_client_ip, truncate_ip, derive_device_name
 )
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service
 from backend.core.api.app.routes.auth_routes.auth_common import verify_authenticated_user
@@ -426,7 +426,27 @@ async def get_session(
             logger.warning(f"stay_logged_in was missing from user_data for user {user_id[:6]}..., setting to default: {stay_logged_in}")
         await cache_service.set_user(user_data, refresh_token=refresh_token, ttl=cache_ttl)
         
-        # Step 10: Return successful session validation
+        # Step 10: Compute session device info for Active Sessions feature
+        # The client uses this to encrypt and register session metadata if not yet done.
+        current_token_hash = hashlib.sha256(refresh_token.encode()).hexdigest() if refresh_token else None
+        session_device_info_data = None
+        session_meta_already_registered = False
+        if current_token_hash:
+            user_tokens_key = f"user_tokens:{user_id}"
+            user_tokens_map = await cache_service.get(user_tokens_key) or {}
+            current_meta = user_tokens_map.get(current_token_hash)
+            if isinstance(current_meta, dict) and current_meta.get("encrypted_meta"):
+                session_meta_already_registered = True
+            elif not session_meta_already_registered:
+                # Provide plaintext device info for the client to encrypt
+                user_agent_str = request.headers.get("User-Agent", "unknown")
+                session_device_info_data = {
+                    "device_name": derive_device_name(user_agent_str),
+                    "ip_truncated": truncate_ip(client_ip),
+                    "country_code": country_code if country_code and country_code not in ("Local", "Unknown", None) else None,
+                    "city": city,
+                }
+
         logger.info(f"Session valid for user_id={user_id}. Returning user data.")
         return SessionResponse(
             success=True,
@@ -455,7 +475,9 @@ async def get_session(
             ),
             token_refresh_needed=False,
             require_invite_code=require_invite_code,
-            ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
+            ws_token=refresh_token,  # Return token for WebSocket auth (Safari iOS compatibility)
+            session_device_info=session_device_info_data,
+            session_meta_registered=session_meta_already_registered,
         )
 
     except Exception as e:

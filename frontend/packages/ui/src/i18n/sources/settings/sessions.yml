@@ -1,0 +1,143 @@
+# Active Sessions Settings Translations
+# Used in SettingsSessions.svelte and SettingsSecurity.svelte
+# Architecture: docs/architecture/device-sessions.md
+
+title:
+  context: Title for the active sessions settings page
+  en: Active Sessions
+  de: Aktive Sitzungen
+
+description:
+  context: Description shown at the top of the active sessions page
+  en: Manage your active sessions across all devices. You can remove individual sessions or log out from all devices at once.
+  de: Verwalte deine aktiven Sitzungen auf allen Geräten. Du kannst einzelne Sitzungen entfernen oder dich von allen Geräten gleichzeitig abmelden.
+
+description_short:
+  context: Short subtitle shown in the security menu for the sessions entry
+  en: Manage your connected devices
+  de: Verbundene Geräte verwalten
+
+loading:
+  context: Loading state message while sessions are being fetched
+  en: Loading sessions...
+  de: Sitzungen werden geladen...
+
+no_sessions:
+  context: Empty state message when no sessions are found
+  en: No active sessions found.
+  de: Keine aktiven Sitzungen gefunden.
+
+this_device:
+  context: Badge label indicating the current device session
+  en: This device
+  de: Dieses Gerät
+
+unknown_device:
+  context: Fallback device name when device cannot be identified
+  en: Unknown device
+  de: Unbekanntes Gerät
+
+unknown_location:
+  context: Fallback location text when location is not available
+  en: Unknown location
+  de: Unbekannter Standort
+
+logged_in:
+  context: Label for the login time detail row
+  en: Logged in
+  de: Angemeldet
+
+session_type:
+  context: Label for the session type detail row (stay logged in vs session-only)
+  en: Session type
+  de: Sitzungstyp
+
+staying_logged_in:
+  context: Value when user chose to stay logged in (persistent session)
+  en: Stay logged in
+  de: Angemeldet bleiben
+
+session_only:
+  context: Value when session expires on browser close
+  en: Session only
+  de: Nur Sitzung
+
+remove:
+  context: Button text to remove/revoke a single session
+  en: Remove
+  de: Entfernen
+
+removing:
+  context: Button text while a session removal is in progress
+  en: Removing...
+  de: Wird entfernt...
+
+confirm_remove:
+  context: Confirmation dialog text before removing a session
+  en: Remove this session? The device will be logged out immediately.
+  de: Diese Sitzung entfernen? Das Gerät wird sofort abgemeldet.
+
+logout_all_others:
+  context: Button text to log out all other devices except current
+  en: Log out all other devices
+  de: Alle anderen Geräte abmelden
+
+confirm_logout_others:
+  context: Confirmation dialog text before logging out all other devices
+  en: Log out all other devices? They will need to log in again.
+  de: Alle anderen Geräte abmelden? Sie müssen sich erneut anmelden.
+
+logout_all_devices:
+  context: Button text to log out from all devices including current (nuclear option)
+  en: Log out on all devices
+  de: Von allen Geräten abmelden
+
+confirm_logout_all:
+  context: Confirmation dialog text before logging out all devices
+  en: Log out on all devices? This will also log you out of this device and clear all trusted devices. Every future login will require re-authentication.
+  de: Von allen Geräten abmelden? Dies meldet dich auch von diesem Gerät ab und löscht alle vertrauenswürdigen Geräte. Jede zukünftige Anmeldung erfordert eine erneute Authentifizierung.
+
+logout_all_hint:
+  context: Warning hint text below the logout-all button
+  en: This will also clear all trusted devices. Every future login will require full re-authentication.
+  de: Dies löscht auch alle vertrauenswürdigen Geräte. Jede zukünftige Anmeldung erfordert vollständige Neu-Authentifizierung.
+
+processing:
+  context: Button text while a bulk logout operation is in progress
+  en: Processing...
+  de: Wird verarbeitet...
+
+just_now:
+  context: Relative time label for events that happened less than a minute ago
+  en: Just now
+  de: Gerade eben
+
+minute_ago:
+  context: Relative time label for exactly 1 minute ago
+  en: 1 minute ago
+  de: Vor 1 Minute
+
+minutes_ago:
+  context: Relative time label for N minutes ago (placeholder {n} is replaced with the number)
+  en: "{n} minutes ago"
+  de: "Vor {n} Minuten"
+
+hour_ago:
+  context: Relative time label for exactly 1 hour ago
+  en: 1 hour ago
+  de: Vor 1 Stunde
+
+hours_ago:
+  context: Relative time label for N hours ago (placeholder {n} is replaced with the number)
+  en: "{n} hours ago"
+  de: "Vor {n} Stunden"
+
+day_ago:
+  context: Relative time label for exactly 1 day ago
+  en: 1 day ago
+  de: Vor 1 Tag
+
+days_ago:
+  context: Relative time label for N days ago (placeholder {n} is replaced with the number)
+  en: "{n} days ago"
+  de: "Vor {n} Tagen"

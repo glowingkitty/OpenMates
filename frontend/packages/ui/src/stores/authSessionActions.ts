@@ -589,6 +589,39 @@ export async function checkAuth(
         clientLogForwarder.start();
       }
 
+      // Register encrypted session metadata if the server indicates it hasn't been done yet.
+      // The /session response includes session_device_info (plaintext device name, IP, country)
+      // which the client encrypts with the master key and POSTs back. This is a one-time
+      // operation per session, piggybacking on the existing /session flow.
+      if (data.session_device_info && !data.session_meta_registered) {
+        (async () => {
+          try {
+            const metaJson = JSON.stringify(data.session_device_info);
+            const encryptedBlob = await cryptoService.encryptWithMasterKey(metaJson);
+            if (encryptedBlob) {
+              const res = await fetch(
+                getApiEndpoint("/v1/auth/sessions/register-meta"),
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  credentials: "include",
+                  body: JSON.stringify({
+                    encrypted_meta: encryptedBlob,
+                  }),
+                },
+              );
+              if (res.ok) {
+                console.warn("[AuthSessionActions] Session metadata registered successfully");
+              } else {
+                console.warn("[AuthSessionActions] Failed to register session metadata:", res.status);
+              }
+            }
+          } catch (err) {
+            console.warn("[AuthSessionActions] Error registering session metadata (non-fatal):", err);
+          }
+        })();
+      }
+
       // Pre-load all settings/memories entries from IndexedDB so they are immediately
       // available when the user types @ in the message editor.
       // Without this, the @ mention dropdown shows no settings_memory results because
