@@ -5390,3 +5390,154 @@ action_verification_subject:
   cs: "Váš ověřovací kód: {code}"
   sv: "Din verifieringskod: {code}"
   verified_by_human: []
+
+# ── API Key: new device notification ────────────────────────────────────────
+security_alert_new_api_key_device:
+  context: Email subject for security alert when a new device/IP uses an API key
+  en: "Security Alert: New device used your API key"
+  de: "Sicherheitswarnung: Neues Gerät hat Ihren API-Schlüssel verwendet"
+  zh: "安全警报：新设备使用了您的 API 密钥"
+  es: "Alerta de seguridad: Un nuevo dispositivo usó tu clave de API"
+  fr: "Alerte de sécurité : Un nouvel appareil a utilisé votre clé d'API"
+  pt: ""
+  ru: ""
+  ja: "セキュリティアラート：新しいデバイスがAPIキーを使用しました"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+
+new_api_key_device_used:
+  context: Email header — a new IP/device attempted to use the user's API key
+  en: New device used your API key
+  de: Neues Gerät hat Ihren API-Schlüssel verwendet
+  zh: 新设备使用了您的 API 密钥
+  es: Un nuevo dispositivo usó tu clave de API
+  fr: Un nouvel appareil a utilisé votre clé d'API
+  pt: ""
+  ru: ""
+  ja: 新しいデバイスがAPIキーを使用しました
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+
+new_api_key_device_details:
+  context: Body text for new API key device email — shows anonymized IP, region, and timestamp. {anonymized_ip} e.g. "184.149.xxx", {region} e.g. "California, US", {YYYY}/{MM}/{DD} date, {time} HH:MM, {timezone_name} e.g. UTC
+  en: "On {YYYY}/{MM}/{DD} at {time} ({timezone_name}),\na request was made to your API key\nfrom IP {anonymized_ip} ({region})."
+  de: "Am {YYYY}/{MM}/{DD} um {time} ({timezone_name})\nwurde eine Anfrage mit Ihrem API-Schlüssel\nvon IP {anonymized_ip} ({region}) gesendet."
+  zh: "在 {YYYY}/{MM}/{DD} {time} ({timezone_name})，\n有人从 IP {anonymized_ip} ({region})\n使用了您的 API 密钥。"
+  es: "El {YYYY}/{MM}/{DD} a las {time} ({timezone_name}),\nse realizó una solicitud con tu clave de API\ndesde la IP {anonymized_ip} ({region})."
+  fr: "Le {YYYY}/{MM}/{DD} à {time} ({timezone_name}),\nune requête a été effectuée avec votre clé d'API\ndepuis l'IP {anonymized_ip} ({region})."
+  pt: ""
+  ru: ""
+  ja: "{YYYY}/{MM}/{DD} {time} ({timezone_name}) に、\nIP {anonymized_ip} ({region}) から\nAPIキーへのリクエストが行われました。"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+
+new_api_key_device_blocked:
+  context: Explains that the API request was blocked and the user must approve the device
+  en: "The request was blocked. You must approve this device in Developer Settings before it can use your API key."
+  de: "Die Anfrage wurde blockiert. Sie müssen dieses Gerät in den Entwicklereinstellungen genehmigen, bevor es Ihren API-Schlüssel verwenden kann."
+  zh: "该请求已被拦截。您必须在开发者设置中批准此设备，才能使用您的 API 密钥。"
+  es: "La solicitud fue bloqueada. Debes aprobar este dispositivo en la Configuración de desarrollador antes de que pueda usar tu clave de API."
+  fr: "La requête a été bloquée. Vous devez approuver cet appareil dans les Paramètres développeur avant qu'il puisse utiliser votre clé d'API."
+  pt: ""
+  ru: ""
+  ja: "リクエストはブロックされました。APIキーを使用する前に、開発者設定でこのデバイスを承認する必要があります。"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+
+new_api_key_device_cta:
+  context: Button label to open Developer Settings > Devices
+  en: Review in Developer Settings
+  de: In Entwicklereinstellungen prüfen
+  zh: 在开发者设置中查看
+  es: Revisar en Configuración de desarrollador
+  fr: Voir dans les Paramètres développeur
+  pt: ""
+  ru: ""
+  ja: 開発者設定で確認する
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+
+new_api_key_device_not_you:
+  context: Security note at the bottom of the new API key device email — if the user didn't make the request
+  en: "If this was you, you can ignore this email.\nIf this wasn't you, revoke your API key immediately in Developer Settings."
+  de: "Wenn Sie das waren, können Sie diese E-Mail ignorieren.\nWenn Sie das nicht waren, widerrufen Sie sofort Ihren API-Schlüssel in den Entwicklereinstellungen."
+  zh: "如果是您本人操作，可以忽略此邮件。\n如果不是，请立即在开发者设置中吊销您的 API 密钥。"
+  es: "Si fuiste tú, puedes ignorar este correo.\nSi no fuiste tú, revoca tu clave de API de inmediato en Configuración de desarrollador."
+  fr: "Si c'était vous, vous pouvez ignorer cet e-mail.\nSi ce n'était pas vous, révoquez immédiatement votre clé d'API dans les Paramètres développeur."
+  pt: ""
+  ru: ""
+  ja: "ご自身の操作であればこのメールは無視してください。\n身に覚えがない場合は、開発者設定でAPIキーを直ちに無効化してください。"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
