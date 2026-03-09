@@ -287,17 +287,7 @@
     
     // Debug: count system messages to understand what we're working with
     const systemMessages = messages.filter(m => m.role === 'system');
-    if (systemMessages.length > 0) {
-      console.log(`[ChatHistory][RequestMap] Processing ${messages.length} messages (${systemMessages.length} system). System msgs:`,
-        systemMessages.map(m => ({
-          id: m.id,
-          hasOriginal: !!m.original_message,
-          hasContent: !!m.original_message?.content,
-          contentType: typeof m.original_message?.content,
-          contentPreview: typeof m.original_message?.content === 'string' ? m.original_message.content.substring(0, 80) : undefined
-        }))
-      );
-    }
+
     
     for (const msg of messages) {
       if (msg.role === 'system') {
@@ -308,9 +298,7 @@
       }
     }
     
-    if (map.size > 0) {
-      console.log(`[ChatHistory][RequestMap] Found ${map.size} request(s):`, [...map.keys()]);
-    }
+
     
     return map;
   });
@@ -337,7 +325,6 @@
       if (msg.role === 'system') {
         const response = parseAppSettingsMemoriesResponse(msg.original_message?.content);
         if (response) {
-          console.log(`[ChatHistory][ResponseMap] Found response:`, { user_message_id: response.user_message_id, action: response.action, msgId: msg.id });
           // Use user_message_id directly as the map key — same strategy as the request map.
           // Both request and response system messages store the same user_message_id
           // (the client-generated ID of the user message that triggered the request).
@@ -361,9 +348,7 @@
       }
     }
     
-    if (map.size > 0) {
-      console.log(`[ChatHistory][ResponseMap] Found ${map.size} response(s):`, [...map.keys()]);
-    }
+
     
     return map;
   });
@@ -540,8 +525,6 @@
       if (!appSettingsMemoriesResponseMap.has(userMessageId)) {
         console.warn(`[ChatHistory][UnpairedRequest] Request for user_message_id="${userMessageId}" has NO matching response. Response map keys:`, [...appSettingsMemoriesResponseMap.keys()]);
         return request;
-      } else {
-        console.log(`[ChatHistory][UnpairedRequest] Request for user_message_id="${userMessageId}" is PAIRED with response.`);
       }
     }
     return null;
@@ -661,7 +644,6 @@
    * @param incomingMessage - The new message object, likely conforming to global Message type.
    */
   export function addMessage(incomingMessage: GlobalMessage) {
-    console.debug('Adding message to chat history (raw):', incomingMessage);
     
     // Build cumulative PII mappings from existing messages + the new message
     // This allows assistant messages to restore PII from any preceding user message
@@ -672,7 +654,6 @@
     const piiMappings = buildCumulativePIIMappings(allOriginalMessages);
     
     const messageForHistory: InternalMessage = G_mapToInternalMessage(incomingMessage, piiMappings);
-    console.debug('Adding message to chat history (processed):', messageForHistory);
     
     // Track if this is a new user message for scrolling behavior
     if (messageForHistory.role === 'user') {
@@ -812,20 +793,15 @@
             if (oldContentStr === newContentStr) {
                 // Content is identical, reuse old reference for optimization
                 newInternalMessage.content = oldMessage.content;
-            } else {
-                // Content is different - log for debugging
-                console.debug('[ChatHistory] Message content changed for', newMessage.message_id);
             }
         } else if (hasEmbedUpdate) {
             // Embed was updated - force new content to re-render embed NodeViews
-            console.debug('[ChatHistory] Embed update detected - forcing new content for', newMessage.message_id);
             newInternalMessage.content = JSON.parse(JSON.stringify(newInternalMessage.content));
         } else if (localeChanged) {
             // Locale changed - always use new content even if it appears identical
             // This ensures translations are refreshed
             // CRITICAL: Force new content object reference to break any object equality checks
             // This ensures ReadOnlyMessage detects the change and re-renders
-            console.debug('[ChatHistory] Locale changed - forcing new content for', newMessage.message_id);
             // Create a completely new content object to force reactivity
             // This breaks object reference equality, forcing Svelte to detect the change
             newInternalMessage.content = JSON.parse(JSON.stringify(newInternalMessage.content));

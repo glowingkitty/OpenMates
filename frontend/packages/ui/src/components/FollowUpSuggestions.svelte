@@ -132,19 +132,12 @@
     // When input is empty, show first 3 suggestions
     if (!messageInputContent || messageInputContent.trim() === '') {
       const displayedSuggestions = fullSuggestions.slice(0, 3);
-      console.debug('[FollowUpSuggestions] Showing first 3 suggestions (input empty):', displayedSuggestions.length);
       return displayedSuggestions.map(parsed => ({ ...parsed, matchIndex: -1, matchLength: 0 }));
     }
 
     // When user is typing, filter across the FULL pool (searching over body text)
     const searchTerm = messageInputContent.trim();
     const searchTermLower = searchTerm.toLowerCase();
-
-    console.debug('[FollowUpSuggestions] Filtering with search term:', {
-      searchTerm,
-      searchTermLower,
-      fullPoolSize: fullSuggestions.length
-    });
 
     // Search over body text (not the prefix) so prefix doesn't interfere with filtering
     const filtered = fullSuggestions
@@ -163,7 +156,6 @@
       // Limit to top 3 unique matches
       .slice(0, 3);
 
-    console.debug('[FollowUpSuggestions] Filtered results:', filtered.length, 'unique matches');
 
     return filtered;
   });
@@ -196,7 +188,6 @@
   onMount(() => {
     const handleLanguageChange = () => {
       currentLocale = $locale;
-      console.debug('[FollowUpSuggestions] Language changed, updating locale:', currentLocale);
     };
     
     window.addEventListener('language-changed', handleLanguageChange);

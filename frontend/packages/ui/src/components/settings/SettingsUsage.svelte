@@ -1439,22 +1439,9 @@ Usage Settings - View usage statistics and export usage data
 
     // Process and group usage data for display
     const processedUsage = $derived.by(() => {
-        console.log('Processing usage entries:', {
-            totalEntries: usageEntries.length,
-            activeTab,
-            timeGrouping,
-            sortOption
-        });
-        
         const filtered = filterByTab(usageEntries);
-        console.log('Filtered entries:', filtered.length);
-        
         const sorted = sortEntries(filtered);
-        console.log('Sorted entries:', sorted.length);
-        
         const grouped = groupByTime(sorted);
-        console.log('Grouped entries:', Object.keys(grouped).length, 'groups');
-        console.log('Grouped data:', grouped);
         
         // Calculate totals for each group
         const groupsWithTotals: Record<string, { entries: UsageEntry[], total: number }> = {};

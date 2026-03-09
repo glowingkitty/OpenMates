@@ -8887,7 +8887,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 on:draftSaved={handleDraftSaved}
                                 on:textchange={(e) => { 
                                     const t = (e.detail?.text || '');
-                                    console.debug('[ActiveChat] textchange event received:', { text: t, length: t.length });
                                     liveInputText = t;
                                     // NOTE: messageInputHasContent is NOT set here from text alone —
                                     // bind:hasContent below is the authoritative source and correctly
