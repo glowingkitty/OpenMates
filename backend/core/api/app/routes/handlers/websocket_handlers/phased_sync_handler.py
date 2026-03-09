@@ -379,6 +379,8 @@ async def _handle_phase1_sync(
                     "encrypted_follow_up_request_suggestions": cached_list_item.encrypted_follow_up_request_suggestions,
                     "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
                     "last_message_timestamp": cached_list_item.last_message_timestamp,
+                    "last_edited_overall_timestamp": cached_list_item.last_message_timestamp,
+                    "pinned": cached_list_item.pinned,
                     # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
                     "is_shared": cached_list_item.is_shared,
                     "is_private": cached_list_item.is_private
@@ -740,8 +742,10 @@ async def _handle_phase2_sync(
                         "encrypted_follow_up_request_suggestions": cached_list_item.encrypted_follow_up_request_suggestions,
                         "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
                         "last_message_timestamp": cached_list_item.last_message_timestamp,
+                        "last_edited_overall_timestamp": cached_list_item.last_message_timestamp,
                         "messages_v": cached_versions.messages_v,
                         "title_v": cached_versions.title_v,
+                        "pinned": cached_list_item.pinned,
                         # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
                         "is_shared": cached_list_item.is_shared,
                         "is_private": cached_list_item.is_private
@@ -776,8 +780,10 @@ async def _handle_phase2_sync(
                                     "encrypted_follow_up_request_suggestions": chat_metadata.get("encrypted_follow_up_request_suggestions"),
                                     "encrypted_active_focus_id": chat_metadata.get("encrypted_active_focus_id"),
                                     "last_message_timestamp": chat_metadata.get("last_edited_overall_timestamp"),
+                                    "last_edited_overall_timestamp": chat_metadata.get("last_edited_overall_timestamp"),
                                     "messages_v": chat_metadata.get("messages_v", 0),
                                     "title_v": chat_metadata.get("title_v", 0),
+                                    "pinned": chat_metadata.get("pinned"),
                                     # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
                                     "is_shared": chat_metadata.get("is_shared"),
                                     "is_private": chat_metadata.get("is_private")
@@ -1151,8 +1157,10 @@ async def _handle_phase3_sync(
                         "encrypted_follow_up_request_suggestions": cached_list_item.encrypted_follow_up_request_suggestions,
                         "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
                         "last_message_timestamp": cached_list_item.last_message_timestamp,
+                        "last_edited_overall_timestamp": cached_list_item.last_message_timestamp,
                         "messages_v": cached_versions.messages_v,
                         "title_v": cached_versions.title_v,
+                        "pinned": cached_list_item.pinned,
                         # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
                         "is_shared": cached_list_item.is_shared,
                         "is_private": cached_list_item.is_private
@@ -1187,8 +1195,10 @@ async def _handle_phase3_sync(
                                     "encrypted_follow_up_request_suggestions": chat_metadata.get("encrypted_follow_up_request_suggestions"),
                                     "encrypted_active_focus_id": chat_metadata.get("encrypted_active_focus_id"),
                                     "last_message_timestamp": chat_metadata.get("last_edited_overall_timestamp"),
+                                    "last_edited_overall_timestamp": chat_metadata.get("last_edited_overall_timestamp"),
                                     "messages_v": chat_metadata.get("messages_v", 0),
                                     "title_v": chat_metadata.get("title_v", 0),
+                                    "pinned": chat_metadata.get("pinned"),
                                     # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
                                     "is_shared": chat_metadata.get("is_shared"),
                                     "is_private": chat_metadata.get("is_private")
