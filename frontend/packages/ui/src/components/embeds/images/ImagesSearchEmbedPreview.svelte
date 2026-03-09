@@ -89,9 +89,16 @@
   const skillIconName = 'search';
   let skillName = $derived($text('app_skills.images.search'));
 
-  // Show thumbnails that have a URL — render as many as fit in the row
+  // Min image width at 30px strip height — images are landscape-ish (avg ~4:3 ratio).
+  // At 30px height a 4:3 image is ~40px wide. Container ~300px wide → ~7 fit.
+  // Cap count to avoid loading dozens of images that will never be visible.
+  const THUMB_MAX_COUNT = 10;
+
+  // Show thumbnails that have a URL — cap count to what fits in the strip
   let previewThumbnails = $derived(
-    results.filter(r => r.thumbnail_url || r.image_url)
+    results
+      .filter(r => r.thumbnail_url || r.image_url)
+      .slice(0, THUMB_MAX_COUNT)
   );
 
   // Extract unique favicons from results (first 3 unique sources, like WebSearchEmbedPreview)
@@ -319,24 +326,23 @@
     line-height: 1.4;
   }
 
-  /* Horizontal thumbnail strip — fills available card space */
+  /* Horizontal thumbnail strip — fixed 30px height, images sized to fit */
   .thumbnail-strip {
     display: flex;
     flex-direction: row;
     gap: 2px;
     width: 100%;
-    flex: 1;
-    min-height: 0;
+    height: 30px;
+    flex-shrink: 0;
     overflow: hidden;
   }
 
   .thumb-img {
-    height: 100%;
+    height: 30px;
+    width: auto;
     flex-shrink: 0;
     object-fit: cover;
     display: block;
-    min-width: 60px;
-    max-width: 50%;
   }
 
   /* Results footer: query text + favicon row (shown below thumbnails) */
