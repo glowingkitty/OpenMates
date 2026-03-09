@@ -5002,7 +5002,7 @@ async def delete_old_chats(
         deleted_ids: list[str] = []
         for chat_id in chat_ids_to_delete:
             try:
-                success = await directus_service.persist_delete_chat(chat_id)
+                success = await directus_service.chat.persist_delete_chat(chat_id)
                 if success:
                     deleted_ids.append(chat_id)
                 else:
