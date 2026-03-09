@@ -118,6 +118,14 @@ Source files with tests must include cross-reference comments:
 
 ## Critical Rules
 
+### State Understanding Before Acting
+
+Before planning or writing any code, state your interpretation of the task and wait for the user to confirm it. For bug reports, describe what the user expected, what happened, and which system you believe is responsible. See `planning.md` step 0 for the full format.
+
+### Acceptance Criteria Before Implementing
+
+Every non-trivial task must have a checklist of acceptance criteria defined before implementation begins. For reproducible bugs, the final criterion must be a Firecrawl browser verification step. See `planning.md` step 5.
+
 ### Unexpected Failures
 
 If you hit a failure **not related to your task**: STOP. Check `git log -5 -- <broken-file>`. If your session didn't change it, report to user. If it did, revert and report.
@@ -223,6 +231,15 @@ After user confirms fix, delete the issue: `docker exec api python /app/backend/
 🧪 Testing: <what was tested, how, results>
 ⚠️ Risks: <what could break — or "Low risk">
 💸 Cost Impact: <N/A or API pricing details>
+
+🔍 Session Processing Issues: *(omit if none)*
+List every obstacle encountered during this session that could be investigated and prevented in the future:
+- Inaccessible logs (e.g. "Could not read Docker logs for service X — container not running")
+- Unreadable/unwritable files (e.g. "Read failed on path/to/file — permission error or missing file")
+- Missing or incomplete documentation (e.g. "No docs found for X integration — had to infer behavior")
+- Unavailable user/system data (e.g. "Could not query DB — credentials not set in environment")
+- Tooling failures (e.g. "lint script exited with unexpected error unrelated to task")
+- Any other friction that slowed down or blocked task completion
 ```
 
 ---

@@ -6,13 +6,14 @@ Complements `planning.md` with the end-to-end lifecycle. Read `planning.md` firs
 
 ## Lifecycle
 
-1. **Clarify** — Resolve ambiguities before coding. Ask the user about scope, expected behavior, error cases, and external dependencies. Search the codebase for similar implementations (DRY). Check `docs/architecture/` for prior decisions.
-2. **Plan** — Follow the template in `planning.md`. Additionally: check `sessions.py status` for file conflicts, note which existing tests need updating.
-3. **Test strategy** — Decide what to test and when (see below).
-4. **Implement** — Backend first, then frontend, then integration. Track every file. Run tests and lint incrementally, not in bulk at the end.
-5. **Verify** — All tests pass, `pnpm build` succeeds (for frontend), dev server behaves correctly.
-6. **Deploy** — `deploy-docs` → `prepare-deploy` → `deploy`. Rebuild Docker if backend changed. Check Vercel if frontend changed.
-7. **Confirm** — Task Summary to user → wait for confirmation → delete related issue if any → `end` session.
+1. **Understand** — State your interpretation of the task and wait for confirmation. See step 0 in `planning.md`. Do not search the codebase or write a plan until the user confirms your understanding is correct.
+2. **Clarify** — Resolve remaining ambiguities. Ask about scope, expected behavior, error cases, and external dependencies. Search the codebase for similar implementations (DRY). Check `docs/architecture/` for prior decisions.
+3. **Plan** — Follow the template in `planning.md`. Additionally: check `sessions.py status` for file conflicts, note which existing tests need updating. The plan must include Acceptance Criteria (checklist format) — including a Firecrawl verification step for any reproducible bug.
+4. **Test strategy** — Decide what to test and when (see below).
+5. **Implement** — Backend first, then frontend, then integration. Track every file. Run tests and lint incrementally, not in bulk at the end.
+6. **Verify** — Work through the Acceptance Criteria checklist. Tick each item explicitly. All tests pass, `pnpm build` succeeds (for frontend), dev server behaves correctly.
+7. **Deploy** — `deploy-docs` → `prepare-deploy` → `deploy`. Rebuild Docker if backend changed. Check Vercel if frontend changed.
+8. **Confirm** — Task Summary to user → wait for confirmation → delete related issue if any → `end` session.
 
 ---
 
