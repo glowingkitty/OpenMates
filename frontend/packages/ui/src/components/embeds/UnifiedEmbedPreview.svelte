@@ -64,7 +64,7 @@
     /** Click handler for stop button */
     onStop?: () => void;
     /** Snippet for details content (skill-specific) - REQUIRED but made optional for defensive programming */
-    details?: import('svelte').Snippet<[{ isMobile: boolean }]>;
+    details?: import('svelte').Snippet<[{ isMobile: boolean; isLarge?: boolean }]>;
     /** Whether to show status line in basic infos bar (default: true) */
     showStatus?: boolean;
     /** Custom favicon URL for basic infos bar (shows instead of app icon) */
@@ -230,6 +230,9 @@
     // Do an initial fetch to ensure we have the latest data
     // (in case the embed was updated between render and mount)
     refetchFromStore();
+
+    // Enable scroll-driven pseudo tilt on coarse-pointer devices.
+    viewportListenerCleanup = setupScrollTiltListeners();
   });
   
   onDestroy(() => {
@@ -237,6 +240,11 @@
     if (embedUpdateListener) {
       chatSyncService.removeEventListener('embedUpdated', embedUpdateListener);
       embedUpdateListener = null;
+    }
+
+    if (viewportListenerCleanup) {
+      viewportListenerCleanup();
+      viewportListenerCleanup = null;
     }
     
     // Clean up context menu reset timer
@@ -319,6 +327,8 @@
   let isHovering = $state(false);
   let mouseX = $state(0); // Normalized -1 to 1 (center = 0)
   let mouseY = $state(0); // Normalized -1 to 1 (center = 0)
+  let scrollTiltY = $state(0); // Normalized -1 to 1 from viewport center offset
+  let isTouchTiltEnabled = $state(false);
   
   // Configuration for the tilt effect
   // NOTE: Keep values subtle for a polished feel without being distracting.
@@ -345,25 +355,116 @@
   let TILT_MAX_ANGLE = $derived(isLargeContext ? TILT_MAX_ANGLE_LARGE : TILT_MAX_ANGLE_STANDARD);
   let TILT_PERSPECTIVE = $derived(isLargeContext ? TILT_PERSPECTIVE_LARGE : TILT_PERSPECTIVE_STANDARD);
   let TILT_SCALE = $derived(isLargeContext ? TILT_SCALE_LARGE : TILT_SCALE_STANDARD);
+  let isScrollTilting = $derived(
+    status === 'finished' &&
+    !isHovering &&
+    isTouchTiltEnabled &&
+    Math.abs(scrollTiltY) > 0.01
+  );
   
   /**
    * Calculate CSS transform string for the 3D tilt effect
-   * Only applies when hovering over a finished embed
+   * - Fine pointer: hover tilt from mouse position (X + Y)
+   * - Coarse pointer: pseudo tilt from scroll position (Y only)
    */
   let tiltTransform = $derived.by(() => {
-    // Only apply tilt to finished embeds that are being hovered
-    if (!isHovering || status !== 'finished') {
+    // Only apply tilt to finished embeds
+    if (status !== 'finished') {
       return '';
     }
-    
-    // Calculate rotation angles based on mouse position
-    // mouseX/Y are normalized to -1 to 1, where center is 0
-    // Positive mouseX (right side) -> rotate Y positive (tilt right edge away)
-    // Positive mouseY (bottom) -> rotate X negative (tilt bottom edge away)
-    const rotateY = mouseX * TILT_MAX_ANGLE;
-    const rotateX = -mouseY * TILT_MAX_ANGLE;
-    
-    return `perspective(${TILT_PERSPECTIVE}px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${TILT_SCALE})`;
+
+    if (isHovering) {
+      const rotateY = mouseX * TILT_MAX_ANGLE;
+      const rotateX = -mouseY * TILT_MAX_ANGLE;
+      return `perspective(${TILT_PERSPECTIVE}px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${TILT_SCALE})`;
+    }
+
+    if (isTouchTiltEnabled) {
+      const rotateX = -scrollTiltY * TILT_MAX_ANGLE;
+      return `perspective(${TILT_PERSPECTIVE}px) rotateX(${rotateX}deg) rotateY(0deg) scale(${TILT_SCALE})`;
+    }
+
+    return '';
+  });
+
+  let viewportListenerCleanup: (() => void) | null = null;
+  let scrollTiltAnimationFrame: number | null = null;
+
+  function updateScrollTiltFromViewport() {
+    if (!previewElement || typeof window === 'undefined' || !isTouchTiltEnabled || status !== 'finished') {
+      scrollTiltY = 0;
+      return;
+    }
+
+    const rect = previewElement.getBoundingClientRect();
+    const viewportHalfHeight = Math.max(window.innerHeight / 2, 1);
+    const elementCenterY = rect.top + rect.height / 2;
+    const viewportCenterY = viewportHalfHeight;
+    const normalizedY = (elementCenterY - viewportCenterY) / viewportHalfHeight;
+    scrollTiltY = Math.max(-1, Math.min(1, normalizedY));
+  }
+
+  function scheduleScrollTiltUpdate() {
+    if (typeof window === 'undefined' || scrollTiltAnimationFrame !== null) {
+      return;
+    }
+
+    scrollTiltAnimationFrame = window.requestAnimationFrame(() => {
+      scrollTiltAnimationFrame = null;
+      updateScrollTiltFromViewport();
+    });
+  }
+
+  function setupScrollTiltListeners() {
+    if (typeof window === 'undefined') {
+      return () => {};
+    }
+
+    const coarsePointerQuery = window.matchMedia('(pointer: coarse)');
+    const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    const updateTiltAvailability = () => {
+      isTouchTiltEnabled = coarsePointerQuery.matches && !reducedMotionQuery.matches;
+      if (isTouchTiltEnabled) {
+        scheduleScrollTiltUpdate();
+      } else {
+        scrollTiltY = 0;
+      }
+    };
+
+    const handleViewportChange = () => {
+      if (!isTouchTiltEnabled || status !== 'finished') {
+        return;
+      }
+      scheduleScrollTiltUpdate();
+    };
+
+    window.addEventListener('scroll', handleViewportChange, { passive: true });
+    window.addEventListener('resize', handleViewportChange, { passive: true });
+    coarsePointerQuery.addEventListener('change', updateTiltAvailability);
+    reducedMotionQuery.addEventListener('change', updateTiltAvailability);
+    updateTiltAvailability();
+
+    return () => {
+      window.removeEventListener('scroll', handleViewportChange);
+      window.removeEventListener('resize', handleViewportChange);
+      coarsePointerQuery.removeEventListener('change', updateTiltAvailability);
+      reducedMotionQuery.removeEventListener('change', updateTiltAvailability);
+
+      if (scrollTiltAnimationFrame !== null) {
+        window.cancelAnimationFrame(scrollTiltAnimationFrame);
+        scrollTiltAnimationFrame = null;
+      }
+
+      scrollTiltY = 0;
+      isTouchTiltEnabled = false;
+    };
+  }
+
+  $effect(() => {
+    if (status === 'finished' && isTouchTiltEnabled) {
+      scheduleScrollTiltUpdate();
+    }
   });
   
   /**
@@ -654,6 +755,7 @@
   class:finished={status === 'finished'}
   class:clickable={status === 'finished' || status === 'error'}
   class:hovering={isHovering && status === 'finished'}
+  class:scroll-tilting={isScrollTilting}
   class:error={status === 'error'}
   data-embed-id={id}
   data-app-id={appId}
@@ -687,7 +789,7 @@
       <!-- Details content (skill-specific) - with defensive guard -->
       <div class="details-section">
         {#if details}
-          {@render details({ isMobile: true })}
+          {@render details({ isMobile: true, isLarge: false })}
         {:else}
           <!-- Fallback when details snippet is missing -->
           <div class="missing-details-fallback">
@@ -721,7 +823,7 @@
       <!-- Details content (skill-specific) at top - with defensive guard -->
       <div class="details-section" class:full-width-image={hasFullWidthImage}>
         {#if details}
-          {@render details({ isMobile: false })}
+          {@render details({ isMobile: false, isLarge: isLargeContext })}
         {:else}
           <!-- Fallback when details snippet is missing -->
           <div class="missing-details-fallback">
@@ -820,7 +922,8 @@
   }
   
   /* Hovering state (controlled by JS for tilt effect) */
-  .unified-embed-preview.finished.hovering {
+  .unified-embed-preview.finished.hovering,
+  .unified-embed-preview.finished.scroll-tilting {
     /* Pressed down → closer to surface → tighter, smaller shadow */
     box-shadow: 
       0 4px 12px rgba(0, 0, 0, 0.12),
@@ -935,7 +1038,7 @@
      ===========================================
      When this card is inside a container named "embed-preview" (set by
      EmbedPreviewLarge.svelte) wider than 300px, the card expands to
-     full-width × 350px with the BasicInfosBar constrained to 300px and
+     full-width × 400px with the BasicInfosBar constrained to 300px and
      protruding 15px below the card. This replaces the old separate
      UnifiedEmbedPreviewLarge component.
      =========================================== */
@@ -945,9 +1048,9 @@
       width: 100% !important;
       min-width: unset !important;
       max-width: unset !important;
-      height: 350px !important;
-      min-height: 350px !important;
-      max-height: 350px !important;
+      height: 400px !important;
+      min-height: 400px !important;
+      max-height: 400px !important;
       overflow: visible !important;
     }
 
@@ -968,7 +1071,7 @@
 
     /* ── Website-specific expanded overrides ────────────────────────────────
        Description text: 30% width, 16 lines visible in the taller card.
-       Preview image: fills remaining space at 350px height.
+       Preview image: fills remaining space at 400px height.
        These MUST live here (not in WebsiteEmbedPreview) because on share
        pages the appId may not resolve, so the fallback path renders directly
        and still needs correct expanded styling. */
@@ -992,7 +1095,7 @@
     .desktop-layout :global(.website-preview-image:not(.full-width)) {
       flex: 1 1 0 !important;
       min-width: 0 !important;
-      height: 350px !important;
+      height: 400px !important;
       max-height: none !important;
       transform: none !important;
       overflow: hidden !important;
