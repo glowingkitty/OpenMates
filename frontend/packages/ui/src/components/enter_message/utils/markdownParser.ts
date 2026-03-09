@@ -180,6 +180,27 @@ function extractMathFormulas(markdownText: string): {
 
 // Helper function to pre-process markdown to ensure double newlines create empty paragraphs
 function preprocessMarkdown(markdownText: string): string {
+  // De-indent ```json embed fences that appear indented inside list items.
+  //
+  // When an LLM places a ```json embed reference indented (e.g. 4 spaces) within a
+  // numbered/bulleted list, markdown-it misinterprets it:
+  //   1. The indented ```json line is treated as closing the list item and opening an
+  //      empty code block inside it.
+  //   2. The JSON content line becomes a bare top-level paragraph (not inside the list).
+  //   3. The closing ``` is treated as opening a new indented code block, swallowing all
+  //      subsequent content (the remaining list items, paragraphs, etc.) as code text.
+  //
+  // Fix: strip leading whitespace from ```json fences whose single content line contains
+  // "embed_id" (server embed references) so markdown-it sees them at column 0 and treats
+  // them as standalone fenced code blocks that break cleanly after the list item.
+  //
+  // Only targets embed fences (must contain "embed_id") — regular JSON code blocks are
+  // left untouched.
+  markdownText = markdownText.replace(
+    /^[ \t]+(```json)\n([ \t]*\{[^\n]*"embed_id"[^\n]*\})\n[ \t]*(```)/gm,
+    "$1\n$2\n$3",
+  );
+
   // First extract math formulas
   const { processed: textWithMathExtracted, formulas } =
     extractMathFormulas(markdownText);
