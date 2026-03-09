@@ -3,6 +3,7 @@
     import { text } from '@repo/ui';
     import { authStore } from '../../stores/authStore';
     import { apiEndpoints, getApiEndpoint } from '../../config/api';
+    import { chatDebugStore } from '../../stores/chatDebugStore'; // Chat debug mode toggle
     import type { MessageRole } from '../../types/chat';
 
     // Props using Svelte 5 $props()
@@ -293,6 +294,17 @@
                 {/if}
             </button>
         {/if}
+
+        <!-- Debug mode toggle: switches all messages to raw text view -->
+        <div class="menu-separator"></div>
+        <button
+            class="menu-item debug"
+            class:debug-active={$chatDebugStore.rawTextMode}
+            onclick={(event) => { event.stopPropagation(); event.preventDefault(); chatDebugStore.toggle(); onClose?.(); }}
+        >
+            <div class="clickable-icon icon_bug"></div>
+            {$chatDebugStore.rawTextMode ? $text('chats.context_menu.end_debugging') : $text('chats.context_menu.start_debugging')}
+        </button>
     </div>
 {/if}
 
@@ -444,6 +456,23 @@
         opacity: 0.35;
         cursor: not-allowed;
         pointer-events: none;
+    }
+
+    /* Debug mode button */
+    .menu-item.debug {
+        color: var(--color-font-secondary);
+    }
+
+    .menu-item.debug .clickable-icon {
+        background: var(--color-font-secondary);
+    }
+
+    .menu-item.debug.debug-active {
+        color: var(--color-warning, #e67e22);
+    }
+
+    .menu-item.debug.debug-active .clickable-icon {
+        background: var(--color-warning, #e67e22);
     }
 
     .clickable-icon {

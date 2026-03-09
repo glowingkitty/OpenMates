@@ -7,6 +7,7 @@
     import { chatMetadataCache } from '../../services/chatMetadataCache'; // Import chat metadata cache for decrypted summary
     import { chatDB } from '../../services/db'; // Import chatDB for fresh chat reads
     import { apiEndpoints, getApiEndpoint } from '../../config/api'; // Import API endpoints for usage lookup
+    import { chatDebugStore } from '../../stores/chatDebugStore'; // Chat debug mode toggle
 
     // Props using Svelte 5 $props()
     interface Props {
@@ -582,6 +583,17 @@
                     {deleteConfirmMode ? $text('chats.context_menu.confirm') : $text('chats.context_menu.delete')}
                 </button>
             {/if}
+
+            <!-- Debug mode toggle: switches all messages to raw text view -->
+            <div class="menu-separator"></div>
+            <button
+                class="menu-item debug"
+                class:debug-active={$chatDebugStore.rawTextMode}
+                onclick={(event) => { event.stopPropagation(); event.preventDefault(); chatDebugStore.toggle(); dispatch('close', 'close'); }}
+            >
+                <div class="clickable-icon icon_bug"></div>
+                {$chatDebugStore.rawTextMode ? $text('chats.context_menu.end_debugging') : $text('chats.context_menu.start_debugging')}
+            </button>
         {/if}
     </div>
 {/if}
@@ -814,6 +826,23 @@
 
     .menu-item.downloading:active {
         transform: none;
+    }
+
+    /* Debug mode button */
+    .menu-item.debug {
+        color: var(--color-font-secondary);
+    }
+
+    .menu-item.debug .clickable-icon {
+        background: var(--color-font-secondary);
+    }
+
+    .menu-item.debug.debug-active {
+        color: var(--color-warning, #e67e22);
+    }
+
+    .menu-item.debug.debug-active .clickable-icon {
+        background: var(--color-warning, #e67e22);
     }
 
     /* Shimmer gradient animation for loading state (text and icon) */

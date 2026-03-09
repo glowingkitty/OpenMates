@@ -25,6 +25,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   import { writeEmbedToClipboard, writeMessageWithEmbedsToClipboard } from '../message_parsing/serializers';
   import type { TipTapNode } from '../message_parsing/types';
   import { copyToClipboard } from '../utils/clipboardUtils';
+  import { chatDebugStore } from '../stores/chatDebugStore';
   
   // Define types for message content parts
   type AppCardData = {
@@ -200,6 +201,14 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   // Get the original markdown content (for DemoMessageContent which needs the raw markdown)
   let originalMarkdownContent = $derived(
     typeof original_message?.content === 'string' ? original_message.content : ''
+  );
+
+  // Raw content displayed in debug mode — shows the original stored text (JSON/markdown)
+  // without any rendering, so embed placeholders and raw structure are visible.
+  let debugRawContent = $derived(
+    typeof original_message?.content === 'string'
+      ? original_message.content
+      : (content !== null && content !== undefined ? JSON.stringify(content, null, 2) : '')
   );
   
   // Get the chat ID from the original message (needed for ExampleChatsGroup exclusion)
@@ -2115,7 +2124,10 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           />
         {/if}
         
-        {#if showFullMessage && fullContent}
+        {#if $chatDebugStore.rawTextMode}
+          <!-- Debug mode: render raw stored content without any processing -->
+          <pre class="debug-raw-content">{debugRawContent}</pre>
+        {:else if showFullMessage && fullContent}
           <ReadOnlyMessage 
               bind:this={readOnlyMessageComponent}
               content={fullContent}
@@ -2580,6 +2592,22 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
   .chat-message-text {
     position: relative; /* Add this to properly position the menu */
+  }
+
+  /* Debug mode: raw text view of stored message content */
+  .debug-raw-content {
+    font-family: monospace;
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+    background-color: var(--color-grey-10);
+    color: var(--color-font-primary);
+    border: 1px solid var(--color-grey-30);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 0;
+    line-height: 1.5;
+    overflow-x: auto;
   }
 
   .pending {
