@@ -38,7 +38,6 @@ import { text } from "../i18n/translations"; // Import text store for translatio
 import { chatListCache } from "../services/chatListCache"; // Import chatListCache to clear stale chat data on session expiry
 import { chatMetadataCache } from "../services/chatMetadataCache"; // Import chatMetadataCache to clear stale decrypted title/metadata cache on logout
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage"; // Import to clear shared chat keys on session expiry
-import { openobserveRumService } from "../services/openobserveRum"; // RUM SDK — tracks all users, sets identity on login
 import { clientLogForwarder } from "../services/clientLogForwarder"; // Admin live log streaming to OpenObserve
 import { appSettingsMemoriesStore } from "./appSettingsMemoriesStore"; // Import to pre-load entries for @ mention dropdown
 import { applyServerDarkMode } from "./theme"; // Apply server dark mode preference on session restore
@@ -608,8 +607,6 @@ export async function checkAuth(
         console.error("Failed to save user data to database:", dbError);
       }
 
-      // Set RUM user identity on session restore so all user activity is attributed.
-      openobserveRumService.setUser({ id: data.user.id ?? localProfile.user_id ?? "" });
       // Start live console log streaming for admin users on session restore.
       if (data.user.is_admin) {
         clientLogForwarder.start();
@@ -669,9 +666,8 @@ export async function checkAuth(
         data.message,
       );
 
-      // Stop admin log streaming and clear RUM identity on session expiry
+      // Stop admin log streaming on session expiry
       void clientLogForwarder.stop();
-      openobserveRumService.clearUser();
 
       // Check if master key was present before clearing (to determine if user was previously authenticated)
       const hadMasterKey = !!(await cryptoService.getKeyFromStorage());
@@ -1056,9 +1052,6 @@ export async function checkAuth(
             locale.set(localProfile.language);
           }
         }
-
-        // Set RUM user identity in offline-first mode so activity is attributed.
-        openobserveRumService.setUser({ id: localProfile.user_id ?? "" });
 
         return true; // Return true to indicate optimistic authentication
       } else {

@@ -8,7 +8,6 @@ import { logCollector } from "./services/logCollector";
 import { userActionTracker } from "./services/userActionTracker";
 import { initDebugUtils } from "./services/debugUtils";
 import { initPermissionDialogListener } from "./stores/appSettingsMemoriesPermissionStore";
-import { openobserveRumService } from "./services/openobserveRum";
 
 /**
  * Initialize all application services
@@ -32,7 +31,6 @@ export async function initializeApp(
     initDebugUtils();
 
     // Initialize OpenObserve RUM SDK — non-blocking, no-op if endpoint not configured
-    void openobserveRumService.init();
 
     // Initialize databases
     await chatDB.init();

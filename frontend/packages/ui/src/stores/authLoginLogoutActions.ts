@@ -30,7 +30,6 @@ import { chatMetadataCache } from "../services/chatMetadataCache";
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage";
 import { clearAllSessionStorageDrafts } from "../services/drafts/sessionStorageDraftService";
 import { resetChatNavigationList } from "./chatNavigationStore";
-import { openobserveRumService } from "../services/openobserveRum";
 import { clientLogForwarder } from "../services/clientLogForwarder";
 import { applyServerDarkMode } from "./theme";
 
@@ -327,8 +326,6 @@ export async function login(
             // for reminders and time-sensitive features
             void syncBrowserTimezone(data.user.timezone);
 
-            // Set RUM user identity so all activity is attributed for observability.
-            openobserveRumService.setUser({ id: data.user.id ?? user.id });
             // Start live console log streaming for admin users.
             if (data.user.is_admin) {
               clientLogForwarder.start();
@@ -400,9 +397,8 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
 
   try {
     // --- Pre-request cleanup (non-cookie items) ---
-    // Stop admin log streaming and clear RUM user identity before clearing auth state
+    // Stop admin log streaming before clearing auth state
     void clientLogForwarder.stop();
-    openobserveRumService.clearUser();
 
     // Clear sensitive crypto data BEFORE server request but AFTER any lookups
     console.debug("[AuthStore] Clearing sensitive data...");
