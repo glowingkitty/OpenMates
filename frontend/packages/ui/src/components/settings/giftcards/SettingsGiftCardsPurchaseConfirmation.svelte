@@ -18,7 +18,7 @@ Shows the gift card code and allows downloading it as a text file
 
     // Listen for gift card created event (in case we navigated here before receiving it)
     function handleGiftCardCreated(payload: { order_id: string, gift_card_code: string, credits_value: number }) {
-        console.log('[SettingsGiftCardsPurchaseConfirmation] Received gift_card_created notification:', payload);
+        
         giftCardCode = payload.gift_card_code;
         creditsValue = payload.credits_value;
         isDelayedPayment = false; // Clear delayed payment flag when gift card is received
@@ -82,7 +82,7 @@ This gift card can only be used once.
     // Navigate back to gift cards main
     function goBackToGiftCards() {
         dispatch('openSettings', {
-            settingsPath: 'gift_cards',
+            settingsPath: 'billing/gift-cards',
             direction: 'backward',
             icon: 'coins',
             title: $text('settings.gift_cards')

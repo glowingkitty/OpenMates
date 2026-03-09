@@ -17,7 +17,7 @@ Reuses the existing GiftCardRedeem component
     function handleGiftCardRedeemed() {
         // Navigate to redeemed list
         dispatch('openSettings', {
-            settingsPath: 'gift_cards/redeemed',
+            settingsPath: 'billing/gift-cards/redeemed',
             direction: 'forward',
             icon: 'coins',
             title: $text('settings.gift_cards.redeemed')
@@ -29,7 +29,7 @@ Reuses the existing GiftCardRedeem component
      */
     function handleCancel() {
         dispatch('openSettings', {
-            settingsPath: 'gift_cards',
+            settingsPath: 'billing/gift-cards',
             direction: 'backward',
             icon: 'coins',
             title: $text('settings.gift_cards')
