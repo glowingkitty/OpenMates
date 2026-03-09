@@ -214,6 +214,7 @@ backend/preview/Caddyfile
 # Claude Code — ignore runtime state, allow config/hooks/skills
 .claude/sessions.json
 .claude/sessions.json.tmp
+.claude/sessions.lock
 .claude/sessions.md
 .claude/project-index.json
 .claude/settings.local.json
