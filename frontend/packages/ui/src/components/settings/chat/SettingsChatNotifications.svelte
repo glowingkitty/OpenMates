@@ -250,6 +250,47 @@ When enabled, notifications are sent to the user's login email (from account set
             console.error('[SettingsChatNotifications] Failed to sync email preferences:', error);
         }
     }
+
+    /**
+     * Register WebSocket handlers for email notification settings acknowledgement
+     * and cross-device broadcast.
+     *
+     * email_notification_settings_ack  — server confirmed save on this device
+     * email_notification_settings_updated — server broadcast to other devices
+     */
+    $effect(() => {
+        function handleEmailSettingsAck(payload: { success: boolean; enabled: boolean; preferences: { aiResponses: boolean } }): void {
+            if (!payload.success) {
+                console.error('[SettingsChatNotifications] Server rejected email notification settings save');
+                return;
+            }
+            // Server confirmed: persist to IndexedDB via updateProfile (safe plain object)
+            updateProfile({
+                email_notifications_enabled: payload.enabled,
+                email_notification_preferences: { aiResponses: payload.preferences?.aiResponses ?? true }
+            });
+            console.debug('[SettingsChatNotifications] email_notification_settings_ack received, persisted to IDB');
+        }
+
+        function handleEmailSettingsUpdated(payload: { enabled: boolean; preferences: { aiResponses: boolean } }): void {
+            // Another device of the same user changed the setting — sync local UI and IDB
+            emailNotificationsEnabled = payload.enabled;
+            emailPreferences = { aiResponses: payload.preferences?.aiResponses ?? true };
+            updateProfile({
+                email_notifications_enabled: payload.enabled,
+                email_notification_preferences: { aiResponses: payload.preferences?.aiResponses ?? true }
+            });
+            console.debug('[SettingsChatNotifications] email_notification_settings_updated received from other device, synced');
+        }
+
+        webSocketService.on('email_notification_settings_ack', handleEmailSettingsAck);
+        webSocketService.on('email_notification_settings_updated', handleEmailSettingsUpdated);
+
+        return () => {
+            webSocketService.off('email_notification_settings_ack', handleEmailSettingsAck);
+            webSocketService.off('email_notification_settings_updated', handleEmailSettingsUpdated);
+        };
+    });
 </script>
 
 <div class="notifications-settings-container">

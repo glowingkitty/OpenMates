@@ -323,6 +323,14 @@ class UserDatabaseService {
             "[UserDatabase] ERROR: auto_topup_low_balance_currency missing from backend response!",
           );
         }
+        // Save email notification fields
+        if ("email_notifications_enabled" in userData) {
+          store.put(!!userData.email_notifications_enabled, "email_notifications_enabled");
+        }
+        if ("email_notification_preferences" in userData) {
+          // Serialize to plain JSON string — Svelte proxy objects cannot be cloned by IDB.
+          store.put(JSON.stringify(userData.email_notification_preferences ?? {}), "email_notification_preferences");
+        }
       };
 
       lastOpenedRequest.onerror = () => {
@@ -418,6 +426,14 @@ class UserDatabaseService {
           console.error(
             "[UserDatabase] ERROR: auto_topup_low_balance_currency missing from backend response (error path)!",
           );
+        }
+        // Save email notification fields
+        if ("email_notifications_enabled" in userData) {
+          store.put(!!userData.email_notifications_enabled, "email_notifications_enabled");
+        }
+        if ("email_notification_preferences" in userData) {
+          // Serialize to plain JSON string — Svelte proxy objects cannot be cloned by IDB.
+          store.put(JSON.stringify(userData.email_notification_preferences ?? {}), "email_notification_preferences");
         }
       };
 
@@ -516,6 +532,9 @@ class UserDatabaseService {
       const autoTopupLowBalanceCurrencyRequest = store.get(
         "auto_topup_low_balance_currency",
       );
+      // Email notification fields
+      const emailNotificationsEnabledRequest = store.get("email_notifications_enabled");
+      const emailNotificationPreferencesRequest = store.get("email_notification_preferences");
 
       idRequest.onsuccess = () => {
         profile.user_id = idRequest.result || null;
@@ -647,6 +666,27 @@ class UserDatabaseService {
       autoTopupLowBalanceCurrencyRequest.onsuccess = () => {
         profile.auto_topup_low_balance_currency =
           autoTopupLowBalanceCurrencyRequest.result || undefined;
+      };
+
+      // Handle email notification fields retrieval
+      emailNotificationsEnabledRequest.onsuccess = () => {
+        profile.email_notifications_enabled =
+          emailNotificationsEnabledRequest.result !== undefined
+            ? !!emailNotificationsEnabledRequest.result
+            : undefined;
+      };
+      emailNotificationPreferencesRequest.onsuccess = () => {
+        if (emailNotificationPreferencesRequest.result) {
+          try {
+            profile.email_notification_preferences =
+              typeof emailNotificationPreferencesRequest.result === "string"
+                ? JSON.parse(emailNotificationPreferencesRequest.result)
+                : emailNotificationPreferencesRequest.result;
+          } catch (e) {
+            console.warn("[UserDatabase] Failed to parse email_notification_preferences:", e);
+            profile.email_notification_preferences = undefined;
+          }
+        }
       };
 
       transaction.oncomplete = () => {
@@ -969,8 +1009,10 @@ class UserDatabaseService {
         );
       }
       if (partialData.email_notification_preferences !== undefined) {
+        // Serialize to plain JSON string — Svelte $state() proxy objects cannot be
+        // cloned by the IndexedDB structured clone algorithm (throws DataCloneError).
         store.put(
-          partialData.email_notification_preferences,
+          JSON.stringify(partialData.email_notification_preferences),
           "email_notification_preferences",
         );
       }
