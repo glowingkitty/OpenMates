@@ -18,6 +18,8 @@
   let filter = $state<LogFilter>('all');
   let logs = $state<ConsoleLogEntry[]>([]);
   let isAdminUser = $derived($userProfile.is_admin === true);
+  let debugOutput = $state<string>('');
+  let debugLoading = $state(false);
 
   const MAX_LOGS = 400;
 
@@ -37,11 +39,39 @@
     logs = logCollector.getLogs(MAX_LOGS);
   }
 
+  async function loadWindowDebugOutput(): Promise<void> {
+    if (!isAdminUser || typeof window === 'undefined') return;
+    const debugFn = (window as unknown as { debug?: (() => unknown) }).debug;
+    if (!debugFn) {
+      debugOutput = 'window.debug() is not available in this runtime.';
+      return;
+    }
+
+    debugLoading = true;
+    try {
+      const result = await Promise.resolve(debugFn());
+      if (typeof result === 'string') {
+        debugOutput = result;
+      } else if (result === undefined) {
+        debugOutput = 'window.debug() executed. Check logs below.';
+      } else {
+        debugOutput = JSON.stringify(result, null, 2);
+      }
+    } catch (error) {
+      debugOutput = error instanceof Error
+        ? `window.debug() failed: ${error.message}`
+        : `window.debug() failed: ${String(error)}`;
+    } finally {
+      debugLoading = false;
+    }
+  }
+
   let detachListener: (() => void) | null = null;
 
   onMount(() => {
     if (!isAdminUser) return;
 
+    void loadWindowDebugOutput();
     loadLogsSnapshot();
 
     const listener = (entry: ConsoleLogEntry) => {
@@ -62,6 +92,16 @@
 {#if !isAdminUser}
   <div class="logs-unavailable">Logs are available for admin users only.</div>
 {:else}
+  <div class="logs-debug-box selectable">
+    <div class="logs-debug-header-row">
+      <span class="logs-debug-title">window.debug()</span>
+      <button class="logs-debug-refresh" onclick={loadWindowDebugOutput} disabled={debugLoading}>
+        {debugLoading ? 'Loading...' : 'Refresh'}
+      </button>
+    </div>
+    <pre class="logs-debug-pre selectable">{debugOutput || 'No debug output yet.'}</pre>
+  </div>
+
   <div class="logs-toolbar">
     <button class="logs-filter" class:active={filter === 'all'} onclick={() => (filter = 'all')}>All</button>
     <button class="logs-filter" class:active={filter === 'warn'} onclick={() => (filter = 'warn')}>Warnings</button>
@@ -90,6 +130,51 @@
     gap: 0.5rem;
     margin-bottom: 0.75rem;
     flex-wrap: wrap;
+  }
+
+  .logs-debug-box {
+    margin: 0 0 0.75rem;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-grey-30);
+    background: var(--color-grey-10);
+  }
+
+  .logs-debug-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+
+  .logs-debug-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--color-font-secondary);
+  }
+
+  .logs-debug-refresh {
+    all: unset;
+    cursor: pointer;
+    font-size: 0.78rem;
+    color: var(--color-primary);
+  }
+
+  .logs-debug-refresh:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  .logs-debug-pre {
+    margin: 0;
+    max-height: 12rem;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: monospace;
+    font-size: 0.76rem;
+    line-height: 1.4;
+    color: var(--color-font-primary);
   }
 
   .logs-filter,

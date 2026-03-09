@@ -173,41 +173,6 @@
     // Get credits from userProfile store using Svelte 5 runes
     let credits = $derived($userProfile.credits || 0);
     let isAdminUser = $derived($userProfile.is_admin === true);
-    let settingsDebugOutput = $state<string>('');
-    let settingsDebugLoading = $state(false);
-
-    async function loadSettingsDebugOutput() {
-        if (!isAdminUser || typeof window === 'undefined') return;
-        const debugFn = (window as unknown as { debug?: (() => unknown) }).debug;
-        if (!debugFn) {
-            settingsDebugOutput = 'window.debug() is not available in this runtime.';
-            return;
-        }
-
-        settingsDebugLoading = true;
-        try {
-            const result = await Promise.resolve(debugFn());
-            if (typeof result === 'string') {
-                settingsDebugOutput = result;
-            } else if (result === undefined) {
-                settingsDebugOutput = 'window.debug() executed. Check console output and logs below.';
-            } else {
-                settingsDebugOutput = JSON.stringify(result, null, 2);
-            }
-        } catch (error) {
-            settingsDebugOutput = error instanceof Error
-                ? `window.debug() failed: ${error.message}`
-                : `window.debug() failed: ${String(error)}`;
-        } finally {
-            settingsDebugLoading = false;
-        }
-    }
-
-    $effect(() => {
-        if (activeSettingsView === 'main' && isAdminUser) {
-            void loadSettingsDebugOutput();
-        }
-    });
     
     /**
      * Track measured content height for submenu views.
@@ -305,18 +270,6 @@
             <!-- Profile header: docked avatar + username + credits.
                  Hidden when showProfileHeader=false (e.g. SettingsMainHeader gradient banner
                  is already rendered above by Settings.svelte, so we skip it here). -->
-            {#if isAdminUser}
-                <div class="settings-debug-box selectable">
-                    <div class="settings-debug-header-row">
-                        <span class="settings-debug-title">window.debug()</span>
-                        <button class="settings-debug-refresh" onclick={loadSettingsDebugOutput} disabled={settingsDebugLoading}>
-                            {settingsDebugLoading ? 'Loading...' : 'Refresh'}
-                        </button>
-                    </div>
-                    <pre class="settings-debug-pre selectable">{settingsDebugOutput || 'No debug output yet.'}</pre>
-                </div>
-            {/if}
-
             {#if showProfileHeader}
                 <!-- Profile container that scrolls with content (appears after 400ms delay) -->
                 {#if showDockedProfile}
@@ -599,52 +552,4 @@
         pointer-events: auto;
     }
 
-    .settings-debug-box {
-        margin: 0 0 0.75rem;
-        padding: 0.75rem;
-        border-radius: 0.75rem;
-        border: 1px solid var(--color-grey-30);
-        background: var(--color-grey-10);
-    }
-
-    .settings-debug-header-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.5rem;
-    }
-
-    .settings-debug-title {
-        font-size: 0.82rem;
-        font-weight: 600;
-        color: var(--color-font-secondary);
-    }
-
-    .settings-debug-refresh {
-        all: unset;
-        cursor: pointer;
-        font-size: 0.78rem;
-        color: var(--color-primary);
-    }
-
-    .settings-debug-refresh:disabled {
-        opacity: 0.6;
-        cursor: default;
-    }
-
-    .settings-debug-pre {
-        margin: 0;
-        max-height: 12rem;
-        overflow: auto;
-        white-space: pre-wrap;
-        word-break: break-word;
-        font-family: monospace;
-        font-size: 0.76rem;
-        line-height: 1.4;
-        color: var(--color-font-primary);
-        user-select: text;
-        -webkit-user-select: text;
-        -moz-user-select: text;
-        -ms-user-select: text;
-    }
 </style>
