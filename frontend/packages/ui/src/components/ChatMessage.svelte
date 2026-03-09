@@ -921,7 +921,10 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             ? original_message.content
             : '';
           if (rawMarkdown) {
-            const tiptapDoc = parse_message(rawMarkdown, 'read', { unifiedParsingEnabled: true });
+            const tiptapDoc = parse_message(rawMarkdown, 'read', {
+              unifiedParsingEnabled: true,
+              role,
+            });
             // Walk the TipTap document to collect embed nodes
             const collectEmbeds = (nodes: TipTapNode[]): void => {
               for (const node of nodes ?? []) {
@@ -1994,7 +1997,10 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
         const { parse_message } = await import('../message_parsing/parse_message');
         const { preprocessTiptapJsonForEmbeds } = await import('./enter_message/utils/tiptapContentProcessor');
 
-        const tiptapJson = parse_message(fullMessage.content, 'read', { unifiedParsingEnabled: true });
+        const tiptapJson = parse_message(fullMessage.content, 'read', {
+          unifiedParsingEnabled: true,
+          role,
+        });
         fullContent = preprocessTiptapJsonForEmbeds(tiptapJson);
         showFullMessage = true;
       }

@@ -173,7 +173,10 @@
       // CRITICAL FIX: Use 'write' mode for streaming messages to show 'processing' status on embeds
       // This ensures users see "processing" state during streaming instead of waiting for embed data
       const parseMode = incomingMessage.status === 'streaming' ? 'write' : 'read';
-      const tiptapJson = parse_message(contentToProcess, parseMode, { unifiedParsingEnabled: true });
+      const tiptapJson = parse_message(contentToProcess, parseMode, {
+        unifiedParsingEnabled: true,
+        role: incomingMessage.role
+      });
       processedContent = preprocessTiptapJsonForEmbeds(tiptapJson);
 
       // Apply truncation at TipTap level for user messages to avoid breaking node structure
