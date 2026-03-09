@@ -77,8 +77,8 @@ skills:
           description: |
             REQUIRED: Array of event search request objects for parallel processing.
             This parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.
-            Example for single search: {"requests": [{"query": "AI meetup", "location": "Berlin, Germany"}]}
-            Example for multiple searches: {"requests": [{"query": "AI meetup", "location": "Berlin"}, {"query": "Python meetup", "location": "Munich"}]}
+            Example for single search: {"requests": [{"query": "AI", "location": "Berlin, Germany"}]}
+            Example for multiple searches: {"requests": [{"query": "AI", "location": "Berlin"}, {"query": "Python", "location": "Munich"}]}
             Each object must contain 'query' and 'location' (or lat/lon). All other parameters are optional.
             Note: The 'id' field is auto-generated if not provided.
           items:
@@ -86,7 +86,11 @@ skills:
             properties:
               query:
                 type: string
-                description: "Keyword search term (e.g. 'AI', 'Python', 'hackathon', 'startup')"
+                description: >
+                  Topic or theme of events to search for (e.g. 'AI', 'Python', 'hackathon',
+                  'startup', 'networking'). Do NOT include platform or app names such as
+                  'meetup', 'luma', or 'eventbrite' — these are stripped automatically
+                  and reduce result quality.
               location:
                 type: string
                 description: "City name or 'city, country' string (e.g. 'Berlin, Germany', 'New York', 'Paris'). Used if lat/lon are not provided."
