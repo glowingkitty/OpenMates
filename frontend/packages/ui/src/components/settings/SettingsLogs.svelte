@@ -66,6 +66,18 @@
     }
   }
 
+  let debugCopied = $state(false);
+  let debugCopyTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function copyDebugOutput(): void {
+    if (!debugOutput) return;
+    void navigator.clipboard.writeText(debugOutput).then(() => {
+      debugCopied = true;
+      if (debugCopyTimer) clearTimeout(debugCopyTimer);
+      debugCopyTimer = setTimeout(() => { debugCopied = false; }, 2000);
+    });
+  }
+
   let detachListener: (() => void) | null = null;
 
   onMount(() => {
@@ -95,9 +107,14 @@
   <div class="logs-debug-box selectable">
     <div class="logs-debug-header-row">
       <span class="logs-debug-title">window.debug()</span>
-      <button class="logs-debug-refresh" onclick={loadWindowDebugOutput} disabled={debugLoading}>
-        {debugLoading ? 'Loading...' : 'Refresh'}
-      </button>
+      <div class="logs-debug-actions">
+        <button class="logs-debug-refresh" onclick={loadWindowDebugOutput} disabled={debugLoading}>
+          {debugLoading ? 'Loading...' : 'Refresh'}
+        </button>
+        <button class="logs-debug-refresh" onclick={copyDebugOutput} disabled={!debugOutput}>
+          {debugCopied ? 'Copied!' : 'Copy'}
+        </button>
+      </div>
     </div>
     <pre class="logs-debug-pre selectable">{debugOutput || 'No debug output yet.'}</pre>
   </div>
@@ -151,6 +168,12 @@
     font-size: 0.82rem;
     font-weight: 600;
     color: var(--color-font-secondary);
+  }
+
+  .logs-debug-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
   }
 
   .logs-debug-refresh {

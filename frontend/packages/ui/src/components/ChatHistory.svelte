@@ -432,6 +432,19 @@
     });
   });
 
+  let debugChatCopied = $state(false);
+  let debugChatCopyTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function copyDebugChatText(): void {
+    const text = $chatDebugStore.chatReport;
+    if (!text) return;
+    void navigator.clipboard.writeText(text).then(() => {
+      debugChatCopied = true;
+      if (debugChatCopyTimer) clearTimeout(debugChatCopyTimer);
+      debugChatCopyTimer = setTimeout(() => { debugChatCopied = false; }, 2000);
+    });
+  }
+
   let lastAssistantMessageId = $derived.by(() => {
     for (let i = displayMessages.length - 1; i >= 0; i--) {
       if (displayMessages[i].role === 'assistant') {
@@ -1561,25 +1574,34 @@
                         {onResend}
                     />
 
-                    {#if $chatDebugStore.rawTextMode && msg.id === lastAssistantMessageId}
-                      <div class="debug-history-output selectable">
-                        <div class="debug-history-title">window.debug.chat</div>
-                        {#if $chatDebugStore.chatReportLoading}
-                          <div class="debug-history-loading">Loading debug chat report...</div>
-                        {:else if $chatDebugStore.chatReport}
-                          <pre class="debug-history-pre selectable">{$chatDebugStore.chatReport}</pre>
-                        {:else}
-                          <div class="debug-history-loading">No debug chat report available yet.</div>
-                        {/if}
-
-                        {#if isCurrentlyStreaming || $chatDebugStore.streamLogs.length > 0}
-                          <div class="debug-history-title logs">Streaming warn/error logs</div>
-                          <pre class="debug-history-pre selectable">{$chatDebugStore.streamLogs.join('\n')}</pre>
-                        {/if}
-                      </div>
-                    {/if}
                 </div>
             {/each}
+
+            <!-- Admin debug panel: shown after the last assistant message when debug mode is active.
+                 Must be OUTSIDE the {#each} loop — message-wrapper uses display:flex which would
+                 place anything inside it beside the message, not below it. -->
+            {#if $chatDebugStore.rawTextMode && lastAssistantMessageId}
+              <div class="debug-history-output selectable">
+                <div class="debug-history-header-row">
+                  <div class="debug-history-title">window.debug.chat</div>
+                  <button class="debug-history-copy-btn" onclick={copyDebugChatText} disabled={!$chatDebugStore.chatReport}>
+                    {debugChatCopied ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+                {#if $chatDebugStore.chatReportLoading}
+                  <div class="debug-history-loading">Loading debug chat report...</div>
+                {:else if $chatDebugStore.chatReport}
+                  <pre class="debug-history-pre selectable">{$chatDebugStore.chatReport}</pre>
+                {:else}
+                  <div class="debug-history-loading">No debug chat report available yet.</div>
+                {/if}
+
+                {#if isCurrentlyStreaming || $chatDebugStore.streamLogs.length > 0}
+                  <div class="debug-history-title logs">Streaming warn/error logs</div>
+                  <pre class="debug-history-pre selectable">{$chatDebugStore.streamLogs.join('\n')}</pre>
+                {/if}
+              </div>
+            {/if}
             
             <!-- App settings/memories permission dialog (inline, scrolls with messages) -->
             <!-- Placed BEFORE the spacer so it appears right under the user message, not pushed below -->
@@ -1642,6 +1664,26 @@
     );
   }
 
+  .debug-history-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.35rem;
+  }
+
+  .debug-history-copy-btn {
+    all: unset;
+    cursor: pointer;
+    font-size: 0.75rem;
+    color: var(--color-primary);
+    flex-shrink: 0;
+  }
+
+  .debug-history-copy-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
   .debug-history-output {
     margin-top: 0.5rem;
     margin-left: 2.25rem;
@@ -1656,7 +1698,6 @@
     font-size: 0.8rem;
     font-weight: 600;
     color: var(--color-font-secondary);
-    margin-bottom: 0.35rem;
   }
 
   .debug-history-title.logs {
@@ -1676,8 +1717,7 @@
     white-space: pre-wrap;
     word-break: break-word;
     color: var(--color-font-primary);
-    max-height: 16rem;
-    overflow: auto;
+    overflow: visible;
     user-select: text;
     -webkit-user-select: text;
     -moz-user-select: text;

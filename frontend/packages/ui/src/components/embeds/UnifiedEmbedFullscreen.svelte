@@ -828,6 +828,25 @@
   // Search Text Highlighting (in embed fullscreen)
   // ============================================
 
+  let isAdminUser = $derived($userProfile.is_admin === true);
+
+  async function handleToggleEmbedDebug(): Promise<void> {
+    await chatDebugStore.toggle();
+  }
+
+  let debugEmbedCopied = $state(false);
+  let debugEmbedCopyTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function copyDebugEmbedText(): void {
+    const text = $chatDebugStore.embedReport;
+    if (!text) return;
+    void navigator.clipboard.writeText(text).then(() => {
+      debugEmbedCopied = true;
+      if (debugEmbedCopyTimer) clearTimeout(debugEmbedCopyTimer);
+      debugEmbedCopyTimer = setTimeout(() => { debugEmbedCopied = false; }, 2000);
+    });
+  }
+
   // Debug mode for embeds: run window.debug.embed and show its output in fullscreen.
   $effect(() => {
     const debugActive = $chatDebugStore.rawTextMode;
@@ -973,7 +992,12 @@
 
       {#if $chatDebugStore.rawTextMode && $userProfile.is_admin}
         <div class="embed-debug-output selectable">
-          <div class="embed-debug-title">window.debug.embed</div>
+          <div class="embed-debug-header-row">
+            <div class="embed-debug-title">window.debug.embed</div>
+            <button class="embed-debug-copy-btn" onclick={copyDebugEmbedText} disabled={!$chatDebugStore.embedReport || $chatDebugStore.embedReportEmbedId !== currentEmbedId}>
+              {debugEmbedCopied ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
           {#if $chatDebugStore.embedReportLoading && $chatDebugStore.embedReportEmbedId === currentEmbedId}
             <div class="embed-debug-loading">Loading embed debug report...</div>
           {:else if $chatDebugStore.embedReport && $chatDebugStore.embedReportEmbedId === currentEmbedId}
@@ -1035,6 +1059,9 @@
       onReportIssue={handleReportIssue}
       onShowChat={handleShowChatClick}
       {onTogglePII}
+      showDebug={isAdminUser}
+      debugActive={$chatDebugStore.rawTextMode}
+      onToggleDebug={handleToggleEmbedDebug}
     />
 
   </div>
@@ -1149,6 +1176,26 @@
     color: var(--color-grey-70);
     font-size: 16px;
     text-align: center;
+  }
+
+  .embed-debug-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.35rem;
+  }
+
+  .embed-debug-copy-btn {
+    all: unset;
+    cursor: pointer;
+    font-size: 0.75rem;
+    color: var(--color-primary);
+    flex-shrink: 0;
+  }
+
+  .embed-debug-copy-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
   }
 
   .embed-debug-output {
