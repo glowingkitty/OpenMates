@@ -4397,9 +4397,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // have activeChatStore=null while currentChat has the correct chat_id. This causes AI
         // streaming responses to be treated as "background" messages (wrong chat routing) because
         // chatSyncServiceHandlersAI checks activeChatStore to decide foreground vs background.
-        if (currentChat?.chat_id && activeChatStore.get() !== currentChat.chat_id) {
+        //
+        // CRITICAL: Only fix when activeChatStore holds a *different* chat ID (genuine mismatch).
+        // If activeChatStore is null the user intentionally navigated to "new chat" mode AFTER this
+        // handleSendMessage started — do NOT override that by writing the old chat ID back into the
+        // store and URL hash. Doing so triggers hashchange → handleChatDeepLink → loadChat which
+        // auto-reopens the previous chat while the user is already composing a new one.
+        const storeValueAfterSend = activeChatStore.get();
+        if (currentChat?.chat_id && storeValueAfterSend !== null && storeValueAfterSend !== currentChat.chat_id) {
             console.warn(`[ActiveChat] handleSendMessage: activeChatStore mismatch after send — ` +
-                `store=${activeChatStore.get()}, currentChat=${currentChat.chat_id}. Fixing.`);
+                `store=${storeValueAfterSend}, currentChat=${currentChat.chat_id}. Fixing.`);
             activeChatStore.setActiveChat(currentChat.chat_id);
         }
 

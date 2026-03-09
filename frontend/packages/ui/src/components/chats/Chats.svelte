@@ -1612,8 +1612,16 @@ let _chatUpdatedFlushPending = false;
 					console.debug(`[Chats] Global chat selected event received, updating selectedChatId to: ${newChatId}`);
 					selectedChatId = newChatId;
 					
-					// Update the persistent store so the selection survives component unmount/remount
-					activeChatStore.setActiveChat(newChatId);
+					// Update the persistent store so the selection survives component unmount/remount.
+					// CRITICAL: Skip if activeChatStore is already null — that means the user
+					// navigated to "new chat" mode AFTER the globalChatSelected event was dispatched
+					// (async race). Writing the old chat ID back here would trigger hashchange →
+					// handleChatDeepLink → loadChat, auto-reopening the previous chat.
+					if (activeChatStore.get() !== null) {
+						activeChatStore.setActiveChat(newChatId);
+					} else {
+						console.debug(`[Chats] Skipping activeChatStore.setActiveChat — user is in new-chat mode (store is null)`);
+					}
 				}
 			}
 		};
