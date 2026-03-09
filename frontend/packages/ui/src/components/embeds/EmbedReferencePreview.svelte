@@ -87,6 +87,15 @@
       }
     }
 
+    // Heuristic for stored child embeds: if app_id="images", skill_id="search",
+    // but there are no embed_ids (parent images/search always has them), and TOON
+    // has image_url or thumbnail_url → this is actually an image_result child embed.
+    if (appId === 'images' && skillId === 'search' && decodedContent && !decodedContent.embed_ids) {
+      if (decodedContent.image_url || decodedContent.thumbnail_url) {
+        skillId = 'image_result';
+      }
+    }
+
     return {
       id,
       type: normalizeEmbedType(String(data.type || 'app-skill-use')),

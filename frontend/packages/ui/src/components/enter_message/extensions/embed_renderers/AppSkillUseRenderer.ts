@@ -215,9 +215,16 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
     // CHILD EMBED TYPE OVERRIDE: Child embeds (e.g. image_result from images/search)
     // store the parent's skill_id ("search") in their TOON content, but their actual
-    // child type is in the `type` field (e.g. "image_result"). Without this override,
-    // an image_result child matches "images" + "search" and renders ImagesSearchEmbedPreview
-    // (the parent carousel) instead of ImageResultEmbedPreview (a single image card).
+    // child type must be inferred. Two signals are checked in priority order:
+    //
+    // 1. New embeds: backend now sends skill_id = child_type in the WebSocket payload,
+    //    stored as embedData.skill_id. After our backend fix this will be "image_result".
+    //
+    // 2. Old/stored embeds: skill_id = "search" (the parent's) is stored in IndexedDB.
+    //    Detect child type by checking TOON content fields unique to each child type:
+    //    - image_result: has image_url or thumbnail_url
+    //    - web_result / search_result: has url + title but no image_url
+    //
     // See docs/architecture/embeds.md for the full embed type resolution chain.
     const CHILD_TYPE_OVERRIDES: Record<string, boolean> = {
       image_result: true, web_result: true, news_result: true, video_result: true,
@@ -225,11 +232,18 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       health_result: true, recipe: true, price_calendar_result: true,
     };
     const childType = decodedContent?.type || embedData?.type;
-    if (childType && CHILD_TYPE_OVERRIDES[childType]) {
-      skillId = childType;
+    if (childType && CHILD_TYPE_OVERRIDES[childType as string]) {
+      skillId = childType as string;
     } else if (attrsSkillId && CHILD_TYPE_OVERRIDES[attrsSkillId]) {
       // EmbedReferencePreview already detected the child type and set it in attrs
       skillId = attrsSkillId;
+    } else if (appId === "images" && skillId === "search" && decodedContent && !decodedContent.embed_ids) {
+      // Heuristic for stored child embeds: parent images/search embeds always have
+      // embed_ids in their content; child image_result embeds have image_url instead.
+      // If this is images/search WITHOUT embed_ids, it's actually a child image_result.
+      if (decodedContent.image_url || decodedContent.thumbnail_url) {
+        skillId = "image_result";
+      }
     }
 
     // Determine status - prefer embedData status, then check knownErrorEmbeds (for error embeds

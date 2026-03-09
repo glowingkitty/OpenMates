@@ -3465,19 +3465,28 @@ export async function handleSendEmbedDataImpl(
         const decoded = await decodeToonContentSafe(embedData.content);
         if (decoded && typeof decoded === "object" && decoded !== null) {
           const decodedObj = decoded as Record<string, unknown>;
+          // CRITICAL: For child embeds (e.g. image_result from images/search),
+          // the TOON content has the parent's skill_id ("search"), NOT the child type.
+          // The server now sends the correct skill_id (= child type, e.g. "image_result")
+          // in the WebSocket payload top-level. Prefer that over the TOON content.
           preExtractedMetadata = {
             app_id:
-              typeof decodedObj.app_id === "string"
-                ? decodedObj.app_id
-                : undefined,
+              typeof embedData.app_id === "string"
+                ? embedData.app_id
+                : typeof decodedObj.app_id === "string"
+                  ? decodedObj.app_id
+                  : undefined,
             skill_id:
-              typeof decodedObj.skill_id === "string"
-                ? decodedObj.skill_id
-                : undefined,
+              typeof embedData.skill_id === "string"
+                ? embedData.skill_id
+                : typeof decodedObj.skill_id === "string"
+                  ? decodedObj.skill_id
+                  : undefined,
           };
           console.debug(
             "[ChatSyncService:AI] Pre-extracted app metadata from plaintext:",
             preExtractedMetadata,
+            "payload skill_id override:", embedData.skill_id,
           );
 
           // Register embed_ref → embed_id mapping for inline embed link resolution.
