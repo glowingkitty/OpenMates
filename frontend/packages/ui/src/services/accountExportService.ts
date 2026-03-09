@@ -1,32 +1,42 @@
 /**
  * Account Export Service
- * 
+ *
  * GDPR Article 20 - Right to Data Portability
- * 
+ *
  * Handles complete export of all user data:
- * - All chats with messages (using existing chat export logic)
- * - Usage history
+ * - All chats with messages, including all file embeds (images, audio, PDFs, code, transcripts)
+ * - Usage history (YAML + CSV)
  * - Invoice PDFs
- * - App settings and memories
- * - User profile data
- * 
+ * - App settings and memories (decrypted)
+ * - User profile data (decrypted email)
+ * - Profile image
+ *
  * Processing happens entirely client-side:
  * 1. Fetch manifest (list of all data IDs)
  * 2. Sync missing chats to IndexedDB
  * 3. Load all data from IndexedDB
- * 4. Decrypt encrypted data
- * 5. Convert to YML format
- * 6. Create ZIP archive with JSZip
- * 7. Download to client
+ * 4. Decrypt encrypted data (email, settings/memories)
+ * 5. Download profile image blob
+ * 6. Convert to YML/CSV format
+ * 7. Create ZIP archive with JSZip
+ * 8. Download to client
+ *
+ * See docs/architecture/sync.md for the encryption model.
  */
 
 import JSZip from 'jszip';
-import { getApiEndpoint, apiEndpoints } from '../config/api';
+import { getApiEndpoint, getApiUrl, apiEndpoints } from '../config/api';
 import { chatDB } from './db';
 import { convertChatToYaml, generateChatFilename } from './chatExportService';
-import { extractEmbedReferences, loadEmbeds, decodeToonContent } from './embedResolver';
 import { tipTapToCanonicalMarkdown } from '../message_parsing/serializers';
 import { decryptWithMasterKey } from './cryptoService';
+import {
+    getCodeEmbedsForChat,
+    getImageEmbedsForChat,
+    getAudioRecordingsForChat,
+    getPDFEmbedsForChat,
+    getVideoTranscriptEmbedsForChat,
+} from './zipExportService';
 import { userProfile } from '../stores/userProfile';
 import { get } from 'svelte/store';
 import type { Chat, Message } from '../types/chat';
@@ -36,10 +46,44 @@ import type { Chat, Message } from '../types/chat';
 // ============================================================================
 
 /**
+ * Selective export options — each key controls whether that category is
+ * included. All default to true (full export).
+ */
+export interface ExportOptions {
+    includeChats: boolean;
+    includeChatFiles: boolean; // images, audio, PDFs, code, transcripts attached to chats
+    includeInvoices: boolean;
+    includeUsage: boolean;
+    includeSettings: boolean; // app settings and memories (decrypted)
+    includeProfile: boolean;  // user profile + profile image
+}
+
+/** Default: everything selected */
+export const DEFAULT_EXPORT_OPTIONS: ExportOptions = {
+    includeChats: true,
+    includeChatFiles: true,
+    includeInvoices: true,
+    includeUsage: true,
+    includeSettings: true,
+    includeProfile: true,
+};
+
+/**
  * Progress callback for export updates
  */
 export interface ExportProgress {
-    phase: 'init' | 'manifest' | 'syncing' | 'loading' | 'decrypting' | 'creating_zip' | 'downloading_pdfs' | 'complete' | 'error';
+    phase:
+        | 'init'
+        | 'manifest'
+        | 'syncing'
+        | 'loading'
+        | 'decrypting'
+        | 'creating_zip'
+        | 'downloading_pdfs'
+        | 'downloading_files'
+        | 'downloading_profile_image'
+        | 'complete'
+        | 'error';
     progress: number; // 0-100
     message: string;
     currentItem?: string;
@@ -105,11 +149,6 @@ interface InvoiceExport {
 
 /**
  * User profile from server export endpoint
- * 
- * Field mapping from backend:
- * - account_status: User's account status from Directus (e.g., "active")
- * - auto_topup_enabled: Whether auto-topup is enabled
- * - auto_topup_threshold/amount: Only present if auto_topup_enabled is true
  */
 interface UserProfileExport {
     user_id: string;
@@ -126,37 +165,56 @@ interface UserProfileExport {
     has_passkey: boolean;
     passkey_count?: number;
     auto_topup_enabled: boolean;
-    auto_topup_threshold?: number;  // Only present if auto_topup_enabled
-    auto_topup_amount?: number;     // Only present if auto_topup_enabled
+    auto_topup_threshold?: number;
+    auto_topup_amount?: number;
 }
 
 /**
  * Compliance log entry from server
- * Contains consent history and important account events
  */
 interface ComplianceLogEntry {
     timestamp: string;
-    event_type: string;          // "consent", "user_creation", "account_deletion_request"
+    event_type: string;
     user_id: string;
-    consent_type?: string;       // "privacy_policy", "terms_of_service", "withdrawal_waiver"
-    action?: string;             // "granted", "withdrawn", "updated"
-    version?: string;            // Version/timestamp of the policy
+    consent_type?: string;
+    action?: string;
+    version?: string;
     status?: string;
     details?: Record<string, unknown>;
 }
 
 /**
- * App setting/memory entry
+ * Raw encrypted app settings/memories entry from server
  */
 interface AppSettingMemoryEntry {
     id: string;
     app_id: string;
     item_key: string;
+    item_type?: string;
     encrypted_item_json: string;
     encrypted_app_key: string;
     created_at: number;
     updated_at: number;
     item_version: number;
+}
+
+/**
+ * Decrypted app settings/memories entry
+ */
+interface DecryptedAppSetting {
+    app_id: string;
+    item_key: string;
+    item_type: string;
+    value: Record<string, unknown> | string;
+    created_at: number;
+    updated_at: number;
+}
+
+/**
+ * Extended user profile with decrypted email
+ */
+interface DecryptedUserProfile extends UserProfileExport {
+    email?: string;
 }
 
 /**
@@ -168,7 +226,7 @@ interface ExportData {
     invoice_ids_for_pdf_download: string[];
     user_profile: UserProfileExport | null;
     app_settings_memories: AppSettingMemoryEntry[];
-    compliance_logs: ComplianceLogEntry[];  // Privacy/terms consent history
+    compliance_logs: ComplianceLogEntry[];
     usage_error?: string;
     invoice_error?: string;
 }
@@ -178,117 +236,117 @@ interface ExportData {
 // ============================================================================
 
 /**
- * Export all user data as a ZIP file
- * 
+ * Export selected user data as a ZIP file
+ *
  * @param onProgress - Callback for progress updates
+ * @param options    - Which data categories to include (default: all)
  * @returns Promise that resolves when download completes
  */
 export async function exportAllUserData(
-    onProgress: ExportProgressCallback
+    onProgress: ExportProgressCallback,
+    options: ExportOptions = DEFAULT_EXPORT_OPTIONS
 ): Promise<void> {
-    console.info('[AccountExport] Starting full account data export');
-    
+    console.warn('[AccountExport] Starting account data export', options);
+
     try {
         // Phase 1: Initialize
-        onProgress({
-            phase: 'init',
-            progress: 0,
-            message: 'Initializing export...'
-        });
-        
+        onProgress({ phase: 'init', progress: 0, message: 'Initializing export...' });
+
         // Phase 2: Fetch manifest
-        onProgress({
-            phase: 'manifest',
-            progress: 5,
-            message: 'Fetching data manifest...'
-        });
-        
+        onProgress({ phase: 'manifest', progress: 5, message: 'Fetching data manifest...' });
         const manifest = await fetchExportManifest();
-        console.info(`[AccountExport] Manifest received: ${manifest.total_chats} chats, ${manifest.total_invoices} invoices`);
-        
-        // Phase 3: Sync missing chats
-        onProgress({
-            phase: 'syncing',
-            progress: 10,
-            message: `Preparing ${manifest.total_chats} chats...`
-        });
-        
-        await syncMissingChats(manifest.all_chat_ids, onProgress);
-        
-        // Phase 4: Load all data from IndexedDB
-        onProgress({
-            phase: 'loading',
-            progress: 40,
-            message: 'Loading chat data...'
-        });
-        
-        const { chats, messagesMap } = await loadAllChatsAndMessages(manifest.all_chat_ids, onProgress);
-        
-        // Phase 5: Fetch server data (usage, invoices, profile)
-        onProgress({
-            phase: 'loading',
-            progress: 50,
-            message: 'Fetching usage and invoice data...'
-        });
-        
-        const exportData = await fetchExportData();
-        
-        // Phase 6: Decrypt data
-        onProgress({
-            phase: 'decrypting',
-            progress: 60,
-            message: 'Decrypting data...'
-        });
-        
-        const decryptedProfile = await decryptUserProfile(exportData.user_profile);
-        const decryptedSettings = await decryptAppSettings(exportData.app_settings_memories);
-        
+        console.warn(
+            `[AccountExport] Manifest: ${manifest.total_chats} chats, ` +
+            `${manifest.total_invoices} invoices`
+        );
+
+        // Phase 3: Sync & load chats
+        let chats: Chat[] = [];
+        let messagesMap = new Map<string, Message[]>();
+        if (options.includeChats) {
+            onProgress({
+                phase: 'syncing',
+                progress: 10,
+                message: `Preparing ${manifest.total_chats} chats...`
+            });
+            await syncMissingChats(manifest.all_chat_ids, onProgress);
+
+            onProgress({ phase: 'loading', progress: 40, message: 'Loading chat data...' });
+            ({ chats, messagesMap } = await loadAllChatsAndMessages(
+                manifest.all_chat_ids,
+                onProgress
+            ));
+        }
+
+        // Phase 4: Fetch server data (usage, invoices, profile, settings)
+        onProgress({ phase: 'loading', progress: 50, message: 'Fetching account data...' });
+        const exportData = await fetchExportData(options);
+
+        // Phase 5: Decrypt data
+        onProgress({ phase: 'decrypting', progress: 60, message: 'Decrypting data...' });
+        const decryptedProfile = options.includeProfile
+            ? await decryptUserProfile(exportData.user_profile)
+            : null;
+        const decryptedSettings = options.includeSettings
+            ? await decryptAppSettings(exportData.app_settings_memories)
+            : [];
+
+        // Phase 6: Download profile image
+        let profileImageBlob: Blob | null = null;
+        if (options.includeProfile) {
+            onProgress({
+                phase: 'downloading_profile_image',
+                progress: 62,
+                message: 'Downloading profile image...'
+            });
+            profileImageBlob = await downloadProfileImage();
+        }
+
         // Phase 7: Download invoice PDFs
-        onProgress({
-            phase: 'downloading_pdfs',
-            progress: 65,
-            message: `Downloading ${exportData.invoices.length} invoice PDFs...`
-        });
-        
-        const invoicePDFs = await downloadInvoicePDFs(exportData.invoice_ids_for_pdf_download, onProgress);
-        
+        let invoicePDFs = new Map<string, { data: ArrayBuffer; filename: string }>();
+        if (options.includeInvoices) {
+            onProgress({
+                phase: 'downloading_pdfs',
+                progress: 65,
+                message: `Downloading ${exportData.invoices.length} invoice PDFs...`
+            });
+            invoicePDFs = await downloadInvoicePDFs(
+                exportData.invoice_ids_for_pdf_download,
+                onProgress
+            );
+        }
+
         // Phase 8: Create ZIP archive
-        onProgress({
-            phase: 'creating_zip',
-            progress: 75,
-            message: 'Creating ZIP archive...'
-        });
-        
-        const zipBlob = await createExportZip({
-            chats,
-            messagesMap,
-            usageRecords: exportData.usage_records,
-            invoices: exportData.invoices,
-            invoicePDFs,
-            userProfile: decryptedProfile,
-            appSettings: decryptedSettings,
-            complianceLogs: exportData.compliance_logs || [],
-            manifest
-        }, onProgress);
-        
+        onProgress({ phase: 'creating_zip', progress: 75, message: 'Creating ZIP archive...' });
+        const zipBlob = await createExportZip(
+            {
+                chats,
+                messagesMap,
+                usageRecords: exportData.usage_records,
+                invoices: exportData.invoices,
+                invoicePDFs,
+                userProfile: decryptedProfile,
+                profileImageBlob,
+                appSettings: decryptedSettings,
+                complianceLogs: exportData.compliance_logs || [],
+                manifest,
+                options,
+            },
+            onProgress
+        );
+
         // Phase 9: Download ZIP
-        onProgress({
-            phase: 'complete',
-            progress: 100,
-            message: 'Export complete! Downloading...'
-        });
-        
+        onProgress({ phase: 'complete', progress: 100, message: 'Export complete! Downloading...' });
         await downloadZip(zipBlob);
-        
-        console.info('[AccountExport] Export completed successfully');
-        
+
+        console.warn('[AccountExport] Export completed successfully');
     } catch (error) {
         console.error('[AccountExport] Export failed:', error);
         onProgress({
             phase: 'error',
             progress: 0,
             message: 'Export failed',
-            error: error instanceof Error ? error.message : 'Unknown error'
+            error: error instanceof Error ? error.message : 'Unknown error',
         });
         throw error;
     }
@@ -298,147 +356,97 @@ export async function exportAllUserData(
 // DATA FETCHING
 // ============================================================================
 
-/**
- * Fetch export manifest from server
- */
 async function fetchExportManifest(): Promise<ExportManifest> {
-    console.debug('[AccountExport] Fetching export manifest');
-    
-    const response = await fetch(getApiEndpoint(apiEndpoints.settings.exportAccountManifest), {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include'
-    });
-    
+    const response = await fetch(
+        getApiEndpoint(apiEndpoints.settings.exportAccountManifest),
+        { method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include' }
+    );
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Failed to fetch export manifest');
+        const err = await response.json().catch(() => ({}));
+        throw new Error((err as { detail?: string }).detail || 'Failed to fetch export manifest');
     }
-    
     const data = await response.json();
-    if (!data.success) {
-        throw new Error('Export manifest request failed');
-    }
-    
-    return data.manifest;
+    if (!data.success) throw new Error('Export manifest request failed');
+    return data.manifest as ExportManifest;
 }
 
-/**
- * Fetch export data (usage, invoices, profile) from server
- */
-async function fetchExportData(): Promise<ExportData> {
-    console.debug('[AccountExport] Fetching export data');
-    
+async function fetchExportData(options: ExportOptions): Promise<ExportData> {
+    const params = new URLSearchParams({
+        include_usage: String(options.includeUsage),
+        include_invoices: String(options.includeInvoices),
+        include_settings: String(options.includeSettings),
+        include_profile: String(options.includeProfile),
+    });
     const response = await fetch(
-        `${getApiEndpoint(apiEndpoints.settings.exportAccountData)}?include_usage=true&include_invoices=true`,
-        {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include'
-        }
+        `${getApiEndpoint(apiEndpoints.settings.exportAccountData)}?${params}`,
+        { method: 'GET', headers: { 'Content-Type': 'application/json' }, credentials: 'include' }
     );
-    
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Failed to fetch export data');
+        const err = await response.json().catch(() => ({}));
+        throw new Error((err as { detail?: string }).detail || 'Failed to fetch export data');
     }
-    
     const data = await response.json();
-    if (!data.success) {
-        throw new Error('Export data request failed');
-    }
-    
-    return data.data;
+    if (!data.success) throw new Error('Export data request failed');
+    return data.data as ExportData;
 }
 
 // ============================================================================
 // CHAT SYNC & LOADING
 // ============================================================================
 
-/**
- * Sync missing chats to IndexedDB
- * Uses existing WebSocket sync mechanism
- */
 async function syncMissingChats(
     allChatIds: string[],
     onProgress: ExportProgressCallback
 ): Promise<void> {
-    console.debug(`[AccountExport] Checking ${allChatIds.length} chats for sync`);
-    
-    // Get chat IDs already in IndexedDB
     const localChats = await chatDB.getAllChats();
-    const localChatIds = new Set(localChats.map(c => c.chat_id));
-    
-    // Find missing chats
-    const missingChatIds = allChatIds.filter(id => !localChatIds.has(id));
-    
-    if (missingChatIds.length === 0) {
-        console.debug('[AccountExport] All chats already synced');
-        return;
-    }
-    
-    console.info(`[AccountExport] Need to sync ${missingChatIds.length} missing chats`);
-    
-    // Request sync for missing chats via WebSocket
-    // The existing sync mechanism will handle this
-    // For now, we'll wait and let the normal sync process handle it
-    // In a full implementation, we'd use chatSyncService.requestChatsBatch()
-    
-    // Update progress
+    const localChatIds = new Set(localChats.map((c) => c.chat_id));
+    const missingCount = allChatIds.filter((id) => !localChatIds.has(id)).length;
+
+    if (missingCount === 0) return;
+
+    console.warn(`[AccountExport] Syncing ${missingCount} missing chats`);
     onProgress({
         phase: 'syncing',
         progress: 20,
-        message: `${missingChatIds.length} chats need sync - using cached data where available...`
+        message: `Syncing ${missingCount} missing chats...`,
     });
-    
-    // Give sync a moment to process if WebSocket is connected
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Allow the normal WebSocket sync mechanism a moment to process
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 }
 
-/**
- * Load all chats and messages from IndexedDB
- */
 async function loadAllChatsAndMessages(
     chatIds: string[],
     onProgress: ExportProgressCallback
 ): Promise<{ chats: Chat[]; messagesMap: Map<string, Message[]> }> {
-    console.debug(`[AccountExport] Loading ${chatIds.length} chats from IndexedDB`);
-    
+    const allLocalChats = await chatDB.getAllChats();
+    const chatMap = new Map(allLocalChats.map((c) => [c.chat_id, c]));
+
     const chats: Chat[] = [];
     const messagesMap = new Map<string, Message[]>();
-    
-    // Load all chats
-    const allLocalChats = await chatDB.getAllChats();
-    const chatMap = new Map(allLocalChats.map(c => [c.chat_id, c]));
-    
-    // Process each chat ID from manifest
     let processed = 0;
+
     for (const chatId of chatIds) {
         const chat = chatMap.get(chatId);
         if (chat) {
             chats.push(chat);
-            
-            // Load messages for this chat
             try {
                 const messages = await chatDB.getMessagesForChat(chatId);
                 messagesMap.set(chatId, messages);
-            } catch (error) {
-                console.warn(`[AccountExport] Failed to load messages for chat ${chatId}:`, error);
+            } catch (err) {
+                console.warn(`[AccountExport] Failed to load messages for chat ${chatId}:`, err);
                 messagesMap.set(chatId, []);
             }
         }
-        
         processed++;
         if (processed % 50 === 0) {
             onProgress({
                 phase: 'loading',
                 progress: 40 + Math.round((processed / chatIds.length) * 10),
-                message: `Loading chats... ${processed}/${chatIds.length}`
+                message: `Loading chats... ${processed}/${chatIds.length}`,
             });
         }
     }
-    
-    console.info(`[AccountExport] Loaded ${chats.length} chats with messages`);
+
     return { chats, messagesMap };
 }
 
@@ -446,160 +454,165 @@ async function loadAllChatsAndMessages(
 // DECRYPTION
 // ============================================================================
 
-/**
- * Extended user profile with decrypted email
- */
-interface DecryptedUserProfile extends UserProfileExport {
-    email?: string;
-}
-
-/**
- * Decrypted app setting entry
- */
-interface DecryptedAppSetting {
-    app_id: string;
-    item_key: string;
-    value: string;
-    created_at: number;
-    updated_at: number;
-}
-
-/**
- * Decrypt user profile data
- */
 async function decryptUserProfile(
     profile: UserProfileExport | null
 ): Promise<DecryptedUserProfile | null> {
     if (!profile) return null;
-    
-    try {
-        const decryptedProfile: DecryptedUserProfile = { ...profile };
-        
-        // Decrypt email if present
-        if (profile.encrypted_email_with_master_key) {
-            try {
-                const email = await decryptWithMasterKey(profile.encrypted_email_with_master_key);
-                decryptedProfile.email = email;
-            } catch (e) {
-                console.warn('[AccountExport] Failed to decrypt email:', e);
-            }
+    const result: DecryptedUserProfile = { ...profile };
+    if (profile.encrypted_email_with_master_key) {
+        try {
+            result.email = await decryptWithMasterKey(profile.encrypted_email_with_master_key);
+        } catch (e) {
+            console.warn('[AccountExport] Failed to decrypt email:', e);
         }
-        
-        return decryptedProfile;
-    } catch (error) {
-        console.error('[AccountExport] Error decrypting user profile:', error);
-        return profile;
     }
+    return result;
 }
 
 /**
- * Decrypt app settings and memories
+ * Decrypt app settings/memories entries.
+ * Uses the same decryptWithMasterKey approach as appSettingsMemoriesStore.
+ * The original item_key is stored inside the encrypted JSON as _original_item_key.
  */
 async function decryptAppSettings(
     entries: AppSettingMemoryEntry[]
 ): Promise<DecryptedAppSetting[]> {
     const decrypted: DecryptedAppSetting[] = [];
-    
+
     for (const entry of entries) {
         try {
-            // Try to decrypt the item JSON
-            // Note: This uses app-specific encryption, may not be decryptable with master key
-            // For now, we'll include the metadata and note that content is encrypted
+            let itemValue: Record<string, unknown> = {};
+            let originalItemKey = entry.item_key;
+
+            try {
+                const decryptedJson = await decryptWithMasterKey(entry.encrypted_item_json);
+                if (decryptedJson) {
+                    itemValue = JSON.parse(decryptedJson) as Record<string, unknown>;
+                    // Original key is stored inside encrypted JSON for privacy
+                    if (typeof itemValue._original_item_key === 'string') {
+                        originalItemKey = itemValue._original_item_key;
+                    }
+                }
+            } catch (decryptErr) {
+                console.warn(
+                    `[AccountExport] Could not decrypt entry ${entry.id}, including metadata only:`,
+                    decryptErr
+                );
+                itemValue = { _encrypted: true };
+            }
+
             decrypted.push({
                 app_id: entry.app_id,
-                item_key: entry.item_key,
-                value: '[Encrypted - requires app-specific decryption]',
+                item_key: originalItemKey,
+                item_type: entry.item_type || '',
+                value: itemValue,
                 created_at: entry.created_at,
-                updated_at: entry.updated_at
+                updated_at: entry.updated_at,
             });
-        } catch (error) {
-            console.warn(`[AccountExport] Failed to decrypt setting ${entry.app_id}/${entry.item_key}:`, error);
+        } catch (err) {
+            console.error(`[AccountExport] Error processing settings entry ${entry.id}:`, err);
         }
     }
-    
+
     return decrypted;
+}
+
+// ============================================================================
+// PROFILE IMAGE
+// ============================================================================
+
+/**
+ * Download the user's profile image as a Blob using the authenticated proxy endpoint.
+ * Returns null if no profile image is set or on any fetch error.
+ */
+async function downloadProfileImage(): Promise<Blob | null> {
+    const profile = get(userProfile);
+    if (!profile?.profile_image_url) return null;
+
+    const url = profile.profile_image_url;
+
+    // Legacy public URL — fetch directly without auth
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) return null;
+            return await response.blob();
+        } catch (e) {
+            console.warn('[AccountExport] Failed to download legacy profile image:', e);
+            return null;
+        }
+    }
+
+    // Authenticated proxy path (e.g. /v1/users/{userId}/profile-image)
+    try {
+        const fullUrl = url.startsWith('/') ? `${getApiUrl()}${url}` : url;
+        const response = await fetch(fullUrl, { credentials: 'include' });
+        if (!response.ok) {
+            console.warn(
+                `[AccountExport] Profile image fetch failed: HTTP ${response.status}`
+            );
+            return null;
+        }
+        return await response.blob();
+    } catch (e) {
+        console.warn('[AccountExport] Error downloading profile image:', e);
+        return null;
+    }
 }
 
 // ============================================================================
 // INVOICE PDF DOWNLOAD
 // ============================================================================
 
-/**
- * Download all invoice PDFs
- */
 async function downloadInvoicePDFs(
     invoiceIds: string[],
     onProgress: ExportProgressCallback
 ): Promise<Map<string, { data: ArrayBuffer; filename: string }>> {
     const pdfs = new Map<string, { data: ArrayBuffer; filename: string }>();
-    
-    if (invoiceIds.length === 0) {
-        return pdfs;
-    }
-    
-    console.info(`[AccountExport] Downloading ${invoiceIds.length} invoice PDFs`);
-    
-    // Download PDFs in batches to avoid overwhelming the server
+    if (invoiceIds.length === 0) return pdfs;
+
     const BATCH_SIZE = 5;
     let downloaded = 0;
-    
+
     for (let i = 0; i < invoiceIds.length; i += BATCH_SIZE) {
         const batch = invoiceIds.slice(i, i + BATCH_SIZE);
-        
-        // Download batch in parallel
         const results = await Promise.allSettled(
             batch.map(async (invoiceId) => {
-                try {
-                    const response = await fetch(
-                        getApiEndpoint(apiEndpoints.payments.downloadInvoice.replace('{id}', invoiceId)),
-                        {
-                            method: 'GET',
-                            credentials: 'include'
-                        }
-                    );
-                    
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}`);
-                    }
-                    
-                    // Get filename from Content-Disposition header
-                    const disposition = response.headers.get('Content-Disposition');
-                    let filename = `Invoice_${invoiceId}.pdf`;
-                    if (disposition) {
-                        const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-                        if (match && match[1]) {
-                            filename = match[1].replace(/['"]/g, '');
-                        }
-                    }
-                    
-                    const data = await response.arrayBuffer();
-                    return { invoiceId, data, filename };
-                } catch (error) {
-                    console.warn(`[AccountExport] Failed to download invoice ${invoiceId}:`, error);
-                    return null;
+                const response = await fetch(
+                    getApiEndpoint(
+                        apiEndpoints.payments.downloadInvoice.replace('{id}', invoiceId)
+                    ),
+                    { method: 'GET', credentials: 'include' }
+                );
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                const disposition = response.headers.get('Content-Disposition');
+                let filename = `Invoice_${invoiceId}.pdf`;
+                if (disposition) {
+                    const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                    if (match?.[1]) filename = match[1].replace(/['"]/g, '');
                 }
+                const data = await response.arrayBuffer();
+                return { invoiceId, data, filename };
             })
         );
-        
-        // Collect successful downloads
+
         for (const result of results) {
             if (result.status === 'fulfilled' && result.value) {
                 pdfs.set(result.value.invoiceId, {
                     data: result.value.data,
-                    filename: result.value.filename
+                    filename: result.value.filename,
                 });
             }
         }
-        
         downloaded += batch.length;
         onProgress({
             phase: 'downloading_pdfs',
-            progress: 65 + Math.round((downloaded / invoiceIds.length) * 10),
-            message: `Downloading invoices... ${downloaded}/${invoiceIds.length}`
+            progress: 65 + Math.round((downloaded / invoiceIds.length) * 8),
+            message: `Downloading invoices... ${downloaded}/${invoiceIds.length}`,
         });
     }
-    
-    console.info(`[AccountExport] Downloaded ${pdfs.size} of ${invoiceIds.length} invoice PDFs`);
+
     return pdfs;
 }
 
@@ -614,173 +627,270 @@ interface ZipCreationData {
     invoices: InvoiceExport[];
     invoicePDFs: Map<string, { data: ArrayBuffer; filename: string }>;
     userProfile: DecryptedUserProfile | null;
+    profileImageBlob: Blob | null;
     appSettings: DecryptedAppSetting[];
-    complianceLogs: ComplianceLogEntry[];  // Privacy/terms consent history
+    complianceLogs: ComplianceLogEntry[];
     manifest: ExportManifest;
+    options: ExportOptions;
 }
 
-/**
- * Create the export ZIP archive
- */
 async function createExportZip(
     data: ZipCreationData,
     onProgress: ExportProgressCallback
 ): Promise<Blob> {
-    console.info('[AccountExport] Creating ZIP archive');
-    
     const zip = new JSZip();
-    const profile = get(userProfile);
-    const username = profile?.username || 'user';
-    
-    // Add README
+    const profileStore = get(userProfile);
+    const username = profileStore?.username || 'user';
+
+    // README
     zip.file('README.md', generateReadme(data));
-    
-    // Add metadata.yml
+
+    // metadata.yml
     zip.file('metadata.yml', generateMetadataYml(data, username));
-    
-    // Add profile.yml
-    if (data.userProfile) {
-        zip.file('profile.yml', generateProfileYml(data.userProfile));
-    }
-    
-    // Add chats folder
-    const chatsFolder = zip.folder('chats');
-    if (chatsFolder) {
-        let processed = 0;
-        for (const chat of data.chats) {
-            try {
-                const messages = data.messagesMap.get(chat.chat_id) || [];
-                const folderName = await generateChatFilename(chat, '');
-                const chatFolder = chatsFolder.folder(folderName.replace(/\.[^.]+$/, ''));
-                
-                if (chatFolder) {
-                    // Add YML (using existing function)
-                    const yamlContent = await convertChatToYaml(chat, messages, false);
-                    chatFolder.file(`${folderName.replace(/\.[^.]+$/, '')}.yml`, yamlContent);
-                    
-                    // Add markdown
-                    const markdownContent = await convertChatToMarkdown(chat, messages);
-                    chatFolder.file(`${folderName.replace(/\.[^.]+$/, '')}.md`, markdownContent);
-                    
-                    // Add code embeds
-                    const codeEmbeds = await getCodeEmbedsForChat(messages);
-                    for (const embed of codeEmbeds) {
-                        let filePath: string;
-                        if (embed.file_path) {
-                            filePath = embed.file_path;
-                        } else if (embed.filename) {
-                            filePath = `code/${embed.filename}`;
-                        } else {
-                            const ext = getFileExtensionForLanguage(embed.language);
-                            filePath = `code/${embed.embed_id}.${ext}`;
-                        }
-                        chatFolder.file(filePath, embed.content);
-                    }
-                }
-                
-                processed++;
-                if (processed % 20 === 0) {
-                    onProgress({
-                        phase: 'creating_zip',
-                        progress: 75 + Math.round((processed / data.chats.length) * 15),
-                        message: `Adding chats... ${processed}/${data.chats.length}`
-                    });
-                }
-            } catch (error) {
-                console.warn(`[AccountExport] Error processing chat ${chat.chat_id}:`, error);
+
+    // ── Profile ────────────────────────────────────────────────────────────
+    if (data.options.includeProfile) {
+        const profileFolder = zip.folder('profile');
+        if (profileFolder) {
+            if (data.userProfile) {
+                profileFolder.file('profile.yml', generateProfileYml(data.userProfile));
+            }
+            if (data.profileImageBlob) {
+                const ext = data.profileImageBlob.type?.includes('jpeg') ? 'jpg' : 'png';
+                profileFolder.file(`profile_image.${ext}`, data.profileImageBlob);
             }
         }
     }
-    
-    // Add usage folder
-    const usageFolder = zip.folder('usage');
-    if (usageFolder && data.usageRecords.length > 0) {
-        usageFolder.file('usage_history.yml', generateUsageYml(data.usageRecords));
-    }
-    
-    // Add payments folder
-    const paymentsFolder = zip.folder('payments');
-    if (paymentsFolder) {
-        // Add invoices.yml
-        if (data.invoices.length > 0) {
-            paymentsFolder.file('invoices.yml', generateInvoicesYml(data.invoices));
+
+    // ── Chats ──────────────────────────────────────────────────────────────
+    if (data.options.includeChats && data.chats.length > 0) {
+        const chatsFolder = zip.folder('chats');
+        if (chatsFolder) {
+            let processed = 0;
+            for (const chat of data.chats) {
+                try {
+                    const messages = data.messagesMap.get(chat.chat_id) || [];
+                    const folderName = (await generateChatFilename(chat, '')).replace(
+                        /\.[^.]+$/,
+                        ''
+                    );
+                    const chatFolder = chatsFolder.folder(folderName);
+
+                    if (chatFolder) {
+                        // YML + Markdown of the conversation
+                        const yamlContent = await convertChatToYaml(chat, messages, false);
+                        chatFolder.file(`${folderName}.yml`, yamlContent);
+
+                        const markdownContent = convertChatToMarkdown(chat, messages);
+                        chatFolder.file(`${folderName}.md`, markdownContent);
+
+                        if (data.options.includeChatFiles) {
+                            // Code embeds
+                            try {
+                                const codeEmbeds = await getCodeEmbedsForChat(messages);
+                                for (const embed of codeEmbeds) {
+                                    const filePath = embed.file_path
+                                        ? embed.file_path
+                                        : embed.filename
+                                        ? `code/${embed.filename}`
+                                        : `code/${embed.embed_id}.${getFileExt(embed.language)}`;
+                                    chatFolder.file(filePath, embed.content);
+                                }
+                            } catch (e) {
+                                console.warn('[AccountExport] Code embeds error in chat', chat.chat_id, e);
+                            }
+
+                            // Video transcripts
+                            try {
+                                const transcripts = await getVideoTranscriptEmbedsForChat(messages);
+                                for (const t of transcripts) {
+                                    chatFolder.file(`transcripts/${t.filename}`, t.content);
+                                }
+                            } catch (e) {
+                                console.warn('[AccountExport] Transcript embeds error in chat', chat.chat_id, e);
+                            }
+
+                            // AI-generated & uploaded images
+                            try {
+                                const images = await getImageEmbedsForChat(messages);
+                                for (const img of images) {
+                                    chatFolder.file(`images/${img.filename}`, img.blob);
+                                }
+                            } catch (e) {
+                                console.warn('[AccountExport] Image embeds error in chat', chat.chat_id, e);
+                            }
+
+                            // Audio recordings
+                            try {
+                                const recordings = await getAudioRecordingsForChat(messages);
+                                for (const rec of recordings) {
+                                    chatFolder.file(`uploads/audio/${rec.filename}`, rec.blob);
+                                    const txFilename =
+                                        rec.filename.replace(/\.[^.]+$/, '') + '_transcript.txt';
+                                    chatFolder.file(
+                                        `uploads/audio/${txFilename}`,
+                                        rec.transcript
+                                    );
+                                }
+                            } catch (e) {
+                                console.warn('[AccountExport] Audio embeds error in chat', chat.chat_id, e);
+                            }
+
+                            // PDF page screenshots
+                            try {
+                                const pdfEmbeds = await getPDFEmbedsForChat(messages);
+                                for (const pdf of pdfEmbeds) {
+                                    for (const page of pdf.pages) {
+                                        chatFolder.file(
+                                            `uploads/pdfs/${pdf.folderName}/${page.filename}`,
+                                            page.blob
+                                        );
+                                    }
+                                }
+                            } catch (e) {
+                                console.warn('[AccountExport] PDF embeds error in chat', chat.chat_id, e);
+                            }
+                        }
+                    }
+
+                    processed++;
+                    if (processed % 10 === 0) {
+                        onProgress({
+                            phase: 'creating_zip',
+                            progress: 75 + Math.round((processed / data.chats.length) * 15),
+                            message: `Adding chats... ${processed}/${data.chats.length}`,
+                            currentItem: chat.title || chat.chat_id,
+                        });
+                    }
+                } catch (err) {
+                    console.warn(`[AccountExport] Error processing chat ${chat.chat_id}:`, err);
+                }
+            }
         }
-        
-        // Add invoice PDFs
-        const pdfsFolder = paymentsFolder.folder('invoice_pdfs');
-        if (pdfsFolder) {
-            // Convert Map to array for iteration to avoid downlevelIteration requirement
-            // Use values() instead of entries() since we only need the pdf data
-            Array.from(data.invoicePDFs.values()).forEach((pdf) => {
-                pdfsFolder.file(pdf.filename, pdf.data);
-            });
+    }
+
+    // ── Usage ──────────────────────────────────────────────────────────────
+    if (data.options.includeUsage && data.usageRecords.length > 0) {
+        const usageFolder = zip.folder('usage');
+        if (usageFolder) {
+            usageFolder.file('usage_history.yml', generateUsageYml(data.usageRecords));
+            usageFolder.file('usage_history.csv', generateUsageCsv(data.usageRecords));
         }
     }
-    
-    // Add settings folder
-    const settingsFolder = zip.folder('settings');
-    if (settingsFolder && data.appSettings.length > 0) {
-        settingsFolder.file('app_settings.yml', generateAppSettingsYml(data.appSettings));
+
+    // ── Payments ───────────────────────────────────────────────────────────
+    if (data.options.includeInvoices) {
+        const paymentsFolder = zip.folder('payments');
+        if (paymentsFolder) {
+            if (data.invoices.length > 0) {
+                paymentsFolder.file('invoices.yml', generateInvoicesYml(data.invoices));
+            }
+            const pdfsFolder = paymentsFolder.folder('invoice_pdfs');
+            if (pdfsFolder) {
+                for (const pdf of Array.from(data.invoicePDFs.values())) {
+                    pdfsFolder.file(pdf.filename, pdf.data);
+                }
+            }
+        }
     }
-    
-    // Add compliance_logs.yml (consent history - privacy policy, terms of service)
-    // This is required for GDPR compliance to show when user consented
+
+    // ── Settings & Memories ────────────────────────────────────────────────
+    if (data.options.includeSettings && data.appSettings.length > 0) {
+        const settingsFolder = zip.folder('settings');
+        if (settingsFolder) {
+            settingsFolder.file(
+                'app_settings_and_memories.yml',
+                generateAppSettingsYml(data.appSettings)
+            );
+        }
+    }
+
+    // ── Compliance logs ────────────────────────────────────────────────────
     if (data.complianceLogs.length > 0) {
         zip.file('compliance_logs.yml', generateComplianceLogsYml(data.complianceLogs));
     }
-    
-    // Generate ZIP blob
+
     const zipBlob = await zip.generateAsync({
         type: 'blob',
         compression: 'DEFLATE',
-        compressionOptions: { level: 6 }
+        compressionOptions: { level: 6 },
     });
-    
-    console.info(`[AccountExport] ZIP created: ${(zipBlob.size / 1024 / 1024).toFixed(2)} MB`);
+
+    console.warn(`[AccountExport] ZIP created: ${(zipBlob.size / 1024 / 1024).toFixed(2)} MB`);
     return zipBlob;
 }
 
 // ============================================================================
-// YML GENERATION HELPERS
+// YAML / CSV GENERATION HELPERS
 // ============================================================================
 
 function generateReadme(data: ZipCreationData): string {
-    return `# OpenMates Data Export
+    const lines: string[] = [
+        '# OpenMates Data Export',
+        '',
+        `Export generated: ${new Date().toISOString()}`,
+        '',
+        '## Contents',
+        '',
+    ];
 
-This archive contains all your data exported from OpenMates.
-Export generated: ${new Date().toISOString()}
+    if (data.options.includeProfile) {
+        lines.push('- `profile/profile.yml` — Account profile and settings');
+        if (data.profileImageBlob) {
+            lines.push('- `profile/profile_image.*` — Profile picture');
+        }
+    }
+    if (data.options.includeChats) {
+        lines.push(`- \`chats/\` — All conversations (${data.chats.length} chats)`);
+        if (data.options.includeChatFiles) {
+            lines.push('  - Each chat folder includes: conversation.yml, conversation.md,');
+            lines.push('    images/, uploads/audio/, uploads/pdfs/, code/, transcripts/');
+        }
+    }
+    if (data.options.includeUsage) {
+        lines.push(
+            `- \`usage/usage_history.yml\` and \`usage_history.csv\` — ` +
+            `Usage records (${data.usageRecords.length} entries)`
+        );
+    }
+    if (data.options.includeInvoices) {
+        lines.push(
+            `- \`payments/\` — Invoice history and PDFs (${data.invoices.length} invoices)`
+        );
+    }
+    if (data.options.includeSettings) {
+        lines.push('- `settings/app_settings_and_memories.yml` — Decrypted app settings & AI memories');
+    }
+    lines.push('- `compliance_logs.yml` — Consent history (GDPR)');
+    lines.push('- `metadata.yml` — Export metadata');
+    lines.push('');
+    lines.push('## GDPR Compliance');
+    lines.push('');
+    lines.push(
+        'This export satisfies GDPR Article 20 (Right to Data Portability). ' +
+        'Data is in structured, machine-readable formats (YAML, CSV, PNG, PDF).'
+    );
+    lines.push('');
+    lines.push('## Questions?');
+    lines.push('');
+    lines.push('Contact support@openmates.org');
 
-## Contents
-
-- \`profile.yml\` - Your account profile and settings
-- \`chats/\` - All your conversations (${data.chats.length} chats)
-  - Each chat has: .yml (structured data), .md (readable markdown), code/ (code embeds)
-- \`usage/\` - Your usage history (${data.usageRecords.length} entries)
-- \`payments/\` - Invoice history and PDF files (${data.invoices.length} invoices)
-- \`settings/\` - App-specific settings and memories
-- \`metadata.yml\` - Export metadata
-
-## Format
-
-All data files are in YAML format for easy reading and parsing.
-Invoice PDFs are included in the payments/invoice_pdfs/ folder.
-
-## GDPR Compliance
-
-This export is provided in accordance with GDPR Article 20 (Right to Data Portability).
-The data is in a structured, commonly used, and machine-readable format.
-
-## Questions?
-
-If you have questions about your data, please contact support@openmates.org
-`;
+    return lines.join('\n');
 }
 
 function generateMetadataYml(data: ZipCreationData, username: string): string {
     return `# OpenMates Export Metadata
-export_version: "1.0"
+export_version: "2.0"
 export_timestamp: "${new Date().toISOString()}"
-username: "${username}"
+username: "${escapeYml(username)}"
+
+included_categories:
+  chats: ${data.options.includeChats}
+  chat_files: ${data.options.includeChatFiles}
+  usage: ${data.options.includeUsage}
+  invoices: ${data.options.includeInvoices}
+  settings: ${data.options.includeSettings}
+  profile: ${data.options.includeProfile}
 
 statistics:
   total_chats: ${data.chats.length}
@@ -798,37 +908,30 @@ gdpr_compliance:
 }
 
 function generateProfileYml(profile: DecryptedUserProfile): string {
-    const email = profile.email || '[Encrypted]';
-    
-    // Account status from Directus (active, draft, invited, suspended, archived)
-    const accountStatus = profile.account_status || 'active';
-    
-    // Build auto-topup section only if enabled
-    let autoTopupSection = `auto_topup:
-  enabled: false`;
-    
+    const email = profile.email ?? '[Encrypted — master key unavailable]';
+    let autoTopupSection = `auto_topup:\n  enabled: false`;
     if (profile.auto_topup_enabled) {
-        autoTopupSection = `auto_topup:
-  enabled: true
-  threshold: ${profile.auto_topup_threshold || 100}
-  amount: ${profile.auto_topup_amount || 21000}`;
+        autoTopupSection =
+            `auto_topup:\n  enabled: true\n` +
+            `  threshold: ${profile.auto_topup_threshold ?? 100}\n` +
+            `  amount: ${profile.auto_topup_amount ?? 21000}`;
     }
-    
+
     return `# User Profile
-export_schema_version: "1.0"
+export_schema_version: "2.0"
 user_id: "${profile.user_id}"
-username: "${profile.username}"
-email: "${email}"
+username: "${escapeYml(profile.username)}"
+email: "${escapeYml(email)}"
 email_verified: ${profile.email_verified}
 
 account:
-  status: "${accountStatus}"
-  last_access: "${profile.last_access || 'Never'}"
+  status: "${profile.account_status ?? 'active'}"
+  last_access: "${profile.last_access ?? 'never'}"
 
 security:
   tfa_enabled: ${profile.tfa_enabled}
   has_passkey: ${profile.has_passkey}
-  passkey_count: ${profile.passkey_count || 0}
+  passkey_count: ${profile.passkey_count ?? 0}
 
 preferences:
   language: "${profile.language}"
@@ -840,333 +943,250 @@ credits:
 
 ${autoTopupSection}
 
-# Note: Consent history (privacy policy, terms of service) is in compliance_logs.yml
+# Consent history is in compliance_logs.yml
 `;
 }
 
 function generateUsageYml(records: UsageEntry[]): string {
-    let yml = `# Usage History
-export_schema_version: "1.0"
-total_records: ${records.length}
+    let yml =
+        `# Usage History\nexport_schema_version: "2.0"\ntotal_records: ${records.length}\n\nusage_records:\n`;
 
-usage_records:
-`;
-    
-    for (const record of records) {
-        yml += `  - usage_id: "${record.usage_id}"
-    timestamp: ${record.timestamp}
-    date: "${new Date(record.timestamp * 1000).toISOString()}"
-    app_id: "${record.app_id}"
-    skill_id: "${record.skill_id}"
-    usage_type: "${record.usage_type}"
-    source: "${record.source}"
-    credits_charged: ${record.credits_charged}
-`;
-        if (record.model_used) {
-            yml += `    model_used: "${record.model_used}"\n`;
-        }
-        if (record.chat_id) {
-            yml += `    chat_id: "${record.chat_id}"\n`;
-        }
-        if (record.actual_input_tokens) {
-            yml += `    input_tokens: ${record.actual_input_tokens}\n`;
-        }
-        if (record.actual_output_tokens) {
-            yml += `    output_tokens: ${record.actual_output_tokens}\n`;
-        }
+    for (const r of records) {
+        yml +=
+            `  - usage_id: "${r.usage_id}"\n` +
+            `    timestamp: ${r.timestamp}\n` +
+            `    date: "${new Date(r.timestamp * 1000).toISOString()}"\n` +
+            `    app_id: "${r.app_id}"\n` +
+            `    skill_id: "${r.skill_id}"\n` +
+            `    usage_type: "${r.usage_type}"\n` +
+            `    source: "${r.source}"\n` +
+            `    credits_charged: ${r.credits_charged}\n`;
+        if (r.model_used) yml += `    model_used: "${r.model_used}"\n`;
+        if (r.chat_id) yml += `    chat_id: "${r.chat_id}"\n`;
+        if (r.actual_input_tokens) yml += `    input_tokens: ${r.actual_input_tokens}\n`;
+        if (r.actual_output_tokens) yml += `    output_tokens: ${r.actual_output_tokens}\n`;
     }
-    
-    return yml;
-}
 
-function generateInvoicesYml(invoices: InvoiceExport[]): string {
-    let yml = `# Invoice History
-export_schema_version: "1.0"
-total_invoices: ${invoices.length}
-
-invoices:
-`;
-    
-    for (const invoice of invoices) {
-        yml += `  - invoice_id: "${invoice.invoice_id}"
-    order_id: "${invoice.order_id}"
-    date: "${invoice.date}"
-    amount_cents: ${invoice.amount_cents}
-    amount_formatted: "${(invoice.amount_cents / 100).toFixed(2)} ${invoice.currency.toUpperCase()}"
-    credits_purchased: ${invoice.credits_purchased}
-    is_gift_card: ${invoice.is_gift_card}
-    refund_status: "${invoice.refund_status}"
-`;
-        if (invoice.refunded_at) {
-            yml += `    refunded_at: "${invoice.refunded_at}"\n`;
-        }
-    }
-    
-    return yml;
-}
-
-function generateAppSettingsYml(settings: DecryptedAppSetting[]): string {
-    let yml = `# App Settings and Memories
-export_schema_version: "1.0"
-total_entries: ${settings.length}
-
-# Note: Content is encrypted with app-specific keys
-# Metadata is provided for reference
-
-entries:
-`;
-    
-    for (const entry of settings) {
-        yml += `  - app_id: "${entry.app_id}"
-    item_key: "${entry.item_key}"
-    created_at: "${new Date(entry.created_at * 1000).toISOString()}"
-    updated_at: "${new Date(entry.updated_at * 1000).toISOString()}"
-    value: "${entry.value}"
-`;
-    }
-    
     return yml;
 }
 
 /**
- * Generate YAML for compliance logs (consent history)
- * This includes privacy policy and terms of service consent records
+ * Generate a CSV version of usage history for easy spreadsheet analysis.
  */
-function generateComplianceLogsYml(logs: ComplianceLogEntry[]): string {
-    // Separate consent logs from other events
-    const consentLogs = logs.filter(log => log.event_type === 'consent');
-    const otherLogs = logs.filter(log => log.event_type !== 'consent');
-    
-    // Find the most recent privacy policy and terms of service consent
-    const privacyPolicyConsent = consentLogs.find(log => log.consent_type === 'privacy_policy');
-    const termsOfServiceConsent = consentLogs.find(log => log.consent_type === 'terms_of_service');
-    
-    let yml = `# Compliance Logs - Consent History
-export_schema_version: "1.0"
+function generateUsageCsv(records: UsageEntry[]): string {
+    const header = [
+        'usage_id',
+        'date',
+        'app_id',
+        'skill_id',
+        'usage_type',
+        'source',
+        'credits_charged',
+        'model_used',
+        'chat_id',
+        'input_tokens',
+        'output_tokens',
+    ].join(',');
 
-# This file contains your consent history for GDPR compliance.
-# Privacy policy and terms of service consent are recorded when you create your account
-# and whenever you accept updated versions.
+    const rows = records.map((r) => {
+        const fields = [
+            csvCell(r.usage_id),
+            csvCell(new Date(r.timestamp * 1000).toISOString()),
+            csvCell(r.app_id),
+            csvCell(r.skill_id),
+            csvCell(r.usage_type),
+            csvCell(r.source),
+            String(r.credits_charged),
+            csvCell(r.model_used ?? ''),
+            csvCell(r.chat_id ?? ''),
+            String(r.actual_input_tokens ?? ''),
+            String(r.actual_output_tokens ?? ''),
+        ];
+        return fields.join(',');
+    });
 
-current_consent_status:
-  privacy_policy:
-    accepted: ${privacyPolicyConsent ? 'true' : 'false'}
-    timestamp: "${privacyPolicyConsent?.timestamp || 'Not recorded'}"
-    action: "${privacyPolicyConsent?.action || 'N/A'}"
-  terms_of_service:
-    accepted: ${termsOfServiceConsent ? 'true' : 'false'}
-    timestamp: "${termsOfServiceConsent?.timestamp || 'Not recorded'}"
-    action: "${termsOfServiceConsent?.action || 'N/A'}"
+    return [header, ...rows].join('\n');
+}
 
-consent_history:
-`;
-    
-    // Add all consent events
-    for (const log of consentLogs) {
-        yml += `  - timestamp: "${log.timestamp}"
-    consent_type: "${log.consent_type || 'unknown'}"
-    action: "${log.action || 'granted'}"
-    status: "${log.status || 'success'}"
-`;
+function csvCell(value: string): string {
+    // Wrap in quotes if it contains commas, quotes, or newlines
+    if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+        return `"${value.replace(/"/g, '""')}"`;
     }
-    
-    // Add other relevant events (user creation, deletion requests)
-    if (otherLogs.length > 0) {
-        yml += `
-other_events:
-`;
-        for (const log of otherLogs) {
-            yml += `  - timestamp: "${log.timestamp}"
-    event_type: "${log.event_type}"
-    status: "${log.status || 'success'}"
-`;
+    return value;
+}
+
+function generateInvoicesYml(invoices: InvoiceExport[]): string {
+    let yml =
+        `# Invoice History\nexport_schema_version: "2.0"\ntotal_invoices: ${invoices.length}\n\ninvoices:\n`;
+
+    for (const inv of invoices) {
+        yml +=
+            `  - invoice_id: "${inv.invoice_id}"\n` +
+            `    order_id: "${inv.order_id}"\n` +
+            `    date: "${inv.date}"\n` +
+            `    amount_cents: ${inv.amount_cents}\n` +
+            `    amount_formatted: "${(inv.amount_cents / 100).toFixed(2)} ${inv.currency.toUpperCase()}"\n` +
+            `    credits_purchased: ${inv.credits_purchased}\n` +
+            `    is_gift_card: ${inv.is_gift_card}\n` +
+            `    refund_status: "${inv.refund_status}"\n`;
+        if (inv.refunded_at) yml += `    refunded_at: "${inv.refunded_at}"\n`;
+    }
+
+    return yml;
+}
+
+function generateAppSettingsYml(settings: DecryptedAppSetting[]): string {
+    // Group by app_id for readability
+    const byApp: Record<string, DecryptedAppSetting[]> = {};
+    for (const s of settings) {
+        if (!byApp[s.app_id]) byApp[s.app_id] = [];
+        byApp[s.app_id].push(s);
+    }
+
+    let yml =
+        `# App Settings and AI Memories\n` +
+        `# Content is fully decrypted.\n` +
+        `export_schema_version: "2.0"\n` +
+        `total_entries: ${settings.length}\n\n` +
+        `entries:\n`;
+
+    for (const [appId, entries] of Object.entries(byApp)) {
+        yml += `  # ── ${appId} ──\n`;
+        for (const entry of entries) {
+            yml +=
+                `  - app_id: "${appId}"\n` +
+                `    item_key: "${escapeYml(entry.item_key)}"\n` +
+                `    item_type: "${escapeYml(entry.item_type)}"\n` +
+                `    created_at: "${new Date(entry.created_at * 1000).toISOString()}"\n` +
+                `    updated_at: "${new Date(entry.updated_at * 1000).toISOString()}"\n`;
+
+            const val = entry.value;
+            if (typeof val === 'string') {
+                yml += `    value: "${escapeYml(val)}"\n`;
+            } else if (val && typeof val === 'object' && !(val as Record<string, unknown>)._encrypted) {
+                // Inline the decrypted JSON as nested YAML
+                yml += `    value:\n`;
+                for (const [k, v] of Object.entries(val)) {
+                    if (k === '_original_item_key') continue; // internal key
+                    const strV =
+                        typeof v === 'string'
+                            ? `"${escapeYml(v)}"`
+                            : JSON.stringify(v);
+                    yml += `      ${k}: ${strV}\n`;
+                }
+            } else {
+                yml += `    value: "[decryption failed — master key unavailable]"\n`;
+            }
         }
     }
-    
+
+    return yml;
+}
+
+function generateComplianceLogsYml(logs: ComplianceLogEntry[]): string {
+    const consentLogs = logs.filter((l) => l.event_type === 'consent');
+    const otherLogs = logs.filter((l) => l.event_type !== 'consent');
+    const pp = consentLogs.find((l) => l.consent_type === 'privacy_policy');
+    const tos = consentLogs.find((l) => l.consent_type === 'terms_of_service');
+
+    let yml =
+        `# Compliance Logs — Consent History\n` +
+        `export_schema_version: "2.0"\n\n` +
+        `current_consent_status:\n` +
+        `  privacy_policy:\n` +
+        `    accepted: ${pp ? 'true' : 'false'}\n` +
+        `    timestamp: "${pp?.timestamp ?? 'not_recorded'}"\n` +
+        `    action: "${pp?.action ?? 'N/A'}"\n` +
+        `  terms_of_service:\n` +
+        `    accepted: ${tos ? 'true' : 'false'}\n` +
+        `    timestamp: "${tos?.timestamp ?? 'not_recorded'}"\n` +
+        `    action: "${tos?.action ?? 'N/A'}"\n\n` +
+        `consent_history:\n`;
+
+    for (const log of consentLogs) {
+        yml +=
+            `  - timestamp: "${log.timestamp}"\n` +
+            `    consent_type: "${log.consent_type ?? 'unknown'}"\n` +
+            `    action: "${log.action ?? 'granted'}"\n` +
+            `    status: "${log.status ?? 'success'}"\n`;
+    }
+
+    if (otherLogs.length > 0) {
+        yml += `\nother_events:\n`;
+        for (const log of otherLogs) {
+            yml +=
+                `  - timestamp: "${log.timestamp}"\n` +
+                `    event_type: "${log.event_type}"\n` +
+                `    status: "${log.status ?? 'success'}"\n`;
+        }
+    }
+
     return yml;
 }
 
 // ============================================================================
-// CHAT CONVERSION HELPERS (copied from zipExportService for consistency)
+// CHAT MARKDOWN HELPER (lightweight, no PII restore needed for full export)
 // ============================================================================
 
-async function convertChatToMarkdown(chat: Chat, messages: Message[]): Promise<string> {
-    try {
-        let markdown = '';
-        
-        if (chat.title) {
-            markdown += `# ${chat.title}\n\n`;
+function convertChatToMarkdown(chat: Chat, messages: Message[]): string {
+    let md = chat.title ? `# ${chat.title}\n\n` : '';
+    const createdMs = chat.created_at < 1e12 ? chat.created_at * 1000 : chat.created_at;
+    md += `*Created: ${new Date(createdMs).toISOString()}*\n\n---\n\n`;
+
+    for (const message of messages) {
+        const tsMs = message.created_at < 1e12 ? message.created_at * 1000 : message.created_at;
+        const ts = new Date(tsMs).toISOString();
+        const role = message.role === 'assistant' ? 'Assistant' : 'You';
+
+        let content = '';
+        if (typeof message.content === 'string') {
+            content = message.content;
+        } else if (message.content && typeof message.content === 'object') {
+            content = tipTapToCanonicalMarkdown(message.content);
         }
-        
-        const createdDate = new Date(chat.created_at * 1000).toISOString();
-        markdown += `*Created: ${createdDate}*\n\n`;
-        markdown += '---\n\n';
-        
-        for (const message of messages) {
-            const timestamp = new Date(message.created_at * 1000).toISOString();
-            const role = message.role === 'assistant' ? 'Assistant' : 'You';
-            
-            let content = '';
-            if (typeof message.content === 'string') {
-                content = message.content;
-            } else if (message.content && typeof message.content === 'object') {
-                content = tipTapToCanonicalMarkdown(message.content);
-            }
-            
-            markdown += `## ${role} - ${timestamp}\n\n${content}\n\n`;
-        }
-        
-        return markdown;
-    } catch (error) {
-        console.error('[AccountExport] Error converting chat to markdown:', error);
-        return '';
+
+        md += `## ${role} — ${ts}\n\n${content}\n\n`;
     }
+
+    return md;
 }
 
-async function getCodeEmbedsForChat(messages: Message[]): Promise<Array<{
-    embed_id: string;
-    language: string;
-    filename?: string;
-    content: string;
-    file_path?: string;
-}>> {
-    try {
-        const embedRefs = new Map<string, { type: string; embed_id: string; version?: number }>();
-        
-        for (const message of messages) {
-            let markdownContent = '';
-            if (typeof message.content === 'string') {
-                markdownContent = message.content;
-            } else if (message.content && typeof message.content === 'object') {
-                markdownContent = tipTapToCanonicalMarkdown(message.content);
-            }
-            
-            const refs = extractEmbedReferences(markdownContent);
-            for (const ref of refs) {
-                if (!embedRefs.has(ref.embed_id)) {
-                    embedRefs.set(ref.embed_id, ref);
-                }
-            }
-        }
-        
-        if (embedRefs.size === 0) {
-            return [];
-        }
-        
-        const embedIds = Array.from(embedRefs.keys());
-        return await loadCodeEmbedsRecursively(embedIds);
-    } catch (error) {
-        console.error('[AccountExport] Error getting code embeds:', error);
-        return [];
-    }
-}
+// ============================================================================
+// SMALL UTILITIES
+// ============================================================================
 
-async function loadCodeEmbedsRecursively(
-    embedIds: string[],
-    loadedEmbedIds: Set<string> = new Set()
-): Promise<Array<{
-    embed_id: string;
-    language: string;
-    filename?: string;
-    content: string;
-    file_path?: string;
-}>> {
-    const codeEmbeds: Array<{
-        embed_id: string;
-        language: string;
-        filename?: string;
-        content: string;
-        file_path?: string;
-    }> = [];
-    
-    const newEmbedIds = embedIds.filter(id => !loadedEmbedIds.has(id));
-    if (newEmbedIds.length === 0) {
-        return codeEmbeds;
-    }
-    
-    newEmbedIds.forEach(id => loadedEmbedIds.add(id));
-    
-    const loadedEmbeds = await loadEmbeds(newEmbedIds);
-    
-    for (const embed of loadedEmbeds) {
-        try {
-            if (!embed.content || typeof embed.content !== 'string') {
-                continue;
-            }
-            
-            const decodedContent = await decodeToonContent(embed.content);
-            
-            if (embed.type === 'code' && decodedContent && typeof decodedContent === 'object') {
-                const codeContent = decodedContent.code || decodedContent.content || '';
-                const language = decodedContent.language || decodedContent.lang || 'text';
-                const filename = decodedContent.filename || undefined;
-                const filePath = decodedContent.file_path || undefined;
-                
-                if (codeContent) {
-                    codeEmbeds.push({
-                        embed_id: embed.embed_id,
-                        language,
-                        filename,
-                        content: codeContent,
-                        file_path: filePath
-                    });
-                }
-            }
-            
-            // Handle nested embeds
-            const childEmbedIds: string[] = [];
-            if (decodedContent && typeof decodedContent === 'object') {
-                if (Array.isArray(decodedContent.embed_ids)) {
-                    childEmbedIds.push(...decodedContent.embed_ids);
-                } else if (typeof decodedContent.embed_ids === 'string') {
-                    childEmbedIds.push(...decodedContent.embed_ids.split('|').filter((id: string) => id.trim()));
-                }
-            }
-            
-            if (embed.embed_ids && Array.isArray(embed.embed_ids)) {
-                childEmbedIds.push(...embed.embed_ids);
-            }
-            
-            const uniqueChildEmbedIds = Array.from(new Set(childEmbedIds));
-            if (uniqueChildEmbedIds.length > 0) {
-                const childCodeEmbeds = await loadCodeEmbedsRecursively(uniqueChildEmbedIds, loadedEmbedIds);
-                codeEmbeds.push(...childCodeEmbeds);
-            }
-        } catch (error) {
-            console.warn('[AccountExport] Error processing embed:', embed.embed_id, error);
-        }
-    }
-    
-    return codeEmbeds;
-}
-
-function getFileExtensionForLanguage(language: string): string {
-    const extensions: Record<string, string> = {
-        'javascript': 'js',
-        'typescript': 'ts',
-        'python': 'py',
-        'java': 'java',
-        'cpp': 'cpp',
-        'c': 'c',
-        'rust': 'rs',
-        'go': 'go',
-        'ruby': 'rb',
-        'php': 'php',
-        'swift': 'swift',
-        'kotlin': 'kt',
-        'yaml': 'yml',
-        'xml': 'xml',
-        'markdown': 'md',
-        'bash': 'sh',
-        'shell': 'sh',
-        'sql': 'sql',
-        'json': 'json',
-        'css': 'css',
-        'html': 'html',
-        'dockerfile': 'Dockerfile'
+function getFileExt(language: string): string {
+    const map: Record<string, string> = {
+        javascript: 'js',
+        typescript: 'ts',
+        python: 'py',
+        java: 'java',
+        cpp: 'cpp',
+        c: 'c',
+        rust: 'rs',
+        go: 'go',
+        ruby: 'rb',
+        php: 'php',
+        swift: 'swift',
+        kotlin: 'kt',
+        yaml: 'yml',
+        xml: 'xml',
+        markdown: 'md',
+        bash: 'sh',
+        shell: 'sh',
+        sql: 'sql',
+        json: 'json',
+        css: 'css',
+        html: 'html',
+        dockerfile: 'Dockerfile',
     };
-    
-    return extensions[language.toLowerCase()] || language.toLowerCase();
+    return map[language.toLowerCase()] ?? language.toLowerCase();
+}
+
+/** Escape double-quotes and backslashes for a YML double-quoted scalar */
+function escapeYml(value: string): string {
+    return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
 // ============================================================================
@@ -1176,9 +1196,13 @@ function getFileExtensionForLanguage(language: string): string {
 async function downloadZip(blob: Blob): Promise<void> {
     const profile = get(userProfile);
     const username = profile?.username || 'user';
-    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '').replace('T', '_');
+    const timestamp = new Date()
+        .toISOString()
+        .slice(0, 19)
+        .replace(/[:-]/g, '')
+        .replace('T', '_');
     const filename = `openmates_export_${username}_${timestamp}.zip`;
-    
+
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -1188,4 +1212,3 @@ async function downloadZip(blob: Blob): Promise<void> {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 }
-

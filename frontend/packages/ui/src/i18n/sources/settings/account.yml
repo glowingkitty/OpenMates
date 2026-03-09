@@ -2473,3 +2473,171 @@ chats.preview_loading:
   ar: جارٍ التحقق...
   he: בודק...
   verified_by_human: []
+export_select_all:
+  context: "Link to select all export categories"
+  en: Select all
+  de: Alles auswählen
+  zh: 全选
+  es: Seleccionar todo
+  fr: Tout sélectionner
+  pt: Selecionar tudo
+  ru: Выбрать всё
+  ja: すべて選択
+  ko: 모두 선택
+  it: Seleziona tutto
+  tr: Hepsini seç
+  vi: Chọn tất cả
+  id: Pilih semua
+  pl: Zaznacz wszystko
+  nl: Alles selecteren
+  ar: تحديد الكل
+  hi: सभी चुनें
+  th: เลือกทั้งหมด
+  cs: Vybrat vše
+  sv: Välj alla
+  he: בחר הכל
+  verified_by_human: []
+export_deselect_all:
+  context: "Link to deselect all export categories"
+  en: Deselect all
+  de: Alle abwählen
+  zh: 取消全选
+  es: Deseleccionar todo
+  fr: Tout désélectionner
+  pt: Desselecionar tudo
+  ru: Снять выбор
+  ja: すべて解除
+  ko: 모두 해제
+  it: Deseleziona tutto
+  tr: Tümünü kaldır
+  vi: Bỏ chọn tất cả
+  id: Batalkan semua
+  pl: Odznacz wszystko
+  nl: Alles deselecteren
+  ar: إلغاء تحديد الكل
+  hi: सभी हटाएं
+  th: ยกเลิกเลือกทั้งหมด
+  cs: Zrušit výběr
+  sv: Avmarkera alla
+  he: בטל בחירה
+  verified_by_human: []
+export_includes_chat_files:
+  context: "Description for chat file attachments export option"
+  en: Chat file attachments
+  de: Chat-Dateianhänge
+  zh: 聊天文件附件
+  es: Archivos adjuntos de chat
+  fr: Pièces jointes des chats
+  pt: Arquivos anexados ao chat
+  ru: Вложения чата
+  ja: チャットのファイル添付
+  ko: 채팅 파일 첨부
+  it: Allegati file chat
+  tr: Sohbet dosya ekleri
+  vi: Tệp đính kèm trò chuyện
+  id: Lampiran file obrolan
+  pl: Załączniki plików czatu
+  nl: Chat bestandsbijlagen
+  ar: مرفقات ملفات الدردشة
+  hi: चैट फ़ाइल अटैचमेंट
+  th: ไฟล์แนบในแชท
+  cs: Přílohy souborů chatu
+  sv: Chatfilsbilagor
+  he: קבצים מצורפים לצ'אט
+  verified_by_human: []
+export_includes_chat_files_desc:
+  context: "Sub-description for chat file attachments export option"
+  en: Images, audio recordings, PDFs, code files, video transcripts
+  de: Bilder, Audioaufnahmen, PDFs, Code-Dateien, Videotranskripte
+  zh: 图片、音频录音、PDF、代码文件、视频转录
+  es: Imágenes, grabaciones de audio, PDFs, archivos de código, transcripciones de vídeo
+  fr: Images, enregistrements audio, PDFs, fichiers de code, transcriptions vidéo
+  pt: Imagens, gravações de áudio, PDFs, arquivos de código, transcrições de vídeo
+  ru: Изображения, аудиозаписи, PDF, файлы кода, расшифровки видео
+  ja: 画像、音声録音、PDF、コードファイル、動画文字起こし
+  ko: 이미지, 오디오 녹음, PDF, 코드 파일, 동영상 자막
+  it: Immagini, registrazioni audio, PDF, file di codice, trascrizioni video
+  tr: Resimler, ses kayıtları, PDF'ler, kod dosyaları, video transkriptleri
+  vi: Hình ảnh, bản ghi âm, PDF, tệp mã, bản ghi video
+  id: Gambar, rekaman audio, PDF, file kode, transkrip video
+  pl: Obrazy, nagrania audio, PDF, pliki kodu, transkrypcje wideo
+  nl: Afbeeldingen, audio-opnamen, PDF's, codebestanden, videotranscripties
+  ar: صور ومقاطع صوتية وملفات PDF وملفات الكود وتفريغ الفيديو
+  hi: चित्र, ऑडियो रिकॉर्डिंग, PDF, कोड फ़ाइलें, वीडियो ट्रांसक्रिप्ट
+  th: รูปภาพ บันทึกเสียง PDF ไฟล์โค้ด บทถอดเสียงวิดีโอ
+  cs: Obrázky, zvukové nahrávky, PDF, soubory kódu, přepisy videa
+  sv: Bilder, ljudinspelningar, PDF:er, kodfiler, videotranskriptioner
+  he: תמונות, הקלטות שמע, קובצי PDF, קוד, תמלולי וידאו
+  verified_by_human: []
+export_includes_profile_desc:
+  context: "Sub-description for profile export option"
+  en: Account info, preferences, profile picture (decrypted)
+  de: Kontoinformationen, Einstellungen, Profilbild (entschlüsselt)
+  zh: 账户信息、偏好设置、个人资料图片（已解密）
+  es: Información de cuenta, preferencias, foto de perfil (descifrado)
+  fr: Informations du compte, préférences, photo de profil (déchiffré)
+  pt: Informações da conta, preferências, foto do perfil (descriptografado)
+  ru: Информация об аккаунте, настройки, фото профиля (расшифровано)
+  ja: アカウント情報、設定、プロフィール画像（復号済み）
+  ko: 계정 정보, 환경 설정, 프로필 사진 (복호화됨)
+  it: Informazioni account, preferenze, foto profilo (decifrato)
+  tr: Hesap bilgileri, tercihler, profil fotoğrafı (şifresi çözülmüş)
+  vi: Thông tin tài khoản, tùy chọn, ảnh hồ sơ (đã giải mã)
+  id: Info akun, preferensi, foto profil (didekripsi)
+  pl: Informacje o koncie, preferencje, zdjęcie profilowe (odszyfrowane)
+  nl: Accountinformatie, voorkeuren, profielfoto (gedecodeerd)
+  ar: معلومات الحساب والتفضيلات وصورة الملف الشخصي (مفككة التشفير)
+  hi: खाता जानकारी, प्राथमिकताएं, प्रोफ़ाइल चित्र (डिक्रिप्टेड)
+  th: ข้อมูลบัญชี การตั้งค่า รูปโปรไฟล์ (ถอดรหัสแล้ว)
+  cs: Informace o účtu, preference, profilová fotka (dešifrováno)
+  sv: Kontoinformation, inställningar, profilbild (dekrypterat)
+  he: פרטי חשבון, העדפות, תמונת פרופיל (מפוענחת)
+  verified_by_human: []
+export_includes_settings_desc:
+  context: "Sub-description for settings export option"
+  en: App preferences and AI memories (fully decrypted)
+  de: App-Einstellungen und KI-Erinnerungen (vollständig entschlüsselt)
+  zh: 应用偏好设置和AI记忆（完全解密）
+  es: Preferencias de la app y memorias de IA (completamente descifrado)
+  fr: Préférences de l'application et mémoires IA (entièrement déchiffré)
+  pt: Preferências do aplicativo e memórias de IA (totalmente descriptografado)
+  ru: Настройки приложения и память ИИ (полностью расшифровано)
+  ja: アプリ設定とAIメモリ（完全復号済み）
+  ko: 앱 환경 설정 및 AI 기억 (완전히 복호화됨)
+  it: Preferenze dell'app e memorie AI (completamente decifrato)
+  tr: Uygulama tercihleri ve AI anıları (tamamen şifresi çözülmüş)
+  vi: Tùy chọn ứng dụng và bộ nhớ AI (giải mã hoàn toàn)
+  id: Preferensi aplikasi dan memori AI (sepenuhnya didekripsi)
+  pl: Preferencje aplikacji i pamięć AI (w pełni odszyfrowane)
+  nl: App-voorkeuren en AI-herinneringen (volledig gedecodeerd)
+  ar: تفضيلات التطبيق وذكريات الذكاء الاصطناعي (مفككة التشفير بالكامل)
+  hi: ऐप प्राथमिकताएं और AI मेमोरीज (पूरी तरह डिक्रिप्टेड)
+  th: การตั้งค่าแอปและความทรงจำ AI (ถอดรหัสทั้งหมด)
+  cs: Předvolby aplikace a paměti AI (plně dešifrováno)
+  sv: Appinställningar och AI-minnen (fullständigt dekrypterat)
+  he: העדפות אפליקציה וזיכרונות AI (מפוענחים לחלוטין)
+  verified_by_human: []
+export_includes_usage_desc:
+  context: "Sub-description for usage export option"
+  en: Usage records in YAML and CSV formats
+  de: Nutzungsaufzeichnungen in YAML- und CSV-Formaten
+  zh: YAML和CSV格式的使用记录
+  es: Registros de uso en formatos YAML y CSV
+  fr: Enregistrements d'utilisation en formats YAML et CSV
+  pt: Registros de uso nos formatos YAML e CSV
+  ru: Записи об использовании в форматах YAML и CSV
+  ja: YAMLおよびCSV形式の使用記録
+  ko: YAML 및 CSV 형식의 사용 기록
+  it: Registri di utilizzo in formati YAML e CSV
+  tr: YAML ve CSV formatlarında kullanım kayıtları
+  vi: Bản ghi sử dụng ở định dạng YAML và CSV
+  id: Catatan penggunaan dalam format YAML dan CSV
+  pl: Rekordy użytkowania w formatach YAML i CSV
+  nl: Gebruiksrecords in YAML- en CSV-formaten
+  ar: سجلات الاستخدام بتنسيقات YAML وCSV
+  hi: YAML और CSV फ़ॉर्मेट में उपयोग रिकॉर्ड
+  th: บันทึกการใช้งานในรูปแบบ YAML และ CSV
+  cs: Záznamy o použití ve formátech YAML a CSV
+  sv: Användningsrecord i YAML- och CSV-format
+  he: רשומות שימוש בפורמטי YAML ו-CSV
+  verified_by_human: []
