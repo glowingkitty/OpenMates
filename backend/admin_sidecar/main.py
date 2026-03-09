@@ -944,6 +944,12 @@ def _run_test_script(force: bool = False) -> tuple[bool, str, int]:
         "chroot", "/host_root",
         "/bin/bash", "-c",
         (
+            # The chroot starts with a minimal PATH that lacks user-installed
+            # binaries (node, npx, pnpm, pip tools). Explicitly set PATH and
+            # HOME so the host's Node.js, pnpm, pytest, etc. are found.
+            f"export HOME=/home/superdev && "
+            f"export PATH=/home/superdev/.npm-global/bin:/home/superdev/.local/bin:"
+            f"/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin && "
             f"export ADMIN_NOTIFY_EMAIL='{admin_email}' && "
             f"export INTERNAL_API_SHARED_TOKEN='{internal_token}' && "
             f"{inner_cmd}"

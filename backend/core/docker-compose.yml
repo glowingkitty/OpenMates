@@ -172,6 +172,10 @@ services:
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
       CELERY_METRICS_PORT: "9101" # Port for prometheus_client metrics server — scraped by Prometheus
       # E2E test configuration - set these env vars to enable automated testing
+      # Note: SECRET__CORE_SERVER__ADMIN_LOG_API_KEY is loaded from env_file (../../.env).
+      # Do NOT explicitly set it here — compose variable interpolation would resolve
+      # against backend/core/.env (which doesn't exist), overwriting the real value.
+      # This key is needed by Celery task run_daily_all_tests to auth with the sidecar.
       E2E_TEST_DEV_ENABLED: "${E2E_TEST_DEV_ENABLED:-true}"
       E2E_TEST_DEV_BASE_URL: "${E2E_TEST_DEV_BASE_URL:-https://app.dev.openmates.org}"
       E2E_TEST_PROD_ENABLED: "${E2E_TEST_PROD_ENABLED:-false}"
