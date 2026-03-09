@@ -18,7 +18,7 @@
 // NOTE: All app skill models are included here (text, image, audio). The `allow_auto_select`
 // field in provider YAMLs is for a different feature (automatic model selection by the system).
 //
-// **Generated**: 2026-03-05T19:45:59.161Z
+// **Generated**: 2026-03-09T17:39:33.894Z
 // **Models included**: 24
 
 /**

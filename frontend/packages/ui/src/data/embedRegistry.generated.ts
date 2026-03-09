@@ -8,7 +8,7 @@
 // To add a new embed type, add an entry to the relevant app.yml
 // under the embed_types section, then rebuild.
 //
-// Generated: 2026-03-08T00:26:56.967Z
+// Generated: 2026-03-09T17:39:33.492Z
 // Total embed types: 30
 
 /**

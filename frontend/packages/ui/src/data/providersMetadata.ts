@@ -7,8 +7,8 @@
 //
 // To modify provider metadata, edit the source YAML files.
 //
-// **Generated**: 2026-03-06T08:05:09.166Z
-// **Providers included**: 18
+// **Generated**: 2026-03-09T17:39:34.277Z
+// **Providers included**: 19
 
 /**
  * Provider metadata for the provider detail pages in the App Store settings.
@@ -99,6 +99,13 @@ export const providersMetadata: Record<string, ProviderMetadata> = {
         name: "Google Maps",
         description: "Google Maps Platform Places API for location-based search and place information.",
         logo_svg: "icons/google_maps.svg",
+        country: "US",
+    },
+    "luma": {
+        id: "luma",
+        name: "Luma",
+        description: "Modern event platform for discovering and hosting in-person and online events, conferences, and meetups across 78 major cities worldwide.",
+        logo_svg: "icons/luma.svg",
         country: "US",
     },
     "meetup": {
