@@ -49,7 +49,8 @@ def _section(text: str) -> str: return f"\n{BOLD}{CYAN}{'─'*4} {text} {'─'*(
 # ─── Prometheus query helpers ────────────────────────────────────────────────
 
 PROMETHEUS_URL = "http://prometheus:9090"
-LOKI_URL = "http://loki:3100"
+OPENOBSERVE_URL = "http://openobserve:5080"
+OPENOBSERVE_ORG = "default"
 
 # Maximum chars per line in health output
 MAX_LINE_LEN = 80
@@ -90,45 +91,47 @@ async def _prom_query_series(query: str) -> List[Dict]:
         return []
 
 
-async def _loki_recent_errors(limit: int = 10, since_minutes: int = 30) -> List[Dict]:
+async def _openobserve_recent_errors(limit: int = 10, since_minutes: int = 30) -> List[Dict]:
     """
-    Fetch recent error-level log entries from Loki across all services.
+    Fetch recent error-level log entries from OpenObserve across all services.
     Returns list of {ts, service, message} dicts, newest-first.
+    Uses OpenObserve SQL search API: POST /api/{org}/{stream}/_search
     """
     try:
-        now_ns = int(time.time() * 1e9)
-        start_ns = int((time.time() - since_minutes * 60) * 1e9)
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
-                f"{LOKI_URL}/loki/api/v1/query_range",
-                params={
-                    "query": '{job=~".+"} | json | level =~ "ERROR|error|CRITICAL|critical"',
-                    "start": str(start_ns),
-                    "end": str(now_ns),
-                    "limit": limit,
-                    "direction": "backward",
-                }
-            )
+        import os
+        email = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
+        password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
+
+        start_us = int((time.time() - since_minutes * 60) * 1_000_000)
+        end_us = int(time.time() * 1_000_000)
+
+        sql = (
+            f"SELECT _timestamp, container, service, log, message, level "
+            f"FROM \"default\" "
+            f"WHERE (LOWER(level) IN ('error', 'critical') "
+            f"OR LOWER(log) LIKE '%error%' OR LOWER(log) LIKE '%critical%') "
+            f"ORDER BY _timestamp DESC LIMIT {limit}"
+        )
+
+        url = f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/default/_search"
+        body = {"query": {"sql": sql, "start_time": start_us, "end_time": end_us}}
+
+        async with httpx.AsyncClient(timeout=10.0, auth=(email, password)) as client:
+            resp = await client.post(url, json=body)
             if resp.status_code != 200:
                 return []
             data = resp.json()
             results = []
-            for stream in data.get("data", {}).get("result", []):
-                svc = stream.get("stream", {}).get("container_name", stream.get("stream", {}).get("job", "?"))
-                for ts_str, line in stream.get("values", []):
-                    try:
-                        entry = json.loads(line)
-                        msg = entry.get("message", line[:120])
-                    except Exception:
-                        msg = line[:120]
-                    results.append({
-                        "ts": int(ts_str),
-                        "service": svc,
-                        "message": msg,
-                    })
-            # Sort newest first and limit
-            results.sort(key=lambda x: x["ts"], reverse=True)
-            return results[:limit]
+            for hit in data.get("hits", []):
+                ts_us = hit.get("_timestamp", 0)
+                svc = hit.get("container", hit.get("service", "?"))
+                msg = hit.get("message", hit.get("log", ""))[:120]
+                results.append({
+                    "ts": int(ts_us) * 1000,  # convert µs → ns for display consistency
+                    "service": svc,
+                    "message": msg,
+                })
+            return results
     except Exception:
         return []
 
@@ -175,7 +178,7 @@ async def run_health_check(verbose: bool = False) -> None:
     - Prometheus target status (api, prometheus self)
     - API error rate and latency from Prometheus
     - Celery queue depths from Redis
-    - Recent error logs from Loki
+    - Recent error logs from OpenObserve
     - Celery task failure count (if metrics available)
     """
     print(_section("OpenMates System Health"))
@@ -279,10 +282,10 @@ async def run_health_check(verbose: bool = False) -> None:
             else:
                 print(_c(DIM, f"  {q}: {n} pending"))
 
-    # ── 4. Recent errors from Loki ─────────────────────────────────────────
+    # ── 4. Recent errors from OpenObserve ──────────────────────────────────
     since_min = 60 if not verbose else 30
     limit = 5 if not verbose else 10
-    recent_errors = await _loki_recent_errors(limit=limit, since_minutes=since_min)
+    recent_errors = await _openobserve_recent_errors(limit=limit, since_minutes=since_min)
     print()
     if recent_errors:
         print(_c(BOLD, f"  Recent Errors (last {since_min} min, newest first)"))
@@ -657,7 +660,7 @@ async def show_error_fingerprints(top: int = 10) -> None:
             print(f"  {_c(color, str(count).rjust(6))}  {exc_type:<30}  {location}")
 
         print()
-        # Also sample recent occurrences from Loki for each fingerprint
+        # Also sample recent occurrences from OpenObserve for each fingerprint
         print(_c(DIM, "  Tip: Run `debug.py logs <email>` to trace errors to specific users."))
         await cache.close()
     except Exception as exc:
@@ -670,59 +673,62 @@ async def show_error_fingerprints(top: int = 10) -> None:
 
 async def replay_request(request_id: str) -> None:
     """
-    Reconstruct the full timeline of a request by querying Loki for all
+    Reconstruct the full timeline of a request by querying OpenObserve for all
     log entries with the given request_id across all services.
     """
     print(_section(f"Request Replay: {request_id}"))
 
     try:
+        import os
+        email = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
+        password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
+
         since_min = 1440  # 24h — request_id logs may be from yesterday
-        now_ns = int(time.time() * 1e9)
-        start_ns = int((time.time() - since_min * 60) * 1e9)
+        start_us = int((time.time() - since_min * 60) * 1_000_000)
+        end_us = int(time.time() * 1_000_000)
 
-        # LogQL: match request_id in JSON logs
-        loki_query = '{job=~".+"} | json | request_id=`' + request_id + '`'
+        # OpenObserve SQL: search for request_id in JSON log body
+        sql = (
+            f"SELECT _timestamp, container, service, log, message, level "
+            f"FROM \"default\" "
+            f"WHERE log LIKE '%{request_id}%' OR message LIKE '%{request_id}%' "
+            f"ORDER BY _timestamp ASC LIMIT 500"
+        )
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.get(
-                f"{LOKI_URL}/loki/api/v1/query_range",
-                params={
-                    "query": loki_query,
-                    "start": str(start_ns),
-                    "end": str(now_ns),
-                    "limit": 500,
-                    "direction": "forward",
-                }
-            )
+        url = f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/default/_search"
+        body = {"query": {"sql": sql, "start_time": start_us, "end_time": end_us}}
+
+        async with httpx.AsyncClient(timeout=30.0, auth=(email, password)) as client:
+            resp = await client.post(url, json=body)
 
         if resp.status_code != 200:
-            print(_err(f"  Loki returned {resp.status_code}: {resp.text[:200]}"))
+            print(_err(f"  OpenObserve returned {resp.status_code}: {resp.text[:200]}"))
             return
 
         data = resp.json()
         all_events = []
-        for stream in data.get("data", {}).get("result", []):
-            svc = stream.get("stream", {}).get("container_name",
-                  stream.get("stream", {}).get("job", "?"))
-            for ts_str, line in stream.get("values", []):
-                try:
-                    entry = json.loads(line)
-                    level = entry.get("level", entry.get("levelname", "info")).upper()
-                    msg = entry.get("message", line[:160])
-                except Exception:
-                    level = "INFO"
-                    msg = line[:160]
-                all_events.append({
-                    "ts": int(ts_str),
-                    "service": svc,
-                    "level": level,
-                    "message": msg,
-                })
+        for hit in data.get("hits", []):
+            ts_us = hit.get("_timestamp", 0)
+            svc = hit.get("container", hit.get("service", "?"))
+            log_line = hit.get("log", hit.get("message", ""))
+            try:
+                entry = json.loads(log_line)
+                level = entry.get("level", entry.get("levelname", "info")).upper()
+                msg = entry.get("message", log_line[:160])
+            except Exception:
+                level = hit.get("level", "INFO").upper()
+                msg = log_line[:160]
+            all_events.append({
+                "ts": int(ts_us) * 1000,  # µs → ns for display consistency
+                "service": svc,
+                "level": level,
+                "message": msg,
+            })
 
         if not all_events:
             print(_warn(f"  No log entries found for request_id={request_id}"))
             print(_c(DIM, "  Note: Only requests with request_id propagation are traceable."))
-            print(_c(DIM, "  Loki retention is 7 days."))
+            print(_c(DIM, "  OpenObserve retention is 7 days."))
             print()
             return
 
@@ -776,7 +782,7 @@ async def _async_main():
     health_p = sub.add_parser("health", help="System health check")
     health_p.add_argument("-v", "--verbose", action="store_true")
 
-    replay_p = sub.add_parser("replay", help="Replay request trace from Loki")
+    replay_p = sub.add_parser("replay", help="Replay request trace from OpenObserve")
     replay_p.add_argument("request_id", help="Request ID")
 
     errors_p = sub.add_parser("errors", help="Top error fingerprints")

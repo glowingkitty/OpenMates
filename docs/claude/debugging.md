@@ -62,7 +62,7 @@ Check the Caddyfile first (`deployment/dev_server/Caddyfile` or `deployment/prod
 | Login/auth failures | `api` | `cms` (Directus logs) |
 | Payment issues | `api` | `task-worker` (async jobs) |
 | Sync/cache issues | `api` (PHASE1, SYNC_CACHE) | `cache` (Dragonfly) |
-| Frontend/client issues | Loki `{job="client-console"}` | Browser console |
+| Frontend/client issues | OpenObserve `job='client-console'` (SQL) | Browser console |
 | Scheduled task failures | `task-scheduler` | `task-worker` |
 | User-specific issues | `debug.py logs` | Specific service logs |
 

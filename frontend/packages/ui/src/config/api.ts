@@ -185,6 +185,7 @@ export const apiEndpoints = {
     exportAccountManifest: "/v1/settings/export-account-manifest", // Get export manifest (list of all data IDs)
     exportAccountData: "/v1/settings/export-account-data", // Get export data (usage, invoices, profile)
     updatePassword: "/v1/settings/update-password", // Add or change user password
+    issueLogs: "/v1/settings/issue-logs", // Push console logs to OpenObserve when any auth user submits an issue report
   },
   payments: {
     config: "/v1/payments/config", // Get public config for payment provider
@@ -218,7 +219,7 @@ export const apiEndpoints = {
   admin: {
     generateGiftCards: "/v1/admin/generate-gift-cards", // Admin-only: generate gift card codes
     listGiftCards: "/v1/admin/gift-cards", // Admin-only: list all active (unredeemed) gift cards
-    clientLogs: "/v1/admin/client-logs", // Admin-only: forward browser console logs to Loki for centralized debugging
+    clientLogs: "/v1/admin/client-logs", // Admin-only: live-stream browser console logs to OpenObserve (active for admin users)
   },
   server: {
     info: "/v1/server", // Get server information (domain and self_hosted flag based on request validation)

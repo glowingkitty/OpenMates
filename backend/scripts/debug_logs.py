@@ -7,7 +7,7 @@ Combines backend logs, compliance events, container logs, client console logs,
 and satellite server logs.  Supports multiple modes:
 
   1. User timeline (default):  Per-user activity log across all services.
-  2. Browser console logs:     Search admin browser console logs in Loki.
+  2. Browser console logs:     Search admin browser console logs in OpenObserve.
   3. Satellite server logs:    Fetch Docker logs from upload/preview servers.
   4. Satellite server update:  Trigger git-pull + rebuild on upload/preview.
   5. Satellite server status:  Poll last update status on upload/preview.
@@ -98,7 +98,8 @@ script_logger = configure_script_logging(
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
-LOKI_URL = "http://loki:3100"
+OPENOBSERVE_URL = "http://openobserve:5080"
+OPENOBSERVE_ORG = "default"
 DEFAULT_SINCE_MINUTES = 1440  # 24 hours
 MAX_LOKI_ENTRIES = 5000
 FOLLOW_POLL_INTERVAL_SECONDS = 5
@@ -270,7 +271,7 @@ async def resolve_user(email: str) -> Optional[Dict[str, Any]]:
         admin_username = None
         if is_admin:
             # Admin username is stored in the account_id field or we can derive from email
-            # For Loki client logs, user_email label is the admin username (email prefix)
+            # For OpenObserve client logs, user_email field is the admin username (email prefix)
             admin_username = email.split("@")[0] if "@" in email else email
 
         return {
@@ -311,7 +312,7 @@ def classify_event(message: str, level: str, source: str) -> Tuple[str, str]:
 
 
 def parse_timestamp_ns(ns_str: str) -> Tuple[str, int]:
-    """Convert Loki nanosecond timestamp → (ISO string, ns int)."""
+    """Convert a nanosecond timestamp → (ISO string, ns int)."""
     ns = int(ns_str)
     ts_seconds = ns / 1_000_000_000
     dt = datetime.fromtimestamp(ts_seconds, tz=timezone.utc)
@@ -330,82 +331,84 @@ def extract_level_from_message(message: str) -> str:
     return "info"
 
 
-# ─── Loki querying ───────────────────────────────────────────────────────────
+# ─── OpenObserve querying ────────────────────────────────────────────────────
 
-async def query_loki(
-    query: str,
+async def query_openobserve(
+    stream: str,
+    sql: str,
     since_minutes: int,
     limit: int = MAX_LOKI_ENTRIES,
-    start_ns: Optional[int] = None,
+    start_us: Optional[int] = None,
 ) -> List[LogEvent]:
-    """Query Loki and return parsed LogEvent list."""
-    if start_ns:
-        start_param = str(start_ns)
-    else:
-        start_seconds = time.time() - (since_minutes * 60)
-        start_param = str(int(start_seconds * 1_000_000_000))
+    """Query OpenObserve via SQL search API and return parsed LogEvent list.
 
-    end_param = str(int(time.time() * 1_000_000_000))
+    OpenObserve SQL search: POST /api/{org}/{stream}/_search
+    Body: {"query": {"sql": "...", "start_time": <µs>, "end_time": <µs>}}
+    """
+    import os
+    email = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
+    password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
 
-    params = {
-        "query": query,
-        "limit": str(limit),
-        "start": start_param,
-        "end": end_param,
-        "direction": "forward",
-    }
+    if start_us is None:
+        start_us = int((time.time() - since_minutes * 60) * 1_000_000)
+    end_us = int(time.time() * 1_000_000)
+
+    url = f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/{stream}/_search"
+    body = {"query": {"sql": sql, "start_time": start_us, "end_time": end_us}}
 
     events: List[LogEvent] = []
     try:
         timeout = aiohttp.ClientTimeout(total=30)
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(f"{LOKI_URL}/loki/api/v1/query_range", params=params) as resp:
+            async with session.post(
+                url, json=body, auth=aiohttp.BasicAuth(email, password)
+            ) as resp:
                 if resp.status != 200:
                     error_text = await resp.text()
-                    script_logger.warning(f"Loki query failed ({resp.status}): {error_text[:200]}")
+                    script_logger.warning(
+                        f"OpenObserve query failed ({resp.status}): {error_text[:200]}"
+                    )
                     return events
                 data = await resp.json()
     except aiohttp.ClientError as e:
-        script_logger.warning(f"Cannot connect to Loki: {e}")
+        script_logger.warning(f"Cannot connect to OpenObserve: {e}")
         return events
 
-    results = data.get("data", {}).get("result", [])
-    for stream in results:
-        labels = stream.get("stream", {})
-        stream_level = labels.get("level", "info")
-        stream_source = labels.get("container", labels.get("service", "unknown"))
-        # For client console logs, source is "browser"
-        if labels.get("job") == "client-console":
+    for hit in data.get("hits", []):
+        ts_us_val = hit.get("_timestamp", 0)
+        # OpenObserve returns microseconds; convert to nanoseconds for internal consistency
+        ts_ns = int(ts_us_val) * 1000
+        ts_str = datetime.fromtimestamp(ts_us_val / 1_000_000, tz=timezone.utc).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+
+        message = hit.get("log", hit.get("message", "")).strip()
+        level = hit.get("level", extract_level_from_message(message))
+
+        # Determine source from stream metadata
+        stream_source = hit.get("container", hit.get("service", "unknown"))
+        job = hit.get("job", "")
+        if job == "client-console":
             stream_source = "browser"
-        # For compliance logs, source is "compliance"
-        if labels.get("job") == "compliance-logs":
+        elif job == "compliance-logs":
             stream_source = "compliance"
 
-        for value in stream.get("values", []):
-            ts_ns_str, message = value[0], value[1]
-            ts_str, ts_ns = parse_timestamp_ns(ts_ns_str)
+        category, event_name = classify_event(message, level, stream_source)
 
-            # Determine level
-            level = stream_level or extract_level_from_message(message)
+        display_msg = message
+        if len(display_msg) > 300:
+            display_msg = display_msg[:297] + "..."
 
-            # Classify
-            category, event_name = classify_event(message, level, stream_source)
-
-            # Truncate message for display
-            display_msg = message.strip()
-            if len(display_msg) > 300:
-                display_msg = display_msg[:297] + "..."
-
-            events.append(LogEvent(
-                timestamp=ts_str,
-                timestamp_ns=ts_ns,
-                category=category,
-                event_name=event_name,
-                source=stream_source,
-                level=level,
-                message=display_msg,
-                raw=message.strip(),
-            ))
+        events.append(LogEvent(
+            timestamp=ts_str,
+            timestamp_ns=ts_ns,
+            category=category,
+            event_name=event_name,
+            source=stream_source,
+            level=level,
+            message=display_msg,
+            raw=message,
+        ))
 
     return events
 
@@ -494,25 +497,18 @@ async def query_satellite_logs(
 
 # ─── Main log aggregation ────────────────────────────────────────────────────
 
-def loki_escape(s: str) -> str:
-    """Escape a string for use inside a Loki regex filter |~ "...".
-    UUIDs and hex strings only need hyphen-safe treatment.
-    Loki uses RE2 syntax inside double-quoted strings where backslash
-    escapes like \\- are invalid. Hyphens are literal in RE2 outside
-    character classes, so no escaping is needed for UUID-like strings.
-    """
-    # For UUIDs/hex, no special chars need escaping.
-    # For safety, escape only truly special regex chars (not hyphens).
-    return re.sub(r'([.+*?^${}()\[\]\\|])', r'\\\1', s)
+def sql_escape(s: str) -> str:
+    """Escape a string for safe embedding in an OpenObserve SQL clause."""
+    return s.replace("'", "''")  # escape single quotes for SQL\[\]\\|])', r'\\\1', s)
 
 
 def build_chat_id_regex(chat_ids: List[str], max_ids: int = 20) -> str:
-    """Build a Loki regex alternation for a list of chat IDs."""
+    """Build an OR pattern for a list of chat IDs (used in SQL LIKE queries)."""
     if not chat_ids:
         return ""
     # Limit to avoid overly long regex
     ids = chat_ids[:max_ids]
-    return "|".join(loki_escape(cid) for cid in ids)
+    return "|".join(sql_escape(cid) for cid in ids)
 
 
 async def gather_all_events(
@@ -520,7 +516,7 @@ async def gather_all_events(
     since_minutes: int,
     chat_id_filter: Optional[str] = None,
 ) -> List[LogEvent]:
-    """Fire all Loki queries in parallel and merge results."""
+    """Fire all OpenObserve SQL queries in parallel and merge results."""
     user_id = user_info["user_id"]
     chat_ids = user_info["chat_ids"]
     is_admin = user_info["is_admin"]
@@ -529,7 +525,7 @@ async def gather_all_events(
     # Build search patterns
     # user_id is the primary match; also match on first 6 chars (legacy truncated format)
     user_id_short = user_id[:6]
-    user_id_regex = f"{loki_escape(user_id)}|{loki_escape(user_id_short)}"
+    user_id_regex = f"{sql_escape(user_id)}|{sql_escape(user_id_short)}"
 
     if chat_id_filter:
         chat_ids = [chat_id_filter]
@@ -542,7 +538,7 @@ async def gather_all_events(
     # Build queries
     queries: List[Tuple[str, str]] = []  # (query, description)
 
-    # 1. Compliance logs (user_id is a Loki label — fast!)
+    # 1. Compliance logs — labelled stream
     queries.append((
         f'{{job="compliance-logs", user_id="{user_id}"}}',
         "compliance",
@@ -580,8 +576,8 @@ async def gather_all_events(
             "client-console",
         ))
 
-    # Fire all Loki queries in parallel
-    tasks = [query_loki(q, since_minutes) for q, _ in queries]
+    # Fire all OpenObserve queries in parallel
+    tasks = [query_openobserve(stream, sql, since_minutes) for stream, sql, _ in queries]
 
     # Also query satellite servers in parallel
     satellite_search = user_id
@@ -595,7 +591,7 @@ async def gather_all_events(
 
     # Merge
     all_events: List[LogEvent] = []
-    query_descs = [desc for _, desc in queries] + ["upload", "preview"]
+    query_descs = [desc for _, _, desc in queries] + ["upload", "preview"]
 
     for i, result in enumerate(all_results):
         desc = query_descs[i] if i < len(query_descs) else f"query-{i}"
@@ -831,7 +827,7 @@ async def follow_mode(
 # Admin Debug API base URL (production) — accessed from inside the Docker network
 PROD_API_BASE = "https://api.openmates.org/v1/admin/debug"
 
-# Services to query for user-specific logs — mirrors the Loki queries in gather_all_events
+# Services to query for user-specific logs — mirrors the OpenObserve queries in gather_all_events
 PROD_LOG_SERVICES = ["api", "task-worker", "task-scheduler", "app-ai", "app-ai-worker",
                      "app-web", "app-web-worker", "app-events"]
 
@@ -921,7 +917,7 @@ async def run_prod_mode(
     verbose: bool = False,
 ) -> None:
     """
-    Production mode: query user logs via the Admin Debug API instead of local Loki.
+    Production mode: query user logs via the Admin Debug API instead of local OpenObserve.
 
     Flow:
       1. Get admin API key from Vault
@@ -1018,7 +1014,7 @@ async def run_prod_mode(
 
 
 # ─── Browser console log mode ────────────────────────────────────────────────
-# Queries Loki for admin browser console logs (job="client-console").
+# Queries OpenObserve for admin browser console logs (stream: client-console).
 # Does NOT require a user email — can search across ALL admins.
 
 def _build_browser_log_query(
@@ -1051,83 +1047,83 @@ def _print_browser_log_entry(timestamp_ns: str, message: str, level: str, user: 
     print(f"{C_DIM}{ts}{C_RESET} {level_str} {user_str} {message}")
 
 
-async def _query_browser_logs_loki(
+async def _query_browser_logs_openobserve(
     since_minutes: int,
     limit: int,
     level: Optional[str],
     user: Optional[str],
     search: Optional[str],
     as_json: bool,
-    start_ns: Optional[int] = None,
+    start_us: Optional[int] = None,
 ) -> Optional[int]:
     """
-    Query Loki for client console logs.
+    Query OpenObserve for client console logs (stream: client-console).
 
     Returns the latest timestamp (in nanoseconds) seen, or None if no results.
+    Browser logs are pushed by the admin_client_logs route via OpenObservePushService
+    using the OpenObserve Loki-compatible push endpoint.
     """
-    query = _build_browser_log_query(level, user, search)
+    import os
+    email = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
+    password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
 
-    if start_ns:
-        start_param = str(start_ns)
-    else:
-        start_seconds = time.time() - (since_minutes * 60)
-        start_param = str(int(start_seconds * 1_000_000_000))
+    where_clauses = ["1=1"]
+    if level:
+        where_clauses.append(f"level = '{sql_escape(level)}'")
+    if user:
+        where_clauses.append(f"user_email = '{sql_escape(user)}'")
+    if search:
+        where_clauses.append(f"(log LIKE '%{sql_escape(search)}%' OR message LIKE '%{sql_escape(search)}%')")
 
-    end_param = str(int(time.time() * 1_000_000_000))
+    where_sql = " AND ".join(where_clauses)
+    sql = (
+        f"SELECT _timestamp, log, message, level, user_email "
+        f"FROM \"client-console\" "
+        f"WHERE {where_sql} "
+        f"ORDER BY _timestamp ASC LIMIT {limit}"
+    )
 
-    params = {
-        "query": query,
-        "limit": str(limit),
-        "start": start_param,
-        "end": end_param,
-        "direction": "forward",
-    }
+    if start_us is None:
+        start_us = int((time.time() - since_minutes * 60) * 1_000_000)
+    end_us = int(time.time() * 1_000_000)
+
+    url = f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/client-console/_search"
+    body = {"query": {"sql": sql, "start_time": start_us, "end_time": end_us}}
 
     try:
         timeout = aiohttp.ClientTimeout(total=15)
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(f"{LOKI_URL}/loki/api/v1/query_range", params=params) as resp:
+            async with session.post(
+                url, json=body, auth=aiohttp.BasicAuth(email, password)
+            ) as resp:
                 if resp.status != 200:
                     error_text = await resp.text()
-                    script_logger.warning(f"Loki query failed (HTTP {resp.status}): {error_text}")
+                    script_logger.warning(f"OpenObserve query failed (HTTP {resp.status}): {error_text}")
                     return None
                 data = await resp.json()
     except aiohttp.ClientError as e:
-        script_logger.warning(f"Cannot connect to Loki at {LOKI_URL}: {e}")
+        script_logger.warning(f"Cannot connect to OpenObserve at {OPENOBSERVE_URL}: {e}")
         script_logger.warning("Make sure this script is running inside the API container (docker exec api ...)")
         return None
 
     if as_json:
         print(json.dumps(data, indent=2))
-        latest_ns = None
-        for stream in data.get("data", {}).get("result", []):
-            for value in stream.get("values", []):
-                ns = int(value[0])
-                if latest_ns is None or ns > latest_ns:
-                    latest_ns = ns
-        return latest_ns
+        latest_us = max((int(h.get("_timestamp", 0)) for h in data.get("hits", [])), default=None)
+        return latest_us * 1000 if latest_us else None
 
-    results = data.get("data", {}).get("result", [])
-    if not results:
+    hits = data.get("hits", [])
+    if not hits:
         return None
 
-    # Collect all entries, then sort by timestamp
-    all_entries = []
-    for stream in results:
-        stream_labels = stream.get("stream", {})
-        stream_level = stream_labels.get("level", "info")
-        stream_user = stream_labels.get("user_email", "unknown")
+    for hit in hits:
+        ts_us = hit.get("_timestamp", 0)
+        ts_ns_str = str(int(ts_us) * 1000)
+        message = hit.get("log", hit.get("message", ""))
+        entry_level = hit.get("level", "info")
+        entry_user = hit.get("user_email", "unknown")
+        _print_browser_log_entry(ts_ns_str, message, entry_level, entry_user)
 
-        for value in stream.get("values", []):
-            timestamp_ns, message = value[0], value[1]
-            all_entries.append((timestamp_ns, message, stream_level, stream_user))
-
-    all_entries.sort(key=lambda e: int(e[0]))
-
-    for timestamp_ns, message, entry_level, entry_user in all_entries:
-        _print_browser_log_entry(timestamp_ns, message, entry_level, entry_user)
-
-    return int(all_entries[-1][0]) if all_entries else None
+    return int(hits[-1].get("_timestamp", 0)) * 1000
 
 
 async def _browser_log_follow_mode(
@@ -1138,22 +1134,22 @@ async def _browser_log_follow_mode(
     search: Optional[str],
     as_json: bool,
 ) -> None:
-    """Continuously poll Loki for new browser console log entries."""
+    """Continuously poll OpenObserve for new browser console log entries."""
     query = _build_browser_log_query(level, user, search)
     print(f"{C_BOLD}Following client logs: {query}{C_RESET}")
     print(f"{C_DIM}Press Ctrl+C to stop{C_RESET}")
     print()
 
-    latest_ns = await _query_browser_logs_loki(since_minutes, limit, level, user, search, as_json)
+    latest_ns = await _query_browser_logs_openobserve(since_minutes, limit, level, user, search, as_json)
 
     while True:
         await asyncio.sleep(FOLLOW_POLL_INTERVAL_SECONDS)
         start_from = (latest_ns + 1) if latest_ns else None
         if start_from is None:
-            new_latest = await _query_browser_logs_loki(since_minutes, limit, level, user, search, as_json)
+            new_latest = await _query_browser_logs_openobserve(since_minutes, limit, level, user, search, as_json)
         else:
-            new_latest = await _query_browser_logs_loki(
-                since_minutes, limit, level, user, search, as_json, start_ns=start_from
+            new_latest = await _query_browser_logs_openobserve(
+                since_minutes, limit, level, user, search, as_json, start_us=start_from
             )
         if new_latest:
             latest_ns = new_latest
@@ -1161,9 +1157,9 @@ async def _browser_log_follow_mode(
 
 async def run_browser_logs_mode(args) -> None:
     """
-    Browser console log mode — query Loki for admin browser console logs.
+    Browser console log mode — query OpenObserve for admin browser console logs.
 
-    Supports --prod to fall back to the Admin Debug API when local Loki
+    Supports --prod to fall back to the Admin Debug API when local OpenObserve
     has no results (or when explicitly requested for production data).
     """
     since = getattr(args, 'since', BROWSER_LOG_DEFAULT_SINCE_MINUTES)
@@ -1186,14 +1182,14 @@ async def run_browser_logs_mode(args) -> None:
     print(f"{C_DIM}Query: {query}  (last {since} min, limit {limit}){C_RESET}")
     print()
 
-    latest_ns = await _query_browser_logs_loki(since, limit, level, user_filter, search, as_json)
+    latest_ns = await _query_browser_logs_openobserve(since, limit, level, user_filter, search, as_json)
 
     if latest_ns is None and not as_json:
         print(f"{C_DIM}No client console logs found for the given filters.{C_RESET}")
         if not use_prod:
             print(f"{C_DIM}Ensure an admin user has the app open in their browser.{C_RESET}")
 
-        # If --prod is set and local Loki had no results, try the Admin Debug API
+        # If --prod is set and local OpenObserve had no results, try the Admin Debug API
         if use_prod:
             print(f"\n{C_YELLOW}Trying production via Admin Debug API...{C_RESET}")
             await _browser_logs_prod_fallback(since, limit, level, user_filter, search, as_json)

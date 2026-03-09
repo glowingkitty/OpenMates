@@ -5,8 +5,13 @@ server:
 positions:
   filename: /tmp/positions.yaml
 
+# OpenObserve exposes a Loki-compatible push API — Promtail connects to it directly.
+# Stream name "default" corresponds to the OpenObserve default organization/stream.
 clients:
-  - url: http://loki:3100/loki/api/v1/push
+  - url: http://openobserve:5080/api/default/loki/api/v1/push
+    basic_auth:
+      username: "${OPENOBSERVE_ROOT_EMAIL}"
+      password: "${OPENOBSERVE_ROOT_PASSWORD}"
 
 scrape_configs:
   # API application logs (from file)
@@ -27,13 +32,11 @@ scrape_configs:
       - json:
           expressions:
             timestamp: timestamp
-            level: level # Extract level from JSON
+            level: level
             message: message
             name: name
             event_type: event_type
             status: status
-          # Don't fail if a line isn't JSON, but we expect this file to be JSON
-          # ignore_parse_errors: true
 
       # 3. Set labels from extracted JSON fields
       - labels:
@@ -42,10 +45,7 @@ scrape_configs:
           event_type:
           status:
 
-      # 4. Conditional drop stage for production
-      # Only drop DEBUG logs in production. INFO logs are essential for debugging
-      # production issues (skill execution, embed updates, sync operations, etc.)
-      # Loki's 7-day retention handles storage management.
+      # 4. Drop DEBUG logs in production
       - match:
           selector: '{server_env="production", level=~"(?i)debug"}'
           action: drop
@@ -59,8 +59,6 @@ scrape_configs:
           job: compliance-logs
           __path__: /var/log/api/compliance.log
     pipeline_stages:
-      # Compliance logs are always INFO level by design, no filtering needed here.
-      # Keep original pipeline for compliance logs.
       - json:
           expressions:
             timestamp: timestamp
@@ -77,12 +75,7 @@ scrape_configs:
     docker_sd_configs:
       - host: unix:///var/run/docker.sock
         refresh_interval: 30s
-        # Optional: Filter containers if needed
-        # filters:
-        #   - name: label
-        #     values: ["com.docker.compose.project=openmates-core"]
     relabel_configs:
-      # Relabel container labels to Promtail labels
       - source_labels: ["__meta_docker_container_name"]
         regex: "/(.*)"
         target_label: "container"
@@ -104,23 +97,16 @@ scrape_configs:
       # 2. Try parsing as JSON
       - json:
           expressions:
-            json_level: level # Extract level if JSON
-            # Extract other fields if needed, e.g., message: message
-          ignore_parse_errors: true # Don't fail if it's not JSON
+            json_level: level
+          ignore_parse_errors: true
 
       # 3. Try parsing Directus format: [14:21:11] GET /users/me 200 9ms
-      # Also handles paths with query strings: [14:38:37] GET /users?limit=1&meta=filter_count 200 4ms
       - regex:
           expression: '^\[(?P<directus_time>\d{2}:\d{2}:\d{2})\]\s+(?P<directus_method>\w+)\s+(?P<directus_path>[^\s]+)\s+(?P<directus_status>\d+)\s+(?P<directus_duration>[\d.]+ms)'
-          # If this matches, we have a Directus access log
 
-      # 4. Convert Directus logs to JSON format for consistency with other logs
-      # Use template stage to create JSON-formatted log line
+      # 4. Convert Directus logs to JSON format for consistency
       - template:
           source: output
-          # Only convert if we detected Directus format
-          # Create JSON with Directus time and extracted fields
-          # Note: Full timestamp will be provided by Loki from Docker log metadata
           template: |
             {{- if .directus_time -}}
             {"timestamp":"{{ .directus_time }}","name":"directus","level":"INFO","message":"{{ .directus_method }} {{ .directus_path }} {{ .directus_status }} {{ .directus_duration }}"}
@@ -128,7 +114,7 @@ scrape_configs:
             {{ .output }}
             {{- end -}}
 
-      # 5. Re-parse as JSON if we converted Directus format or if it was already JSON
+      # 5. Re-parse as JSON
       - json:
           expressions:
             json_level: level
@@ -137,24 +123,20 @@ scrape_configs:
             json_message: message
           ignore_parse_errors: true
 
-      # 6. Try parsing plain text format (if not JSON or Directus)
+      # 6. Try parsing plain text format
       - regex:
-          # Regex for the plain text format like: 2025-04-13 15:50:46,115 [INFO] app.tasks.celery_config: Message
           expression: '^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2},\d{3}\s+\[(?P<plain_level>\w+)\]'
 
-      # 7. Determine the actual log level (prefer JSON if available)
+      # 7. Determine the actual log level
       - template:
-          source: log_level # Create a new temporary field
+          source: log_level
           template: "{{ if .json_level }}{{ .json_level }}{{ else if .plain_level }}{{ .plain_level }}{{ else }}INFO{{ end }}"
 
       # 8. Set the final 'level' label
       - labels:
-          level: log_level # Use the determined log_level
+          level: log_level
 
-      # 9. Conditional drop stage for production
-      # Only drop DEBUG logs in production. INFO logs are essential for debugging
-      # production issues (skill execution, embed updates, sync operations, etc.)
-      # Loki's 7-day retention handles storage management.
+      # 9. Drop DEBUG logs in production
       - match:
           selector: '{server_env="production", log_level=~"(?i)debug"}'
           action: drop

@@ -5066,3 +5066,54 @@ async def delete_old_chats(
         logger.error(f"[DeleteOldChats] Unexpected error for user {user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to delete old chats")
 
+
+
+# ---------------------------------------------------------------------------
+# Issue-Report Console Log Push
+# ---------------------------------------------------------------------------
+
+class IssueLogsRequest(BaseModel):
+    """Request body for pushing issue-report-time console logs to OpenObserve."""
+    issue_id: str = Field(..., max_length=100, description="Directus issue record ID")
+    logs_text: str = Field(..., max_length=60000, description="Pre-formatted console log text")
+    page_url: str = Field(default="", max_length=500)
+    user_agent: str = Field(default="", max_length=500)
+
+
+@router.post("/issue-logs", include_in_schema=False)
+@limiter.limit("5/minute")
+async def push_issue_logs(
+    request: Request,
+    body: IssueLogsRequest,
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """
+    Push the console log snapshot captured at issue-report time to OpenObserve.
+
+    Called by the frontend immediately after a successful issue submission.
+    Available to all authenticated users (not admin-only) so any user who
+    files a report gets their logs indexed for admin investigation.
+
+    Rate-limited to 5/minute to prevent abuse (a user would never submit
+    more than 1-2 issue reports per minute in normal operation).
+    """
+    from backend.core.api.app.services.openobserve_push_service import openobserve_push_service
+
+    success = await openobserve_push_service.push_issue_logs(
+        logs_text=body.logs_text,
+        issue_id=body.issue_id,
+        user_id=current_user.id,
+        metadata={
+            "pageUrl": body.page_url,
+            "userAgent": body.user_agent,
+        },
+    )
+
+    if not success:
+        import logging as _logging
+        _logging.getLogger(__name__).warning(
+            f"Failed to push issue logs to OpenObserve for user {current_user.id}, issue {body.issue_id}"
+        )
+
+    # Always return 200 — log push failures must not break the issue submission UX.
+    return {"success": success}

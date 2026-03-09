@@ -2,15 +2,15 @@
 """
 Admin Client Console Log Forwarding Endpoint
 
-Receives batched browser console logs from admin users and pushes them to Loki
-for centralized storage and querying via Grafana. This gives admins a unified
+Receives batched browser console logs from admin users and pushes them to OpenObserve
+for centralized storage and querying via OpenObserve. This gives admins a unified
 view of client-side and server-side logs when debugging issues.
 
 Privacy guarantees:
 - Only accessible to authenticated admin users (double-checked via require_admin dependency)
 - Regular users cannot access this endpoint (HTTP 403)
 - Log messages are pre-sanitized on the client side (API keys, tokens, passwords redacted)
-- User identification in Loki uses username only (no email addresses)
+- User identification in OpenObserve uses username only (no email addresses)
 
 See docs/admin-console-log-forwarding.md for full architecture documentation.
 """
@@ -21,7 +21,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
 from backend.core.api.app.services.limiter import limiter
-from backend.core.api.app.services.loki_push_service import loki_push_service
+from backend.core.api.app.services.openobserve_push_service import openobserve_push_service
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.models.user import User
 from backend.core.api.app.services.directus import DirectusService
@@ -105,7 +105,7 @@ class ClientLogsRequest(BaseModel):
 @router.post(
     "/client-logs",
     include_in_schema=False,
-    summary="Forward client console logs to Loki (admin only)",
+    summary="Forward client console logs to OpenObserve (admin only)",
 )
 @limiter.limit("60/minute")
 async def receive_client_logs(
@@ -114,14 +114,14 @@ async def receive_client_logs(
     admin_user: User = Depends(require_admin),
 ) -> dict:
     """
-    Receive batched browser console logs from an admin user and push them to Loki.
+    Receive batched browser console logs from an admin user and push them to OpenObserve.
 
     This endpoint is rate-limited to 60 requests per minute per user. The client
     sends batches every 5 seconds (max 50 entries each), which would be 12 requests/min
     under normal conditions. Headroom is provided for multiple open tabs and burst
     activity during active debugging sessions.
 
-    The logs are pushed to Loki with the following labels:
+    The logs are pushed to OpenObserve with the following labels:
     - job: "client-console" (distinguishes from server-side logs)
     - level: log level (info, warn, error, debug)
     - user: admin username
@@ -129,11 +129,11 @@ async def receive_client_logs(
     - source: "browser"
 
     Returns:
-        {"success": true} if logs were accepted, {"success": false} on Loki push failure
+        {"success": true} if logs were accepted, {"success": false} on OpenObserve push failure
     """
     metadata = body.metadata or ClientLogMetadata()
 
-    # Convert entries to the format expected by the Loki push service
+    # Convert entries to the format expected by the OpenObserve push service
     entries = [
         {
             "timestamp": entry.timestamp,
@@ -143,11 +143,11 @@ async def receive_client_logs(
         for entry in body.logs
     ]
 
-    # Push to Loki using the admin's username as the identifier
+    # Push to OpenObserve using the admin's username as the identifier
     # We use username instead of email because:
     # 1. Email is encrypted in the database and not available on the User model
     # 2. Username is unique, human-readable, and sufficient for identifying the admin
-    success = await loki_push_service.push_client_logs(
+    success = await openobserve_push_service.push_client_logs(
         entries=entries,
         user_email=admin_user.username,  # Using username as the user identifier label
         metadata={
@@ -159,7 +159,7 @@ async def receive_client_logs(
 
     if not success:
         logger.warning(
-            f"Failed to push {len(entries)} client log entries to Loki for admin user {admin_user.username}"
+            f"Failed to push client log entries to OpenObserve for admin user {admin_user.username}"
         )
 
     # Always return 200 to the client - log forwarding failures should not

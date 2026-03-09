@@ -38,7 +38,8 @@ import { text } from "../i18n/translations"; // Import text store for translatio
 import { chatListCache } from "../services/chatListCache"; // Import chatListCache to clear stale chat data on session expiry
 import { chatMetadataCache } from "../services/chatMetadataCache"; // Import chatMetadataCache to clear stale decrypted title/metadata cache on logout
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage"; // Import to clear shared chat keys on session expiry
-import { clientLogForwarder } from "../services/clientLogForwarder"; // Import admin console log forwarder
+import { openobserveRumService } from "../services/openobserveRum"; // RUM SDK — tracks all users, sets identity on login
+import { clientLogForwarder } from "../services/clientLogForwarder"; // Admin live log streaming to OpenObserve
 import { appSettingsMemoriesStore } from "./appSettingsMemoriesStore"; // Import to pre-load entries for @ mention dropdown
 import { applyServerDarkMode } from "./theme"; // Apply server dark mode preference on session restore
 
@@ -607,14 +608,9 @@ export async function checkAuth(
         console.error("Failed to save user data to database:", dbError);
       }
 
-      // Start admin console log forwarding on session restore if user is admin.
-      // IMPORTANT: This is intentionally outside the DB try/catch above so that a database
-      // error (e.g. IndexedDB quota exceeded) does NOT silently prevent log forwarding from
-      // starting. Log forwarding must activate regardless of DB save success.
-      // Only admin users have logs forwarded - regular users are never affected.
-      console.debug(
-        `[AuthSessionActions] is_admin check for log forwarder: ${data.user.is_admin}`,
-      );
+      // Set RUM user identity on session restore so all user activity is attributed.
+      openobserveRumService.setUser({ id: data.user.id ?? localProfile.user_id ?? "" });
+      // Start live console log streaming for admin users on session restore.
       if (data.user.is_admin) {
         clientLogForwarder.start();
       }
@@ -673,8 +669,9 @@ export async function checkAuth(
         data.message,
       );
 
-      // Stop admin console log forwarding on session expiry (before clearing auth state)
-      clientLogForwarder.stop();
+      // Stop admin log streaming and clear RUM identity on session expiry
+      void clientLogForwarder.stop();
+      openobserveRumService.clearUser();
 
       // Check if master key was present before clearing (to determine if user was previously authenticated)
       const hadMasterKey = !!(await cryptoService.getKeyFromStorage());
@@ -1060,14 +1057,8 @@ export async function checkAuth(
           }
         }
 
-        // Start admin console log forwarding in offline-first mode if user is admin.
-        // The local profile from IndexedDB preserves is_admin from the last successful session.
-        if (localProfile.is_admin) {
-          console.debug(
-            "[AuthSessionActions] Starting admin log forwarder (offline-first mode)",
-          );
-          clientLogForwarder.start();
-        }
+        // Set RUM user identity in offline-first mode so activity is attributed.
+        openobserveRumService.setUser({ id: localProfile.user_id ?? "" });
 
         return true; // Return true to indicate optimistic authentication
       } else {

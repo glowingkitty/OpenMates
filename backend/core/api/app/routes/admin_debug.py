@@ -3,7 +3,7 @@
 REST API endpoints for admin debugging functionality.
 
 These endpoints allow admins to remotely debug production issues without SSH access:
-- Query Docker Compose logs via Loki
+- Query Docker Compose logs via OpenObserve
 - Manage issue reports (list, view, delete)
 - Inspect chats, users, embeds, demo chats
 - Inspect recent AI processing requests
@@ -38,7 +38,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.limiter import limiter
-from backend.core.api.app.services.loki_log_collector import loki_log_collector
+from backend.core.api.app.services.openobserve_log_collector import openobserve_log_collector
 from backend.core.api.app.utils.api_key_auth import (
     ApiKeyNotFoundError,
     DeviceNotApprovedError,
@@ -82,7 +82,7 @@ router = APIRouter(
 # ALLOWED SERVICES FOR LOG QUERIES
 # ============================================================================
 # Security: Only allow querying specific services to prevent access to sensitive logs
-# Excluded: vault, vault-setup (secrets), grafana, prometheus, loki, promtail, cadvisor (monitoring infra)
+# Excluded: vault, vault-setup (secrets), openobserve, prometheus, promtail, cadvisor (monitoring infra)
 
 ALLOWED_LOG_SERVICES = [
     # Core services
@@ -279,9 +279,9 @@ async def get_compose_logs(
     admin_user: User = Depends(require_admin_api_key),
 ) -> LogsResponse:
     """
-    Query Docker Compose logs from Loki.
+    Query Docker Compose logs from OpenObserve.
     
-    This endpoint allows querying logs from predefined services via Loki.
+    This endpoint allows querying logs from predefined services via OpenObserve.
     Useful for debugging production issues without SSH access.
     
     Args:
@@ -323,8 +323,8 @@ async def get_compose_logs(
     start_time = datetime.now(timezone.utc) - timedelta(minutes=since_minutes)
     
     try:
-        # Query Loki for logs
-        logs = await loki_log_collector.get_compose_logs(
+        # Query OpenObserve for logs
+        logs = await openobserve_log_collector.get_compose_logs(
             lines=lines,
             services=requested_services,
             exclude_containers=None,  # We already filtered to allowed services

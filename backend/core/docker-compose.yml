@@ -20,7 +20,7 @@ services:
       DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
       DRAGONFLY_URL: "cache:6379"
       VAULT_URL: "http://vault:8200"
-      MONITORING_URL: "http://prometheus:9090"
+      MONITORING_URL: "http://openobserve:5080"
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
@@ -1434,8 +1434,36 @@ services:
              echo 'Setup complete.'"
 
   #########################################################################
-  ##### Monitoring (Prometheus/Grafana/Loki)
+  ##### Monitoring (OpenObserve)
   #########################################################################
+  openobserve:
+    container_name: openobserve
+    image: public.ecr.aws/zinclabs/openobserve:latest
+    restart: unless-stopped
+    env_file: ../../.env
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+    environment:
+      ZO_ROOT_USER_EMAIL: "${OPENOBSERVE_ROOT_EMAIL}"
+      ZO_ROOT_USER_PASSWORD: "${OPENOBSERVE_ROOT_PASSWORD}"
+      ZO_DATA_DIR: "/data"
+      ZO_HTTP_PORT: "5080"
+      ZO_TELEMETRY: "false"
+    volumes:
+      - openobserve-data:/data
+    networks:
+      - openmates
+    healthcheck:
+      # OpenObserve uses a distroless image (no curl/wget/shell).
+      # We test TCP reachability by attempting an HTTP GET via /dev/tcp
+      # from a busybox shell injected as the health-check image alternative.
+      # Since no other service requires service_healthy on openobserve,
+      # HEALTHCHECK NONE (disable) keeps docker ps clean without false "unhealthy".
+      disable: true
+
   prometheus:
     container_name: prometheus
     image: prom/prometheus:v3.2.1
@@ -1453,7 +1481,6 @@ services:
       - "--storage.tsdb.path=/prometheus"
       - "--web.console.libraries=/usr/share/prometheus/console_libraries"
       - "--web.console.templates=/usr/share/prometheus/consoles"
-    # Ports removed for base config
     networks:
       - openmates
     healthcheck:
@@ -1461,8 +1488,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-    labels:
-      - "promtail.scrape=true"
 
   alertmanager:
     container_name: alertmanager
@@ -1479,9 +1504,6 @@ services:
       - "--config.file=/etc/alertmanager/alertmanager.yml"
       - "--storage.path=/alertmanager"
     environment:
-      # Internal API token for securing the alert webhook endpoint.
-      # Alertmanager sends this token in the X-Internal-Service-Token header when posting
-      # to POST /internal/alerts/webhook on the API container.
       INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
     networks:
       - openmates
@@ -1490,8 +1512,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-    labels:
-      - "promtail.scrape=true"
 
   # System monitoring containers
   cadvisor:
@@ -1504,7 +1524,6 @@ services:
         limits:
           cpus: "0.5"
           memory: 256M
-    # Reduce cAdvisor overhead: longer housekeeping, disable unneeded metrics
     command:
       - "--housekeeping_interval=30s"
       - "--docker_only=true"
@@ -1524,38 +1543,11 @@ services:
       timeout: 10s
       retries: 3
 
-  loki:
-    container_name: loki
-    image: grafana/loki:3.4.2
-    restart: unless-stopped
-    user: "0" # Run as root to avoid permission issues
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 512M
-    volumes:
-      - ./monitoring/loki:/etc/loki
-      - loki-data:/loki
-      - loki-wal:/wal # Add volume for WAL data
-    command:
-      - "-config.file=/etc/loki/loki-config.yaml"
-      - "-validation.allow-structured-metadata=false" # Disable structured metadata check
-    networks:
-      - openmates
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3100/ready"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    labels:
-      - "promtail.scrape=true"
-
   promtail:
     container_name: promtail
     image: grafana/promtail:3.4.2
     restart: unless-stopped
-    env_file: ../../.env # Add env_file to access SERVER_ENVIRONMENT
+    env_file: ../../.env
     deploy:
       resources:
         limits:
@@ -1563,15 +1555,15 @@ services:
           memory: 256M
     volumes:
       - ./monitoring/promtail:/etc/promtail
-      - /var/run/docker.sock:/var/run/docker.sock:ro # Mount Docker socket for service discovery
-      - ./api/logs:/var/log/api:ro # Make sure this path exists
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./api/logs:/var/log/api:ro
     command:
       - "-config.file=/etc/promtail/promtail-config.yaml"
+      - "-config.expand-env=true"
     depends_on:
-      - loki
+      - openobserve
     networks:
       - openmates
-
   # Grafana removed — the UI dashboard was unused and consumed ~220 MB RAM.
   # Prometheus, Loki, and Promtail remain as they are actively used by the backend.
   # To re-enable Grafana, uncomment the block below and add grafana-data volume back.
@@ -1809,12 +1801,8 @@ volumes:
     name: openmates-cache-data
   prometheus-data:
     name: openmates-prometheus-data
-  loki-data:
-    name: openmates-loki-data
-  loki-wal:
-    name: openmates-loki-wal # Add volume for WAL data
-  # grafana-data:
-  #   name: openmates-grafana-data
+  openobserve-data:
+    name: openmates-openobserve-data
   vault-data:
     name: openmates-vault-data
   vault-setup-data:

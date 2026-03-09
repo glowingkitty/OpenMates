@@ -78,14 +78,14 @@ docker compose --env-file .env -f backend/core/docker-compose.yml logs api task-
 ```bash
 docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml down && \
 docker volume rm openmates-cache-data && \
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build api cms cms-database cms-setup task-worker task-scheduler app-ai app-code app-web app-videos app-news app-maps app-ai-worker app-web-worker cache vault vault-setup prometheus cadvisor loki promtail && \
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build api cms cms-database cms-setup task-worker task-scheduler app-ai app-code app-web app-videos app-news app-maps app-ai-worker app-web-worker cache vault vault-setup prometheus cadvisor openobserve promtail && \
 docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d
 ```
 
 **Available Docker Containers:**
 - Core: `api`, `cms`, `cms-database`, `cms-setup`, `task-worker`, `task-scheduler`
 - Apps: `app-ai`, `app-web`, `app-videos`, `app-news`, `app-maps`, `app-code`, `app-audio`, `app-travel`, `app-jobs`, `app-reminder`, `app-pdf`, `app-docs`, `app-images`, `app-openmates`, `app-health`, `app-ai-worker`, `app-web-worker`
-- Infra: `cache`, `vault`, `vault-setup`, `prometheus`, `cadvisor`, `loki`, `promtail`
+- Infra: `cache`, `vault`, `vault-setup`, `prometheus`, `cadvisor`, `openobserve`, `promtail`
 
 ---
 
@@ -135,7 +135,7 @@ vercel env ls --cwd frontend/apps/web_app
 | `ERROR` status | Build failure | `vercel logs <url>` |
 | 404 on routes | Adapter misconfiguration | `vercel inspect <url>` |
 | Runtime crash (500) | Missing env var | `vercel logs <url>` |
-| App blank | Client-side JS error | Firecrawl or Loki |
+| App blank | Client-side JS error | Firecrawl or OpenObserve |
 
 Do NOT run `vercel build` locally. Fix code → push → auto-deploys.
 
@@ -166,7 +166,7 @@ Full `window.debug` API: `debug()`, `help()`, `chat(id)`, `chat(id, {download:tr
 
 ---
 
-## Client Console Logs (Admin Only via Loki)
+## Client Console Logs (Admin Only via OpenObserve)
 
 ```bash
 docker exec api python /app/backend/scripts/debug.py logs --browser
@@ -175,9 +175,18 @@ docker exec api python /app/backend/scripts/debug.py logs --browser --user jan41
 docker exec api python /app/backend/scripts/debug.py logs --browser --follow
 ```
 
-Labels: `job=client-console`, `level=debug|info|warn|error`, `user_email=<admin>`, `server_env=development|production`
+OpenObserve SQL (direct query — requires admin credentials):
+```bash
+NOW=$(date +%s%6N) && SINCE=$((NOW - 3600000000)) && \
+docker exec api curl -s -u "admin@openmates.internal:<password>" \
+  -H "Content-Type: application/json" \
+  -d "{\"query\":{\"sql\":\"SELECT _timestamp, user_email, level, message FROM \\\"default\\\" WHERE job='client-console' ORDER BY _timestamp DESC LIMIT 50\",\"start_time\":${SINCE},\"end_time\":${NOW},\"from\":0,\"size\":50}}" \
+  "http://openobserve:5080/api/default/_search"
+```
 
-Key files: `clientLogForwarder.ts`, `logCollector.ts`, `admin_client_logs.py`, `loki_push_service.py`
+Fields: `job=client-console`, `level=debug|info|warn|error`, `user_email=<admin>`, `server_env=development|production`
+
+Key files: `clientLogForwarder.ts`, `logCollector.ts`, `admin_client_logs.py`, `openobserve_push_service.py`
 
 ---
 

@@ -18,6 +18,8 @@
 	},
 	"dependencies": {
 		"@fontsource-variable/lexend-deca": "^5.2.9",
+		"@openobserve/browser-logs": "^0.3.1",
+		"@openobserve/browser-rum": "^0.3.1",
 		"@repo/ui": "workspace:*",
 		"svelte-i18n": "^4.0.1"
 	},

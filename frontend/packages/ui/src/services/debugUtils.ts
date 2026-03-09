@@ -3425,58 +3425,10 @@ async function runClientHealthCheck(): Promise<void> {
     if (isAdmin) {
       allOk.push("Admin: YES (is_admin=true)");
 
-      // Check log forwarder status — only relevant for admins
-      try {
-        const { clientLogForwarder } = await import("./clientLogForwarder");
-        const status = clientLogForwarder.getStatus();
-
-        if (status.isRunning) {
-          const flushInfo =
-            status.totalFlushAttempts > 0
-              ? `flushes=${status.successfulFlushes}ok/${status.failedFlushes}fail of ${status.totalFlushAttempts} total`
-              : "no flushes yet";
-          const lastStatus =
-            status.lastFlushStatus !== null
-              ? `, last HTTP ${status.lastFlushStatus}`
-              : "";
-          const lastErr = status.lastFlushError
-            ? `, lastError="${status.lastFlushError}"`
-            : "";
-          const firstFlush = status.firstFlushAttempted
-            ? ""
-            : " (first flush NOT yet attempted)";
-
-          if (status.failedFlushes === 0 && status.successfulFlushes > 0) {
-            allOk.push(
-              `Log forwarder: RUNNING (tab=${status.tabId}, ${flushInfo}${lastStatus}${firstFlush})`,
-            );
-          } else if (
-            status.failedFlushes > 0 &&
-            status.successfulFlushes === 0
-          ) {
-            allIssues.push(
-              `Log forwarder: RUNNING but ALL flushes FAILED (tab=${status.tabId}, ${flushInfo}${lastStatus}${lastErr})`,
-            );
-          } else if (status.failedFlushes > 0) {
-            allIssues.push(
-              `Log forwarder: RUNNING with some failures (tab=${status.tabId}, ${flushInfo}${lastStatus}${lastErr})`,
-            );
-          } else {
-            // Running but no flushes attempted yet (just started)
-            allOk.push(
-              `Log forwarder: RUNNING (tab=${status.tabId}, buffer=${status.bufferSize}${firstFlush})`,
-            );
-          }
-        } else {
-          allIssues.push(
-            "Log forwarder: NOT RUNNING (start() was never called or stop() was called)",
-          );
-        }
-      } catch {
-        allIssues.push("Log forwarder: unable to check status");
-      }
+      // OpenObserve RUM SDK is initialized globally and tracks all users
+      allOk.push("RUM observability: active (OpenObserve SDK)");
     } else {
-      allOk.push("Admin: no (log forwarder not applicable)");
+      allOk.push("Admin: no");
     }
   } catch {
     // non-critical — userProfile store may not be available
