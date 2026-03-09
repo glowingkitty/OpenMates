@@ -5063,6 +5063,27 @@
       },
       "change_password": {
         "text": "Změnit heslo"
+      },
+      "export_select_all": {
+        "text": "Vybrat vše"
+      },
+      "export_deselect_all": {
+        "text": "Zrušit výběr"
+      },
+      "export_includes_chat_files": {
+        "text": "Přílohy souborů chatu"
+      },
+      "export_includes_chat_files_desc": {
+        "text": "Obrázky, zvukové nahrávky, PDF, soubory kódu, přepisy videa"
+      },
+      "export_includes_profile_desc": {
+        "text": "Informace o účtu, preference, profilová fotka (dešifrováno)"
+      },
+      "export_includes_settings_desc": {
+        "text": "Předvolby aplikace a paměti AI (plně dešifrováno)"
+      },
+      "export_includes_usage_desc": {
+        "text": "Záznamy o použití ve formátech YAML a CSV"
       }
     },
     "ai_ask": {

@@ -5057,6 +5057,27 @@
       },
       "change_password": {
         "text": "Ubah kata sandi"
+      },
+      "export_select_all": {
+        "text": "Pilih semua"
+      },
+      "export_deselect_all": {
+        "text": "Batalkan semua"
+      },
+      "export_includes_chat_files": {
+        "text": "Lampiran file obrolan"
+      },
+      "export_includes_chat_files_desc": {
+        "text": "Gambar, rekaman audio, PDF, file kode, transkrip video"
+      },
+      "export_includes_profile_desc": {
+        "text": "Info akun, preferensi, foto profil (didekripsi)"
+      },
+      "export_includes_settings_desc": {
+        "text": "Preferensi aplikasi dan memori AI (sepenuhnya didekripsi)"
+      },
+      "export_includes_usage_desc": {
+        "text": "Catatan penggunaan dalam format YAML dan CSV"
       }
     },
     "ai_ask": {

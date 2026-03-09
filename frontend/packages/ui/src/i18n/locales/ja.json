@@ -3386,6 +3386,24 @@
     },
     "action_verification_subject": {
       "text": "確認コード：{code}"
+    },
+    "security_alert_new_api_key_device": {
+      "text": "セキュリティアラート：新しいデバイスがAPIキーを使用しました"
+    },
+    "new_api_key_device_used": {
+      "text": "新しいデバイスがAPIキーを使用しました"
+    },
+    "new_api_key_device_details": {
+      "text": "{YYYY}/{MM}/{DD} {time} ({timezone_name}) に、\nIP {anonymized_ip} ({region}) から\nAPIキーへのリクエストが行われました。"
+    },
+    "new_api_key_device_blocked": {
+      "text": "リクエストはブロックされました。APIキーを使用する前に、開発者設定でこのデバイスを承認する必要があります。"
+    },
+    "new_api_key_device_cta": {
+      "text": "開発者設定で確認する"
+    },
+    "new_api_key_device_not_you": {
+      "text": "ご自身の操作であればこのメールは無視してください。\n身に覚えがない場合は、開発者設定でAPIキーを直ちに無効化してください。"
     }
   },
   "embeds": {
@@ -6160,6 +6178,27 @@
       },
       "chats": {
         "text": "チャット"
+      },
+      "export_select_all": {
+        "text": "すべて選択"
+      },
+      "export_deselect_all": {
+        "text": "すべて解除"
+      },
+      "export_includes_chat_files": {
+        "text": "チャットのファイル添付"
+      },
+      "export_includes_chat_files_desc": {
+        "text": "画像、音声録音、PDF、コードファイル、動画文字起こし"
+      },
+      "export_includes_profile_desc": {
+        "text": "アカウント情報、設定、プロフィール画像（復号済み）"
+      },
+      "export_includes_settings_desc": {
+        "text": "アプリ設定とAIメモリ（完全復号済み）"
+      },
+      "export_includes_usage_desc": {
+        "text": "YAMLおよびCSV形式の使用記録"
       }
     },
     "ai_ask": {

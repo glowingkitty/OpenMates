@@ -5057,6 +5057,27 @@
       },
       "change_password": {
         "text": "Đổi mật khẩu"
+      },
+      "export_select_all": {
+        "text": "Chọn tất cả"
+      },
+      "export_deselect_all": {
+        "text": "Bỏ chọn tất cả"
+      },
+      "export_includes_chat_files": {
+        "text": "Tệp đính kèm trò chuyện"
+      },
+      "export_includes_chat_files_desc": {
+        "text": "Hình ảnh, bản ghi âm, PDF, tệp mã, bản ghi video"
+      },
+      "export_includes_profile_desc": {
+        "text": "Thông tin tài khoản, tùy chọn, ảnh hồ sơ (đã giải mã)"
+      },
+      "export_includes_settings_desc": {
+        "text": "Tùy chọn ứng dụng và bộ nhớ AI (giải mã hoàn toàn)"
+      },
+      "export_includes_usage_desc": {
+        "text": "Bản ghi sử dụng ở định dạng YAML và CSV"
       }
     },
     "ai_ask": {

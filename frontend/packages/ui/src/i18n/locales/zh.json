@@ -3386,6 +3386,24 @@
     },
     "action_verification_subject": {
       "text": "您的验证码：{code}"
+    },
+    "security_alert_new_api_key_device": {
+      "text": "安全警报：新设备使用了您的 API 密钥"
+    },
+    "new_api_key_device_used": {
+      "text": "新设备使用了您的 API 密钥"
+    },
+    "new_api_key_device_details": {
+      "text": "在 {YYYY}/{MM}/{DD} {time} ({timezone_name})，\n有人从 IP {anonymized_ip} ({region})\n使用了您的 API 密钥。"
+    },
+    "new_api_key_device_blocked": {
+      "text": "该请求已被拦截。您必须在开发者设置中批准此设备，才能使用您的 API 密钥。"
+    },
+    "new_api_key_device_cta": {
+      "text": "在开发者设置中查看"
+    },
+    "new_api_key_device_not_you": {
+      "text": "如果是您本人操作，可以忽略此邮件。\n如果不是，请立即在开发者设置中吊销您的 API 密钥。"
     }
   },
   "embeds": {
@@ -6160,6 +6178,27 @@
       },
       "chats": {
         "text": "聊天"
+      },
+      "export_select_all": {
+        "text": "全选"
+      },
+      "export_deselect_all": {
+        "text": "取消全选"
+      },
+      "export_includes_chat_files": {
+        "text": "聊天文件附件"
+      },
+      "export_includes_chat_files_desc": {
+        "text": "图片、音频录音、PDF、代码文件、视频转录"
+      },
+      "export_includes_profile_desc": {
+        "text": "账户信息、偏好设置、个人资料图片（已解密）"
+      },
+      "export_includes_settings_desc": {
+        "text": "应用偏好设置和AI记忆（完全解密）"
+      },
+      "export_includes_usage_desc": {
+        "text": "YAML和CSV格式的使用记录"
       }
     },
     "ai_ask": {

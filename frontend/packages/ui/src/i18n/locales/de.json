@@ -2442,6 +2442,12 @@
       "unhide": {
         "text": "Einblenden"
       },
+      "start_debugging": {
+        "text": "Debugging starten"
+      },
+      "end_debugging": {
+        "text": "Debugging beenden"
+      },
       "fork": {
         "text": "Verzweigen"
       }
@@ -3504,6 +3510,24 @@
     },
     "action_verification_subject": {
       "text": "Ihr Bestätigungscode: {code}"
+    },
+    "security_alert_new_api_key_device": {
+      "text": "Sicherheitswarnung: Neues Gerät hat Ihren API-Schlüssel verwendet"
+    },
+    "new_api_key_device_used": {
+      "text": "Neues Gerät hat Ihren API-Schlüssel verwendet"
+    },
+    "new_api_key_device_details": {
+      "text": "Am {YYYY}/{MM}/{DD} um {time} ({timezone_name})\nwurde eine Anfrage mit Ihrem API-Schlüssel\nvon IP {anonymized_ip} ({region}) gesendet."
+    },
+    "new_api_key_device_blocked": {
+      "text": "Die Anfrage wurde blockiert. Sie müssen dieses Gerät in den Entwicklereinstellungen genehmigen, bevor es Ihren API-Schlüssel verwenden kann."
+    },
+    "new_api_key_device_cta": {
+      "text": "In Entwicklereinstellungen prüfen"
+    },
+    "new_api_key_device_not_you": {
+      "text": "Wenn Sie das waren, können Sie diese E-Mail ignorieren.\nWenn Sie das nicht waren, widerrufen Sie sofort Ihren API-Schlüssel in den Entwicklereinstellungen."
     }
   },
   "embeds": {
@@ -6730,6 +6754,27 @@
         "preview_loading": {
           "text": "Wird geprüft..."
         }
+      },
+      "export_select_all": {
+        "text": "Alles auswählen"
+      },
+      "export_deselect_all": {
+        "text": "Alle abwählen"
+      },
+      "export_includes_chat_files": {
+        "text": "Chat-Dateianhänge"
+      },
+      "export_includes_chat_files_desc": {
+        "text": "Bilder, Audioaufnahmen, PDFs, Code-Dateien, Videotranskripte"
+      },
+      "export_includes_profile_desc": {
+        "text": "Kontoinformationen, Einstellungen, Profilbild (entschlüsselt)"
+      },
+      "export_includes_settings_desc": {
+        "text": "App-Einstellungen und KI-Erinnerungen (vollständig entschlüsselt)"
+      },
+      "export_includes_usage_desc": {
+        "text": "Nutzungsaufzeichnungen in YAML- und CSV-Formaten"
       }
     },
     "ai_ask": {

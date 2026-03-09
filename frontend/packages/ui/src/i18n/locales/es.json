@@ -3386,6 +3386,24 @@
     },
     "action_verification_subject": {
       "text": "Tu código de verificación: {code}"
+    },
+    "security_alert_new_api_key_device": {
+      "text": "Alerta de seguridad: Un nuevo dispositivo usó tu clave de API"
+    },
+    "new_api_key_device_used": {
+      "text": "Un nuevo dispositivo usó tu clave de API"
+    },
+    "new_api_key_device_details": {
+      "text": "El {YYYY}/{MM}/{DD} a las {time} ({timezone_name}),\nse realizó una solicitud con tu clave de API\ndesde la IP {anonymized_ip} ({region})."
+    },
+    "new_api_key_device_blocked": {
+      "text": "La solicitud fue bloqueada. Debes aprobar este dispositivo en la Configuración de desarrollador antes de que pueda usar tu clave de API."
+    },
+    "new_api_key_device_cta": {
+      "text": "Revisar en Configuración de desarrollador"
+    },
+    "new_api_key_device_not_you": {
+      "text": "Si fuiste tú, puedes ignorar este correo.\nSi no fuiste tú, revoca tu clave de API de inmediato en Configuración de desarrollador."
     }
   },
   "embeds": {
@@ -6317,6 +6335,27 @@
         "description": {
           "text": "Administra y revisa tu historial de chats"
         }
+      },
+      "export_select_all": {
+        "text": "Seleccionar todo"
+      },
+      "export_deselect_all": {
+        "text": "Deseleccionar todo"
+      },
+      "export_includes_chat_files": {
+        "text": "Archivos adjuntos de chat"
+      },
+      "export_includes_chat_files_desc": {
+        "text": "Imágenes, grabaciones de audio, PDFs, archivos de código, transcripciones de vídeo"
+      },
+      "export_includes_profile_desc": {
+        "text": "Información de cuenta, preferencias, foto de perfil (descifrado)"
+      },
+      "export_includes_settings_desc": {
+        "text": "Preferencias de la app y memorias de IA (completamente descifrado)"
+      },
+      "export_includes_usage_desc": {
+        "text": "Registros de uso en formatos YAML y CSV"
       }
     },
     "ai_ask": {

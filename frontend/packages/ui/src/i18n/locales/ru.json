@@ -5060,6 +5060,27 @@
       },
       "chats": {
         "text": "Чаты"
+      },
+      "export_select_all": {
+        "text": "Выбрать всё"
+      },
+      "export_deselect_all": {
+        "text": "Снять выбор"
+      },
+      "export_includes_chat_files": {
+        "text": "Вложения чата"
+      },
+      "export_includes_chat_files_desc": {
+        "text": "Изображения, аудиозаписи, PDF, файлы кода, расшифровки видео"
+      },
+      "export_includes_profile_desc": {
+        "text": "Информация об аккаунте, настройки, фото профиля (расшифровано)"
+      },
+      "export_includes_settings_desc": {
+        "text": "Настройки приложения и память ИИ (полностью расшифровано)"
+      },
+      "export_includes_usage_desc": {
+        "text": "Записи об использовании в форматах YAML и CSV"
       }
     },
     "ai_ask": {

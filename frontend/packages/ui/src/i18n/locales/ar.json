@@ -5219,6 +5219,27 @@
         "preview_loading": {
           "text": "جارٍ التحقق..."
         }
+      },
+      "export_select_all": {
+        "text": "تحديد الكل"
+      },
+      "export_deselect_all": {
+        "text": "إلغاء تحديد الكل"
+      },
+      "export_includes_chat_files": {
+        "text": "مرفقات ملفات الدردشة"
+      },
+      "export_includes_chat_files_desc": {
+        "text": "صور ومقاطع صوتية وملفات PDF وملفات الكود وتفريغ الفيديو"
+      },
+      "export_includes_profile_desc": {
+        "text": "معلومات الحساب والتفضيلات وصورة الملف الشخصي (مفككة التشفير)"
+      },
+      "export_includes_settings_desc": {
+        "text": "تفضيلات التطبيق وذكريات الذكاء الاصطناعي (مفككة التشفير بالكامل)"
+      },
+      "export_includes_usage_desc": {
+        "text": "سجلات الاستخدام بتنسيقات YAML وCSV"
       }
     },
     "ai_ask": {

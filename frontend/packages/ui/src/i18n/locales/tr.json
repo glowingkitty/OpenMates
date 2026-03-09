@@ -5060,6 +5060,27 @@
       },
       "chats": {
         "text": "Sohbetler"
+      },
+      "export_select_all": {
+        "text": "Hepsini seç"
+      },
+      "export_deselect_all": {
+        "text": "Tümünü kaldır"
+      },
+      "export_includes_chat_files": {
+        "text": "Sohbet dosya ekleri"
+      },
+      "export_includes_chat_files_desc": {
+        "text": "Resimler, ses kayıtları, PDF'ler, kod dosyaları, video transkriptleri"
+      },
+      "export_includes_profile_desc": {
+        "text": "Hesap bilgileri, tercihler, profil fotoğrafı (şifresi çözülmüş)"
+      },
+      "export_includes_settings_desc": {
+        "text": "Uygulama tercihleri ve AI anıları (tamamen şifresi çözülmüş)"
+      },
+      "export_includes_usage_desc": {
+        "text": "YAML ve CSV formatlarında kullanım kayıtları"
       }
     },
     "ai_ask": {

@@ -5060,6 +5060,27 @@
       },
       "chats": {
         "text": "채팅"
+      },
+      "export_select_all": {
+        "text": "모두 선택"
+      },
+      "export_deselect_all": {
+        "text": "모두 해제"
+      },
+      "export_includes_chat_files": {
+        "text": "채팅 파일 첨부"
+      },
+      "export_includes_chat_files_desc": {
+        "text": "이미지, 오디오 녹음, PDF, 코드 파일, 동영상 자막"
+      },
+      "export_includes_profile_desc": {
+        "text": "계정 정보, 환경 설정, 프로필 사진 (복호화됨)"
+      },
+      "export_includes_settings_desc": {
+        "text": "앱 환경 설정 및 AI 기억 (완전히 복호화됨)"
+      },
+      "export_includes_usage_desc": {
+        "text": "YAML 및 CSV 형식의 사용 기록"
       }
     },
     "ai_ask": {

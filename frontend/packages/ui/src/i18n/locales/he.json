@@ -6038,6 +6038,27 @@
         "preview_loading": {
           "text": "בודק..."
         }
+      },
+      "export_select_all": {
+        "text": "בחר הכל"
+      },
+      "export_deselect_all": {
+        "text": "בטל בחירה"
+      },
+      "export_includes_chat_files": {
+        "text": "קבצים מצורפים לצ'אט"
+      },
+      "export_includes_chat_files_desc": {
+        "text": "תמונות, הקלטות שמע, קובצי PDF, קוד, תמלולי וידאו"
+      },
+      "export_includes_profile_desc": {
+        "text": "פרטי חשבון, העדפות, תמונת פרופיל (מפוענחת)"
+      },
+      "export_includes_settings_desc": {
+        "text": "העדפות אפליקציה וזיכרונות AI (מפוענחים לחלוטין)"
+      },
+      "export_includes_usage_desc": {
+        "text": "רשומות שימוש בפורמטי YAML ו-CSV"
       }
     },
     "ai_ask": {

@@ -5060,6 +5060,27 @@
       },
       "chats": {
         "text": "चैट"
+      },
+      "export_select_all": {
+        "text": "सभी चुनें"
+      },
+      "export_deselect_all": {
+        "text": "सभी हटाएं"
+      },
+      "export_includes_chat_files": {
+        "text": "चैट फ़ाइल अटैचमेंट"
+      },
+      "export_includes_chat_files_desc": {
+        "text": "चित्र, ऑडियो रिकॉर्डिंग, PDF, कोड फ़ाइलें, वीडियो ट्रांसक्रिप्ट"
+      },
+      "export_includes_profile_desc": {
+        "text": "खाता जानकारी, प्राथमिकताएं, प्रोफ़ाइल चित्र (डिक्रिप्टेड)"
+      },
+      "export_includes_settings_desc": {
+        "text": "ऐप प्राथमिकताएं और AI मेमोरीज (पूरी तरह डिक्रिप्टेड)"
+      },
+      "export_includes_usage_desc": {
+        "text": "YAML और CSV फ़ॉर्मेट में उपयोग रिकॉर्ड"
       }
     },
     "ai_ask": {

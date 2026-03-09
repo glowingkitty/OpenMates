@@ -5078,6 +5078,27 @@
       },
       "change_password": {
         "text": "Ändra lösenord"
+      },
+      "export_select_all": {
+        "text": "Välj alla"
+      },
+      "export_deselect_all": {
+        "text": "Avmarkera alla"
+      },
+      "export_includes_chat_files": {
+        "text": "Chatfilsbilagor"
+      },
+      "export_includes_chat_files_desc": {
+        "text": "Bilder, ljudinspelningar, PDF:er, kodfiler, videotranskriptioner"
+      },
+      "export_includes_profile_desc": {
+        "text": "Kontoinformation, inställningar, profilbild (dekrypterat)"
+      },
+      "export_includes_settings_desc": {
+        "text": "Appinställningar och AI-minnen (fullständigt dekrypterat)"
+      },
+      "export_includes_usage_desc": {
+        "text": "Användningsrecord i YAML- och CSV-format"
       }
     },
     "ai_ask": {

@@ -5057,6 +5057,27 @@
       },
       "change_password": {
         "text": "Zmień hasło"
+      },
+      "export_select_all": {
+        "text": "Zaznacz wszystko"
+      },
+      "export_deselect_all": {
+        "text": "Odznacz wszystko"
+      },
+      "export_includes_chat_files": {
+        "text": "Załączniki plików czatu"
+      },
+      "export_includes_chat_files_desc": {
+        "text": "Obrazy, nagrania audio, PDF, pliki kodu, transkrypcje wideo"
+      },
+      "export_includes_profile_desc": {
+        "text": "Informacje o koncie, preferencje, zdjęcie profilowe (odszyfrowane)"
+      },
+      "export_includes_settings_desc": {
+        "text": "Preferencje aplikacji i pamięć AI (w pełni odszyfrowane)"
+      },
+      "export_includes_usage_desc": {
+        "text": "Rekordy użytkowania w formatach YAML i CSV"
       }
     },
     "ai_ask": {

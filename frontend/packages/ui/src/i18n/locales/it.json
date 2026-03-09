@@ -5060,6 +5060,27 @@
       },
       "chats": {
         "text": "Chat"
+      },
+      "export_select_all": {
+        "text": "Seleziona tutto"
+      },
+      "export_deselect_all": {
+        "text": "Deseleziona tutto"
+      },
+      "export_includes_chat_files": {
+        "text": "Allegati file chat"
+      },
+      "export_includes_chat_files_desc": {
+        "text": "Immagini, registrazioni audio, PDF, file di codice, trascrizioni video"
+      },
+      "export_includes_profile_desc": {
+        "text": "Informazioni account, preferenze, foto profilo (decifrato)"
+      },
+      "export_includes_settings_desc": {
+        "text": "Preferenze dell'app e memorie AI (completamente decifrato)"
+      },
+      "export_includes_usage_desc": {
+        "text": "Registri di utilizzo in formati YAML e CSV"
       }
     },
     "ai_ask": {

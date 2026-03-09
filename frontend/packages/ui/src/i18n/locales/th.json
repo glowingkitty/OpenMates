@@ -5063,6 +5063,27 @@
       },
       "change_password": {
         "text": "เปลี่ยนรหัสผ่าน"
+      },
+      "export_select_all": {
+        "text": "เลือกทั้งหมด"
+      },
+      "export_deselect_all": {
+        "text": "ยกเลิกเลือกทั้งหมด"
+      },
+      "export_includes_chat_files": {
+        "text": "ไฟล์แนบในแชท"
+      },
+      "export_includes_chat_files_desc": {
+        "text": "รูปภาพ บันทึกเสียง PDF ไฟล์โค้ด บทถอดเสียงวิดีโอ"
+      },
+      "export_includes_profile_desc": {
+        "text": "ข้อมูลบัญชี การตั้งค่า รูปโปรไฟล์ (ถอดรหัสแล้ว)"
+      },
+      "export_includes_settings_desc": {
+        "text": "การตั้งค่าแอปและความทรงจำ AI (ถอดรหัสทั้งหมด)"
+      },
+      "export_includes_usage_desc": {
+        "text": "บันทึกการใช้งานในรูปแบบ YAML และ CSV"
       }
     },
     "ai_ask": {

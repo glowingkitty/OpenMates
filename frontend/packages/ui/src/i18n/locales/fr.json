@@ -3386,6 +3386,24 @@
     },
     "action_verification_subject": {
       "text": "Votre code de vérification : {code}"
+    },
+    "security_alert_new_api_key_device": {
+      "text": "Alerte de sécurité : Un nouvel appareil a utilisé votre clé d'API"
+    },
+    "new_api_key_device_used": {
+      "text": "Un nouvel appareil a utilisé votre clé d'API"
+    },
+    "new_api_key_device_details": {
+      "text": "Le {YYYY}/{MM}/{DD} à {time} ({timezone_name}),\nune requête a été effectuée avec votre clé d'API\ndepuis l'IP {anonymized_ip} ({region})."
+    },
+    "new_api_key_device_blocked": {
+      "text": "La requête a été bloquée. Vous devez approuver cet appareil dans les Paramètres développeur avant qu'il puisse utiliser votre clé d'API."
+    },
+    "new_api_key_device_cta": {
+      "text": "Voir dans les Paramètres développeur"
+    },
+    "new_api_key_device_not_you": {
+      "text": "Si c'était vous, vous pouvez ignorer cet e-mail.\nSi ce n'était pas vous, révoquez immédiatement votre clé d'API dans les Paramètres développeur."
     }
   },
   "embeds": {
@@ -6274,6 +6292,27 @@
         "description": {
           "text": "Gérez et consultez votre historique de chats"
         }
+      },
+      "export_select_all": {
+        "text": "Tout sélectionner"
+      },
+      "export_deselect_all": {
+        "text": "Tout désélectionner"
+      },
+      "export_includes_chat_files": {
+        "text": "Pièces jointes des chats"
+      },
+      "export_includes_chat_files_desc": {
+        "text": "Images, enregistrements audio, PDFs, fichiers de code, transcriptions vidéo"
+      },
+      "export_includes_profile_desc": {
+        "text": "Informations du compte, préférences, photo de profil (déchiffré)"
+      },
+      "export_includes_settings_desc": {
+        "text": "Préférences de l'application et mémoires IA (entièrement déchiffré)"
+      },
+      "export_includes_usage_desc": {
+        "text": "Enregistrements d'utilisation en formats YAML et CSV"
       }
     },
     "ai_ask": {

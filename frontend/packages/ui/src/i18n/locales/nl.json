@@ -5057,6 +5057,27 @@
       },
       "change_password": {
         "text": "Wachtwoord wijzigen"
+      },
+      "export_select_all": {
+        "text": "Alles selecteren"
+      },
+      "export_deselect_all": {
+        "text": "Alles deselecteren"
+      },
+      "export_includes_chat_files": {
+        "text": "Chat bestandsbijlagen"
+      },
+      "export_includes_chat_files_desc": {
+        "text": "Afbeeldingen, audio-opnamen, PDF's, codebestanden, videotranscripties"
+      },
+      "export_includes_profile_desc": {
+        "text": "Accountinformatie, voorkeuren, profielfoto (gedecodeerd)"
+      },
+      "export_includes_settings_desc": {
+        "text": "App-voorkeuren en AI-herinneringen (volledig gedecodeerd)"
+      },
+      "export_includes_usage_desc": {
+        "text": "Gebruiksrecords in YAML- en CSV-formaten"
       }
     },
     "ai_ask": {
