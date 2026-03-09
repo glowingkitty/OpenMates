@@ -78,9 +78,8 @@ TAG_TO_DOCS: dict[str, list[str]] = {
     "embed": ["embed-types.md"],
     "api": ["add-api.md"],
     "planning": ["planning.md"],
-    "feature": ["planning.md", "feature-workflow.md"],
+    "feature": ["planning.md"],
     "logging": ["logging-and-docs.md"],
-    "concurrent": ["concurrent-sessions.md"],
     "security": ["backend-standards.md"],
 }
 

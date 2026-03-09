@@ -247,3 +247,20 @@ Is this correct?
 - **Assuming you know the codebase** — Verify by reading actual files, not from memory
 - **Ignoring concurrent work** — Other assistants may be changing the same files. Check git status
 - **Planning too much** — The plan should take 2-5 minutes, not 30. If you're writing an essay, simplify
+
+---
+
+## Feature Implementation Lifecycle
+
+Complements the planning template above with the end-to-end lifecycle.
+
+1. **Understand** — State your interpretation and wait for confirmation (Step 0 above)
+2. **Clarify** — Resolve ambiguities, search codebase for similar implementations (DRY), check `docs/architecture/`
+3. **Plan** — Follow the template above. Check `sessions.py status` for file conflicts.
+4. **Test strategy** — Decide before implementation: TDD when behavior is clearly defined, test-after when API is still being designed.
+5. **Implement** — Backend first, then frontend, then integration. Track every file. Lint incrementally.
+6. **Verify** — Work through Acceptance Criteria checklist. All tests pass, `pnpm build` succeeds (frontend).
+7. **Deploy** — `deploy-docs` → `prepare-deploy` → `deploy`. Rebuild Docker if backend changed.
+8. **Confirm** — Task Summary to user → wait for confirmation → delete issue if any → `end` session.
+
+If a test fails and you're stuck after 2 attempts: STOP and report.

@@ -18,27 +18,21 @@ python3 scripts/sessions.py start --task "brief description"
 
 # 2. After EVERY file edit/create:
 python3 scripts/sessions.py track --session <ID> --file path/to/file.py
-# → Warns if another session already tracks the same file.
 
-# 3. Mid-session lint check (optional):
-python3 scripts/sessions.py lint --session <ID>
-
-# 4. Deploy (lint + commit + push):
+# 3. Deploy (lint + commit + push):
 python3 scripts/sessions.py deploy-docs                  # load git/deployment docs
 python3 scripts/sessions.py prepare-deploy --session <ID> # preview
 python3 scripts/sessions.py deploy --session <ID> --title "fix: description" --message "body" --end
 # → --end auto-closes the session after successful push.
 
-# 5. If not using --end above:
+# 4. If not using --end above:
 python3 scripts/sessions.py end --session <ID>
 ```
-
-**Why:** Multiple assistants work concurrently. Without session tracking, file edits are invisible to other sessions — causing collisions and broken deployments.
 
 ### On-Demand Doc Loading
 
 ```bash
-python3 scripts/sessions.py context --doc <name>   # e.g. sync, debugging, embed-types
+python3 scripts/sessions.py context --doc <name>   # e.g. debugging-ref, embed-types-ref
 ```
 
 ### Infrastructure Locks (Docker/Vercel)
@@ -75,17 +69,15 @@ OpenMates/
 
 ## Core Principles
 
-### Code Quality & Design
-
-- **KISS:** Avoid over-engineering. Keep functions small, focused, well-named.
+- **KISS:** Small, focused, well-named functions. No over-engineering.
 - **Clean Code:** Remove unused functions, variables, imports, dead code.
 - **No Silent Failures:** Never hide errors with fallbacks. All errors must be visible and logged.
 - **No Magic Values:** Extract raw strings/numbers to named constants.
 - **Comments:** Explain business logic and architecture decisions. Link to `docs/architecture/`.
 
-### DRY — Mandatory Deduplication Check
+### DRY — Search Before Writing
 
-Before writing any new function, class, model, or component — **search for existing implementations first:**
+Before writing any new function, class, model, or component — **search for existing implementations:**
 
 | Shared location | What goes there |
 |---|---|
@@ -95,24 +87,19 @@ Before writing any new function, class, model, or component — **search for exi
 | `frontend/packages/ui/src/utils/` | Frontend shared utilities |
 | `frontend/packages/ui/src/components/` | Shared Svelte components |
 
-- **Embed components:** Always use `UnifiedEmbedPreview.svelte` / `UnifiedEmbedFullscreen.svelte` as base. See `embed-types` doc.
-- **External images:** Use `proxyImage()` / `proxyFavicon()` from `imageProxy.ts`. See `image-proxy` doc.
-- **Architecture decisions:** Write once in `docs/architecture/`, reference with one-line comment in code.
+- **Embed components:** Always use `UnifiedEmbedPreview.svelte` / `UnifiedEmbedFullscreen.svelte` as base.
+- **External images:** Use `proxyImage()` / `proxyFavicon()` from `imageProxy.ts`.
+- **Architecture decisions:** Write once in `docs/architecture/`, reference in code.
 
 ### Module Boundaries
 
-- **Skills** must NOT import from other skills. Shared logic goes to `BaseSkill` or `backend/shared/`.
+- **Skills** must NOT import from other skills. Shared logic → `BaseSkill` or `backend/shared/`.
 - **Stores** must NOT import from other stores' internal modules. Use barrel exports.
 - **Providers** must NOT depend on skill-specific code.
 
 ### File Standards
 
-Every new `.py`, `.ts`, `.svelte` file must have a header comment (5-10 lines): purpose, architecture context link, test references.
-
-Source files with tests must include cross-reference comments:
-```python
-# Tests: backend/tests/test_encryption_service.py
-```
+Every new `.py`, `.ts`, `.svelte` file needs a header comment (5-10 lines): purpose, architecture context link, test references.
 
 ---
 
@@ -120,15 +107,15 @@ Source files with tests must include cross-reference comments:
 
 ### State Understanding Before Acting
 
-Before planning or writing any code, state your interpretation of the task and wait for the user to confirm it. For bug reports, describe what the user expected, what happened, and which system you believe is responsible. See `planning.md` step 0 for the full format.
+Before planning or writing any code, state your interpretation of the task and wait for confirmation. For bugs: expected vs actual behavior, which system is responsible. See loaded `planning.md` for format.
 
 ### Acceptance Criteria Before Implementing
 
-Every non-trivial task must have a checklist of acceptance criteria defined before implementation begins. For reproducible bugs, the final criterion must be a Firecrawl browser verification step. See `planning.md` step 5.
+Every non-trivial task needs a checklist of verifiable acceptance criteria before implementation. For reproducible bugs, include a Firecrawl browser verification step.
 
 ### Unexpected Failures
 
-If you hit a failure **not related to your task**: STOP. Check `git log -5 -- <broken-file>`. If your session didn't change it, report to user. If it did, revert and report.
+If you hit a failure **not related to your task**: STOP. Check `git log -5 -- <broken-file>`. If your session didn't change it, report to user.
 
 ### Debugging Attempt Limit
 
@@ -139,55 +126,26 @@ If you hit a failure **not related to your task**: STOP. Check `git log -5 -- <b
 - **Re-read files before editing** if you haven't touched them recently.
 - **Check git status** before committing — another session may have committed.
 - If a service appears down, check if another session is rebuilding Docker containers.
-
-### Svelte 5 Only
-
-Use `$state()`, `$derived()`, `$effect()`, `$props()`. **NEVER use `$:` reactive statements** (Svelte 4).
-
-### Docker Rebuild After Backend Changes
-
-Every Python change under `backend/` requires rebuilding affected Docker containers. See `backend-standards` doc for path-to-container mapping.
+- Use `sessions.py lock/unlock` for Docker rebuilds and Vercel deploys.
 
 ### Auto-Commit After Every Task
 
-Always commit and push to `dev` after completing work. Use `sessions.py deploy`. Track all modified files first.
-
-For significant routing/Vite config changes, also run `pnpm build` in `frontend/apps/web_app/`.
+Always commit and push to `dev` after completing work. Use `sessions.py deploy`. Track all modified files first. For significant routing/Vite config changes, also run `pnpm build` in `frontend/apps/web_app/`.
 
 ### Research Before New Integrations
 
 Before any new app, skill, API integration, or significant feature:
 1. Search for official docs (never rely on training data for APIs/pricing).
 2. Check `docs/apps/` and `docs/architecture/` for existing research.
-3. Ask clarifying questions before writing code.
-4. Wait for user confirmation of approach.
+3. Ask clarifying questions before writing code. Wait for confirmation.
 
 ### Privacy Policy Updates
 
-When adding a new third-party provider, update all four files:
-1. `shared/docs/privacy_policy.yml`
-2. `frontend/packages/ui/src/i18n/sources/legal/privacy.yml`
-3. `frontend/packages/ui/src/legal/buildLegalContent.ts`
-4. `frontend/packages/ui/src/config/links.ts`
-
-Also update `lastUpdated` in `privacy-policy.ts`.
+When adding a new third-party provider, update: `shared/docs/privacy_policy.yml`, `i18n/sources/legal/privacy.yml`, `legal/buildLegalContent.ts`, `config/links.ts`. Also update `lastUpdated` in `privacy-policy.ts`.
 
 ### Destructive Actions — Explicit Consent Only
 
-- **NEVER** create PRs, merge branches, publish releases, or use `git stash` unless the user explicitly asks.
-
-### PR to Main — Test Gate
-
-Before creating a PR from `dev` to `main`: check `test-results/last-run.json` — must be <30min old, 0 failures, >0 tests. If not met, ask user before proceeding. See `testing` doc.
-
-### Dependency Versions
-
-**NEVER write a version from memory.** Always look up current versions:
-- pip: `pip index versions <pkg>` or web search
-- pnpm: `pnpm info <pkg> version`
-- Docker: web search for Docker Hub tags
-
-Pin exact versions. No `latest`, `*`, or unpinned deps.
+**NEVER** create PRs, merge branches, publish releases, or use `git stash` unless the user explicitly asks.
 
 ### No Private Infrastructure in Committed Files
 
@@ -199,7 +157,7 @@ Only remove debug logs after user confirms the issue is fixed.
 
 ### Issue Resolution
 
-After user confirms fix, delete the issue: `docker exec api python /app/backend/scripts/debug.py issue <id> --delete --yes`
+After user confirms fix: `docker exec api python /app/backend/scripts/debug.py issue <id> --delete --yes`
 
 ---
 
@@ -216,7 +174,6 @@ After user confirms fix, delete the issue: `docker exec api python /app/backend/
 
 ❌ Broken Flow (Before): *(Bug fixes only)*
 1. User does X → Y happens (expected: Z)
-2. Fails at <file:line> because <root cause>
 
 ✅ Flow After:
 1. User does X → gets Z
@@ -227,19 +184,11 @@ After user confirms fix, delete the issue: `docker exec api python /app/backend/
 |------|--------|-----|
 | `path/to/file.ts:123` | Description | Reason |
 
-🏛️ Architecture Decisions: *(omit if N/A)*
 🧪 Testing: <what was tested, how, results>
 ⚠️ Risks: <what could break — or "Low risk">
-💸 Cost Impact: <N/A or API pricing details>
 
 🔍 Session Processing Issues: *(omit if none)*
-List every obstacle encountered during this session that could be investigated and prevented in the future:
-- Inaccessible logs (e.g. "Could not read Docker logs for service X — container not running")
-- Unreadable/unwritable files (e.g. "Read failed on path/to/file — permission error or missing file")
-- Missing or incomplete documentation (e.g. "No docs found for X integration — had to infer behavior")
-- Unavailable user/system data (e.g. "Could not query DB — credentials not set in environment")
-- Tooling failures (e.g. "lint script exited with unexpected error unrelated to task")
-- Any other friction that slowed down or blocked task completion
+- List obstacles that slowed down or blocked task completion
 ```
 
 ---
