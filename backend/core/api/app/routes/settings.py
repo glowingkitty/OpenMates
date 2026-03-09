@@ -4790,7 +4790,7 @@ async def delete_storage_files(
 # ─── Chat Statistics & Management ────────────────────────────────────────────
 # Architecture: docs/architecture/security.md (hashed_user_id privacy model)
 # created_at is stored as a Unix timestamp integer in Directus, NOT ISO string.
-# Total count uses meta=total_count with limit=1 (single request, no pagination).
+# Total count and preview use aggregate[count]=* (meta=total_count ignores filters).
 # Delete and preview filters use int Unix cutoff: int(time.time()) - days*86400.
 
 
@@ -4831,8 +4831,8 @@ async def get_chat_stats(
     """
     Return total chat count for the current user's account.
 
-    Uses Directus meta=total_count with limit=1 -- a single lightweight request
-    that returns the accurate server-side total without pagination.
+    Uses Directus aggregate[count]=* (not meta=total_count which ignores filters)
+    to return the accurate server-side total for this user.
     created_at is a Unix int; this endpoint does not filter by date.
     """
     import hashlib as _hashlib
@@ -4846,16 +4846,17 @@ async def get_chat_stats(
         token = await directus_service.ensure_auth_token(admin_required=False)
         headers = {"Authorization": f"Bearer {token}"}
         url = f"{directus_service.base_url}/items/chats"
+        # Use aggregate[count]=* — meta=total_count ignores filters and always
+        # returns the collection total, making it useless for per-user counts.
         params = {
             'filter[hashed_user_id][_eq]': hashed_user_id,
-            'limit': 1,
-            'meta': 'total_count',
-            'fields': 'id',
+            'aggregate[count]': '*',
         }
         response = await directus_service._make_api_request("GET", url, headers=headers, params=params)
         response.raise_for_status()
         body = response.json()
-        total_count = body.get('meta', {}).get('total_count', 0) or 0
+        data = body.get('data', [{}])
+        total_count = int(data[0].get('count', 0)) if data else 0
 
         logger.info(f"[ChatStats] user {user_id}: {total_count} total chats")
         return ChatStatsResponse(total_count=total_count)
@@ -4878,8 +4879,8 @@ async def preview_old_chats(
     """
     Preview how many chats would be deleted for a given age threshold.
 
-    Uses meta=total_count with a Unix timestamp cutoff filter so the client
-    can show "X chats will be deleted" before the user confirms.
+    Uses aggregate[count]=* with a Unix timestamp cutoff filter (not meta=total_count
+    which ignores filters) so the client can show how many will be deleted.
     created_at is stored as a Unix int, so the cutoff is also a Unix int.
     """
     import hashlib as _hashlib
@@ -4900,17 +4901,18 @@ async def preview_old_chats(
         token = await directus_service.ensure_auth_token(admin_required=False)
         headers = {"Authorization": f"Bearer {token}"}
         url = f"{directus_service.base_url}/items/chats"
+        # Use aggregate[count]=* — meta=total_count ignores filters and always
+        # returns the collection total, not the filtered count.
         params = {
             'filter[hashed_user_id][_eq]': hashed_user_id,
             'filter[created_at][_lt]': cutoff_unix,
-            'limit': 1,
-            'meta': 'total_count',
-            'fields': 'id',
+            'aggregate[count]': '*',
         }
         response = await directus_service._make_api_request("GET", url, headers=headers, params=params)
         response.raise_for_status()
         body = response.json()
-        count = body.get('meta', {}).get('total_count', 0) or 0
+        data = body.get('data', [{}])
+        count = int(data[0].get('count', 0)) if data else 0
 
         logger.info(f"[ChatPreview] user {user_id}: {count} chats would be deleted")
         return ChatPreviewResponse(count=count)

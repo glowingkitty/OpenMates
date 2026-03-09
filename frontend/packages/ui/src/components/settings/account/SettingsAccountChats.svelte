@@ -325,7 +325,7 @@ Tests: none yet — new settings sub-page.
         width: 20px;
         height: 20px;
         border: 2px solid var(--color-grey-30);
-        border-top-color: var(--color-primary);
+        border-top-color: var(--color-primary-start);
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
         flex-shrink: 0;
@@ -341,20 +341,20 @@ Tests: none yet — new settings sub-page.
         flex-direction: column;
         gap: 8px;
         padding: 20px;
-        background: var(--color-danger-light, #fff0f0);
-        border: 1px solid var(--color-danger, #e53e3e);
+        background: var(--color-error-light);
+        border: 1px solid var(--color-error);
         border-radius: 12px;
     }
 
     .error-text {
         font-weight: 600;
-        color: var(--color-danger, #e53e3e);
+        color: var(--color-error);
         margin: 0;
     }
 
     .error-detail {
         font-size: 13px;
-        color: var(--color-danger, #e53e3e);
+        color: var(--color-error);
         margin: 0;
         word-break: break-word;
     }
@@ -362,8 +362,8 @@ Tests: none yet — new settings sub-page.
     .btn-retry {
         align-self: flex-start;
         padding: 8px 16px;
-        background: var(--color-danger, #e53e3e);
-        color: white;
+        background: var(--color-error);
+        color: var(--color-grey-0);
         border: none;
         border-radius: 6px;
         font-size: 14px;
@@ -373,9 +373,9 @@ Tests: none yet — new settings sub-page.
 
     .btn-retry:hover { opacity: 0.85; }
 
-    /* ── Count card ────────────────────────────────────────────────────────── */
+    /* ── Count card — uses grey vars so it works in both light and dark mode ── */
     .count-card {
-        background: var(--color-primary-light, #ebf4ff);
+        background: var(--color-grey-20);
         border-radius: 14px;
         padding: 24px;
         display: flex;
@@ -387,22 +387,21 @@ Tests: none yet — new settings sub-page.
     .count-number {
         font-size: 48px;
         font-weight: 700;
-        color: var(--color-primary, #3b82f6);
+        color: var(--color-primary-start);
         line-height: 1;
     }
 
     .count-label {
         font-size: 14px;
         font-weight: 500;
-        color: var(--color-primary, #3b82f6);
-        opacity: 0.8;
+        color: var(--color-grey-60);
         text-transform: uppercase;
         letter-spacing: 0.06em;
     }
 
     /* ── Section card ──────────────────────────────────────────────────────── */
     .section-card {
-        background: var(--color-grey-10, #f8f8f8);
+        background: var(--color-grey-20);
         border-radius: 14px;
         padding: 20px;
         display: flex;
@@ -413,7 +412,7 @@ Tests: none yet — new settings sub-page.
     .section-title {
         font-size: 13px;
         font-weight: 600;
-        color: var(--color-grey-60, #888);
+        color: var(--color-grey-60);
         text-transform: uppercase;
         letter-spacing: 0.06em;
         margin: 0;
@@ -421,14 +420,14 @@ Tests: none yet — new settings sub-page.
 
     .section-desc {
         font-size: 14px;
-        color: var(--color-grey-60, #888);
+        color: var(--color-grey-60);
         margin: 0;
         line-height: 1.5;
     }
 
     /* ── Delete section ────────────────────────────────────────────────────── */
     .danger-section {
-        border: 1px solid var(--color-danger-light, #fde8e8);
+        border: 1px solid var(--color-grey-30);
     }
 
     /* ── Delete controls row ───────────────────────────────────────────────── */
@@ -441,7 +440,7 @@ Tests: none yet — new settings sub-page.
 
     .select-label {
         font-size: 14px;
-        color: var(--color-grey-70, #555);
+        color: var(--color-grey-70);
         white-space: nowrap;
         flex-shrink: 0;
     }
@@ -450,10 +449,10 @@ Tests: none yet — new settings sub-page.
         flex: 1;
         min-width: 100px;
         padding: 8px 12px;
-        border: 1px solid var(--color-grey-30, #ddd);
+        border: 1px solid var(--color-grey-30);
         border-radius: 8px;
-        background: var(--color-surface, white);
-        color: var(--color-grey-80, #222);
+        background: var(--color-grey-10);
+        color: var(--color-grey-90);
         font-size: 14px;
         cursor: pointer;
         appearance: auto;
@@ -466,9 +465,9 @@ Tests: none yet — new settings sub-page.
 
     .btn-preview {
         padding: 9px 16px;
-        background: var(--color-grey-20, #eee);
-        color: var(--color-grey-80, #222);
-        border: 1px solid var(--color-grey-30, #ddd);
+        background: var(--color-grey-30);
+        color: var(--color-grey-90);
+        border: 1px solid var(--color-grey-40);
         border-radius: 8px;
         font-size: 14px;
         font-weight: 600;
@@ -485,9 +484,9 @@ Tests: none yet — new settings sub-page.
     .preview-result {
         font-size: 14px;
         font-weight: 600;
-        color: var(--color-grey-80, #222);
+        color: var(--color-grey-90);
         padding: 10px 14px;
-        background: var(--color-grey-20, #eee);
+        background: var(--color-grey-30);
         border-radius: 8px;
     }
 
@@ -495,8 +494,8 @@ Tests: none yet — new settings sub-page.
     .btn-delete {
         align-self: flex-start;
         padding: 9px 18px;
-        background: var(--color-danger, #e53e3e);
-        color: white;
+        background: var(--color-error);
+        color: var(--color-grey-0);
         border: none;
         border-radius: 8px;
         font-size: 14px;
@@ -518,14 +517,14 @@ Tests: none yet — new settings sub-page.
     }
 
     .feedback.success {
-        background: var(--color-success-light, #e6f9f0);
+        background: var(--color-success-light, rgba(47, 133, 90, 0.15));
         color: var(--color-success, #2f855a);
         border: 1px solid var(--color-success, #2f855a);
     }
 
     .feedback.error {
-        background: var(--color-danger-light, #fff0f0);
-        color: var(--color-danger, #e53e3e);
-        border: 1px solid var(--color-danger, #e53e3e);
+        background: var(--color-error-light);
+        color: var(--color-error);
+        border: 1px solid var(--color-error);
     }
 </style>
