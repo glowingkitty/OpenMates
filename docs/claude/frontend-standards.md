@@ -71,6 +71,37 @@ Standards for modifying frontend code in `frontend/` - Svelte 5 components, Type
 - Create custom CSS only when the existing design system doesn't suffice
 - Follow mobile-first responsive design
 
+### Colors — Dark Mode Compatibility (CRITICAL)
+
+**Never use raw color literals.** The dark theme inverts the entire grey scale via `[data-theme="dark"]` — a hardcoded `white` or `#fff` will be invisible or broken in dark mode. Always use theme variables:
+
+| Use case | Variable | Never use |
+|---|---|---|
+| Page / card background | `var(--color-grey-0)` | `white`, `#fff`, `#ffffff` |
+| Subtle surface / input bg | `var(--color-grey-10)` – `var(--color-grey-20)` | `#f9f9f9`, `#f3f3f3` |
+| Dividers / borders | `var(--color-grey-25)` – `var(--color-grey-30)` | `#e3e3e3`, `rgba(0,0,0,0.1)` |
+| Body text | `var(--color-font-primary)` | `black`, `#000`, `#222` |
+| Secondary / muted text | `var(--color-font-secondary)`, `var(--color-font-tertiary)` | `#a9a9a9`, `#6b6b6b`, `gray` |
+| Error states | `var(--color-error)`, `var(--color-error-light)` | `#e74c3c`, `red` |
+| Warning states | `var(--color-warning)`, `var(--color-warning-bg)` | `#e67e22`, `orange` |
+
+**Exception:** Intentionally hardcoded values (syntax highlighting, brand gradients) must have an inline comment explaining why.
+
+### Font Sizes — Use `rem`, Never `px`
+
+`px` is fixed and ignores the user's browser font size preference (accessibility: zoom, large-text). Always use `rem`.
+
+| Context | Variable | Never use |
+|---|---|---|
+| Body / paragraphs | `var(--font-size-p)` | `font-size: 16px` |
+| Headings | `var(--font-size-h1)` – `var(--font-size-h4)` | `font-size: 24px` |
+| Buttons | `var(--button-font-size)` | `font-size: 16px` |
+| Inputs | `var(--input-font-size)` (must stay >= 1rem — iOS Safari auto-zoom) | `font-size: 16px` |
+| Small / secondary text | `var(--processing-details-font-size)` | `font-size: 14px` |
+| One-off size (no variable fits) | `0.875rem`, `1.125rem`, etc. | `14px`, `18px` |
+
+**`rem` vs `em`:** Use `rem` for `font-size` (relative to root — consistent, non-compounding). `em` is acceptable for `padding`/`margin`/`line-height` inside a text container where scaling with local font size is intentional. Never use `em` for `font-size` in components.
+
 ---
 
 ## State Management
