@@ -93,7 +93,9 @@
   let taskId = $derived(localTaskId);
   
   // Maximum lines to show in preview
-  const MAX_PREVIEW_LINES = 8;
+  // Large variant (400px container) shows more lines to fill the taller space
+  const MAX_PREVIEW_LINES_STANDARD = 8;
+  const MAX_PREVIEW_LINES_LARGE = 14;
   
   // Reference to the code element for syntax highlighting
   let codeElement: HTMLElement | null = $state(null);
@@ -119,7 +121,6 @@
       if (cancelled) return;
       if (mappings.length > 0) {
         addEmbedPIIMappings(id, mappings);
-        console.debug('[CodeEmbedPreview] Registered embed-level PII mappings:', id, mappings.length);
       }
     });
     return () => {
@@ -149,15 +150,19 @@
   let renderFilename = $derived(parsedContent.filename);
   let displayLanguage = $derived.by(() => formatLanguageName(renderLanguage));
   
-  // Extract preview lines (max 8 lines)
+  // isLargePreview is set reactively from the snippet param (isLarge).
+  // This drives previewLines and syntax highlighting to use more lines
+  // when the embed is rendered in the expanded (400px) large container.
+  let isLargePreview = $state(false);
+
   let previewLines = $derived.by(() => {
-    const content = renderCodeContent;
-    if (!content) return [];
-    const lines = content.split('\n');
-    return lines.slice(0, MAX_PREVIEW_LINES);
+    const c = renderCodeContent;
+    if (!c) return [];
+    const lines = c.split('\n');
+    const maxLines = isLargePreview ? MAX_PREVIEW_LINES_LARGE : MAX_PREVIEW_LINES_STANDARD;
+    return lines.slice(0, maxLines);
   });
   
-  // Preview text (joined lines)
   let previewText = $derived(previewLines.join('\n'));
   
   // Calculate actual line count from content if not provided
@@ -213,7 +218,7 @@
     highlightToElement(codeElement, previewText, renderLanguage);
   });
   
-  // Re-highlight when code content changes
+  // Re-highlight when code content or large context changes
   $effect(() => {
     highlightToElement(codeElement, previewText, renderLanguage);
   });
@@ -236,18 +241,11 @@
    * This enables real-time updates during streaming without requiring page reload
    */
   function handleEmbedDataUpdated(data: { status: string; decodedContent: DecodedCodeContent | null }) {
-    console.debug(`[CodeEmbedPreview] 🔄 Received embed data update for ${id}:`, {
-      status: data.status,
-      hasContent: !!data.decodedContent,
-      hasCode: !!data.decodedContent?.code
-    });
-    
     // Update local state from decoded content
     if (data.decodedContent) {
       // Update code content if available
       if (data.decodedContent.code !== undefined) {
         localCodeContent = data.decodedContent.code || '';
-        console.debug(`[CodeEmbedPreview] Updated code content: ${localCodeContent.length} chars`);
       }
       
       // Update language if available
@@ -280,7 +278,6 @@
   // Handle stop button click (not applicable for code, but included for consistency)
   async function handleStop() {
     // Code embeds don't have cancellable tasks, but we include this for API consistency
-    console.debug('[CodeEmbedPreview] Stop requested (not applicable for code)');
   }
 </script>
 
@@ -300,7 +297,8 @@
   showSkillIcon={false}
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
-	  {#snippet details({ isMobile: isMobileLayout })}
+	  {#snippet details({ isMobile: isMobileLayout, isLarge: isLargeLayout })}
+	    {(isLargePreview = isLargeLayout, undefined)}
 	    <div class="code-details" class:mobile={isMobileLayout}>
 	      {#if renderCodeContent}
 	        <!-- Code preview with syntax highlighting -->

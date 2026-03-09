@@ -87,7 +87,13 @@
   let taskId = $derived(localTaskId);
   
   // Maximum rows to show in preview
-  const MAX_PREVIEW_ROWS = 4;
+  // Large variant (400px container) shows more rows to fill the taller space
+  const MAX_PREVIEW_ROWS_STANDARD = 4;
+  const MAX_PREVIEW_ROWS_LARGE = 8;
+
+  // isLargePreview is set reactively from the snippet param (isLarge)
+  let isLargePreview = $state(false);
+  let maxPreviewRows = $derived(isLargePreview ? MAX_PREVIEW_ROWS_LARGE : MAX_PREVIEW_ROWS_STANDARD);
   
   // Subscribe to the global embed PII store to get the current chat's PII state.
   // This allows the preview to reactively apply PII masking without needing
@@ -122,8 +128,8 @@
   let actualColCount = $derived(colCount > 0 ? colCount : parsedTable.colCount);
   
   // Get preview rows
-  let previewRows = $derived(parsedTable.rows.slice(0, MAX_PREVIEW_ROWS));
-  let hasMoreRows = $derived(parsedTable.rowCount > MAX_PREVIEW_ROWS);
+  let previewRows = $derived(parsedTable.rows.slice(0, maxPreviewRows));
+  let hasMoreRows = $derived(parsedTable.rowCount > maxPreviewRows);
   
   // Build skill name for BasicInfosBar
   let skillName = $derived.by(() => renderTitle || $text('embeds.table'));
@@ -140,12 +146,6 @@
    * Handle embed data updates from server
    */
   function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> | null }) {
-    console.debug('[SheetEmbedPreview] Received embed data update:', {
-      embedId: id,
-      status: data.status,
-      hasContent: !!data.decodedContent
-    });
-    
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
       localStatus = data.status;
     }
@@ -179,7 +179,8 @@
   showSkillIcon={false}
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
-  {#snippet details({ isMobile: isMobileSnippet })}
+  {#snippet details({ isMobile: isMobileSnippet, isLarge: isLargeSnippet })}
+    {(isLargePreview = isLargeSnippet, undefined)}
     <div class="sheet-preview" class:mobile={isMobileSnippet}>
       {#if status === 'processing'}
         <!-- Skeleton loading -->
@@ -214,7 +215,7 @@
               {#if hasMoreRows}
                 <tr class="more-rows">
                   <td colspan={actualColCount}>
-                    <span class="more-indicator">+{parsedTable.rowCount - MAX_PREVIEW_ROWS} more rows</span>
+                    <span class="more-indicator">+{parsedTable.rowCount - maxPreviewRows} more rows</span>
                   </td>
                 </tr>
               {/if}
