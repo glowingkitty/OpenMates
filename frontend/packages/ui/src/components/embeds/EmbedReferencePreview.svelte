@@ -10,7 +10,7 @@
 
   import { onDestroy } from 'svelte';
   import { embedStore, embedRefIndexVersion } from '../../services/embedStore';
-  import { resolveEmbed } from '../../services/embedResolver';
+  import { resolveEmbed, decodeToonContent } from '../../services/embedResolver';
   import { getEmbedRenderer } from '../enter_message/extensions/embed_renderers';
   import { normalizeEmbedType } from '../../data/embedRegistry.generated';
   import type { EmbedNodeAttributes } from '../../message_parsing/types';
@@ -40,18 +40,63 @@
     return embedId || embedStore.resolveByRef(embedRef) || null;
   });
 
-  function buildAttrs(id: string, embedData: unknown): EmbedNodeAttributes {
+  /**
+   * Child embed types that should override the parent's skill_id for routing.
+   * E.g. an images/search child has type "image_result" in its TOON content
+   * but app_id "web" and skill_id "website" at the top level.
+   */
+  const CHILD_TYPE_OVERRIDES = new Set([
+    'image_result', 'web_result', 'news_result', 'video_result',
+    'location', 'flight', 'stay', 'event', 'product', 'job',
+    'health_result', 'recipe', 'price_calendar_result',
+  ]);
+
+  function buildAttrs(
+    id: string,
+    embedData: unknown,
+    decodedContent?: Record<string, unknown> | null,
+  ): EmbedNodeAttributes {
     const data = embedData as Record<string, unknown>;
+
+    // Start with top-level fields
+    let appId = (data.app_id as string | null) || null;
+    let skillId = (data.skill_id as string | null) || null;
+
+    // Override from decoded TOON content — child embeds store the real
+    // app_id/skill_id inside the encrypted content, not at the top level.
+    if (decodedContent) {
+      if (decodedContent.app_id) appId = decodedContent.app_id as string;
+      if (decodedContent.skill_id) skillId = decodedContent.skill_id as string;
+
+      // CRITICAL: For child embeds (e.g. image_result from images/search),
+      // the TOON content's `type` field holds the actual child type.
+      // Use it as skill_id to route to the correct renderer.
+      const childType = decodedContent.type as string | undefined;
+      if (childType && CHILD_TYPE_OVERRIDES.has(childType)) {
+        skillId = childType;
+      }
+    }
+
+    // Also check the embed store's type field — for child embeds the WebSocket
+    // payload includes `type: "image_result"` which is stored directly.
+    // TOON content may NOT contain a `type` field, so this is the reliable fallback.
+    if (!skillId || !CHILD_TYPE_OVERRIDES.has(skillId)) {
+      const storeType = data.type as string | undefined;
+      if (storeType && CHILD_TYPE_OVERRIDES.has(storeType)) {
+        skillId = storeType;
+      }
+    }
+
     return {
       id,
       type: normalizeEmbedType(String(data.type || 'app-skill-use')),
       status: String(data.status || 'finished') as EmbedNodeAttributes['status'],
       contentRef: `embed:${id}`,
-      app_id: (data.app_id as string | null) || null,
-      skill_id: (data.skill_id as string | null) || null,
-      query: (data.query as string | null) || null,
-      url: (data.url as string | null) || null,
-      title: (data.title as string | null) || null,
+      app_id: appId,
+      skill_id: skillId,
+      query: (data.query as string | null) || (decodedContent?.query as string | null) || null,
+      url: (data.url as string | null) || (decodedContent?.url as string | null) || null,
+      title: (data.title as string | null) || (decodedContent?.title as string | null) || null,
       filename: (data.filename as string | null) || null,
       language: (data.language as string | null) || null,
     } as EmbedNodeAttributes;
@@ -92,7 +137,20 @@
         return;
       }
 
-      const attrs = buildAttrs(resolvedEmbedId, embedData);
+      // Decode TOON content to extract child type overrides (e.g. image_result)
+      let decodedContent: Record<string, unknown> | null = null;
+      if (embedData.content) {
+        try {
+          decodedContent = await decodeToonContent(embedData.content) as Record<string, unknown> | null;
+        } catch {
+          // Ignore decode errors — will fall through to top-level fields
+        }
+      }
+
+      // Abort if a newer render started while decoding
+      if (thisVersion !== renderVersion) return;
+
+      const attrs = buildAttrs(resolvedEmbedId, embedData, decodedContent);
       const renderer = getEmbedRenderer(attrs.type || '');
       if (!renderer) {
         errorText = 'Preview unavailable';

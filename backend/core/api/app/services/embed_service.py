@@ -2598,7 +2598,9 @@ class EmbedService:
                         updated_at=created_at,
                         parent_embed_id=embed_id,  # Set parent_embed_id so frontend can use parent key
                         log_prefix=log_prefix,
-                        check_cache_status=False  # Skip cache check - we just created this embed
+                        check_cache_status=False,  # Skip cache check - we just created this embed
+                        app_id=app_id,  # Pass app_id so frontend can route to correct renderer
+                        skill_id=child_type  # Use child_type as skill_id (e.g. "image_result", "web_result")
                     )
 
                     child_embed_ids.append(child_embed_id)
@@ -2678,7 +2680,9 @@ class EmbedService:
                     created_at=updated_at,
                     updated_at=updated_at,
                     log_prefix=log_prefix,
-                    check_cache_status=True  # Enable deduplication check (will pass since cache still has "processing")
+                    check_cache_status=True,  # Enable deduplication check (will pass since cache still has "processing")
+                    app_id=app_id,
+                    skill_id=skill_id
                 )
 
                 # Update cache AFTER sending (overwrites placeholder with finished status)
@@ -3047,7 +3051,9 @@ class EmbedService:
         created_at: Optional[int] = None,
         updated_at: Optional[int] = None,
         log_prefix: str = "",
-        check_cache_status: bool = True  # New parameter to optionally skip cache check
+        check_cache_status: bool = True,  # New parameter to optionally skip cache check
+        app_id: Optional[str] = None,  # App ID for renderer routing (child embeds)
+        skill_id: Optional[str] = None  # Skill ID for renderer routing (child embeds)
     ) -> bool:
         """
         Send PLAINTEXT TOON embed content to client via WebSocket for client-side encryption and storage.
@@ -3157,6 +3163,10 @@ class EmbedService:
                 payload["payload"]["file_path"] = file_path
             if content_hash is not None:
                 payload["payload"]["content_hash"] = content_hash
+            if app_id is not None:
+                payload["payload"]["app_id"] = app_id
+            if skill_id is not None:
+                payload["payload"]["skill_id"] = skill_id
 
             # Publish to Redis for WebSocket delivery
             client = await self.cache_service.client

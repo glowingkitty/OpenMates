@@ -210,8 +210,27 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     // 2. embedData directly (from memory cache for processing embeds)
     // 3. attrs (from JSON embed reference parsing)
     const appId = decodedContent?.app_id || embedData?.app_id || attrsAppId;
-    const skillId =
+    let skillId =
       decodedContent?.skill_id || embedData?.skill_id || attrsSkillId;
+
+    // CHILD EMBED TYPE OVERRIDE: Child embeds (e.g. image_result from images/search)
+    // store the parent's skill_id ("search") in their TOON content, but their actual
+    // child type is in the `type` field (e.g. "image_result"). Without this override,
+    // an image_result child matches "images" + "search" and renders ImagesSearchEmbedPreview
+    // (the parent carousel) instead of ImageResultEmbedPreview (a single image card).
+    // See docs/architecture/embeds.md for the full embed type resolution chain.
+    const CHILD_TYPE_OVERRIDES: Record<string, boolean> = {
+      image_result: true, web_result: true, news_result: true, video_result: true,
+      location: true, flight: true, stay: true, event: true, product: true, job: true,
+      health_result: true, recipe: true, price_calendar_result: true,
+    };
+    const childType = decodedContent?.type || embedData?.type;
+    if (childType && CHILD_TYPE_OVERRIDES[childType]) {
+      skillId = childType;
+    } else if (attrsSkillId && CHILD_TYPE_OVERRIDES[attrsSkillId]) {
+      // EmbedReferencePreview already detected the child type and set it in attrs
+      skillId = attrsSkillId;
+    }
 
     // Determine status - prefer embedData status, then check knownErrorEmbeds (for error embeds
     // that are intentionally never persisted to IndexedDB), then attrs.status, then 'processing'.
