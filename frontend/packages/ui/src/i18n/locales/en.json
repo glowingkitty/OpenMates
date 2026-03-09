@@ -7060,6 +7060,9 @@
         "delete_option_90d": {
           "text": "90 days"
         },
+        "delete_option_all": {
+          "text": "All chats"
+        },
         "delete_button": {
           "text": "Delete Old Chats"
         },

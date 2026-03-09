@@ -4807,8 +4807,11 @@ class ChatPreviewResponse(BaseModel):
 class DeleteOldChatsRequest(BaseModel):
     """Request body for POST /v1/settings/chats/delete-old."""
     older_than_days: int = Field(
-        ge=1,
-        description="Delete chats whose created_at is older than this many days"
+        ge=0,
+        description=(
+            "Delete chats older than this many days. "
+            "Use 0 to delete ALL chats for the user regardless of age."
+        )
     )
 
 
@@ -4885,8 +4888,8 @@ async def preview_old_chats(
     """
     import hashlib as _hashlib
 
-    if older_than_days < 1:
-        raise HTTPException(status_code=422, detail="older_than_days must be >= 1")
+    if older_than_days < 0:
+        raise HTTPException(status_code=422, detail="older_than_days must be >= 0")
 
     user_id = current_user.id
     hashed_user_id = _hashlib.sha256(user_id.encode()).hexdigest()
@@ -4903,11 +4906,13 @@ async def preview_old_chats(
         url = f"{directus_service.base_url}/items/chats"
         # Use aggregate[count]=* — meta=total_count ignores filters and always
         # returns the collection total, not the filtered count.
-        params = {
+        # older_than_days=0 means "all chats" — omit the date filter.
+        params: dict = {
             'filter[hashed_user_id][_eq]': hashed_user_id,
-            'filter[created_at][_lt]': cutoff_unix,
             'aggregate[count]': '*',
         }
+        if older_than_days > 0:
+            params['filter[created_at][_lt]'] = cutoff_unix
         response = await directus_service._make_api_request("GET", url, headers=headers, params=params)
         response.raise_for_status()
         body = response.json()
@@ -4934,15 +4939,14 @@ async def delete_old_chats(
     compliance_service: ComplianceService = Depends(get_compliance_service),
 ) -> DeleteOldChatsResponse:
     """
-    Permanently delete all chats older than ``older_than_days`` days.
+    Permanently delete chats for the authenticated user.
 
-    Only chats belonging to the authenticated user (matched via hashed_user_id)
-    are deleted. The operation is irreversible -- compliance event is logged.
-    Related messages and drafts are also deleted via the existing
-    ``persist_delete_chat`` helper which handles cascading cleanup.
+    When older_than_days > 0: deletes chats whose created_at Unix int is older
+    than the cutoff. When older_than_days == 0: deletes ALL chats for the user.
 
+    Only chats belonging to the user (matched via hashed_user_id) are deleted.
+    The operation is irreversible -- compliance event is logged.
     Returns the list of deleted chat IDs so the client can clean up IndexedDB.
-    created_at is a Unix int -- filter uses Unix int cutoff (not ISO string).
     """
     import hashlib as _hashlib
 
@@ -4954,25 +4958,30 @@ async def delete_old_chats(
         request.headers, request.client.host if request.client else None
     )
 
+    # older_than_days=0 means delete ALL chats — omit the date filter
+    delete_all = (cutoff_days == 0)
+
     logger.info(
-        f"[DeleteOldChats] user {user_id}: deleting chats older_than_days={cutoff_days} "
-        f"cutoff_unix={cutoff_unix}"
+        f"[DeleteOldChats] user {user_id}: "
+        + ("deleting ALL chats" if delete_all else
+           f"deleting chats older_than_days={cutoff_days} cutoff_unix={cutoff_unix}")
     )
 
-    # Collect all chat IDs older than the cutoff using Unix int filter
+    # Collect all matching chat IDs
     chat_ids_to_delete: list[str] = []
     offset = 0
     PAGE_SIZE = 500
 
     try:
         while True:
-            params = {
+            params: dict = {
                 'filter[hashed_user_id][_eq]': hashed_user_id,
-                'filter[created_at][_lt]': cutoff_unix,
                 'fields': 'id',
                 'limit': PAGE_SIZE,
                 'offset': offset,
             }
+            if not delete_all:
+                params['filter[created_at][_lt]'] = cutoff_unix
             page = await directus_service.get_items('chats', params=params)
             if not page or not isinstance(page, list):
                 break
@@ -5016,7 +5025,8 @@ async def delete_old_chats(
             details={
                 "deleted_count": deleted_count,
                 "older_than_days": cutoff_days,
-                "cutoff_unix": cutoff_unix,
+                "delete_all": delete_all,
+                "cutoff_unix": cutoff_unix if not delete_all else None,
             },
         )
 

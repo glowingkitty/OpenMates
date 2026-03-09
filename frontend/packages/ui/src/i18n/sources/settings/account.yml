@@ -2382,6 +2382,13 @@ chats.delete_option_90d:
   ar: 90 يومًا
   he: 90 ימים
   verified_by_human: []
+chats.delete_option_all:
+  context: Dropdown option — delete ALL chats regardless of age
+  en: All chats
+  de: Alle Chats
+  ar: جميع المحادثات
+  he: כל הצ'אטים
+  verified_by_human: []
 chats.delete_button:
   context: Button to trigger deletion of old chats
   en: Delete Old Chats

@@ -5180,6 +5180,9 @@
         "delete_option_90d": {
           "text": "90 يومًا"
         },
+        "delete_option_all": {
+          "text": "جميع المحادثات"
+        },
         "delete_button": {
           "text": "حذف المحادثات القديمة"
         },

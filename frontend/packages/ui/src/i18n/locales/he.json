@@ -5999,6 +5999,9 @@
         "delete_option_90d": {
           "text": "90 ימים"
         },
+        "delete_option_all": {
+          "text": "כל הצ'אטים"
+        },
         "delete_button": {
           "text": "מחק צ'אטים ישנים"
         },

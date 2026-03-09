@@ -28,7 +28,7 @@ Tests: none yet — new settings sub-page.
     let errorMessage = $state<string | null>(null);
 
     // Delete-old state
-    type DeleteDays = 1 | 7 | 14 | 30 | 90;
+    type DeleteDays = 0 | 1 | 7 | 14 | 30 | 90;
 
     let selectedDays = $state<DeleteDays>(30);
 
@@ -249,6 +249,7 @@ Tests: none yet — new settings sub-page.
                     <option value={14}>{$text('settings.account.chats.delete_option_14d')}</option>
                     <option value={30}>{$text('settings.account.chats.delete_option_30d')}</option>
                     <option value={90}>{$text('settings.account.chats.delete_option_90d')}</option>
+                    <option value={0}>{$text('settings.account.chats.delete_option_all')}</option>
                 </select>
                 <button
                     class="btn-preview"
