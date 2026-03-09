@@ -1364,6 +1364,10 @@ async def _async_process_ai_skill_ask_task(
             # decrypt messages without generating a wrong random key.
             # The ai_typing_started event arrives BEFORE the AI response, so this
             # gives secondary devices the key early enough to avoid queuing issues.
+            #
+            # For NEW chats, the cache may not have the key yet (the client's
+            # sendEncryptedStoragePackage/persist_encrypted_chat_metadata Celery task
+            # may not have completed). Fall back to Directus if cache misses.
             encrypted_chat_key_for_typing: str | None = None
             try:
                 chat_list_item = await cache_service_instance.get_chat_list_item_data(
@@ -1373,7 +1377,25 @@ async def _async_process_ai_skill_ask_task(
                     encrypted_chat_key_for_typing = chat_list_item.encrypted_chat_key
                     logger.debug(f"[Task ID: {task_id}] Retrieved encrypted_chat_key from cache for typing event")
             except Exception as e_key:
-                logger.warning(f"[Task ID: {task_id}] Could not fetch encrypted_chat_key for typing event: {e_key}")
+                logger.warning(f"[Task ID: {task_id}] Could not fetch encrypted_chat_key from cache for typing event: {e_key}")
+
+            # Fallback: If cache miss (common for new chats), try Directus directly
+            if not encrypted_chat_key_for_typing:
+                try:
+                    from backend.core.api.app.services.directus import DirectusService
+                    ds = DirectusService()
+                    chat_data = await ds.get_items('chats', {
+                        'filter[id][_eq]': request_data.chat_id,
+                        'fields': 'encrypted_chat_key',
+                        'limit': 1
+                    })
+                    if chat_data and chat_data[0].get('encrypted_chat_key'):
+                        encrypted_chat_key_for_typing = chat_data[0]['encrypted_chat_key']
+                        logger.info(f"[Task ID: {task_id}] Retrieved encrypted_chat_key from Directus fallback for typing event")
+                    else:
+                        logger.info(f"[Task ID: {task_id}] encrypted_chat_key not yet in Directus for chat {request_data.chat_id} (very new chat)")
+                except Exception as e_db:
+                    logger.warning(f"[Task ID: {task_id}] Could not fetch encrypted_chat_key from Directus for typing event: {e_db}")
             
             # Build typing payload with conditional metadata (only for new chats)
             typing_payload_data = { 

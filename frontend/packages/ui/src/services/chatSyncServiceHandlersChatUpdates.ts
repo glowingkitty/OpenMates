@@ -1500,19 +1500,59 @@ export async function handleEncryptedChatMetadataImpl(
 
     let changed = false;
 
-    // Update encrypted_chat_key if provided
+    // Update encrypted_chat_key if provided.
+    // IMPORTANT: AES-GCM uses a random IV, so the same raw key re-encrypted twice
+    // produces different ciphertexts. A simple string comparison of encrypted_chat_key
+    // values will ALWAYS show them as different, even when the underlying raw key is
+    // identical. This previously caused unnecessary clearChatKey() calls, creating a
+    // window where the key was unavailable and causing decryption failures.
+    //
+    // Fix: If the ciphertexts differ, decrypt the incoming key and compare raw bytes
+    // against the cached key. Only clear if the raw keys actually differ (true key rotation).
     if (
       payload.encrypted_chat_key !== undefined &&
       payload.encrypted_chat_key !== chat.encrypted_chat_key
     ) {
-      console.info(
-        `[ChatSyncService:ChatUpdates] Updating encrypted_chat_key for chat ${payload.chat_id} from broadcast`,
-      );
+      const cachedKey = chatDB.getChatKeyOrNull(payload.chat_id);
+      let rawKeysMatch = false;
 
-      // CRITICAL: Clear the cached chat key since it's now encrypted with a different secret
-      chatDB.clearChatKey(payload.chat_id);
+      if (cachedKey) {
+        try {
+          const { decryptChatKeyWithMasterKey } =
+            await import("./cryptoService");
+          const incomingRawKey = await decryptChatKeyWithMasterKey(
+            payload.encrypted_chat_key,
+          );
+          if (incomingRawKey) {
+            // Compare raw key bytes — if identical, this is just a re-encryption with a new IV
+            rawKeysMatch =
+              cachedKey.length === incomingRawKey.length &&
+              cachedKey.every((byte, i) => byte === incomingRawKey[i]);
+          }
+        } catch {
+          // If decryption fails, treat as a different key to be safe
+          console.warn(
+            `[ChatSyncService:ChatUpdates] Could not decrypt incoming encrypted_chat_key for comparison on chat ${payload.chat_id}`,
+          );
+        }
+      }
 
-      // Update the encrypted_chat_key in the database
+      if (rawKeysMatch) {
+        // Same underlying key, just different ciphertext (re-encrypted with new IV).
+        // Update the stored ciphertext but do NOT clear the in-memory cached key.
+        console.debug(
+          `[ChatSyncService:ChatUpdates] encrypted_chat_key ciphertext changed for chat ${payload.chat_id} but raw key is identical — updating stored ciphertext without clearing cache`,
+        );
+      } else {
+        // Genuinely different raw key — this is a real key rotation (e.g. hidden chat toggle).
+        // Clear the cached key so the new one is loaded on next access.
+        console.info(
+          `[ChatSyncService:ChatUpdates] encrypted_chat_key changed for chat ${payload.chat_id} (raw key differs) — clearing cached key`,
+        );
+        chatDB.clearChatKey(payload.chat_id);
+      }
+
+      // Always update the stored encrypted_chat_key to the latest ciphertext
       chat.encrypted_chat_key = payload.encrypted_chat_key;
       changed = true;
     }

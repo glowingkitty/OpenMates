@@ -1043,17 +1043,34 @@ export async function handleAITypingStartedImpl( // Changed to async
 
       // Get chat key: should already be in cache from sendEncryptedStoragePackage (originator)
       // or from the encrypted_chat_key decrypted above (secondary device).
-      // Only create a new key if this is the originating device for a brand-new chat.
+      //
+      // CRITICAL: NEVER generate a new key here. This handler runs on ALL connected
+      // devices, including secondary ones that did NOT create this chat. Generating a
+      // key on a secondary device produces a DIFFERENT key than the originator, causing
+      // half the messages to be encrypted with key A and half with key B — making both
+      // unreadable on the other device. See docs/architecture/zero-knowledge-storage.md.
+      //
+      // If the key is not available, skip the entire ai_typing_started processing for
+      // this new chat. The originating device will handle metadata encryption and the
+      // sendEncryptedStoragePackage(). The secondary device will receive the correct
+      // metadata via the encrypted_chat_metadata broadcast.
       let chatKey = chatKeyManager.getKeySync(payload.chat_id);
       if (!chatKey) {
         chatKey = await chatKeyManager.getKey(payload.chat_id);
       }
       if (!chatKey) {
-        // Last resort: originating device creating a new chat — safe to generate
-        console.info(
-          `[ChatSyncService:AI] No cached key for ${payload.chat_id} in ai_typing_started, creating new key (originator)`,
+        console.warn(
+          `[ChatSyncService:AI] No chat key available for ${payload.chat_id} in ai_typing_started — ` +
+            `this is a secondary device that has not yet received the key. ` +
+            `Skipping metadata encryption; the originating device will handle it.`,
         );
-        chatKey = chatKeyManager.createKeyForNewChat(payload.chat_id);
+        // Flush pending messages/system messages in case the key arrives later
+        // (from new_chat_message handler or encrypted_chat_metadata broadcast)
+        await flushPendingMessagesForChat(payload.chat_id);
+        await flushPendingSystemMessagesForChat(payload.chat_id);
+        // Return early — do NOT proceed with metadata encryption or sendEncryptedStoragePackage
+        // on a secondary device without the correct key. The originating device handles all of it.
+        return;
       }
       // Flush regular messages and system messages queued waiting for this key (cross-device sync fix)
       await flushPendingMessagesForChat(payload.chat_id);
