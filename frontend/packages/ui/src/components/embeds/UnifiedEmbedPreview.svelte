@@ -422,6 +422,20 @@
 
     const coarsePointerQuery = window.matchMedia('(pointer: coarse)');
     const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const addQueryListener = (query: MediaQueryList, handler: () => void) => {
+      if ('addEventListener' in query) {
+        query.addEventListener('change', handler);
+      } else {
+        query.addListener(handler);
+      }
+    };
+    const removeQueryListener = (query: MediaQueryList, handler: () => void) => {
+      if ('removeEventListener' in query) {
+        query.removeEventListener('change', handler);
+      } else {
+        query.removeListener(handler);
+      }
+    };
 
     const updateTiltAvailability = () => {
       isTouchTiltEnabled = coarsePointerQuery.matches && !reducedMotionQuery.matches;
@@ -441,15 +455,15 @@
 
     window.addEventListener('scroll', handleViewportChange, { passive: true });
     window.addEventListener('resize', handleViewportChange, { passive: true });
-    coarsePointerQuery.addEventListener('change', updateTiltAvailability);
-    reducedMotionQuery.addEventListener('change', updateTiltAvailability);
+    addQueryListener(coarsePointerQuery, updateTiltAvailability);
+    addQueryListener(reducedMotionQuery, updateTiltAvailability);
     updateTiltAvailability();
 
     return () => {
       window.removeEventListener('scroll', handleViewportChange);
       window.removeEventListener('resize', handleViewportChange);
-      coarsePointerQuery.removeEventListener('change', updateTiltAvailability);
-      reducedMotionQuery.removeEventListener('change', updateTiltAvailability);
+      removeQueryListener(coarsePointerQuery, updateTiltAvailability);
+      removeQueryListener(reducedMotionQuery, updateTiltAvailability);
 
       if (scrollTiltAnimationFrame !== null) {
         window.cancelAnimationFrame(scrollTiltAnimationFrame);
