@@ -24,6 +24,42 @@ Account Settings - Main menu for account-related settings including Security, Ex
 
     // Current username from user profile (displayed as subtitle in the menu item)
     let currentUsername = $derived($userProfile.username || '');
+    let isAdminUser = $derived($userProfile.is_admin === true);
+    let accountDebugOutput = $state<string>('');
+    let accountDebugLoading = $state(false);
+
+    async function loadAccountDebugOutput() {
+        if (!isAdminUser || typeof window === 'undefined') return;
+        const debugApi = (window as unknown as { debug?: { user?: () => unknown } }).debug;
+        if (!debugApi?.user) {
+            accountDebugOutput = 'window.debug.user() is not available in this runtime.';
+            return;
+        }
+
+        accountDebugLoading = true;
+        try {
+            const result = await Promise.resolve(debugApi.user());
+            if (typeof result === 'string') {
+                accountDebugOutput = result;
+            } else if (result === undefined) {
+                accountDebugOutput = 'window.debug.user() executed. Check console output and logs below.';
+            } else {
+                accountDebugOutput = JSON.stringify(result, null, 2);
+            }
+        } catch (error) {
+            accountDebugOutput = error instanceof Error
+                ? `window.debug.user() failed: ${error.message}`
+                : `window.debug.user() failed: ${String(error)}`;
+        } finally {
+            accountDebugLoading = false;
+        }
+    }
+
+    $effect(() => {
+        if (isAdminUser) {
+            void loadAccountDebugOutput();
+        }
+    });
 
     /**
      * Navigate to Username submenu.
@@ -144,6 +180,18 @@ Account Settings - Main menu for account-related settings including Security, Ex
     }
 </script>
 
+{#if isAdminUser}
+    <div class="account-debug-box selectable">
+        <div class="account-debug-header-row">
+            <span class="account-debug-title">window.debug.user()</span>
+            <button class="account-debug-refresh" onclick={loadAccountDebugOutput} disabled={accountDebugLoading}>
+                {accountDebugLoading ? 'Loading...' : 'Refresh'}
+            </button>
+        </div>
+        <pre class="account-debug-pre selectable">{accountDebugOutput || 'No debug output yet.'}</pre>
+    </div>
+{/if}
+
 <SettingsItem
     type="subsubmenu"
     icon="user"
@@ -208,3 +256,54 @@ Account Settings - Main menu for account-related settings including Security, Ex
     title={$text('settings.account.delete')}
     onClick={navigateToDeleteAccount}
 />
+
+<style>
+    .account-debug-box {
+        margin: 0 0 0.75rem;
+        padding: 0.75rem;
+        border-radius: 0.75rem;
+        border: 1px solid var(--color-grey-30);
+        background: var(--color-grey-10);
+    }
+
+    .account-debug-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .account-debug-title {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--color-font-secondary);
+    }
+
+    .account-debug-refresh {
+        all: unset;
+        cursor: pointer;
+        font-size: 0.78rem;
+        color: var(--color-primary);
+    }
+
+    .account-debug-refresh:disabled {
+        opacity: 0.6;
+        cursor: default;
+    }
+
+    .account-debug-pre {
+        margin: 0;
+        max-height: 12rem;
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-family: monospace;
+        font-size: 0.76rem;
+        line-height: 1.4;
+        color: var(--color-font-primary);
+        user-select: text;
+        -webkit-user-select: text;
+        -moz-user-select: text;
+        -ms-user-select: text;
+    }
+</style>

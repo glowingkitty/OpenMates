@@ -98,6 +98,13 @@ function formatLog(entry: ConsoleLogEntry): string {
 function createChatDebugStore(): ChatDebugStoreApi {
   const { subscribe, update, set } = writable<ChatDebugState>(INITIAL_STATE);
 
+  userProfile.subscribe((profile) => {
+    if (!profile.is_admin) {
+      stopLogCapture();
+      set(INITIAL_STATE);
+    }
+  });
+
   function stopLogCapture(): void {
     if (logListener) {
       logCollector.offNewLog(logListener);
