@@ -265,9 +265,7 @@ function convertEmbedLinks(doc: any): any {
 // embedPreviewLarge atom. Purely whitespace-only text
 // siblings are discarded.
 
-const BLOCK_EMBED_PREVIEW_TYPES = new Set([
-  "embedPreviewLarge",
-]);
+const BLOCK_EMBED_PREVIEW_TYPES = new Set(["embedPreviewLarge"]);
 
 function _hoistBlockEmbedPreviews(doc: any): any {
   if (!doc || !doc.content) return doc;
@@ -683,79 +681,84 @@ function _convertSourceQuoteNode(node: any): any {
  * @param opts - Parsing options including feature flags
  * @returns TipTap document JSON with unified embed nodes
  */
-// ─── Single assistant embed → large preview promotion ─────────────────────────
+// ─── Assistant embed → large preview promotion ────────────────────────────────
 //
-// When an assistant message contains exactly ONE embed of certain content-creation
-// types (docs, code, sheets, mail, math), that embed is promoted from a regular
-// inline `embed` node to a full-width `embedPreviewLarge` block node.
+// Assistant read-mode messages should render non app-skill embeds as large cards.
 //
-// This gives single generated documents/code/sheets/mails/math results a more
-// prominent, immersive presentation — the same treatment as [!](embed:ref) syntax
-// but applied automatically based on message structure.
-//
-// When multiple embeds exist (grouped or individual), rendering stays unchanged
-// so the horizontal scroll group layout is preserved.
-//
-// User messages are never affected — this only applies to role === "assistant".
+// Rules:
+// - Non app-skill single embeds (including code) are promoted to embedPreviewLarge.
+// - Non app-skill groups are expanded into consecutive embedPreviewLarge nodes so
+//   _hoistBlockEmbedPreviews() can turn them into a slideshow run.
+// - Code groups keep the existing horizontal regular-size layout (no promotion).
+// - App-skill-use and app-skill-use-group never get auto-promoted here.
 
-/** Embed types eligible for automatic large preview promotion in assistant messages */
-const LARGE_PROMOTION_ELIGIBLE_TYPES = new Set([
-  "docs-doc",
-  "code-code",
-  "sheets-sheet",
-  "mail-email",
-  "math-plot",
-]);
-
-/** App-skill-use embeds eligible for large preview promotion (checked via app_id + skill_id) */
-const LARGE_PROMOTION_ELIGIBLE_SKILLS: ReadonlyArray<{ app_id: string; skill_id: string }> = [
-  { app_id: "math", skill_id: "calculate" },
-];
-
-/**
- * Collect all embed nodes from a TipTap document tree (depth-first).
- * Returns an array of { node, parent, index } for each embed found.
- */
-function collectEmbedNodes(doc: any): Array<{ node: any; parent: any; index: number }> {
-  const results: Array<{ node: any; parent: any; index: number }> = [];
-
-  function walk(node: any, parent: any, index: number) {
-    if (!node) return;
-    if (node.type === "embed") {
-      results.push({ node, parent, index });
-    }
-    if (Array.isArray(node.content)) {
-      node.content.forEach((child: any, i: number) => walk(child, node, i));
-    }
-  }
-
-  if (Array.isArray(doc.content)) {
-    doc.content.forEach((child: any, i: number) => walk(child, doc, i));
-  }
-
-  return results;
+function getEmbedBaseType(type: string): string {
+  return type.endsWith("-group") ? type.slice(0, -"-group".length) : type;
 }
 
-/**
- * Check if an embed node is eligible for large preview promotion.
- * Matches by direct type (e.g. "docs-doc") or by app_id + skill_id for app-skill-use.
- */
-function isEligibleForLargePromotion(attrs: any): boolean {
-  if (!attrs) return false;
+function isAppSkillEmbedType(type: string): boolean {
+  return type === "app-skill-use" || type === "app-skill-use-group";
+}
 
-  // Direct type match (docs, code blocks, sheets, mail, math-plot)
-  if (LARGE_PROMOTION_ELIGIBLE_TYPES.has(attrs.type)) {
-    return true;
+function extractEmbedId(attrs: any): string | null {
+  if (!attrs) return null;
+  if (
+    typeof attrs.contentRef === "string" &&
+    attrs.contentRef.startsWith("embed:")
+  ) {
+    return attrs.contentRef.replace("embed:", "");
+  }
+  if (typeof attrs.id === "string" && attrs.id.length > 0) {
+    return attrs.id;
+  }
+  return null;
+}
+
+function createLargePreviewNode(embedId: string, appId: string | null): any {
+  return {
+    type: "embedPreviewLarge",
+    attrs: {
+      embedRef: embedId,
+      embedId,
+      appId,
+      carouselIndex: 0,
+      carouselTotal: 1,
+    },
+  };
+}
+
+function promoteEmbedAttrsToLargeNodes(attrs: any): any[] | null {
+  if (!attrs || typeof attrs.type !== "string") return null;
+
+  const embedType = attrs.type as string;
+  const baseType = getEmbedBaseType(embedType);
+
+  if (isAppSkillEmbedType(embedType)) return null;
+
+  // Keep code groups as regular horizontal scroll previews.
+  if (embedType.endsWith("-group") && baseType === "code-code") {
+    return null;
   }
 
-  // App-skill-use match (math:calculate)
-  if (attrs.type === "app-skill-use" && attrs.app_id && attrs.skill_id) {
-    return LARGE_PROMOTION_ELIGIBLE_SKILLS.some(
-      (s) => s.app_id === attrs.app_id && s.skill_id === attrs.skill_id,
-    );
+  // Expand non-code groups to consecutive large preview nodes.
+  if (embedType.endsWith("-group")) {
+    const groupedItems = Array.isArray(attrs.groupedItems)
+      ? attrs.groupedItems
+      : [];
+    const largeNodes = groupedItems
+      .map((item: any) => {
+        const embedId = extractEmbedId(item);
+        if (!embedId) return null;
+        return createLargePreviewNode(embedId, getAppIdFromEmbedAttrs(item));
+      })
+      .filter(Boolean);
+
+    return largeNodes.length > 0 ? largeNodes : null;
   }
 
-  return false;
+  const embedId = extractEmbedId(attrs);
+  if (!embedId) return null;
+  return [createLargePreviewNode(embedId, getAppIdFromEmbedAttrs(attrs))];
 }
 
 /**
@@ -774,88 +777,64 @@ function getAppIdFromEmbedAttrs(attrs: any): string | null {
 }
 
 /**
- * Promote a single eligible embed in an assistant message to an embedPreviewLarge node.
+ * Promote eligible assistant embeds to embedPreviewLarge nodes.
  *
- * Conditions for promotion:
- * 1. role is "assistant"
- * 2. Exactly ONE embed node exists in the entire document (no groups, no multi-embeds)
- * 3. That embed's type is in the eligible set
+ * For paragraph nodes that contain only embed children (plus optional whitespace),
+ * each eligible non app-skill embed is replaced with one or more embedPreviewLarge
+ * block nodes. Group nodes may expand into multiple large nodes.
  *
- * When promoted, the embed node is replaced with an embedPreviewLarge block node
- * at document level (hoisted out of its paragraph if needed).
+ * This runs recursively so embeds in lists/blockquotes are handled too.
  */
-function promoteSingleAssistantEmbedsToLarge(doc: any, role?: string): any {
-  // Only promote for assistant messages in read mode
+function promoteAssistantEmbedsToLarge(doc: any, role?: string): any {
   if (role !== "assistant") return doc;
 
-  const embedNodes = collectEmbedNodes(doc);
+  function walkNodes(nodes: any[]): any[] {
+    const result: any[] = [];
 
-  // Must be exactly 1 embed (no groups — groups have type ending in "-group")
-  if (embedNodes.length !== 1) return doc;
-
-  const { node: embedNode, parent, index } = embedNodes[0];
-  const attrs = embedNode.attrs;
-
-  if (!isEligibleForLargePromotion(attrs)) return doc;
-
-  // Extract embed ID from contentRef ("embed:<uuid>") or from id
-  const embedId = attrs.contentRef?.startsWith("embed:")
-    ? attrs.contentRef.replace("embed:", "")
-    : attrs.id || null;
-
-  if (!embedId) return doc;
-
-  const appId = getAppIdFromEmbedAttrs(attrs);
-
-  // Create the embedPreviewLarge node
-  const largeNode = {
-    type: "embedPreviewLarge",
-    attrs: {
-      embedRef: embedId,
-      embedId: embedId,
-      appId: appId,
-      carouselIndex: 0,
-      carouselTotal: 1,
-    },
-  };
-
-  console.debug(
-    "[promoteSingleAssistantEmbedsToLarge] Promoting single embed to large preview:",
-    { type: attrs.type, embedId, appId },
-  );
-
-  // Replace the embed node with the large node.
-  // If the parent is a paragraph containing only this embed (and maybe whitespace),
-  // replace the entire paragraph with the large node at document level.
-  if (parent && parent.type === "paragraph" && parent.content) {
-    const meaningfulChildren = parent.content.filter(
-      (c: any) => c.type !== "text" || (c.text && c.text.trim().length > 0),
-    );
-    if (meaningfulChildren.length === 1 && meaningfulChildren[0] === embedNode) {
-      // Paragraph contains only this embed — replace the whole paragraph at doc level
-      const docContent = doc.content || [];
-      const paraIndex = docContent.indexOf(parent);
-      if (paraIndex !== -1) {
-        const newContent = [...docContent];
-        newContent[paraIndex] = largeNode;
-        return { ...doc, content: newContent };
+    for (const node of nodes) {
+      if (!node || !Array.isArray(node.content)) {
+        result.push(node);
+        continue;
       }
+
+      if (node.type === "paragraph") {
+        const meaningful = node.content.filter(
+          (c: any) => !(c.type === "text" && !c.text?.trim()),
+        );
+
+        const isEmbedOnlyParagraph =
+          meaningful.length > 0 &&
+          meaningful.every((c: any) => c.type === "embed");
+
+        if (isEmbedOnlyParagraph) {
+          const promoted = meaningful
+            .map((embedNode: any) =>
+              promoteEmbedAttrsToLargeNodes(embedNode.attrs),
+            )
+            .filter((parts: any[] | null) => Array.isArray(parts))
+            .flat();
+
+          if (promoted.length > 0) {
+            result.push(...promoted);
+            continue;
+          }
+        }
+
+        result.push({ ...node, content: walkNodes(node.content) });
+        continue;
+      }
+
+      result.push({ ...node, content: walkNodes(node.content) });
     }
+
+    return result;
   }
 
-  // Fallback: replace in-place within the parent
-  if (parent && Array.isArray(parent.content)) {
-    const newContent = [...parent.content];
-    newContent[index] = largeNode;
-    return {
-      ...doc,
-      content: (doc.content || []).map((node: any) =>
-        node === parent ? { ...parent, content: newContent } : node,
-      ),
-    };
-  }
-
-  return doc;
+  if (!Array.isArray(doc.content)) return doc;
+  return {
+    ...doc,
+    content: walkNodes(doc.content),
+  };
 }
 
 export function parse_message(
@@ -913,11 +892,11 @@ export function parse_message(
   // Group consecutive embeds of the same type at the document level where we can see actual text between them
   let unifiedDoc = groupConsecutiveEmbedsInDocument(docWithIndividualEmbeds);
 
-  // Promote single eligible embeds to large preview in assistant messages.
-  // This must run AFTER grouping (so we know the embed is truly alone, not part of a group)
-  // and BEFORE convertEmbedLinks (so the hoisting logic in _hoistBlockEmbedPreviews handles it).
+  // Promote eligible non app-skill embeds to large preview in assistant messages.
+  // This runs AFTER grouping (so groups can be converted to slideshow runs) and
+  // BEFORE convertEmbedLinks (so _hoistBlockEmbedPreviews can assign carousel metadata).
   if (mode === "read" && opts.role === "assistant") {
-    unifiedDoc = promoteSingleAssistantEmbedsToLarge(unifiedDoc, opts.role);
+    unifiedDoc = promoteAssistantEmbedsToLarge(unifiedDoc, opts.role);
   }
 
   // Convert embed: link marks to embedInline atom nodes, then detect

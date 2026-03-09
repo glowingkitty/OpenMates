@@ -24,6 +24,10 @@
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
     import { panelState } from '../stores/panelStateStore';
 
+    // Bump this when parse/render semantics change so stale in-memory parsed docs
+    // (cached by markdown text) are invalidated and re-parsed with new logic.
+    const READ_ONLY_PARSE_CACHE_VERSION = 'v2-assistant-large-embed-promotion';
+
     // Props using Svelte 5 runes mode
     // _embedUpdateTimestamp is used to force re-render when embed data becomes available
     // (bypasses content cache since markdown string is unchanged but embed data is now decryptable)
@@ -479,7 +483,7 @@
                 // This handles the case where embed data becomes available after initial render
                 // (the markdown is unchanged but embeds can now be decrypted and rendered)
                 const currentLocale = $locale || 'en';
-                const cacheKey = `${currentLocale}:${role || 'unknown'}:${inputContent}`;
+                const cacheKey = `${READ_ONLY_PARSE_CACHE_VERSION}:${currentLocale}:${role || 'unknown'}:${inputContent}`;
                 
                 // Bypass cache if embed update is pending - forces fresh parsing and re-rendering
                 // This is necessary because embed NodeViews need to call resolveEmbed() again
