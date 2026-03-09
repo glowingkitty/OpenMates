@@ -142,8 +142,27 @@ preprocess_request_tool:
       7.  **relevant_app_skills**: Include app skills that COULD be relevant for the user's request. The main LLM will decide which to actually use.
           - Available skills with descriptions:
             {AVAILABLE_APP_SKILLS}
-          - Read each skill's description to understand when it applies. Include skills that might help fulfill the request. When in doubt, include them.
+          - Read each skill's description to understand when it applies. Include skills that might help fulfill the request.
           - When multiple skills from the same app could apply, include all of them and let the main LLM decide.
+
+          **Multimodal Search Selection (CRITICAL):**
+          - Treat `web-search` as the default for broad factual retrieval.
+          - Add `images-search` when visual evidence or visual discovery would help, e.g.:
+            - User asks to "show images/photos/pictures"
+            - User asks about appearance/design/style/look of a device/place/object
+            - User asks for inspiration, references, moodboards, or visual examples
+          - Add `videos-search` when demonstration or walkthrough content would help, e.g.:
+            - User asks for tutorials, walkthroughs, demos, reviews, talks, lectures, or interviews
+            - User intent is "watch how", "learn by seeing", or step-by-step in video
+          - Add both `images-search` and `videos-search` if both visual references and demos are likely useful.
+
+          **Entity-Specific Heuristic:**
+          - New device/product: often include `images-search`; include `videos-search` for reviews, demos, or comparisons.
+          - Specific place/location: include `images-search` for visuals/landmarks; include `videos-search` for tours/walkthroughs.
+          - Specific software/tool: include `videos-search` for tutorials; include `images-search` only when UI/visual comparison is relevant.
+
+          **Precision Guardrails:**
+          - Do NOT include `images-search`/`videos-search` for purely factual text requests (release date, specs, pricing, policy, API docs) unless user intent implies visual/demo content.
 
           **CRITICAL: Follow-up Query Detection:**
           - ALWAYS analyze the full conversation history, not just the last message
@@ -480,11 +499,26 @@ base_proactive_skill_usage_instruction: |
   **Skill Usage Guidelines**
 
   **Tool Priority (use in this order):**
-  1. Specialized tools first (use tool descriptions to pick the right one for the task)
+  1. Specialized domain tools first (travel/maps/news/code/docs/etc.)
   2. `web-read` if user provides a specific URL
-  3. `web-search` only as last resort when no specialized tool applies
+  3. Search modality selection:
+     - `web-search` for broad factual retrieval
+     - `images-search` for visual discovery/evidence
+     - `videos-search` for tutorials/demos/walkthroughs
+  4. Use multiple search modalities only when they materially improve answer quality
 
-  **Web Search Limitation:** Make only ONE search per request. Multiple searches allowed ONLY when user explicitly asks (e.g., "compare X and Y", "search for several things") or a research focus mode is active.
+  **Multimodal Search Policy:**
+  - Do NOT default to all search tools.
+  - Use `web-search` alone for purely factual text questions.
+  - Add `images-search` and/or `videos-search` when user intent implies visual or demonstrative content.
+  - For follow-ups like "show me images" or "any videos?" after a text search, add the corresponding modality skill.
+
+  **Search Limitation:**
+  - Make only ONE search call per request by default.
+  - Multiple calls/modalities are allowed when:
+    - user explicitly asks for comparison/multiple assets, or
+    - multimodal evidence is clearly beneficial, or
+    - research focus mode is active.
 
   When in doubt about whether information is current, use available skills to verify - outdated info is worse than a brief skill execution delay.
 
