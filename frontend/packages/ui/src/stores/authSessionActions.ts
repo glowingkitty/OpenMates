@@ -222,12 +222,31 @@ export async function checkAuth(
 
         // CRITICAL: Navigate to demo-for-everyone IMMEDIATELY (synchronously) BEFORE auth state changes
         // This ensures any component reading activeChatStore will see demo-for-everyone, not the old chat
+        //
+        // EXCEPTION: If a shared chat redirect is in progress, do NOT override with demo-for-everyone.
+        // Shared chats use URL-embedded encryption keys (not the master key), so they work perfectly
+        // fine without a master key. The sessionStorage flag 'openmates_skip_orphan_detection' is set
+        // by the share chat page to indicate a shared chat session is active.
+        // The 'openmates_shared_chat_redirect' flag is set just before navigating from share page to root.
+        const isSharedChatSession =
+          typeof window !== "undefined" &&
+          typeof sessionStorage !== "undefined" &&
+          (sessionStorage.getItem("openmates_skip_orphan_detection") ===
+            "true" ||
+            sessionStorage.getItem("openmates_shared_chat_redirect") !== null);
+
         if (typeof window !== "undefined") {
-          activeChatStore.setActiveChat("demo-for-everyone");
-          window.location.hash = "chat-id=demo-for-everyone";
-          console.debug(
-            "[AuthSessionActions] Navigated to demo-for-everyone chat IMMEDIATELY (synchronous) - missing master key",
-          );
+          if (isSharedChatSession) {
+            console.debug(
+              "[AuthSessionActions] Skipping demo-for-everyone override — shared chat session detected (key in URL fragment, not master key)",
+            );
+          } else {
+            activeChatStore.setActiveChat("demo-for-everyone");
+            window.location.hash = "chat-id=demo-for-everyone";
+            console.debug(
+              "[AuthSessionActions] Navigated to demo-for-everyone chat IMMEDIATELY (synchronous) - missing master key",
+            );
+          }
         }
 
         // Set auth state (don't block on database deletion)
@@ -238,8 +257,9 @@ export async function checkAuth(
         }));
 
         // Show notification with context-appropriate message — but only if we haven't already
-        // shown one (when +page.svelte sets the flag, it shows its own notification via setTimeout)
-        if (!alreadyForcedLogout) {
+        // shown one (when +page.svelte sets the flag, it shows its own notification via setTimeout).
+        // Also skip for shared chat sessions — users opening a share link shouldn't see logout alerts.
+        if (!alreadyForcedLogout && !isSharedChatSession) {
           const $text = get(text);
           const { wasStayLoggedIn } =
             await import("../services/cryptoKeyStorage");
@@ -268,57 +288,67 @@ export async function checkAuth(
           }
         }
 
-        // CRITICAL: Set isLoggingOut flag to true BEFORE navigating to demo-for-everyone
-        // This ensures ActiveChat component knows we're explicitly logging out and should clear shared chats
-        // and load demo-for-everyone, even if the chat is a shared chat
-        isLoggingOut.set(true);
-        console.debug(
-          "[AuthSessionActions] Set isLoggingOut to true for missing master key logout",
-        );
-
-        // CRITICAL: Close the settings menu and reset to main page during forced logout.
-        // This prevents users from being stuck in an auth-only settings sub-page (e.g. account/security)
-        // after being forced out. Dispatches a window event that Settings.svelte listens to,
-        // avoiding circular module dependencies from importing the component directly.
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("forceCloseSettings"));
+        // CRITICAL: For shared chat sessions, skip destructive logout.
+        // Shared chats are stored in IndexedDB with their own encryption keys (from the URL
+        // fragment). The logout() call below deletes the entire database, which would wipe
+        // the shared chat data. The user is effectively unauthenticated — they just have stale
+        // profile data from a previous session. Simply clearing auth state is sufficient.
+        if (!isSharedChatSession) {
+          isLoggingOut.set(true);
           console.debug(
-            "[AuthSessionActions] Dispatched forceCloseSettings event on forced logout",
+            "[AuthSessionActions] Set isLoggingOut to true for missing master key logout",
           );
-        }
 
-        // Trigger server logout and local data cleanup
-        // Database deletion is handled by the logout() function's background IIFE
-        // CRITICAL: Do NOT reset forcedLogoutInProgress until AFTER database deletion completes
-        // This prevents race conditions where other code re-opens the database during logout
-        logout({
-          skipServerLogout: false, // Explicitly send logout request to server
-          isSessionExpiredLogout: true, // Custom flag for this scenario
-          afterLocalLogout: async () => {
-            // NOTE: Do NOT reset flags here - database deletion happens in logout()'s background IIFE
-            // and we need forcedLogoutInProgress to remain true until deletion completes
-            // This prevents chatDB.init() from being called during the deletion window
+          // CRITICAL: Close the settings menu and reset to main page during forced logout.
+          // This prevents users from being stuck in an auth-only settings sub-page (e.g. account/security)
+          // after being forced out. Dispatches a window event that Settings.svelte listens to,
+          // avoiding circular module dependencies from importing the component directly.
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("forceCloseSettings"));
             console.debug(
-              "[AuthSessionActions] afterLocalLogout called - flags NOT reset yet (waiting for DB cleanup)",
+              "[AuthSessionActions] Dispatched forceCloseSettings event on forced logout",
             );
-          },
-          afterServerCleanup: async () => {
-            // CRITICAL: Reset flags AFTER database deletion completes (in logout()'s background IIFE)
-            // This ensures forcedLogoutInProgress stays true during the entire deletion process
+          }
+
+          // Trigger server logout and local data cleanup
+          // Database deletion is handled by the logout() function's background IIFE
+          // CRITICAL: Do NOT reset forcedLogoutInProgress until AFTER database deletion completes
+          // This prevents race conditions where other code re-opens the database during logout
+          logout({
+            skipServerLogout: false, // Explicitly send logout request to server
+            isSessionExpiredLogout: true, // Custom flag for this scenario
+            afterLocalLogout: async () => {
+              // NOTE: Do NOT reset flags here - database deletion happens in logout()'s background IIFE
+              // and we need forcedLogoutInProgress to remain true until deletion completes
+              // This prevents chatDB.init() from being called during the deletion window
+              console.debug(
+                "[AuthSessionActions] afterLocalLogout called - flags NOT reset yet (waiting for DB cleanup)",
+              );
+            },
+            afterServerCleanup: async () => {
+              // CRITICAL: Reset flags AFTER database deletion completes (in logout()'s background IIFE)
+              // This ensures forcedLogoutInProgress stays true during the entire deletion process
+              isLoggingOut.set(false);
+              resetForcedLogoutInProgress();
+              console.debug(
+                "[AuthSessionActions] Reset logout flags after server cleanup and DB deletion",
+              );
+            },
+          }).catch((err) => {
+            console.error("[AuthSessionActions] Logout failed:", err);
+            // Reset logout flags even if logout fails
             isLoggingOut.set(false);
             resetForcedLogoutInProgress();
-            console.debug(
-              "[AuthSessionActions] Reset logout flags after server cleanup and DB deletion",
-            );
-          },
-        }).catch((err) => {
-          console.error("[AuthSessionActions] Logout failed:", err);
-          // Reset logout flags even if logout fails
-          isLoggingOut.set(false);
-          resetForcedLogoutInProgress();
-        });
+          });
 
-        deleteSessionId(); // Remove session_id on forced logout
+          deleteSessionId(); // Remove session_id on forced logout
+        } else {
+          console.debug(
+            "[AuthSessionActions] Skipping destructive logout for shared chat session — only clearing auth state",
+          );
+          // Still reset forcedLogoutInProgress since we're not doing a full logout
+          resetForcedLogoutInProgress();
+        }
         cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
         deleteAllCookies(); // Clear all cookies on forced logout
         return false;

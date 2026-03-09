@@ -1468,17 +1468,25 @@ let _chatUpdatedFlushPending = false;
 		handleLogoutEvent = async () => {
 			console.debug('[Chats] Logout event received - clearing user chats and resetting state immediately');
 			
-			// CRITICAL: Clear all user chats from state IMMEDIATELY (keep only demo/legal chats)
-			// This ensures the UI updates right away, even if database deletion is still in progress
-			allChatsFromDB = [];
-			selectedChatId = null;
+			// CRITICAL: Clear user chats from state IMMEDIATELY, but PRESERVE shared-by-others chats.
+			// Shared chats use URL-embedded encryption keys (not the master key), so they remain
+			// valid even when the master key is gone. Clearing them would force the user to re-open
+			// the share link to see the chat again.
+			allChatsFromDB = allChatsFromDB.filter(c => c.is_shared_by_others);
+			// Preserve selection if the active chat is a shared chat that survived the filter above
+			const activeIsShared = selectedChatId && allChatsFromDB.some(c => c.chat_id === selectedChatId);
+			if (!activeIsShared) {
+				selectedChatId = null;
+			}
 			_chatIdToSelectAfterUpdate = null;
 			currentServerSortOrder = [];
 			// Note: syncing is derived from authStore - will be false when not authenticated
 			syncComplete = false;
 			
-			// Clear the persistent store
-			activeChatStore.clearActiveChat();
+			// Clear the persistent store — but only if the active chat isn't a shared chat
+			if (!activeIsShared) {
+				activeChatStore.clearActiveChat();
+			}
 			
 			// Belt-and-suspenders: clear sessionStorage drafts here too in case this event
 			// fires before authLoginLogoutActions.ts had a chance to (e.g. session expiry path)

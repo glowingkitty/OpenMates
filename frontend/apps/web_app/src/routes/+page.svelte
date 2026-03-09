@@ -830,7 +830,9 @@
 			? sessionStorage.getItem('openmates_shared_chat_redirect')
 			: null;
 		if (sharedChatRedirectId && browser) {
-			sessionStorage.removeItem('openmates_shared_chat_redirect');
+			// NOTE: Do NOT remove the flag here — checkAuth() in authSessionActions.ts also
+			// needs to read it to avoid overriding the shared chat with demo-for-everyone.
+			// The flag is removed after initialize() / checkAuth() has completed (see below).
 			console.debug(
 				'[+page.svelte] [INIT] Shared chat redirect detected for:',
 				sharedChatRedirectId
@@ -918,16 +920,31 @@
 				console.warn(
 					'[+page.svelte] ⚠️ User profile exists but master key is missing (stayLoggedIn=false reload)'
 				);
-				console.debug(
-					'[+page.svelte] Setting forcedLogoutInProgress=true IMMEDIATELY to prevent encrypted chat loading'
-				);
-				setForcedLogoutInProgress();
+
+				// EXCEPTION: For shared chat sessions, skip forcedLogoutInProgress.
+				// Shared chats use URL-embedded keys (not master key) — they're fully functional.
+				// Setting the flag would interfere with chatDB.init() and trigger destructive cleanup
+				// that wipes the shared chat data.
+				if (sharedChatRedirectId) {
+					console.debug(
+						'[+page.svelte] Skipping forcedLogoutInProgress — shared chat redirect in progress, stale profile is harmless'
+					);
+				} else {
+					console.debug(
+						'[+page.svelte] Setting forcedLogoutInProgress=true IMMEDIATELY to prevent encrypted chat loading'
+					);
+					setForcedLogoutInProgress();
+				}
 
 				// Show auto-logout notification with context-appropriate message.
 				// This must be triggered here because checkAuth() will skip its notification
 				// when forcedLogoutInProgress is already true (to prevent duplicate triggers).
+				// EXCEPTION: Skip for shared chat sessions — users opening a share link
+				// shouldn't see logout alerts. The shared chat is valid without master key.
 				// Use setTimeout to ensure the notification container is rendered first.
-				setTimeout(async () => {
+				if (sharedChatRedirectId) {
+					console.debug('[+page.svelte] Suppressing auto-logout notification — shared chat redirect in progress');
+				} else setTimeout(async () => {
 					const t = get(text);
 					const { wasStayLoggedIn } = await import('@repo/ui');
 					const wasStorageEvicted = wasStayLoggedIn();
@@ -1049,9 +1066,14 @@
 				originalHash &&
 				(originalHash.startsWith('#chat-id=') || originalHash.startsWith('#chat-id='))
 			) {
-				originalHashChatId = originalHash.startsWith('#chat-id=')
+				// CRITICAL: Extract only the chat ID, stopping at '&' to avoid including
+				// &messageid= or &embed-id= parameters. This ensures comparisons with
+				// sharedChatRedirectId (which is just a clean UUID) work correctly.
+				const rawHashChatId = originalHash.startsWith('#chat-id=')
 					? originalHash.substring('#chat-id='.length)
 					: originalHash.substring('#chat-id='.length);
+				const ampIdx = rawHashChatId.indexOf('&');
+				originalHashChatId = ampIdx !== -1 ? rawHashChatId.substring(0, ampIdx) : rawHashChatId;
 
 				// CRITICAL: Don't set active chat to encrypted chat ID during forced logout
 				// The encrypted chat can't be decrypted without master key
@@ -1430,6 +1452,13 @@
 		// Initialize authentication state (panelState will react to this)
 		await initialize(); // Call the imported initialize function
 		console.debug('[+page.svelte] initialize() finished');
+
+		// NOW safe to consume the shared chat redirect flag from sessionStorage.
+		// checkAuth() (called inside initialize()) has already had a chance to read it.
+		if (sharedChatRedirectId && browser) {
+			sessionStorage.removeItem('openmates_shared_chat_redirect');
+			console.debug('[+page.svelte] Consumed openmates_shared_chat_redirect after initialize()');
+		}
 
 		// CRITICAL: Re-check signup hash AFTER initialize() completes
 		// This ensures hash-based signup state persists even if checkAuth() reset it
