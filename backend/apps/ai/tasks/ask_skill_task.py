@@ -1382,7 +1382,6 @@ async def _async_process_ai_skill_ask_task(
             # Fallback: If cache miss (common for new chats), try Directus directly
             if not encrypted_chat_key_for_typing:
                 try:
-                    from backend.core.api.app.services.directus import DirectusService
                     ds = DirectusService()
                     chat_data = await ds.get_items('chats', {
                         'filter[id][_eq]': request_data.chat_id,
