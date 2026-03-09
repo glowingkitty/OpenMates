@@ -4912,7 +4912,7 @@ async def preview_old_chats(
             'aggregate[count]': '*',
         }
         if older_than_days > 0:
-            params['filter[created_at][_lt]'] = cutoff_unix
+            params['filter[last_edited_overall_timestamp][_lt]'] = cutoff_unix
         response = await directus_service._make_api_request("GET", url, headers=headers, params=params)
         response.raise_for_status()
         body = response.json()
@@ -4941,7 +4941,7 @@ async def delete_old_chats(
     """
     Permanently delete chats for the authenticated user.
 
-    When older_than_days > 0: deletes chats whose created_at Unix int is older
+    When older_than_days > 0: deletes chats whose last_edited_overall_timestamp (last activity) is older
     than the cutoff. When older_than_days == 0: deletes ALL chats for the user.
 
     Only chats belonging to the user (matched via hashed_user_id) are deleted.
@@ -4981,7 +4981,7 @@ async def delete_old_chats(
                 'offset': offset,
             }
             if not delete_all:
-                params['filter[created_at][_lt]'] = cutoff_unix
+                params['filter[last_edited_overall_timestamp][_lt]'] = cutoff_unix
             page = await directus_service.get_items('chats', params=params)
             if not page or not isinstance(page, list):
                 break

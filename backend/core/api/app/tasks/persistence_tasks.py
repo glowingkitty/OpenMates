@@ -1825,7 +1825,7 @@ async def _async_persist_encrypted_chat_metadata(
                     cache_data = CachedChatListItemData(
                         title=encrypted_metadata.get("encrypted_title", ""),  # Note: cache uses 'title' field for encrypted_title
                         unread_count=0,
-                        created_at=now_ts,
+                        created_at=encrypted_metadata.get("created_at") or now_ts,
                         updated_at=now_ts,
                         encrypted_chat_key=encrypted_metadata.get("encrypted_chat_key"),
                         encrypted_icon=encrypted_metadata.get("encrypted_icon"),
@@ -1882,7 +1882,7 @@ async def _async_persist_encrypted_chat_metadata(
             chat_creation_payload = {
                 "id": chat_id,
                 "hashed_user_id": hashed_user_id,
-                "created_at": now_ts,
+                "created_at": encrypted_metadata.get("created_at") or now_ts,
                 "updated_at": encrypted_metadata.get("updated_at", now_ts),
                 # Version tracking - use actual values, never 0
                 "messages_v": messages_v,

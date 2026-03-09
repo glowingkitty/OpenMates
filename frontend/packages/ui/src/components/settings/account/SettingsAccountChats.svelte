@@ -176,7 +176,7 @@ Tests: none yet — new settings sub-page.
             const tx = db.transaction(chatStores, 'readwrite');
             const deletePromises: Promise<void>[] = [];
 
-            // Delete from chats store by chat ID
+            // Delete from chats store by chat ID (keyPath = chat_id)
             if (storeNames.includes('chats')) {
                 const store = tx.objectStore('chats');
                 for (const id of chatIds) {
@@ -188,6 +188,28 @@ Tests: none yet — new settings sub-page.
                 }
             }
 
+            // Delete associated messages using the chat_id index
+            if (storeNames.includes('messages')) {
+                const msgStore = tx.objectStore('messages');
+                const chatIdIndex = msgStore.index('chat_id');
+                for (const id of chatIds) {
+                    // Use index cursor to find and delete all messages for this chat
+                    deletePromises.push(new Promise<void>((res, rej) => {
+                        const req = chatIdIndex.openKeyCursor(IDBKeyRange.only(id));
+                        req.onsuccess = () => {
+                            const cursor = req.result;
+                            if (cursor) {
+                                msgStore.delete(cursor.primaryKey);
+                                cursor.continue();
+                            } else {
+                                res(); // No more messages for this chat_id
+                            }
+                        };
+                        req.onerror = () => rej(req.error);
+                    }));
+                }
+            }
+
             await Promise.allSettled(deletePromises);
             await new Promise<void>((res, rej) => {
                 tx.oncomplete = () => res();
@@ -195,7 +217,7 @@ Tests: none yet — new settings sub-page.
             });
 
             db.close();
-            console.warn(`[SettingsAccountChats] Cleaned up ${chatIds.length} chats from IndexedDB`);
+            console.warn(`[SettingsAccountChats] Cleaned up ${chatIds.length} chats and their messages from IndexedDB`);
         } catch (err) {
             // Non-fatal: IndexedDB cleanup failure doesn't block the UI
             console.warn('[SettingsAccountChats] IndexedDB cleanup failed (non-fatal):', err);

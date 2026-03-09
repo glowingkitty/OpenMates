@@ -10002,6 +10002,92 @@
         "text": "Die Zwei-Faktor-Authentifizierung ist erforderlich, um ein Passwort einzurichten. Bitte schließen Sie die 2FA-Einrichtung ab, um fortzufahren."
       }
     },
+    "sessions": {
+      "title": {
+        "text": "Aktive Sitzungen"
+      },
+      "description": {
+        "text": "Verwalte deine aktiven Sitzungen auf allen Geräten. Du kannst einzelne Sitzungen entfernen oder dich von allen Geräten gleichzeitig abmelden."
+      },
+      "description_short": {
+        "text": "Verbundene Geräte verwalten"
+      },
+      "loading": {
+        "text": "Sitzungen werden geladen..."
+      },
+      "no_sessions": {
+        "text": "Keine aktiven Sitzungen gefunden."
+      },
+      "this_device": {
+        "text": "Dieses Gerät"
+      },
+      "unknown_device": {
+        "text": "Unbekanntes Gerät"
+      },
+      "unknown_location": {
+        "text": "Unbekannter Standort"
+      },
+      "logged_in": {
+        "text": "Angemeldet"
+      },
+      "session_type": {
+        "text": "Sitzungstyp"
+      },
+      "staying_logged_in": {
+        "text": "Angemeldet bleiben"
+      },
+      "session_only": {
+        "text": "Nur Sitzung"
+      },
+      "remove": {
+        "text": "Entfernen"
+      },
+      "removing": {
+        "text": "Wird entfernt..."
+      },
+      "confirm_remove": {
+        "text": "Diese Sitzung entfernen? Das Gerät wird sofort abgemeldet."
+      },
+      "logout_all_others": {
+        "text": "Alle anderen Geräte abmelden"
+      },
+      "confirm_logout_others": {
+        "text": "Alle anderen Geräte abmelden? Sie müssen sich erneut anmelden."
+      },
+      "logout_all_devices": {
+        "text": "Von allen Geräten abmelden"
+      },
+      "confirm_logout_all": {
+        "text": "Von allen Geräten abmelden? Dies meldet dich auch von diesem Gerät ab und löscht alle vertrauenswürdigen Geräte. Jede zukünftige Anmeldung erfordert eine erneute Authentifizierung."
+      },
+      "logout_all_hint": {
+        "text": "Dies löscht auch alle vertrauenswürdigen Geräte. Jede zukünftige Anmeldung erfordert vollständige Neu-Authentifizierung."
+      },
+      "processing": {
+        "text": "Wird verarbeitet..."
+      },
+      "just_now": {
+        "text": "Gerade eben"
+      },
+      "minute_ago": {
+        "text": "Vor 1 Minute"
+      },
+      "minutes_ago": {
+        "text": "Vor {n} Minuten"
+      },
+      "hour_ago": {
+        "text": "Vor 1 Stunde"
+      },
+      "hours_ago": {
+        "text": "Vor {n} Stunden"
+      },
+      "day_ago": {
+        "text": "Vor 1 Tag"
+      },
+      "days_ago": {
+        "text": "Vor {n} Tagen"
+      }
+    },
     "storage": {
       "text": "Speicher",
       "storage_title": {

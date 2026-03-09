@@ -7040,10 +7040,10 @@
           "text": "Delete Old Chats"
         },
         "delete_section_desc": {
-          "text": "Permanently delete chats older than the selected period. This cannot be undone."
+          "text": "Permanently delete chats with no activity for the selected period. This cannot be undone."
         },
         "delete_older_than": {
-          "text": "Older than"
+          "text": "No activity for"
         },
         "delete_option_1d": {
           "text": "1 day"
@@ -10408,6 +10408,92 @@
       },
       "tfa_required_for_password": {
         "text": "Two-factor authentication is required to set up a password. Please complete 2FA setup to continue."
+      }
+    },
+    "sessions": {
+      "title": {
+        "text": "Active Sessions"
+      },
+      "description": {
+        "text": "Manage your active sessions across all devices. You can remove individual sessions or log out from all devices at once."
+      },
+      "description_short": {
+        "text": "Manage your connected devices"
+      },
+      "loading": {
+        "text": "Loading sessions..."
+      },
+      "no_sessions": {
+        "text": "No active sessions found."
+      },
+      "this_device": {
+        "text": "This device"
+      },
+      "unknown_device": {
+        "text": "Unknown device"
+      },
+      "unknown_location": {
+        "text": "Unknown location"
+      },
+      "logged_in": {
+        "text": "Logged in"
+      },
+      "session_type": {
+        "text": "Session type"
+      },
+      "staying_logged_in": {
+        "text": "Stay logged in"
+      },
+      "session_only": {
+        "text": "Session only"
+      },
+      "remove": {
+        "text": "Remove"
+      },
+      "removing": {
+        "text": "Removing..."
+      },
+      "confirm_remove": {
+        "text": "Remove this session? The device will be logged out immediately."
+      },
+      "logout_all_others": {
+        "text": "Log out all other devices"
+      },
+      "confirm_logout_others": {
+        "text": "Log out all other devices? They will need to log in again."
+      },
+      "logout_all_devices": {
+        "text": "Log out on all devices"
+      },
+      "confirm_logout_all": {
+        "text": "Log out on all devices? This will also log you out of this device and clear all trusted devices. Every future login will require re-authentication."
+      },
+      "logout_all_hint": {
+        "text": "This will also clear all trusted devices. Every future login will require full re-authentication."
+      },
+      "processing": {
+        "text": "Processing..."
+      },
+      "just_now": {
+        "text": "Just now"
+      },
+      "minute_ago": {
+        "text": "1 minute ago"
+      },
+      "minutes_ago": {
+        "text": "{n} minutes ago"
+      },
+      "hour_ago": {
+        "text": "1 hour ago"
+      },
+      "hours_ago": {
+        "text": "{n} hours ago"
+      },
+      "day_ago": {
+        "text": "1 day ago"
+      },
+      "days_ago": {
+        "text": "{n} days ago"
       }
     },
     "storage": {

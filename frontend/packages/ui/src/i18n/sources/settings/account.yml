@@ -2334,15 +2334,15 @@ chats.delete_section_title:
   he: מחק צ'אטים ישנים
   verified_by_human: []
 chats.delete_section_desc:
-  context: Description below the delete old chats section title explaining what the operation does
-  en: Permanently delete chats older than the selected period. This cannot be undone.
+  context: Description below the delete old chats section title — activity means last message sent/received
+  en: Permanently delete chats with no activity for the selected period. This cannot be undone.
   de: Chats, die älter als der ausgewählte Zeitraum sind, werden dauerhaft gelöscht. Dieser Vorgang kann nicht rückgängig gemacht werden.
   ar: حذف المحادثات الأقدم من الفترة المحددة بشكل دائم. لا يمكن التراجع عن هذا الإجراء.
   he: מחיקה סופית של צ'אטים ישנים יותר מהתקופה הנבחרת. לא ניתן לבטל פעולה זו.
   verified_by_human: []
 chats.delete_older_than:
-  context: Dropdown label — "Older than X days"
-  en: Older than
+  context: Dropdown label — filters by last message activity, not chat creation date
+  en: No activity for
   de: Älter als
   ar: أقدم من
   he: ישן מ-
