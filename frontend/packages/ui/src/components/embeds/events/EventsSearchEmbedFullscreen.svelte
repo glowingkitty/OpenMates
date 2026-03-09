@@ -2,38 +2,25 @@
   frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedFullscreen.svelte
 
   Fullscreen view for Events Search skill embeds.
-  Uses UnifiedEmbedFullscreen as base with unified child embed loading.
+  Uses SearchResultsTemplate for unified grid + overlay + loading pattern.
 
   Shows:
   - Header with search query and "via {provider}" formatting
   - Grid of EventEmbedPreview cards (one per event)
-  - Drill-down: clicking a card opens EventEmbedFullscreen overlay (ChildEmbedOverlay pattern)
+  - Drill-down: clicking a card opens EventEmbedFullscreen overlay with sibling nav
 
-  Architecture note:
-  Events results are stored as SEPARATE CHILD EMBEDS (like news/web search) — NOT inline in
-  the parent embed TOON. The parent embed carries `embed_ids` pointing to the individual event
-  child embeds. We use embedIds + childEmbedTransformer so UnifiedEmbedFullscreen handles loading.
+  Child embeds are automatically loaded by SearchResultsTemplate/UnifiedEmbedFullscreen.
 
-  Drill-down pattern mirrors TravelSearchEmbedFullscreen:
-  - The events grid is ALWAYS rendered as the base layer
-  - When a card is clicked, EventEmbedFullscreen renders as an overlay (ChildEmbedOverlay)
-  - Closing the overlay reveals the events grid without re-animation or re-fetch
+  See docs/architecture/embeds.md
 -->
 
 <script lang="ts">
-  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
-  import ChildEmbedOverlay from '../ChildEmbedOverlay.svelte';
+  import SearchResultsTemplate from '../SearchResultsTemplate.svelte';
   import EventEmbedPreview from './EventEmbedPreview.svelte';
   import EventEmbedFullscreen from './EventEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
 
-  /**
-   * Single event result from the events/search skill backend.
-   * Produced by childEmbedTransformer from each child embed's decoded TOON content.
-   * See backend/apps/events/skills/search_skill.py for the full schema.
-   */
   interface EventResult {
-    /** Child embed ID (required for keying #each) */
     embed_id: string;
     id?: string;
     provider?: string;
@@ -43,7 +30,6 @@
     date_start?: string;
     date_end?: string;
     timezone?: string;
-    /** "PHYSICAL" or "ONLINE" */
     event_type?: string;
     venue?: {
       name?: string;
@@ -65,46 +51,23 @@
       amount?: number;
       currency?: string;
     };
-    /** Always None from backend */
     image_url?: string | null;
   }
 
-  /**
-   * Props for events search embed fullscreen.
-   * Child embeds are loaded automatically via UnifiedEmbedFullscreen when embedIds is provided.
-   */
   interface Props {
-    /** Search query */
     query: string;
-    /** Events provider (e.g., 'Meetup') */
     provider: string;
-    /** Pipe-separated embed IDs or array — loaded automatically by UnifiedEmbedFullscreen */
     embedIds?: string | string[];
-    /** Processing status */
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
-    /** Close handler */
     onClose: () => void;
-    /** Optional: Embed ID for sharing */
     embedId?: string;
-    /** Whether there is a previous embed to navigate to */
     hasPreviousEmbed?: boolean;
-    /** Whether there is a next embed to navigate to */
     hasNextEmbed?: boolean;
-    /** Handler to navigate to the previous embed */
     onNavigatePrevious?: () => void;
-    /** Handler to navigate to the next embed */
     onNavigateNext?: () => void;
-    /** Direction of navigation for slide-in animation */
     navigateDirection?: 'previous' | 'next';
-    /** Whether to show the "chat" button (ultra-wide forceOverlayMode) */
     showChatButton?: boolean;
-    /** Callback when user clicks the "chat" button */
     onShowChat?: () => void;
-    /**
-     * Child embed ID to auto-open on mount (set when arriving from an inline badge click).
-     * When provided, the fullscreen will immediately open the EventEmbedFullscreen overlay
-     * for that specific event once results have loaded.
-     */
     initialChildEmbedId?: string;
   }
 
@@ -125,12 +88,10 @@
     initialChildEmbedId
   }: Props = $props();
 
-  // ── Local state ─────────────────────────────────────────────────────────────
+  // Local reactive state for streaming updates
   let localQuery    = $state('');
   let localProvider = $state('Meetup');
   let localStatus   = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
-  // embedIdsOverride: updated by handleEmbedDataUpdated when new embed_ids arrive via streaming.
-  // Use override ?? prop so the prop value is available immediately on mount (before any $effect).
   let embedIdsOverride = $state<string | string[] | undefined>(undefined);
   let embedIdsValue    = $derived(embedIdsOverride ?? embedIds);
 
@@ -142,98 +103,13 @@
 
   let query    = $derived(localQuery);
   let provider = $derived(localProvider);
-  let status   = $derived(localStatus);
-
-  // Header props for gradient banner
-  let embedHeaderTitle    = $derived(query);
-  let embedHeaderSubtitle = $derived(`${$text('embeds.via')} ${provider}`);
-
-  // ── Drill-down state ─────────────────────────────────────────────────────────
-  /**
-   * Index of the currently selected event in the results array.
-   * -1 means no event is open in the overlay.
-   * Needed (rather than storing the EventResult object) so ← → sibling navigation works.
-   */
-  let selectedEventIndex = $state<number>(-1);
+  let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
 
   /**
-   * All loaded event results — populated via onChildrenLoaded callback.
-   * Stored separately from ctx.children to enable sibling navigation in the overlay.
-   */
-  let allEvents = $state<EventResult[]>([]);
-
-  /** Open an event's detail fullscreen overlay. */
-  function handleEventClick(index: number) {
-    selectedEventIndex = index;
-  }
-
-  /**
-   * Close the event overlay.
-   *
-   * When opened via inline badge (initialChildEmbedId set): close the entire
-   * fullscreen immediately — no parent results grid needed.
-   * When opened normally (card click): return to the results grid.
-   */
-  function handleEventClose() {
-    if (initialChildEmbedId) {
-      // Opened via inline badge — skip the grid and close the entire fullscreen
-      console.debug('[EventsSearchEmbedFullscreen] Closing event overlay (inline badge origin) — closing entire fullscreen');
-      onClose();
-    } else {
-      console.debug('[EventsSearchEmbedFullscreen] Closing event overlay, returning to events grid');
-      selectedEventIndex = -1;
-    }
-  }
-
-  /**
-   * Handle closing the entire events search fullscreen.
-   * If a child overlay is open (and was NOT from an inline badge), close it first.
-   */
-  function handleMainClose() {
-    if (selectedEventIndex >= 0 && !initialChildEmbedId) {
-      selectedEventIndex = -1;
-    } else {
-      onClose();
-    }
-  }
-
-  /** Navigate to the previous event in the overlay. */
-  function handleEventPrevious() {
-    if (selectedEventIndex > 0) {
-      selectedEventIndex = selectedEventIndex - 1;
-    }
-  }
-
-  /** Navigate to the next event in the overlay. */
-  function handleEventNext() {
-    if (selectedEventIndex < allEvents.length - 1) {
-      selectedEventIndex = selectedEventIndex + 1;
-    }
-  }
-
-  // The currently selected event object (undefined when overlay is closed)
-  let selectedEvent = $derived(
-    selectedEventIndex >= 0 ? allEvents[selectedEventIndex] : undefined
-  );
-
-  // Auto-open logic for initialChildEmbedId is handled by UnifiedEmbedFullscreen's
-  // onAutoOpenChild callback — no local $effect or _autoOpenFired guard needed.
-
-  // ── Child embed transformer ──────────────────────────────────────────────────
-  /**
-   * Converts raw decoded TOON content of each child embed into a typed EventResult.
-   * Called once per child embed by UnifiedEmbedFullscreen.
-   *
-   * Child embed TOON content mirrors the fields written by search_skill.py:
-   *   id, provider, title, description, url, date_start, date_end, timezone,
-   *   event_type, venue (name/address/city/state/country/lat/lon), organizer
-   *   (id/name/slug), rsvp_count, is_paid, fee (amount/currency), image_url, type
-   *
-   * TOON flattening converts nested objects like venue.city → venue_city, so we
-   * check both nested and flat field names to be robust.
+   * Transform raw embed content to EventResult format.
+   * Handles both native nested objects and TOON-flattened keys.
    */
   function transformToEventResult(childEmbedId: string, content: Record<string, unknown>): EventResult {
-    // Venue may be a nested object (raw) or TOON-flattened (venue_city, venue_country, …)
     let venue: EventResult['venue'] | undefined;
     if (content.venue && typeof content.venue === 'object') {
       const v = content.venue as Record<string, unknown>;
@@ -247,7 +123,6 @@
         lon:     v.lon     as number | undefined,
       };
     } else if (content.venue_city || content.venue_country) {
-      // TOON-flattened fields
       venue = {
         name:    content.venue_name    as string | undefined,
         address: content.venue_address as string | undefined,
@@ -259,7 +134,6 @@
       };
     }
 
-    // Fee may be nested or flattened
     let fee: EventResult['fee'] | undefined;
     if (content.fee && typeof content.fee === 'object') {
       const f = content.fee as Record<string, unknown>;
@@ -268,7 +142,6 @@
       fee = { amount: content.fee_amount as number | undefined, currency: content.fee_currency as string | undefined };
     }
 
-    // Organizer may be nested or flattened
     let organizer: EventResult['organizer'] | undefined;
     if (content.organizer && typeof content.organizer === 'object') {
       const o = content.organizer as Record<string, unknown>;
@@ -297,7 +170,9 @@
     };
   }
 
-  // ── Embed data updates ───────────────────────────────────────────────────────
+  /**
+   * Handle embed data updates during streaming.
+   */
   function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
     if (!data.decodedContent) return;
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
@@ -310,22 +185,20 @@
   }
 </script>
 
-<UnifiedEmbedFullscreen
+<SearchResultsTemplate
   appId="events"
   skillId="search"
-  onClose={handleMainClose}
-  currentEmbedId={embedId}
+  embedHeaderTitle={query}
+  embedHeaderSubtitle={viaProvider}
   skillIconName="search"
-  embedHeaderTitle={embedHeaderTitle}
-  embedHeaderSubtitle={embedHeaderSubtitle}
+  showSkillIcon={true}
+  {onClose}
+  currentEmbedId={embedId}
   embedIds={embedIdsValue}
   childEmbedTransformer={transformToEventResult}
+  status={localStatus}
   onEmbedDataUpdated={handleEmbedDataUpdated}
-  onChildrenLoaded={(children) => { allEvents = children as EventResult[]; }}
   {initialChildEmbedId}
-  onAutoOpenChild={(index) => {
-    handleEventClick(index);
-  }}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
@@ -334,108 +207,28 @@
   {showChatButton}
   {onShowChat}
 >
-  {#snippet content(ctx)}
-    {@const events = ctx.children as EventResult[]}
-
-    {#if status === 'error'}
-      <div class="error-state">
-        <p class="error-title">{$text('chat.an_error_occured')}</p>
-      </div>
-    {:else if ctx.isLoadingChildren}
-      <div class="no-results">
-        <p>{$text('embeds.loading')}</p>
-      </div>
-    {:else if events.length === 0}
-      <div class="no-results">
-        <p>{$text('embeds.no_results')}</p>
-      </div>
-    {:else}
-      <!--
-        Events grid: each event rendered as an EventEmbedPreview card.
-        Clicking a card opens EventEmbedFullscreen via ChildEmbedOverlay drill-down.
-        The grid stays mounted beneath the overlay — no re-animation when returning.
-      -->
-      <div class="events-grid">
-        {#each events as event, index (event.embed_id)}
-          <EventEmbedPreview
-            id={event.embed_id}
-            {event}
-            isMobile={false}
-            onFullscreen={() => handleEventClick(index)}
-          />
-        {/each}
-      </div>
-    {/if}
-  {/snippet}
-</UnifiedEmbedFullscreen>
-
-<!--
-  Drill-down overlay: renders the single-event fullscreen on top of the results grid.
-  The grid stays alive beneath — no re-fetch or re-animation on close.
-  Only rendered when an event card has been clicked (selectedEvent is defined).
--->
-{#if selectedEvent}
-  <ChildEmbedOverlay>
-    <EventEmbedFullscreen
-      event={selectedEvent}
-      onClose={handleEventClose}
-      hasPreviousEmbed={selectedEventIndex > 0}
-      hasNextEmbed={selectedEventIndex < allEvents.length - 1}
-      onNavigatePrevious={handleEventPrevious}
-      onNavigateNext={handleEventNext}
+  {#snippet resultCard({ result, onSelect })}
+    <EventEmbedPreview
+      id={result.embed_id}
+      event={result}
+      isMobile={false}
+      onFullscreen={onSelect}
     />
-  </ChildEmbedOverlay>
-{/if}
+  {/snippet}
+
+  {#snippet childFullscreen(nav)}
+    <EventEmbedFullscreen
+      event={nav.result}
+      onClose={nav.onClose}
+      hasPreviousEmbed={nav.hasPrevious}
+      hasNextEmbed={nav.hasNext}
+      onNavigatePrevious={nav.onPrevious}
+      onNavigateNext={nav.onNext}
+    />
+  {/snippet}
+</SearchResultsTemplate>
 
 <style>
-  /* ===========================================
-     Error / No Results / Loading States
-     =========================================== */
-
-  .no-results,
-  .error-state {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 200px;
-    color: var(--color-font-secondary);
-    font-size: 16px;
-  }
-
-  .error-title {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--color-error);
-  }
-
-  /* ===========================================
-     Events Grid
-     Responsive: single column on narrow, two-column on wide
-     =========================================== */
-
-  .events-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 16px;
-    padding: 24px 16px;
-    padding-bottom: 120px; /* Space for bottom bar + gradient */
-    max-width: 900px;
-    margin: 0 auto;
-  }
-
-  /* Two-column grid on wider fullscreen panels */
-  @container fullscreen (min-width: 640px) {
-    .events-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-  }
-
-  /* ===========================================
-     Skill Icon (EmbedHeader / BasicInfosBar)
-     =========================================== */
-
-  /* Events search skill uses "search" icon (magnifying glass) in the fullscreen header.
-     Matches the convention used by WebSearch and TravelSearch. */
   :global(.unified-embed-fullscreen-overlay .skill-icon[data-skill-icon="search"]) {
     -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
     mask-image: url('@openmates/ui/static/icons/search.svg');

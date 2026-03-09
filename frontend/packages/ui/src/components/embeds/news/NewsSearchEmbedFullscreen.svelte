@@ -2,31 +2,18 @@
   frontend/packages/ui/src/components/embeds/news/NewsSearchEmbedFullscreen.svelte
   
   Fullscreen view for News Search skill embeds.
-  Uses UnifiedEmbedFullscreen as base with unified child embed loading.
+  Uses SearchResultsTemplate for unified grid + overlay + loading pattern.
   
   Shows:
-  - Header with search query and "via {provider}" formatting (60px top margin, 40px bottom margin)
-  - News article embeds in a grid (auto-responsive columns)
-  - Consistent BasicInfosBar at the bottom (matches preview - "Search" + "Completed")
-  - Top bar with share, copy, and minimize buttons
+  - Header with search query and "via {provider}"
+  - News article embeds in a responsive grid
+  - Overlay drill-down into NewsEmbedFullscreen with sibling navigation
   
-  Child embeds are automatically loaded by UnifiedEmbedFullscreen from embedIds prop.
-  
-  News Article Fullscreen Navigation (Overlay Pattern):
-  - Search results grid is ALWAYS rendered (base layer)
-  - When a news article is clicked, NewsEmbedFullscreen renders as an OVERLAY on top
-  - When NewsEmbedFullscreen is closed, overlay is removed revealing search results beneath
-  
-  Benefits of overlay approach:
-  - No re-animation when returning to search results (they're already rendered beneath)
-  - No re-loading of child embeds
-  - Scroll position preserved on search results
-  - Instant close transition since search results are always visible
+  See docs/architecture/embeds.md
 -->
 
 <script lang="ts">
-  import UnifiedEmbedFullscreen, { type ChildEmbedContext } from '../UnifiedEmbedFullscreen.svelte';
-  import ChildEmbedOverlay from '../ChildEmbedOverlay.svelte';
+  import SearchResultsTemplate from '../SearchResultsTemplate.svelte';
   import NewsEmbedPreview from './NewsEmbedPreview.svelte';
   import NewsEmbedFullscreen from './NewsEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
@@ -41,48 +28,24 @@
     favicon_url?: string;
     thumbnail?: string;
     description?: string;
-    /** Extra snippets from backend TOON (pipe-delimited string or array) */
     extra_snippets?: string | string[];
-    /** Page age from Brave Search (relative string like "2 weeks ago") */
     page_age?: string;
   }
   
-  /**
-   * Props for news search embed fullscreen
-   * Child embeds are loaded automatically via UnifiedEmbedFullscreen
-   */
   interface Props {
-    /** Search query */
     query: string;
-    /** Search provider (e.g., 'Brave Search') */
     provider: string;
-    /** Pipe-separated embed IDs or array of embed IDs for child news embeds */
     embedIds?: string | string[];
-    /** Legacy: Search results (fallback if embedIds not provided) */
     results?: NewsSearchResult[];
-    /** Close handler */
     onClose: () => void;
-    /** Optional: Embed ID for sharing (from embed:{embed_id} contentRef) */
     embedId?: string;
-    /** Whether there is a previous embed to navigate to */
     hasPreviousEmbed?: boolean;
-    /** Whether there is a next embed to navigate to */
     hasNextEmbed?: boolean;
-    /** Handler to navigate to the previous embed */
     onNavigatePrevious?: () => void;
-    /** Handler to navigate to the next embed */
     onNavigateNext?: () => void;
-    /** Direction of navigation ('previous' | 'next') — set transiently during prev/next transitions */
     navigateDirection?: 'previous' | 'next';
-    /** Whether to show the "chat" button to restore chat visibility (ultra-wide forceOverlayMode) */
     showChatButton?: boolean;
-    /** Callback when user clicks the "chat" button to restore chat visibility */
     onShowChat?: () => void;
-    /**
-     * Child embed ID to auto-open on mount (set when arriving from an inline badge click).
-     * When provided, the fullscreen will immediately open the NewsEmbedFullscreen overlay
-     * for that specific article once results have loaded.
-     */
     initialChildEmbedId?: string;
   }
 
@@ -103,52 +66,10 @@
     initialChildEmbedId
   }: Props = $props();
   
-  // Debug: Log what props NewsSearchEmbedFullscreen receives
-  $effect(() => {
-    console.debug('[NewsSearchEmbedFullscreen] 📰 Props received:', {
-      query,
-      provider,
-      embedIds,
-      embedIds_type: typeof embedIds,
-      embedIds_length: Array.isArray(embedIds) ? embedIds.length : (typeof embedIds === 'string' ? embedIds.length : 0),
-      resultsProp_length: resultsProp?.length || 0,
-      resultsProp_sample: resultsProp?.slice(0, 2),
-      embedId
-    });
-  });
-  
-  // ============================================
-  // State: Track which article is shown in fullscreen
-  // Index-based so prev/next can navigate between siblings
-  // ============================================
-  
-  /** Index of selected article in allNewsResults (-1 = none) */
-  let selectedArticleIndex = $state<number>(-1);
-  
-  /** Flat array of all loaded news results for sibling navigation */
-  let allNewsResults = $state<NewsSearchResult[]>([]);
-
-  /** Currently selected article (derived from index) */
-  let selectedArticle = $derived(selectedArticleIndex >= 0 ? allNewsResults[selectedArticleIndex] ?? null : null);
-  
-  // Determine if mobile layout
-  let isMobile = $derived(
-    typeof window !== 'undefined' && window.innerWidth <= 500
-  );
-  
-  // Get "via {provider}" text from translations
-  let viaProvider = $derived(
-    `${$text('embeds.via')} ${provider}`
-  );
-
-  // Header props for gradient banner
-  // Use the search query as the title so users see what was searched
-  let embedHeaderTitle = $derived(query);
-  let embedHeaderSubtitle = $derived(viaProvider);
+  let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
   
   /**
-   * Extract nested or flat field value from decoded child content.
-   * Supports both flattened TOON fields (e.g. meta_url_favicon) and nested fields.
+   * Extract nested or flat field from decoded content
    */
   function getNestedField(obj: Record<string, unknown>, ...paths: string[]): string | undefined {
     for (const path of paths) {
@@ -158,10 +79,7 @@
         for (const part of parts) {
           if (value && typeof value === 'object' && part in (value as Record<string, unknown>)) {
             value = (value as Record<string, unknown>)[part];
-          } else {
-            value = undefined;
-            break;
-          }
+          } else { value = undefined; break; }
         }
         if (typeof value === 'string' && value) return value;
       } else {
@@ -174,33 +92,27 @@
 
   /**
    * Transform raw embed content to NewsSearchResult format
-   * Used by UnifiedEmbedFullscreen's childEmbedTransformer
    */
   function transformToNewsResult(embedId: string, content: Record<string, unknown>): NewsSearchResult {
-    const faviconUrl = getNestedField(content, 'meta_url.favicon', 'favicon_url', 'meta_url_favicon');
-    const thumbnailUrl = getNestedField(content, 'thumbnail.original', 'thumbnail', 'thumbnail_original', 'image');
-    const pageAge = (content.age as string) || (content.page_age as string) || undefined;
-    
     return {
       embed_id: embedId,
       title: content.title as string | undefined,
       url: content.url as string,
-      favicon_url: faviconUrl,
-      thumbnail: thumbnailUrl,
+      favicon_url: getNestedField(content, 'meta_url.favicon', 'favicon_url', 'meta_url_favicon'),
+      thumbnail: getNestedField(content, 'thumbnail.original', 'thumbnail', 'thumbnail_original', 'image'),
       description: (content.description as string) || (content.snippet as string),
       extra_snippets: content.extra_snippets as string | string[] | undefined,
-      page_age: pageAge
+      page_age: (content.age as string) || (content.page_age as string) || undefined
     };
   }
   
   /**
-   * Transform legacy results to NewsSearchResult format (for backwards compatibility)
+   * Transform legacy results for backwards compatibility
    */
   function transformLegacyResults(results: unknown[]): NewsSearchResult[] {
     return (results as Array<Record<string, unknown>>).map((r, i) => {
       const metaUrl = r.meta_url as Record<string, string> | undefined;
       const thumbnail = r.thumbnail as Record<string, string> | undefined;
-      
       return {
         embed_id: `legacy-${i}`,
         title: r.title as string | undefined,
@@ -213,132 +125,21 @@
       };
     });
   }
-  
-  /**
-   * Get news results from context (children or legacy)
-   * Children are cast to NewsSearchResult[] since we pass transformToNewsResult as transformer
-   */
-  function getNewsResults(ctx: ChildEmbedContext): NewsSearchResult[] {
-    // Use loaded children if available (cast since transformer returns NewsSearchResult)
-    if (ctx.children && ctx.children.length > 0) {
-      return ctx.children as NewsSearchResult[];
-    }
-    // Fallback to legacy results
-    if (ctx.legacyResults && ctx.legacyResults.length > 0) {
-      return transformLegacyResults(ctx.legacyResults);
-    }
-    return [];
-  }
-  
-  // Share is handled by UnifiedEmbedFullscreen's built-in share handler
-  // which uses currentEmbedId, appId, and skillId to construct the embed
-  // share context and properly opens the settings panel (including on mobile).
-  
-  /**
-   * Handle article click - shows the article in fullscreen mode.
-   * Uses index-based selection so prev/next arrows navigate within siblings.
-   */
-  function handleArticleFullscreen(articleData: NewsSearchResult) {
-    console.debug('[NewsSearchEmbedFullscreen] Opening article fullscreen:', {
-      embedId: articleData.embed_id,
-      url: articleData.url,
-      title: articleData.title
-    });
-    const idx = allNewsResults.findIndex(r => r.embed_id === articleData.embed_id);
-    if (idx >= 0) {
-      selectedArticleIndex = idx;
-    } else {
-      // Fallback: item not yet in allNewsResults, add it
-      allNewsResults = [articleData];
-      selectedArticleIndex = 0;
-    }
-  }
-  
-  /**
-   * Handle closing the article fullscreen.
-   *
-   * When opened via inline badge (initialChildEmbedId set): close the entire
-   * fullscreen immediately — no parent results grid expected.
-   * When opened normally (card click): return to the parent search results grid.
-   */
-  function handleArticleFullscreenClose() {
-    if (initialChildEmbedId) {
-      // Opened via inline badge — skip the parent grid and close completely
-      console.debug('[NewsSearchEmbedFullscreen] Closing article fullscreen (inline badge origin) — closing entire fullscreen');
-      onClose();
-    } else {
-      console.debug('[NewsSearchEmbedFullscreen] Closing article fullscreen, returning to search results');
-      selectedArticleIndex = -1;
-    }
-  }
-  
-  /** Navigate to the previous sibling article */
-  function handleArticleNavigatePrevious() {
-    if (selectedArticleIndex > 0) selectedArticleIndex -= 1;
-  }
-  
-  /** Navigate to the next sibling article */
-  function handleArticleNavigateNext() {
-    if (selectedArticleIndex < allNewsResults.length - 1) selectedArticleIndex += 1;
-  }
-
-  /**
-   * Handle closing the entire search fullscreen
-   * Called when user closes the main NewsSearchEmbedFullscreen
-   */
-  function handleMainClose() {
-    // If an article is open AND we were NOT opened via inline badge,
-    // return to the parent search results grid first.
-    // If opened via inline badge, close the entire fullscreen immediately.
-    if (selectedArticleIndex >= 0 && !initialChildEmbedId) {
-      selectedArticleIndex = -1;
-    } else {
-      onClose();
-    }
-  }
-
-  // Auto-open logic for initialChildEmbedId is handled by UnifiedEmbedFullscreen's
-  // onAutoOpenChild callback — no local $effect or _autoOpenFired guard needed.
 </script>
 
-<!-- 
-  Overlay-based rendering approach for smooth transitions:
-  - NewsSearchEmbedFullscreen (search results grid) is ALWAYS mounted
-  - NewsEmbedFullscreen renders as an OVERLAY on top when an article is selected
-  
-  Benefits of this approach:
-  - No re-animation when returning to search results (already visible beneath)
-  - No re-loading of child embeds
-  - Scroll position is preserved on search results
-  - Instant close transition since search results are already there
--->
-
-<!-- Search results view - ALWAYS rendered (base layer) -->
-<!-- 
-  Pass skillName and showStatus to UnifiedEmbedFullscreen for consistent BasicInfosBar
-  that matches the embed preview (shows "Search" + "Completed", not the query)
-  
-  Child embeds are loaded automatically via embedIds prop and passed to content snippet
-  The childEmbedTransformer converts raw embed data to NewsSearchResult format
--->
-<UnifiedEmbedFullscreen
+<SearchResultsTemplate
   appId="news"
   skillId="search"
-  onClose={handleMainClose}
-  currentEmbedId={embedId}
   skillIconName="search"
-  embedHeaderTitle={embedHeaderTitle}
-  embedHeaderSubtitle={embedHeaderSubtitle}
+  embedHeaderTitle={query}
+  embedHeaderSubtitle={viaProvider}
+  {onClose}
+  currentEmbedId={embedId}
   {embedIds}
   childEmbedTransformer={transformToNewsResult}
   legacyResults={resultsProp}
-  onChildrenLoaded={(children) => { allNewsResults = children as NewsSearchResult[]; }}
+  legacyResultTransformer={transformLegacyResults}
   {initialChildEmbedId}
-  onAutoOpenChild={(index, children) => {
-    allNewsResults = children as NewsSearchResult[];
-    const article = allNewsResults[index];
-    if (article) handleArticleFullscreen(article);
-  }}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
@@ -347,101 +148,35 @@
   {showChatButton}
   {onShowChat}
 >
-  {#snippet content(ctx)}
-    {@const newsResults = getNewsResults(ctx)}
-    
-    {#if ctx.isLoadingChildren}
-      <div class="loading-state">
-        <p>{$text('embeds.loading')}</p>
-      </div>
-    {:else if newsResults.length === 0}
-      <div class="no-results">
-        <p>{$text('embeds.no_results')}</p>
-      </div>
-    {:else}
-      <!-- News article embeds grid - responsive auto-fill columns -->
-      <div class="article-embeds-grid" class:mobile={isMobile}>
-        {#each newsResults as result}
-          <NewsEmbedPreview
-            id={result.embed_id}
-            url={result.url}
-            title={result.title}
-            description={result.description}
-            favicon={result.favicon_url}
-            image={result.thumbnail}
-            status="finished"
-            isMobile={false}
-            onFullscreen={() => handleArticleFullscreen(result)}
-          />
-        {/each}
-      </div>
-    {/if}
-  {/snippet}
-</UnifiedEmbedFullscreen>
-
-<!-- Article fullscreen overlay - rendered ON TOP when an article is selected -->
-<!-- Uses ChildEmbedOverlay for consistent overlay positioning across all search fullscreens -->
-<!-- Sibling navigation: prev/next cycle through all search result articles -->
-{#if selectedArticle}
-  <ChildEmbedOverlay>
-    <NewsEmbedFullscreen
-      url={selectedArticle.url}
-      title={selectedArticle.title}
-      description={selectedArticle.description}
-      favicon={selectedArticle.favicon_url}
-      thumbnail={selectedArticle.thumbnail}
-      extra_snippets={selectedArticle.extra_snippets}
-      dataDate={selectedArticle.page_age}
-      onClose={handleArticleFullscreenClose}
-      embedId={selectedArticle.embed_id}
-      hasPreviousEmbed={selectedArticleIndex > 0}
-      hasNextEmbed={selectedArticleIndex < allNewsResults.length - 1}
-      onNavigatePrevious={handleArticleNavigatePrevious}
-      onNavigateNext={handleArticleNavigateNext}
+  {#snippet resultCard({ result, onSelect })}
+    <NewsEmbedPreview
+      id={result.embed_id}
+      url={result.url}
+      title={result.title}
+      description={result.description}
+      favicon={result.favicon_url}
+      image={result.thumbnail}
+      status="finished"
+      isMobile={false}
+      onFullscreen={onSelect}
     />
-  </ChildEmbedOverlay>
-{/if}
+  {/snippet}
 
-<style>
-  /* ===========================================
-     Loading and No Results States
-     =========================================== */
-  
-  .loading-state,
-  .no-results {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 200px;
-    color: var(--color-font-secondary);
-    font-size: 16px;
-  }
-  
-  /* ===========================================
-     Article Embeds Grid - Responsive Layout
-     =========================================== */
-  
-  .article-embeds-grid {
-    display: grid;
-    gap: 16px;
-    width: calc(100% - 20px);
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 0 10px;
-    padding-bottom: 120px; /* Space for bottom bar + gradient */
-    /* Responsive: auto-fit columns with minimum 280px width */
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  }
-  
-  /* Mobile: single column (stacked) */
-  .article-embeds-grid.mobile {
-    grid-template-columns: 1fr;
-  }
-  
-  /* Ensure each embed maintains proper size */
-  .article-embeds-grid :global(.unified-embed-preview) {
-    width: 100%;
-    max-width: 320px;
-    margin: 0 auto;
-  }
-</style>
+  {#snippet childFullscreen(nav)}
+    <NewsEmbedFullscreen
+      url={nav.result.url}
+      title={nav.result.title}
+      description={nav.result.description}
+      favicon={nav.result.favicon_url}
+      thumbnail={nav.result.thumbnail}
+      extra_snippets={nav.result.extra_snippets}
+      dataDate={nav.result.page_age}
+      onClose={nav.onClose}
+      embedId={nav.result.embed_id}
+      hasPreviousEmbed={nav.hasPrevious}
+      hasNextEmbed={nav.hasNext}
+      onNavigatePrevious={nav.onPrevious}
+      onNavigateNext={nav.onNext}
+    />
+  {/snippet}
+</SearchResultsTemplate>
