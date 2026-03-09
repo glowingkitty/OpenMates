@@ -1635,7 +1635,7 @@
   /* Add styles for the content wrapper - aligned to top for ChatGPT-style behavior */
   .chat-history-content {
     width: 100%;
-    max-width: 900px;
+    max-width: 1000px;
     margin: 0 auto;
   }
 
@@ -1710,7 +1710,6 @@
 
   .message-wrapper :global(.chat-message) {
     width: 100%;
-    max-width: 900px;
   }
 
   /* "Show earlier messages" toggle button for compressed chats.
