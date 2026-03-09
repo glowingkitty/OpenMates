@@ -1543,6 +1543,19 @@ context_menu.unhide:
   sv: Visa igen
   he: ביטול הסתרה
   verified_by_human: []
+
+context_menu.start_debugging:
+  context: Context menu action to enable chat raw text debug mode
+  en: Start debugging
+  de: Debugging starten
+  verified_by_human: []
+
+context_menu.end_debugging:
+  context: Context menu action to disable chat raw text debug mode
+  en: End debugging
+  de: Debugging beenden
+  verified_by_human: []
+
 hidden_chats.no_hidden_chats:
   context: Message shown when hidden chats section is empty
   en: No hidden chats
