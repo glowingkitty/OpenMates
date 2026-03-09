@@ -42,6 +42,7 @@
   import type { PendingPermissionRequest, AppSettingsMemoriesCategory } from '../services/chatSyncServiceHandlersAppSettings';
   import { formatDisplayName, getAppGradient } from '../services/chatSyncServiceHandlersAppSettings';
   import { text } from '@repo/ui'; // Used for compression summary UI labels
+  import { chatDebugStore } from '../stores/chatDebugStore';
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -429,6 +430,15 @@
       }
       return true;
     });
+  });
+
+  let lastAssistantMessageId = $derived.by(() => {
+    for (let i = displayMessages.length - 1; i >= 0; i--) {
+      if (displayMessages[i].role === 'assistant') {
+        return displayMessages[i].id;
+      }
+    }
+    return null;
   });
 
   // Show/hide the messages block for fade-out animation using $state (Svelte 5 runes mode)
@@ -1550,6 +1560,24 @@
                         {isCreditsRestored}
                         {onResend}
                     />
+
+                    {#if $chatDebugStore.rawTextMode && msg.id === lastAssistantMessageId}
+                      <div class="debug-history-output selectable">
+                        <div class="debug-history-title">window.debug.chat</div>
+                        {#if $chatDebugStore.chatReportLoading}
+                          <div class="debug-history-loading">Loading debug chat report...</div>
+                        {:else if $chatDebugStore.chatReport}
+                          <pre class="debug-history-pre selectable">{$chatDebugStore.chatReport}</pre>
+                        {:else}
+                          <div class="debug-history-loading">No debug chat report available yet.</div>
+                        {/if}
+
+                        {#if isCurrentlyStreaming || $chatDebugStore.streamLogs.length > 0}
+                          <div class="debug-history-title logs">Streaming warn/error logs</div>
+                          <pre class="debug-history-pre selectable">{$chatDebugStore.streamLogs.join('\n')}</pre>
+                        {/if}
+                      </div>
+                    {/if}
                 </div>
             {/each}
             
@@ -1612,6 +1640,49 @@
         rgba(0, 0, 0, 1) calc(100% - 30px), 
         rgba(0, 0, 0, 0) 100%
     );
+  }
+
+  .debug-history-output {
+    margin-top: 0.5rem;
+    margin-left: 2.25rem;
+    margin-right: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-grey-30);
+    background: var(--color-grey-10);
+  }
+
+  .debug-history-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-font-secondary);
+    margin-bottom: 0.35rem;
+  }
+
+  .debug-history-title.logs {
+    margin-top: 0.65rem;
+  }
+
+  .debug-history-loading {
+    font-size: 0.8rem;
+    color: var(--color-font-secondary);
+  }
+
+  .debug-history-pre {
+    margin: 0;
+    font-family: monospace;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--color-font-primary);
+    max-height: 16rem;
+    overflow: auto;
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    -webkit-touch-callout: default;
   }
 
   /* When scrolled to the top, remove the top gradient so the banner edges aren't faded */

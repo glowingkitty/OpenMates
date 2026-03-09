@@ -90,6 +90,7 @@
     import { activeEmbedStore } from '../stores/activeEmbedStore'; // For managing embed URL hash
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
+    import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, translateDemoChat } from '../demo_chats'; // Import demo chat utilities
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
@@ -415,6 +416,7 @@
     // Get username from the store using Svelte 5 $derived
     // Use empty string for non-authenticated users - translation will handle "Hey there!" vs "Hey {username}!"
     let username = $derived($userProfile.username || '');
+    let isAdminUser = $derived($userProfile.is_admin === true);
 
     // Split translation strings that include <br> into safe text parts for rendering.
     function splitHtmlLineBreaks(text: string): string[] {
@@ -3096,6 +3098,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
     let currentChat = $state<Chat | null>(null);
     let currentMessages = $state<ChatMessageModel[]>([]); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+    let lastDebugChatInspectionId = $state<string | null>(null);
 
     // Decrypted active focus mode ID for the current chat (e.g. "jobs-career_insights").
     // Updated whenever the chat changes or a focus_mode_activated / focusModeDeactivated event fires.
@@ -5500,6 +5503,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         settingsDeepLink.set('report_issue');
     }
 
+    async function handleToggleDebugMode() {
+        if (!isAdminUser) return;
+        await chatDebugStore.toggle({ chatId: currentChat?.chat_id });
+    }
+
     /**
      * Handler for minimizing the chat in side-by-side mode.
      * When in ultra-wide mode with side-by-side layout, this hides the chat
@@ -5520,6 +5528,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         console.debug('[ActiveChat] Show chat clicked - switching to side-by-side mode');
         forceOverlayMode = false;
     }
+
+    // Keep debug chat report aligned with the currently opened chat.
+    // When debug mode is active and the user changes chats, trigger a fresh window.debug.chat run.
+    $effect(() => {
+        const activeChatId = currentChat?.chat_id ?? null;
+        const debugActive = $chatDebugStore.rawTextMode;
+
+        if (!debugActive || !isAdminUser) {
+            lastDebugChatInspectionId = null;
+            return;
+        }
+
+        if (!activeChatId) return;
+        if (lastDebugChatInspectionId === activeChatId) return;
+
+        lastDebugChatInspectionId = activeChatId;
+        void chatDebugStore.runChatDebug(activeChatId);
+    });
 
     // Update handler for chat updates to be more selective
     async function handleChatUpdated(event: CustomEvent) {
@@ -7773,6 +7799,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         chatHistoryRef.updateMessages(currentMessages);
                     }
                 }
+
+                if ($chatDebugStore.rawTextMode && isAdminUser && currentChat?.chat_id) {
+                    void chatDebugStore.runChatDebug(currentChat.chat_id);
+                }
             }
         }) as EventListenerCallback;
 
@@ -8478,6 +8508,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 >
                                 </button>
                             </div>
+                            {#if isAdminUser}
+                                <div class="new-chat-button-wrapper">
+                                    <button
+                                        class="clickable-icon icon_task top-button"
+                                        class:debug-mode-active={$chatDebugStore.rawTextMode}
+                                        aria-label={$chatDebugStore.rawTextMode ? $text('chats.context_menu.end_debugging') : $text('chats.context_menu.start_debugging')}
+                                        onclick={handleToggleDebugMode}
+                                        use:tooltip
+                                    >
+                                    </button>
+                                </div>
+                            {/if}
                             <!-- PII hide/unhide toggle - only shows when chat has sensitive data -->
                             {#if chatHasPII && !showWelcome}
                                 <div class="new-chat-button-wrapper">
@@ -10817,6 +10859,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     /* PII toggle button: subtle orange tint when PII is revealed (warns sensitive data exposed) */
     .pii-toggle-active {
         background-color: rgba(245, 158, 11, 0.3) !important;
+    }
+
+    /* Admin debug mode button: highlighted while debug mode is active. */
+    .debug-mode-active {
+        background-color: var(--color-warning);
     }
 
     /* Background wrapper for new chat button to ensure it's always visible */

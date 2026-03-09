@@ -8,6 +8,7 @@
     import { chatDB } from '../../services/db'; // Import chatDB for fresh chat reads
     import { apiEndpoints, getApiEndpoint } from '../../config/api'; // Import API endpoints for usage lookup
     import { chatDebugStore } from '../../stores/chatDebugStore'; // Chat debug mode toggle
+    import { userProfile } from '../../stores/userProfile';
 
     // Props using Svelte 5 $props()
     interface Props {
@@ -316,6 +317,13 @@
         }
     }
 
+    async function handleToggleDebug(event: Event) {
+        event.stopPropagation();
+        event.preventDefault();
+        await chatDebugStore.toggle({ chatId: chat?.chat_id });
+        dispatch('close', 'close');
+    }
+
     // Add scroll handler - don't close while downloading
     function handleScroll() {
         if (show && !downloading) {
@@ -584,16 +592,18 @@
                 </button>
             {/if}
 
-            <!-- Debug mode toggle: switches all messages to raw text view -->
-            <div class="menu-separator"></div>
-            <button
-                class="menu-item debug"
-                class:debug-active={$chatDebugStore.rawTextMode}
-                onclick={(event) => { event.stopPropagation(); event.preventDefault(); chatDebugStore.toggle(); dispatch('close', 'close'); }}
-            >
-                <div class="clickable-icon icon_bug"></div>
-                {$chatDebugStore.rawTextMode ? $text('chats.context_menu.end_debugging') : $text('chats.context_menu.start_debugging')}
-            </button>
+            {#if $userProfile.is_admin}
+                <!-- Debug mode toggle: admin only -->
+                <div class="menu-separator"></div>
+                <button
+                    class="menu-item debug"
+                    class:debug-active={$chatDebugStore.rawTextMode}
+                    onclick={handleToggleDebug}
+                >
+                    <div class="clickable-icon icon_bug"></div>
+                    {$chatDebugStore.rawTextMode ? $text('chats.context_menu.end_debugging') : $text('chats.context_menu.start_debugging')}
+                </button>
+            {/if}
         {/if}
     </div>
 {/if}
