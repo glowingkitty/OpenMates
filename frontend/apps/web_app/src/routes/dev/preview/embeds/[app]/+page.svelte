@@ -188,10 +188,18 @@
 
 	let loadedSections = $state<LoadedSection[]>([]);
 
-	// Re-initialise when app changes
+	// Track the last app we initialized for, to avoid re-running on unrelated changes.
+	let lastInitApp = '';
+
+	// Re-initialise when app changes. We compare against lastInitApp to ensure
+	// the $effect only fires on actual app-slug changes, not on loadedSections writes.
 	$effect(() => {
-		const snap = sections;
-		const initial: LoadedSection[] = snap.map(() => ({
+		const app = currentApp; // reactive dependency: the route param
+		if (app === lastInitApp) return;
+		lastInitApp = app;
+
+		const snap = APP_REGISTRY[app] ?? [];
+		loadedSections = snap.map(() => ({
 			PreviewComponent: null,
 			FullscreenComponent: null,
 			loadError: null,
@@ -204,28 +212,20 @@
 			propsError: null,
 			showPropsEditor: false
 		}));
-		loadedSections = initial;
 
-		// Fire-and-forget async loaders for each section
-		snap.forEach((section, i) => {
-			loadSection(section, i, initial);
-		});
+		// Fire async loaders. After await, reads of loadedSections[idx] go
+		// through the $state proxy (not tracked by this $effect since they
+		// happen asynchronously).
+		snap.forEach((section, i) => loadSection(section, i));
 	});
 
-	/**
-	 * Load components + preview data for a single section.
-	 * Writes directly to the `target` array element (which is the same
-	 * object reference that loadedSections[i] points to). After writing,
-	 * we trigger a reactive update by re-assigning the array.
-	 */
-	async function loadSection(section: EmbedSection, idx: number, target: LoadedSection[]) {
-		const s = target[idx];
-		if (!s) return;
-
+	async function loadSection(section: EmbedSection, idx: number) {
 		const prevKey = previewKeyMap.get(section.previewPath) ?? '';
 		const previewKey = componentKeyMap.get(section.previewPath) ?? '';
 		const fullscreenKey = componentKeyMap.get(section.fullscreenPath) ?? '';
 
+		// After await, Svelte does NOT track reads as $effect dependencies.
+		// So reading loadedSections[idx] here is safe.
 		try {
 			if (!previewKey) throw new Error(`Component not found: ${section.previewPath}.svelte`);
 
@@ -233,6 +233,11 @@
 				componentModules[previewKey](),
 				fullscreenKey ? componentModules[fullscreenKey]() : Promise.resolve(null)
 			]);
+
+			// Read from the $state proxy AFTER await — writes go through proxy
+			// and trigger template updates automatically.
+			const s = loadedSections[idx];
+			if (!s) return;
 
 			s.PreviewComponent = previewMod?.default ?? null;
 			s.FullscreenComponent = (fullscreenMod as { default?: unknown } | null)?.default ?? null;
@@ -246,14 +251,14 @@
 					s.propsJson = JSON.stringify(preview.default ?? {}, null, 2);
 				} catch { /* no preview data — component renders with {} */ }
 			}
-		} catch (err) {
-			s.loadError = err instanceof Error ? err.message : String(err);
-		}
 
-		s.isLoading = false;
-		// Trigger reactive update — loadedSections is $state, so re-assigning
-		// the array makes Svelte see the changes to the inner objects.
-		loadedSections = [...loadedSections];
+			s.isLoading = false;
+		} catch (err) {
+			const s = loadedSections[idx];
+			if (!s) return;
+			s.loadError = err instanceof Error ? err.message : String(err);
+			s.isLoading = false;
+		}
 	}
 
 	function getEffectiveProps(s: LoadedSection): Record<string, unknown> {
