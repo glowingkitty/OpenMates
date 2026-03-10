@@ -22,7 +22,7 @@
 -->
 <script lang="ts">
 	import { page } from '$app/state';
-	import { mount, unmount } from 'svelte';
+	import { mount, unmount, tick } from 'svelte';
 	import { theme } from '@repo/ui';
 
 	// ─── App Registry ─────────────────────────────────────────────────────────
@@ -388,6 +388,17 @@
 	}
 
 	// ─── Per-section state ────────────────────────────────────────────────────
+	// ARCHITECTURE: We deliberately avoid putting render-error flags inside the
+	// $state objects that loadSection writes to. Writing error flags from inside a
+	// window 'error' event handler (which fires asynchronously) while a $effect
+	// reads those same flags as guard conditions causes Svelte 5's
+	// effect_update_depth_exceeded cycle. Instead:
+	//   - sectionStates holds only loading/props/UI state (no render errors)
+	//   - renderErrors is a plain Map mutated outside the reactive graph
+	//   - Mounting is done imperatively (mountAllForSection) after load completes
+	//     and after DOM updates (tick()), NOT inside a reactive $effect
+	//   - Re-mounting on variant/props change is also imperative (remountSection)
+
 	interface SectionState {
 		previewComponent: unknown;
 		fullscreenComponent: unknown;
@@ -402,16 +413,41 @@
 		propsJson: string;
 		propsError: string | null;
 		showPropsEditor: boolean;
-		mobileError: string | null;
-		smallError: string | null;
-		largeError: string | null;
-		fsError: string | null;
 	}
 
 	let sectionStates = $state<SectionState[]>([]);
 
+	// Render errors are stored outside $state to avoid reactive cycles.
+	// We use a plain reactive counter to force the template to re-read them.
+	const renderErrors = new Map<number, string>(); // key(si,di) → error message
+	let renderErrorVersion = $state(0);
+
+	function getRenderError(si: number, di: number): string | null {
+		void renderErrorVersion; // reactive dependency
+		return renderErrors.get(key(si, di)) ?? null;
+	}
+
+	function setRenderError(si: number, di: number, msg: string) {
+		renderErrors.set(key(si, di), msg);
+		renderErrorVersion++; // notify template
+	}
+
+	function clearRenderErrors(si: number) {
+		renderErrors.delete(key(si, 0));
+		renderErrors.delete(key(si, 1));
+		renderErrors.delete(key(si, 2));
+		renderErrors.delete(key(si, 3));
+		renderErrorVersion++;
+	}
+
+	// Re-initialise when the app slug changes (sections is a $derived)
 	$effect(() => {
 		const snap = sections;
+		// Cleanup all existing mounts before replacing state
+		for (const [k] of mountedInstances) cleanupMount(k);
+		renderErrors.clear();
+		renderErrorVersion++;
+
 		sectionStates = snap.map(() => ({
 			previewComponent: null,
 			fullscreenComponent: null,
@@ -425,11 +461,7 @@
 			hasManualEdits: false,
 			propsJson: '{}',
 			propsError: null,
-			showPropsEditor: false,
-			mobileError: null,
-			smallError: null,
-			largeError: null,
-			fsError: null
+			showPropsEditor: false
 		}));
 		snap.forEach((section, i) => loadSection(section, i));
 	});
@@ -437,8 +469,6 @@
 	async function loadSection(section: EmbedSection, idx: number) {
 		const s = sectionStates[idx];
 		if (!s) return;
-		s.isLoading = true;
-		s.loadError = null;
 
 		const prevKey = previewKeyMap.get(section.previewPath) ?? '';
 		const previewKey = componentKeyMap.get(section.previewPath) ?? '';
@@ -460,13 +490,18 @@
 					s.variants = preview.variants ?? {};
 					s.hasPreviewFile = true;
 					s.propsJson = JSON.stringify(preview.default ?? {}, null, 2);
-				} catch { /* no preview file */ }
+				} catch { /* no preview file — component mounts with {} */ }
 			}
 		} catch (err) {
 			s.loadError = err instanceof Error ? err.message : String(err);
-		} finally {
 			s.isLoading = false;
+			return;
 		}
+
+		s.isLoading = false;
+		// Wait for Svelte to flush the DOM (isLoading=false → mount targets appear)
+		await tick();
+		mountAllForSection(idx);
 	}
 
 	function getEffectiveProps(s: SectionState): Record<string, unknown> {
@@ -478,7 +513,7 @@
 		return base;
 	}
 
-	function selectVariant(idx: number, name: string) {
+	async function selectVariant(idx: number, name: string) {
 		const s = sectionStates[idx];
 		if (!s) return;
 		s.activeVariant = name;
@@ -486,10 +521,9 @@
 		s.manualOverrides = {};
 		s.propsError = null;
 		s.propsJson = JSON.stringify(getEffectiveProps(s), null, 2);
-		s.mobileError = null;
-		s.smallError = null;
-		s.largeError = null;
-		s.fsError = null;
+		clearRenderErrors(idx);
+		await tick();
+		remountSection(idx);
 	}
 
 	function handlePropsInput(idx: number, value: string) {
@@ -502,6 +536,8 @@
 			if (typeof parsed === 'object' && parsed !== null) {
 				s.manualOverrides = parsed;
 				s.propsError = null;
+				// Debounce remount via a simple flag check — only remount when JSON is valid
+				remountSection(idx);
 			}
 		} catch (err) {
 			s.propsError = err instanceof Error ? err.message : 'Invalid JSON';
@@ -515,11 +551,13 @@
 		s.hasManualEdits = false;
 		s.propsError = null;
 		s.propsJson = JSON.stringify(getEffectiveProps(s), null, 2);
+		remountSection(idx);
 	}
 
-	// ─── Component mounting ───────────────────────────────────────────────────
-	// 4 mount targets per section: 0=mobile, 1=small, 2=large, 3=fullscreen
-	let mountTargets = $state<(HTMLElement | null)[]>([]);
+	// ─── Component mounting (fully imperative — no reactive $effect) ──────────
+	// Using a flat array indexed as sectionIdx*4 + displayIdx:
+	//   displayIdx: 0=mobile, 1=small, 2=large, 3=fullscreen
+	let mountTargets: (HTMLElement | null)[] = [];
 	const mountedInstances = new Map<number, ReturnType<typeof mount>>();
 
 	function key(sIdx: number, dIdx: number) { return sIdx * 4 + dIdx; }
@@ -534,12 +572,13 @@
 		if (el) el.innerHTML = '';
 	}
 
-	function mountComp(
+	function doMount(
 		k: number,
 		component: unknown,
 		target: HTMLElement | null,
 		props: Record<string, unknown>,
-		onErr: (m: string) => void
+		si: number,
+		di: number
 	) {
 		if (!component || !target) return;
 		cleanupMount(k);
@@ -547,7 +586,7 @@
 		const onError = (e: ErrorEvent) => {
 			if (!caught) {
 				caught = true;
-				onErr(e.error?.message ?? e.message ?? 'Unknown render error');
+				setRenderError(si, di, e.error?.message ?? e.message ?? 'Unknown render error');
 				cleanupMount(k);
 			}
 			e.preventDefault();
@@ -558,45 +597,31 @@
 			mountedInstances.set(k, mount(component as any, { target, props }));
 		} catch (err) {
 			caught = true;
-			onErr(err instanceof Error ? err.message : String(err));
+			setRenderError(si, di, err instanceof Error ? err.message : String(err));
 			cleanupMount(k);
 		}
-		const t = setTimeout(() => window.removeEventListener('error', onError), 500);
-		return () => { clearTimeout(t); window.removeEventListener('error', onError); };
+		setTimeout(() => window.removeEventListener('error', onError), 500);
 	}
 
-	$effect(() => {
-		sectionStates.forEach((s, si) => {
-			if (s.isLoading || s.loadError) return;
-			const props = getEffectiveProps(s);
-
-			if (!s.mobileError) {
-				mountComp(key(si, 0), s.previewComponent, mountTargets[key(si, 0)],
-					{ ...props, isMobile: true }, (m) => { sectionStates[si].mobileError = m; });
-			}
-			if (!s.smallError) {
-				mountComp(key(si, 1), s.previewComponent, mountTargets[key(si, 1)],
-					{ ...props, isMobile: false }, (m) => { sectionStates[si].smallError = m; });
-			}
-			if (!s.largeError) {
-				mountComp(key(si, 2), s.previewComponent, mountTargets[key(si, 2)],
-					{ ...props, isMobile: false }, (m) => { sectionStates[si].largeError = m; });
-			}
-			if (!s.fsError) {
-				mountComp(key(si, 3), s.fullscreenComponent, mountTargets[key(si, 3)],
-					{ ...props, onClose: () => {} }, (m) => { sectionStates[si].fsError = m; });
-			}
-		});
-		return () => { for (const [k] of mountedInstances) cleanupMount(k); };
-	});
-
-	function retrySection(si: number) {
+	function mountAllForSection(si: number) {
 		const s = sectionStates[si];
-		if (!s) return;
-		s.mobileError = null;
-		s.smallError = null;
-		s.largeError = null;
-		s.fsError = null;
+		if (!s || s.isLoading || s.loadError) return;
+		const props = getEffectiveProps(s);
+		doMount(key(si, 0), s.previewComponent, mountTargets[key(si, 0)], { ...props, isMobile: true }, si, 0);
+		doMount(key(si, 1), s.previewComponent, mountTargets[key(si, 1)], { ...props, isMobile: false }, si, 1);
+		doMount(key(si, 2), s.previewComponent, mountTargets[key(si, 2)], { ...props, isMobile: false }, si, 2);
+		doMount(key(si, 3), s.fullscreenComponent, mountTargets[key(si, 3)], { ...props, onClose: () => {} }, si, 3);
+	}
+
+	function remountSection(si: number) {
+		clearRenderErrors(si);
+		mountAllForSection(si);
+	}
+
+	async function retrySection(si: number) {
+		clearRenderErrors(si);
+		await tick();
+		mountAllForSection(si);
 	}
 </script>
 
@@ -738,16 +763,16 @@
 						<div class="dt">
 							<h3 class="dt-heading">Preview — Mobile <span class="size-hint">150×290</span></h3>
 							<div class="dt-body">
-								{#if s.mobileError}
+								{#if getRenderError(si, 0)}
 									<div class="render-err">
 										<strong>Render error</strong>
-										<code>{s.mobileError}</code>
+										<code>{getRenderError(si, 0)}</code>
 										<button onclick={() => retrySection(si)}>Retry</button>
 									</div>
 								{/if}
 								<div
 									class="mount-target"
-									style:display={s.mobileError ? 'none' : 'block'}
+									style:display={getRenderError(si, 0) ? 'none' : 'block'}
 									bind:this={mountTargets[key(si, 0)]}
 								></div>
 							</div>
@@ -757,16 +782,16 @@
 						<div class="dt">
 							<h3 class="dt-heading">Preview — Small <span class="size-hint">300×200</span></h3>
 							<div class="dt-body">
-								{#if s.smallError}
+								{#if getRenderError(si, 1)}
 									<div class="render-err">
 										<strong>Render error</strong>
-										<code>{s.smallError}</code>
+										<code>{getRenderError(si, 1)}</code>
 										<button onclick={() => retrySection(si)}>Retry</button>
 									</div>
 								{/if}
 								<div
 									class="mount-target"
-									style:display={s.smallError ? 'none' : 'block'}
+									style:display={getRenderError(si, 1) ? 'none' : 'block'}
 									bind:this={mountTargets[key(si, 1)]}
 								></div>
 							</div>
@@ -780,16 +805,16 @@
 							<h3 class="dt-heading">Preview — Large <span class="size-hint">full-width × 400</span></h3>
 							<div class="dt-body dt-body--flush">
 								<div class="large-container">
-									{#if s.largeError}
+									{#if getRenderError(si, 2)}
 										<div class="render-err">
 											<strong>Render error</strong>
-											<code>{s.largeError}</code>
+											<code>{getRenderError(si, 2)}</code>
 											<button onclick={() => retrySection(si)}>Retry</button>
 										</div>
 									{/if}
 									<div
 										class="mount-target"
-										style:display={s.largeError ? 'none' : 'block'}
+										style:display={getRenderError(si, 2) ? 'none' : 'block'}
 										bind:this={mountTargets[key(si, 2)]}
 									></div>
 								</div>
@@ -803,16 +828,16 @@
 							<h3 class="dt-heading">Fullscreen <span class="size-hint">clipped inline</span></h3>
 							<div class="dt-body dt-body--flush">
 								<div class="fs-clip">
-									{#if s.fsError}
+									{#if getRenderError(si, 3)}
 										<div class="render-err">
 											<strong>Render error</strong>
-											<code>{s.fsError}</code>
+											<code>{getRenderError(si, 3)}</code>
 											<button onclick={() => retrySection(si)}>Retry</button>
 										</div>
 									{/if}
 									<div
 										class="mount-target mount-target--fs"
-										style:display={s.fsError ? 'none' : 'block'}
+										style:display={getRenderError(si, 3) ? 'none' : 'block'}
 										bind:this={mountTargets[key(si, 3)]}
 									></div>
 								</div>
