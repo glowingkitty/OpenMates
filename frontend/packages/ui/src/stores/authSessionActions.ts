@@ -235,10 +235,20 @@ export async function checkAuth(
             "true" ||
             sessionStorage.getItem("openmates_shared_chat_redirect") !== null);
 
+        // OG image mode (?og=1): skip demo-for-everyone redirect so the welcome screen
+        // (daily inspiration + for-everyone card) stays visible in /dev/og-image iframes.
+        const isOgImageMode =
+          typeof window !== "undefined" &&
+          new URLSearchParams(window.location.search).get("og") === "1";
+
         if (typeof window !== "undefined") {
           if (isSharedChatSession) {
             console.debug(
               "[AuthSessionActions] Skipping demo-for-everyone override — shared chat session detected (key in URL fragment, not master key)",
+            );
+          } else if (isOgImageMode) {
+            console.debug(
+              "[AuthSessionActions] Skipping demo-for-everyone override — og=1 mode (welcome screen should stay visible)",
             );
           } else {
             activeChatStore.setActiveChat("demo-for-everyone");
@@ -620,7 +630,8 @@ export async function checkAuth(
         (async () => {
           try {
             const metaJson = JSON.stringify(data.session_device_info);
-            const encryptedBlob = await cryptoService.encryptWithMasterKey(metaJson);
+            const encryptedBlob =
+              await cryptoService.encryptWithMasterKey(metaJson);
             if (encryptedBlob) {
               const res = await fetch(
                 getApiEndpoint("/v1/auth/sessions/register-meta"),
@@ -634,13 +645,21 @@ export async function checkAuth(
                 },
               );
               if (res.ok) {
-                console.warn("[AuthSessionActions] Session metadata registered successfully");
+                console.warn(
+                  "[AuthSessionActions] Session metadata registered successfully",
+                );
               } else {
-                console.warn("[AuthSessionActions] Failed to register session metadata:", res.status);
+                console.warn(
+                  "[AuthSessionActions] Failed to register session metadata:",
+                  res.status,
+                );
               }
             }
           } catch (err) {
-            console.warn("[AuthSessionActions] Error registering session metadata (non-fatal):", err);
+            console.warn(
+              "[AuthSessionActions] Error registering session metadata (non-fatal):",
+              err,
+            );
           }
         })();
       }
@@ -1155,7 +1174,9 @@ export function setAuthenticatedState(): void {
   // dispatching loginSuccess, so is_admin is available here when called from ActiveChat.
   const profile = get(userProfile);
   if (profile.is_admin) {
-    console.debug("[setAuthenticatedState] Admin user detected — starting clientLogForwarder");
+    console.debug(
+      "[setAuthenticatedState] Admin user detected — starting clientLogForwarder",
+    );
     clientLogForwarder.start();
   }
 }

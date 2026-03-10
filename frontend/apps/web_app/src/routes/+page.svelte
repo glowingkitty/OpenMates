@@ -1955,6 +1955,12 @@
 	 * we should restore their most recent draft instead of overwriting with the demo chat.
 	 */
 	async function loadDemoWelcomeChat() {
+		// OG image mode: skip demo-for-everyone so the welcome screen stays visible
+		// This guards ALL callers (onNoHash, handleChatDeepLink, etc.)
+		if (browser && new URLSearchParams(window.location.search).get('og') === '1') {
+			console.debug('[+page.svelte] loadDemoWelcomeChat: og=1 mode, skipping demo-for-everyone');
+			return;
+		}
 		console.debug('[+page.svelte] loadDemoWelcomeChat called for non-authenticated user');
 
 		// CRITICAL: Check if user has any sessionStorage drafts (new chat drafts)
