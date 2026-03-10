@@ -96,6 +96,14 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             "email_notifications_enabled": user_data.get("email_notifications_enabled", False),
             "email_notification_preferences": user_data.get("email_notification_preferences", {}),
             "encrypted_notification_email": user_data.get("encrypted_notification_email"),
+
+            # Backup reminder fields — used by daily_notification_dispatcher to determine eligibility.
+            # last_export_at: set when user downloads a full data export ZIP.
+            # backup_reminder_dismissed_at: set when user dismisses an in-app or email reminder (snooze).
+            # backup_reminder_interval_days: user-configurable cadence (default 30 days).
+            "last_export_at": user_data.get("last_export_at"),
+            "backup_reminder_dismissed_at": user_data.get("backup_reminder_dismissed_at"),
+            "backup_reminder_interval_days": user_data.get("backup_reminder_interval_days", 30),
             
             # Low balance auto top-up fields (cleartext configuration fields)
             "auto_topup_low_balance_enabled": user_data.get("auto_topup_low_balance_enabled", False),

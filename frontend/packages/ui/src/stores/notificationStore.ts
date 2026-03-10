@@ -29,7 +29,8 @@ export type NotificationType =
   | "auto_logout"
   | "connection"
   | "software_update"
-  | "chat_message";
+  | "chat_message"
+  | "backup_reminder";
 
 /**
  * Notification interface
@@ -296,6 +297,30 @@ export const notificationStore = {
       dismissible: options?.dismissible ?? true,
       onAction: options?.onAction,
       actionLabel: options?.actionLabel,
+    }),
+
+  /**
+   * Show a persistent backup reminder notification with an "Export now" action button.
+   * Dismissing the notification should also update backup_reminder_dismissed_at server-side
+   * (handled by the caller via the onAction / dismiss callback).
+   *
+   * @param message Primary message (e.g. "Your last backup was 31 days ago.")
+   * @param onExport Callback invoked when user clicks "Export now" — should open export settings
+   * @param onDismiss Callback invoked when user dismisses — should update backup_reminder_dismissed_at
+   */
+  backupReminder: (
+    message: string,
+    onExport: () => void,
+    onDismiss?: () => void,
+  ) =>
+    notificationStore.addNotificationWithOptions("backup_reminder", {
+      title: "Back up your data",
+      message,
+      duration: 0, // Persistent — user must explicitly dismiss or act
+      dismissible: true,
+      onAction: onExport,
+      actionLabel: "Export now",
+      // onDismiss is not a built-in Notification field, but the caller wraps removeNotification
     }),
 
   /**

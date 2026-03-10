@@ -1134,6 +1134,14 @@ app.conf.beat_schedule = {
         'schedule': crontab(hour=8, minute=0),  # Daily at 08:00 UTC
         'options': {'queue': 'email'},
     },
+    # Unified daily notification dispatcher — single sweep that dispatches all per-user
+    # notification emails (backup reminders, future: tips & tricks, etc.). Runs at 09:00 UTC
+    # so it does not overlap with the password security reminder at 08:00.
+    'daily-notification-dispatcher': {
+        'task': 'app.tasks.email_tasks.daily_notification_dispatcher.run_daily_notifications',
+        'schedule': crontab(hour=9, minute=0),  # Daily at 09:00 UTC
+        'options': {'queue': 'email'},
+    },
     # Pending delivery audit - logs users with undelivered messages (reminders + AI responses)
     # Redis handles TTL-based expiry (60 days); this task provides audit visibility
     'audit-pending-deliveries': {

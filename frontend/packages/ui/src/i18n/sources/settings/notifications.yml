@@ -1,0 +1,119 @@
+settings.notifications:
+  context: Top-level Notifications settings menu item and page title
+  en: Notifications
+  de: Benachrichtigungen
+  zh: 通知
+  fr: Notifications
+  es: Notificaciones
+  ja: 通知
+  verified_by_human: []
+
+settings.notifications.description:
+  context: Short description shown in the Notifications settings page gradient banner header
+  en: Manage your notification preferences
+  de: Benachrichtigungseinstellungen verwalten
+  zh: 管理你的通知偏好设置
+  fr: Gère tes préférences de notification
+  es: Gestiona tus preferencias de notificación
+  ja: 通知設定を管理します
+  verified_by_human: []
+
+settings.notifications.chat:
+  context: Chat Notifications sub-item in the Notifications settings hub
+  en: Chat Notifications
+  de: Chat-Benachrichtigungen
+  zh: 聊天通知
+  fr: Notifications de chat
+  es: Notificaciones de chat
+  ja: チャット通知
+  verified_by_human: []
+
+settings.notifications.backup:
+  context: Backup Reminders sub-item in the Notifications settings hub
+  en: Backup Reminders
+  de: Backup-Erinnerungen
+  zh: 备份提醒
+  fr: Rappels de sauvegarde
+  es: Recordatorios de copia de seguridad
+  ja: バックアップのリマインダー
+  verified_by_human: []
+
+settings.notifications.backup.email_toggle:
+  context: Toggle label for enabling/disabling backup reminder emails
+  en: Backup Reminder Emails
+  de: Backup-Erinnerungs-E-Mails
+  zh: 备份提醒邮件
+  fr: E-mails de rappel de sauvegarde
+  es: Correos de recordatorio de copia de seguridad
+  ja: バックアップのリマインダーメール
+  verified_by_human: []
+
+settings.notifications.backup.email_toggle_info:
+  context: Subtitle under the backup reminder email toggle explaining what it does
+  en: Receive a periodic email reminder to export and back up your data
+  de: Erhalte regelmäßige E-Mail-Erinnerungen zum Exportieren und Sichern deiner Daten
+  zh: 定期接收提醒邮件，以导出并备份你的数据
+  fr: Reçois un e-mail de rappel périodique pour exporter et sauvegarder tes données
+  es: Recibe un recordatorio periódico por correo electrónico para exportar y hacer una copia de seguridad de tus datos
+  ja: データのバックアップとエクスポートを促すリマインダーメールを定期的に受け取ります
+  verified_by_human: []
+
+settings.notifications.backup.interval:
+  context: Label for the reminder frequency selector in backup reminder settings
+  en: Reminder frequency
+  de: Erinnerungsintervall
+  zh: 提醒频率
+  fr: Fréquence des rappels
+  es: Frecuencia de los recordatorios
+  ja: リマインダーの頻度
+  verified_by_human: []
+
+settings.notifications.backup.interval_days:
+  context: Button label for a reminder interval option; {count} is the number of days (e.g. "Every 30 days")
+  en: "Every {count} days"
+  de: "Alle {count} Tage"
+  zh: "每 {count} 天一次"
+  fr: "Tous les {count} jours"
+  es: "Cada {count} días"
+  ja: "{count}日ごと"
+  verified_by_human: []
+
+settings.notifications.backup.disabled:
+  context: Status text shown when backup reminder emails are disabled
+  en: Disabled
+  de: Deaktiviert
+  zh: 已禁用
+  fr: Désactivé
+  es: Desactivado
+  ja: 無効
+  verified_by_human: []
+
+settings.notifications.backup.last_export:
+  context: Label showing the date of the user's last account export
+  en: Last export
+  de: Letzter Export
+  zh: 上次导出时间
+  fr: Dernière exportation
+  es: Última exportación
+  ja: 最終エクスポート
+  verified_by_human: []
+
+settings.notifications.backup.never_exported:
+  context: Shown when the user has never done an account export
+  en: Never exported
+  de: Noch kein Export
+  zh: 从未导出过
+  fr: Jamais exporté
+  es: Nunca exportado
+  ja: エクスポート履歴なし
+  verified_by_human: []
+
+settings.notifications.backup.export_hint:
+  context: Subtitle on the quick-link to the export page within backup reminder settings
+  en: Export and download all your data
+  de: Alle deine Daten exportieren und herunterladen
+  zh: 导出并下载你的所有数据
+  fr: Exporte et télécharge toutes tes données
+  es: Exporta y descarga todos tus datos
+  ja: すべてのデータをエクスポートしてダウンロードします
+  verified_by_human: []

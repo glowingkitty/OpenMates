@@ -22,6 +22,11 @@ import SettingsDarkMode from "./interface/SettingsDarkMode.svelte";
 import SettingsChat from "./SettingsChat.svelte";
 import SettingsChatNotifications from "./chat/SettingsChatNotifications.svelte";
 
+// Notifications (top-level hub + sub-pages)
+import SettingsNotifications from "./SettingsNotifications.svelte";
+import SettingsNotificationsChatNotifications from "./notifications/SettingsChatNotifications.svelte";
+import SettingsBackupReminders from "./notifications/SettingsBackupReminders.svelte";
+
 // Privacy
 import SettingsPrivacy from "./SettingsPrivacy.svelte";
 import SettingsHidePersonalData from "./privacy/SettingsHidePersonalData.svelte";
@@ -131,7 +136,11 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "billing/invoices": SettingsInvoices,
   // Chat
   chat: SettingsChat,
-  "chat/notifications": SettingsChatNotifications,
+  "chat/notifications": SettingsChatNotifications, // kept as backward-compat alias
+  // Notifications — top-level hub consolidating all notification preferences
+  notifications: SettingsNotifications,
+  "notifications/chat": SettingsNotificationsChatNotifications,
+  "notifications/backup": SettingsBackupReminders,
   // Settings & Memories hub — lists all user-created settings and memories across apps
   settings_memories: SettingsMemoriesHub,
   // Privacy settings — anonymization, device permissions, auto deletion

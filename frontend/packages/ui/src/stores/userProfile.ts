@@ -61,7 +61,15 @@ export interface UserProfile {
   email_notification_email?: string; // Decrypted notification email (separate from login email)
   email_notification_preferences?: {
     aiResponses: boolean; // Notify when AI completes a response
+    backupReminder: boolean; // Periodic backup reminder emails (Settings → Notifications → Backup Reminders)
   };
+  // Backup reminder fields — synced with server via the email notification settings WebSocket flow.
+  // last_export_at: set server-side when the user fetches the export manifest.
+  // backup_reminder_dismissed_at: set when user dismisses an in-app backup reminder banner.
+  // backup_reminder_interval_days: user-configurable cadence in Settings → Notifications → Backup Reminders.
+  last_export_at?: string | null;
+  backup_reminder_dismissed_at?: string | null;
+  backup_reminder_interval_days?: number;
   // Incognito mode explainer screen: once the user activates incognito for the first time and
   // confirms the explainer, we set this flag so the explainer is never shown again.
   // Stored in IndexedDB only — no backend sync needed (device-local UX preference).

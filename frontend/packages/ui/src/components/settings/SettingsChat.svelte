@@ -28,16 +28,15 @@ Chat Settings - Notification preferences and chat-related settings
     );
     
     /**
-     * Navigate to Notifications submenu by dispatching openSettings event.
-     * This event bubbles up through CurrentSettingsPage to Settings.svelte,
-     * which handles the navigation.
+     * Navigate to the top-level Notifications hub which consolidates all
+     * notification preferences (chat + backup reminders).
      */
     function navigateToNotifications() {
         dispatch('openSettings', {
-            settingsPath: 'chat/notifications',
+            settingsPath: 'notifications',
             direction: 'forward',
             icon: 'notification',
-            title: $text('settings.chat.notifications')
+            title: $text('settings.notifications')
         });
     }
 
@@ -59,7 +58,7 @@ Chat Settings - Notification preferences and chat-related settings
     <SettingsItem
         type="submenu"
         icon="subsetting_icon announcement"
-        title={$text('settings.chat.notifications')}
+        title={$text('settings.notifications')}
         subtitleTop={notificationStatus}
         onClick={navigateToNotifications}
     />
