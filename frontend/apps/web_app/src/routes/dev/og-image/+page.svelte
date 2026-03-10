@@ -82,8 +82,8 @@
 	// ── iframe sources ─────────────────────────────────────────────────────────
 	// Laptop: welcome screen — ?og=1 skips demo-for-everyone redirect + hides dev UI
 	const laptopSrc = '/?og=1';
-	// Phone: for-everyone chat (default non-auth experience, same as real visitors)
-	const phoneSrc = '/#chat-id=demo-for-everyone';
+	// Phone: for-everyone chat with ?og=1 so dev UI (dev server label, report issue) is hidden
+	const phoneSrc = '/?og=1#chat-id=demo-for-everyone';
 
 	// ── Load tracking ──────────────────────────────────────────────────────────
 	let laptopLoaded = $state(false);

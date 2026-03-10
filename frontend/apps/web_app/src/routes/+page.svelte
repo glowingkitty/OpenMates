@@ -2116,6 +2116,9 @@
 				if (isAuth) {
 					// For authenticated users: try to load last_opened chat, otherwise create new chat
 					await loadLastOpenedChatOrCreateNew();
+				} else if (browser && new URLSearchParams(window.location.search).get('og') === '1') {
+					// OG image mode: skip demo-for-everyone so the welcome screen stays visible
+					console.debug('[+page.svelte] onNoHash: og=1 mode, skipping demo-for-everyone load');
 				} else {
 					// For non-authenticated users: load demo-for-everyone chat
 					await loadDemoWelcomeChat();
