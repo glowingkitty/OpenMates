@@ -11,10 +11,13 @@
   Display types shown per skill section:
     1. Inline Link         (simulated visual replica)
     2. Quote Block         (simulated visual replica)
-    3. Preview — Mobile    (isMobile=true  → 150x290px)
-    4. Preview — Small     (isMobile=false → 300x200px)
-    5. Preview — Large     (inside container-type:inline-size "embed-preview" >300px)
-    6. Fullscreen          (clipped inline via isolation:isolate + overflow:hidden)
+    3. Preview — Small     (single card, default variant, isMobile=false → 300x200px)
+    4. Group — Small       (horizontal scroll row of all data variants)
+    5. Preview — Large     (single card, container-type:inline-size >300px, 425px height)
+    6. Group — Large       (slideshow carousel of all data variants with prev/next)
+    7. Fullscreen          (clipped inline, cycles through variants with prev/next)
+
+  "Data variants" = all named variants except 'error'/'mobile'/'processing' + the default.
 
   Architecture: uses Svelte 5 native dynamic component rendering (<Component />)
   instead of imperative mount()/unmount(). Each loaded component is stored as a
@@ -104,6 +107,27 @@
 		]
 	};
 
+	/** Maps app ID to its primary SVG icon filename (in /static/icons/) */
+	const APP_ICON: Record<string, string> = {
+		code: 'coding',
+		docs: 'docs',
+		web: 'web',
+		videos: 'videos',
+		images: 'camera',
+		news: 'news',
+		travel: 'travel',
+		maps: 'maps',
+		math: 'math',
+		events: 'calendar',
+		reminder: 'reminder',
+		sheets: 'sheets',
+		audio: 'audio',
+		health: 'app',
+		mail: 'mail',
+		pdf: 'pdf',
+		shopping: 'shopping'
+	};
+
 	const ALL_APPS = [
 		'code', 'docs', 'web', 'videos', 'images', 'news', 'travel',
 		'maps', 'math', 'events', 'reminder', 'sheets', 'audio',
@@ -184,6 +208,10 @@
 		propsJson: string;
 		propsError: string | null;
 		showPropsEditor: boolean;
+		/** Index of the currently shown variant in fullscreen & large-slideshow */
+		fullscreenVariantIndex: number;
+		/** Index of the currently shown slide in large-group slideshow */
+		largeSlideIndex: number;
 	}
 
 	let loadedSections = $state<LoadedSection[]>([]);
@@ -210,7 +238,9 @@
 			activeVariant: 'default',
 			propsJson: '{}',
 			propsError: null,
-			showPropsEditor: false
+			showPropsEditor: false,
+			fullscreenVariantIndex: 0,
+			largeSlideIndex: 0
 		}));
 
 		// Fire async loaders. After await, reads of loadedSections[idx] go
@@ -259,6 +289,23 @@
 			s.loadError = err instanceof Error ? err.message : String(err);
 			s.isLoading = false;
 		}
+	}
+
+	/**
+	 * Returns ordered list of [name, props] pairs for all "data-showing" variants.
+	 * Excludes: 'error', 'mobile', 'processing' — includes 'default' + the rest.
+	 * Used for Group — Small, Group — Large (slideshow), and Fullscreen cycling.
+	 */
+	const DATA_VARIANT_EXCLUDE = new Set(['error', 'mobile', 'processing']);
+
+	function getDataVariants(s: LoadedSection): Array<[string, Record<string, unknown>]> {
+		const result: Array<[string, Record<string, unknown>]> = [['default', s.mockProps]];
+		for (const [name, v] of Object.entries(s.variants)) {
+			if (!DATA_VARIANT_EXCLUDE.has(name)) {
+				result.push([name, { ...s.mockProps, ...v }]);
+			}
+		}
+		return result;
 	}
 
 	function getEffectiveProps(s: LoadedSection): Record<string, unknown> {
@@ -353,7 +400,7 @@
 									<div class="template-row">
 										<span class="template-label">Template:</span>
 										<button class="tmpl-btn" class:active={s.activeVariant === 'default'} onclick={() => selectVariant(si, 'default')}>Default</button>
-										{#each Object.keys(s.variants) as vname}
+										{#each Object.keys(s.variants).filter(v => v !== 'mobile') as vname}
 											<button class="tmpl-btn" class:active={s.activeVariant === vname} onclick={() => selectVariant(si, vname)}>{vname}</button>
 										{/each}
 									</div>
@@ -398,7 +445,9 @@
 							<div class="dt-body dt-body--inline">
 								<span class="inline-ctx">The assistant found </span>
 								<span class="fake-inline">
-									<span class="fake-badge" style="background: var(--color-app-{section.appId})"></span>
+									<span class="fake-badge" style="background: var(--color-app-{section.appId})">
+										<span class="fake-badge-icon" style="mask-image: url('/static/icons/{APP_ICON[section.appId] ?? section.appId}.svg'); -webkit-mask-image: url('/static/icons/{APP_ICON[section.appId] ?? section.appId}.svg')"></span>
+									</span>
 									<span class="fake-link-text">{section.inlineLinkText}</span>
 								</span>
 								<span class="inline-ctx"> for you.</span>
@@ -412,24 +461,19 @@
 								<blockquote class="fake-quote" style="border-left-color: var(--color-app-{section.appId}-start, var(--color-primary-start))">
 									<p class="fake-quote-text">{section.quoteText}</p>
 									<footer class="fake-quote-footer">
-										<span class="fake-badge fake-badge--sm" style="background: var(--color-app-{section.appId})"></span>
+										<span class="fake-badge fake-badge--sm" style="background: var(--color-app-{section.appId})">
+											<span class="fake-badge-icon" style="mask-image: url('/static/icons/{APP_ICON[section.appId] ?? section.appId}.svg'); -webkit-mask-image: url('/static/icons/{APP_ICON[section.appId] ?? section.appId}.svg')"></span>
+										</span>
 										<span class="fake-source">{section.appId}</span>
 									</footer>
 								</blockquote>
 							</div>
 						</div>
 
-						<!-- 3. Preview — Mobile -->
+						<!-- 3. Preview — Small (single, default variant) -->
 						{#if s.PreviewComponent}
 							{@const Preview = s.PreviewComponent}
-							<div class="dt">
-								<h3 class="dt-heading">Preview — Mobile <span class="size-hint">150x290</span></h3>
-								<div class="dt-body">
-									<Preview {...props} isMobile={true} />
-								</div>
-							</div>
-
-							<!-- 4. Preview — Small -->
+							{@const dataVars = getDataVariants(s)}
 							<div class="dt">
 								<h3 class="dt-heading">Preview — Small <span class="size-hint">300x200</span></h3>
 								<div class="dt-body">
@@ -437,25 +481,96 @@
 								</div>
 							</div>
 
-							<!-- 5. Preview — Large (container query trigger) -->
+							<!-- 4. Group — Small (horizontal scroll of all data variants) -->
+							{#if dataVars.length > 1}
+								<div class="dt">
+									<h3 class="dt-heading">Group — Small <span class="size-hint">{dataVars.length} variants · horizontal scroll</span></h3>
+									<div class="dt-body dt-body--flush dt-body--group-small">
+										<div class="group-scroll-row">
+											{#each dataVars as [vname, vprops]}
+												<div class="group-scroll-item">
+													<div class="group-variant-label">{vname}</div>
+													<Preview {...vprops} isMobile={false} />
+												</div>
+											{/each}
+										</div>
+									</div>
+								</div>
+							{/if}
+
+							<!-- 5. Preview — Large (single, default variant) -->
 							<div class="dt">
-								<h3 class="dt-heading">Preview — Large <span class="size-hint">full-width x 400</span></h3>
+								<h3 class="dt-heading">Preview — Large <span class="size-hint">full-width x 425</span></h3>
 								<div class="dt-body dt-body--flush">
 									<div class="large-container">
 										<Preview {...props} isMobile={false} />
 									</div>
 								</div>
 							</div>
+
+							<!-- 6. Group — Large (slideshow of all data variants) -->
+							{#if dataVars.length > 1}
+								{@const totalSlides = dataVars.length}
+								{@const slideIdx = s.largeSlideIndex}
+								{@const [, slideProps] = dataVars[slideIdx]}
+								<div class="dt">
+									<h3 class="dt-heading">Group — Large <span class="size-hint">{dataVars.length} variants · slideshow</span></h3>
+									<div class="dt-body dt-body--flush">
+										<div class="large-slideshow-wrapper">
+											<div class="large-container">
+												<Preview {...slideProps} isMobile={false} />
+											</div>
+											<!-- Slide indicator + arrows -->
+											<div class="slideshow-controls">
+												<button class="slide-arrow" aria-label="Previous"
+													onclick={() => { s.largeSlideIndex = (slideIdx - 1 + totalSlides) % totalSlides; loadedSections = [...loadedSections]; }}>
+													&#8592;
+												</button>
+												<span class="slide-label">{dataVars[slideIdx][0]} <span class="slide-count">{slideIdx + 1} / {totalSlides}</span></span>
+												<button class="slide-arrow" aria-label="Next"
+													onclick={() => { s.largeSlideIndex = (slideIdx + 1) % totalSlides; loadedSections = [...loadedSections]; }}>
+													&#8594;
+												</button>
+											</div>
+										</div>
+									</div>
+								</div>
+							{/if}
 						{/if}
 
-						<!-- 6. Fullscreen (clipped inline) -->
+						<!-- 7. Fullscreen (clipped inline, cycles through data variants) -->
 						{#if s.FullscreenComponent}
 							{@const Fullscreen = s.FullscreenComponent}
+							{@const dataVars2 = getDataVariants(s)}
+							{@const fsIdx = s.fullscreenVariantIndex}
+							{@const [_fsVname, fsProps] = dataVars2[fsIdx]}
+							{@const fsTotal = dataVars2.length}
 							<div class="dt">
-								<h3 class="dt-heading">Fullscreen <span class="size-hint">clipped inline</span></h3>
+								<h3 class="dt-heading">Fullscreen <span class="size-hint">clipped inline · {fsTotal} variant{fsTotal !== 1 ? 's' : ''}</span></h3>
 								<div class="dt-body dt-body--flush">
+									<!-- Variant label bar above fullscreen -->
+									{#if fsTotal > 1}
+										<div class="fs-variant-bar">
+											{#each dataVars2 as [vname], vi}
+												<button
+													class="fs-var-btn"
+													class:active={vi === fsIdx}
+													onclick={() => { s.fullscreenVariantIndex = vi; loadedSections = [...loadedSections]; }}
+												>{vname}</button>
+											{/each}
+										</div>
+									{/if}
 									<div class="fs-clip">
-										<Fullscreen {...props} onClose={() => {}} />
+										{#key fsIdx}
+											<Fullscreen
+												{...fsProps}
+												onClose={() => {}}
+												hasPreviousEmbed={fsTotal > 1 && fsIdx > 0}
+												hasNextEmbed={fsTotal > 1 && fsIdx < fsTotal - 1}
+												onNavigatePrevious={() => { s.fullscreenVariantIndex = Math.max(0, fsIdx - 1); loadedSections = [...loadedSections]; }}
+												onNavigateNext={() => { s.fullscreenVariantIndex = Math.min(fsTotal - 1, fsIdx + 1); loadedSections = [...loadedSections]; }}
+											/>
+										{/key}
 									</div>
 								</div>
 							</div>
@@ -763,12 +878,28 @@
 	}
 	.fake-badge {
 		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 		width: 20px;
 		height: 20px;
 		border-radius: 50%;
 		flex-shrink: 0;
+		position: relative;
 	}
 	.fake-badge--sm { width: 18px; height: 18px; }
+	.fake-badge-icon {
+		width: 11px;
+		height: 11px;
+		background-color: rgba(255, 255, 255, 0.9);
+		-webkit-mask-image: var(--icon-mask);
+		mask-image: var(--icon-mask);
+		-webkit-mask-size: contain;
+		mask-size: contain;
+		-webkit-mask-position: center;
+		mask-position: center;
+		-webkit-mask-repeat: no-repeat;
+		mask-repeat: no-repeat;
+	}
 	.fake-link-text {
 		font-size: 0.9375rem;
 		font-weight: 500;
@@ -806,8 +937,10 @@
 		container-name: embed-preview;
 		width: 100%;
 		min-width: 320px;
+		/* 425px ensures preview-large BasicInfosBar is fully visible (card 400px + 15px protrusion + buffer) */
+		min-height: 425px;
 		border-radius: 12px;
-		overflow: hidden;
+		overflow: visible;
 		border: 1px solid var(--color-grey-25);
 	}
 
@@ -835,4 +968,121 @@
 	.unknown-app { padding: 48px 0; text-align: center; color: var(--color-font-tertiary); }
 	.unknown-app h2 { font-size: 1.25rem; margin: 0 0 8px; }
 	.unknown-app p { font-size: 0.875rem; margin: 0; }
+
+	/* ── Group — Small: horizontal scroll row ───────────────────────────────── */
+	.dt-body--group-small {
+		padding: 12px 16px;
+		background: var(--color-grey-10);
+		border: 1px solid var(--color-grey-25);
+		border-radius: 12px;
+	}
+
+	.group-scroll-row {
+		display: flex;
+		gap: 12px;
+		overflow-x: auto;
+		padding-bottom: 8px;
+		align-items: flex-start;
+		scrollbar-width: thin;
+		scrollbar-color: var(--color-grey-40) transparent;
+	}
+
+	.group-scroll-row::-webkit-scrollbar { height: 4px; }
+	.group-scroll-row::-webkit-scrollbar-track { background: transparent; }
+	.group-scroll-row::-webkit-scrollbar-thumb { background: var(--color-grey-40); border-radius: 2px; }
+
+	.group-scroll-item {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		flex-shrink: 0;
+	}
+
+	.group-variant-label {
+		font-size: 0.6875rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--color-font-tertiary);
+		text-align: center;
+	}
+
+	/* ── Group — Large: slideshow wrapper ───────────────────────────────────── */
+	.large-slideshow-wrapper {
+		display: flex;
+		flex-direction: column;
+		gap: 0;
+	}
+
+	.slideshow-controls {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 12px;
+		padding: 14px 16px 4px;
+	}
+
+	.slide-arrow {
+		padding: 4px 12px;
+		border: 1px solid var(--color-grey-30);
+		border-radius: 6px;
+		background: var(--color-grey-10);
+		color: var(--color-font-primary);
+		font-size: 1rem;
+		cursor: pointer;
+		line-height: 1;
+		transition: background-color 0.15s;
+	}
+	.slide-arrow:hover { background: var(--color-grey-20); }
+
+	.slide-label {
+		font-size: 0.8125rem;
+		font-weight: 600;
+		color: var(--color-font-primary);
+		min-width: 120px;
+		text-align: center;
+	}
+
+	.slide-count {
+		font-weight: 400;
+		color: var(--color-font-tertiary);
+		font-size: 0.75rem;
+	}
+
+	/* ── Fullscreen variant bar ──────────────────────────────────────────────── */
+	.fs-variant-bar {
+		display: flex;
+		gap: 6px;
+		padding: 10px 12px;
+		background: var(--color-grey-10);
+		border: 1px solid var(--color-grey-25);
+		border-bottom: none;
+		border-radius: 12px 12px 0 0;
+		flex-wrap: wrap;
+	}
+
+	.fs-var-btn {
+		padding: 3px 10px;
+		border: 1px solid var(--color-grey-30);
+		border-radius: 4px;
+		background: var(--color-grey-10);
+		color: var(--color-font-primary);
+		font-size: 0.75rem;
+		cursor: pointer;
+		font-family: var(--font-primary, 'Lexend Deca Variable'), sans-serif;
+		white-space: nowrap;
+		transition: background-color 0.15s;
+	}
+	.fs-var-btn:hover:not(.active) { background: var(--color-grey-20); }
+	.fs-var-btn.active {
+		background: var(--color-primary-start);
+		color: #fff; /* intentional */
+		border-color: var(--color-primary-start);
+	}
+
+	/* When variant bar is present, attach to top of fs-clip */
+	.fs-variant-bar + .fs-clip {
+		border-radius: 0 0 12px 12px;
+	}
+
 </style>
