@@ -2020,7 +2020,7 @@ async def _o2_preset_chat_processing(args) -> None:
         ("error",                 r"ERROR|CRITICAL|Exception|Traceback"),
         ("warning",               r"WARNING|WARN"),
     ]
-    _STAGE_RE = [(re.compile(p, re.IGNORECASE), stage) for p, stage in _STAGE_PATTERNS]
+    _STAGE_RE = [(re.compile(pattern, re.IGNORECASE), stage_name) for stage_name, pattern in _STAGE_PATTERNS]
 
     def classify_stage(msg):
         for pattern, stage in _STAGE_RE:
