@@ -151,15 +151,42 @@
     let streamingDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     let pendingStreamContent: string | Record<string, unknown> | null = null;
     const STREAM_CHUNK_FADE_DURATION_MS = 220;
-    let streamFadePulseActive = $state(false);
     let streamFadeResetTimer: ReturnType<typeof setTimeout> | null = null;
+    let streamFadeTargetEl: HTMLElement | null = null;
+
+    function getStreamFadeTargetElement(): HTMLElement | null {
+        if (!editorElement) return null;
+
+        const proseRoot = editorElement.querySelector('.ProseMirror');
+        if (!(proseRoot instanceof HTMLElement)) return null;
+
+        let candidate: Element | null = proseRoot.lastElementChild;
+        if (!candidate) return proseRoot;
+
+        while (candidate?.lastElementChild) {
+            candidate = candidate.lastElementChild;
+        }
+
+        return candidate instanceof HTMLElement ? candidate : proseRoot;
+    }
 
     function triggerStreamChunkFadePulse() {
         if (!isStreaming) return;
 
-        streamFadePulseActive = false;
+        const targetEl = getStreamFadeTargetElement();
+        if (!targetEl) return;
+
+        if (streamFadeTargetEl && streamFadeTargetEl !== targetEl) {
+            streamFadeTargetEl.classList.remove('stream-fade-tail');
+        }
+
+        streamFadeTargetEl = targetEl;
+        streamFadeTargetEl.classList.remove('stream-fade-tail');
+
         requestAnimationFrame(() => {
-            streamFadePulseActive = true;
+            if (streamFadeTargetEl === targetEl) {
+                targetEl.classList.add('stream-fade-tail');
+            }
         });
 
         if (streamFadeResetTimer) {
@@ -167,7 +194,7 @@
         }
 
         streamFadeResetTimer = setTimeout(() => {
-            streamFadePulseActive = false;
+            streamFadeTargetEl?.classList.remove('stream-fade-tail');
             streamFadeResetTimer = null;
         }, STREAM_CHUNK_FADE_DURATION_MS);
     }
@@ -1148,6 +1175,8 @@
                 clearTimeout(streamFadeResetTimer);
                 streamFadeResetTimer = null;
             }
+            streamFadeTargetEl?.classList.remove('stream-fade-tail');
+            streamFadeTargetEl = null;
             pendingStreamContent = null;
             editor.destroy();
             editor = null;
@@ -1159,7 +1188,7 @@
     <!-- STREAMING FIX: min-height is applied directly to the DOM via JavaScript (synchronously)
          before TipTap's setContent() clears the content. This prevents the visual collapse/stutter.
          Direct DOM manipulation is necessary because Svelte's reactive style updates are async. -->
-    <div bind:this={editorElement} class="editor-content" class:stream-fade-pulse={streamFadePulseActive}></div>
+    <div bind:this={editorElement} class="editor-content"></div>
 </div>
 
 <style>
@@ -1208,7 +1237,7 @@
         overflow-anchor: none;
     }
 
-    .read-only-message.is-streaming .editor-content.stream-fade-pulse {
+    .read-only-message.is-streaming :global(.stream-fade-tail) {
         animation: stream-chunk-fade var(--stream-chunk-fade-duration, 220ms) ease-out;
     }
 
@@ -1222,7 +1251,7 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
-        .read-only-message.is-streaming .editor-content.stream-fade-pulse {
+        .read-only-message.is-streaming :global(.stream-fade-tail) {
             animation: none;
         }
     }
