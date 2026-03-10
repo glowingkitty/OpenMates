@@ -26,7 +26,7 @@ const sampleResults = [
 const defaultProps = {
 	results: sampleResults,
 	url: 'https://example.com/article/svelte-5-migration-guide',
-	onClose: () => console.log('[Preview] Close clicked'),
+	onClose: () => {},
 	hasPreviousEmbed: false,
 	hasNextEmbed: false
 };
@@ -40,14 +40,14 @@ export const variants = {
 		...defaultProps,
 		hasPreviousEmbed: true,
 		hasNextEmbed: true,
-		onNavigatePrevious: () => console.log('[Preview] Navigate previous'),
-		onNavigateNext: () => console.log('[Preview] Navigate next')
+		onNavigatePrevious: () => {},
+		onNavigateNext: () => {}
 	},
 
 	/** No results yet — processing state */
 	processing: {
 		url: 'https://example.com/article/loading',
 		results: [],
-		onClose: () => console.log('[Preview] Close clicked')
+		onClose: () => {}
 	}
 };

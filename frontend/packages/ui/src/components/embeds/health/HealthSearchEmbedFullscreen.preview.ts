@@ -62,7 +62,7 @@ const defaultProps = {
       provider: "Doctolib",
     },
   ],
-  onClose: () => console.log("[Preview] Close clicked"),
+  onClose: () => {},
   hasPreviousEmbed: false,
   hasNextEmbed: false,
 };

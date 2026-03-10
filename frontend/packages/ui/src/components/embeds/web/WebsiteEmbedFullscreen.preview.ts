@@ -13,7 +13,7 @@ const defaultProps = {
 		'Svelte is a radical new approach to building user interfaces. Write less code, use no virtual DOM, and create truly reactive apps.',
 	favicon: 'https://svelte.dev/favicon.png',
 	image: '',
-	onClose: () => console.log('[Preview] Close clicked'),
+	onClose: () => {},
 	hasPreviousEmbed: false,
 	hasNextEmbed: false
 };
@@ -27,8 +27,8 @@ export const variants = {
 		...defaultProps,
 		hasPreviousEmbed: true,
 		hasNextEmbed: true,
-		onNavigatePrevious: () => console.log('[Preview] Navigate previous'),
-		onNavigateNext: () => console.log('[Preview] Navigate next')
+		onNavigatePrevious: () => {},
+		onNavigateNext: () => {}
 	},
 
 	/** With extra snippets */
@@ -45,6 +45,6 @@ export const variants = {
 	/** Minimal — just URL, no prefetched metadata */
 	minimal: {
 		url: 'https://example.com/page',
-		onClose: () => console.log('[Preview] Close clicked')
+		onClose: () => {}
 	}
 };

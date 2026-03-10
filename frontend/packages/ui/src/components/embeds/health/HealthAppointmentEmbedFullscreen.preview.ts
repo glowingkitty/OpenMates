@@ -26,7 +26,7 @@ const defaultProps = {
     practice_url: "https://www.doctolib.de/ophtalmologe/munich/sophie-mueller",
     provider: "Doctolib",
   },
-  onClose: () => console.log("[Preview] Close clicked"),
+  onClose: () => {},
   hasPreviousEmbed: false,
   hasNextEmbed: false,
 };
@@ -57,11 +57,11 @@ export const variants = {
       practice_url: "https://www.doctolib.de/cardiologue/munich/klaus-weber",
       provider: "Doctolib",
     },
-    onClose: () => console.log("[Preview] Close clicked"),
+    onClose: () => {},
     hasPreviousEmbed: true,
     hasNextEmbed: true,
-    onNavigatePrevious: () => console.log("[Preview] Navigate previous"),
-    onNavigateNext: () => console.log("[Preview] Navigate next"),
+    onNavigatePrevious: () => {},
+    onNavigateNext: () => {},
   },
 
   /** Doctor without GPS coordinates (map hidden) */
@@ -83,6 +83,6 @@ export const variants = {
         "https://www.doctolib.de/medecin-generaliste/munich/anna-schmidt",
       provider: "Doctolib",
     },
-    onClose: () => console.log("[Preview] Close clicked"),
+    onClose: () => {},
   },
 };

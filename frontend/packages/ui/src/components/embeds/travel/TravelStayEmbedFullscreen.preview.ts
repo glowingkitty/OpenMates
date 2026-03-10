@@ -60,7 +60,7 @@ const defaultProps = {
     free_cancellation: true,
     gps_coordinates: { latitude: 48.1371, longitude: 11.5754 },
   },
-  onClose: () => console.log("[Preview] Close clicked"),
+  onClose: () => {},
 };
 
 export default defaultProps;
@@ -88,7 +88,7 @@ export const variants = {
       eco_certified: false,
       free_cancellation: false,
     },
-    onClose: () => console.log("[Preview] Close clicked"),
+    onClose: () => {},
   },
 
   /** Luxury resort */
@@ -121,6 +121,6 @@ export const variants = {
       eco_certified: true,
       free_cancellation: true,
     },
-    onClose: () => console.log("[Preview] Close clicked"),
+    onClose: () => {},
   },
 };

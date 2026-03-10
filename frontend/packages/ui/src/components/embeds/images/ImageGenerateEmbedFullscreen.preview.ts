@@ -14,7 +14,7 @@ const defaultProps = {
 	status: 'finished',
 	skillId: 'generate' as const,
 	generatedAt: '2026-02-17T10:30:00Z',
-	onClose: () => console.log('[Preview] Close clicked'),
+	onClose: () => {},
 	hasPreviousEmbed: false,
 	hasNextEmbed: false
 };
@@ -28,8 +28,8 @@ export const variants = {
 		...defaultProps,
 		hasPreviousEmbed: true,
 		hasNextEmbed: true,
-		onNavigatePrevious: () => console.log('[Preview] Navigate previous'),
-		onNavigateNext: () => console.log('[Preview] Navigate next')
+		onNavigatePrevious: () => {},
+		onNavigateNext: () => {}
 	},
 
 	/** Draft generation */

@@ -41,7 +41,7 @@ const defaultProps = {
   query: "coffee shops near Marienplatz Munich",
   provider: "Google",
   results: sampleResults,
-  onClose: () => console.log("[Preview] Close clicked"),
+  onClose: () => {},
   hasPreviousEmbed: false,
   hasNextEmbed: false,
 };
@@ -55,8 +55,8 @@ export const variants = {
     ...defaultProps,
     hasPreviousEmbed: true,
     hasNextEmbed: true,
-    onNavigatePrevious: () => console.log("[Preview] Navigate previous"),
-    onNavigateNext: () => console.log("[Preview] Navigate next"),
+    onNavigatePrevious: () => {},
+    onNavigateNext: () => {},
   },
 
   /** Empty results */
@@ -64,6 +64,6 @@ export const variants = {
     query: "unicorn cafes in Antarctica",
     provider: "Google",
     results: [],
-    onClose: () => console.log("[Preview] Close clicked"),
+    onClose: () => {},
   },
 };

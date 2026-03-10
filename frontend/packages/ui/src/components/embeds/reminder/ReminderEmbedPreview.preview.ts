@@ -17,7 +17,7 @@ const defaultProps = {
 	message: 'Reminder set successfully! I will remind you tomorrow at 9:00 AM.',
 	status: 'finished' as const,
 	isMobile: false,
-	onFullscreen: () => console.log('[Preview] Fullscreen clicked')
+	onFullscreen: () => {}
 };
 
 export default defaultProps;

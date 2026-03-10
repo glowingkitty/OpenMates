@@ -13,7 +13,7 @@ const defaultProps = {
 		'The Svelte team has announced the stable release of Svelte 5, featuring the new runes reactivity system.',
 	favicon: '',
 	thumbnail: '',
-	onClose: () => console.log('[Preview] Close clicked'),
+	onClose: () => {},
 	hasPreviousEmbed: false,
 	hasNextEmbed: false
 };
@@ -27,8 +27,8 @@ export const variants = {
 		...defaultProps,
 		hasPreviousEmbed: true,
 		hasNextEmbed: true,
-		onNavigatePrevious: () => console.log('[Preview] Navigate previous'),
-		onNavigateNext: () => console.log('[Preview] Navigate next')
+		onNavigatePrevious: () => {},
+		onNavigateNext: () => {}
 	},
 
 	/** With extra snippets */
@@ -44,6 +44,6 @@ export const variants = {
 	/** Minimal — just URL */
 	minimal: {
 		url: 'https://example.com/news/article',
-		onClose: () => console.log('[Preview] Close clicked')
+		onClose: () => {}
 	}
 };

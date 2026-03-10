@@ -146,6 +146,24 @@
     } catch { return `${currency} ${amount}`; }
   });
 
+  /**
+   * Map backend provider slugs to human-readable display names.
+   * Providers: meetup, luma, classictic, berlin_philharmonic, bachtrack
+   */
+  function getProviderLabel(provider: string | undefined): string {
+    switch (provider?.toLowerCase()) {
+      case 'meetup':            return 'Meetup';
+      case 'luma':              return 'Luma';
+      case 'classictic':        return 'Classictic';
+      case 'berlin_philharmonic': return 'Berlin Philharmonic';
+      case 'bachtrack':         return 'Bachtrack';
+      default:                  return provider || '';
+    }
+  }
+
+  let providerLabel  = $derived(getProviderLabel(event.provider));
+  let openButtonText = $derived($text('embeds.open_on_provider').replace('{provider}', providerLabel));
+
   function handleOpenEvent() {
     if (event.url) window.open(event.url, '_blank', 'noopener,noreferrer');
   }
@@ -182,6 +200,9 @@
       {/if}
       {#if event.rsvp_count != null && event.rsvp_count > 0}
         <span class="event-rsvp">{event.rsvp_count.toLocaleString()} RSVPs</span>
+      {/if}
+      {#if providerLabel}
+        <span class="event-source-badge">{providerLabel}</span>
       {/if}
     </div>
 
@@ -229,7 +250,7 @@
   {#snippet ctaContent()}
     {#if event.url}
       <button class="cta-button" onclick={handleOpenEvent}>
-        {$text('embeds.view_on_meetup')}
+        {openButtonText}
       </button>
     {/if}
   {/snippet}
@@ -283,8 +304,20 @@
   }
 
   .event-rsvp {
-    font-size: 13px;
+    font-size: 0.8125rem;
     color: var(--color-grey-60);
+  }
+
+  .event-source-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 100px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background: var(--color-grey-15);
+    color: var(--color-font-secondary);
+    border: 1px solid var(--color-grey-25);
   }
 
   .event-section {

@@ -41,7 +41,7 @@ const defaultProps = {
 	provider: 'Brave Search',
 	status: 'finished' as const,
 	results: sampleResults,
-	onClose: () => console.log('[Preview] Close clicked'),
+	onClose: () => {},
 	hasPreviousEmbed: false,
 	hasNextEmbed: false
 };
@@ -56,7 +56,7 @@ export const variants = {
 		provider: 'Brave Search',
 		status: 'processing' as const,
 		results: [],
-		onClose: () => console.log('[Preview] Close clicked')
+		onClose: () => {}
 	},
 
 	/** With navigation arrows */
@@ -64,8 +64,8 @@ export const variants = {
 		...defaultProps,
 		hasPreviousEmbed: true,
 		hasNextEmbed: true,
-		onNavigatePrevious: () => console.log('[Preview] Navigate previous'),
-		onNavigateNext: () => console.log('[Preview] Navigate next')
+		onNavigatePrevious: () => {},
+		onNavigateNext: () => {}
 	},
 
 	/** Error state */
@@ -75,6 +75,6 @@ export const variants = {
 		status: 'error' as const,
 		errorMessage: 'Search provider returned an error. Please try again.',
 		results: [],
-		onClose: () => console.log('[Preview] Close clicked')
+		onClose: () => {}
 	}
 };

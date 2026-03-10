@@ -55,7 +55,7 @@ const defaultProps = {
       },
     ],
   },
-  onClose: () => console.log("[Preview] Close clicked"),
+  onClose: () => {},
 };
 
 export default defaultProps;
@@ -124,6 +124,6 @@ export const variants = {
         },
       ],
     },
-    onClose: () => console.log("[Preview] Close clicked"),
+    onClose: () => {},
   },
 };

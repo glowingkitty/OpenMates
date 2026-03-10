@@ -22,7 +22,7 @@ const defaultProps = {
 	publishedAt: '2025-11-15T10:00:00Z',
 	videoId: 'dQw4w9WgXcQ',
 	isMobile: false,
-	onFullscreen: () => console.log('[Preview] Fullscreen clicked')
+	onFullscreen: () => {}
 };
 
 export default defaultProps;

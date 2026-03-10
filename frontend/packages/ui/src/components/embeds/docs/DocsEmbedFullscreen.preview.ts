@@ -38,7 +38,7 @@ const defaultProps = {
 	title: 'Project Architecture Overview',
 	filename: 'architecture.docx',
 	wordCount: 156,
-	onClose: () => console.log('[Preview] Close clicked'),
+	onClose: () => {},
 	hasPreviousEmbed: false,
 	hasNextEmbed: false
 };
@@ -52,13 +52,13 @@ export const variants = {
 		...defaultProps,
 		hasPreviousEmbed: true,
 		hasNextEmbed: true,
-		onNavigatePrevious: () => console.log('[Preview] Navigate previous'),
-		onNavigateNext: () => console.log('[Preview] Navigate next')
+		onNavigatePrevious: () => {},
+		onNavigateNext: () => {}
 	},
 
 	/** Minimal — no title/filename */
 	minimal: {
 		htmlContent: '<p>A simple document with minimal metadata.</p>',
-		onClose: () => console.log('[Preview] Close clicked')
+		onClose: () => {}
 	}
 };

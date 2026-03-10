@@ -112,11 +112,27 @@
     return parts.join(', ');
   }
 
+  /**
+   * Map backend provider slugs to human-readable display names.
+   * Providers: meetup, luma, classictic, berlin_philharmonic, bachtrack
+   */
+  function getProviderLabel(provider: string | undefined): string {
+    switch (provider?.toLowerCase()) {
+      case 'meetup':              return 'Meetup';
+      case 'luma':                return 'Luma';
+      case 'classictic':          return 'Classictic';
+      case 'berlin_philharmonic': return 'Berlin Philharmonic';
+      case 'bachtrack':           return 'Bachtrack';
+      default:                    return provider || '';
+    }
+  }
+
   // Derived display values
   let eventDate     = $derived(formatEventDate(event.date_start));
   let eventLocation = $derived(getEventLocation(event));
   let isOnline      = $derived(event.event_type === 'ONLINE');
   let isPaid        = $derived(event.is_paid ?? false);
+  let providerLabel = $derived(getProviderLabel(event.provider));
 
   // Format fee for display (e.g. "€12.00")
   let feeDisplay = $derived.by(() => {
@@ -166,7 +182,7 @@
         {/if}
       </div>
 
-      <!-- Bottom row: type badge + RSVP count / fee -->
+      <!-- Bottom row: type badge + RSVP count / fee + source -->
       <div class="event-footer">
         {#if event.event_type}
           <span class="event-type-badge" class:online={isOnline}>
@@ -177,6 +193,9 @@
           <span class="event-fee">{feeDisplay}</span>
         {:else if event.rsvp_count != null && event.rsvp_count > 0}
           <span class="event-rsvp">{event.rsvp_count.toLocaleString()} RSVPs</span>
+        {/if}
+        {#if providerLabel}
+          <span class="event-source">{providerLabel}</span>
         {/if}
       </div>
     </div>
@@ -274,7 +293,15 @@
 
   .event-fee,
   .event-rsvp {
-    font-size: 11px;
+    font-size: 0.6875rem;
     color: var(--color-grey-60);
+  }
+
+  .event-source {
+    font-size: 0.6875rem;
+    color: var(--color-font-secondary);
+    font-weight: 500;
+    margin-left: auto;
+    flex-shrink: 0;
   }
 </style>

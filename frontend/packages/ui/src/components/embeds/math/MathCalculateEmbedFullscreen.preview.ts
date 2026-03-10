@@ -22,7 +22,7 @@ const defaultProps = {
     },
   ],
   embedId: "preview-math-calculate-fullscreen-1",
-  onClose: () => console.log("[Preview] Close clicked"),
+  onClose: () => {},
   hasPreviousEmbed: false,
   hasNextEmbed: false,
 };

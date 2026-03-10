@@ -23,7 +23,7 @@ const defaultProps = {
 	status: 'finished' as const,
 	htmlContent: sampleHtml,
 	isMobile: false,
-	onFullscreen: () => console.log('[Preview] Fullscreen clicked')
+	onFullscreen: () => {}
 };
 
 export default defaultProps;

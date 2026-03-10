@@ -8,7 +8,7 @@ const defaultProps = {
   plotSpec: "f(x) = sin(x)\nf(x) = cos(x)",
   status: "finished" as const,
   isMobile: false,
-  onFullscreen: () => console.log("[Preview] Fullscreen clicked"),
+  onFullscreen: () => {},
 };
 
 export default defaultProps;
