@@ -1,14 +1,10 @@
-settings.notifications:
-  context: Top-level Notifications settings menu item and page title
-  en: Notifications
-  de: Benachrichtigungen
-  zh: 通知
-  fr: Notifications
-  es: Notificaciones
-  ja: 通知
-  verified_by_human: []
+# Notifications settings translations
+# Used in Settings > Notifications menu
+# Namespace: settings, key prefix: notifications (from filename)
+# Keys should NOT include "settings.notifications." prefix - the build script adds it automatically
+# All keys must be at root level with flat dot-notation, only language codes (en, de, etc.) are nested
 
-settings.notifications.description:
+description:
   context: Short description shown in the Notifications settings page gradient banner header
   en: Manage your notification preferences
   de: Benachrichtigungseinstellungen verwalten
@@ -18,7 +14,7 @@ settings.notifications.description:
   ja: 通知設定を管理します
   verified_by_human: []
 
-settings.notifications.chat:
+chat:
   context: Chat Notifications sub-item in the Notifications settings hub
   en: Chat Notifications
   de: Chat-Benachrichtigungen
@@ -28,7 +24,7 @@ settings.notifications.chat:
   ja: チャット通知
   verified_by_human: []
 
-settings.notifications.backup:
+backup:
   context: Backup Reminders sub-item in the Notifications settings hub
   en: Backup Reminders
   de: Backup-Erinnerungen
@@ -38,7 +34,7 @@ settings.notifications.backup:
   ja: バックアップのリマインダー
   verified_by_human: []
 
-settings.notifications.backup.email_toggle:
+backup.email_toggle:
   context: Toggle label for enabling/disabling backup reminder emails
   en: Backup Reminder Emails
   de: Backup-Erinnerungs-E-Mails
@@ -48,7 +44,7 @@ settings.notifications.backup.email_toggle:
   ja: バックアップのリマインダーメール
   verified_by_human: []
 
-settings.notifications.backup.email_toggle_info:
+backup.email_toggle_info:
   context: Subtitle under the backup reminder email toggle explaining what it does
   en: Receive a periodic email reminder to export and back up your data
   de: Erhalte regelmäßige E-Mail-Erinnerungen zum Exportieren und Sichern deiner Daten
@@ -58,7 +54,7 @@ settings.notifications.backup.email_toggle_info:
   ja: データのバックアップとエクスポートを促すリマインダーメールを定期的に受け取ります
   verified_by_human: []
 
-settings.notifications.backup.interval:
+backup.interval:
   context: Label for the reminder frequency selector in backup reminder settings
   en: Reminder frequency
   de: Erinnerungsintervall
@@ -68,7 +64,7 @@ settings.notifications.backup.interval:
   ja: リマインダーの頻度
   verified_by_human: []
 
-settings.notifications.backup.interval_days:
+backup.interval_days:
   context: Button label for a reminder interval option; {count} is the number of days (e.g. "Every 30 days")
   en: "Every {count} days"
   de: "Alle {count} Tage"
@@ -78,7 +74,7 @@ settings.notifications.backup.interval_days:
   ja: "{count}日ごと"
   verified_by_human: []
 
-settings.notifications.backup.disabled:
+backup.disabled:
   context: Status text shown when backup reminder emails are disabled
   en: Disabled
   de: Deaktiviert
@@ -88,7 +84,7 @@ settings.notifications.backup.disabled:
   ja: 無効
   verified_by_human: []
 
-settings.notifications.backup.last_export:
+backup.last_export:
   context: Label showing the date of the user's last account export
   en: Last export
   de: Letzter Export
@@ -98,7 +94,7 @@ settings.notifications.backup.last_export:
   ja: 最終エクスポート
   verified_by_human: []
 
-settings.notifications.backup.never_exported:
+backup.never_exported:
   context: Shown when the user has never done an account export
   en: Never exported
   de: Noch kein Export
@@ -108,7 +104,7 @@ settings.notifications.backup.never_exported:
   ja: エクスポート履歴なし
   verified_by_human: []
 
-settings.notifications.backup.export_hint:
+backup.export_hint:
   context: Subtitle on the quick-link to the export page within backup reminder settings
   en: Export and download all your data
   de: Alle deine Daten exportieren und herunterladen
