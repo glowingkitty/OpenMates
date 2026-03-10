@@ -36,6 +36,12 @@ Usage — Browser Console Log Mode (no email required):
     docker exec api python /app/backend/scripts/debug_logs.py --browser --json
     docker exec api python /app/backend/scripts/debug_logs.py --browser --prod
 
+Usage — OpenObserve Summary Mode (no email required):
+    docker exec api python /app/backend/scripts/debug_logs.py --o2 --preset web-app-health --since 60
+    docker exec api python /app/backend/scripts/debug_logs.py --o2 --preset web-search-failures --since 1440
+    docker exec api python /app/backend/scripts/debug_logs.py --o2 --preset api-failed-requests --since 1440
+    docker exec api python /app/backend/scripts/debug_logs.py --o2 --sql "SELECT level, COUNT(*) as c FROM \"default\" GROUP BY level"
+
 Usage — Satellite Server Logs:
     docker exec api python /app/backend/scripts/debug_logs.py --upload-logs
     docker exec api python /app/backend/scripts/debug_logs.py --upload-logs --services app-uploads,clamav --since 30
@@ -58,6 +64,7 @@ import logging
 import re
 import sys
 import time
+from collections import Counter
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Optional, Tuple
@@ -117,6 +124,14 @@ PREVIEW_SERVER_STATUS_URL = "https://preview.openmates.org/admin/update/status"
 # Default settings for browser log mode
 BROWSER_LOG_DEFAULT_SINCE_MINUTES = 30
 BROWSER_LOG_DEFAULT_LIMIT = 200
+O2_DEFAULT_SINCE_MINUTES = 60
+O2_DEFAULT_MAX_ROWS = 200
+O2_PRESETS = (
+    "web-app-health",
+    "web-search-failures",
+    "api-failed-requests",
+    "top-warnings-errors",
+)
 
 
 # Category → colour mapping
@@ -345,36 +360,17 @@ async def query_openobserve(
     OpenObserve SQL search: POST /api/{org}/{stream}/_search
     Body: {"query": {"sql": "...", "start_time": <µs>, "end_time": <µs>}}
     """
-    import os
-    email = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
-    password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
-
     if start_us is None:
         start_us = int((time.time() - since_minutes * 60) * 1_000_000)
-    end_us = int(time.time() * 1_000_000)
-
-    url = f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/{stream}/_search"
-    body = {"query": {"sql": sql, "start_time": start_us, "end_time": end_us}}
+    hits = await _query_openobserve_sql_hits(
+        sql=sql,
+        since_minutes=since_minutes,
+        max_rows=limit,
+        start_us=start_us,
+    )
 
     events: List[LogEvent] = []
-    try:
-        timeout = aiohttp.ClientTimeout(total=30)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.post(
-                url, json=body, auth=aiohttp.BasicAuth(email, password)
-            ) as resp:
-                if resp.status != 200:
-                    error_text = await resp.text()
-                    script_logger.warning(
-                        f"OpenObserve query failed ({resp.status}): {error_text[:200]}"
-                    )
-                    return events
-                data = await resp.json()
-    except aiohttp.ClientError as e:
-        script_logger.warning(f"Cannot connect to OpenObserve: {e}")
-        return events
-
-    for hit in data.get("hits", []):
+    for hit in hits:
         ts_us_val = hit.get("_timestamp", 0)
         # OpenObserve returns microseconds; convert to nanoseconds for internal consistency
         ts_ns = int(ts_us_val) * 1000
@@ -411,6 +407,57 @@ async def query_openobserve(
         ))
 
     return events
+
+
+async def _query_openobserve_sql_hits(
+    sql: str,
+    since_minutes: int,
+    max_rows: int,
+    start_us: Optional[int] = None,
+) -> List[Dict[str, Any]]:
+    """Execute OpenObserve SQL and return raw hits list."""
+    import os
+
+    email = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
+    password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
+
+    if start_us is None:
+        start_us = int((time.time() - since_minutes * 60) * 1_000_000)
+    end_us = int(time.time() * 1_000_000)
+
+    sql_text = sql.strip().rstrip(";")
+    if " limit " not in sql_text.lower():
+        sql_text = f"{sql_text} LIMIT {max_rows}"
+
+    body = {"query": {"sql": sql_text, "start_time": start_us, "end_time": end_us}}
+    urls = (
+        f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/_search",
+        f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/default/_search",
+    )
+
+    timeout = aiohttp.ClientTimeout(total=30)
+    try:
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            for url in urls:
+                async with session.post(url, json=body, auth=aiohttp.BasicAuth(email, password)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        return data.get("hits", [])
+
+                    error_text = await resp.text()
+                    if resp.status == 404:
+                        continue
+
+                    script_logger.warning(
+                        f"OpenObserve query failed ({resp.status}) at {url}: {error_text[:200]}"
+                    )
+                    return []
+    except aiohttp.ClientError as exc:
+        script_logger.warning(f"Cannot connect to OpenObserve: {exc}")
+        return []
+
+    script_logger.warning("OpenObserve query failed: no working _search endpoint found")
+    return []
 
 
 async def query_satellite_logs(
@@ -577,7 +624,10 @@ async def gather_all_events(
         ))
 
     # Fire all OpenObserve queries in parallel
-    tasks = [query_openobserve(stream, sql, since_minutes) for stream, sql, _ in queries]
+    tasks = []
+    for query_entry in queries:
+        sql = query_entry[0]
+        tasks.append(query_openobserve("default", sql, since_minutes))
 
     # Also query satellite servers in parallel
     satellite_search = user_id
@@ -591,14 +641,14 @@ async def gather_all_events(
 
     # Merge
     all_events: List[LogEvent] = []
-    query_descs = [desc for _, _, desc in queries] + ["upload", "preview"]
+    query_descs = [entry[1] for entry in queries] + ["upload", "preview"]
 
     for i, result in enumerate(all_results):
         desc = query_descs[i] if i < len(query_descs) else f"query-{i}"
-        if isinstance(result, Exception):
+        if isinstance(result, BaseException):
             script_logger.warning(f"Query '{desc}' failed: {result}")
             continue
-        if result:
+        if isinstance(result, list) and result:
             all_events.extend(result)
 
     # Sort by timestamp
@@ -1669,6 +1719,224 @@ async def run_preview_status_mode(args) -> None:
     )
 
 
+# ─── OpenObserve summary mode (token-efficient) ─────────────────────────────
+
+def _extract_structured_message(raw_message: str) -> str:
+    """Extract the inner message from JSON-formatted log lines when available."""
+    try:
+        parsed = json.loads(raw_message)
+        if isinstance(parsed, dict):
+            return str(parsed.get("message", raw_message))
+    except (json.JSONDecodeError, TypeError):
+        pass
+    return raw_message
+
+
+def _normalize_path(path: str) -> str:
+    """Normalize IDs in API paths for grouping."""
+    normalized = re.sub(r"/[0-9a-fA-F-]{8,}", "/:id", path)
+    normalized = re.sub(r"/\d+", "/:n", normalized)
+    return normalized
+
+
+def _print_compact_kv(title: str, rows: List[Tuple[str, int]], max_items: int = 8) -> None:
+    """Print compact key/value ranking lines."""
+    print(f"{C_BOLD}{title}:{C_RESET}")
+    if not rows:
+        print(f"  {C_DIM}(no data){C_RESET}")
+        return
+    for key, value in rows[:max_items]:
+        print(f"  - {key}: {value}")
+
+
+async def _o2_preset_web_app_health(args) -> None:
+    level_hits = await _query_openobserve_sql_hits(
+        sql=(
+            'SELECT level, COUNT(*) as c FROM "default" '
+            "WHERE service='app-web' GROUP BY level ORDER BY c DESC"
+        ),
+        since_minutes=args.since,
+        max_rows=args.max_rows,
+    )
+
+    warn_hits = await _query_openobserve_sql_hits(
+        sql=(
+            'SELECT _timestamp, message FROM "default" '
+            "WHERE service='app-web' AND (level='WARNING' OR level='ERROR') "
+            "ORDER BY _timestamp DESC"
+        ),
+        since_minutes=args.since,
+        max_rows=args.max_rows,
+    )
+
+    level_rows = [
+        (str(hit.get("level", "UNKNOWN")).lower(), int(hit.get("c", 0)))
+        for hit in level_hits
+    ]
+
+    issue_counter: Counter[str] = Counter()
+    examples: Dict[str, str] = {}
+    for hit in warn_hits:
+        msg = _extract_structured_message(str(hit.get("message", "")))
+        msg_lower = msg.lower()
+        issue = "other"
+        if "brave" in msg_lower and "429" in msg_lower:
+            issue = "Brave API rate limiting"
+        elif "translation key" in msg_lower and "web.search" in msg_lower:
+            issue = "Missing web.search translation keys"
+        elif "web.search completed with" in msg_lower and "error" in msg_lower:
+            issue = "web.search partial failures"
+        issue_counter[issue] += 1
+        examples.setdefault(issue, msg[:180])
+
+    print(f"{C_BOLD}OpenObserve preset: web-app-health{C_RESET}")
+    print(f"{C_DIM}Time window: last {args.since} minutes{C_RESET}\n")
+    _print_compact_kv("app-web level counts", level_rows)
+    _print_compact_kv(
+        "app-web warning/error categories",
+        [(k, v) for k, v in issue_counter.most_common()],
+    )
+
+    if args.raw:
+        print(f"\n{C_BOLD}Examples:{C_RESET}")
+        for key, sample in examples.items():
+            print(f"  - {key}: {sample}")
+
+
+async def _o2_preset_web_search_failures(args) -> None:
+    hits = await _query_openobserve_sql_hits(
+        sql=(
+            'SELECT _timestamp, level, message FROM "default" '
+            "WHERE service='app-web' AND ("
+            "message LIKE '%web.search%' OR message LIKE '%Brave%' OR message LIKE '%brave%') "
+            "ORDER BY _timestamp DESC"
+        ),
+        since_minutes=args.since,
+        max_rows=args.max_rows,
+    )
+
+    categories: Counter[str] = Counter()
+    samples: Dict[str, str] = {}
+    for hit in hits:
+        msg = _extract_structured_message(str(hit.get("message", "")))
+        msg_lower = msg.lower()
+        key = "other"
+        if "brave" in msg_lower and "429" in msg_lower:
+            key = "Brave 429 rate limits"
+        elif "translation key" in msg_lower:
+            key = "Missing translations"
+        elif "web.search" in msg_lower and "error" in msg_lower:
+            key = "web.search errors"
+        categories[key] += 1
+        samples.setdefault(key, msg[:180])
+
+    print(f"{C_BOLD}OpenObserve preset: web-search-failures{C_RESET}")
+    print(f"{C_DIM}Time window: last {args.since} minutes{C_RESET}\n")
+    _print_compact_kv("Failure categories", [(k, v) for k, v in categories.most_common()])
+
+    if args.raw:
+        print(f"\n{C_BOLD}Examples:{C_RESET}")
+        for key, sample in samples.items():
+            print(f"  - {key}: {sample}")
+
+
+async def _o2_preset_api_failed_requests(args) -> None:
+    hits = await _query_openobserve_sql_hits(
+        sql=(
+            'SELECT _timestamp, message FROM "default" '
+            "WHERE service='api' AND level='WARNING' AND message LIKE '%Request failed:%' "
+            "ORDER BY _timestamp DESC"
+        ),
+        since_minutes=args.since,
+        max_rows=args.max_rows,
+    )
+
+    pattern = re.compile(r"Request failed: (GET|POST|PUT|PATCH|DELETE|OPTIONS) ([^ ]+) - (\d{3})")
+    grouped: Counter[Tuple[str, str, str]] = Counter()
+    for hit in hits:
+        msg = _extract_structured_message(str(hit.get("message", "")))
+        match = pattern.search(msg)
+        if not match:
+            continue
+        method, path, status = match.groups()
+        grouped[(method, _normalize_path(path), status)] += 1
+
+    rows = [
+        (f"{method} {path} -> {status}", count)
+        for (method, path, status), count in grouped.most_common()
+    ]
+
+    print(f"{C_BOLD}OpenObserve preset: api-failed-requests{C_RESET}")
+    print(f"{C_DIM}Time window: last {args.since} minutes{C_RESET}\n")
+    _print_compact_kv("Top failing routes", rows)
+
+
+async def _o2_preset_top_warnings_errors(args) -> None:
+    hits = await _query_openobserve_sql_hits(
+        sql=(
+            'SELECT service, level, COUNT(*) as c FROM "default" '
+            "WHERE level IN ('WARNING','ERROR','CRITICAL') "
+            "GROUP BY service, level ORDER BY c DESC"
+        ),
+        since_minutes=args.since,
+        max_rows=args.max_rows,
+    )
+
+    rows = []
+    for hit in hits:
+        service = str(hit.get("service") or "unknown")
+        level = str(hit.get("level") or "unknown").lower()
+        rows.append((f"{service} ({level})", int(hit.get("c", 0))))
+
+    print(f"{C_BOLD}OpenObserve preset: top-warnings-errors{C_RESET}")
+    print(f"{C_DIM}Time window: last {args.since} minutes{C_RESET}\n")
+    _print_compact_kv("Top noisy services", rows)
+
+
+async def _o2_custom_sql(args) -> None:
+    hits = await _query_openobserve_sql_hits(
+        sql=args.sql,
+        since_minutes=args.since,
+        max_rows=args.max_rows,
+    )
+    if args.as_json:
+        print(json.dumps({"hits": hits}, indent=2, default=str))
+        return
+
+    print(f"{C_BOLD}OpenObserve custom SQL{C_RESET}")
+    print(f"{C_DIM}Rows returned: {len(hits)}{C_RESET}")
+    for hit in hits[: min(len(hits), args.max_rows)]:
+        print(f"- {json.dumps(hit, default=str)[:240]}")
+
+
+async def run_o2_logs_mode(args) -> None:
+    """Run compact OpenObserve summaries and ad-hoc SQL queries."""
+    if args.sql:
+        await _o2_custom_sql(args)
+        return
+
+    if not args.preset:
+        print(
+            "Error: --preset or --sql is required in --o2 mode\n"
+            f"Available presets: {', '.join(O2_PRESETS)}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    if args.preset == "web-app-health":
+        await _o2_preset_web_app_health(args)
+        return
+    if args.preset == "web-search-failures":
+        await _o2_preset_web_search_failures(args)
+        return
+    if args.preset == "api-failed-requests":
+        await _o2_preset_api_failed_requests(args)
+        return
+    if args.preset == "top-warnings-errors":
+        await _o2_preset_top_warnings_errors(args)
+        return
+
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 async def main():
@@ -1683,6 +1951,8 @@ async def main():
     # Mode selectors
     parser.add_argument("--browser", action="store_true",
                         help="Browser console log mode — query admin browser logs (no email needed)")
+    parser.add_argument("--o2", action="store_true",
+                        help="Token-efficient OpenObserve summary mode (no email needed)")
     parser.add_argument("--upload-logs", action="store_true", dest="upload_logs",
                         help="Fetch Docker logs from the upload server")
     parser.add_argument("--preview-logs", action="store_true", dest="preview_logs",
@@ -1724,6 +1994,16 @@ async def main():
                         help="Search log message content (browser/satellite modes)")
     parser.add_argument("--limit", type=int, default=None,
                         help="Max log entries (default: 200 for browser, 200 for satellite)")
+
+    # OpenObserve summary mode options
+    parser.add_argument("--preset", type=str, choices=O2_PRESETS, default=None,
+                        help="Preset for --o2 mode")
+    parser.add_argument("--sql", type=str, default=None,
+                        help="Custom OpenObserve SQL query for --o2 mode")
+    parser.add_argument("--max-rows", type=int, default=O2_DEFAULT_MAX_ROWS,
+                        help="Row cap for --o2 mode (default: 200)")
+    parser.add_argument("--raw", action="store_true",
+                        help="Include representative raw examples in --o2 mode")
 
     # Satellite log options
     parser.add_argument("--services", type=str, default=None,
@@ -1774,12 +2054,19 @@ async def main():
         await run_browser_logs_mode(args)
         return
 
+    # OpenObserve summary mode
+    if args.o2:
+        if args.since is None:
+            args.since = O2_DEFAULT_SINCE_MINUTES
+        await run_o2_logs_mode(args)
+        return
+
     # ── User timeline mode (requires email) ──────────────────────────────────
     if not args.email:
         parser.error(
             "email is required for user timeline mode.\n"
-            "Use --browser for browser console logs, or --upload-logs / --preview-logs "
-            "for satellite server logs."
+            "Use --browser for browser console logs, --o2 for OpenObserve summaries, "
+            "or --upload-logs / --preview-logs for satellite server logs."
         )
 
     if args.since is None:

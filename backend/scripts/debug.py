@@ -18,7 +18,7 @@ Commands:
   chat            Inspect a chat (messages, embeds, keys, cache)
   embed           Inspect an embed (decode, linkage, cache)
   user            Inspect a user (items, cache, credits)
-  logs            User activity timeline / browser console logs
+  logs            User timeline, browser logs, or OpenObserve summaries
   requests        Recent AI requests (admin only)
   issue           Inspect/list/delete issue reports
   newsletter      Newsletter subscriber stats
@@ -41,6 +41,7 @@ Examples:
   debug.py chat <id> -v --decrypt       # full chat inspection
   debug.py logs <email> --since 60      # user activity timeline
   debug.py logs --browser --search X    # browser console logs
+  debug.py logs --o2 --preset web-app-health --since 60
   debug.py requests --errors-only       # recent AI errors
   debug.py issue --list                 # list open issues
   debug.py errors --top 20             # top error fingerprints

@@ -8,6 +8,7 @@ Rules for investigating bugs and reading logs. For detailed CLI references and c
 ## Rule 1: State Your Understanding First
 
 Before reading logs, touching code, or asking clarifying questions — write out your understanding of the issue:
+
 - What the user did, what they expected, what actually happened
 - Which part of the system you believe is involved and why
 
@@ -22,6 +23,7 @@ If you cannot confirm the feature worked before your changes, STOP and ASK.
 ## Rule 3: Ask Clarifying Questions First
 
 Establish two facts before debugging:
+
 1. **Who reported it?** Regular user (via in-app reporter) or admin?
 2. **Which server?** Dev or production?
 
@@ -37,6 +39,7 @@ Establish two facts before debugging:
 ## Rule 5: Service Unavailable During Concurrent Work
 
 If an API call fails with 502 or connection error:
+
 1. Check `docker compose ps` for containers in starting/restarting/exited state
 2. Check recent logs for restart activity
 3. Wait 15-30s and retry (up to 3-4 times)
@@ -56,15 +59,25 @@ Check the Caddyfile first (`deployment/dev_server/Caddyfile` or `deployment/prod
 
 ## Rule 9: Where to Look First
 
-| Problem Type | Check First | Then Check |
-|---|---|---|
-| AI response issues | `task-worker`, `app-ai-worker` | `api` (WebSocket logs) |
-| Login/auth failures | `api` | `cms` (Directus logs) |
-| Payment issues | `api` | `task-worker` (async jobs) |
-| Sync/cache issues | `api` (PHASE1, SYNC_CACHE) | `cache` (Dragonfly) |
-| Frontend/client issues | OpenObserve `job='client-console'` (SQL) | Browser console |
-| Scheduled task failures | `task-scheduler` | `task-worker` |
-| User-specific issues | `debug.py logs` | Specific service logs |
+| Problem Type            | Check First                              | Then Check                 |
+| ----------------------- | ---------------------------------------- | -------------------------- |
+| AI response issues      | `task-worker`, `app-ai-worker`           | `api` (WebSocket logs)     |
+| Login/auth failures     | `api`                                    | `cms` (Directus logs)      |
+| Payment issues          | `api`                                    | `task-worker` (async jobs) |
+| Sync/cache issues       | `api` (PHASE1, SYNC_CACHE)               | `cache` (Dragonfly)        |
+| Frontend/client issues  | OpenObserve `job='client-console'` (SQL) | Browser console            |
+| Scheduled task failures | `task-scheduler`                         | `task-worker`              |
+| User-specific issues    | `debug.py logs`                          | Specific service logs      |
+
+## Rule 9.1: Start With Token-Efficient OpenObserve Presets
+
+Before dumping long raw logs, run a compact OpenObserve preset first:
+
+- `docker exec api python /app/backend/scripts/debug.py logs --o2 --preset web-app-health --since 60`
+- `docker exec api python /app/backend/scripts/debug.py logs --o2 --preset web-search-failures --since 1440`
+- `docker exec api python /app/backend/scripts/debug.py logs --o2 --preset api-failed-requests --since 1440`
+
+Use `--raw` only when you need representative sample lines, and `--sql` for ad-hoc deep dives.
 
 ## Rule 10: Embed Resolution Failures
 
