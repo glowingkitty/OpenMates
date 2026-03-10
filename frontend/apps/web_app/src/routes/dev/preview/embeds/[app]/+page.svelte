@@ -11,11 +11,10 @@
   Display types shown per skill section:
     1. Inline Link         (simulated visual replica)
     2. Quote Block         (simulated visual replica)
-    3. Preview — Small     (single card, default variant, isMobile=false → 300x200px)
-    4. Group — Small       (horizontal scroll row of all data variants)
-    5. Preview — Large     (single card, container-type:inline-size >300px, 425px height)
-    6. Group — Large       (slideshow carousel of all data variants with prev/next)
-    7. Fullscreen          (clipped inline, cycles through variants with prev/next)
+    3. Group — Small       (horizontal scroll row of all data variants, isMobile=false → 300x200px)
+    4. Preview — Large     (default variant in large container, container-type:inline-size >300px)
+    5. Group — Large       (slideshow carousel of all data variants with prev/next)
+    6. Fullscreen          (clipped inline, cycles through variants with prev/next)
 
   "Data variants" = all named variants except 'error'/'mobile'/'processing' + the default.
 
@@ -130,6 +129,39 @@
 				fullscreenPath: 'embeds/images/ImageGenerateEmbedFullscreen',
 				inlineLinkText: 'Cat wearing a top hat',
 				quoteText: 'Generated image: a quick sketch of a cat wearing a top hat, pencil style.'
+			},
+			{
+				skillLabel: 'Search',
+				appId: 'images',
+				previewPath: 'embeds/images/ImagesSearchEmbedPreview',
+				fullscreenPath: 'embeds/images/ImagesSearchEmbedFullscreen',
+				inlineLinkText: 'Golden Gate Bridge photos',
+				quoteText: 'Found 24 images of the Golden Gate Bridge via Brave Image Search.'
+			},
+			{
+				skillLabel: 'Image Result',
+				appId: 'images',
+				previewPath: 'embeds/images/ImageResultEmbedPreview',
+				fullscreenPath: 'embeds/images/ImageResultEmbedFullscreen',
+				inlineLinkText: 'Golden Gate Bridge at sunset — flickr.com',
+				quoteText: 'Golden Gate Bridge at sunset, photographed from Marin Headlands.'
+			},
+			{
+				skillLabel: 'Upload',
+				appId: 'images',
+				previewPath: 'embeds/images/ImageEmbedPreview',
+				fullscreenPath: 'embeds/images/ImageEmbedFullscreen',
+				inlineLinkText: 'golden-gate-sunset.jpg',
+				quoteText: 'Uploaded image: golden-gate-sunset.jpg (2.4 MB, JPEG)'
+			},
+			{
+				skillLabel: 'View',
+				appId: 'images',
+				previewPath: 'embeds/images/ImageViewEmbedPreview',
+				fullscreenPath: 'embeds/images/ImageEmbedFullscreen',
+				inlineLinkText: 'View: golden-gate-sunset.jpg',
+				quoteText:
+					'I analyzed the image: a vibrant sunset photograph taken at the Golden Gate Bridge.'
 			}
 		],
 		news: [
@@ -758,23 +790,17 @@
 							</div>
 						</div>
 
-						<!-- 3. Preview — Small (single, default variant) -->
+						<!-- 3. Group — Small + 4. Preview — Large -->
 						{#if s.PreviewComponent}
 							{@const Preview = s.PreviewComponent}
 							{@const dataVars = getDataVariants(s)}
-							<div class="dt">
-								<h3 class="dt-heading">Preview — Small <span class="size-hint">300x200</span></h3>
-								<div class="dt-body">
-									<Preview {...props} isMobile={false} />
-								</div>
-							</div>
 
-							<!-- 4. Group — Small (horizontal scroll of all data variants) -->
-							{#if dataVars.length > 1}
+							<!-- 3. Group — Small (horizontal scroll of all data variants) -->
+							{#if dataVars.length > 0}
 								<div class="dt">
 									<h3 class="dt-heading">
 										Group — Small <span class="size-hint"
-											>{dataVars.length} variants · horizontal scroll</span
+											>{dataVars.length} variant{dataVars.length !== 1 ? 's' : ''} · horizontal scroll</span
 										>
 									</h3>
 									<div class="dt-body dt-body--flush dt-body--group-small">
@@ -790,10 +816,10 @@
 								</div>
 							{/if}
 
-							<!-- 5. Preview — Large (single, default variant) -->
+							<!-- 4. Preview — Large (default variant in large container — mirrors assistant large-promotion) -->
 							<div class="dt">
 								<h3 class="dt-heading">
-									Preview — Large <span class="size-hint">full-width x 425</span>
+									Preview — Large <span class="size-hint">default variant · large container</span>
 								</h3>
 								<div class="dt-body dt-body--flush">
 									<div class="large-container">
@@ -802,7 +828,7 @@
 								</div>
 							</div>
 
-							<!-- 6. Group — Large (slideshow of all data variants) -->
+							<!-- 5. Group — Large (slideshow of all data variants) -->
 							{#if dataVars.length > 1}
 								{@const totalSlides = dataVars.length}
 								{@const slideIdx = s.largeSlideIndex}
@@ -815,11 +841,8 @@
 									</h3>
 									<div class="dt-body dt-body--flush">
 										<div class="large-slideshow-wrapper">
-											<div class="large-container">
-												<Preview {...slideProps} isMobile={false} />
-											</div>
-											<!-- Slide indicator + arrows -->
-											<div class="slideshow-controls">
+											<!-- Slide indicator + arrows (above the container, like EmbedPreviewLarge carousel) -->
+											<div class="slideshow-controls slideshow-controls--top">
 												<button
 													class="slide-arrow"
 													aria-label="Previous"
@@ -845,13 +868,16 @@
 													&#8594;
 												</button>
 											</div>
+											<div class="large-container">
+												<Preview {...slideProps} isMobile={false} />
+											</div>
 										</div>
 									</div>
 								</div>
 							{/if}
 						{/if}
 
-						<!-- 7. Fullscreen (clipped inline, cycles through data variants) -->
+						<!-- 6. Fullscreen (clipped inline, cycles through data variants) -->
 						{#if s.FullscreenComponent}
 							{@const Fullscreen = s.FullscreenComponent}
 							{@const dataVars2 = getDataVariants(s)}
@@ -1055,6 +1081,7 @@
 		   chat-history-content is --chat-content-max-width (1000px),
 		   message-align-left is calc(100% - 70px) within that. */
 		max-width: calc(var(--chat-content-max-width, 1000px) - 70px);
+		overflow-x: auto;
 	}
 	.skill-section:last-child {
 		border-bottom: none;
@@ -1317,6 +1344,7 @@
 		border-radius: 12px;
 		overflow: visible;
 		border: 1px solid var(--color-grey-25);
+		max-width: 100%;
 	}
 
 	.fs-clip {
@@ -1364,6 +1392,7 @@
 		background: var(--color-grey-10);
 		border: 1px solid var(--color-grey-25);
 		border-radius: 12px;
+		overflow-x: auto;
 	}
 
 	.group-scroll-row {
@@ -1416,6 +1445,10 @@
 		justify-content: center;
 		gap: 12px;
 		padding: 14px 16px 4px;
+	}
+
+	.slideshow-controls--top {
+		padding: 4px 16px 12px;
 	}
 
 	.slide-arrow {

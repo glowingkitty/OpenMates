@@ -450,14 +450,14 @@
 <style>
   /* ═══════════════════════════════════════════════════════════
      Sheet Fullscreen — Excel / Google Sheets inspired design
-     Always white background, thin grid lines, row numbers.
+     Theme-adaptive: uses CSS custom properties for dark mode.
      ═══════════════════════════════════════════════════════════ */
   
-  /* ── Override parent UnifiedEmbedFullscreen backgrounds to white ── */
+  /* ── Override parent UnifiedEmbedFullscreen backgrounds to sheet bg ── */
   /* The parent overlay, content-area and bottom gradient default to
-     var(--color-grey-20) (dark grey). For the spreadsheet look we need
-     everything white. We target the parent classes via :global() from
-     within this component's scope. */
+     var(--color-grey-20) (dark grey). For the spreadsheet look we match
+     the page background colour so the table edge aligns cleanly.
+     We target the parent classes via :global() from within this scope. */
   .sheet-fullscreen {
     display: flex;
     flex-direction: column;
@@ -466,14 +466,14 @@
     overflow: hidden;
   }
   
-  /* Parent overlay container → white */
+  /* Parent overlay container → page background */
   :global(.unified-embed-fullscreen-overlay:has(.sheet-fullscreen)) {
-    background-color: #ffffff !important;
+    background-color: var(--color-grey-0) !important;
   }
   
-  /* Bottom gradient → fade to white instead of grey */
+  /* Bottom gradient → fade to page background instead of grey */
   :global(.unified-embed-fullscreen-overlay:has(.sheet-fullscreen) .bottom-gradient) {
-    background: linear-gradient(to bottom, transparent 0%, #ffffff 100%) !important;
+    background: linear-gradient(to bottom, transparent 0%, var(--color-grey-0) 100%) !important;
   }
   
   /* ── PII toggle bar ──────────────────────────────────── */
@@ -481,8 +481,8 @@
   .sheet-pii-bar {
     flex-shrink: 0;
     padding: 6px 12px;
-    background: #f8f9fa;
-    border-bottom: 1px solid #e0e0e0;
+    background: var(--color-grey-10);
+    border-bottom: 1px solid var(--color-grey-25);
     display: flex;
     align-items: center;
   }
@@ -494,8 +494,8 @@
     padding: 4px 10px;
     border-radius: 4px;
     border: none;
-    background: #e8eaed;
-    color: #5f6368;
+    background: var(--color-grey-20);
+    color: var(--color-font-secondary);
     cursor: pointer;
     font-size: 12px;
     font-weight: 500;
@@ -503,17 +503,18 @@
   }
 
   .pii-toggle-btn:hover {
-    background: #dadce0;
-    color: #202124;
+    background: var(--color-grey-25);
+    color: var(--color-font-primary);
   }
 
   .pii-toggle-btn.pii-toggle-active {
-    background: rgba(255, 165, 0, 0.12);
-    color: #c07000;
+    background: var(--color-warning-bg);
+    color: var(--color-warning);
   }
 
   .pii-toggle-btn.pii-toggle-active:hover {
-    background: rgba(255, 165, 0, 0.22);
+    background: var(--color-warning-bg);
+    opacity: 0.8;
   }
 
   /* ── Filter bar ────────────────────────────────────────── */
@@ -521,8 +522,8 @@
   .filter-bar {
     flex-shrink: 0;
     padding: 6px 12px;
-    background: #f8f9fa;
-    border-bottom: 1px solid #e0e0e0;
+    background: var(--color-grey-10);
+    border-bottom: 1px solid var(--color-grey-25);
   }
   
   .filter-bar-inner {
@@ -541,22 +542,22 @@
   .filter-input {
     width: 100%;
     padding: 4px 8px;
-    border: 1px solid #d0d0d0;
+    border: 1px solid var(--color-grey-30);
     border-radius: 3px;
     font-size: 12px;
-    background: #fff;
-    color: #333;
+    background: var(--color-grey-0);
+    color: var(--color-font-primary);
     outline: none;
     box-sizing: border-box;
   }
   
   .filter-input:focus {
-    border-color: #1a73e8;
-    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.15);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb, 74, 144, 226), 0.15);
   }
   
   .filter-input::placeholder {
-    color: #999;
+    color: var(--color-font-tertiary);
   }
   
   .filter-clear-btn {
@@ -569,12 +570,12 @@
     border: none;
     border-radius: 3px;
     background: transparent;
-    color: #d93025;
+    color: var(--color-error);
     cursor: pointer;
   }
   
   .filter-clear-btn:hover {
-    background: #fce8e6;
+    background: var(--color-error-light);
   }
   
   /* ── Spreadsheet wrapper — scrolls both axes ───────────── */
@@ -586,7 +587,7 @@
     padding-top: 70px;
   }
   
-  /* ── Table: always white, thin grid, no rounding ──────── */
+  /* ── Table: theme-adaptive, thin grid, no rounding ──────── */
   
   .spreadsheet {
     border-collapse: collapse;
@@ -595,24 +596,24 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     /* Do NOT set width: 100% — let columns size naturally so wide tables scroll */
     white-space: nowrap;
-    background: #ffffff;
+    background: var(--color-grey-0);
   }
   
   /* All cells: thin grey border on every edge */
   .spreadsheet th,
   .spreadsheet td {
-    border: 1px solid #e2e2e2;
+    border: 1px solid var(--color-grey-25);
     padding: 6px 12px;
     text-align: left;
-    color: #202124;
+    color: var(--color-font-primary);
   }
   
   /* ── Header rows ─────────────────────────────────────── */
   
   .spreadsheet thead th {
-    background: #f8f9fa;
+    background: var(--color-grey-10);
     font-weight: 600;
-    color: #202124;
+    color: var(--color-font-primary);
     position: sticky;
     z-index: 2;
   }
@@ -620,10 +621,10 @@
   /* Column letter row (A, B, C...) — sits at the very top */
   .col-letter-row th {
     top: 0;
-    border-bottom: 1px solid #dadce0;
+    border-bottom: 1px solid var(--color-grey-30);
     font-weight: 500;
     font-size: 11px;
-    color: #80868b;
+    color: var(--color-font-tertiary);
     padding: 2px 12px;
     text-align: center;
   }
@@ -641,7 +642,7 @@
   .spreadsheet thead tr:nth-child(2) th {
     /* Height of col-letter row: ~24px (2px padding + 11px font + borders) */
     top: 25px;
-    border-bottom: 2px solid #dadce0;
+    border-bottom: 2px solid var(--color-grey-30);
   }
   
   .col-header {
@@ -651,7 +652,7 @@
   }
   
   .col-header:hover {
-    background: #eef1f5;
+    background: var(--color-grey-20);
   }
   
   .col-header-content {
@@ -674,19 +675,19 @@
     display: inline-flex;
     align-items: center;
     flex-shrink: 0;
-    color: #5f6368;
+    color: var(--color-font-secondary);
   }
   
   .sort-icon-active {
-    color: #1a73e8;
+    color: var(--color-primary);
   }
   
   /* ── Row number gutter ──────────────────────────────── */
   
   .row-num-header,
   .row-num {
-    background: #f8f9fa;
-    color: #80868b;
+    background: var(--color-grey-10);
+    color: var(--color-font-tertiary);
     text-align: center;
     font-size: 11px;
     width: 40px;
@@ -694,7 +695,7 @@
     max-width: 40px;
     padding: 6px 4px;
     user-select: none;
-    border-right: 2px solid #dadce0;
+    border-right: 2px solid var(--color-grey-30);
   }
   
   /* Keep gutter sticky on horizontal scroll */
@@ -719,29 +720,29 @@
     border: none;
     border-radius: 3px;
     background: transparent;
-    color: #80868b;
+    color: var(--color-font-tertiary);
     cursor: pointer;
     margin: 0 auto;
   }
   
   .filter-toggle:hover {
-    background: #e8eaed;
-    color: #5f6368;
+    background: var(--color-grey-20);
+    color: var(--color-font-secondary);
   }
   
   .filter-toggle-active {
-    background: #e8f0fe;
-    color: #1a73e8;
+    background: rgba(var(--color-primary-rgb, 74, 144, 226), 0.12);
+    color: var(--color-primary);
   }
   
   .filter-toggle-active:hover {
-    background: #d2e3fc;
+    background: rgba(var(--color-primary-rgb, 74, 144, 226), 0.22);
   }
   
   /* ── Data cells ─────────────────────────────────────── */
   
   .spreadsheet tbody td {
-    color: #202124;
+    color: var(--color-font-primary);
     /* Allow text selection so users can copy cell content */
     user-select: text;
     -webkit-user-select: text;
@@ -751,15 +752,15 @@
   
   /* Subtle alternating row colour for readability */
   .spreadsheet tbody tr:nth-child(even) td:not(.row-num) {
-    background: #f8f9fb;
+    background: var(--color-grey-10);
   }
   
   .spreadsheet tbody tr:hover td:not(.row-num) {
-    background: #e8f0fe;
+    background: rgba(var(--color-primary-rgb, 74, 144, 226), 0.07);
   }
   
   .spreadsheet tbody tr:nth-child(even):hover td:not(.row-num) {
-    background: #e8f0fe;
+    background: rgba(var(--color-primary-rgb, 74, 144, 226), 0.07);
   }
   
   /* ── No-results row ────────────────────────────────── */
@@ -767,9 +768,9 @@
   .no-results {
     text-align: center;
     padding: 24px 16px;
-    color: #80868b;
+    color: var(--color-font-tertiary);
     font-style: italic;
-    background: #fff !important;
+    background: var(--color-grey-0) !important;
   }
   
   /* ── Empty state ───────────────────────────────────── */
@@ -780,8 +781,8 @@
     justify-content: center;
     height: 100%;
     min-height: 200px;
-    color: #80868b;
-    background: #fff;
+    color: var(--color-font-tertiary);
+    background: var(--color-grey-0);
   }
   
   .empty-state p {
@@ -820,173 +821,7 @@
     }
   }
 
-  /* ══════════════════════════════════════════════════════════════════
-     Dark mode — Excel-style dark spreadsheet (see screenshot)
-     Near-black bg, dark grey headers/gutter, subtle grid lines.
-     Uses CSS custom properties so values stay in sync with the
-     theme system (vars flip automatically in [data-theme="dark"]).
-     ══════════════════════════════════════════════════════════════════ */
-
-  /* Override the :global() parent background overrides for dark mode */
-  :global(.dark .unified-embed-fullscreen-overlay:has(.sheet-fullscreen)) {
-    background-color: var(--color-grey-10) !important;
-  }
-
-  :global(.dark .unified-embed-fullscreen-overlay:has(.sheet-fullscreen) .bottom-gradient) {
-    background: linear-gradient(to bottom, transparent 0%, var(--color-grey-10) 100%) !important;
-  }
-
-  /* PII bar */
-  :global(.dark) .sheet-pii-bar {
-    background: var(--color-grey-20);
-    border-bottom-color: var(--color-grey-30);
-  }
-
-  :global(.dark) .pii-toggle-btn {
-    background: var(--color-grey-30);
-    color: var(--color-grey-60);
-  }
-
-  :global(.dark) .pii-toggle-btn:hover {
-    background: var(--color-grey-40);
-    color: var(--color-grey-80);
-  }
-
-  :global(.dark) .pii-toggle-btn.pii-toggle-active {
-    background: var(--color-warning-bg);
-    color: var(--color-warning);
-  }
-
-  :global(.dark) .pii-toggle-btn.pii-toggle-active:hover {
-    background: var(--color-warning-bg);
-    opacity: 0.85;
-  }
-
-  /* Filter bar */
-  :global(.dark) .filter-bar {
-    background: var(--color-grey-20);
-    border-bottom-color: var(--color-grey-30);
-  }
-
-  :global(.dark) .filter-input {
-    background: var(--color-grey-10);
-    border-color: var(--color-grey-40);
-    color: var(--color-grey-80);
-  }
-
-  :global(.dark) .filter-input:focus {
-    border-color: var(--color-app-sheets-end);
-    box-shadow: 0 0 0 2px rgba(52, 168, 83, 0.15);
-  }
-
-  :global(.dark) .filter-input::placeholder {
-    color: var(--color-grey-50);
-  }
-
-  :global(.dark) .filter-clear-btn {
-    color: var(--color-error);
-  }
-
-  :global(.dark) .filter-clear-btn:hover {
-    background: var(--color-error-light);
-  }
-
-  /* Spreadsheet shell */
-  :global(.dark) .spreadsheet {
-    background: var(--color-grey-10);
-  }
-
-  :global(.dark) .spreadsheet th,
-  :global(.dark) .spreadsheet td {
-    border-color: var(--color-grey-30);
-    color: var(--color-grey-80);
-  }
-
-  /* Header rows — col-letter row */
-  :global(.dark) .spreadsheet thead th {
-    background: var(--color-grey-25);
-    color: var(--color-grey-60);
-  }
-
-  :global(.dark) .col-letter-row th {
-    border-bottom-color: var(--color-grey-40);
-    color: var(--color-grey-50);
-  }
-
-  /* Data header row */
-  :global(.dark) .spreadsheet thead tr:nth-child(2) th {
-    border-bottom-color: var(--color-grey-40);
-  }
-
-  :global(.dark) .col-header {
-    color: var(--color-grey-80);
-    font-weight: 700;
-  }
-
-  :global(.dark) .col-header:hover {
-    background: var(--color-grey-30);
-  }
-
-  :global(.dark) .sort-icon {
-    color: var(--color-grey-50);
-  }
-
-  :global(.dark) .sort-icon-active {
-    color: var(--color-app-sheets-end);
-  }
-
-  /* Row number gutter */
-  :global(.dark) .row-num-header,
-  :global(.dark) .row-num {
-    background: var(--color-grey-25);
-    color: var(--color-grey-50);
-    border-right-color: var(--color-grey-40);
-  }
-
-  /* Filter toggle button */
-  :global(.dark) .filter-toggle {
-    color: var(--color-grey-50);
-  }
-
-  :global(.dark) .filter-toggle:hover {
-    background: var(--color-grey-30);
-    color: var(--color-grey-60);
-  }
-
-  :global(.dark) .filter-toggle-active {
-    background: rgba(52, 168, 83, 0.15);
-    color: var(--color-app-sheets-end);
-  }
-
-  :global(.dark) .filter-toggle-active:hover {
-    background: rgba(52, 168, 83, 0.25);
-  }
-
-  /* Data cells */
-  :global(.dark) .spreadsheet tbody td {
-    color: var(--color-grey-80);
-  }
-
-  :global(.dark) .spreadsheet tbody tr:nth-child(even) td:not(.row-num) {
-    background: var(--color-grey-20);
-  }
-
-  :global(.dark) .spreadsheet tbody tr:hover td:not(.row-num) {
-    background: var(--color-grey-30);
-  }
-
-  :global(.dark) .spreadsheet tbody tr:nth-child(even):hover td:not(.row-num) {
-    background: var(--color-grey-30);
-  }
-
-  /* No-results & empty state */
-  :global(.dark) .no-results {
-    background: var(--color-grey-10) !important;
-    color: var(--color-grey-50);
-  }
-
-  :global(.dark) .empty-state {
-    background: var(--color-grey-10);
-    color: var(--color-grey-50);
-  }
+  /* Dark mode: no overrides needed — base styles use CSS custom properties
+     (var(--color-grey-*), var(--color-font-*)) that flip automatically with
+     [data-theme="dark"]. */
 </style>

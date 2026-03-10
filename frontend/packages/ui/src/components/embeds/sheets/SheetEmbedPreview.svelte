@@ -234,7 +234,8 @@
 
 <style>
   /* ═══════════════════════════════════════════════════════════
-     Sheet Preview — compact Excel-like table, always white.
+     Sheet Preview — compact Excel-like table, theme-adaptive.
+     Uses CSS custom properties so dark mode renders correctly.
      ═══════════════════════════════════════════════════════════ */
   
   .sheet-preview {
@@ -245,7 +246,7 @@
     overflow: hidden;
     padding: 0;
     box-sizing: border-box;
-    background: #ffffff;
+    background: var(--color-grey-0);
   }
   
   /* ── Skeleton loading ────────────────────────────────── */
@@ -257,7 +258,7 @@
     width: 100%;
     padding: 6px;
     box-sizing: border-box;
-    background: #fff;
+    background: var(--color-grey-0);
   }
   
   .skeleton-row {
@@ -266,13 +267,13 @@
   }
   
   .skeleton-row.header .skeleton-cell {
-    background: #e8e8e8;
+    background: var(--color-grey-30);
   }
   
   .skeleton-cell {
     flex: 1;
     height: 18px;
-    background: #f0f0f0;
+    background: var(--color-grey-20);
     border-radius: 2px;
     animation: pulse 1.5s ease-in-out infinite;
   }
@@ -289,7 +290,7 @@
     width: 100%;
     flex: 1;
     overflow: hidden;
-    background: #ffffff;
+    background: var(--color-grey-0);
   }
   
   /* ── Preview table — edge-to-edge, fills available width ── */
@@ -301,36 +302,36 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     width: 100%;
     table-layout: fixed;
-    background: #ffffff;
+    background: var(--color-grey-0);
   }
   
   .preview-table th,
   .preview-table td {
-    border: 1px solid #e2e2e2;
+    border: 1px solid var(--color-grey-25);
     padding: 4px 8px;
     text-align: left;
-    color: #202124;
+    color: var(--color-font-primary);
   }
   
   .preview-table th {
-    background: #f8f9fa;
+    background: var(--color-grey-10);
     font-weight: 600;
-    color: #202124;
-    border-bottom: 2px solid #dadce0;
+    color: var(--color-font-primary);
+    border-bottom: 2px solid var(--color-grey-30);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   
   .preview-table td {
-    color: #3c4043;
+    color: var(--color-font-secondary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   
   .preview-table tbody tr:nth-child(even) td {
-    background: #f8f9fb;
+    background: var(--color-grey-10);
   }
   
   .preview-table tbody tr:last-child td {
@@ -342,12 +343,12 @@
   .more-rows td {
     text-align: center !important;
     padding: 3px 8px;
-    background: #f8f9fa !important;
-    border-top: 1px solid #e2e2e2;
+    background: var(--color-grey-10) !important;
+    border-top: 1px solid var(--color-grey-25);
   }
   
   .more-indicator {
-    color: #80868b;
+    color: var(--color-font-tertiary);
     font-size: 10px;
     font-style: italic;
   }
@@ -361,7 +362,7 @@
     width: 100%;
     height: 100%;
     min-height: 80px;
-    background: #fff;
+    background: var(--color-grey-0);
   }
   
   .empty-icon {
