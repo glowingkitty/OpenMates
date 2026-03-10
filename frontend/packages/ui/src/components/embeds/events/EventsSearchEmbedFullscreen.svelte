@@ -54,11 +54,32 @@
     image_url?: string | null;
   }
 
+  /** Legacy result shape from .preview.ts files (no embed_id yet) */
+  interface LegacyEventResult {
+    id?: string;
+    provider?: string;
+    title?: string;
+    description?: string;
+    url?: string;
+    date_start?: string;
+    date_end?: string;
+    timezone?: string;
+    event_type?: string;
+    venue?: EventResult['venue'];
+    organizer?: EventResult['organizer'];
+    rsvp_count?: number;
+    is_paid?: boolean;
+    fee?: EventResult['fee'];
+    image_url?: string | null;
+  }
+
   interface Props {
     query: string;
     provider: string;
     embedIds?: string | string[];
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
+    /** Dev-preview legacy results (no child embed store needed) */
+    results?: LegacyEventResult[];
     onClose: () => void;
     embedId?: string;
     hasPreviousEmbed?: boolean;
@@ -76,6 +97,7 @@
     provider: providerProp,
     embedIds,
     status: statusProp,
+    results: resultsProp,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -104,6 +126,32 @@
   let query    = $derived(localQuery);
   let provider = $derived(localProvider);
   let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
+  let legacyResults = $derived(resultsProp ?? []);
+
+  /**
+   * Transform legacy results (from .preview.ts files) to EventResult format.
+   * Assigns a synthetic embed_id so the results grid works correctly.
+   */
+  function transformLegacyResults(results: unknown[]): EventResult[] {
+    return (results as LegacyEventResult[]).map((r, i) => ({
+      embed_id: `legacy-event-${i}`,
+      id:          r.id,
+      provider:    r.provider,
+      title:       r.title,
+      description: r.description,
+      url:         r.url,
+      date_start:  r.date_start,
+      date_end:    r.date_end,
+      timezone:    r.timezone,
+      event_type:  r.event_type,
+      venue:       r.venue,
+      organizer:   r.organizer,
+      rsvp_count:  r.rsvp_count,
+      is_paid:     r.is_paid,
+      fee:         r.fee,
+      image_url:   r.image_url,
+    }));
+  }
 
   /**
    * Transform raw embed content to EventResult format.
@@ -196,6 +244,8 @@
   currentEmbedId={embedId}
   embedIds={embedIdsValue}
   childEmbedTransformer={transformToEventResult}
+  {legacyResults}
+  legacyResultTransformer={transformLegacyResults}
   status={localStatus}
   onEmbedDataUpdated={handleEmbedDataUpdated}
   {initialChildEmbedId}

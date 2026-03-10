@@ -97,11 +97,11 @@ const samplePaidEvent = {
 /** Default props — physical event with full details */
 const defaultProps = {
   event: sampleEvent,
-  onClose: () => console.log("[Preview] EventEmbedFullscreen close"),
+  onClose: () => {},
   hasPreviousEmbed: false,
   hasNextEmbed: true,
-  onNavigatePrevious: () => console.log("[Preview] Navigate previous"),
-  onNavigateNext: () => console.log("[Preview] Navigate next"),
+  onNavigatePrevious: () => {},
+  onNavigateNext: () => {},
 };
 
 export default defaultProps;
@@ -111,19 +111,19 @@ export const variants = {
   /** Online event — no venue address */
   online: {
     event: sampleOnlineEvent,
-    onClose: () => console.log("[Preview] EventEmbedFullscreen (online) close"),
+    onClose: () => {},
     hasPreviousEmbed: true,
     hasNextEmbed: true,
-    onNavigatePrevious: () => console.log("[Preview] Navigate previous"),
-    onNavigateNext: () => console.log("[Preview] Navigate next"),
+    onNavigatePrevious: () => {},
+    onNavigateNext: () => {},
   },
   /** Paid event with fee badge */
   paid: {
     event: samplePaidEvent,
-    onClose: () => console.log("[Preview] EventEmbedFullscreen (paid) close"),
+    onClose: () => {},
     hasPreviousEmbed: true,
     hasNextEmbed: false,
-    onNavigatePrevious: () => console.log("[Preview] Navigate previous"),
-    onNavigateNext: () => console.log("[Preview] Navigate next"),
+    onNavigatePrevious: () => {},
+    onNavigateNext: () => {},
   },
 };

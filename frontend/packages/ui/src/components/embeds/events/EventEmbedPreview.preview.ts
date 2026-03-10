@@ -94,7 +94,7 @@ const defaultProps = {
   event: sampleEvent,
   isMobile: false,
   onFullscreen: () =>
-    console.log("[Preview] EventEmbedPreview fullscreen clicked"),
+    () => {},
 };
 
 export default defaultProps;
@@ -107,7 +107,7 @@ export const variants = {
     event: sampleOnlineEvent,
     isMobile: false,
     onFullscreen: () =>
-      console.log("[Preview] EventEmbedPreview (online) fullscreen clicked"),
+      () => {},
   },
   /** Paid event with fee */
   paid: {
@@ -115,7 +115,7 @@ export const variants = {
     event: samplePaidEvent,
     isMobile: false,
     onFullscreen: () =>
-      console.log("[Preview] EventEmbedPreview (paid) fullscreen clicked"),
+      () => {},
   },
   /** Mobile layout */
   mobile: {
