@@ -156,6 +156,17 @@
 		<p class="component-count">{componentPaths.length} components</p>
 	</header>
 
+	<!-- Embed App Showcases — quick links to /dev/preview/embeds/<app> -->
+	<div class="app-showcase-section">
+		<h2 class="app-showcase-title">Embed App Showcases</h2>
+		<p class="app-showcase-desc">All embed display types (inline, quote, mobile, small, large, fullscreen) for each app on one page.</p>
+		<div class="app-showcase-grid">
+			{#each ['code', 'docs', 'web', 'videos', 'images', 'news', 'travel', 'maps', 'math', 'events', 'reminder', 'sheets', 'audio', 'health', 'mail', 'pdf', 'shopping'] as appSlug}
+				<a class="app-showcase-pill" href="/dev/preview/embeds/{appSlug}">{appSlug}</a>
+			{/each}
+		</div>
+	</div>
+
 	<div class="search-bar">
 		<input
 			type="text"
@@ -356,4 +367,48 @@
 		text-align: center;
 		padding: 24px 0;
 	}
+
+	.app-showcase-section {
+		margin-bottom: 32px;
+		padding-bottom: 28px;
+		border-bottom: 1px solid var(--color-grey-25);
+	}
+
+	.app-showcase-title {
+		font-size: 1rem;
+		font-weight: 600;
+		margin: 0 0 4px;
+	}
+
+	.app-showcase-desc {
+		font-size: 0.8125rem;
+		color: var(--color-font-tertiary);
+		margin: 0 0 14px;
+		line-height: 1.5;
+	}
+
+	.app-showcase-grid {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+
+	.app-showcase-pill {
+		padding: 5px 14px;
+		border-radius: 20px;
+		font-size: 0.8125rem;
+		font-weight: 500;
+		text-decoration: none;
+		color: var(--color-font-primary);
+		background: var(--color-grey-20);
+		border: 1px solid var(--color-grey-30);
+		transition: background-color 0.15s, color 0.15s;
+	}
+
+	.app-showcase-pill:hover {
+		background: var(--color-primary-start);
+		color: #fff;
+		border-color: var(--color-primary-start);
+	}
+
 </style>
