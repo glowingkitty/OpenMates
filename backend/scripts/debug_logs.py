@@ -132,6 +132,7 @@ O2_PRESETS = (
     "web-search-failures",
     "api-failed-requests",
     "top-warnings-errors",
+    "chat-processing",
 )
 HEALTH_NOISE_PATHS = (
     " /health ",
@@ -1112,28 +1113,32 @@ async def _query_browser_logs_openobserve(
     start_us: Optional[int] = None,
 ) -> Optional[int]:
     """
-    Query OpenObserve for client console logs (stream: client-console).
+    Query OpenObserve for client console logs.
 
     Returns the latest timestamp (in nanoseconds) seen, or None if no results.
-    Browser logs are pushed by the admin_client_logs route via OpenObservePushService
-    using the OpenObserve Loki-compatible push endpoint.
+    Browser logs are pushed by admin_client_logs via OpenObservePushService using the
+    Loki-compatible push endpoint. Despite the stream label being "client-console",
+    Loki-compat pushes land in the "default" stream with job='client-console' as a
+    searchable field — there is no separate stream named "client-console".
     """
     import os
     email = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
     password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
 
-    where_clauses = ["1=1"]
+    # job='client-console' is the label set by openobserve_push_service.push_client_logs()
+    where_clauses = ["job = 'client-console'"]
     if level:
         where_clauses.append(f"level = '{sql_escape(level)}'")
     if user:
+        # user_email stores the admin username (not full email)
         where_clauses.append(f"user_email = '{sql_escape(user)}'")
     if search:
-        where_clauses.append(f"(log LIKE '%{sql_escape(search)}%' OR message LIKE '%{sql_escape(search)}%')")
+        where_clauses.append(f"message LIKE '%{sql_escape(search)}%'")
 
     where_sql = " AND ".join(where_clauses)
     sql = (
-        f"SELECT _timestamp, log, message, level, user_email "
-        f"FROM \"client-console\" "
+        f"SELECT _timestamp, message, level, user_email "
+        f'FROM "default" '
         f"WHERE {where_sql} "
         f"ORDER BY _timestamp ASC LIMIT {limit}"
     )
@@ -1142,7 +1147,8 @@ async def _query_browser_logs_openobserve(
         start_us = int((time.time() - since_minutes * 60) * 1_000_000)
     end_us = int(time.time() * 1_000_000)
 
-    url = f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/client-console/_search"
+    # Loki-compat pushes land in "default" stream — use /_search, not /client-console/_search
+    url = f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/_search"
     body = {"query": {"sql": sql, "start_time": start_us, "end_time": end_us}}
 
     try:
@@ -1173,7 +1179,7 @@ async def _query_browser_logs_openobserve(
     for hit in hits:
         ts_us = hit.get("_timestamp", 0)
         ts_ns_str = str(int(ts_us) * 1000)
-        message = hit.get("log", hit.get("message", ""))
+        message = hit.get("message", "")
         entry_level = hit.get("level", "info")
         entry_user = hit.get("user_email", "unknown")
         _print_browser_log_entry(ts_ns_str, message, entry_level, entry_user)
@@ -1944,6 +1950,161 @@ async def _o2_custom_sql(args) -> None:
     for hit in hits[: min(len(hits), args.max_rows)]:
         print(f"- {json.dumps(hit, default=str)[:240]}")
 
+async def _o2_preset_chat_processing(args) -> None:
+    """
+    Compact summary of a single chat request pipeline:
+    api (WebSocket) → app-ai (skill dispatch) → task-worker (Celery) → persistence.
+
+    Shows the key lifecycle milestones and any errors/warnings.
+    Optional --chat-id <id> narrows results to a specific conversation.
+    """
+    since = args.since
+    chat_id = getattr(args, "chat_id", None)
+
+    chat_filter = f"AND (message LIKE '%{chat_id}%')" if chat_id else ""
+
+    # Run three targeted queries in parallel: api, app-ai, task-worker
+    api_sql = (
+        f'SELECT _timestamp, message FROM "default" '
+        f"WHERE compose_project = 'openmates-core' AND service = 'api' "
+        f"AND (message LIKE '%skill_ask%' OR message LIKE '%AI app ask%' "
+        f"   OR message LIKE '%Message handler%' OR message LIKE '%PERF%' "
+        f"   OR message LIKE '%ws_auth%' OR level IN ('WARNING','ERROR')) "
+        f"{chat_filter} ORDER BY _timestamp ASC LIMIT 200"
+    )
+    ai_sql = (
+        f'SELECT _timestamp, message FROM "default" '
+        f"WHERE compose_project = 'openmates-core' AND service = 'app-ai' "
+        f"AND (message LIKE '%SKILL_ROUTE%' OR message LIKE '%AskSkill%' "
+        f"   OR message LIKE '%Celery task%' OR level IN ('WARNING','ERROR')) "
+        f"{chat_filter} ORDER BY _timestamp ASC LIMIT 100"
+    )
+    worker_sql = (
+        f'SELECT _timestamp, message FROM "default" '
+        f"WHERE compose_project = 'openmates-core' AND service = 'task-worker' "
+        f"AND (message LIKE '%skill_ask%' OR message LIKE '%persist_new_chat%' "
+        f"   OR message LIKE '%persist_ai_response%' OR message LIKE '%TASK_LIFECYCLE%' "
+        f"   OR message LIKE '%SYNC_CACHE%' OR level IN ('WARNING','ERROR')) "
+        f"{chat_filter} ORDER BY _timestamp ASC LIMIT 200"
+    )
+
+    api_hits, ai_hits, worker_hits = await asyncio.gather(
+        _query_openobserve_sql_hits(api_sql, since, 200),
+        _query_openobserve_sql_hits(ai_sql, since, 100),
+        _query_openobserve_sql_hits(worker_sql, since, 200),
+    )
+
+    # Merge and sort all hits by timestamp
+    def _label(hits, source):
+        for h in hits:
+            h["_source"] = source
+        return hits
+
+    all_hits = sorted(
+        _label(api_hits, "api") + _label(ai_hits, "app-ai") + _label(worker_hits, "task-worker"),
+        key=lambda h: h.get("_timestamp", 0),
+    )
+
+    # Classify each line into a pipeline stage
+    _STAGE_PATTERNS = [
+        ("message_received",      r"Message handler started|PERF.*Message handler started"),
+        ("vault_key",             r"Vault key retrieval|PERF.*Vault"),
+        ("ai_dispatched",         r"AI app ask skill|skill_ask.*dispatched|AskSkill executed|SKILL_ROUTE.*ask"),
+        ("task_started",          r"TASK_STARTED.*skill_ask"),
+        ("task_success",          r"TASK_SUCCESS.*skill_ask"),
+        ("ai_response_persisted", r"persist_ai_response|AI response.*persisted"),
+        ("chat_persisted",        r"persist_new_chat_message|Message created in Directus"),
+        ("suggestions_persisted", r"persist_new_chat_suggestions"),
+        ("sync_cache_updated",    r"SYNC_CACHE_UPDATE"),
+        ("message_completed",     r"Message handler completed|PERF.*Message handler completed"),
+        ("error",                 r"ERROR|CRITICAL|Exception|Traceback"),
+        ("warning",               r"WARNING|WARN"),
+    ]
+    _STAGE_RE = [(re.compile(p, re.IGNORECASE), stage) for p, stage in _STAGE_PATTERNS]
+
+    def classify_stage(msg):
+        for pattern, stage in _STAGE_RE:
+            if pattern.search(msg):
+                return stage
+        return None
+
+    stage_counts = Counter()
+    errors = []
+    warnings = []
+    timeline_lines = []
+
+    for h in all_hits:
+        raw_msg = str(h.get("message", ""))
+        msg = _extract_structured_message(raw_msg)
+        ts_us = h.get("_timestamp", 0)
+        ts_str = datetime.fromtimestamp(ts_us / 1_000_000, tz=timezone.utc).strftime("%H:%M:%S")
+        source = h.get("_source", "?")
+        stage = classify_stage(msg)
+
+        level_in_msg = "error" if re.search(r"ERROR|CRITICAL", msg, re.I) else (
+            "warn" if re.search(r"WARNING|WARN", msg, re.I) else "info"
+        )
+
+        if stage:
+            stage_counts[stage] += 1
+
+        if level_in_msg == "error":
+            errors.append(f"  [{ts_str}] [{source}] {msg[:200]}")
+        elif level_in_msg == "warn":
+            warnings.append(f"  [{ts_str}] [{source}] {msg[:200]}")
+
+        if args.raw or stage in ("error", "warning", "ai_dispatched", "task_started",
+                                  "task_success", "ai_response_persisted", "sync_cache_updated",
+                                  "message_completed"):
+            color = C_RED if level_in_msg == "error" else (C_YELLOW if level_in_msg == "warn" else C_DIM)
+            stage_label = f" [{stage}]" if stage else ""
+            timeline_lines.append(
+                f" {C_DIM}{ts_str}{C_RESET} {C_CYAN}[{source}]{C_RESET}{color}{stage_label}{C_RESET}"
+                f" {msg[:180]}"
+            )
+
+    # Pipeline milestone summary
+    PIPELINE_STAGES = [
+        "message_received", "vault_key", "ai_dispatched", "task_started",
+        "task_success", "ai_response_persisted", "chat_persisted",
+        "suggestions_persisted", "sync_cache_updated", "message_completed",
+    ]
+
+    print(f"{C_BOLD}OpenObserve preset: chat-processing{C_RESET}")
+    if chat_id:
+        print(f"{C_DIM}Chat ID filter: {chat_id}{C_RESET}")
+    print(f"{C_DIM}Time window: last {since} minutes  |  "
+          f"api={len(api_hits)} hits  app-ai={len(ai_hits)} hits  task-worker={len(worker_hits)} hits{C_RESET}")
+
+    print(f"{C_BOLD}Pipeline milestones:{C_RESET}")
+    for stage in PIPELINE_STAGES:
+        count = stage_counts.get(stage, 0)
+        icon = f"{C_GREEN}✓{C_RESET}" if count > 0 else f"{C_DIM}–{C_RESET}"
+        print(f"  {icon} {stage:<30s} {C_DIM}(x{count}){C_RESET}")
+
+    if errors:
+        print(f"\n{C_RED}{C_BOLD}Errors ({len(errors)}):{C_RESET}")
+        for e in errors[:10]:
+            print(e)
+        if len(errors) > 10:
+            print(f"  {C_DIM}... and {len(errors) - 10} more{C_RESET}")
+
+    if warnings:
+        print(f"\n{C_YELLOW}Warnings ({len(warnings)}):{C_RESET}")
+        for w in warnings[:5]:
+            print(w)
+        if len(warnings) > 5:
+            print(f"  {C_DIM}... and {len(warnings) - 5} more{C_RESET}")
+
+    if timeline_lines:
+        print(f"\n{C_BOLD}Key events timeline:{C_RESET}")
+        for line in timeline_lines:
+            print(line)
+
+    if not all_hits:
+        print(f"\n{C_DIM}No chat processing activity found in the last {since} minutes.{C_RESET}")
+        print(f"{C_DIM}Try --since 60 or add --chat-id <id> to filter.{C_RESET}")
+
 
 async def run_o2_logs_mode(args) -> None:
     """Run compact OpenObserve summaries and ad-hoc SQL queries."""
@@ -1970,6 +2131,9 @@ async def run_o2_logs_mode(args) -> None:
         return
     if args.preset == "top-warnings-errors":
         await _o2_preset_top_warnings_errors(args)
+        return
+    if args.preset == "chat-processing":
+        await _o2_preset_chat_processing(args)
         return
 
 
