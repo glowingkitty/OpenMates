@@ -655,8 +655,11 @@
 		// PRIORITY 3: Default chat (only if no last opened chat was loaded)
 		// For non-authenticated users: demo-for-everyone
 		// For authenticated users: new chat window
+		// Exception: ?og=1 skips the demo-for-everyone redirect so the welcome screen
+		// (with daily inspiration + for-everyone card) stays visible — used by /dev/og-image iframes.
+		const isOgMode = browser && new URLSearchParams(window.location.search).get('og') === '1';
 		if (!$activeChatStore && activeChat) {
-			if (!$authStore.isAuthenticated) {
+			if (!$authStore.isAuthenticated && !isOgMode) {
 				// Non-auth: load demo-for-everyone
 				console.debug(
 					'[+page.svelte] No last opened chat, loading demo-for-everyone (default for non-auth)'
@@ -781,6 +784,13 @@
 
 	onMount(async () => {
 		console.debug('[+page.svelte] onMount started');
+
+		// --- OG image mode (?og=1) ---
+		// When loaded inside /dev/og-image iframes, add a body class so CSS can hide
+		// dev-only UI (development server label, report issue button).
+		if (browser && new URLSearchParams(window.location.search).get('og') === '1') {
+			document.body.classList.add('og-mode');
+		}
 
 		// --- Developer Console activation via /#console-on ---
 		// Check for the special #console-on hash BEFORE any other hash processing.
@@ -911,7 +921,9 @@
 			// immediately, skipping checkAuth() — so clientLogForwarder.start() would never
 			// be called without this explicit check here.
 			if (localProfile.is_admin) {
-				console.debug('[+page.svelte] Admin user detected on session restore — starting clientLogForwarder');
+				console.debug(
+					'[+page.svelte] Admin user detected on session restore — starting clientLogForwarder'
+				);
 				const { clientLogForwarder } = await import('@repo/ui/services/clientLogForwarder');
 				clientLogForwarder.start();
 			}
@@ -954,37 +966,40 @@
 				// shouldn't see logout alerts. The shared chat is valid without master key.
 				// Use setTimeout to ensure the notification container is rendered first.
 				if (sharedChatRedirectId) {
-					console.debug('[+page.svelte] Suppressing auto-logout notification — shared chat redirect in progress');
-				} else setTimeout(async () => {
-					const t = get(text);
-					const { wasStayLoggedIn } = await import('@repo/ui');
-					const wasStorageEvicted = wasStayLoggedIn();
-
-					if (wasStorageEvicted) {
-						// User had stayLoggedIn=true but browser evicted IndexedDB
-						// Show reassuring message that data is safe
-						console.warn(
-							'[+page.svelte] Storage eviction detected: user had stayLoggedIn=true but master key is missing'
-						);
-						notificationStore.autoLogout(
-							t('login.auto_logout_notification.storage_evicted_message'),
-							undefined,
-							10000,
-							t('login.auto_logout_notification.storage_evicted_title')
-						);
-					} else {
-						// Normal case: stayLoggedIn=false, suggest enabling it
-						notificationStore.autoLogout(
-							t('login.auto_logout_notification.message'),
-							undefined,
-							7000,
-							t('login.auto_logout_notification.title')
-						);
-					}
 					console.debug(
-						`[+page.svelte] Showed auto-logout notification (storageEvicted=${wasStorageEvicted})`
+						'[+page.svelte] Suppressing auto-logout notification — shared chat redirect in progress'
 					);
-				}, 500);
+				} else
+					setTimeout(async () => {
+						const t = get(text);
+						const { wasStayLoggedIn } = await import('@repo/ui');
+						const wasStorageEvicted = wasStayLoggedIn();
+
+						if (wasStorageEvicted) {
+							// User had stayLoggedIn=true but browser evicted IndexedDB
+							// Show reassuring message that data is safe
+							console.warn(
+								'[+page.svelte] Storage eviction detected: user had stayLoggedIn=true but master key is missing'
+							);
+							notificationStore.autoLogout(
+								t('login.auto_logout_notification.storage_evicted_message'),
+								undefined,
+								10000,
+								t('login.auto_logout_notification.storage_evicted_title')
+							);
+						} else {
+							// Normal case: stayLoggedIn=false, suggest enabling it
+							notificationStore.autoLogout(
+								t('login.auto_logout_notification.message'),
+								undefined,
+								7000,
+								t('login.auto_logout_notification.title')
+							);
+						}
+						console.debug(
+							`[+page.svelte] Showed auto-logout notification (storageEvicted=${wasStorageEvicted})`
+						);
+					}, 500);
 
 				// Check if URL hash points to an encrypted chat (not demo-/legal-)
 				// If so, clear the hash and navigate to demo-for-everyone to prevent loading broken chat
@@ -2657,5 +2672,16 @@
 		/* Sit above chat content but below modals/notifications */
 		z-index: 50;
 		overflow: hidden;
+	}
+
+	/* ── OG image mode (?og=1) ─────────────────────────────────────────── */
+	/* Hide dev-only UI when the page is rendered inside /dev/og-image iframes.
+	   Uses :global() so rules reach into child components (Header, ActiveChat). */
+	:global(body.og-mode .server-edition) {
+		display: none;
+	}
+	/* Report issue button wrapper — icon_bug class is unique to that button */
+	:global(body.og-mode .new-chat-button-wrapper:has(.icon_bug)) {
+		display: none;
 	}
 </style>

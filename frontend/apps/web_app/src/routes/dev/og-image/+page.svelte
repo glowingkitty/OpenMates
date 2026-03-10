@@ -2,17 +2,31 @@
   OG Image Preview Page — /dev/og-image
 
   Renders a 1200×600px design card for screenshot-based OG image generation.
-  Dark background. Left: slogan. Right: overlapping laptop + phone mockups,
-  both with a browser/app chrome bar showing openmates.org.
+  Dark background. Left: slogan. Right: overlapping laptop + phone mockups.
 
   Architecture:
   - Lives under /dev/ so the existing +layout.svelte gate blocks it on production
-  - Two iframes both pointing at /#chat-id=demo-for-everyone — real app, no mocking
-  - Laptop: 1280×800 viewport. Iframe is offset left by sidebar width so the chat
-    area (not the sidebar) is centred in the visible screen window.
-  - Browser bar (CSS-only) sits inside the laptop bezel above the iframe.
-  - Phone: 390×844 viewport with a minimal status-bar chrome strip.
+  - Laptop iframe → /?og=1: shows the new-chat welcome screen (daily inspiration
+    banner + for-everyone card). ?og=1 skips the demo-for-everyone auto-redirect
+    in +page.svelte and adds body.og-mode to hide dev UI (dev server label,
+    report issue button).
+  - Phone iframe → /#chat-id=demo-for-everyone: shows the for-everyone chat
+    (same default behaviour as a real non-auth visitor).
+  - Laptop: 1280×800 viewport. The iframe is scaled to fit LAPTOP_SCREEN_W wide
+    and positioned so the chat area (past the sidebar) fills the clipping window.
+    The iframe is position:absolute inside the overflow:hidden screen container.
+    Left offset = -(SIDEBAR_W * LAPTOP_SCALE) to skip past the rendered sidebar.
+  - Browser bar (CSS-only, macOS style) sits inside the laptop bezel above the screen.
+  - Phone: 390×844 viewport scaled to fit PHONE_SCREEN_H tall.
   - The outer .og-canvas wrapper is exactly 1200×600px — Playwright clips to this.
+
+  Transform math for laptop:
+    LAPTOP_SCALE = LAPTOP_SCREEN_W / LAPTOP_VIEWPORT_W = 480 / 1280 = 0.375
+    The iframe is scaled with transform-origin: top left → scaled width = 480px.
+    To skip the ~335px sidebar in unscaled space, we shift left by
+    SIDEBAR_W * LAPTOP_SCALE = 335 * 0.375 ≈ 126px in rendered space.
+    iframe: position:absolute; left:-126px; transform:scale(0.375); transform-origin:top left
+    The .og-laptop-screen clips to exactly LAPTOP_SCREEN_W × LAPTOP_SCREEN_H.
 
   Usage (Playwright screenshot):
     await page.setViewportSize({ width: 1200, height: 600 })
@@ -27,77 +41,81 @@
 	import { browser } from '$app/environment';
 
 	// ── Laptop mockup ──────────────────────────────────────────────────────────
-	const LAPTOP_VIEWPORT_W = 1280; // full app viewport width
+	const LAPTOP_VIEWPORT_W = 1280; // full app viewport width (px)
 	const LAPTOP_VIEWPORT_H = 800;
-	const LAPTOP_SCREEN_W = 480; // visible screen width inside bezel
+	const LAPTOP_SCREEN_W = 480; // visible clipping window width inside bezel
 	const LAPTOP_SCREEN_H = Math.round(LAPTOP_SCREEN_W * (LAPTOP_VIEWPORT_H / LAPTOP_VIEWPORT_W)); // 300px
-	const LAPTOP_SCALE = LAPTOP_SCREEN_W / LAPTOP_VIEWPORT_W; // ≈ 0.375
+	const LAPTOP_SCALE = LAPTOP_SCREEN_W / LAPTOP_VIEWPORT_W; // 0.375
 
 	// The app sidebar is ~335px wide at 1280px viewport.
-	// Shift the iframe left so the chat area (right of sidebar) fills the screen.
-	// At scale 0.375: 335px sidebar becomes ~125px — shift iframe left to hide it.
-	// We want the chat area centered, so offset by full sidebar width (unscaled).
-	const SIDEBAR_W = 335; // px — app sidebar width at LAPTOP_VIEWPORT_W
+	// To skip it, shift the rendered iframe left by SIDEBAR_W * LAPTOP_SCALE in rendered space.
+	// The .og-laptop-screen overflow:hidden then clips to show chat area from x=0.
+	const SIDEBAR_W = 335; // px — sidebar width at LAPTOP_VIEWPORT_W
+	const LAPTOP_IFRAME_LEFT = -(SIDEBAR_W * LAPTOP_SCALE); // ≈ -125.6px rendered
 
-	// Browser bar height (CSS-only chrome, sits inside the laptop lid above the screen)
-	const BROWSER_BAR_H = 28; // px (rendered, not scaled)
+	// Browser chrome bar (CSS-only, sits inside laptop bezel above the screen)
+	const BROWSER_BAR_H = 28; // px rendered
 
-	// Laptop chrome
-	const LAPTOP_BEZEL_TOP = 10; // px — thin top bezel above browser bar
-	const LAPTOP_BEZEL_SIDE = 10; // px — left/right bezel
-	const LAPTOP_CHIN = 20; // px — bottom chin
-	const LAPTOP_BASE_H = 16; // px — keyboard base
-	// Outer lid dimensions
-	const LAPTOP_LID_INNER_H = BROWSER_BAR_H + LAPTOP_SCREEN_H; // browser bar + screen
-	const LAPTOP_LID_H = LAPTOP_BEZEL_TOP + LAPTOP_LID_INNER_H + LAPTOP_CHIN;
+	// Laptop chrome dimensions
+	const LAPTOP_BEZEL_TOP = 10;
+	const LAPTOP_BEZEL_SIDE = 10;
+	const LAPTOP_CHIN = 20;
+	const LAPTOP_BASE_H = 16;
+	const LAPTOP_LID_H = LAPTOP_BEZEL_TOP + BROWSER_BAR_H + LAPTOP_SCREEN_H + LAPTOP_CHIN;
 	const LAPTOP_OUTER_W = LAPTOP_SCREEN_W + LAPTOP_BEZEL_SIDE * 2;
-	const LAPTOP_BASE_W = LAPTOP_OUTER_W + 48; // base wider than lid
+	const LAPTOP_BASE_W = LAPTOP_OUTER_W + 48;
 
 	// ── Phone mockup ───────────────────────────────────────────────────────────
 	const PHONE_VIEWPORT_W = 390;
 	const PHONE_VIEWPORT_H = 844;
-	const PHONE_SCREEN_H = 390; // visible screen height inside bezel
+	const PHONE_SCREEN_H = 390; // visible clipping window height inside bezel
 	const PHONE_SCREEN_W = Math.round(PHONE_SCREEN_H * (PHONE_VIEWPORT_W / PHONE_VIEWPORT_H)); // 180px
 	const PHONE_SCALE = PHONE_SCREEN_H / PHONE_VIEWPORT_H; // ≈ 0.462
 
-	// Phone chrome
-	const PHONE_BEZEL_V = 14; // px top/bottom bezel
-	const PHONE_BEZEL_H = 6; // px left/right bezel
-	const PHONE_RADIUS = 26; // px corner radius
+	// Phone chrome dimensions
+	const PHONE_BEZEL_V = 14;
+	const PHONE_BEZEL_H = 6;
+	const PHONE_RADIUS = 26;
 	const PHONE_OUTER_W = PHONE_SCREEN_W + PHONE_BEZEL_H * 2;
 	const PHONE_OUTER_H = PHONE_BEZEL_V + PHONE_SCREEN_H + PHONE_BEZEL_V;
+
+	// ── iframe sources ─────────────────────────────────────────────────────────
+	// Laptop: welcome screen — ?og=1 skips demo-for-everyone redirect + hides dev UI
+	const laptopSrc = '/?og=1';
+	// Phone: for-everyone chat (default non-auth experience, same as real visitors)
+	const phoneSrc = '/#chat-id=demo-for-everyone';
 
 	// ── Load tracking ──────────────────────────────────────────────────────────
 	let laptopLoaded = $state(false);
 	let phoneLoaded = $state(false);
-	let iframeLoaded = $derived(laptopLoaded && phoneLoaded);
-
-	const iframeSrc = '/#chat-id=demo-for-everyone';
+	let ogReady = $derived(laptopLoaded && phoneLoaded);
 
 	function handleLaptopLoad() {
+		// Extra delay for daily inspiration + welcome content to render
 		setTimeout(() => {
 			laptopLoaded = true;
-		}, 3000);
+		}, 3500);
 	}
 	function handlePhoneLoad() {
 		setTimeout(() => {
 			phoneLoaded = true;
-		}, 3500);
+		}, 3000);
 	}
 
 	onMount(() => {
 		if (!browser) return;
+		// Absolute fallback — mark ready even if iframes never fire onload
 		const t = setTimeout(() => {
 			laptopLoaded = true;
 			phoneLoaded = true;
-		}, 10000);
+		}, 12000);
 		return () => clearTimeout(t);
 	});
 </script>
 
 <div class="og-shell">
-	<div class="og-canvas" class:og-ready={iframeLoaded}>
-		<!-- ── LEFT: Slogan ───────────────────────────────────────────── -->
+	<div class="og-canvas" class:og-ready={ogReady}>
+		<!-- ── LEFT: Slogan ─────────────────────────────────────────────── -->
 		<div class="og-left">
 			<div class="og-logo">
 				<img src="/favicon.svg" alt="OpenMates logo" class="og-logo-icon" />
@@ -110,54 +128,54 @@
 			<p class="og-tagline">Your AI mates that help with everyday life &amp; work</p>
 		</div>
 
-		<!-- ── RIGHT: Overlapping laptop + phone ──────────────────────── -->
+		<!-- ── RIGHT: Overlapping laptop + phone ────────────────────────── -->
 		<div class="og-right">
-			<!-- Laptop (behind, left) -->
+			<!-- Laptop (behind, slightly left) -->
 			<div class="og-laptop" style="width: {LAPTOP_OUTER_W}px;">
 				<!-- Lid -->
 				<div
 					class="og-laptop-lid"
 					style="width: {LAPTOP_OUTER_W}px; height: {LAPTOP_LID_H}px; padding: {LAPTOP_BEZEL_TOP}px {LAPTOP_BEZEL_SIDE}px {LAPTOP_CHIN}px;"
 				>
-					<!-- Browser chrome bar (CSS-only, inside the bezel) -->
+					<!-- CSS-only browser chrome bar (macOS style) -->
 					<div
 						class="og-browser-bar"
 						style="height: {BROWSER_BAR_H}px; width: {LAPTOP_SCREEN_W}px;"
 					>
-						<!-- Traffic-light dots -->
 						<div class="og-traffic-lights">
 							<span class="og-dot og-dot-red"></span>
 							<span class="og-dot og-dot-yellow"></span>
 							<span class="og-dot og-dot-green"></span>
 						</div>
-						<!-- Address bar -->
 						<div class="og-address-bar">
 							<span class="og-lock">🔒</span>
 							<span class="og-url">openmates.org</span>
 						</div>
 					</div>
 
-					<!-- Screen (clips iframe) -->
+					<!-- Screen: clips the scaled+offset iframe to show chat area only -->
 					<div
 						class="og-laptop-screen"
 						style="width: {LAPTOP_SCREEN_W}px; height: {LAPTOP_SCREEN_H}px;"
 					>
 						<!--
-							Offset the iframe left by SIDEBAR_W so the chat area
-							(right of the sidebar) fills the visible screen window.
-							The outer .og-laptop-screen clips the overflow.
+							position:absolute lets us offset the iframe independent of its layout box.
+							left = -(SIDEBAR_W * LAPTOP_SCALE) shifts the rendered content left so the
+							chat area (past the sidebar) starts at the container's left edge.
+							transform:scale() + transform-origin:top left scales from that shifted origin.
 						-->
 						<iframe
-							src={iframeSrc}
+							src={laptopSrc}
 							title="OpenMates laptop preview"
-							width={LAPTOP_VIEWPORT_W}
-							height={LAPTOP_VIEWPORT_H}
 							scrolling="no"
 							style="
-								transform: translateX(-{SIDEBAR_W}px) scale({LAPTOP_SCALE});
-								transform-origin: top left;
+								position: absolute;
+								top: 0;
+								left: {LAPTOP_IFRAME_LEFT}px;
 								width: {LAPTOP_VIEWPORT_W}px;
 								height: {LAPTOP_VIEWPORT_H}px;
+								transform: scale({LAPTOP_SCALE});
+								transform-origin: top left;
 							"
 							onload={handleLaptopLoad}
 						></iframe>
@@ -175,7 +193,7 @@
 				class="og-phone"
 				style="width: {PHONE_OUTER_W}px; height: {PHONE_OUTER_H}px; border-radius: {PHONE_RADIUS}px;"
 			>
-				<!-- Top bezel -->
+				<!-- Top bezel with speaker pill -->
 				<div class="og-phone-top" style="height: {PHONE_BEZEL_V}px;">
 					<div class="og-phone-speaker"></div>
 				</div>
@@ -183,22 +201,23 @@
 				<!-- Screen -->
 				<div class="og-phone-screen" style="width: {PHONE_SCREEN_W}px; height: {PHONE_SCREEN_H}px;">
 					<iframe
-						src={iframeSrc}
+						src={phoneSrc}
 						title="OpenMates phone preview"
-						width={PHONE_VIEWPORT_W}
-						height={PHONE_VIEWPORT_H}
 						scrolling="no"
 						style="
-							transform: scale({PHONE_SCALE});
-							transform-origin: top left;
+							position: absolute;
+							top: 0;
+							left: 0;
 							width: {PHONE_VIEWPORT_W}px;
 							height: {PHONE_VIEWPORT_H}px;
+							transform: scale({PHONE_SCALE});
+							transform-origin: top left;
 						"
 						onload={handlePhoneLoad}
 					></iframe>
 				</div>
 
-				<!-- Bottom bezel -->
+				<!-- Bottom bezel with home indicator pill -->
 				<div class="og-phone-bottom" style="height: {PHONE_BEZEL_V}px;">
 					<div class="og-phone-home"></div>
 				</div>
@@ -208,11 +227,11 @@
 </div>
 
 <style>
-	/* ── Base ─────────────────────────────────────────────────────────────────── */
+	/* ── Base ──────────────────────────────────────────────────────────────────── */
 	:global(body) {
 		margin: 0;
 		padding: 0;
-		/* Intentional hardcoded: app dark theme-color (#171717) */
+		/* Intentional hardcoded: matches app dark theme-color (#171717) */
 		background: #171717;
 		font-family: var(--font-primary, 'Lexend Deca Variable'), sans-serif;
 	}
@@ -227,7 +246,7 @@
 		background: #171717;
 	}
 
-	/* ── Canvas ────────────────────────────────────────────────────────────────── */
+	/* ── Canvas ─────────────────────────────────────────────────────────────────── */
 	.og-canvas {
 		width: 1200px;
 		height: 600px;
@@ -267,7 +286,7 @@
 		pointer-events: none;
 	}
 
-	/* ── Left: slogan ──────────────────────────────────────────────────────────── */
+	/* ── Left: slogan ───────────────────────────────────────────────────────────── */
 	.og-left {
 		flex: 0 0 440px;
 		display: flex;
@@ -330,7 +349,7 @@
 		max-width: 320px;
 	}
 
-	/* ── Right: mockup stage ───────────────────────────────────────────────────── */
+	/* ── Right: mockup stage ────────────────────────────────────────────────────── */
 	.og-right {
 		flex: 1;
 		display: flex;
@@ -342,15 +361,13 @@
 		overflow: hidden;
 	}
 
-	/* ── Laptop ────────────────────────────────────────────────────────────────── */
+	/* ── Laptop ─────────────────────────────────────────────────────────────────── */
 	.og-laptop {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		position: relative;
 		flex-shrink: 0;
-		/* Shift slightly left to give phone room to overlap on right */
-		margin-left: -8px;
 	}
 
 	.og-laptop-lid {
@@ -369,7 +386,7 @@
 		align-items: flex-start;
 	}
 
-	/* ── Browser bar ───────────────────────────────────────────────────────────── */
+	/* ── Browser chrome bar ─────────────────────────────────────────────────────── */
 	.og-browser-bar {
 		/* Intentional hardcoded: dark browser chrome, slightly lighter than lid */
 		background: #2e2e32;
@@ -379,7 +396,6 @@
 		gap: 8px;
 		padding: 0 8px;
 		flex-shrink: 0;
-		/* Subtle bottom border between bar and screen */
 		border-bottom: 1px solid #3a3a3e;
 	}
 
@@ -390,7 +406,7 @@
 		flex-shrink: 0;
 	}
 
-	/* macOS-style traffic light dots — intentional hardcoded system UI colors */
+	/* macOS traffic light dots — intentional hardcoded system UI colors */
 	.og-dot {
 		width: 8px;
 		height: 8px;
@@ -398,7 +414,6 @@
 		display: block;
 		flex-shrink: 0;
 	}
-
 	.og-dot-red {
 		background: #ff5f57;
 	}
@@ -411,7 +426,7 @@
 
 	.og-address-bar {
 		flex: 1;
-		/* Intentional hardcoded: dark input field in browser chrome */
+		/* Intentional hardcoded: dark URL input in browser chrome */
 		background: #1e1e22;
 		border-radius: 4px;
 		height: 16px;
@@ -426,7 +441,7 @@
 	.og-lock {
 		font-size: 0.5rem;
 		line-height: 1;
-		/* Intentional hardcoded: muted icon color in address bar */
+		/* Intentional hardcoded: muted lock icon in address bar */
 		color: #666;
 		flex-shrink: 0;
 	}
@@ -440,11 +455,11 @@
 		font-family: var(--font-primary, 'Lexend Deca Variable'), system-ui, sans-serif;
 	}
 
-	/* ── Laptop screen ─────────────────────────────────────────────────────────── */
+	/* ── Laptop screen ──────────────────────────────────────────────────────────── */
 	.og-laptop-screen {
 		overflow: hidden;
-		position: relative;
-		/* Intentional hardcoded: dark screen bg before iframe loads */
+		position: relative; /* establishes positioning context for the absolute iframe */
+		/* Intentional hardcoded: dark fallback before iframe loads */
 		background: #111;
 	}
 
@@ -452,12 +467,12 @@
 		border: none;
 		display: block;
 		pointer-events: none;
-		/* translateX is set inline to shift past sidebar; scale set inline */
+		/* position/top/left/transform are all set inline */
 	}
 
-	/* ── Laptop base ───────────────────────────────────────────────────────────── */
+	/* ── Laptop base ────────────────────────────────────────────────────────────── */
 	.og-laptop-base {
-		/* Intentional hardcoded: slightly lighter aluminium for base/keyboard area */
+		/* Intentional hardcoded: aluminium keyboard base */
 		background: linear-gradient(180deg, #2e2e32 0%, #252528 100%);
 		border-radius: 0 0 6px 6px;
 		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
@@ -475,7 +490,7 @@
 		border-radius: 0 0 4px 4px;
 	}
 
-	/* ── Phone ─────────────────────────────────────────────────────────────────── */
+	/* ── Phone ──────────────────────────────────────────────────────────────────── */
 	.og-phone {
 		display: flex;
 		flex-direction: column;
@@ -505,14 +520,14 @@
 		width: 38px;
 		height: 3px;
 		border-radius: 2px;
-		/* Intentional hardcoded: speaker pill on phone top bezel */
+		/* Intentional hardcoded: speaker pill on top bezel */
 		background: #3a3a3e;
 	}
 
 	.og-phone-screen {
 		overflow: hidden;
-		position: relative;
-		/* Intentional hardcoded: dark screen bg before iframe loads */
+		position: relative; /* positioning context for the absolute iframe */
+		/* Intentional hardcoded: dark fallback before iframe loads */
 		background: #111;
 	}
 
@@ -538,8 +553,8 @@
 		background: #444;
 	}
 
-	/* Playwright sentinel — no visual effect */
+	/* Playwright sentinel — no visual effect, just a class Playwright waits for */
 	.og-ready {
-		/* Playwright waits for this class */
+		/* intentional empty rule */
 	}
 </style>
