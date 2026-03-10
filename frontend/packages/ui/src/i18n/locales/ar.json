@@ -5240,6 +5240,12 @@
       },
       "export_includes_usage_desc": {
         "text": "سجلات الاستخدام بتنسيقات YAML وCSV"
+      },
+      "import": {
+        "text": "استيراد"
+      },
+      "import_title": {
+        "text": "استيراد المحادثات"
       }
     },
     "ai_ask": {

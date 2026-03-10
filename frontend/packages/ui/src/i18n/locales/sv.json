@@ -5099,6 +5099,12 @@
       },
       "export_includes_usage_desc": {
         "text": "Användningsrecord i YAML- och CSV-format"
+      },
+      "import": {
+        "text": "Importera"
+      },
+      "import_title": {
+        "text": "Importera chattar"
       }
     },
     "ai_ask": {

@@ -5078,6 +5078,12 @@
       },
       "export_includes_usage_desc": {
         "text": "Catatan penggunaan dalam format YAML dan CSV"
+      },
+      "import": {
+        "text": "Impor"
+      },
+      "import_title": {
+        "text": "Impor obrolan"
       }
     },
     "ai_ask": {

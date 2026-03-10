@@ -5084,6 +5084,12 @@
       },
       "export_includes_usage_desc": {
         "text": "Záznamy o použití ve formátech YAML a CSV"
+      },
+      "import": {
+        "text": "Importovat"
+      },
+      "import_title": {
+        "text": "Importovat chaty"
       }
     },
     "ai_ask": {

@@ -141,6 +141,19 @@ Account Settings - Main menu for account-related settings including Security, Ex
     }
 
     /**
+     * Navigate to Import Data submenu.
+     * Allows importing chats from a previously exported YAML file.
+     */
+    function navigateToImportData() {
+        dispatch('openSettings', {
+            settingsPath: 'account/import',
+            direction: 'forward',
+            icon: 'upload',
+            title: $text('settings.account.import')
+        });
+    }
+
+    /**
      * Navigate to Storage overview submenu.
      * Shows total storage usage, per-category breakdown, and billing info.
      */
@@ -234,6 +247,13 @@ Account Settings - Main menu for account-related settings including Security, Ex
     icon="download"
     title={$text('settings.account.export')}
     onClick={navigateToExportData}
+/>
+
+<SettingsItem
+    type="submenu"
+    icon="upload"
+    title={$text('settings.account.import')}
+    onClick={navigateToImportData}
 />
 
 <SettingsItem

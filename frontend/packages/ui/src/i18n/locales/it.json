@@ -5081,6 +5081,75 @@
       },
       "export_includes_usage_desc": {
         "text": "Registri di utilizzo in formati YAML e CSV"
+      },
+      "import": {
+        "text": "Importa"
+      },
+      "import_title": {
+        "text": "Importa chat"
+      },
+      "import_description": {
+        "text": "Importa le chat da un file YAML OpenMates precedentemente esportato. Ogni messaggio viene analizzato per la sicurezza prima dell'archiviazione."
+      },
+      "import_choose_file": {
+        "text": "Scegli un file .yml da importare"
+      },
+      "import_select_chats": {
+        "text": "Seleziona le chat da importare"
+      },
+      "import_select_all": {
+        "text": "Seleziona tutto"
+      },
+      "import_deselect_all": {
+        "text": "Deseleziona tutto"
+      },
+      "import_messages_count": {
+        "text": "messaggi"
+      },
+      "import_estimated_cost": {
+        "text": "Costo stimato"
+      },
+      "import_credits": {
+        "text": "crediti"
+      },
+      "import_chats_selected": {
+        "text": "chat"
+      },
+      "import_scanning": {
+        "text": "Scansione e importazione delle chat in corso…"
+      },
+      "import_scanning_note": {
+        "text": "La scansione di sicurezza potrebbe richiedere un momento per le chat grandi."
+      },
+      "import_button": {
+        "text": "Importa le chat selezionate"
+      },
+      "import_success": {
+        "text": "Importazione completata!"
+      },
+      "import_untitled": {
+        "text": "Chat senza titolo"
+      },
+      "import_messages_imported": {
+        "text": "messaggi importati"
+      },
+      "import_messages_blocked": {
+        "text": "bloccati"
+      },
+      "import_credits_charged": {
+        "text": "Crediti addebitati"
+      },
+      "import_another": {
+        "text": "Importa un altro file"
+      },
+      "import_safety_notice": {
+        "text": "Ogni messaggio viene analizzato per l'iniezione di prompt prima di essere archiviato. I messaggi bloccati vengono sostituiti con un segnaposto visibile e non vengono addebitati."
+      },
+      "import_login_required": {
+        "text": "Devi essere connesso per importare le chat."
+      },
+      "import_importing": {
+        "text": "Importazione in corso…"
       }
     },
     "ai_ask": {

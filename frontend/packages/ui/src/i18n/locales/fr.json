@@ -6313,6 +6313,75 @@
       },
       "export_includes_usage_desc": {
         "text": "Enregistrements d'utilisation en formats YAML et CSV"
+      },
+      "import": {
+        "text": "Importer"
+      },
+      "import_title": {
+        "text": "Importer des chats"
+      },
+      "import_description": {
+        "text": "Importez des chats depuis un fichier YAML OpenMates précédemment exporté. Chaque message est analysé pour la sécurité avant stockage."
+      },
+      "import_choose_file": {
+        "text": "Choisir un fichier .yml à importer"
+      },
+      "import_select_chats": {
+        "text": "Sélectionner les chats à importer"
+      },
+      "import_select_all": {
+        "text": "Tout sélectionner"
+      },
+      "import_deselect_all": {
+        "text": "Tout désélectionner"
+      },
+      "import_messages_count": {
+        "text": "messages"
+      },
+      "import_estimated_cost": {
+        "text": "Coût estimé"
+      },
+      "import_credits": {
+        "text": "crédits"
+      },
+      "import_chats_selected": {
+        "text": "chats"
+      },
+      "import_scanning": {
+        "text": "Analyse et importation de vos chats en cours…"
+      },
+      "import_scanning_note": {
+        "text": "L'analyse de sécurité peut prendre un moment pour les grandes conversations."
+      },
+      "import_button": {
+        "text": "Importer les chats sélectionnés"
+      },
+      "import_success": {
+        "text": "Importation terminée !"
+      },
+      "import_untitled": {
+        "text": "Chat sans titre"
+      },
+      "import_messages_imported": {
+        "text": "messages importés"
+      },
+      "import_messages_blocked": {
+        "text": "bloqués"
+      },
+      "import_credits_charged": {
+        "text": "Crédits débités"
+      },
+      "import_another": {
+        "text": "Importer un autre fichier"
+      },
+      "import_safety_notice": {
+        "text": "Chaque message est analysé pour les injections de prompt avant d'être stocké. Les messages bloqués sont remplacés par un espace réservé visible et ne sont pas facturés."
+      },
+      "import_login_required": {
+        "text": "Vous devez être connecté pour importer des chats."
+      },
+      "import_importing": {
+        "text": "Importation en cours…"
       }
     },
     "ai_ask": {
@@ -8565,7 +8634,40 @@
       "text": "Masquer les données personnelles"
     },
     "notifications": {
-      "text": "Notifications"
+      "text": "Notifications",
+      "description": {
+        "text": "Gère tes préférences de notification"
+      },
+      "chat": {
+        "text": "Notifications de chat"
+      },
+      "backup": {
+        "text": "Rappels de sauvegarde",
+        "email_toggle": {
+          "text": "E-mails de rappel de sauvegarde"
+        },
+        "email_toggle_info": {
+          "text": "Reçois un e-mail de rappel périodique pour exporter et sauvegarder tes données"
+        },
+        "interval": {
+          "text": "Fréquence des rappels"
+        },
+        "interval_days": {
+          "text": "Tous les {count} jours"
+        },
+        "disabled": {
+          "text": "Désactivé"
+        },
+        "last_export": {
+          "text": "Dernière exportation"
+        },
+        "never_exported": {
+          "text": "Jamais exporté"
+        },
+        "export_hint": {
+          "text": "Exporte et télécharge toutes tes données"
+        }
+      }
     },
     "buy_credits": {
       "text": "Acheter des crédits"

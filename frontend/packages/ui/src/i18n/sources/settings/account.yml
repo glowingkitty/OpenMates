@@ -2641,3 +2641,326 @@ export_includes_usage_desc:
   sv: Användningsrecord i YAML- och CSV-format
   he: רשומות שימוש בפורמטי YAML ו-CSV
   verified_by_human: []
+
+# --- Import Account (Chat Import from YAML) ---
+import:
+  context: Import Data submenu under Account settings
+  en: Import
+  de: Importieren
+  zh: 导入
+  es: Importar
+  fr: Importer
+  pt: Importar
+  ru: Импорт
+  ja: インポート
+  ko: 가져오기
+  it: Importa
+  tr: İçe aktar
+  vi: Nhập
+  id: Impor
+  pl: Importuj
+  nl: Importeren
+  ar: استيراد
+  hi: आयात
+  th: นำเข้า
+  cs: Importovat
+  sv: Importera
+  he: ייבוא
+  verified_by_human: []
+import_title:
+  context: Title for import data page
+  en: Import Chats
+  de: Chats importieren
+  zh: 导入聊天记录
+  es: Importar chats
+  fr: Importer des chats
+  pt: Importar conversas
+  ru: Импортировать чаты
+  ja: チャットをインポート
+  ko: 채팅 가져오기
+  it: Importa chat
+  tr: Sohbetleri içe aktar
+  vi: Nhập chats
+  id: Impor obrolan
+  pl: Importuj czaty
+  nl: Chats importeren
+  ar: استيراد المحادثات
+  hi: चैट आयात करें
+  th: นำเข้าแชท
+  cs: Importovat chaty
+  sv: Importera chattar
+  he: ייבוא שיחות
+  verified_by_human: []
+import_description:
+  context: Description shown on the import page
+  en: Import chats from a previously exported OpenMates YAML file. Each message is safety-scanned before storage.
+  de: Chats aus einer zuvor exportierten OpenMates-YAML-Datei importieren. Jede Nachricht wird vor der Speicherung auf Sicherheit geprüft.
+  zh: 从之前导出的OpenMates YAML文件导入聊天记录。每条消息在存储前都会经过安全扫描。
+  es: Importa chats desde un archivo YAML de OpenMates exportado previamente. Cada mensaje se analiza por seguridad antes de almacenarse.
+  fr: Importez des chats depuis un fichier YAML OpenMates précédemment exporté. Chaque message est analysé pour la sécurité avant stockage.
+  pt: Importe conversas de um arquivo YAML do OpenMates exportado anteriormente. Cada mensagem é verificada por segurança antes do armazenamento.
+  ru: Импортируйте чаты из ранее экспортированного файла OpenMates YAML. Каждое сообщение проверяется на безопасность перед сохранением.
+  ja: 以前にエクスポートしたOpenMates YAMLファイルからチャットをインポートします。各メッセージは保存前にセキュリティスキャンされます。
+  ko: 이전에 내보낸 OpenMates YAML 파일에서 채팅을 가져옵니다. 각 메시지는 저장 전에 보안 검사를 받습니다.
+  it: Importa le chat da un file YAML OpenMates precedentemente esportato. Ogni messaggio viene analizzato per la sicurezza prima dell'archiviazione.
+  verified_by_human: []
+import_choose_file:
+  context: Placeholder text for the file picker on the import page
+  en: Choose a .yml file to import
+  de: .yml-Datei zum Importieren auswählen
+  zh: 选择要导入的.yml文件
+  es: Elige un archivo .yml para importar
+  fr: Choisir un fichier .yml à importer
+  pt: Escolha um arquivo .yml para importar
+  ru: Выберите файл .yml для импорта
+  ja: インポートする.ymlファイルを選択
+  ko: 가져올 .yml 파일 선택
+  it: Scegli un file .yml da importare
+  verified_by_human: []
+import_select_chats:
+  context: Header for the chat selection list on the import page
+  en: Select chats to import
+  de: Chats zum Importieren auswählen
+  zh: 选择要导入的聊天记录
+  es: Seleccionar chats para importar
+  fr: Sélectionner les chats à importer
+  pt: Selecionar conversas para importar
+  ru: Выбрать чаты для импорта
+  ja: インポートするチャットを選択
+  ko: 가져올 채팅 선택
+  it: Seleziona le chat da importare
+  verified_by_human: []
+import_select_all:
+  context: Select all chats button on import page
+  en: Select all
+  de: Alle auswählen
+  zh: 全选
+  es: Seleccionar todo
+  fr: Tout sélectionner
+  pt: Selecionar tudo
+  ru: Выбрать все
+  ja: すべて選択
+  ko: 모두 선택
+  it: Seleziona tutto
+  verified_by_human: []
+import_deselect_all:
+  context: Deselect all chats button on import page
+  en: Deselect all
+  de: Alle abwählen
+  zh: 取消全选
+  es: Deseleccionar todo
+  fr: Tout désélectionner
+  pt: Desmarcar tudo
+  ru: Снять все
+  ja: すべて解除
+  ko: 모두 해제
+  it: Deseleziona tutto
+  verified_by_human: []
+import_messages_count:
+  context: Message count label in chat selection list
+  en: messages
+  de: Nachrichten
+  zh: 条消息
+  es: mensajes
+  fr: messages
+  pt: mensagens
+  ru: сообщений
+  ja: メッセージ
+  ko: 메시지
+  it: messaggi
+  verified_by_human: []
+import_estimated_cost:
+  context: Label for estimated credit cost before importing
+  en: Estimated cost
+  de: Geschätzte Kosten
+  zh: 预估费用
+  es: Costo estimado
+  fr: Coût estimé
+  pt: Custo estimado
+  ru: Примерная стоимость
+  ja: 推定コスト
+  ko: 예상 비용
+  it: Costo stimato
+  verified_by_human: []
+import_credits:
+  context: "Credits unit label (e.g. '5 credits')"
+  en: credits
+  de: Guthaben
+  zh: 积分
+  es: créditos
+  fr: crédits
+  pt: créditos
+  ru: кредитов
+  ja: クレジット
+  ko: 크레딧
+  it: crediti
+  verified_by_human: []
+import_chats_selected:
+  context: Number of chats selected label in cost estimate
+  en: chats
+  de: Chats
+  zh: 个聊天
+  es: chats
+  fr: chats
+  pt: conversas
+  ru: чатов
+  ja: チャット
+  ko: 채팅
+  it: chat
+  verified_by_human: []
+import_scanning:
+  context: Status message shown while importing
+  en: Scanning and importing your chats…
+  de: Chats werden gescannt und importiert…
+  zh: 正在扫描并导入您的聊天记录…
+  es: Escaneando e importando tus chats…
+  fr: Analyse et importation de vos chats en cours…
+  pt: Verificando e importando suas conversas…
+  ru: Сканирование и импорт чатов…
+  ja: チャットをスキャンしてインポートしています…
+  ko: 채팅을 스캔하고 가져오는 중…
+  it: Scansione e importazione delle chat in corso…
+  verified_by_human: []
+import_scanning_note:
+  context: Note shown below the spinner during import (reassures the user that scanning takes a moment)
+  en: Safety scanning may take a moment for large chats.
+  de: Das Sicherheitsscannen kann bei großen Chats einen Moment dauern.
+  zh: 对于较大的聊天记录，安全扫描可能需要一些时间。
+  es: El análisis de seguridad puede tardar un momento para chats grandes.
+  fr: L'analyse de sécurité peut prendre un moment pour les grandes conversations.
+  pt: A verificação de segurança pode demorar um momento para conversas grandes.
+  ru: Сканирование безопасности может занять некоторое время для больших чатов.
+  ja: 大きなチャットの場合、セキュリティスキャンに少し時間がかかることがあります。
+  ko: 큰 채팅의 경우 보안 검사에 잠시 시간이 걸릴 수 있습니다.
+  it: La scansione di sicurezza potrebbe richiedere un momento per le chat grandi.
+  verified_by_human: []
+import_button:
+  context: Primary action button on the import page
+  en: Import Selected Chats
+  de: Ausgewählte Chats importieren
+  zh: 导入选中的聊天记录
+  es: Importar chats seleccionados
+  fr: Importer les chats sélectionnés
+  pt: Importar conversas selecionadas
+  ru: Импортировать выбранные чаты
+  ja: 選択したチャットをインポート
+  ko: 선택한 채팅 가져오기
+  it: Importa le chat selezionate
+  verified_by_human: []
+import_success:
+  context: Success banner after import completes
+  en: Import complete!
+  de: Import abgeschlossen!
+  zh: 导入完成！
+  es: ¡Importación completa!
+  fr: Importation terminée !
+  pt: Importação concluída!
+  ru: Импорт завершён!
+  ja: インポート完了！
+  ko: 가져오기 완료!
+  it: Importazione completata!
+  verified_by_human: []
+import_untitled:
+  context: Placeholder name for a chat with no title
+  en: Untitled chat
+  de: Unbenannter Chat
+  zh: 无标题聊天
+  es: Chat sin título
+  fr: Chat sans titre
+  pt: Conversa sem título
+  ru: Безымянный чат
+  ja: 無題のチャット
+  ko: 제목 없는 채팅
+  it: Chat senza titolo
+  verified_by_human: []
+import_messages_imported:
+  context: "Label for messages imported count in results (e.g. '5 messages imported')"
+  en: messages imported
+  de: Nachrichten importiert
+  zh: 条消息已导入
+  es: mensajes importados
+  fr: messages importés
+  pt: mensagens importadas
+  ru: сообщений импортировано
+  ja: メッセージがインポートされました
+  ko: 메시지 가져옴
+  it: messaggi importati
+  verified_by_human: []
+import_messages_blocked:
+  context: "Label for blocked messages count in results (e.g. '2 blocked')"
+  en: blocked
+  de: blockiert
+  zh: 已拦截
+  es: bloqueados
+  fr: bloqués
+  pt: bloqueadas
+  ru: заблокировано
+  ja: ブロック済み
+  ko: 차단됨
+  it: bloccati
+  verified_by_human: []
+import_credits_charged:
+  context: Credits charged label shown in import results
+  en: Credits charged
+  de: Abgezogenes Guthaben
+  zh: 已扣除积分
+  es: Créditos cobrados
+  fr: Crédits débités
+  pt: Créditos cobrados
+  ru: Списано кредитов
+  ja: 課金クレジット
+  ko: 청구된 크레딧
+  it: Crediti addebitati
+  verified_by_human: []
+import_another:
+  context: Button to import another file after a successful import
+  en: Import another file
+  de: Weitere Datei importieren
+  zh: 导入另一个文件
+  es: Importar otro archivo
+  fr: Importer un autre fichier
+  pt: Importar outro arquivo
+  ru: Импортировать другой файл
+  ja: 別のファイルをインポート
+  ko: 다른 파일 가져오기
+  it: Importa un altro file
+  verified_by_human: []
+import_safety_notice:
+  context: Info notice explaining the safety scan on the import page
+  en: Each message is safety-scanned for prompt injection before being stored. Blocked messages are replaced with a visible placeholder and are not charged.
+  de: Jede Nachricht wird vor der Speicherung auf Prompt-Injection geprüft. Blockierte Nachrichten werden durch einen sichtbaren Platzhalter ersetzt und werden nicht berechnet.
+  zh: 每条消息在存储前都会被安全扫描以防止提示注入。被拦截的消息将被替换为可见的占位符，不会收费。
+  es: Cada mensaje es analizado por seguridad para detectar inyecciones de prompt antes de ser almacenado. Los mensajes bloqueados se reemplazan con un marcador visible y no se cobran.
+  fr: Chaque message est analysé pour les injections de prompt avant d'être stocké. Les messages bloqués sont remplacés par un espace réservé visible et ne sont pas facturés.
+  pt: Cada mensagem é verificada por injeção de prompt antes de ser armazenada. Mensagens bloqueadas são substituídas por um espaço reservado visível e não são cobradas.
+  ru: Каждое сообщение проверяется на инъекцию подсказок перед сохранением. Заблокированные сообщения заменяются видимым заменителем и не тарифицируются.
+  ja: 各メッセージは保存前にプロンプトインジェクションのセキュリティスキャンが行われます。ブロックされたメッセージは表示プレースホルダーに置き換えられ、課金されません。
+  ko: 각 메시지는 저장 전에 프롬프트 주입에 대한 보안 검사를 받습니다. 차단된 메시지는 표시 자리 표시자로 대체되며 요금이 청구되지 않습니다.
+  it: Ogni messaggio viene analizzato per l'iniezione di prompt prima di essere archiviato. I messaggi bloccati vengono sostituiti con un segnaposto visibile e non vengono addebitati.
+  verified_by_human: []
+import_login_required:
+  context: Message shown when user is not authenticated on the import page
+  en: You must be logged in to import chats.
+  de: Sie müssen angemeldet sein, um Chats zu importieren.
+  zh: 您必须登录才能导入聊天记录。
+  es: Debes iniciar sesión para importar chats.
+  fr: Vous devez être connecté pour importer des chats.
+  pt: Você deve estar conectado para importar conversas.
+  ru: Вы должны войти в систему для импорта чатов.
+  ja: チャットをインポートするにはログインが必要です。
+  ko: 채팅을 가져오려면 로그인해야 합니다.
+  it: Devi essere connesso per importare le chat.
+  verified_by_human: []
+import_importing:
+  context: Button label while import is in progress
+  en: Importing…
+  de: Wird importiert…
+  zh: 导入中…
+  es: Importando…
+  fr: Importation en cours…
+  pt: Importando…
+  ru: Импортируется…
+  ja: インポート中…
+  ko: 가져오는 중…
+  it: Importazione in corso…
+  verified_by_human: []

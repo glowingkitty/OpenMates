@@ -6199,6 +6199,75 @@
       },
       "export_includes_usage_desc": {
         "text": "YAML和CSV格式的使用记录"
+      },
+      "import": {
+        "text": "导入"
+      },
+      "import_title": {
+        "text": "导入聊天记录"
+      },
+      "import_description": {
+        "text": "从之前导出的OpenMates YAML文件导入聊天记录。每条消息在存储前都会经过安全扫描。"
+      },
+      "import_choose_file": {
+        "text": "选择要导入的.yml文件"
+      },
+      "import_select_chats": {
+        "text": "选择要导入的聊天记录"
+      },
+      "import_select_all": {
+        "text": "全选"
+      },
+      "import_deselect_all": {
+        "text": "取消全选"
+      },
+      "import_messages_count": {
+        "text": "条消息"
+      },
+      "import_estimated_cost": {
+        "text": "预估费用"
+      },
+      "import_credits": {
+        "text": "积分"
+      },
+      "import_chats_selected": {
+        "text": "个聊天"
+      },
+      "import_scanning": {
+        "text": "正在扫描并导入您的聊天记录…"
+      },
+      "import_scanning_note": {
+        "text": "对于较大的聊天记录，安全扫描可能需要一些时间。"
+      },
+      "import_button": {
+        "text": "导入选中的聊天记录"
+      },
+      "import_success": {
+        "text": "导入完成！"
+      },
+      "import_untitled": {
+        "text": "无标题聊天"
+      },
+      "import_messages_imported": {
+        "text": "条消息已导入"
+      },
+      "import_messages_blocked": {
+        "text": "已拦截"
+      },
+      "import_credits_charged": {
+        "text": "已扣除积分"
+      },
+      "import_another": {
+        "text": "导入另一个文件"
+      },
+      "import_safety_notice": {
+        "text": "每条消息在存储前都会被安全扫描以防止提示注入。被拦截的消息将被替换为可见的占位符，不会收费。"
+      },
+      "import_login_required": {
+        "text": "您必须登录才能导入聊天记录。"
+      },
+      "import_importing": {
+        "text": "导入中…"
       }
     },
     "ai_ask": {
@@ -8448,7 +8517,40 @@
       "text": "隐藏个人数据"
     },
     "notifications": {
-      "text": "通知"
+      "text": "通知",
+      "description": {
+        "text": "管理你的通知偏好设置"
+      },
+      "chat": {
+        "text": "聊天通知"
+      },
+      "backup": {
+        "text": "备份提醒",
+        "email_toggle": {
+          "text": "备份提醒邮件"
+        },
+        "email_toggle_info": {
+          "text": "定期接收提醒邮件，以导出并备份你的数据"
+        },
+        "interval": {
+          "text": "提醒频率"
+        },
+        "interval_days": {
+          "text": "每 {count} 天一次"
+        },
+        "disabled": {
+          "text": "已禁用"
+        },
+        "last_export": {
+          "text": "上次导出时间"
+        },
+        "never_exported": {
+          "text": "从未导出过"
+        },
+        "export_hint": {
+          "text": "导出并下载你的所有数据"
+        }
+      }
     },
     "buy_credits": {
       "text": "购买积分"

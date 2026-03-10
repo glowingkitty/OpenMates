@@ -5081,6 +5081,75 @@
       },
       "export_includes_usage_desc": {
         "text": "YAML 및 CSV 형식의 사용 기록"
+      },
+      "import": {
+        "text": "가져오기"
+      },
+      "import_title": {
+        "text": "채팅 가져오기"
+      },
+      "import_description": {
+        "text": "이전에 내보낸 OpenMates YAML 파일에서 채팅을 가져옵니다. 각 메시지는 저장 전에 보안 검사를 받습니다."
+      },
+      "import_choose_file": {
+        "text": "가져올 .yml 파일 선택"
+      },
+      "import_select_chats": {
+        "text": "가져올 채팅 선택"
+      },
+      "import_select_all": {
+        "text": "모두 선택"
+      },
+      "import_deselect_all": {
+        "text": "모두 해제"
+      },
+      "import_messages_count": {
+        "text": "메시지"
+      },
+      "import_estimated_cost": {
+        "text": "예상 비용"
+      },
+      "import_credits": {
+        "text": "크레딧"
+      },
+      "import_chats_selected": {
+        "text": "채팅"
+      },
+      "import_scanning": {
+        "text": "채팅을 스캔하고 가져오는 중…"
+      },
+      "import_scanning_note": {
+        "text": "큰 채팅의 경우 보안 검사에 잠시 시간이 걸릴 수 있습니다."
+      },
+      "import_button": {
+        "text": "선택한 채팅 가져오기"
+      },
+      "import_success": {
+        "text": "가져오기 완료!"
+      },
+      "import_untitled": {
+        "text": "제목 없는 채팅"
+      },
+      "import_messages_imported": {
+        "text": "메시지 가져옴"
+      },
+      "import_messages_blocked": {
+        "text": "차단됨"
+      },
+      "import_credits_charged": {
+        "text": "청구된 크레딧"
+      },
+      "import_another": {
+        "text": "다른 파일 가져오기"
+      },
+      "import_safety_notice": {
+        "text": "각 메시지는 저장 전에 프롬프트 주입에 대한 보안 검사를 받습니다. 차단된 메시지는 표시 자리 표시자로 대체되며 요금이 청구되지 않습니다."
+      },
+      "import_login_required": {
+        "text": "채팅을 가져오려면 로그인해야 합니다."
+      },
+      "import_importing": {
+        "text": "가져오는 중…"
       }
     },
     "ai_ask": {

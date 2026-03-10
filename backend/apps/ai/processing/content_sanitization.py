@@ -106,6 +106,57 @@ def _split_text_into_chunks(text: str, max_chars_per_chunk: int) -> List[str]:
     return chunks
 
 
+def _load_llm_key_from_app_yml(llm_key: str) -> Optional[str]:
+    """
+    Load a named LLM model ID from the AI app's app.yml under
+    skills[ask].skill_config.default_llms.<llm_key>.
+
+    Args:
+        llm_key: The key to look up, e.g. "content_sanitization_model" or
+                 "chat_import_sanitization_model".
+
+    Returns:
+        Model ID string, or None if not found or loading fails.
+    """
+    current_file_dir = os.path.dirname(os.path.abspath(__file__))
+    ai_app_dir = os.path.dirname(current_file_dir)
+    app_yml_path = os.path.join(ai_app_dir, "app.yml")
+
+    if not os.path.exists(app_yml_path):
+        logger.error(f"AI app.yml not found at {app_yml_path}")
+        return None
+
+    try:
+        with open(app_yml_path, 'r', encoding='utf-8') as f:
+            app_config = yaml.safe_load(f)
+
+        if not app_config:
+            logger.error(f"AI app.yml is empty or malformed at {app_yml_path}")
+            return None
+
+        skills = app_config.get("skills", [])
+        for skill in skills:
+            if skill.get("id", "").strip() == "ask":
+                skill_config = skill.get("skill_config", {})
+                default_llms = skill_config.get("default_llms", {})
+                model_id = default_llms.get(llm_key)
+                if model_id:
+                    model_id = model_id.strip() if isinstance(model_id, str) else None
+                    if model_id:
+                        logger.debug(f"Loaded {llm_key} from app.yml: {model_id}")
+                        return model_id
+                    else:
+                        logger.error(f"{llm_key} is empty in app.yml at {app_yml_path}")
+                        return None
+
+        logger.error(f"{llm_key} not found in 'ask' skill config in app.yml at {app_yml_path}")
+        return None
+
+    except Exception as e:
+        logger.error(f"Error loading {llm_key} from app.yml: {e}", exc_info=True)
+        return None
+
+
 def _load_content_sanitization_model() -> Optional[str]:
     """
     Load the content sanitization model ID from the AI app's app.yml.
@@ -569,4 +620,161 @@ async def sanitize_external_content(
         logger.error(f"[{task_id}] Error during content sanitization: {e}", exc_info=True)
         # On error, return empty string to be safe (don't risk passing through malicious content)
         return ""
+
+
+# ---------------------------------------------------------------------------
+# Chat-Import Safety Scan
+# ---------------------------------------------------------------------------
+
+async def sanitize_message_for_import(
+    content: str,
+    task_id: str = "import_sanitization",
+    secrets_manager: Optional[SecretsManager] = None,
+    cache_service: Optional[Any] = None,
+) -> str:
+    """
+    Sanitize a single chat message being imported from a user-supplied YAML file.
+
+    This is a dedicated entrypoint for the chat-import pipeline.  It is
+    intentionally separate from ``sanitize_external_content`` so that:
+
+    - A different model key (``chat_import_sanitization_model``) is used,
+      routing to OpenRouter instead of Groq.  This avoids consuming the
+      shared Groq daily cap (200k tokens/day) that is already used by the
+      real-time content sanitisation pipeline.
+    - The model is loaded fresh from disk every call — no shared cache key —
+      so cache invalidation for the real-time model doesn't affect imports.
+
+    Behaviour mirrors ``sanitize_external_content``:
+    - Layer 1: ASCII smuggling removal.
+    - Layer 2: LLM-based prompt-injection detection.
+    - Returns ``""`` if the message is blocked (high injection risk).
+    - Returns the (possibly redacted) content otherwise.
+
+    See docs/architecture/prompt-injection.md for the full security model.
+    """
+    if not isinstance(content, str):
+        logger.warning(f"[{task_id}] Message content is not a string, coercing")
+        content = str(content) if content else ""
+
+    if not content.strip():
+        return content
+
+    # ------------------------------------------------------------------
+    # Load the import-specific model from app.yml (always from disk; no
+    # shared cache key — see module docstring above).
+    # ------------------------------------------------------------------
+    model_id = _load_llm_key_from_app_yml("chat_import_sanitization_model")
+    if not model_id:
+        raise ValueError(
+            f"[{task_id}] chat_import_sanitization_model not configured in app.yml. "
+            "Cannot run safety scan for chat import."
+        )
+
+    # ------------------------------------------------------------------
+    # Layer 1: ASCII smuggling removal
+    # ------------------------------------------------------------------
+    ascii_log_prefix = f"[{task_id}][IMPORT] "
+    content, ascii_stats = sanitize_text_for_ascii_smuggling(
+        content,
+        log_prefix=ascii_log_prefix,
+        include_stats=True,
+    )
+
+    if ascii_stats.get("hidden_ascii_detected"):
+        logger.warning(
+            f"[{task_id}][SECURITY ALERT] ASCII smuggling detected in imported message! "
+            f"Removed {ascii_stats['removed_count']} invisible characters."
+        )
+    elif ascii_stats.get("removed_count", 0) > 0:
+        logger.info(
+            f"[{task_id}] Removed {ascii_stats['removed_count']} invisible chars from imported message"
+        )
+
+    if not content.strip():
+        logger.warning(f"[{task_id}] Message became empty after ASCII smuggling removal (potential attack).")
+        return ""
+
+    # ------------------------------------------------------------------
+    # Layer 2: LLM-based prompt-injection detection
+    # ------------------------------------------------------------------
+    detection_config = _load_prompt_injection_detection_config()
+    if not detection_config:
+        logger.error(f"[{task_id}] Failed to load prompt injection detection config — skipping LLM scan")
+        return content  # fail-open if config is broken (safe for import: user's own data)
+
+    max_tokens_per_chunk = detection_config.get("text_chunking", {}).get("max_tokens_per_chunk", 50000)
+    block_threshold = detection_config.get("prompt_injection_thresholds", {}).get("block_threshold", 7.0)
+
+    chars_per_token = 4
+    max_chars_per_chunk = max_tokens_per_chunk * chars_per_token
+    chunks = _split_text_into_chunks(content, max_chars_per_chunk) if len(content) > max_chars_per_chunk else [content]
+
+    logger.info(f"[{task_id}] Scanning {len(chunks)} chunk(s) with model {model_id}")
+
+    # Build a patched detection_config that injects our explicit model_id so that
+    # _sanitize_text_chunk, which reads model_id itself from cache/disk, is bypassed.
+    # Instead we call call_preprocessing_llm directly per chunk.
+    tool_definition = detection_config.get("prompt_injection_detection_tool")
+    system_prompt = detection_config.get("prompt_injection_detection_system_prompt", "")
+    if not tool_definition:
+        logger.error(f"[{task_id}] Detection tool definition missing in config — skipping LLM scan")
+        return content
+
+    sanitized_chunks: List[str] = []
+    for i, chunk in enumerate(chunks):
+        try:
+            message_history = []
+            if system_prompt:
+                message_history.append({"role": "system", "content": system_prompt})
+            message_history.append({"role": "user", "content": chunk})
+
+            logger.info(
+                f"[{task_id}] IMPORT SAFETY SCAN — chunk {i+1}/{len(chunks)}, "
+                f"model: {model_id}, chars: {len(chunk)}"
+            )
+
+            result: LLMPreprocessingCallResult = await call_preprocessing_llm(
+                task_id=f"{task_id}_chunk_{i}",
+                model_id=model_id,
+                message_history=message_history,
+                tool_definition=tool_definition,
+                secrets_manager=secrets_manager,
+            )
+
+            if result.error_message or not result.arguments:
+                logger.error(
+                    f"[{task_id}] Safety scan failed for chunk {i+1}: {result.error_message or 'no arguments'}"
+                )
+                return ""  # Fail-closed on scan error: block the message
+
+            detection_score = result.arguments.get("prompt_injection_chance", 0.0)
+            injection_strings = result.arguments.get("injection_strings", [])
+
+            if detection_score >= block_threshold:
+                logger.warning(
+                    f"[{task_id}] Message blocked: injection score {detection_score:.1f} >= {block_threshold}"
+                )
+                return ""  # Signal to caller: replace with placeholder
+
+            sanitized_chunk = chunk
+            if injection_strings:
+                for inj in injection_strings:
+                    sanitized_chunk = sanitized_chunk.replace(inj, PROMPT_INJECTION_PLACEHOLDER)
+                sanitized_chunk = re.sub(
+                    rf'({re.escape(PROMPT_INJECTION_PLACEHOLDER)}\s*)+',
+                    PROMPT_INJECTION_PLACEHOLDER,
+                    sanitized_chunk,
+                )
+                sanitized_chunk = re.sub(r'\s+', ' ', sanitized_chunk).strip()
+
+            sanitized_chunks.append(sanitized_chunk)
+
+        except Exception as chunk_err:
+            logger.error(f"[{task_id}] Error scanning chunk {i+1}: {chunk_err}", exc_info=True)
+            return ""  # Fail-closed
+
+    result_content = "".join(sanitized_chunks)
+    logger.info(f"[{task_id}] Import scan complete: {len(content)} → {len(result_content)} chars")
+    return result_content
 

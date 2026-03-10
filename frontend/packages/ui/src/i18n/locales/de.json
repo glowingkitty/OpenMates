@@ -540,6 +540,24 @@
         "example_3": {
           "text": "Kubernetes"
         }
+      },
+      "coding_setup": {
+        "text": "Coding-Setup",
+        "description": {
+          "text": "Wie du am liebsten codest, mit KI zusammenarbeitest und Eingaben machst"
+        },
+        "example_1": {
+          "text": "Terminal-first-Setup",
+          "notes": {
+            "text": "Neovim + tmux, nur kurze Vorschläge"
+          }
+        },
+        "example_2": {
+          "text": "Geführter Web-Workflow",
+          "notes": {
+            "text": "Bevorzugt Presets und One-Click-Aktionen"
+          }
+        }
       }
     },
     "docs": {
@@ -2907,6 +2925,35 @@
       },
       "open_passkey_settings": {
         "text": "Passkey hinzufügen"
+      }
+    },
+    "backup_reminder": {
+      "subject": {
+        "text": "Zeit, deine OpenMates-Daten zu sichern"
+      },
+      "header": {
+        "text": "Deine Daten sichern"
+      },
+      "description": {
+        "text": "Deine Chats, Einstellungen und Dateien sind verschlüsselt gespeichert — dennoch ist ein lokales Backup immer empfehlenswert."
+      },
+      "last_export_label": {
+        "text": "Dein letzter Export:"
+      },
+      "never_exported": {
+        "text": "Du hast deine Daten noch nie exportiert."
+      },
+      "cta_title": {
+        "text": "Daten jetzt exportieren:"
+      },
+      "export_button": {
+        "text": "Meine Daten exportieren"
+      },
+      "unsubscribe_hint": {
+        "text": "Um diese Erinnerungen zu deaktivieren,"
+      },
+      "unsubscribe_link": {
+        "text": "Benachrichtigungseinstellungen öffnen"
       }
     },
     "welcome_to_openmates": {
@@ -6775,6 +6822,75 @@
       },
       "export_includes_usage_desc": {
         "text": "Nutzungsaufzeichnungen in YAML- und CSV-Formaten"
+      },
+      "import": {
+        "text": "Importieren"
+      },
+      "import_title": {
+        "text": "Chats importieren"
+      },
+      "import_description": {
+        "text": "Chats aus einer zuvor exportierten OpenMates-YAML-Datei importieren. Jede Nachricht wird vor der Speicherung auf Sicherheit geprüft."
+      },
+      "import_choose_file": {
+        "text": ".yml-Datei zum Importieren auswählen"
+      },
+      "import_select_chats": {
+        "text": "Chats zum Importieren auswählen"
+      },
+      "import_select_all": {
+        "text": "Alle auswählen"
+      },
+      "import_deselect_all": {
+        "text": "Alle abwählen"
+      },
+      "import_messages_count": {
+        "text": "Nachrichten"
+      },
+      "import_estimated_cost": {
+        "text": "Geschätzte Kosten"
+      },
+      "import_credits": {
+        "text": "Guthaben"
+      },
+      "import_chats_selected": {
+        "text": "Chats"
+      },
+      "import_scanning": {
+        "text": "Chats werden gescannt und importiert…"
+      },
+      "import_scanning_note": {
+        "text": "Das Sicherheitsscannen kann bei großen Chats einen Moment dauern."
+      },
+      "import_button": {
+        "text": "Ausgewählte Chats importieren"
+      },
+      "import_success": {
+        "text": "Import abgeschlossen!"
+      },
+      "import_untitled": {
+        "text": "Unbenannter Chat"
+      },
+      "import_messages_imported": {
+        "text": "Nachrichten importiert"
+      },
+      "import_messages_blocked": {
+        "text": "blockiert"
+      },
+      "import_credits_charged": {
+        "text": "Abgezogenes Guthaben"
+      },
+      "import_another": {
+        "text": "Weitere Datei importieren"
+      },
+      "import_safety_notice": {
+        "text": "Jede Nachricht wird vor der Speicherung auf Prompt-Injection geprüft. Blockierte Nachrichten werden durch einen sichtbaren Platzhalter ersetzt und werden nicht berechnet."
+      },
+      "import_login_required": {
+        "text": "Sie müssen angemeldet sein, um Chats zu importieren."
+      },
+      "import_importing": {
+        "text": "Wird importiert…"
       }
     },
     "ai_ask": {
@@ -9618,7 +9734,40 @@
       "text": "Persönliche Daten verbergen"
     },
     "notifications": {
-      "text": "Benachrichtigungen"
+      "text": "Benachrichtigungen",
+      "description": {
+        "text": "Benachrichtigungseinstellungen verwalten"
+      },
+      "chat": {
+        "text": "Chat-Benachrichtigungen"
+      },
+      "backup": {
+        "text": "Backup-Erinnerungen",
+        "email_toggle": {
+          "text": "Backup-Erinnerungs-E-Mails"
+        },
+        "email_toggle_info": {
+          "text": "Erhalte regelmäßige E-Mail-Erinnerungen zum Exportieren und Sichern deiner Daten"
+        },
+        "interval": {
+          "text": "Erinnerungsintervall"
+        },
+        "interval_days": {
+          "text": "Alle {count} Tage"
+        },
+        "disabled": {
+          "text": "Deaktiviert"
+        },
+        "last_export": {
+          "text": "Letzter Export"
+        },
+        "never_exported": {
+          "text": "Noch kein Export"
+        },
+        "export_hint": {
+          "text": "Alle deine Daten exportieren und herunterladen"
+        }
+      }
     },
     "buy_credits": {
       "text": "Guthaben kaufen"

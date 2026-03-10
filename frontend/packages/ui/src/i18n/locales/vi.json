@@ -5078,6 +5078,12 @@
       },
       "export_includes_usage_desc": {
         "text": "Bản ghi sử dụng ở định dạng YAML và CSV"
+      },
+      "import": {
+        "text": "Nhập"
+      },
+      "import_title": {
+        "text": "Nhập chats"
       }
     },
     "ai_ask": {

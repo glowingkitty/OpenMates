@@ -5084,6 +5084,12 @@
       },
       "export_includes_usage_desc": {
         "text": "บันทึกการใช้งานในรูปแบบ YAML และ CSV"
+      },
+      "import": {
+        "text": "นำเข้า"
+      },
+      "import_title": {
+        "text": "นำเข้าแชท"
       }
     },
     "ai_ask": {

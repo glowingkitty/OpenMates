@@ -546,6 +546,24 @@
         "example_3": {
           "text": "Kubernetes"
         }
+      },
+      "coding_setup": {
+        "text": "Coding Setup",
+        "description": {
+          "text": "How you like to code, collaborate with AI, and enter instructions"
+        },
+        "example_1": {
+          "text": "Terminal-first setup",
+          "notes": {
+            "text": "Neovim + tmux, short suggestions only"
+          }
+        },
+        "example_2": {
+          "text": "Guided web workflow",
+          "notes": {
+            "text": "Prefers presets and one-click actions"
+          }
+        }
       }
     },
     "docs": {
@@ -2913,6 +2931,35 @@
       },
       "open_passkey_settings": {
         "text": "Add passkey"
+      }
+    },
+    "backup_reminder": {
+      "subject": {
+        "text": "Time to back up your OpenMates data"
+      },
+      "header": {
+        "text": "Back up your data"
+      },
+      "description": {
+        "text": "Your chats, settings, and files are encrypted and stored securely — but keeping a local backup is always a good idea."
+      },
+      "last_export_label": {
+        "text": "Your last export:"
+      },
+      "never_exported": {
+        "text": "You have never exported your data."
+      },
+      "cta_title": {
+        "text": "Export your data now:"
+      },
+      "export_button": {
+        "text": "Export my data"
+      },
+      "unsubscribe_hint": {
+        "text": "To stop receiving these reminders,"
+      },
+      "unsubscribe_link": {
+        "text": "update your notification settings"
       }
     },
     "welcome_to_openmates": {
@@ -7144,6 +7191,75 @@
       },
       "export_includes_usage_desc": {
         "text": "Usage records in YAML and CSV formats"
+      },
+      "import": {
+        "text": "Import"
+      },
+      "import_title": {
+        "text": "Import Chats"
+      },
+      "import_description": {
+        "text": "Import chats from a previously exported OpenMates YAML file. Each message is safety-scanned before storage."
+      },
+      "import_choose_file": {
+        "text": "Choose a .yml file to import"
+      },
+      "import_select_chats": {
+        "text": "Select chats to import"
+      },
+      "import_select_all": {
+        "text": "Select all"
+      },
+      "import_deselect_all": {
+        "text": "Deselect all"
+      },
+      "import_messages_count": {
+        "text": "messages"
+      },
+      "import_estimated_cost": {
+        "text": "Estimated cost"
+      },
+      "import_credits": {
+        "text": "credits"
+      },
+      "import_chats_selected": {
+        "text": "chats"
+      },
+      "import_scanning": {
+        "text": "Scanning and importing your chats…"
+      },
+      "import_scanning_note": {
+        "text": "Safety scanning may take a moment for large chats."
+      },
+      "import_button": {
+        "text": "Import Selected Chats"
+      },
+      "import_success": {
+        "text": "Import complete!"
+      },
+      "import_untitled": {
+        "text": "Untitled chat"
+      },
+      "import_messages_imported": {
+        "text": "messages imported"
+      },
+      "import_messages_blocked": {
+        "text": "blocked"
+      },
+      "import_credits_charged": {
+        "text": "Credits charged"
+      },
+      "import_another": {
+        "text": "Import another file"
+      },
+      "import_safety_notice": {
+        "text": "Each message is safety-scanned for prompt injection before being stored. Blocked messages are replaced with a visible placeholder and are not charged."
+      },
+      "import_login_required": {
+        "text": "You must be logged in to import chats."
+      },
+      "import_importing": {
+        "text": "Importing…"
       }
     },
     "ai_ask": {
@@ -10026,7 +10142,40 @@
       "text": "Hide Personal Data"
     },
     "notifications": {
-      "text": "Notifications"
+      "text": "Notifications",
+      "description": {
+        "text": "Manage your notification preferences"
+      },
+      "chat": {
+        "text": "Chat Notifications"
+      },
+      "backup": {
+        "text": "Backup Reminders",
+        "email_toggle": {
+          "text": "Backup Reminder Emails"
+        },
+        "email_toggle_info": {
+          "text": "Receive a periodic email reminder to export and back up your data"
+        },
+        "interval": {
+          "text": "Reminder frequency"
+        },
+        "interval_days": {
+          "text": "Every {count} days"
+        },
+        "disabled": {
+          "text": "Disabled"
+        },
+        "last_export": {
+          "text": "Last export"
+        },
+        "never_exported": {
+          "text": "Never exported"
+        },
+        "export_hint": {
+          "text": "Export and download all your data"
+        }
+      }
     },
     "buy_credits": {
       "text": "Buy Credits"

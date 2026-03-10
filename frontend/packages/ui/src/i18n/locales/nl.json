@@ -5078,6 +5078,12 @@
       },
       "export_includes_usage_desc": {
         "text": "Gebruiksrecords in YAML- en CSV-formaten"
+      },
+      "import": {
+        "text": "Importeren"
+      },
+      "import_title": {
+        "text": "Chats importeren"
       }
     },
     "ai_ask": {

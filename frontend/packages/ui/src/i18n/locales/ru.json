@@ -5081,6 +5081,75 @@
       },
       "export_includes_usage_desc": {
         "text": "Записи об использовании в форматах YAML и CSV"
+      },
+      "import": {
+        "text": "Импорт"
+      },
+      "import_title": {
+        "text": "Импортировать чаты"
+      },
+      "import_description": {
+        "text": "Импортируйте чаты из ранее экспортированного файла OpenMates YAML. Каждое сообщение проверяется на безопасность перед сохранением."
+      },
+      "import_choose_file": {
+        "text": "Выберите файл .yml для импорта"
+      },
+      "import_select_chats": {
+        "text": "Выбрать чаты для импорта"
+      },
+      "import_select_all": {
+        "text": "Выбрать все"
+      },
+      "import_deselect_all": {
+        "text": "Снять все"
+      },
+      "import_messages_count": {
+        "text": "сообщений"
+      },
+      "import_estimated_cost": {
+        "text": "Примерная стоимость"
+      },
+      "import_credits": {
+        "text": "кредитов"
+      },
+      "import_chats_selected": {
+        "text": "чатов"
+      },
+      "import_scanning": {
+        "text": "Сканирование и импорт чатов…"
+      },
+      "import_scanning_note": {
+        "text": "Сканирование безопасности может занять некоторое время для больших чатов."
+      },
+      "import_button": {
+        "text": "Импортировать выбранные чаты"
+      },
+      "import_success": {
+        "text": "Импорт завершён!"
+      },
+      "import_untitled": {
+        "text": "Безымянный чат"
+      },
+      "import_messages_imported": {
+        "text": "сообщений импортировано"
+      },
+      "import_messages_blocked": {
+        "text": "заблокировано"
+      },
+      "import_credits_charged": {
+        "text": "Списано кредитов"
+      },
+      "import_another": {
+        "text": "Импортировать другой файл"
+      },
+      "import_safety_notice": {
+        "text": "Каждое сообщение проверяется на инъекцию подсказок перед сохранением. Заблокированные сообщения заменяются видимым заменителем и не тарифицируются."
+      },
+      "import_login_required": {
+        "text": "Вы должны войти в систему для импорта чатов."
+      },
+      "import_importing": {
+        "text": "Импортируется…"
       }
     },
     "ai_ask": {

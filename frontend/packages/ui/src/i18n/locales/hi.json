@@ -5081,6 +5081,12 @@
       },
       "export_includes_usage_desc": {
         "text": "YAML और CSV फ़ॉर्मेट में उपयोग रिकॉर्ड"
+      },
+      "import": {
+        "text": "आयात"
+      },
+      "import_title": {
+        "text": "चैट आयात करें"
       }
     },
     "ai_ask": {

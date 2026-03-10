@@ -186,6 +186,7 @@ export const apiEndpoints = {
     exportAccountData: "/v1/settings/export-account-data", // Get export data (usage, invoices, profile)
     updatePassword: "/v1/settings/update-password", // Add or change user password
     issueLogs: "/v1/settings/issue-logs", // Push console logs to OpenObserve when any auth user submits an issue report
+    importChat: "/v1/settings/import-chat", // Import chats from YAML export file (safety-scanned server-side)
   },
   payments: {
     config: "/v1/payments/config", // Get public config for payment provider
@@ -260,11 +261,9 @@ export function getApiEndpoint(path: string = ""): string {
 // The preview server proxies external images for privacy, resizing, and caching.
 export const previewUrls = {
   development:
-    import.meta.env.VITE_PREVIEW_URL_DEV ||
-    "https://preview.openmates.org",
+    import.meta.env.VITE_PREVIEW_URL_DEV || "https://preview.openmates.org",
   production:
-    import.meta.env.VITE_PREVIEW_URL_PROD ||
-    "https://preview.openmates.org",
+    import.meta.env.VITE_PREVIEW_URL_PROD || "https://preview.openmates.org",
 } as const;
 
 // Helper to get the preview server base URL

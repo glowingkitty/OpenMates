@@ -5078,6 +5078,12 @@
       },
       "export_includes_usage_desc": {
         "text": "Rekordy użytkowania w formatach YAML i CSV"
+      },
+      "import": {
+        "text": "Importuj"
+      },
+      "import_title": {
+        "text": "Importuj czaty"
       }
     },
     "ai_ask": {

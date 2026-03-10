@@ -5081,6 +5081,12 @@
       },
       "export_includes_usage_desc": {
         "text": "YAML ve CSV formatlarında kullanım kayıtları"
+      },
+      "import": {
+        "text": "İçe aktar"
+      },
+      "import_title": {
+        "text": "Sohbetleri içe aktar"
       }
     },
     "ai_ask": {

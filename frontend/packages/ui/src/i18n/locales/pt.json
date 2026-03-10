@@ -5081,6 +5081,75 @@
       },
       "export_includes_usage_desc": {
         "text": "Registros de uso nos formatos YAML e CSV"
+      },
+      "import": {
+        "text": "Importar"
+      },
+      "import_title": {
+        "text": "Importar conversas"
+      },
+      "import_description": {
+        "text": "Importe conversas de um arquivo YAML do OpenMates exportado anteriormente. Cada mensagem é verificada por segurança antes do armazenamento."
+      },
+      "import_choose_file": {
+        "text": "Escolha um arquivo .yml para importar"
+      },
+      "import_select_chats": {
+        "text": "Selecionar conversas para importar"
+      },
+      "import_select_all": {
+        "text": "Selecionar tudo"
+      },
+      "import_deselect_all": {
+        "text": "Desmarcar tudo"
+      },
+      "import_messages_count": {
+        "text": "mensagens"
+      },
+      "import_estimated_cost": {
+        "text": "Custo estimado"
+      },
+      "import_credits": {
+        "text": "créditos"
+      },
+      "import_chats_selected": {
+        "text": "conversas"
+      },
+      "import_scanning": {
+        "text": "Verificando e importando suas conversas…"
+      },
+      "import_scanning_note": {
+        "text": "A verificação de segurança pode demorar um momento para conversas grandes."
+      },
+      "import_button": {
+        "text": "Importar conversas selecionadas"
+      },
+      "import_success": {
+        "text": "Importação concluída!"
+      },
+      "import_untitled": {
+        "text": "Conversa sem título"
+      },
+      "import_messages_imported": {
+        "text": "mensagens importadas"
+      },
+      "import_messages_blocked": {
+        "text": "bloqueadas"
+      },
+      "import_credits_charged": {
+        "text": "Créditos cobrados"
+      },
+      "import_another": {
+        "text": "Importar outro arquivo"
+      },
+      "import_safety_notice": {
+        "text": "Cada mensagem é verificada por injeção de prompt antes de ser armazenada. Mensagens bloqueadas são substituídas por um espaço reservado visível e não são cobradas."
+      },
+      "import_login_required": {
+        "text": "Você deve estar conectado para importar conversas."
+      },
+      "import_importing": {
+        "text": "Importando…"
       }
     },
     "ai_ask": {

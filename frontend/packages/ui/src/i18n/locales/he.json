@@ -6059,6 +6059,12 @@
       },
       "export_includes_usage_desc": {
         "text": "רשומות שימוש בפורמטי YAML ו-CSV"
+      },
+      "import": {
+        "text": "ייבוא"
+      },
+      "import_title": {
+        "text": "ייבוא שיחות"
       }
     },
     "ai_ask": {

@@ -44,6 +44,7 @@ import SettingsEmail from "./account/SettingsEmail.svelte";
 import SettingsDeleteAccount from "./account/SettingsDeleteAccount.svelte";
 import SettingsAccountChats from "./account/SettingsAccountChats.svelte";
 import SettingsExportAccount from "./account/SettingsExportAccount.svelte";
+import SettingsImportAccount from "./account/SettingsImportAccount.svelte";
 import SettingsStorage from "./account/SettingsStorage.svelte";
 import SettingsStorageFiles from "./account/SettingsStorageFiles.svelte";
 import SettingsProfilePicture from "./account/SettingsProfilePicture.svelte";
@@ -206,6 +207,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "account/security/recovery-key": SettingsRecoveryKey,
   "account/security/sessions": SettingsSessions,
   "account/export": SettingsExportAccount,
+  "account/import": SettingsImportAccount,
   "account/chats": SettingsAccountChats,
   "account/storage": SettingsStorage,
   // Per-category file list sub-pages — all use the same component.
