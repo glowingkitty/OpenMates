@@ -139,10 +139,6 @@
       return;
     }
     
-    console.debug(`[UnifiedEmbedPreview] 🔄 Received embedUpdated for ${id}:`, {
-      newStatus,
-      previousStatus: localStatus
-    });
     
     // Update status immediately from event if provided
     if (newStatus && (newStatus === 'processing' || newStatus === 'finished' || newStatus === 'error' || newStatus === 'cancelled')) {
@@ -154,7 +150,6 @@
     // call resolveEmbed() which would find nothing and re-request from server,
     // creating an infinite loop. The status update above is sufficient for the UI.
     if (newStatus === 'error' || newStatus === 'cancelled') {
-      console.debug(`[UnifiedEmbedPreview] Skipping refetch for ${newStatus} embed ${id}`);
       return;
     }
     
@@ -182,7 +177,6 @@
     // Skip refetch for legacy IDs - these are synthetic IDs from legacy results
     // that don't exist in IndexedDB. The data is already available from props.
     if (id.startsWith('legacy-')) {
-      console.debug(`[UnifiedEmbedPreview] Skipping refetch for synthetic legacy ID: ${id}`);
       return;
     }
     
@@ -191,10 +185,6 @@
       // This is essential for demo chats where embeds are stored in a separate store
       const embedData = await resolveEmbed(id);
       if (embedData) {
-        console.debug(`[UnifiedEmbedPreview] Refetched data from store for ${id}:`, {
-          status: embedData.status,
-          hasContent: !!embedData.content
-        });
         
         // Update status from fetched data
         if (embedData.status && (embedData.status === 'processing' || embedData.status === 'finished' || embedData.status === 'error' || embedData.status === 'cancelled')) {
@@ -221,7 +211,6 @@
   let embedUpdateListener: ((event: Event) => void) | null = null;
   
   onMount(() => {
-    console.debug(`[UnifiedEmbedPreview] Mounted component for embed ${id}`);
     
     // Subscribe to embedUpdated events from chatSyncService
     embedUpdateListener = handleEmbedUpdate as (event: Event) => void;
@@ -426,14 +415,16 @@
       if ('addEventListener' in query) {
         query.addEventListener('change', handler);
       } else {
-        query.addListener(handler);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- legacy API fallback for older browsers
+        (query as any).addListener(handler);
       }
     };
     const removeQueryListener = (query: MediaQueryList, handler: () => void) => {
       if ('removeEventListener' in query) {
         query.removeEventListener('change', handler);
       } else {
-        query.removeListener(handler);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- legacy API fallback for older browsers
+        (query as any).removeListener(handler);
       }
     };
 
@@ -551,7 +542,6 @@
     // Start long-press timer
     touchTimer = setTimeout(() => {
       if (touchTarget && previewElement) {
-        console.debug('[UnifiedEmbedPreview] Long-press detected - triggering context menu');
         
         // Mark that we're handling a context menu (with auto-reset)
         markContextMenuHandled();
@@ -640,13 +630,6 @@
       return;
     }
     
-    console.debug('[UnifiedEmbedPreview] Click handler called:', { 
-      status, 
-      hasOnFullscreen: !!onFullscreen,
-      embedId: id,
-      eventType: e.type,
-      target: e.target
-    });
     
     // Stop event propagation to prevent the click from bubbling to ReadOnlyMessage
     // which would show the context menu instead of opening fullscreen
@@ -654,11 +637,9 @@
     e.stopPropagation();
     
     if ((status === 'finished' || status === 'error') && onFullscreen) {
-      console.debug('[UnifiedEmbedPreview] Calling onFullscreen for embed:', id);
       
       try {
         onFullscreen();
-        console.debug('[UnifiedEmbedPreview] onFullscreen called successfully');
       } catch (error) {
         console.error('[UnifiedEmbedPreview] Error calling onFullscreen:', error);
       }
@@ -755,7 +736,6 @@
     // that would resolve on next reload. No silent data loss occurs.
     if (localStatus === 'processing') {
       localStatus = 'cancelled';
-      console.debug(`[UnifiedEmbedPreview] Optimistically marked embed ${id} as cancelled`);
     }
   }
 </script>
@@ -1081,6 +1061,8 @@
       margin-right: auto;
       flex-shrink: 0;
       transform: translateY(15px);
+      /* Shadow on the protruding info bar for depth — consistent across all embed types */
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
     }
 
     /* ── Website-specific expanded overrides ────────────────────────────────

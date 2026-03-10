@@ -16,7 +16,8 @@
 
 <script lang="ts">
   import { onMount } from 'svelte';
-  // Import highlight.js theme - using github-dark for dark mode compatibility
+  // Import highlight.js themes - github theme for light mode (good contrast), github-dark for dark mode
+  // We import github-dark as base (used for dark mode) and override for light mode via CSS below
   import 'highlight.js/styles/github-dark.css';
   // Import shared highlighting utilities (includes all language support + Svelte)
   import { highlightToElement } from './codeHighlighting';
@@ -359,8 +360,9 @@
   
   .code-preview {
     margin: 0;
-    padding: 0;
-    font-size: 12px;
+    /* Top padding gives first line breathing room from the card edge */
+    padding: 0.75rem 0 0 0;
+    font-size: 0.75rem;
     line-height: 1.5;
     overflow: hidden;
     white-space: pre;
@@ -486,5 +488,89 @@
   :global(.unified-embed-preview.mobile .skill-icon[data-skill-icon="coding"]) {
     -webkit-mask-image: url('@openmates/ui/static/icons/coding.svg');
     mask-image: url('@openmates/ui/static/icons/coding.svg');
+  }
+
+  /* ===========================================
+     Light Mode Contrast Fix for Syntax Highlighting
+     highlight.js github-dark theme has hardcoded dark background colors
+     which show poor contrast in light mode (light card background + dark theme colors).
+     We override the hljs token colors for light mode using github light theme colors.
+     =========================================== */
+
+  /* Light mode: use github light theme colors for good contrast on light backgrounds */
+  :global([data-theme="light"] .unified-embed-preview .hljs-doctag),
+  :global([data-theme="light"] .unified-embed-preview .hljs-keyword),
+  :global([data-theme="light"] .unified-embed-preview .hljs-meta .hljs-keyword),
+  :global([data-theme="light"] .unified-embed-preview .hljs-template-tag),
+  :global([data-theme="light"] .unified-embed-preview .hljs-template-variable),
+  :global([data-theme="light"] .unified-embed-preview .hljs-type),
+  :global([data-theme="light"] .unified-embed-preview .hljs-variable\.language_) {
+    /* github light: prettylights-syntax-keyword */
+    color: #d73a49; /* intentional: syntax highlight color, must be hardcoded */
+  }
+
+  :global([data-theme="light"] .unified-embed-preview .hljs-title),
+  :global([data-theme="light"] .unified-embed-preview .hljs-title\.class_),
+  :global([data-theme="light"] .unified-embed-preview .hljs-title\.function_) {
+    /* github light: prettylights-syntax-entity */
+    color: #6f42c1; /* intentional: syntax highlight color, must be hardcoded */
+  }
+
+  :global([data-theme="light"] .unified-embed-preview .hljs-attr),
+  :global([data-theme="light"] .unified-embed-preview .hljs-attribute),
+  :global([data-theme="light"] .unified-embed-preview .hljs-literal),
+  :global([data-theme="light"] .unified-embed-preview .hljs-number),
+  :global([data-theme="light"] .unified-embed-preview .hljs-operator),
+  :global([data-theme="light"] .unified-embed-preview .hljs-variable),
+  :global([data-theme="light"] .unified-embed-preview .hljs-selector-attr),
+  :global([data-theme="light"] .unified-embed-preview .hljs-selector-class),
+  :global([data-theme="light"] .unified-embed-preview .hljs-selector-id) {
+    /* github light: prettylights-syntax-constant */
+    color: #005cc5; /* intentional: syntax highlight color, must be hardcoded */
+  }
+
+  :global([data-theme="light"] .unified-embed-preview .hljs-regexp),
+  :global([data-theme="light"] .unified-embed-preview .hljs-string),
+  :global([data-theme="light"] .unified-embed-preview .hljs-meta .hljs-string) {
+    /* github light: prettylights-syntax-string */
+    color: #032f62; /* intentional: syntax highlight color, must be hardcoded */
+  }
+
+  :global([data-theme="light"] .unified-embed-preview .hljs-built_in),
+  :global([data-theme="light"] .unified-embed-preview .hljs-symbol) {
+    /* github light: prettylights-syntax-variable */
+    color: #e36209; /* intentional: syntax highlight color, must be hardcoded */
+  }
+
+  :global([data-theme="light"] .unified-embed-preview .hljs-comment),
+  :global([data-theme="light"] .unified-embed-preview .hljs-code),
+  :global([data-theme="light"] .unified-embed-preview .hljs-formula) {
+    /* github light: prettylights-syntax-comment */
+    color: #6a737d; /* intentional: syntax highlight color, must be hardcoded */
+  }
+
+  :global([data-theme="light"] .unified-embed-preview .hljs-name),
+  :global([data-theme="light"] .unified-embed-preview .hljs-bullet),
+  :global([data-theme="light"] .unified-embed-preview .hljs-deletion) {
+    /* github light: prettylights-syntax-markup */
+    color: #b31d28; /* intentional: syntax highlight color, must be hardcoded */
+  }
+
+  :global([data-theme="light"] .unified-embed-preview .hljs-section),
+  :global([data-theme="light"] .unified-embed-preview .hljs-link) {
+    color: #0366d6; /* intentional: syntax highlight color, must be hardcoded */
+  }
+
+  /* In light mode the base hljs text should be dark for readability */
+  :global([data-theme="light"] .unified-embed-preview code.hljs) {
+    color: #24292e; /* intentional: github light base text color, must be hardcoded */
+  }
+
+  /* Large preview: increase font size to 1rem (≈16px) for better readability */
+  @container embed-preview (min-width: 301px) {
+    .code-preview {
+      font-size: 1rem;
+      padding-top: 1rem;
+    }
   }
 </style>
