@@ -150,6 +150,27 @@
     const STREAMING_DEBOUNCE_MS = 80;
     let streamingDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     let pendingStreamContent: string | Record<string, unknown> | null = null;
+    const STREAM_CHUNK_FADE_DURATION_MS = 220;
+    let streamFadePulseActive = $state(false);
+    let streamFadeResetTimer: ReturnType<typeof setTimeout> | null = null;
+
+    function triggerStreamChunkFadePulse() {
+        if (!isStreaming) return;
+
+        streamFadePulseActive = false;
+        requestAnimationFrame(() => {
+            streamFadePulseActive = true;
+        });
+
+        if (streamFadeResetTimer) {
+            clearTimeout(streamFadeResetTimer);
+        }
+
+        streamFadeResetTimer = setTimeout(() => {
+            streamFadePulseActive = false;
+            streamFadeResetTimer = null;
+        }, STREAM_CHUNK_FADE_DURATION_MS);
+    }
 
     // Logger for debugging
     const logger = {
@@ -1003,6 +1024,9 @@
         
         // Re-apply PII decorations after content update
         applyPIIDecorations(editor);
+
+        // Visual polish: fade in every freshly rendered streaming update chunk.
+        triggerStreamChunkFadePulse();
         
         // Update min-height to match actual rendered content
         if (streaming && editorElement) {
@@ -1087,8 +1111,13 @@
     // Re-apply PII decorations when piiRevealed changes (user toggled visibility)
     // This allows instant switching between showing placeholders and original values
     // without re-processing the entire message content.
-    let previousPiiRevealed = $state(piiRevealed);
+    let previousPiiRevealed = $state<boolean | null>(null);
     $effect(() => {
+        if (previousPiiRevealed === null) {
+            previousPiiRevealed = piiRevealed;
+            return;
+        }
+
         if (piiRevealed !== previousPiiRevealed) {
             previousPiiRevealed = piiRevealed;
             if (editor && !editor.isDestroyed) {
@@ -1115,6 +1144,10 @@
                 clearTimeout(streamingDebounceTimer);
                 streamingDebounceTimer = null;
             }
+            if (streamFadeResetTimer) {
+                clearTimeout(streamFadeResetTimer);
+                streamFadeResetTimer = null;
+            }
             pendingStreamContent = null;
             editor.destroy();
             editor = null;
@@ -1126,7 +1159,7 @@
     <!-- STREAMING FIX: min-height is applied directly to the DOM via JavaScript (synchronously)
          before TipTap's setContent() clears the content. This prevents the visual collapse/stutter.
          Direct DOM manipulation is necessary because Svelte's reactive style updates are async. -->
-    <div bind:this={editorElement} class="editor-content"></div>
+    <div bind:this={editorElement} class="editor-content" class:stream-fade-pulse={streamFadePulseActive}></div>
 </div>
 
 <style>
@@ -1173,6 +1206,25 @@
            Without this, the browser tries to "helpfully" adjust scroll position when
            content above the anchor changes height, causing visual jumps. */
         overflow-anchor: none;
+    }
+
+    .read-only-message.is-streaming .editor-content.stream-fade-pulse {
+        animation: stream-chunk-fade var(--stream-chunk-fade-duration, 220ms) ease-out;
+    }
+
+    @keyframes stream-chunk-fade {
+        0% {
+            opacity: 0.5;
+        }
+        100% {
+            opacity: 1;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .read-only-message.is-streaming .editor-content.stream-fade-pulse {
+            animation: none;
+        }
     }
 
     /* Style overrides for read-only mode */
