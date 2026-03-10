@@ -3486,7 +3486,8 @@ export async function handleSendEmbedDataImpl(
           console.debug(
             "[ChatSyncService:AI] Pre-extracted app metadata from plaintext:",
             preExtractedMetadata,
-            "payload skill_id override:", embedData.skill_id,
+            "payload skill_id override:",
+            embedData.skill_id,
           );
 
           // Register embed_ref → embed_id mapping for inline embed link resolution.
@@ -3723,6 +3724,11 @@ export async function handleSendEmbedDataImpl(
       );
     }
   } catch (error) {
+    // If a finalized embed failed anywhere after being marked as processed,
+    // allow the next send_embed_data/request_embed retry to process it again.
+    // Without this, a transient failure (for example chat-key cache race while
+    // wrapping key_type='chat') can permanently skip key-wrapper persistence.
+    unmarkEmbedAsProcessed(embedData.embed_id);
     console.error(
       `[ChatSyncService:AI] Error handling send_embed_data for embed ${embedData.embed_id}:`,
       error,
