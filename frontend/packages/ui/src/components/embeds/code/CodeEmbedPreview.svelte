@@ -20,7 +20,7 @@
   // We import github-dark as base (used for dark mode) and override for light mode via CSS below
   import 'highlight.js/styles/github-dark.css';
   // Import shared highlighting utilities (includes all language support + Svelte)
-  import { highlightToElement } from './codeHighlighting';
+  import { highlightToElement, highlightToLines } from './codeHighlighting';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { countCodeLines, formatLanguageName, parseCodeEmbedContent } from './codeEmbedContent';
@@ -94,12 +94,11 @@
   let taskId = $derived(localTaskId);
   
   // Maximum lines to show in preview
-  // Large variant (400px container) shows more lines to fill the taller space.
-  // Calculation for large: container=400px, BasicInfosBar=61px, padding-top=16px (1rem)
-  // → usable = 400 - 61 - 16 = 323px; font=0.8rem(12.8px), line-height=1.5 → 19.2px/line
-  // → floor(323/19.2)=16 full lines + 1 extra = 17
+  // Large variant (400px container): user-visible lines. The per-line gutter rendering
+  // (0.8rem/19.2px per line) would fit ~16 lines in 323px usable height; we show 21
+  // so the last partial line is visible, confirming there is more content below.
   const MAX_PREVIEW_LINES_STANDARD = 8;
-  const MAX_PREVIEW_LINES_LARGE = 17;
+  const MAX_PREVIEW_LINES_LARGE = 21;
   
   // Reference to the code element for syntax highlighting
   let codeElement: HTMLElement | null = $state(null);
@@ -168,6 +167,13 @@
   });
   
   let previewText = $derived(previewLines.join('\n'));
+
+  // Per-line highlighted HTML for the large variant (mirrors CodeEmbedFullscreen structure).
+  // Only computed when isLargePreview to avoid unnecessary work in the small variant.
+  let largeHighlightedLines = $derived.by(() => {
+    if (!isLargePreview || !renderCodeContent) return [];
+    return highlightToLines(previewText, renderLanguage);
+  });
   
   // Calculate actual line count from content if not provided
   let actualLineCount = $derived.by(() => {
@@ -217,14 +223,15 @@
   // Map skillId to icon name
   const skillIconName = 'coding';
   
-  // Apply syntax highlighting after mount and when content changes
+  // Apply syntax highlighting for the small variant (uses highlightToElement on a <code> element).
+  // Large variant uses highlightToLines (reactive derived) — no manual DOM update needed.
   onMount(() => {
-    highlightToElement(codeElement, previewText, renderLanguage);
+    if (!isLargePreview) highlightToElement(codeElement, previewText, renderLanguage);
   });
   
-  // Re-highlight when code content or large context changes
+  // Re-highlight small variant when code content changes
   $effect(() => {
-    highlightToElement(codeElement, previewText, renderLanguage);
+    if (!isLargePreview) highlightToElement(codeElement, previewText, renderLanguage);
   });
   
   /**
@@ -307,12 +314,20 @@
 	      {#if renderCodeContent}
 	        <!-- Code preview with syntax highlighting -->
 	        <div class="code-preview-container">
-	          <pre class="code-preview"><code bind:this={codeElement}>{previewText}</code></pre>
-	          {#if isLargePreview && actualLineCount > 0}
-	            <!-- Line count badge — large preview only, mirrors fullscreen header subtitle -->
-	            <div class="line-count-badge">
-	              {actualLineCount === 1 ? `1 ${$text('embeds.code_line_singular')}` : `${actualLineCount} ${$text('embeds.code_line_plural')}`}{displayLanguage ? `, ${displayLanguage}` : ''}
+	          {#if isLargePreview}
+	            <!-- Large variant: per-line gutter rendering matching CodeEmbedFullscreen -->
+	            <div class="preview-lines-container">
+	              {#each largeHighlightedLines as lineHtml, i}
+	                <div class="preview-line">
+	                  <span class="preview-line-gutter" aria-hidden="true">{i + 1}</span>
+	                  <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+	                  <code class="preview-line-text">{@html lineHtml}</code>
+	                </div>
+	              {/each}
 	            </div>
+	          {:else}
+	            <!-- Small variant: single highlighted block -->
+	            <pre class="code-preview"><code bind:this={codeElement}>{previewText}</code></pre>
 	          {/if}
 	        </div>
 	      {:else if status === 'processing'}
@@ -575,8 +590,7 @@
     color: #24292e; /* intentional: github light base text color, must be hardcoded */
   }
 
-  /* Large preview: use 0.8rem (≈12.8px) so more lines fit in the 400px container.
-     With line-height 1.5 → ~19.2px/line → ~17 lines fill the ~323px usable height. */
+  /* Large preview: use 0.8rem (≈12.8px) so more lines fit in the 400px container. */
   @container embed-preview (min-width: 301px) {
     .code-preview {
       font-size: 0.8rem;
@@ -584,22 +598,53 @@
     }
   }
 
-  /* Line count badge — shown only in large preview (isLargePreview flag).
-     Positioned at bottom-left of the code area, above the BasicInfosBar. */
-  .line-count-badge {
-    position: absolute;
-    bottom: 8px;
-    left: 0;
-    font-size: 11px;
+  /* ===========================================
+     Large preview: per-line gutter rendering
+     Mirrors CodeEmbedFullscreen .code-lines-container structure.
+     =========================================== */
+
+  /* Container for all preview lines — overflow hidden to clip at card edge */
+  .preview-lines-container {
+    width: 100%;
+    overflow: hidden;
+    font-size: 0.8rem;
+    line-height: 1.5;
     font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Consolas', monospace;
-    color: var(--color-font-secondary);
-    background: var(--color-grey-15, rgba(0, 0, 0, 0.35));
-    border-radius: 4px;
-    padding: 2px 7px;
-    pointer-events: none;
+    padding-top: 1rem;
+  }
+
+  /* Each line: gutter number on left, code text on right */
+  .preview-line {
+    display: flex;
+    align-items: baseline;
+    white-space: pre;
+  }
+
+  /* Gutter: right-aligned line numbers, not selectable, dimmed */
+  .preview-line-gutter {
+    flex: 0 0 auto;
+    min-width: 32px;
+    padding-right: 10px;
+    text-align: right;
+    color: var(--color-font-tertiary);
     user-select: none;
     -webkit-user-select: none;
-    opacity: 0.85;
-    white-space: nowrap;
+    font-size: inherit;
+    line-height: inherit;
+    font-family: inherit;
+  }
+
+  /* Code text: no wrapping, inherits font */
+  .preview-line-text {
+    flex: 1 1 auto;
+    display: block;
+    white-space: pre;
+    color: var(--color-font-primary);
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    font-size: inherit;
+    line-height: inherit;
+    font-family: inherit;
   }
 </style>

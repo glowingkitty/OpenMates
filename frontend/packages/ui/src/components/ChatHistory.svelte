@@ -1749,7 +1749,7 @@
   /* Add styles for the content wrapper - aligned to top for ChatGPT-style behavior */
   .chat-history-content {
     width: 100%;
-    max-width: 1000px;
+    max-width: var(--chat-content-max-width, 1000px);
     margin: 0 auto;
   }
 

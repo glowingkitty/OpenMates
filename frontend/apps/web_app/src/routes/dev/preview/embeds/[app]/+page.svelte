@@ -40,70 +40,302 @@
 
 	const APP_REGISTRY: Record<string, EmbedSection[]> = {
 		code: [
-			{ skillLabel: 'Code', appId: 'code', previewPath: 'embeds/code/CodeEmbedPreview', fullscreenPath: 'embeds/code/CodeEmbedFullscreen', inlineLinkText: 'MyComponent.svelte', quoteText: 'let count = $state(0); — Svelte 5 reactive state declaration' },
-			{ skillLabel: 'Get Docs', appId: 'code', previewPath: 'embeds/code/CodeGetDocsEmbedPreview', fullscreenPath: 'embeds/code/CodeGetDocsEmbedFullscreen', inlineLinkText: 'Svelte $state documentation', quoteText: 'The $state rune declares reactive state that updates the UI automatically.' }
+			{
+				skillLabel: 'Code',
+				appId: 'code',
+				previewPath: 'embeds/code/CodeEmbedPreview',
+				fullscreenPath: 'embeds/code/CodeEmbedFullscreen',
+				inlineLinkText: 'MyComponent.svelte',
+				quoteText: 'let count = $state(0); — Svelte 5 reactive state declaration'
+			},
+			{
+				skillLabel: 'Get Docs',
+				appId: 'code',
+				previewPath: 'embeds/code/CodeGetDocsEmbedPreview',
+				fullscreenPath: 'embeds/code/CodeGetDocsEmbedFullscreen',
+				inlineLinkText: 'Svelte $state documentation',
+				quoteText: 'The $state rune declares reactive state that updates the UI automatically.'
+			}
 		],
 		docs: [
-			{ skillLabel: 'Document', appId: 'docs', previewPath: 'embeds/docs/DocsEmbedPreview', fullscreenPath: 'embeds/docs/DocsEmbedFullscreen', inlineLinkText: 'architecture.docx', quoteText: 'PostgreSQL serves as the primary data store, managed through Directus CMS.' }
+			{
+				skillLabel: 'Document',
+				appId: 'docs',
+				previewPath: 'embeds/docs/DocsEmbedPreview',
+				fullscreenPath: 'embeds/docs/DocsEmbedFullscreen',
+				inlineLinkText: 'architecture.docx',
+				quoteText: 'PostgreSQL serves as the primary data store, managed through Directus CMS.'
+			}
 		],
 		web: [
-			{ skillLabel: 'Search', appId: 'web', previewPath: 'embeds/web/WebSearchEmbedPreview', fullscreenPath: 'embeds/web/WebSearchEmbedFullscreen', inlineLinkText: 'Best restaurants in Berlin', quoteText: 'Discover the best dining experiences in Berlin, from traditional German cuisine to international flavors.' },
-			{ skillLabel: 'Read', appId: 'web', previewPath: 'embeds/web/WebReadEmbedPreview', fullscreenPath: 'embeds/web/WebReadEmbedFullscreen', inlineLinkText: 'Migrating from Svelte 4 to 5', quoteText: 'Svelte 5 introduces runes, a powerful new reactivity system that replaces $: reactive statements.' },
-			{ skillLabel: 'Website', appId: 'web', previewPath: 'embeds/web/WebsiteEmbedPreview', fullscreenPath: 'embeds/web/WebsiteEmbedFullscreen', inlineLinkText: 'svelte.dev', quoteText: 'Svelte is a radical new approach to building user interfaces. Write less code, use no virtual DOM.' }
+			{
+				skillLabel: 'Search',
+				appId: 'web',
+				previewPath: 'embeds/web/WebSearchEmbedPreview',
+				fullscreenPath: 'embeds/web/WebSearchEmbedFullscreen',
+				inlineLinkText: 'Best restaurants in Berlin',
+				quoteText:
+					'Discover the best dining experiences in Berlin, from traditional German cuisine to international flavors.'
+			},
+			{
+				skillLabel: 'Read',
+				appId: 'web',
+				previewPath: 'embeds/web/WebReadEmbedPreview',
+				fullscreenPath: 'embeds/web/WebReadEmbedFullscreen',
+				inlineLinkText: 'Migrating from Svelte 4 to 5',
+				quoteText:
+					'Svelte 5 introduces runes, a powerful new reactivity system that replaces $: reactive statements.'
+			},
+			{
+				skillLabel: 'Website',
+				appId: 'web',
+				previewPath: 'embeds/web/WebsiteEmbedPreview',
+				fullscreenPath: 'embeds/web/WebsiteEmbedFullscreen',
+				inlineLinkText: 'svelte.dev',
+				quoteText:
+					'Svelte is a radical new approach to building user interfaces. Write less code, use no virtual DOM.'
+			}
 		],
 		videos: [
-			{ skillLabel: 'Video', appId: 'videos', previewPath: 'embeds/videos/VideoEmbedPreview', fullscreenPath: 'embeds/videos/VideoEmbedFullscreen', inlineLinkText: 'Understanding Svelte 5 Runes', quoteText: 'Runes are a powerful new reactivity system that simplifies state management.' },
-			{ skillLabel: 'Transcript', appId: 'videos', previewPath: 'embeds/videos/VideoTranscriptEmbedPreview', fullscreenPath: 'embeds/videos/VideoTranscriptEmbedFullscreen', inlineLinkText: 'Svelte 5 Runes transcript', quoteText: 'Today we are going to learn about Svelte 5 runes.' },
-			{ skillLabel: 'Search', appId: 'videos', previewPath: 'embeds/videos/VideosSearchEmbedPreview', fullscreenPath: 'embeds/videos/VideosSearchEmbedFullscreen', inlineLinkText: 'Svelte 5 tutorial search', quoteText: 'Found 24 results for "svelte 5 tutorial" — curated from YouTube.' }
+			{
+				skillLabel: 'Video',
+				appId: 'videos',
+				previewPath: 'embeds/videos/VideoEmbedPreview',
+				fullscreenPath: 'embeds/videos/VideoEmbedFullscreen',
+				inlineLinkText: 'Understanding Svelte 5 Runes',
+				quoteText: 'Runes are a powerful new reactivity system that simplifies state management.'
+			},
+			{
+				skillLabel: 'Transcript',
+				appId: 'videos',
+				previewPath: 'embeds/videos/VideoTranscriptEmbedPreview',
+				fullscreenPath: 'embeds/videos/VideoTranscriptEmbedFullscreen',
+				inlineLinkText: 'Svelte 5 Runes transcript',
+				quoteText: 'Today we are going to learn about Svelte 5 runes.'
+			},
+			{
+				skillLabel: 'Search',
+				appId: 'videos',
+				previewPath: 'embeds/videos/VideosSearchEmbedPreview',
+				fullscreenPath: 'embeds/videos/VideosSearchEmbedFullscreen',
+				inlineLinkText: 'Svelte 5 tutorial search',
+				quoteText: 'Found 24 results for "svelte 5 tutorial" — curated from YouTube.'
+			}
 		],
 		images: [
-			{ skillLabel: 'Generate', appId: 'images', previewPath: 'embeds/images/ImageGenerateEmbedPreview', fullscreenPath: 'embeds/images/ImageGenerateEmbedFullscreen', inlineLinkText: 'Cat wearing a top hat', quoteText: 'Generated image: a quick sketch of a cat wearing a top hat, pencil style.' }
+			{
+				skillLabel: 'Generate',
+				appId: 'images',
+				previewPath: 'embeds/images/ImageGenerateEmbedPreview',
+				fullscreenPath: 'embeds/images/ImageGenerateEmbedFullscreen',
+				inlineLinkText: 'Cat wearing a top hat',
+				quoteText: 'Generated image: a quick sketch of a cat wearing a top hat, pencil style.'
+			}
 		],
 		news: [
-			{ skillLabel: 'Article', appId: 'news', previewPath: 'embeds/news/NewsEmbedPreview', fullscreenPath: 'embeds/news/NewsEmbedFullscreen', inlineLinkText: 'Svelte 5 officially released', quoteText: 'The latest version of the popular frontend framework brings fundamental changes to reactivity.' },
-			{ skillLabel: 'Search', appId: 'news', previewPath: 'embeds/news/NewsSearchEmbedPreview', fullscreenPath: 'embeds/news/NewsSearchEmbedFullscreen', inlineLinkText: 'Latest technology news 2026', quoteText: 'New AI-powered development tools are changing how developers write, test, and deploy software.' }
+			{
+				skillLabel: 'Article',
+				appId: 'news',
+				previewPath: 'embeds/news/NewsEmbedPreview',
+				fullscreenPath: 'embeds/news/NewsEmbedFullscreen',
+				inlineLinkText: 'Svelte 5 officially released',
+				quoteText:
+					'The latest version of the popular frontend framework brings fundamental changes to reactivity.'
+			},
+			{
+				skillLabel: 'Search',
+				appId: 'news',
+				previewPath: 'embeds/news/NewsSearchEmbedPreview',
+				fullscreenPath: 'embeds/news/NewsSearchEmbedFullscreen',
+				inlineLinkText: 'Latest technology news 2026',
+				quoteText:
+					'New AI-powered development tools are changing how developers write, test, and deploy software.'
+			}
 		],
 		travel: [
-			{ skillLabel: 'Search', appId: 'travel', previewPath: 'embeds/travel/TravelSearchEmbedPreview', fullscreenPath: 'embeds/travel/TravelSearchEmbedFullscreen', inlineLinkText: 'Munich to London, Mar 15', quoteText: 'Lufthansa LH2485: Munich to London Heathrow, 2h 10m, from 89 EUR.' },
-			{ skillLabel: 'Connection', appId: 'travel', previewPath: 'embeds/travel/TravelConnectionEmbedPreview', fullscreenPath: 'embeds/travel/TravelConnectionEmbedFullscreen', inlineLinkText: 'MUC to LHR direct flight', quoteText: 'Direct flight Munich to London, 2h 10min, Terminal 2, Gate B22.' },
-			{ skillLabel: 'Price Calendar', appId: 'travel', previewPath: 'embeds/travel/TravelPriceCalendarEmbedPreview', fullscreenPath: 'embeds/travel/TravelPriceCalendarEmbedFullscreen', inlineLinkText: 'Munich to Barcelona prices, March', quoteText: 'Cheapest day: March 18 at 62 EUR. Prices shown for Munich to Barcelona.' },
-			{ skillLabel: 'Stay', appId: 'travel', previewPath: 'embeds/travel/TravelStayEmbedPreview', fullscreenPath: 'embeds/travel/TravelStayEmbedFullscreen', inlineLinkText: 'Hotel Maximilian, Munich', quoteText: 'Hotel Maximilian: 4-star hotel in central Munich, from 387 EUR for 3 nights.' },
-			{ skillLabel: 'Stays Search', appId: 'travel', previewPath: 'embeds/travel/TravelStaysEmbedPreview', fullscreenPath: 'embeds/travel/TravelStaysEmbedFullscreen', inlineLinkText: 'Hotels in Barcelona, Mar 15-18', quoteText: 'Found 8 hotels in Barcelona for Mar 15-18. Top pick: Hotel Arts Barcelona.' }
+			{
+				skillLabel: 'Search',
+				appId: 'travel',
+				previewPath: 'embeds/travel/TravelSearchEmbedPreview',
+				fullscreenPath: 'embeds/travel/TravelSearchEmbedFullscreen',
+				inlineLinkText: 'Munich to London, Mar 15',
+				quoteText: 'Lufthansa LH2485: Munich to London Heathrow, 2h 10m, from 89 EUR.'
+			},
+			{
+				skillLabel: 'Connection',
+				appId: 'travel',
+				previewPath: 'embeds/travel/TravelConnectionEmbedPreview',
+				fullscreenPath: 'embeds/travel/TravelConnectionEmbedFullscreen',
+				inlineLinkText: 'MUC to LHR direct flight',
+				quoteText: 'Direct flight Munich to London, 2h 10min, Terminal 2, Gate B22.'
+			},
+			{
+				skillLabel: 'Price Calendar',
+				appId: 'travel',
+				previewPath: 'embeds/travel/TravelPriceCalendarEmbedPreview',
+				fullscreenPath: 'embeds/travel/TravelPriceCalendarEmbedFullscreen',
+				inlineLinkText: 'Munich to Barcelona prices, March',
+				quoteText: 'Cheapest day: March 18 at 62 EUR. Prices shown for Munich to Barcelona.'
+			},
+			{
+				skillLabel: 'Stay',
+				appId: 'travel',
+				previewPath: 'embeds/travel/TravelStayEmbedPreview',
+				fullscreenPath: 'embeds/travel/TravelStayEmbedFullscreen',
+				inlineLinkText: 'Hotel Maximilian, Munich',
+				quoteText: 'Hotel Maximilian: 4-star hotel in central Munich, from 387 EUR for 3 nights.'
+			},
+			{
+				skillLabel: 'Stays Search',
+				appId: 'travel',
+				previewPath: 'embeds/travel/TravelStaysEmbedPreview',
+				fullscreenPath: 'embeds/travel/TravelStaysEmbedFullscreen',
+				inlineLinkText: 'Hotels in Barcelona, Mar 15-18',
+				quoteText: 'Found 8 hotels in Barcelona for Mar 15-18. Top pick: Hotel Arts Barcelona.'
+			}
 		],
 		maps: [
-			{ skillLabel: 'Search', appId: 'maps', previewPath: 'embeds/maps/MapsSearchEmbedPreview', fullscreenPath: 'embeds/maps/MapsSearchEmbedFullscreen', inlineLinkText: 'Coffee shops near Marienplatz', quoteText: 'Man vs. Machine Coffee Roasters — Rated 4.7, 0.3km from Marienplatz, Munich.' }
+			{
+				skillLabel: 'Search',
+				appId: 'maps',
+				previewPath: 'embeds/maps/MapsSearchEmbedPreview',
+				fullscreenPath: 'embeds/maps/MapsSearchEmbedFullscreen',
+				inlineLinkText: 'Coffee shops near Marienplatz',
+				quoteText: 'Man vs. Machine Coffee Roasters — Rated 4.7, 0.3km from Marienplatz, Munich.'
+			}
 		],
 		math: [
-			{ skillLabel: 'Calculate', appId: 'math', previewPath: 'embeds/math/MathCalculateEmbedPreview', fullscreenPath: 'embeds/math/MathCalculateEmbedFullscreen', inlineLinkText: 'sin(pi/4) + cos(pi/3)', quoteText: 'Result: sin(pi/4) + cos(pi/3) = sqrt(2)/2 + 1/2 approx 1.207' },
-			{ skillLabel: 'Plot', appId: 'math', previewPath: 'embeds/math/MathPlotEmbedPreview', fullscreenPath: 'embeds/math/MathPlotEmbedFullscreen', inlineLinkText: 'sin(x) and cos(x) plot', quoteText: 'Interactive plot of f(x) = sin(x) and f(x) = cos(x) over [-2pi, 2pi].' }
+			{
+				skillLabel: 'Calculate',
+				appId: 'math',
+				previewPath: 'embeds/math/MathCalculateEmbedPreview',
+				fullscreenPath: 'embeds/math/MathCalculateEmbedFullscreen',
+				inlineLinkText: 'sin(pi/4) + cos(pi/3)',
+				quoteText: 'Result: sin(pi/4) + cos(pi/3) = sqrt(2)/2 + 1/2 approx 1.207'
+			},
+			{
+				skillLabel: 'Plot',
+				appId: 'math',
+				previewPath: 'embeds/math/MathPlotEmbedPreview',
+				fullscreenPath: 'embeds/math/MathPlotEmbedFullscreen',
+				inlineLinkText: 'sin(x) and cos(x) plot',
+				quoteText: 'Interactive plot of f(x) = sin(x) and f(x) = cos(x) over [-2pi, 2pi].'
+			}
 		],
 		events: [
-			{ skillLabel: 'Event', appId: 'events', previewPath: 'embeds/events/EventEmbedPreview', fullscreenPath: 'embeds/events/EventEmbedFullscreen', inlineLinkText: 'AI & ML Berlin Meetup', quoteText: 'AI & Machine Learning Berlin Meetup. March 15, 19:00 at Factory Berlin.' },
-			{ skillLabel: 'Search', appId: 'events', previewPath: 'embeds/events/EventsSearchEmbedPreview', fullscreenPath: 'embeds/events/EventsSearchEmbedFullscreen', inlineLinkText: 'AI meetups in Berlin', quoteText: 'Found 3 upcoming AI & tech events in Berlin this month.' }
+			{
+				skillLabel: 'Event',
+				appId: 'events',
+				previewPath: 'embeds/events/EventEmbedPreview',
+				fullscreenPath: 'embeds/events/EventEmbedFullscreen',
+				inlineLinkText: 'AI & ML Berlin Meetup',
+				quoteText: 'AI & Machine Learning Berlin Meetup. March 15, 19:00 at Factory Berlin.'
+			},
+			{
+				skillLabel: 'Search',
+				appId: 'events',
+				previewPath: 'embeds/events/EventsSearchEmbedPreview',
+				fullscreenPath: 'embeds/events/EventsSearchEmbedFullscreen',
+				inlineLinkText: 'AI meetups in Berlin',
+				quoteText: 'Found 3 upcoming AI & tech events in Berlin this month.'
+			}
 		],
 		reminder: [
-			{ skillLabel: 'Reminder', appId: 'reminder', previewPath: 'embeds/reminder/ReminderEmbedPreview', fullscreenPath: 'embeds/reminder/ReminderEmbedFullscreen', inlineLinkText: 'Reminder: tomorrow 9:00 AM', quoteText: 'Reminder set! I will send a message in this chat tomorrow at 9:00 AM.' }
+			{
+				skillLabel: 'Reminder',
+				appId: 'reminder',
+				previewPath: 'embeds/reminder/ReminderEmbedPreview',
+				fullscreenPath: 'embeds/reminder/ReminderEmbedFullscreen',
+				inlineLinkText: 'Reminder: tomorrow 9:00 AM',
+				quoteText: 'Reminder set! I will send a message in this chat tomorrow at 9:00 AM.'
+			}
 		],
 		sheets: [
-			{ skillLabel: 'Sheet', appId: 'sheets', previewPath: 'embeds/sheets/SheetEmbedPreview', fullscreenPath: 'embeds/sheets/SheetEmbedFullscreen', inlineLinkText: 'Budget spreadsheet Q1 2026', quoteText: 'Spreadsheet: Q1 2026 Budget — 12 rows, 8 columns, last updated today.' }
+			{
+				skillLabel: 'Sheet',
+				appId: 'sheets',
+				previewPath: 'embeds/sheets/SheetEmbedPreview',
+				fullscreenPath: 'embeds/sheets/SheetEmbedFullscreen',
+				inlineLinkText: 'Budget spreadsheet Q1 2026',
+				quoteText: 'Spreadsheet: Q1 2026 Budget — 12 rows, 8 columns, last updated today.'
+			}
 		],
 		audio: [
-			{ skillLabel: 'Recording', appId: 'audio', previewPath: 'embeds/audio/RecordingEmbedPreview', fullscreenPath: 'embeds/audio/RecordingEmbedFullscreen', inlineLinkText: 'Voice note — 0:42', quoteText: 'Voice recording captured: 42 seconds, transcription available.' }
+			{
+				skillLabel: 'Recording',
+				appId: 'audio',
+				previewPath: 'embeds/audio/RecordingEmbedPreview',
+				fullscreenPath: 'embeds/audio/RecordingEmbedFullscreen',
+				inlineLinkText: 'Voice note — 0:42',
+				quoteText: 'Voice recording captured: 42 seconds, transcription available.'
+			}
 		],
 		health: [
-			{ skillLabel: 'Appointment', appId: 'health', previewPath: 'embeds/health/HealthAppointmentEmbedPreview', fullscreenPath: 'embeds/health/HealthAppointmentEmbedFullscreen', inlineLinkText: 'Dr. Mueller appointment — Apr 3', quoteText: 'Appointment confirmed with Dr. Mueller on April 3 at 10:30 AM.' },
-			{ skillLabel: 'Search', appId: 'health', previewPath: 'embeds/health/HealthSearchEmbedPreview', fullscreenPath: 'embeds/health/HealthSearchEmbedFullscreen', inlineLinkText: 'Cardiologists near Munich', quoteText: 'Found 5 cardiologists within 5km. Top result: Prof. Weber, rated 4.9.' }
+			{
+				skillLabel: 'Appointment',
+				appId: 'health',
+				previewPath: 'embeds/health/HealthAppointmentEmbedPreview',
+				fullscreenPath: 'embeds/health/HealthAppointmentEmbedFullscreen',
+				inlineLinkText: 'Dr. Mueller appointment — Apr 3',
+				quoteText: 'Appointment confirmed with Dr. Mueller on April 3 at 10:30 AM.'
+			},
+			{
+				skillLabel: 'Search',
+				appId: 'health',
+				previewPath: 'embeds/health/HealthSearchEmbedPreview',
+				fullscreenPath: 'embeds/health/HealthSearchEmbedFullscreen',
+				inlineLinkText: 'Cardiologists near Munich',
+				quoteText: 'Found 5 cardiologists within 5km. Top result: Prof. Weber, rated 4.9.'
+			}
 		],
 		mail: [
-			{ skillLabel: 'Mail', appId: 'mail', previewPath: 'embeds/mail/MailEmbedPreview', fullscreenPath: 'embeds/mail/MailEmbedFullscreen', inlineLinkText: 'Email: Project update from Anna', quoteText: 'The latest sprint review went well. All tickets closed except the auth refactor.' }
+			{
+				skillLabel: 'Mail',
+				appId: 'mail',
+				previewPath: 'embeds/mail/MailEmbedPreview',
+				fullscreenPath: 'embeds/mail/MailEmbedFullscreen',
+				inlineLinkText: 'Email: Project update from Anna',
+				quoteText:
+					'The latest sprint review went well. All tickets closed except the auth refactor.'
+			}
 		],
 		pdf: [
-			{ skillLabel: 'PDF', appId: 'pdf', previewPath: 'embeds/pdf/PDFEmbedPreview', fullscreenPath: 'embeds/pdf/PDFEmbedFullscreen', inlineLinkText: 'Q4 2025 Report.pdf', quoteText: 'Annual revenue increased 23% YoY. Full analysis on pages 4-7.' },
-			{ skillLabel: 'Read', appId: 'pdf', previewPath: 'embeds/pdf/PdfReadEmbedPreview', fullscreenPath: 'embeds/pdf/PdfReadEmbedFullscreen', inlineLinkText: 'Architecture whitepaper — page 12', quoteText: 'The microservices architecture enables independent scaling of each service component.' },
-			{ skillLabel: 'Search', appId: 'pdf', previewPath: 'embeds/pdf/PdfSearchEmbedPreview', fullscreenPath: 'embeds/pdf/PdfSearchEmbedFullscreen', inlineLinkText: 'Search "authentication" in docs', quoteText: 'Found 7 mentions of "authentication" across 3 documents.' }
+			{
+				skillLabel: 'PDF',
+				appId: 'pdf',
+				previewPath: 'embeds/pdf/PDFEmbedPreview',
+				fullscreenPath: 'embeds/pdf/PDFEmbedFullscreen',
+				inlineLinkText: 'Q4 2025 Report.pdf',
+				quoteText: 'Annual revenue increased 23% YoY. Full analysis on pages 4-7.'
+			},
+			{
+				skillLabel: 'Read',
+				appId: 'pdf',
+				previewPath: 'embeds/pdf/PdfReadEmbedPreview',
+				fullscreenPath: 'embeds/pdf/PdfReadEmbedFullscreen',
+				inlineLinkText: 'Architecture whitepaper — page 12',
+				quoteText:
+					'The microservices architecture enables independent scaling of each service component.'
+			},
+			{
+				skillLabel: 'Search',
+				appId: 'pdf',
+				previewPath: 'embeds/pdf/PdfSearchEmbedPreview',
+				fullscreenPath: 'embeds/pdf/PdfSearchEmbedFullscreen',
+				inlineLinkText: 'Search "authentication" in docs',
+				quoteText: 'Found 7 mentions of "authentication" across 3 documents.'
+			}
 		],
 		shopping: [
-			{ skillLabel: 'Search', appId: 'shopping', previewPath: 'embeds/shopping/ShoppingSearchEmbedPreview', fullscreenPath: 'embeds/shopping/ShoppingSearchEmbedFullscreen', inlineLinkText: 'Wireless headphones under 100 EUR', quoteText: 'Found 12 wireless headphones under 100 EUR. Top pick: Sony WH-1000XM4 at 89 EUR.' }
+			{
+				skillLabel: 'Search',
+				appId: 'shopping',
+				previewPath: 'embeds/shopping/ShoppingSearchEmbedPreview',
+				fullscreenPath: 'embeds/shopping/ShoppingSearchEmbedFullscreen',
+				inlineLinkText: 'Wireless headphones under 100 EUR',
+				quoteText:
+					'Found 12 wireless headphones under 100 EUR. Top pick: Sony WH-1000XM4 at 89 EUR.'
+			}
 		]
 	};
 
@@ -129,9 +361,23 @@
 	};
 
 	const ALL_APPS = [
-		'code', 'docs', 'web', 'videos', 'images', 'news', 'travel',
-		'maps', 'math', 'events', 'reminder', 'sheets', 'audio',
-		'health', 'mail', 'pdf', 'shopping'
+		'code',
+		'docs',
+		'web',
+		'videos',
+		'images',
+		'news',
+		'travel',
+		'maps',
+		'math',
+		'events',
+		'reminder',
+		'sheets',
+		'audio',
+		'health',
+		'mail',
+		'pdf',
+		'shopping'
 	];
 
 	// ─── Glob maps ────────────────────────────────────────────────────
@@ -279,7 +525,9 @@
 					s.variants = preview.variants ?? {};
 					s.hasPreviewFile = true;
 					s.propsJson = JSON.stringify(preview.default ?? {}, null, 2);
-				} catch { /* no preview data — component renders with {} */ }
+				} catch {
+					/* no preview data — component renders with {} */
+				}
 			}
 
 			s.isLoading = false;
@@ -351,7 +599,6 @@
 </script>
 
 <div class="showcase-page">
-
 	<!-- App switcher bar -->
 	<header class="app-switcher">
 		<a href="/dev/preview" class="back-link">&#8592; All</a>
@@ -360,8 +607,8 @@
 				<a
 					class="app-pill"
 					class:active={appSlug === currentApp}
-					href="/dev/preview/embeds/{appSlug}"
-				>{appSlug}</a>
+					href="/dev/preview/embeds/{appSlug}">{appSlug}</a
+				>
 			{/each}
 		</nav>
 		<div class="toolbar-right">
@@ -369,8 +616,16 @@
 				{$theme === 'light' ? '🌙' : '☀️'}
 			</button>
 			<div class="bg-group">
-				<button class="ctrl-btn" class:active={background === 'auto'} onclick={() => (background = 'auto')}>Auto</button>
-				<button class="ctrl-btn" class:active={background === 'grid'} onclick={() => (background = 'grid')}>Grid</button>
+				<button
+					class="ctrl-btn"
+					class:active={background === 'auto'}
+					onclick={() => (background = 'auto')}>Auto</button
+				>
+				<button
+					class="ctrl-btn"
+					class:active={background === 'grid'}
+					onclick={() => (background = 'grid')}>Grid</button
+				>
 			</div>
 		</div>
 	</header>
@@ -399,13 +654,28 @@
 								{#if Object.keys(s.variants).length > 0}
 									<div class="template-row">
 										<span class="template-label">Template:</span>
-										<button class="tmpl-btn" class:active={s.activeVariant === 'default'} onclick={() => selectVariant(si, 'default')}>Default</button>
-										{#each Object.keys(s.variants).filter(v => v !== 'mobile') as vname}
-											<button class="tmpl-btn" class:active={s.activeVariant === vname} onclick={() => selectVariant(si, vname)}>{vname}</button>
+										<button
+											class="tmpl-btn"
+											class:active={s.activeVariant === 'default'}
+											onclick={() => selectVariant(si, 'default')}>Default</button
+										>
+										{#each Object.keys(s.variants).filter((v) => v !== 'mobile') as vname}
+											<button
+												class="tmpl-btn"
+												class:active={s.activeVariant === vname}
+												onclick={() => selectVariant(si, vname)}>{vname}</button
+											>
 										{/each}
 									</div>
 								{/if}
-								<button class="props-btn" class:active={s.showPropsEditor} onclick={() => { s.showPropsEditor = !s.showPropsEditor; loadedSections = [...loadedSections]; }}>Props</button>
+								<button
+									class="props-btn"
+									class:active={s.showPropsEditor}
+									onclick={() => {
+										s.showPropsEditor = !s.showPropsEditor;
+										loadedSections = [...loadedSections];
+									}}>Props</button
+								>
 							</div>
 						{/if}
 					</div>
@@ -446,7 +716,13 @@
 								<span class="inline-ctx">The assistant found </span>
 								<span class="fake-inline">
 									<span class="fake-badge" style="background: var(--color-app-{section.appId})">
-										<span class="fake-badge-icon" style="mask-image: url('/static/icons/{APP_ICON[section.appId] ?? section.appId}.svg'); -webkit-mask-image: url('/static/icons/{APP_ICON[section.appId] ?? section.appId}.svg')"></span>
+										<span
+											class="fake-badge-icon"
+											style="mask-image: url('/static/icons/{APP_ICON[section.appId] ??
+												section.appId}.svg'); -webkit-mask-image: url('/static/icons/{APP_ICON[
+												section.appId
+											] ?? section.appId}.svg')"
+										></span>
 									</span>
 									<span class="fake-link-text">{section.inlineLinkText}</span>
 								</span>
@@ -458,11 +734,23 @@
 						<div class="dt">
 							<h3 class="dt-heading">Quote Block</h3>
 							<div class="dt-body">
-								<blockquote class="fake-quote" style="border-left-color: var(--color-app-{section.appId}-start, var(--color-primary-start))">
+								<blockquote
+									class="fake-quote"
+									style="border-left-color: var(--color-app-{section.appId}-start, var(--color-primary-start))"
+								>
 									<p class="fake-quote-text">{section.quoteText}</p>
 									<footer class="fake-quote-footer">
-										<span class="fake-badge fake-badge--sm" style="background: var(--color-app-{section.appId})">
-											<span class="fake-badge-icon" style="mask-image: url('/static/icons/{APP_ICON[section.appId] ?? section.appId}.svg'); -webkit-mask-image: url('/static/icons/{APP_ICON[section.appId] ?? section.appId}.svg')"></span>
+										<span
+											class="fake-badge fake-badge--sm"
+											style="background: var(--color-app-{section.appId})"
+										>
+											<span
+												class="fake-badge-icon"
+												style="mask-image: url('/static/icons/{APP_ICON[section.appId] ??
+													section.appId}.svg'); -webkit-mask-image: url('/static/icons/{APP_ICON[
+													section.appId
+												] ?? section.appId}.svg')"
+											></span>
 										</span>
 										<span class="fake-source">{section.appId}</span>
 									</footer>
@@ -484,7 +772,11 @@
 							<!-- 4. Group — Small (horizontal scroll of all data variants) -->
 							{#if dataVars.length > 1}
 								<div class="dt">
-									<h3 class="dt-heading">Group — Small <span class="size-hint">{dataVars.length} variants · horizontal scroll</span></h3>
+									<h3 class="dt-heading">
+										Group — Small <span class="size-hint"
+											>{dataVars.length} variants · horizontal scroll</span
+										>
+									</h3>
 									<div class="dt-body dt-body--flush dt-body--group-small">
 										<div class="group-scroll-row">
 											{#each dataVars as [vname, vprops]}
@@ -500,7 +792,9 @@
 
 							<!-- 5. Preview — Large (single, default variant) -->
 							<div class="dt">
-								<h3 class="dt-heading">Preview — Large <span class="size-hint">full-width x 425</span></h3>
+								<h3 class="dt-heading">
+									Preview — Large <span class="size-hint">full-width x 425</span>
+								</h3>
 								<div class="dt-body dt-body--flush">
 									<div class="large-container">
 										<Preview {...props} isMobile={false} />
@@ -514,7 +808,11 @@
 								{@const slideIdx = s.largeSlideIndex}
 								{@const [, slideProps] = dataVars[slideIdx]}
 								<div class="dt">
-									<h3 class="dt-heading">Group — Large <span class="size-hint">{dataVars.length} variants · slideshow</span></h3>
+									<h3 class="dt-heading">
+										Group — Large <span class="size-hint"
+											>{dataVars.length} variants · slideshow</span
+										>
+									</h3>
 									<div class="dt-body dt-body--flush">
 										<div class="large-slideshow-wrapper">
 											<div class="large-container">
@@ -522,13 +820,28 @@
 											</div>
 											<!-- Slide indicator + arrows -->
 											<div class="slideshow-controls">
-												<button class="slide-arrow" aria-label="Previous"
-													onclick={() => { s.largeSlideIndex = (slideIdx - 1 + totalSlides) % totalSlides; loadedSections = [...loadedSections]; }}>
+												<button
+													class="slide-arrow"
+													aria-label="Previous"
+													onclick={() => {
+														s.largeSlideIndex = (slideIdx - 1 + totalSlides) % totalSlides;
+														loadedSections = [...loadedSections];
+													}}
+												>
 													&#8592;
 												</button>
-												<span class="slide-label">{dataVars[slideIdx][0]} <span class="slide-count">{slideIdx + 1} / {totalSlides}</span></span>
-												<button class="slide-arrow" aria-label="Next"
-													onclick={() => { s.largeSlideIndex = (slideIdx + 1) % totalSlides; loadedSections = [...loadedSections]; }}>
+												<span class="slide-label"
+													>{dataVars[slideIdx][0]}
+													<span class="slide-count">{slideIdx + 1} / {totalSlides}</span></span
+												>
+												<button
+													class="slide-arrow"
+													aria-label="Next"
+													onclick={() => {
+														s.largeSlideIndex = (slideIdx + 1) % totalSlides;
+														loadedSections = [...loadedSections];
+													}}
+												>
 													&#8594;
 												</button>
 											</div>
@@ -546,7 +859,11 @@
 							{@const [_fsVname, fsProps] = dataVars2[fsIdx]}
 							{@const fsTotal = dataVars2.length}
 							<div class="dt">
-								<h3 class="dt-heading">Fullscreen <span class="size-hint">clipped inline · {fsTotal} variant{fsTotal !== 1 ? 's' : ''}</span></h3>
+								<h3 class="dt-heading">
+									Fullscreen <span class="size-hint"
+										>clipped inline · {fsTotal} variant{fsTotal !== 1 ? 's' : ''}</span
+									>
+								</h3>
 								<div class="dt-body dt-body--flush">
 									<!-- Variant label bar above fullscreen -->
 									{#if fsTotal > 1}
@@ -555,8 +872,11 @@
 												<button
 													class="fs-var-btn"
 													class:active={vi === fsIdx}
-													onclick={() => { s.fullscreenVariantIndex = vi; loadedSections = [...loadedSections]; }}
-												>{vname}</button>
+													onclick={() => {
+														s.fullscreenVariantIndex = vi;
+														loadedSections = [...loadedSections];
+													}}>{vname}</button
+												>
 											{/each}
 										</div>
 									{/if}
@@ -567,15 +887,20 @@
 												onClose={() => {}}
 												hasPreviousEmbed={fsTotal > 1 && fsIdx > 0}
 												hasNextEmbed={fsTotal > 1 && fsIdx < fsTotal - 1}
-												onNavigatePrevious={() => { s.fullscreenVariantIndex = Math.max(0, fsIdx - 1); loadedSections = [...loadedSections]; }}
-												onNavigateNext={() => { s.fullscreenVariantIndex = Math.min(fsTotal - 1, fsIdx + 1); loadedSections = [...loadedSections]; }}
+												onNavigatePrevious={() => {
+													s.fullscreenVariantIndex = Math.max(0, fsIdx - 1);
+													loadedSections = [...loadedSections];
+												}}
+												onNavigateNext={() => {
+													s.fullscreenVariantIndex = Math.min(fsTotal - 1, fsIdx + 1);
+													loadedSections = [...loadedSections];
+												}}
 											/>
 										{/key}
 									</div>
 								</div>
 							</div>
 						{/if}
-
 					{/if}
 				</section>
 			{/each}
@@ -611,7 +936,9 @@
 		white-space: nowrap;
 		flex-shrink: 0;
 	}
-	.back-link:hover { text-decoration: underline; }
+	.back-link:hover {
+		text-decoration: underline;
+	}
 
 	.app-pills {
 		display: flex;
@@ -623,7 +950,9 @@
 		padding-bottom: 2px;
 		min-width: 0;
 	}
-	.app-pills::-webkit-scrollbar { display: none; }
+	.app-pills::-webkit-scrollbar {
+		display: none;
+	}
 
 	.app-pill {
 		padding: 4px 12px;
@@ -636,9 +965,14 @@
 		color: var(--color-font-secondary);
 		background: var(--color-grey-20);
 		border: 1px solid transparent;
-		transition: background-color 0.15s, color 0.15s;
+		transition:
+			background-color 0.15s,
+			color 0.15s;
 	}
-	.app-pill:hover { background: var(--color-grey-25); color: var(--color-font-primary); }
+	.app-pill:hover {
+		background: var(--color-grey-25);
+		color: var(--color-font-primary);
+	}
 	.app-pill.active {
 		background: var(--color-primary-start);
 		color: #fff; /* intentional: always white text on gradient active pill */
@@ -679,8 +1013,12 @@
 		font-family: var(--font-primary, 'Lexend Deca Variable'), sans-serif;
 		transition: background-color 0.15s;
 	}
-	.ctrl-btn:last-child { border-right: none; }
-	.ctrl-btn:hover { background: var(--color-grey-20); }
+	.ctrl-btn:last-child {
+		border-right: none;
+	}
+	.ctrl-btn:hover {
+		background: var(--color-grey-20);
+	}
 	.ctrl-btn.active {
 		background: var(--color-primary-start);
 		color: #fff; /* intentional: always white on active toggle */
@@ -713,8 +1051,15 @@
 		margin-bottom: 64px;
 		padding-bottom: 48px;
 		border-bottom: 1px solid var(--color-grey-25);
+		/* Match the effective embed container width in real chat:
+		   chat-history-content is --chat-content-max-width (1000px),
+		   message-align-left is calc(100% - 70px) within that. */
+		max-width: calc(var(--chat-content-max-width, 1000px) - 70px);
 	}
-	.skill-section:last-child { border-bottom: none; margin-bottom: 0; }
+	.skill-section:last-child {
+		border-bottom: none;
+		margin-bottom: 0;
+	}
 
 	.skill-header {
 		display: flex;
@@ -758,7 +1103,9 @@
 		white-space: nowrap;
 		transition: background-color 0.15s;
 	}
-	.tmpl-btn:hover:not(.active) { background: var(--color-grey-20); }
+	.tmpl-btn:hover:not(.active) {
+		background: var(--color-grey-20);
+	}
 	.tmpl-btn.active {
 		background: var(--color-primary-start);
 		color: #fff; /* intentional */
@@ -776,8 +1123,14 @@
 		font-family: var(--font-primary, 'Lexend Deca Variable'), sans-serif;
 		transition: background-color 0.15s;
 	}
-	.props-btn:hover { background: var(--color-grey-20); color: var(--color-font-primary); }
-	.props-btn.active { background: var(--color-grey-25); color: var(--color-font-primary); }
+	.props-btn:hover {
+		background: var(--color-grey-20);
+		color: var(--color-font-primary);
+	}
+	.props-btn.active {
+		background: var(--color-grey-25);
+		color: var(--color-font-primary);
+	}
 
 	.props-panel {
 		margin-bottom: 24px;
@@ -794,7 +1147,10 @@
 		align-items: center;
 		gap: 8px;
 	}
-	.props-panel-title { font-size: 0.8125rem; font-weight: 600; }
+	.props-panel-title {
+		font-size: 0.8125rem;
+		font-weight: 600;
+	}
 	.reset-btn {
 		padding: 2px 8px;
 		border: 1px solid var(--color-grey-30);
@@ -805,7 +1161,10 @@
 		cursor: pointer;
 		font-family: var(--font-primary, 'Lexend Deca Variable'), sans-serif;
 	}
-	.reset-btn:hover { background: var(--color-grey-20); color: var(--color-font-primary); }
+	.reset-btn:hover {
+		background: var(--color-grey-20);
+		color: var(--color-font-primary);
+	}
 	.no-preview {
 		margin-left: auto;
 		font-size: 0.6875rem;
@@ -827,10 +1186,18 @@
 		outline: none;
 		box-sizing: border-box;
 	}
-	.props-editor:focus { border-color: var(--color-primary-start); }
-	.props-error { font-size: 0.6875rem; color: var(--color-error, #e53935); margin: 0; }
+	.props-editor:focus {
+		border-color: var(--color-primary-start);
+	}
+	.props-error {
+		font-size: 0.6875rem;
+		color: var(--color-error, #e53935);
+		margin: 0;
+	}
 
-	.dt { margin-bottom: 36px; }
+	.dt {
+		margin-bottom: 36px;
+	}
 
 	.dt-heading {
 		font-size: 0.75rem;
@@ -869,7 +1236,9 @@
 		flex-wrap: wrap;
 		gap: 3px;
 	}
-	.inline-ctx { color: var(--color-font-primary); }
+	.inline-ctx {
+		color: var(--color-font-primary);
+	}
 
 	.fake-inline {
 		display: inline-flex;
@@ -886,7 +1255,10 @@
 		flex-shrink: 0;
 		position: relative;
 	}
-	.fake-badge--sm { width: 18px; height: 18px; }
+	.fake-badge--sm {
+		width: 18px;
+		height: 18px;
+	}
 	.fake-badge-icon {
 		width: 11px;
 		height: 11px;
@@ -925,7 +1297,10 @@
 		align-items: center;
 		gap: 6px;
 	}
-	.fake-source { font-size: 0.75rem; color: var(--color-font-tertiary); }
+	.fake-source {
+		font-size: 0.75rem;
+		color: var(--color-font-tertiary);
+	}
 
 	.dt-body--flush {
 		padding: 0;
@@ -954,7 +1329,11 @@
 		border: 1px solid var(--color-grey-25);
 	}
 
-	.section-loading { padding: 24px 0; color: var(--color-font-tertiary); font-size: 0.875rem; }
+	.section-loading {
+		padding: 24px 0;
+		color: var(--color-font-tertiary);
+		font-size: 0.875rem;
+	}
 	.section-error {
 		padding: 16px;
 		background: var(--color-grey-10);
@@ -965,9 +1344,19 @@
 		font-family: 'Courier New', monospace;
 	}
 
-	.unknown-app { padding: 48px 0; text-align: center; color: var(--color-font-tertiary); }
-	.unknown-app h2 { font-size: 1.25rem; margin: 0 0 8px; }
-	.unknown-app p { font-size: 0.875rem; margin: 0; }
+	.unknown-app {
+		padding: 48px 0;
+		text-align: center;
+		color: var(--color-font-tertiary);
+	}
+	.unknown-app h2 {
+		font-size: 1.25rem;
+		margin: 0 0 8px;
+	}
+	.unknown-app p {
+		font-size: 0.875rem;
+		margin: 0;
+	}
 
 	/* ── Group — Small: horizontal scroll row ───────────────────────────────── */
 	.dt-body--group-small {
@@ -987,9 +1376,16 @@
 		scrollbar-color: var(--color-grey-40) transparent;
 	}
 
-	.group-scroll-row::-webkit-scrollbar { height: 4px; }
-	.group-scroll-row::-webkit-scrollbar-track { background: transparent; }
-	.group-scroll-row::-webkit-scrollbar-thumb { background: var(--color-grey-40); border-radius: 2px; }
+	.group-scroll-row::-webkit-scrollbar {
+		height: 4px;
+	}
+	.group-scroll-row::-webkit-scrollbar-track {
+		background: transparent;
+	}
+	.group-scroll-row::-webkit-scrollbar-thumb {
+		background: var(--color-grey-40);
+		border-radius: 2px;
+	}
 
 	.group-scroll-item {
 		display: flex;
@@ -1033,7 +1429,9 @@
 		line-height: 1;
 		transition: background-color 0.15s;
 	}
-	.slide-arrow:hover { background: var(--color-grey-20); }
+	.slide-arrow:hover {
+		background: var(--color-grey-20);
+	}
 
 	.slide-label {
 		font-size: 0.8125rem;
@@ -1073,7 +1471,9 @@
 		white-space: nowrap;
 		transition: background-color 0.15s;
 	}
-	.fs-var-btn:hover:not(.active) { background: var(--color-grey-20); }
+	.fs-var-btn:hover:not(.active) {
+		background: var(--color-grey-20);
+	}
 	.fs-var-btn.active {
 		background: var(--color-primary-start);
 		color: #fff; /* intentional */
@@ -1084,5 +1484,4 @@
 	.fs-variant-bar + .fs-clip {
 		border-radius: 0 0 12px 12px;
 	}
-
 </style>
