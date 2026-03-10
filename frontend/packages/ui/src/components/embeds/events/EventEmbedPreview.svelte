@@ -221,7 +221,7 @@
   /* ── Event title ─────────────────────────────────────────────────────────── */
 
   .event-title {
-    font-size: 14px;
+    font-size: 0.875rem;
     font-weight: 600;
     color: var(--color-grey-100);
     line-height: 1.35;
@@ -235,7 +235,7 @@
   }
 
   .event-preview-details.mobile .event-title {
-    font-size: 13px;
+    font-size: 0.8125rem;
     -webkit-line-clamp: 4;
     line-clamp: 4;
   }
@@ -249,7 +249,7 @@
   }
 
   .event-date {
-    font-size: 12px;
+    font-size: 0.75rem;
     color: var(--color-grey-70);
     font-weight: 500;
     white-space: nowrap;
@@ -258,14 +258,14 @@
   }
 
   .event-location {
-    font-size: 11px;
+    font-size: 0.6875rem;
     color: var(--color-grey-60);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  /* ── Footer: type badge + RSVP / fee ────────────────────────────────────── */
+  /* ── Footer: type badge + RSVP / fee + source ────────────────────────────── */
 
   .event-footer {
     display: flex;
@@ -276,19 +276,19 @@
 
   /* Type badge: "Online" (teal) or "In Person" (events brand red) */
   .event-type-badge {
-    font-size: 10px;
+    font-size: 0.625rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     padding: 2px 6px;
     border-radius: 20px;
     background: var(--color-app-events-start, #a20000);
-    color: #fff;
+    color: #fff; /* intentional: always white on brand colour */
     flex-shrink: 0;
   }
 
   .event-type-badge.online {
-    background: #1a6b5a;
+    background: #1a6b5a; /* intentional: brand teal for online events */
   }
 
   .event-fee,

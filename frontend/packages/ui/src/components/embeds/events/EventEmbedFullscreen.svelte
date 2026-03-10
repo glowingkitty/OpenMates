@@ -152,16 +152,17 @@
    */
   function getProviderLabel(provider: string | undefined): string {
     switch (provider?.toLowerCase()) {
-      case 'meetup':            return 'Meetup';
-      case 'luma':              return 'Luma';
-      case 'classictic':        return 'Classictic';
+      case 'meetup':              return 'Meetup';
+      case 'luma':                return 'Luma';
+      case 'classictic':          return 'Classictic';
       case 'berlin_philharmonic': return 'Berlin Philharmonic';
-      case 'bachtrack':         return 'Bachtrack';
-      default:                  return provider || '';
+      case 'bachtrack':           return 'Bachtrack';
+      default:                    return provider || '';
     }
   }
 
   let providerLabel  = $derived(getProviderLabel(event.provider));
+  // Uses existing open_on_provider i18n key: "Open on {provider}" (all 20 locales)
   let openButtonText = $derived($text('embeds.open_on_provider').replace('{provider}', providerLabel));
 
   function handleOpenEvent() {
@@ -186,7 +187,7 @@
   {mapMarkers}
 >
   {#snippet detailContent()}
-    <!-- Type badge + RSVP row -->
+    <!-- Type badge + RSVP row + source -->
     <div class="event-meta-row">
       {#if event.event_type}
         <span class="event-type-badge" class:online={isOnline}>
@@ -269,16 +270,16 @@
     align-items: center;
     padding: 4px 12px;
     border-radius: 100px;
-    font-size: 12px;
+    font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     background: var(--color-app-events-start, #a20000);
-    color: #fff;
+    color: #fff; /* intentional: always white on brand colour */
   }
 
   .event-type-badge.online {
-    background: #1a6b5a;
+    background: #1a6b5a; /* intentional: brand teal for online events */
   }
 
   .event-fee-badge {
@@ -286,7 +287,7 @@
     align-items: center;
     padding: 4px 12px;
     border-radius: 100px;
-    font-size: 12px;
+    font-size: 0.75rem;
     font-weight: 600;
     background: var(--color-grey-20);
     color: var(--color-font-primary);
@@ -297,7 +298,7 @@
     align-items: center;
     padding: 4px 12px;
     border-radius: 100px;
-    font-size: 12px;
+    font-size: 0.75rem;
     font-weight: 600;
     background: rgba(34, 197, 94, 0.15);
     color: var(--color-font-primary);
@@ -327,7 +328,7 @@
   }
 
   .section-label {
-    font-size: 11px;
+    font-size: 0.6875rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -335,23 +336,23 @@
   }
 
   .section-value {
-    font-size: 15px;
+    font-size: 0.9375rem;
     color: var(--color-font-primary);
     line-height: 1.5;
   }
 
   .section-value.secondary {
-    font-size: 13px;
+    font-size: 0.8125rem;
     color: var(--color-grey-60);
   }
 
   .venue-address {
     white-space: pre-line;
-    font-size: 14px;
+    font-size: 0.875rem;
   }
 
   .event-description {
-    font-size: 14px;
+    font-size: 0.875rem;
     color: var(--color-font-primary);
     line-height: 1.65;
     white-space: pre-wrap;
@@ -368,13 +369,13 @@
     justify-content: center;
     padding: 13px 32px;
     border-radius: 100px;
-    font-size: 15px;
+    font-size: 0.9375rem;
     font-weight: 500;
     cursor: pointer;
     border: none;
     font-family: 'Lexend Deca', sans-serif;
     background: linear-gradient(135deg, var(--color-app-events-start, #a20000), var(--color-app-events-end, #e61b3e));
-    color: #fff;
+    color: #fff; /* intentional: always white on brand gradient */
     transition: opacity 0.15s ease, scale 0.1s ease;
     filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.2));
     width: 100%;
