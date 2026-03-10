@@ -1438,7 +1438,9 @@ services:
   #########################################################################
   openobserve:
     container_name: openobserve
-    image: public.ecr.aws/zinclabs/openobserve:latest
+    # Pinned to latest stable release (v0.60.4, 2026-03-06).
+    # Do NOT use :latest — unintended upgrades can break the Loki-compat and Prometheus remote_write APIs.
+    image: public.ecr.aws/zinclabs/openobserve:v0.60.4
     restart: unless-stopped
     env_file: ../../.env
     deploy:
@@ -1452,6 +1454,11 @@ services:
       ZO_DATA_DIR: "/data"
       ZO_HTTP_PORT: "5080"
       ZO_TELEMETRY: "false"
+      # Retention policy for operational log/metric streams (API logs, container logs, Prometheus metrics).
+      # Compliance log streams (audit-compliance, financial-compliance) have stream-level overrides
+      # configured via the OpenObserve API on startup (see backend/core/api/main.py compliance_log_backup_task).
+      # Legal basis: operational logs have no mandatory minimum; 14 days covers incident investigation windows.
+      ZO_COMPACT_DATA_RETENTION_DAYS: "14"
     volumes:
       - openobserve-data:/data
     networks:

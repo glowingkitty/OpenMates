@@ -46,6 +46,7 @@ from backend.core.api.app.services.directus import DirectusService  # noqa: E402
 from backend.core.api.app.services.cache import CacheService  # noqa: E402
 from backend.core.api.app.services.metrics import MetricsService  # noqa: E402
 from backend.core.api.app.services.compliance import ComplianceService  # noqa: E402
+from backend.core.api.app.utils.setup_compliance_logging import setup_compliance_logging  # noqa: E402
 from backend.core.api.app.services.email_template import EmailTemplateService  # noqa: E402
 from backend.core.api.app.services.image_safety import ImageSafetyService  # noqa: E402 # Import ImageSafetyService
 from backend.core.api.app.services.s3.service import S3UploadService  # noqa: E402 # Import S3UploadService
@@ -341,13 +342,172 @@ async def discover_apps(app_state: any) -> Dict[str, AppYAML]: # Use 'any' for a
     return discovered_metadata
 
 
+# ---------------------------------------------------------------------------
+# Compliance Log S3 Backup Task
+# ---------------------------------------------------------------------------
+# Nightly task that uploads rotated compliance log files to S3 Hetzner.
+# Also sets stream-level retention overrides in OpenObserve via its REST API
+# (operational default is 14 days; compliance streams need longer retention).
+#
+# Architecture decisions:
+#   - financial-compliance.log.*  → S3 prefix financial-compliance/ (10-year lifecycle)
+#   - audit-compliance.log.*      → S3 prefix audit-compliance/     (2-year lifecycle)
+#   - Legacy compliance.log.*     → S3 prefix legacy-compliance/    (10-year, conservative)
+#   - Only rotated files (e.g. audit-compliance.log.2026-03-10) are uploaded — never the
+#     active .log file (it's still being written to and may be incomplete).
+#   - Successfully uploaded files are NOT deleted from disk (disk is cheap, belt + suspenders).
+#   - Already-uploaded keys are skipped (idempotent: S3 head_object check before put).
+#
+# OpenObserve stream retention:
+#   Stream-level overrides are set via PUT /api/{org}/streams/{stream}/settings.
+#   This overrides the global ZO_COMPACT_DATA_RETENTION_DAYS=14 for compliance streams only.
+# ---------------------------------------------------------------------------
+async def compliance_log_backup_task(app: "FastAPI") -> None:
+    """
+    Nightly background task: upload rotated compliance log files to S3 and set
+    OpenObserve stream-level retention for compliance streams.
+    """
+    import asyncio
+    import glob
+    import os
+    import aiohttp
+
+    _task_logger = logging.getLogger(__name__)
+
+    async def _set_openobserve_stream_retention(stream_name: str, retention_days: int) -> None:
+        """Configure per-stream retention in OpenObserve via its REST API."""
+        monitoring_url = os.getenv("MONITORING_URL", "http://openobserve:5080")
+        oo_email = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
+        oo_password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
+        if not oo_email or not oo_password:
+            _task_logger.warning("OPENOBSERVE credentials not set — cannot configure stream retention")
+            return
+        url = f"{monitoring_url}/api/default/streams/{stream_name}/settings"
+        payload = {"data_retention": retention_days}
+        auth = aiohttp.BasicAuth(oo_email, oo_password)
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.put(url, json=payload, auth=auth, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status in (200, 204):
+                        _task_logger.info(
+                            f"OpenObserve stream '{stream_name}' retention set to {retention_days} days"
+                        )
+                    else:
+                        body = await resp.text()
+                        _task_logger.warning(
+                            f"Failed to set OpenObserve stream retention for '{stream_name}': "
+                            f"HTTP {resp.status} — {body[:200]}"
+                        )
+        except Exception as e:
+            _task_logger.warning(f"Error setting OpenObserve stream retention for '{stream_name}': {e}")
+
+    def _upload_log_file(s3_service, bucket_key: str, s3_key: str, file_path: str) -> bool:
+        """
+        Upload a single log file to S3. Returns True on success.
+        Skips the upload if the key already exists (idempotent).
+        """
+        from backend.core.api.app.services.s3.config import get_bucket_name
+        bucket_name = get_bucket_name(bucket_key, s3_service.environment)
+        client = s3_service.client
+        if client is None:
+            _task_logger.error("S3 client not initialized — skipping compliance log upload")
+            return False
+        # Check if already uploaded (idempotent)
+        try:
+            client.head_object(Bucket=bucket_name, Key=s3_key)
+            _task_logger.debug(f"Compliance log already in S3, skipping: {s3_key}")
+            return True  # Already exists, treat as success
+        except Exception:
+            pass  # Key does not exist — proceed with upload
+
+        try:
+            with open(file_path, "rb") as f:
+                content = f.read()
+            client.put_object(
+                Bucket=bucket_name,
+                Key=s3_key,
+                Body=content,
+                ContentType="application/json",  # Compliance logs are JSON-per-line
+                ACL="private",
+                Metadata={"source": "compliance-log-backup", "original-path": file_path},
+            )
+            _task_logger.info(
+                f"Uploaded compliance log to S3: s3://{bucket_name}/{s3_key} "
+                f"({len(content):,} bytes)"
+            )
+            return True
+        except Exception as e:
+            _task_logger.error(f"Failed to upload compliance log {file_path} to S3: {e}")
+            return False
+
+    # --- On startup: configure OpenObserve stream-level retention ---
+    # Wait briefly for OpenObserve to be ready (it starts with the other containers)
+    await asyncio.sleep(30)
+    await _set_openobserve_stream_retention("audit-compliance", retention_days=730)      # 2 years
+    await _set_openobserve_stream_retention("financial-compliance", retention_days=3650) # 10 years
+
+    # --- Nightly loop ---
+    while True:
+        try:
+            log_dir = os.getenv("LOG_DIR", "/app/logs")
+            s3_service = getattr(app.state, "s3_service", None)
+
+            if s3_service is None or s3_service.client is None:
+                _task_logger.warning("S3 service not available — skipping compliance log backup")
+            else:
+                # Stream → (bucket_key, s3_prefix) mapping
+                # financial-compliance uses the 10-year bucket; audit uses the 2-year bucket.
+                streams = [
+                    ("financial-compliance.log", "financial_compliance_logs", "financial-compliance"),
+                    ("audit-compliance.log",     "audit_compliance_logs",     "audit-compliance"),
+                    ("compliance.log",            "financial_compliance_logs", "legacy-compliance"),  # Legacy pre-split files — conservative 10yr bucket
+                ]
+
+                uploaded = 0
+                skipped = 0
+                for log_basename, bucket_key, s3_prefix in streams:
+                    # Only upload ROTATED files (e.g. audit-compliance.log.2026-03-10)
+                    # Never upload the active .log file (it's still being written)
+                    rotated_pattern = os.path.join(log_dir, f"{log_basename}.*")
+                    for file_path in sorted(glob.glob(rotated_pattern)):
+                        filename = os.path.basename(file_path)
+                        # S3 key: e.g. audit-compliance/2026-03-10/audit-compliance.log.2026-03-10
+                        # Extract date suffix from filename for prefix organisation
+                        date_suffix = filename.split(f"{log_basename}.")[-1] if "." in filename else "unknown"
+                        s3_key = f"{s3_prefix}/{date_suffix}/{filename}"
+                        success = _upload_log_file(s3_service, bucket_key, s3_key, file_path)
+                        if success:
+                            uploaded += 1
+                        else:
+                            skipped += 1
+
+                if uploaded > 0 or skipped > 0:
+                    _task_logger.info(
+                        f"Compliance log backup complete: {uploaded} uploaded, {skipped} skipped/failed"
+                    )
+
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            _task_logger.error(f"Error in compliance log backup task: {e}", exc_info=True)
+
+        # Sleep until next run (every 24 hours)
+        await asyncio.sleep(24 * 60 * 60)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Set up event loop for async background tasks
     import asyncio
     loop = asyncio.get_event_loop()
     app.state.loop = loop
-    
+
+    # --- Configure compliance loggers (must run before any compliance events are emitted) ---
+    # Creates TimedRotatingFileHandlers for compliance.audit and compliance.financial loggers.
+    # See: backend/core/api/app/utils/setup_compliance_logging.py
+    setup_compliance_logging()
+    logger.info("Compliance loggers configured (audit-compliance.log + financial-compliance.log)")
+
     # --- Initialize all services and store in app.state ---
     logger.info("Initializing services...")
     app.state.cache_service = CacheService()
@@ -636,6 +796,14 @@ async def lifespan(app: FastAPI):
     # Initialize S3 service (fetches secrets, creates clients, buckets, etc.)
     logger.info("Initializing S3 service...")
     await app.state.s3_service.initialize()
+
+    # --- Start compliance log S3 backup task ---
+    # Uploads rotated compliance log files to S3 Hetzner nightly.
+    # Also configures OpenObserve stream-level retention overrides on first run.
+    app.state.compliance_backup_task = asyncio.create_task(
+        compliance_log_backup_task(app)
+    )
+    logger.info("Started compliance log S3 backup task (nightly)")
     try:
         # Initialize encryption service (validates token, ensures keys)
         logger.info("Initializing encryption service...")
@@ -1175,6 +1343,13 @@ async def lifespan(app: FastAPI):
         except asyncio.CancelledError:
             logger.info("Redis Pub/Sub listener task for embed data events cancelled")
             
+    if hasattr(app.state, 'compliance_backup_task'):
+        app.state.compliance_backup_task.cancel()
+        try:
+            await app.state.compliance_backup_task
+        except asyncio.CancelledError:
+            logger.info("Compliance log S3 backup task cancelled")
+
     # Close encryption service client
     if hasattr(app.state, 'encryption_service'):
         await app.state.encryption_service.close()

@@ -86,13 +86,29 @@ BUCKETS = {
         'access': 'private',
         'lifecycle_policy': 60,  # 2 months auto-delete (in days)
     },
-    'compliance_logs': {
+    # Financial compliance logs — invoices, transactions, refund records.
+    # Retention: 10 years (3650 days) — mandated by German commercial/tax law (AO §147, HGB §257).
+    # S3 key prefix convention: financial-compliance/<date>/<filename>
+    'financial_compliance_logs': {
         'name': 'openmates-compliance-logs-backups',
         'dev_name': 'dev-openmates-compliance-logs-backups',
-        'allowed_types': ['*/*'],  # Allow all file types
+        'allowed_types': ['*/*'],
         'max_size': 500 * 1024 * 1024,  # 500MB
         'access': 'private',
-        'lifecycle_policy': 365,  # 1 year auto-delete (in days)
+        'lifecycle_policy': 3650,  # 10 years — AO §147 / HGB §257
+    },
+    # Audit compliance logs — auth events, consents, account/data deletions.
+    # Retention: 2 years (730 days) — GDPR accountability + BSI recommendation (§34 BDSG).
+    # S3 key prefix convention: audit-compliance/<date>/<filename>
+    # Note: uses the same S3 bucket; lifecycle is enforced by path-based bucket lifecycle rules
+    # (applied during S3 service initialization in main.py via compliance_log_backup_task setup).
+    'audit_compliance_logs': {
+        'name': 'openmates-compliance-logs-backups',
+        'dev_name': 'dev-openmates-compliance-logs-backups',
+        'allowed_types': ['*/*'],
+        'max_size': 500 * 1024 * 1024,  # 500MB
+        'access': 'private',
+        'lifecycle_policy': 730,  # 2 years — GDPR / BSI §34 BDSG
     },
     'usage_archives': {
         'name': 'openmates-usage-archives',

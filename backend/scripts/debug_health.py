@@ -878,7 +878,8 @@ async def replay_request(request_id: str) -> None:
         if not all_events:
             print(_warn(f"  No log entries found for request_id={request_id}"))
             print(_c(DIM, "  Note: Only requests with request_id propagation are traceable."))
-            print(_c(DIM, "  OpenObserve retention is 7 days."))
+            print(_c(DIM, "  OpenObserve retention: 14 days for operational logs (ZO_COMPACT_DATA_RETENTION_DAYS)."))
+            print(_c(DIM, "  Compliance streams: audit-compliance=2yr, financial-compliance=10yr (stream-level overrides)."))
             print()
             return
 

@@ -50,14 +50,17 @@ scrape_configs:
           selector: '{server_env="production", level=~"(?i)debug"}'
           action: drop
 
-  # Compliance logs config (from file)
-  - job_name: compliance-logs
+  # Audit compliance logs (2-year retention in OpenObserve — GDPR / BSI §34 BDSG)
+  # Events: auth, user creation, consents, account/chat deletions, data access
+  # OpenObserve stream-level retention override: set to 730 days via startup API call in main.py
+  - job_name: audit-compliance-logs
     static_configs:
       - targets:
           - localhost
         labels:
-          job: compliance-logs
-          __path__: /var/log/api/compliance.log
+          job: audit-compliance-logs
+          stream: audit-compliance
+          __path__: /var/log/api/audit-compliance.log
     pipeline_stages:
       - json:
           expressions:
@@ -69,6 +72,31 @@ scrape_configs:
           event_type:
           user_id:
           status:
+
+  # Financial compliance logs (10-year retention in OpenObserve — AO §147 / HGB §257)
+  # Events: financial transactions, refund requests
+  # OpenObserve stream-level retention override: set to 3650 days via startup API call in main.py
+  - job_name: financial-compliance-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: financial-compliance-logs
+          stream: financial-compliance
+          __path__: /var/log/api/financial-compliance.log
+    pipeline_stages:
+      - json:
+          expressions:
+            timestamp: timestamp
+            event_type: event_type
+            user_id: user_id
+            status: status
+            transaction_type: transaction_type
+      - labels:
+          event_type:
+          user_id:
+          status:
+          transaction_type:
 
   # Docker container logs (stdout/stderr)
   - job_name: container-logs
