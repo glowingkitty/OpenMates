@@ -51,7 +51,14 @@ def _get_provider_rate_limit(provider_id: str) -> Optional[Dict[str, Any]]:
         # Check for provider-specific plan env var (e.g., BRAVE_SEARCH_PLAN)
         # Format: {PROVIDER_ID}_PLAN (uppercase, with underscores)
         plan_env_var = f"{provider_id.upper().replace('-', '_')}_PLAN"
-        plan = os.getenv(plan_env_var, "pro").lower()  # Default to "pro" if not set
+        plan_env_val = os.getenv(plan_env_var)
+        if plan_env_val:
+            plan = plan_env_val.lower()
+        else:
+            plan = "free" if provider_id == "brave" else "pro"
+            logger.warning(
+                f"{plan_env_var} not set for provider '{provider_id}'. Using '{plan}' plan defaults."
+            )
         
         # Get plan-specific rate limits
         if isinstance(rate_limits_config, dict):
@@ -245,8 +252,7 @@ async def wait_for_rate_limit(
 
                     # Chain a followup task that will process results and send followup message
                     # when the skill task completes
-                    from celery import chain
-                    from backend.apps.ai.tasks.rate_limit_followup_task import process_rate_limit_followup_task
+                    from celery import chain, signature
 
                     # Create the skill task
                     skill_task = celery_producer.signature(
@@ -259,14 +265,14 @@ async def wait_for_rate_limit(
                     # Create the followup task (runs after skill task completes)
                     # Note: In Celery chains, the followup task receives the skill task result as first argument
                     # So we need to use .s() with the result as first arg, then other args
-                    followup_task = process_rate_limit_followup_task.s(
-                        app_id=app_id,
-                        skill_id=skill_id_for_celery,
-                        chat_id=chat_id,
-                        message_id=message_id,
-                        user_id=None,  # TODO: Get from context if available
-                        user_id_hash=None,  # TODO: Get from context if available
-                    )
+                    followup_task = signature("backend.apps.ai.tasks.rate_limit_followup_task.process_rate_limit_followup_task", kwargs={
+                        "app_id": app_id,
+                        "skill_id": skill_id_for_celery,
+                        "chat_id": chat_id,
+                        "message_id": message_id,
+                        "user_id": None,  # TODO: Get from context if available
+                        "user_id_hash": None,  # TODO: Get from context if available
+                    })
 
                     # Chain tasks: skill_task -> followup_task
                     # The followup task will receive skill_result as first argument automatically

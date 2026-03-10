@@ -40,6 +40,7 @@ Usage — OpenObserve Summary Mode (no email required):
     docker exec api python /app/backend/scripts/debug_logs.py --o2 --preset web-app-health --since 60
     docker exec api python /app/backend/scripts/debug_logs.py --o2 --preset web-search-failures --since 1440
     docker exec api python /app/backend/scripts/debug_logs.py --o2 --preset api-failed-requests --since 1440
+    docker exec api python /app/backend/scripts/debug_logs.py --o2 --sql "SELECT * FROM \"default\" ORDER BY _timestamp DESC" --quiet-health
     docker exec api python /app/backend/scripts/debug_logs.py --o2 --sql "SELECT level, COUNT(*) as c FROM \"default\" GROUP BY level"
 
 Usage — Satellite Server Logs:
@@ -131,6 +132,10 @@ O2_PRESETS = (
     "web-search-failures",
     "api-failed-requests",
     "top-warnings-errors",
+)
+HEALTH_NOISE_PATHS = (
+    " /health ",
+    " /healthz ",
 )
 
 
@@ -1739,6 +1744,34 @@ def _normalize_path(path: str) -> str:
     return normalized
 
 
+def _is_health_noise_hit(hit: Dict[str, Any]) -> bool:
+    """Return True when a log record is routine health-check noise."""
+    raw_message = str(hit.get("message", ""))
+    message = _extract_structured_message(raw_message).lower()
+
+    has_success_200 = re.search(r"\s200(?:\s|$)", message) is not None
+
+    if '"get /health' in message or '"get /healthz' in message:
+        if has_success_200:
+            return True
+
+    if "health check" in message and "error" not in message and "fail" not in message:
+        return True
+
+    for marker in HEALTH_NOISE_PATHS:
+        if marker in message and has_success_200:
+            return True
+
+    return False
+
+
+def _apply_quiet_health_filter(hits: List[Dict[str, Any]], enabled: bool) -> List[Dict[str, Any]]:
+    """Filter out routine health-check hits when enabled."""
+    if not enabled:
+        return hits
+    return [hit for hit in hits if not _is_health_noise_hit(hit)]
+
+
 def _print_compact_kv(title: str, rows: List[Tuple[str, int]], max_items: int = 8) -> None:
     """Print compact key/value ranking lines."""
     print(f"{C_BOLD}{title}:{C_RESET}")
@@ -1851,6 +1884,8 @@ async def _o2_preset_api_failed_requests(args) -> None:
         max_rows=args.max_rows,
     )
 
+    hits = _apply_quiet_health_filter(hits, args.quiet_health)
+
     pattern = re.compile(r"Request failed: (GET|POST|PUT|PATCH|DELETE|OPTIONS) ([^ ]+) - (\d{3})")
     grouped: Counter[Tuple[str, str, str]] = Counter()
     for hit in hits:
@@ -1899,6 +1934,7 @@ async def _o2_custom_sql(args) -> None:
         since_minutes=args.since,
         max_rows=args.max_rows,
     )
+    hits = _apply_quiet_health_filter(hits, args.quiet_health)
     if args.as_json:
         print(json.dumps({"hits": hits}, indent=2, default=str))
         return
@@ -2004,6 +2040,8 @@ async def main():
                         help="Row cap for --o2 mode (default: 200)")
     parser.add_argument("--raw", action="store_true",
                         help="Include representative raw examples in --o2 mode")
+    parser.add_argument("--quiet-health", action="store_true",
+                        help="Filter routine /health and /healthz 200 logs in --o2 mode")
 
     # Satellite log options
     parser.add_argument("--services", type=str, default=None,

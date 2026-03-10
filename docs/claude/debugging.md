@@ -77,7 +77,7 @@ Before dumping long raw logs, run a compact OpenObserve preset first:
 - `docker exec api python /app/backend/scripts/debug.py logs --o2 --preset web-search-failures --since 1440`
 - `docker exec api python /app/backend/scripts/debug.py logs --o2 --preset api-failed-requests --since 1440`
 
-Use `--raw` only when you need representative sample lines, and `--sql` for ad-hoc deep dives.
+Use `--raw` only when you need representative sample lines, `--sql` for ad-hoc deep dives, and `--quiet-health` to hide routine `/health` and `/healthz` 200 noise.
 
 ## Rule 10: Embed Resolution Failures
 

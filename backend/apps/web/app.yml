@@ -167,8 +167,8 @@ instructions:
       - software_development
 skills:
   - id: search
-    name_translation_key: web.search
-    description_translation_key: web.search.description
+    name_translation_key: app_skills.web.search
+    description_translation_key: app_skills.web.search.description
     icon_image: search.svg
     preprocessor_hint: >
       General web search for current information, prices, weather, facts, stocks, sports scores, etc.

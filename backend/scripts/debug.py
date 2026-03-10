@@ -42,6 +42,7 @@ Examples:
   debug.py logs <email> --since 60      # user activity timeline
   debug.py logs --browser --search X    # browser console logs
   debug.py logs --o2 --preset web-app-health --since 60
+  debug.py logs --o2 --sql "SELECT * FROM \"default\" ORDER BY _timestamp DESC" --quiet-health
   debug.py requests --errors-only       # recent AI errors
   debug.py issue --list                 # list open issues
   debug.py errors --top 20             # top error fingerprints
@@ -153,7 +154,7 @@ def main():
         return
 
     if args[0] in ('-h', '--help'):
-        print(__doc__.strip())
+        print((__doc__ or "").strip())
         return
 
     _dispatch(args[0], args[1:])
