@@ -303,11 +303,11 @@ async def _async_send_issue_report_email(
         # Convert newlines to <br/> for HTML display in email
         device_info_formatted = device_info_formatted.replace('\n', '<br/>')
 
-        # Collect Docker Compose logs from all containers via Loki
-        logger.info("Collecting Docker Compose logs from all containers via Loki for issue report")
-        from backend.core.api.app.services.loki_log_collector import loki_log_collector
+        # Collect Docker Compose logs from all containers via OpenObserve
+        logger.info("Collecting Docker Compose logs from all containers via OpenObserve for issue report")
+        from backend.core.api.app.services.openobserve_log_collector import openobserve_log_collector
         from datetime import datetime, timedelta, timezone
-        backend_logs = await loki_log_collector.get_compose_logs(
+        backend_logs = await openobserve_log_collector.get_compose_logs(
             lines=50,
             exclude_containers=["grafana", "promtail", "loki", "cadvisor", "prometheus"],
             start_time=datetime.now(timezone.utc) - timedelta(minutes=5),
