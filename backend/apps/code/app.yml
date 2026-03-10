@@ -5,96 +5,50 @@ icon_image: |
 category: work
 last_updated: "2025-11-12"
 settings_and_memories:
-  # Preferred technologies: Languages, frameworks, tools the user prefers
-  - id: preferred_tech
-    name_translation_key: code.preferred_tech
-    description_translation_key: code.preferred_tech.description
-    icon_image: coding.svg
-    type: list
-    stage: production
-    example_translation_keys:
-      - "code.preferred_tech.example_1"
-      - "code.preferred_tech.example_2"
-    example_entries:
-      - name: "code.preferred_tech.example_1.name"
-        proficiency: "advanced"
-      - name: "code.preferred_tech.example_2.name"
-        proficiency: "intermediate"
-    schema:
-      type: object
-      properties:
-        name:
-          type: string
-          description: Technology name (e.g., Python, React, Docker)
-          is_title: true
-        proficiency:
-          type: string
-          description: Your proficiency level
-          enum: ["beginner", "intermediate", "advanced", "expert"]
-          is_subtitle: true
-      required:
-        - name
-  # Projects: All projects with status to indicate current state
-  - id: projects
-    name_translation_key: code.projects
-    description_translation_key: code.projects.description
-    icon_image: project.svg
-    type: list
-    stage: production
-    example_translation_keys:
-      - "code.projects.example_1"
-      - "code.projects.example_2"
-    example_entries:
-      - name: "code.projects.example_1.name"
-        status: "active"
-        description: "code.projects.example_1.description"
-        git_repo_url: "https://github.com/user/portfolio"
-      - name: "code.projects.example_2.name"
-        status: "completed"
-        description: "code.projects.example_2.description"
-    schema:
-      type: object
-      properties:
-        name:
-          type: string
-          description: Project name
-          is_title: true
-        status:
-          type: string
-          description: Project status
-          enum: ["active", "planned", "completed"]
-          is_subtitle: true
-        description:
-          type: string
-          description: Brief description of the project
-          multiline: true
-        git_repo_url:
-          type: string
-          description: Git repository URL (e.g., https://github.com/user/repo)
-      required:
-        - name
-  # Technologies to learn: Things the user wants to learn
-  - id: want_to_learn
-    name_translation_key: code.want_to_learn
-    description_translation_key: code.want_to_learn.description
+  # Coding setup: capture preferred environment and amount of AI support
+  - id: coding_setup
+    name_translation_key: code.coding_setup
+    description_translation_key: code.coding_setup.description
     icon_image: library.svg
     type: list
     stage: production
     example_translation_keys:
-      - "code.want_to_learn.example_1"
-      - "code.want_to_learn.example_2"
+      - "code.coding_setup.example_1"
+      - "code.coding_setup.example_2"
     example_entries:
-      - name: "code.want_to_learn.example_1.name"
-      - name: "code.want_to_learn.example_2.name"
+      - workspace: "terminal"
+        ai_level: "low"
+        input_style: "free_text"
+        notes: "code.coding_setup.example_1.notes"
+      - workspace: "web_ui"
+        ai_level: "high"
+        input_style: "guided_choices"
+        notes: "code.coding_setup.example_2.notes"
     schema:
       type: object
       properties:
-        name:
+        workspace:
           type: string
-          description: Technology or skill you want to learn
+          description: Main coding workspace used most often
+          enum: ["ide", "terminal", "web_ui", "mixed"]
           is_title: true
+        ai_level:
+          type: string
+          description: Amount of AI support preferred while coding
+          enum: ["off", "low", "medium", "high"]
+          is_subtitle: true
+        input_style:
+          type: string
+          description: Preferred balance between guided choices and free input
+          enum: ["guided_choices", "free_text", "mixed"]
+        notes:
+          type: string
+          description: Optional details about tools or workflow preferences
+          multiline: true
       required:
-        - name
+        - workspace
+        - ai_level
+        - input_style
 
 # IMPORTANT lerning:
 # if we let ai code for too long extensive code changes and then start to test it, it becomes a huge broken mess. instead we need to find other ways. Maybe by reminding llm to break tasks down into smaller steps (that also allows for placebolder code), and build it up so that we can test individual steps better if they work and if so we continue to the next step.
