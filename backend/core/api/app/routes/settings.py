@@ -701,7 +701,7 @@ class ApiKeyCreateRequest(BaseModel):
 class ApiKeyResponse(BaseModel):
     """Response model for API key information (encrypted fields excluded for REST API)"""
     id: str
-    created_at: str
+    created_at: Optional[str] = None  # Optional: Directus may return null on newly-created keys
     expires_at: Optional[str] = None
     last_used_at: Optional[str] = None
     # Note: encrypted_name and encrypted_key_prefix are excluded from REST API responses
@@ -739,8 +739,8 @@ async def get_api_keys(
         if api_keys_data:
             for key in api_keys_data:
                 try:
-                    # Format timestamps - Directus may return datetime objects or ISO strings
-                    created_at = key.get('created_at', '')
+                    # Format timestamps - Directus may return datetime objects, ISO strings, or None
+                    created_at = key.get('created_at')
                     if created_at and not isinstance(created_at, str):
                         # Convert datetime object to ISO string
                         if hasattr(created_at, 'isoformat'):
@@ -3304,7 +3304,22 @@ async def get_export_manifest(
         }
         
         logger.info(f"[EXPORT] Manifest ready for user {user_id}: {len(all_chat_ids)} chats, {invoice_count} invoices, {usage_count} usage entries")
-        
+
+        # Record export timestamp so the daily notification dispatcher can reset the
+        # backup reminder interval. Fire-and-forget — don't block the export response
+        # or fail it if the update fails.
+        try:
+            from datetime import datetime, timezone as _tz
+            await directus_service.update_user(
+                user_id,
+                {"last_export_at": datetime.now(_tz.utc).isoformat()},
+            )
+            # Invalidate cached profile so the next request sees the updated timestamp.
+            await cache_service.delete(f"user_profile:{user_id}")
+            logger.info(f"[EXPORT] Updated last_export_at for user {user_id}")
+        except Exception as update_err:
+            logger.warning(f"[EXPORT] Could not update last_export_at for user {user_id}: {update_err}")
+
         return ExportManifestResponse(
             success=True,
             manifest=manifest

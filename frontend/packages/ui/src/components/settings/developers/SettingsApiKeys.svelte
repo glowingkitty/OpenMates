@@ -14,8 +14,18 @@
 
     const _dispatch = createEventDispatcher();
 
+    interface ApiKey {
+        id: string;
+        name: string;
+        key_prefix: string;
+        created_at: string | null;
+        last_used: string | null;
+        encrypted_name?: string;
+        encrypted_key_prefix?: string;
+    }
+
     // State using Svelte 5 $state() runes
-    let apiKeys = $state<any[]>([]);
+    let apiKeys = $state<ApiKey[]>([]);
     let loading = $state(true);
     let error = $state<string>('');
     let showCreateForm = $state(false);
@@ -57,20 +67,20 @@
             }
 
             apiKeys = await Promise.all(
-                rawKeys.map(async (key: any) => {
-                    let decryptedName = key.encrypted_name || '';
-                    let decryptedPrefix = key.encrypted_key_prefix || '';
-                    const lastUsed = key.last_used_at || null;
+                rawKeys.map(async (key: Record<string, unknown>) => {
+                    let decryptedName = (key.encrypted_name as string) || '';
+                    let decryptedPrefix = (key.encrypted_key_prefix as string) || '';
+                    const lastUsed = (key.last_used_at as string) || null;
                     
                     try {
                         if (key.encrypted_name) {
-                            const decrypted = await decryptWithMasterKey(key.encrypted_name);
+                            const decrypted = await decryptWithMasterKey(key.encrypted_name as string);
                             if (decrypted) {
                                 decryptedName = decrypted;
                             }
                         }
                         if (key.encrypted_key_prefix) {
-                            const decrypted = await decryptWithMasterKey(key.encrypted_key_prefix);
+                            const decrypted = await decryptWithMasterKey(key.encrypted_key_prefix as string);
                             if (decrypted) {
                                 decryptedPrefix = decrypted;
                             }
@@ -81,16 +91,17 @@
                     }
 
                     return {
-                        ...key,
+                        id: key.id as string,
+                        created_at: (key.created_at as string) || null,
                         name: decryptedName,
                         key_prefix: decryptedPrefix,
                         last_used: lastUsed
-                    };
+                    } satisfies ApiKey;
                 })
             );
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error loading API keys:', err);
-            error = err.message || 'Failed to load API keys';
+            error = (err instanceof Error ? err.message : null) || 'Failed to load API keys';
         } finally {
             loading = false;
         }
@@ -184,8 +195,8 @@
             // Reset form
             newKeyName = '';
             showCreateForm = false;
-        } catch (err: any) {
-            error = err.message || 'Failed to create API key';
+        } catch (err: unknown) {
+            error = (err instanceof Error ? err.message : null) || 'Failed to create API key';
         } finally {
             creatingKey = false;
         }
@@ -212,9 +223,9 @@
             }
 
             await loadApiKeys();
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error deleting API key:', err);
-            error = err.message || 'Failed to delete API key';
+            error = (err instanceof Error ? err.message : null) || 'Failed to delete API key';
         }
     }
 
@@ -225,7 +236,8 @@
         }
     }
 
-    function formatDate(dateString: string) {
+    function formatDate(dateString: string | null | undefined) {
+        if (!dateString) return 'Unknown';
         return new Date(dateString).toLocaleDateString();
     }
 </script>

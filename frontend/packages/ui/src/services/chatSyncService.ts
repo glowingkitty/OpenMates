@@ -1207,17 +1207,44 @@ export class ChatSynchronizationService extends EventTarget {
     // During forced logout, chatDB.init() is blocked (throws "Database initialization
     // blocked during logout") which causes startPhasedSync() to fail with a confusing
     // "Failed to start chat synchronization" error toast. This is not a real sync failure —
-    // it's expected behavior during logout. Skip silently to avoid misleading the user.
+    // it's expected behavior during logout.
+    //
+    // IMPORTANT: Do NOT dispatch dispatchSyncTimeoutComplete("logout-in-progress") here.
+    // Previously we did, which caused an infinite "syncing" spinner: after re-login the flag
+    // was still true, the timeout-complete fired once, but nothing ever re-triggered the sync
+    // because initialSyncAttempted was never set and no retry was scheduled.
+    //
+    // Instead, subscribe to forcedLogoutInProgress and retry once it clears. This ensures
+    // that after a forced logout + re-login cycle the sync starts automatically.
     if (get(forcedLogoutInProgress) || get(isLoggingOut)) {
       console.warn(
-        "[ChatSyncService] ❌ Skipping sync — logout in progress (forcedLogout:",
+        "[ChatSyncService] ⏳ Sync deferred — logout in progress (forcedLogout:",
         get(forcedLogoutInProgress),
         ", isLoggingOut:",
         get(isLoggingOut),
-        ")",
+        "). Will retry when flags clear.",
       );
-      // Dispatch synthetic completion so the UI doesn't stay stuck in "Loading chats..."
-      this.dispatchSyncTimeoutComplete("logout-in-progress");
+      // Subscribe to both flags and retry once both are false.
+      // Unsubscribe immediately after firing to avoid memory leaks.
+      let unsubscribed = false;
+      const retry = () => {
+        if (unsubscribed) return;
+        if (!get(forcedLogoutInProgress) && !get(isLoggingOut)) {
+          unsubscribed = true;
+          unsubForcedLogout();
+          unsubLoggingOut();
+          console.warn(
+            "[ChatSyncService] 🔄 Logout flags cleared — retrying sync after forced logout.",
+          );
+          // Small delay to let re-login state (master key, DB init) fully settle
+          setTimeout(
+            () => this.attemptInitialSync(immediate_view_chat_id),
+            500,
+          );
+        }
+      };
+      const unsubForcedLogout = forcedLogoutInProgress.subscribe(retry);
+      const unsubLoggingOut = isLoggingOut.subscribe(retry);
       return;
     }
 
