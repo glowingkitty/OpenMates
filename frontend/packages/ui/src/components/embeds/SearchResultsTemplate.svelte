@@ -236,8 +236,9 @@
   {#snippet content(ctx)}
     {@const results = getResults(ctx)}
     <!-- Sync allResults when resolved list changes (enables sibling navigation) -->
+    <!-- Note: void suppresses text rendering — {expr} would print the array as "[object Object],..." -->
     {#if results.length > 0 && results !== allResults}
-      {allResults = results}
+      {void (allResults = results)}
     {/if}
 
     {#if status === 'error'}
