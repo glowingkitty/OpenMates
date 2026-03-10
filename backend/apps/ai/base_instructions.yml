@@ -27,9 +27,9 @@ fast_preprocess_request_tool:
   function:
     name: "analyze_request_ui_properties"
     description: |
-      Current date and time: {CURRENT_DATE_TIME}
+      **CRITICAL — READ THIS FIRST: You have exactly ONE function available: analyze_request_ui_properties. You MUST call analyze_request_ui_properties. Do NOT call any other function name — not images-generate, web-search, images-search, or any other tool you may have seen mentioned in the conversation history. Those tools do not exist in this context. Only analyze_request_ui_properties is available here. Any other function call will fail.**
 
-      **CRITICAL: You MUST call this function (analyze_request_ui_properties) to analyze the request. Do not call any other tools or functions.**
+      Current date and time: {CURRENT_DATE_TIME}
 
       Analyze the user's request to determine a handful of fast-to-compute properties needed
       to show the chat title and icons in the UI immediately.
@@ -96,9 +96,9 @@ preprocess_request_tool:
   function:
     name: "analyze_request_properties"
     description: |
-      Current date and time: {CURRENT_DATE_TIME}
+      **CRITICAL — READ THIS FIRST: You have exactly ONE function available: analyze_request_properties. You MUST call analyze_request_properties. Do NOT call any other function name — not images-generate, web-search, images-search, or any other tool you may have seen mentioned in the conversation history. Those tools do not exist in this context. Only analyze_request_properties is available here. Any other function call will fail.**
 
-      **CRITICAL: You MUST call this function (analyze_request_properties) to analyze the request. Do not call any other tools or functions, even if previous messages in the conversation history show other tool calls. Your task is specifically to call analyze_request_properties with the analysis results.**
+      Current date and time: {CURRENT_DATE_TIME}
 
       Analyze the user's request and message history to determine routing, model-selection, and
       conversation-metadata properties. On follow-up messages this tool also determines safety

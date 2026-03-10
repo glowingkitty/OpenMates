@@ -1080,37 +1080,79 @@ async def call_preprocessing_llm(
         ]
         return any(indicator.lower() in error_message.lower() for indicator in retryable_indicators)
 
-    # Try primary provider first
+    def is_wrong_tool_error(error_message: Optional[str]) -> bool:
+        """True when the LLM called a different tool than the expected one (model hallucination).
+
+        These errors get one same-provider retry before falling through to the fallback, because
+        LLM tool selection is stochastic and a second attempt often succeeds.
+        Infra errors (rate-limit, timeout, 5xx) skip the same-provider retry — retrying the same
+        unhealthy or overloaded provider would only waste time.
+        """
+        if not error_message:
+            return False
+        return "not found in tool calls. actual tool calls made:" in error_message.lower()
+
+    # Try primary provider first, then fallbacks.
+    # For wrong-tool errors (model hallucination) we attempt the same provider once more before
+    # moving on — LLM tool selection is stochastic and one retry often clears it.
     providers_to_try = [model_id]
     if fallback_models:
         providers_to_try.extend(fallback_models)
-    
+
     attempted_providers = []
     last_error = None
-    
+
     for provider_model_id in providers_to_try:
-        attempted_providers.append(provider_model_id)
-        logger.info(f"[{task_id}] LLM Utils: Attempting preprocessing with provider: {provider_model_id} (attempt {len(attempted_providers)}/{len(providers_to_try)})")
-        
-        result = await _call_single_provider(provider_model_id)
-        
-        # If successful, return immediately
-        # Note: result.arguments can be an empty dict {} which is falsy, so check for None explicitly
-        if result.arguments is not None and not result.error_message:
-            logger.info(f"[{task_id}] LLM Utils: Preprocessing succeeded with provider: {provider_model_id}")
-            return result
-        
-        # If error is not retryable (e.g., 401, 400), fail immediately without trying fallbacks
-        if result.error_message and not is_retryable_error(result.error_message):
-            logger.warning(f"[{task_id}] LLM Utils: Provider {provider_model_id} failed with non-retryable error: {result.error_message}. Not trying fallbacks.")
-            return result
-        
-        # Store error for final reporting if all providers fail
-        last_error = result.error_message
-        logger.warning(f"[{task_id}] LLM Utils: Provider {provider_model_id} failed with retryable error: {result.error_message}. Trying next provider...")
-    
-    # All providers failed
-    error_summary = f"All {len(providers_to_try)} provider(s) failed. Attempted providers: {', '.join(attempted_providers)}. Last error: {last_error}"
+        # Allow one same-provider retry for wrong-tool errors; infra errors go straight to fallback.
+        WRONG_TOOL_SAME_PROVIDER_RETRIES = 1
+        attempts_for_this_provider = WRONG_TOOL_SAME_PROVIDER_RETRIES + 1  # updated after first call
+
+        attempt = 0
+        while attempt < attempts_for_this_provider:
+            attempt += 1
+            attempted_providers.append(provider_model_id)
+            logger.info(
+                f"[{task_id}] LLM Utils: Attempting preprocessing with provider: {provider_model_id} "
+                f"(attempt {len(attempted_providers)}/{len(providers_to_try) + WRONG_TOOL_SAME_PROVIDER_RETRIES})"
+            )
+
+            result = await _call_single_provider(provider_model_id)
+
+            # Success — return immediately.
+            # Note: result.arguments can be an empty dict {} which is falsy, so check None explicitly.
+            if result.arguments is not None and not result.error_message:
+                logger.info(f"[{task_id}] LLM Utils: Preprocessing succeeded with provider: {provider_model_id}")
+                return result
+
+            # Non-retryable error (e.g. 401, 400) — stop all retries immediately.
+            if result.error_message and not is_retryable_error(result.error_message):
+                logger.warning(
+                    f"[{task_id}] LLM Utils: Provider {provider_model_id} failed with non-retryable error: "
+                    f"{result.error_message}. Not trying fallbacks."
+                )
+                return result
+
+            # Wrong-tool error on first attempt — retry same provider once.
+            if is_wrong_tool_error(result.error_message) and attempt == 1:
+                logger.warning(
+                    f"[{task_id}] LLM Utils: Provider {provider_model_id} called the wrong tool "
+                    f"(attempt {attempt}). Retrying same provider once before trying fallback..."
+                )
+                continue  # loop again with same provider_model_id
+
+            # Any other retryable error, or wrong-tool on the retry attempt — move to next provider.
+            last_error = result.error_message
+            logger.warning(
+                f"[{task_id}] LLM Utils: Provider {provider_model_id} failed "
+                f"(attempt {attempt}): {result.error_message}. Trying next provider..."
+            )
+            break  # exit inner while, advance to next provider
+
+    # All providers (and same-provider retries) exhausted.
+    error_summary = (
+        f"All {len(providers_to_try)} provider(s) failed. "
+        f"Attempted providers: {', '.join(attempted_providers)}. Last error: {last_error}"
+    )
     logger.error(f"[{task_id}] LLM Utils: {error_summary}")
     return LLMPreprocessingCallResult(error_message=error_summary)
 
