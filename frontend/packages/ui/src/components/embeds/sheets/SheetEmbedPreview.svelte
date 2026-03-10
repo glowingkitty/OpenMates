@@ -380,4 +380,69 @@
     padding: 3px 6px;
     max-width: 80px;
   }
+
+  /* ══════════════════════════════════════════════════════════
+     Dark mode — spreadsheet-style dark (see screenshot)
+     Background: near-black, header: dark grey, green accents.
+     Uses CSS custom properties so values stay in sync with the
+     theme system (vars flip automatically in [data-theme="dark"]).
+     ══════════════════════════════════════════════════════════ */
+
+  :global(.dark) .sheet-preview {
+    background: var(--color-grey-10);
+  }
+
+  :global(.dark) .skeleton-table {
+    background: var(--color-grey-10);
+  }
+
+  :global(.dark) .skeleton-row.header .skeleton-cell {
+    background: var(--color-grey-30);
+  }
+
+  :global(.dark) .skeleton-cell {
+    background: var(--color-grey-20);
+  }
+
+  :global(.dark) .table-scroll {
+    background: var(--color-grey-10);
+  }
+
+  :global(.dark) .preview-table {
+    background: var(--color-grey-10);
+  }
+
+  :global(.dark) .preview-table th,
+  :global(.dark) .preview-table td {
+    border-color: var(--color-grey-30);
+    color: var(--color-grey-80);
+  }
+
+  :global(.dark) .preview-table th {
+    background: var(--color-grey-25);
+    color: var(--color-grey-80);
+    font-weight: 700;
+    border-bottom-color: var(--color-grey-40);
+  }
+
+  :global(.dark) .preview-table td {
+    color: var(--color-grey-80);
+  }
+
+  :global(.dark) .preview-table tbody tr:nth-child(even) td {
+    background: var(--color-grey-20);
+  }
+
+  :global(.dark) .more-rows td {
+    background: var(--color-grey-25) !important;
+    border-top-color: var(--color-grey-30);
+  }
+
+  :global(.dark) .more-indicator {
+    color: var(--color-grey-50);
+  }
+
+  :global(.dark) .empty-state {
+    background: var(--color-grey-10);
+  }
 </style>

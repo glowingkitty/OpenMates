@@ -247,7 +247,7 @@
       const tsv = tableToTSV(cleanHeaders, cleanRows);
       const clipResult = await copyToClipboard(tsv);
       if (!clipResult.success) throw new Error(clipResult.error || 'Copy failed');
-      console.debug('[SheetEmbedFullscreen] Copied table as TSV to clipboard');
+      console.warn('[SheetEmbedFullscreen] Copied table as TSV to clipboard');
       notificationStore.success('Table copied — paste into Excel or Google Sheets');
     } catch (error) {
       console.error('[SheetEmbedFullscreen] Failed to copy table:', error);
@@ -275,7 +275,7 @@
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      console.debug('[SheetEmbedFullscreen] Downloaded table as .xlsx');
+      console.warn('[SheetEmbedFullscreen] Downloaded table as .xlsx');
       notificationStore.success('Table downloaded as .xlsx');
     } catch (error) {
       console.error('[SheetEmbedFullscreen] Failed to download table:', error);
@@ -818,5 +818,175 @@
     .filter-field {
       min-width: 80px;
     }
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     Dark mode — Excel-style dark spreadsheet (see screenshot)
+     Near-black bg, dark grey headers/gutter, subtle grid lines.
+     Uses CSS custom properties so values stay in sync with the
+     theme system (vars flip automatically in [data-theme="dark"]).
+     ══════════════════════════════════════════════════════════════════ */
+
+  /* Override the :global() parent background overrides for dark mode */
+  :global(.dark .unified-embed-fullscreen-overlay:has(.sheet-fullscreen)) {
+    background-color: var(--color-grey-10) !important;
+  }
+
+  :global(.dark .unified-embed-fullscreen-overlay:has(.sheet-fullscreen) .bottom-gradient) {
+    background: linear-gradient(to bottom, transparent 0%, var(--color-grey-10) 100%) !important;
+  }
+
+  /* PII bar */
+  :global(.dark) .sheet-pii-bar {
+    background: var(--color-grey-20);
+    border-bottom-color: var(--color-grey-30);
+  }
+
+  :global(.dark) .pii-toggle-btn {
+    background: var(--color-grey-30);
+    color: var(--color-grey-60);
+  }
+
+  :global(.dark) .pii-toggle-btn:hover {
+    background: var(--color-grey-40);
+    color: var(--color-grey-80);
+  }
+
+  :global(.dark) .pii-toggle-btn.pii-toggle-active {
+    background: var(--color-warning-bg);
+    color: var(--color-warning);
+  }
+
+  :global(.dark) .pii-toggle-btn.pii-toggle-active:hover {
+    background: var(--color-warning-bg);
+    opacity: 0.85;
+  }
+
+  /* Filter bar */
+  :global(.dark) .filter-bar {
+    background: var(--color-grey-20);
+    border-bottom-color: var(--color-grey-30);
+  }
+
+  :global(.dark) .filter-input {
+    background: var(--color-grey-10);
+    border-color: var(--color-grey-40);
+    color: var(--color-grey-80);
+  }
+
+  :global(.dark) .filter-input:focus {
+    border-color: var(--color-app-sheets-end);
+    box-shadow: 0 0 0 2px rgba(52, 168, 83, 0.15);
+  }
+
+  :global(.dark) .filter-input::placeholder {
+    color: var(--color-grey-50);
+  }
+
+  :global(.dark) .filter-clear-btn {
+    color: var(--color-error);
+  }
+
+  :global(.dark) .filter-clear-btn:hover {
+    background: var(--color-error-light);
+  }
+
+  /* Spreadsheet shell */
+  :global(.dark) .spreadsheet {
+    background: var(--color-grey-10);
+  }
+
+  :global(.dark) .spreadsheet th,
+  :global(.dark) .spreadsheet td {
+    border-color: var(--color-grey-30);
+    color: var(--color-grey-80);
+  }
+
+  /* Header rows — col-letter row */
+  :global(.dark) .spreadsheet thead th {
+    background: var(--color-grey-25);
+    color: var(--color-grey-60);
+  }
+
+  :global(.dark) .col-letter-row th {
+    border-bottom-color: var(--color-grey-40);
+    color: var(--color-grey-50);
+  }
+
+  /* Data header row */
+  :global(.dark) .spreadsheet thead tr:nth-child(2) th {
+    border-bottom-color: var(--color-grey-40);
+  }
+
+  :global(.dark) .col-header {
+    color: var(--color-grey-80);
+    font-weight: 700;
+  }
+
+  :global(.dark) .col-header:hover {
+    background: var(--color-grey-30);
+  }
+
+  :global(.dark) .sort-icon {
+    color: var(--color-grey-50);
+  }
+
+  :global(.dark) .sort-icon-active {
+    color: var(--color-app-sheets-end);
+  }
+
+  /* Row number gutter */
+  :global(.dark) .row-num-header,
+  :global(.dark) .row-num {
+    background: var(--color-grey-25);
+    color: var(--color-grey-50);
+    border-right-color: var(--color-grey-40);
+  }
+
+  /* Filter toggle button */
+  :global(.dark) .filter-toggle {
+    color: var(--color-grey-50);
+  }
+
+  :global(.dark) .filter-toggle:hover {
+    background: var(--color-grey-30);
+    color: var(--color-grey-60);
+  }
+
+  :global(.dark) .filter-toggle-active {
+    background: rgba(52, 168, 83, 0.15);
+    color: var(--color-app-sheets-end);
+  }
+
+  :global(.dark) .filter-toggle-active:hover {
+    background: rgba(52, 168, 83, 0.25);
+  }
+
+  /* Data cells */
+  :global(.dark) .spreadsheet tbody td {
+    color: var(--color-grey-80);
+  }
+
+  :global(.dark) .spreadsheet tbody tr:nth-child(even) td:not(.row-num) {
+    background: var(--color-grey-20);
+  }
+
+  :global(.dark) .spreadsheet tbody tr:hover td:not(.row-num) {
+    background: var(--color-grey-30);
+  }
+
+  :global(.dark) .spreadsheet tbody tr:nth-child(even):hover td:not(.row-num) {
+    background: var(--color-grey-30);
+  }
+
+  /* No-results & empty state */
+  :global(.dark) .no-results {
+    background: var(--color-grey-10) !important;
+    color: var(--color-grey-50);
+  }
+
+  :global(.dark) .empty-state {
+    background: var(--color-grey-10);
+    color: var(--color-grey-50);
   }
 </style>
