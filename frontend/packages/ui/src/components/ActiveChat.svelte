@@ -5934,7 +5934,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
          // Reset the chat header state when switching to any chat.
          // For new chats, handleSendMessage will set isNewChatGeneratingTitle=true.
          // For existing chats, we decrypt title/category/icon below (after currentChat is set).
-         resetChatHeaderState();
+         //
+         // CRITICAL: Skip resetChatHeaderState when loadChat is called for the already-active chat
+         // while the new-chat header is still showing (isNewChatGeneratingTitle=true or streaming
+         // messages are in flight). This happens because sendHandlers.ts sets
+         // draftEditorUIState.newlyCreatedChatIdToSelect which causes Chats.svelte to call
+         // handleChatClick → dispatch chatSelected → +page.svelte calls loadChat() — all
+         // while the AI response is still streaming. Without this guard, resetChatHeaderState()
+         // clears isNewChatGeneratingTitle and the banner disappears mid-stream.
+         const isSameActiveChat = chat.chat_id === currentChat?.chat_id;
+         const isNewChatHeaderActive = isNewChatGeneratingTitle || isNewChatCreditsError;
+         const hasStreamingMessages = currentMessages.some(m => m.status === 'streaming');
+         if (!(isSameActiveChat && (isNewChatHeaderActive || hasStreamingMessages))) {
+             resetChatHeaderState();
+         } else {
+             console.debug('[ActiveChat] loadChat: skipping resetChatHeaderState — same chat, header/streaming active', {
+                 chat_id: chat.chat_id,
+                 isNewChatGeneratingTitle,
+                 isNewChatCreditsError,
+                 hasStreamingMessages,
+             });
+         }
 
          // Ensure the chatNavigationStore has up-to-date prev/next state even when
          // Chats.svelte (the sidebar) has never been opened. On mobile the sidebar
