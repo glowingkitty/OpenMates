@@ -14,7 +14,7 @@ import json
 import logging
 import time
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import httpx
 
@@ -136,6 +136,141 @@ async def _openobserve_recent_errors(limit: int = 10, since_minutes: int = 30) -
         return []
 
 
+# ─── Log access health check ─────────────────────────────────────────────────
+
+# Production Admin Debug API — same constant as debug_logs.py
+PROD_API_BASE = "https://api.openmates.org/v1/admin/debug"
+
+
+async def check_log_access() -> Tuple[bool, bool]:
+    """
+    Verify that Claude can actually read logs before starting any debug task.
+
+    Checks:
+      1. Local OpenObserve (dev) — POST a minimal SQL query and expect HTTP 200.
+      2. Production server — GET the Admin Debug API /ping endpoint with the
+         Vault-sourced API key and expect HTTP 200.
+
+    Returns:
+        (local_ok, prod_ok) — True means the source is reachable and authenticated.
+
+    Prints a clear summary so the caller can decide whether to stop.
+    Failures are shown as ✗ with actionable hints; do NOT silently swallow them.
+    """
+    import os
+
+    print(_section("Log Access Check"))
+
+    # ── 1. Local OpenObserve ──────────────────────────────────────────────────
+    local_ok = False
+    email = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
+    password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
+
+    if not email or not password:
+        print(_err("  Local OpenObserve — credentials not set"))
+        print(_c(DIM, "    Set OPENOBSERVE_ROOT_EMAIL and OPENOBSERVE_ROOT_PASSWORD env vars."))
+    else:
+        # Minimal SQL that returns quickly and proves the stream exists
+        probe_sql = 'SELECT _timestamp FROM "default" ORDER BY _timestamp DESC LIMIT 1'
+        now_us = int(time.time() * 1_000_000)
+        start_us = now_us - 5 * 60 * 1_000_000  # 5-minute window
+        body = {"query": {"sql": probe_sql, "start_time": start_us, "end_time": now_us}}
+        urls = (
+            f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/_search",
+            f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/default/_search",
+        )
+        try:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                for url in urls:
+                    resp = await client.post(
+                        url, json=body,
+                        auth=(email, password),
+                    )
+                    if resp.status_code == 200:
+                        local_ok = True
+                        break
+                    if resp.status_code == 404:
+                        continue
+                    print(_err(f"  Local OpenObserve — HTTP {resp.status_code}"))
+                    print(_c(DIM, f"    URL: {url}"))
+                    break
+        except Exception as exc:
+            print(_err(f"  Local OpenObserve — cannot connect: {exc}"))
+            print(_c(DIM, f"    Expected at {OPENOBSERVE_URL}. Is the openobserve container running?"))
+            print(_c(DIM, "    Run: docker compose ps openobserve"))
+
+    if local_ok:
+        print(_ok("  Local OpenObserve — reachable and authenticated"))
+
+    # ── 2. Production server (Admin Debug API) ────────────────────────────────
+    prod_ok = False
+    try:
+        from debug_utils import get_api_key_from_vault  # local import to avoid circular deps
+        api_key = await get_api_key_from_vault()
+    except SystemExit:
+        # get_api_key_from_vault() calls sys.exit(1) if the key is missing
+        print(_err("  Production logs — Admin API key not found in Vault"))
+        print(_c(DIM, "    See: SECRET__ADMIN__DEBUG_CLI__API_KEY setup in debugging-ref.md"))
+        api_key = None
+    except Exception as exc:
+        print(_err(f"  Production logs — Vault unreachable: {exc}"))
+        print(_c(DIM, "    Is the vault container running? Check: docker compose ps vault"))
+        api_key = None
+
+    if api_key:
+        # /allowed-services is a cheap, auth-required endpoint — ideal as a connectivity probe
+        probe_url = f"{PROD_API_BASE}/allowed-services"
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(
+                    probe_url,
+                    headers={"Authorization": f"Bearer {api_key}"},
+                )
+            if resp.status_code == 200:
+                prod_ok = True
+                print(_ok("  Production logs   — Admin API reachable and authenticated"))
+            elif resp.status_code in (401, 403):
+                print(_err(f"  Production logs — API key rejected (HTTP {resp.status_code})"))
+                print(_c(DIM, "    Regenerate the key: admin user → API Keys → create new, update SECRET__ADMIN__DEBUG_CLI__API_KEY"))
+            else:
+                print(_err(f"  Production logs — unexpected HTTP {resp.status_code} from {probe_url}"))
+        except Exception as exc:
+            print(_err(f"  Production logs — cannot reach {probe_url}: {exc}"))
+            print(_c(DIM, "    Check that the production API is up and DNS resolves from inside Docker."))
+
+    print()
+    return local_ok, prod_ok
+
+
+async def run_log_access_check() -> None:
+    """
+    Standalone entrypoint for `debug.py health --log-access` (or just `debug.py health`).
+
+    Runs check_log_access() and exits non-zero if either source is inaccessible,
+    printing a clear stop message so Claude knows to halt the task and ask the user.
+    """
+    import sys
+    local_ok, prod_ok = await check_log_access()
+
+    if local_ok and prod_ok:
+        print(_ok("  Log sources healthy — safe to proceed with debugging."))
+        print()
+        return
+
+    # One or both sources are down — print a prominent stop banner
+    print(_c(RED + BOLD, "  ══ STOP — log access issues detected ══"))
+    if not local_ok:
+        print(_c(RED, "    ✗ Local OpenObserve is not accessible."))
+        print(_c(DIM, "      Dev-server logs and OpenObserve presets will not work."))
+    if not prod_ok:
+        print(_c(RED, "    ✗ Production Admin API is not accessible."))
+        print(_c(DIM, "      Production log queries (--production / run_prod_mode) will fail."))
+    print()
+    print("  Please resolve the issues above and re-run `debug.py health` before proceeding.")
+    print()
+    sys.exit(1)
+
+
 # ─── Redis queue depth helper ─────────────────────────────────────────────────
 
 async def _get_celery_queue_depths() -> Dict[str, int]:
@@ -172,19 +307,34 @@ async def _get_celery_queue_depths() -> Dict[str, int]:
 
 # ─── Main health check ────────────────────────────────────────────────────────
 
-async def run_health_check(verbose: bool = False) -> None:
+async def run_health_check(verbose: bool = False, skip_log_access: bool = False) -> None:
     """
     Run a comprehensive system health check:
+    - Log access (OpenObserve local + production Admin API) — mandatory first step
     - Prometheus target status (api, prometheus self)
     - API error rate and latency from Prometheus
     - Celery queue depths from Redis
     - Recent error logs from OpenObserve
     - Celery task failure count (if metrics available)
+
+    Args:
+        verbose: Show extended metrics (request breakdown, celery failures, error fingerprints).
+        skip_log_access: Skip log access check (for callers that already ran it).
     """
     print(_section("OpenMates System Health"))
     print(_c(DIM, f"  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} UTC\n"))
 
     issues_found = 0
+
+    # ── 0. Log access — verify we can actually read logs before proceeding ────
+    if not skip_log_access:
+        local_ok, prod_ok = await check_log_access()
+        if not local_ok or not prod_ok:
+            import sys
+            print(_c(RED + BOLD, "  STOP — cannot access one or more log sources (see above)."))
+            print("  Resolve the issues and re-run `debug.py health` before debugging.")
+            print()
+            sys.exit(1)
 
     # ── 1. Prometheus targets ──────────────────────────────────────────────
     print(_c(BOLD, "  Prometheus Targets"))
@@ -779,8 +929,16 @@ async def _async_main():
     parser = argparse.ArgumentParser(description="Health, replay, and errors")
     sub = parser.add_subparsers(dest="command")
 
-    health_p = sub.add_parser("health", help="System health check")
+    health_p = sub.add_parser("health", help="System health check (includes log access verification)")
     health_p.add_argument("-v", "--verbose", action="store_true")
+    health_p.add_argument(
+        "--log-access", action="store_true",
+        help="Run ONLY the log access check (OpenObserve + production API). Exit 1 if any source is down.",
+    )
+    health_p.add_argument(
+        "--skip-log-access", action="store_true",
+        help="Skip the log access check (useful when called from another health workflow).",
+    )
 
     replay_p = sub.add_parser("replay", help="Replay request trace from OpenObserve")
     replay_p.add_argument("request_id", help="Request ID")
@@ -791,7 +949,11 @@ async def _async_main():
     args = parser.parse_args()
 
     if args.command == "health":
-        await run_health_check(verbose=args.verbose)
+        if args.log_access:
+            # Only run the log access check — exit 1 on failure (see run_log_access_check)
+            await run_log_access_check()
+        else:
+            await run_health_check(verbose=args.verbose, skip_log_access=args.skip_log_access)
     elif args.command == "replay":
         await replay_request(request_id=args.request_id)
     elif args.command == "errors":

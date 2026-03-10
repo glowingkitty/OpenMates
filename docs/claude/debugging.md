@@ -5,6 +5,29 @@ Rules for investigating bugs and reading logs. For detailed CLI references and c
 
 ---
 
+## Rule 0: Run Health Check First — Mandatory
+
+**Before reading any log or touching any code**, run:
+
+```bash
+docker exec api python /app/backend/scripts/debug.py health
+```
+
+This checks:
+
+- Local OpenObserve (dev) — reachable and authenticated
+- Production Admin Debug API — reachable with a valid API key
+
+**If either check fails**: STOP. Do not proceed with debugging. Report the failure to the user and ask what to do next. Attempting to debug without log access wastes time and produces misleading conclusions.
+
+To check only log access (fastest, exits 1 on failure):
+
+```bash
+docker exec api python /app/backend/scripts/debug.py health --log-access
+```
+
+---
+
 ## Rule 1: State Your Understanding First
 
 Before reading logs, touching code, or asking clarifying questions — write out your understanding of the issue:
