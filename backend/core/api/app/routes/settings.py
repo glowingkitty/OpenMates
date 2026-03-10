@@ -3565,21 +3565,23 @@ async def get_export_data(
             export_data["user_profile"] = None
         
         # === COMPLIANCE LOGS (consent history) ===
-        # Compliance logs contain privacy policy and terms of service consent records
-        # These are stored in /app/logs/compliance.log and rotated files (compliance.log.YYYY-MM-DD)
-        # We need to read ALL log files to capture the full history (including user creation/consent from past days)
+        # Compliance logs are split into two streams (see setup_compliance_logging.py):
+        #   audit-compliance.log*     — consent, user creation, auth events (2-year retention / GDPR)
+        #   financial-compliance.log* — financial transactions, refunds (10-year retention / AO §147)
+        # For GDPR data export we read audit logs (consent history) + financial logs (transaction history).
         try:
             compliance_logs = []
             log_dir = os.getenv('LOG_DIR', '/app/logs')
             
-            # Find all compliance log files (main file and rotated files)
-            # Pattern matches: compliance.log, compliance.log.2025-12-28, etc.
-            log_pattern = os.path.join(log_dir, 'compliance.log*')
-            log_files = glob.glob(log_pattern)
+            # Collect log files from both compliance streams (current + all rotated backups).
+            # Also includes legacy compliance.log* files from before the stream split (migration).
+            log_files = (
+                glob.glob(os.path.join(log_dir, 'audit-compliance.log*'))
+                + glob.glob(os.path.join(log_dir, 'financial-compliance.log*'))
+                + glob.glob(os.path.join(log_dir, 'compliance.log*'))  # Legacy: pre-split files
+            )
             
-            # Sort log files to ensure consistent ordering (oldest first)
-            log_files.sort()
-            
+            log_files = sorted(set(log_files))  # Deduplicate and sort (oldest first)
             logger.info(f"[EXPORT] Found {len(log_files)} compliance log files to search: {[os.path.basename(f) for f in log_files]}")
             
             # Event types to include in export:
