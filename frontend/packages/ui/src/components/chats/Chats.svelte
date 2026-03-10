@@ -2540,7 +2540,12 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 		// }
 
 	} catch (error) {
-		console.error("[Chats] Error updating chat list from DB:", error);
+		// Extract explicit fields from DOMException/Error — plain `error` serializes as {} in console
+		const err = error as DOMException | Error;
+		console.error(
+			`[Chats] Error updating chat list from DB: ${err?.name}: ${err?.message}` +
+			(('code' in err && err.code) ? ` (code: ${(err as DOMException).code})` : '')
+		);
 		allChatsFromDB = []; // Reset chats on error - Corrected variable
 		selectedChatId = null;
 	} finally {

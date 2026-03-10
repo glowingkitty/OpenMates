@@ -80,6 +80,9 @@ class OpenObservePushService:
 
                 streams_by_level.setdefault(level, []).append([timestamp_ns, formatted_message])
 
+            # Truncate user_agent to avoid exceeding OpenObserve label size limits
+            user_agent = metadata.get("userAgent", "")[:200]
+
             streams = []
             for level, values in streams_by_level.items():
                 streams.append({
@@ -89,6 +92,7 @@ class OpenObservePushService:
                         "user_email": user_email,
                         "server_env": self.server_env,
                         "source": "browser",
+                        "user_agent": user_agent,
                     },
                     "values": values,
                 })
