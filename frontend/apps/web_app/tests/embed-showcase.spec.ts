@@ -50,17 +50,19 @@ const ALL_APPS = [
  * Search fullscreen components that must show ≥ 2 result cards per row.
  * Key = app slug, values = skill labels whose fullscreen sections must be checked.
  */
+/**
+ * Search skills whose fullscreen uses SearchResultsTemplate with .search-template-grid.
+ * Apps that use a custom grid/list layout (maps, pdf, shopping) are excluded here
+ * since their fullscreen doesn't have .search-template-grid.
+ */
 const SEARCH_SKILLS: Record<string, string[]> = {
 	web: ['Search'],
 	videos: ['Search'],
 	images: ['Search'],
 	news: ['Search'],
 	travel: ['Search', 'Stays Search'],
-	maps: ['Search'],
 	events: ['Search'],
-	health: ['Search'],
-	pdf: ['Search'],
-	shopping: ['Search']
+	health: ['Search']
 };
 
 /** How long to wait for all sections to finish loading (ms) */
