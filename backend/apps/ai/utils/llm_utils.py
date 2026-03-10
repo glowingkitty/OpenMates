@@ -1056,7 +1056,12 @@ async def call_preprocessing_llm(
 
     # Determine if an error is retryable (should try fallback)
     def is_retryable_error(error_message: Optional[str]) -> bool:
-        """Check if error is retryable (e.g., 429, 503, timeout, service unavailable)."""
+        """Check if error is retryable (e.g., 429, 503, timeout, service unavailable).
+
+        Wrong-tool errors (LLM called a skill tool instead of analyze_request_properties)
+        are also retryable — this is a provider-specific model hallucination and a different
+        provider may handle the prompt correctly. See docs/architecture/ai-preprocessing.md.
+        """
         if not error_message:
             return False
         # Non-retryable errors: 401 (auth), 400 (bad request)
@@ -1066,8 +1071,12 @@ async def call_preprocessing_llm(
         # Retryable errors: 429 (rate limit - try another provider!), 503, 502, 504, 500, timeout, service unavailable, unhealthy
         retryable_indicators = [
             "429", "rate limit", "resource exhausted", "too many requests",  # Rate limiting - definitely retry with fallback
-            "503", "502", "504", "500", "timeout", "service unavailable", "unreachable_backend", 
-            "connection", "unhealthy", "http error"
+            "503", "502", "504", "500", "timeout", "service unavailable", "unreachable_backend",
+            "connection", "unhealthy", "http error",
+            # Wrong-tool: model called a different tool than expected (e.g., hallucinated a skill
+            # tool call instead of analyze_request_properties). This is a provider-specific model
+            # failure — a different provider may succeed. Always retry with fallback.
+            "not found in tool calls. actual tool calls made:",
         ]
         return any(indicator.lower() in error_message.lower() for indicator in retryable_indicators)
 
