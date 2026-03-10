@@ -212,7 +212,7 @@ export async function insertImage(
   let uploadFile = file;
   if (isAuthenticated) {
     try {
-      const { resizedBlob } = await resizeForUpload(file, 2048);
+      const { resizedBlob } = await resizeForUpload(file, 1280);
       // Preserve the original filename and MIME type so the server stores it correctly.
       // Use the resized blob's type (may differ from file.type if HEIC was decoded).
       const uploadMime = resizedBlob.type || file.type;
