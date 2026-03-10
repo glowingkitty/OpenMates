@@ -1014,6 +1014,17 @@ export async function checkAuth(
           isInitialized: true,
         }));
 
+        // Start clientLogForwarder for admin users in offline-first mode.
+        // The normal (online) path starts the forwarder in checkAuth()'s happy path.
+        // But if the server is unreachable, we restore auth from local IndexedDB here
+        // without ever reaching the online success path — so we must start it here.
+        if (localProfile.is_admin) {
+          console.debug(
+            "[AuthSessionActions] Admin user detected (offline-first) — starting clientLogForwarder",
+          );
+          clientLogForwarder.start();
+        }
+
         // Check if user is in signup flow (offline-first mode)
         // A user is in signup flow only if last_opened explicitly indicates signup
         // Avoid using tfa_enabled=false to keep passkey-only users out of OTP setup

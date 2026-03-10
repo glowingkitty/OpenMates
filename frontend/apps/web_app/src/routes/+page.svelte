@@ -904,6 +904,17 @@
 				isAuthenticated: true,
 				isInitialized: true // Mark as initialized so UI updates immediately
 			}));
+
+			// Start clientLogForwarder for admin users on session restore (page reload).
+			// On a fresh login, setAuthenticatedState() handles this. But on page reload the
+			// optimistic auth path sets isInitialized=true early and initialize() returns
+			// immediately, skipping checkAuth() — so clientLogForwarder.start() would never
+			// be called without this explicit check here.
+			if (localProfile.is_admin) {
+				console.debug('[+page.svelte] Admin user detected on session restore — starting clientLogForwarder');
+				const { clientLogForwarder } = await import('@repo/ui/services/clientLogForwarder');
+				clientLogForwarder.start();
+			}
 		} else {
 			console.debug('[+page.svelte] No local auth data found - user will remain unauthenticated');
 

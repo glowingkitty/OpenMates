@@ -1589,6 +1589,16 @@ changes to the documentation (to keep the documentation up to date).
         // If menu is being closed, reset scroll position and view state
         if (!isMenuVisible && settingsContentElement) {
         	
+        	// CRITICAL: Remove mobile-overlay class when closing the menu.
+        	// This class sets z-index: 1006 which is ABOVE the profile-container-wrapper (1005).
+        	// If left on after close, the invisible settings menu intercepts taps on the
+        	// profile button on iOS (where pointer events respect stacking order even for
+        	// visibility:hidden elements). This is the root cause of the iOS settings tap bug.
+        	const menuElement = document.querySelector('.settings-menu');
+        	if (menuElement) {
+        		menuElement.classList.remove('mobile-overlay');
+        	}
+
         	// Reset the active view to main when closing the menu
         	activeSettingsView = 'main';
         	navigationPath = [];
