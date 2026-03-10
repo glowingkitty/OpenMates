@@ -166,6 +166,28 @@ Full `window.debug` API: `debug()`, `help()`, `chat(id)`, `chat(id, {download:tr
 
 ---
 
+## Chat Processing Preset (OpenObserve)
+
+Diagnose stuck chats, missing AI responses, or pipeline failures in one command:
+
+```bash
+# Last 30 minutes (all chats)
+docker exec api python /app/backend/scripts/debug.py logs --o2 --preset chat-processing --since 30
+
+# Filter to a specific chat ID
+docker exec api python /app/backend/scripts/debug.py logs --o2 --preset chat-processing --since 60 --chat-id <chat_id>
+```
+
+Output shows:
+- **Pipeline milestones** — which stages completed: `message_received → vault_key → ai_dispatched → task_started → task_success → ai_response_persisted → chat_persisted → suggestions_persisted → sync_cache_updated → message_completed`
+- **Errors** from `api`, `app-ai`, and `task-worker` services
+- **Warnings** (first 5)
+- **Key events timeline** — important log lines in chronological order
+
+Services queried: `api` (200 hits), `app-ai` (100 hits), `task-worker` (200 hits) in parallel from the `default` OpenObserve stream.
+
+---
+
 ## Client Console Logs (Admin Only via OpenObserve)
 
 ```bash

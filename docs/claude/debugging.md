@@ -79,6 +79,15 @@ Before dumping long raw logs, run a compact OpenObserve preset first:
 
 Use `--raw` only when you need representative sample lines, `--sql` for ad-hoc deep dives, and `--quiet-health` to hide routine `/health` and `/healthz` 200 noise.
 
+## Rule 9.2: Chat Processing Issues — Use the chat-processing Preset
+
+When a user reports a message not being processed, a stuck chat, or a missing AI response, run this first:
+
+- `docker exec api python /app/backend/scripts/debug.py logs --o2 --preset chat-processing --since 30`
+- Add `--chat-id <id>` to filter to a specific conversation.
+
+The preset shows pipeline milestones (message_received → ai_dispatched → task_success → ai_response_persisted → message_completed), errors from api/app-ai/task-worker, and a timeline of key events — all in one compact view without raw log dumps.
+
 ## Rule 10: Embed Resolution Failures
 
 When AI receives raw embed JSON instead of resolved content: the embed resolution pipeline failed silently. Check `resolve_embed_references_in_content()` in `embed_service.py` — common causes: wrong kwargs (silent TypeError), embed resolved after duplicate-detection, expired Redis key, wrong vault key.
