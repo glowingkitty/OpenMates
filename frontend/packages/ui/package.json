@@ -19,7 +19,11 @@
       "svelte": "./src/legal/index.ts",
       "default": "./src/legal/index.ts"
     },
-    "./src/styles/*": "./src/styles/*"
+    "./src/styles/*": "./src/styles/*",
+    "./services/clientLogForwarder": {
+      "types": "./src/services/clientLogForwarder.ts",
+      "default": "./src/services/clientLogForwarder.ts"
+    }
   },
   "scripts": {
     "lint": "eslint .",
