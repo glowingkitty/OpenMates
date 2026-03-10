@@ -1,59 +1,93 @@
-# Observability — OpenObserve RUM & Log Forwarding
+# Observability — Client Log Forwarding to OpenObserve
 
 > **Status**: Implemented
-> **Last Updated**: 2026-03-09
+> **Last Updated**: 2026-03-10
 
 ## Overview
 
-All client-side observability flows through the **OpenObserve browser SDK** (`@openobserve/browser-rum` + `@openobserve/browser-logs`). This replaced the former admin-only Loki log forwarder, giving us real observability for all users (not just admins) with zero backend proxy overhead.
+Browser console logs from **admin users** are forwarded in real-time to OpenObserve via a
+backend proxy. This gives admins a unified view of client-side and server-side logs for
+debugging without exposing the internal OpenObserve endpoint to regular users.
+
+Non-admin users: the forwarder is never started. Their logs stay local (in the
+`logCollector` circular buffers) and are only sent to the server on explicit issue
+submission (`/v1/settings/issue-logs`).
 
 ## Architecture
 
-### Browser → OpenObserve (direct, all users)
+### Admin browser logs to OpenObserve (via backend proxy)
 
 ```
-Browser SDK (openobserveRum.ts)
-  └── @openobserve/browser-rum    → RUM events, JS errors, session replay
-  └── @openobserve/browser-logs   → console.error / console.warn forwarding
-        ↓  (direct HTTP from browser)
-  OpenObserve :5080  (stream: "rum")
+Browser (admin only)
+  logCollector.ts         -- patches console.{log,info,warn,error,debug}
+  clientLogForwarder.ts   -- batches logs every 5s, durable IndexedDB queue
+        |  POST /v1/admin/client-logs  (credentials: include, keepalive: true)
+  FastAPI (admin_client_logs.py)
+        |  Loki-compat push (aiohttp)
+  OpenObserve :5080  (stream: "client-console", job="client-console")
 ```
 
-### Server logs → OpenObserve (via Promtail + Loki-compat push)
+### Server logs to OpenObserve (via Promtail)
 
 ```
-Docker containers → Promtail (file + Docker socket discovery)
-                         ↓  (Loki-compat push)
-                    OpenObserve :5080  (streams: "default", "api-logs", "compliance-logs")
+Docker containers -> Promtail (file + Docker socket discovery)
+                          |  (Loki-compat push)
+                     OpenObserve :5080  (streams: "default", "api-logs", "compliance-logs")
 ```
 
-### Admin browser logs → OpenObserve (optional legacy path)
+## When the forwarder starts / stops
 
-The `/v1/admin/client-logs` route still exists for backward compatibility. It now calls `openobserve_push_service.py` which pushes to the OpenObserve Loki-compat endpoint. In practice, the browser SDK supersedes this for all new deployments.
+| Event | Action |
+|-------|--------|
+| Login with `is_admin: true` | `clientLogForwarder.start()` |
+| Session restore with `is_admin: true` | `clientLogForwarder.start()` |
+| Logout | `clientLogForwarder.stop()` (drains buffer first) |
+| Session expiry | `clientLogForwarder.stop()` |
+
+The `is_admin` flag comes from the `/v1/auth/login` and `/v1/auth/session` responses.
+It is sourced from the Redis user profile cache (`user_profile:{user_id}`), populated
+from Directus on first access. When admin status is granted or revoked via
+`AdminMethods.make_user_admin()` / `revoke_admin_privileges()`, the cache key is
+deleted immediately so the next session check fetches a fresh profile.
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `frontend/packages/ui/src/services/openobserveRum.ts` | Browser SDK singleton — init, setUser, clearUser |
-| `frontend/packages/ui/src/app.ts` | Calls `openobserveRumService.init()` at app start |
-| `frontend/packages/ui/src/stores/authSessionActions.ts` | Calls `setUser()` on session restore, `clearUser()` on expiry |
-| `frontend/packages/ui/src/stores/authLoginLogoutActions.ts` | Calls `setUser()` on login, `clearUser()` on logout |
-| `backend/core/api/app/services/openobserve_push_service.py` | Server-side push to OpenObserve Loki-compat endpoint |
-| `backend/core/api/app/services/openobserve_log_collector.py` | Server-side log queries via OpenObserve SQL API |
-| `backend/core/api/app/routes/admin_client_logs.py` | Legacy admin log ingestion endpoint |
+| `frontend/packages/ui/src/services/logCollector.ts` | Patches `console.*`, maintains circular buffers, notifies listeners |
+| `frontend/packages/ui/src/services/clientLogForwarder.ts` | Batches logs every 5s, durable IndexedDB queue, POSTs to backend |
+| `frontend/packages/ui/src/stores/authLoginLogoutActions.ts` | Calls `start()` on admin login, `stop()` on logout |
+| `frontend/packages/ui/src/stores/authSessionActions.ts` | Calls `start()` on admin session restore, `stop()` on expiry |
+| `backend/core/api/app/routes/admin_client_logs.py` | Receives batches, validates admin, proxies to OpenObserve |
+| `backend/core/api/app/services/openobserve_push_service.py` | Loki-compat push to OpenObserve |
+| `backend/core/api/app/services/directus/admin_methods.py` | Grants/revokes admin; invalidates Redis cache on change |
 
 ## Environment Variables
 
 | Variable | Where | Purpose |
 |----------|-------|---------|
-| `PUBLIC_OPENOBSERVE_RUM_ENDPOINT` | Frontend `.env` | Browser SDK endpoint (e.g. `https://openobserve.your-domain.com`) |
-| `OPENOBSERVE_ROOT_EMAIL` | Backend docker-compose env | Basic auth for server-side queries/push |
-| `OPENOBSERVE_ROOT_PASSWORD` | Backend docker-compose env | Basic auth for server-side queries/push |
+| `OPENOBSERVE_ROOT_EMAIL` | Backend docker-compose env | Basic auth for server-side push |
+| `OPENOBSERVE_ROOT_PASSWORD` | Backend docker-compose env | Basic auth for server-side push |
+
+## Querying logs in OpenObserve
+
+```sql
+-- All admin browser logs (last 1 hour)
+SELECT _timestamp, user_email, level, message
+FROM "client-console"
+WHERE _timestamp > NOW() - INTERVAL '1 hour'
+ORDER BY _timestamp DESC
+```
+
+Stream labels: `job="client-console"`, `level`, `user_email` (username), `server_env`, `source="browser"`.
 
 ## Privacy
 
-- `setUser()` is called only after successful authentication — no identity before login
-- `clearUser()` is called on logout — session is anonymized after sign-out
-- No PII is captured by default; `defaultPrivacyLevel: "mask-user-input"` masks all form fields
-- Session replay is opt-in (call `startRecording()` only with explicit user consent)
+- Forwarder only starts after successful admin authentication -- no logs before login
+- Forwarder stops on logout -- no logs after sign-out
+- Messages are sanitized on the client before queuing: API keys (`sk-api-*`), bearer
+  tokens, and common sensitive fields (`password`, `token`, `key`, `auth`) are redacted
+- Only admin users logs are forwarded; regular users logs never leave the browser
+  (except on explicit issue submission)
+- The OpenObserve endpoint is never exposed to the browser -- all pushes go through
+  the backend proxy, so the internal URL stays internal

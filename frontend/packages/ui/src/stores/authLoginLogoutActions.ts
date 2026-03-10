@@ -326,10 +326,6 @@ export async function login(
             // for reminders and time-sensitive features
             void syncBrowserTimezone(data.user.timezone);
 
-            // Start live console log streaming for admin users.
-            if (data.user.is_admin) {
-              clientLogForwarder.start();
-            }
           } else {
             console.warn(
               "Login successful but no user data received in response.",
@@ -343,6 +339,13 @@ export async function login(
           }
         } catch (dbError) {
           console.error("Failed to save user data to database:", dbError);
+        }
+
+        // Start live console log streaming for admin users.
+        // Placed AFTER the try/catch so a userDB failure cannot prevent the
+        // forwarder from starting — a DB error is non-fatal for log forwarding.
+        if (data.user?.is_admin) {
+          clientLogForwarder.start();
         }
 
         return {
