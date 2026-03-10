@@ -4,28 +4,27 @@
 
   URL: /dev/preview/embeds/<app>
   Examples:
-    /dev/preview/embeds/code    → all code embed types
-    /dev/preview/embeds/web     → all web embed types
-    /dev/preview/embeds/travel  → all travel embed types
+    /dev/preview/embeds/code
+    /dev/preview/embeds/web
+    /dev/preview/embeds/travel
 
   Display types shown per skill section:
-    1. Inline Link         (simulated — EmbedInlineLink needs live embedStore)
-    2. Quote Block         (simulated — SourceQuoteBlock needs live embedStore)
-    3. Preview — Mobile    (isMobile=true  → 150×290px)
-    4. Preview — Small     (isMobile=false → 300×200px)
-    5. Preview — Large     (inside container-type:inline-size "embed-preview" >300px → full-width×400px)
+    1. Inline Link         (simulated visual replica)
+    2. Quote Block         (simulated visual replica)
+    3. Preview — Mobile    (isMobile=true  → 150x290px)
+    4. Preview — Small     (isMobile=false → 300x200px)
+    5. Preview — Large     (inside container-type:inline-size "embed-preview" >300px)
     6. Fullscreen          (clipped inline via isolation:isolate + overflow:hidden)
 
-  Props: loaded from each skill's .preview.ts companion file.
-  Templates: .preview.ts variants become template buttons per section.
-  Custom JSON editor: collapsible per-section props override panel.
+  Architecture: uses Svelte 5 native dynamic component rendering (<Component />)
+  instead of imperative mount()/unmount(). Each loaded component is stored as a
+  class ref in $state and rendered declaratively — Svelte handles the lifecycle.
 -->
 <script lang="ts">
 	import { page } from '$app/state';
-	import { mount, unmount, tick, untrack } from 'svelte';
 	import { theme } from '@repo/ui';
 
-	// ─── App Registry ─────────────────────────────────────────────────────────
+	// ─── App Registry ─────────────────────────────────────────────────
 
 	interface EmbedSection {
 		skillLabel: string;
@@ -38,294 +37,70 @@
 
 	const APP_REGISTRY: Record<string, EmbedSection[]> = {
 		code: [
-			{
-				skillLabel: 'Code',
-				appId: 'code',
-				previewPath: 'embeds/code/CodeEmbedPreview',
-				fullscreenPath: 'embeds/code/CodeEmbedFullscreen',
-				inlineLinkText: 'MyComponent.svelte',
-				quoteText: 'let count = $state(0); — Svelte 5 reactive state declaration'
-			},
-			{
-				skillLabel: 'Get Docs',
-				appId: 'code',
-				previewPath: 'embeds/code/CodeGetDocsEmbedPreview',
-				fullscreenPath: 'embeds/code/CodeGetDocsEmbedFullscreen',
-				inlineLinkText: 'Svelte $state documentation',
-				quoteText: 'The $state rune declares reactive state that updates the UI automatically.'
-			}
+			{ skillLabel: 'Code', appId: 'code', previewPath: 'embeds/code/CodeEmbedPreview', fullscreenPath: 'embeds/code/CodeEmbedFullscreen', inlineLinkText: 'MyComponent.svelte', quoteText: 'let count = $state(0); — Svelte 5 reactive state declaration' },
+			{ skillLabel: 'Get Docs', appId: 'code', previewPath: 'embeds/code/CodeGetDocsEmbedPreview', fullscreenPath: 'embeds/code/CodeGetDocsEmbedFullscreen', inlineLinkText: 'Svelte $state documentation', quoteText: 'The $state rune declares reactive state that updates the UI automatically.' }
 		],
 		docs: [
-			{
-				skillLabel: 'Document',
-				appId: 'docs',
-				previewPath: 'embeds/docs/DocsEmbedPreview',
-				fullscreenPath: 'embeds/docs/DocsEmbedFullscreen',
-				inlineLinkText: 'architecture.docx',
-				quoteText: 'PostgreSQL serves as the primary data store, managed through Directus CMS.'
-			}
+			{ skillLabel: 'Document', appId: 'docs', previewPath: 'embeds/docs/DocsEmbedPreview', fullscreenPath: 'embeds/docs/DocsEmbedFullscreen', inlineLinkText: 'architecture.docx', quoteText: 'PostgreSQL serves as the primary data store, managed through Directus CMS.' }
 		],
 		web: [
-			{
-				skillLabel: 'Search',
-				appId: 'web',
-				previewPath: 'embeds/web/WebSearchEmbedPreview',
-				fullscreenPath: 'embeds/web/WebSearchEmbedFullscreen',
-				inlineLinkText: 'Best restaurants in Berlin',
-				quoteText: 'Discover the best dining experiences in Berlin, from traditional German cuisine to international flavors.'
-			},
-			{
-				skillLabel: 'Read',
-				appId: 'web',
-				previewPath: 'embeds/web/WebReadEmbedPreview',
-				fullscreenPath: 'embeds/web/WebReadEmbedFullscreen',
-				inlineLinkText: 'Migrating from Svelte 4 to 5',
-				quoteText: 'Svelte 5 introduces runes, a powerful new reactivity system that replaces $: reactive statements.'
-			},
-			{
-				skillLabel: 'Website',
-				appId: 'web',
-				previewPath: 'embeds/web/WebsiteEmbedPreview',
-				fullscreenPath: 'embeds/web/WebsiteEmbedFullscreen',
-				inlineLinkText: 'svelte.dev',
-				quoteText: 'Svelte is a radical new approach to building user interfaces. Write less code, use no virtual DOM.'
-			}
+			{ skillLabel: 'Search', appId: 'web', previewPath: 'embeds/web/WebSearchEmbedPreview', fullscreenPath: 'embeds/web/WebSearchEmbedFullscreen', inlineLinkText: 'Best restaurants in Berlin', quoteText: 'Discover the best dining experiences in Berlin, from traditional German cuisine to international flavors.' },
+			{ skillLabel: 'Read', appId: 'web', previewPath: 'embeds/web/WebReadEmbedPreview', fullscreenPath: 'embeds/web/WebReadEmbedFullscreen', inlineLinkText: 'Migrating from Svelte 4 to 5', quoteText: 'Svelte 5 introduces runes, a powerful new reactivity system that replaces $: reactive statements.' },
+			{ skillLabel: 'Website', appId: 'web', previewPath: 'embeds/web/WebsiteEmbedPreview', fullscreenPath: 'embeds/web/WebsiteEmbedFullscreen', inlineLinkText: 'svelte.dev', quoteText: 'Svelte is a radical new approach to building user interfaces. Write less code, use no virtual DOM.' }
 		],
 		videos: [
-			{
-				skillLabel: 'Video',
-				appId: 'videos',
-				previewPath: 'embeds/videos/VideoEmbedPreview',
-				fullscreenPath: 'embeds/videos/VideoEmbedFullscreen',
-				inlineLinkText: 'Understanding Svelte 5 Runes',
-				quoteText: 'Runes are a powerful new reactivity system that simplifies state management.'
-			},
-			{
-				skillLabel: 'Transcript',
-				appId: 'videos',
-				previewPath: 'embeds/videos/VideoTranscriptEmbedPreview',
-				fullscreenPath: 'embeds/videos/VideoTranscriptEmbedFullscreen',
-				inlineLinkText: 'Svelte 5 Runes transcript',
-				quoteText: 'Today we are going to learn about Svelte 5 runes. Runes are a powerful new reactivity system.'
-			},
-			{
-				skillLabel: 'Search',
-				appId: 'videos',
-				previewPath: 'embeds/videos/VideosSearchEmbedPreview',
-				fullscreenPath: 'embeds/videos/VideosSearchEmbedFullscreen',
-				inlineLinkText: 'Svelte 5 tutorial search',
-				quoteText: 'Found 24 results for "svelte 5 tutorial" — curated from YouTube.'
-			}
+			{ skillLabel: 'Video', appId: 'videos', previewPath: 'embeds/videos/VideoEmbedPreview', fullscreenPath: 'embeds/videos/VideoEmbedFullscreen', inlineLinkText: 'Understanding Svelte 5 Runes', quoteText: 'Runes are a powerful new reactivity system that simplifies state management.' },
+			{ skillLabel: 'Transcript', appId: 'videos', previewPath: 'embeds/videos/VideoTranscriptEmbedPreview', fullscreenPath: 'embeds/videos/VideoTranscriptEmbedFullscreen', inlineLinkText: 'Svelte 5 Runes transcript', quoteText: 'Today we are going to learn about Svelte 5 runes.' },
+			{ skillLabel: 'Search', appId: 'videos', previewPath: 'embeds/videos/VideosSearchEmbedPreview', fullscreenPath: 'embeds/videos/VideosSearchEmbedFullscreen', inlineLinkText: 'Svelte 5 tutorial search', quoteText: 'Found 24 results for "svelte 5 tutorial" — curated from YouTube.' }
 		],
 		images: [
-			{
-				skillLabel: 'Generate',
-				appId: 'images',
-				previewPath: 'embeds/images/ImageGenerateEmbedPreview',
-				fullscreenPath: 'embeds/images/ImageGenerateEmbedFullscreen',
-				inlineLinkText: 'Cat wearing a top hat',
-				quoteText: 'Generated image: a quick sketch of a cat wearing a top hat, pencil style.'
-			}
+			{ skillLabel: 'Generate', appId: 'images', previewPath: 'embeds/images/ImageGenerateEmbedPreview', fullscreenPath: 'embeds/images/ImageGenerateEmbedFullscreen', inlineLinkText: 'Cat wearing a top hat', quoteText: 'Generated image: a quick sketch of a cat wearing a top hat, pencil style.' }
 		],
 		news: [
-			{
-				skillLabel: 'Article',
-				appId: 'news',
-				previewPath: 'embeds/news/NewsEmbedPreview',
-				fullscreenPath: 'embeds/news/NewsEmbedFullscreen',
-				inlineLinkText: 'Svelte 5 officially released',
-				quoteText: 'The latest version of the popular frontend framework brings fundamental changes to reactivity.'
-			},
-			{
-				skillLabel: 'Search',
-				appId: 'news',
-				previewPath: 'embeds/news/NewsSearchEmbedPreview',
-				fullscreenPath: 'embeds/news/NewsSearchEmbedFullscreen',
-				inlineLinkText: 'Latest technology news 2026',
-				quoteText: 'New AI-powered development tools are changing how developers write, test, and deploy software.'
-			}
+			{ skillLabel: 'Article', appId: 'news', previewPath: 'embeds/news/NewsEmbedPreview', fullscreenPath: 'embeds/news/NewsEmbedFullscreen', inlineLinkText: 'Svelte 5 officially released', quoteText: 'The latest version of the popular frontend framework brings fundamental changes to reactivity.' },
+			{ skillLabel: 'Search', appId: 'news', previewPath: 'embeds/news/NewsSearchEmbedPreview', fullscreenPath: 'embeds/news/NewsSearchEmbedFullscreen', inlineLinkText: 'Latest technology news 2026', quoteText: 'New AI-powered development tools are changing how developers write, test, and deploy software.' }
 		],
 		travel: [
-			{
-				skillLabel: 'Search',
-				appId: 'travel',
-				previewPath: 'embeds/travel/TravelSearchEmbedPreview',
-				fullscreenPath: 'embeds/travel/TravelSearchEmbedFullscreen',
-				inlineLinkText: 'Munich → London, Mar 15',
-				quoteText: 'Lufthansa LH2485: Munich → London Heathrow, 2h 10m, from €89.'
-			},
-			{
-				skillLabel: 'Connection',
-				appId: 'travel',
-				previewPath: 'embeds/travel/TravelConnectionEmbedPreview',
-				fullscreenPath: 'embeds/travel/TravelConnectionEmbedFullscreen',
-				inlineLinkText: 'MUC → LHR direct flight',
-				quoteText: 'Direct flight Munich to London, 2h 10min, Terminal 2, Gate B22.'
-			},
-			{
-				skillLabel: 'Price Calendar',
-				appId: 'travel',
-				previewPath: 'embeds/travel/TravelPriceCalendarEmbedPreview',
-				fullscreenPath: 'embeds/travel/TravelPriceCalendarEmbedFullscreen',
-				inlineLinkText: 'Munich → Barcelona prices, March',
-				quoteText: 'Cheapest day: March 18 at €62. Prices shown for Munich → Barcelona.'
-			},
-			{
-				skillLabel: 'Stay',
-				appId: 'travel',
-				previewPath: 'embeds/travel/TravelStayEmbedPreview',
-				fullscreenPath: 'embeds/travel/TravelStayEmbedFullscreen',
-				inlineLinkText: 'Hotel Maximilian, Munich',
-				quoteText: 'Hotel Maximilian: 4-star hotel in central Munich, from €387 for 3 nights.'
-			},
-			{
-				skillLabel: 'Stays Search',
-				appId: 'travel',
-				previewPath: 'embeds/travel/TravelStaysEmbedPreview',
-				fullscreenPath: 'embeds/travel/TravelStaysEmbedFullscreen',
-				inlineLinkText: 'Hotels in Barcelona, Mar 15-18',
-				quoteText: 'Found 8 hotels in Barcelona for Mar 15-18. Top pick: Hotel Arts Barcelona.'
-			}
+			{ skillLabel: 'Search', appId: 'travel', previewPath: 'embeds/travel/TravelSearchEmbedPreview', fullscreenPath: 'embeds/travel/TravelSearchEmbedFullscreen', inlineLinkText: 'Munich to London, Mar 15', quoteText: 'Lufthansa LH2485: Munich to London Heathrow, 2h 10m, from 89 EUR.' },
+			{ skillLabel: 'Connection', appId: 'travel', previewPath: 'embeds/travel/TravelConnectionEmbedPreview', fullscreenPath: 'embeds/travel/TravelConnectionEmbedFullscreen', inlineLinkText: 'MUC to LHR direct flight', quoteText: 'Direct flight Munich to London, 2h 10min, Terminal 2, Gate B22.' },
+			{ skillLabel: 'Price Calendar', appId: 'travel', previewPath: 'embeds/travel/TravelPriceCalendarEmbedPreview', fullscreenPath: 'embeds/travel/TravelPriceCalendarEmbedFullscreen', inlineLinkText: 'Munich to Barcelona prices, March', quoteText: 'Cheapest day: March 18 at 62 EUR. Prices shown for Munich to Barcelona.' },
+			{ skillLabel: 'Stay', appId: 'travel', previewPath: 'embeds/travel/TravelStayEmbedPreview', fullscreenPath: 'embeds/travel/TravelStayEmbedFullscreen', inlineLinkText: 'Hotel Maximilian, Munich', quoteText: 'Hotel Maximilian: 4-star hotel in central Munich, from 387 EUR for 3 nights.' },
+			{ skillLabel: 'Stays Search', appId: 'travel', previewPath: 'embeds/travel/TravelStaysEmbedPreview', fullscreenPath: 'embeds/travel/TravelStaysEmbedFullscreen', inlineLinkText: 'Hotels in Barcelona, Mar 15-18', quoteText: 'Found 8 hotels in Barcelona for Mar 15-18. Top pick: Hotel Arts Barcelona.' }
 		],
 		maps: [
-			{
-				skillLabel: 'Search',
-				appId: 'maps',
-				previewPath: 'embeds/maps/MapsSearchEmbedPreview',
-				fullscreenPath: 'embeds/maps/MapsSearchEmbedFullscreen',
-				inlineLinkText: 'Coffee shops near Marienplatz',
-				quoteText: 'Man vs. Machine Coffee Roasters — Rated 4.7, 0.3km from Marienplatz, Munich.'
-			}
+			{ skillLabel: 'Search', appId: 'maps', previewPath: 'embeds/maps/MapsSearchEmbedPreview', fullscreenPath: 'embeds/maps/MapsSearchEmbedFullscreen', inlineLinkText: 'Coffee shops near Marienplatz', quoteText: 'Man vs. Machine Coffee Roasters — Rated 4.7, 0.3km from Marienplatz, Munich.' }
 		],
 		math: [
-			{
-				skillLabel: 'Calculate',
-				appId: 'math',
-				previewPath: 'embeds/math/MathCalculateEmbedPreview',
-				fullscreenPath: 'embeds/math/MathCalculateEmbedFullscreen',
-				inlineLinkText: 'sin(π/4) + cos(π/3)',
-				quoteText: 'Result: sin(π/4) + cos(π/3) = √2/2 + 1/2 ≈ 1.207'
-			},
-			{
-				skillLabel: 'Plot',
-				appId: 'math',
-				previewPath: 'embeds/math/MathPlotEmbedPreview',
-				fullscreenPath: 'embeds/math/MathPlotEmbedFullscreen',
-				inlineLinkText: 'sin(x) and cos(x) plot',
-				quoteText: 'Interactive plot of f(x) = sin(x) and f(x) = cos(x) over [−2π, 2π].'
-			}
+			{ skillLabel: 'Calculate', appId: 'math', previewPath: 'embeds/math/MathCalculateEmbedPreview', fullscreenPath: 'embeds/math/MathCalculateEmbedFullscreen', inlineLinkText: 'sin(pi/4) + cos(pi/3)', quoteText: 'Result: sin(pi/4) + cos(pi/3) = sqrt(2)/2 + 1/2 approx 1.207' },
+			{ skillLabel: 'Plot', appId: 'math', previewPath: 'embeds/math/MathPlotEmbedPreview', fullscreenPath: 'embeds/math/MathPlotEmbedFullscreen', inlineLinkText: 'sin(x) and cos(x) plot', quoteText: 'Interactive plot of f(x) = sin(x) and f(x) = cos(x) over [-2pi, 2pi].' }
 		],
 		events: [
-			{
-				skillLabel: 'Event',
-				appId: 'events',
-				previewPath: 'embeds/events/EventEmbedPreview',
-				fullscreenPath: 'embeds/events/EventEmbedFullscreen',
-				inlineLinkText: 'AI & ML Berlin Meetup',
-				quoteText: 'AI & Machine Learning Berlin Meetup – Spring Edition. March 15, 19:00 at Factory Berlin.'
-			},
-			{
-				skillLabel: 'Search',
-				appId: 'events',
-				previewPath: 'embeds/events/EventsSearchEmbedPreview',
-				fullscreenPath: 'embeds/events/EventsSearchEmbedFullscreen',
-				inlineLinkText: 'AI meetups in Berlin',
-				quoteText: 'Found 3 upcoming AI & tech events in Berlin this month.'
-			}
+			{ skillLabel: 'Event', appId: 'events', previewPath: 'embeds/events/EventEmbedPreview', fullscreenPath: 'embeds/events/EventEmbedFullscreen', inlineLinkText: 'AI & ML Berlin Meetup', quoteText: 'AI & Machine Learning Berlin Meetup. March 15, 19:00 at Factory Berlin.' },
+			{ skillLabel: 'Search', appId: 'events', previewPath: 'embeds/events/EventsSearchEmbedPreview', fullscreenPath: 'embeds/events/EventsSearchEmbedFullscreen', inlineLinkText: 'AI meetups in Berlin', quoteText: 'Found 3 upcoming AI & tech events in Berlin this month.' }
 		],
 		reminder: [
-			{
-				skillLabel: 'Reminder',
-				appId: 'reminder',
-				previewPath: 'embeds/reminder/ReminderEmbedPreview',
-				fullscreenPath: 'embeds/reminder/ReminderEmbedFullscreen',
-				inlineLinkText: 'Reminder: tomorrow 9:00 AM',
-				quoteText: 'Reminder set! I will send a message in this chat tomorrow at 9:00 AM.'
-			}
+			{ skillLabel: 'Reminder', appId: 'reminder', previewPath: 'embeds/reminder/ReminderEmbedPreview', fullscreenPath: 'embeds/reminder/ReminderEmbedFullscreen', inlineLinkText: 'Reminder: tomorrow 9:00 AM', quoteText: 'Reminder set! I will send a message in this chat tomorrow at 9:00 AM.' }
 		],
 		sheets: [
-			{
-				skillLabel: 'Sheet',
-				appId: 'sheets',
-				previewPath: 'embeds/sheets/SheetEmbedPreview',
-				fullscreenPath: 'embeds/sheets/SheetEmbedFullscreen',
-				inlineLinkText: 'Budget spreadsheet Q1 2026',
-				quoteText: 'Spreadsheet: Q1 2026 Budget — 12 rows, 8 columns, last updated today.'
-			}
+			{ skillLabel: 'Sheet', appId: 'sheets', previewPath: 'embeds/sheets/SheetEmbedPreview', fullscreenPath: 'embeds/sheets/SheetEmbedFullscreen', inlineLinkText: 'Budget spreadsheet Q1 2026', quoteText: 'Spreadsheet: Q1 2026 Budget — 12 rows, 8 columns, last updated today.' }
 		],
 		audio: [
-			{
-				skillLabel: 'Recording',
-				appId: 'audio',
-				previewPath: 'embeds/audio/RecordingEmbedPreview',
-				fullscreenPath: 'embeds/audio/RecordingEmbedFullscreen',
-				inlineLinkText: 'Voice note — 0:42',
-				quoteText: 'Voice recording captured: 42 seconds, transcription available.'
-			}
+			{ skillLabel: 'Recording', appId: 'audio', previewPath: 'embeds/audio/RecordingEmbedPreview', fullscreenPath: 'embeds/audio/RecordingEmbedFullscreen', inlineLinkText: 'Voice note — 0:42', quoteText: 'Voice recording captured: 42 seconds, transcription available.' }
 		],
 		health: [
-			{
-				skillLabel: 'Appointment',
-				appId: 'health',
-				previewPath: 'embeds/health/HealthAppointmentEmbedPreview',
-				fullscreenPath: 'embeds/health/HealthAppointmentEmbedFullscreen',
-				inlineLinkText: 'Dr. Müller appointment — Apr 3',
-				quoteText: 'Appointment confirmed with Dr. Müller on April 3 at 10:30 AM.'
-			},
-			{
-				skillLabel: 'Search',
-				appId: 'health',
-				previewPath: 'embeds/health/HealthSearchEmbedPreview',
-				fullscreenPath: 'embeds/health/HealthSearchEmbedFullscreen',
-				inlineLinkText: 'Cardiologists near Munich',
-				quoteText: 'Found 5 cardiologists within 5km. Top result: Prof. Weber, rated 4.9.'
-			}
+			{ skillLabel: 'Appointment', appId: 'health', previewPath: 'embeds/health/HealthAppointmentEmbedPreview', fullscreenPath: 'embeds/health/HealthAppointmentEmbedFullscreen', inlineLinkText: 'Dr. Mueller appointment — Apr 3', quoteText: 'Appointment confirmed with Dr. Mueller on April 3 at 10:30 AM.' },
+			{ skillLabel: 'Search', appId: 'health', previewPath: 'embeds/health/HealthSearchEmbedPreview', fullscreenPath: 'embeds/health/HealthSearchEmbedFullscreen', inlineLinkText: 'Cardiologists near Munich', quoteText: 'Found 5 cardiologists within 5km. Top result: Prof. Weber, rated 4.9.' }
 		],
 		mail: [
-			{
-				skillLabel: 'Mail',
-				appId: 'mail',
-				previewPath: 'embeds/mail/MailEmbedPreview',
-				fullscreenPath: 'embeds/mail/MailEmbedFullscreen',
-				inlineLinkText: 'Email: Project update from Anna',
-				quoteText: 'The latest sprint review went well. All tickets closed except the auth refactor.'
-			}
+			{ skillLabel: 'Mail', appId: 'mail', previewPath: 'embeds/mail/MailEmbedPreview', fullscreenPath: 'embeds/mail/MailEmbedFullscreen', inlineLinkText: 'Email: Project update from Anna', quoteText: 'The latest sprint review went well. All tickets closed except the auth refactor.' }
 		],
 		pdf: [
-			{
-				skillLabel: 'PDF',
-				appId: 'pdf',
-				previewPath: 'embeds/pdf/PDFEmbedPreview',
-				fullscreenPath: 'embeds/pdf/PDFEmbedFullscreen',
-				inlineLinkText: 'Q4 2025 Report.pdf',
-				quoteText: 'Annual revenue increased 23% YoY. Full analysis on pages 4–7.'
-			},
-			{
-				skillLabel: 'Read',
-				appId: 'pdf',
-				previewPath: 'embeds/pdf/PdfReadEmbedPreview',
-				fullscreenPath: 'embeds/pdf/PdfReadEmbedFullscreen',
-				inlineLinkText: 'Architecture whitepaper — page 12',
-				quoteText: 'The microservices architecture enables independent scaling of each service component.'
-			},
-			{
-				skillLabel: 'Search',
-				appId: 'pdf',
-				previewPath: 'embeds/pdf/PdfSearchEmbedPreview',
-				fullscreenPath: 'embeds/pdf/PdfSearchEmbedFullscreen',
-				inlineLinkText: 'Search "authentication" in docs',
-				quoteText: 'Found 7 mentions of "authentication" across 3 documents.'
-			}
+			{ skillLabel: 'PDF', appId: 'pdf', previewPath: 'embeds/pdf/PDFEmbedPreview', fullscreenPath: 'embeds/pdf/PDFEmbedFullscreen', inlineLinkText: 'Q4 2025 Report.pdf', quoteText: 'Annual revenue increased 23% YoY. Full analysis on pages 4-7.' },
+			{ skillLabel: 'Read', appId: 'pdf', previewPath: 'embeds/pdf/PdfReadEmbedPreview', fullscreenPath: 'embeds/pdf/PdfReadEmbedFullscreen', inlineLinkText: 'Architecture whitepaper — page 12', quoteText: 'The microservices architecture enables independent scaling of each service component.' },
+			{ skillLabel: 'Search', appId: 'pdf', previewPath: 'embeds/pdf/PdfSearchEmbedPreview', fullscreenPath: 'embeds/pdf/PdfSearchEmbedFullscreen', inlineLinkText: 'Search "authentication" in docs', quoteText: 'Found 7 mentions of "authentication" across 3 documents.' }
 		],
 		shopping: [
-			{
-				skillLabel: 'Search',
-				appId: 'shopping',
-				previewPath: 'embeds/shopping/ShoppingSearchEmbedPreview',
-				fullscreenPath: 'embeds/shopping/ShoppingSearchEmbedFullscreen',
-				inlineLinkText: 'Wireless headphones under €100',
-				quoteText: 'Found 12 wireless headphones under €100. Top pick: Sony WH-1000XM4 at €89.'
-			}
+			{ skillLabel: 'Search', appId: 'shopping', previewPath: 'embeds/shopping/ShoppingSearchEmbedPreview', fullscreenPath: 'embeds/shopping/ShoppingSearchEmbedFullscreen', inlineLinkText: 'Wireless headphones under 100 EUR', quoteText: 'Found 12 wireless headphones under 100 EUR. Top pick: Sony WH-1000XM4 at 89 EUR.' }
 		]
 	};
 
@@ -335,7 +110,8 @@
 		'health', 'mail', 'pdf', 'shopping'
 	];
 
-	// ─── Glob maps ────────────────────────────────────────────────────────────
+	// ─── Glob maps ────────────────────────────────────────────────────
+
 	const componentModules = import.meta.glob<{ default: unknown }>(
 		'/../../packages/ui/src/components/**/*.svelte',
 		{ eager: false }
@@ -355,20 +131,22 @@
 	}
 
 	const componentKeyMap = new Map<string, string>();
-	for (const key of Object.keys(componentModules)) {
-		componentKeyMap.set(extractCleanPath(key).replace('.svelte', ''), key);
+	for (const k of Object.keys(componentModules)) {
+		componentKeyMap.set(extractCleanPath(k).replace('.svelte', ''), k);
 	}
 	const previewKeyMap = new Map<string, string>();
-	for (const key of Object.keys(previewModules)) {
-		previewKeyMap.set(extractCleanPath(key).replace('.preview.ts', ''), key);
+	for (const k of Object.keys(previewModules)) {
+		previewKeyMap.set(extractCleanPath(k).replace('.preview.ts', ''), k);
 	}
 
-	// ─── Route state ──────────────────────────────────────────────────────────
+	// ─── Route state ──────────────────────────────────────────────────
+
 	let currentApp = $derived(page.params.app || 'code');
 	let sections = $derived(APP_REGISTRY[currentApp] ?? []);
 	let isUnknownApp = $derived(!(currentApp in APP_REGISTRY));
 
-	// ─── Global toolbar ───────────────────────────────────────────────────────
+	// ─── Global toolbar ───────────────────────────────────────────────
+
 	let background = $state<'auto' | 'grid'>('auto');
 	let backgroundStyle = $derived.by(() => {
 		if (background === 'grid') {
@@ -387,97 +165,61 @@
 		theme.set($theme === 'light' ? 'dark' : 'light');
 	}
 
-	// ─── Per-section state ────────────────────────────────────────────────────
-	// ARCHITECTURE: We deliberately avoid putting render-error flags inside the
-	// $state objects that loadSection writes to. Writing error flags from inside a
-	// window 'error' event handler (which fires asynchronously) while a $effect
-	// reads those same flags as guard conditions causes Svelte 5's
-	// effect_update_depth_exceeded cycle. Instead:
-	//   - sectionStates holds only loading/props/UI state (no render errors)
-	//   - renderErrors is a plain Map mutated outside the reactive graph
-	//   - Mounting is done imperatively (mountAllForSection) after load completes
-	//     and after DOM updates (tick()), NOT inside a reactive $effect
-	//   - Re-mounting on variant/props change is also imperative (remountSection)
+	// ─── Per-section loaded state ─────────────────────────────────────
+	// Each section loads its preview + fullscreen components and mock props.
+	// Components are stored as Svelte constructor refs and rendered
+	// declaratively in the template via <Preview {...props} />.
 
-	interface SectionState {
-		previewComponent: unknown;
-		fullscreenComponent: unknown;
+	interface LoadedSection {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		PreviewComponent: any;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		FullscreenComponent: any;
 		loadError: string | null;
 		isLoading: boolean;
 		mockProps: Record<string, unknown>;
 		variants: Record<string, Record<string, unknown>>;
 		hasPreviewFile: boolean;
 		activeVariant: string;
-		manualOverrides: Record<string, unknown>;
-		hasManualEdits: boolean;
 		propsJson: string;
 		propsError: string | null;
 		showPropsEditor: boolean;
 	}
 
-	// sectionStates is $state so Svelte tracks re-assignments (e.g. on app switch).
-	// Reads inside loadSection's async callbacks use untrack() to avoid creating
-	// reactive dependencies that would retrigger the init $effect.
-	let sectionStates = $state<SectionState[]>([]);
+	let loadedSections = $state<LoadedSection[]>([]);
 
-	// Single $state counter: increment (via notify()) to tell the template to
-	// re-read the plain sectionStates array.
-	let stateVersion = $state(0);
-	function notify() { stateVersion++; }
-
-	const renderErrors = new Map<number, string>(); // flat key(si,di) → message
-
-	function getRenderError(si: number, di: number): string | null {
-		void stateVersion; // reactive dependency
-		return renderErrors.get(key(si, di)) ?? null;
-	}
-
-	function setRenderError(si: number, di: number, msg: string) {
-		renderErrors.set(key(si, di), msg);
-		notify();
-	}
-
-	function clearRenderErrors(si: number) {
-		renderErrors.delete(key(si, 0));
-		renderErrors.delete(key(si, 1));
-		renderErrors.delete(key(si, 2));
-		renderErrors.delete(key(si, 3));
-		// callers call notify() after their own mutations
-	}
-
-	// The $effect only reads `sections` ($derived — pure). It writes to the
-	// PLAIN sectionStates array (not $state), so loadSection's async writes
-	// cannot re-trigger this effect.
+	// Re-initialise when app changes
 	$effect(() => {
-		const snap = sections; // establishes reactive dependency on sections
-		for (const [k] of mountedInstances) cleanupMount(k);
-		renderErrors.clear();
-
-		sectionStates = snap.map(() => ({
-			previewComponent: null,
-			fullscreenComponent: null,
+		const snap = sections;
+		const initial: LoadedSection[] = snap.map(() => ({
+			PreviewComponent: null,
+			FullscreenComponent: null,
 			loadError: null,
 			isLoading: true,
 			mockProps: {},
 			variants: {},
 			hasPreviewFile: false,
 			activeVariant: 'default',
-			manualOverrides: {},
-			hasManualEdits: false,
 			propsJson: '{}',
 			propsError: null,
 			showPropsEditor: false
 		}));
-		notify();
-		snap.forEach((section, i) => loadSection(section, i));
+		loadedSections = initial;
+
+		// Fire-and-forget async loaders for each section
+		snap.forEach((section, i) => {
+			loadSection(section, i, initial);
+		});
 	});
 
-	async function loadSection(section: EmbedSection, idx: number) {
-		// untrack: read sectionStates without creating a reactive dependency.
-		// If we read it reactively inside this async fn, Svelte would see the
-		// $effect (which called us) as dependent on sectionStates — then our
-		// s.isLoading=false write would retrigger the effect → infinite cycle.
-		const s = untrack(() => sectionStates[idx]);
+	/**
+	 * Load components + preview data for a single section.
+	 * Writes directly to the `target` array element (which is the same
+	 * object reference that loadedSections[i] points to). After writing,
+	 * we trigger a reactive update by re-assigning the array.
+	 */
+	async function loadSection(section: EmbedSection, idx: number, target: LoadedSection[]) {
+		const s = target[idx];
 		if (!s) return;
 
 		const prevKey = previewKeyMap.get(section.previewPath) ?? '';
@@ -486,12 +228,14 @@
 
 		try {
 			if (!previewKey) throw new Error(`Component not found: ${section.previewPath}.svelte`);
+
 			const [previewMod, fullscreenMod] = await Promise.all([
 				componentModules[previewKey](),
 				fullscreenKey ? componentModules[fullscreenKey]() : Promise.resolve(null)
 			]);
-			s.previewComponent = previewMod?.default ?? null;
-			s.fullscreenComponent = (fullscreenMod as { default?: unknown } | null)?.default ?? null;
+
+			s.PreviewComponent = previewMod?.default ?? null;
+			s.FullscreenComponent = (fullscreenMod as { default?: unknown } | null)?.default ?? null;
 
 			if (prevKey && previewModules[prevKey]) {
 				try {
@@ -500,158 +244,65 @@
 					s.variants = preview.variants ?? {};
 					s.hasPreviewFile = true;
 					s.propsJson = JSON.stringify(preview.default ?? {}, null, 2);
-				} catch { /* no preview file — component mounts with {} */ }
+				} catch { /* no preview data — component renders with {} */ }
 			}
 		} catch (err) {
 			s.loadError = err instanceof Error ? err.message : String(err);
-			s.isLoading = false;
-			notify();
-			return;
 		}
 
 		s.isLoading = false;
-		notify(); // update template to show mount targets
-		await tick();
-		mountAllForSection(idx);
+		// Trigger reactive update — loadedSections is $state, so re-assigning
+		// the array makes Svelte see the changes to the inner objects.
+		loadedSections = [...loadedSections];
 	}
 
-	function getEffectiveProps(s: SectionState): Record<string, unknown> {
+	function getEffectiveProps(s: LoadedSection): Record<string, unknown> {
 		const base = { ...s.mockProps };
 		if (s.activeVariant !== 'default' && s.variants[s.activeVariant]) {
 			Object.assign(base, s.variants[s.activeVariant]);
 		}
-		if (s.hasManualEdits) Object.assign(base, s.manualOverrides);
 		return base;
 	}
 
-	async function selectVariant(idx: number, name: string) {
-		const s = sectionStates[idx];
+	function selectVariant(idx: number, name: string) {
+		const s = loadedSections[idx];
 		if (!s) return;
 		s.activeVariant = name;
-		s.hasManualEdits = false;
-		s.manualOverrides = {};
-		s.propsError = null;
 		s.propsJson = JSON.stringify(getEffectiveProps(s), null, 2);
-		clearRenderErrors(idx);
-		notify();
-		await tick();
-		remountSection(idx);
+		s.propsError = null;
+		loadedSections = [...loadedSections];
 	}
 
 	function handlePropsInput(idx: number, value: string) {
-		const s = sectionStates[idx];
+		const s = loadedSections[idx];
 		if (!s) return;
 		s.propsJson = value;
-		s.hasManualEdits = true;
 		try {
 			const parsed = JSON.parse(value);
 			if (typeof parsed === 'object' && parsed !== null) {
-				s.manualOverrides = parsed;
+				s.mockProps = { ...s.mockProps, ...parsed };
 				s.propsError = null;
-				notify();
-				remountSection(idx);
 			}
 		} catch (err) {
 			s.propsError = err instanceof Error ? err.message : 'Invalid JSON';
-			notify();
 		}
+		loadedSections = [...loadedSections];
 	}
 
 	function resetProps(idx: number) {
-		const s = sectionStates[idx];
+		const s = loadedSections[idx];
 		if (!s) return;
-		s.manualOverrides = {};
-		s.hasManualEdits = false;
-		s.propsError = null;
 		s.propsJson = JSON.stringify(getEffectiveProps(s), null, 2);
-		notify();
-		remountSection(idx);
-	}
-
-	function togglePropsEditor(idx: number) {
-		const s = sectionStates[idx];
-		if (!s) return;
-		s.showPropsEditor = !s.showPropsEditor;
-		notify();
-	}
-
-	// ─── Component mounting (fully imperative — no reactive $effect) ──────────
-	// Using a flat array indexed as sectionIdx*4 + displayIdx:
-	//   displayIdx: 0=mobile, 1=small, 2=large, 3=fullscreen
-	let mountTargets: (HTMLElement | null)[] = [];
-	const mountedInstances = new Map<number, ReturnType<typeof mount>>();
-
-	function key(sIdx: number, dIdx: number) { return sIdx * 4 + dIdx; }
-
-	function cleanupMount(k: number) {
-		const inst = mountedInstances.get(k);
-		if (inst) {
-			try { unmount(inst); } catch { /* ignore */ }
-			mountedInstances.delete(k);
-		}
-		const el = mountTargets[k];
-		if (el) el.innerHTML = '';
-	}
-
-	function doMount(
-		k: number,
-		component: unknown,
-		target: HTMLElement | null,
-		props: Record<string, unknown>,
-		si: number,
-		di: number
-	) {
-		if (!component || !target) return;
-		cleanupMount(k);
-		let caught = false;
-		const onError = (e: ErrorEvent) => {
-			if (!caught) {
-				caught = true;
-				setRenderError(si, di, e.error?.message ?? e.message ?? 'Unknown render error');
-				cleanupMount(k);
-			}
-			e.preventDefault();
-		};
-		window.addEventListener('error', onError);
-		try {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			mountedInstances.set(k, mount(component as any, { target, props }));
-		} catch (err) {
-			caught = true;
-			setRenderError(si, di, err instanceof Error ? err.message : String(err));
-			cleanupMount(k);
-		}
-		setTimeout(() => window.removeEventListener('error', onError), 500);
-	}
-
-	function mountAllForSection(si: number) {
-		const s = sectionStates[si];
-		if (!s || s.isLoading || s.loadError) return;
-		const props = getEffectiveProps(s);
-		doMount(key(si, 0), s.previewComponent, mountTargets[key(si, 0)], { ...props, isMobile: true }, si, 0);
-		doMount(key(si, 1), s.previewComponent, mountTargets[key(si, 1)], { ...props, isMobile: false }, si, 1);
-		doMount(key(si, 2), s.previewComponent, mountTargets[key(si, 2)], { ...props, isMobile: false }, si, 2);
-		doMount(key(si, 3), s.fullscreenComponent, mountTargets[key(si, 3)], { ...props, onClose: () => {} }, si, 3);
-	}
-
-	function remountSection(si: number) {
-		clearRenderErrors(si);
-		mountAllForSection(si);
-	}
-
-	async function retrySection(si: number) {
-		clearRenderErrors(si);
-		notify();
-		await tick();
-		mountAllForSection(si);
+		s.propsError = null;
+		loadedSections = [...loadedSections];
 	}
 </script>
 
 <div class="showcase-page">
 
-	<!-- ── App switcher bar ───────────────────────────────────────────── -->
+	<!-- App switcher bar -->
 	<header class="app-switcher">
-		<a href="/dev/preview" class="back-link">← All</a>
+		<a href="/dev/preview" class="back-link">&#8592; All</a>
 		<nav class="app-pills" aria-label="Switch embed app">
 			{#each ALL_APPS as appSlug}
 				<a
@@ -672,7 +323,7 @@
 		</div>
 	</header>
 
-	<!-- ── Scrollable content ─────────────────────────────────────────── -->
+	<!-- Scrollable content -->
 	<div class="showcase-body" style={backgroundStyle}>
 		{#if isUnknownApp}
 			<div class="unknown-app">
@@ -680,62 +331,46 @@
 				<p>Available: {ALL_APPS.join(', ')}</p>
 			</div>
 		{:else}
-			{#key stateVersion}
 			<div class="app-heading">
 				<h1 class="app-title">{currentApp}</h1>
 				<span class="section-count">{sections.length} skill{sections.length !== 1 ? 's' : ''}</span>
 			</div>
 
 			{#each sections as section, si}
-				{@const s = sectionStates[si]}
+				{@const s = loadedSections[si]}
 
 				<section class="skill-section">
-
-					<!-- Section header -->
 					<div class="skill-header">
 						<h2 class="skill-label">{section.skillLabel}</h2>
-						{#if s}
+						{#if s && !s.isLoading && !s.loadError}
 							<div class="skill-actions">
 								{#if Object.keys(s.variants).length > 0}
 									<div class="template-row">
 										<span class="template-label">Template:</span>
-										<button
-											class="tmpl-btn"
-											class:active={s.activeVariant === 'default'}
-											onclick={() => selectVariant(si, 'default')}
-										>Default</button>
+										<button class="tmpl-btn" class:active={s.activeVariant === 'default'} onclick={() => selectVariant(si, 'default')}>Default</button>
 										{#each Object.keys(s.variants) as vname}
-											<button
-												class="tmpl-btn"
-												class:active={s.activeVariant === vname}
-												onclick={() => selectVariant(si, vname)}
-											>{vname}</button>
+											<button class="tmpl-btn" class:active={s.activeVariant === vname} onclick={() => selectVariant(si, vname)}>{vname}</button>
 										{/each}
 									</div>
 								{/if}
-								<button
-									class="props-btn"
-									class:active={s.showPropsEditor}
-									onclick={() => togglePropsEditor(si)}
-								>Props</button>
+								<button class="props-btn" class:active={s.showPropsEditor} onclick={() => { s.showPropsEditor = !s.showPropsEditor; loadedSections = [...loadedSections]; }}>Props</button>
 							</div>
 						{/if}
 					</div>
 
-					{#if s?.isLoading}
-						<p class="section-loading">Loading {section.skillLabel}…</p>
-					{:else if s?.loadError}
+					{#if !s || s.isLoading}
+						<p class="section-loading">Loading {section.skillLabel}...</p>
+					{:else if s.loadError}
 						<p class="section-error">{s.loadError}</p>
-					{:else if s}
+					{:else}
+						{@const props = getEffectiveProps(s)}
 
-						<!-- Props panel -->
+						<!-- Props editor -->
 						{#if s.showPropsEditor}
 							<div class="props-panel">
 								<div class="props-panel-hdr">
 									<span class="props-panel-title">Props JSON</span>
-									{#if s.hasManualEdits}
-										<button class="reset-btn" onclick={() => resetProps(si)}>Reset</button>
-									{/if}
+									<button class="reset-btn" onclick={() => resetProps(si)}>Reset</button>
 									{#if !s.hasPreviewFile}
 										<span class="no-preview">No .preview.ts</span>
 									{/if}
@@ -752,7 +387,7 @@
 							</div>
 						{/if}
 
-						<!-- 1. Inline Link -->
+						<!-- 1. Inline Link (simulated) -->
 						<div class="dt">
 							<h3 class="dt-heading">Inline Link</h3>
 							<div class="dt-body dt-body--inline">
@@ -765,14 +400,11 @@
 							</div>
 						</div>
 
-						<!-- 2. Quote Block -->
+						<!-- 2. Quote Block (simulated) -->
 						<div class="dt">
 							<h3 class="dt-heading">Quote Block</h3>
 							<div class="dt-body">
-								<blockquote
-									class="fake-quote"
-									style="border-left-color: var(--color-app-{section.appId}-start, var(--color-primary-start))"
-								>
+								<blockquote class="fake-quote" style="border-left-color: var(--color-app-{section.appId}-start, var(--color-primary-start))">
 									<p class="fake-quote-text">{section.quoteText}</p>
 									<footer class="fake-quote-footer">
 										<span class="fake-badge fake-badge--sm" style="background: var(--color-app-{section.appId})"></span>
@@ -783,100 +415,55 @@
 						</div>
 
 						<!-- 3. Preview — Mobile -->
-						<div class="dt">
-							<h3 class="dt-heading">Preview — Mobile <span class="size-hint">150×290</span></h3>
-							<div class="dt-body">
-								{#if getRenderError(si, 0)}
-									<div class="render-err">
-										<strong>Render error</strong>
-										<code>{getRenderError(si, 0)}</code>
-										<button onclick={() => retrySection(si)}>Retry</button>
-									</div>
-								{/if}
-								<div
-									class="mount-target"
-									style:display={getRenderError(si, 0) ? 'none' : 'block'}
-									bind:this={mountTargets[key(si, 0)]}
-								></div>
-							</div>
-						</div>
-
-						<!-- 4. Preview — Small -->
-						<div class="dt">
-							<h3 class="dt-heading">Preview — Small <span class="size-hint">300×200</span></h3>
-							<div class="dt-body">
-								{#if getRenderError(si, 1)}
-									<div class="render-err">
-										<strong>Render error</strong>
-										<code>{getRenderError(si, 1)}</code>
-										<button onclick={() => retrySection(si)}>Retry</button>
-									</div>
-								{/if}
-								<div
-									class="mount-target"
-									style:display={getRenderError(si, 1) ? 'none' : 'block'}
-									bind:this={mountTargets[key(si, 1)]}
-								></div>
-							</div>
-						</div>
-
-						<!-- 5. Preview — Large -->
-						<!-- The wrapper sets container-type:inline-size + container-name:embed-preview
-						     which triggers @container embed-preview (min-width: 301px) in
-						     UnifiedEmbedPreview, switching to the full-width × 400px layout. -->
-						<div class="dt">
-							<h3 class="dt-heading">Preview — Large <span class="size-hint">full-width × 400</span></h3>
-							<div class="dt-body dt-body--flush">
-								<div class="large-container">
-									{#if getRenderError(si, 2)}
-										<div class="render-err">
-											<strong>Render error</strong>
-											<code>{getRenderError(si, 2)}</code>
-											<button onclick={() => retrySection(si)}>Retry</button>
-										</div>
-									{/if}
-									<div
-										class="mount-target"
-										style:display={getRenderError(si, 2) ? 'none' : 'block'}
-										bind:this={mountTargets[key(si, 2)]}
-									></div>
+						{#if s.PreviewComponent}
+							{@const Preview = s.PreviewComponent}
+							<div class="dt">
+								<h3 class="dt-heading">Preview — Mobile <span class="size-hint">150x290</span></h3>
+								<div class="dt-body">
+									<Preview {...props} isMobile={true} />
 								</div>
 							</div>
-						</div>
 
-						<!-- 6. Fullscreen -->
-						<!-- isolation:isolate + overflow:hidden clips position:fixed children
-						     so the fullscreen component renders inline without covering the page. -->
-						<div class="dt">
-							<h3 class="dt-heading">Fullscreen <span class="size-hint">clipped inline</span></h3>
-							<div class="dt-body dt-body--flush">
-								<div class="fs-clip">
-									{#if getRenderError(si, 3)}
-										<div class="render-err">
-											<strong>Render error</strong>
-											<code>{getRenderError(si, 3)}</code>
-											<button onclick={() => retrySection(si)}>Retry</button>
-										</div>
-									{/if}
-									<div
-										class="mount-target mount-target--fs"
-										style:display={getRenderError(si, 3) ? 'none' : 'block'}
-										bind:this={mountTargets[key(si, 3)]}
-									></div>
+							<!-- 4. Preview — Small -->
+							<div class="dt">
+								<h3 class="dt-heading">Preview — Small <span class="size-hint">300x200</span></h3>
+								<div class="dt-body">
+									<Preview {...props} isMobile={false} />
 								</div>
 							</div>
-						</div>
+
+							<!-- 5. Preview — Large (container query trigger) -->
+							<div class="dt">
+								<h3 class="dt-heading">Preview — Large <span class="size-hint">full-width x 400</span></h3>
+								<div class="dt-body dt-body--flush">
+									<div class="large-container">
+										<Preview {...props} isMobile={false} />
+									</div>
+								</div>
+							</div>
+						{/if}
+
+						<!-- 6. Fullscreen (clipped inline) -->
+						{#if s.FullscreenComponent}
+							{@const Fullscreen = s.FullscreenComponent}
+							<div class="dt">
+								<h3 class="dt-heading">Fullscreen <span class="size-hint">clipped inline</span></h3>
+								<div class="dt-body dt-body--flush">
+									<div class="fs-clip">
+										<Fullscreen {...props} onClose={() => {}} />
+									</div>
+								</div>
+							</div>
+						{/if}
 
 					{/if}
 				</section>
 			{/each}
-			{/key}
 		{/if}
 	</div>
 </div>
 
 <style>
-	/* ── Page shell ──────────────────────────────────────────────────── */
 	.showcase-page {
 		display: flex;
 		flex-direction: column;
@@ -886,7 +473,6 @@
 		color: var(--color-font-primary);
 	}
 
-	/* ── App switcher ────────────────────────────────────────────────── */
 	.app-switcher {
 		display: flex;
 		align-items: center;
@@ -980,7 +566,6 @@
 		color: #fff; /* intentional: always white on active toggle */
 	}
 
-	/* ── Scrollable body ─────────────────────────────────────────────── */
 	.showcase-body {
 		flex: 1;
 		overflow-y: auto;
@@ -1004,7 +589,6 @@
 		color: var(--color-font-tertiary);
 	}
 
-	/* ── Skill section ───────────────────────────────────────────────── */
 	.skill-section {
 		margin-bottom: 64px;
 		padding-bottom: 48px;
@@ -1057,7 +641,7 @@
 	.tmpl-btn:hover:not(.active) { background: var(--color-grey-20); }
 	.tmpl-btn.active {
 		background: var(--color-primary-start);
-		color: #fff; /* intentional: always white on active template pill */
+		color: #fff; /* intentional */
 		border-color: var(--color-primary-start);
 	}
 
@@ -1073,9 +657,8 @@
 		transition: background-color 0.15s;
 	}
 	.props-btn:hover { background: var(--color-grey-20); color: var(--color-font-primary); }
-	.props-btn.active { background: var(--color-grey-25); color: var(--color-font-primary); border-color: var(--color-grey-30); }
+	.props-btn.active { background: var(--color-grey-25); color: var(--color-font-primary); }
 
-	/* ── Props panel ─────────────────────────────────────────────────── */
 	.props-panel {
 		margin-bottom: 24px;
 		padding: 16px;
@@ -1127,7 +710,6 @@
 	.props-editor:focus { border-color: var(--color-primary-start); }
 	.props-error { font-size: 0.6875rem; color: var(--color-error, #e53935); margin: 0; }
 
-	/* ── Display type rows ───────────────────────────────────────────── */
 	.dt { margin-bottom: 36px; }
 
 	.dt-heading {
@@ -1159,7 +741,6 @@
 		min-height: 40px;
 	}
 
-	/* Inline: flow-text context */
 	.dt-body--inline {
 		font-size: 0.9375rem;
 		line-height: 1.6;
@@ -1170,7 +751,6 @@
 	}
 	.inline-ctx { color: var(--color-font-primary); }
 
-	/* Fake EmbedInlineLink */
 	.fake-inline {
 		display: inline-flex;
 		align-items: center;
@@ -1190,7 +770,6 @@
 		color: var(--color-primary-start);
 	}
 
-	/* Fake SourceQuoteBlock */
 	.fake-quote {
 		margin: 0;
 		padding: 10px 16px;
@@ -1212,10 +791,6 @@
 	}
 	.fake-source { font-size: 0.75rem; color: var(--color-font-tertiary); }
 
-	/* Large preview — establishes the container query context.
-	   container-name: embed-preview triggers
-	   @container embed-preview (min-width: 301px) in UnifiedEmbedPreview,
-	   switching to the full-width × 400px expanded layout. */
 	.dt-body--flush {
 		padding: 0;
 		background: transparent;
@@ -1231,9 +806,6 @@
 		border: 1px solid var(--color-grey-25);
 	}
 
-	/* Fullscreen clip — isolation:isolate creates a stacking context so that
-	   the fullscreen component's position:fixed children are clipped to this box
-	   instead of escaping to the viewport. */
 	.fs-clip {
 		position: relative;
 		width: 100%;
@@ -1244,46 +816,6 @@
 		border: 1px solid var(--color-grey-25);
 	}
 
-	/* ── Mount targets ───────────────────────────────────────────────── */
-	.mount-target { min-height: 20px; }
-	.mount-target--fs {
-		position: absolute;
-		inset: 0;
-	}
-
-	/* ── Render errors ───────────────────────────────────────────────── */
-	.render-err {
-		padding: 12px 16px;
-		background: var(--color-grey-10);
-		border: 1px solid color-mix(in srgb, var(--color-error, #e53935) 30%, transparent);
-		border-radius: 8px;
-		display: flex;
-		flex-direction: column;
-		gap: 6px;
-		font-size: 0.8125rem;
-		margin-bottom: 8px;
-	}
-	.render-err strong { color: var(--color-error, #e53935); }
-	.render-err code {
-		font-family: 'Courier New', monospace;
-		font-size: 0.75rem;
-		color: var(--color-font-secondary);
-		word-break: break-word;
-	}
-	.render-err button {
-		align-self: flex-start;
-		padding: 4px 12px;
-		border: 1px solid var(--color-grey-30);
-		border-radius: 4px;
-		background: var(--color-grey-10);
-		color: var(--color-font-primary);
-		font-size: 0.75rem;
-		cursor: pointer;
-		font-family: var(--font-primary, 'Lexend Deca Variable'), sans-serif;
-	}
-	.render-err button:hover { background: var(--color-grey-20); }
-
-	/* ── State messages ──────────────────────────────────────────────── */
 	.section-loading { padding: 24px 0; color: var(--color-font-tertiary); font-size: 0.875rem; }
 	.section-error {
 		padding: 16px;
