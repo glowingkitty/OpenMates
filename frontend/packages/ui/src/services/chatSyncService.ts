@@ -99,7 +99,7 @@ export class ChatSynchronizationService extends EventTarget {
     // Listen for handlers being cleared (e.g., during logout)
     // and reset the registration flag so they can be re-registered on next login
     webSocketService.addEventListener("handlers_cleared", () => {
-      console.info(
+      console.warn(
         "[ChatSyncService] WebSocket handlers were cleared. Resetting registration flag.",
       );
       this.handlersRegistered = false;
@@ -108,7 +108,7 @@ export class ChatSynchronizationService extends EventTarget {
     websocketStatus.subscribe((storeState) => {
       this.webSocketConnected = storeState.status === "connected";
       if (this.webSocketConnected) {
-        console.info("[ChatSyncService] WebSocket connected.");
+        console.warn("[ChatSyncService] WebSocket connected.");
 
         // CRITICAL: Re-register handlers on connection if they were cleared
         // This ensures sync works correctly after login without requiring a page reload
@@ -128,7 +128,7 @@ export class ChatSynchronizationService extends EventTarget {
           for (const [chatId, taskInfo] of Array.from(
             this.activeAITasks.entries(),
           )) {
-            console.info(
+            console.warn(
               `[ChatSyncService] Clearing interrupted AI stream for chat ${chatId} (task: ${taskInfo.taskId})`,
             );
             aiTypingStore.clearTypingForChat(chatId);
@@ -208,7 +208,7 @@ export class ChatSynchronizationService extends EventTarget {
           }, this.CACHE_STATUS_REQUEST_DELAY);
         }
       } else {
-        console.debug(
+        console.warn(
           "[ChatSyncService] WebSocket disconnected or error. Resetting sync state.",
         );
         this.cachePrimed = false;
@@ -370,7 +370,7 @@ export class ChatSynchronizationService extends EventTarget {
     webSocketService.on("message_deleted", (payload) => {
       const { chat_id, message_id, embed_ids_to_delete } =
         payload as MessageDeletedPayload;
-      console.debug(
+      console.warn(
         `[ChatSyncService] Received message_deleted for message ${message_id} in chat ${chat_id}` +
           (embed_ids_to_delete?.length
             ? ` (${embed_ids_to_delete.length} embeds to delete)`
@@ -394,7 +394,7 @@ export class ChatSynchronizationService extends EventTarget {
                   );
                 }
               }
-              console.debug(
+              console.warn(
                 `[ChatSyncService] Deleted ${embed_ids_to_delete.length} embeds from IndexedDB on broadcast`,
               );
             } catch (importErr) {
@@ -425,7 +425,7 @@ export class ChatSynchronizationService extends EventTarget {
     webSocketService.on("draft_embed_deleted", (payload) => {
       const { embed_id } = payload as { embed_id: string; chat_id?: string };
       if (!embed_id) return;
-      console.debug(
+      console.warn(
         `[ChatSyncService] Received draft_embed_deleted for embed ${embed_id} — cleaning up IndexedDB`,
       );
       import("./embedStore")
@@ -551,7 +551,7 @@ export class ChatSynchronizationService extends EventTarget {
       const { chat_id } = payload as { chat_id: string };
       if (!chat_id) return;
 
-      console.debug(
+      console.warn(
         `[ChatSyncService] Received last_opened_updated from another device: ${chat_id}`,
       );
 
@@ -564,7 +564,7 @@ export class ChatSynchronizationService extends EventTarget {
           await userDB.updateUserData({ last_opened: chat_id });
           updateProfile({ last_opened: chat_id });
 
-          console.debug(
+          console.warn(
             `[ChatSyncService] Updated last_opened in IndexedDB and profile store from cross-device broadcast: ${chat_id}`,
           );
 
@@ -583,7 +583,7 @@ export class ChatSynchronizationService extends EventTarget {
           // is explicitly set/cleared by the UI, unlike activeChatStore which can
           // retain a stale value from the URL hash fragment after navigation.
           if (!isOnWelcomeScreen) {
-            console.debug(
+            console.warn(
               `[ChatSyncService] Skipping resume card update from last_opened_updated — user is in active chat (currentActiveChatId: ${currentChatId})`,
             );
             return;
@@ -660,7 +660,7 @@ export class ChatSynchronizationService extends EventTarget {
                 displayIcon,
                 true, // force — caller verified user is on welcome screen
               );
-              console.debug(
+              console.warn(
                 `[ChatSyncService] Updated resume card from cross-device last_opened_updated: "${displayTitle}" (${chat_id})`,
               );
             }
@@ -756,7 +756,7 @@ export class ChatSynchronizationService extends EventTarget {
         const chatId = payload?.chat_id;
         const focusId = payload?.focus_id;
         if (!chatId || !focusId) return;
-        console.debug("[ChatSyncService] Focus mode activated:", {
+        console.warn("[ChatSyncService] Focus mode activated:", {
           chatId,
           focusId,
         });
@@ -773,7 +773,7 @@ export class ChatSynchronizationService extends EventTarget {
             const encryptedFocusId = await encryptWithChatKey(focusId, chatKey);
             chat.encrypted_active_focus_id = encryptedFocusId;
             await chatDB.updateChat(chat);
-            console.debug(
+            console.warn(
               "[ChatSyncService] Encrypted and stored active focus ID in IndexedDB",
             );
 
@@ -782,7 +782,7 @@ export class ChatSynchronizationService extends EventTarget {
             // instead of returning stale cached data without activeFocusId.
             const { chatMetadataCache } = await import("./chatMetadataCache");
             chatMetadataCache.invalidateChat(chatId);
-            console.debug(
+            console.warn(
               "[ChatSyncService] Invalidated chatMetadataCache for focus mode update",
             );
 
@@ -793,7 +793,7 @@ export class ChatSynchronizationService extends EventTarget {
               chat_id: chatId,
               encrypted_active_focus_id: encryptedFocusId,
             });
-            console.debug(
+            console.warn(
               "[ChatSyncService] Sent encrypted_active_focus_id to server for persistence",
             );
           } else {
@@ -954,20 +954,23 @@ export class ChatSynchronizationService extends EventTarget {
           const { text } = await import("../i18n/translations");
           const t = get(text);
 
-          const notifId = notificationStore.addNotificationWithOptions("warning", {
-            message: t("notifications.credits_depleted.message"),
-            actionLabel: t("notifications.credits_depleted.buy_credits"),
-            onAction: () => {
-              settingsDeepLink.set("billing/buy-credits");
-              panelState.openSettings();
-              // Dismiss the notification after navigating to buy credits
-              notificationStore.removeNotification(notifId);
+          const notifId = notificationStore.addNotificationWithOptions(
+            "warning",
+            {
+              message: t("notifications.credits_depleted.message"),
+              actionLabel: t("notifications.credits_depleted.buy_credits"),
+              onAction: () => {
+                settingsDeepLink.set("billing/buy-credits");
+                panelState.openSettings();
+                // Dismiss the notification after navigating to buy credits
+                notificationStore.removeNotification(notifId);
+              },
+              duration: 0, // persistent until dismissed
+              dismissible: true,
             },
-            duration: 0, // persistent until dismissed
-            dismissible: true,
-          });
+          );
 
-          console.info(
+          console.warn(
             "[ChatSyncService] Credits depleted (>0 → 0): showing persistent buy-credits notification",
           );
         }
@@ -986,17 +989,41 @@ export class ChatSynchronizationService extends EventTarget {
     // broadcasts a force_logout event via Redis → WebSocket. This handler triggers
     // the full logout flow on this device, clearing all local state.
     webSocketService.on("force_logout", (payload) => {
-      const reason = (payload as { reason?: string })?.reason || "session_revoked";
+      const reason =
+        (payload as { reason?: string })?.reason || "session_revoked";
       console.warn(
         `[ChatSyncService] Received force_logout event (reason: ${reason}). Triggering logout.`,
       );
-      // Set the forced-logout flag so reconnect logic doesn't fight the logout
-      forcedLogoutInProgress.set(true);
+      // Set the forced-logout flag so reconnect logic doesn't fight the logout.
+      // Use the canonical setter (includes 30s safety-timeout auto-reset) instead
+      // of raw .set(true) so the flag is always cleaned up even if logout fails.
+      import("../stores/signupState")
+        .then(({ setForcedLogoutInProgress }) => {
+          setForcedLogoutInProgress();
+        })
+        .catch(() => {
+          forcedLogoutInProgress.set(true); // Fallback to raw set if import fails
+        });
       // Import and call the logout action
       import("../stores/authLoginLogoutActions")
         .then(({ logout }) => {
-          logout().catch((err) => {
+          logout({
+            // Reset the forced-logout flag after server cleanup completes so that
+            // a subsequent re-login can call chatDB.init() without hitting the
+            // "Database initialization blocked during logout" guard in db.ts.
+            afterServerCleanup: async () => {
+              const { resetForcedLogoutInProgress } =
+                await import("../stores/signupState");
+              resetForcedLogoutInProgress();
+            },
+          }).catch((err) => {
             console.error("[ChatSyncService] Error during forced logout:", err);
+            // Also reset the flag on error so the next login isn't blocked
+            import("../stores/signupState")
+              .then(({ resetForcedLogoutInProgress }) => {
+                resetForcedLogoutInProgress();
+              })
+              .catch(() => {});
           });
         })
         .catch((err) => {
@@ -1021,7 +1048,7 @@ export class ChatSynchronizationService extends EventTarget {
         serverCount: number;
         phase: string;
       };
-      console.info(
+      console.warn(
         `[ChatSyncService] Queuing immediate re-sync for inconsistent chat ${chatId} (from ${event.detail.phase})`,
       );
       this.inconsistentChatIds.add(chatId);
@@ -1037,7 +1064,7 @@ export class ChatSynchronizationService extends EventTarget {
         this.inconsistencyDebounceTimer = null;
 
         if (chatIds.length > 0) {
-          console.info(
+          console.warn(
             `[ChatSyncService] Triggering immediate re-sync for ${chatIds.length} inconsistent chat(s): ${chatIds.join(", ")}`,
           );
           this.requestChatContentBatch(chatIds).catch((error) => {
@@ -1115,7 +1142,7 @@ export class ChatSynchronizationService extends EventTarget {
     if (this.cacheStatusRetryTimer) return;
 
     this.cacheStatusRetryCount++;
-    console.info(
+    console.warn(
       `[ChatSyncService] Scheduling cache status retry ${this.cacheStatusRetryCount}/${this.CACHE_STATUS_MAX_RETRIES} ` +
         `in ${this.CACHE_STATUS_RETRY_INTERVAL_MS}ms`,
     );
@@ -1161,7 +1188,7 @@ export class ChatSynchronizationService extends EventTarget {
   }
 
   private attemptInitialSync(immediate_view_chat_id?: string) {
-    console.log("[ChatSyncService] ⚡ attemptInitialSync called:", {
+    console.warn("[ChatSyncService] ⚡ attemptInitialSync called:", {
       isSyncing: this.isSyncing,
       initialSyncAttempted: this.initialSyncAttempted,
       webSocketConnected: this.webSocketConnected,
@@ -1195,7 +1222,7 @@ export class ChatSynchronizationService extends EventTarget {
     }
 
     if (this.webSocketConnected && this.cachePrimed) {
-      console.info(
+      console.warn(
         "[ChatSyncService] ✅ Conditions met, starting phased sync NOW!",
       );
       // Use phased sync instead of old initial_sync for proper Phase 1/2/3 handling
@@ -1413,7 +1440,7 @@ export class ChatSynchronizationService extends EventTarget {
     const pendingIds = getPendingChatDeletions();
     if (pendingIds.length === 0) return;
 
-    console.info(
+    console.warn(
       `[ChatSyncService] Flushing ${pendingIds.length} pending chat deletion(s) to server...`,
     );
 
@@ -1421,7 +1448,7 @@ export class ChatSynchronizationService extends EventTarget {
       try {
         await this.sendDeleteChat(chatId);
         removePendingChatDeletion(chatId);
-        console.debug(
+        console.warn(
           `[ChatSyncService] Successfully flushed pending deletion for chat ${chatId}`,
         );
       } catch (error) {
@@ -1523,7 +1550,7 @@ export class ChatSynchronizationService extends EventTarget {
     }
 
     try {
-      console.log("[ChatSyncService] 1/4: Starting phased sync...");
+      console.warn("[ChatSyncService] 1/4: Starting phased sync...");
 
       // CRITICAL: Start timeout for sync completion
       // If the server doesn't respond within the timeout, we'll mark sync as complete
@@ -1532,7 +1559,7 @@ export class ChatSynchronizationService extends EventTarget {
 
       // Get client version data for delta checking
       const allChats = await chatDB.getAllChats();
-      console.log(
+      console.warn(
         `[ChatSyncService] 2/4: Found ${allChats.length} chats locally in IndexedDB.`,
       );
 
@@ -1548,7 +1575,7 @@ export class ChatSynchronizationService extends EventTarget {
         await import("./pendingChatDeletions");
       const pendingDeletions = getPendingChatDeletionsSet();
       if (pendingDeletions.size > 0) {
-        console.info(
+        console.warn(
           `[ChatSyncService] Phased sync: ${pendingDeletions.size} chat(s) pending server deletion, will be excluded from sync`,
         );
       }
@@ -1580,7 +1607,7 @@ export class ChatSynchronizationService extends EventTarget {
       const { embedStore } = await import("./embedStore");
       const client_embed_ids = await embedStore.getAllEmbedIds();
 
-      console.log(
+      console.warn(
         `[ChatSyncService] 3/4: Phased sync preparing request with client state: ${client_chat_ids.length} chats, ${client_suggestions_count} suggestions, ${client_embed_ids.length} embed(s) already on device`,
       );
 
@@ -1593,7 +1620,7 @@ export class ChatSynchronizationService extends EventTarget {
       };
 
       await webSocketService.sendMessage("phased_sync_request", payload);
-      console.log(
+      console.warn(
         "[ChatSyncService] 4/4: ✅ Successfully sent 'phased_sync_request' to server.",
       );
     } catch (error) {
@@ -1601,7 +1628,17 @@ export class ChatSynchronizationService extends EventTarget {
         "[ChatSyncService] ❌ CRITICAL: Error during startPhasedSync:",
         error,
       );
-      notificationStore.error("Failed to start chat synchronization.");
+      // Do not show the toast for known transient DB states that occur during a
+      // forced-logout / re-login cycle (e.g. deleteDatabase() onblocked race or
+      // the init() guard while forcedLogoutInProgress is still true). These are
+      // self-healing and do not represent a real sync failure from the user's POV.
+      const errorMsg = (error as Error)?.message ?? "";
+      const isExpectedTransientError =
+        errorMsg.includes("being deleted") ||
+        errorMsg.includes("blocked during logout");
+      if (!isExpectedTransientError) {
+        notificationStore.error("Failed to start chat synchronization.");
+      }
       // Clear timeout on error and dispatch a synthetic complete event to unblock UI
       this.clearPhasedSyncTimeout();
       this.dispatchSyncTimeoutComplete("error");
@@ -1617,7 +1654,7 @@ export class ChatSynchronizationService extends EventTarget {
     // Clear any existing timeout first
     this.clearPhasedSyncTimeout();
 
-    console.debug(
+    console.warn(
       `[ChatSyncService] Starting phased sync timeout (${this.PHASED_SYNC_TIMEOUT_MS}ms)`,
     );
 
@@ -1638,7 +1675,7 @@ export class ChatSynchronizationService extends EventTarget {
     if (this.phasedSyncTimeout) {
       clearTimeout(this.phasedSyncTimeout);
       this.phasedSyncTimeout = null;
-      console.debug("[ChatSyncService] Cleared phased sync timeout");
+      console.warn("[ChatSyncService] Cleared phased sync timeout");
     }
   }
 
@@ -1651,7 +1688,7 @@ export class ChatSynchronizationService extends EventTarget {
   private dispatchSyncTimeoutComplete(
     reason: "timeout" | "error" | "logout-in-progress",
   ): void {
-    console.info(
+    console.warn(
       `[ChatSyncService] Dispatching synthetic phasedSyncComplete event (reason: ${reason})`,
     );
 
@@ -1721,7 +1758,7 @@ export class ChatSynchronizationService extends EventTarget {
           // patches ONLY the status field, and writes it back — no encryption, no key
           // operations, no risk.
           await chatDB.updateMessageStatus(msg.message_id, "synced");
-          console.info(
+          console.warn(
             `[ChatSyncService] Finalized orphaned ${msg.status} message ${msg.message_id} in chat ${msg.chat_id}`,
           );
         } catch (error) {
@@ -1746,14 +1783,14 @@ export class ChatSynchronizationService extends EventTarget {
    */
   private async retryPendingMessages(): Promise<void> {
     if (!this.webSocketConnected) {
-      console.debug(
+      console.warn(
         "[ChatSyncService] Skipping pending message retry - WebSocket not connected",
       );
       return;
     }
 
     try {
-      console.info(
+      console.warn(
         "[ChatSyncService] Retrying pending messages after connection restored...",
       );
 
@@ -1768,11 +1805,11 @@ export class ChatSynchronizationService extends EventTarget {
       );
 
       if (pendingMessages.length === 0) {
-        console.debug("[ChatSyncService] No pending messages to retry");
+        console.warn("[ChatSyncService] No pending messages to retry");
         return;
       }
 
-      console.info(
+      console.warn(
         `[ChatSyncService] Found ${pendingMessages.length} pending message(s) to retry`,
       );
 
@@ -1805,7 +1842,7 @@ export class ChatSynchronizationService extends EventTarget {
 
           // Retry sending the message (pass original `message` since it already has
           // the correct encrypted/plaintext fields as stored in IndexedDB)
-          console.debug(
+          console.warn(
             `[ChatSyncService] Retrying message ${message.message_id} for chat ${message.chat_id}`,
           );
           await this.sendNewMessage(message);
@@ -1841,7 +1878,7 @@ export class ChatSynchronizationService extends EventTarget {
         }
       }
 
-      console.info(
+      console.warn(
         `[ChatSyncService] Completed retry attempt for ${pendingMessages.length} pending message(s)`,
       );
     } catch (error) {
@@ -1868,7 +1905,7 @@ export class ChatSynchronizationService extends EventTarget {
       return; // Don't retry if already connected
     }
 
-    console.debug(
+    console.warn(
       "[ChatSyncService] Starting periodic retry for pending messages",
     );
 
@@ -1890,7 +1927,7 @@ export class ChatSynchronizationService extends EventTarget {
         await this.retryPendingMessages();
       } catch (error) {
         // Expected to fail when offline, just log debug
-        console.debug(
+        console.warn(
           "[ChatSyncService] Periodic retry failed (expected when offline):",
           error,
         );
@@ -1902,7 +1939,7 @@ export class ChatSynchronizationService extends EventTarget {
     if (this.pendingMessageRetryInterval) {
       clearInterval(this.pendingMessageRetryInterval);
       this.pendingMessageRetryInterval = null;
-      console.debug(
+      console.warn(
         "[ChatSyncService] Stopped periodic retry for pending messages",
       );
     }
