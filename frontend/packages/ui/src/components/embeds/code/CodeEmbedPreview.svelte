@@ -94,9 +94,12 @@
   let taskId = $derived(localTaskId);
   
   // Maximum lines to show in preview
-  // Large variant (400px container) shows more lines to fill the taller space
+  // Large variant (400px container) shows more lines to fill the taller space.
+  // Calculation for large: container=400px, BasicInfosBar=61px, padding-top=16px (1rem)
+  // → usable = 400 - 61 - 16 = 323px; font=0.8rem(12.8px), line-height=1.5 → 19.2px/line
+  // → floor(323/19.2)=16 full lines + 1 extra = 17
   const MAX_PREVIEW_LINES_STANDARD = 8;
-  const MAX_PREVIEW_LINES_LARGE = 14;
+  const MAX_PREVIEW_LINES_LARGE = 17;
   
   // Reference to the code element for syntax highlighting
   let codeElement: HTMLElement | null = $state(null);
@@ -305,6 +308,12 @@
 	        <!-- Code preview with syntax highlighting -->
 	        <div class="code-preview-container">
 	          <pre class="code-preview"><code bind:this={codeElement}>{previewText}</code></pre>
+	          {#if isLargePreview && actualLineCount > 0}
+	            <!-- Line count badge — large preview only, mirrors fullscreen header subtitle -->
+	            <div class="line-count-badge">
+	              {actualLineCount === 1 ? `1 ${$text('embeds.code_line_singular')}` : `${actualLineCount} ${$text('embeds.code_line_plural')}`}{displayLanguage ? `, ${displayLanguage}` : ''}
+	            </div>
+	          {/if}
 	        </div>
 	      {:else if status === 'processing'}
 	        <!-- Processing state -->
@@ -566,11 +575,31 @@
     color: #24292e; /* intentional: github light base text color, must be hardcoded */
   }
 
-  /* Large preview: increase font size to 1rem (≈16px) for better readability */
+  /* Large preview: use 0.8rem (≈12.8px) so more lines fit in the 400px container.
+     With line-height 1.5 → ~19.2px/line → ~17 lines fill the ~323px usable height. */
   @container embed-preview (min-width: 301px) {
     .code-preview {
-      font-size: 1rem;
+      font-size: 0.8rem;
       padding-top: 1rem;
     }
+  }
+
+  /* Line count badge — shown only in large preview (isLargePreview flag).
+     Positioned at bottom-left of the code area, above the BasicInfosBar. */
+  .line-count-badge {
+    position: absolute;
+    bottom: 8px;
+    left: 0;
+    font-size: 11px;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Consolas', monospace;
+    color: var(--color-font-secondary);
+    background: var(--color-grey-15, rgba(0, 0, 0, 0.35));
+    border-radius: 4px;
+    padding: 2px 7px;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+    opacity: 0.85;
+    white-space: nowrap;
   }
 </style>
