@@ -185,7 +185,7 @@
   status={localStatus}
   errorMessage={localErrorMessage}
   onEmbedDataUpdated={handleEmbedDataUpdated}
-  minCardWidth="280px"
+  minCardWidth="260px"
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}

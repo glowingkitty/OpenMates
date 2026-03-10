@@ -285,7 +285,7 @@
   errorMessage={localErrorMessage}
   onEmbedDataUpdated={handleEmbedDataUpdated}
   onResultsLoaded={(results) => { allLoadedResults = results; }}
-  minCardWidth="280px"
+  minCardWidth="260px"
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}

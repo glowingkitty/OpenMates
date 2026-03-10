@@ -563,11 +563,15 @@
 			}
 
 			s.isLoading = false;
+			// Force array invalidation so Svelte re-evaluates loadedSections[idx]
+			// bindings in the template (defensive fix for async post-await reactivity).
+			loadedSections = [...loadedSections];
 		} catch (err) {
 			const s = loadedSections[idx];
 			if (!s) return;
 			s.loadError = err instanceof Error ? err.message : String(err);
 			s.isLoading = false;
+			loadedSections = [...loadedSections];
 		}
 	}
 
