@@ -780,12 +780,25 @@ async def handle_preprocessing(
                 error_message="User information could not be retrieved for credit verification. Please ensure your account is valid."
             )
 
-        user_credits = cached_user.get("credits", 0)
-        if not isinstance(user_credits, int): # Ensure credits is an int
-            logger.error(f"{log_prefix} User credits for {request_data.user_id} is not an integer: {user_credits}. Treating as 0.") # Log actual user_id
+        # CRITICAL: Distinguish between "credits = 0" (genuinely empty) and
+        # "credits key absent" (decryption failure / cache miss). If the credits
+        # field was never populated (Vault decryption failed during cache warming),
+        # defaulting to 0 would falsely reject the request.
+        user_credits_raw = cached_user.get("credits")
+        if user_credits_raw is None:
+            logger.warning(
+                f"{log_prefix} 'credits' field missing from cached user data for {request_data.user_id}. "
+                f"This usually means encrypted_credit_balance decryption failed during cache warming. "
+                f"Allowing request to proceed (benefit of the doubt)."
+            )
+            user_credits = MINIMUM_REQUEST_COST  # Allow the request — credits will be checked post-hoc during billing
+        elif not isinstance(user_credits_raw, int):
+            logger.error(f"{log_prefix} User credits for {request_data.user_id} is not an integer: {user_credits_raw}. Treating as 0.")
             user_credits = 0
+        else:
+            user_credits = user_credits_raw
         
-        logger.info(f"{log_prefix} User {request_data.user_id} has {user_credits} credits.") # Log actual user_id
+        logger.info(f"{log_prefix} User {request_data.user_id} has {user_credits} credits (raw: {user_credits_raw!r}).")
 
         if user_credits < MINIMUM_REQUEST_COST:
             logger.warning(f"{log_prefix} User {request_data.user_id} has insufficient credits ({user_credits}) for minimum cost ({MINIMUM_REQUEST_COST}).") # Log actual user_id
@@ -838,7 +851,8 @@ async def handle_preprocessing(
                     # Refresh user credits from cache after top-up
                     refreshed_user = await cache_service.get_user_by_id(request_data.user_id)
                     if refreshed_user:
-                        new_credits = refreshed_user.get("credits", 0)
+                        new_credits_raw = refreshed_user.get("credits")
+                        new_credits = new_credits_raw if isinstance(new_credits_raw, int) else 0
                         logger.info(f"{log_prefix} After auto top-up: User {request_data.user_id} now has {new_credits} credits.")
 
                         if new_credits >= MINIMUM_REQUEST_COST:

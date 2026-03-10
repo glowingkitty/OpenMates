@@ -1064,10 +1064,34 @@ export async function handleAITypingStartedImpl( // Changed to async
             `this is a secondary device that has not yet received the key. ` +
             `Skipping metadata encryption; the originating device will handle it.`,
         );
-        // Flush pending messages/system messages in case the key arrives later
-        // (from new_chat_message handler or encrypted_chat_metadata broadcast)
-        await flushPendingMessagesForChat(payload.chat_id);
-        await flushPendingSystemMessagesForChat(payload.chat_id);
+        // Do NOT call flushPendingMessagesForChat here — the key hasn't been set yet,
+        // so saveMessage → encryptMessageFields would throw. The flush will happen
+        // when the key arrives via encrypted_chat_metadata broadcast (handleEncryptedChatMetadataImpl)
+        // or from a new_chat_message event that carries the key.
+        //
+        // As a safety net, schedule a delayed retry: the encrypted_chat_metadata broadcast
+        // typically arrives within 1-3 seconds. If the key has been cached by then, flush.
+        const chatIdForRetry = payload.chat_id;
+        setTimeout(async () => {
+          try {
+            const retryKey = chatKeyManager.getKeySync(chatIdForRetry);
+            if (retryKey) {
+              console.info(
+                `[ChatSyncService:AI] Delayed retry: key now available for ${chatIdForRetry}, flushing pending messages`,
+              );
+              await flushPendingMessagesForChat(chatIdForRetry);
+              await flushPendingSystemMessagesForChat(chatIdForRetry);
+            } else {
+              console.debug(
+                `[ChatSyncService:AI] Delayed retry: key still not available for ${chatIdForRetry} — will arrive via encrypted_chat_metadata broadcast`,
+              );
+            }
+          } catch (e) {
+            console.error(
+              `[ChatSyncService:AI] Delayed retry flush failed for ${chatIdForRetry}:`, e,
+            );
+          }
+        }, 3000);
         // Return early — do NOT proceed with metadata encryption or sendEncryptedStoragePackage
         // on a secondary device without the correct key. The originating device handles all of it.
         return;

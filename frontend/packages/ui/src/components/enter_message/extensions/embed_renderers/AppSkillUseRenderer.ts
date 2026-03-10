@@ -1544,15 +1544,31 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           ? rawEmbedIds
           : [];
 
-    const status =
+    const rawStatus =
       decodedContent?.status ||
       embedData?.status ||
       attrs.status ||
       "processing";
     const resultCount = childEmbedIds.length;
+    // Detect failed searches: status is "finished" but 0 results AND content has error field.
+    // This happens when individual search queries fail (rate limit, sanitization block, etc.)
+    // but the skill execution itself "finished" successfully.
+    const hasGroupError = !!(decodedContent?.error);
+    const status =
+      rawStatus !== "processing" && resultCount === 0 && hasGroupError
+        ? "error"
+        : rawStatus;
 
     // Render web search preview matching Figma design (300x200px desktop, 150x290px mobile)
     // Use desktop layout by default in message view
+    const statusLabel =
+      status === "processing"
+        ? "Processing..."
+        : status === "error"
+          ? "Failed"
+          : "Completed";
+    const statusClass =
+      status === "error" ? " search-error" : "";
     const html = `
       <div class="app-skill-preview-container web-search desktop">
         <div class="app-skill-preview-inner">
@@ -1566,15 +1582,15 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           </div>
           
           <!-- Status bar -->
-          <div class="skill-status-bar">
+          <div class="skill-status-bar${statusClass}">
             <div class="skill-icon" data-skill-icon="search"></div>
             <div class="skill-status-content">
               <span class="skill-status-label">Search</span>
-              <span class="skill-status-text">${status === "processing" ? "Processing..." : "Completed"}</span>
+              <span class="skill-status-text">${statusLabel}</span>
             </div>
           </div>
           
-          <!-- Results count (only when finished) -->
+          <!-- Results count (only when finished with results) -->
           ${
             status === "finished" && resultCount > 0
               ? `

@@ -1543,13 +1543,43 @@ export async function handleEncryptedChatMetadataImpl(
         console.debug(
           `[ChatSyncService:ChatUpdates] encrypted_chat_key ciphertext changed for chat ${payload.chat_id} but raw key is identical — updating stored ciphertext without clearing cache`,
         );
-      } else {
+      } else if (cachedKey) {
         // Genuinely different raw key — this is a real key rotation (e.g. hidden chat toggle).
         // Clear the cached key so the new one is loaded on next access.
         console.info(
           `[ChatSyncService:ChatUpdates] encrypted_chat_key changed for chat ${payload.chat_id} (raw key differs) — clearing cached key`,
         );
         chatDB.clearChatKey(payload.chat_id);
+      } else {
+        // FIRST-TIME KEY DELIVERY: No cached key existed — this is a secondary device
+        // receiving the chat key for the first time (e.g. brand-new chat created on
+        // another device). Decrypt the key, cache it, and flush any messages that were
+        // queued while waiting for this key to arrive.
+        try {
+          const { decryptChatKeyWithMasterKey: decryptFirstTimeKey } =
+            await import("./cryptoService");
+          const rawKey = await decryptFirstTimeKey(payload.encrypted_chat_key);
+          if (rawKey) {
+            chatDB.setChatKey(payload.chat_id, rawKey);
+            console.info(
+              `[ChatSyncService:ChatUpdates] First-time key delivery for chat ${payload.chat_id} — ` +
+                `decrypted and cached key, flushing pending messages`,
+            );
+            // Flush messages queued while this device was waiting for the key
+            await flushPendingMessagesForChat(payload.chat_id);
+            await flushPendingSystemMessagesForChat(payload.chat_id);
+          } else {
+            console.warn(
+              `[ChatSyncService:ChatUpdates] First-time key delivery for chat ${payload.chat_id} — ` +
+                `decryptChatKeyWithMasterKey returned null (master key unavailable?)`,
+            );
+          }
+        } catch (e) {
+          console.error(
+            `[ChatSyncService:ChatUpdates] Failed to decrypt first-time key for chat ${payload.chat_id}:`,
+            e,
+          );
+        }
       }
 
       // Always update the stored encrypted_chat_key to the latest ciphertext
@@ -1614,8 +1644,11 @@ export async function handleEncryptedChatMetadataImpl(
       );
 
       // DB operation completed successfully - dispatch events
-      // Mark chat list cache as dirty to force refresh
+      // Mark both caches as dirty to force refresh (chatMetadataCache decrypts
+      // title/icon/category using the chat key — if the key just arrived for the
+      // first time, stale null entries must be evicted).
       chatListCache.markDirty();
+      chatMetadataCache.invalidateChat(payload.chat_id);
 
       // Dispatch event to notify UI components (e.g., Chats.svelte) to refresh
       if (typeof window !== "undefined") {
