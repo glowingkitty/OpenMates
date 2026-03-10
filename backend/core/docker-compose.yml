@@ -1438,9 +1438,11 @@ services:
   #########################################################################
   openobserve:
     container_name: openobserve
-    # Pinned to latest stable release (v0.60.4, 2026-03-06).
+    # Pinned to v0.70.0-rc3 (2026-03-09) — upgraded from v0.60.4 because the data volume already had
+    # schema migrations from a newer version (m20260214_000001_create_incident_events_table),
+    # causing a startup panic. v0.70.0-rc3 is the latest available build that includes those migrations.
     # Do NOT use :latest — unintended upgrades can break the Loki-compat and Prometheus remote_write APIs.
-    image: public.ecr.aws/zinclabs/openobserve:v0.60.4
+    image: public.ecr.aws/zinclabs/openobserve:v0.70.0-rc3
     restart: unless-stopped
     env_file: ../../.env
     deploy:
