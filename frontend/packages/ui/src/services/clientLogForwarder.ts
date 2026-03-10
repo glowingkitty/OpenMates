@@ -38,7 +38,8 @@ const QUEUE_DB_NAME = "openmates_admin_client_log_queue";
 const QUEUE_STORE_NAME = "pending_entries";
 
 /** Schema version for the durable admin log queue DB. */
-const QUEUE_DB_VERSION = 1;
+/** Bumped 1→2: force onupgradeneeded on clients with broken schema-less v1 DB */
+const QUEUE_DB_VERSION = 2;
 
 // ---------------------------------------------------------------------------
 
