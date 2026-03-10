@@ -1,23 +1,14 @@
 /**
  * Preview mock data for ImagesSearchEmbedPreview.
  *
- * Parent embed for an image search. Inline thumbnails reference
- * example URLs that are proxied in production — images may not load in dev preview.
+ * All thumbnail URLs use Unsplash/Wikimedia which reliably serve through the image proxy.
+ * Flickr URLs were removed because they return 403 when proxied.
  * Access at: /dev/preview/embeds/images/ImagesSearchEmbedPreview
  */
 
 const sampleResults = [
   {
-    title: "Golden Gate Bridge at sunset",
-    source: "flickr.com",
-    thumbnail_url:
-      "https://live.staticflickr.com/7272/7228523136_67c89cd2a0_m.jpg",
-    image_url: "https://live.staticflickr.com/7272/7228523136_67c89cd2a0_b.jpg",
-    source_page_url:
-      "https://www.flickr.com/photos/nicholasfalletta/7228523136/",
-  },
-  {
-    title: "Golden Gate Bridge morning fog",
+    title: "Golden Gate Bridge at dusk",
     source: "unsplash.com",
     thumbnail_url:
       "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=200",
@@ -34,6 +25,14 @@ const sampleResults = [
     source_page_url:
       "https://commons.wikimedia.org/wiki/File:GoldenGateBridge-001.jpg",
   },
+  {
+    title: "Golden Gate Bridge towers in fog",
+    source: "unsplash.com",
+    thumbnail_url:
+      "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=200",
+    image_url: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64",
+    source_page_url: "https://unsplash.com/photos/golden-gate-bridge",
+  },
 ];
 
 /** Default props — finished image search */
@@ -44,7 +43,7 @@ const defaultProps = {
   status: "finished" as const,
   results: sampleResults,
   isMobile: false,
-  onFullscreen: () => console.log("[Preview] Fullscreen clicked"),
+  onFullscreen: () => {},
 };
 
 export default defaultProps;

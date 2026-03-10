@@ -12,7 +12,7 @@ const defaultProps = {
   filename: "golden-gate-sunset.jpg",
   status: "finished" as const,
   isMobile: false,
-  onFullscreen: () => console.log("[Preview] Fullscreen clicked"),
+  onFullscreen: () => {},
 };
 
 export default defaultProps;

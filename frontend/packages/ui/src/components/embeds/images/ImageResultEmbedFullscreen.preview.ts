@@ -2,19 +2,20 @@
  * Preview mock data for ImageResultEmbedFullscreen.
  *
  * Single image result fullscreen (drill-down from ImagesSearchEmbedFullscreen).
- * Images reference external URLs — may not load in dev preview without proxying.
+ * Uses Unsplash/Wikimedia which load without needing the image proxy.
+ * Note: ImageResultEmbedFullscreen renders imageUrl directly (no re-proxying).
  * Access at: /dev/preview/embeds/images/ImageResultEmbedFullscreen
  */
 
 /** Default props — single image result fullscreen */
 const defaultProps = {
-  title: "Golden Gate Bridge at sunset",
-  sourceDomain: "flickr.com",
-  sourcePageUrl: "https://www.flickr.com/photos/nicholasfalletta/7228523136/",
-  imageUrl: "https://live.staticflickr.com/7272/7228523136_67c89cd2a0_b.jpg",
+  title: "Golden Gate Bridge at dusk",
+  sourceDomain: "unsplash.com",
+  sourcePageUrl: "https://unsplash.com/photos/Cs99I6PYLlk",
+  imageUrl: "https://images.unsplash.com/photo-1501594907352-04cda38ebc29",
   thumbnailUrl:
-    "https://live.staticflickr.com/7272/7228523136_67c89cd2a0_m.jpg",
-  onClose: () => console.log("[Preview] Close clicked"),
+    "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=400",
+  onClose: () => {},
   hasPreviousEmbed: false,
   hasNextEmbed: false,
 };
@@ -28,7 +29,7 @@ export const variants = {
     ...defaultProps,
     hasPreviousEmbed: true,
     hasNextEmbed: true,
-    onNavigatePrevious: () => console.log("[Preview] Navigate previous"),
-    onNavigateNext: () => console.log("[Preview] Navigate next"),
+    onNavigatePrevious: () => {},
+    onNavigateNext: () => {},
   },
 };

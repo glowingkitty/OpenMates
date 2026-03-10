@@ -13,7 +13,7 @@ const defaultProps = {
   fileSize: 2411520,
   fileType: "image/jpeg",
   isAuthenticated: true,
-  onClose: () => console.log("[Preview] Close clicked"),
+  onClose: () => {},
   hasPreviousEmbed: false,
   hasNextEmbed: false,
 };
@@ -27,8 +27,8 @@ export const variants = {
     ...defaultProps,
     hasPreviousEmbed: true,
     hasNextEmbed: true,
-    onNavigatePrevious: () => console.log("[Preview] Navigate previous"),
-    onNavigateNext: () => console.log("[Preview] Navigate next"),
+    onNavigatePrevious: () => {},
+    onNavigateNext: () => {},
   },
 
   /** PNG image */

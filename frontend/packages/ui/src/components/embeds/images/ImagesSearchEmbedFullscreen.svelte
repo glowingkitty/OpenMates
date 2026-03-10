@@ -32,10 +32,28 @@
     favicon_url?: string;
   }
 
+  /**
+   * Legacy result shape for dev-preview / backwards compatibility.
+   * Fields mirror the child embed content schema but without embed_id.
+   */
+  interface LegacyImageResult {
+    title?: string;
+    source_page_url?: string;
+    image_url?: string;
+    thumbnail_url?: string;
+    source?: string;
+    favicon_url?: string;
+  }
+
   interface Props {
     query: string;
     provider: string;
     embedIds?: string | string[];
+    /**
+     * Direct results array (dev preview / legacy format).
+     * Used when no embedIds are available — bypasses child embed loading.
+     */
+    results?: LegacyImageResult[];
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
     onClose: () => void;
     embedId?: string;
@@ -53,6 +71,7 @@
     query: queryProp,
     provider: providerProp,
     embedIds,
+    results: resultsProp,
     status: statusProp,
     onClose,
     embedId,
@@ -113,6 +132,25 @@
       if (c.embed_ids) embedIdsOverride = c.embed_ids as string | string[];
     }
   }
+
+  /**
+   * Transform legacy/direct results array into typed ImageResult objects.
+   * Assigns a synthetic embed_id from index so the grid works correctly.
+   */
+  function transformLegacyResults(results: unknown[]): ImageResult[] {
+    return (results as LegacyImageResult[]).map((r, i) => ({
+      embed_id: `legacy-image-${i}`,
+      title: r.title,
+      source_page_url: r.source_page_url,
+      image_url: r.image_url,
+      thumbnail_url: r.thumbnail_url,
+      source: r.source,
+      favicon_url: r.favicon_url,
+    }));
+  }
+
+  /** Legacy results from direct prop (used in dev preview when no embedIds available) */
+  let legacyResults = $derived(resultsProp && resultsProp.length > 0 ? resultsProp : undefined);
 </script>
 
 <SearchResultsTemplate
@@ -126,6 +164,8 @@
   currentEmbedId={embedId}
   embedIds={embedIdsValue}
   childEmbedTransformer={transformToImageResult}
+  legacyResults={legacyResults}
+  legacyResultTransformer={transformLegacyResults}
   onEmbedDataUpdated={handleEmbedDataUpdated}
   {initialChildEmbedId}
   {hasPreviousEmbed}
