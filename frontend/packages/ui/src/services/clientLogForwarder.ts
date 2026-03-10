@@ -28,6 +28,18 @@ const FLUSH_INTERVAL_MS = 5_000;
 /** Maximum entries per batch (matches backend validation limit). */
 const MAX_BATCH_SIZE = 50;
 
+/** Maximum batches sent in one flush cycle to avoid request spikes. */
+const MAX_BATCHES_PER_FLUSH = 25;
+
+/** IndexedDB database name for durable admin log queue. */
+const QUEUE_DB_NAME = "openmates_admin_client_log_queue";
+
+/** IndexedDB object store holding unsent admin log entries. */
+const QUEUE_STORE_NAME = "pending_entries";
+
+/** Schema version for the durable admin log queue DB. */
+const QUEUE_DB_VERSION = 1;
+
 // ---------------------------------------------------------------------------
 
 /** Unique tab ID generated once per page load — disambiguates multiple open tabs. */
@@ -41,17 +53,49 @@ function getPagePath(): string {
   }
 }
 
+type QueuedLogEntry = {
+  id?: number;
+  timestamp: number;
+  level: ConsoleLogEntry["level"];
+  message: string;
+};
+
+function openQueueDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === "undefined") {
+      reject(new Error("IndexedDB unavailable"));
+      return;
+    }
+
+    const request = indexedDB.open(QUEUE_DB_NAME, QUEUE_DB_VERSION);
+
+    request.onerror = () =>
+      reject(request.error ?? new Error("Failed to open queue DB"));
+
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(QUEUE_STORE_NAME)) {
+        db.createObjectStore(QUEUE_STORE_NAME, {
+          keyPath: "id",
+          autoIncrement: true,
+        });
+      }
+    };
+
+    request.onsuccess = () => resolve(request.result);
+  });
+}
+
 class ClientLogForwarderService {
   private running = false;
-  private pendingBuffer: ConsoleLogEntry[] = [];
   private flushTimer: ReturnType<typeof setInterval> | null = null;
+  private flushInProgress = false;
+
+  // Fallback queue if IndexedDB is unavailable in the runtime.
+  private volatileQueue: QueuedLogEntry[] = [];
 
   private readonly logListener = (entry: ConsoleLogEntry): void => {
-    this.pendingBuffer.push(entry);
-    // Flush immediately when buffer is full — do not wait for the timer.
-    if (this.pendingBuffer.length >= MAX_BATCH_SIZE) {
-      void this.flush();
-    }
+    void this.enqueue(entry);
   };
 
   /**
@@ -63,6 +107,8 @@ class ClientLogForwarderService {
     this.running = true;
     logCollector.onNewLog(this.logListener);
     this.flushTimer = setInterval(() => void this.flush(), FLUSH_INTERVAL_MS);
+    // Drain any durable backlog from previous connectivity/auth failures.
+    void this.flush();
   }
 
   /**
@@ -77,42 +123,170 @@ class ClientLogForwarderService {
       clearInterval(this.flushTimer);
       this.flushTimer = null;
     }
-    // Best-effort drain before teardown.
-    await this.flush();
-    this.pendingBuffer = [];
+    // Best-effort final drain before teardown.
+    await this.flush(true);
+  }
+
+  private async enqueue(entry: ConsoleLogEntry): Promise<void> {
+    const queued: QueuedLogEntry = {
+      timestamp: entry.timestamp,
+      level: entry.level,
+      message: entry.message,
+    };
+
+    try {
+      const db = await openQueueDb();
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction([QUEUE_STORE_NAME], "readwrite");
+        const store = tx.objectStore(QUEUE_STORE_NAME);
+        const request = store.add(queued);
+        request.onerror = () =>
+          reject(request.error ?? new Error("Failed to enqueue log entry"));
+        tx.oncomplete = () => resolve();
+        tx.onerror = () =>
+          reject(tx.error ?? new Error("Queue write transaction failed"));
+      });
+      db.close();
+    } catch {
+      this.volatileQueue.push(queued);
+    }
+
+    if (this.running) {
+      void this.flush();
+    }
+  }
+
+  private async readQueuedBatch(limit: number): Promise<QueuedLogEntry[]> {
+    try {
+      const db = await openQueueDb();
+      const rows = await new Promise<QueuedLogEntry[]>((resolve, reject) => {
+        const tx = db.transaction([QUEUE_STORE_NAME], "readonly");
+        const store = tx.objectStore(QUEUE_STORE_NAME);
+        const request = store.openCursor();
+        const acc: QueuedLogEntry[] = [];
+
+        request.onerror = () =>
+          reject(request.error ?? new Error("Failed to read queued logs"));
+        request.onsuccess = () => {
+          const cursor = request.result;
+          if (!cursor || acc.length >= limit) {
+            resolve(acc);
+            return;
+          }
+          acc.push(cursor.value as QueuedLogEntry);
+          cursor.continue();
+        };
+
+        tx.onerror = () =>
+          reject(tx.error ?? new Error("Queue read transaction failed"));
+      });
+      db.close();
+      return rows;
+    } catch {
+      return [];
+    }
+  }
+
+  private async deleteQueuedBatch(ids: number[]): Promise<void> {
+    if (ids.length === 0) return;
+
+    try {
+      const db = await openQueueDb();
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction([QUEUE_STORE_NAME], "readwrite");
+        const store = tx.objectStore(QUEUE_STORE_NAME);
+        for (const id of ids) {
+          store.delete(id);
+        }
+        tx.oncomplete = () => resolve();
+        tx.onerror = () =>
+          reject(tx.error ?? new Error("Queue delete transaction failed"));
+      });
+      db.close();
+    } catch {
+      // Keep entries in persistent queue when deletion fails; retry on next flush.
+    }
   }
 
   /**
    * Flush the current buffer to the backend.
    * Never throws — log forwarding must never break the app.
    */
-  private async flush(): Promise<void> {
-    if (this.pendingBuffer.length === 0) return;
+  private async flush(force: boolean = false): Promise<void> {
+    if (this.flushInProgress) return;
+    if (!this.running && !force) return;
 
-    const batch = this.pendingBuffer.splice(0, MAX_BATCH_SIZE);
-
-    const entries = batch.map((e) => ({
-      timestamp: e.timestamp,
-      level: e.level,
-      message: e.message,
-    }));
-
-    const metadata = {
-      userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
-      pageUrl: getPagePath(),
-      tabId: TAB_ID,
-    };
-
+    this.flushInProgress = true;
     try {
-      await fetch(getApiEndpoint(apiEndpoints.admin.clientLogs), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ logs: entries, metadata }),
-        // keepalive: drain succeeds even if page unloads during logout flush
-        keepalive: true,
-      });
-    } catch {
-      // Non-critical: silently discard. Never call console.* here (infinite loop risk).
+      let processedBatches = 0;
+      while (this.running || force) {
+        if (processedBatches >= MAX_BATCHES_PER_FLUSH) {
+          break;
+        }
+
+        const volatileBatch = this.volatileQueue.slice(0, MAX_BATCH_SIZE);
+        const durableBatch =
+          volatileBatch.length > 0
+            ? []
+            : await this.readQueuedBatch(MAX_BATCH_SIZE);
+        const batch = volatileBatch.length > 0 ? volatileBatch : durableBatch;
+
+        if (batch.length === 0) {
+          break;
+        }
+
+        const entries = batch.map((e) => ({
+          timestamp: e.timestamp,
+          level: e.level,
+          message: e.message,
+        }));
+
+        const metadata = {
+          userAgent:
+            typeof navigator !== "undefined" ? navigator.userAgent : "",
+          pageUrl: getPagePath(),
+          tabId: TAB_ID,
+        };
+
+        let responseOk = false;
+        try {
+          const response = await fetch(
+            getApiEndpoint(apiEndpoints.admin.clientLogs),
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ logs: entries, metadata }),
+              credentials: "include",
+              // keepalive: drain succeeds even if page unloads during logout flush
+              keepalive: true,
+            },
+          );
+          responseOk = response.ok;
+        } catch {
+          responseOk = false;
+        }
+
+        if (!responseOk) {
+          break;
+        }
+
+        processedBatches += 1;
+
+        if (volatileBatch.length > 0) {
+          this.volatileQueue.splice(0, volatileBatch.length);
+        } else {
+          const ids = durableBatch
+            .map((row) => row.id)
+            .filter((id): id is number => typeof id === "number");
+          await this.deleteQueuedBatch(ids);
+        }
+
+        if (batch.length < MAX_BATCH_SIZE) {
+          break;
+        }
+      }
+    } finally {
+      this.flushInProgress = false;
     }
   }
 }

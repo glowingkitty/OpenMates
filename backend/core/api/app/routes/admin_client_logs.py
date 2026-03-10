@@ -107,7 +107,7 @@ class ClientLogsRequest(BaseModel):
     include_in_schema=False,
     summary="Forward client console logs to OpenObserve (admin only)",
 )
-@limiter.limit("60/minute")
+@limiter.limit("1200/minute")
 async def receive_client_logs(
     request: Request,
     body: ClientLogsRequest,
@@ -116,10 +116,10 @@ async def receive_client_logs(
     """
     Receive batched browser console logs from an admin user and push them to OpenObserve.
 
-    This endpoint is rate-limited to 60 requests per minute per user. The client
-    sends batches every 5 seconds (max 50 entries each), which would be 12 requests/min
-    under normal conditions. Headroom is provided for multiple open tabs and burst
-    activity during active debugging sessions.
+    This endpoint is rate-limited to 1200 requests per minute per user. The client
+    sends batches every 5 seconds (max 50 entries each) under normal conditions, but
+    can also rapidly drain backlog after temporary offline/auth outages. The higher
+    ceiling prevents throttling from causing log loss during backlog replay.
 
     The logs are pushed to OpenObserve with the following labels:
     - job: "client-console" (distinguishes from server-side logs)
