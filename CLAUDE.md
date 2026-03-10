@@ -79,13 +79,13 @@ OpenMates/
 
 Before writing any new function, class, model, or component — **search for existing implementations:**
 
-| Shared location | What goes there |
-|---|---|
-| `backend/shared/python_utils/` | Backend shared logic |
-| `backend/shared/python_schemas/` | Shared Pydantic models |
-| `backend/shared/providers/` | Pure API wrappers (no skill-specific code) |
-| `frontend/packages/ui/src/utils/` | Frontend shared utilities |
-| `frontend/packages/ui/src/components/` | Shared Svelte components |
+| Shared location                        | What goes there                            |
+| -------------------------------------- | ------------------------------------------ |
+| `backend/shared/python_utils/`         | Backend shared logic                       |
+| `backend/shared/python_schemas/`       | Shared Pydantic models                     |
+| `backend/shared/providers/`            | Pure API wrappers (no skill-specific code) |
+| `frontend/packages/ui/src/utils/`      | Frontend shared utilities                  |
+| `frontend/packages/ui/src/components/` | Shared Svelte components                   |
 
 - **Embed components:** Always use `UnifiedEmbedPreview.svelte` / `UnifiedEmbedFullscreen.svelte` as base.
 - **External images:** Use `proxyImage()` / `proxyFavicon()` from `imageProxy.ts`.
@@ -135,6 +135,7 @@ Always commit and push to `dev` after completing work. Use `sessions.py deploy`.
 ### Research Before New Integrations
 
 Before any new app, skill, API integration, or significant feature:
+
 1. Search for official docs (never rely on training data for APIs/pricing).
 2. Check `docs/apps/` and `docs/architecture/` for existing research.
 3. Ask clarifying questions before writing code. Wait for confirmation.
@@ -146,6 +147,8 @@ When adding a new third-party provider, update: `shared/docs/privacy_policy.yml`
 ### Destructive Actions — Explicit Consent Only
 
 **NEVER** create PRs, merge branches, publish releases, or use `git stash` unless the user explicitly asks.
+
+**Committing and pushing to `dev` via `sessions.py deploy` is NOT a destructive action** — it is the expected default after every task. Do NOT wait for explicit permission to commit and push.
 
 ### No Private Infrastructure in Committed Files
 
