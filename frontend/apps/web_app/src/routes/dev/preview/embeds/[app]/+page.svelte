@@ -22,7 +22,7 @@
 -->
 <script lang="ts">
 	import { page } from '$app/state';
-	import { mount, unmount, tick } from 'svelte';
+	import { mount, unmount, tick, untrack } from 'svelte';
 	import { theme } from '@repo/ui';
 
 	// ─── App Registry ─────────────────────────────────────────────────────────
@@ -415,21 +415,26 @@
 		showPropsEditor: boolean;
 	}
 
+	// sectionStates is $state so Svelte tracks re-assignments (e.g. on app switch).
+	// Reads inside loadSection's async callbacks use untrack() to avoid creating
+	// reactive dependencies that would retrigger the init $effect.
 	let sectionStates = $state<SectionState[]>([]);
 
-	// Render errors are stored outside $state to avoid reactive cycles.
-	// We use a plain reactive counter to force the template to re-read them.
-	const renderErrors = new Map<number, string>(); // key(si,di) → error message
-	let renderErrorVersion = $state(0);
+	// Single $state counter: increment (via notify()) to tell the template to
+	// re-read the plain sectionStates array.
+	let stateVersion = $state(0);
+	function notify() { stateVersion++; }
+
+	const renderErrors = new Map<number, string>(); // flat key(si,di) → message
 
 	function getRenderError(si: number, di: number): string | null {
-		void renderErrorVersion; // reactive dependency
+		void stateVersion; // reactive dependency
 		return renderErrors.get(key(si, di)) ?? null;
 	}
 
 	function setRenderError(si: number, di: number, msg: string) {
 		renderErrors.set(key(si, di), msg);
-		renderErrorVersion++; // notify template
+		notify();
 	}
 
 	function clearRenderErrors(si: number) {
@@ -437,16 +442,16 @@
 		renderErrors.delete(key(si, 1));
 		renderErrors.delete(key(si, 2));
 		renderErrors.delete(key(si, 3));
-		renderErrorVersion++;
+		// callers call notify() after their own mutations
 	}
 
-	// Re-initialise when the app slug changes (sections is a $derived)
+	// The $effect only reads `sections` ($derived — pure). It writes to the
+	// PLAIN sectionStates array (not $state), so loadSection's async writes
+	// cannot re-trigger this effect.
 	$effect(() => {
-		const snap = sections;
-		// Cleanup all existing mounts before replacing state
+		const snap = sections; // establishes reactive dependency on sections
 		for (const [k] of mountedInstances) cleanupMount(k);
 		renderErrors.clear();
-		renderErrorVersion++;
 
 		sectionStates = snap.map(() => ({
 			previewComponent: null,
@@ -463,11 +468,16 @@
 			propsError: null,
 			showPropsEditor: false
 		}));
+		notify();
 		snap.forEach((section, i) => loadSection(section, i));
 	});
 
 	async function loadSection(section: EmbedSection, idx: number) {
-		const s = sectionStates[idx];
+		// untrack: read sectionStates without creating a reactive dependency.
+		// If we read it reactively inside this async fn, Svelte would see the
+		// $effect (which called us) as dependent on sectionStates — then our
+		// s.isLoading=false write would retrigger the effect → infinite cycle.
+		const s = untrack(() => sectionStates[idx]);
 		if (!s) return;
 
 		const prevKey = previewKeyMap.get(section.previewPath) ?? '';
@@ -495,11 +505,12 @@
 		} catch (err) {
 			s.loadError = err instanceof Error ? err.message : String(err);
 			s.isLoading = false;
+			notify();
 			return;
 		}
 
 		s.isLoading = false;
-		// Wait for Svelte to flush the DOM (isLoading=false → mount targets appear)
+		notify(); // update template to show mount targets
 		await tick();
 		mountAllForSection(idx);
 	}
@@ -522,6 +533,7 @@
 		s.propsError = null;
 		s.propsJson = JSON.stringify(getEffectiveProps(s), null, 2);
 		clearRenderErrors(idx);
+		notify();
 		await tick();
 		remountSection(idx);
 	}
@@ -536,11 +548,12 @@
 			if (typeof parsed === 'object' && parsed !== null) {
 				s.manualOverrides = parsed;
 				s.propsError = null;
-				// Debounce remount via a simple flag check — only remount when JSON is valid
+				notify();
 				remountSection(idx);
 			}
 		} catch (err) {
 			s.propsError = err instanceof Error ? err.message : 'Invalid JSON';
+			notify();
 		}
 	}
 
@@ -551,7 +564,15 @@
 		s.hasManualEdits = false;
 		s.propsError = null;
 		s.propsJson = JSON.stringify(getEffectiveProps(s), null, 2);
+		notify();
 		remountSection(idx);
+	}
+
+	function togglePropsEditor(idx: number) {
+		const s = sectionStates[idx];
+		if (!s) return;
+		s.showPropsEditor = !s.showPropsEditor;
+		notify();
 	}
 
 	// ─── Component mounting (fully imperative — no reactive $effect) ──────────
@@ -620,6 +641,7 @@
 
 	async function retrySection(si: number) {
 		clearRenderErrors(si);
+		notify();
 		await tick();
 		mountAllForSection(si);
 	}
@@ -658,6 +680,7 @@
 				<p>Available: {ALL_APPS.join(', ')}</p>
 			</div>
 		{:else}
+			{#key stateVersion}
 			<div class="app-heading">
 				<h1 class="app-title">{currentApp}</h1>
 				<span class="section-count">{sections.length} skill{sections.length !== 1 ? 's' : ''}</span>
@@ -693,7 +716,7 @@
 								<button
 									class="props-btn"
 									class:active={s.showPropsEditor}
-									onclick={() => { sectionStates[si].showPropsEditor = !sectionStates[si].showPropsEditor; }}
+									onclick={() => togglePropsEditor(si)}
 								>Props</button>
 							</div>
 						{/if}
@@ -847,6 +870,7 @@
 					{/if}
 				</section>
 			{/each}
+			{/key}
 		{/if}
 	</div>
 </div>
