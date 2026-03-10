@@ -332,12 +332,16 @@
 
   // Detect whether this card is inside a large preview context.
   // Checked once when previewElement is bound (not reactive to DOM changes).
-  // The embed-preview-large-container parent sets container queries that
-  // expand the card when the container is wider than 300px.
+  // Matches both production (.embed-preview-large-container in EmbedPreviewLarge.svelte)
+  // and dev showcase (.large-container in the dev preview page) wrappers —
+  // both set container-name: embed-preview and trigger the @container CSS query.
   let isLargeContext = $state(false);
   $effect(() => {
     if (previewElement) {
-      isLargeContext = !!previewElement.closest('.embed-preview-large-container');
+      isLargeContext = !!(
+        previewElement.closest('.embed-preview-large-container') ||
+        previewElement.closest('.large-container')
+      );
     }
   });
 
