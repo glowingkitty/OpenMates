@@ -20,7 +20,6 @@ from backend.apps.ai.llm_providers.mistral_client import UnifiedMistralResponse 
 from backend.apps.ai.llm_providers.google_client import UnifiedGoogleResponse, ParsedGoogleToolCall as ParsedGoogleToolCall
 from backend.apps.ai.llm_providers.anthropic_client import UnifiedAnthropicResponse, ParsedAnthropicToolCall
 from backend.apps.ai.llm_providers.openai_shared import UnifiedOpenAIResponse, ParsedOpenAIToolCall, OpenAIUsageMetadata, _sanitize_schema_for_llm_providers
-from backend.apps.ai.utils.stream_utils import aggregate_paragraphs
 from backend.apps.ai.utils.timeout_utils import (
     stream_with_first_chunk_timeout,
     FIRST_CHUNK_TIMEOUT_SECONDS,
@@ -1333,8 +1332,11 @@ async def call_main_llm_stream(
                     _retry_timeout_stream = stream_with_first_chunk_timeout(
                         _retry_stream, _first_chunk_to, _inter_chunk_to
                     )
-                    async for _retry_paragraph in aggregate_paragraphs(_retry_timeout_stream):
-                        yield _retry_paragraph
+                    # IMPORTANT: Stream chunks exactly as they arrive from provider.
+                    # Paragraph aggregation is handled in main_processor so non-text
+                    # chunks (thinking/tool calls/usage) stay fully real-time.
+                    async for _retry_chunk in _retry_timeout_stream:
+                        yield _retry_chunk
                     logger.info(
                         f"{log_prefix} [ThoughtSigRetry] Retry succeeded on '{_retry_server_model_id}'."
                     )
@@ -1497,9 +1499,12 @@ async def call_main_llm_stream(
                         first_chunk_timeout_seconds,
                         inter_chunk_timeout_seconds
                     )
-                    async for paragraph in aggregate_paragraphs(timeout_stream):
+                    # IMPORTANT: Stream chunks exactly as they arrive from provider.
+                    # Paragraph aggregation is handled in main_processor so non-text
+                    # chunks (thinking/tool calls/usage) stay fully real-time.
+                    async for chunk in timeout_stream:
                         _any_content_yielded = True
-                        yield paragraph
+                        yield chunk
                     # Successfully completed - return from function
                     return
                 except TimeoutError as timeout_err:
