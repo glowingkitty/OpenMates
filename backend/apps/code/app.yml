@@ -5,6 +5,96 @@ icon_image: |
 category: work
 last_updated: "2025-11-12"
 settings_and_memories:
+  # Preferred technologies: Languages, frameworks, tools the user prefers
+  - id: preferred_tech
+    name_translation_key: code.preferred_tech
+    description_translation_key: code.preferred_tech.description
+    icon_image: coding.svg
+    type: list
+    stage: production
+    example_translation_keys:
+      - "code.preferred_tech.example_1"
+      - "code.preferred_tech.example_2"
+    example_entries:
+      - name: "code.preferred_tech.example_1.name"
+        proficiency: "advanced"
+      - name: "code.preferred_tech.example_2.name"
+        proficiency: "intermediate"
+    schema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Technology name (e.g., Python, React, Docker)
+          is_title: true
+        proficiency:
+          type: string
+          description: Your proficiency level
+          enum: ["beginner", "intermediate", "advanced", "expert"]
+          is_subtitle: true
+      required:
+        - name
+  # Projects: All projects with status to indicate current state
+  - id: projects
+    name_translation_key: code.projects
+    description_translation_key: code.projects.description
+    icon_image: project.svg
+    type: list
+    stage: production
+    example_translation_keys:
+      - "code.projects.example_1"
+      - "code.projects.example_2"
+    example_entries:
+      - name: "code.projects.example_1.name"
+        status: "active"
+        description: "code.projects.example_1.description"
+        git_repo_url: "https://github.com/user/portfolio"
+      - name: "code.projects.example_2.name"
+        status: "completed"
+        description: "code.projects.example_2.description"
+    schema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Project name
+          is_title: true
+        status:
+          type: string
+          description: Project status
+          enum: ["active", "planned", "completed"]
+          is_subtitle: true
+        description:
+          type: string
+          description: Brief description of the project
+          multiline: true
+        git_repo_url:
+          type: string
+          description: Git repository URL (e.g., https://github.com/user/repo)
+      required:
+        - name
+  # Technologies to learn: Things the user wants to learn
+  - id: want_to_learn
+    name_translation_key: code.want_to_learn
+    description_translation_key: code.want_to_learn.description
+    icon_image: library.svg
+    type: list
+    stage: production
+    example_translation_keys:
+      - "code.want_to_learn.example_1"
+      - "code.want_to_learn.example_2"
+    example_entries:
+      - name: "code.want_to_learn.example_1.name"
+      - name: "code.want_to_learn.example_2.name"
+    schema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Technology or skill you want to learn
+          is_title: true
+      required:
+        - name
   # Coding setup: capture preferred environment and amount of AI support
   - id: coding_setup
     name_translation_key: code.coding_setup
