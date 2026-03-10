@@ -1138,4 +1138,13 @@ export function setAuthenticatedState(): void {
   needsDeviceVerification.set(false);
   deviceVerificationType.set(null);
   deviceVerificationReason.set(null);
+
+  // Start live console log streaming for admin users on fresh login.
+  // The user profile is populated by PasswordAndTfaOtp.svelte (via updateProfile) before
+  // dispatching loginSuccess, so is_admin is available here when called from ActiveChat.
+  const profile = get(userProfile);
+  if (profile.is_admin) {
+    console.debug("[setAuthenticatedState] Admin user detected — starting clientLogForwarder");
+    clientLogForwarder.start();
+  }
 }
