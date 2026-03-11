@@ -7,6 +7,7 @@ Account Settings - Main menu for account-related settings including Security, Ex
     import { text } from '@repo/ui';
     import SettingsItem from '../SettingsItem.svelte';
     import { userProfile } from '../../stores/userProfile';
+    import { isRestrictedSession } from '../../stores/pairSessionStore';
 
     const dispatch = createEventDispatcher();
 
@@ -193,6 +194,12 @@ Account Settings - Main menu for account-related settings including Security, Ex
     }
 </script>
 
+{#if $isRestrictedSession}
+    <div class="restricted-notice">
+        Account settings are not available in restricted sessions.
+    </div>
+{:else}
+
 {#if isAdminUser}
     <div class="account-debug-box selectable">
         <div class="account-debug-header-row">
@@ -277,7 +284,19 @@ Account Settings - Main menu for account-related settings including Security, Ex
     onClick={navigateToDeleteAccount}
 />
 
+{/if}
+
 <style>
+    .restricted-notice {
+        padding: 1rem;
+        border-radius: 0.75rem;
+        background: rgba(223, 27, 65, 0.06);
+        border: 1px solid rgba(223, 27, 65, 0.2);
+        color: var(--color-font-secondary);
+        font-size: var(--processing-details-font-size);
+        text-align: center;
+    }
+
     .account-debug-box {
         margin: 0 0 0.75rem;
         padding: 0.75rem;

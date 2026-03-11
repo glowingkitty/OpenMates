@@ -613,6 +613,19 @@
                 return;
             }
 
+            // Store pair login credentials in sessionStorage so the authorizing device
+            // can build the encrypted bundle for SettingsSessionsConfirmPair.
+            // These are never sent to the server in plaintext — only as AES ciphertext during pairing.
+            // Keys: openmates_pair_lookup_hash, openmates_pair_encrypted_key, openmates_pair_salt
+            try {
+                sessionStorage.setItem('openmates_pair_lookup_hash', lookup_hash);
+                sessionStorage.setItem('openmates_pair_encrypted_key', data.user.encrypted_key);
+                sessionStorage.setItem('openmates_pair_salt', data.user.salt);
+            } catch (pairStoreErr) {
+                // Non-fatal — pair login will show an error to re-login if needed
+                console.warn('[PasswordAndTfaOtp] Failed to store pair credentials:', pairStoreErr);
+            }
+
             // Save email encrypted with master key for payment processing
             const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(email, false);
             if (!emailStoredSuccessfully) {

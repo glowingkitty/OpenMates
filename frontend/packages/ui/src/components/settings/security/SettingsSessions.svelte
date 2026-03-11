@@ -278,6 +278,19 @@ Architecture: docs/architecture/device-sessions.md
     }
 
     // ========================================================================
+    // NAVIGATION
+    // ========================================================================
+
+    function navigateToPairInitiate() {
+        dispatch('openSettings', {
+            settingsPath: 'account/security/sessions/pair-initiate',
+            direction: 'forward',
+            icon: 'devices',
+            title: $text('settings.sessions.pair_login_from_device_title'),
+        });
+    }
+
+    // ========================================================================
     // DERIVED
     // ========================================================================
 
@@ -396,6 +409,17 @@ Architecture: docs/architecture/device-sessions.md
             <p class="destructive-hint">{$text('settings.sessions.logout_all_hint')}</p>
         </div>
     {/if}
+
+    <!-- Sign in via trusted device — cross-device login (phone ↔ laptop) -->
+    <div class="pair-section">
+        <div class="pair-section-text">
+            <h3 class="pair-section-title">{$text('settings.sessions.pair_login_from_device_title')}</h3>
+            <p class="pair-section-description">{$text('settings.sessions.pair_login_from_device_description')}</p>
+        </div>
+        <button class="btn btn-pair" onclick={navigateToPairInitiate}>
+            {$text('settings.sessions.pair_login_from_device_button')}
+        </button>
+    </div>
 </div>
 
 <style>
@@ -588,6 +612,46 @@ Architecture: docs/architecture/device-sessions.md
         color: var(--color-grey-50);
         margin-top: 8px;
         text-align: center;
+    }
+
+    .pair-section {
+        margin-top: 32px;
+        padding-top: 20px;
+        border-top: 1px solid var(--color-grey-20);
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .pair-section-text {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .pair-section-title {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 0 0 4px 0;
+        color: var(--color-grey-100);
+    }
+
+    .pair-section-description {
+        font-size: 13px;
+        color: var(--color-grey-60);
+        margin: 0;
+    }
+
+    .btn-pair {
+        background: var(--color-grey-15, var(--color-grey-10));
+        color: var(--color-font-primary);
+        border: 1px solid var(--color-grey-25);
+        padding: 10px 18px;
+        white-space: nowrap;
+    }
+
+    .btn-pair:hover:not(:disabled) {
+        background: var(--color-grey-20);
     }
 
     @media (max-width: 768px) {

@@ -51,6 +51,7 @@ changes to the documentation (to keep the documentation up to date).
     import { pendingMentionStore } from '../stores/pendingMentionStore';
     // Admin status is now read directly from userProfile.is_admin (synced during login)
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
+    import { isRestrictedSession } from '../stores/pairSessionStore'; // Pair session restricted mode
     
     // Import modular components
     import SettingsFooter from './settings/SettingsFooter.svelte';
@@ -234,6 +235,7 @@ changes to the documentation (to keep the documentation up to date).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let settingsViews = $derived.by((): Record<string, any> => {
         const isAuthenticated = $authStore.isAuthenticated;
+        const restrictedMode = $isRestrictedSession;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return Object.entries(allSettingsViews).reduce((filtered: Record<string, any>, [key, component]) => {
             // Filter out payment-related routes if self-hosted (use isSelfHosted from request-based validation)
@@ -243,6 +245,20 @@ changes to the documentation (to keep the documentation up to date).
                 if (key === 'billing' || key.startsWith('billing/') || 
                     key === 'shared/tip') { // Tips also require payment
                     return filtered; // Skip this route
+                }
+            }
+
+            // In restricted (pair) sessions, hide account settings and settings/memories.
+            // The sessions page is still accessible so users can see and manage their sessions.
+            // Security sub-pages (passkeys, password, 2FA, recovery-key) are blocked inside SettingsSecurity.
+            if (restrictedMode) {
+                if (
+                    key === 'account' ||
+                    (key.startsWith('account/') && key !== 'account/security' && key !== 'account/security/sessions' && !key.startsWith('account/security/sessions/')) ||
+                    key === 'settings_memories' ||
+                    key === 'billing' || key.startsWith('billing/')
+                ) {
+                    return filtered; // Hidden in restricted mode
                 }
             }
             

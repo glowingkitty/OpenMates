@@ -54,6 +54,8 @@ import SettingsPassword from "./security/SettingsPassword.svelte";
 import SettingsTwoFactorAuth from "./security/SettingsTwoFactorAuth.svelte";
 import SettingsRecoveryKey from "./security/SettingsRecoveryKey.svelte";
 import SettingsSessions from "./security/SettingsSessions.svelte";
+import SettingsSessionsPairInitiate from "./security/SettingsSessionsPairInitiate.svelte";
+import SettingsSessionsConfirmPair from "./security/SettingsSessionsConfirmPair.svelte";
 
 // Pricing (unauthenticated users only)
 import SettingsPricing from "./SettingsPricing.svelte";
@@ -206,6 +208,8 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "account/security/2fa": SettingsTwoFactorAuth,
   "account/security/recovery-key": SettingsRecoveryKey,
   "account/security/sessions": SettingsSessions,
+  "account/security/sessions/pair-initiate": SettingsSessionsPairInitiate,
+  "account/security/sessions/confirm-pair": SettingsSessionsConfirmPair,
   "account/export": SettingsExportAccount,
   "account/import": SettingsImportAccount,
   "account/chats": SettingsAccountChats,

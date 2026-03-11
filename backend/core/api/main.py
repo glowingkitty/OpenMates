@@ -375,7 +375,13 @@ async def compliance_log_backup_task(app: "FastAPI") -> None:
     _task_logger = logging.getLogger(__name__)
 
     async def _set_openobserve_stream_retention(stream_name: str, retention_days: int) -> None:
-        """Configure per-stream retention in OpenObserve via its REST API."""
+        """
+        Configure per-stream retention in OpenObserve via its REST API.
+
+        Retries until the stream exists (OO auto-creates streams when Promtail first
+        pushes logs; the stream may not exist at startup). Retries every 5 minutes
+        for up to 2 hours, then gives up with a warning.
+        """
         monitoring_url = os.getenv("MONITORING_URL", "http://openobserve:5080")
         oo_email = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
         oo_password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
@@ -385,21 +391,42 @@ async def compliance_log_backup_task(app: "FastAPI") -> None:
         url = f"{monitoring_url}/api/default/streams/{stream_name}/settings"
         payload = {"data_retention": retention_days}
         auth = aiohttp.BasicAuth(oo_email, oo_password)
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.put(url, json=payload, auth=auth, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                    if resp.status in (200, 204):
-                        _task_logger.info(
-                            f"OpenObserve stream '{stream_name}' retention set to {retention_days} days"
-                        )
-                    else:
+
+        max_attempts = 24  # 24 × 5 min = 2 hours max
+        for attempt in range(1, max_attempts + 1):
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.put(url, json=payload, auth=auth, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                        if resp.status in (200, 204):
+                            _task_logger.info(
+                                f"OpenObserve stream '{stream_name}' retention set to {retention_days} days"
+                            )
+                            return  # Success
                         body = await resp.text()
-                        _task_logger.warning(
-                            f"Failed to set OpenObserve stream retention for '{stream_name}': "
-                            f"HTTP {resp.status} — {body[:200]}"
-                        )
-        except Exception as e:
-            _task_logger.warning(f"Error setting OpenObserve stream retention for '{stream_name}': {e}")
+                        if resp.status == 404:
+                            # Stream doesn't exist yet — Promtail will create it on first push.
+                            # Retry after 5 minutes.
+                            _task_logger.info(
+                                f"OO stream '{stream_name}' not yet created (attempt {attempt}/{max_attempts}); "
+                                f"retrying in 5 min..."
+                            )
+                        else:
+                            _task_logger.warning(
+                                f"Failed to set OO stream retention for '{stream_name}': "
+                                f"HTTP {resp.status} — {body[:200]} (attempt {attempt}/{max_attempts})"
+                            )
+            except Exception as e:
+                _task_logger.warning(
+                    f"Error setting OO stream retention for '{stream_name}' (attempt {attempt}/{max_attempts}): {e}"
+                )
+
+            if attempt < max_attempts:
+                await asyncio.sleep(5 * 60)  # Wait 5 minutes before retry
+
+        _task_logger.warning(
+            f"Gave up setting OO stream retention for '{stream_name}' after {max_attempts} attempts. "
+            f"Set it manually via: PUT {url} with {{\"data_retention\": {retention_days}}}"
+        )
 
     def _upload_log_file(s3_service, bucket_key: str, s3_key: str, file_path: str) -> bool:
         """
@@ -440,11 +467,41 @@ async def compliance_log_backup_task(app: "FastAPI") -> None:
             _task_logger.error(f"Failed to upload compliance log {file_path} to S3: {e}")
             return False
 
-    # --- On startup: configure OpenObserve stream-level retention ---
-    # Wait briefly for OpenObserve to be ready (it starts with the other containers)
-    await asyncio.sleep(30)
-    await _set_openobserve_stream_retention("audit-compliance", retention_days=730)      # 2 years
-    await _set_openobserve_stream_retention("financial-compliance", retention_days=3650) # 10 years
+    # --- On startup: create OO compliance streams and set retention ---
+    # OO native _json ingest API creates the stream on first push.
+    # Promtail's Loki-compat API only routes to the "default" stream — named streams
+    # require OO's own /api/{org}/{stream}/_json endpoint.
+    # We create the streams by pushing a single marker entry, then set retention.
+    monitoring_url = os.getenv("MONITORING_URL", "http://openobserve:5080")
+    oo_email = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
+    oo_password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
+    if oo_email and oo_password:
+        import time as _time
+        _auth = aiohttp.BasicAuth(oo_email, oo_password)
+        _ts = int(_time.time() * 1e6)  # microseconds
+        for _stream_name in ("audit_compliance", "financial_compliance"):
+            try:
+                async with aiohttp.ClientSession() as _s:
+                    async with _s.post(
+                        f"{monitoring_url}/api/default/{_stream_name}/_json",
+                        json=[{"_timestamp": _ts, "event_type": "stream_init", "status": "ok"}],
+                        auth=_auth,
+                        timeout=aiohttp.ClientTimeout(total=10),
+                    ) as _r:
+                        if _r.status == 200:
+                            _task_logger.info(f"OO stream '{_stream_name}' ready")
+                        else:
+                            _task_logger.warning(
+                                f"Could not init OO stream '{_stream_name}': HTTP {_r.status}"
+                            )
+            except Exception as _e:
+                _task_logger.warning(f"Could not init OO stream '{_stream_name}': {_e}")
+
+    # Set stream-level retention (retries every 5 min until stream exists)
+    asyncio.gather(
+        _set_openobserve_stream_retention("audit_compliance", retention_days=730),      # 2 years
+        _set_openobserve_stream_retention("financial_compliance", retention_days=3650), # 10 years
+    )
 
     # --- Nightly loop ---
     while True:

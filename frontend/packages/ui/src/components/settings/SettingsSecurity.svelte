@@ -8,6 +8,7 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
     import SettingsItem from '../SettingsItem.svelte';
     import { getApiEndpoint, apiEndpoints } from '../../config/api';
     import { userProfile } from '../../stores/userProfile';
+    import { isRestrictedSession } from '../../stores/pairSessionStore';
 
     const dispatch = createEventDispatcher();
 
@@ -191,43 +192,45 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
     }
 </script>
 
-<!-- Passkeys Section -->
-<SettingsItem
-    type="submenu"
-    icon="passkeys"
-    title={$text('settings.account.passkeys')}
-    onClick={navigateToPasskeys}
-/>
+<!-- Security settings are hidden in restricted (pair) sessions to protect the account -->
+{#if !$isRestrictedSession}
+    <!-- Passkeys Section -->
+    <SettingsItem
+        type="submenu"
+        icon="passkeys"
+        title={$text('settings.account.passkeys')}
+        onClick={navigateToPasskeys}
+    />
 
-<!-- Password Section -->
-<SettingsItem
-    type="submenu"
-    icon="password"
-    title={$text('settings.account.password')}
-    subtitle={passwordSubtitle}
-    onClick={navigateToPassword}
-/>
+    <!-- Password Section -->
+    <SettingsItem
+        type="submenu"
+        icon="password"
+        title={$text('settings.account.password')}
+        subtitle={passwordSubtitle}
+        onClick={navigateToPassword}
+    />
 
-<!-- 2FA Section -->
-<SettingsItem
-    type="submenu"
-    icon="tfa"
-    title={$text('settings.security.tfa_title')}
-    subtitle={tfaSubtitle}
-    onClick={navigateTo2FA}
-/>
+    <!-- 2FA Section -->
+    <SettingsItem
+        type="submenu"
+        icon="tfa"
+        title={$text('settings.security.tfa_title')}
+        subtitle={tfaSubtitle}
+        onClick={navigateTo2FA}
+    />
 
-<!-- Recovery Key Section -->
-<SettingsItem
-    type="submenu"
-    icon="recovery_key"
-    title={$text('settings.security.recovery_key_title')}
-    subtitle={recoveryKeySubtitle}
-    onClick={navigateToRecoveryKey}
-/>
+    <!-- Recovery Key Section -->
+    <SettingsItem
+        type="submenu"
+        icon="recovery_key"
+        title={$text('settings.security.recovery_key_title')}
+        subtitle={recoveryKeySubtitle}
+        onClick={navigateToRecoveryKey}
+    />
+{/if}
 
-
-<!-- Active Sessions Section -->
+<!-- Active Sessions — always visible so users can see and manage sessions -->
 <SettingsItem
     type="submenu"
     icon="devices"

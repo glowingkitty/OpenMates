@@ -875,6 +875,12 @@ export function clearAllEmailData(): void {
   clearEmailEncryptionKey();
   clearEmailEncryptedWithMasterKey();
   clearEmailSalt();
+  // Clear pair login credentials stored during password login (used by SettingsSessionsConfirmPair)
+  if (typeof window !== "undefined") {
+    sessionStorage.removeItem("openmates_pair_lookup_hash");
+    sessionStorage.removeItem("openmates_pair_encrypted_key");
+    sessionStorage.removeItem("openmates_pair_salt");
+  }
 }
 
 // ============================================================================
