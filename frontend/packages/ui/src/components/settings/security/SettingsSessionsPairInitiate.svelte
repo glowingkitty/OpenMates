@@ -13,11 +13,22 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
     import { onMount, onDestroy, createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { getApiEndpoint } from '../../../config/api';
-    import { base64ToUint8Array } from '../../../services/cryptoService';
+    import { base64ToUint8Array, saveKeyToSession } from '../../../services/cryptoService';
     import { activatePairSession } from '../../../stores/pairSessionStore';
     import QRCodeSVG from 'qrcode-svg';
 
-    const dispatch = createEventDispatcher<{ login: { lookupHash: string; userEmailSalt: string; encryptedKey: string; salt: string; authorizerDeviceName: string | null; autoLogoutMinutes: number | null } }>();
+    const dispatch = createEventDispatcher<{ login: { lookupHash: string; userEmailSalt: string; authorizerDeviceName: string | null; autoLogoutMinutes: number | null } }>();
+
+    // ========================================================================
+    // PROPS
+    // ========================================================================
+
+    interface Props {
+        /** Mirror of Login.svelte stayLoggedIn — if true, master key persists to IndexedDB
+         *  so the user stays logged in across tab/browser closes. */
+        stayLoggedIn?: boolean;
+    }
+    const { stayLoggedIn = false }: Props = $props();
 
     // ========================================================================
     // TYPES
@@ -239,7 +250,9 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
      * Crypto: AES-256-GCM, key derived via PBKDF2(PIN, token-as-salt, 100_000 iters, SHA-256)
      * Must match exactly what SettingsSessionsConfirmPair uses to encrypt.
      *
-     * Bundle plaintext JSON: { lookup_hash, user_email_salt, encrypted_key, salt }
+     * Bundle plaintext JSON: { lookup_hash, user_email_salt, master_key_exported }
+     * master_key_exported is the raw AES-256 master key exported by the authorizing device.
+     * We import it directly and save it to the session — no password needed.
      */
     async function decryptAndLogin(
         encryptedBundleB64: string,
@@ -270,9 +283,26 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
             const bundle = JSON.parse(plainText) as {
                 lookup_hash: string;
                 user_email_salt: string;
-                encrypted_key: string;
-                salt: string;
+                master_key_exported: string;
             };
+
+            // Import the raw master key exported by the authorizing device.
+            // This gives this device the same master key without needing the user's password.
+            const rawKeyBytes = new Uint8Array(base64ToUint8Array(bundle.master_key_exported)).buffer as ArrayBuffer;
+            const masterKey = await crypto.subtle.importKey(
+                'raw',
+                rawKeyBytes,
+                { name: 'AES-GCM' },
+                true, // extractable — consistent with how master keys are created at signup
+                ['encrypt', 'decrypt'],
+            );
+
+            // Save master key to session, respecting the stayLoggedIn preference.
+            // stayLoggedIn=true  → persisted to IndexedDB (survives tab/browser close)
+            // stayLoggedIn=false → memory only (cleared on tab close)
+            // Must happen BEFORE dispatching login so crypto operations work immediately
+            // after the session cookie is set by the login API call.
+            await saveKeyToSession(masterKey, stayLoggedIn);
 
             // Activate restricted pair session state BEFORE dispatching login
             activatePairSession({
@@ -280,12 +310,10 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
                 autoLogoutMinutes: returnedAutoLogoutMinutes,
             });
 
-            // Dispatch login event — parent (+page.svelte) performs the actual auth
+            // Dispatch login event — Login.svelte calls /auth/login to establish server session
             dispatch('login', {
                 lookupHash: bundle.lookup_hash,
                 userEmailSalt: bundle.user_email_salt,
-                encryptedKey: bundle.encrypted_key,
-                salt: bundle.salt,
                 authorizerDeviceName,
                 autoLogoutMinutes: returnedAutoLogoutMinutes,
             });
@@ -570,15 +598,6 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
     .btn:disabled {
         opacity: 0.5;
         cursor: not-allowed;
-    }
-
-    .btn-primary {
-        background: var(--color-primary);
-        color: var(--color-grey-0);
-    }
-
-    .btn-primary:hover:not(:disabled) {
-        opacity: 0.88;
     }
 
     .btn-secondary {

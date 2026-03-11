@@ -17,7 +17,7 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
     import { onMount, createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { getApiEndpoint } from '../../../config/api';
-    import { uint8ArrayToBase64 } from '../../../services/cryptoService';
+    import { uint8ArrayToBase64, getKeyFromStorage } from '../../../services/cryptoService';
     import { get } from 'svelte/store';
     import { pendingPairToken } from '../../../stores/pairSessionStore';
 
@@ -46,8 +46,6 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
     interface PairCredentialsApiResponse {
         lookup_hash: string;
         user_email_salt: string;
-        encrypted_key: string;
-        salt: string;
     }
 
     type PageStatus = 'loading' | 'confirm' | 'authorizing' | 'pin_display' | 'denied' | 'error' | 'invalid';
@@ -230,29 +228,44 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
     /**
      * Build the plaintext bundle that the initiating device needs to log in.
      *
-     * The bundle holds the credentials needed to call POST /auth/login:
-     *   lookup_hash  — hashed credential passed to /auth/login
-     *   user_email_salt — email salt stored in sessionStorage/localStorage
-     *   encrypted_key — server-side encrypted master key (from login response)
-     *   salt          — key derivation salt
+     * The bundle holds everything the new device needs to establish a full session:
+     *   lookup_hash       — hashed credential passed to POST /auth/login
+     *   user_email_salt   — hashed email identifier for /auth/login
+     *   master_key_exported — raw AES-256 master key bytes (base64), exported from the
+     *                         in-memory CryptoKey. The new device imports this directly,
+     *                         bypassing the need for the user's password. This works
+     *                         because the authorizing device has already proven identity.
      *
-     * Primary source: sessionStorage values stored during login.
-     * Fallback: authenticated GET /v1/auth/pair/credentials when sessionStorage is missing.
-     * Credentials are never sent to the server in plaintext — only as AES ciphertext.
+     * Primary source: sessionStorage values stored during login (lookup_hash, user_email_salt).
+     * Master key: always exported fresh from in-memory CryptoKey (avoids needing password).
+     * Fallback for identifiers: authenticated GET /v1/auth/pair/credentials.
+     * Bundle is never sent to the server in plaintext — only as AES-GCM ciphertext.
+     *
+     * Security note: the raw master key is only included in the AES-GCM encrypted bundle
+     * that requires knowing the PIN + the pair token to decrypt. It is never stored on disk
+     * or sent to the server in plaintext.
      */
     async function buildBundle(): Promise<{
         lookup_hash: string;
         user_email_salt: string;
-        encrypted_key: string;
-        salt: string;
+        master_key_exported: string;
     }> {
+        // Step 1: export the in-memory master key as raw bytes
+        const masterKey = await getKeyFromStorage();
+        if (!masterKey) {
+            throw new Error(
+                'Master key not found in session. Please log out and log back in, then try again.'
+            );
+        }
+        const rawKeyBytes = await crypto.subtle.exportKey('raw', masterKey);
+        const master_key_exported = uint8ArrayToBase64(new Uint8Array(rawKeyBytes));
+
+        // Step 2: get lookup_hash and user_email_salt (session identifiers, no crypto material)
         let lookup_hash = sessionStorage.getItem('openmates_pair_lookup_hash');
         let user_email_salt = sessionStorage.getItem('openmates_email_salt')
             || localStorage.getItem('openmates_email_salt');
-        let encrypted_key = sessionStorage.getItem('openmates_pair_encrypted_key');
-        let salt = sessionStorage.getItem('openmates_pair_salt');
 
-        if (!lookup_hash || !user_email_salt || !encrypted_key || !salt) {
+        if (!lookup_hash || !user_email_salt) {
             const response = await fetch(getApiEndpoint('/v1/auth/pair/credentials'), {
                 method: 'GET',
                 credentials: 'include',
@@ -262,23 +275,19 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
                 const data: PairCredentialsApiResponse = await response.json();
                 lookup_hash = lookup_hash || data.lookup_hash || null;
                 user_email_salt = user_email_salt || data.user_email_salt || null;
-                encrypted_key = encrypted_key || data.encrypted_key || null;
-                salt = salt || data.salt || null;
 
                 if (lookup_hash) sessionStorage.setItem('openmates_pair_lookup_hash', lookup_hash);
-                if (encrypted_key) sessionStorage.setItem('openmates_pair_encrypted_key', encrypted_key);
-                if (salt) sessionStorage.setItem('openmates_pair_salt', salt);
                 if (user_email_salt) sessionStorage.setItem('openmates_email_salt', user_email_salt);
             }
         }
 
-        if (!lookup_hash || !user_email_salt || !encrypted_key || !salt) {
+        if (!lookup_hash || !user_email_salt) {
             throw new Error(
                 'Pair login credentials not available. Please log out and log back in, then try again.'
             );
         }
 
-        return { lookup_hash, user_email_salt, encrypted_key, salt };
+        return { lookup_hash, user_email_salt, master_key_exported };
     }
 
     /** Get a human-readable name for this device (the authorizer) */

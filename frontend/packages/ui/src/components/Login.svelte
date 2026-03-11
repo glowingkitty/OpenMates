@@ -2458,17 +2458,19 @@
                                             <!-- Magic pair login — new device generates a token and waits for authorization -->
                                             <div class="pair-initiate-wrapper">
                                                 <SettingsSessionsPairInitiate
+                                                    stayLoggedIn={stayLoggedIn}
                                                     on:login={async (e) => {
-                                                        // The authorizing device has approved the pairing and the bundle has been
-                                                        // decrypted client-side. Now call the standard login API to establish
-                                                        // a server session (session cookie) using the recovered credentials.
+                                                        // The authorizing device has approved the pairing. The bundle has been
+                                                        // decrypted, the master key imported and saved to session in
+                                                        // SettingsSessionsPairInitiate. Now call the standard login API to
+                                                        // establish a server session (cookie) using the recovered credentials.
                                                         isLoading = true;
                                                         try {
                                                             const { lookupHash, userEmailSalt } = e.detail;
-                                                            // userEmailSalt is the hashed_email used as the primary login identifier
+                                                            // userEmailSalt is the hashed_email identifier for /auth/login
                                                             const result = await login(userEmailSalt, lookupHash, undefined, undefined, stayLoggedIn);
                                                             if (result.success && !result.tfa_required) {
-                                                                // Pair session state was already activated inside SettingsSessionsPairInitiate
+                                                                // Pair session state + master key already set in SettingsSessionsPairInitiate
                                                                 currentLoginStep = 'email';
                                                                 dispatch('loginSuccess', {
                                                                     user: result.user ?? null,

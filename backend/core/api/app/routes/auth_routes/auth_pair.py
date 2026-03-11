@@ -20,6 +20,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import re
 import secrets
@@ -34,9 +35,11 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_cache_service,
     get_compliance_service,
     get_current_user,
+    get_directus_service,
 )
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.compliance import ComplianceService
+from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import (
     _extract_client_ip,
@@ -263,15 +266,54 @@ async def pair_poll(
 async def pair_credentials(
     request: Request,
     current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
 ) -> PairCredentialsResponse:
-    """Return pair-login credentials for the authenticated authorizing device."""
+    """
+    Return pair-login credentials for the authenticated authorizing device.
+
+    lookup_hashes and user_email_salt come from the cached User object.
+    encrypted_key and salt are stored in the encryption_keys collection (keyed by
+    hashed_user_id = SHA256(user_uuid)) — NOT on the directus_users record — so we
+    fetch them via get_encryption_key() rather than from current_user fields.
+    """
     lookup_hashes = current_user.lookup_hashes or []
     lookup_hash = next(
         (value for value in lookup_hashes if isinstance(value, str) and value.strip()),
         None,
     )
 
-    if not lookup_hash or not current_user.user_email_salt or not current_user.encrypted_key or not current_user.salt:
+    if not lookup_hash or not current_user.user_email_salt:
+        logger.warning(
+            "pair/credentials: missing lookup_hash or user_email_salt for user %s",
+            current_user.id[:8],
+        )
+        raise HTTPException(
+            status_code=409,
+            detail="Pair login credentials not available for current session",
+        )
+
+    # encrypted_key + salt live in the encryption_keys collection, not on directus_users.
+    hashed_user_id = hashlib.sha256(current_user.id.encode()).hexdigest()
+    encryption_key_data = await directus_service.get_encryption_key(hashed_user_id, "password")
+
+    if not encryption_key_data:
+        logger.warning(
+            "pair/credentials: no password encryption key found for user %s",
+            current_user.id[:8],
+        )
+        raise HTTPException(
+            status_code=409,
+            detail="Pair login credentials not available for current session",
+        )
+
+    encrypted_key = encryption_key_data.get("encrypted_key")
+    salt = encryption_key_data.get("salt")
+
+    if not encrypted_key or not salt:
+        logger.warning(
+            "pair/credentials: encryption key record incomplete for user %s",
+            current_user.id[:8],
+        )
         raise HTTPException(
             status_code=409,
             detail="Pair login credentials not available for current session",
@@ -280,8 +322,8 @@ async def pair_credentials(
     return PairCredentialsResponse(
         lookup_hash=lookup_hash,
         user_email_salt=current_user.user_email_salt,
-        encrypted_key=current_user.encrypted_key,
-        salt=current_user.salt,
+        encrypted_key=encrypted_key,
+        salt=salt,
     )
 
 
