@@ -642,6 +642,57 @@ def _get_arch_doc_index() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 
+def _prefetch_debug_context(subcommand: str, entity_id: str, label: str) -> str:
+    """Run a debug.py subcommand inside the api container and return its output.
+
+    Returns a formatted block ready to print, or an error notice if the fetch fails.
+    All output is captured; nothing is printed directly.
+    """
+    cmd = [
+        "docker", "exec", "api",
+        "python", "/app/backend/scripts/debug.py",
+        subcommand, entity_id,
+    ]
+    rc, stdout, stderr = _run_cmd(cmd, timeout=30)
+    if rc != 0 or not stdout.strip():
+        err = (stderr or "no output").strip()[:200]
+        return f"[!] Could not fetch {label} {entity_id}: {err}\n    (Is the api container running?)"
+    return stdout.strip()
+
+
+def _prefetch_logs(opts_str: str) -> str:
+    """Run the OpenObserve web-app-health preset log fetch and return output.
+
+    opts_str format: comma-separated key=value pairs, e.g. 'since=10,level=error'.
+    Supported keys: since (minutes), level, preset.
+    """
+    # Parse opts
+    opts: dict[str, str] = {}
+    for part in (opts_str or "since=10").split(","):
+        part = part.strip()
+        if "=" in part:
+            k, v = part.split("=", 1)
+            opts[k.strip()] = v.strip()
+
+    since = opts.get("since", "10")
+    level = opts.get("level", "")
+    preset = opts.get("preset", "web-app-health")
+
+    cmd = [
+        "docker", "exec", "api",
+        "python", "/app/backend/scripts/debug.py",
+        "logs", "--o2", "--preset", preset, "--since", since,
+    ]
+    if level:
+        cmd += ["--level", level]
+
+    rc, stdout, stderr = _run_cmd(cmd, timeout=45)
+    if rc != 0 or not stdout.strip():
+        err = (stderr or "no output").strip()[:200]
+        return f"[!] Could not fetch logs (preset={preset}, since={since}m): {err}"
+    return stdout.strip()
+
+
 def cmd_start(args: argparse.Namespace) -> None:
     """Start a new session with tag-based doc preloading and git context."""
     data = _load_sessions()
@@ -671,6 +722,20 @@ def cmd_start(args: argparse.Namespace) -> None:
             )
     elif args.task:
         tags = _infer_tags(args.task)
+
+    # Auto-merge tags from prefetch flags (deduplicated, preserving existing order)
+    extra_tags: list[str] = []
+    if getattr(args, "issue", None):
+        extra_tags += ["debug"]
+    if getattr(args, "chat", None):
+        extra_tags += ["debug"]
+    if getattr(args, "embed", None):
+        extra_tags += ["debug", "embed"]
+    if getattr(args, "logs", None) is not None:
+        extra_tags += ["debug", "logging"]
+    for et in extra_tags:
+        if et not in tags:
+            tags.append(et)
 
     # Register session
     data["sessions"][sid] = {
@@ -717,6 +782,35 @@ def cmd_start(args: argparse.Namespace) -> None:
         print(f"== RECENT COMMITS ({len(recent_commits)}) ==")
         for commit_line in recent_commits:
             print(f"  {commit_line}")
+        print()
+
+    # Prefetched context — issue / chat / embed / logs
+    # Collected now; printed as a single block so Claude sees it immediately.
+    prefetch_items: list[tuple[str, str]] = []
+
+    issue_id = getattr(args, "issue", None)
+    if issue_id:
+        prefetch_items.append((f"issue {issue_id}", _prefetch_debug_context("issue", issue_id, "issue")))
+
+    chat_id = getattr(args, "chat", None)
+    if chat_id:
+        prefetch_items.append((f"chat {chat_id}", _prefetch_debug_context("chat", chat_id, "chat")))
+
+    embed_id = getattr(args, "embed", None)
+    if embed_id:
+        prefetch_items.append((f"embed {embed_id}", _prefetch_debug_context("embed", embed_id, "embed")))
+
+    logs_opts = getattr(args, "logs", None)
+    if logs_opts is not None:
+        prefetch_items.append((f"logs ({logs_opts or 'since=10'})", _prefetch_logs(logs_opts or "since=10")))
+
+    if prefetch_items:
+        print("== PREFETCHED CONTEXT ==")
+        for label, content in prefetch_items:
+            print(f"--- {label} ---")
+            print(content)
+            print()
+        print("== END PREFETCHED CONTEXT ==")
         print()
 
     # Active sessions — only show sessions with tracked files or active in last 2h
@@ -878,6 +972,21 @@ def cmd_start(args: argparse.Namespace) -> None:
             print(f"\n[Deferred to deploy phase: {', '.join(deferred)}]")
         print()
 
+    # Task completion checklist — always shown so it's in the initial context window.
+    # git-and-deployment.md is deferred, but this compact reminder ensures Claude
+    # never forgets the deploy step even without running deploy-docs.
+    print("== TASK COMPLETION CHECKLIST ==")
+    print("When your task is done, run these IN ORDER before writing the Task Summary:")
+    print("  1. python3 scripts/sessions.py deploy-docs")
+    print(f"  2. python3 scripts/sessions.py prepare-deploy --session {sid}")
+    print(f"  3. python3 scripts/sessions.py deploy --session {sid} --title \"type: description\" --message \"body\" --end")
+    print("     (--end closes the session automatically after a successful push)")
+    print("  4. Write Task Summary to user — 'Commit:' field MUST contain the real SHA from step 3")
+    print("  5. Wait for user confirmation")
+    print("NOTE: Pushing to dev via sessions.py deploy is NOT a destructive action.")
+    print("      Do NOT wait for explicit permission — deploy is the expected default.")
+    print()
+
     print("== END SESSION CONTEXT ==")
 
 
@@ -896,18 +1005,28 @@ def cmd_end(args: argparse.Namespace) -> None:
 
     modified = session.get("modified_files", [])
 
-    # Check for uncommitted modified files
+    # Check for uncommitted modified files — BLOCK unless --force
     if modified:
         dirty_files = _get_dirty_files()
-        if dirty_files:
-            uncommitted = [f for f in modified if f in dirty_files]
-            if uncommitted:
-                print("== WARNING: UNCOMMITTED MODIFIED FILES ==")
+        uncommitted = [f for f in modified if f in dirty_files]
+        if uncommitted:
+            force = getattr(args, "force", False)
+            if not force:
+                print("ERROR: Cannot end session — uncommitted tracked files:")
                 for f in uncommitted:
                     print(f"  - {f}")
-                print(
-                    "These files were modified in this session but not committed."
-                )
+                print()
+                print("Deploy first, then end:")
+                print("  python3 scripts/sessions.py deploy-docs")
+                print(f"  python3 scripts/sessions.py deploy --session {sid} --title \"type: description\" --message \"body\" --end")
+                print()
+                print("Or force-end (skips deploy, loses tracking):")
+                print(f"  python3 scripts/sessions.py end --session {sid} --force")
+                sys.exit(1)
+            else:
+                print("== WARNING: Force-ending session with uncommitted tracked files ==")
+                for f in uncommitted:
+                    print(f"  - {f}")
                 print()
 
     # Check related architecture docs
@@ -940,6 +1059,21 @@ def cmd_status(args: argparse.Namespace) -> None:
 
     sessions = data.get("sessions", {})
     locks = data.get("locks", {})
+
+    # --json: emit raw sessions dict for machine consumers (e.g. opencode plugin)
+    if getattr(args, "json", False):
+        dirty_files = _get_dirty_files()
+        output = {"sessions": {}, "locks": locks}
+        for sid, info in sessions.items():
+            modified = info.get("modified_files", [])
+            uncommitted = [f for f in modified if f in dirty_files]
+            output["sessions"][sid] = {
+                **info,
+                "uncommitted_files": uncommitted,
+                "has_uncommitted": bool(uncommitted),
+            }
+        print(json.dumps(output))
+        return
 
     print("== SESSION STATUS ==")
     print()
@@ -1592,20 +1726,30 @@ def cmd_summary(args: argparse.Namespace) -> None:
         print(f"Currently writing: {writing}")
         print()
 
-    # Check git status for uncommitted files
+    # Deploy status — show clearly whether files are committed or pending
     if modified:
         dirty_files = _get_dirty_files()
-        if dirty_files:
-            uncommitted = [f for f in modified if f in dirty_files]
-            committed = [f for f in modified if f not in dirty_files]
-            if uncommitted:
-                print(f"Uncommitted ({len(uncommitted)}):")
-                for f in sorted(uncommitted):
-                    print(f"  ! {f}")
-            if committed:
-                print(f"Already committed ({len(committed)}):")
-                for f in sorted(committed):
-                    print(f"  = {f}")
+        uncommitted = [f for f in modified if f in dirty_files]
+        committed = [f for f in modified if f not in dirty_files]
+
+        if uncommitted:
+            print(f"Deploy status: PENDING ({len(uncommitted)} file(s) not yet committed)")
+            for f in sorted(uncommitted):
+                print(f"  ! {f}")
+            print()
+            print("  Deploy command:")
+            print(f"    python3 scripts/sessions.py deploy --session {sid} --title \"type: description\" --message \"body\" --end")
+        elif committed:
+            # Try to get the most recent commit SHA that touched any of these files
+            rc, sha, _ = _run_cmd(["git", "log", "-1", "--format=%h", "--"] + committed)
+            sha_str = sha.strip() if rc == 0 and sha.strip() else "unknown"
+            print(f"Deploy status: DEPLOYED (commit {sha_str})")
+            for f in sorted(committed):
+                print(f"  = {f}")
+        else:
+            print("Deploy status: no tracked files")
+    else:
+        print("Deploy status: no tracked files")
 
     print("== END SUMMARY ==")
 
@@ -1706,13 +1850,51 @@ def main() -> None:
         "Valid: frontend, backend, debug, test, i18n, figma, embed, "
         "api, planning, feature, logging, concurrent, security",
     )
+    p_start.add_argument(
+        "--issue",
+        metavar="ISSUE_ID",
+        help="Pre-fetch issue details at session start (runs debug.py issue <id>). "
+        "Auto-adds 'debug' tag.",
+    )
+    p_start.add_argument(
+        "--chat",
+        metavar="CHAT_ID",
+        help="Pre-fetch chat details at session start (runs debug.py chat <id>). "
+        "Auto-adds 'debug' tag.",
+    )
+    p_start.add_argument(
+        "--embed",
+        metavar="EMBED_ID",
+        help="Pre-fetch embed details at session start (runs debug.py embed <id>). "
+        "Auto-adds 'debug,embed' tags.",
+    )
+    p_start.add_argument(
+        "--logs",
+        metavar="OPTS",
+        nargs="?",
+        const="since=10",
+        help="Pre-fetch OpenObserve logs at session start. "
+        "Optional value: comma-separated options like 'since=10,level=error' "
+        "(default: since=10). Auto-adds 'debug,logging' tags.",
+    )
 
     # end
     p_end = sub.add_parser("end", help="End a session")
     p_end.add_argument("--session", "-s", required=True, help="Session ID")
+    p_end.add_argument(
+        "--force",
+        "-f",
+        action="store_true",
+        help="Force-end even if there are uncommitted tracked files (skips deploy gate)",
+    )
 
     # status
-    sub.add_parser("status", help="Show current session state")
+    p_status = sub.add_parser("status", help="Show current session state")
+    p_status.add_argument(
+        "--json",
+        action="store_true",
+        help="Output raw JSON (for machine consumers, e.g. opencode plugin)",
+    )
 
     # update
     p_update = sub.add_parser("update", help="Update session task")
