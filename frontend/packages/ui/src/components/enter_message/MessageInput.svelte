@@ -271,45 +271,6 @@
         onIncognitoPillDeactivate?.();
     }
 
-    // --- Floating App Icons (Decorative Placeholder Backdrop) ---
-    // 3 app icons grouped on the left, 3 on the right, horizontally laid out.
-    // Visible only while the placeholder text is shown (editor empty + not focused).
-    // Uses recommended apps from userProfile when available, else apps from the store.
-    // Each icon is rendered as a raw mask-image span (no colored box, just the SVG symbol).
-
-    /**
-     * Get the raw CSS variable suffix for an app's icon_image field.
-     * Used to build `var(--icon-url-{name})` for the mask-image approach.
-     * Just strips the .svg extension — the CSS vars use the filename as-is
-     * (e.g. icon_image="coding.svg" → "--icon-url-coding").
-     */
-    function _getRawIconUrlName(iconImage: string | undefined): string {
-        if (!iconImage) return 'app';
-        return iconImage.replace(/\.svg$/i, '').trim().toLowerCase();
-    }
-
-    /** Reactive: pick 6 app IDs (3 left, 3 right) for the placeholder icon groups. */
-    let placeholderIconIds = $derived.by((): { left: string[]; right: string[] } => {
-        const recommended = $userProfile.top_recommended_apps;
-        const allAppIds = Object.keys(appSkillsStore.getState().apps);
-        if (allAppIds.length === 0) return { left: [], right: [] };
-
-        // Start with recommended apps, pad with store apps if needed
-        let candidates: string[] = [];
-        if (recommended && recommended.length > 0) {
-            candidates = recommended.filter(id => allAppIds.includes(id));
-        }
-        if (candidates.length < 6) {
-            const extras = allAppIds.filter(id => !candidates.includes(id));
-            candidates = [...candidates, ...extras];
-        }
-
-        return {
-            left: candidates.slice(0, 3),
-            right: candidates.slice(3, 6),
-        };
-    });
-
     // Location precision setting — read from personalDataStore (persisted, encrypted).
     // When impreciseByDefault=true, MapsView opens in area mode (privacy-first default).
     let locationSettingsState = $state({ impreciseByDefault: true });
@@ -325,9 +286,6 @@
     let defaultImprecise = $derived(locationSettingsState.impreciseByDefault);
     let isMessageFieldFocused = $state(false);
 
-    /** True when the placeholder backdrop icons should be visible (editor is empty AND not focused). */
-    let showPlaceholderDecorIcons = $derived(!hasContent && !isMessageFieldFocused);
-    
     // --- Mention Dropdown State ---
     let showMentionDropdown = $state(false);
     let mentionQuery = $state('');
@@ -4203,47 +4161,6 @@
         aria-multiline="true"
         tabindex="0"
     >
-        <!-- Decorative floating app icons: 3 side-by-side on the left, 3 on the right.
-             Visible only while the placeholder text is shown (editor empty + not focused).
-             Each icon is rendered as a raw mask-image span (no colored box, just the SVG symbol).
-             pointer-events: none so they never intercept clicks or focus events. -->
-        {#if placeholderIconIds.left.length > 0 || placeholderIconIds.right.length > 0}
-            <div
-                class="placeholder-decor-layer"
-                class:hidden={!showPlaceholderDecorIcons}
-                aria-hidden="true"
-            >
-                <!-- Left group: 3 icons in a row -->
-                <div class="placeholder-decor-group left">
-                    {#each placeholderIconIds.left as appId, i (appId)}
-                        <div
-                            class="placeholder-decor-icon"
-                            style="--deco-rotate: 0deg; --deco-target-opacity: 1; --float-rx: 4px; --float-ry: 5px; animation-delay: {-i * 3}s;"
-                        >
-                            <span
-                                class="placeholder-app-icon-raw"
-                                style="--raw-icon-url: var(--icon-url-{_getRawIconUrlName(appSkillsStore.getState().apps[appId]?.icon_image)});"
-                            ></span>
-                        </div>
-                    {/each}
-                </div>
-                <!-- Right group: 3 icons in a row -->
-                <div class="placeholder-decor-group right">
-                    {#each placeholderIconIds.right as appId, i (appId)}
-                        <div
-                            class="placeholder-decor-icon"
-                            style="--deco-rotate: 0deg; --deco-target-opacity: 1; --float-rx: 4px; --float-ry: 5px; animation-delay: {-(i + 3) * 3}s;"
-                        >
-                            <span
-                                class="placeholder-app-icon-raw"
-                                style="--raw-icon-url: var(--icon-url-{_getRawIconUrlName(appSkillsStore.getState().apps[appId]?.icon_image)});"
-                            ></span>
-                        </div>
-                    {/each}
-                </div>
-            </div>
-        {/if}
-
         <!-- Focus mode pill: shown when a focus mode is active.
              Absolutely positioned at the top of the message-field; the field gets extra
              padding-top (via .has-focus-pill) so text input does not collide with the pill.
