@@ -11,11 +11,7 @@ export default defineConfig({
 		SvelteKitPWA({
 			srcDir: './src',
 			mode: 'production',
-			// injectManifest: use our custom sw.ts so we can handle Web Push events.
-			// The build tool injects self.__WB_MANIFEST (precache list) at compile time.
-			// Runtime caching and push handling are implemented inside sw.ts.
-			strategies: 'injectManifest',
-			filename: 'sw.ts',
+			strategies: 'generateSW',
 			// Output manifest.json (not default manifest.webmanifest) to match
 			// the <link rel="manifest"> in app.html and maintain compatibility
 			// with existing installed PWAs on user devices
@@ -48,13 +44,12 @@ export default defineConfig({
 					}
 				]
 			},
-			injectManifest: {
-				// Precache app shell assets — same glob patterns as the old generateSW config
+			workbox: {
 				globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
-				// Increase limit to 8MB to accommodate large chunks for offline-first functionality
-				// The largest chunk is ~7.2MB (translations, TipTap editor, ProseMirror, UI library)
-				// See docs/architecture/bundle_optimization_strategy.md for long-term optimization plan
-				maximumFileSizeToCacheInBytes: 8 * 1024 * 1024 // 8 MB
+				maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+				cleanupOutdatedCaches: true,
+				skipWaiting: false,
+				clientsClaim: false
 			},
 			devOptions: {
 				enabled: true,
