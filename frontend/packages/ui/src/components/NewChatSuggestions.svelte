@@ -631,13 +631,16 @@
     }
 
     try {
-      // Delete from IndexedDB using ID (much more reliable than encrypted text matching)
-      const deleteResult = await chatDB.deleteNewChatSuggestionById(contextMenu.suggestionId);
+      // Use captured trimmedId (not contextMenu.suggestionId) to avoid race condition:
+      // the context menu dispatches 'close' synchronously after 'delete', which calls
+      // handleContextMenuClose() and resets contextMenu.suggestionId to '' before the
+      // awaits below complete.
+      const deleteResult = await chatDB.deleteNewChatSuggestionById(trimmedId);
 
       if (deleteResult) {
         // Delete from server using ID
         try {
-          await chatSyncService.sendDeleteNewChatSuggestionById(contextMenu.suggestionId);
+          await chatSyncService.sendDeleteNewChatSuggestionById(trimmedId);
         } catch (serverError) {
           console.warn('[NewChatSuggestions] Failed to delete suggestion from server:', serverError);
           // Continue anyway - local deletion succeeded
