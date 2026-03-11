@@ -160,17 +160,31 @@ async function setToggleChecked(toggleLocator: any, shouldBeChecked: boolean): P
  * The element can render either a unified payment iframe or separate card frames.
  */
 async function fillStripeCardDetails(page: any, cardNumber: string): Promise<void> {
+	// Stripe Payment Element uses a single iframe titled "Secure payment input frame".
+	// Input field names vary: Stripe uses "number"/"expiry"/"cvc" in the Payment Element
+	// and "cardNumber"/"cardExpiry"/"cardCvc" in the older Elements API.
+	// We use pressSequentially (not fill) to fire keyboard events that Stripe's JS needs
+	// to properly validate the card and enable the submit button.
 	const paymentFrame = page.frameLocator('iframe[title="Secure payment input frame"]');
 	try {
 		const cardInput = paymentFrame
-			.locator('input[name="cardNumber"], input[autocomplete="cc-number"]')
+			.locator('input[name="number"], input[name="cardNumber"], input[autocomplete="cc-number"]')
 			.first();
 		await cardInput.waitFor({ state: 'visible', timeout: 30000 });
-		await cardInput.fill(cardNumber);
-		await paymentFrame
-			.locator('input[name="cardExpiry"], input[autocomplete="cc-exp"]')
-			.fill('12/34');
-		await paymentFrame.locator('input[name="cardCvc"], input[autocomplete="cc-csc"]').fill('123');
+		await cardInput.click();
+		await cardInput.pressSequentially(cardNumber, { delay: 30 });
+
+		const expiryInput = paymentFrame.locator(
+			'input[name="expiry"], input[name="cardExpiry"], input[autocomplete="cc-exp"]'
+		);
+		await expiryInput.click();
+		await expiryInput.pressSequentially('1234', { delay: 30 });
+
+		const cvcInput = paymentFrame.locator(
+			'input[name="cvc"], input[name="cardCvc"], input[autocomplete="cc-csc"]'
+		);
+		await cvcInput.click();
+		await cvcInput.pressSequentially('123', { delay: 30 });
 		return;
 	} catch {
 		// Fallback to the split Stripe iframe layout (card number/expiry/CVC separate).
@@ -180,11 +194,19 @@ async function fillStripeCardDetails(page: any, cardNumber: string): Promise<voi
 	const expFrame = page.frameLocator('iframe[title*="expiration"]');
 	const cvcFrame = page.frameLocator('iframe[title*="security code"], iframe[title*="CVC"]');
 
-	await cardNumberFrame
-		.locator('input[name="cardNumber"], input[autocomplete="cc-number"]')
-		.fill(cardNumber);
-	await expFrame.locator('input[name="cardExpiry"], input[autocomplete="cc-exp"]').fill('12/34');
-	await cvcFrame.locator('input[name="cardCvc"], input[autocomplete="cc-csc"]').fill('123');
+	const splitCardInput = cardNumberFrame.locator(
+		'input[name="cardNumber"], input[autocomplete="cc-number"]'
+	);
+	await splitCardInput.click();
+	await splitCardInput.pressSequentially(cardNumber, { delay: 30 });
+
+	const splitExpInput = expFrame.locator('input[name="cardExpiry"], input[autocomplete="cc-exp"]');
+	await splitExpInput.click();
+	await splitExpInput.pressSequentially('1234', { delay: 30 });
+
+	const splitCvcInput = cvcFrame.locator('input[name="cardCvc"], input[autocomplete="cc-csc"]');
+	await splitCvcInput.click();
+	await splitCvcInput.pressSequentially('123', { delay: 30 });
 }
 
 /**
