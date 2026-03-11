@@ -1,0 +1,68 @@
+<mjml>
+  <mj-head>
+    <mj-title>{{ t.email.test_run_started.title.text }}</mj-title>
+    <mj-attributes>
+      <mj-all font-family="Arial, Helvetica, sans-serif" font-size="16px" align="center" font-weight="bold" line-height="1.3" />
+      {% if darkmode %}
+      <mj-text color="#e6e6e6" />
+      {% else %}
+      <mj-text color="#000000" />
+      {% endif %}
+    </mj-attributes>
+    <!-- Include styles from separate file -->
+    <mj-include path="./components/email-styles.mjml" />
+  </mj-head>
+  <mj-body css-class="{% if darkmode %}dark-mode{% else %}light-mode{% endif %}">
+    <!-- Header -->
+    <mj-include path="./components/header.mjml" />
+
+    <!-- Main Content -->
+    <mj-wrapper css-class="content-box" padding="20px" padding-bottom="0">
+      <mj-section>
+        <mj-column>
+          <!-- Running icon -->
+          <mj-image width="50px" height="50px" src="icons/reload.png" align="center" css-class="email-icon-50" />
+
+          <!-- Headline -->
+          <mj-text font-size="30px" padding-bottom="20px">
+            <mark>{{ t.email.test_run_started.header.text }}</mark>
+          </mj-text>
+
+          <!-- Status badge -->
+          <mj-text font-size="18px" padding-bottom="20px">
+            <span style="background-color: #2196F3; color: #ffffff; padding: 4px 16px; border-radius: 4px; font-weight: bold;">
+              ▶ RUNNING
+            </span>
+          </mj-text>
+
+          <!-- Run Details section -->
+          <mj-text font-size="18px" padding-bottom="10px" font-weight="bold">
+            {{ t.email.test_run_summary.run_details_label.text }}
+          </mj-text>
+
+          <mj-text font-size="15px" padding-bottom="8px">
+            <strong>{{ t.email.test_run_started.trigger_label.text }}:</strong>&nbsp;{{ trigger_type }}
+          </mj-text>
+
+          <mj-text font-size="15px" padding-bottom="8px">
+            <strong>{{ t.email.test_run_summary.git_label.text }}:</strong>&nbsp;
+            <span style="font-family: monospace; font-size: 13px; background-color: {% if darkmode %}#2d2d2d{% else %}#f0f0f0{% endif %}; padding: 2px 6px; border-radius: 3px;">{{ git_sha }}</span>
+            &nbsp;({{ git_branch }})
+          </mj-text>
+
+          <mj-text font-size="15px" padding-bottom="8px">
+            <strong>{{ t.email.test_run_started.started_at_label.text }}:</strong>&nbsp;{{ started_at }}
+          </mj-text>
+
+          <!-- Footer note -->
+          <mj-text font-size="13px" padding-bottom="30px" font-style="italic" color="{% if darkmode %}#888{% else %}#999{% endif %}">
+            {{ t.email.test_run_started.footer_note.text }}
+          </mj-text>
+        </mj-column>
+      </mj-section>
+    </mj-wrapper>
+
+    <!-- Footer -->
+    <mj-include path="./components/footer.mjml" />
+  </mj-body>
+</mjml>

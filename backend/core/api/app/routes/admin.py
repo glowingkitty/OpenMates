@@ -1251,6 +1251,40 @@ async def trigger_test_run(
         raise HTTPException(status_code=500, detail=f"Failed to trigger test run: {e}")
 
     logger.info(f"Manual test run triggered via sidecar by admin {admin_user.id}")
+
+    # Notify admin that the test run has started.
+    # This is non-fatal — a missing email must not break the trigger response.
+    try:
+        admin_email = os.environ.get("ADMIN_NOTIFY_EMAIL") or os.environ.get("SERVER_OWNER_EMAIL")
+        if admin_email:
+            import subprocess as _subprocess
+            git_sha, git_branch = "unknown", "unknown"
+            try:
+                git_sha = _subprocess.check_output(
+                    ["git", "rev-parse", "--short", "HEAD"],
+                    stderr=_subprocess.DEVNULL, text=True,
+                ).strip()
+                git_branch = _subprocess.check_output(
+                    ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                    stderr=_subprocess.DEVNULL, text=True,
+                ).strip()
+            except Exception:
+                pass
+            from backend.core.api.app.tasks.celery_config import app as celery_app
+            celery_app.send_task(
+                name="app.tasks.email_tasks.test_run_started_email_task.send_test_run_started",
+                args=[admin_email, "Manual (admin)", git_sha, git_branch, started_at],
+                queue="email",
+            )
+            logger.info("Dispatched test run started email for manual trigger")
+        else:
+            logger.warning(
+                "ADMIN_NOTIFY_EMAIL / SERVER_OWNER_EMAIL not set — "
+                "skipping test run started email"
+            )
+    except Exception as email_err:
+        logger.warning(f"Could not dispatch test run started email: {email_err}")
+
     return TriggerTestRunResponse(
         success=True,
         message="Test run started on the host. Results will appear once the run completes.",

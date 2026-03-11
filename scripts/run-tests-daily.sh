@@ -52,6 +52,16 @@ if [[ "$FORCE" == "false" ]]; then
   echo "[daily-runner] Found $COMMITS_IN_24H commit(s) in the last 24 hours — proceeding."
 fi
 
+# --- Notify admin that the run is starting ---
+# Non-fatal: a failed email must not prevent the tests from running.
+ADMIN_EMAIL_CHECK="${ADMIN_NOTIFY_EMAIL:-}"
+if [[ -n "$ADMIN_EMAIL_CHECK" ]]; then
+  echo "[daily-runner] Dispatching test run start notification email..."
+  export ADMIN_NOTIFY_EMAIL="$ADMIN_EMAIL_CHECK"
+  python3 "$SCRIPT_DIR/_daily_runner_helper.py" dispatch-start-email || \
+    echo "[daily-runner] WARNING: could not send start email (non-fatal)"
+fi
+
 # --- Run the full test suite ---
 echo "[daily-runner] Starting full test run at $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 mkdir -p "$RESULTS_DIR"

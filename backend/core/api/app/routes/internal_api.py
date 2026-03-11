@@ -1446,6 +1446,63 @@ async def dispatch_test_summary_email(
         raise HTTPException(status_code=500, detail=f"Failed to dispatch email task: {str(e)}")
 
 
+# --- Test Run Started Email Dispatch ---
+# Called by:
+#   1. scripts/_daily_runner_helper.py (host-side sidecar path, no Celery available)
+#   2. e2e_test_tasks.run_daily_all_tests (Celery Beat, directly via celery_app.send_task)
+#   3. POST /v1/admin/tests/run (admin API, directly via celery_app.send_task)
+# All three trigger paths ultimately share the same Celery task.
+
+class TestRunStartedEmailPayload(BaseModel):
+    """Payload for dispatching a test run started notification email via Celery."""
+    recipient_email: str
+    trigger_type: str  # e.g. "Scheduled (daily)" or "Manual (admin)"
+    git_sha: str
+    git_branch: str
+    started_at: str  # ISO 8601 UTC timestamp
+
+
+@router.post("/dispatch-test-start-email")
+async def dispatch_test_start_email(
+    payload: TestRunStartedEmailPayload,
+    request: Request,
+) -> Dict[str, Any]:
+    """
+    Dispatch the test run started notification email Celery task.
+
+    Called by the host-side daily runner helper script (which runs inside the
+    admin-sidecar container where celery is not installed). The admin API and
+    Celery Beat tasks call the Celery task directly instead of using this bridge.
+
+    Security: Protected by INTERNAL_API_SHARED_TOKEN (same as all /internal/* routes).
+    """
+    logger.info(
+        f"[InternalAPI] Dispatching test run started email to {payload.recipient_email} "
+        f"(trigger={payload.trigger_type}, git={payload.git_sha}@{payload.git_branch})"
+    )
+
+    try:
+        from backend.core.api.app.tasks.celery_config import app as celery_app
+
+        celery_app.send_task(
+            name="app.tasks.email_tasks.test_run_started_email_task.send_test_run_started",
+            args=[
+                payload.recipient_email,
+                payload.trigger_type,
+                payload.git_sha,
+                payload.git_branch,
+                payload.started_at,
+            ],
+            queue="email",
+        )
+
+        logger.info("[InternalAPI] Test run started email task dispatched successfully")
+        return {"status": "dispatched"}
+    except Exception as e:
+        logger.error(f"[InternalAPI] Failed to dispatch test run started email: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to dispatch email task: {str(e)}")
+
+
 # --- E2E Test Notification Endpoints ---
 
 class TestFailureNotificationPayload(BaseModel):

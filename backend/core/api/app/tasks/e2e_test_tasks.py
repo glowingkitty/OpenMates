@@ -415,6 +415,43 @@ def run_daily_all_tests(self, force: bool = False) -> Dict[str, Any]:
 
     try:
         import httpx
+        from datetime import datetime, timezone
+
+        # Notify admin that the test run is starting — sent before the sidecar
+        # call so the admin knows the run kicked off even if the sidecar is slow.
+        admin_email = os.environ.get("ADMIN_NOTIFY_EMAIL") or os.environ.get("SERVER_OWNER_EMAIL")
+        if admin_email:
+            try:
+                trigger_type = "Manual (admin)" if force else "Scheduled (daily)"
+                # Collect git info (best-effort)
+                git_sha, git_branch = "unknown", "unknown"
+                try:
+                    import subprocess
+                    git_sha = subprocess.check_output(
+                        ["git", "rev-parse", "--short", "HEAD"],
+                        stderr=subprocess.DEVNULL, text=True,
+                    ).strip()
+                    git_branch = subprocess.check_output(
+                        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                        stderr=subprocess.DEVNULL, text=True,
+                    ).strip()
+                except Exception:
+                    pass
+                started_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                app.send_task(
+                    name="app.tasks.email_tasks.test_run_started_email_task.send_test_run_started",
+                    args=[admin_email, trigger_type, git_sha, git_branch, started_at],
+                    queue="email",
+                )
+                logger.info("Dispatched test run started email (trigger=%s)", trigger_type)
+            except Exception as email_err:
+                # Non-fatal: a failed start email must not block the test run
+                logger.warning("Could not dispatch test run started email: %s", email_err)
+        else:
+            logger.warning(
+                "ADMIN_NOTIFY_EMAIL / SERVER_OWNER_EMAIL not set — "
+                "skipping test run started email"
+            )
 
         # Trigger the test run on the sidecar (returns 202 immediately)
         with httpx.Client(timeout=15.0) as client:

@@ -5,6 +5,7 @@ scripts/_daily_runner_helper.py
 Internal helper for run-tests-daily.sh.
 Handles the Python-heavy steps of the daily test run:
   - split-results: parse last-run.json, write last-passed-tests.json and last-failed-tests.json
+  - dispatch-start-email: notify admin that the test run has started (before tests run)
   - dispatch-email: read last-run.json, dispatch the summary email via internal API
 
 Not intended to be called directly by users; use run-tests-daily.sh instead.
@@ -221,14 +222,112 @@ def dispatch_email() -> None:
         sys.exit(1)
 
 
+def dispatch_start_email() -> None:
+    """
+    Notify the admin that a test run has just started by dispatching the
+    test_run_started email via POST /internal/dispatch-test-start-email.
+
+    Called by run-tests-daily.sh immediately after the commit-activity gate
+    passes and the test run begins — before run-tests.sh is invoked.
+
+    Required env vars (read from .env if not in environment):
+        ADMIN_NOTIFY_EMAIL          — recipient for the notification email
+        INTERNAL_API_SHARED_TOKEN   — auth token for /internal/* endpoints
+    """
+    import subprocess
+    import urllib.request
+    import urllib.error
+    from datetime import datetime, timezone
+
+    # Determine project root (parent of scripts/)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir)
+
+    # Read .env for values not already in the environment
+    dot_env = _read_env_file(project_root)
+
+    admin_email = os.environ.get("ADMIN_NOTIFY_EMAIL") or dot_env.get("ADMIN_NOTIFY_EMAIL", "")
+    internal_token = os.environ.get("INTERNAL_API_SHARED_TOKEN") or dot_env.get("INTERNAL_API_SHARED_TOKEN", "")
+
+    if not admin_email:
+        print("[daily-runner] WARNING: ADMIN_NOTIFY_EMAIL not set — skipping start email.", file=sys.stderr)
+        return
+
+    if not internal_token:
+        print("[daily-runner] WARNING: INTERNAL_API_SHARED_TOKEN not set — skipping start email.", file=sys.stderr)
+        return
+
+    # Collect git info (best-effort — don't fail the run if git isn't available)
+    git_sha = "unknown"
+    git_branch = "unknown"
+    try:
+        git_sha = subprocess.check_output(
+            ["git", "-C", project_root, "rev-parse", "--short", "HEAD"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+        git_branch = subprocess.check_output(
+            ["git", "-C", project_root, "rev-parse", "--abbrev-ref", "HEAD"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+    except Exception as e:
+        print(f"[daily-runner] WARNING: could not read git info for start email: {e}", file=sys.stderr)
+
+    started_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    api_url = os.environ.get(
+        "INTERNAL_API_URL",
+        "http://localhost:8000",
+    ).rstrip("/") + "/internal/dispatch-test-start-email"
+
+    payload = {
+        "recipient_email": admin_email,
+        "trigger_type": "Scheduled (daily)",
+        "git_sha": git_sha,
+        "git_branch": git_branch,
+        "started_at": started_at,
+    }
+
+    try:
+        body = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            api_url,
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "X-Internal-Service-Token": internal_token,
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            resp.read()  # consume response body
+            print(
+                f"[daily-runner] Test run start email dispatched "
+                f"(recipient={admin_email}, git={git_sha}@{git_branch})"
+            )
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
+        # Non-fatal: a missing start email must not abort the test run
+        print(
+            f"[daily-runner] WARNING: could not dispatch start email: "
+            f"HTTP {e.code} — {err_body[:300]}",
+            file=sys.stderr,
+        )
+    except Exception as e:
+        print(f"[daily-runner] WARNING: could not dispatch start email: {e}", file=sys.stderr)
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print(f"Usage: {sys.argv[0]} <split-results|dispatch-email>", file=sys.stderr)
+        print(f"Usage: {sys.argv[0]} <split-results|dispatch-start-email|dispatch-email>", file=sys.stderr)
         sys.exit(1)
 
     command = sys.argv[1]
     if command == "split-results":
         split_results()
+    elif command == "dispatch-start-email":
+        dispatch_start_email()
     elif command == "dispatch-email":
         dispatch_email()
     else:
