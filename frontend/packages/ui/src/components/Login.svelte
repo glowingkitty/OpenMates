@@ -2468,7 +2468,9 @@
                                                         try {
                                                             const { lookupHash, userEmailSalt } = e.detail;
                                                             // userEmailSalt is the hashed_email identifier for /auth/login
-                                                            const result = await login(userEmailSalt, lookupHash, undefined, undefined, stayLoggedIn);
+                                                            // "pair" login_method signals to the backend to bypass 2FA —
+                                                            // the pair flow itself is strong mutual auth (ZK-encrypted bundle + PIN).
+                                                            const result = await login(userEmailSalt, lookupHash, undefined, undefined, stayLoggedIn, 'pair');
                                                             if (result.success && !result.tfa_required) {
                                                                 // Pair session state + master key already set in SettingsSessionsPairInitiate
                                                                 currentLoginStep = 'email';
@@ -2478,7 +2480,7 @@
                                                                     inSignupFlow: result.inSignupFlow ?? false,
                                                                 });
                                                             } else {
-                                                                console.error('[PairLogin] Login API call failed after pairing:', result.message);
+                                                                console.error('[PairLogin] Login API call failed after pairing. success:', result.success, 'tfa_required:', result.tfa_required, 'message:', result.message);
                                                                 // Reset to pair-initiate to let user try again
                                                                 isLoading = false;
                                                             }

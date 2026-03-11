@@ -124,17 +124,21 @@ export async function login(
   lookup_hash: string,
   tfaCode?: string,
   codeType?: "otp" | "backup",
-  stayLoggedIn: boolean = false, // New parameter
+  stayLoggedIn: boolean = false,
+  loginMethod?: string, // e.g. "pair" — signals to backend to bypass 2FA for strong auth methods
 ): Promise<LoginResult> {
   try {
     console.debug(
-      `Attempting login... (TFA Code Provided: ${!!tfaCode}, Type: ${codeType || "otp"}, Stay Logged In: ${stayLoggedIn})`,
+      `Attempting login... (TFA Code Provided: ${!!tfaCode}, Type: ${codeType || "otp"}, Stay Logged In: ${stayLoggedIn}, Method: ${loginMethod || "password"})`,
     );
 
     const requestBody: Record<string, string> = { hashed_email, lookup_hash };
     if (tfaCode) {
       requestBody.tfa_code = tfaCode;
       requestBody.code_type = codeType || "otp";
+    }
+    if (loginMethod) {
+      requestBody.login_method = loginMethod;
     }
     // No need to send stayLoggedIn to backend, it's a frontend storage preference
 

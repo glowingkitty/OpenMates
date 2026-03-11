@@ -235,15 +235,20 @@ async def login(
         user_profile["consent_privacy_and_apps_default_settings"] = bool(user_profile.get("consent_privacy_and_apps_default_settings"))
         user_profile["consent_mates_default_settings"] = bool(user_profile.get("consent_mates_default_settings"))
 
-        # --- Scenario 1: 2FA Not Enabled OR Recovery Key Login OR Passkey Login ---
-        # Recovery keys and Passkeys bypass 2FA as they are standalone/strong authentication methods
+        # --- Scenario 1: 2FA Not Enabled OR Recovery Key / Passkey / Pair Login ---
+        # Recovery keys, passkeys, and pair logins bypass 2FA — all are standalone strong
+        # authentication methods. Pair login: both devices explicitly approved the session
+        # and the credentials bundle was ZK-encrypted; 2FA on top is redundant and breaks the flow.
         is_passkey_login = login_data.login_method == "passkey"
+        is_pair_login = login_data.login_method == "pair"
         
-        if not tfa_enabled or is_recovery_key_login or is_passkey_login:
+        if not tfa_enabled or is_recovery_key_login or is_passkey_login or is_pair_login:
             if is_recovery_key_login:
                 logger.info("Recovery key login detected - bypassing 2FA and proceeding with login finalization.")
             elif is_passkey_login:
                 logger.info("Passkey login detected - bypassing 2FA and proceeding with login finalization.")
+            elif is_pair_login:
+                logger.info("Pair login detected - bypassing 2FA and proceeding with login finalization.")
             else:
                 logger.info("2FA not enabled, proceeding with standard login finalization.")
             # Finalize login (set cookies, cache user, etc.)
