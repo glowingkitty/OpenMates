@@ -18,7 +18,7 @@ export {};
  *   When the Polar Checkout iframe appears, clicks "Pay with an EU card instead" to
  *   switch the backend to Stripe. When running from EU geo, Stripe loads directly.
  * - Verifies the Stripe Payment Element iframe loads.
- * - Fills in the Stripe success test card (4242 4242 4242 4242 — no 3DS required).
+ * - Fills in the Stripe EU test card (4000 0024 6000 0001 Finland — passes Radar EU rule).
  * - Submits the Stripe payment form.
  * - Verifies "purchase successful" message on the main page.
  *

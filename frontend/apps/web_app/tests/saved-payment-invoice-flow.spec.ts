@@ -9,7 +9,7 @@ export {};
  * 1. Logs in with a pre-existing test account.
  * 2. Opens Settings → Billing → Buy Credits.
  * 3. Selects the first pricing tier.
- * 4. Pays using a saved Stripe payment method (test card 4242).
+ * 4. Pays using a saved Stripe payment method (Finland/EU test card).
  * 5. Verifies "purchase successful" confirmation screen.
  * 6. Navigates to Settings → Billing → Invoices.
  * 7. Verifies the newly created invoice appears in the list.
@@ -30,7 +30,7 @@ export {};
  *   real invoice PDF is ready.
  *
  * STRIPE TEST CARD (saved on the test account):
- * - Card: 4242 4242 4242 4242 (always succeeds, no 3DS)
+ * - Card: 4000 0024 6000 0001 (Finland/EU — required by Radar "block non-EU" rule)
  *
  * REQUIRED ENV VARS:
  * - OPENMATES_TEST_ACCOUNT_EMAIL
@@ -54,9 +54,10 @@ const {
 	fillStripeCardDetails
 } = require('./signup-flow-helpers');
 
-// Stripe test card that always succeeds in sandbox (no 3DS required).
-// This card is used both for seeding a saved payment method and for verifying the saved-method flow.
-const STRIPE_TEST_CARD = '4242424242424242';
+// Stripe test card: Finland (FI) EU card — required because Radar blocks non-EU cards.
+// Used both for seeding a saved payment method and for the saved-method flow.
+// See: https://docs.stripe.com/testing#international-cards
+const STRIPE_TEST_CARD = '4000002460000001';
 
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
@@ -316,7 +317,9 @@ test('purchases credits with saved payment method, then verifies invoice is down
 			expect(countAgain).toBeGreaterThanOrEqual(3);
 		}).toPass({ timeout: 15000 });
 
-		const firstTierAgain = page.locator('.settings-menu.visible .menu-item[role="menuitem"]').first();
+		const firstTierAgain = page
+			.locator('.settings-menu.visible .menu-item[role="menuitem"]')
+			.first();
 		await expect(firstTierAgain).toBeVisible({ timeout: 5000 });
 		await firstTierAgain.click();
 		log('Selected first pricing tier (second attempt).');
@@ -364,7 +367,9 @@ test('purchases credits with saved payment method, then verifies invoice is down
 		log('PaymentAuth modal appeared — entering OTP.');
 		await screenshot(page, 'auth-modal');
 
-		const authOtpInput = authModal.locator('input[autocomplete="one-time-code"], input[type="text"]').first();
+		const authOtpInput = authModal
+			.locator('input[autocomplete="one-time-code"], input[type="text"]')
+			.first();
 		await expect(authOtpInput).toBeVisible({ timeout: 5000 });
 
 		// Try OTP up to 3 times (TOTP window boundary tolerance)
@@ -447,7 +452,9 @@ test('purchases credits with saved payment method, then verifies invoice is down
 	// If the invoice is still "generating", a disabled button with a spinner is shown.
 	// We wait for the enabled download button to appear.
 
-	const downloadBtn = invoiceItem.locator('button.download-button:not([disabled]):not(.processing)');
+	const downloadBtn = invoiceItem.locator(
+		'button.download-button:not([disabled]):not(.processing)'
+	);
 
 	await expect(downloadBtn).toBeVisible({ timeout: 60000 });
 	log('Download button is enabled (invoice PDF is ready).');
@@ -457,10 +464,13 @@ test('purchases credits with saved payment method, then verifies invoice is down
 	const downloadPromise = page.waitForEvent('download', { timeout: 30000 }).catch(() => null);
 
 	// Also intercept the API response to verify the download succeeds
-	const responsePromise = page.waitForResponse(
-		(response: any) => response.url().includes('/invoice') && response.url().includes('/download'),
-		{ timeout: 30000 }
-	).catch(() => null);
+	const responsePromise = page
+		.waitForResponse(
+			(response: any) =>
+				response.url().includes('/invoice') && response.url().includes('/download'),
+			{ timeout: 30000 }
+		)
+		.catch(() => null);
 
 	await downloadBtn.click();
 	log('Clicked download button.');
