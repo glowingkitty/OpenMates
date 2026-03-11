@@ -115,8 +115,31 @@
     let viewportWidth = $state(0);
     let viewportHeight = $state(0);
     // Embed sharing context detection
-    // Check if we're sharing an embed instead of a chat
-    let embedContext = $state<EmbedContext | null>(null);
+    // Check if we're sharing an embed instead of a chat.
+    //
+    // IMPORTANT: Consume window.__embedShareContext SYNCHRONOUSLY at script
+    // initialization time, before any $effect or onMount timer can fire.
+    // This ensures isEmbedSharing is true from the very first render, which
+    // prevents the chat-share $effect (line ~244) from reading activeChatStore
+    // and kicking off chat link generation before we know this is an embed share.
+    //
+    // Without this, there is a timing race: the chat-share $effect fires
+    // immediately on mount (deepLink === 'shared/share' + !isEmbedSharing),
+    // schedules checkAndGenerateLink() at 150ms, and beats the onMount 100ms
+    // timer that was supposed to detect the embed context first.
+    let embedContext = $state<EmbedContext | null>(
+        (() => {
+            if (typeof window !== 'undefined') {
+                const ctx = (window as EmbedWindow).__embedShareContext;
+                if (ctx) {
+                    // Consume immediately to prevent double-read
+                    (window as EmbedWindow).__embedShareContext = null;
+                    return ctx;
+                }
+            }
+            return null;
+        })()
+    );
     let isEmbedSharing = $derived(embedContext !== null);
     
     /**
