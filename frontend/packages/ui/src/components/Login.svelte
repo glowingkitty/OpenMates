@@ -2457,13 +2457,6 @@
                                         {:else if currentLoginStep === 'pair-initiate'}
                                             <!-- Magic pair login — new device generates a token and waits for authorization -->
                                             <div class="pair-initiate-wrapper">
-                                                <button
-                                                    class="back-button"
-                                                    type="button"
-                                                    onclick={() => { currentLoginStep = 'email'; }}
-                                                >
-                                                    ← {$text('login.back')}
-                                                </button>
                                                 <SettingsSessionsPairInitiate
                                                     on:login={async (e) => {
                                                         // The authorizing device has approved the pairing and the bundle has been
@@ -2558,24 +2551,11 @@
         margin: 24px 0;
     }
 
-    /* Pair initiate wrapper — provides a back button above the component */
+    /* Pair initiate wrapper */
     .pair-initiate-wrapper {
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
-    }
-    .pair-initiate-wrapper .back-button {
-        align-self: flex-start;
-        background: none;
-        border: none;
-        cursor: pointer;
-        color: var(--color-font-secondary);
-        font-size: var(--processing-details-font-size);
-        padding: 0;
-        margin-bottom: 0.25rem;
-    }
-    .pair-initiate-wrapper .back-button:hover {
-        color: var(--color-font-primary);
     }
     
     /* Passkey loading screen */

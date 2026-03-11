@@ -43,6 +43,13 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
         city: string | null;
     }
 
+    interface PairCredentialsApiResponse {
+        lookup_hash: string;
+        user_email_salt: string;
+        encrypted_key: string;
+        salt: string;
+    }
+
     type PageStatus = 'loading' | 'confirm' | 'authorizing' | 'pin_display' | 'denied' | 'error' | 'invalid';
 
     // ========================================================================
@@ -54,6 +61,7 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
     let errorMessage = $state('');
     let generatedPin = $state<string | null>(null);
     let autoLogoutMinutes = $state<number | null>(null);
+    const PAIR_PIN_ALPHABET = 'ABCDEFGHJKLMNPQRTUVWXY3468';
 
     // ========================================================================
     // LIFECYCLE
@@ -182,11 +190,13 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
     // CRYPTO HELPERS
     // ========================================================================
 
-    /** Generate a cryptographically random 6-digit PIN (000000–999999) */
+    /** Generate a cryptographically random 6-character alphanumeric PIN. */
     function generatePin(): string {
-        const arr = new Uint32Array(1);
-        crypto.getRandomValues(arr);
-        return String(arr[0] % 1_000_000).padStart(6, '0');
+        const values = new Uint8Array(6);
+        crypto.getRandomValues(values);
+        return Array.from(values)
+            .map((value) => PAIR_PIN_ALPHABET[value % PAIR_PIN_ALPHABET.length])
+            .join('');
     }
 
     /**
@@ -226,8 +236,9 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
      *   encrypted_key — server-side encrypted master key (from login response)
      *   salt          — key derivation salt
      *
-     * These are read from sessionStorage where they were stored during login.
-     * They are never sent to the server in plaintext — only as AES ciphertext.
+     * Primary source: sessionStorage values stored during login.
+     * Fallback: authenticated GET /v1/auth/pair/credentials when sessionStorage is missing.
+     * Credentials are never sent to the server in plaintext — only as AES ciphertext.
      */
     async function buildBundle(): Promise<{
         lookup_hash: string;
@@ -235,17 +246,33 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
         encrypted_key: string;
         salt: string;
     }> {
-        // Read credentials persisted during login from sessionStorage.
-        // Keys defined in cryptoService.ts and authLoginLogoutActions.ts.
-        const lookup_hash = sessionStorage.getItem('openmates_pair_lookup_hash');
-        const user_email_salt = sessionStorage.getItem('openmates_email_salt')
+        let lookup_hash = sessionStorage.getItem('openmates_pair_lookup_hash');
+        let user_email_salt = sessionStorage.getItem('openmates_email_salt')
             || localStorage.getItem('openmates_email_salt');
-        const encrypted_key = sessionStorage.getItem('openmates_pair_encrypted_key');
-        const salt = sessionStorage.getItem('openmates_pair_salt');
+        let encrypted_key = sessionStorage.getItem('openmates_pair_encrypted_key');
+        let salt = sessionStorage.getItem('openmates_pair_salt');
 
         if (!lookup_hash || !user_email_salt || !encrypted_key || !salt) {
-            // Credentials not found — user may need to log out and back in for pair login to work.
-            // This will happen until we wire up the credential storage in the login flow.
+            const response = await fetch(getApiEndpoint('/v1/auth/pair/credentials'), {
+                method: 'GET',
+                credentials: 'include',
+            });
+
+            if (response.ok) {
+                const data: PairCredentialsApiResponse = await response.json();
+                lookup_hash = lookup_hash || data.lookup_hash || null;
+                user_email_salt = user_email_salt || data.user_email_salt || null;
+                encrypted_key = encrypted_key || data.encrypted_key || null;
+                salt = salt || data.salt || null;
+
+                if (lookup_hash) sessionStorage.setItem('openmates_pair_lookup_hash', lookup_hash);
+                if (encrypted_key) sessionStorage.setItem('openmates_pair_encrypted_key', encrypted_key);
+                if (salt) sessionStorage.setItem('openmates_pair_salt', salt);
+                if (user_email_salt) sessionStorage.setItem('openmates_email_salt', user_email_salt);
+            }
+        }
+
+        if (!lookup_hash || !user_email_salt || !encrypted_key || !salt) {
             throw new Error(
                 'Pair login credentials not available. Please log out and log back in, then try again.'
             );

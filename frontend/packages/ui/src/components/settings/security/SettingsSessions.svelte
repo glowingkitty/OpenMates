@@ -10,6 +10,7 @@ Architecture: docs/architecture/device-sessions.md
     import { text } from '@repo/ui';
     import { getApiEndpoint } from '../../../config/api';
     import { decryptWithMasterKey } from '../../../services/cryptoService';
+    import { pendingPairToken } from '../../../stores/pairSessionStore';
 
     const dispatch = createEventDispatcher();
 
@@ -47,6 +48,8 @@ Architecture: docs/architecture/device-sessions.md
     let error = $state('');
     let processingSessionId = $state<string | null>(null);
     let processingAll = $state(false);
+    let addDeviceInput = $state('');
+    let addDeviceError = $state('');
 
     // ========================================================================
     // LIFECYCLE
@@ -281,9 +284,34 @@ Architecture: docs/architecture/device-sessions.md
     // NAVIGATION
     // ========================================================================
 
-    function navigateToPairInitiate() {
+    function extractPairToken(rawInput: string): string | null {
+        const trimmed = rawInput.trim();
+        if (!trimmed) return null;
+
+        const hashMatch = trimmed.match(/#pair=([A-Za-z0-9]{6})/i);
+        if (hashMatch) {
+            return hashMatch[1].toUpperCase();
+        }
+
+        const compact = trimmed.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+        if (compact.length === 6) {
+            return compact;
+        }
+
+        return null;
+    }
+
+    function connectDevice() {
+        addDeviceError = '';
+        const token = extractPairToken(addDeviceInput);
+        if (!token) {
+            addDeviceError = 'Please enter a valid pair URL or 6-character code.';
+            return;
+        }
+
+        pendingPairToken.set(token);
         dispatch('openSettings', {
-            settingsPath: 'account/security/sessions/pair-initiate',
+            settingsPath: 'account/security/sessions/confirm-pair',
             direction: 'forward',
             icon: 'devices',
             title: $text('settings.sessions.pair_login_from_device_title'),
@@ -300,6 +328,31 @@ Architecture: docs/architecture/device-sessions.md
 <div class="sessions-container">
     <h2 class="page-title">{$text('settings.sessions.title')}</h2>
     <p class="page-description">{$text('settings.sessions.description')}</p>
+
+    <div class="add-device-section">
+        <h3 class="add-device-title">Add device</h3>
+        <p class="add-device-description">Enter the pair URL or 6-character code from the new device.</p>
+        <div class="add-device-row">
+            <input
+                type="text"
+                class="add-device-input"
+                placeholder="https://.../#pair=ABC123 or ABC123"
+                value={addDeviceInput}
+                oninput={(event) => {
+                    addDeviceInput = (event.currentTarget as HTMLInputElement).value;
+                    addDeviceError = '';
+                }}
+                onkeydown={(event) => {
+                    if (event.key === 'Enter') connectDevice();
+                }}
+                autocomplete="off"
+            />
+            <button class="btn btn-connect" onclick={connectDevice}>Connect</button>
+        </div>
+        {#if addDeviceError}
+            <p class="add-device-error">{addDeviceError}</p>
+        {/if}
+    </div>
 
     {#if error}
         <div class="error-message">{error}</div>
@@ -410,16 +463,6 @@ Architecture: docs/architecture/device-sessions.md
         </div>
     {/if}
 
-    <!-- Sign in via trusted device — cross-device login (phone ↔ laptop) -->
-    <div class="pair-section">
-        <div class="pair-section-text">
-            <h3 class="pair-section-title">{$text('settings.sessions.pair_login_from_device_title')}</h3>
-            <p class="pair-section-description">{$text('settings.sessions.pair_login_from_device_description')}</p>
-        </div>
-        <button class="btn btn-pair" onclick={navigateToPairInitiate}>
-            {$text('settings.sessions.pair_login_from_device_button')}
-        </button>
-    </div>
 </div>
 
 <style>
@@ -451,6 +494,67 @@ Architecture: docs/architecture/device-sessions.md
         font-size: 13px;
         border: 1px solid rgba(223, 27, 65, 0.3);
         margin-bottom: 16px;
+    }
+
+    .add-device-section {
+        margin-bottom: 20px;
+        padding: 14px;
+        border: 1px solid var(--color-grey-20);
+        border-radius: 12px;
+        background: var(--color-grey-10);
+    }
+
+    .add-device-title {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--color-grey-100);
+    }
+
+    .add-device-description {
+        margin: 6px 0 12px;
+        font-size: 13px;
+        color: var(--color-grey-60);
+    }
+
+    .add-device-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .add-device-input {
+        flex: 1;
+        min-width: 0;
+        border: 1px solid var(--color-grey-30);
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-size: 13px;
+        color: var(--color-grey-100);
+        background: var(--color-grey-0);
+    }
+
+    .add-device-input:focus {
+        outline: none;
+        border-color: var(--color-primary-start);
+    }
+
+    .btn-connect {
+        white-space: nowrap;
+        background: var(--color-grey-15, var(--color-grey-10));
+        color: var(--color-font-primary);
+        border: 1px solid var(--color-grey-25);
+        padding: 10px 16px;
+    }
+
+    .btn-connect:hover:not(:disabled) {
+        background: var(--color-grey-20);
+    }
+
+    .add-device-error {
+        margin: 8px 0 0;
+        font-size: 12px;
+        color: var(--color-error);
     }
 
     .loading, .empty-state {
@@ -614,49 +718,14 @@ Architecture: docs/architecture/device-sessions.md
         text-align: center;
     }
 
-    .pair-section {
-        margin-top: 32px;
-        padding-top: 20px;
-        border-top: 1px solid var(--color-grey-20);
-        display: flex;
-        align-items: flex-start;
-        gap: 16px;
-        flex-wrap: wrap;
-    }
-
-    .pair-section-text {
-        flex: 1;
-        min-width: 200px;
-    }
-
-    .pair-section-title {
-        font-size: 16px;
-        font-weight: 600;
-        margin: 0 0 4px 0;
-        color: var(--color-grey-100);
-    }
-
-    .pair-section-description {
-        font-size: 13px;
-        color: var(--color-grey-60);
-        margin: 0;
-    }
-
-    .btn-pair {
-        background: var(--color-grey-15, var(--color-grey-10));
-        color: var(--color-font-primary);
-        border: 1px solid var(--color-grey-25);
-        padding: 10px 18px;
-        white-space: nowrap;
-    }
-
-    .btn-pair:hover:not(:disabled) {
-        background: var(--color-grey-20);
-    }
-
     @media (max-width: 768px) {
         .sessions-container {
             padding: 16px;
+        }
+
+        .add-device-row {
+            flex-direction: column;
+            align-items: stretch;
         }
 
         .session-header {

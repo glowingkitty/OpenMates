@@ -51,11 +51,6 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
     // COMPUTED
     // ========================================================================
 
-    /** Format 6-char token as "A3F-X9K" for display */
-    let displayCode = $derived(
-        pairToken ? `${pairToken.slice(0, 3)}-${pairToken.slice(3)}` : ''
-    );
-
     // ========================================================================
     // LIFECYCLE
     // ========================================================================
@@ -166,6 +161,9 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
             if (data.status === 'ready') {
                 pairStatus = 'ready';
                 stopPolling();
+                if (pinValue.length === 6 && pinStatus !== 'submitting' && pinStatus !== 'locked') {
+                    await submitPin();
+                }
             } else if (data.status === 'expired') {
                 pairStatus = 'expired';
                 stopPolling();
@@ -181,7 +179,7 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
     // ========================================================================
 
     async function submitPin() {
-        if (!pairToken || pinValue.length !== 6 || !/^\d{6}$/.test(pinValue)) return;
+        if (!pairToken || pinValue.length !== 6 || !/^[A-Z0-9]{6}$/.test(pinValue)) return;
 
         pinStatus = 'submitting';
         pinErrorMessage = '';
@@ -342,16 +340,18 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
 
     function handlePinInput(e: Event) {
         const target = e.target as HTMLInputElement;
-        // Allow only digits, max 6
-        pinValue = target.value.replace(/\D/g, '').slice(0, 6);
+        // Allow only A-Z and 0-9, max 6
+        pinValue = target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
         target.value = pinValue;
+        pinErrorMessage = '';
+
+        if (pairStatus === 'ready' && pinValue.length === 6 && pinStatus !== 'submitting' && pinStatus !== 'locked') {
+            void submitPin();
+        }
     }
 </script>
 
 <div class="pair-initiate-container">
-    <h2 class="page-title">{$text('settings.sessions.pair_initiate_title')}</h2>
-    <p class="page-description">{$text('settings.sessions.pair_initiate_description')}</p>
-
     {#if pairStatus === 'generating'}
         <div class="status-generating">
             <p class="status-text">{$text('settings.sessions.pair_generating')}</p>
@@ -373,7 +373,9 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
             {$text('settings.sessions.pair_refresh')}
         </button>
 
-    {:else if pairStatus === 'waiting'}
+    {:else if pairStatus === 'waiting' || pairStatus === 'ready'}
+        <p class="scan-label">📷 Scan code:</p>
+
         <!-- QR Code -->
         {#if qrSvg}
             <div class="qr-wrapper">
@@ -384,10 +386,32 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
             </div>
         {/if}
 
-        <!-- Pair code -->
-        <div class="code-section">
-            <p class="code-label">{$text('settings.sessions.pair_code_label')}</p>
-            <div class="pair-code">{displayCode}</div>
+        <!-- PIN entry (same screen, directly under QR) -->
+        <div class="pin-section">
+            <h3 class="pin-title">{$text('settings.sessions.pair_enter_pin_title')}</h3>
+            <p class="pin-description">{$text('settings.sessions.pair_enter_pin_description')}</p>
+
+            {#if pinErrorMessage}
+                <div class="error-box">{pinErrorMessage}</div>
+            {/if}
+
+            {#if pinStatus !== 'locked'}
+                <input
+                    type="text"
+                    inputmode="text"
+                    maxlength="6"
+                    class="pin-input"
+                    placeholder={$text('settings.sessions.pair_pin_placeholder')}
+                    value={pinValue}
+                    oninput={handlePinInput}
+                    disabled={pinStatus === 'submitting'}
+                    autocomplete="off"
+                    autocapitalize="characters"
+                />
+                {#if pinStatus === 'submitting'}
+                    <p class="status-text">{$text('settings.sessions.pair_logging_in')}</p>
+                {/if}
+            {/if}
         </div>
 
         <!-- URL + copy -->
@@ -401,42 +425,6 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
                         : $text('settings.sessions.pair_copy_link')}
                 </button>
             </div>
-        </div>
-
-        <p class="waiting-text">{$text('settings.sessions.pair_waiting')}</p>
-
-    {:else if pairStatus === 'ready'}
-        <!-- PIN entry -->
-        <div class="pin-section">
-            <h3 class="pin-title">{$text('settings.sessions.pair_enter_pin_title')}</h3>
-            <p class="pin-description">{$text('settings.sessions.pair_enter_pin_description')}</p>
-
-            {#if pinErrorMessage}
-                <div class="error-box">{pinErrorMessage}</div>
-            {/if}
-
-            {#if pinStatus !== 'locked'}
-                <input
-                    type="text"
-                    inputmode="numeric"
-                    maxlength="6"
-                    class="pin-input"
-                    placeholder={$text('settings.sessions.pair_pin_placeholder')}
-                    value={pinValue}
-                    oninput={handlePinInput}
-                    disabled={pinStatus === 'submitting'}
-                    autocomplete="off"
-                />
-                <button
-                    class="btn btn-primary"
-                    onclick={submitPin}
-                    disabled={pinValue.length !== 6 || pinStatus === 'submitting'}
-                >
-                    {pinStatus === 'submitting'
-                        ? $text('settings.sessions.pair_logging_in')
-                        : $text('settings.sessions.pair_login')}
-                </button>
-            {/if}
         </div>
     {/if}
 </div>
@@ -452,24 +440,19 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
         gap: 1rem;
     }
 
-    .page-title {
-        font-size: var(--font-size-h3);
-        font-weight: 600;
-        margin: 0;
-        color: var(--color-font-primary);
-    }
-
-    .page-description {
-        font-size: var(--font-size-p);
-        color: var(--color-font-secondary);
-        margin: 0;
-    }
-
     .status-generating,
-    .waiting-text {
+    .status-text {
         text-align: center;
         color: var(--color-font-secondary);
         font-size: var(--processing-details-font-size);
+    }
+
+    .scan-label {
+        margin: 0;
+        text-align: center;
+        color: var(--color-font-primary);
+        font-size: var(--font-size-p);
+        font-weight: 600;
     }
 
     .qr-wrapper {
@@ -482,25 +465,6 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
         overflow: hidden;
         border: 1px solid var(--color-grey-25);
         line-height: 0; /* collapse whitespace around inline SVG */
-    }
-
-    .code-section {
-        text-align: center;
-    }
-
-    .code-label {
-        font-size: var(--processing-details-font-size);
-        color: var(--color-font-secondary);
-        margin: 0 0 0.4rem;
-    }
-
-    .pair-code {
-        font-size: 2rem;
-        font-weight: 700;
-        letter-spacing: 0.18em;
-        color: var(--color-font-primary);
-        font-variant-numeric: tabular-nums;
-        font-family: monospace;
     }
 
     .url-section {
