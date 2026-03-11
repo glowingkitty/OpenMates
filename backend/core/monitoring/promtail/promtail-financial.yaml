@@ -1,0 +1,51 @@
+# Financial compliance log ingestion config for Promtail.
+#
+# Separate from promtail-compliance.yaml because each Promtail config file
+# can only have one `clients` block, and each compliance stream needs its own
+# stream-specific OO push URL to land in a named OO stream (not "default").
+#
+# Financial compliance logs → OO stream "financial-compliance"
+# 10-year retention (AO §147 / HGB §257)
+#
+# Loaded alongside promtail-config.yaml via --config.file.glob.
+# References: docs/architecture/compliance-logging.md
+
+server:
+  http_listen_port: 0
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions-financial.yaml
+
+clients:
+  - url: http://openobserve:5080/api/default/financial-compliance/loki/api/v1/push
+    basic_auth:
+      username: "${OPENOBSERVE_ROOT_EMAIL}"
+      password: "${OPENOBSERVE_ROOT_PASSWORD}"
+
+scrape_configs:
+  # Financial compliance logs (10-year retention — AO §147 / HGB §257)
+  # Events: financial transactions, refund requests
+  - job_name: financial-compliance-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: financial-compliance-logs
+          __path__: /var/log/api/financial-compliance.log
+    pipeline_stages:
+      # Drop empty lines — OO returns HTTP 400 "empty log line" otherwise
+      - drop:
+          expression: '^\s*$'
+      - json:
+          expressions:
+            timestamp: timestamp
+            event_type: event_type
+            user_id: user_id
+            status: status
+            transaction_type: transaction_type
+      - labels:
+          event_type:
+          user_id:
+          status:
+          transaction_type:

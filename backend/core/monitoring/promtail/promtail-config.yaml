@@ -50,18 +50,24 @@ scrape_configs:
           selector: '{server_env="production", level=~"(?i)debug"}'
           action: drop
 
-  # Audit compliance logs (2-year retention in OpenObserve — GDPR / BSI §34 BDSG)
+  # Audit compliance logs (2-year retention — GDPR / BSI §34 BDSG)
   # Events: auth, user creation, consents, account/chat deletions, data access
-  # OpenObserve stream-level retention override: set to 730 days via startup API call in main.py
+  # NOTE: Promtail's Loki-compat push API routes all logs to the "default" OO stream.
+  #   Named OO streams (audit_compliance, financial_compliance) are populated instead by
+  #   compliance_log_backup_task in main.py, which pushes new compliance log lines to
+  #   OO via the native _json ingest API: POST /api/default/<stream_name>/_json
+  #   This file job still runs to keep a copy in the "default" stream as a fallback.
   - job_name: audit-compliance-logs
     static_configs:
       - targets:
           - localhost
         labels:
           job: audit-compliance-logs
-          stream: audit-compliance
           __path__: /var/log/api/audit-compliance.log
     pipeline_stages:
+      # Drop empty lines — OO returns HTTP 400 "empty log line" otherwise
+      - drop:
+          expression: '^\s*$'
       - json:
           expressions:
             timestamp: timestamp
@@ -73,18 +79,20 @@ scrape_configs:
           user_id:
           status:
 
-  # Financial compliance logs (10-year retention in OpenObserve — AO §147 / HGB §257)
+  # Financial compliance logs (10-year retention — AO §147 / HGB §257)
   # Events: financial transactions, refund requests
-  # OpenObserve stream-level retention override: set to 3650 days via startup API call in main.py
+  # See note above re. audit-compliance — same OO native API push approach applies.
   - job_name: financial-compliance-logs
     static_configs:
       - targets:
           - localhost
         labels:
           job: financial-compliance-logs
-          stream: financial-compliance
           __path__: /var/log/api/financial-compliance.log
     pipeline_stages:
+      # Drop empty lines — OO returns HTTP 400 "empty log line" otherwise
+      - drop:
+          expression: '^\s*$'
       - json:
           expressions:
             timestamp: timestamp
