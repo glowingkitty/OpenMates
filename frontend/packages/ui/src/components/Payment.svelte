@@ -724,6 +724,7 @@
         returnUrl.searchParams.delete('redirect_status');
         returnUrl.searchParams.delete('redirect_pm_type');
 
+        console.log('[Payment] Calling stripe.confirmPayment()...');
         const { error, paymentIntent } = await stripe.confirmPayment({
             elements,
             confirmParams: {
@@ -736,8 +737,17 @@
             },
             redirect: 'if_required'
         });
+        console.log('[Payment] confirmPayment() returned:', {
+            hasError: !!error,
+            errorType: error?.type,
+            errorCode: error?.code,
+            errorMessage: error?.message,
+            paymentIntentStatus: paymentIntent?.status,
+            paymentIntentId: paymentIntent?.id
+        });
 
         if (error) {
+            console.error('[Payment] confirmPayment error:', error);
             if (error.type === 'card_error' || error.type === 'validation_error') {
                 validationErrors = error.message;
             } else {

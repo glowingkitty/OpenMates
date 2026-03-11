@@ -1388,7 +1388,36 @@ async def payment_webhook(
              (provider_name == "stripe" and event_type == "checkout.session.async_payment_failed") or \
              (provider_name == "polar" and event_type == "checkout.updated"
               and (event_payload.get("data") or {}).get("status") in ("failed", "expired")):
-            logger.warning(f"Payment for order {webhook_order_id} failed or was cancelled.")
+
+            # Extract detailed failure info for Stripe PaymentIntent failures.
+            # last_payment_error contains the decline code, error type, and message
+            # which are essential for diagnosing test failures vs. real declines.
+            if provider_name == "stripe" and event_type == "payment_intent.payment_failed":
+                pi_obj = event_payload.get("data", {}).get("object", {})
+                last_err = pi_obj.get("last_payment_error") or {}
+                err_code = last_err.get("code", "unknown")
+                err_decline_code = last_err.get("decline_code", "n/a")
+                err_type = last_err.get("type", "unknown")
+                err_message = last_err.get("message", "no message")
+                err_param = last_err.get("param", "")
+                pi_status = pi_obj.get("status", "unknown")
+                pi_amount = pi_obj.get("amount")
+                pi_currency = pi_obj.get("currency")
+                pi_customer = pi_obj.get("customer")
+                pi_setup_future_usage = pi_obj.get("setup_future_usage")
+                pm_details = last_err.get("payment_method", {}) or {}
+                pm_type = pm_details.get("type", "unknown")
+                pm_id = pm_details.get("id", "unknown")
+                logger.warning(
+                    f"Stripe payment_intent.payment_failed for order {webhook_order_id}: "
+                    f"pi_status={pi_status}, amount={pi_amount} {pi_currency}, "
+                    f"customer={pi_customer}, setup_future_usage={pi_setup_future_usage}, "
+                    f"err_type={err_type}, err_code={err_code}, decline_code={err_decline_code}, "
+                    f"err_param={err_param!r}, pm_type={pm_type}, pm_id={pm_id}, "
+                    f"message={err_message!r}"
+                )
+            else:
+                logger.warning(f"Payment for order {webhook_order_id} failed or was cancelled.")
             await cache_service.update_order_status(webhook_order_id, "failed")
             
             # Get user_id from cached order data to send notification
