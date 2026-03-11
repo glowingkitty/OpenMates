@@ -1663,88 +1663,26 @@ def cmd_deploy_docs(args: argparse.Namespace) -> None:
 
 
 def cmd_debug_vercel(args: argparse.Namespace) -> None:
-    """Start a session and print the Vercel build logs for the latest web app deployment."""
+    """Start a session and print Vercel build logs via the REST API (works for ERROR deployments)."""
     # Auto-start a session
     args.task = "debug Vercel deployment failure"
     args.tags = None
     cmd_start(args)
 
     print()
-    print("== VERCEL DEPLOYMENT LOGS ==")
-
-    web_app_dir = str(PROJECT_ROOT / "frontend" / "apps" / "web_app")
-
-    # 1. List deployments to find the latest URL
+    # Delegate to debug_vercel.py which uses the Vercel REST API.
+    # This works for both READY and ERROR deployments, unlike `vercel logs`.
+    debug_vercel_script = PROJECT_ROOT / "backend" / "scripts" / "debug_vercel.py"
     rc, stdout, stderr = _run_cmd(
-        ["vercel", "ls", "--cwd", web_app_dir],
-        cwd=web_app_dir,
+        [sys.executable, str(debug_vercel_script)],
+        cwd=str(PROJECT_ROOT),
     )
-    if rc != 0:
-        print(f"Error running 'vercel ls': {stderr}", file=sys.stderr)
-        sys.exit(1)
-
-    # Parse lines: first data line after header has the latest deployment URL.
-    # Line format: "  <age>  <url>  ● <Status>  <Environment>  <Duration>  <User>"
-    latest_url = None
-    latest_status = None
-    for line in stdout.splitlines():
-        parts = line.split()
-        for i, part in enumerate(parts):
-            if part.startswith("https://") and "vercel.app" in part:
-                latest_url = part
-                # Look for the ● bullet followed by the status word
-                for j in range(i + 1, len(parts)):
-                    if parts[j] == "●" and j + 1 < len(parts):
-                        latest_status = parts[j + 1]
-                        break
-                    if parts[j] in ("Error", "Ready", "Building", "Canceled", "Queued"):
-                        latest_status = parts[j]
-                        break
-                break
-        if latest_url:
-            break
-
-    if not latest_url:
-        print("Could not determine latest deployment URL from 'vercel ls'.")
+    if stdout:
         print(stdout)
-        sys.exit(1)
-
-    print(f"Latest deployment : {latest_url}")
-    print(f"Status            : {latest_status or 'unknown'}")
-    print()
-
-    # 2. Inspect the deployment for build details
-    rc, inspect_out, _ = _run_cmd(
-        ["vercel", "inspect", latest_url, "--cwd", web_app_dir],
-        cwd=web_app_dir,
-    )
-    if rc == 0 and inspect_out:
-        print(inspect_out)
-        print()
-
-    # 3. Try to fetch runtime/build logs (only works for READY deployments)
-    rc, log_out, log_err = _run_cmd(
-        ["vercel", "logs", latest_url, "--cwd", web_app_dir],
-        cwd=web_app_dir,
-    )
-    if rc == 0 and log_out:
-        print("-- Build / Runtime Logs --")
-        print(log_out)
-    else:
-        # For failed deployments, logs are not retrievable via CLI.
-        # Print the hint from stderr if any.
-        if log_err:
-            print(f"vercel logs: {log_err}")
-        print()
-        print("Tip: For ERROR deployments the build log is only available in")
-        print("     the Vercel dashboard. Check the 'Build Logs' tab at:")
-        print("     https://vercel.com/dashboard")
-        print()
-        print("     Common fix: run `cd frontend/packages/ui && pnpm prepare`")
-        print("     locally and look for ❌ validation errors in the output.")
-
-    print()
-    print("== END VERCEL LOGS ==")
+    if stderr:
+        print(stderr, file=sys.stderr)
+    if rc != 0:
+        sys.exit(rc)
 
 
 # ---------------------------------------------------------------------------

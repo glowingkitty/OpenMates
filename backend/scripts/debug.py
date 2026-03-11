@@ -27,6 +27,10 @@ Commands:
   demo            Demo chat state
   replay          Replay a request trace from OpenObserve
   errors          Top error fingerprints
+  vercel          Fetch Vercel build logs (works for ERROR deployments via REST API)
+    --all           Show full log (default: errors + warnings only)
+    --url <id>      Inspect a specific deployment URL or ID
+    --n <N>         Check last N deployments (default: 1)
   upload-logs     Logs from the upload server (satellite VM)
   preview-logs    Logs from the preview server (satellite VM)
   upload-update   Trigger git pull + rebuild on upload server
@@ -49,6 +53,9 @@ Examples:
   debug.py requests --errors-only       # recent AI errors
   debug.py issue --list                 # list open issues
   debug.py errors --top 20             # top error fingerprints
+  debug.py vercel                       # latest deployment errors/warnings
+  debug.py vercel --all                 # latest deployment full build log
+  debug.py vercel --n 3                 # last 3 deployments errors/warnings
 """
 
 import os
@@ -78,6 +85,7 @@ COMMANDS = {
     'newsletter':      'debug_newsletter',
     'daily':           'debug_daily_inspiration',
     'demo':            'debug_demo_chat',
+    'vercel':          'debug_vercel',
     'upload-logs':     'debug_logs',
     'preview-logs':    'debug_logs',
     'upload-update':   'debug_logs',
