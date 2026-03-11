@@ -156,6 +156,7 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
                     iv: ivB64,
                     pin,
                     authorizer_device_name: authorizerName,
+                    auto_logout_minutes: autoLogoutMinutes,
                 }),
             });
 

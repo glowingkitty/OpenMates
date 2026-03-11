@@ -36,7 +36,6 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
     let pairStatus = $state<PairStatus>('generating');
     let errorMessage = $state('');
     let copied = $state(false);
-    let autoLogoutMinutes = $state<number | null>(null);
 
     // PIN entry (shown once status = 'ready')
     let pinValue = $state('');
@@ -83,15 +82,10 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
         pinErrorMessage = '';
 
         try {
-            const body: Record<string, unknown> = {};
-            if (autoLogoutMinutes !== null) {
-                body.auto_logout_minutes = autoLogoutMinutes;
-            }
-
             const response = await fetch(getApiEndpoint('/v1/auth/pair/initiate'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
+                body: JSON.stringify({}),
                 // NOTE: intentionally NOT using credentials:include — this endpoint is unauthenticated
             });
 
@@ -358,27 +352,6 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
     <h2 class="page-title">{$text('settings.sessions.pair_initiate_title')}</h2>
     <p class="page-description">{$text('settings.sessions.pair_initiate_description')}</p>
 
-    <!-- Auto-logout selector — only relevant while still generating/waiting -->
-    {#if pairStatus === 'generating' || pairStatus === 'waiting'}
-        <div class="auto-logout-row">
-            <label class="auto-logout-label" for="pair-auto-logout">
-                {$text('settings.sessions.pair_auto_logout_label')}
-            </label>
-            <select
-                id="pair-auto-logout"
-                class="auto-logout-select"
-                bind:value={autoLogoutMinutes}
-            >
-                <option value={null}>{$text('settings.sessions.pair_auto_logout_none')}</option>
-                <option value={30}>{$text('settings.sessions.pair_auto_logout_30m')}</option>
-                <option value={60}>{$text('settings.sessions.pair_auto_logout_1h')}</option>
-                <option value={240}>{$text('settings.sessions.pair_auto_logout_4h')}</option>
-                <option value={480}>{$text('settings.sessions.pair_auto_logout_8h')}</option>
-                <option value={1440}>{$text('settings.sessions.pair_auto_logout_24h')}</option>
-            </select>
-        </div>
-    {/if}
-
     {#if pairStatus === 'generating'}
         <div class="status-generating">
             <p class="status-text">{$text('settings.sessions.pair_generating')}</p>
@@ -490,31 +463,6 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
         font-size: var(--font-size-p);
         color: var(--color-font-secondary);
         margin: 0;
-    }
-
-    .auto-logout-row {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        flex-wrap: wrap;
-    }
-
-    .auto-logout-label {
-        font-size: var(--processing-details-font-size);
-        color: var(--color-font-secondary);
-        white-space: nowrap;
-    }
-
-    .auto-logout-select {
-        flex: 1;
-        min-width: 160px;
-        padding: 0.4rem 0.6rem;
-        border-radius: 8px;
-        border: 1px solid var(--color-grey-30);
-        background: var(--color-grey-10);
-        color: var(--color-font-primary);
-        font-size: var(--processing-details-font-size);
-        cursor: pointer;
     }
 
     .status-generating,
