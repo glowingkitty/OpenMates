@@ -3,6 +3,7 @@
   import type { SvelteComponent } from 'svelte';
   import { flip } from 'svelte/animate';
   import ChatMessage from "./ChatMessage.svelte";
+  import FollowUpSuggestions from './FollowUpSuggestions.svelte';
   import { fade } from "svelte/transition";
   import type { MessageStatus, ProcessingPhase } from '../types/chat'; // Import global MessageStatus and ProcessingPhase
 
@@ -480,6 +481,8 @@
     isCreditsRestored = false,
     onResend = undefined,
     isIncognito = false,
+    followUpSuggestions = [],
+    onSuggestionClick = undefined,
   }: {
     messageInputHeight?: number;
     containerWidth?: number;
@@ -512,6 +515,12 @@
     /** True when the active chat is an incognito chat.
      *  Shows the incognito-specific ChatHeader variant immediately (no shimmer needed). */
     isIncognito?: boolean;
+    /** Follow-up suggestions to display below the last assistant message.
+     *  Passed from ActiveChat; shown without input-focus requirement so users
+     *  see them immediately without clicking the message input. */
+    followUpSuggestions?: string[];
+    /** Callback fired when the user clicks a follow-up suggestion. */
+    onSuggestionClick?: (suggestion: string, mentionSyntax?: string) => void;
   } = $props();
 
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
@@ -625,6 +634,18 @@
   // Detect if any message is currently streaming
   let isCurrentlyStreaming = $derived(
     messages.some(m => m.status === 'streaming')
+  );
+
+  /**
+   * Show follow-up suggestions below the last assistant message when:
+   * 1. There are suggestions to show
+   * 2. The last message is from the assistant
+   * 3. No message is currently streaming
+   */
+  let showFollowUpSuggestionsInHistory = $derived(
+    followUpSuggestions.length > 0 &&
+    lastAssistantMessageId !== null &&
+    !isCurrentlyStreaming
   );
   
   // NOTE: The centered AI status overlay has been removed. The spacer system directly uses
@@ -1619,8 +1640,17 @@
                 <div class="streaming-spacer" style="height: {spacerHeight}px;"></div>
             {/if}
             
-            <!-- Settings/memories suggestions shown after the last assistant message -->
-            <!-- These are generated during AI post-processing Phase 2 -->
+            <!-- Follow-up suggestions shown after the last assistant message.
+                 Visible without requiring the user to focus the message input first. -->
+            {#if showFollowUpSuggestionsInHistory && onSuggestionClick}
+                <div class="follow-up-suggestions-wrapper" in:fade={{ duration: 200 }}>
+                    <FollowUpSuggestions
+                        suggestions={followUpSuggestions}
+                        messageInputContent=""
+                        onSuggestionClick={onSuggestionClick}
+                    />
+                </div>
+            {/if}
         </div>
     {/if}
     
@@ -1782,7 +1812,24 @@
     margin-top: 10px;
   }
 
-  /* Settings/memories suggestions wrapper - shown after last assistant message */
+  /* Follow-up suggestions wrapper — shown inline in the chat history after the last
+     assistant message so users can see them without clicking the message input. */
+  .follow-up-suggestions-wrapper {
+    padding: 8px 0 16px;
+    /* Align with assistant message bubbles (left-aligned) */
+    display: flex;
+    justify-content: flex-start;
+  }
+
+  :global([dir="rtl"]) .follow-up-suggestions-wrapper {
+    justify-content: flex-end;
+  }
+
+  /* Hide the upward-fade gradient that was designed for use above the MessageInput.
+     Inside ChatHistory the gradient would bleed over preceding messages, so we suppress it. */
+  .follow-up-suggestions-wrapper :global(.suggestions-container::before) {
+    display: none;
+  }
 
   /* Bottom spacer that fills remaining viewport space during AI streaming.
      Creates visual space below user message that fills as the response streams in. */

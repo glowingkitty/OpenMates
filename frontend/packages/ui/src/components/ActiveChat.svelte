@@ -4,7 +4,7 @@
     import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
     import ChatHistory from './ChatHistory.svelte';
     import NewChatSuggestions from './NewChatSuggestions.svelte';
-    import FollowUpSuggestions from './FollowUpSuggestions.svelte';
+    // FollowUpSuggestions has been moved to ChatHistory.svelte (rendered below last assistant message)
     // AppSettingsMemoriesPermissionDialog is now rendered inside ChatHistory.svelte
     // so it scrolls with the messages instead of being fixed at the bottom
     import { isMobileView, loginInterfaceOpen } from '../stores/uiStateStore';
@@ -3277,9 +3277,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         messageInputFocused
     );
     
-    // Reactive variable to determine when to show follow-up suggestions
-    // Only show when user has explicitly focused the message input (clicked to type)
-    let showFollowUpSuggestions = $derived(!showWelcome && messageInputFocused && followUpSuggestions.length > 0);
+    // Reactive variable to determine when to show follow-up suggestions in ChatHistory.
+    // Show whenever there are suggestions and the welcome screen is not active.
+    // No longer requires messageInputFocused — suggestions are visible below the last
+    // assistant message without the user having to click the input first.
+    let showFollowUpSuggestions = $derived(!showWelcome && followUpSuggestions.length > 0);
 
     // Load and refresh the active focus ID whenever the current chat changes.
     // Uses chatMetadataCache to decrypt encrypted_active_focus_id from IndexedDB.
@@ -8874,6 +8876,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          {isCreditsRestored}
                          isIncognito={!!currentChat?.is_incognito}
                          onResend={handleResendAfterCreditsRestored}
+                         followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
+                         onSuggestionClick={handleSuggestionClick}
                          on:messagesChange={handleMessagesChange}
                          on:chatUpdated={handleChatUpdated}
                          on:scrollPositionUI={handleScrollPositionUI}
@@ -8963,14 +8967,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             <ForkProgressBanner />
                         {/if}
 
-                        <!-- Follow-up suggestions when input is focused -->
-                        {#if showFollowUpSuggestions}
-                            <FollowUpSuggestions
-                                suggestions={followUpSuggestions}
-                                messageInputContent={liveInputText}
-                                onSuggestionClick={handleSuggestionClick}
-                            />
-                        {/if}
+                        <!-- Follow-up suggestions have been moved to ChatHistory.svelte
+                             so they appear below the last assistant message without requiring
+                             the user to click the message input first. -->
 
                         <!-- App settings/memories permission dialog has been moved to ChatHistory.svelte -->
                         <!-- This allows it to scroll with messages instead of being fixed at the bottom -->
