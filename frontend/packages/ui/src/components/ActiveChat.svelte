@@ -707,6 +707,13 @@
                 console.debug('[ActiveChat] Skipping auth state effect - deep link processing in progress');
                 return;
             }
+
+            // OG image mode (?og=1): skip demo-for-everyone auto-load so the welcome screen
+            // (daily inspiration + for-everyone card) stays visible in /dev/og-image iframes.
+            if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('og') === '1') {
+                console.debug('[ActiveChat] Skipping auth state effect - og=1 mode (welcome screen should stay visible)');
+                return;
+            }
             
             if (currentChat && !isPublicChat(currentChat.chat_id)) {
                 // Check if this is a shared chat (has chat key in cache or is in sessionStorage shared_chats)
