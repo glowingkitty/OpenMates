@@ -52,9 +52,6 @@
         getInitialContent
     } from './utils';
 
-    // Components for decorative placeholder icons
-    import Icon from '../Icon.svelte';
-    
     // Unified parser imports
     import { parse_message } from '../../message_parsing/parse_message';
     import { tipTapToCanonicalMarkdown, parseEmbedClipboardData } from '../../message_parsing/serializers';
@@ -278,20 +275,17 @@
     // 3 app icons grouped on the left, 3 on the right, horizontally laid out.
     // Visible only while the placeholder text is shown (editor empty + not focused).
     // Uses recommended apps from userProfile when available, else apps from the store.
-    // Each icon uses the real <Icon> component (type="app") with decoFloat animation.
+    // Each icon is rendered as a raw mask-image span (no colored box, just the SVG symbol).
 
     /**
-     * Normalize an app's icon_image field to the name expected by <Icon name="...">
-     * Mirrors the same normalization used in AppStoreCard, AppDetailsHeader, etc.
+     * Get the raw CSS variable suffix for an app's icon_image field.
+     * Used to build `var(--icon-url-{name})` for the mask-image approach.
+     * Just strips the .svg extension — the CSS vars use the filename as-is
+     * (e.g. icon_image="coding.svg" → "--icon-url-coding").
      */
-    function _normalizeIconName(iconImage: string | undefined, appId: string): string {
-        if (!iconImage) return appId;
-        let n = iconImage.replace(/\.svg$/i, '').trim();
-        if (n === 'coding') n = 'code';
-        if (n === 'heart')  n = 'health';
-        if (n === 'email')  n = 'mail';
-        if (n === 'book')   n = 'books';
-        return n;
+    function _getRawIconUrlName(iconImage: string | undefined): string {
+        if (!iconImage) return 'app';
+        return iconImage.replace(/\.svg$/i, '').trim().toLowerCase();
     }
 
     /** Reactive: pick 6 app IDs (3 left, 3 right) for the placeholder icon groups. */
@@ -4211,7 +4205,7 @@
     >
         <!-- Decorative floating app icons: 3 side-by-side on the left, 3 on the right.
              Visible only while the placeholder text is shown (editor empty + not focused).
-             Each icon uses the real <Icon type="app"> with the decoFloat orbital animation.
+             Each icon is rendered as a raw mask-image span (no colored box, just the SVG symbol).
              pointer-events: none so they never intercept clicks or focus events. -->
         {#if placeholderIconIds.left.length > 0 || placeholderIconIds.right.length > 0}
             <div
@@ -4226,12 +4220,10 @@
                             class="placeholder-decor-icon"
                             style="--deco-rotate: 0deg; --deco-target-opacity: 1; --float-rx: 4px; --float-ry: 5px; animation-delay: {-i * 3}s;"
                         >
-                            <Icon
-                                name={_normalizeIconName(appSkillsStore.getState().apps[appId]?.icon_image, appId)}
-                                type="app"
-                                size="28px"
-                                noAnimation={true}
-                            />
+                            <span
+                                class="placeholder-app-icon-raw"
+                                style="--raw-icon-url: var(--icon-url-{_getRawIconUrlName(appSkillsStore.getState().apps[appId]?.icon_image)});"
+                            ></span>
                         </div>
                     {/each}
                 </div>
@@ -4242,12 +4234,10 @@
                             class="placeholder-decor-icon"
                             style="--deco-rotate: 0deg; --deco-target-opacity: 1; --float-rx: 4px; --float-ry: 5px; animation-delay: {-(i + 3) * 3}s;"
                         >
-                            <Icon
-                                name={_normalizeIconName(appSkillsStore.getState().apps[appId]?.icon_image, appId)}
-                                type="app"
-                                size="28px"
-                                noAnimation={true}
-                            />
+                            <span
+                                class="placeholder-app-icon-raw"
+                                style="--raw-icon-url: var(--icon-url-{_getRawIconUrlName(appSkillsStore.getState().apps[appId]?.icon_image)});"
+                            ></span>
                         </div>
                     {/each}
                 </div>

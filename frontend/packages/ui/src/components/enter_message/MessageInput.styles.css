@@ -540,6 +540,22 @@
   animation: decoFloat 18s linear infinite;
 }
 
+/* Raw icon span — renders only the SVG symbol via CSS mask, no colored box */
+.placeholder-app-icon-raw {
+  display: block;
+  width: 24px;
+  height: 24px;
+  background-color: var(--color-font-primary);
+  mask-image: var(--raw-icon-url);
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-image: var(--raw-icon-url);
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+}
+
 /* Respect reduced-motion preferences */
 @media (prefers-reduced-motion: reduce) {
   .placeholder-decor-icon {
