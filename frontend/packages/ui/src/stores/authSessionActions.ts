@@ -810,15 +810,25 @@ export async function checkAuth(
         // CRITICAL: Navigate to demo-for-everyone chat to hide the previously open chat
         // This ensures the previous chat is not visible after logout
         // Small delay to ensure auth state changes are processed first
-        setTimeout(() => {
-          if (typeof window !== "undefined") {
-            activeChatStore.setActiveChat("demo-for-everyone");
-            window.location.hash = "chat-id=demo-for-everyone";
-            console.debug(
-              "[AuthSessionActions] Navigated to demo-for-everyone chat after logout notification",
-            );
-          }
-        }, 50);
+        // OG image mode (?og=1): skip demo-for-everyone redirect so the welcome screen stays visible
+        const isOgImageModeLogout =
+          typeof window !== "undefined" &&
+          new URLSearchParams(window.location.search).get("og") === "1";
+        if (!isOgImageModeLogout) {
+          setTimeout(() => {
+            if (typeof window !== "undefined") {
+              activeChatStore.setActiveChat("demo-for-everyone");
+              window.location.hash = "chat-id=demo-for-everyone";
+              console.debug(
+                "[AuthSessionActions] Navigated to demo-for-everyone chat after logout notification",
+              );
+            }
+          }, 50);
+        } else {
+          console.debug(
+            "[AuthSessionActions] Skipping demo-for-everyone redirect after logout — og=1 mode",
+          );
+        }
 
         // Clear master key and all email data from storage
         await cryptoService.clearKeyFromStorage();

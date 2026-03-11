@@ -7087,6 +7087,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Listen for event to load demo chat after logout from signup
         const handleLoadDemoChat = () => {
+            // OG image mode (?og=1): skip demo-for-everyone so the welcome screen stays visible
+            if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('og') === '1') {
+                console.debug('[ActiveChat] Skipping loadDemoChat event - og=1 mode');
+                return;
+            }
             console.debug("[ActiveChat] Loading demo chat after logout from signup");
 
             // Ensure login interface is closed
@@ -7330,6 +7335,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Listen for logout event to clear user chat and load demo chat
         // CRITICAL: This handler must work reliably on mobile, even if component isn't fully initialized
         handleLogoutEvent = async () => {
+            // OG image mode (?og=1): skip demo-for-everyone so the welcome screen stays visible
+            if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('og') === '1') {
+                console.debug('[ActiveChat] Skipping userLoggingOut handler - og=1 mode');
+                return;
+            }
             console.debug('[ActiveChat] Logout event received - clearing user chat and loading demo chat');
             
             try {
