@@ -311,7 +311,7 @@ pair_enter_pin_description:
 
 pair_pin_placeholder:
   context: Placeholder for the PIN input field
-  en: 000000
+  en: "000000"
   de: "000000"
 
 pair_login:
