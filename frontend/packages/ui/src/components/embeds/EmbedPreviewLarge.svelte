@@ -23,8 +23,8 @@
   // renderer pipeline — the same components used for inline skill embeds.
   //
   // Responsive behavior:
-  //   - When container width ≤ 300px: compact card (300×200px standard layout)
-  //   - When container width > 300px: expanded card (full-width × 350px)
+  //   - When container width ≤ 400px: compact card (300×200px standard layout)
+  //   - When container width > 400px: expanded card (full-width × 350px)
   //   CSS container queries handle the switch automatically via the
   //   .embed-preview-large-container wrapper which sets container-type.
   //
@@ -115,7 +115,7 @@
     if (!wrapperEl) return;
     const ro = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        isExpanded = entry.contentRect.width > 300;
+        isExpanded = entry.contentRect.width > 400;
       }
     });
     ro.observe(wrapperEl);
@@ -184,7 +184,7 @@
   /* ── Container query context ─────────────────────────────────────────────
      Establishes a CSS container named "embed-preview" so that child components
      (UnifiedEmbedPreview) can use @container queries to switch between
-     compact (≤300px) and expanded (>300px) layouts. */
+     compact (≤400px) and expanded (>400px) layouts. */
   .embed-preview-large-container {
     container-type: inline-size;
     container-name: embed-preview;

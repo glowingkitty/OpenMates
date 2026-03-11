@@ -591,7 +591,7 @@
   }
 
   /* Large preview: use 0.8rem (≈12.8px) so more lines fit in the 400px container. */
-  @container embed-preview (min-width: 301px) {
+  @container embed-preview (min-width: 401px) {
     .code-preview {
       font-size: 0.8rem;
       padding-top: 1rem;

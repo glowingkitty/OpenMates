@@ -1035,13 +1035,13 @@
      Responsive Expanded Layout (Container Query)
      ===========================================
      When this card is inside a container named "embed-preview" (set by
-     EmbedPreviewLarge.svelte) wider than 300px, the card expands to
+     EmbedPreviewLarge.svelte) wider than 400px, the card expands to
      full-width × 400px with the BasicInfosBar constrained to 300px and
      protruding 15px below the card. This replaces the old separate
      UnifiedEmbedPreviewLarge component.
      =========================================== */
 
-  @container embed-preview (min-width: 301px) {
+  @container embed-preview (min-width: 401px) {
     .unified-embed-preview.desktop {
       width: 100% !important;
       min-width: unset !important;
@@ -1049,6 +1049,8 @@
       height: 400px !important;
       min-height: 400px !important;
       max-height: 400px !important;
+      margin-top: 10px;
+      margin-bottom: 30px;
       overflow: visible !important;
     }
 
