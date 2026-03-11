@@ -73,28 +73,35 @@
     onNavigatePrevious,
     onNavigateNext,
   }: Props = $props();
+
+  // Defensive: stay may be undefined during async component loading in dev preview
+  type MaybeStay = StayData | undefined;
   
-  let name = $derived(stay.name || 'Unknown Property');
-  let stars = $derived(
-    stay.hotel_class && stay.hotel_class >= 1 && stay.hotel_class <= 5
-      ? '\u2605'.repeat(stay.hotel_class) : ''
-  );
-  let propertyType = $derived(stay.property_type || '');
-  let formattedRating = $derived(stay.overall_rating != null ? stay.overall_rating.toFixed(1) : '');
-  let formattedReviews = $derived(stay.reviews != null ? stay.reviews.toLocaleString() : '');
-  let currency = $derived(stay.currency || 'EUR');
-  let pricePerNight = $derived(stay.extracted_rate_per_night != null ? Math.round(stay.extracted_rate_per_night) : null);
-  let totalPrice = $derived(stay.extracted_total_rate != null ? Math.round(stay.extracted_total_rate) : null);
-  let amenities = $derived(stay.amenities || []);
-  let nearbyPlaces = $derived(stay.nearby_places || []);
-  let bookingUrl = $derived(stay.link || '');
+  let name = $derived((stay as MaybeStay)?.name || 'Unknown Property');
+  let stars = $derived.by(() => {
+    const s = stay as MaybeStay;
+    return s?.hotel_class && s.hotel_class >= 1 && s.hotel_class <= 5
+      ? '\u2605'.repeat(s.hotel_class) : '';
+  });
+  let propertyType = $derived((stay as MaybeStay)?.property_type || '');
+  let formattedRating = $derived.by(() => { const s = stay as MaybeStay; return s?.overall_rating != null ? s.overall_rating.toFixed(1) : ''; });
+  let formattedReviews = $derived.by(() => { const s = stay as MaybeStay; return s?.reviews != null ? s.reviews.toLocaleString() : ''; });
+  let currency = $derived((stay as MaybeStay)?.currency || 'EUR');
+  let pricePerNight = $derived.by(() => { const s = stay as MaybeStay; return s?.extracted_rate_per_night != null ? Math.round(s.extracted_rate_per_night) : null; });
+  let totalPrice = $derived.by(() => { const s = stay as MaybeStay; return s?.extracted_total_rate != null ? Math.round(s.extracted_total_rate) : null; });
+  let amenities = $derived((stay as MaybeStay)?.amenities || []);
+  let nearbyPlaces = $derived((stay as MaybeStay)?.nearby_places || []);
+  let bookingUrl = $derived((stay as MaybeStay)?.link || '');
 
   // Map data from GPS coordinates
-  let mapCenter = $derived(
-    stay.gps_coordinates?.latitude != null && stay.gps_coordinates?.longitude != null
-      ? { lat: stay.gps_coordinates.latitude, lon: stay.gps_coordinates.longitude }
-      : undefined
-  );
+  let mapCenter = $derived.by(() => {
+    const s = stay as MaybeStay;
+    const gps = s?.gps_coordinates;
+    if (gps?.latitude != null && gps?.longitude != null) {
+      return { lat: gps.latitude, lon: gps.longitude };
+    }
+    return undefined;
+  });
 
   let mapMarkers = $derived(
     mapCenter ? [{ lat: mapCenter.lat, lon: mapCenter.lon, label: name }] : []
@@ -102,10 +109,11 @@
 
   // Image gallery
   let allImages = $derived.by(() => {
-    if (!stay.images || stay.images.length === 0) {
-      return stay.thumbnail ? [stay.thumbnail] : [];
+    const s = stay as MaybeStay;
+    if (!s?.images || s.images.length === 0) {
+      return s?.thumbnail ? [s.thumbnail] : [];
     }
-    return stay.images
+    return s.images
       .map(img => img.original_image || img.thumbnail)
       .filter((url): url is string => !!url);
   });

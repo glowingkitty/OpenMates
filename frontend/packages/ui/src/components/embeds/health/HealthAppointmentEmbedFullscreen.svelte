@@ -71,26 +71,29 @@
     } catch { return iso; }
   }
 
-  let hasSlots = $derived((appointment.slots_count ?? 0) > 0);
+  // Defensive: appointment may be undefined during async component loading in dev preview
+  let hasSlots = $derived(((appointment as AppointmentData | undefined)?.slots_count ?? 0) > 0);
 
-  function getSlotsFromAppointment(appt: AppointmentData): SlotData[] {
+  function getSlotsFromAppointment(appt: AppointmentData | undefined): SlotData[] {
+    if (!appt) return [];
     if (appt.slots && Array.isArray(appt.slots) && appt.slots.length > 0) return appt.slots;
     if (appt.next_slot) return [{ datetime: appt.next_slot }];
     return [];
   }
 
-  let slots = $derived(getSlotsFromAppointment(appointment));
+  let slots = $derived(getSlotsFromAppointment(appointment as AppointmentData | undefined));
 
   // Map data from gps_coordinates
   let mapCenter = $derived(
-    appointment.gps_coordinates?.latitude != null && appointment.gps_coordinates?.longitude != null
-      ? { lat: appointment.gps_coordinates.latitude, lon: appointment.gps_coordinates.longitude }
+    (appointment as AppointmentData | undefined)?.gps_coordinates?.latitude != null &&
+    (appointment as AppointmentData | undefined)?.gps_coordinates?.longitude != null
+      ? { lat: appointment.gps_coordinates!.latitude, lon: appointment.gps_coordinates!.longitude }
       : undefined
   );
 
   let mapMarkers = $derived(
     mapCenter
-      ? [{ lat: mapCenter.lat, lon: mapCenter.lon, label: appointment.name || appointment.speciality }]
+      ? [{ lat: mapCenter.lat, lon: mapCenter.lon, label: appointment?.name || appointment?.speciality }]
       : []
   );
 </script>
