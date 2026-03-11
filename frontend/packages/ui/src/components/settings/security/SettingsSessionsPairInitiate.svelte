@@ -102,7 +102,7 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
 
             const data = await response.json();
             pairToken = (data.token as string).toUpperCase();
-            pairUrl = data.pair_url as string;
+            pairUrl = `${window.location.origin}/#pair=${pairToken}`;
 
             generateQR(pairUrl);
             pairStatus = 'waiting';

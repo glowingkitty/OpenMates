@@ -20,14 +20,12 @@
 
 from __future__ import annotations
 
-import json
 import logging
-import os
 import secrets
 import time
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, field_validator
 
 from backend.core.api.app.models.user import User
@@ -35,7 +33,6 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_cache_service,
     get_compliance_service,
     get_current_user,
-    get_current_user_optional,
 )
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.compliance import ComplianceService
@@ -76,12 +73,6 @@ def _generate_token() -> str:
     return "".join(secrets.choice(_PAIR_TOKEN_ALPHABET) for _ in range(_PAIR_TOKEN_LENGTH))
 
 
-def _pair_url(token: str) -> str:
-    """Build the deep-link URL: https://example.org/#pair=TOKEN."""
-    base = os.getenv("FRONTEND_URL", "https://openmates.org").rstrip("/")
-    return f"{base}/#pair={token}"
-
-
 async def _cleanup_pair_keys(cache_service: CacheService, token: str) -> None:
     """Atomically delete all Redis keys for a pairing session."""
     await cache_service.delete(f"{_REDIS_REQ_PREFIX}{token}")
@@ -100,7 +91,6 @@ class PairInitiateRequest(BaseModel):
 
 class PairInitiateResponse(BaseModel):
     token: str        # 6-char uppercase token
-    pair_url: str     # Full URL: https://…/#pair=TOKEN
     expires_in: int   # Seconds until token expires
 
 
@@ -198,7 +188,6 @@ async def pair_initiate(
     logger.info("Pair token generated")
     return PairInitiateResponse(
         token=token,
-        pair_url=_pair_url(token),
         expires_in=_PAIR_REQUEST_TTL,
     )
 
