@@ -98,6 +98,7 @@
   );
 </script>
 
+{#if appointment}
 <EntryWithMapTemplate
   appId="health"
   skillId="appointment"
@@ -172,6 +173,7 @@
     {/if}
   {/snippet}
 </EntryWithMapTemplate>
+{/if}
 
 <style>
   .doctor-header { text-align: center; }

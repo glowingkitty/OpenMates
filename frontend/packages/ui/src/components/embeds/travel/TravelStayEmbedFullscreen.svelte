@@ -134,6 +134,7 @@
   }
 </script>
 
+{#if stay}
 <EntryWithMapTemplate
   appId="travel"
   skillId="search_stays"
@@ -261,6 +262,7 @@
     {/if}
   {/snippet}
 </EntryWithMapTemplate>
+{/if}
 
 <style>
   .stay-header { text-align: center; }

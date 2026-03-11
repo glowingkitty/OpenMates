@@ -1242,6 +1242,7 @@
   });
 </script>
 
+{#if connection}
 <UnifiedEmbedFullscreen
   appId="travel"
   skillId="connection"
@@ -1503,6 +1504,7 @@
     </div>
   {/snippet}
 </UnifiedEmbedFullscreen>
+{/if}
 
 <style>
   /* ===========================================
