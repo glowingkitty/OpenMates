@@ -1,0 +1,216 @@
+close:
+  context: Button text for closing the sketch / drawing canvas overlay
+  en: Close sketch
+  de: Skizze schließen
+  zh: 关闭草图
+  es: Cerrar boceto
+  fr: Fermer l'esquisse
+  pt: Fechar esboço
+  ru: Закрыть эскиз
+  ja: スケッチを閉じる
+  ko: 스케치 닫기
+  it: Chiudi schizzo
+  tr: Taslağı kapat
+  vi: Đóng phác thảo
+  id: Tutup sketsa
+  pl: Zamknij szkic
+  nl: Schets sluiten
+  ar: إغلاق الرسم
+  hi: स्केच बंद करें
+  th: ปิดภาพร่าง
+  cs: Zavřít nákres
+  sv: Stäng skiss
+  he: סגור סקיצה
+  verified_by_human: []
+done:
+  context: Button text to confirm and attach the sketch as an image
+  en: Done
+  de: Fertig
+  zh: 完成
+  es: Listo
+  fr: Terminé
+  pt: Pronto
+  ru: Готово
+  ja: 完了
+  ko: 완료
+  it: Fatto
+  tr: Bitti
+  vi: Xong
+  id: Selesai
+  pl: Gotowe
+  nl: Klaar
+  ar: تم
+  hi: हो गया
+  th: เสร็จ
+  cs: Hotovo
+  sv: Klar
+  he: סיום
+  verified_by_human: []
+pen:
+  context: Tooltip for the pen / pencil drawing tool in the sketch overlay
+  en: Pen
+  de: Stift
+  zh: 笔
+  es: Bolígrafo
+  fr: Stylo
+  pt: Caneta
+  ru: Ручка
+  ja: ペン
+  ko: 펜
+  it: Penna
+  tr: Kalem
+  vi: Bút
+  id: Pena
+  pl: Pióro
+  nl: Pen
+  ar: قلم
+  hi: पेन
+  th: ปากกา
+  cs: Pero
+  sv: Penna
+  he: עט
+  verified_by_human: []
+eraser:
+  context: Tooltip for the eraser tool in the sketch overlay
+  en: Eraser
+  de: Radiergummi
+  zh: 橡皮擦
+  es: Goma de borrar
+  fr: Gomme
+  pt: Borracha
+  ru: Ластик
+  ja: 消しゴム
+  ko: 지우개
+  it: Gomma
+  tr: Silgi
+  vi: Tẩy
+  id: Penghapus
+  pl: Gumka
+  nl: Gum
+  ar: ممحاة
+  hi: रबड़
+  th: ยางลบ
+  cs: Guma
+  sv: Suddgummi
+  he: מחק
+  verified_by_human: []
+clear:
+  context: Tooltip for the clear canvas button in the sketch overlay
+  en: Clear canvas
+  de: Leinwand leeren
+  zh: 清除画布
+  es: Limpiar lienzo
+  fr: Effacer le canvas
+  pt: Limpar tela
+  ru: Очистить холст
+  ja: キャンバスをクリア
+  ko: 캔버스 지우기
+  it: Cancella canvas
+  tr: Tuvali temizle
+  vi: Xóa canvas
+  id: Hapus kanvas
+  pl: Wyczyść płótno
+  nl: Canvas wissen
+  ar: مسح اللوحة
+  hi: कैनवास साफ़ करें
+  th: ล้างผืนผ้าใบ
+  cs: Vymazat plátno
+  sv: Rensa arbetsytan
+  he: נקה את הקנבס
+  verified_by_human: []
+zoom_in:
+  context: Tooltip for the zoom in button in the sketch overlay
+  en: Zoom in
+  de: Vergrößern
+  zh: 放大
+  es: Acercar
+  fr: Zoom avant
+  pt: Ampliar
+  ru: Увеличить
+  ja: ズームイン
+  ko: 확대
+  it: Ingrandisci
+  tr: Yaklaştır
+  vi: Phóng to
+  id: Perbesar
+  pl: Powiększ
+  nl: Inzoomen
+  ar: تكبير
+  hi: ज़ूम इन
+  th: ซูมเข้า
+  cs: Přiblížit
+  sv: Zooma in
+  he: הגדל
+  verified_by_human: []
+zoom_out:
+  context: Tooltip for the zoom out button in the sketch overlay
+  en: Zoom out
+  de: Verkleinern
+  zh: 缩小
+  es: Alejar
+  fr: Zoom arrière
+  pt: Reduzir
+  ru: Уменьшить
+  ja: ズームアウト
+  ko: 축소
+  it: Rimpicciolisci
+  tr: Uzaklaştır
+  vi: Thu nhỏ
+  id: Perkecil
+  pl: Pomniejsz
+  nl: Uitzoomen
+  ar: تصغير
+  hi: ज़ूम आउट
+  th: ซูมออก
+  cs: Oddálit
+  sv: Zooma ut
+  he: הקטן
+  verified_by_human: []
+reset_zoom:
+  context: Tooltip for the zoom reset button in the sketch overlay (shows current zoom percentage)
+  en: Reset zoom
+  de: Zoom zurücksetzen
+  zh: 重置缩放
+  es: Restablecer zoom
+  fr: Réinitialiser le zoom
+  pt: Redefinir zoom
+  ru: Сбросить масштаб
+  ja: ズームをリセット
+  ko: 줌 초기화
+  it: Reimposta zoom
+  tr: Yakınlaştırmayı sıfırla
+  vi: Đặt lại thu phóng
+  id: Atur ulang zoom
+  pl: Zresetuj powiększenie
+  nl: Zoom resetten
+  ar: إعادة ضبط التكبير
+  hi: ज़ूम रीसेट
+  th: รีเซ็ตการซูม
+  cs: Obnovit přiblížení
+  sv: Återställ zoom
+  he: אפס זום
+  verified_by_human: []
+custom_color:
+  context: Tooltip for the custom colour picker swatch in the sketch overlay
+  en: Custom colour
+  de: Benutzerdefinierte Farbe
+  zh: 自定义颜色
+  es: Color personalizado
+  fr: Couleur personnalisée
+  pt: Cor personalizada
+  ru: Пользовательский цвет
+  ja: カスタムカラー
+  ko: 사용자 지정 색상
+  it: Colore personalizzato
+  tr: Özel renk
+  vi: Màu tuỳ chỉnh
+  id: Warna kustom
+  pl: Kolor niestandardowy
+  nl: Aangepaste kleur
+  ar: لون مخصص
+  hi: कस्टम रंग
+  th: สีที่กำหนดเอง
+  cs: Vlastní barva
+  sv: Anpassad färg
+  he: צבע מותאם
+  verified_by_human: []

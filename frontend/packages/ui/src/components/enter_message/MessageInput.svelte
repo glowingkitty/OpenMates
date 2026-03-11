@@ -36,6 +36,7 @@
     import CameraView from './CameraView.svelte';
     import RecordAudio from './RecordAudio.svelte'; // Import type for ref
     import MapsView from './MapsView.svelte';
+    import SketchView from './SketchView.svelte';
     import PressAndHoldMenu from './in_message_previews/PressAndHoldMenu.svelte';
     import ActionButtons from './ActionButtons.svelte';
     import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
@@ -205,6 +206,7 @@
     // --- Local UI State ---
     let showCamera = $state(false);
     let showMaps = $state(false);
+    let showSketch = $state(false);
     // Keep the bindable isMapsOpen prop in sync with the local showMaps state so
     // the parent (ActiveChat) can react to the map overlay opening/closing.
     $effect(() => { isMapsOpen = showMaps; });
@@ -1346,10 +1348,10 @@
             // Fallback when containerRect is not yet available (initial render edge case).
             return `height: ${MESSAGE_FIELD_FULLSCREEN_FALLBACK_VH * 100}dvh; max-height: ${MESSAGE_FIELD_FULLSCREEN_FALLBACK_VH * 100}dvh;`;
         }
-        // Maps/camera overlay open (non-fullscreen only): grow to fixed height so the
+        // Maps/camera/sketch overlay open (non-fullscreen only): grow to fixed height so the
         // overlay fills edge-to-edge. When closing, we fall through to the default below
         // which correctly restores `height: auto` without affecting fullscreen state.
-        if (showMaps || showCamera) {
+        if (showMaps || showCamera || showSketch) {
             return `height: ${MESSAGE_FIELD_MAPS_HEIGHT}px; max-height: ${MESSAGE_FIELD_MAPS_HEIGHT}px;`;
         }
         return `height: auto; max-height: ${MESSAGE_FIELD_MAX_HEIGHT}px;`;
@@ -3316,6 +3318,34 @@
         handleStopRecordingCleanup(); // Called here after recording is inserted
     }
     function handleLocationClick() { showMaps = true; }
+
+    /** Open the sketch canvas overlay. */
+    function handleSketchClick() {
+        showSketch = true;
+    }
+
+    /**
+     * Handle sketch captured from SketchView.
+     * Converts the canvas PNG Blob to a File and passes it to insertImage(),
+     * same pipeline as camera photo capture.
+     *
+     * Future: when sketch embed type is implemented, also save the raw canvas
+     * ImageData / SVG path data as a "sketch" embed so the user can re-open
+     * and edit the drawing later.
+     */
+    async function handleSketchCaptured(event: CustomEvent<{ blob: Blob }>) {
+        const { blob } = event.detail;
+        const file = new File([blob], `sketch_${Date.now()}.png`, { type: 'image/png' });
+        showSketch = false;
+        await tick();
+        await insertImage(editor, file, false, undefined, undefined, $authStore.isAuthenticated);
+        hasContent = true;
+        tick().then(() => {
+            updateEmbedGroupLayouts();
+            observeEmbedGroupContainers();
+        });
+    }
+
     async function handleLocationSelected(event: CustomEvent<{ type: string; attrs: Record<string, unknown> }>) {
         showMaps = false;
         await tick();
@@ -4271,6 +4301,10 @@
             <CameraView bind:videoElement on:close={() => showCamera = false} on:focusEditor={focus} on:photocaptured={handlePhotoCaptured} />
         {/if}
 
+        {#if showSketch}
+            <SketchView on:close={() => { showSketch = false; focus(); }} on:sketchcaptured={handleSketchCaptured} />
+        {/if}
+
         <!-- Action Buttons Component: fades in when input is focused, fades out when unfocused.
              The wrapper div has zero height and no layout impact; ActionButtons is absolutely
              positioned inside the parent .message-field, so the wrapper is transparent to layout. -->
@@ -4283,9 +4317,11 @@
                     isRecordButtonPressed={$recordingState.isRecordButtonPressed}
                     micPermissionState={$recordingState.micPermissionState}
                     {highlightPressHold}
+                    isSketchOpen={showSketch}
                     on:fileSelect={handleFileSelect}
                     on:locationClick={handleLocationClick}
                     on:cameraClick={handleCameraClick}
+                    on:sketchClick={handleSketchClick}
                     on:sendMessage={handleSendMessage}
                     on:signUpClick={handleSignUpClick}
                     on:buyCreditsClick={handleBuyCreditsClick}

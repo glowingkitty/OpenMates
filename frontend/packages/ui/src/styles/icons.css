@@ -326,6 +326,12 @@ div.clickable-icon {
   mask-image: url("@openmates/ui/static/icons/maps.svg");
 }
 
+/* Sketch / drawing canvas overlay button (whiteboard icon) */
+.clickable-icon.icon_sketch {
+  -webkit-mask-image: url("@openmates/ui/static/icons/whiteboard.svg");
+  mask-image: url("@openmates/ui/static/icons/whiteboard.svg");
+}
+
 .clickable-icon.icon_location {
   -webkit-mask-image: url("@openmates/ui/static/icons/current_location.svg");
   mask-image: url("@openmates/ui/static/icons/current_location.svg");
