@@ -421,7 +421,8 @@ async def get_daily_inspiration_cache(
     return summary
 
 
-LOKI_URL = "http://loki:3100"
+OPENOBSERVE_URL = "http://openobserve:5080"
+OPENOBSERVE_ORG = "default"
 AUTH_EVENT_TYPES = [
     "login_known_device", "login_new_device", "login_success_recovery_key",
     "login_success_backup_code", "login_failed",
@@ -434,61 +435,87 @@ AUTH_EVENT_TYPES = [
 
 async def get_session_history(user_id: str, since_hours: int = 24) -> List[Dict[str, Any]]:
     """
-    Query Loki compliance logs for auth events related to a specific user.
+    Query OpenObserve audit-compliance stream for auth events related to a specific user.
+
+    Auth events are written as JSON by ComplianceService.log_auth_event*() into
+    audit-compliance.log, which promtail pushes to the OpenObserve 'audit-compliance'
+    stream (see backend/core/monitoring/promtail/promtail-compliance.yaml).
+
     Returns a list of auth event dicts sorted by timestamp (newest first).
     """
-    events: List[Dict[str, Any]] = []
-    start_ns = str(int((time.time() - since_hours * 3600) * 1_000_000_000))
-    end_ns = str(int(time.time() * 1_000_000_000))
+    import os
 
-    # Query compliance logs for this user_id
-    query = f'{{job="compliance-logs"}} |~ "{user_id[:12]}"'
-    params = {
-        "query": query,
-        "limit": "500",
-        "start": start_ns,
-        "end": end_ns,
-        "direction": "backward",
-    }
+    events: List[Dict[str, Any]] = []
+    email = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
+    password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
+
+    since_minutes = since_hours * 60
+    start_us = int((time.time() - since_minutes * 60) * 1_000_000)
+    end_us = int(time.time() * 1_000_000)
+
+    # OpenObserve SQL — audit-compliance stream stores one JSON object per log line
+    # in the `log` field. Filter by user_id prefix to avoid full-scan, then verify
+    # exact match in Python (user_id is a UUID, prefix match avoids false positives
+    # from substring collisions in unrelated fields).
+    sql = (
+        f"SELECT * FROM \"audit-compliance\" "
+        f"WHERE log LIKE '%{user_id[:12]}%' "
+        f"ORDER BY _timestamp DESC LIMIT 500"
+    )
+    body = {"query": {"sql": sql, "start_time": start_us, "end_time": end_us}}
 
     try:
         timeout = aiohttp.ClientTimeout(total=15)
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(f"{LOKI_URL}/loki/api/v1/query_range", params=params) as resp:
-                if resp.status != 200:
-                    script_logger.warning(f"Loki query failed ({resp.status})")
-                    return events
-                data = await resp.json()
+            for url in (
+                f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/_search",
+                f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/audit-compliance/_search",
+            ):
+                async with session.post(
+                    url, json=body,
+                    auth=aiohttp.BasicAuth(email, password),
+                ) as resp:
+                    if resp.status == 404:
+                        continue
+                    if resp.status != 200:
+                        script_logger.warning(
+                            f"OpenObserve audit-compliance query failed ({resp.status})"
+                        )
+                        return events
+                    data = await resp.json()
+                    break
+            else:
+                script_logger.warning("OpenObserve audit-compliance: no working _search endpoint")
+                return events
     except Exception as e:
-        script_logger.warning(f"Cannot connect to Loki for session history: {e}")
+        script_logger.warning(f"Cannot connect to OpenObserve for session history: {e}")
         return events
 
-    results = data.get("data", {}).get("result", [])
-    for stream in results:
-        for value in stream.get("values", []):
-            _, message = value[0], value[1]
-            try:
-                parsed = json.loads(message)
-            except (json.JSONDecodeError, TypeError):
-                continue
+    for hit in data.get("hits", []):
+        # Each hit has a `log` field containing the raw JSON string written by ComplianceService
+        raw_log = hit.get("log", "")
+        try:
+            parsed = json.loads(raw_log) if isinstance(raw_log, str) else raw_log
+        except (json.JSONDecodeError, TypeError):
+            continue
 
-            # Filter to auth events only
-            event_type = parsed.get("event_type", "")
-            if event_type not in AUTH_EVENT_TYPES:
-                continue
+        # Filter to auth events only
+        event_type = parsed.get("event_type", "")
+        if event_type not in AUTH_EVENT_TYPES:
+            continue
 
-            # Verify user_id matches (the regex may have matched a substring)
-            if parsed.get("user_id") != user_id and parsed.get("user_id") != "anonymous":
-                continue
+        # Exact user_id match (prefix LIKE query may catch substrings in other fields)
+        if parsed.get("user_id") != user_id and parsed.get("user_id") != "anonymous":
+            continue
 
-            events.append({
-                "timestamp": parsed.get("timestamp", ""),
-                "event_type": event_type,
-                "status": parsed.get("status", ""),
-                "device_fingerprint": parsed.get("device_fingerprint", ""),
-                "location": parsed.get("location", ""),
-                "details": parsed.get("details", {}),
-            })
+        events.append({
+            "timestamp": parsed.get("timestamp", ""),
+            "event_type": event_type,
+            "status": parsed.get("status", ""),
+            "device_fingerprint": parsed.get("device_fingerprint", ""),
+            "location": parsed.get("location", ""),
+            "details": parsed.get("details", {}),
+        })
 
     return events
 
@@ -694,13 +721,13 @@ def format_output_text(
                 lines.append(f"     embed_id:     {embed_id}   opened_chat: {opened_chat}")
                 lines.append(f"     Encrypted:    {enc_summary}")
 
-    # Session History — Auth events from compliance logs (Loki)
+    # Session History — Auth events from audit-compliance stream (OpenObserve)
     lines.append("")
     lines.append("-" * 100)
     lines.append(f"SESSION HISTORY — Auth Events (Last 24h)  [{len(session_history) if session_history else 0} event(s)]")
     lines.append("-" * 100)
     if session_history is None:
-        lines.append("  [Skipped — Loki query not available in this context]")
+        lines.append("  [Skipped — OpenObserve query not available in this context]")
     elif not session_history:
         lines.append("  No auth events found in the last 24 hours.")
     else:

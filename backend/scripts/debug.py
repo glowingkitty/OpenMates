@@ -13,8 +13,9 @@ USAGE
   docker exec api python /app/backend/scripts/debug.py [command] [options]
 
 Commands:
-  (none)          Quick system health check
-  health          System health check (Prometheus + Loki + queues)
+  (none)          System health check (includes log access verification — run this first)
+  health          System health check (log access + Prometheus + queues + recent errors)
+    --log-access  Check ONLY log access (OpenObserve local + production API); exits 1 on failure
   chat            Inspect a chat (messages, embeds, keys, cache)
   embed           Inspect an embed (decode, linkage, cache)
   user            Inspect a user (items, cache, credits)
@@ -24,7 +25,7 @@ Commands:
   newsletter      Newsletter subscriber stats
   daily           Daily inspiration state
   demo            Demo chat state
-  replay          Replay a request trace from Loki
+  replay          Replay a request trace from OpenObserve
   errors          Top error fingerprints
   upload-logs     Logs from the upload server (satellite VM)
   preview-logs    Logs from the preview server (satellite VM)
