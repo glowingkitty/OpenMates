@@ -69,10 +69,13 @@ def is_eu_stripe_country(country_code: Optional[str]) -> bool:
     Returns:
         True if Stripe should be the default provider, False if Polar should be default
     """
-    if not country_code:
-        # Unknown country — default to Polar (handles global tax compliance)
-        logger.debug("No country code provided for provider detection, defaulting to Polar")
-        return False
+    if not country_code or country_code == "Local":
+        # Unknown country or private/Docker IP ("Local" is returned by get_geo_data_from_ip
+        # for loopback and private-range IPs such as Docker bridge networks).
+        # Default to Stripe — local/unknown callers are development environments or
+        # internal services where Polar geo-routing makes no sense.
+        logger.debug("No country code or local/private IP — defaulting to Stripe (EU)")
+        return True
 
     result = country_code.upper() in EU_STRIPE_COUNTRY_CODES
     logger.debug(f"Provider routing for country '{country_code.upper()}': {'Stripe (EU)' if result else 'Polar (non-EU)'}")
