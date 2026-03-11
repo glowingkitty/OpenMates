@@ -51,6 +51,12 @@
         isContentEmptyExceptMention,
         getInitialContent
     } from './utils';
+    import {
+        getLucideIcon,
+        getValidIconName,
+        getCategoryGradientColors,
+        getFallbackIconForCategory,
+    } from '../../utils/categoryUtils';
     
     // Unified parser imports
     import { parse_message } from '../../message_parsing/parse_message';
@@ -271,6 +277,100 @@
         onIncognitoPillDeactivate?.();
     }
 
+    // --- Floating App Icons (Decorative Placeholder Backdrop) ---
+    // Shown as 3 left + 3 right slowly floating icons while the placeholder text is visible.
+    // Fades out when the editor is focused or has content.
+    // Uses recommended apps from userProfile when available, else random apps from the store.
+
+    interface PlaceholderDecorIcon {
+        key: string;
+        iconName: string;
+        side: 'left' | 'right';
+        topPercent: number;    // vertical position within the field
+        insetPx: number;       // horizontal offset from edge
+        rotationDeg: number;   // deterministic tilt angle
+        gradientStart: string;
+        gradientEnd: string;
+    }
+
+    /** Simple deterministic hash → [0, 1] to avoid RNG flicker on re-render. */
+    function _iconHashToUnit(seed: string): number {
+        let h = 2166136261;
+        for (let i = 0; i < seed.length; i++) {
+            h ^= seed.charCodeAt(i);
+            h = Math.imul(h, 16777619);
+        }
+        return (h >>> 0) / 4294967295;
+    }
+
+    /** Deterministic value in [min, max] based on a string seed. */
+    function _iconDetVal(seed: string, min: number, max: number): number {
+        return min + (max - min) * _iconHashToUnit(seed);
+    }
+
+    /**
+     * Build 6 decorative icon descriptors (3 left, 3 right) from an ordered list of app IDs.
+     * Uses deterministic positions/rotations so the layout is stable across re-renders.
+     */
+    function buildPlaceholderDecorIcons(appIds: string[]): PlaceholderDecorIcon[] {
+        // Vertical slot positions (% from top of the field) per side
+        const leftSlots = [22, 46, 70];
+        const rightSlots = [30, 54, 78];
+        const decor: PlaceholderDecorIcon[] = [];
+        let leftIdx = 0;
+        let rightIdx = 0;
+
+        for (let i = 0; i < appIds.length && decor.length < 6; i++) {
+            const appId = appIds[i];
+            const app = appSkillsStore.getState().apps[appId];
+            if (!app) continue;
+
+            const side: 'left' | 'right' = decor.filter(d => d.side === 'left').length <= decor.filter(d => d.side === 'right').length ? 'left' : 'right';
+            const topPercent = side === 'left' ? leftSlots[leftIdx++] : rightSlots[rightIdx++];
+            if (topPercent === undefined) continue;
+
+            const rawIcon = app.icon_image ? app.icon_image.replace(/\.svg$/i, '') : '';
+            const category = (app as { category?: string }).category ?? 'general_knowledge';
+            const iconName = rawIcon ? getValidIconName(rawIcon, category) : getFallbackIconForCategory(category);
+            const gradient = getCategoryGradientColors(category) ?? { start: '#de1e66', end: '#ff763b' };
+            const insetPx = Math.round(_iconDetVal(`${appId}-inset`, 8, 22));
+            const rotationDeg = Math.round(_iconDetVal(`${appId}-rot`, -25, 25));
+
+            decor.push({
+                key: `${appId}-${side}`,
+                iconName,
+                side,
+                topPercent,
+                insetPx,
+                rotationDeg,
+                gradientStart: gradient.start,
+                gradientEnd: gradient.end,
+            });
+        }
+
+        return decor;
+    }
+
+    /** Reactive: compute the 6 decorative icons from recommended or random apps. */
+    let placeholderDecorIcons = $derived.by((): PlaceholderDecorIcon[] => {
+        const recommended = $userProfile.top_recommended_apps;
+        const allAppIds = Object.keys(appSkillsStore.getState().apps);
+        if (allAppIds.length === 0) return [];
+
+        // Use up to 6 recommended app IDs; pad with random apps from the store if needed
+        let candidates: string[] = [];
+        if (recommended && recommended.length > 0) {
+            candidates = [...recommended];
+        }
+        // Pad to at least 6 using apps from the store (deterministically ordered by ID)
+        if (candidates.length < 6) {
+            const extras = allAppIds.filter(id => !candidates.includes(id));
+            candidates = [...candidates, ...extras];
+        }
+
+        return buildPlaceholderDecorIcons(candidates.slice(0, 12)); // pass extras so we can fill 6 slots
+    });
+
     // Location precision setting — read from personalDataStore (persisted, encrypted).
     // When impreciseByDefault=true, MapsView opens in area mode (privacy-first default).
     let locationSettingsState = $state({ impreciseByDefault: true });
@@ -285,6 +385,9 @@
     personalDataStore.enabledEntries.subscribe((entries) => { cachedPIIEnabledEntries = entries; });
     let defaultImprecise = $derived(locationSettingsState.impreciseByDefault);
     let isMessageFieldFocused = $state(false);
+
+    /** True when the placeholder backdrop icons should be visible (editor is empty AND not focused). */
+    let showPlaceholderDecorIcons = $derived(!hasContent && !isMessageFieldFocused);
     
     // --- Mention Dropdown State ---
     let showMentionDropdown = $state(false);
@@ -4161,6 +4264,34 @@
         aria-multiline="true"
         tabindex="0"
     >
+        <!-- Decorative floating app icons: 3 left + 3 right, visible only while the
+             placeholder is shown (editor empty, not focused). They animate with the shared
+             decoFloat keyframe (same as the Settings header icons) and fade out once the
+             editor becomes active. pointer-events: none so they never block interaction. -->
+        {#if placeholderDecorIcons.length > 0}
+            <div
+                class="placeholder-decor-icons-layer"
+                class:hidden={!showPlaceholderDecorIcons}
+                aria-hidden="true"
+            >
+                {#each placeholderDecorIcons as decor, index (decor.key)}
+                    {@const IconComponent = getLucideIcon(decor.iconName)}
+                    <div
+                        class="placeholder-decor-icon {decor.side}"
+                        style="top: {decor.topPercent}%;
+                               --ph-icon-inset: {decor.insetPx}px;
+                               --deco-rotate: {decor.rotationDeg}deg;
+                               --deco-target-opacity: 1;
+                               --float-rx: 5px;
+                               --float-ry: 6px;
+                               animation-delay: {-index * 2.5}s;"
+                    >
+                        <IconComponent size={20} color="currentColor" />
+                    </div>
+                {/each}
+            </div>
+        {/if}
+
         <!-- Focus mode pill: shown when a focus mode is active.
              Absolutely positioned at the top of the message-field; the field gets extra
              padding-top (via .has-focus-pill) so text input does not collide with the pill.
