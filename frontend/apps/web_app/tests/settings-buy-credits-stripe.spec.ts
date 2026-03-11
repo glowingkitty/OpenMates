@@ -32,7 +32,7 @@ export {};
  *   dispatches purchaseCompleted → "purchase successful" is shown.
  *
  * STRIPE TEST CARD (used here):
- * - Card: 4242 4242 4242 4242 (always succeeds, no 3DS) | Expiry: 12/34 | CVC: 123
+ * - Card: 4000 0024 6000 0001 (Finland/EU card — required by Radar "block non-EU" rule) | Expiry: 12/34 | CVC: 123
  *
  * REQUIRED ENV VARS:
  * - OPENMATES_TEST_ACCOUNT_EMAIL (or slot-based variant)
@@ -76,8 +76,9 @@ test.afterEach(async ({}, testInfo: any) => {
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
-// Stripe test card that always succeeds in sandbox (no 3DS required).
-const STRIPE_TEST_CARD = '4242424242424242';
+// Stripe test card: Finland (FI) EU card — required because Radar blocks non-EU cards.
+// See: https://docs.stripe.com/testing#international-cards
+const STRIPE_TEST_CARD = '4000002460000001';
 
 /**
  * Log in with the pre-existing test account.
@@ -313,27 +314,11 @@ test('settings buy credits: completes full Stripe (EU card) purchase flow', asyn
 		paymentSubmittedAt
 	});
 
-	// Capture state 2s after clicking Pay — reveals 3DS modal, error messages,
-	// or any unexpected Stripe UI that could explain why payment hangs.
-	await page.waitForTimeout(2000);
-	await screenshot(page, 'after-pay-click-2s');
-
-	// Also capture any iframes that appeared (3DS challenge, redirect modal, etc.)
-	const iframeCount = await page.locator('iframe').count();
-	log('Iframe count 2s after pay click (expected 1 = Stripe payment element).', {
-		iframeCount
-	});
-	if (iframeCount > 1) {
-		// Additional iframes likely mean a 3DS modal appeared. Capture its state.
-		await screenshot(page, 'after-pay-3ds-iframe-detected');
-		log('WARNING: more than 1 iframe detected — possible 3DS challenge modal');
-	}
-
 	// ─── Verify purchase success ──────────────────────────────────────────────────
 	// ProcessingPayment polls /poll-order until status=SUCCEEDED, then emits
 	// purchaseCompleted → Payment.svelte shows "purchase successful".
 
-	await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 120000 });
+	await expect(page.getByText(/purchase successful/i).first()).toBeVisible({ timeout: 120000 });
 	await screenshot(page, 'purchase-success');
 	log('Purchase confirmed successful.');
 
