@@ -2241,14 +2241,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let resumeChatData = $state<Chat | null>(null);
 
     // ─── Recent Chats Horizontal Scroll ────────────────────────────────
-    // Displays up to 20 recent chats in a horizontal scrollable row on the welcome screen.
+    // Displays up to 20 recent chats as large gradient cards (same design as the
+    // "for everyone" card) in a horizontal scrollable row on the welcome screen.
     // The first item (last opened) is centered in the viewport on mount.
-    // After the 20 items, a "+N" button shows the remaining chat count.
+    // After the 20 items, a "+N" button opens the sidebar.
     type RecentChatMeta = {
         chat: Chat;
         title: string | null;
         category: string | null;
         icon: string | null;
+        summary: string | null;
     };
     let recentChats = $state<RecentChatMeta[]>([]);
     let recentChatsScrollEl = $state<HTMLElement | null>(null);
@@ -2290,14 +2292,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Take up to RECENT_CHATS_LIMIT
             const topChats = orderedChats.slice(0, RECENT_CHATS_LIMIT);
 
-            // Resolve metadata for each chat
+            // Resolve metadata for each chat (title, category, icon, summary)
             const metas: RecentChatMeta[] = await Promise.all(
                 topChats.map(async (chat) => {
-                    // Demo/public chats have plain-text titles
+                    // Demo/public chats have plain-text metadata
                     if (chat.title) {
-                        return { chat, title: chat.title, category: chat.category ?? null, icon: chat.icon ?? null };
+                        return { chat, title: chat.title, category: chat.category ?? null, icon: chat.icon ?? null, summary: chat.chat_summary ?? null };
                     }
-                    // Try metadata cache (decrypts title/category/icon)
+                    // Try metadata cache (decrypts title/category/icon/summary)
                     try {
                         const meta = await chatMetadataCache.getDecryptedMetadata(chat);
                         return {
@@ -2305,9 +2307,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             title: meta?.title ?? null,
                             category: meta?.category ?? null,
                             icon: meta?.icon ?? null,
+                            summary: meta?.summary ?? null,
                         };
                     } catch {
-                        return { chat, title: null, category: null, icon: null };
+                        return { chat, title: null, category: null, icon: null, summary: null };
                     }
                 })
             );
@@ -2323,7 +2326,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (!recentChatsScrollEl || recentChats.length === 0) return;
         await tick();
         const container = recentChatsScrollEl;
-        const firstItem = container.querySelector('.recent-chat-item') as HTMLElement | null;
+        const firstItem = container.querySelector('.resume-chat-large-card') as HTMLElement | null;
         if (!firstItem) return;
         // Scroll so first item is centered in the container
         const containerWidth = container.offsetWidth;
@@ -2961,6 +2964,52 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         resumeLargeCardMouseX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
         resumeLargeCardMouseY = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
     }
+
+    // ─── Per-card tilt state for the horizontal recent-chats scroll ──────────
+    // Each card in the scroll list gets its own tilt instance so they tilt
+    // independently while the user hovers over them.
+    class RecentChatTiltState {
+        el = $state<HTMLButtonElement | null>(null);
+        hovering = $state(false);
+        mouseX = $state(0); // Normalized -1..1
+        mouseY = $state(0); // Normalized -1..1
+
+        get tiltTransform(): string {
+            if (!this.hovering) return '';
+            const rotateY = this.mouseX * RESUME_CARD_TILT_MAX_ANGLE;
+            const rotateX = -this.mouseY * RESUME_CARD_TILT_MAX_ANGLE;
+            return `perspective(${RESUME_CARD_TILT_PERSPECTIVE}px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${RESUME_CARD_TILT_SCALE})`;
+        }
+
+        onMouseEnter(e: MouseEvent) {
+            this.hovering = true;
+            this.updatePosition(e);
+        }
+
+        onMouseMove(e: MouseEvent) {
+            if (!this.hovering || !this.el) return;
+            this.updatePosition(e);
+        }
+
+        onMouseLeave() {
+            this.hovering = false;
+            this.mouseX = 0;
+            this.mouseY = 0;
+        }
+
+        private updatePosition(e: MouseEvent) {
+            if (!this.el) return;
+            const rect = this.el.getBoundingClientRect();
+            this.mouseX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+            this.mouseY = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+        }
+    }
+
+    // One tilt instance per recent-chat card slot (up to RECENT_CHATS_LIMIT).
+    // Re-created when recentChats array changes length.
+    let recentChatTiltStates = $derived(
+        recentChats.map(() => new RecentChatTiltState())
+    );
 
     // ─── Height-based suggestions overlap detection ──────────────────────────
     // Reliable DOM-measurement approach: measure whether the new-chat suggestions
@@ -8730,37 +8779,58 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     class="recent-chats-scroll-container"
                                     bind:this={recentChatsScrollEl}
                                 >
-                                    {#each recentChats as meta, idx (meta.chat.chat_id)}
+                                    {#each recentChats as meta, i (meta.chat.chat_id)}
+                                        {@const tilt = recentChatTiltStates[i]}
                                         {@const category = meta.category || 'general_knowledge'}
                                         {@const gradientColors = getCategoryGradientColors(category)}
                                         {@const iconName = getValidIconName(meta.icon || '', category)}
                                         {@const IconComponent = getLucideIcon(iconName)}
-                                        {@const isFirst = idx === 0}
+                                        {@const bgStyle = gradientColors
+                                            ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end}); --orb-color-a: ${gradientColors.start}; --orb-color-b: ${gradientColors.end}`
+                                            : 'background: var(--color-primary); --orb-color-a: #4867cd; --orb-color-b: #a0beff'}
+                                        {@const cardStyle = tilt?.tiltTransform
+                                            ? `${bgStyle}; transform: ${tilt.tiltTransform}`
+                                            : bgStyle}
                                         <button
-                                            class="recent-chat-item"
-                                            class:recent-chat-item--first={isFirst}
+                                            bind:this={tilt.el}
+                                            class="resume-chat-large-card"
+                                            class:hovering={tilt?.hovering}
                                             type="button"
-                                            onclick={() => {
-                                                dispatch('chatSelected', { chat: meta.chat });
-                                            }}
-                                            title={meta.title || $text('chat.untitled_chat')}
+                                            style={cardStyle}
+                                            onclick={() => dispatch('chatSelected', { chat: meta.chat })}
+                                            onmouseenter={(e) => tilt?.onMouseEnter(e)}
+                                            onmousemove={(e) => tilt?.onMouseMove(e)}
+                                            onmouseleave={() => tilt?.onMouseLeave()}
                                         >
-                                            <!-- Category gradient circle icon -->
-                                            <div
-                                                class="recent-chat-icon-circle"
-                                                style={gradientColors
-                                                    ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})`
-                                                    : 'background: var(--color-grey-40)'}
-                                                aria-hidden="true"
-                                            >
+                                            <!-- Living gradient orbs -->
+                                            <div class="resume-large-orbs" aria-hidden="true">
+                                                <div class="resume-orb resume-orb-1"></div>
+                                                <div class="resume-orb resume-orb-2"></div>
+                                                <div class="resume-orb resume-orb-3"></div>
+                                            </div>
+                                            <!-- Decorative corner icons -->
+                                            {#if IconComponent}
+                                                <div class="resume-large-deco resume-large-deco-left">
+                                                    <IconComponent size={80} color="white" />
+                                                </div>
+                                                <div class="resume-large-deco resume-large-deco-right">
+                                                    <IconComponent size={80} color="white" />
+                                                </div>
+                                            {/if}
+                                            <!-- Card content -->
+                                            <div class="resume-large-content">
                                                 {#if IconComponent}
-                                                    <IconComponent size={18} color="white" />
+                                                    <div class="resume-large-icon">
+                                                        <IconComponent size={32} color="white" />
+                                                    </div>
+                                                {/if}
+                                                <span class="resume-large-title">
+                                                    {meta.title || $text('chat.untitled_chat')}
+                                                </span>
+                                                {#if meta.summary}
+                                                    <p class="resume-large-summary">{meta.summary}</p>
                                                 {/if}
                                             </div>
-                                            <!-- Chat title -->
-                                            <span class="recent-chat-title">
-                                                {meta.title || $text('chat.untitled_chat')}
-                                            </span>
                                         </button>
                                     {/each}
 
@@ -8769,9 +8839,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         <button
                                             class="recent-chat-overflow"
                                             type="button"
-                                            onclick={() => {
-                                                panelState.toggleChats();
-                                            }}
+                                            onclick={() => panelState.toggleChats()}
                                         >
                                             +{overflowCount}
                                         </button>
@@ -10320,96 +10388,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         /* Re-enable pointer events (parent center-content has pointer-events: none) */
         pointer-events: auto;
         /* Prevent the row from collapsing to 0 height when empty */
-        min-height: 90px;
+        min-height: 224px;
     }
 
     .recent-chats-scroll-container::-webkit-scrollbar {
         display: none; /* Chrome/Safari */
     }
 
-    /* Individual chat card in the horizontal scroll row */
-    .recent-chat-item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 6px;
-        /* Fixed card width so titles truncate consistently */
-        width: 76px;
-        min-width: 76px;
-        max-width: 76px;
-        flex-shrink: 0;
-        padding: 8px 4px;
-        background: none;
-        border: none;
-        border-radius: 12px;
-        cursor: pointer;
-        transition: background 0.15s ease, transform 0.15s ease;
-        text-align: center;
-        pointer-events: auto;
-    }
-
-    .recent-chat-item:hover {
-        background: var(--color-grey-15, rgba(0, 0, 0, 0.05));
-        transform: translateY(-2px);
-    }
-
-    .recent-chat-item:active {
-        transform: translateY(0);
-        background: var(--color-grey-20, rgba(0, 0, 0, 0.08));
-    }
-
-    /* Ring around the first (last-opened) card to distinguish it */
-    .recent-chat-item--first .recent-chat-icon-circle {
-        box-shadow:
-            0 0 0 2px var(--color-bg, #fff),
-            0 0 0 4px var(--color-primary-start, #7c3aed);
-    }
-
-    /* Category gradient circle — 44px so it's comfortably tappable */
-    .recent-chat-icon-circle {
-        width: 44px;
-        height: 44px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-        transition: box-shadow 0.15s ease;
-    }
-
-    .recent-chat-item:hover .recent-chat-icon-circle {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    }
-
-    /* Truncated title below the icon circle */
-    .recent-chat-title {
-        font-size: 11px;
-        font-weight: 500;
-        color: var(--color-grey-70);
-        /* Clamp to 2 lines */
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        width: 100%;
-        line-height: 1.3;
-        word-break: break-word;
-    }
-
-    /* "+N" overflow button — opens the sidebar chat list */
+    /* "+N" overflow button — pill matching card height, opens the sidebar chat list */
     .recent-chat-overflow {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 44px;
-        min-width: 44px;
-        height: 44px;
-        border-radius: 50%;
+        width: 56px;
+        min-width: 56px;
+        height: 200px;
+        border-radius: 20px;
         background: var(--color-grey-20, rgba(0, 0, 0, 0.07));
         border: 1.5px dashed var(--color-grey-40);
-        font-size: 12px;
+        font-size: 14px;
         font-weight: 700;
         color: var(--color-grey-60);
         cursor: pointer;
@@ -10417,7 +10414,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         transition: background 0.15s ease, color 0.15s ease;
         pointer-events: auto;
         margin-left: 4px;
-        margin-top: 8px;
     }
 
     .recent-chat-overflow:hover {
