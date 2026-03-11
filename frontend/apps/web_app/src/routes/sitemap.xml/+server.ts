@@ -51,7 +51,7 @@ export const GET: RequestHandler = async ({ fetch, url }) => {
 		);
 	}
 
-	const backendUrl = env.BACKEND_URL || 'https://app.dev.openmates.org';
+	const backendUrl = env.BACKEND_URL || 'https://api.openmates.org';
 
 	// Fetch all published demo chats to include in sitemap
 	let demoChats: DemoChatListItem[] = [];
@@ -79,12 +79,32 @@ export const GET: RequestHandler = async ({ fetch, url }) => {
 
 	// Build XML entries
 	const staticUrls = [
-		// Demo chat listing/index page
+		// Demo chat listing/index page (no trailing slash — matches canonicalUrl in +page.server.ts)
 		`  <url>
-    <loc>${siteOrigin}/demo/chat/</loc>
+    <loc>${siteOrigin}/demo/chat</loc>
     <lastmod>${today}</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
+  </url>`,
+		// Intro chat SEO pages — static, bundled with the frontend (not backend-fetched)
+		// Priority 0.9: higher than community demo chats (0.7) — these are core app introduction pages
+		`  <url>
+    <loc>${siteOrigin}/intro/for-everyone</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>`,
+		`  <url>
+    <loc>${siteOrigin}/intro/for-developers</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>`,
+		`  <url>
+    <loc>${siteOrigin}/intro/who-develops-openmates</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
   </url>`
 	];
 

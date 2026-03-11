@@ -66,7 +66,7 @@ export const load: PageServerLoad = async ({ params, fetch, setHeaders, url }) =
 		hostname === 'localhost' ||
 		hostname === '127.0.0.1';
 
-	const backendUrl = env.BACKEND_URL || 'https://app.dev.openmates.org';
+	const backendUrl = env.BACKEND_URL || 'https://api.openmates.org';
 
 	let chatData: DemoChatResponse;
 

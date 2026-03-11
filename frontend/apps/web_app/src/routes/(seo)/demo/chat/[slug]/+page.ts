@@ -33,7 +33,7 @@ export const entries: EntryGenerator = async () => {
 	// $env/static/private (not yet established in the project), so we fall back
 	// to process.env which is available in the Vercel build environment.
 	const backendUrl =
-		(typeof process !== 'undefined' && process.env?.BACKEND_URL) || 'https://app.dev.openmates.org';
+		(typeof process !== 'undefined' && process.env?.BACKEND_URL) || 'https://api.openmates.org';
 
 	try {
 		const response = await fetch(`${backendUrl}/v1/demo/chats?lang=en`);
@@ -53,7 +53,7 @@ export const entries: EntryGenerator = async () => {
 			.filter((slug): slug is string => typeof slug === 'string' && slug.startsWith('demo-'))
 			.map((slug) => ({ slug }));
 
-		console.log(
+		console.warn(
 			`[demo/chat entries] Will prerender ${slugEntries.length} demo chat pages: ${slugEntries.map((e) => e.slug).join(', ')}`
 		);
 
