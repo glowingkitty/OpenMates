@@ -17,7 +17,7 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
     import { activatePairSession } from '../../../stores/pairSessionStore';
     import QRCodeSVG from 'qrcode-svg';
 
-    const dispatch = createEventDispatcher<{ login: { lookupHash: string; userEmailSalt: string; authorizerDeviceName: string | null; autoLogoutMinutes: number | null } }>();
+    const dispatch = createEventDispatcher<{ login: { lookupHash: string; hashedEmail: string; userEmailSalt: string; authorizerDeviceName: string | null; autoLogoutMinutes: number | null } }>();
 
     // ========================================================================
     // PROPS
@@ -250,7 +250,7 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
      * Crypto: AES-256-GCM, key derived via PBKDF2(PIN, token-as-salt, 100_000 iters, SHA-256)
      * Must match exactly what SettingsSessionsConfirmPair uses to encrypt.
      *
-     * Bundle plaintext JSON: { lookup_hash, user_email_salt, master_key_exported }
+     * Bundle plaintext JSON: { lookup_hash, hashed_email, user_email_salt, master_key_exported }
      * master_key_exported is the raw AES-256 master key exported by the authorizing device.
      * We import it directly and save it to the session — no password needed.
      */
@@ -282,6 +282,7 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
             const plainText = new TextDecoder().decode(plainBytes);
             const bundle = JSON.parse(plainText) as {
                 lookup_hash: string;
+                hashed_email: string;
                 user_email_salt: string;
                 master_key_exported: string;
             };
@@ -313,6 +314,7 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
             // Dispatch login event — Login.svelte calls /auth/login to establish server session
             dispatch('login', {
                 lookupHash: bundle.lookup_hash,
+                hashedEmail: bundle.hashed_email,
                 userEmailSalt: bundle.user_email_salt,
                 authorizerDeviceName,
                 autoLogoutMinutes: returnedAutoLogoutMinutes,

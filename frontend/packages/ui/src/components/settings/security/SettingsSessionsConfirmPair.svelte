@@ -46,6 +46,7 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
     interface PairCredentialsApiResponse {
         lookup_hash: string;
         user_email_salt: string;
+        hashed_email: string;
     }
 
     type PageStatus = 'loading' | 'confirm' | 'authorizing' | 'pin_display' | 'denied' | 'error' | 'invalid';
@@ -230,7 +231,8 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
      *
      * The bundle holds everything the new device needs to establish a full session:
      *   lookup_hash       — hashed credential passed to POST /auth/login
-     *   user_email_salt   — hashed email identifier for /auth/login
+     *   hashed_email      — SHA256(email) identifier used by /auth/login for user lookup
+     *   user_email_salt   — salt for client-side key derivation (NOT the hashed_email)
      *   master_key_exported — raw AES-256 master key bytes (base64), exported from the
      *                         in-memory CryptoKey. The new device imports this directly,
      *                         bypassing the need for the user's password. This works
@@ -247,6 +249,7 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
      */
     async function buildBundle(): Promise<{
         lookup_hash: string;
+        hashed_email: string;
         user_email_salt: string;
         master_key_exported: string;
     }> {
@@ -260,34 +263,38 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
         const rawKeyBytes = await crypto.subtle.exportKey('raw', masterKey);
         const master_key_exported = uint8ArrayToBase64(new Uint8Array(rawKeyBytes));
 
-        // Step 2: get lookup_hash and user_email_salt (session identifiers, no crypto material)
+        // Step 2: get lookup_hash, hashed_email, and user_email_salt
+        // hashed_email = SHA256(email) — needed by /auth/login to find the user
+        // user_email_salt = salt for client-side key derivation (NOT the same as hashed_email)
         let lookup_hash = sessionStorage.getItem('openmates_pair_lookup_hash');
         let user_email_salt = sessionStorage.getItem('openmates_email_salt')
             || localStorage.getItem('openmates_email_salt');
+        let hashed_email: string | null = null;
 
-        if (!lookup_hash || !user_email_salt) {
-            const response = await fetch(getApiEndpoint('/v1/auth/pair/credentials'), {
-                method: 'GET',
-                credentials: 'include',
-            });
+        // Always call /pair/credentials to get hashed_email (not stored in sessionStorage),
+        // and fill in any missing lookup_hash / user_email_salt as before
+        const response = await fetch(getApiEndpoint('/v1/auth/pair/credentials'), {
+            method: 'GET',
+            credentials: 'include',
+        });
 
-            if (response.ok) {
-                const data: PairCredentialsApiResponse = await response.json();
-                lookup_hash = lookup_hash || data.lookup_hash || null;
-                user_email_salt = user_email_salt || data.user_email_salt || null;
+        if (response.ok) {
+            const data: PairCredentialsApiResponse = await response.json();
+            lookup_hash = lookup_hash || data.lookup_hash || null;
+            user_email_salt = user_email_salt || data.user_email_salt || null;
+            hashed_email = data.hashed_email || null;
 
-                if (lookup_hash) sessionStorage.setItem('openmates_pair_lookup_hash', lookup_hash);
-                if (user_email_salt) sessionStorage.setItem('openmates_email_salt', user_email_salt);
-            }
+            if (lookup_hash) sessionStorage.setItem('openmates_pair_lookup_hash', lookup_hash);
+            if (user_email_salt) sessionStorage.setItem('openmates_email_salt', user_email_salt);
         }
 
-        if (!lookup_hash || !user_email_salt) {
+        if (!lookup_hash || !user_email_salt || !hashed_email) {
             throw new Error(
                 'Pair login credentials not available. Please log out and log back in, then try again.'
             );
         }
 
-        return { lookup_hash, user_email_salt, master_key_exported };
+        return { lookup_hash, hashed_email, user_email_salt, master_key_exported };
     }
 
     /** Get a human-readable name for this device (the authorizer) */

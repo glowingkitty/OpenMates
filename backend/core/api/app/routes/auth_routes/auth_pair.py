@@ -132,6 +132,7 @@ class PairCredentialsResponse(BaseModel):
     """Authenticated credentials payload used to build pair-login encrypted bundle."""
     lookup_hash: str
     user_email_salt: str
+    hashed_email: str  # SHA256(email) — needed by /auth/login for user lookup
     encrypted_key: str
     salt: str
 
@@ -267,6 +268,7 @@ async def pair_credentials(
     request: Request,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
 ) -> PairCredentialsResponse:
     """
     Return pair-login credentials for the authenticated authorizing device.
@@ -282,9 +284,20 @@ async def pair_credentials(
         None,
     )
 
-    if not lookup_hash or not current_user.user_email_salt:
+    # hashed_email is not on the User model — read it from the cached user profile or Directus.
+    hashed_email: str | None = None
+    cached_profile = await cache_service.get_user_data(current_user.id)
+    if cached_profile:
+        hashed_email = cached_profile.get("hashed_email")
+    if not hashed_email:
+        # Fallback: fetch directly from Directus
+        user_fields = await directus_service.get_user_fields_direct(current_user.id, ["hashed_email"])
+        if user_fields:
+            hashed_email = user_fields.get("hashed_email")
+
+    if not lookup_hash or not current_user.user_email_salt or not hashed_email:
         logger.warning(
-            "pair/credentials: missing lookup_hash or user_email_salt for user %s",
+            "pair/credentials: missing lookup_hash, user_email_salt, or hashed_email for user %s",
             current_user.id[:8],
         )
         raise HTTPException(
@@ -322,6 +335,7 @@ async def pair_credentials(
     return PairCredentialsResponse(
         lookup_hash=lookup_hash,
         user_email_salt=current_user.user_email_salt,
+        hashed_email=hashed_email,
         encrypted_key=encrypted_key,
         salt=salt,
     )

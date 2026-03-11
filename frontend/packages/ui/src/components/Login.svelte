@@ -2466,11 +2466,11 @@
                                                         // establish a server session (cookie) using the recovered credentials.
                                                         isLoading = true;
                                                         try {
-                                                            const { lookupHash, userEmailSalt } = e.detail;
-                                                            // userEmailSalt is the hashed_email identifier for /auth/login
+                                                            const { lookupHash, hashedEmail } = e.detail;
+                                                            // hashedEmail = SHA256(email) for user lookup, lookupHash = auth credential
                                                             // "pair" login_method signals to the backend to bypass 2FA —
                                                             // the pair flow itself is strong mutual auth (ZK-encrypted bundle + PIN).
-                                                            const result = await login(userEmailSalt, lookupHash, undefined, undefined, stayLoggedIn, 'pair');
+                                                            const result = await login(hashedEmail, lookupHash, undefined, undefined, stayLoggedIn, 'pair');
                                                             if (result.success && !result.tfa_required) {
                                                                 // Pair session state + master key already set in SettingsSessionsPairInitiate
                                                                 currentLoginStep = 'email';
