@@ -8743,7 +8743,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             onclick={() => {
                                                 dispatch('chatSelected', { chat: meta.chat });
                                             }}
-                                            title={meta.title || $text('chat.untitled')}
+                                            title={meta.title || $text('chat.untitled_chat')}
                                         >
                                             <!-- Category gradient circle icon -->
                                             <div
@@ -8759,7 +8759,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             </div>
                                             <!-- Chat title -->
                                             <span class="recent-chat-title">
-                                                {meta.title || $text('chat.untitled')}
+                                                {meta.title || $text('chat.untitled_chat')}
                                             </span>
                                         </button>
                                     {/each}
