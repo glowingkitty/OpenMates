@@ -1958,19 +1958,25 @@ changes to the documentation (to keep the documentation up to date).
                     console.debug('[Settings] Dispatching userLoggingOut event to clear chats and load demo');
                     window.dispatchEvent(new CustomEvent('userLoggingOut'));
 
-                    // CRITICAL: Force ActiveChat to load demo-for-everyone by setting activeChatStore directly
-                    // This ensures demo-for-everyone loads even if event handlers have timing issues
-                    // Small delay to ensure auth state changes are processed first
-                    await new Promise(resolve => setTimeout(resolve, 50));
-                    const { activeChatStore } = await import('@repo/ui');
-                    activeChatStore.setActiveChat('demo-for-everyone');
-                    console.debug('[Settings] Directly set activeChatStore to demo-for-everyone during logout');
+                     // CRITICAL: Force ActiveChat to load demo-for-everyone by setting activeChatStore directly
+                     // This ensures demo-for-everyone loads even if event handlers have timing issues
+                     // Small delay to ensure auth state changes are processed first
+                     // OG image mode (?og=1): skip demo-for-everyone so the welcome screen stays visible
+                     const isOgMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('og') === '1';
+                     if (!isOgMode) {
+                         await new Promise(resolve => setTimeout(resolve, 50));
+                         const { activeChatStore } = await import('@repo/ui');
+                         activeChatStore.setActiveChat('demo-for-everyone');
+                         console.debug('[Settings] Directly set activeChatStore to demo-for-everyone during logout');
 
-                    // CRITICAL: Ensure URL hash is set to demo-for-everyone
-                    if (typeof window !== 'undefined') {
-                        window.location.hash = 'chat-id=demo-for-everyone';
-                        console.debug('[Settings] Set URL hash to demo-for-everyone during logout');
-                    }
+                         // CRITICAL: Ensure URL hash is set to demo-for-everyone
+                         if (typeof window !== 'undefined') {
+                             window.location.hash = 'chat-id=demo-for-everyone';
+                             console.debug('[Settings] Set URL hash to demo-for-everyone during logout');
+                         }
+                     } else {
+                         console.debug('[Settings] Skipping demo-for-everyone redirect during logout - og=1 mode');
+                     }
                     
                     // CRITICAL: Mark phased sync as completed for non-authenticated users
                     // This prevents "Loading chats..." from showing after logout
@@ -1996,12 +2002,13 @@ changes to the documentation (to keep the documentation up to date).
                     // Only close settings menu
                  	isMenuOpen.set(false);
 
-                    // CRITICAL: Ensure URL hash is set to demo-for-everyone after logout
-                    // This ensures consistent behavior where logout always redirects to demo-for-everyone
-                    if (typeof window !== 'undefined') {
-                        window.location.hash = 'chat-id=demo-for-everyone';
-                        console.debug('[Settings] Set URL hash to demo-for-everyone after logout');
-                    }
+                     // CRITICAL: Ensure URL hash is set to demo-for-everyone after logout
+                     // This ensures consistent behavior where logout always redirects to demo-for-everyone
+                     // OG image mode (?og=1): skip so the welcome screen stays visible
+                     if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('og') !== '1') {
+                         window.location.hash = 'chat-id=demo-for-everyone';
+                         console.debug('[Settings] Set URL hash to demo-for-everyone after logout');
+                     }
 
                     // Small delay to allow sidebar animation if needed
                  	await new Promise(resolve => setTimeout(resolve, 100));

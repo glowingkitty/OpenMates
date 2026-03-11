@@ -667,6 +667,12 @@
                     return;
                 }
 
+                // OG image mode (?og=1): skip demo-for-everyone so the welcome screen stays visible
+                if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('og') === '1') {
+                    console.debug('[ActiveChat] Skipping handleLogout demo load - og=1 mode');
+                    return;
+                }
+
                 // Clear current chat and load welcome chat
                 currentChat = null;
                 currentMessages = [];
@@ -765,6 +771,12 @@
                         // Check if deep link processing is happening
                         if (get(deepLinkProcessing)) {
                             console.debug('[ActiveChat] Skipping welcome chat backup - deep link processing in progress');
+                            return;
+                        }
+
+                        // OG image mode (?og=1): skip demo-for-everyone so the welcome screen stays visible
+                        if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('og') === '1') {
+                            console.debug('[ActiveChat] Skipping backup auth handler demo load - og=1 mode');
                             return;
                         }
 
