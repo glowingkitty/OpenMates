@@ -73,7 +73,11 @@ Supports both saved payment methods and new payment form
         created: number;
     }> = $state([]);
     let selectedPaymentMethodId: string | null = $state(null);
-    let isLoadingPaymentMethods = $state(false);
+    // Start as true so the {:else} branch (Payment.svelte) does not mount and call
+    // createOrder() before onMount has had a chance to check for saved methods.
+    // This prevents a premature mount that creates a stale PaymentIntent causing
+    // the real payment to fail with payment_intent.payment_failed from Stripe.
+    let isLoadingPaymentMethods = $state(true);
     let showPaymentForm = $state(false);
     let showAuthModal = $state(false);
     let authMethods: { has_passkey: boolean; has_2fa: boolean } | null = $state(null);
@@ -112,7 +116,7 @@ Supports both saved payment methods and new payment form
      * bypassing the 30-second timeout fallback in Payment.svelte.
      */
     function handlePaymentCompleted(payload: { order_id: string; credits_purchased: number; current_credits: number }) {
-        console.debug('[SettingsBuyCreditsPayment] Received payment_completed via WebSocket:', payload);
+
         if (hasNavigatedToConfirmation) return; // Prevent duplicate navigation
         hasNavigatedToConfirmation = true;
 
