@@ -51,12 +51,9 @@
         isContentEmptyExceptMention,
         getInitialContent
     } from './utils';
-    import {
-        getLucideIcon,
-        getValidIconName,
-        getCategoryGradientColors,
-        getFallbackIconForCategory,
-    } from '../../utils/categoryUtils';
+
+    // Components for decorative placeholder icons
+    import Icon from '../Icon.svelte';
     
     // Unified parser imports
     import { parse_message } from '../../message_parsing/parse_message';
@@ -278,97 +275,45 @@
     }
 
     // --- Floating App Icons (Decorative Placeholder Backdrop) ---
-    // Shown as 3 left + 3 right slowly floating icons while the placeholder text is visible.
-    // Fades out when the editor is focused or has content.
-    // Uses recommended apps from userProfile when available, else random apps from the store.
-
-    interface PlaceholderDecorIcon {
-        key: string;
-        iconName: string;
-        side: 'left' | 'right';
-        topPercent: number;    // vertical position within the field
-        insetPx: number;       // horizontal offset from edge
-        rotationDeg: number;   // deterministic tilt angle
-        gradientStart: string;
-        gradientEnd: string;
-    }
-
-    /** Simple deterministic hash → [0, 1] to avoid RNG flicker on re-render. */
-    function _iconHashToUnit(seed: string): number {
-        let h = 2166136261;
-        for (let i = 0; i < seed.length; i++) {
-            h ^= seed.charCodeAt(i);
-            h = Math.imul(h, 16777619);
-        }
-        return (h >>> 0) / 4294967295;
-    }
-
-    /** Deterministic value in [min, max] based on a string seed. */
-    function _iconDetVal(seed: string, min: number, max: number): number {
-        return min + (max - min) * _iconHashToUnit(seed);
-    }
+    // 3 app icons grouped on the left, 3 on the right, horizontally laid out.
+    // Visible only while the placeholder text is shown (editor empty + not focused).
+    // Uses recommended apps from userProfile when available, else apps from the store.
+    // Each icon uses the real <Icon> component (type="app") with decoFloat animation.
 
     /**
-     * Build 6 decorative icon descriptors (3 left, 3 right) from an ordered list of app IDs.
-     * Uses deterministic positions/rotations so the layout is stable across re-renders.
+     * Normalize an app's icon_image field to the name expected by <Icon name="...">
+     * Mirrors the same normalization used in AppStoreCard, AppDetailsHeader, etc.
      */
-    function buildPlaceholderDecorIcons(appIds: string[]): PlaceholderDecorIcon[] {
-        // Vertical slot positions (% from top of the field) per side
-        const leftSlots = [22, 46, 70];
-        const rightSlots = [30, 54, 78];
-        const decor: PlaceholderDecorIcon[] = [];
-        let leftIdx = 0;
-        let rightIdx = 0;
-
-        for (let i = 0; i < appIds.length && decor.length < 6; i++) {
-            const appId = appIds[i];
-            const app = appSkillsStore.getState().apps[appId];
-            if (!app) continue;
-
-            const side: 'left' | 'right' = decor.filter(d => d.side === 'left').length <= decor.filter(d => d.side === 'right').length ? 'left' : 'right';
-            const topPercent = side === 'left' ? leftSlots[leftIdx++] : rightSlots[rightIdx++];
-            if (topPercent === undefined) continue;
-
-            const rawIcon = app.icon_image ? app.icon_image.replace(/\.svg$/i, '') : '';
-            const category = (app as { category?: string }).category ?? 'general_knowledge';
-            const iconName = rawIcon ? getValidIconName(rawIcon, category) : getFallbackIconForCategory(category);
-            const gradient = getCategoryGradientColors(category) ?? { start: '#de1e66', end: '#ff763b' };
-            const insetPx = Math.round(_iconDetVal(`${appId}-inset`, 8, 22));
-            const rotationDeg = Math.round(_iconDetVal(`${appId}-rot`, -25, 25));
-
-            decor.push({
-                key: `${appId}-${side}`,
-                iconName,
-                side,
-                topPercent,
-                insetPx,
-                rotationDeg,
-                gradientStart: gradient.start,
-                gradientEnd: gradient.end,
-            });
-        }
-
-        return decor;
+    function _normalizeIconName(iconImage: string | undefined, appId: string): string {
+        if (!iconImage) return appId;
+        let n = iconImage.replace(/\.svg$/i, '').trim();
+        if (n === 'coding') n = 'code';
+        if (n === 'heart')  n = 'health';
+        if (n === 'email')  n = 'mail';
+        if (n === 'book')   n = 'books';
+        return n;
     }
 
-    /** Reactive: compute the 6 decorative icons from recommended or random apps. */
-    let placeholderDecorIcons = $derived.by((): PlaceholderDecorIcon[] => {
+    /** Reactive: pick 6 app IDs (3 left, 3 right) for the placeholder icon groups. */
+    let placeholderIconIds = $derived.by((): { left: string[]; right: string[] } => {
         const recommended = $userProfile.top_recommended_apps;
         const allAppIds = Object.keys(appSkillsStore.getState().apps);
-        if (allAppIds.length === 0) return [];
+        if (allAppIds.length === 0) return { left: [], right: [] };
 
-        // Use up to 6 recommended app IDs; pad with random apps from the store if needed
+        // Start with recommended apps, pad with store apps if needed
         let candidates: string[] = [];
         if (recommended && recommended.length > 0) {
-            candidates = [...recommended];
+            candidates = recommended.filter(id => allAppIds.includes(id));
         }
-        // Pad to at least 6 using apps from the store (deterministically ordered by ID)
         if (candidates.length < 6) {
             const extras = allAppIds.filter(id => !candidates.includes(id));
             candidates = [...candidates, ...extras];
         }
 
-        return buildPlaceholderDecorIcons(candidates.slice(0, 12)); // pass extras so we can fill 6 slots
+        return {
+            left: candidates.slice(0, 3),
+            right: candidates.slice(3, 6),
+        };
     });
 
     // Location precision setting — read from personalDataStore (persisted, encrypted).
@@ -4264,31 +4209,48 @@
         aria-multiline="true"
         tabindex="0"
     >
-        <!-- Decorative floating app icons: 3 left + 3 right, visible only while the
-             placeholder is shown (editor empty, not focused). They animate with the shared
-             decoFloat keyframe (same as the Settings header icons) and fade out once the
-             editor becomes active. pointer-events: none so they never block interaction. -->
-        {#if placeholderDecorIcons.length > 0}
+        <!-- Decorative floating app icons: 3 side-by-side on the left, 3 on the right.
+             Visible only while the placeholder text is shown (editor empty + not focused).
+             Each icon uses the real <Icon type="app"> with the decoFloat orbital animation.
+             pointer-events: none so they never intercept clicks or focus events. -->
+        {#if placeholderIconIds.left.length > 0 || placeholderIconIds.right.length > 0}
             <div
-                class="placeholder-decor-icons-layer"
+                class="placeholder-decor-layer"
                 class:hidden={!showPlaceholderDecorIcons}
                 aria-hidden="true"
             >
-                {#each placeholderDecorIcons as decor, index (decor.key)}
-                    {@const IconComponent = getLucideIcon(decor.iconName)}
-                    <div
-                        class="placeholder-decor-icon {decor.side}"
-                        style="top: {decor.topPercent}%;
-                               --ph-icon-inset: {decor.insetPx}px;
-                               --deco-rotate: {decor.rotationDeg}deg;
-                               --deco-target-opacity: 1;
-                               --float-rx: 5px;
-                               --float-ry: 6px;
-                               animation-delay: {-index * 2.5}s;"
-                    >
-                        <IconComponent size={20} color="currentColor" />
-                    </div>
-                {/each}
+                <!-- Left group: 3 icons in a row -->
+                <div class="placeholder-decor-group left">
+                    {#each placeholderIconIds.left as appId, i (appId)}
+                        <div
+                            class="placeholder-decor-icon"
+                            style="--deco-rotate: 0deg; --deco-target-opacity: 1; --float-rx: 4px; --float-ry: 5px; animation-delay: {-i * 3}s;"
+                        >
+                            <Icon
+                                name={_normalizeIconName(appSkillsStore.getState().apps[appId]?.icon_image, appId)}
+                                type="app"
+                                size="28px"
+                                noAnimation={true}
+                            />
+                        </div>
+                    {/each}
+                </div>
+                <!-- Right group: 3 icons in a row -->
+                <div class="placeholder-decor-group right">
+                    {#each placeholderIconIds.right as appId, i (appId)}
+                        <div
+                            class="placeholder-decor-icon"
+                            style="--deco-rotate: 0deg; --deco-target-opacity: 1; --float-rx: 4px; --float-ry: 5px; animation-delay: {-(i + 3) * 3}s;"
+                        >
+                            <Icon
+                                name={_normalizeIconName(appSkillsStore.getState().apps[appId]?.icon_image, appId)}
+                                type="app"
+                                size="28px"
+                                noAnimation={true}
+                            />
+                        </div>
+                    {/each}
+                </div>
             </div>
         {/if}
 

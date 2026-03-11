@@ -491,49 +491,53 @@
 
 /* =============================================================================
    Decorative Floating App Icons (Placeholder Backdrop)
-   Shown as 3 left + 3 right orbital icons while the editor is empty and unfocused.
-   Reuses the shared `decoFloat` keyframe from animations.css (same as Settings header).
+   3 app icons in a horizontal row on the left, 3 on the right.
+   Visible only while the editor is empty and unfocused (placeholder shown).
+   Reuses the shared `decoFloat` keyframe from animations.css.
    ============================================================================= */
 
-/* Absolute layer that contains all 6 icons — clips them to the field bounds */
-.placeholder-decor-icons-layer {
+/* Absolute layer — fills the message-field, clips overflow, no pointer events */
+.placeholder-decor-layer {
   position: absolute;
   inset: 0;
-  overflow: hidden;
   pointer-events: none;
   z-index: 1;
-  /* Fade in/out based on placeholder vs active state */
+  /* Fade in/out as placeholder appears/disappears */
   opacity: 0.5;
   transition: opacity 0.3s ease-in-out;
 }
 
-/* When the editor is focused or has content, hide the icons */
-.placeholder-decor-icons-layer.hidden {
+/* Hide when editor is focused or has content */
+.placeholder-decor-layer.hidden {
   opacity: 0;
 }
 
-/* Individual icon — positioned absolutely, animates with decoFloat.
-   The decoFloat keyframe controls the full transform (translateX/Y + rotate) and opacity
-   (via --deco-target-opacity=1 set inline). The containing layer's opacity controls the
-   overall 0.5 transparency so no opacity override is needed here. */
-.placeholder-decor-icon {
+/* Each side group: a row of 3 icons, absolutely positioned left or right,
+   vertically centred in the field */
+.placeholder-decor-group {
   position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.placeholder-decor-group.left {
+  left: 10px;
+}
+
+.placeholder-decor-group.right {
+  right: 10px;
+}
+
+/* Each icon wrapper — animates with the decoFloat orbital keyframe */
+.placeholder-decor-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Use font-primary colour to adapt to both light and dark themes */
-  color: var(--color-font-primary);
   animation: decoFloat 18s linear infinite;
-}
-
-/* Left icons: positioned from the left edge */
-.placeholder-decor-icon.left {
-  left: var(--ph-icon-inset);
-}
-
-/* Right icons: positioned from the right edge */
-.placeholder-decor-icon.right {
-  right: var(--ph-icon-inset);
 }
 
 /* Respect reduced-motion preferences */
