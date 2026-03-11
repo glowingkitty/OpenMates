@@ -256,3 +256,6 @@ rankings.json
 # Local debug and cache artifacts
 debug_output*.yml
 shared/cache/web_analytics_backup.json
+
+# OpenCode AI editor local state
+.opencode/
