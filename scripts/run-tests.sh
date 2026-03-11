@@ -161,9 +161,12 @@ run_vitest() {
     return
   fi
 
-  local vitest_output
   local vitest_exit=0
-  vitest_output="$(cd "$vitest_dir" && npx vitest run --config vitest.simple.config.ts --reporter=json 2>&1)" || vitest_exit=$?
+  # Write output to a temp file to avoid "Argument list too long" (execve limit
+  # ~130K bytes) when passing large JSON output as a shell argument.
+  local vitest_tmp="$WORK_DIR/vitest_raw_output.txt"
+  (cd "$vitest_dir" && npx vitest run --config vitest.simple.config.ts --reporter=json 2>&1) \
+    > "$vitest_tmp" || vitest_exit=$?
 
   local suite_dur=$(( $(now_seconds) - suite_start ))
 
@@ -171,10 +174,13 @@ run_vitest() {
   python3 -c "
 import json, sys
 
-raw = sys.argv[1]
+output_file = sys.argv[1]
 exit_code = int(sys.argv[2])
 dur = int(sys.argv[3])
 work_dir = sys.argv[4]
+
+with open(output_file, 'r', errors='replace') as fh:
+    raw = fh.read()
 
 # Try to extract JSON from the output (vitest --reporter=json outputs JSON)
 # The JSON may be mixed with other output, so find the JSON object
@@ -227,7 +233,7 @@ with open(work_dir + '/vitest_suite.json', 'w') as f:
 passed = sum(1 for t in tests if t['status'] == 'passed')
 failed = sum(1 for t in tests if t['status'] == 'failed')
 print(f'  {passed} passed, {failed} failed ({dur}s)')
-" "$vitest_output" "$vitest_exit" "$suite_dur" "$WORK_DIR"
+" "$vitest_tmp" "$vitest_exit" "$suite_dur" "$WORK_DIR"
 }
 
 # =============================================================================
@@ -293,16 +299,22 @@ run_pytest() {
     echo '{"status":"skipped","reason":"no matching tests","duration_seconds":0,"tests":[]}' \
       > "$WORK_DIR/pytest_unit_suite.json"
   else
-    unit_output="$($pytest_bin -m pytest --tb=short -q "${unit_args[@]}" 2>&1)" || unit_exit=$?
+    # Write output to a temp file to avoid "Argument list too long" (execve limit).
+    local unit_tmp="$WORK_DIR/pytest_unit_raw_output.txt"
+    ($pytest_bin -m pytest --tb=short -q "${unit_args[@]}" 2>&1) \
+      > "$unit_tmp" || unit_exit=$?
     local unit_dur=$(( $(now_seconds) - unit_start ))
 
     python3 -c "
 import json, re, sys
 
-raw = sys.argv[1]
+output_file = sys.argv[1]
 exit_code = int(sys.argv[2])
 dur = int(sys.argv[3])
 work_dir = sys.argv[4]
+
+with open(output_file, 'r', errors='replace') as fh:
+    raw = fh.read()
 
 tests = []
 suite_status = 'passed' if exit_code == 0 else 'failed'
@@ -335,7 +347,7 @@ with open(work_dir + '/pytest_unit_suite.json', 'w') as f:
 passed = sum(1 for t in tests if t['status'] == 'passed')
 failed = sum(1 for t in tests if t['status'] == 'failed')
 print(f'  Unit: {passed} passed, {failed} failed ({dur}s)')
-" "$unit_output" "$unit_exit" "$unit_dur" "$WORK_DIR"
+" "$unit_tmp" "$unit_exit" "$unit_dur" "$WORK_DIR"
   fi
 
   # --- Integration tests ---
@@ -376,15 +388,20 @@ print(f'  Unit: {passed} passed, {failed} failed ({dur}s)')
       echo '{"status":"skipped","reason":"no matching tests","duration_seconds":0,"tests":[]}' \
         > "$WORK_DIR/pytest_integration_suite.json"
     else
-      integ_output="$($pytest_bin -m pytest --tb=short -q "${integ_args[@]}" 2>&1)" || integ_exit=$?
+      # Write output to a temp file to avoid "Argument list too long" (execve limit).
+      local integ_tmp="$WORK_DIR/pytest_integ_raw_output.txt"
+      ($pytest_bin -m pytest --tb=short -q "${integ_args[@]}" 2>&1) \
+        > "$integ_tmp" || integ_exit=$?
       local integ_dur=$(( $(now_seconds) - integ_start ))
 
       python3 -c "
 import json, sys
-raw = sys.argv[1]
+output_file = sys.argv[1]
 exit_code = int(sys.argv[2])
 dur = int(sys.argv[3])
 work_dir = sys.argv[4]
+with open(output_file, 'r', errors='replace') as fh:
+    raw = fh.read()
 tests = []
 suite_status = 'passed' if exit_code == 0 else 'failed'
 for line in raw.split('\n'):
@@ -410,7 +427,7 @@ with open(work_dir + '/pytest_integration_suite.json', 'w') as f:
 passed = sum(1 for t in tests if t['status'] == 'passed')
 failed = sum(1 for t in tests if t['status'] == 'failed')
 print(f'  Integration: {passed} passed, {failed} failed ({dur}s)')
-" "$integ_output" "$integ_exit" "$integ_dur" "$WORK_DIR"
+" "$integ_tmp" "$integ_exit" "$integ_dur" "$WORK_DIR"
     fi
   fi
 }

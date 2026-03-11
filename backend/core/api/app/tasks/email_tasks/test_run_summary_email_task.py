@@ -16,6 +16,7 @@ Architecture: run-tests-daily.sh → dispatches this task via celery_dispatch_ta
 
 import logging
 import asyncio
+import re
 from typing import List, Dict, Any
 
 from backend.core.api.app.tasks.celery_config import app
@@ -174,10 +175,16 @@ async def _async_send_test_run_summary(
                 "status": escape(str(suite.get("status", "unknown"))),
             })
 
-        # Sanitize failed test entries and truncate error snippets
+        # Sanitize failed test entries and truncate error snippets.
+        # Strip ANSI escape codes first — Playwright/pytest output frequently
+        # contains terminal color codes (e.g. \x1b[31m). These control chars
+        # cause mjml2html() to fail with a misleading "unable to load included
+        # template" error, even after html.escape() has been applied.
+        _ansi_re = re.compile(r"\x1b\[[0-9;]*[mKHJABCDsuGfFnRh]")
         sanitized_failed = []
         for ft in failed_tests:
             error_raw = ft.get("error", "") or ""
+            error_raw = _ansi_re.sub("", error_raw)  # strip ANSI before HTML-escaping
             if len(error_raw) > MAX_ERROR_SNIPPET_LENGTH:
                 error_raw = error_raw[:MAX_ERROR_SNIPPET_LENGTH] + "... [truncated]"
             sanitized_failed.append({

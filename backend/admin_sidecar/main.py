@@ -947,11 +947,19 @@ def _run_test_script(force: bool = False) -> tuple[bool, str, int]:
             # The chroot starts with a minimal PATH that lacks user-installed
             # binaries (node, npx, pnpm, pip tools). Explicitly set PATH and
             # HOME so the host's Node.js, pnpm, pytest, etc. are found.
+            #
+            # git safe.directory: When HOME=/home/superdev is set inside the
+            # chroot, git reads /home/superdev/.gitconfig from the host
+            # filesystem. That config has no [safe] directory entry, so git
+            # exits 128 ("detected dubious ownership") — aborting the script
+            # immediately due to `set -euo pipefail`. We register the work dir
+            # as safe before running the script to prevent this.
             f"export HOME=/home/superdev && "
             f"export PATH=/home/superdev/.npm-global/bin:/home/superdev/.local/bin:"
             f"/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin && "
             f"export ADMIN_NOTIFY_EMAIL='{admin_email}' && "
             f"export INTERNAL_API_SHARED_TOKEN='{internal_token}' && "
+            f"git config --global --add safe.directory {work_dir} && "
             f"{inner_cmd}"
         ),
     ]
