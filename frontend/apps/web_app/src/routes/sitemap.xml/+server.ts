@@ -15,8 +15,8 @@
 //
 //   The robots.txt at /robots.txt already points to this sitemap.
 
-import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
+import { getBackendUrl } from '$lib/backendUrl';
 
 interface DemoChatListItem {
 	slug?: string;
@@ -51,7 +51,7 @@ export const GET: RequestHandler = async ({ fetch, url }) => {
 		);
 	}
 
-	const backendUrl = env.BACKEND_URL || 'https://api.openmates.org';
+	const backendUrl = getBackendUrl(url);
 
 	// Fetch all published demo chats to include in sitemap
 	let demoChats: DemoChatListItem[] = [];

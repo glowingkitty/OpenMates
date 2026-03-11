@@ -4,7 +4,7 @@
 // This route serves HTML with Open Graph meta tags for social media sharing
 
 import type { RequestHandler } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
+import { getBackendUrl } from '$lib/backendUrl';
 
 /**
  * Server route handler for /share/chat/[chatId]
@@ -26,7 +26,7 @@ export const GET: RequestHandler = async ({ params, url, fetch }) => {
 	}
 
 	// Fetch OG metadata from backend API
-	const backendUrl = env.BACKEND_URL || 'https://app.dev.openmates.org';
+	const backendUrl = getBackendUrl(url);
 	let ogTitle = 'Shared Chat - OpenMates';
 	let ogDescription = 'View this shared conversation on OpenMates';
 	let ogImage = '/og-images/default-chat.png';
@@ -48,7 +48,7 @@ export const GET: RequestHandler = async ({ params, url, fetch }) => {
 			ogImage = data.image || ogImage;
 
 			// Log what we received to help debug OG tag issues
-			console.log(`[OG Tags] Fetched metadata for chat ${chatId}:`, {
+			console.warn(`[OG Tags] Fetched metadata for chat ${chatId}:`, {
 				title: ogTitle.substring(0, 50),
 				description: ogDescription.substring(0, 50),
 				image: ogImage,

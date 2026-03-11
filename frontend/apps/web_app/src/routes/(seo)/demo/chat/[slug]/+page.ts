@@ -12,6 +12,7 @@
 //   adapter-node (future Hetzner migration), it runs during `node build`.
 
 import type { EntryGenerator } from './$types';
+import { PRERENDER_BACKEND_URL } from '$lib/backendUrl';
 
 // Use 'auto' so prerendered slugs are static files but unknown slugs still SSR gracefully
 export const prerender = 'auto';
@@ -28,12 +29,7 @@ export const csr = true;
  * Any slug not in this list at build time will be served via SSR on first request.
  */
 export const entries: EntryGenerator = async () => {
-	// entries() only runs in Node.js at build time, so process.env is safe here.
-	// We cannot use $env/dynamic/private (browser-compiled too) or
-	// $env/static/private (not yet established in the project), so we fall back
-	// to process.env which is available in the Vercel build environment.
-	const backendUrl =
-		(typeof process !== 'undefined' && process.env?.BACKEND_URL) || 'https://api.openmates.org';
+	const backendUrl = PRERENDER_BACKEND_URL;
 
 	try {
 		const response = await fetch(`${backendUrl}/v1/demo/chats?lang=en`);

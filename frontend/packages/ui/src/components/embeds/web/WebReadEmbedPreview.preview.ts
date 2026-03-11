@@ -45,15 +45,6 @@ export const variants = {
     isMobile: false,
   },
 
-  /** Error state — shows error indicator */
-  error: {
-    id: "preview-web-read-error",
-    status: "error" as const,
-    url: "https://svelte.dev/article/not-found",
-    results: [],
-    isMobile: false,
-  },
-
   /** Mobile view */
   mobile: {
     ...defaultProps,

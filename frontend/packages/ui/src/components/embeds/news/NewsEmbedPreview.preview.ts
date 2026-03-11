@@ -39,14 +39,6 @@ export const variants = {
     isMobile: false,
   },
 
-  /** Error state */
-  error: {
-    id: "preview-news-error",
-    url: "https://techcrunch.com/news/not-found",
-    status: "error" as const,
-    isMobile: false,
-  },
-
   /** With all metadata */
   richMetadata: {
     id: "preview-news-rich",
