@@ -11,6 +11,8 @@ Architecture:
   - GET /v1/settings/chats/preview    → count of chats older than N days
   - POST /v1/settings/chats/delete-old → delete + return deleted_ids for IndexedDB cleanup
   - created_at stored as Unix int in Directus; backend handles Unix timestamp filter
+  - total_chat_count is cached in userProfile (IndexedDB) from Phase 3 sync; used as
+    an immediate display value while the server fetch is in progress (see userProfile.ts).
 
 Tests: none yet — new settings sub-page.
 -->
@@ -21,12 +23,15 @@ Tests: none yet — new settings sub-page.
     import { chatDB } from '../../../services/db';
     import { chatListCache } from '../../../services/chatListCache';
     import { chatSyncService } from '../../../services/chatSyncService';
+    import { userProfile, updateTotalChatCount } from '../../../stores/userProfile';
 
     // =========================================================================
     // STATE
     // =========================================================================
 
-    let totalCount = $state<number | null>(null);
+    // Seed from IndexedDB-backed cache so a value appears instantly before the
+    // server fetch completes (or if the fetch fails).
+    let totalCount = $state<number | null>($userProfile.total_chat_count ?? null);
     let isLoading = $state(true);
     let errorMessage = $state<string | null>(null);
 
@@ -81,6 +86,9 @@ Tests: none yet — new settings sub-page.
             }
             const data = await res.json();
             totalCount = data.total_count ?? 0;
+            // Persist to IndexedDB-backed store so ActiveChat welcome screen "+N" counter
+            // and future visits have an up-to-date value without a server round-trip.
+            updateTotalChatCount(totalCount);
         } catch (err) {
             console.error('[SettingsAccountChats] Failed to load chat count:', err);
             errorMessage = err instanceof Error ? err.message : String(err);
@@ -138,6 +146,15 @@ Tests: none yet — new settings sub-page.
                 await cleanupIndexedDB(data.deleted_ids);
             }
 
+            // Optimistically decrement the cached total_chat_count so the welcome screen
+            // "+N" counter and any other readers update immediately (without waiting for
+            // the full fetchTotalCount round-trip that follows).
+            const deletedCount: number = data.deleted_count ?? 0;
+            if (deletedCount > 0 && $userProfile.total_chat_count != null) {
+                const newTotal = Math.max(0, $userProfile.total_chat_count - deletedCount);
+                updateTotalChatCount(newTotal);
+            }
+
             // Refresh total count after deletion
             previewCount = null;
             await fetchTotalCount();
@@ -192,7 +209,7 @@ Tests: none yet — new settings sub-page.
         if (errors.length > 0) {
             console.warn(`[SettingsAccountChats] IndexedDB cleanup: ${chatIds.length - errors.length}/${chatIds.length} chats cleaned, ${errors.length} failed`);
         } else {
-            console.debug(`[SettingsAccountChats] IndexedDB cleanup complete: ${chatIds.length} chats deleted (messages + embeds included)`);
+            console.warn(`[SettingsAccountChats] IndexedDB cleanup complete: ${chatIds.length} chats deleted (messages + embeds included)`);
         }
     }
 </script>

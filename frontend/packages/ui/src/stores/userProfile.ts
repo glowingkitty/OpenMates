@@ -79,6 +79,11 @@ export interface UserProfile {
   // Format: "provider/model_id" (e.g., "anthropic/claude-haiku-4-5-20251001").
   default_ai_model_simple?: string | null;
   default_ai_model_complex?: string | null;
+  // Total chat count as reported by the server during Phase 3 sync.
+  // Stored in IndexedDB so it persists across sessions without a server round-trip.
+  // Used by: ActiveChat.svelte overflow "+N" counter, SettingsAccountChats.svelte display.
+  // Updated on: Phase 3 sync completion, chat deletion. Cleared on logout.
+  total_chat_count?: number;
 }
 
 // Default currency is now EUR
@@ -188,4 +193,21 @@ export function getUserProfile(): UserProfile {
   let profile: UserProfile;
   userProfile.subscribe((value) => (profile = value))();
   return profile;
+}
+
+/**
+ * Update the total chat count in both the in-memory store and IndexedDB.
+ * Called by chatSyncServiceHandlersPhasedSync on Phase 3 completion,
+ * and decremented by chat deletion handlers.
+ */
+export function updateTotalChatCount(count: number): void {
+  userProfile.update((profile) => ({ ...profile, total_chat_count: count }));
+  userDB
+    .updateUserData({ total_chat_count: count })
+    .catch((err) =>
+      console.warn(
+        "[UserProfileStore] Failed to persist total_chat_count:",
+        err,
+      ),
+    );
 }

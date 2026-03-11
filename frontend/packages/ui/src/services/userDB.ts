@@ -614,6 +614,7 @@ class UserDatabaseService {
       const pushNotificationBannerShownRequest = store.get(
         "push_notification_banner_shown",
       );
+      const totalChatCountRequest = store.get("total_chat_count");
 
       idRequest.onsuccess = () => {
         profile.user_id = idRequest.result || null;
@@ -802,6 +803,13 @@ class UserDatabaseService {
         profile.push_notification_banner_shown =
           pushNotificationBannerShownRequest.result !== undefined
             ? !!pushNotificationBannerShownRequest.result
+            : undefined;
+      };
+
+      totalChatCountRequest.onsuccess = () => {
+        profile.total_chat_count =
+          totalChatCountRequest.result !== undefined
+            ? (totalChatCountRequest.result as number)
             : undefined;
       };
 
@@ -1171,6 +1179,11 @@ class UserDatabaseService {
           partialData.default_ai_model_complex,
           "default_ai_model_complex",
         );
+      }
+
+      // Total chat count — updated on Phase 3 sync and chat deletion
+      if (partialData.total_chat_count !== undefined) {
+        store.put(partialData.total_chat_count, "total_chat_count");
       }
 
       transaction.oncomplete = () => {
