@@ -73,6 +73,7 @@ export * from "./src/stores/serverStatusStore"; // Export server status store fo
 export * from "./src/stores/appHealthStore"; // Export app health store for filtering apps by health status
 export * from "./src/stores/pushNotificationStore"; // Export push notification store for managing push notification state
 export * from "./src/stores/networkStatusStore"; // Export network status store for offline/online detection
+export * from "./src/stores/pairSessionStore"; // Export pair session store for magic pair login
 // loginOverlayStore removed - not needed
 
 // Demo Chats

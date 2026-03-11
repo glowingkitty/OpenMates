@@ -57,6 +57,7 @@
 		isProgrammaticHashUpdate,
 		isProgrammaticEmbedHashUpdate
 	} from '@repo/ui';
+	import { rehydratePairSession, registerPairLogoutCallback, pendingPairToken } from '@repo/ui';
 	import { onMount, onDestroy, untrack } from 'svelte';
 	import { locale, waitLocale } from 'svelte-i18n';
 	import { get } from 'svelte/store';
@@ -784,6 +785,18 @@
 
 	onMount(async () => {
 		console.debug('[+page.svelte] onMount started');
+
+		// --- Pair session rehydration ---
+		// Restores pair-session state (restricted mode, auto-logout timer) that may have been
+		// active before a page reload. Must run before any auth checks.
+		rehydratePairSession();
+
+		// Register the logout callback so the pair auto-logout timer can call it.
+		// Uses checkAuth(undefined, true) — same path as WebSocket auth error logout.
+		registerPairLogoutCallback(async () => {
+			const { checkAuth } = await import('@repo/ui');
+			await checkAuth(undefined, true);
+		});
 
 		// --- OG image mode (?og=1) ---
 		// When loaded inside /dev/og-image iframes, add a body class so CSS can hide
@@ -2129,6 +2142,12 @@
 					// For non-authenticated users: load demo-for-everyone chat
 					await loadDemoWelcomeChat();
 				}
+			},
+			onPair: (token: string) => {
+				// Set the token store BEFORE navigating so SettingsSessionsConfirmPair reads it on mount.
+				pendingPairToken.set(token);
+				panelState.openSettings();
+				settingsDeepLink.set('account/security/sessions/confirm-pair');
 			},
 			requiresAuthentication,
 			isAuthenticated: () => $authStore.isAuthenticated,

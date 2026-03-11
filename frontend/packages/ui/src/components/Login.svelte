@@ -24,6 +24,7 @@
     import PasswordAndTfaOtp from './PasswordAndTfaOtp.svelte';
     import EnterBackupCode from './EnterBackupCode.svelte';
     import EnterRecoveryKey from './EnterRecoveryKey.svelte';
+    import SettingsSessionsPairInitiate from './settings/security/SettingsSessionsPairInitiate.svelte';
     // Import crypto service to clear email encryption data
     import * as cryptoService from '../services/cryptoService';
     // Import sessionStorage draft service to clear drafts when returning to demo
@@ -80,7 +81,7 @@
     let stayLoggedIn = $state(false); // New state for "Stay logged in" checkbox
     
     // New state variables for multi-step login flow using $state (Svelte 5 runes mode)
-    type LoginStep = 'email' | 'password' | 'passkey' | 'security_key' | 'recovery_key' | 'backup_code';
+    type LoginStep = 'email' | 'password' | 'passkey' | 'security_key' | 'recovery_key' | 'backup_code' | 'pair-initiate';
     let currentLoginStep = $state<LoginStep>('email'); // Start with email-only step
     // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
 
@@ -104,7 +105,8 @@
     function setLoginStep(step: string): void {
         // This ensures the step is a valid LoginStep value
         if (step === 'email' || step === 'password' || step === 'passkey' ||
-            step === 'security_key' || step === 'recovery_key' || step === 'backup_code') {
+            step === 'security_key' || step === 'recovery_key' || step === 'backup_code' ||
+            step === 'pair-initiate') {
             currentLoginStep = step as LoginStep;
         } else {
             // Default to email if invalid step
@@ -2292,8 +2294,19 @@
                                                     // The user can use the "Login with passkey" button on the main screen if they want to use passkey
                                                     setLoginStep('password');
                                                 }}
-                                                on:userActivity={resetInactivityTimer}
+                                                 on:userActivity={resetInactivityTimer}
                                             />
+                                            <!-- Sign in via a trusted device (magic pair login) -->
+                                            <div class="pair-login-divider">
+                                                <span>{$text('login.or')}</span>
+                                            </div>
+                                            <button
+                                                class="button-secondary pair-login-btn"
+                                                onclick={() => setLoginStep('pair-initiate')}
+                                                type="button"
+                                            >
+                                                {$text('login.sign_in_via_trusted_device')}
+                                            </button>
                                         {/if}
                                     {:else}
                                         <!-- Show appropriate login method component based on currentLoginStep -->
@@ -2451,6 +2464,46 @@
                                                 <p>Security Key Component (to be implemented later)</p>
                                                 <button type="button" onclick={() => currentLoginStep = 'email'}>Back to Email</button>
                                             </div>
+                                        {:else if currentLoginStep === 'pair-initiate'}
+                                            <!-- Magic pair login — new device generates a token and waits for authorization -->
+                                            <div class="pair-initiate-wrapper">
+                                                <button
+                                                    class="back-button"
+                                                    type="button"
+                                                    onclick={() => { currentLoginStep = 'email'; }}
+                                                >
+                                                    ← {$text('login.back')}
+                                                </button>
+                                                <SettingsSessionsPairInitiate
+                                                    on:login={async (e) => {
+                                                        // The authorizing device has approved the pairing and the bundle has been
+                                                        // decrypted client-side. Now call the standard login API to establish
+                                                        // a server session (session cookie) using the recovered credentials.
+                                                        isLoading = true;
+                                                        try {
+                                                            const { lookupHash, userEmailSalt } = e.detail;
+                                                            // userEmailSalt is the hashed_email used as the primary login identifier
+                                                            const result = await login(userEmailSalt, lookupHash, undefined, undefined, stayLoggedIn);
+                                                            if (result.success && !result.tfa_required) {
+                                                                // Pair session state was already activated inside SettingsSessionsPairInitiate
+                                                                currentLoginStep = 'email';
+                                                                dispatch('loginSuccess', {
+                                                                    user: result.user ?? null,
+                                                                    isMobile,
+                                                                    inSignupFlow: result.inSignupFlow ?? false,
+                                                                });
+                                                            } else {
+                                                                console.error('[PairLogin] Login API call failed after pairing:', result.message);
+                                                                // Reset to pair-initiate to let user try again
+                                                                isLoading = false;
+                                                            }
+                                                        } catch (err) {
+                                                            console.error('[PairLogin] Unexpected error completing pair login:', err);
+                                                            isLoading = false;
+                                                        }
+                                                    }}
+                                                />
+                                            </div>
                                         {/if}
                                     {/if}
                                 </div>
@@ -2513,6 +2566,48 @@
         background-color: var(--color-error-light);
         border-radius: 8px;
         margin: 24px 0;
+    }
+
+    /* Pair login divider + button */
+    .pair-login-divider {
+        display: flex;
+        align-items: center;
+        text-align: center;
+        margin: 1rem 0 0.75rem;
+        color: var(--color-font-tertiary);
+        font-size: var(--processing-details-font-size);
+    }
+    .pair-login-divider::before,
+    .pair-login-divider::after {
+        content: '';
+        flex: 1;
+        border-bottom: 1px solid var(--color-grey-30);
+    }
+    .pair-login-divider span {
+        padding: 0 0.75rem;
+    }
+    .pair-login-btn {
+        width: 100%;
+    }
+
+    /* Pair initiate wrapper — provides a back button above the component */
+    .pair-initiate-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .pair-initiate-wrapper .back-button {
+        align-self: flex-start;
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: var(--color-font-secondary);
+        font-size: var(--processing-details-font-size);
+        padding: 0;
+        margin-bottom: 0.25rem;
+    }
+    .pair-initiate-wrapper .back-button:hover {
+        color: var(--color-font-primary);
     }
     
     /* Passkey loading screen */
