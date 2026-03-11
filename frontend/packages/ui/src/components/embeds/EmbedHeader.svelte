@@ -693,6 +693,10 @@
     -webkit-mask-image: url('@openmates/ui/static/icons/event.svg');
     mask-image: url('@openmates/ui/static/icons/event.svg');
   }
+  :global([data-skill-icon="health"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/heart.svg');
+    mask-image: url('@openmates/ui/static/icons/heart.svg');
+  }
   :global([data-skill-icon="math"]) {
     -webkit-mask-image: url('@openmates/ui/static/icons/math.svg');
     mask-image: url('@openmates/ui/static/icons/math.svg');

@@ -197,18 +197,22 @@
   .entry-map-layout {
     position: relative;
     width: 100%;
-    min-height: 400px;
+    /* Fill the remaining visible area after the gradient header (240px).
+       Using min-height so the detail card can push beyond if content overflows. */
+    min-height: calc(100dvh - 240px);
   }
 
   .entry-map-layout.no-map {
     min-height: auto;
   }
 
-  /* Map fills the full area on wide viewports */
+  /* Map fills the full area absolutely within the layout container */
   .map-section {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
-    min-height: 400px;
+    min-height: calc(100dvh - 240px);
   }
 
   .map-section.static-image {
@@ -221,11 +225,6 @@
     height: 100%;
     object-fit: cover;
     display: block;
-    min-height: 400px;
-  }
-
-  .map-section.interactive {
-    min-height: 400px;
   }
 
   /* Detail card floats on top-left of the map on wide viewports */
@@ -236,7 +235,7 @@
     width: 345px;
     max-height: calc(100% - 48px);
     overflow-y: auto;
-    background: var(--color-bg-primary, #fff);
+    background: var(--color-bg-primary);
     border-radius: 16px;
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
     z-index: 2;
@@ -265,10 +264,13 @@
     .entry-map-layout {
       display: flex;
       flex-direction: column;
+      height: auto;
       min-height: auto;
     }
 
     .map-section {
+      position: relative;
+      inset: auto;
       width: 100%;
       height: 150px;
       min-height: 150px;

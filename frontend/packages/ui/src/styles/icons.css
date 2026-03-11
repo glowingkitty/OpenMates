@@ -805,6 +805,20 @@ div.clickable-icon {
   }
 }
 
+.icon_rounded.events {
+  background: var(--color-app-events);
+  &::after {
+    background-image: url("@openmates/ui/static/icons/event.svg");
+  }
+}
+
+.icon_rounded.health {
+  background: var(--color-app-health);
+  &::after {
+    background-image: url("@openmates/ui/static/icons/heart.svg");
+  }
+}
+
 @media (max-width: 600px) {
   .icon {
     width: 77.69px;
