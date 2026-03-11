@@ -598,7 +598,7 @@ def format_output_text(
     if not activities.get('invoices'):
         lines.append("    None")
     for inv in activities['invoices']:
-        lines.append(f"    - {format_timestamp(inv.get('date'))} | Order ID: {inv.get('order_id', 'N/A'):20} | Invoice ID: {inv.get('id')}")
+        lines.append(f"    - {format_timestamp(inv.get('date'))} | Order ID: {inv.get('order_id') or 'N/A':20} | Invoice ID: {inv.get('id')}")
     lines.append("")
     
     # Cache Status
