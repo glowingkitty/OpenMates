@@ -773,6 +773,12 @@
 				loginInterfaceOpen.set(true);
 			},
 			onEmbed: handleEmbedDeepLink,
+			onPair: (token: string) => {
+				// User just logged in — now open the confirm-pair settings page.
+				pendingPairToken.set(token);
+				panelState.openSettings();
+				settingsDeepLink.set('account/security/sessions/confirm-pair');
+			},
 			requiresAuthentication,
 			isAuthenticated: () => $authStore.isAuthenticated,
 			openSettings: () => panelState.openSettings(),
