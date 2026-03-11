@@ -6241,10 +6241,10 @@
         "text": "Người nhận sẽ cần mật khẩu này để xem embed"
       },
       "encryption_info": {
-        "text": "Cuộc trò chuyện vẫn được mã hóa đầu cuối. Khóa mã hóa được bao gồm trong liên kết."
+        "text": "Chỉ thiết bị của bạn mới có thể giải mã cuộc trò chuyện này. Khóa giải mã được bao gồm trong liên kết."
       },
       "encryption_info_embed": {
-        "text": "Embed vẫn được mã hóa đầu cuối. Khóa mã hóa được bao gồm trong liên kết."
+        "text": "Chỉ thiết bị của bạn mới có thể giải mã embed này. Khóa giải mã được bao gồm trong liên kết."
       },
       "share_with_community": {
         "text": "Chia sẻ với cộng đồng"

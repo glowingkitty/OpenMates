@@ -6310,10 +6310,10 @@
         "text": "Il destinatario avrà bisogno di questa password per visualizzare l'embed"
       },
       "encryption_info": {
-        "text": "La chat rimane crittografata end-to-end. La chiave di crittografia è inclusa nel link."
+        "text": "Solo il tuo dispositivo può decrittare questa chat. La chiave di decrittazione è inclusa nel link."
       },
       "encryption_info_embed": {
-        "text": "L'embed rimane crittografato end-to-end. La chiave di crittografia è inclusa nel link."
+        "text": "Solo il tuo dispositivo può decrittare questo embed. La chiave di decrittazione è inclusa nel link."
       },
       "share_with_community": {
         "text": "Condividi con la comunità"

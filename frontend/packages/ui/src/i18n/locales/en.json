@@ -6267,6 +6267,12 @@
     },
     "use_authenticator_app": {
       "text": "Use authenticator app"
+    },
+    "sign_in_via_trusted_device": {
+      "text": "Sign in via a trusted device"
+    },
+    "login_with_phone_or_pc": {
+      "text": "Login with phone or PC"
     }
   },
   "mate_descriptions": {
@@ -8862,10 +8868,10 @@
         "text": "Recipient will need this password to view the embed"
       },
       "encryption_info": {
-        "text": "Chat remains end-to-end encrypted. The encryption key is included in the link."
+        "text": "Only your device can decrypt this chat. The decryption key is included in the link."
       },
       "encryption_info_embed": {
-        "text": "Embed remains end-to-end encrypted. The encryption key is included in the link."
+        "text": "Only your device can decrypt this embed. The decryption key is included in the link."
       },
       "share_with_community": {
         "text": "Share with Community"
@@ -10688,6 +10694,132 @@
       },
       "days_ago": {
         "text": "{n} days ago"
+      },
+      "pair_initiate_title": {
+        "text": "Log In from Another Device"
+      },
+      "pair_initiate_description": {
+        "text": "Scan the QR code or enter the code below on your new device to log in."
+      },
+      "pair_code_label": {
+        "text": "Pair code"
+      },
+      "pair_url_label": {
+        "text": "Or open this link"
+      },
+      "pair_auto_logout_label": {
+        "text": "Auto-logout after"
+      },
+      "pair_auto_logout_none": {
+        "text": "Never (manual logout only)"
+      },
+      "pair_auto_logout_30m": {
+        "text": "30 minutes"
+      },
+      "pair_auto_logout_1h": {
+        "text": "1 hour"
+      },
+      "pair_auto_logout_4h": {
+        "text": "4 hours"
+      },
+      "pair_auto_logout_8h": {
+        "text": "8 hours"
+      },
+      "pair_auto_logout_24h": {
+        "text": "24 hours"
+      },
+      "pair_waiting": {
+        "text": "Waiting for the other device…"
+      },
+      "pair_generating": {
+        "text": "Generating code…"
+      },
+      "pair_expired": {
+        "text": "Code expired"
+      },
+      "pair_refresh": {
+        "text": "Generate a new code"
+      },
+      "pair_copy_link": {
+        "text": "Copy link"
+      },
+      "pair_copied": {
+        "text": "Copied!"
+      },
+      "pair_confirm_title": {
+        "text": "Confirm Device Login"
+      },
+      "pair_confirm_description": {
+        "text": "A new device is requesting access. Review the details below before allowing."
+      },
+      "pair_confirm_requesting_device": {
+        "text": "Requesting device"
+      },
+      "pair_confirm_allow": {
+        "text": "Allow"
+      },
+      "pair_confirm_deny": {
+        "text": "Deny"
+      },
+      "pair_confirm_allowing": {
+        "text": "Authorizing…"
+      },
+      "pair_confirm_show_pin": {
+        "text": "Share this PIN with the other device"
+      },
+      "pair_confirm_pin_hint": {
+        "text": "Enter this PIN on the new device to complete login."
+      },
+      "pair_confirm_auto_logout_label": {
+        "text": "Auto-logout on the new device after"
+      },
+      "pair_confirm_denied": {
+        "text": "Request denied."
+      },
+      "pair_confirm_error": {
+        "text": "Authorization failed. Please try again."
+      },
+      "pair_invalid_token": {
+        "text": "This pair code is invalid or has expired. Ask the other device to generate a new code."
+      },
+      "pair_enter_pin_title": {
+        "text": "Enter PIN"
+      },
+      "pair_enter_pin_description": {
+        "text": "Enter the 6-digit PIN shown on your other device."
+      },
+      "pair_pin_placeholder": {
+        "text": "000000"
+      },
+      "pair_login": {
+        "text": "Log in"
+      },
+      "pair_logging_in": {
+        "text": "Logging in…"
+      },
+      "pair_pin_error": {
+        "text": "Incorrect PIN. {n} attempt(s) remaining."
+      },
+      "pair_pin_locked": {
+        "text": "Too many incorrect attempts. This pair code is now invalid."
+      },
+      "pair_restricted_banner": {
+        "text": "Restricted session — logged in from {device}"
+      },
+      "pair_restricted_banner_no_device": {
+        "text": "Restricted session"
+      },
+      "pair_restricted_auto_logout": {
+        "text": "Auto-logout in {time}"
+      },
+      "pair_login_from_device_title": {
+        "text": "Log In from Another Device"
+      },
+      "pair_login_from_device_description": {
+        "text": "Use a QR code or short code to log in without a password."
+      },
+      "pair_login_from_device_button": {
+        "text": "Set up code"
       }
     },
     "storage": {

@@ -6241,10 +6241,10 @@
         "text": "De ontvanger heeft dit wachtwoord nodig om de embed te bekijken"
       },
       "encryption_info": {
-        "text": "Chat blijft end-to-end versleuteld. De encryptiesleutel is opgenomen in de link."
+        "text": "Alleen uw apparaat kan deze chat ontsleutelen. De ontsleutelingssleutel is opgenomen in de link."
       },
       "encryption_info_embed": {
-        "text": "Embed blijft end-to-end versleuteld. De encryptiesleutel is opgenomen in de link."
+        "text": "Alleen uw apparaat kan dit embed ontsleutelen. De ontsleutelingssleutel is opgenomen in de link."
       },
       "share_with_community": {
         "text": "Delen met de gemeenschap"

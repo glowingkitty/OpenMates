@@ -7767,10 +7767,10 @@
         "text": "El destinatario necesitará esta contraseña para ver el embed"
       },
       "encryption_info": {
-        "text": "El chat permanece cifrado de extremo a extremo. La clave de cifrado está incluida en el enlace."
+        "text": "Solo tu dispositivo puede descifrar este chat. La clave de descifrado está incluida en el enlace."
       },
       "encryption_info_embed": {
-        "text": "El embed permanece cifrado de extremo a extremo. La clave de cifrado está incluida en el enlace."
+        "text": "Solo tu dispositivo puede descifrar este embed. La clave de descifrado está incluida en el enlace."
       },
       "share_with_community": {
         "text": "Compartir con la comunidad"

@@ -7724,10 +7724,10 @@
         "text": "Le destinataire aura besoin de ce mot de passe pour voir l'embed"
       },
       "encryption_info": {
-        "text": "Le chat reste chiffré de bout en bout. La clé de chiffrement est incluse dans le lien."
+        "text": "Seul votre appareil peut déchiffrer ce chat. La clé de déchiffrement est incluse dans le lien."
       },
       "encryption_info_embed": {
-        "text": "L'embed reste chiffré de bout en bout. La clé de chiffrement est incluse dans le lien."
+        "text": "Seul votre appareil peut déchiffrer cet embed. La clé de déchiffrement est incluse dans le lien."
       },
       "share_with_community": {
         "text": "Partager avec la communauté"

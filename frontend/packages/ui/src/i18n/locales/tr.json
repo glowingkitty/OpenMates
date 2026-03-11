@@ -6244,10 +6244,10 @@
         "text": "Alıcının embed'i görüntülemek için bu parolaya ihtiyacı olacak"
       },
       "encryption_info": {
-        "text": "Sohbet uçtan uca şifrelenmiş olarak kalır. Şifreleme anahtarı bağlantıya dahildir."
+        "text": "Bu sohbeti yalnızca cihazınız şifresini çözebilir. Şifre çözme anahtarı bağlantıya dahildir."
       },
       "encryption_info_embed": {
-        "text": "Embed uçtan uca şifrelenmiş olarak kalır. Şifreleme anahtarı bağlantıya dahildir."
+        "text": "Bu embed'i yalnızca cihazınız şifresini çözebilir. Şifre çözme anahtarı bağlantıya dahildir."
       },
       "share_with_community": {
         "text": "Toplulukla paylaş"

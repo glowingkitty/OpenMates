@@ -6000,6 +6000,12 @@
     },
     "use_authenticator_app": {
       "text": "Authenticator-App verwenden"
+    },
+    "sign_in_via_trusted_device": {
+      "text": "Über ein vertrauenswürdiges Gerät anmelden"
+    },
+    "login_with_phone_or_pc": {
+      "text": "Mit Telefon oder PC einloggen"
     }
   },
   "mate_descriptions": {
@@ -8481,10 +8487,10 @@
         "text": "Der Empfänger benötigt dieses Passwort, um das Embed anzusehen"
       },
       "encryption_info": {
-        "text": "Der Chat bleibt Ende-zu-Ende verschlüsselt. Der Verschlüsselungsschlüssel ist im Link enthalten."
+        "text": "Nur dein Gerät kann diesen Chat entschlüsseln. Der Entschlüsselungsschlüssel ist im Link enthalten."
       },
       "encryption_info_embed": {
-        "text": "Das Embed bleibt Ende-zu-Ende verschlüsselt. Der Verschlüsselungsschlüssel ist im Link enthalten."
+        "text": "Nur dein Gerät kann dieses Embed entschlüsseln. Der Entschlüsselungsschlüssel ist im Link enthalten."
       },
       "share_with_community": {
         "text": "Mit der Community teilen"
@@ -10280,6 +10286,132 @@
       },
       "days_ago": {
         "text": "Vor {n} Tagen"
+      },
+      "pair_initiate_title": {
+        "text": "Von einem anderen Gerät anmelden"
+      },
+      "pair_initiate_description": {
+        "text": "Scanne den QR-Code oder gib den Code unten auf deinem neuen Gerät ein, um dich anzumelden."
+      },
+      "pair_code_label": {
+        "text": "Kopplungscode"
+      },
+      "pair_url_label": {
+        "text": "Oder diesen Link öffnen"
+      },
+      "pair_auto_logout_label": {
+        "text": "Automatisch abmelden nach"
+      },
+      "pair_auto_logout_none": {
+        "text": "Nie (nur manuell abmelden)"
+      },
+      "pair_auto_logout_30m": {
+        "text": "30 Minuten"
+      },
+      "pair_auto_logout_1h": {
+        "text": "1 Stunde"
+      },
+      "pair_auto_logout_4h": {
+        "text": "4 Stunden"
+      },
+      "pair_auto_logout_8h": {
+        "text": "8 Stunden"
+      },
+      "pair_auto_logout_24h": {
+        "text": "24 Stunden"
+      },
+      "pair_waiting": {
+        "text": "Warte auf das andere Gerät…"
+      },
+      "pair_generating": {
+        "text": "Code wird generiert…"
+      },
+      "pair_expired": {
+        "text": "Code abgelaufen"
+      },
+      "pair_refresh": {
+        "text": "Neuen Code generieren"
+      },
+      "pair_copy_link": {
+        "text": "Link kopieren"
+      },
+      "pair_copied": {
+        "text": "Kopiert!"
+      },
+      "pair_confirm_title": {
+        "text": "Geräteanmeldung bestätigen"
+      },
+      "pair_confirm_description": {
+        "text": "Ein neues Gerät bittet um Zugang. Überprüfe die Details, bevor du zulässt."
+      },
+      "pair_confirm_requesting_device": {
+        "text": "Anfragendes Gerät"
+      },
+      "pair_confirm_allow": {
+        "text": "Erlauben"
+      },
+      "pair_confirm_deny": {
+        "text": "Ablehnen"
+      },
+      "pair_confirm_allowing": {
+        "text": "Wird autorisiert…"
+      },
+      "pair_confirm_show_pin": {
+        "text": "Diesen PIN dem anderen Gerät mitteilen"
+      },
+      "pair_confirm_pin_hint": {
+        "text": "Gib diesen PIN auf dem neuen Gerät ein, um die Anmeldung abzuschließen."
+      },
+      "pair_confirm_auto_logout_label": {
+        "text": "Automatische Abmeldung auf dem neuen Gerät nach"
+      },
+      "pair_confirm_denied": {
+        "text": "Anfrage abgelehnt."
+      },
+      "pair_confirm_error": {
+        "text": "Autorisierung fehlgeschlagen. Bitte versuche es erneut."
+      },
+      "pair_invalid_token": {
+        "text": "Dieser Kopplungscode ist ungültig oder abgelaufen. Bitte das andere Gerät, einen neuen Code zu generieren."
+      },
+      "pair_enter_pin_title": {
+        "text": "PIN eingeben"
+      },
+      "pair_enter_pin_description": {
+        "text": "Gib den 6-stelligen PIN ein, der auf deinem anderen Gerät angezeigt wird."
+      },
+      "pair_pin_placeholder": {
+        "text": "000000"
+      },
+      "pair_login": {
+        "text": "Anmelden"
+      },
+      "pair_logging_in": {
+        "text": "Anmeldung läuft…"
+      },
+      "pair_pin_error": {
+        "text": "Falscher PIN. Noch {n} Versuch(e)."
+      },
+      "pair_pin_locked": {
+        "text": "Zu viele falsche Versuche. Dieser Kopplungscode ist jetzt ungültig."
+      },
+      "pair_restricted_banner": {
+        "text": "Eingeschränkte Sitzung — angemeldet von {device}"
+      },
+      "pair_restricted_banner_no_device": {
+        "text": "Eingeschränkte Sitzung"
+      },
+      "pair_restricted_auto_logout": {
+        "text": "Automatische Abmeldung in {time}"
+      },
+      "pair_login_from_device_title": {
+        "text": "Von einem anderen Gerät anmelden"
+      },
+      "pair_login_from_device_description": {
+        "text": "Nutze einen QR-Code oder Kurzcode, um dich ohne Passwort anzumelden."
+      },
+      "pair_login_from_device_button": {
+        "text": "Code einrichten"
       }
     },
     "storage": {

@@ -6241,10 +6241,10 @@
         "text": "Penerima akan memerlukan kata sandi ini untuk melihat embed"
       },
       "encryption_info": {
-        "text": "Obrolan tetap terenkripsi end-to-end. Kunci enkripsi disertakan dalam tautan."
+        "text": "Hanya perangkat Anda yang dapat mendekripsi obrolan ini. Kunci dekripsi disertakan dalam tautan."
       },
       "encryption_info_embed": {
-        "text": "Embed tetap terenkripsi end-to-end. Kunci enkripsi disertakan dalam tautan."
+        "text": "Hanya perangkat Anda yang dapat mendekripsi embed ini. Kunci dekripsi disertakan dalam tautan."
       },
       "share_with_community": {
         "text": "Bagikan dengan komunitas"

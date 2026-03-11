@@ -6247,10 +6247,10 @@
         "text": "Příjemce bude potřebovat toto heslo k zobrazení embedu"
       },
       "encryption_info": {
-        "text": "Chat zůstává end-to-end šifrovaný. Šifrovací klíč je součástí odkazu."
+        "text": "Tento chat může dešifrovat pouze vaše zařízení. Dešifrovací klíč je součástí odkazu."
       },
       "encryption_info_embed": {
-        "text": "Embed zůstává end-to-end šifrovaný. Šifrovací klíč je součástí odkazu."
+        "text": "Tento embed může dešifrovat pouze vaše zařízení. Dešifrovací klíč je součástí odkazu."
       },
       "share_with_community": {
         "text": "Sdílet s komunitou"

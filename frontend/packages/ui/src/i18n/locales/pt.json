@@ -6307,10 +6307,10 @@
         "text": "O destinatário precisará desta senha para ver o embed"
       },
       "encryption_info": {
-        "text": "O chat permanece criptografado de ponta a ponta. A chave de criptografia está incluída no link."
+        "text": "Somente o seu dispositivo pode descriptografar este chat. A chave de descriptografia está incluída no link."
       },
       "encryption_info_embed": {
-        "text": "O embed permanece criptografado de ponta a ponta. A chave de criptografia está incluída no link."
+        "text": "Somente o seu dispositivo pode descriptografar este embed. A chave de descriptografia está incluída no link."
       },
       "share_with_community": {
         "text": "Compartilhar com a comunidade"

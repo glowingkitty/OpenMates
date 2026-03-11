@@ -6241,10 +6241,10 @@
         "text": "Odbiorca będzie potrzebował tego hasła, aby zobaczyć embed"
       },
       "encryption_info": {
-        "text": "Czat pozostaje zaszyfrowany end-to-end. Klucz szyfrowania jest zawarty w linku."
+        "text": "Tylko Twoje urządzenie może odszyfrować ten czat. Klucz deszyfrowania jest zawarty w linku."
       },
       "encryption_info_embed": {
-        "text": "Embed pozostaje zaszyfrowany end-to-end. Klucz szyfrowania jest zawarty w linku."
+        "text": "Tylko Twoje urządzenie może odszyfrować ten embed. Klucz deszyfrowania jest zawarty w linku."
       },
       "share_with_community": {
         "text": "Udostępnij społeczności"

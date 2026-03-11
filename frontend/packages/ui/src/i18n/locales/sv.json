@@ -6262,10 +6262,10 @@
         "text": "Mottagaren behöver detta lösenord för att visa embeden"
       },
       "encryption_info": {
-        "text": "Chatten förblir end-to-end-krypterad. Krypteringsnyckeln ingår i länken."
+        "text": "Endast din enhet kan dekryptera den här chatten. Dekrypteringsnyckeln ingår i länken."
       },
       "encryption_info_embed": {
-        "text": "Embeden förblir end-to-end-krypterad. Krypteringsnyckeln ingår i länken."
+        "text": "Endast din enhet kan dekryptera detta embed. Dekrypteringsnyckeln ingår i länken."
       },
       "share_with_community": {
         "text": "Dela med gemenskapen"
