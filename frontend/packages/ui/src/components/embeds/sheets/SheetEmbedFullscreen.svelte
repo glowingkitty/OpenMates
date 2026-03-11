@@ -466,11 +466,6 @@
     overflow: hidden;
   }
   
-  /* Parent overlay container → page background */
-  :global(.unified-embed-fullscreen-overlay:has(.sheet-fullscreen)) {
-    background-color: var(--color-grey-0) !important;
-  }
-  
   /* Bottom gradient → fade to page background instead of grey */
   :global(.unified-embed-fullscreen-overlay:has(.sheet-fullscreen) .bottom-gradient) {
     background: linear-gradient(to bottom, transparent 0%, var(--color-grey-0) 100%) !important;
@@ -596,7 +591,6 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     /* Do NOT set width: 100% — let columns size naturally so wide tables scroll */
     white-space: nowrap;
-    background: var(--color-grey-0);
   }
   
   /* All cells: thin grey border on every edge */

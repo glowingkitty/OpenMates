@@ -196,7 +196,7 @@
       {:else if status === 'finished' && parsedTable.headers.length > 0}
         <!-- Table preview — scrolls horizontally for wide tables -->
         <div class="table-scroll">
-          <table class="preview-table">
+          <table class="preview-table" class:large-desktop={isLargeSnippet && !isMobileSnippet}>
             <thead>
               <tr>
                 {#each parsedTable.headers as header}
@@ -246,7 +246,6 @@
     overflow: hidden;
     padding: 0;
     box-sizing: border-box;
-    background: var(--color-grey-0);
   }
   
   /* ── Skeleton loading ────────────────────────────────── */
@@ -290,7 +289,6 @@
     width: 100%;
     flex: 1;
     overflow: hidden;
-    background: var(--color-grey-0);
   }
   
   /* ── Preview table — edge-to-edge, fills available width ── */
@@ -302,7 +300,11 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     width: 100%;
     table-layout: fixed;
-    background: var(--color-grey-0);
+    margin-top: 15px;
+  }
+
+  .preview-table.large-desktop {
+    font-size: 13px;
   }
   
   .preview-table th,
@@ -389,10 +391,6 @@
      theme system (vars flip automatically in [data-theme="dark"]).
      ══════════════════════════════════════════════════════════ */
 
-  :global(.dark) .sheet-preview {
-    background: var(--color-grey-10);
-  }
-
   :global(.dark) .skeleton-table {
     background: var(--color-grey-10);
   }
@@ -403,14 +401,6 @@
 
   :global(.dark) .skeleton-cell {
     background: var(--color-grey-20);
-  }
-
-  :global(.dark) .table-scroll {
-    background: var(--color-grey-10);
-  }
-
-  :global(.dark) .preview-table {
-    background: var(--color-grey-10);
   }
 
   :global(.dark) .preview-table th,
