@@ -1156,7 +1156,35 @@ async def payment_webhook(
                             f"Error logging withdrawal waiver consent for user {user_id}, order {webhook_order_id}: {str(consent_err)}",
                             exc_info=True
                         )
-                    
+
+                    # Log successful financial transaction for compliance
+                    # Covers both regular credit purchases and gift card purchases
+                    try:
+                        transaction_type = "gift_card_purchase" if is_gift_card else "credit_purchase"
+                        tx_details = {
+                            "order_id": webhook_order_id,
+                            "provider": provider_name,
+                        }
+                        if is_gift_card:
+                            tx_details["gift_card_code"] = gift_card_code
+                        else:
+                            tx_details["previous_credits"] = current_credits
+                            tx_details["new_credits"] = new_total_credits_calculated
+                        ComplianceService.log_financial_transaction(
+                            user_id=user_id,
+                            transaction_type=transaction_type,
+                            amount=credits_purchased,
+                            currency=order_currency,
+                            status="success",
+                            details=tx_details,
+                        )
+                    except Exception as fin_log_err:
+                        # Non-blocking: don't fail the payment if compliance logging errors
+                        logger.error(
+                            f"Error logging financial transaction for user {user_id}, order {webhook_order_id}: {fin_log_err}",
+                            exc_info=True,
+                        )
+
                     if is_gift_card:
                         logger.info(f"Successfully created gift card {gift_card_code} for user {user_id}.")
                         
@@ -1295,6 +1323,27 @@ async def payment_webhook(
                         logger.error(f"Failed to create gift card for user {user_id}.")
                     else:
                         logger.error(f"Failed to update Directus credits for user {user_id}.")
+
+                    # Log failed financial transaction for compliance
+                    try:
+                        failed_transaction_type = "gift_card_purchase" if is_gift_card else "credit_purchase"
+                        ComplianceService.log_financial_transaction(
+                            user_id=user_id,
+                            transaction_type=failed_transaction_type,
+                            amount=credits_purchased,
+                            currency=cached_order_data.get("currency", "eur"),
+                            status="failed",
+                            details={
+                                "order_id": webhook_order_id,
+                                "provider": provider_name,
+                                "reason": "directus_update_failed",
+                            },
+                        )
+                    except Exception as fin_log_err:
+                        logger.error(
+                            f"Error logging failed financial transaction for user {user_id}, order {webhook_order_id}: {fin_log_err}",
+                            exc_info=True,
+                        )
 
             except Exception as processing_err:
                 logger.error(f"Error during payment processing for user {user_id}: {processing_err}", exc_info=True)
