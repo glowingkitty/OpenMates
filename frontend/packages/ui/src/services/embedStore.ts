@@ -173,10 +173,14 @@ export class EmbedStore {
       if (typeof storedData === "string") {
         if (storedData.trim().startsWith("{")) {
           const parsed = JSON.parse(storedData);
-          return this.normalizeEmbedIds((parsed as Record<string, unknown>).embed_ids);
+          return this.normalizeEmbedIds(
+            (parsed as Record<string, unknown>).embed_ids,
+          );
         }
       } else if (typeof storedData === "object" && storedData !== null) {
-        return this.normalizeEmbedIds((storedData as Record<string, unknown>).embed_ids);
+        return this.normalizeEmbedIds(
+          (storedData as Record<string, unknown>).embed_ids,
+        );
       }
     } catch {
       // Ignore parse errors: encrypted payloads cannot be inspected without decrypting.
@@ -340,11 +344,16 @@ export class EmbedStore {
 
       // If content is a string, try to decode it as TOON
       if (typeof content === "string") {
-        decodedContent = (await decodeToonContentLocal(content)) as Record<string, unknown> | null;
+        decodedContent = (await decodeToonContentLocal(content)) as Record<
+          string,
+          unknown
+        > | null;
       } else if (typeof content === "object" && content !== null) {
         // If content is an object, check if it has a 'content' field that's a TOON string
         if (content.content && typeof content.content === "string") {
-          decodedContent = (await decodeToonContentLocal(content.content as string)) as Record<string, unknown> | null;
+          decodedContent = (await decodeToonContentLocal(
+            content.content as string,
+          )) as Record<string, unknown> | null;
         } else {
           // Content might already be decoded
           decodedContent = content as Record<string, unknown>;
@@ -382,7 +391,11 @@ export class EmbedStore {
    * @param data - The embed data to store (can be TOON string or object)
    * @param type - The type of embed content
    */
-  async put(contentRef: string, data: Record<string, unknown>, type: EmbedType): Promise<void> {
+  async put(
+    contentRef: string,
+    data: Record<string, unknown>,
+    type: EmbedType,
+  ): Promise<void> {
     // DEBUG: Check if data itself is a Promise
     if (data instanceof Promise) {
       console.error("[EmbedStore] ERROR: data parameter is a Promise!", {
@@ -492,7 +505,9 @@ export class EmbedStore {
       // encrypted_content is only for embed-key encryption (used by putEncrypted)
 
       // Hybrid Encryption Mode
-      encryption_mode: (data.encryption_mode as EmbedStoreEntry["encryption_mode"]) || "client",
+      encryption_mode:
+        (data.encryption_mode as EmbedStoreEntry["encryption_mode"]) ||
+        "client",
       vault_key_id: data.vault_key_id as string | undefined,
     };
 
@@ -559,7 +574,12 @@ export class EmbedStore {
     encryptedData: Record<string, unknown>,
     type: EmbedType,
     plaintextContent?: string,
-    preExtractedMetadata?: { app_id?: string; skill_id?: string; encryption_mode?: string; vault_key_id?: string },
+    preExtractedMetadata?: {
+      app_id?: string;
+      skill_id?: string;
+      encryption_mode?: string;
+      vault_key_id?: string;
+    },
     options?: { skipMetadataExtraction?: boolean },
   ): Promise<void> {
     const normalizedType = this.normalizeEmbedType(type as unknown as string);
@@ -605,9 +625,7 @@ export class EmbedStore {
             const decoded = decodedContent as Record<string, unknown>;
             appMetadata = {
               app_id:
-                typeof decoded.app_id === "string"
-                  ? decoded.app_id
-                  : undefined,
+                typeof decoded.app_id === "string" ? decoded.app_id : undefined,
               skill_id:
                 typeof decoded.skill_id === "string"
                   ? decoded.skill_id
@@ -621,7 +639,8 @@ export class EmbedStore {
             const embedRefPlain = decoded.embed_ref;
             if (typeof embedRefPlain === "string" && embedRefPlain) {
               const refEmbedId =
-                (encryptedData.embed_id as string) || contentRef.replace("embed:", "");
+                (encryptedData.embed_id as string) ||
+                contentRef.replace("embed:", "");
               this.registerEmbedRef(
                 embedRefPlain,
                 refEmbedId,
@@ -633,7 +652,8 @@ export class EmbedStore {
           // Fallback: Try to decrypt content temporarily to extract app_id/skill_id
           // This is safe because we're only extracting metadata, not storing decrypted content
           const embedId =
-            (encryptedData.embed_id as string) || contentRef.replace("embed:", "");
+            (encryptedData.embed_id as string) ||
+            contentRef.replace("embed:", "");
           const embedKey = await this.getEmbedKey(
             embedId,
             encryptedData.hashed_chat_id as string | undefined,
@@ -691,9 +711,13 @@ export class EmbedStore {
     // Extract server-provided timestamps if available, otherwise use current time
     // CRITICAL: Preserve server timestamps instead of overwriting with Date.now()
     const createdAt =
-      (encryptedData.createdAt as number | undefined) ?? (encryptedData.created_at as number | undefined) ?? Date.now();
+      (encryptedData.createdAt as number | undefined) ??
+      (encryptedData.created_at as number | undefined) ??
+      Date.now();
     const updatedAt =
-      (encryptedData.updatedAt as number | undefined) ?? (encryptedData.updated_at as number | undefined) ?? Date.now();
+      (encryptedData.updatedAt as number | undefined) ??
+      (encryptedData.updated_at as number | undefined) ??
+      Date.now();
 
     // Store fields separately instead of JSON string in data field
     // This enables better querying, indexing, and preserves server timestamps
@@ -715,7 +739,9 @@ export class EmbedStore {
       embed_id: encryptedData.embed_id as string | undefined,
       encrypted_content: encryptedData.encrypted_content as string | undefined,
       encrypted_type: encryptedData.encrypted_type as string | undefined,
-      encrypted_text_preview: encryptedData.encrypted_text_preview as string | undefined,
+      encrypted_text_preview: encryptedData.encrypted_text_preview as
+        | string
+        | undefined,
       status: encryptedData.status as EmbedStoreEntry["status"],
       hashed_chat_id: encryptedData.hashed_chat_id as string | undefined,
       hashed_message_id: encryptedData.hashed_message_id as string | undefined,
@@ -732,7 +758,8 @@ export class EmbedStore {
 
       // Hybrid Encryption Mode
       encryption_mode:
-        (preExtractedMetadata?.encryption_mode as EmbedStoreEntry["encryption_mode"]) || "client",
+        (preExtractedMetadata?.encryption_mode as EmbedStoreEntry["encryption_mode"]) ||
+        "client",
       vault_key_id: preExtractedMetadata?.vault_key_id,
     };
 
@@ -873,6 +900,16 @@ export class EmbedStore {
             embed._decryptionFailed = true;
             embed.status = "error";
             embed.content = null;
+            // Cache the failed result so subsequent in-memory lookups don't retry decryption
+            // (prevents infinite retry loop when embed key is mismatched with content).
+            // _decryptionFailed is a runtime-only flag not present in EmbedStoreEntry type.
+            /* eslint-disable @typescript-eslint/no-explicit-any */
+            embedCache.set(contentRef, {
+              ...entry,
+              _decryptionFailed: true,
+              status: "error",
+            } as any);
+            /* eslint-enable @typescript-eslint/no-explicit-any */
           }
         } else {
           console.warn(
@@ -884,6 +921,14 @@ export class EmbedStore {
           embed._decryptionFailed = true;
           embed.status = "error";
           embed.content = null;
+          // Cache the failed result so subsequent in-memory lookups don't retry decryption.
+          /* eslint-disable @typescript-eslint/no-explicit-any */
+          embedCache.set(contentRef, {
+            ...entry,
+            _decryptionFailed: true,
+            status: "error",
+          } as any);
+          /* eslint-enable @typescript-eslint/no-explicit-any */
         }
       } catch (error) {
         const embedId = entry.embed_id || contentRef.replace("embed:", "");
@@ -894,6 +939,14 @@ export class EmbedStore {
         embed._decryptionFailed = true;
         embed.status = "error";
         embed.content = null;
+        // Cache the failed result so subsequent in-memory lookups don't retry decryption.
+        /* eslint-disable @typescript-eslint/no-explicit-any */
+        embedCache.set(contentRef, {
+          ...entry,
+          _decryptionFailed: true,
+          status: "error",
+        } as any);
+        /* eslint-enable @typescript-eslint/no-explicit-any */
       }
     } else if (entry.data) {
       // Fallback: If encrypted_content not set but data is, try old format decryption
@@ -1008,7 +1061,9 @@ export class EmbedStore {
    * @param contentRef - The embed reference key to retrieve
    * @returns The stored embed data or undefined if not found
    */
-  async get(contentRef: string): Promise<Record<string, unknown> | string | undefined> {
+  async get(
+    contentRef: string,
+  ): Promise<Record<string, unknown> | string | undefined> {
     console.debug("[EmbedStore] get() called for:", contentRef);
 
     // Check memory cache first
@@ -1098,10 +1153,8 @@ export class EmbedStore {
     // 1. put(): Stores encrypted JSON string (encrypted by embedStore with master key)
     // 2. putEncrypted(): Stores plain JSON string with encrypted_content field (already encrypted from sync)
     // NOTE: data field is typed as string but setInMemoryOnly stores objects at runtime
-    let storedData: string | Record<string, unknown> | undefined = entry.data as
-      | string
-      | Record<string, unknown>
-      | undefined;
+    let storedData: string | Record<string, unknown> | undefined =
+      entry.data as string | Record<string, unknown> | undefined;
 
     // CRITICAL: Ensure storedData is not a Promise
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- runtime guard for Promise leak from async code
@@ -1228,9 +1281,14 @@ export class EmbedStore {
               console.debug("[EmbedStore] Attempting decrypt with embed key:", {
                 embedId,
                 keyLength: embedKey.length,
-                contentLength: typeof parsed.encrypted_content === "string" ? parsed.encrypted_content.length : 0,
+                contentLength:
+                  typeof parsed.encrypted_content === "string"
+                    ? parsed.encrypted_content.length
+                    : 0,
                 contentPreview:
-                  typeof parsed.encrypted_content === "string" ? parsed.encrypted_content.substring(0, 50) + "..." : "N/A",
+                  typeof parsed.encrypted_content === "string"
+                    ? parsed.encrypted_content.substring(0, 50) + "..."
+                    : "N/A",
               });
               const decryptedContent = await decryptWithEmbedKey(
                 parsed.encrypted_content as string,
@@ -1367,7 +1425,10 @@ export class EmbedStore {
    * @param contentRef - The embed reference key
    * @param inlineContent - Optional inline content to store if missing
    */
-  async ensure(contentRef: string, inlineContent?: Record<string, unknown>): Promise<void> {
+  async ensure(
+    contentRef: string,
+    inlineContent?: Record<string, unknown>,
+  ): Promise<void> {
     // TODO: Implement embed existence checking and storage
     // This will call get() first, then put() if embed is missing
 
@@ -1386,7 +1447,10 @@ export class EmbedStore {
    * @param contentRef - The embed reference key to monitor
    * @param callback - Function to call when embed changes
    */
-  subscribe(contentRef: string, _callback: (data: unknown) => void): () => void {
+  subscribe(
+    contentRef: string,
+    _callback: (data: unknown) => void,
+  ): () => void {
     // TODO: Implement subscription mechanism
     // This will be filled in during later phases
     console.debug("[EmbedStore] Subscribe to embed:", contentRef);
@@ -1405,14 +1469,19 @@ export class EmbedStore {
    * @param contentRef - The embed reference key (e.g., embed:{embed_id})
    * @param embedData - The embed data object (plaintext)
    */
-  setInMemoryOnly(contentRef: string, embedData: Record<string, unknown>): void {
+  setInMemoryOnly(
+    contentRef: string,
+    embedData: Record<string, unknown>,
+  ): void {
     // CRITICAL FIX: Store the embed data as an OBJECT (not JSON string) so that
     // get() can detect it's not encrypted and return it directly.
     // When get() sees typeof storedData !== 'string', it returns the data as-is.
     // This is essential for "processing" embeds that need immediate rendering.
     const entry: EmbedStoreEntry = {
       contentRef,
-      type: this.normalizeEmbedType((embedData.type as string) || "unknown") as EmbedType,
+      type: this.normalizeEmbedType(
+        (embedData.type as string) || "unknown",
+      ) as EmbedType,
       data: embedData as unknown as string, // Store as object directly - NOT stringified! (runtime type mismatch by design)
       createdAt: (embedData.createdAt as number) || Date.now(),
       updatedAt: (embedData.updatedAt as number) || Date.now(),
@@ -1432,7 +1501,10 @@ export class EmbedStore {
         status: embedData.status,
         skill_id: embedData.skill_id,
         app_id: embedData.app_id,
-        query: typeof embedData.query === "string" ? embedData.query.substring(0, 30) : undefined,
+        query:
+          typeof embedData.query === "string"
+            ? embedData.query.substring(0, 30)
+            : undefined,
         hasContent: !!embedData.content,
       },
     );
@@ -1576,9 +1648,12 @@ export class EmbedStore {
         }
       } else if (typeof storedData === "object") {
         return {
-          parent_embed_id: (storedData as Record<string, unknown>).parent_embed_id as string | undefined,
-          embed_ids: Array.isArray((storedData as Record<string, unknown>).embed_ids)
-            ? (storedData as Record<string, unknown>).embed_ids as string[]
+          parent_embed_id: (storedData as Record<string, unknown>)
+            .parent_embed_id as string | undefined,
+          embed_ids: Array.isArray(
+            (storedData as Record<string, unknown>).embed_ids,
+          )
+            ? ((storedData as Record<string, unknown>).embed_ids as string[])
             : undefined,
         };
       }
@@ -2149,7 +2224,10 @@ export class EmbedStore {
     const cid = createContentId(hash);
 
     // Store embed under new CID key
-    const embedObj = typeof embed === "string" ? JSON.parse(embed) as Record<string, unknown> : embed;
+    const embedObj =
+      typeof embed === "string"
+        ? (JSON.parse(embed) as Record<string, unknown>)
+        : embed;
     await this.put(cid, embedObj, entry.type);
 
     // Remove old stream key (optional, depending on requirements)
@@ -2477,7 +2555,9 @@ export class EmbedStore {
 
       // Step 2: Get decrypted embed using standard get() method
       const decryptedRaw = await this.get(contentRef);
-      const decryptedEmbed = (typeof decryptedRaw === "object" ? decryptedRaw : null) as Record<string, unknown> | null;
+      const decryptedEmbed = (
+        typeof decryptedRaw === "object" ? decryptedRaw : null
+      ) as Record<string, unknown> | null;
       console.log("[EmbedStore DEBUG] Decrypted embed:", decryptedEmbed);
 
       // Step 3: Decode TOON content if present
@@ -2486,7 +2566,9 @@ export class EmbedStore {
 
       if (decryptedEmbed && typeof decryptedEmbed.content === "string") {
         try {
-          toonDecoded = (await decodeToonContentLocal(decryptedEmbed.content)) as Record<string, unknown> | null;
+          toonDecoded = (await decodeToonContentLocal(
+            decryptedEmbed.content,
+          )) as Record<string, unknown> | null;
           toonDecodeSuccess = toonDecoded !== null;
           console.log("[EmbedStore DEBUG] TOON decoded content:", toonDecoded);
         } catch (error) {
@@ -2496,7 +2578,7 @@ export class EmbedStore {
 
       // Step 4: Build result object with all information
       const result = {
-        raw: ({
+        raw: {
           contentRef: rawEntry.contentRef,
           type: rawEntry.type,
           embed_id: rawEntry.embed_id,
@@ -2517,15 +2599,18 @@ export class EmbedStore {
           encryptedContentLength: rawEntry.encrypted_content?.length || 0,
           dataLength:
             typeof rawEntry.data === "string" ? rawEntry.data.length : 0,
-        }) as Record<string, unknown>,
+        } as Record<string, unknown>,
         decrypted: decryptedEmbed,
         toonDecoded: toonDecoded,
         metadata: {
           embedId: normalizedEmbedId,
           contentRef: contentRef,
-          type:
-            (rawEntry.type || decryptedEmbed?.type || decryptedEmbed?.embed_type) as string | undefined,
-          status: (rawEntry.status || decryptedEmbed?.status) as string | undefined,
+          type: (rawEntry.type ||
+            decryptedEmbed?.type ||
+            decryptedEmbed?.embed_type) as string | undefined,
+          status: (rawEntry.status || decryptedEmbed?.status) as
+            | string
+            | undefined,
           hasEncryptedContent: !!rawEntry.encrypted_content,
           hasContent: !!decryptedEmbed?.content,
           decryptionSuccess:

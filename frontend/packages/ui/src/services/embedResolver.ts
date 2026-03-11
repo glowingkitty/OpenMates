@@ -182,6 +182,20 @@ export async function resolveEmbed(
     // Second, try to load from EmbedStore (IndexedDB) for regular encrypted embeds
     const cachedEmbed = await embedStore.get(`embed:${bareId}`);
     if (cachedEmbed) {
+      // If decryption failed (key mismatch), register as known error to stop the infinite
+      // retry loop — every subsequent get() would re-read the IDB entry without the cached
+      // _decryptionFailed flag and retry decryption endlessly (see embedStore.ts Fix 1).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- _decryptionFailed is a runtime-only flag set on EmbedStoreEntry by embedStore.getFromSeparateFields()
+      if ((cachedEmbed as any)._decryptionFailed) {
+        knownErrorEmbeds.set(bareId, {
+          status: "error",
+          timestamp: Date.now(),
+        });
+        console.warn(
+          `[embedResolver] Embed ${bareId} has decryption failure — marking as known error to stop retry loop`,
+        );
+        return null;
+      }
       console.debug("[embedResolver] Found embed in EmbedStore:", bareId);
       return cachedEmbed as EmbedData;
     }

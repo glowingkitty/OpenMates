@@ -147,23 +147,48 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         attrs.status === "finished" &&
         !isEmbedKnownError(embedId)
       ) {
-        const retryHandler = (event: Event) => {
-          const customEvent = event as CustomEvent<{ embed_id: string }>;
-          if (customEvent.detail?.embed_id !== embedId) return;
-          chatSyncService.removeEventListener("embedUpdated", retryHandler);
-          // Re-invoke the full render() so all routing + component mounting runs with fresh data.
-          this.render(context).catch((err) => {
-            console.error(
-              "[AppSkillUseRenderer] Error in embedUpdated re-render for finished embed:",
-              err,
+        // Retry resolveEmbed() a few times to handle Phase 1 IDB timing gap.
+        // The 50ms delay in chatSyncServiceHandlersCoreSync.ts before phase_1_last_chat_ready
+        // may not be enough for all IDB transactions to become visible. Two short retries
+        // cover the common case without introducing perceptible latency.
+        for (let attempt = 1; attempt <= 2 && !embedData; attempt++) {
+          await new Promise((resolve) => setTimeout(resolve, 200 * attempt));
+          embedData = await resolveEmbed(embedId);
+          if (embedData) {
+            try {
+              decodedContent = embedData.content
+                ? await decodeToonContent(embedData.content)
+                : null;
+            } catch {
+              decodedContent = null;
+            }
+            console.debug(
+              `[AppSkillUseRenderer] Embed found on IDB retry ${attempt}:`,
+              embedId,
             );
-          });
-        };
-        chatSyncService.addEventListener("embedUpdated", retryHandler);
-        console.debug(
-          "[AppSkillUseRenderer] Embed not cached yet (finished status), waiting for embedUpdated:",
-          embedId,
-        );
+          }
+        }
+
+        // Only register the embedUpdated listener if still missing after retries
+        if (!embedData) {
+          const retryHandler = (event: Event) => {
+            const customEvent = event as CustomEvent<{ embed_id: string }>;
+            if (customEvent.detail?.embed_id !== embedId) return;
+            chatSyncService.removeEventListener("embedUpdated", retryHandler);
+            // Re-invoke the full render() so all routing + component mounting runs with fresh data.
+            this.render(context).catch((err) => {
+              console.error(
+                "[AppSkillUseRenderer] Error in embedUpdated re-render for finished embed:",
+                err,
+              );
+            });
+          };
+          chatSyncService.addEventListener("embedUpdated", retryHandler);
+          console.debug(
+            "[AppSkillUseRenderer] Embed not cached yet (finished status), waiting for embedUpdated:",
+            embedId,
+          );
+        }
       }
 
       if (embedData) {
@@ -227,9 +252,19 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     //
     // See docs/architecture/embeds.md for the full embed type resolution chain.
     const CHILD_TYPE_OVERRIDES: Record<string, boolean> = {
-      image_result: true, web_result: true, news_result: true, video_result: true,
-      location: true, flight: true, stay: true, event: true, product: true, job: true,
-      health_result: true, recipe: true, price_calendar_result: true,
+      image_result: true,
+      web_result: true,
+      news_result: true,
+      video_result: true,
+      location: true,
+      flight: true,
+      stay: true,
+      event: true,
+      product: true,
+      job: true,
+      health_result: true,
+      recipe: true,
+      price_calendar_result: true,
     };
     const childType = decodedContent?.type || embedData?.type;
     if (childType && CHILD_TYPE_OVERRIDES[childType as string]) {
@@ -237,7 +272,12 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     } else if (attrsSkillId && CHILD_TYPE_OVERRIDES[attrsSkillId]) {
       // EmbedReferencePreview already detected the child type and set it in attrs
       skillId = attrsSkillId;
-    } else if (appId === "images" && skillId === "search" && decodedContent && !decodedContent.embed_ids) {
+    } else if (
+      appId === "images" &&
+      skillId === "search" &&
+      decodedContent &&
+      !decodedContent.embed_ids
+    ) {
       // Heuristic for stored child embeds: parent images/search embeds always have
       // embed_ids in their content; child image_result embeds have image_url instead.
       // If this is images/search WITHOUT embed_ids, it's actually a child image_result.
@@ -422,7 +462,6 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           content,
         );
       }
-
 
       // For events search, render events search preview using Svelte component
       if (appId === "events" && skillId === "search") {
@@ -1424,24 +1463,35 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     decodedContent: any,
     content: HTMLElement,
   ): void {
-    const query    = decodedContent?.query    || (attrs as any).query || "";
+    const query = decodedContent?.query || (attrs as any).query || "";
     const provider = decodedContent?.provider || "Brave";
-    const status   = decodedContent?.status   || embedData?.status   || attrs.status || "processing";
-    const taskId      = decodedContent?.task_id       || "";
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
     const skillTaskId = decodedContent?.skill_task_id || "";
-    const results  = decodedContent?.results  || [];
+    const results = decodedContent?.results || [];
 
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
-      try { unmount(existingComponent); } catch (e) {
-        console.warn("[AppSkillUseRenderer] Error unmounting existing component:", e);
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
       }
     }
     content.innerHTML = "";
 
     try {
       const embedId = attrs.contentRef?.replace("embed:", "") || "";
-      const handleFullscreen = () => { this.openFullscreen(attrs, embedData, decodedContent); };
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
       const component = mount(ImagesSearchEmbedPreview, {
         target: content,
         props: {
@@ -1457,9 +1507,14 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         },
       });
       mountedComponents.set(content, component);
-      console.debug("[AppSkillUseRenderer] Mounted ImagesSearchEmbedPreview component");
+      console.debug(
+        "[AppSkillUseRenderer] Mounted ImagesSearchEmbedPreview component",
+      );
     } catch (error) {
-      console.error("[AppSkillUseRenderer] Error mounting ImagesSearchEmbedPreview:", error);
+      console.error(
+        "[AppSkillUseRenderer] Error mounting ImagesSearchEmbedPreview:",
+        error,
+      );
       this.renderGenericSkill(attrs, embedData, decodedContent, content);
     }
   }
@@ -1476,7 +1531,11 @@ export class AppSkillUseRenderer implements EmbedRenderer {
   ): void {
     const title = decodedContent?.title || "";
     const sourceDomain = decodedContent?.source || "";
-    const status = decodedContent?.status || embedData?.status || attrs.status || "processing";
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
     const taskId = decodedContent?.task_id || "";
 
     // Proxy external image URLs
@@ -1484,20 +1543,29 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const rawThumbnailUrl = decodedContent?.thumbnail_url || "";
     const rawFaviconUrl = decodedContent?.favicon_url || "";
     const imageUrl = rawImageUrl ? proxyImage(rawImageUrl) : undefined;
-    const thumbnailUrl = rawThumbnailUrl ? proxyImage(rawThumbnailUrl) : undefined;
+    const thumbnailUrl = rawThumbnailUrl
+      ? proxyImage(rawThumbnailUrl)
+      : undefined;
     const faviconUrl = rawFaviconUrl ? proxyImage(rawFaviconUrl) : undefined;
 
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
-      try { unmount(existingComponent); } catch (e) {
-        console.warn("[AppSkillUseRenderer] Error unmounting existing component:", e);
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
       }
     }
     content.innerHTML = "";
 
     try {
       const embedId = attrs.contentRef?.replace("embed:", "") || "";
-      const handleFullscreen = () => { this.openFullscreen(attrs, embedData, decodedContent); };
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
       const component = mount(ImageResultEmbedPreview, {
         target: content,
         props: {
@@ -1515,9 +1583,14 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         },
       });
       mountedComponents.set(content, component);
-      console.debug("[AppSkillUseRenderer] Mounted ImageResultEmbedPreview (standalone)");
+      console.debug(
+        "[AppSkillUseRenderer] Mounted ImageResultEmbedPreview (standalone)",
+      );
     } catch (error) {
-      console.error("[AppSkillUseRenderer] Error mounting ImageResultEmbedPreview:", error);
+      console.error(
+        "[AppSkillUseRenderer] Error mounting ImageResultEmbedPreview:",
+        error,
+      );
       this.renderGenericSkill(attrs, embedData, decodedContent, content);
     }
   }
@@ -1553,7 +1626,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     // Detect failed searches: status is "finished" but 0 results AND content has error field.
     // This happens when individual search queries fail (rate limit, sanitization block, etc.)
     // but the skill execution itself "finished" successfully.
-    const hasGroupError = !!(decodedContent?.error);
+    const hasGroupError = !!decodedContent?.error;
     const status =
       rawStatus !== "processing" && resultCount === 0 && hasGroupError
         ? "error"
@@ -1567,8 +1640,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         : status === "error"
           ? "Failed"
           : "Completed";
-    const statusClass =
-      status === "error" ? " search-error" : "";
+    const statusClass = status === "error" ? " search-error" : "";
     const html = `
       <div class="app-skill-preview-container web-search desktop">
         <div class="app-skill-preview-inner">
