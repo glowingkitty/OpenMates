@@ -225,7 +225,7 @@ changes to the documentation (to keep the documentation up to date).
 
     // Payment status - check if payment is enabled (self-hosted mode detection)
     let paymentEnabled = $state(true); // Default to true, will be updated on mount
-    let serverEdition = $state<string | null>(null); // Server edition for display
+    let _serverEdition = $state<string | null>(null); // Server edition for display (currently unused but kept for future use)
     let isSelfHosted = $state(false); // Self-hosted status from request-based validation
     
     // Reactive settingsViews that filters out server options for non-admins and payment routes when payment disabled
@@ -272,7 +272,7 @@ changes to the documentation (to keep the documentation up to date).
                     key === 'mates' || key.startsWith('mates/') ||
                     key === 'shared/share' || key === 'newsletter' ||
                     key === 'support' || key.startsWith('support/') ||
-                    key === 'report_issue' || key === 'account/delete' ||
+                    key === 'report_issue' || key.startsWith('report_issue/') || key === 'account/delete' ||
                     key === 'pricing') {
                     filtered[key] = component;
                 }
@@ -1123,7 +1123,7 @@ changes to the documentation (to keep the documentation up to date).
             dynamicEntryRoutes.add(settingsPath);
             // Trigger reactivity by reassigning the Set
             dynamicEntryRoutes = new Set(dynamicEntryRoutes);
-            console.debug(`[Settings] Dynamically registered entry detail route: ${settingsPath}`);
+            // Dynamically registered entry detail route: settingsPath
         }
         
         // Check if this is a dynamic AI model detail route that needs to be registered
@@ -1134,7 +1134,7 @@ changes to the documentation (to keep the documentation up to date).
             dynamicEntryRoutes.add(settingsPath);
             // Trigger reactivity by reassigning the Set
             dynamicEntryRoutes = new Set(dynamicEntryRoutes);
-            console.debug(`[Settings] Dynamically registered model detail route: ${settingsPath}`);
+            // Dynamically registered model detail route: settingsPath
         }
 
         // Set active view for both authenticated and non-authenticated users
@@ -1724,8 +1724,8 @@ changes to the documentation (to keep the documentation up to date).
                     }
                     // Use server_edition from request-based validation (includes "development" for dev subdomains)
                     // server_edition can be: "production" | "development" | "self_hosted"
-                    serverEdition = status.server_edition || null;
-                    console.log(`[Settings] Payment enabled: ${paymentEnabled}, Server edition: ${serverEdition}, is_self_hosted: ${isSelfHosted}, domain: ${status.domain || 'localhost'}`);
+                    _serverEdition = status.server_edition || null;
+                    // Payment settings loaded: paymentEnabled, serverEdition, isSelfHosted
                 } else {
                     console.warn('[Settings] Failed to fetch server status, defaulting to payment enabled');
                     paymentEnabled = true; // Default to enabled if check fails
@@ -1780,7 +1780,7 @@ changes to the documentation (to keep the documentation up to date).
                 if (settingsContentElement) {
                     settingsContentElement.scrollTop = 0;
                 }
-                console.debug('[Settings] Force-closed settings and reset to main page (forced logout)');
+                // Force-closed settings and reset to main page (forced logout)
             }
         };
         window.addEventListener('forceCloseSettings', handleForceCloseSettings);
@@ -1838,10 +1838,10 @@ changes to the documentation (to keep the documentation up to date).
         // Listen for admin status updates via WebSocket
         // This handles cases where admin privileges are granted/revoked while user is on settings page
         const handleAdminStatusUpdate = (payload: { is_admin: boolean }) => {
-            console.debug('[Settings] Received user_admin_status_updated notification via WebSocket:', payload);
+            // Received user_admin_status_updated notification via WebSocket
             if (typeof payload.is_admin === 'boolean') {
                 updateProfile({ is_admin: payload.is_admin });
-                console.debug(`[Settings] Updated user profile: is_admin = ${payload.is_admin}`);
+                // Updated user profile admin status
             }
         };
 
@@ -1850,7 +1850,7 @@ changes to the documentation (to keep the documentation up to date).
         // NOTE: Only register payment handlers if NOT in signup mode, as Payment.svelte already handles them during signup
         // This prevents duplicate handler registrations during signup flow
         const handlePaymentCompleted = (payload: { order_id: string, credits_purchased: number, current_credits: number }) => {
-            console.debug('[Settings] Received payment_completed notification via WebSocket:', payload);
+            // Received payment_completed notification via WebSocket
             
             // CRITICAL: Suppress notifications during signup - Payment.svelte already handles them
             // Also suppress when user is on the buy-credits payment/confirmation flow,
@@ -1864,7 +1864,7 @@ changes to the documentation (to keep the documentation up to date).
                     5000
                 );
             } else {
-                console.debug('[Settings] Suppressing payment_completed notification (signup=%s, buyCreditsPath=%s)', $isInSignupProcess, isOnBuyCreditsPath);
+                // Suppressing payment_completed notification during signup or buy credits flow
             }
             
             // Always update credits in user profile if available (even during signup)
@@ -1876,7 +1876,7 @@ changes to the documentation (to keep the documentation up to date).
         // Listen for payment failure notifications via WebSocket
         // This handles cases where payment fails minutes after user has moved on from payment screen
         const handlePaymentFailed = (payload: { order_id: string, message: string }) => {
-            console.debug('[Settings] Received payment_failed notification via WebSocket:', payload);
+            // Received payment_failed notification via WebSocket
             // Show error notification popup (using Notification.svelte component)
             notificationStore.error(
                 payload.message || 'Payment failed. Please try again or use a different payment method.',
@@ -1971,7 +1971,7 @@ changes to the documentation (to keep the documentation up to date).
                     // Actions after local state is reset but before server cleanup starts
                     // CRITICAL: Clear chats and load demo chat BEFORE database deletion
                     // Dispatch event to clear user chats and load demo chat
-                    console.debug('[Settings] Dispatching userLoggingOut event to clear chats and load demo');
+                    // Dispatching userLoggingOut event to clear chats and load demo
                     window.dispatchEvent(new CustomEvent('userLoggingOut'));
 
                      // CRITICAL: Force ActiveChat to load demo-for-everyone by setting activeChatStore directly
@@ -1983,21 +1983,21 @@ changes to the documentation (to keep the documentation up to date).
                          await new Promise(resolve => setTimeout(resolve, 50));
                          const { activeChatStore } = await import('@repo/ui');
                          activeChatStore.setActiveChat('demo-for-everyone');
-                         console.debug('[Settings] Directly set activeChatStore to demo-for-everyone during logout');
+                         // Directly set activeChatStore to demo-for-everyone during logout
 
                          // CRITICAL: Ensure URL hash is set to demo-for-everyone
                          if (typeof window !== 'undefined') {
                              window.location.hash = 'chat-id=demo-for-everyone';
-                             console.debug('[Settings] Set URL hash to demo-for-everyone during logout');
+                             // Set URL hash to demo-for-everyone during logout
                          }
                      } else {
-                         console.debug('[Settings] Skipping demo-for-everyone redirect during logout - og=1 mode');
+                         // Skipping demo-for-everyone redirect during logout - og=1 mode
                      }
                     
                     // CRITICAL: Mark phased sync as completed for non-authenticated users
                     // This prevents "Loading chats..." from showing after logout
                     phasedSyncState.markSyncCompleted();
-                    console.debug('[Settings] Marked phased sync as completed after logout (non-auth user)');
+                    // Marked phased sync as completed after logout (non-auth user)
                     
                     // Reset scroll position
                  	if (settingsContentElement) {
@@ -2023,7 +2023,7 @@ changes to the documentation (to keep the documentation up to date).
                      // OG image mode (?og=1): skip so the welcome screen stays visible
                      if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('og') !== '1') {
                          window.location.hash = 'chat-id=demo-for-everyone';
-                         console.debug('[Settings] Set URL hash to demo-for-everyone after logout');
+                         // Set URL hash to demo-for-everyone after logout
                      }
 
                     // Small delay to allow sidebar animation if needed
@@ -2072,12 +2072,13 @@ changes to the documentation (to keep the documentation up to date).
                                      settingsPath.startsWith('interface/') ||
                                      settingsPath.startsWith('shared/share') ||
                                      settingsPath.startsWith('support/') ||
+                                     settingsPath.startsWith('report_issue/') ||
                                      settingsPath.startsWith('account/delete/') ||
                                      settingsPath.startsWith('mates/');
                 
                 if (!isAllowedPath) {
                     // Clear the deep link if path is not allowed for non-authenticated users
-                    console.debug('[Settings] Clearing deep link - path not allowed for non-authenticated users:', settingsPath);
+                    // Clearing deep link - path not allowed for non-authenticated users
                     settingsDeepLink.set(null);
                     return;
                 }
