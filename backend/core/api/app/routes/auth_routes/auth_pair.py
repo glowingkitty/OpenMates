@@ -175,7 +175,7 @@ async def pair_initiate(
     token = _generate_token()
 
     # Collect device info from the initiating device
-    client_ip = _extract_client_ip(request)
+    client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
     ip_truncated = truncate_ip(client_ip)
     user_agent = request.headers.get("user-agent", "")
     device_name = body.device_hint or derive_device_name(user_agent)
