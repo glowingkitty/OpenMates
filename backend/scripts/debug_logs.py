@@ -30,6 +30,8 @@ Usage — Browser Console Log Mode (no email required):
     docker exec api python /app/backend/scripts/debug_logs.py --browser --since 10
     docker exec api python /app/backend/scripts/debug_logs.py --browser --level error
     docker exec api python /app/backend/scripts/debug_logs.py --browser --user jan41139
+    docker exec api python /app/backend/scripts/debug_logs.py --browser --device iphone
+    docker exec api python /app/backend/scripts/debug_logs.py --browser --device iphone --level error
     docker exec api python /app/backend/scripts/debug_logs.py --browser --search "decrypt"
     docker exec api python /app/backend/scripts/debug_logs.py --browser --limit 100
     docker exec api python /app/backend/scripts/debug_logs.py --browser --follow
@@ -1077,6 +1079,7 @@ def _build_browser_log_query(
     level: Optional[str] = None,
     user: Optional[str] = None,
     search: Optional[str] = None,
+    device: Optional[str] = None,
 ) -> str:
     """Build a LogQL query for browser console logs."""
     labels = ['job="client-console"']
@@ -1084,6 +1087,8 @@ def _build_browser_log_query(
         labels.append(f'level="{level}"')
     if user:
         labels.append(f'user_email="{user}"')
+    if device:
+        labels.append(f'device_type="{device.lower()}"')
 
     query = "{" + ", ".join(labels) + "}"
 
@@ -1093,14 +1098,22 @@ def _build_browser_log_query(
     return query
 
 
-def _print_browser_log_entry(timestamp_ns: str, message: str, level: str, user: str) -> None:
+def _print_browser_log_entry(
+    timestamp_ns: str,
+    message: str,
+    level: str,
+    user: str,
+    device_type: str = "",
+) -> None:
     """Print a single formatted browser console log entry."""
     ts = parse_timestamp_ns(timestamp_ns)[0]
     level_colors = {"error": C_RED, "warn": C_YELLOW, "info": C_GREEN, "debug": C_GRAY}
     level_color = level_colors.get(level, C_DIM)
     level_str = f"{level_color}{level.upper():5s}{C_RESET}"
     user_str = f"{C_DIM}[{user}]{C_RESET}"
-    print(f"{C_DIM}{ts}{C_RESET} {level_str} {user_str} {message}")
+    device_str = f"{C_DIM}[{device_type}]{C_RESET}" if device_type else ""
+    suffix = f" {device_str}" if device_str else ""
+    print(f"{C_DIM}{ts}{C_RESET} {level_str} {user_str}{suffix} {message}")
 
 
 async def _query_browser_logs_openobserve(
@@ -1111,6 +1124,7 @@ async def _query_browser_logs_openobserve(
     search: Optional[str],
     as_json: bool,
     start_us: Optional[int] = None,
+    device: Optional[str] = None,
 ) -> Optional[int]:
     """
     Query OpenObserve for client console logs.
@@ -1120,6 +1134,10 @@ async def _query_browser_logs_openobserve(
     Loki-compatible push endpoint. Despite the stream label being "client-console",
     Loki-compat pushes land in the "default" stream with job='client-console' as a
     searchable field — there is no separate stream named "client-console".
+
+    The 'device_type' label is set by openobserve_push_service.derive_device_type()
+    and is one of: iphone, ipad, android, windows-phone, windows, mac, linux,
+    chromeos, unknown.
     """
     import os
     email = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
@@ -1132,12 +1150,15 @@ async def _query_browser_logs_openobserve(
     if user:
         # user_email stores the admin username (not full email)
         where_clauses.append(f"user_email = '{sql_escape(user)}'")
+    if device:
+        # device_type is the derived label: iphone, ipad, android, mac, windows, etc.
+        where_clauses.append(f"device_type = '{sql_escape(device.lower())}'")
     if search:
         where_clauses.append(f"message LIKE '%{sql_escape(search)}%'")
 
     where_sql = " AND ".join(where_clauses)
     sql = (
-        f"SELECT _timestamp, message, level, user_email "
+        f"SELECT _timestamp, message, level, user_email, device_type "
         f'FROM "default" '
         f"WHERE {where_sql} "
         f"ORDER BY _timestamp ASC LIMIT {limit}"
@@ -1182,7 +1203,8 @@ async def _query_browser_logs_openobserve(
         message = hit.get("message", "")
         entry_level = hit.get("level", "info")
         entry_user = hit.get("user_email", "unknown")
-        _print_browser_log_entry(ts_ns_str, message, entry_level, entry_user)
+        entry_device = hit.get("device_type", "")
+        _print_browser_log_entry(ts_ns_str, message, entry_level, entry_user, entry_device)
 
     return int(hits[-1].get("_timestamp", 0)) * 1000
 
@@ -1194,23 +1216,24 @@ async def _browser_log_follow_mode(
     user: Optional[str],
     search: Optional[str],
     as_json: bool,
+    device: Optional[str] = None,
 ) -> None:
     """Continuously poll OpenObserve for new browser console log entries."""
-    query = _build_browser_log_query(level, user, search)
+    query = _build_browser_log_query(level, user, search, device)
     print(f"{C_BOLD}Following client logs: {query}{C_RESET}")
     print(f"{C_DIM}Press Ctrl+C to stop{C_RESET}")
     print()
 
-    latest_ns = await _query_browser_logs_openobserve(since_minutes, limit, level, user, search, as_json)
+    latest_ns = await _query_browser_logs_openobserve(since_minutes, limit, level, user, search, as_json, device=device)
 
     while True:
         await asyncio.sleep(FOLLOW_POLL_INTERVAL_SECONDS)
         start_from = (latest_ns + 1) if latest_ns else None
         if start_from is None:
-            new_latest = await _query_browser_logs_openobserve(since_minutes, limit, level, user, search, as_json)
+            new_latest = await _query_browser_logs_openobserve(since_minutes, limit, level, user, search, as_json, device=device)
         else:
             new_latest = await _query_browser_logs_openobserve(
-                since_minutes, limit, level, user, search, as_json, start_us=start_from
+                since_minutes, limit, level, user, search, as_json, start_us=start_from, device=device
             )
         if new_latest:
             latest_ns = new_latest
@@ -1231,19 +1254,21 @@ async def run_browser_logs_mode(args) -> None:
     search = getattr(args, 'search', None)
     as_json = getattr(args, 'as_json', False)
     use_prod = getattr(args, 'prod', False)
+    # Device type filter: iphone, ipad, android, mac, windows, linux, chromeos
+    device_filter = getattr(args, 'device', None)
 
     if getattr(args, 'follow', False):
         try:
-            await _browser_log_follow_mode(since, limit, level, user_filter, search, as_json)
+            await _browser_log_follow_mode(since, limit, level, user_filter, search, as_json, device=device_filter)
         except KeyboardInterrupt:
             print(f"\n{C_DIM}Stopped.{C_RESET}")
         return
 
-    query = _build_browser_log_query(level, user_filter, search)
+    query = _build_browser_log_query(level, user_filter, search, device_filter)
     print(f"{C_DIM}Query: {query}  (last {since} min, limit {limit}){C_RESET}")
     print()
 
-    latest_ns = await _query_browser_logs_openobserve(since, limit, level, user_filter, search, as_json)
+    latest_ns = await _query_browser_logs_openobserve(since, limit, level, user_filter, search, as_json, device=device_filter)
 
     if latest_ns is None and not as_json:
         print(f"{C_DIM}No client console logs found for the given filters.{C_RESET}")
@@ -2190,6 +2215,12 @@ async def main():
     # Browser log options
     parser.add_argument("--user", type=str, default=None,
                         help="Filter browser logs by admin username (browser mode only)")
+    parser.add_argument("--device", type=str, default=None,
+                        help=(
+                            "Filter browser logs by device type (browser mode only). "
+                            "Values: iphone, ipad, android, mac, windows, linux, chromeos, unknown. "
+                            "Example: --device iphone"
+                        ))
     parser.add_argument("--search", type=str, default=None,
                         help="Search log message content (browser/satellite modes)")
     parser.add_argument("--limit", type=int, default=None,

@@ -16,6 +16,7 @@
   type LogFilter = 'all' | 'warn' | 'error';
 
   let filter = $state<LogFilter>('all');
+  let searchQuery = $state('');
   let logs = $state<ConsoleLogEntry[]>([]);
   let isAdminUser = $derived($userProfile.is_admin === true);
   let debugOutput = $state<string>('');
@@ -24,9 +25,14 @@
   const MAX_LOGS = 400;
 
   function applyFilter(entries: ConsoleLogEntry[]): ConsoleLogEntry[] {
-    if (filter === 'warn') return entries.filter((entry) => entry.level === 'warn');
-    if (filter === 'error') return entries.filter((entry) => entry.level === 'error');
-    return entries;
+    let result = entries;
+    if (filter === 'warn') result = result.filter((entry) => entry.level === 'warn');
+    else if (filter === 'error') result = result.filter((entry) => entry.level === 'error');
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      result = result.filter((entry) => entry.message.toLowerCase().includes(q));
+    }
+    return result;
   }
 
   let filteredLogs = $derived(applyFilter(logs));
@@ -125,6 +131,14 @@
     <button class="logs-filter" class:active={filter === 'error'} onclick={() => (filter = 'error')}>Errors</button>
     <button class="logs-refresh" onclick={loadLogsSnapshot}>Refresh</button>
   </div>
+  <div class="logs-search-row">
+    <input
+      class="logs-search"
+      type="search"
+      placeholder="Search logs… (e.g. iPhone, decrypt, error)"
+      bind:value={searchQuery}
+    />
+  </div>
 
   <div class="logs-container selectable">
     {#if filteredLogs.length === 0}
@@ -215,6 +229,30 @@
   .logs-filter.active {
     color: var(--color-primary);
     border-color: var(--color-primary);
+  }
+
+  .logs-search-row {
+    margin-bottom: 0.75rem;
+  }
+
+  .logs-search {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.4rem 0.7rem;
+    font-size: 0.8rem;
+    border: 1px solid var(--color-grey-30);
+    border-radius: 999px;
+    background: var(--color-grey-10);
+    color: var(--color-font-primary);
+    outline: none;
+  }
+
+  .logs-search:focus {
+    border-color: var(--color-primary);
+  }
+
+  .logs-search::placeholder {
+    color: var(--color-font-tertiary);
   }
 
   .logs-container {

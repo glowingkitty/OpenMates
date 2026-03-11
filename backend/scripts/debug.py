@@ -42,6 +42,8 @@ Examples:
   debug.py chat <id> -v --decrypt       # full chat inspection
   debug.py logs <email> --since 60      # user activity timeline
   debug.py logs --browser --search X    # browser console logs
+  debug.py logs --browser --device iphone         # iPhone-only browser logs
+  debug.py logs --browser --device iphone --level error  # iPhone errors only
   debug.py logs --o2 --preset web-app-health --since 60
   debug.py logs --o2 --sql "SELECT * FROM \"default\" ORDER BY _timestamp DESC" --quiet-health
   debug.py requests --errors-only       # recent AI errors

@@ -82,15 +82,38 @@ Check the Caddyfile first (`deployment/dev_server/Caddyfile` or `deployment/prod
 
 ## Rule 9: Where to Look First
 
-| Problem Type            | Check First                              | Then Check                 |
-| ----------------------- | ---------------------------------------- | -------------------------- |
-| AI response issues      | `task-worker`, `app-ai-worker`           | `api` (WebSocket logs)     |
-| Login/auth failures     | `api`                                    | `cms` (Directus logs)      |
-| Payment issues          | `api`                                    | `task-worker` (async jobs) |
-| Sync/cache issues       | `api` (PHASE1, SYNC_CACHE)               | `cache` (Dragonfly)        |
-| Frontend/client issues  | OpenObserve `job='client-console'` (SQL) | Browser console            |
-| Scheduled task failures | `task-scheduler`                         | `task-worker`              |
-| User-specific issues    | `debug.py logs`                          | Specific service logs      |
+| Problem Type            | Check First                               | Then Check                 |
+| ----------------------- | ----------------------------------------- | -------------------------- |
+| AI response issues      | `task-worker`, `app-ai-worker`            | `api` (WebSocket logs)     |
+| Login/auth failures     | `api`                                     | `cms` (Directus logs)      |
+| Payment issues          | `api`                                     | `task-worker` (async jobs) |
+| Sync/cache issues       | `api` (PHASE1, SYNC_CACHE)                | `cache` (Dragonfly)        |
+| Frontend/client issues  | OpenObserve `job='client-console'` (SQL)  | Browser console            |
+| Scheduled task failures | `task-scheduler`                          | `task-worker`              |
+| User-specific issues    | `debug.py logs`                           | Specific service logs      |
+| Mobile/iPhone issues    | `debug.py logs --browser --device iphone` | `--level error` to narrow  |
+
+### Filtering Browser Logs by Device
+
+Every admin browser session is automatically labeled with a `device_type` derived from its User-Agent string. Supported values: `iphone`, `ipad`, `android`, `windows-phone`, `windows`, `mac`, `linux`, `chromeos`, `unknown`.
+
+```bash
+# All logs from iPhone sessions (last 30 min)
+docker exec api python /app/backend/scripts/debug.py logs --browser --device iphone
+
+# iPhone errors only
+docker exec api python /app/backend/scripts/debug.py logs --browser --device iphone --level error
+
+# iPhone errors on production
+docker exec api python /app/backend/scripts/debug.py logs --browser --device iphone --level error --prod
+
+# OpenObserve SQL — manual device query
+docker exec api python /app/backend/scripts/debug.py logs --o2 \
+  --sql "SELECT _timestamp, message, level, user_email, device_type FROM \"default\" WHERE job='client-console' AND device_type='iphone' ORDER BY _timestamp DESC" \
+  --quiet-health
+```
+
+The `device_type` label is set by `openobserve_push_service.derive_device_type()` at push time and is stored as an indexed stream label in OpenObserve — no UA string parsing needed at query time.
 
 ## Rule 9.1: Start With Token-Efficient OpenObserve Presets
 

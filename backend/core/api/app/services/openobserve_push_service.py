@@ -15,12 +15,40 @@ Tests: None (non-critical debug infrastructure)
 
 import logging
 import os
+import re
 import aiohttp
 from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
 OPENOBSERVE_ORG = "default"
+
+# Ordered rules: first match wins. Keep specific patterns before generic ones.
+_DEVICE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"iPhone", re.I), "iphone"),
+    (re.compile(r"iPad", re.I), "ipad"),
+    (re.compile(r"Android", re.I), "android"),
+    (re.compile(r"Windows Phone", re.I), "windows-phone"),
+    (re.compile(r"Windows", re.I), "windows"),
+    (re.compile(r"Macintosh|Mac OS X", re.I), "mac"),
+    (re.compile(r"Linux", re.I), "linux"),
+    (re.compile(r"CrOS", re.I), "chromeos"),
+]
+
+
+def derive_device_type(user_agent: str) -> str:
+    """
+    Derive a short, searchable device-type label from a User-Agent string.
+
+    Returns one of: iphone, ipad, android, windows-phone, windows, mac, linux,
+    chromeos, or 'unknown'.  Used as a stable OpenObserve stream label so every
+    admin session's logs can be filtered by device without needing to parse UA
+    strings in SQL queries.
+    """
+    for pattern, label in _DEVICE_PATTERNS:
+        if pattern.search(user_agent):
+            return label
+    return "unknown"
 
 
 class OpenObservePushService:
@@ -82,6 +110,7 @@ class OpenObservePushService:
 
             # Truncate user_agent to avoid exceeding OpenObserve label size limits
             user_agent = metadata.get("userAgent", "")[:200]
+            device_type = derive_device_type(user_agent)
 
             streams = []
             for level, values in streams_by_level.items():
@@ -93,6 +122,10 @@ class OpenObservePushService:
                         "server_env": self.server_env,
                         "source": "browser",
                         "user_agent": user_agent,
+                        # Stable device-type label derived from UA — enables
+                        # simple equality filters like device_type='iphone'
+                        # without UA string parsing in SQL queries.
+                        "device_type": device_type,
                     },
                     "values": values,
                 })
