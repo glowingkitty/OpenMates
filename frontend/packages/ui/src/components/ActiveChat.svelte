@@ -1,4 +1,5 @@
 <script lang="ts">
+    /* eslint-disable no-console */
     import MessageInput from './enter_message/MessageInput.svelte';
     import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
     import ChatHistory from './ChatHistory.svelte';
@@ -129,6 +130,34 @@
     type EventListenerCallback = (event: Event) => void;
     type UserProfileRecord = { user_id?: string | null };
     type HiddenChatFlag = { is_hidden?: boolean | null };
+
+    const OG_EXAMPLE_SHARED_CHAT_CUTTLEFISH = 'shared_chat_cuttlefish';
+
+    function isOgExampleSharedChatCuttlefish(): boolean {
+        if (typeof window === 'undefined') {
+            return false;
+        }
+        const searchParams = new URLSearchParams(window.location.search);
+        return searchParams.get('og') === '1' && searchParams.get('og_example') === OG_EXAMPLE_SHARED_CHAT_CUTTLEFISH;
+    }
+
+    function getOgExampleResumeChat(): Chat {
+        const nowTs = Math.floor(Date.now() / 1000);
+        return {
+            chat_id: 'c3343b34-c645-4576-be38-87bef9d0b899',
+            encrypted_title: null,
+            messages_v: 0,
+            title_v: 0,
+            last_edited_overall_timestamp: nowTs,
+            unread_count: 0,
+            created_at: nowTs,
+            updated_at: nowTs,
+            title: 'Cuttlefish Camouflage Mechanism',
+            chat_summary: 'Exploring cuttlefish camouflage mechanisms and examples.',
+            category: 'general_knowledge',
+            icon: 'sparkles'
+        };
+    }
 
     type ChatHistoryRef = {
         updateMessages: (messages: ChatMessageModel[], isNewChat?: boolean) => void;
@@ -2361,6 +2390,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const lastOpened = $userProfile.last_opened;
         // Read activeChatStore to make this effect reactive to it
         const currentActiveChat = $activeChatStore;
+        const isOgExample = isOgExampleSharedChatCuttlefish();
+
+        if (isOgExample && isWelcome && !currentActiveChat) {
+            const chat = getOgExampleResumeChat();
+            resumeChatData = chat;
+            resumeChatTitle = chat.title || 'Untitled Chat';
+            resumeChatCategory = chat.category || 'general_knowledge';
+            resumeChatIcon = chat.icon || 'sparkles';
+            resumeChatSummary = chat.chat_summary || null;
+            resumeChatIsCreditsError = false;
+            resumeChatUserMessagePreview = null;
+            return;
+        }
 
         // Only show resume card when on welcome screen, authenticated, and last_opened is a real chat ID
         // (not empty, not '/chat/new' which means the user was already on the new chat screen,

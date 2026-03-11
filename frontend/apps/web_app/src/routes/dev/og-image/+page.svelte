@@ -80,10 +80,12 @@
 	const PHONE_OUTER_H = PHONE_BEZEL_V + PHONE_SCREEN_H + PHONE_BEZEL_V;
 
 	// ── iframe sources ─────────────────────────────────────────────────────────
-	// Laptop: welcome screen — ?og=1 skips demo-for-everyone redirect + hides dev UI
-	const laptopSrc = '/?og=1';
-	// Phone: for-everyone chat with ?og=1 so dev UI (dev server label, report issue) is hidden
-	const phoneSrc = '/?og=1#chat-id=demo-for-everyone';
+	// Laptop: regular welcome/new-chat screen in OG fixture mode.
+	// og_example injects a deterministic resume card + daily inspirations for screenshots.
+	const laptopSrc = '/?og=1&og_example=shared_chat_cuttlefish';
+	// Phone: fully opened shared chat (same chat represented by the laptop resume preview).
+	const phoneSrc =
+		'/share/chat/c3343b34-c645-4576-be38-87bef9d0b899#key=SwMrEJcB8a40oPUhzCFtguAWc1eXVk5Fc0M5MXe535vjZvifuO_0CBeZ_cW_Xzu9MqdHwMbFfZg2xQVcnfxyMRlwSXfcoWX86zkd1rfd9DsatF0TYfY4PsJDZ8vDeG64i2x2PB1PaTz_JXckyaCu-Ijgrr81eln5rOZJ_S5rh-i4wZSdjLKaaM-If__NA-VdqQ';
 
 	// ── Load tracking ──────────────────────────────────────────────────────────
 	let laptopLoaded = $state(false);
@@ -358,7 +360,7 @@
 		padding: 20px 0;
 		position: relative;
 		z-index: 1;
-		overflow: hidden;
+		overflow: visible;
 	}
 
 	/* ── Laptop ─────────────────────────────────────────────────────────────────── */
