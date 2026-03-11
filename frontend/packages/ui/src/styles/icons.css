@@ -1088,6 +1088,14 @@ div.clickable-icon {
   }
 }
 
+.icon.notifications {
+  background: var(--color-primary);
+
+  &::before {
+    background-image: url("@openmates/ui/static/icons/announcement.svg");
+  }
+}
+
 .icon.project {
   background: var(--color-primary);
 
