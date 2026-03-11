@@ -31,6 +31,7 @@ export function getBackendUrl(url: URL): string {
 
 /**
  * Backend URL for build-time use (entries() generators, prerender).
- * Always points to production — prerendering only runs against prod data.
+ * Reads BACKEND_URL from the environment so dev and prod Vercel builds
+ * each prerender against their own backend. Falls back to prod if unset.
  */
-export const PRERENDER_BACKEND_URL = 'https://api.openmates.org';
+export const PRERENDER_BACKEND_URL = process.env.BACKEND_URL ?? 'https://api.openmates.org';
