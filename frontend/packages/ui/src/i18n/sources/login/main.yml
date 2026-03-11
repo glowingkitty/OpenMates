@@ -2095,3 +2095,8 @@ sign_in_via_trusted_device:
   en: Sign in via a trusted device
   de: Über ein vertrauenswürdiges Gerät anmelden
   verified_by_human: []
+login_with_phone_or_pc:
+  context: Small text link button on the login screen to start the pair login flow — shown below the passkey button, styled the same way (gradient text, phone icon)
+  en: Login with phone or PC
+  de: Mit Telefon oder PC einloggen
+  verified_by_human: []

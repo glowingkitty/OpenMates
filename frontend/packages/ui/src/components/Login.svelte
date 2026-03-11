@@ -2281,6 +2281,7 @@
                                                 isPasskeyLoading={isPasskeyLoading}
                                                 onPasskeyClick={startPasskeyLogin}
                                                 onCancelPasskey={cancelPasskeyLogin}
+                                                onPairLoginClick={() => setLoginStep('pair-initiate')}
                                                 on:lookupSuccess={(e) => {
                                                     availableLoginMethods = e.detail.availableLoginMethods;
                                                     preferredLoginMethod = e.detail.preferredLoginMethod;
@@ -2296,17 +2297,6 @@
                                                 }}
                                                  on:userActivity={resetInactivityTimer}
                                             />
-                                            <!-- Sign in via a trusted device (magic pair login) -->
-                                            <div class="pair-login-divider">
-                                                <span>{$text('login.or')}</span>
-                                            </div>
-                                            <button
-                                                class="button-secondary pair-login-btn"
-                                                onclick={() => setLoginStep('pair-initiate')}
-                                                type="button"
-                                            >
-                                                {$text('login.sign_in_via_trusted_device')}
-                                            </button>
                                         {/if}
                                     {:else}
                                         <!-- Show appropriate login method component based on currentLoginStep -->
@@ -2566,28 +2556,6 @@
         background-color: var(--color-error-light);
         border-radius: 8px;
         margin: 24px 0;
-    }
-
-    /* Pair login divider + button */
-    .pair-login-divider {
-        display: flex;
-        align-items: center;
-        text-align: center;
-        margin: 1rem 0 0.75rem;
-        color: var(--color-font-tertiary);
-        font-size: var(--processing-details-font-size);
-    }
-    .pair-login-divider::before,
-    .pair-login-divider::after {
-        content: '';
-        flex: 1;
-        border-bottom: 1px solid var(--color-grey-30);
-    }
-    .pair-login-divider span {
-        padding: 0 0.75rem;
-    }
-    .pair-login-btn {
-        width: 100%;
     }
 
     /* Pair initiate wrapper — provides a back button above the component */

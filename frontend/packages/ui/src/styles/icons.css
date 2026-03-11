@@ -388,6 +388,11 @@ div.clickable-icon {
   mask-image: url("@openmates/ui/static/icons/passkey.svg");
 }
 
+.clickable-icon.icon_phone {
+  -webkit-mask-image: url("@openmates/ui/static/icons/phone.svg");
+  mask-image: url("@openmates/ui/static/icons/phone.svg");
+}
+
 .clickable-icon.icon_password {
   -webkit-mask-image: url("@openmates/ui/static/icons/password.svg");
   mask-image: url("@openmates/ui/static/icons/password.svg");
