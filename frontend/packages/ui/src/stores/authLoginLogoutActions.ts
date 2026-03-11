@@ -314,6 +314,15 @@ export async function login(
               // Refund policy consent — used to skip redundant consent screens in settings
               has_accepted_refund_policy:
                 data.user.has_accepted_refund_policy ?? false,
+              // Push notification fields — synced from server on login
+              push_notification_enabled:
+                data.user.push_notification_enabled ?? false,
+              push_notification_subscription:
+                data.user.push_notification_subscription ?? undefined,
+              push_notification_preferences:
+                data.user.push_notification_preferences ?? undefined,
+              push_notification_banner_shown:
+                data.user.push_notification_banner_shown ?? false,
             });
 
             // Apply server dark mode preference to the theme store.
@@ -325,7 +334,6 @@ export async function login(
             // This ensures the server always has the user's current timezone
             // for reminders and time-sensitive features
             void syncBrowserTimezone(data.user.timezone);
-
           } else {
             console.warn(
               "Login successful but no user data received in response.",

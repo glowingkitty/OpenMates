@@ -325,11 +325,42 @@ class UserDatabaseService {
         }
         // Save email notification fields
         if ("email_notifications_enabled" in userData) {
-          store.put(!!userData.email_notifications_enabled, "email_notifications_enabled");
+          store.put(
+            !!userData.email_notifications_enabled,
+            "email_notifications_enabled",
+          );
         }
         if ("email_notification_preferences" in userData) {
           // Serialize to plain JSON string — Svelte proxy objects cannot be cloned by IDB.
-          store.put(JSON.stringify(userData.email_notification_preferences ?? {}), "email_notification_preferences");
+          store.put(
+            JSON.stringify(userData.email_notification_preferences ?? {}),
+            "email_notification_preferences",
+          );
+        }
+        // Save push notification fields
+        if ("push_notification_enabled" in userData) {
+          store.put(
+            !!userData.push_notification_enabled,
+            "push_notification_enabled",
+          );
+        }
+        if ("push_notification_subscription" in userData) {
+          store.put(
+            userData.push_notification_subscription ?? null,
+            "push_notification_subscription",
+          );
+        }
+        if ("push_notification_preferences" in userData) {
+          store.put(
+            JSON.stringify(userData.push_notification_preferences ?? {}),
+            "push_notification_preferences",
+          );
+        }
+        if ("push_notification_banner_shown" in userData) {
+          store.put(
+            !!userData.push_notification_banner_shown,
+            "push_notification_banner_shown",
+          );
         }
       };
 
@@ -429,11 +460,42 @@ class UserDatabaseService {
         }
         // Save email notification fields
         if ("email_notifications_enabled" in userData) {
-          store.put(!!userData.email_notifications_enabled, "email_notifications_enabled");
+          store.put(
+            !!userData.email_notifications_enabled,
+            "email_notifications_enabled",
+          );
         }
         if ("email_notification_preferences" in userData) {
           // Serialize to plain JSON string — Svelte proxy objects cannot be cloned by IDB.
-          store.put(JSON.stringify(userData.email_notification_preferences ?? {}), "email_notification_preferences");
+          store.put(
+            JSON.stringify(userData.email_notification_preferences ?? {}),
+            "email_notification_preferences",
+          );
+        }
+        // Save push notification fields
+        if ("push_notification_enabled" in userData) {
+          store.put(
+            !!userData.push_notification_enabled,
+            "push_notification_enabled",
+          );
+        }
+        if ("push_notification_subscription" in userData) {
+          store.put(
+            userData.push_notification_subscription ?? null,
+            "push_notification_subscription",
+          );
+        }
+        if ("push_notification_preferences" in userData) {
+          store.put(
+            JSON.stringify(userData.push_notification_preferences ?? {}),
+            "push_notification_preferences",
+          );
+        }
+        if ("push_notification_banner_shown" in userData) {
+          store.put(
+            !!userData.push_notification_banner_shown,
+            "push_notification_banner_shown",
+          );
         }
       };
 
@@ -533,8 +595,25 @@ class UserDatabaseService {
         "auto_topup_low_balance_currency",
       );
       // Email notification fields
-      const emailNotificationsEnabledRequest = store.get("email_notifications_enabled");
-      const emailNotificationPreferencesRequest = store.get("email_notification_preferences");
+      const emailNotificationsEnabledRequest = store.get(
+        "email_notifications_enabled",
+      );
+      const emailNotificationPreferencesRequest = store.get(
+        "email_notification_preferences",
+      );
+      // Push notification fields
+      const pushNotificationEnabledRequest = store.get(
+        "push_notification_enabled",
+      );
+      const pushNotificationSubscriptionRequest = store.get(
+        "push_notification_subscription",
+      );
+      const pushNotificationPreferencesRequest = store.get(
+        "push_notification_preferences",
+      );
+      const pushNotificationBannerShownRequest = store.get(
+        "push_notification_banner_shown",
+      );
 
       idRequest.onsuccess = () => {
         profile.user_id = idRequest.result || null;
@@ -683,10 +762,47 @@ class UserDatabaseService {
                 ? JSON.parse(emailNotificationPreferencesRequest.result)
                 : emailNotificationPreferencesRequest.result;
           } catch (e) {
-            console.warn("[UserDatabase] Failed to parse email_notification_preferences:", e);
+            console.warn(
+              "[UserDatabase] Failed to parse email_notification_preferences:",
+              e,
+            );
             profile.email_notification_preferences = undefined;
           }
         }
+      };
+
+      // Handle push notification fields retrieval
+      pushNotificationEnabledRequest.onsuccess = () => {
+        profile.push_notification_enabled =
+          pushNotificationEnabledRequest.result !== undefined
+            ? !!pushNotificationEnabledRequest.result
+            : undefined;
+      };
+      pushNotificationSubscriptionRequest.onsuccess = () => {
+        profile.push_notification_subscription =
+          pushNotificationSubscriptionRequest.result ?? undefined;
+      };
+      pushNotificationPreferencesRequest.onsuccess = () => {
+        if (pushNotificationPreferencesRequest.result) {
+          try {
+            profile.push_notification_preferences =
+              typeof pushNotificationPreferencesRequest.result === "string"
+                ? JSON.parse(pushNotificationPreferencesRequest.result)
+                : pushNotificationPreferencesRequest.result;
+          } catch (e) {
+            console.warn(
+              "[UserDatabase] Failed to parse push_notification_preferences:",
+              e,
+            );
+            profile.push_notification_preferences = undefined;
+          }
+        }
+      };
+      pushNotificationBannerShownRequest.onsuccess = () => {
+        profile.push_notification_banner_shown =
+          pushNotificationBannerShownRequest.result !== undefined
+            ? !!pushNotificationBannerShownRequest.result
+            : undefined;
       };
 
       transaction.oncomplete = () => {
@@ -1014,6 +1130,32 @@ class UserDatabaseService {
         store.put(
           JSON.stringify(partialData.email_notification_preferences),
           "email_notification_preferences",
+        );
+      }
+
+      // Handle push notification fields
+      if (partialData.push_notification_enabled !== undefined) {
+        store.put(
+          !!partialData.push_notification_enabled,
+          "push_notification_enabled",
+        );
+      }
+      if (partialData.push_notification_subscription !== undefined) {
+        store.put(
+          partialData.push_notification_subscription ?? null,
+          "push_notification_subscription",
+        );
+      }
+      if (partialData.push_notification_preferences !== undefined) {
+        store.put(
+          JSON.stringify(partialData.push_notification_preferences),
+          "push_notification_preferences",
+        );
+      }
+      if (partialData.push_notification_banner_shown !== undefined) {
+        store.put(
+          !!partialData.push_notification_banner_shown,
+          "push_notification_banner_shown",
         );
       }
 

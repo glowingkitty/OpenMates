@@ -16,6 +16,7 @@ import {
   pushNotificationStore,
   type NotificationPermission,
 } from "../stores/pushNotificationStore";
+import { getApiEndpoint, apiEndpoints } from "../config/api";
 
 // Browser check for SSR safety
 const browser = typeof window !== "undefined";
@@ -96,9 +97,7 @@ class PushNotificationService {
           await this.serviceWorkerRegistration.pushManager.getSubscription();
         if (subscription) {
           pushNotificationStore.setSubscription(subscription);
-          console.warn(
-            "[PushNotificationService] Existing subscription found",
-          );
+          console.warn("[PushNotificationService] Existing subscription found");
         }
       } catch (error) {
         console.error(
@@ -483,42 +482,88 @@ class PushNotificationService {
   }
 
   /**
-   * Get VAPID public key from server
-   * TODO: Implement actual server fetch
+   * Fetch the VAPID public key from the backend.
+   * Returns null if the server hasn't configured VAPID keys yet.
    */
   private async getVapidPublicKey(): Promise<string | null> {
-    // TODO: Fetch from server API endpoint
-    // For now, return null to indicate not yet configured
-    console.warn(
-      "[PushNotificationService] VAPID public key not configured - server endpoint needed",
-    );
-    return null;
+    try {
+      const response = await fetch(
+        getApiEndpoint(apiEndpoints.push.vapidPublicKey),
+        { credentials: "include" },
+      );
+      if (!response.ok) {
+        console.error(
+          "[PushNotificationService] VAPID key fetch failed:",
+          response.status,
+        );
+        return null;
+      }
+      const data = await response.json();
+      return (data.vapid_public_key as string) ?? null;
+    } catch (error) {
+      console.error("[PushNotificationService] VAPID key fetch error:", error);
+      return null;
+    }
   }
 
   /**
-   * Send subscription to server for push delivery
+   * Send a new PushSubscription to the server so it can send push messages.
    */
   private async sendSubscriptionToServer(
     subscription: PushSubscription,
   ): Promise<void> {
-    // TODO: Implement API call to send subscription to server
-    console.warn(
-      "[PushNotificationService] TODO: Send subscription to server",
-      subscription.endpoint,
-    );
+    try {
+      const response = await fetch(
+        getApiEndpoint(apiEndpoints.push.subscribe),
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ subscription: JSON.stringify(subscription) }),
+        },
+      );
+      if (!response.ok) {
+        console.error(
+          "[PushNotificationService] Subscribe request failed:",
+          response.status,
+        );
+      }
+    } catch (error) {
+      console.error(
+        "[PushNotificationService] Subscribe request error:",
+        error,
+      );
+    }
   }
 
   /**
-   * Remove subscription from server
+   * Notify the server that the user has unsubscribed so it removes the stored subscription.
    */
   private async removeSubscriptionFromServer(
     subscription: PushSubscription,
   ): Promise<void> {
-    // TODO: Implement API call to remove subscription from server
-    console.warn(
-      "[PushNotificationService] TODO: Remove subscription from server",
-      subscription.endpoint,
-    );
+    try {
+      const response = await fetch(
+        getApiEndpoint(apiEndpoints.push.unsubscribe),
+        {
+          method: "DELETE",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endpoint: subscription.endpoint }),
+        },
+      );
+      if (!response.ok) {
+        console.error(
+          "[PushNotificationService] Unsubscribe request failed:",
+          response.status,
+        );
+      }
+    } catch (error) {
+      console.error(
+        "[PushNotificationService] Unsubscribe request error:",
+        error,
+      );
+    }
   }
 
   /**

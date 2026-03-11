@@ -30,6 +30,8 @@ from backend.core.api.app.routes import apps  # noqa: E402 # Import apps router
 from backend.core.api.app.routes import share  # noqa: E402 # Import share router
 from backend.core.api.app.routes import demo_chat  # noqa: E402 # Import demo chat router
 from backend.core.api.app.routes import admin  # noqa: E402 # Import admin router
+from backend.core.api.app.routes.push import router as push_router  # noqa: E402 # Push notification routes
+from backend.core.api.app.services.push_notification_service import push_notification_service  # noqa: E402
 from backend.core.api.app.routes import admin_debug  # noqa: E402 # Import admin debug router for remote debugging
 from backend.core.api.app.routes import admin_client_logs  # noqa: E402 # Import admin client log forwarding router
 from backend.core.api.app.routes import apps_api  # noqa: E402 # Import apps API router for external API access
@@ -575,7 +577,16 @@ async def lifespan(app: FastAPI):
     app.state.secrets_manager = SecretsManager(cache_service=app.state.cache_service)
     logger.info("Initializing secrets manager...")
     await app.state.secrets_manager.initialize()
-    
+
+    # Initialize push notification service (loads or generates VAPID keys from Vault)
+    logger.info("Initializing push notification service...")
+    await push_notification_service.initialize(app.state.secrets_manager)
+    app.state.push_notification_service = push_notification_service
+    if push_notification_service.is_ready():
+        logger.info("Push notification service initialized (VAPID keys ready).")
+    else:
+        logger.warning("Push notification service failed to initialize — push notifications will be disabled.")
+
     # Encryption service depends on cache
     app.state.encryption_service = EncryptionService(cache_service=app.state.cache_service)
     
@@ -1653,6 +1664,7 @@ def create_app() -> FastAPI:
     app.include_router(analytics_beacon.router, include_in_schema=False)  # Analytics beacon - privacy-preserving first-party aggregate analytics (no PII)
     app.include_router(debug_sync.router, include_in_schema=False)  # Debug sync status - JWT auth, no admin required, window.debug integration
     app.include_router(settings_software_update.router, include_in_schema=False)  # Software update settings - admin only, not in public API docs
+    app.include_router(push_router, include_in_schema=False)  # Push notification routes - VAPID key + subscription management
     from backend.core.api.app.routes import usage_api
     app.include_router(usage_api.router, include_in_schema=True)  # Usage API router - supports both session and API key auth
     

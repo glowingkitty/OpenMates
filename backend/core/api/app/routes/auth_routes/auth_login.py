@@ -523,14 +523,18 @@ async def login(
                     user_email_salt=user_profile.get("user_email_salt"),
                     # Low balance auto top-up fields
                     # Use bool() to convert None to False, as .get() only uses default when key doesn't exist, not when value is None
-                    auto_topup_low_balance_enabled=bool(user_profile.get("auto_topup_low_balance_enabled", False)),
-                    auto_topup_low_balance_threshold=user_profile.get("auto_topup_low_balance_threshold"),
-                    auto_topup_low_balance_amount=user_profile.get("auto_topup_low_balance_amount"),
-                    auto_topup_low_balance_currency=user_profile.get("auto_topup_low_balance_currency"),
-                    has_accepted_refund_policy=bool(user_profile.get("consent_withdrawal_waiver_timestamp"))
-                ),
-                ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
-            )
+                        auto_topup_low_balance_enabled=bool(user_profile.get("auto_topup_low_balance_enabled", False)),
+                        auto_topup_low_balance_threshold=user_profile.get("auto_topup_low_balance_threshold"),
+                        auto_topup_low_balance_amount=user_profile.get("auto_topup_low_balance_amount"),
+                        auto_topup_low_balance_currency=user_profile.get("auto_topup_low_balance_currency"),
+                        has_accepted_refund_policy=bool(user_profile.get("consent_withdrawal_waiver_timestamp")),
+                        push_notification_enabled=bool(user_profile.get("push_notification_enabled", False)),
+                        push_notification_subscription=user_profile.get("push_notification_subscription"),
+                        push_notification_preferences=user_profile.get("push_notification_preferences", {}),
+                        push_notification_banner_shown=bool(user_profile.get("push_notification_banner_shown", False)),
+                    ),
+                    ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
+                )
 
         # --- 2FA IS Enabled ---
         
@@ -750,7 +754,11 @@ async def login(
                         auto_topup_low_balance_threshold=user_profile.get("auto_topup_low_balance_threshold"),
                         auto_topup_low_balance_amount=user_profile.get("auto_topup_low_balance_amount"),
                         auto_topup_low_balance_currency=user_profile.get("auto_topup_low_balance_currency"),
-                        has_accepted_refund_policy=bool(user_profile.get("consent_withdrawal_waiver_timestamp"))
+                        has_accepted_refund_policy=bool(user_profile.get("consent_withdrawal_waiver_timestamp")),
+                        push_notification_enabled=bool(user_profile.get("push_notification_enabled", False)),
+                        push_notification_subscription=user_profile.get("push_notification_subscription"),
+                        push_notification_preferences=user_profile.get("push_notification_preferences", {}),
+                        push_notification_banner_shown=bool(user_profile.get("push_notification_banner_shown", False)),
                     ),
                     ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
                 )
@@ -1064,7 +1072,11 @@ async def login(
                         auto_topup_low_balance_threshold=user_profile.get("auto_topup_low_balance_threshold"),
                         auto_topup_low_balance_amount=user_profile.get("auto_topup_low_balance_amount"),
                         auto_topup_low_balance_currency=user_profile.get("auto_topup_low_balance_currency"),
-                        has_accepted_refund_policy=bool(user_profile.get("consent_withdrawal_waiver_timestamp"))
+                        has_accepted_refund_policy=bool(user_profile.get("consent_withdrawal_waiver_timestamp")),
+                        push_notification_enabled=bool(user_profile.get("push_notification_enabled", False)),
+                        push_notification_subscription=user_profile.get("push_notification_subscription"),
+                        push_notification_preferences=user_profile.get("push_notification_preferences", {}),
+                        push_notification_banner_shown=bool(user_profile.get("push_notification_banner_shown", False)),
                     ),
                     ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
                 )
@@ -1594,11 +1606,16 @@ async def lookup_user(
                             "auto_topup_low_balance_threshold": user_profile.get("auto_topup_low_balance_threshold"),
                             "auto_topup_low_balance_amount": user_profile.get("auto_topup_low_balance_amount"),
                             "auto_topup_low_balance_currency": user_profile.get("auto_topup_low_balance_currency"),
-                            # Email notification fields (encrypted_notification_email is vault-encrypted)
-                            "email_notifications_enabled": user_profile.get("email_notifications_enabled", False),
-                            "email_notification_preferences": user_profile.get("email_notification_preferences", {}),
-                            "encrypted_notification_email": user_profile.get("encrypted_notification_email"),
-                        }
+                             # Email notification fields (encrypted_notification_email is vault-encrypted)
+                             "email_notifications_enabled": user_profile.get("email_notifications_enabled", False),
+                             "email_notification_preferences": user_profile.get("email_notification_preferences", {}),
+                             "encrypted_notification_email": user_profile.get("encrypted_notification_email"),
+                             # Push notification fields
+                             "push_notification_enabled": user_profile.get("push_notification_enabled", False),
+                             "push_notification_subscription": user_profile.get("push_notification_subscription"),
+                             "push_notification_preferences": user_profile.get("push_notification_preferences", {}),
+                             "push_notification_banner_shown": user_profile.get("push_notification_banner_shown", False),
+                         }
                         
                         # CACHE TFA DATA: Cache encrypted TFA secret for faster login
                         if user_profile.get("tfa_enabled", False):

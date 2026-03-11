@@ -133,10 +133,11 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.default_inspiration_tasks'},  # Daily defaults selection from pool (replaces old admin-curated pipeline)
     {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.web_analytics_tasks'},  # Web analytics flush tasks (privacy-preserving aggregate counters)
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.app_analytics_tasks'},  # App analytics daily aggregation tasks
-    {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.software_update_tasks'},  # Software update auto-check tasks
-    # Add new task configurations here, e.g.:
-    # {'name': 'new_queue', 'module': 'backend.core.api.app.tasks.new_tasks'}, # Example updated
-]
+     {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.software_update_tasks'},  # Software update auto-check tasks
+     {'name': 'push',        'module': 'backend.core.api.app.tasks.push_notification_task'},  # Browser Web Push notifications
+     # Add new task configurations here, e.g.:
+     # {'name': 'new_queue', 'module': 'backend.core.api.app.tasks.new_tasks'}, # Example updated
+ ]
 
 
 # Force immediate logger configuration for Celery
@@ -953,9 +954,12 @@ _EXPLICIT_TASK_ROUTES = {
     # App analytics tasks (daily aggregation of raw app_analytics events)
     "app_analytics.aggregate_daily": "persistence",
 
-    # Software update auto-check task
-    "software_update.auto_check": "server_stats",
-}
+     # Software update auto-check task
+     "software_update.auto_check": "server_stats",
+
+     # Browser Web Push notification task
+     "app.tasks.push_notification_task.send_push_notification": "push",
+ }
 
 def get_expected_queue_for_task(task_name: str) -> Optional[str]:
     """

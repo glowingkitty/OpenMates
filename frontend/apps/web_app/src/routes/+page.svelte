@@ -57,6 +57,7 @@
 		isProgrammaticHashUpdate,
 		isProgrammaticEmbedHashUpdate
 	} from '@repo/ui';
+	import { pushNotificationService } from '@repo/ui';
 	import { rehydratePairSession, registerPairLogoutCallback, pendingPairToken } from '@repo/ui';
 	import { onMount, onDestroy, untrack } from 'svelte';
 	import { locale, waitLocale } from 'svelte-i18n';
@@ -900,6 +901,13 @@
 		// PRIORITY 1: Check last_opened for signup step BEFORE processing hash
 		// Load user profile first to check last_opened
 		await loadUserProfileFromDB();
+
+		// Initialise push notification service (registers SW, refreshes permission state,
+		// checks for existing PushSubscription). Non-blocking — runs in background.
+		pushNotificationService.initialize().catch((err) => {
+			console.error('[+page.svelte] Push notification service init failed:', err);
+		});
+
 		const initialProfile = $userProfile;
 		const hasSignupInLastOpened =
 			initialProfile?.last_opened && isSignupPath(initialProfile.last_opened);

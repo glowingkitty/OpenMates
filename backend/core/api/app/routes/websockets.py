@@ -67,7 +67,7 @@ def _safe_payload_summary(payload: object) -> str:
 
 
 # =============================================================================
-# EMAIL NOTIFICATION FOR OFFLINE USERS
+# OFFLINE NOTIFICATIONS (PUSH + EMAIL) FOR OFFLINE USERS
 # =============================================================================
 
 async def _check_user_offline_and_send_email(
@@ -83,13 +83,16 @@ async def _check_user_offline_and_send_email(
     category: Optional[str] = None,
 ) -> None:
     """
-    Check if user is offline with retries, then send email notification if still offline.
-    
-    This function runs as a background task after an AI response completes.
-    It makes multiple attempts to detect if the user reconnects before sending an email.
-    If the user is confirmed offline, the AI response is also queued in the pending
-    delivery queue (up to 60 days) so they receive it on reconnect.
-    
+    Check if user is offline with retries, then notify via push notification and/or email.
+
+    Flow after AI response completes and user has no active WebSocket:
+      1. Wait up to 15 s (3 × 5 s) for user to reconnect.
+      2. If still offline:
+         a. Queue AI response for pending delivery on reconnect (60-day TTL).
+         b. If user has push_notification_enabled → send push immediately.
+            Then wait 60 s more; if still offline → send email (if enabled).
+         c. If user has NO push subscription → send email immediately (existing behaviour).
+
     Args:
         app: FastAPI app instance (for accessing services)
         manager: ConnectionManager instance for checking active connections
@@ -100,45 +103,39 @@ async def _check_user_offline_and_send_email(
         max_attempts: Number of connection check attempts (default 3)
         delay_seconds: Delay between attempts in seconds (default 5)
     """
-    log_prefix = f"[EMAIL_NOTIFICATION user={user_id} chat={chat_id}]"
-    
+    log_prefix = f"[OFFLINE_NOTIFY user={user_id} chat={chat_id}]"
+
     # Skip if response is an error message
     if response_preview and isinstance(response_preview, str):
         if "[ERROR" in response_preview or response_preview == "chat.an_error_occured":
-            logger.debug(f"{log_prefix} Skipping email - response contains error")
+            logger.debug(f"{log_prefix} Skipping notification - response contains error")
             return
-    
-    # Retry loop: check if user reconnects
+
+    # Retry loop: check if user reconnects within ~15 s
     for attempt in range(1, max_attempts + 1):
         if manager.is_user_active(user_id):
-            logger.debug(f"{log_prefix} User came online (attempt {attempt}/{max_attempts}), skipping email")
+            logger.debug(f"{log_prefix} User came online (attempt {attempt}/{max_attempts}), skipping notification")
             return
-        
+
         if attempt < max_attempts:
             logger.debug(f"{log_prefix} User still offline (attempt {attempt}/{max_attempts}), waiting {delay_seconds}s...")
             await asyncio.sleep(delay_seconds)
-    
-    # User is still offline after all attempts.
-    # 1. Queue the AI response for delivery when the user reconnects (up to 60 days)
-    # 2. Send email notification if enabled
-    logger.info(f"{log_prefix} User offline after {max_attempts} attempts, queuing for pending delivery + email check...")
 
-    # Store the AI response in the pending delivery queue for reconnect delivery.
-    # The client will receive this via WebSocket on reconnect, encrypt with the
-    # chat key, and persist it properly (zero-knowledge architecture).
+    # User is still offline after all attempts.
+    logger.info(f"{log_prefix} User offline after {max_attempts} attempts — queuing pending delivery + notifications")
+
+    # 1. Queue the AI response for delivery when the user reconnects (up to 60 days)
     try:
         if hasattr(app.state, 'cache_service'):
             cache_service: CacheService = app.state.cache_service
             delivery_payload = {
-                    "type": "ai_response",  # Distinguishes from "reminder" system messages
-                    "chat_id": chat_id,
-                    "message_id": task_id or str(uuid.uuid4()),
-                    "content": response_preview,  # Full AI response plaintext
-                    "user_id": user_id,
-                    "fired_at": int(time.time()),
-                }
-            # Include model_name and category so the client can encrypt them
-            # for proper display (mate icon, model badge) after offline delivery
+                "type": "ai_response",  # Distinguishes from "reminder" system messages
+                "chat_id": chat_id,
+                "message_id": task_id or str(uuid.uuid4()),
+                "content": response_preview,  # Full AI response plaintext
+                "user_id": user_id,
+                "fired_at": int(time.time()),
+            }
             if model_name:
                 delivery_payload["model_name"] = model_name
             if category:
@@ -151,15 +148,105 @@ async def _check_user_offline_and_send_email(
     except Exception as e:
         logger.error(f"{log_prefix} Failed to queue AI response for pending delivery: {e}")
 
+    # 2. Decide push vs. immediate email
+    push_sent = False
+    try:
+        push_sent = await _send_push_notification_if_enabled(
+            app=app,
+            user_id=user_id,
+            chat_id=chat_id,
+            response_preview=response_preview,
+        )
+    except Exception as e:
+        logger.error(f"{log_prefix} Push notification attempt failed: {e}", exc_info=True)
+
+    if push_sent:
+        # Push was dispatched — give user 60 s to open the app before sending email
+        logger.info(f"{log_prefix} Push sent — waiting 60 s before email fallback")
+        await asyncio.sleep(60)
+
+        if manager.is_user_active(user_id):
+            logger.info(f"{log_prefix} User came online after push — skipping email")
+            return
+        logger.info(f"{log_prefix} User still offline 60 s after push — sending email fallback")
+
+    # 3. Send email (immediately if no push, or as fallback after 60 s)
     try:
         await _send_offline_email_notification(
             app=app,
             user_id=user_id,
             chat_id=chat_id,
-            response_preview=response_preview
+            response_preview=response_preview,
         )
     except Exception as e:
         logger.error(f"{log_prefix} Failed to send email notification: {e}", exc_info=True)
+
+
+async def _send_push_notification_if_enabled(
+    app: FastAPI,
+    user_id: str,
+    chat_id: str,
+    response_preview: str,
+) -> bool:
+    """
+    Look up user's push subscription from cache and dispatch push Celery task if enabled.
+
+    Returns True if a push notification was successfully dispatched, False otherwise.
+    """
+    log_prefix = f"[PUSH_NOTIFY user={user_id} chat={chat_id}]"
+
+    if not hasattr(app.state, 'cache_service'):
+        logger.warning(f"{log_prefix} Cache service not available")
+        return False
+
+    cache_service: CacheService = app.state.cache_service
+    cached_user = await cache_service.get_user_by_id(user_id)
+    if not cached_user:
+        logger.debug(f"{log_prefix} User not in cache, skipping push")
+        return False
+
+    push_enabled = cached_user.get("push_notification_enabled", False)
+    if not push_enabled:
+        logger.debug(f"{log_prefix} Push notifications not enabled for user")
+        return False
+
+    subscription_json = cached_user.get("push_notification_subscription")
+    if not subscription_json:
+        logger.debug(f"{log_prefix} No push subscription stored for user")
+        return False
+
+    push_prefs = cached_user.get("push_notification_preferences", {}) or {}
+    if not push_prefs.get("aiResponses", True):
+        logger.debug(f"{log_prefix} AI response push notifications disabled in preferences")
+        return False
+
+    # Build notification content
+    preview_text = (response_preview or "")[:200]
+    push_title = "OpenMates"
+    push_body = preview_text if preview_text else "Your AI assistant has responded."
+    push_url = f"/?chat={chat_id}"
+    push_tag = f"ai-response-{chat_id}"
+
+    try:
+        from backend.core.api.app.tasks.celery_config import app as celery_app
+
+        celery_app.send_task(
+            name='app.tasks.push_notification_task.send_push_notification',
+            kwargs={
+                "subscription_json": subscription_json,
+                "title": push_title,
+                "body": push_body,
+                "url": push_url,
+                "tag": push_tag,
+                "user_id": user_id,
+            },
+            queue="push",
+        )
+        logger.info(f"{log_prefix} Dispatched push notification task")
+        return True
+    except Exception as e:
+        logger.error(f"{log_prefix} Failed to dispatch push task: {e}", exc_info=True)
+        return False
 
 
 async def _send_offline_email_notification(

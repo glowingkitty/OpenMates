@@ -11,7 +11,11 @@ export default defineConfig({
 		SvelteKitPWA({
 			srcDir: './src',
 			mode: 'production',
-			strategies: 'generateSW',
+			// injectManifest: use our custom sw.ts so we can handle Web Push events.
+			// The build tool injects self.__WB_MANIFEST (precache list) at compile time.
+			// Runtime caching and push handling are implemented inside sw.ts.
+			strategies: 'injectManifest',
+			filename: 'sw.ts',
 			// Output manifest.json (not default manifest.webmanifest) to match
 			// the <link rel="manifest"> in app.html and maintain compatibility
 			// with existing installed PWAs on user devices
@@ -44,64 +48,13 @@ export default defineConfig({
 					}
 				]
 			},
-			workbox: {
-				// Precache app shell assets only - docs are cached at runtime when visited
-				// This keeps initial download small while still enabling offline access for visited pages
+			injectManifest: {
+				// Precache app shell assets — same glob patterns as the old generateSW config
 				globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
 				// Increase limit to 8MB to accommodate large chunks for offline-first functionality
 				// The largest chunk is ~7.2MB (translations, TipTap editor, ProseMirror, UI library)
-				// This enables true offline capability at the cost of a larger initial download
 				// See docs/architecture/bundle_optimization_strategy.md for long-term optimization plan
-				maximumFileSizeToCacheInBytes: 8 * 1024 * 1024, // 8 MB
-				// Add cleanup configuration to prevent quota exceeded errors
-				cleanupOutdatedCaches: true,
-				// MODIFIED: Don't skip waiting to prevent page reload during sync completion
-				// Users will get updates on next page load instead of during active use
-				skipWaiting: false,
-				clientsClaim: false,
-				// Safari-specific: Ensure precached files use versioned URLs
-				// This ensures Safari detects file changes and updates properly
-				// Workbox automatically generates revision hashes for precached files
-				// Add cache busting for HTML to prevent Safari from using stale HTML
-				// Note: SvelteKit already handles versioning for JS/CSS assets via build hashes
-				runtimeCaching: [
-					{
-						urlPattern: /^https:\/\/api\.(dev\.)?openmates\.org\/.*/i,
-						handler: 'NetworkFirst',
-						options: {
-							cacheName: 'api-cache',
-							expiration: {
-								maxEntries: 50, // Reduced from 100 to prevent quota issues
-								maxAgeSeconds: 60 * 60 // 1 hour
-							},
-							networkTimeoutSeconds: 10
-						}
-					},
-					// Serve the app shell for navigation requests with NetworkFirst strategy.
-					// This replaces the previous `navigateFallback: 'index.html'` which caused
-					// "non-precached-url" crashes when a new deployment changed file hashes but
-					// the old service worker was still active (skipWaiting: false). The old SW
-					// would try to serve index.html from its precache, but cleanupOutdatedCaches
-					// had already removed the old revision, causing an unrecoverable error.
-					//
-					// NetworkFirst ensures:
-					// 1. Online: always fetches the latest HTML from the server (correct behavior)
-					// 2. Offline: falls back to the last cached version of the page
-					// 3. No crashes: if the cache is empty, the request simply fails gracefully
-					//    instead of throwing a non-precached-url error
-					{
-						urlPattern: ({ request }) => request.mode === 'navigate',
-						handler: 'NetworkFirst',
-						options: {
-							cacheName: 'navigation-cache',
-							expiration: {
-								maxEntries: 10,
-								maxAgeSeconds: 24 * 60 * 60 // 24 hours
-							},
-							networkTimeoutSeconds: 5
-						}
-					}
-				]
+				maximumFileSizeToCacheInBytes: 8 * 1024 * 1024 // 8 MB
 			},
 			devOptions: {
 				enabled: true,

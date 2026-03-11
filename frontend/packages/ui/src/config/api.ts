@@ -246,6 +246,11 @@ export const apiEndpoints = {
   emailBlock: {
     blockEmail: "/v1/block-email", // Block email address from all emails (signup, newsletter, etc.)
   },
+  push: {
+    vapidPublicKey: "/v1/push/vapid-public-key", // GET: fetch VAPID public key for Web Push subscription
+    subscribe: "/v1/push/subscribe", // POST: register a browser PushSubscription
+    unsubscribe: "/v1/push/subscribe", // DELETE: remove a browser PushSubscription
+  },
 } as const;
 
 // Helper to get full API endpoint URL
