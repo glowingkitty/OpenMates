@@ -5089,10 +5089,10 @@
         "text": "채팅 가져오기"
       },
       "import_description": {
-        "text": "이전에 내보낸 OpenMates YAML 파일에서 채팅을 가져옵니다. 각 메시지는 저장 전에 보안 검사를 받습니다."
+        "text": "이전에 내보낸 OpenMates YAML 파일에서 채팅을 가져옵니다. 각 메시지는 저장 전에 보안 검사를 받습니다。"
       },
       "import_choose_file": {
-        "text": "가져올 .yml 파일 선택"
+        "text": "가져올 .zip 또는 .yml 파일 선택"
       },
       "import_select_chats": {
         "text": "가져올 채팅 선택"

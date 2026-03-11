@@ -6210,7 +6210,7 @@
         "text": "从之前导出的OpenMates YAML文件导入聊天记录。每条消息在存储前都会经过安全扫描。"
       },
       "import_choose_file": {
-        "text": "选择要导入的.yml文件"
+        "text": "选择要导入的.zip或.yml文件"
       },
       "import_select_chats": {
         "text": "选择要导入的聊天记录"

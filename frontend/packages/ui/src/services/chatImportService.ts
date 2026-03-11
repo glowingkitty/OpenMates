@@ -1,13 +1,26 @@
 // frontend/packages/ui/src/services/chatImportService.ts
 //
 // Chat import service for Settings → Account → Import.
-// Parses user-supplied YAML export files (produced by chatExportService.ts),
-// optionally resolves embed IDs from local IndexedDB, then submits chats to
-// the backend POST /v1/settings/import-chat for safety-scanning and storage.
 //
-// See docs/architecture/account-backup.md for the full export/import model.
+// Supports two file formats produced by the OpenMates export pipeline:
+//
+// 1. ZIP (primary) — account export ZIP or single-chat ZIP
+//    - Account ZIP: chats/<folder>/<folder>.yml  (one per chat)
+//    - Single-chat ZIP: <name>.yml at root
+//    Both ZIPs are produced by accountExportService.ts / zipExportService.ts.
+//
+// 2. YAML (.yml / .yaml) — single-chat or multi-chat YAML
+//    Produced by chatExportService.ts convertChatToYaml().
+//
+// After parsing, selected chats are submitted to:
+//   POST /v1/settings/import-chat
+// where each message is safety-scanned via gpt-oss-safeguard-20b (OpenRouter)
+// before being stored. Blocked messages get a visible placeholder.
+//
+// See docs/architecture/account-backup.md for the export/import model.
 // Tests: none yet (UI-level integration tests planned).
 
+import JSZip from "jszip";
 import { parse } from "yaml";
 import { getApiEndpoint, apiEndpoints } from "../config/api";
 import { resolveEmbed, storeEmbed, type EmbedData } from "./embedResolver";
@@ -43,6 +56,8 @@ export interface ParsedImportChat {
   messages: ParsedImportMessage[];
   /** Original embed entries from YAML — used for local ID resolution. */
   rawEmbeds: RawYamlEmbed[];
+  /** Source filename (for display). */
+  sourceFile?: string;
 }
 
 export interface RawYamlEmbed {
@@ -54,6 +69,8 @@ export interface RawYamlEmbed {
   updatedAt?: string;
   text_preview?: string;
 }
+
+export type ImportFileType = "zip" | "yaml";
 
 export interface ImportCostEstimate {
   totalInputTokens: number;
@@ -76,17 +93,116 @@ export interface ImportChatApiResponse {
 }
 
 export type ImportProgressCallback = (
-  phase: "resolving-embeds" | "submitting" | "done",
+  phase: "parsing" | "resolving-embeds" | "submitting" | "done",
   detail: string,
 ) => void;
 
 // ============================================================================
-// PARSING
+// FILE TYPE DETECTION
+// ============================================================================
+
+export function detectFileType(file: File): ImportFileType {
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".zip")) return "zip";
+  return "yaml";
+}
+
+// ============================================================================
+// ZIP PARSING
 // ============================================================================
 
 /**
- * Parse a YAML string (single-chat or multi-chat OpenMates export format) and
- * return a list of ParsedImportChat objects ready for submission.
+ * Parse an OpenMates export ZIP file.
+ *
+ * Handles two ZIP layouts produced by the export pipeline:
+ *
+ * Account export ZIP:
+ *   chats/<folder-name>/<folder-name>.yml   ← one per chat
+ *   (may also contain images/, audio/, code/, etc. — ignored for import)
+ *
+ * Single-chat ZIP:
+ *   <chat-name>.yml   ← single YAML at root (no chats/ prefix)
+ *
+ * Any .yml file found inside a chats/ subfolder OR at the root that
+ * matches the OpenMates chat YAML format is treated as a chat to import.
+ */
+export async function parseImportZip(file: File): Promise<ParsedImportChat[]> {
+  const arrayBuffer = await file.arrayBuffer();
+  let zip: JSZip;
+  try {
+    zip = await JSZip.loadAsync(arrayBuffer);
+  } catch (e) {
+    throw new Error(
+      "Cannot read ZIP file: " + (e instanceof Error ? e.message : String(e)),
+    );
+  }
+
+  const chats: ParsedImportChat[] = [];
+
+  // Collect candidate .yml files
+  const ymlFiles: { path: string; file: JSZip.JSZipObject }[] = [];
+  zip.forEach((relativePath, zipEntry) => {
+    if (zipEntry.dir) return;
+    const lower = relativePath.toLowerCase();
+    if (!lower.endsWith(".yml") && !lower.endsWith(".yaml")) return;
+    // Skip non-chat YML files (metadata, usage, settings, compliance, invoices)
+    const base = relativePath.split("/").pop()?.toLowerCase() ?? "";
+    const skipPatterns = [
+      "metadata",
+      "profile",
+      "usage_history",
+      "invoices",
+      "app_settings",
+      "compliance_logs",
+    ];
+    if (skipPatterns.some((p) => base.includes(p))) return;
+    ymlFiles.push({ path: relativePath, file: zipEntry });
+  });
+
+  if (ymlFiles.length === 0) {
+    throw new Error(
+      "No chat YAML files found in ZIP. Make sure this is an OpenMates export.",
+    );
+  }
+
+  // Sort: chats/ folder entries first, then root-level
+  ymlFiles.sort((a, b) => {
+    const aInChats = a.path.startsWith("chats/");
+    const bInChats = b.path.startsWith("chats/");
+    if (aInChats && !bInChats) return -1;
+    if (!aInChats && bInChats) return 1;
+    return a.path.localeCompare(b.path);
+  });
+
+  for (const { path, file: zipEntry } of ymlFiles) {
+    try {
+      const yamlText = await zipEntry.async("string");
+      const parsed = tryParseSingleChatYaml(yamlText);
+      if (parsed) {
+        parsed.sourceFile = path;
+        chats.push(parsed);
+      }
+    } catch {
+      // Skip unreadable/non-chat YML files silently
+    }
+  }
+
+  if (chats.length === 0) {
+    throw new Error(
+      "No valid OpenMates chats found in ZIP. The file may be corrupted or in an unsupported format.",
+    );
+  }
+
+  return chats;
+}
+
+// ============================================================================
+// YAML PARSING
+// ============================================================================
+
+/**
+ * Parse a YAML string (single-chat or multi-chat OpenMates export format)
+ * and return a list of ParsedImportChat objects ready for submission.
  *
  * Throws a user-readable error if the YAML is invalid or unrecognisable.
  */
@@ -96,7 +212,7 @@ export function parseImportYaml(yamlText: string): ParsedImportChat[] {
     parsed = parse(yamlText);
   } catch (e) {
     throw new Error(
-      "Invalid YAML file: " + (e instanceof Error ? e.message : String(e)),
+      "Invalid YAML: " + (e instanceof Error ? e.message : String(e)),
     );
   }
 
@@ -126,12 +242,30 @@ export function parseImportYaml(yamlText: string): ParsedImportChat[] {
   );
 }
 
+/**
+ * Try to parse a single YAML string as an OpenMates chat.
+ * Returns null if it doesn't look like a chat (used during ZIP scanning).
+ */
+function tryParseSingleChatYaml(yamlText: string): ParsedImportChat | null {
+  try {
+    const parsed = parse(yamlText);
+    if (!parsed || typeof parsed !== "object") return null;
+    const block = parsed as Record<string, unknown>;
+    // Must have a "messages" key to be a chat
+    if (!("messages" in block) && !("chat" in block)) return null;
+    return parseSingleChatBlock(parsed, 0);
+  } catch {
+    return null;
+  }
+}
+
 function parseSingleChatBlock(block: unknown, index: number): ParsedImportChat {
   if (!block || typeof block !== "object") {
     throw new Error(`Chat ${index + 1} is not an object.`);
   }
   const b = block as Record<string, unknown>;
 
+  // "chat" key holds metadata in single-chat YAML format
   const chatMeta = (b.chat as Record<string, unknown> | undefined) ?? b;
   const messagesRaw = Array.isArray(b.messages) ? b.messages : [];
   const embedsRaw = Array.isArray(b.embeds) ? b.embeds : [];
@@ -173,7 +307,7 @@ function parseSingleChatBlock(block: unknown, index: number): ParsedImportChat {
     },
   );
 
-  const rawEmbeds: RawYamlEmbed[] = embedsRaw
+  const rawEmbeds: RawYamlEmbed[] = (embedsRaw as unknown[])
     .map((e: unknown) => {
       if (!e || typeof e !== "object") return null;
       const em = e as Record<string, unknown>;
@@ -201,13 +335,39 @@ function parseSingleChatBlock(block: unknown, index: number): ParsedImportChat {
 }
 
 // ============================================================================
+// UNIFIED FILE PARSER
+// ============================================================================
+
+/**
+ * Parse any supported import file (ZIP or YAML) and return chats.
+ * This is the main entry point called by the UI.
+ */
+export async function parseImportFile(
+  file: File,
+  onProgress?: ImportProgressCallback,
+): Promise<{ chats: ParsedImportChat[]; fileType: ImportFileType }> {
+  const fileType = detectFileType(file);
+
+  if (fileType === "zip") {
+    onProgress?.("parsing", "Reading ZIP file…");
+    const chats = await parseImportZip(file);
+    return { chats, fileType };
+  } else {
+    onProgress?.("parsing", "Reading YAML file…");
+    const yamlText = await file.text();
+    const chats = parseImportYaml(yamlText);
+    return { chats, fileType };
+  }
+}
+
+// ============================================================================
 // COST ESTIMATION
 // ============================================================================
 
 /**
  * Estimate import cost entirely on the client (no network round-trip).
- * Uses the same formula as the backend: floor(totalTokens / 4444), minimum 1
- * per chat that has at least one non-empty message.
+ * Uses the same formula as the backend:
+ *   credits = max(chats.length, floor(totalTokens / 4444))
  */
 export function estimateImportCost(
   chats: ParsedImportChat[],
@@ -244,16 +404,6 @@ export function estimateImportCost(
 // EMBED RESOLUTION
 // ============================================================================
 
-/**
- * For each embed in the chat, try to resolve it from local IndexedDB.
- * If found, reuse the same embed_id (no change needed in message content).
- * If not found and it's a pure-data embed, re-store it with the same ID.
- * File-backed embeds that aren't in IndexedDB are left as-is (the backend
- * message content will still reference them, but they won't be resolvable).
- *
- * Returns a map of { oldEmbedId → resolvedEmbedId } for content substitution.
- * In v1 we keep the same IDs, so this map is identity if the embed exists locally.
- */
 const PURE_DATA_EMBED_TYPES = new Set([
   "code-code",
   "docs-doc",
@@ -266,23 +416,18 @@ const PURE_DATA_EMBED_TYPES = new Set([
   "app-skill-use",
 ]);
 
-async function resolveEmbeds(
-  rawEmbeds: RawYamlEmbed[],
-): Promise<Map<string, string>> {
-  const idMap = new Map<string, string>();
-
+/**
+ * For each embed listed in the chat's YAML, try to resolve it from local
+ * IndexedDB. Pure-data embeds that are missing locally are re-stored so they
+ * render correctly after import. File-backed embeds are left as-is.
+ */
+async function resolveEmbeds(rawEmbeds: RawYamlEmbed[]): Promise<void> {
   for (const raw of rawEmbeds) {
     if (!raw.embed_id) continue;
 
-    // Try local IndexedDB first
     const existing = await resolveEmbed(raw.embed_id);
-    if (existing) {
-      // Already in local store — reuse as-is
-      idMap.set(raw.embed_id, raw.embed_id);
-      continue;
-    }
+    if (existing) continue; // Already in local store — nothing to do
 
-    // Not found locally — only re-store pure-data embeds
     if (PURE_DATA_EMBED_TYPES.has(raw.type) && raw.content) {
       try {
         const nowMs = Date.now();
@@ -295,16 +440,11 @@ async function resolveEmbeds(
           updatedAt: raw.updatedAt ? new Date(raw.updatedAt).getTime() : nowMs,
         };
         await storeEmbed(embedData);
-        idMap.set(raw.embed_id, raw.embed_id);
       } catch {
-        // Ignore store errors — embed just won't be resolvable
+        // Non-fatal — embed just won't be resolvable locally
       }
     }
-    // File-backed embeds not in local store: no substitution needed
-    // The embed reference stays in message content; it just won't render.
   }
-
-  return idMap;
 }
 
 // ============================================================================
@@ -315,9 +455,9 @@ async function resolveEmbeds(
  * Import selected chats to the backend.
  *
  * Steps:
- * 1. Resolve embeds from local IndexedDB.
- * 2. Submit to POST /v1/settings/import-chat.
- * 3. Return results.
+ * 1. Resolve embeds from local IndexedDB (pure-data embeds only).
+ * 2. Submit all selected chats to POST /v1/settings/import-chat.
+ * 3. Return per-chat results and total credits charged.
  *
  * Throws on network/API errors. Progress callback is optional.
  */
@@ -327,7 +467,7 @@ export async function importChats(
 ): Promise<ImportChatApiResponse> {
   if (chats.length === 0) throw new Error("No chats selected for import.");
 
-  // Step 1: Resolve embeds
+  // Step 1: Resolve embeds from local IndexedDB
   onProgress?.(
     "resolving-embeds",
     `Resolving embeds for ${chats.length} chat(s)…`,

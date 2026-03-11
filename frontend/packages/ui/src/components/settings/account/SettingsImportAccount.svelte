@@ -1,6 +1,7 @@
 <!--
-  Import Account Settings — Chat Import from YAML
+  Import Account Settings — Chat Import from ZIP or YAML
   Allows users to import chats exported via Settings → Account → Export.
+  Accepts OpenMates export ZIP files (primary) and YAML files (secondary).
   Each message is safety-scanned by the backend (gpt-oss-safeguard-20b via
   OpenRouter) before storage. The user is shown a credit cost estimate before
   confirming, and charged only for successfully imported chats.
@@ -12,12 +13,13 @@
     import { text } from '@repo/ui';
     import { authStore } from '../../../stores/authStore';
     import {
-        parseImportYaml,
+        parseImportFile,
         estimateImportCost,
         importChats,
         type ParsedImportChat,
         type ImportCostEstimate,
         type ImportedChatResult,
+        type ImportFileType,
         type ImportProgressCallback,
     } from '../../../services/chatImportService';
 
@@ -28,7 +30,10 @@
     /** File chosen by the user via the file picker */
     let selectedFile = $state<File | null>(null);
 
-    /** Parsed chats from the YAML (before submission) */
+    /** Detected file type (zip or yaml) */
+    let fileType = $state<ImportFileType | null>(null);
+
+    /** Parsed chats from the file (before submission) */
     let parsedChats = $state<ParsedImportChat[]>([]);
 
     /** Which chats the user has checked for import */
@@ -73,6 +78,7 @@
         const input = event.target as HTMLInputElement;
         const file = input.files?.[0] ?? null;
         selectedFile = file;
+        fileType = null;
         parsedChats = [];
         selectedIndices = new Set();
         costEstimate = null;
@@ -82,13 +88,13 @@
 
         if (!file) return;
 
-        const yamlText = await file.text();
         try {
-            const chats = parseImportYaml(yamlText);
-            parsedChats = chats;
+            const result = await parseImportFile(file);
+            fileType = result.fileType;
+            parsedChats = result.chats;
             // Select all by default
-            selectedIndices = new Set(chats.map((_, i) => i));
-            costEstimate = estimateImportCost(chats);
+            selectedIndices = new Set(result.chats.map((_, i) => i));
+            costEstimate = estimateImportCost(result.chats);
         } catch (e) {
             parseError = e instanceof Error ? e.message : String(e);
         }
@@ -144,6 +150,7 @@
 
     function resetState(): void {
         selectedFile = null;
+        fileType = null;
         parsedChats = [];
         selectedIndices = new Set();
         costEstimate = null;
@@ -210,11 +217,14 @@
                     <span>
                         {selectedFile ? selectedFile.name : $text('settings.account.import_choose_file')}
                     </span>
+                    {#if fileType}
+                        <span class="file-type-badge file-type-badge--{fileType}">{fileType.toUpperCase()}</span>
+                    {/if}
                 </label>
                 <input
                     id="import-file-input"
                     type="file"
-                    accept=".yml,.yaml"
+                    accept=".zip,.yml,.yaml"
                     class="file-input-hidden"
                     onchange={handleFileChange}
                 />
@@ -698,5 +708,27 @@
         border-top-color: #fff;
         border-radius: 50%;
         animation: spin 0.7s linear infinite;
+    }
+
+    /* ── File type badge ─────────────────────────────────────────────────── */
+    .file-type-badge {
+        margin-left: auto;
+        padding: 0.1rem 0.45rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        line-height: 1.4;
+        flex-shrink: 0;
+    }
+
+    .file-type-badge--zip {
+        background: var(--color-accent-soft, #e0e7ff);
+        color: var(--color-accent, #4f46e5);
+    }
+
+    .file-type-badge--yaml {
+        background: var(--color-grey-20);
+        color: var(--color-font-secondary);
     }
 </style>

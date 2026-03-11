@@ -6210,7 +6210,7 @@
         "text": "以前にエクスポートしたOpenMates YAMLファイルからチャットをインポートします。各メッセージは保存前にセキュリティスキャンされます。"
       },
       "import_choose_file": {
-        "text": "インポートする.ymlファイルを選択"
+        "text": "インポートする.zipまたは.ymlファイルを選択"
       },
       "import_select_chats": {
         "text": "インポートするチャットを選択"

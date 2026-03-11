@@ -6833,7 +6833,7 @@
         "text": "Chats aus einer zuvor exportierten OpenMates-YAML-Datei importieren. Jede Nachricht wird vor der Speicherung auf Sicherheit geprüft."
       },
       "import_choose_file": {
-        "text": ".yml-Datei zum Importieren auswählen"
+        "text": ".zip- oder .yml-Datei zum Importieren auswählen"
       },
       "import_select_chats": {
         "text": "Chats zum Importieren auswählen"
