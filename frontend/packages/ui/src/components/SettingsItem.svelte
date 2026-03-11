@@ -74,8 +74,10 @@
     }
 
     function handleToggleClick(event) {
-        // Prevent event bubbling to avoid closing parent menus
+        // Prevent event bubbling so the parent menu-item onClick does not also fire
         event.stopPropagation();
+        // Prevent mousedown default to avoid focus stealing on mobile
+        event.preventDefault();
         
         if (!disabled) {
             // Let the parent's onClick update state (e.g. currentLanguage),

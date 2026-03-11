@@ -86,7 +86,7 @@ class PushNotificationService {
     if ("serviceWorker" in navigator) {
       try {
         this.serviceWorkerRegistration = await navigator.serviceWorker.ready;
-        console.debug(
+        console.warn(
           "[PushNotificationService] Service worker ready:",
           this.serviceWorkerRegistration,
         );
@@ -96,7 +96,7 @@ class PushNotificationService {
           await this.serviceWorkerRegistration.pushManager.getSubscription();
         if (subscription) {
           pushNotificationStore.setSubscription(subscription);
-          console.debug(
+          console.warn(
             "[PushNotificationService] Existing subscription found",
           );
         }
@@ -145,6 +145,46 @@ class PushNotificationService {
   }
 
   /**
+   * Show a confirmation notification immediately after the user grants permission.
+   * Uses the direct Notification API (no service worker or VAPID needed) so it
+   * always works even before the push subscription is set up.
+   */
+  async showActivationConfirmation(): Promise<void> {
+    if (!browser || !("Notification" in window)) return;
+    if (Notification.permission !== "granted") return;
+
+    try {
+      // Prefer service worker path (shows badge on mobile) but fall back gracefully
+      if (this.serviceWorkerRegistration) {
+        await this.serviceWorkerRegistration.showNotification(
+          "Push notifications activated",
+          {
+            body: "You will now receive notifications from OpenMates.",
+            icon: "/icons/icon-192x192.png",
+            badge: "/icons/badge-72x72.png",
+            tag: "push-activated",
+          },
+        );
+      } else {
+        new Notification("Push notifications activated", {
+          body: "You will now receive notifications from OpenMates.",
+          icon: "/icons/icon-192x192.png",
+          tag: "push-activated",
+        });
+      }
+      console.warn(
+        "[PushNotificationService] Activation confirmation notification shown",
+      );
+    } catch (error) {
+      // Non-critical — log but don't surface to the user
+      console.warn(
+        "[PushNotificationService] Could not show activation confirmation:",
+        error,
+      );
+    }
+  }
+
+  /**
    * Request notification permission from the browser
    * Returns the result of the permission request
    */
@@ -186,7 +226,9 @@ class PushNotificationService {
       if (permission === "granted") {
         // Enable push notifications automatically when permission is granted
         pushNotificationStore.setEnabled(true);
-        // Try to subscribe
+        // Show confirmation notification so the user immediately sees it working
+        await this.showActivationConfirmation();
+        // Try to subscribe (best-effort — fails gracefully if VAPID not yet configured)
         await this.subscribe();
       }
 
@@ -251,7 +293,7 @@ class PushNotificationService {
       }
 
       pushNotificationStore.setSubscription(subscription);
-      console.debug(
+      console.warn(
         "[PushNotificationService] Subscribed to push notifications",
       );
 
@@ -281,7 +323,7 @@ class PushNotificationService {
       // Notify server of unsubscription
       await this.removeSubscriptionFromServer(state.subscription);
 
-      console.debug(
+      console.warn(
         "[PushNotificationService] Unsubscribed from push notifications",
       );
       return true;
@@ -302,7 +344,7 @@ class PushNotificationService {
 
     // Check if we have permission
     if (state.permission !== "granted") {
-      console.debug(
+      console.warn(
         "[PushNotificationService] Cannot show notification: permission not granted",
       );
       return false;
@@ -310,7 +352,7 @@ class PushNotificationService {
 
     // Check if notifications are enabled
     if (!state.enabled) {
-      console.debug(
+      console.warn(
         "[PushNotificationService] Cannot show notification: notifications disabled",
       );
       return false;
@@ -460,7 +502,7 @@ class PushNotificationService {
     subscription: PushSubscription,
   ): Promise<void> {
     // TODO: Implement API call to send subscription to server
-    console.debug(
+    console.warn(
       "[PushNotificationService] TODO: Send subscription to server",
       subscription.endpoint,
     );
@@ -473,7 +515,7 @@ class PushNotificationService {
     subscription: PushSubscription,
   ): Promise<void> {
     // TODO: Implement API call to remove subscription from server
-    console.debug(
+    console.warn(
       "[PushNotificationService] TODO: Remove subscription from server",
       subscription.endpoint,
     );

@@ -35,7 +35,7 @@ When enabled, notifications are sent to the user's login email (from account set
     function syncSettingsToServer(): void {
         // Only sync for authenticated users
         if (!$authStore.isAuthenticated) {
-            console.debug('[SettingsChatNotifications] User not authenticated, skipping server sync');
+            console.warn('[SettingsChatNotifications] User not authenticated, skipping server sync');
             return;
         }
         
@@ -45,7 +45,7 @@ When enabled, notifications are sent to the user's login email (from account set
             push_notification_preferences: syncData.push_notification_preferences,
             push_notification_banner_shown: syncData.push_notification_banner_shown
         });
-        console.debug('[SettingsChatNotifications] Synced settings to server:', syncData);
+        console.warn('[SettingsChatNotifications] Synced settings to server:', syncData);
     }
     
     // Derived states for UI
@@ -97,7 +97,8 @@ When enabled, notifications are sent to the user's login email (from account set
             if (isEnabled) {
                 await pushNotificationService.unsubscribe();
             } else if (permission === 'granted') {
-                // If enabling and permission already granted, subscribe
+                // Re-enabling with permission already granted: confirm & subscribe
+                await pushNotificationService.showActivationConfirmation();
                 await pushNotificationService.subscribe();
             }
             
@@ -137,7 +138,7 @@ When enabled, notifications are sent to the user's login email (from account set
                 email,  // Plaintext email - server will encrypt it
                 preferences: emailPreferences
             });
-            console.debug('[SettingsChatNotifications] Sent email notification settings to server');
+            console.warn('[SettingsChatNotifications] Sent email notification settings to server');
         } catch (error) {
             console.error('[SettingsChatNotifications] Failed to send email notification settings:', error);
             throw error;
@@ -151,7 +152,7 @@ When enabled, notifications are sent to the user's login email (from account set
      */
     async function handleToggleEmailEnabled(): Promise<void> {
         if (!$authStore.isAuthenticated) {
-            console.debug('[SettingsChatNotifications] User not authenticated, skipping email toggle');
+            console.warn('[SettingsChatNotifications] User not authenticated, skipping email toggle');
             return;
         }
         
@@ -176,7 +177,7 @@ When enabled, notifications are sent to the user's login email (from account set
                     email_notification_preferences: emailPreferences
                 });
                 
-                console.debug('[SettingsChatNotifications] Email notifications enabled with login email');
+                console.warn('[SettingsChatNotifications] Email notifications enabled with login email');
             } else {
                 // Disabling: send disable request to server
                 await sendEmailSettingsToServer(false, null);
@@ -188,7 +189,7 @@ When enabled, notifications are sent to the user's login email (from account set
                     email_notification_preferences: emailPreferences
                 });
                 
-                console.debug('[SettingsChatNotifications] Email notifications disabled');
+                console.warn('[SettingsChatNotifications] Email notifications disabled');
             }
         } catch (error) {
             console.error('[SettingsChatNotifications] Error toggling email notifications:', error);
@@ -227,7 +228,7 @@ When enabled, notifications are sent to the user's login email (from account set
      */
     async function syncEmailPreferencesToServer(): Promise<void> {
         if (!$authStore.isAuthenticated) {
-            console.debug('[SettingsChatNotifications] User not authenticated, skipping email preferences sync');
+            console.warn('[SettingsChatNotifications] User not authenticated, skipping email preferences sync');
             return;
         }
         
@@ -245,7 +246,7 @@ When enabled, notifications are sent to the user's login email (from account set
                 email_notification_preferences: emailPreferences
             });
             
-            console.debug('[SettingsChatNotifications] Email notification preferences synced:', emailPreferences);
+            console.warn('[SettingsChatNotifications] Email notification preferences synced:', emailPreferences);
         } catch (error) {
             console.error('[SettingsChatNotifications] Failed to sync email preferences:', error);
         }
@@ -272,7 +273,7 @@ When enabled, notifications are sent to the user's login email (from account set
                     backupReminder: payload.preferences?.backupReminder ?? true,
                 }
             });
-            console.debug('[SettingsChatNotifications] email_notification_settings_ack received, persisted to IDB');
+            console.warn('[SettingsChatNotifications] email_notification_settings_ack received, persisted to IDB');
         }
 
         function handleEmailSettingsUpdated(payload: { enabled: boolean; preferences: { aiResponses: boolean; backupReminder?: boolean } }): void {
@@ -289,7 +290,7 @@ When enabled, notifications are sent to the user's login email (from account set
                     backupReminder: payload.preferences?.backupReminder ?? true,
                 }
             });
-            console.debug('[SettingsChatNotifications] email_notification_settings_updated received from other device, synced');
+            console.warn('[SettingsChatNotifications] email_notification_settings_updated received from other device, synced');
         }
 
         webSocketService.on('email_notification_settings_ack', handleEmailSettingsAck);
@@ -447,10 +448,9 @@ When enabled, notifications are sent to the user's login email (from account set
     
     <!-- iOS PWA Instructions Modal -->
     {#if showIOSInstructions}
-        <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-        <div class="ios-modal-overlay" onclick={closeIOSInstructions}>
-            <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-            <div class="ios-modal" onclick={(e) => e.stopPropagation()}>
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <div class="ios-modal-overlay" role="dialog" aria-modal="true" tabindex="-1" onclick={closeIOSInstructions}>
+            <div class="ios-modal" role="presentation" onclick={(e) => e.stopPropagation()}>
                 <h3 class="ios-modal-title">
                     {$text('notifications.push.ios_install_title')}
                 </h3>
