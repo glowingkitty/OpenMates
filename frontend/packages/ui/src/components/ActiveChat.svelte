@@ -10183,11 +10183,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         display: flex;
         flex-direction: column;
         align-items: center;
+        justify-content: flex-end;
         gap: 2px;
         text-align: center;
         font-size: 1rem;
         color: var(--color-grey-60);
-        padding: 10px 16px 8px;
+        min-height: 76px;
+        padding: 22px 16px 6px;
         font-style: italic;
         /* Gradient background so the text remains readable when positioned over chat messages.
            Uses the active chat background color (--color-grey-20) fading from transparent at the top
@@ -10195,10 +10197,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         background: linear-gradient(
             to bottom,
             transparent 0%,
-            var(--color-grey-20) 55%
+            transparent 14%,
+            var(--color-grey-20) 56%,
+            var(--color-grey-20) 100%
         );
         position: relative;
         z-index: 1;
+    }
+
+    .typing-indicator + .message-input-container {
+        padding-top: 0;
     }
     
     /* Primary line: "{mate} is typing..." — prominent */
