@@ -141,3 +141,16 @@ When AI receives raw embed JSON instead of resolved content: the embed resolutio
 ## Rule 11: App Missing from Settings App Store
 
 Check `/v1/health` for the app → if absent, the API didn't discover it at startup (restart `api`). If present but unhealthy, check `app-<id>` container logs. Load reference doc for full diagnostic steps.
+
+## Rule 12: Vercel Build Failures
+
+**Never use `vercel logs`** — it returns nothing for ERROR-state deployments. Always use the REST API wrapper:
+
+```bash
+python3 backend/scripts/debug.py vercel           # errors/warnings only (fastest)
+python3 backend/scripts/debug.py vercel --all     # full build log
+python3 backend/scripts/debug.py vercel --n 3     # last 3 deployments
+python3 backend/scripts/debug.py vercel --url <deployment-id>  # specific deployment
+```
+
+Reads `VERCEL_TOKEN` from `.env`. Works for both READY and ERROR deployments. Also available as `python3 scripts/sessions.py debug-vercel` (auto-starts a session).
