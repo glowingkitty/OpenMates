@@ -15,6 +15,18 @@ python3 scripts/sessions.py start --task "brief description"
 # → Auto-infers tags from task (override: --tags "frontend,debug").
 # → Prints: git status, recent commits, active sessions, relevant instruction docs.
 # → READ the instruction docs — they contain project-specific rules.
+#
+# IMPORTANT: When you already have an issue/chat/embed ID, pass it DIRECTLY
+# in the start command — do NOT call start first and fetch the data separately.
+# This saves a full round trip by prefetching everything in one command:
+#
+#   python3 scripts/sessions.py start --task "fix issue" --issue <ISSUE_ID>
+#   python3 scripts/sessions.py start --task "debug chat" --chat <CHAT_ID>
+#   python3 scripts/sessions.py start --task "fix embed" --embed <EMBED_ID>
+#   python3 scripts/sessions.py start --task "check errors" --logs          # last 10 min
+#   python3 scripts/sessions.py start --task "..." --logs "since=30,level=error"
+#
+# All flags auto-add relevant tags AND inline the fetched data into the session output.
 
 # 2. After EVERY file edit/create:
 python3 scripts/sessions.py track --session <ID> --file path/to/file.py
@@ -166,13 +178,23 @@ After user confirms fix: `docker exec api python /app/backend/scripts/debug.py i
 
 ## Task Completion Summary
 
+**Deploy FIRST, then write the summary.** The `Commit:` field requires a real SHA — you can only get it after running `sessions.py deploy`. Writing the summary before deploying is wrong.
+
+```bash
+# Required sequence before writing the summary:
+python3 scripts/sessions.py deploy-docs
+python3 scripts/sessions.py prepare-deploy --session <ID>
+python3 scripts/sessions.py deploy --session <ID> --title "type: description" --message "body" --end
+# → outputs the commit SHA → paste it into the summary below
+```
+
 **End every task with this structured summary:**
 
 ```
 ## Task Summary
 
 🏷️ Type: <Bug Fix | Feature | Refactor | Docs | Test>
-🔗 Commit: <short-sha>
+🔗 Commit: <short-sha — deploy first via sessions.py deploy, then paste the SHA here>
 ✨ Goal: <1-2 sentences>
 
 ❌ Broken Flow (Before): *(Bug fixes only)*
@@ -198,6 +220,25 @@ After user confirms fix: `docker exec api python /app/backend/scripts/debug.py i
 
 ## Special Cases
 
-- **Vercel failures:** `python3 scripts/sessions.py debug-vercel`
+- **Vercel failures:** Use these commands — **never** `vercel logs` (fails silently on ERROR deployments):
+  ```bash
+  python3 scripts/sessions.py debug-vercel          # auto-starts session + shows errors/warnings
+  python3 backend/scripts/debug.py vercel           # errors/warnings only (fastest)
+  python3 backend/scripts/debug.py vercel --all     # full build log
+  python3 backend/scripts/debug.py vercel --n 3     # last 3 deployments
+  python3 backend/scripts/debug.py vercel --url <deployment-id>  # specific deployment
+  ```
 - **Default assumption:** Issues are on the **dev server**, reported by an **admin**.
 - **Git/deployment docs:** Deferred to deploy phase via `python3 scripts/sessions.py deploy-docs`.
+
+### Vercel Deployment — Wait Before Testing
+
+**ALWAYS wait for Vercel deployment to complete before using Firecrawl (or any browser-based tool) to verify a bug fix or new feature.**
+
+1. After `sessions.py deploy`, check deployment status:
+   ```bash
+   python3 backend/scripts/debug.py vercel           # confirm latest deployment succeeded
+   ```
+2. Do NOT run Firecrawl verification until the deployment status is **Ready** (not building, not error).
+3. If the deployment fails, fix the build error first — do not test against a stale deployment.
+4. Only after confirming deployment is live should you use Firecrawl to verify the fix/feature works in production.
