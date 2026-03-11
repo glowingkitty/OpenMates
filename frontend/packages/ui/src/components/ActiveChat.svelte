@@ -617,7 +617,6 @@
         try {
             const pendingDeepLink = sessionStorage.getItem('pendingDeepLink');
             if (pendingDeepLink) {
-                console.debug(`[ActiveChat] Found pending deep link after login: ${pendingDeepLink}`);
                 // Remove the pending deep link from sessionStorage
                 sessionStorage.removeItem('pendingDeepLink');
                 
@@ -625,7 +624,6 @@
                 // This ensures the deep link is processed after auth state is fully updated
                 // Use a small delay to ensure auth state propagation is complete
                 setTimeout(() => {
-                    console.debug(`[ActiveChat] Processing pending deep link: ${pendingDeepLink}`);
                     window.dispatchEvent(new CustomEvent('processPendingDeepLink', {
                         detail: { hash: pendingDeepLink }
                     }));

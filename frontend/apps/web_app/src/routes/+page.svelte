@@ -763,7 +763,6 @@
 	 */
 	async function handlePendingDeepLink(event: CustomEvent<{ hash: string }>) {
 		const hash = event.detail.hash;
-		console.debug(`[+page.svelte] Processing pending deep link: ${hash}`);
 
 		const handlers: DeepLinkHandlers = {
 			onChat: handleChatDeepLink,
