@@ -2692,8 +2692,8 @@ import_title:
   he: ייבוא שיחות
   verified_by_human: []
 import_description:
-  context: Description shown on the import page
-  en: Import chats from a previously exported OpenMates YAML file. Each message is safety-scanned before storage.
+  context: Description shown on the import page (supports ZIP and YAML)
+  en: Import chats from an OpenMates export ZIP or YAML file. Each message is safety-scanned before storage.
   de: Chats aus einer zuvor exportierten OpenMates-YAML-Datei importieren. Jede Nachricht wird vor der Speicherung auf Sicherheit geprüft.
   zh: 从之前导出的OpenMates YAML文件导入聊天记录。每条消息在存储前都会经过安全扫描。
   es: Importa chats desde un archivo YAML de OpenMates exportado previamente. Cada mensaje se analiza por seguridad antes de almacenarse.
@@ -2701,21 +2701,21 @@ import_description:
   pt: Importe conversas de um arquivo YAML do OpenMates exportado anteriormente. Cada mensagem é verificada por segurança antes do armazenamento.
   ru: Импортируйте чаты из ранее экспортированного файла OpenMates YAML. Каждое сообщение проверяется на безопасность перед сохранением.
   ja: 以前にエクスポートしたOpenMates YAMLファイルからチャットをインポートします。各メッセージは保存前にセキュリティスキャンされます。
-  ko: 이전에 내보낸 OpenMates YAML 파일에서 채팅을 가져옵니다. 각 메시지는 저장 전에 보안 검사를 받습니다.
+  ko: 이전에 내보낸 OpenMates YAML 파일에서 채팅을 가져옵니다. 각 메시지는 저장 전에 보안 검사를 받습니다。
   it: Importa le chat da un file YAML OpenMates precedentemente esportato. Ogni messaggio viene analizzato per la sicurezza prima dell'archiviazione.
   verified_by_human: []
 import_choose_file:
-  context: Placeholder text for the file picker on the import page
-  en: Choose a .yml file to import
-  de: .yml-Datei zum Importieren auswählen
-  zh: 选择要导入的.yml文件
-  es: Elige un archivo .yml para importar
-  fr: Choisir un fichier .yml à importer
-  pt: Escolha um arquivo .yml para importar
-  ru: Выберите файл .yml для импорта
-  ja: インポートする.ymlファイルを選択
-  ko: 가져올 .yml 파일 선택
-  it: Scegli un file .yml da importare
+  context: Placeholder text for the file picker on the import page (accepts ZIP or YAML)
+  en: Choose a .zip or .yml file to import
+  de: .zip- oder .yml-Datei zum Importieren auswählen
+  zh: 选择要导入的.zip或.yml文件
+  es: Elige un archivo .zip o .yml para importar
+  fr: Choisir un fichier .zip ou .yml à importer
+  pt: Escolha um arquivo .zip ou .yml para importar
+  ru: Выберите файл .zip или .yml для импорта
+  ja: インポートする.zipまたは.ymlファイルを選択
+  ko: 가져올 .zip 또는 .yml 파일 선택
+  it: Scegli un file .zip o .yml da importare
   verified_by_human: []
 import_select_chats:
   context: Header for the chat selection list on the import page
