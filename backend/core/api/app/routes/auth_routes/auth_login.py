@@ -330,8 +330,13 @@ async def login(
             
             # Get encryption key - use appropriate login method
             hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
-            # Use the login_method from the request if provided, otherwise default based on recovery_key flag
-            if login_data.login_method:
+            # Use the login_method from the request if provided, otherwise default based on recovery_key flag.
+            # Pair login: the client already has the master key from the ZK-encrypted bundle,
+            # so we look up the "password" encryption key (the original one) for the response.
+            # There is no separate "pair" encryption key stored in the DB.
+            if is_pair_login:
+                login_method_for_key = "password"
+            elif login_data.login_method and login_data.login_method != "pair":
                 login_method_for_key = login_data.login_method
             elif is_recovery_key_login:
                 login_method_for_key = "recovery_key"
@@ -412,9 +417,10 @@ async def login(
                 encryption_key_data = await directus_service.get_any_passkey_encryption_key(hashed_user_id)
             
             if not encryption_key_data:
-                if is_passkey_login:
-                    logger.warning(f"Encryption key not found for user {user_id} with login method {login_method_for_key}. Continuing anyway as client likely has key from verify step.")
-                    # Don't fail login for passkey if key not found here, as client already has it
+                if is_passkey_login or is_pair_login:
+                    logger.warning(f"Encryption key not found for user {user_id} with login method {login_method_for_key}. Continuing anyway as client already has key from {'verify step' if is_passkey_login else 'pair bundle'}.")
+                    # Don't fail login for passkey/pair if key not found here, as client already has it.
+                    # Pair login bundles include the exported master key directly — no DB encryption key needed.
                 else:
                     logger.error(f"Encryption key not found for user {user_id} with login method {login_method_for_key}. Login failed.")
                     return LoginResponse(success=False, message="Login failed. Please try again later.")
