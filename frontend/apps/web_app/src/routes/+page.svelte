@@ -2607,13 +2607,16 @@
 		 * Subtract the header height (82px), the dev console height, and the
 		 * iOS virtual keyboard height (--keyboard-height, set by the
 		 * visualViewport resize listener in the script above; 0px on desktop).
-		 * This shrinks the chat area above the keyboard on iOS Safari, where the
-		 * keyboard overlays the viewport instead of resizing it.
+		 *
+		 * IMPORTANT: We intentionally use 100vh (not 100dvh) here.
+		 * On iPad Safari, 100dvh shrinks when the keyboard opens (iPad resizes the
+		 * dynamic viewport). Our JS --keyboard-height also subtracts the keyboard
+		 * height, which would cause a double-subtraction and leave a massive empty
+		 * gap. 100vh is the "large" viewport — stable, never changes when the
+		 * keyboard opens on any iOS/iPadOS device — so --keyboard-height is the
+		 * sole mechanism that offsets the keyboard, with no double-subtraction risk.
 		 */
-		/* Fallback for browsers that don't support dvh */
 		height: calc(100vh - 82px - var(--dev-console-height, 0px) - var(--keyboard-height, 0px));
-		/* Modern browsers will use this */
-		height: calc(100dvh - 82px - var(--dev-console-height, 0px) - var(--keyboard-height, 0px));
 		gap: 0px;
 		padding: 10px;
 		/* Logical property: extra breathing room on the inline-end side (right in LTR, left in RTL) */
@@ -2652,8 +2655,8 @@
 	@media (max-width: 600px) {
 		.chat-container {
 			padding-inline-end: 10px;
+			/* Same 100vh rationale as above — avoid double-subtraction on iPad Safari */
 			height: calc(100vh - 75px - var(--dev-console-height, 0px) - var(--keyboard-height, 0px));
-			height: calc(100dvh - 75px - var(--dev-console-height, 0px) - var(--keyboard-height, 0px));
 		}
 		.sidebar {
 			width: 100%;
