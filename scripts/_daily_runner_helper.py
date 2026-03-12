@@ -95,8 +95,8 @@ def _read_env_file(project_root: str) -> dict:
 
 def dispatch_email() -> None:
     """
-    Read last-run.json and dispatch the test run summary email via the
-    internal API endpoint POST /internal/dispatch-test-summary-email.
+    Read last-run.json (and optionally last-run-prod-smoke.json) and dispatch
+    the test run summary email via POST /internal/dispatch-test-summary-email.
 
     This script runs inside the admin-sidecar container (which does not have
     celery installed), so we use an HTTP call to the API container instead of
@@ -107,6 +107,9 @@ def dispatch_email() -> None:
         ADMIN_NOTIFY_EMAIL          — recipient for the summary email
         INTERNAL_API_SHARED_TOKEN   — auth token for /internal/* endpoints
         DAILY_RUN_ENVIRONMENT       — "development" or "production" (set by run-tests-daily.sh)
+
+    Optional: if test-results/last-run-prod-smoke.json exists, its playwright
+    suite is merged into the email as a "playwright_prod_smoke" suite.
     """
     import urllib.request
     import urllib.error
@@ -140,6 +143,37 @@ def dispatch_email() -> None:
     skipped = summary.get("skipped", 0)
     not_started = summary.get("not_started", 0)
 
+    # Load prod smoke test results (if available) and merge as an extra suite
+    prod_smoke_path = os.path.join(results_dir, "last-run-prod-smoke.json")
+    prod_smoke_suite = None
+    if os.path.isfile(prod_smoke_path):
+        try:
+            with open(prod_smoke_path) as f:
+                prod_smoke_data = json.load(f)
+            # Extract the playwright suite from the prod smoke run
+            prod_smoke_suite = prod_smoke_data.get("suites", {}).get("playwright")
+            if prod_smoke_suite:
+                # Accumulate prod smoke counts into the overall summary
+                for t in prod_smoke_suite.get("tests", []):
+                    total += 1
+                    st = t.get("status", "")
+                    if st == "passed":
+                        passed += 1
+                    elif st == "failed":
+                        failed += 1
+                    elif st == "not_started":
+                        not_started += 1
+                    else:
+                        skipped += 1
+                print(
+                    f"[daily-runner] Loaded prod smoke test results from {prod_smoke_path}"
+                )
+        except Exception as e:
+            print(
+                f"[daily-runner] WARNING: could not load prod smoke results: {e}",
+                file=sys.stderr,
+            )
+
     # Build suite summaries for the email template
     suites = []
     for suite_name, suite_data in data.get("suites", {}).items():
@@ -158,6 +192,18 @@ def dispatch_email() -> None:
             "status": suite_data.get("status", "unknown"),
         })
 
+    # Append prod smoke suite to the list (shown as a separate row in the email)
+    if prod_smoke_suite:
+        ps_tests = prod_smoke_suite.get("tests", [])
+        suites.append({
+            "name": "playwright_prod_smoke",
+            "total": len(ps_tests),
+            "passed": sum(1 for t in ps_tests if t.get("status") == "passed"),
+            "failed": sum(1 for t in ps_tests if t.get("status") == "failed"),
+            "not_started": sum(1 for t in ps_tests if t.get("status") == "not_started"),
+            "status": prod_smoke_suite.get("status", "unknown"),
+        })
+
     # Build failed test entries for the email (one row per failing test)
     failed_tests = []
     for suite_name, suite_data in data.get("suites", {}).items():
@@ -168,6 +214,17 @@ def dispatch_email() -> None:
                 error = t.get("error", "") or ""
                 failed_tests.append({
                     "suite": suite_name,
+                    "name": t.get("name", t.get("file", "")),
+                    "error": error[:MAX_ERROR_SNIPPET_LEN] if error else None,
+                })
+
+    # Append prod smoke failures
+    if prod_smoke_suite:
+        for t in prod_smoke_suite.get("tests", []):
+            if t.get("status") == "failed":
+                error = t.get("error", "") or ""
+                failed_tests.append({
+                    "suite": "playwright_prod_smoke",
                     "name": t.get("name", t.get("file", "")),
                     "error": error[:MAX_ERROR_SNIPPET_LEN] if error else None,
                 })

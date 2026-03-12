@@ -400,10 +400,24 @@ def run_daily_all_tests(self, force: bool = False) -> Dict[str, Any]:
     For daily Beat runs, force=False (respects the 24h commit-activity gate).
     For manual triggers via the admin API, force=True is passed.
 
+    Env gate: E2E_DAILY_RUN_ENABLED must be set to "true" for this task to run.
+    This env var is NOT set on production — the Beat schedule entry is already
+    gated in celery_config.py, but this check provides a second layer of
+    protection in case the task is triggered manually on the wrong server.
+
     Returns:
         dict with keys: status, sidecar_response
     """
     import time as _time
+
+    # Env gate: abort if daily test runs are not enabled on this server.
+    # Production servers must never have E2E_DAILY_RUN_ENABLED set.
+    if os.environ.get("E2E_DAILY_RUN_ENABLED", "").lower() != "true":
+        logger.info(
+            "Daily test run skipped: E2E_DAILY_RUN_ENABLED is not set to 'true' "
+            "(set this env var on the dev server to enable automated test runs)"
+        )
+        return {"status": "skipped", "reason": "E2E_DAILY_RUN_ENABLED not set"}
 
     sidecar_url = os.environ.get("CORE_SIDECAR_URL", "http://core-admin-sidecar:8001")
     sidecar_key = os.environ.get("SECRET__CORE_SERVER__ADMIN_LOG_API_KEY", "")

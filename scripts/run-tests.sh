@@ -15,6 +15,8 @@
 #   --suite SUITE        Run only: vitest|pytest|playwright|all (default: all)
 #   --workers N          Number of parallel Playwright workers/accounts (1-5, default: 5)
 #   --environment ENV    "development" (default) or "production"
+#   --base-url URL       Override PLAYWRIGHT_TEST_BASE_URL for this run (prod smoke test)
+#   --prod-account       Use OPENMATES_PROD_TEST_ACCOUNT_* creds instead of slot-based creds
 #   --help               Show this help message
 #
 # Production mode (--environment production):
@@ -41,6 +43,10 @@ MAX_WORKERS=5
 # Read environment from CLI arg; fall back to DAILY_RUN_ENVIRONMENT env var
 # (set by run-tests-daily.sh), then default to "development".
 ENVIRONMENT="${DAILY_RUN_ENVIRONMENT:-development}"
+# Optional: override PLAYWRIGHT_TEST_BASE_URL (used for prod smoke test)
+PLAYWRIGHT_BASE_URL_OVERRIDE=""
+# Optional: use OPENMATES_PROD_TEST_ACCOUNT_* creds instead of slot-based creds
+USE_PROD_ACCOUNT=false
 
 # --- Parse CLI args ---
 while [[ $# -gt 0 ]]; do
@@ -50,6 +56,8 @@ while [[ $# -gt 0 ]]; do
     --suite)      SUITE="$2"; shift 2 ;;
     --workers)    MAX_WORKERS="$2"; shift 2 ;;
     --environment) ENVIRONMENT="$2"; shift 2 ;;
+    --base-url)   PLAYWRIGHT_BASE_URL_OVERRIDE="$2"; shift 2 ;;
+    --prod-account) USE_PROD_ACCOUNT=true; shift ;;
     --help|-h)
       sed -n '2,/^# =====/p' "$0" | grep '^#' | sed 's/^# \?//'
       exit 0
@@ -555,7 +563,9 @@ run_playwright() {
       "$slot_num" \
       "$specs_for_slot" \
       "$WORK_DIR" \
-      "$PROJECT_ROOT" &
+      "$PROJECT_ROOT" \
+      "$PLAYWRIGHT_BASE_URL_OVERRIDE" \
+      "$USE_PROD_ACCOUNT" &
     pids+=($!)
   done
 
@@ -617,6 +627,12 @@ printf "║  Environment: %-43s║\n" "$ENVIRONMENT"
 printf "║  Suite:     %-45s║\n" "$SUITE"
 printf "║  Unit only: %-45s║\n" "$UNIT_ONLY"
 printf "║  Workers:   %-45s║\n" "$MAX_WORKERS"
+if [[ -n "$PLAYWRIGHT_BASE_URL_OVERRIDE" ]]; then
+  printf "║  Base URL:  %-45s║\n" "$PLAYWRIGHT_BASE_URL_OVERRIDE"
+fi
+if [[ "$USE_PROD_ACCOUNT" == "true" ]]; then
+  printf "║  %-55s║\n" "Using prod test account credentials"
+fi
 if [[ "$ENVIRONMENT" == "production" ]]; then
   printf "║  %-55s║\n" "PRODUCTION: playwright limited to chat-flow.spec.ts"
   printf "║  %-55s║\n" "PRODUCTION: pytest integration skipped"

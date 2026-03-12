@@ -11,14 +11,23 @@
 #   ./scripts/run-tests-daily.sh
 #   ./scripts/run-tests-daily.sh --force   # skip the commit-activity check
 #
-# Environment variables required:
-#   ADMIN_NOTIFY_EMAIL   — recipient for the summary email
+# Environment variables:
+#   ADMIN_NOTIFY_EMAIL        — recipient for the summary email (required)
 #
-# On production (SERVER_ENVIRONMENT=production) the test suite is intentionally
-# limited to avoid LLM inference and third-party API costs:
-#   - Playwright: only chat-flow.spec.ts (one inference test, all others skipped)
-#   - pytest integration: skipped entirely (no ai/apps/web/images test files)
-#   - vitest + pytest unit: run in full (no external costs)
+# Env-gate variables (set on dev server only — NOT on production):
+#   E2E_DAILY_RUN_ENABLED     — must be "true" for this script to run at all.
+#                               If not set, the Celery Beat schedule in
+#                               celery_config.py never fires this task.
+#                               This script also checks it directly so a manual
+#                               invocation on the wrong server is also safe.
+#
+# Prod smoke test (optional — runs from dev server against production URL):
+#   E2E_PROD_TEST_ENABLED     — set to "true" to also run a smoke test against
+#                               the production URL after the main dev suite.
+#   E2E_PROD_TEST_BASE_URL    — production URL, e.g. "https://openmates.org"
+#   OPENMATES_PROD_TEST_ACCOUNT_EMAIL    — prod test account email
+#   OPENMATES_PROD_TEST_ACCOUNT_PASSWORD — prod test account password
+#   OPENMATES_PROD_TEST_ACCOUNT_OTP_KEY  — prod test account OTP key
 #
 # Output files (always written to test-results/):
 #   last-run.json              — full run data (written by run-tests.sh)
@@ -34,16 +43,9 @@ RESULTS_DIR="$PROJECT_ROOT/test-results"
 
 # --- Parse CLI args ---
 FORCE=false
-# Default: read from SERVER_ENVIRONMENT env var (set by admin-sidecar from the
-# API container's environment). Fallback to "development".
-ENVIRONMENT="${SERVER_ENVIRONMENT:-development}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --force) FORCE=true; shift ;;
-    --environment)
-      ENVIRONMENT="$2"
-      shift 2
-      ;;
     --help|-h)
       sed -n '2,/^# =====/p' "$0" | grep '^#' | sed 's/^# \?//'
       exit 0
@@ -52,14 +54,20 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Normalise to lowercase
-ENVIRONMENT="${ENVIRONMENT,,}"
-# Validate
-if [[ "$ENVIRONMENT" != "development" && "$ENVIRONMENT" != "production" ]]; then
-  echo "[daily-runner] WARNING: unknown environment '$ENVIRONMENT' — defaulting to 'development'"
-  ENVIRONMENT="development"
+# --- Env gate ---
+# If E2E_DAILY_RUN_ENABLED is not "true", exit silently.
+# The Beat schedule in celery_config.py already gates this, but we double-check
+# here so manual invocations on production are also a safe no-op.
+if [[ "${E2E_DAILY_RUN_ENABLED:-}" != "true" ]]; then
+  echo "[daily-runner] E2E_DAILY_RUN_ENABLED is not set — skipping test run."
+  echo "[daily-runner] Set E2E_DAILY_RUN_ENABLED=true on the dev server to enable tests."
+  exit 0
 fi
 
+# This script always runs in development mode. The "production" environment
+# value is no longer used here — the prod smoke test is a separate phase
+# controlled by E2E_PROD_TEST_ENABLED below.
+ENVIRONMENT="development"
 echo "[daily-runner] Environment: $ENVIRONMENT"
 
 # --- Commit-activity gate ---
@@ -88,7 +96,7 @@ if [[ -n "$ADMIN_EMAIL_CHECK" ]]; then
     echo "[daily-runner] WARNING: could not send start email (non-fatal)"
 fi
 
-# --- Run the full test suite ---
+# --- Run the full dev test suite ---
 echo "[daily-runner] Starting full test run at $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 mkdir -p "$RESULTS_DIR"
 
@@ -102,6 +110,44 @@ LAST_RUN="$RESULTS_DIR/last-run.json"
 if [[ ! -f "$LAST_RUN" ]]; then
   echo "[daily-runner] ERROR: run-tests.sh did not produce $LAST_RUN — aborting."
   exit 1
+fi
+
+# Back up the dev run result before we potentially overwrite it with the prod smoke run
+cp "$LAST_RUN" "$LAST_RUN.bak"
+
+# --- Production smoke test (optional, runs from dev server against prod URL) ---
+# Triggered when E2E_PROD_TEST_ENABLED=true. Runs chat-flow.spec.ts against
+# E2E_PROD_TEST_BASE_URL using the dedicated prod test account credentials.
+# Results are written to test-results/last-run-prod-smoke.json and merged into
+# the summary email payload by _daily_runner_helper.py.
+PROD_SMOKE_EXIT_CODE=0
+if [[ "${E2E_PROD_TEST_ENABLED:-}" == "true" ]]; then
+  PROD_URL="${E2E_PROD_TEST_BASE_URL:-}"
+  if [[ -z "$PROD_URL" ]]; then
+    echo "[daily-runner] WARNING: E2E_PROD_TEST_ENABLED=true but E2E_PROD_TEST_BASE_URL is not set — skipping prod smoke test."
+  else
+    echo "[daily-runner] Starting prod smoke test against $PROD_URL..."
+    set +e
+    "$SCRIPT_DIR/run-tests.sh" \
+      --suite playwright \
+      --workers 1 \
+      --environment production \
+      --base-url "$PROD_URL" \
+      --prod-account
+    PROD_SMOKE_EXIT_CODE=$?
+    set -e
+
+    PROD_SMOKE_RUN="$RESULTS_DIR/last-run.json"
+    if [[ -f "$PROD_SMOKE_RUN" ]]; then
+      cp "$PROD_SMOKE_RUN" "$RESULTS_DIR/last-run-prod-smoke.json"
+      echo "[daily-runner] Prod smoke test complete (exit=$PROD_SMOKE_EXIT_CODE)"
+    else
+      echo "[daily-runner] WARNING: prod smoke test did not produce last-run.json"
+    fi
+
+    # Restore the dev last-run.json (it was overwritten by the prod smoke run)
+    cp "$LAST_RUN.bak" "$LAST_RUN" 2>/dev/null || true
+  fi
 fi
 
 # --- Save split pass/fail log files for easy Claude consumption ---
@@ -130,5 +176,7 @@ export ADMIN_NOTIFY_EMAIL="$ADMIN_EMAIL"
 
 python3 "$SCRIPT_DIR/_daily_runner_helper.py" dispatch-email
 
+# Combine exit codes: fail the overall run if either the dev suite or prod smoke test failed
+OVERALL_EXIT_CODE=$(( RUN_EXIT_CODE > PROD_SMOKE_EXIT_CODE ? RUN_EXIT_CODE : PROD_SMOKE_EXIT_CODE ))
 echo "[daily-runner] Daily test run complete at $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-exit $RUN_EXIT_CODE
+exit $OVERALL_EXIT_CODE
