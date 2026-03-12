@@ -150,8 +150,8 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	const confirmEmailInput = page.locator('input[inputmode="numeric"][maxlength="6"]');
 	await confirmEmailInput.fill(emailCode);
 
-	const passwordOption = page.getByRole('button', { name: /password/i });
-	await expect(passwordOption).toBeVisible({ timeout: 30000 });
+	const passwordOption = page.locator('#signup-password-option');
+	await expect(passwordOption).toBeVisible({ timeout: 15000 });
 	await passwordOption.click();
 
 	const passwordInputs = page.locator('input[autocomplete="new-password"]');
@@ -159,10 +159,10 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	await passwordInputs.nth(0).fill(signupPassword);
 	await passwordInputs.nth(1).fill(signupPassword);
 
-	await page.getByRole('button', { name: /continue/i }).click();
+	await page.locator('#signup-password-continue').click();
 	await takeStepScreenshot(page, 'one-time-codes');
 
-	const skipForNowButton = page.getByRole('button', { name: /skip for now/i });
+	const skipForNowButton = page.locator('#signup-nav-skip');
 	await expect(skipForNowButton).toBeVisible({ timeout: 20000 });
 	await skipForNowButton.click();
 
@@ -173,11 +173,11 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	await setToggleChecked(skipConsentToggle, true);
 	await expect(skipConsentToggle).toBeChecked();
 
-	await page.getByRole('button', { name: /continue/i }).click();
+	await page.locator('#signup-skip-2fa-continue').click();
 	await takeStepScreenshot(page, 'recovery-key');
 	logSignupCheckpoint('Skipped 2FA and continued to recovery key step.');
 
-	const recoveryDownloadButton = page.getByRole('button', { name: /download/i }).first();
+	const recoveryDownloadButton = page.locator('#signup-recovery-key-download');
 	const [recoveryDownload] = await Promise.all([
 		page.waitForEvent('download'),
 		recoveryDownloadButton.click()
@@ -211,10 +211,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 120000 });
 	logSignupCheckpoint('Stripe payment completed successfully.');
 
-	await page
-		.getByRole('button', { name: /finish setup/i })
-		.first()
-		.click();
+	await page.locator('#signup-finish-setup').click();
 	await page.waitForURL(/chat/);
 	await takeStepScreenshot(page, 'chat-after-signup');
 

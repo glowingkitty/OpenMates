@@ -281,11 +281,11 @@ step_6_bottom_content_svelte:
         <InputWarning message={errorMessage} />
     {/if}
     {#if showContinueButton}
-        <button bind:this={continueButtonElement} class="continue-button" onclick={handleContinue} disabled={isLoading}>
+        <button id="signup-2fa-reminder-continue" bind:this={continueButtonElement} class="continue-button" onclick={handleContinue} disabled={isLoading}>
             {@html $text('signup.continue')}
         </button>
     {:else if isLoading && !errorMessage}
-         <button bind:this={continueButtonElement} class="continue-button" disabled>
+         <button id="signup-2fa-reminder-continue" bind:this={continueButtonElement} class="continue-button" disabled>
             {@html $text('login.loading')}
         </button>
     {/if}

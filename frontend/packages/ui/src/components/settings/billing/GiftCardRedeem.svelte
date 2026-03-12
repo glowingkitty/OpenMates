@@ -166,6 +166,7 @@ Tests: (none yet)
 
         <div class="button-container">
             <button
+                id="signup-gift-card-cancel"
                 class="cancel-button"
                 onclick={handleCancel}
                 disabled={isRedeeming}

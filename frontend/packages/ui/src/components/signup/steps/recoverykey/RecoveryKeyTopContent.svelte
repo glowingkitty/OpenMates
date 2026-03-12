@@ -234,6 +234,7 @@ Security Notes:
                 <div class="save-buttons">
                     <!-- Download button -->
                     <button
+                        id="signup-recovery-key-download"
                         class="save-button"
                         class:used={hasDownloaded}
                         onclick={handleDownload}
@@ -249,6 +250,7 @@ Security Notes:
                     
                     <!-- Copy button -->
                     <button
+                        id="signup-recovery-key-copy"
                         class="save-button"
                         class:used={hasCopied}
                         onclick={handleCopy}
@@ -264,6 +266,7 @@ Security Notes:
                     
                     <!-- Print button -->
                     <button
+                        id="signup-recovery-key-print"
                         class="save-button"
                         class:used={hasPrinted}
                         onclick={handlePrint}

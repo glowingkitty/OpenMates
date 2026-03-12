@@ -591,6 +591,7 @@
                 <span>{@html $text('signup.recommended')}</span>
             </div>
             <button
+                id="signup-passkey-option"
                 class="option-button"
                 class:selected={selectedOption === 'passkey'}
                 class:loading={isRegisteringPasskey}
@@ -615,6 +616,7 @@
 
         <!-- Password Option -->
         <button
+            id="signup-password-option"
             class="option-button"
             class:selected={selectedOption === 'password'}
             class:loading={isRegisteringPasskey}

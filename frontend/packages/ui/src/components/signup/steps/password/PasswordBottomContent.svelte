@@ -349,6 +349,7 @@
 <div class="password-bottom-content" in:fade={{ duration: 300 }} out:fade={{ duration: 200 }}>
     <div class="action-button-container">
         <button 
+            id="signup-password-continue"
             class="action-button signup-button" 
             class:loading={isLoading}
             disabled={!localIsFormValid || isLoading}
