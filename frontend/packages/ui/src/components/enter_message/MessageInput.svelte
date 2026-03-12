@@ -388,16 +388,6 @@
     // --- Blur timeout tracking ---
     let blurTimeoutId: NodeJS.Timeout | null = null; // Track blur timeout to cancel it if focus is regained
     
-    // --- Mobile keyboard viewport scroll fix (CSS-based) ---
-    // The iOS Safari keyboard fix is handled at the page layout level (+page.svelte):
-    // a visualViewport resize listener on the root sets --keyboard-height on .main-content,
-    // which shrinks the chat container above the keyboard via CSS calc().
-    //
-    // We intentionally do NOT use scrollIntoView() here. The message input sits inside
-    // a chain of overflow:hidden ancestors (.active-chat-container, .chat-wrapper), so
-    // scrollIntoView() has no scrollable ancestor to act on and silently does nothing on
-    // iOS Safari. Calling it was actively fighting the browser's native behaviour.
-
     // --- Initial mount tracking ---
     let isInitialMount = $state(true); // Flag to prevent auto-focus during initial mount
     let mountCompleteTimeout: NodeJS.Timeout | null = null; // Track when mount is complete

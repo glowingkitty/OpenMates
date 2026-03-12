@@ -79,18 +79,6 @@
 	let bfcacheRestoreHandler: ((event: PageTransitionEvent) => void) | null = null; // Store BFCache restore handler for cleanup
 	let hasAutoOpenedGiftCardRedeemAfterAuth = $state(false);
 
-	// --- iOS Safari virtual keyboard fix ---
-	// iOS Safari does NOT resize the layout viewport when the virtual keyboard opens —
-	// the keyboard simply overlays the bottom of the screen, hiding content underneath.
-	// We listen to visualViewport resize/scroll to detect how much of the screen is
-	// obscured by the keyboard (keyboardHeight = window.innerHeight - visualViewport.height)
-	// and store it as --keyboard-height on .main-content so the chat-container can
-	// shrink itself above the keyboard. This is the canonical "device-fixed simulation"
-	// approach from the MDN VisualViewport documentation.
-	// Only active on touch devices; desktop visualViewport changes come from zoom only.
-	let mainContentEl: HTMLElement | null = null;
-	let iosKeyboardHandler: (() => void) | null = null;
-
 	function openGiftCardRedeemSettings(): void {
 		hasAutoOpenedGiftCardRedeemAfterAuth = true;
 		settingsDeepLink.set('billing/gift-cards/redeem');
@@ -1955,28 +1943,6 @@
 		bfcacheRestoreHandler = handleBfcacheRestore;
 		window.addEventListener('pageshow', handleBfcacheRestore);
 
-		// --- iOS Safari virtual keyboard fix ---
-		// Attach visualViewport listeners only on touch devices (iOS/Android).
-		// On desktop, visualViewport resizes only when the user pinch-zooms —
-		// we don't want to apply a keyboard offset there.
-		const hasTouchSupport = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-		if (hasTouchSupport && window.visualViewport) {
-			iosKeyboardHandler = () => {
-				if (!mainContentEl || !window.visualViewport) return;
-				// The keyboard height is the difference between the full layout
-				// viewport height and the currently visible visual viewport height.
-				// On iOS Safari this accurately reflects the keyboard size once
-				// the keyboard finishes animating in.
-				const keyboardHeight = Math.max(0, window.innerHeight - window.visualViewport.height);
-				mainContentEl.style.setProperty('--keyboard-height', `${keyboardHeight}px`);
-			};
-			window.visualViewport.addEventListener('resize', iosKeyboardHandler);
-			// Note: we intentionally do NOT listen to 'scroll' — that fires on every
-			// normal scroll (e.g. Safari URL-bar collapsing) and would cause spurious
-			// --keyboard-height updates. Only 'resize' fires when the keyboard opens/closes.
-			console.debug('[+page.svelte] Attached visualViewport resize listener for iOS keyboard');
-		}
-
 		console.debug('[+page.svelte] onMount finished');
 	});
 
@@ -2005,10 +1971,6 @@
 		// Remove BFCache restore handler
 		if (bfcacheRestoreHandler) {
 			window.removeEventListener('pageshow', bfcacheRestoreHandler);
-		}
-		// Remove iOS keyboard fix listeners
-		if (iosKeyboardHandler && window.visualViewport) {
-			window.visualViewport.removeEventListener('resize', iosKeyboardHandler);
 		}
 		// Note: hashchange, visibilitychange, and beforeunload handlers are cleaned up automatically on page unload
 	});
@@ -2459,7 +2421,6 @@
 	style={devConsoleOpen
 		? `--dev-console-height: ${DEV_CONSOLE_HEIGHT}px`
 		: '--dev-console-height: 0px'}
-	bind:this={mainContentEl}
 >
 	<Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
 	<div
@@ -2603,31 +2564,17 @@
 	.chat-container {
 		display: flex;
 		flex-direction: row;
-		/*
-		 * Subtract the header height (82px), the dev console height, and the
-		 * iOS virtual keyboard height (--keyboard-height, set by the
-		 * visualViewport resize listener in the script above; 0px on desktop).
-		 *
-		 * IMPORTANT: We intentionally use 100vh (not 100dvh) here.
-		 * On iPad Safari, 100dvh shrinks when the keyboard opens (iPad resizes the
-		 * dynamic viewport). Our JS --keyboard-height also subtracts the keyboard
-		 * height, which would cause a double-subtraction and leave a massive empty
-		 * gap. 100vh is the "large" viewport — stable, never changes when the
-		 * keyboard opens on any iOS/iPadOS device — so --keyboard-height is the
-		 * sole mechanism that offsets the keyboard, with no double-subtraction risk.
-		 */
-		height: calc(100vh - 82px - var(--dev-console-height, 0px) - var(--keyboard-height, 0px));
+		/* Fallback for browsers that don't support dvh */
+		height: calc(100vh - 82px - var(--dev-console-height, 0px));
+		/* Modern browsers will use this */
+		height: calc(100dvh - 82px - var(--dev-console-height, 0px));
 		gap: 0px;
 		padding: 10px;
 		/* Logical property: extra breathing room on the inline-end side (right in LTR, left in RTL) */
 		padding-inline-end: 20px;
-		/* Animate height changes (iOS keyboard open/close) and gap changes (menu open/close) */
-		transition: height 0.25s ease;
 		/* Only apply gap transition on larger screens */
 		@media (min-width: 1100px) {
-			transition:
-				height 0.25s ease,
-				gap 0.3s ease;
+			transition: gap 0.3s ease;
 		}
 	}
 
@@ -2655,8 +2602,8 @@
 	@media (max-width: 600px) {
 		.chat-container {
 			padding-inline-end: 10px;
-			/* Same 100vh rationale as above — avoid double-subtraction on iPad Safari */
-			height: calc(100vh - 75px - var(--dev-console-height, 0px) - var(--keyboard-height, 0px));
+			height: calc(100vh - 75px - var(--dev-console-height, 0px));
+			height: calc(100dvh - 75px - var(--dev-console-height, 0px));
 		}
 		.sidebar {
 			width: 100%;
