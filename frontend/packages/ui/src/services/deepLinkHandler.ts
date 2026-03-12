@@ -255,10 +255,10 @@ export async function processDeepLink(
           if (handlers.openLogin) {
             handlers.openLogin();
           }
-          // Clear hash to keep URL clean
-          if (typeof window !== "undefined") {
-            replaceState(window.location.pathname + window.location.search, {});
-          }
+          // IMPORTANT: Keep #pair=TOKEN in URL for cross-browser handoff.
+          // iOS in-app Safari often opens an isolated session without login state;
+          // users can tap "Open in Safari" to continue in their logged-in browser.
+          // If we clear the hash here, that handoff loses the token and pairing fails.
           return { type: "pair", processed: false, requiresAuth: true };
         }
         handlers.onPair(parsed.data.token);
