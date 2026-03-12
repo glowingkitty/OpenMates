@@ -1384,6 +1384,7 @@ async def cache_upload_embed(
 class TestRunSummaryEmailPayload(BaseModel):
     """Payload for dispatching a test run summary email via Celery."""
     recipient_email: str
+    environment: str = "development"  # "development" or "production"
     run_id: str
     git_sha: str
     git_branch: str
@@ -1435,6 +1436,7 @@ async def dispatch_test_summary_email(
                 payload.not_started,
                 payload.suites,
                 payload.failed_tests,
+                payload.environment,
             ],
             queue="email",
         )
@@ -1456,6 +1458,7 @@ async def dispatch_test_summary_email(
 class TestRunStartedEmailPayload(BaseModel):
     """Payload for dispatching a test run started notification email via Celery."""
     recipient_email: str
+    environment: str = "development"  # "development" or "production"
     trigger_type: str  # e.g. "Scheduled (daily)" or "Manual (admin)"
     git_sha: str
     git_branch: str
@@ -1492,6 +1495,7 @@ async def dispatch_test_start_email(
                 payload.git_sha,
                 payload.git_branch,
                 payload.started_at,
+                payload.environment,
             ],
             queue="email",
         )

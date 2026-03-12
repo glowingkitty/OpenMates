@@ -106,6 +106,7 @@ def dispatch_email() -> None:
     Required env vars (read from .env if not in environment):
         ADMIN_NOTIFY_EMAIL          — recipient for the summary email
         INTERNAL_API_SHARED_TOKEN   — auth token for /internal/* endpoints
+        DAILY_RUN_ENVIRONMENT       — "development" or "production" (set by run-tests-daily.sh)
     """
     import urllib.request
     import urllib.error
@@ -121,6 +122,7 @@ def dispatch_email() -> None:
 
     admin_email = os.environ.get("ADMIN_NOTIFY_EMAIL") or dot_env.get("ADMIN_NOTIFY_EMAIL", "")
     internal_token = os.environ.get("INTERNAL_API_SHARED_TOKEN") or dot_env.get("INTERNAL_API_SHARED_TOKEN", "")
+    environment = os.environ.get("DAILY_RUN_ENVIRONMENT", "development")
 
     if not admin_email:
         print("[daily-runner] ERROR: ADMIN_NOTIFY_EMAIL not set — cannot dispatch email.", file=sys.stderr)
@@ -179,6 +181,7 @@ def dispatch_email() -> None:
     ).rstrip("/") + "/internal/dispatch-test-summary-email"
     payload = {
         "recipient_email": admin_email,
+        "environment": environment,
         "run_id": data.get("run_id", ""),
         "git_sha": data.get("git_sha", ""),
         "git_branch": data.get("git_branch", ""),
@@ -233,6 +236,7 @@ def dispatch_start_email() -> None:
     Required env vars (read from .env if not in environment):
         ADMIN_NOTIFY_EMAIL          — recipient for the notification email
         INTERNAL_API_SHARED_TOKEN   — auth token for /internal/* endpoints
+        DAILY_RUN_ENVIRONMENT       — "development" or "production" (set by run-tests-daily.sh)
     """
     import subprocess
     import urllib.request
@@ -248,6 +252,7 @@ def dispatch_start_email() -> None:
 
     admin_email = os.environ.get("ADMIN_NOTIFY_EMAIL") or dot_env.get("ADMIN_NOTIFY_EMAIL", "")
     internal_token = os.environ.get("INTERNAL_API_SHARED_TOKEN") or dot_env.get("INTERNAL_API_SHARED_TOKEN", "")
+    environment = os.environ.get("DAILY_RUN_ENVIRONMENT", "development")
 
     if not admin_email:
         print("[daily-runner] WARNING: ADMIN_NOTIFY_EMAIL not set — skipping start email.", file=sys.stderr)
@@ -283,6 +288,7 @@ def dispatch_start_email() -> None:
 
     payload = {
         "recipient_email": admin_email,
+        "environment": environment,
         "trigger_type": "Scheduled (daily)",
         "git_sha": git_sha,
         "git_branch": git_branch,

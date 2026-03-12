@@ -44,6 +44,7 @@ def send_test_run_started(
     git_sha: str,
     git_branch: str,
     started_at: str,
+    environment: str = "development",
 ) -> bool:
     """
     Celery task to send a test run started notification email to the admin.
@@ -55,13 +56,14 @@ def send_test_run_started(
         git_sha: Short git commit SHA the tests are running against.
         git_branch: Git branch name the tests are running against.
         started_at: ISO 8601 UTC timestamp string of when the run began.
+        environment: Server environment, "development" or "production".
 
     Returns:
         bool: True if the email was sent successfully, False otherwise.
     """
     logger.info(
         f"Starting test run started email task: trigger='{trigger_type}', "
-        f"git={git_sha}@{git_branch}, recipient={admin_email}"
+        f"environment='{environment}', git={git_sha}@{git_branch}, recipient={admin_email}"
     )
     try:
         result = asyncio.run(
@@ -72,22 +74,24 @@ def send_test_run_started(
                 git_sha=git_sha,
                 git_branch=git_branch,
                 started_at=started_at,
+                environment=environment,
             )
         )
         if result:
             logger.info(
-                f"Test run started email sent: trigger='{trigger_type}', recipient={admin_email}"
+                f"Test run started email sent: trigger='{trigger_type}', "
+                f"environment='{environment}', recipient={admin_email}"
             )
         else:
             logger.error(
                 f"Test run started email task failed: trigger='{trigger_type}', "
-                f"recipient={admin_email} — check logs above for details"
+                f"environment='{environment}', recipient={admin_email} — check logs above for details"
             )
         return result
     except Exception as e:
         logger.error(
             f"Failed to run test run started email task: trigger='{trigger_type}', "
-            f"recipient={admin_email}: {e}",
+            f"environment='{environment}', recipient={admin_email}: {e}",
             exc_info=True,
         )
         return False
@@ -100,6 +104,7 @@ async def _async_send_test_run_started(
     git_sha: str,
     git_branch: str,
     started_at: str,
+    environment: str = "development",
 ) -> bool:
     """Async implementation for sending the test run started notification email."""
     from html import escape
@@ -114,10 +119,12 @@ async def _async_send_test_run_started(
             return False
 
         subject = "Test Run Started"
+        environment_label = "Production" if environment == "production" else "Development"
 
         email_context = {
             "darkmode": True,  # Admin emails always use dark mode
             "subject": subject,
+            "environment": environment_label,
             "trigger_type": escape(trigger_type) if trigger_type else "Unknown",
             "git_sha": escape(git_sha) if git_sha else "unknown",
             "git_branch": escape(git_branch) if git_branch else "unknown",
@@ -126,7 +133,7 @@ async def _async_send_test_run_started(
 
         logger.info(
             f"Sending test run started email to {admin_email} "
-            f"(trigger='{trigger_type}', git={git_sha}@{git_branch})"
+            f"(trigger='{trigger_type}', environment='{environment}', git={git_sha}@{git_branch})"
         )
 
         email_success = await task.email_template_service.send_email(

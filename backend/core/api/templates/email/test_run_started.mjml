@@ -45,6 +45,13 @@
           </mj-text>
 
           <mj-text font-size="15px" padding-bottom="8px">
+            <strong>Environment:</strong>&nbsp;
+            <span style="background-color: {% if environment == 'Production' %}#FF5722{% else %}#2196F3{% endif %}; color: #ffffff; padding: 2px 10px; border-radius: 3px; font-size: 13px; font-weight: bold;">
+              {{ environment }}
+            </span>
+          </mj-text>
+
+          <mj-text font-size="15px" padding-bottom="8px">
             <strong>{{ t.email.test_run_summary.git_label.text }}:</strong>&nbsp;
             <span style="font-family: monospace; font-size: 13px; background-color: {% if darkmode %}#2d2d2d{% else %}#f0f0f0{% endif %}; padding: 2px 6px; border-radius: 3px;">{{ git_sha }}</span>
             &nbsp;({{ git_branch }})

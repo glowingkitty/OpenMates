@@ -925,9 +925,11 @@ def _run_test_script(force: bool = False) -> tuple[bool, str, int]:
     if force:
         inner_cmd += " --force"
 
-    # Pass env vars the test script needs (email recipient, internal API token)
+    # Pass env vars the test script needs (email recipient, internal API token,
+    # and the server environment so the script can apply production limits).
     admin_email = os.environ.get("ADMIN_NOTIFY_EMAIL", "")
     internal_token = os.environ.get("INTERNAL_API_SHARED_TOKEN", "")
+    server_environment = os.environ.get("SERVER_ENVIRONMENT", "development")
 
     # Use `docker run` with host root mounted at /host_root, then chroot into it.
     # --rm: auto-remove container after exit
@@ -963,6 +965,7 @@ def _run_test_script(force: bool = False) -> tuple[bool, str, int]:
             f"/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin && "
             f"export ADMIN_NOTIFY_EMAIL='{admin_email}' && "
             f"export INTERNAL_API_SHARED_TOKEN='{internal_token}' && "
+            f"export SERVER_ENVIRONMENT='{server_environment}' && "
             f"export GIT_CONFIG_COUNT=1 && "
             f"export GIT_CONFIG_KEY_0=safe.directory && "
             f"export GIT_CONFIG_VALUE_0='{work_dir}' && "

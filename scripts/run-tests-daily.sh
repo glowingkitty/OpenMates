@@ -14,6 +14,12 @@
 # Environment variables required:
 #   ADMIN_NOTIFY_EMAIL   — recipient for the summary email
 #
+# On production (SERVER_ENVIRONMENT=production) the test suite is intentionally
+# limited to avoid LLM inference and third-party API costs:
+#   - Playwright: only chat-flow.spec.ts (one inference test, all others skipped)
+#   - pytest integration: skipped entirely (no ai/apps/web/images test files)
+#   - vitest + pytest unit: run in full (no external costs)
+#
 # Output files (always written to test-results/):
 #   last-run.json              — full run data (written by run-tests.sh)
 #   last-passed-tests.json     — passing tests only from the latest run
@@ -28,9 +34,16 @@ RESULTS_DIR="$PROJECT_ROOT/test-results"
 
 # --- Parse CLI args ---
 FORCE=false
+# Default: read from SERVER_ENVIRONMENT env var (set by admin-sidecar from the
+# API container's environment). Fallback to "development".
+ENVIRONMENT="${SERVER_ENVIRONMENT:-development}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --force) FORCE=true; shift ;;
+    --environment)
+      ENVIRONMENT="$2"
+      shift 2
+      ;;
     --help|-h)
       sed -n '2,/^# =====/p' "$0" | grep '^#' | sed 's/^# \?//'
       exit 0
@@ -38,6 +51,16 @@ while [[ $# -gt 0 ]]; do
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
+
+# Normalise to lowercase
+ENVIRONMENT="${ENVIRONMENT,,}"
+# Validate
+if [[ "$ENVIRONMENT" != "development" && "$ENVIRONMENT" != "production" ]]; then
+  echo "[daily-runner] WARNING: unknown environment '$ENVIRONMENT' — defaulting to 'development'"
+  ENVIRONMENT="development"
+fi
+
+echo "[daily-runner] Environment: $ENVIRONMENT"
 
 # --- Commit-activity gate ---
 # Skip the run entirely when no commits were made in the last 24 hours.
@@ -51,6 +74,9 @@ if [[ "$FORCE" == "false" ]]; then
   fi
   echo "[daily-runner] Found $COMMITS_IN_24H commit(s) in the last 24 hours — proceeding."
 fi
+
+# Export environment so _daily_runner_helper.py can read it
+export DAILY_RUN_ENVIRONMENT="$ENVIRONMENT"
 
 # --- Notify admin that the run is starting ---
 # Non-fatal: a failed email must not prevent the tests from running.
@@ -68,7 +94,7 @@ mkdir -p "$RESULTS_DIR"
 
 # run-tests.sh exits 1 on any test failure — we capture that gracefully here.
 set +e
-"$SCRIPT_DIR/run-tests.sh" --all
+"$SCRIPT_DIR/run-tests.sh" --all --environment "$ENVIRONMENT"
 RUN_EXIT_CODE=$?
 set -e
 

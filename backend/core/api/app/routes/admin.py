@@ -1271,12 +1271,16 @@ async def trigger_test_run(
             except Exception:
                 pass
             from backend.core.api.app.tasks.celery_config import app as celery_app
+            server_environment = os.environ.get("SERVER_ENVIRONMENT", "development")
             celery_app.send_task(
                 name="app.tasks.email_tasks.test_run_started_email_task.send_test_run_started",
-                args=[admin_email, "Manual (admin)", git_sha, git_branch, started_at],
+                args=[admin_email, "Manual (admin)", git_sha, git_branch, started_at, server_environment],
                 queue="email",
             )
-            logger.info("Dispatched test run started email for manual trigger")
+            logger.info(
+                "Dispatched test run started email for manual trigger (environment=%s)",
+                server_environment,
+            )
         else:
             logger.warning(
                 "ADMIN_NOTIFY_EMAIL / SERVER_OWNER_EMAIL not set — "

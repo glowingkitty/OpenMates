@@ -50,6 +50,7 @@ def send_test_run_summary(
     not_started: int,
     suites: List[Dict[str, Any]],
     failed_tests: List[Dict[str, Any]],
+    environment: str = "development",
 ) -> bool:
     """
     Celery task to send a single daily test run summary email to the admin.
@@ -69,13 +70,15 @@ def send_test_run_summary(
             name, total, passed, failed, status
         failed_tests: List of failed test dicts with keys:
             suite, name, error (truncated snippet)
+        environment: Server environment, "development" or "production".
 
     Returns:
         bool: True if the email was sent successfully, False otherwise.
     """
     logger.info(
         f"Starting test run summary email task: run_id='{run_id}', "
-        f"total={total}, passed={passed}, failed={failed}, recipient={admin_email}"
+        f"environment='{environment}', total={total}, passed={passed}, "
+        f"failed={failed}, recipient={admin_email}"
     )
     try:
         result = asyncio.run(
@@ -93,23 +96,24 @@ def send_test_run_summary(
                 not_started=not_started,
                 suites=suites,
                 failed_tests=failed_tests,
+                environment=environment,
             )
         )
         if result:
             logger.info(
                 f"Test run summary email sent successfully: run_id='{run_id}', "
-                f"failed={failed}, recipient={admin_email}"
+                f"environment='{environment}', failed={failed}, recipient={admin_email}"
             )
         else:
             logger.error(
                 f"Test run summary email task failed: run_id='{run_id}', "
-                f"recipient={admin_email} — check logs above for details"
+                f"environment='{environment}', recipient={admin_email} — check logs above for details"
             )
         return result
     except Exception as e:
         logger.error(
             f"Failed to run test run summary email task: run_id='{run_id}', "
-            f"recipient={admin_email}: {e}",
+            f"environment='{environment}', recipient={admin_email}: {e}",
             exc_info=True,
         )
         return False
@@ -129,6 +133,7 @@ async def _async_send_test_run_summary(
     not_started: int,
     suites: List[Dict[str, Any]],
     failed_tests: List[Dict[str, Any]],
+    environment: str = "development",
 ) -> bool:
     """
     Async implementation for sending the daily test run summary email.
@@ -148,6 +153,8 @@ async def _async_send_test_run_summary(
         if not hasattr(task, "email_template_service") or task.email_template_service is None:
             logger.error("email_template_service not available after initialization")
             return False
+
+        environment_label = "Production" if environment == "production" else "Development"
 
         # Build email subject — matches the user-requested subject format exactly
         if failed == 0:
@@ -196,6 +203,7 @@ async def _async_send_test_run_summary(
         email_context = {
             "darkmode": True,  # Admin emails always use dark mode
             "subject": subject,
+            "environment": environment_label,
             "run_id": sanitized_run_id,
             "git_sha": sanitized_git_sha,
             "git_branch": sanitized_git_branch,

@@ -419,6 +419,7 @@ def run_daily_all_tests(self, force: bool = False) -> Dict[str, Any]:
 
         # Notify admin that the test run is starting — sent before the sidecar
         # call so the admin knows the run kicked off even if the sidecar is slow.
+        server_environment = os.environ.get("SERVER_ENVIRONMENT", "development")
         admin_email = os.environ.get("ADMIN_NOTIFY_EMAIL") or os.environ.get("SERVER_OWNER_EMAIL")
         if admin_email:
             try:
@@ -440,10 +441,13 @@ def run_daily_all_tests(self, force: bool = False) -> Dict[str, Any]:
                 started_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
                 app.send_task(
                     name="app.tasks.email_tasks.test_run_started_email_task.send_test_run_started",
-                    args=[admin_email, trigger_type, git_sha, git_branch, started_at],
+                    args=[admin_email, trigger_type, git_sha, git_branch, started_at, server_environment],
                     queue="email",
                 )
-                logger.info("Dispatched test run started email (trigger=%s)", trigger_type)
+                logger.info(
+                    "Dispatched test run started email (trigger=%s, environment=%s)",
+                    trigger_type, server_environment,
+                )
             except Exception as email_err:
                 # Non-fatal: a failed start email must not block the test run
                 logger.warning("Could not dispatch test run started email: %s", email_err)
