@@ -1,1 +1,2 @@
 export const MOBILE_BREAKPOINT = 730;
+export const CHATS_DEFAULT_OPEN_BREAKPOINT = 1440;

@@ -1,9 +1,12 @@
-import { readable, writable } from 'svelte/store'; // Import writable
+import { readable, writable } from "svelte/store"; // Import writable
 // Use standard browser check for library compatibility
-const browser = typeof window !== 'undefined';
+const browser = typeof window !== "undefined";
 
 // Import MOBILE_BREAKPOINT from the correct location
-import { MOBILE_BREAKPOINT } from '../styles/constants';
+import {
+  MOBILE_BREAKPOINT,
+  CHATS_DEFAULT_OPEN_BREAKPOINT,
+} from "../styles/constants";
 
 /**
  * A readable store that tracks whether the current viewport width
@@ -11,29 +14,51 @@ import { MOBILE_BREAKPOINT } from '../styles/constants';
  * Updates automatically on window resize.
  */
 export const isMobileView = readable<boolean>(false, (set) => {
-    if (!browser) {
-        // Default to false on the server, or handle as needed
-        set(false);
-        return;
-    }
+  if (!browser) {
+    // Default to false on the server, or handle as needed
+    set(false);
+    return;
+  }
 
-    // Initial check
-    const checkMobile = () => window.innerWidth < MOBILE_BREAKPOINT;
+  // Initial check
+  const checkMobile = () => window.innerWidth < MOBILE_BREAKPOINT;
+  set(checkMobile());
+
+  // Listener for resize
+  const handleResize = () => {
     set(checkMobile());
+  };
 
-    // Listener for resize
-    const handleResize = () => {
-        set(checkMobile());
-    };
+  window.addEventListener("resize", handleResize);
 
-    window.addEventListener('resize', handleResize);
-    console.debug('[uiStateStore] Initialized isMobileView:', checkMobile());
+  // Cleanup listener on unsubscribe
+  return () => {
+    window.removeEventListener("resize", handleResize);
+  };
+});
 
-    // Cleanup listener on unsubscribe
-    return () => {
-        window.removeEventListener('resize', handleResize);
-        console.debug('[uiStateStore] Cleaned up resize listener.');
-    };
+/**
+ * A readable store that tracks whether the viewport should auto-open
+ * the chats panel by default.
+ */
+export const isChatsDefaultOpenViewport = readable<boolean>(false, (set) => {
+  if (!browser) {
+    set(false);
+    return;
+  }
+
+  const checkViewport = () => window.innerWidth > CHATS_DEFAULT_OPEN_BREAKPOINT;
+  set(checkViewport());
+
+  const handleResize = () => {
+    set(checkViewport());
+  };
+
+  window.addEventListener("resize", handleResize);
+
+  return () => {
+    window.removeEventListener("resize", handleResize);
+  };
 });
 
 // New writable store for session expired warning

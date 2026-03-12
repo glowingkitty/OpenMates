@@ -2,7 +2,11 @@
 import { writable, derived, get } from "svelte/store";
 import { authStore } from "./authStore";
 import { isInSignupProcess, isLoggingOut } from "./signupState";
-import { isMobileView, loginInterfaceOpen } from "./uiStateStore";
+import {
+  isMobileView,
+  isChatsDefaultOpenViewport,
+  loginInterfaceOpen,
+} from "./uiStateStore";
 
 type ActivityHistoryUserIntent = "auto" | "closed" | "open";
 
@@ -68,7 +72,7 @@ function toggleChats(): void {
     // User is manually opening it (overrides 'auto' logic temporarily)
     // Keep original logic for opening, as the header button seems to work.
     console.debug("[PanelState] Opening chats panel");
-    _activityHistoryUserIntent.set("auto"); // Allow auto logic to take over again if conditions change
+    _activityHistoryUserIntent.set("open"); // Persist explicit user-open action
     _isActivityHistoryOpen.set(true); // Force open immediately
   }
   // Note: The derived store will recalculate and might override the forced open/close
@@ -129,6 +133,7 @@ const intendedActivityHistoryOpen = derived(
     isInSignupProcess,
     isLoggingOut,
     isMobileView,
+    isChatsDefaultOpenViewport,
     loginInterfaceOpen,
     _activityHistoryUserIntent,
   ],
@@ -137,6 +142,7 @@ const intendedActivityHistoryOpen = derived(
     $isInSignupProcess,
     ,
     $isMobileView,
+    $isChatsDefaultOpenViewport,
     $loginInterfaceOpen,
     $activityHistoryUserIntent,
   ]) => {
@@ -159,9 +165,18 @@ const intendedActivityHistoryOpen = derived(
       console.debug("[PanelState] Intended AH Closed: User Manually Closed");
       return false; // Must be closed if user manually closed it
     }
-    // If none of the above, it should be open on desktop (both authenticated and non-authenticated)
-    console.debug("[PanelState] Intended AH Open: Default Desktop State");
-    return true;
+    if ($activityHistoryUserIntent === "open") {
+      console.debug("[PanelState] Intended AH Open: User Manually Opened");
+      return true;
+    }
+    // Default behavior: open only on very wide screens.
+    console.debug(
+      "[PanelState] Intended AH based on viewport default-open rule",
+      {
+        isChatsDefaultOpenViewport: $isChatsDefaultOpenViewport,
+      },
+    );
+    return $isChatsDefaultOpenViewport;
   },
 );
 
