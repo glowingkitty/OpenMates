@@ -2123,6 +2123,11 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const aesKey = decodedContent?.aes_key || "";
     const aesNonce = decodedContent?.aes_nonce || "";
     const error = decodedContent?.error || "";
+    const inputEmbedIds: string[] = Array.isArray(
+      decodedContent?.input_embed_ids,
+    )
+      ? decodedContent.input_embed_ids
+      : [];
     // Determine the actual skill ID from embed content or attributes
     const imageSkillId =
       decodedContent?.skill_id || attrs.skill_id || "generate";
@@ -2168,6 +2173,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           taskId,
           isMobile: false, // Default to desktop in message view
           onFullscreen: handleFullscreen,
+          inputEmbedIds: inputEmbedIds.length > 0 ? inputEmbedIds : undefined,
         },
       });
 

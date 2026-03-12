@@ -1279,6 +1279,11 @@ export class GroupRenderer implements EmbedRenderer {
         appId === "images" &&
         (skillId === "generate" || skillId === "generate_draft")
       ) {
+        const inputEmbedIdsGroup: string[] = Array.isArray(
+          decodedContent?.input_embed_ids,
+        )
+          ? decodedContent.input_embed_ids
+          : [];
         const component = mount(ImageGenerateEmbedPreview, {
           target,
           props: {
@@ -1295,6 +1300,8 @@ export class GroupRenderer implements EmbedRenderer {
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,
+            inputEmbedIds:
+              inputEmbedIdsGroup.length > 0 ? inputEmbedIdsGroup : undefined,
           },
         });
         mountedComponents.set(target, component);
@@ -2336,12 +2343,8 @@ export class GroupRenderer implements EmbedRenderer {
       // SUCCESS STATE: Full design with metadata
       const displayTitle = websiteTitle || new URL(websiteUrl).hostname;
       const displayDescription = websiteDescription || "";
-      const faviconUrl =
-        favicon ||
-        proxyFavicon(websiteUrl);
-      const imageUrl =
-        image ||
-        proxyImage(websiteUrl);
+      const faviconUrl = favicon || proxyFavicon(websiteUrl);
+      const imageUrl = image || proxyImage(websiteUrl);
 
       // Add click handler for fullscreen
       const embedId = item.contentRef?.replace("embed:", "") || "";

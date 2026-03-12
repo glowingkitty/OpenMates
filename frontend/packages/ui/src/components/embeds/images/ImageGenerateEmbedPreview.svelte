@@ -21,6 +21,7 @@
   import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from './imageEmbedCrypto';
   import { getModelDisplayName, getModelByNameOrId } from '../../../utils/modelDisplayName';
   import { getProviderIconUrl } from '../../../data/providerIcons';
+  import { resolveEmbed, decodeToonContent } from '../../../services/embedResolver';
   
   /**
    * Image embed content structure from the backend
@@ -43,6 +44,8 @@
     aes_key?: string;
     aes_nonce?: string;
     error?: string;
+    /** Embed IDs of the source images used for image-to-image generation */
+    input_embed_ids?: string[];
   }
   
   /**
@@ -75,6 +78,8 @@
     isMobile?: boolean;
     /** Click handler for fullscreen */
     onFullscreen?: () => void;
+    /** Embed IDs of the source images used for image-to-image generation */
+    inputEmbedIds?: string[];
   }
   
   let {
@@ -90,7 +95,8 @@
     error: errorProp,
     taskId: taskIdProp,
     isMobile = false,
-    onFullscreen
+    onFullscreen,
+    inputEmbedIds: inputEmbedIdsProp
   }: Props = $props();
   
   // Local reactive state — updated via handleEmbedDataUpdated callback
@@ -103,6 +109,12 @@
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
   let localError = $state<string | undefined>(undefined);
   let localTaskId = $state<string | undefined>(undefined);
+  let localInputEmbedIds = $state<string[] | undefined>(undefined);
+
+  // Decrypted thumbnail URLs for input (reference) images — keyed by embed ID
+  let inputImageUrls = $state<Map<string, string>>(new Map());
+  // S3 keys retained from the cache so we can release on unmount
+  let retainedInputKeys: string[] = [];
   
   // Image blob URL for rendering
   let imageUrl = $state<string | undefined>(undefined);
@@ -134,12 +146,16 @@
     return () => observer?.disconnect();
   });
   
-  // Cleanup: release cached blob URL reference on unmount
+  // Cleanup: release cached blob URL references on unmount
   onDestroy(() => {
     if (retainedS3Key) {
       releaseCachedImage(retainedS3Key);
       retainedS3Key = undefined;
     }
+    for (const key of retainedInputKeys) {
+      releaseCachedImage(key);
+    }
+    retainedInputKeys = [];
     observer?.disconnect();
   });
   
@@ -154,6 +170,7 @@
     localStatus = statusProp || 'processing';
     localError = errorProp;
     localTaskId = taskIdProp;
+    localInputEmbedIds = inputEmbedIdsProp;
   });
   
   // Derived state
@@ -166,6 +183,7 @@
   let s3BaseUrl = $derived(localS3BaseUrl);
   let aesKey = $derived(localAesKey);
   let aesNonce = $derived(localAesNonce);
+  let inputEmbedIds = $derived(localInputEmbedIds);
   
   // Human-readable model name resolved from model ID via frontend metadata
   let modelDisplayName = $derived(model ? getModelDisplayName(model) : undefined);
@@ -184,6 +202,57 @@
   );
   
   
+  /**
+   * Load and decrypt preview thumbnails for input (reference) images.
+   * Resolves each embed ID, decodes TOON content, then fetches+decrypts the
+   * preview variant using the same crypto pipeline as the output image.
+   */
+  async function loadInputImages(embedIds: string[]) {
+    for (const embedId of embedIds) {
+      if (inputImageUrls.has(embedId)) continue; // already loaded
+
+      try {
+        const embedData = await resolveEmbed(embedId);
+        if (!embedData?.content) continue;
+
+        const content = await decodeToonContent(embedData.content);
+        if (!content) continue;
+
+        const inputS3BaseUrl = content.s3_base_url as string | undefined;
+        const inputFiles = content.files as Record<string, { s3_key: string }> | undefined;
+        const inputAesKey = content.aes_key as string | undefined;
+        const inputAesNonce = content.aes_nonce as string | undefined;
+
+        const previewKey = inputFiles?.preview?.s3_key;
+        if (!previewKey || !inputS3BaseUrl || !inputAesKey || !inputAesNonce) continue;
+
+        // Check shared cache first
+        const cached = getCachedImageUrl(previewKey);
+        if (cached) {
+          retainCachedImage(previewKey);
+          retainedInputKeys.push(previewKey);
+          inputImageUrls = new Map(inputImageUrls).set(embedId, cached);
+          continue;
+        }
+
+        const blob = await fetchAndDecryptImage(inputS3BaseUrl, previewKey, inputAesKey, inputAesNonce);
+        const url = URL.createObjectURL(blob);
+        retainCachedImage(previewKey);
+        retainedInputKeys.push(previewKey);
+        inputImageUrls = new Map(inputImageUrls).set(embedId, url);
+      } catch (err) {
+        console.warn('[ImageGenerateEmbedPreview] Failed to load input image thumbnail:', embedId, err);
+      }
+    }
+  }
+
+  // Load input image thumbnails when embed IDs are available and embed is in view
+  $effect(() => {
+    if (isInView && inputEmbedIds && inputEmbedIds.length > 0) {
+      loadInputImages(inputEmbedIds);
+    }
+  });
+
   /**
    * Load and decrypt the preview image from S3.
    * Uses the shared in-memory cache to avoid redundant fetch+decrypt cycles.
@@ -277,6 +346,7 @@
       if (content.aes_key) localAesKey = content.aes_key;
       if (content.aes_nonce) localAesNonce = content.aes_nonce;
       if (content.error) localError = content.error;
+      if (Array.isArray(content.input_embed_ids)) localInputEmbedIds = content.input_embed_ids;
     }
   }
 </script>
@@ -298,6 +368,21 @@
 >
   {#snippet details({ isMobile: isMobileSnippet })}
     <div class="image-preview" class:mobile={isMobileSnippet} bind:this={containerRef}>
+      {#if inputEmbedIds && inputEmbedIds.length > 0}
+        <!-- Input image strip: 30px tall thumbnails shown above the main content -->
+        <div class="input-images-strip">
+          {#each inputEmbedIds as embedId (embedId)}
+            {@const thumbUrl = inputImageUrls.get(embedId)}
+            <div class="input-thumb">
+              {#if thumbUrl}
+                <img src={thumbUrl} alt="" class="input-thumb-img" />
+              {:else}
+                <div class="input-thumb-placeholder"></div>
+              {/if}
+            </div>
+          {/each}
+        </div>
+      {/if}
       {#if status === 'finished' && !error && imageUrl}
         <!-- Finished state with loaded image: show decrypted image with model info overlay -->
         <div class="image-content">
@@ -358,6 +443,46 @@
     flex-direction: column;
     overflow: hidden;
     box-sizing: border-box;
+  }
+
+  /* Input image thumbnails — 30px strip at the top */
+  .input-images-strip {
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+    padding: 4px 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-shrink: 0;
+    background: var(--color-grey-5, #f8f8f8);
+    scrollbar-width: none;
+  }
+
+  .input-images-strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  .input-thumb {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    border-radius: 3px;
+    overflow: hidden;
+    border: 1px solid var(--color-grey-20, #e0e0e0);
+  }
+
+  .input-thumb-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .input-thumb-placeholder {
+    width: 100%;
+    height: 100%;
+    background: var(--color-grey-15, #f0f0f0);
+    animation: pulse 1.5s ease-in-out infinite;
   }
   
   .image-preview.mobile {
@@ -563,6 +688,18 @@
   
   :global(.dark) .image-container {
     background: var(--color-grey-90, #1a1a1a);
+  }
+
+  :global(.dark) .input-images-strip {
+    background: var(--color-grey-85, #222);
+  }
+
+  :global(.dark) .input-thumb {
+    border-color: var(--color-grey-70, #444);
+  }
+
+  :global(.dark) .input-thumb-placeholder {
+    background: var(--color-grey-80, #333);
   }
   
   :global(.dark) .error-state {
