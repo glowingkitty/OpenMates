@@ -59,8 +59,8 @@
     taskId?: string;
     /** Whether to use mobile layout */
     isMobile?: boolean;
-    /** Click handler for fullscreen */
-    onFullscreen?: () => void;
+    /** Click handler for fullscreen — REQUIRED: every embed must have a fullscreen version */
+    onFullscreen: () => void;
     /** Click handler for stop button */
     onStop?: () => void;
     /** Snippet for details content (skill-specific) - REQUIRED but made optional for defensive programming */
@@ -977,14 +977,15 @@
     padding-left: 20px;
   }
   
-  /* Full-width image content: remove padding and add negative margin at bottom */
-  /* The negative margin allows the image to extend into the BasicInfosBar area */
-  /* to fill the rounded corners and reach approximately the center of the bar */
-  /* BasicInfosBar is 61px tall, so -55px extends roughly to its center */
+  /* Full-width image content: remove padding, extend into BasicInfosBar area, */
+  /* clip the image to rounded card corners. -61px covers the full bar height   */
+  /* so the image fills the container with no grey gap at the bottom.            */
   .desktop-layout .details-section.full-width-image {
     padding-right: 0;
     padding-left: 0;
-    margin-bottom: -55px;
+    margin-bottom: -61px;
+    border-radius: 30px;
+    overflow: hidden;
   }
   
   /* ===========================================

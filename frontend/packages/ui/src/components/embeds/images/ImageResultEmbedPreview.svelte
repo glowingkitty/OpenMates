@@ -38,7 +38,7 @@
     /** Whether to use mobile layout */
     isMobile?: boolean;
     /** Click handler for fullscreen */
-    onFullscreen?: () => void;
+    onFullscreen: () => void;
     /**
      * @deprecated No longer used. Kept for backward compatibility — always renders
      * with UnifiedEmbedPreview. Will be removed in a future cleanup.
@@ -106,21 +106,9 @@
           onerror={handleFail}
           use:handleImageError
         />
-        {#if imageLoaded && (title || sourceDomain)}
+        {#if imageLoaded && title}
           <div class="card-overlay">
-            {#if sourceDomain || faviconUrl}
-              <div class="source-line">
-                {#if faviconUrl}
-                  <img src={faviconUrl} alt="" class="favicon" use:handleImageError />
-                {/if}
-                {#if sourceDomain}
-                  <span class="source-domain">{sourceDomain}</span>
-                {/if}
-              </div>
-            {/if}
-            {#if title}
-              <span class="result-title">{title}</span>
-            {/if}
+            <span class="result-title">{title}</span>
           </div>
         {/if}
       {:else if status === 'processing'}
@@ -173,38 +161,14 @@
 
   .card-overlay {
     position: absolute;
-    bottom: 0;
+    top: 0;
     left: 0;
     right: 0;
-    padding: 32px 14px 12px;
-    background: linear-gradient(transparent, rgba(0, 0, 0, 0.6));
+    padding: 12px 14px 32px;
+    background: linear-gradient(rgba(0, 0, 0, 0.5), transparent);
     display: flex;
     flex-direction: column;
     gap: 3px;
-  }
-
-  .source-line {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .favicon {
-    width: 13px;
-    height: 13px;
-    flex-shrink: 0;
-    object-fit: contain;
-    border-radius: 2px;
-  }
-
-  .source-domain {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.75);
-    line-height: 1.3;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 100%;
   }
 
   .result-title {
