@@ -58,7 +58,7 @@
      * Called when the user clicks the embed card after it reaches 'finished' state.
      * ActiveChat.svelte handles this by mounting PDFEmbedFullscreen.svelte.
      */
-    onFullscreen?: () => void;
+    onFullscreen: () => void;
   }
 
   let {

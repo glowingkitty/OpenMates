@@ -65,7 +65,7 @@
     /** Whether to use mobile layout */
     isMobile?: boolean;
     /** Click handler that opens EventEmbedFullscreen drill-down */
-    onFullscreen?: () => void;
+    onFullscreen: () => void;
   }
 
   let {

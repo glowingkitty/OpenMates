@@ -334,6 +334,7 @@
                   {isSelected}
                   status="finished"
                   isMobile={false}
+                  onFullscreen={() => handleOpenPlace(place, index)}
                 />
               </div>
             {/each}

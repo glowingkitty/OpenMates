@@ -19,7 +19,7 @@
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
     taskId?: string;
     isMobile?: boolean;
-    onFullscreen?: () => void;
+    onFullscreen: () => void;
   }
 
   let {

@@ -82,7 +82,7 @@
     /** File MIME type (from the original File object, e.g. 'image/jpeg') */
     fileType?: string;
     /** Called when the user clicks to open fullscreen view */
-    onFullscreen?: () => void;
+    onFullscreen: () => void;
     /**
      * Called when the user clicks the stop button.
      * The caller (ImageRenderer.ts) wires this to cancelUpload(id).

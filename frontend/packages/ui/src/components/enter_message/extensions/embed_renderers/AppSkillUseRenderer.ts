@@ -2513,11 +2513,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           status: status as "processing" | "finished" | "error",
           error,
           isMobile: false,
-          // Only wire fullscreen when we have an original embed to open
-          onFullscreen:
-            status === "finished" && originalEmbedId
-              ? handleFullscreen
-              : undefined,
+          // Wire fullscreen — will only be triggered when status === 'finished' (UnifiedEmbedPreview
+          // only calls onFullscreen on click when finished). handler is always defined to satisfy
+          // the required prop, but is effectively a no-op during processing/error states.
+          onFullscreen: handleFullscreen,
           // S3 data will be resolved from the original embed by the component
           // (passed via AppSkillUseRenderer after resolving the original embed)
         },
@@ -2771,10 +2770,9 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           error,
           taskId,
           isMobile: false,
-          onFullscreen:
-            status === "finished" && originalEmbedId
-              ? handleFullscreen
-              : undefined,
+          // Wire fullscreen — will only be triggered when status === 'finished'.
+          // Always pass a handler to satisfy the required prop; no-op during processing states.
+          onFullscreen: handleFullscreen,
         },
       });
 
@@ -2879,7 +2877,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           error,
           taskId,
           isMobile: false,
-          onFullscreen: status === "finished" ? handleFullscreen : undefined,
+          // Always pass handler — UnifiedEmbedPreview only triggers it when finished.
+          onFullscreen: handleFullscreen,
         },
       });
 
@@ -2984,7 +2983,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           error,
           taskId,
           isMobile: false,
-          onFullscreen: status === "finished" ? handleFullscreen : undefined,
+          // Always pass handler — UnifiedEmbedPreview only triggers it when finished.
+          onFullscreen: handleFullscreen,
         },
       });
 
@@ -3171,7 +3171,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           results: [],
           taskId: "",
           isMobile: false,
-          onFullscreen: undefined,
+          // Generic processing placeholder — no fullscreen available yet.
+          // Use a no-op so the required prop is satisfied; UnifiedEmbedPreview
+          // will not call this while status === 'processing'.
+          onFullscreen: () => {},
         },
       });
 

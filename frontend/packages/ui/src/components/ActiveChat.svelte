@@ -27,6 +27,7 @@
     import VideosSearchEmbedFullscreen from './embeds/videos/VideosSearchEmbedFullscreen.svelte';
     import MapsSearchEmbedFullscreen from './embeds/maps/MapsSearchEmbedFullscreen.svelte';
     import MapsLocationEmbedFullscreen from './embeds/maps/MapsLocationEmbedFullscreen.svelte';
+    import MapLocationEmbedFullscreen from './embeds/maps/MapLocationEmbedFullscreen.svelte';
     import CodeEmbedFullscreen from './embeds/code/CodeEmbedFullscreen.svelte';
     import DocsEmbedFullscreen from './embeds/docs/DocsEmbedFullscreen.svelte';
     import MailEmbedFullscreen from './embeds/mail/MailEmbedFullscreen.svelte';
@@ -42,9 +43,13 @@
     import HealthSearchEmbedFullscreen from './embeds/health/HealthSearchEmbedFullscreen.svelte';
     import ShoppingSearchEmbedFullscreen from './embeds/shopping/ShoppingSearchEmbedFullscreen.svelte';
     import EventsSearchEmbedFullscreen from './embeds/events/EventsSearchEmbedFullscreen.svelte';
+    import EventEmbedFullscreen from './embeds/events/EventEmbedFullscreen.svelte';
+    import TravelConnectionEmbedFullscreen from './embeds/travel/TravelConnectionEmbedFullscreen.svelte';
+    import TravelStayEmbedFullscreen from './embeds/travel/TravelStayEmbedFullscreen.svelte';
     import ImagesSearchEmbedFullscreen from './embeds/images/ImagesSearchEmbedFullscreen.svelte';
     import ImageGenerateEmbedFullscreen from './embeds/images/ImageGenerateEmbedFullscreen.svelte';
     import ImageEmbedFullscreen from './embeds/images/ImageEmbedFullscreen.svelte';
+    import ImageResultEmbedFullscreen from './embeds/images/ImageResultEmbedFullscreen.svelte';
     import MathCalculateEmbedFullscreen from './embeds/math/MathCalculateEmbedFullscreen.svelte';
     import MathPlotEmbedFullscreen from './embeds/math/MathPlotEmbedFullscreen.svelte';
     import PDFEmbedFullscreen from './embeds/pdf/PDFEmbedFullscreen.svelte';
@@ -9919,6 +9924,45 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                              />
                         {/await}
                     {/if}
+                {:else if embedFullscreenData.embedType === 'images-image-result'}
+                    <!-- Image Result Fullscreen (child embed from [!](embed:ref) large preview) -->
+                    <ImageResultEmbedFullscreen
+                        title={typeof embedFullscreenData.decodedContent?.title === 'string' ? embedFullscreenData.decodedContent.title : undefined}
+                        sourceDomain={typeof embedFullscreenData.decodedContent?.source_domain === 'string' ? embedFullscreenData.decodedContent.source_domain : undefined}
+                        sourcePageUrl={typeof embedFullscreenData.decodedContent?.source_page_url === 'string' ? embedFullscreenData.decodedContent.source_page_url : undefined}
+                        imageUrl={typeof embedFullscreenData.decodedContent?.image_url === 'string' ? embedFullscreenData.decodedContent.image_url : undefined}
+                        thumbnailUrl={typeof embedFullscreenData.decodedContent?.thumbnail_url === 'string' ? embedFullscreenData.decodedContent.thumbnail_url : undefined}
+                        faviconUrl={typeof embedFullscreenData.decodedContent?.favicon_url === 'string' ? embedFullscreenData.decodedContent.favicon_url : undefined}
+                        embedId={embedFullscreenData.embedId}
+                        onClose={handleCloseEmbedFullscreen}
+                        {hasPreviousEmbed}
+                        {hasNextEmbed}
+                        onNavigatePrevious={handleNavigatePreviousEmbed}
+                        onNavigateNext={handleNavigateNextEmbed}
+                    />
+                {:else if embedFullscreenData.embedType === 'maps-place'}
+                    <!-- Maps Place Fullscreen (child embed of a Maps Search result) -->
+                    <!-- Data comes from the place's decodedContent (displayName, formattedAddress, location, etc.) -->
+                    <MapLocationEmbedFullscreen
+                        displayName={typeof embedFullscreenData.decodedContent?.displayName === 'string' ? embedFullscreenData.decodedContent.displayName : (typeof embedFullscreenData.decodedContent?.name === 'string' ? embedFullscreenData.decodedContent.name : undefined)}
+                        formattedAddress={typeof embedFullscreenData.decodedContent?.formattedAddress === 'string' ? embedFullscreenData.decodedContent.formattedAddress : (typeof embedFullscreenData.decodedContent?.formatted_address === 'string' ? embedFullscreenData.decodedContent.formatted_address : undefined)}
+                        lat={typeof (embedFullscreenData.decodedContent?.location as Record<string, unknown> | undefined)?.latitude === 'number' ? (embedFullscreenData.decodedContent?.location as Record<string, unknown>).latitude as number : undefined}
+                        lon={typeof (embedFullscreenData.decodedContent?.location as Record<string, unknown> | undefined)?.longitude === 'number' ? (embedFullscreenData.decodedContent?.location as Record<string, unknown>).longitude as number : undefined}
+                        rating={typeof embedFullscreenData.decodedContent?.rating === 'number' ? embedFullscreenData.decodedContent.rating : undefined}
+                        userRatingCount={typeof embedFullscreenData.decodedContent?.userRatingCount === 'number' ? embedFullscreenData.decodedContent.userRatingCount : undefined}
+                        placeType={typeof embedFullscreenData.decodedContent?.place_type === 'string' ? embedFullscreenData.decodedContent.place_type : undefined}
+                        websiteUri={typeof embedFullscreenData.decodedContent?.websiteUri === 'string' ? embedFullscreenData.decodedContent.websiteUri : undefined}
+                        placeId={typeof embedFullscreenData.decodedContent?.placeId === 'string' ? embedFullscreenData.decodedContent.placeId : undefined}
+                        embedId={embedFullscreenData.embedId}
+                        onClose={handleCloseEmbedFullscreen}
+                        {hasPreviousEmbed}
+                        {hasNextEmbed}
+                        onNavigatePrevious={handleNavigatePreviousEmbed}
+                        onNavigateNext={handleNavigateNextEmbed}
+                        navigateDirection={embedNavigateDirection}
+                        showChatButton={showChatButtonInFullscreen}
+                        onShowChat={handleShowChat}
+                    />
                 {:else if embedFullscreenData.embedType === 'maps'}
                     <!-- Maps Location Fullscreen (user-inserted via MapsView picker) -->
                     <!-- Coordinates / address come from decodedContent (EmbedStore TOON) or attrs fallback.
@@ -9973,6 +10017,108 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         onShowChat={handleShowChat}
                         piiMappings={cumulativePIIMappingsArray}
                         piiRevealed={piiRevealed}
+                    />
+                {:else if embedFullscreenData.embedType === 'events-event'}
+                    <!-- Single Event Fullscreen (child embed from [!](embed:ref) large preview) -->
+                    <!-- Reconstructs EventResult from decodedContent to render EventEmbedFullscreen directly -->
+                    <EventEmbedFullscreen
+                        event={{
+                            embed_id: embedFullscreenData.embedId ?? '',
+                            id: typeof embedFullscreenData.decodedContent?.id === 'string' ? embedFullscreenData.decodedContent.id : undefined,
+                            provider: typeof embedFullscreenData.decodedContent?.provider === 'string' ? embedFullscreenData.decodedContent.provider : undefined,
+                            title: typeof embedFullscreenData.decodedContent?.title === 'string' ? embedFullscreenData.decodedContent.title : undefined,
+                            description: typeof embedFullscreenData.decodedContent?.description === 'string' ? embedFullscreenData.decodedContent.description : undefined,
+                            url: typeof embedFullscreenData.decodedContent?.url === 'string' ? embedFullscreenData.decodedContent.url : undefined,
+                            date_start: typeof embedFullscreenData.decodedContent?.date_start === 'string' ? embedFullscreenData.decodedContent.date_start : undefined,
+                            date_end: typeof embedFullscreenData.decodedContent?.date_end === 'string' ? embedFullscreenData.decodedContent.date_end : undefined,
+                            timezone: typeof embedFullscreenData.decodedContent?.timezone === 'string' ? embedFullscreenData.decodedContent.timezone : undefined,
+                            event_type: typeof embedFullscreenData.decodedContent?.event_type === 'string' ? embedFullscreenData.decodedContent.event_type : undefined,
+                            venue: embedFullscreenData.decodedContent?.venue as Record<string, unknown> | undefined,
+                            organizer: embedFullscreenData.decodedContent?.organizer as Record<string, unknown> | undefined,
+                            rsvp_count: typeof embedFullscreenData.decodedContent?.rsvp_count === 'number' ? embedFullscreenData.decodedContent.rsvp_count : undefined,
+                            is_paid: typeof embedFullscreenData.decodedContent?.is_paid === 'boolean' ? embedFullscreenData.decodedContent.is_paid : undefined,
+                            fee: embedFullscreenData.decodedContent?.fee as Record<string, unknown> | undefined,
+                            image_url: typeof embedFullscreenData.decodedContent?.image_url === 'string' ? embedFullscreenData.decodedContent.image_url : null,
+                        }}
+                        onClose={handleCloseEmbedFullscreen}
+                        {hasPreviousEmbed}
+                        {hasNextEmbed}
+                        onNavigatePrevious={handleNavigatePreviousEmbed}
+                        onNavigateNext={handleNavigateNextEmbed}
+                    />
+                {:else if embedFullscreenData.embedType === 'travel-connection'}
+                    <!-- Single Travel Connection Fullscreen (child embed from [!](embed:ref) large preview) -->
+                    <!-- Reconstructs ConnectionData from decodedContent to render TravelConnectionEmbedFullscreen directly -->
+                    <TravelConnectionEmbedFullscreen
+                        connection={{
+                            embed_id: embedFullscreenData.embedId ?? '',
+                            type: typeof embedFullscreenData.decodedContent?.type === 'string' ? embedFullscreenData.decodedContent.type : undefined,
+                            transport_method: typeof embedFullscreenData.decodedContent?.transport_method === 'string' ? embedFullscreenData.decodedContent.transport_method : undefined,
+                            trip_type: typeof embedFullscreenData.decodedContent?.trip_type === 'string' ? embedFullscreenData.decodedContent.trip_type : undefined,
+                            total_price: typeof embedFullscreenData.decodedContent?.total_price === 'string' ? embedFullscreenData.decodedContent.total_price : (typeof embedFullscreenData.decodedContent?.price === 'string' ? embedFullscreenData.decodedContent.price : undefined),
+                            currency: typeof embedFullscreenData.decodedContent?.currency === 'string' ? embedFullscreenData.decodedContent.currency : undefined,
+                            bookable_seats: typeof embedFullscreenData.decodedContent?.bookable_seats === 'number' ? embedFullscreenData.decodedContent.bookable_seats : undefined,
+                            last_ticketing_date: typeof embedFullscreenData.decodedContent?.last_ticketing_date === 'string' ? embedFullscreenData.decodedContent.last_ticketing_date : undefined,
+                            booking_url: typeof embedFullscreenData.decodedContent?.booking_url === 'string' ? embedFullscreenData.decodedContent.booking_url : undefined,
+                            booking_provider: typeof embedFullscreenData.decodedContent?.booking_provider === 'string' ? embedFullscreenData.decodedContent.booking_provider : undefined,
+                            booking_token: typeof embedFullscreenData.decodedContent?.booking_token === 'string' ? embedFullscreenData.decodedContent.booking_token : undefined,
+                            booking_context: embedFullscreenData.decodedContent?.booking_context as Record<string, string> | undefined,
+                            origin: typeof embedFullscreenData.decodedContent?.origin === 'string' ? embedFullscreenData.decodedContent.origin : undefined,
+                            destination: typeof embedFullscreenData.decodedContent?.destination === 'string' ? embedFullscreenData.decodedContent.destination : undefined,
+                            departure: typeof embedFullscreenData.decodedContent?.departure === 'string' ? embedFullscreenData.decodedContent.departure : undefined,
+                            arrival: typeof embedFullscreenData.decodedContent?.arrival === 'string' ? embedFullscreenData.decodedContent.arrival : undefined,
+                            duration: typeof embedFullscreenData.decodedContent?.duration === 'string' ? embedFullscreenData.decodedContent.duration : undefined,
+                            stops: typeof embedFullscreenData.decodedContent?.stops === 'number' ? embedFullscreenData.decodedContent.stops : undefined,
+                            carriers: Array.isArray(embedFullscreenData.decodedContent?.carriers) ? embedFullscreenData.decodedContent.carriers as string[] : undefined,
+                            carrier_codes: Array.isArray(embedFullscreenData.decodedContent?.carrier_codes) ? embedFullscreenData.decodedContent.carrier_codes as string[] : undefined,
+                            hash: typeof embedFullscreenData.decodedContent?.hash === 'string' ? embedFullscreenData.decodedContent.hash : undefined,
+                            legs: Array.isArray(embedFullscreenData.decodedContent?.legs) ? embedFullscreenData.decodedContent.legs as never[] : undefined,
+                            airline_logo: typeof embedFullscreenData.decodedContent?.airline_logo === 'string' ? embedFullscreenData.decodedContent.airline_logo : undefined,
+                            co2_kg: typeof embedFullscreenData.decodedContent?.co2_kg === 'number' ? embedFullscreenData.decodedContent.co2_kg : undefined,
+                            co2_typical_kg: typeof embedFullscreenData.decodedContent?.co2_typical_kg === 'number' ? embedFullscreenData.decodedContent.co2_typical_kg : undefined,
+                            co2_difference_percent: typeof embedFullscreenData.decodedContent?.co2_difference_percent === 'number' ? embedFullscreenData.decodedContent.co2_difference_percent : undefined,
+                        }}
+                        embedId={embedFullscreenData.embedId}
+                        onClose={handleCloseEmbedFullscreen}
+                        {hasPreviousEmbed}
+                        {hasNextEmbed}
+                        onNavigatePrevious={handleNavigatePreviousEmbed}
+                        onNavigateNext={handleNavigateNextEmbed}
+                    />
+                {:else if embedFullscreenData.embedType === 'travel-stay'}
+                    <!-- Single Travel Stay Fullscreen (child embed from [!](embed:ref) large preview) -->
+                    <!-- Reconstructs StayData from decodedContent to render TravelStayEmbedFullscreen directly -->
+                    <TravelStayEmbedFullscreen
+                        stay={{
+                            type: typeof embedFullscreenData.decodedContent?.type === 'string' ? embedFullscreenData.decodedContent.type : undefined,
+                            name: typeof embedFullscreenData.decodedContent?.name === 'string' ? embedFullscreenData.decodedContent.name : undefined,
+                            description: typeof embedFullscreenData.decodedContent?.description === 'string' ? embedFullscreenData.decodedContent.description : undefined,
+                            property_type: typeof embedFullscreenData.decodedContent?.property_type === 'string' ? embedFullscreenData.decodedContent.property_type : undefined,
+                            link: typeof embedFullscreenData.decodedContent?.link === 'string' ? embedFullscreenData.decodedContent.link : undefined,
+                            property_token: typeof embedFullscreenData.decodedContent?.property_token === 'string' ? embedFullscreenData.decodedContent.property_token : undefined,
+                            gps_coordinates: embedFullscreenData.decodedContent?.gps_coordinates as { latitude: number; longitude: number } | undefined,
+                            hotel_class: typeof embedFullscreenData.decodedContent?.hotel_class === 'number' ? embedFullscreenData.decodedContent.hotel_class : undefined,
+                            overall_rating: typeof embedFullscreenData.decodedContent?.overall_rating === 'number' ? embedFullscreenData.decodedContent.overall_rating : undefined,
+                            reviews: typeof embedFullscreenData.decodedContent?.reviews === 'number' ? embedFullscreenData.decodedContent.reviews : undefined,
+                            rate_per_night: typeof embedFullscreenData.decodedContent?.rate_per_night === 'string' ? embedFullscreenData.decodedContent.rate_per_night : undefined,
+                            extracted_rate_per_night: typeof embedFullscreenData.decodedContent?.extracted_rate_per_night === 'number' ? embedFullscreenData.decodedContent.extracted_rate_per_night : undefined,
+                            total_rate: typeof embedFullscreenData.decodedContent?.total_rate === 'string' ? embedFullscreenData.decodedContent.total_rate : undefined,
+                            extracted_total_rate: typeof embedFullscreenData.decodedContent?.extracted_total_rate === 'number' ? embedFullscreenData.decodedContent.extracted_total_rate : undefined,
+                            currency: typeof embedFullscreenData.decodedContent?.currency === 'string' ? embedFullscreenData.decodedContent.currency : undefined,
+                            check_in_time: typeof embedFullscreenData.decodedContent?.check_in_time === 'string' ? embedFullscreenData.decodedContent.check_in_time : undefined,
+                            check_out_time: typeof embedFullscreenData.decodedContent?.check_out_time === 'string' ? embedFullscreenData.decodedContent.check_out_time : undefined,
+                            amenities: Array.isArray(embedFullscreenData.decodedContent?.amenities) ? embedFullscreenData.decodedContent.amenities as string[] : undefined,
+                            images: Array.isArray(embedFullscreenData.decodedContent?.images) ? embedFullscreenData.decodedContent.images as never[] : undefined,
+                            thumbnail: typeof embedFullscreenData.decodedContent?.thumbnail === 'string' ? embedFullscreenData.decodedContent.thumbnail : undefined,
+                            nearby_places: Array.isArray(embedFullscreenData.decodedContent?.nearby_places) ? embedFullscreenData.decodedContent.nearby_places as never[] : undefined,
+                            eco_certified: typeof embedFullscreenData.decodedContent?.eco_certified === 'boolean' ? embedFullscreenData.decodedContent.eco_certified : undefined,
+                            free_cancellation: typeof embedFullscreenData.decodedContent?.free_cancellation === 'boolean' ? embedFullscreenData.decodedContent.free_cancellation : undefined,
+                        }}
+                        onClose={handleCloseEmbedFullscreen}
+                        {hasPreviousEmbed}
+                        {hasNextEmbed}
+                        onNavigatePrevious={handleNavigatePreviousEmbed}
+                        onNavigateNext={handleNavigateNextEmbed}
                     />
                 {:else}
                     <!-- Fallback for unknown embed types -->

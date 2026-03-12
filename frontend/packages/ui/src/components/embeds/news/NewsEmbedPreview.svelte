@@ -87,7 +87,7 @@
     /** Whether to use mobile layout */
     isMobile?: boolean;
     /** Click handler for fullscreen - receives fetched metadata so fullscreen can display it */
-    onFullscreen?: (metadata: NewsMetadata) => void;
+    onFullscreen: (metadata: NewsMetadata) => void;
   }
   
   // ===========================================
@@ -353,8 +353,6 @@
    * This ensures fullscreen displays the same data as the preview without re-fetching
    */
   function handleFullscreen() {
-    if (!onFullscreen) return;
-    
     // Pass the effective metadata values (props or fetched) to fullscreen
     const metadata: NewsMetadata = {
       title: effectiveTitle,

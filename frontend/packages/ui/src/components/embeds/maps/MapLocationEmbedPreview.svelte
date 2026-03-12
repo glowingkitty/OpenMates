@@ -45,7 +45,7 @@
     /** Whether to use mobile layout */
     isMobile?: boolean;
     /** Click handler to open fullscreen location details */
-    onFullscreen?: () => void;
+    onFullscreen: () => void;
   }
 
   let {

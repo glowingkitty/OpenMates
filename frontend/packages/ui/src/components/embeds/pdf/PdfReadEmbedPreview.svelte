@@ -54,7 +54,7 @@
      * Called when the user clicks to open fullscreen.
      * Implemented by AppSkillUseRenderer: dispatches 'pdfreadfullscreen' event.
      */
-    onFullscreen?: () => void;
+    onFullscreen: () => void;
   }
 
   let {

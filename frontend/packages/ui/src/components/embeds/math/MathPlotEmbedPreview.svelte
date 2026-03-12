@@ -30,7 +30,7 @@
     /** Whether to use mobile layout */
     isMobile?: boolean;
     /** Click handler that opens the fullscreen */
-    onFullscreen?: () => void;
+    onFullscreen: () => void;
   }
 
   let {

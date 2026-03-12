@@ -48,7 +48,7 @@
      * Implemented by AppSkillUseRenderer: resolves original upload embed
      * and fires 'pdffullscreen' CustomEvent.
      */
-    onFullscreen?: () => void;
+    onFullscreen: () => void;
   }
 
   let {

@@ -49,7 +49,7 @@
     /** Whether to use mobile layout */
     isMobile?: boolean;
     /** Click handler to open fullscreen detail view */
-    onFullscreen?: () => void;
+    onFullscreen: () => void;
   }
 
   // nextSlotUrl is intentionally not destructured — slot deep-links expire and are

@@ -3452,13 +3452,6 @@ export class GroupRenderer implements EmbedRenderer {
     }
 
     try {
-      // No onFullscreen: TravelConnectionEmbedFullscreen is only accessible as a child
-      // overlay inside TravelSearchEmbedFullscreen (drill-down pattern). There is no
-      // top-level route in ActiveChat.svelte for individual travel-connection embeds.
-      // To enable fullscreen from [!](embed:ref) large previews, add a branch in ActiveChat
-      // for embedType === 'travel-connection' (or app-skill-use with skill_id === 'connection')
-      // and then wire onFullscreen here.
-
       const component = mount(TravelConnectionEmbedPreview, {
         target: content,
         props: {
@@ -3479,6 +3472,8 @@ export class GroupRenderer implements EmbedRenderer {
           isCheapest,
           status,
           isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(item, embedData, decodedContent),
         },
       });
 
@@ -3592,13 +3587,6 @@ export class GroupRenderer implements EmbedRenderer {
     }
 
     try {
-      // No onFullscreen: TravelStayEmbedFullscreen is only accessible as a child overlay
-      // inside TravelStaysEmbedFullscreen (drill-down pattern). There is no top-level route
-      // in ActiveChat.svelte for individual travel-stay embeds.
-      // To enable fullscreen from [!](embed:ref) large previews, add a branch in ActiveChat
-      // for embedType === 'travel-stay' (or app-skill-use with skill_id === 'stay')
-      // and then wire onFullscreen here.
-
       const component = mount(TravelStayEmbedPreview, {
         target: content,
         props: {
@@ -3617,6 +3605,8 @@ export class GroupRenderer implements EmbedRenderer {
           freeCancellation,
           status,
           isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(item, embedData, decodedContent),
         },
       });
 
@@ -3752,8 +3742,8 @@ export class GroupRenderer implements EmbedRenderer {
           id: embedId,
           event: eventResult,
           isMobile: false,
-          // No onFullscreen: EventEmbedFullscreen has no top-level route in ActiveChat.
-          // Once a top-level route is added, dispatch embedfullscreen here.
+          onFullscreen: () =>
+            this.openFullscreen(item, embedData, decodedContent),
         },
       });
 
@@ -3982,10 +3972,15 @@ export class GroupRenderer implements EmbedRenderer {
       const component = mount(ImageResultEmbedPreview, {
         target: content,
         props: {
+          id: embedId,
           title,
           sourceDomain,
           thumbnailUrl,
           faviconUrl,
+          status,
+          isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(item, embedData, decodedContent),
         },
       });
 

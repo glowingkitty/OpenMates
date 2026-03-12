@@ -85,7 +85,7 @@
     /** Whether the user is authenticated */
     isAuthenticated?: boolean;
     /** Called when user clicks to open fullscreen / edit transcript */
-    onFullscreen?: () => void;
+    onFullscreen: () => void;
     /** Called when user clicks the stop button during upload */
     onStop?: () => void;
     /**

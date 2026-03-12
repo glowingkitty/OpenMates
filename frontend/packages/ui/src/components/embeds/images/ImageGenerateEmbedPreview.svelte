@@ -77,7 +77,7 @@
     /** Whether to use mobile layout */
     isMobile?: boolean;
     /** Click handler for fullscreen */
-    onFullscreen?: () => void;
+    onFullscreen: () => void;
     /** Embed IDs of the source images used for image-to-image generation */
     inputEmbedIds?: string[];
   }
