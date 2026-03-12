@@ -10,7 +10,7 @@
 #   $2 - Pipe-separated list of spec filenames (e.g. "chat-flow.spec.ts|login.spec.ts")
 #   $3 - Work directory for result output
 #   $4 - Project root directory
-#   $5 - (optional) PLAYWRIGHT_TEST_BASE_URL override (empty = use docker-compose default)
+#   $5 - (optional) PLAYWRIGHT_TEST_BASE_URL override (empty = use E2E_DEV_TEST_BASE_URL from host env)
 #   $6 - (optional) "true" to use OPENMATES_PROD_TEST_ACCOUNT_* creds instead of slot creds
 #
 # Abort-on-first-failure behaviour:
@@ -75,8 +75,14 @@ print(json.dumps(entry))
 
   # Build extra docker -e flags for optional overrides
   DOCKER_EXTRA_ARGS=()
-  if [[ -n "$PLAYWRIGHT_BASE_URL_OVERRIDE" ]]; then
-    DOCKER_EXTRA_ARGS+=(-e "PLAYWRIGHT_TEST_BASE_URL=$PLAYWRIGHT_BASE_URL_OVERRIDE")
+  # Determine which base URL to use:
+  #   - Prod smoke test: PLAYWRIGHT_BASE_URL_OVERRIDE is set (e.g. https://openmates.org)
+  #   - Dev run: fall back to E2E_DEV_TEST_BASE_URL from the host environment
+  # In both cases we pass it explicitly so docker-compose.playwright.yml never
+  # needs a hardcoded fallback value.
+  EFFECTIVE_BASE_URL="${PLAYWRIGHT_BASE_URL_OVERRIDE:-${E2E_DEV_TEST_BASE_URL:-}}"
+  if [[ -n "$EFFECTIVE_BASE_URL" ]]; then
+    DOCKER_EXTRA_ARGS+=(-e "PLAYWRIGHT_TEST_BASE_URL=$EFFECTIVE_BASE_URL")
   fi
   if [[ "$USE_PROD_ACCOUNT" == "true" ]]; then
     # Pass prod account creds as slot-1 vars so getTestAccount() picks them up.

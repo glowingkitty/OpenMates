@@ -10,8 +10,10 @@ services:
       # Mount a writable directory for screenshots and other artifacts.
       - ./playwright-artifacts:/workspace/artifacts
     environment:
-      # Target the deployed dev environment by default.
-      PLAYWRIGHT_TEST_BASE_URL: "https://app.dev.openmates.org"
+      # Target URL — must be set via E2E_DEV_TEST_BASE_URL in .env (passed
+      # through by run-tests-worker.sh). No hardcoded default: a missing var
+      # causes playwright.config.ts to throw, making misconfiguration visible.
+      PLAYWRIGHT_TEST_BASE_URL:
       # Load test credentials from host environment (populated via .env).
       # Base vars (backward-compatible fallback for single-account runs):
       OPENMATES_TEST_ACCOUNT_EMAIL:
