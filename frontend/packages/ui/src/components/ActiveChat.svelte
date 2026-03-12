@@ -2975,12 +2975,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Track if message input is focused (for showing follow-up suggestions)
     let messageInputFocused = $state(false);
 
+    // Track whether this runtime is touch-capable (phone/tablet).
+    let isTouchEnvironment = $state(false);
+
     // Track viewport height for small-screen adjustments (e.g. hide suggestions on short screens).
     // Initialised at mount and kept in sync via resize listener in onMount below.
     let viewportHeight = $state(typeof window !== 'undefined' ? window.innerHeight : 800);
 
     /** Keep viewportHeight reactive on window resize. Registered/cleaned up in onMount. */
     function handleViewportResize() {
+        // iOS Safari keyboard open/close can emit transient resize values that
+        // trigger layout oscillation. While the input is focused, keep the
+        // previous viewportHeight stable.
+        if (messageInputFocused && isTouchEnvironment) {
+            return;
+        }
         viewportHeight = window.innerHeight;
     }
 
@@ -3146,6 +3155,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      * Called by the ResizeObserver and whenever relevant state changes.
      */
     function recalculateSuggestionsOverlap() {
+        // While typing on touch devices, avoid overlap re-measurement churn that
+        // can cause welcome/suggestions visibility oscillation during keyboard
+        // animation on iOS Safari.
+        if (messageInputFocused && isTouchEnvironment) {
+            return;
+        }
+
         if (!chatSideEl) {
             suggestionsWouldOverlapWelcome = false;
             return;
@@ -3340,7 +3356,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // In both cases the user has signalled intent to type — hiding the greeting frees up
     // vertical space so the suggestions are visible without collision.
     let hideWelcomeForKeyboard = $derived(
-        messageInputFocused && (isEffectivelyNarrow || suggestionsWouldOverlapWelcome)
+        messageInputFocused && (isTouchEnvironment || isEffectivelyNarrow || suggestionsWouldOverlapWelcome)
     );
 
     // Effective chat width: The actual width of the chat area
@@ -7897,6 +7913,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         };
         
+        // Detect touch-capable devices once per mount (used for keyboard
+        // stabilization logic on iOS/iPadOS).
+        isTouchEnvironment = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
         // Listen to both events to catch language changes
         // 'language-changed' fires immediately, 'language-changed-complete' fires after a delay
         window.addEventListener('language-changed', handleLanguageChange);
@@ -8857,7 +8877,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <div
                             class="center-content"
                             bind:this={welcomeContentEl}
-                            transition:fade={{ duration: 300 }}
                         >
                             <div class="team-profile">
                                 <!-- <div class="team-image" class:disabled={!isTeamEnabled}></div> -->
@@ -10604,10 +10623,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         position: absolute;
         /*
          * Center vertically in the space below the daily inspiration banner.
-         * Offset of 30px pushes the content just below the banner midpoint.
-         * (Reduced from 60px to accommodate the recent-chats scroll row.)
+         * Offset of 80px keeps welcome content clear of top-left actions.
          */
-        top: calc(50% + 30px);
+        top: calc(50% + 80px);
         left: 50%;
         transform: translate(-50%, -50%);
         text-align: center;
@@ -10627,12 +10645,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
          * container to thousands of pixels — breaking centering and scroll entirely.
          */
         width: 100%;
-    }
-
-    /* Adjust welcome content position for narrow containers —
-       extra offset avoids collision with the action buttons in the top-left. */
-    .active-chat-container.narrow .center-content {
-        top: calc(50% + 80px);
     }
 
     .team-profile {
