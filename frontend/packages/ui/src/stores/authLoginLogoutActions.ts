@@ -66,15 +66,8 @@ async function syncBrowserTimezone(
 
     // Only sync if different from server or server has no timezone set
     if (browserTimezone === serverTimezone) {
-      console.debug(
-        `[Timezone] Browser timezone matches server (${browserTimezone}), no sync needed`,
-      );
       return;
     }
-
-    console.debug(
-      `[Timezone] Syncing timezone: browser=${browserTimezone}, server=${serverTimezone || "not set"}`,
-    );
 
     // Update local profile first (optimistic update)
     updateProfile({ timezone: browserTimezone });
@@ -97,10 +90,6 @@ async function syncBrowserTimezone(
       console.error(
         "[Timezone] Failed to sync timezone to server:",
         response.statusText,
-      );
-    } else {
-      console.debug(
-        `[Timezone] Successfully synced timezone to server: ${browserTimezone}`,
       );
     }
   } catch (error) {
@@ -128,11 +117,10 @@ export async function login(
   loginMethod?: string, // e.g. "pair" — signals to backend to bypass 2FA for strong auth methods
 ): Promise<LoginResult> {
   try {
-    console.debug(
-      `Attempting login... (TFA Code Provided: ${!!tfaCode}, Type: ${codeType || "otp"}, Stay Logged In: ${stayLoggedIn}, Method: ${loginMethod || "password"})`,
-    );
-
-    const requestBody: Record<string, string> = { hashed_email, lookup_hash };
+    const requestBody: Record<string, string | boolean> = {
+      hashed_email,
+      lookup_hash,
+    };
     if (tfaCode) {
       requestBody.tfa_code = tfaCode;
       requestBody.code_type = codeType || "otp";
@@ -140,7 +128,9 @@ export async function login(
     if (loginMethod) {
       requestBody.login_method = loginMethod;
     }
-    // No need to send stayLoggedIn to backend, it's a frontend storage preference
+    // Send stay_logged_in so the backend stores the correct value in the session record
+    // (used for cookie TTL and displayed in the Sessions settings page)
+    requestBody.stay_logged_in = stayLoggedIn;
 
     // Add sessionId for device fingerprint uniqueness (multi-browser support)
     requestBody.session_id = getSessionId();
@@ -166,12 +156,10 @@ export async function login(
 
     // Use LoginResult type for the response data
     const data: LoginResult = await response.json();
-    console.debug("Login response data:", data);
 
     if (data.success) {
       if (data.tfa_required) {
         // Password OK, 2FA needed
-        console.debug("Login step 1 successful, 2FA required.");
         return {
           success: true,
           tfa_required: true,
@@ -180,17 +168,12 @@ export async function login(
         };
       } else {
         // Full success
-        console.debug("Login fully successful.");
         // Check if user exists before accessing last_opened
         // A user is in signup flow only if last_opened explicitly indicates signup
         // Do not infer signup from tfa_enabled=false (passkey users may not use OTP)
         const inSignupFlow = isSignupPath(data.user?.last_opened);
 
         if (inSignupFlow) {
-          console.debug("User is in signup process:", {
-            last_opened: data.user?.last_opened,
-            tfa_enabled: data.user?.tfa_enabled,
-          });
           // Determine step from last_opened to resume where the user left off
           const step = getStepFromPath(data.user.last_opened);
           currentSignupStep.set(step);
@@ -199,11 +182,6 @@ export async function login(
           // This ensures the signup flow is visible immediately after login
           const { loginInterfaceOpen } = await import("../stores/uiStateStore");
           loginInterfaceOpen.set(true);
-          console.debug(
-            "Set signup step to:",
-            step,
-            "and opened login interface",
-          );
         } else {
           isInSignupProcess.set(false);
         }
@@ -214,7 +192,6 @@ export async function login(
         if (data.ws_token) {
           const { setWebSocketToken } = await import("../utils/cookies");
           setWebSocketToken(data.ws_token);
-          console.debug("[Login] WebSocket token stored from login response");
         } else {
           console.warn(
             "[Login] No ws_token in login response - WebSocket connection may fail on Safari/iPad",
@@ -232,15 +209,9 @@ export async function login(
           resetForcedLogoutInProgress,
         } = await import("./signupState");
         if (get(forcedLogoutInProgress)) {
-          console.debug(
-            "[Login] Resetting forcedLogoutInProgress to false - successful login with valid master key",
-          );
           resetForcedLogoutInProgress();
         }
         if (get(isLoggingOut)) {
-          console.debug(
-            "[Login] Resetting isLoggingOut to false - successful login",
-          );
           isLoggingOut.set(false);
         }
         // Also clear the cleanup marker to prevent future false positives
@@ -270,13 +241,6 @@ export async function login(
                 Object.keys(data.user),
               );
               console.error("[Login] Full user object:", data.user);
-            } else {
-              console.debug("[Login] Auto top-up fields from backend:", {
-                enabled: data.user.auto_topup_low_balance_enabled,
-                threshold: data.user.auto_topup_low_balance_threshold,
-                amount: data.user.auto_topup_low_balance_amount,
-                currency: data.user.auto_topup_low_balance_currency,
-              });
             }
             await userDB.saveUserData(data.user);
             const tfa_enabled = !!data.user.tfa_enabled;
@@ -287,9 +251,6 @@ export async function login(
             const userDarkMode = data.user.darkmode ?? defaultProfile.darkmode;
 
             if (userLanguage && userLanguage !== get(locale)) {
-              console.debug(
-                `Applying user language from login: ${userLanguage}`,
-              );
               locale.set(userLanguage);
             }
 
@@ -408,28 +369,21 @@ export async function login(
  * @returns True if local logout initiated successfully, false otherwise.
  */
 export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
-  console.debug("Attempting to log out and clear local data...");
-
   try {
     // --- Pre-request cleanup (non-cookie items) ---
     // Stop admin log streaming before clearing auth state
     void clientLogForwarder.stop();
 
     // Clear sensitive crypto data BEFORE server request but AFTER any lookups
-    console.debug("[AuthStore] Clearing sensitive data...");
     cryptoService.clearKeyFromStorage(); // Clear master key
     cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
     deleteSessionId();
     // Disconnect WebSocket and clear handlers to prevent connection attempts during logout
-    console.debug(
-      "[AuthStore] Disconnecting WebSocket and clearing handlers...",
-    );
     webSocketService.disconnectAndClearHandlers();
 
     // Clear WebSocket token from sessionStorage
     const { clearWebSocketToken } = await import("../utils/cookies");
     clearWebSocketToken();
-    console.debug("[AuthStore] WebSocket token cleared from sessionStorage");
     // NOTE: Do NOT delete cookies yet - we need them for the server logout request!
 
     if (callbacks?.beforeLocalLogout) {
@@ -439,7 +393,6 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     // --- Reset Local UI State IMMEDIATELY ---
     // This must happen synchronously and early to ensure the UI updates right away,
     // regardless of what happens next. The menu button needs this immediate feedback.
-    console.debug("[AuthStore] Resetting local UI state immediately...");
     const currentLang = get(userProfile).language;
     const currentMode = get(userProfile).darkmode;
     userProfile.set({
@@ -447,7 +400,6 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
       language: currentLang,
       darkmode: currentMode,
     });
-    console.debug("[UserProfileStore] In-memory profile reset via set()");
 
     processedImageUrl.set(null);
     resetTwoFAData();
@@ -494,9 +446,6 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     // closed on mobile). Without this, updateNavFromCache() would use the old list
     // and show hasPrev=true on the intro chat immediately after logout.
     resetChatNavigationList();
-    console.debug(
-      "[AuthStore] Cleared chatListCache, chatMetadataCache, and chatDB.chatKeys during logout",
-    );
 
     // Clear shared chat keys in the background (async, non-blocking)
     clearAllSharedChatKeys().catch((e) =>
@@ -510,9 +459,6 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
       ...authInitialState,
       isInitialized: true,
     });
-    console.debug(
-      "[AuthStore] Local UI state reset complete - menu button should now update immediately.",
-    );
 
     if (callbacks?.afterLocalLogout) {
       await callbacks.afterLocalLogout();
@@ -520,25 +466,15 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
 
     // --- Return immediately so menu button responds instantly ---
     // All remaining cleanup happens in the background
-    console.debug("[AuthStore] Returning to caller - UI updates are complete.");
 
     // --- Background cleanup and server logout (non-blocking) ---
     // These operations run asynchronously and do NOT block the return.
     // This ensures the logout works regardless of server connectivity or DB speed.
     (async () => {
-      console.debug(
-        "[AuthStore] Starting background database and server cleanup...",
-      );
       try {
         // Delete local databases in the background
-        console.debug(
-          "[AuthStore] Attempting local database cleanup in background...",
-        );
         try {
           await userDB.deleteDatabase();
-          console.debug(
-            "[AuthStore] UserDB database deleted successfully in background.",
-          );
         } catch (dbError) {
           console.error(
             "[AuthStore] Failed to delete userDB database:",
@@ -548,9 +484,6 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
         }
         try {
           await chatDB.deleteDatabase();
-          console.debug(
-            "[AuthStore] ChatDB database deleted successfully in background.",
-          );
         } catch (dbError) {
           console.error(
             "[AuthStore] Failed to delete chatDB database:",
@@ -573,15 +506,9 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
 
         // Perform server logout - this ensures the backend is notified even if it's slow
         // If the server is unreachable, the request will fail gracefully and not affect the user
-        console.debug(
-          "[AuthStore] Performing server-side logout operations...",
-        );
         if (!callbacks?.skipServerLogout) {
           try {
             const logoutApiUrl = getApiEndpoint(apiEndpoints.auth.logout);
-            console.debug(
-              "[AuthStore] Sending logout request to server with auth cookies...",
-            );
             // Use AbortController with 10s timeout to prevent the fetch from hanging
             // indefinitely during device sleep/wake when the network is still recovering.
             // Without this, the afterServerCleanup callback (which resets forcedLogoutInProgress)
@@ -605,8 +532,6 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
                   "Server logout request failed:",
                   response.statusText,
                 );
-              } else {
-                console.debug("[AuthStore] Server logout successful.");
               }
             } finally {
               clearTimeout(logoutTimeoutId);
@@ -623,9 +548,6 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
             const policyLogoutApiUrl = getApiEndpoint(
               apiEndpoints.auth.policyViolationLogout,
             );
-            console.debug(
-              "[AuthStore] Sending policy violation logout request to server with auth cookies...",
-            );
             const policyAbortController = new AbortController();
             const policyTimeoutId = setTimeout(() => {
               policyAbortController.abort();
@@ -634,16 +556,12 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
               );
             }, 10_000);
             try {
-              const response = await fetch(policyLogoutApiUrl, {
+              await fetch(policyLogoutApiUrl, {
                 method: "POST",
                 credentials: "include", // Include cookies with request
                 headers: { "Content-Type": "application/json" },
                 signal: policyAbortController.signal,
               });
-              console.debug(
-                "[AuthStore] Policy violation logout response:",
-                response.ok,
-              );
             } finally {
               clearTimeout(policyTimeoutId);
             }
@@ -658,9 +576,6 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
 
         // --- CRITICAL: Delete cookies AFTER server logout request ---
         // This ensures the server receives the refresh token to properly invalidate the session
-        console.debug(
-          "[AuthStore] Deleting all cookies after server logout...",
-        );
         deleteAllCookies();
       } catch (serverError) {
         console.error(
@@ -695,9 +610,6 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
 
     // Attempt to reset essential auth state even on critical error
     try {
-      console.debug(
-        "[AuthStore] Attempting critical error recovery - resetting auth state...",
-      );
       // Clear all sensitive cryptographic data even during error handling
       cryptoService.clearKeyFromStorage();
       cryptoService.clearAllEmailData();
@@ -712,9 +624,6 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
       // Clear WebSocket token from sessionStorage
       const { clearWebSocketToken } = await import("../utils/cookies");
       clearWebSocketToken();
-      console.debug(
-        "[AuthStore] Session ID and WebSocket token cleared in error recovery",
-      );
 
       authStore.set({ ...authInitialState, isInitialized: true });
       const currentLang = get(userProfile)?.language ?? defaultProfile.language;
@@ -724,9 +633,6 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
         language: currentLang,
         darkmode: currentMode,
       });
-      console.debug(
-        "[AuthStore] Critical error recovery complete - UI state reset.",
-      );
     } catch (resetError) {
       console.error(
         "[AuthStore] Failed to reset state even during critical error handling:",
@@ -738,25 +644,15 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     // This ensures that even if something fails locally, the backend is still notified
     (async () => {
       try {
-        console.debug(
-          "[AuthStore] Attempting server logout from error recovery path...",
-        );
         if (!callbacks?.skipServerLogout) {
           try {
             const logoutApiUrl = getApiEndpoint(apiEndpoints.auth.logout);
-            console.debug(
-              "[AuthStore] Sending logout request from error recovery with auth cookies...",
-            );
             const response = await fetch(logoutApiUrl, {
               method: "POST",
               credentials: "include", // Include cookies with request
               headers: { "Content-Type": "application/json" },
             });
-            if (response.ok) {
-              console.debug(
-                "[AuthStore] Server logout successful from error recovery.",
-              );
-            } else {
+            if (!response.ok) {
               console.error(
                 "[AuthStore] Server logout failed from error recovery:",
                 response.statusText,
@@ -777,9 +673,6 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
         // Clear WebSocket token from sessionStorage
         const { clearWebSocketToken } = await import("../utils/cookies");
         clearWebSocketToken();
-        console.debug(
-          "[AuthStore] Session ID and WebSocket token cleared in background error recovery",
-        );
 
         // Try afterServerCleanup even in error recovery
         if (callbacks?.afterServerCleanup) {
@@ -810,7 +703,6 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
  * Includes deletion of Stripe cookies (__stripe_mid, __stripe_sid) and all other cookies.
  */
 export function deleteAllCookies(): void {
-  console.debug("[AuthStore] Deleting all cookies...");
   const cookies = document.cookie.split(";");
 
   for (let i = 0; i < cookies.length; i++) {
@@ -824,6 +716,4 @@ export function deleteAllCookies(): void {
       document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
     }
   }
-
-  console.debug("[AuthStore] All cookies deleted");
 }

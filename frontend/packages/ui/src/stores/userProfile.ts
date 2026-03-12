@@ -37,6 +37,7 @@ export interface UserProfile {
   random_explore_apps_timestamp?: number; // Unix timestamp when random apps were generated (for daily refresh)
   // Push notification settings (synced with server)
   push_notification_enabled?: boolean;
+  push_notification_subscription?: PushSubscriptionJSON | null; // Browser push subscription object (stored server-side)
   push_notification_preferences?: {
     newMessages: boolean;
     serverEvents: boolean;
@@ -119,10 +120,6 @@ export async function loadUserProfileFromDB(): Promise<void> {
         ...currentProfile, // Keep any existing non-persistent state if needed
         ...profileFromDB, // Overwrite with fresh data from DB (includes consents)
       }));
-      console.debug(
-        "[UserProfileStore] Profile loaded from DB:",
-        profileFromDB,
-      );
 
       // Sync push notification settings from profile to push notification store
       // This ensures bannerShownBefore, enabled, and preferences are loaded from server-synced data
@@ -133,10 +130,6 @@ export async function loadUserProfileFromDB(): Promise<void> {
         push_notification_banner_shown:
           profileFromDB.push_notification_banner_shown,
       });
-    } else {
-      console.debug(
-        "[UserProfileStore] No profile found in DB, using default.",
-      );
     }
   } catch (error) {
     console.error("Failed to load user profile from database:", error);
