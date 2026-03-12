@@ -2260,7 +2260,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     };
     let recentChats = $state<RecentChatMeta[]>([]);
     let recentChatsScrollEl = $state<HTMLElement | null>(null);
-    const RECENT_CHATS_LIMIT = 20;
+    const RECENT_CHATS_LIMIT = 10;
 
     /**
      * Load up to RECENT_CHATS_LIMIT recent real chats from IndexedDB.
@@ -10397,9 +10397,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         position: absolute;
         /*
          * Center vertically in the space below the daily inspiration banner.
-         * Offset of 60px pushes the content just below the banner midpoint.
+         * Offset of 30px pushes the content just below the banner midpoint.
+         * (Reduced from 60px to accommodate the recent-chats scroll row.)
          */
-        top: calc(50% + 60px);
+        top: calc(50% + 30px);
         left: 50%;
         transform: translate(-50%, -50%);
         text-align: center;
@@ -10415,7 +10416,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     /* Adjust welcome content position for narrow containers */
     .active-chat-container.narrow .center-content {
-        top: calc(50% + 60px);
+        top: calc(50% + 30px);
     }
 
     .team-profile {
@@ -10535,7 +10536,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         scroll-behavior: smooth;
         scrollbar-width: none;
         -ms-overflow-style: none;
-        padding: 12px 48px;
+        /* Left padding = half viewport minus half card width (300/2=150)
+           so the first card starts centered in the viewport. */
+        padding: 12px 48px 12px calc(50vw - 150px);
         margin-top: 10px;
         pointer-events: auto;
         width: 100vw;
@@ -10762,7 +10765,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     /* Centered content overlay */
     .resume-large-content {
         position: relative;
-        z-index: 2;
+        z-index: 3;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -10770,6 +10773,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         padding: 16px 24px;
         max-width: 260px;
         width: 100%;
+        /* Ensure text is readable over the gradient orbs */
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
     }
 
     .resume-large-icon {
@@ -10837,7 +10842,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             transparent 85%
         );
         filter: blur(22px);
-        opacity: 0.55;
+        opacity: 0.35;
         will-change: transform, border-radius;
     }
 
