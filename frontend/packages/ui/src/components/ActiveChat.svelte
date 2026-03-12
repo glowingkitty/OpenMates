@@ -11051,7 +11051,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .resume-large-orbs {
         position: absolute;
         inset: 0;
-        z-index: 0;
+        z-index: -1;
         pointer-events: none;
         overflow: hidden;
         border-radius: 30px; /* match card border-radius so orbs don't bleed */
