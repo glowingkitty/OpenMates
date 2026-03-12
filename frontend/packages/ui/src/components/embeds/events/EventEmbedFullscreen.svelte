@@ -284,7 +284,7 @@
   {onNavigatePrevious}
   {onNavigateNext}
   {mapCenter}
-  mapZoom={15}
+  mapZoom={13}
   {mapMarkers}
 >
   {#snippet detailContent()}
