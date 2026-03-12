@@ -42,7 +42,8 @@ docker compose --env-file .env -f docker-compose.playwright.yml run --rm playwri
 # Signup flows:
 docker compose --env-file .env -f docker-compose.playwright.yml run --rm \
   -e SIGNUP_TEST_EMAIL_DOMAINS -e MAILOSAUR_API_KEY \
-  -e PLAYWRIGHT_TEST_FILE="signup-flow.spec.ts" playwright
+  -e PLAYWRIGHT_TEST_BASE_URL="${E2E_DEV_TEST_BASE_URL:-https://app.dev.openmates.org}" \
+  -e PLAYWRIGHT_TEST_FILE="signup-flow.spec.ts" playwright 2>&1 | tail -200
 ```
 
 **Env vars:** `PLAYWRIGHT_TEST_FILE`, `PLAYWRIGHT_TEST_GREP`, `PLAYWRIGHT_TEST_BASE_URL`

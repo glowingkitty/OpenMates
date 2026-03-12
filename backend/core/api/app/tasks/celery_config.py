@@ -1099,29 +1099,22 @@ app.conf.beat_schedule = {
         'options': {'queue': 'leaderboard'},  # Route to leaderboard queue
         # Fetches all categories (overall, coding, math, creative) for Best-of aliases
     },
-    # E2E Test Automation - hourly test runs for development environment
-    'e2e-tests-dev-hourly': {
-        'task': 'e2e_tests.run_dev_tests',
-        'schedule': crontab(minute=0),  # Every hour at minute 0
-        'options': {'queue': 'e2e_tests'},  # Route to e2e_tests queue
-    },
-    # E2E Test Automation - signup tests run less frequently (once per day)
-    # These consume Mailosaur credits and create real accounts
-    'e2e-tests-signup-daily': {
-        'task': 'e2e_tests.run_signup_tests',
-        'schedule': crontab(hour=6, minute=30),  # Daily at 6:30 AM UTC
-        'options': {'queue': 'e2e_tests'},  # Route to e2e_tests queue
-        'kwargs': {'environment': 'development'},
-    },
     # Full automated daily test run — shells out to scripts/run-tests-daily.sh
+    # Only active when E2E_DAILY_RUN_ENABLED=true in the environment.
+    # This env var is intentionally NOT set on production, so the Beat scheduler
+    # on production is completely silent — no test tasks ever fire there.
+    # Set E2E_DAILY_RUN_ENABLED=true only on the dev server.
+    #
     # Skips automatically if no git commits were made in the last 24 hours.
     # Sends a single summary email: "All tests successful" or "Warning: X of Y tests failed!"
     # 03:00 UTC = 04:00 CET (avoids the 02:xx UTC maintenance window for other jobs)
-    'e2e-tests-daily-full': {
-        'task': 'e2e_tests.run_daily_all_tests',
-        'schedule': crontab(hour=3, minute=0),  # Daily at 03:00 UTC (04:00 CET / Berlin time)
-        'options': {'queue': 'e2e_tests'},
-    },
+    **({
+        'e2e-tests-daily-full': {
+            'task': 'e2e_tests.run_daily_all_tests',
+            'schedule': crontab(hour=3, minute=0),  # Daily at 03:00 UTC (04:00 CET / Berlin time)
+            'options': {'queue': 'e2e_tests'},
+        },
+    } if os.environ.get('E2E_DAILY_RUN_ENABLED', '').lower() == 'true' else {}),
     # 'cleanup-uncompleted-signups': {
     #     'task': 'app.tasks.persistence_tasks.cleanup_uncompleted_signups',
     #     'schedule': crontab(hour=3, minute=0),  # Every day at 3 AM UTC
