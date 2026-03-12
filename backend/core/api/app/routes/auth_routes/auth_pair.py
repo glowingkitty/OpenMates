@@ -268,7 +268,6 @@ async def pair_credentials(
     request: Request,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
-    cache_service: CacheService = Depends(get_cache_service),
 ) -> PairCredentialsResponse:
     """
     Return pair-login credentials for the authenticated authorizing device.
@@ -285,12 +284,13 @@ async def pair_credentials(
     )
 
     # hashed_email is not on the User model — read it from the cached user profile or Directus.
+    # get_user_profile checks cache first (key: user_profile:{id}), then fetches from Directus.
     hashed_email: str | None = None
-    cached_profile = await cache_service.get_user_data(current_user.id)
-    if cached_profile:
-        hashed_email = cached_profile.get("hashed_email")
+    profile_ok, profile_data, _ = await directus_service.get_user_profile(current_user.id)
+    if profile_ok and profile_data:
+        hashed_email = profile_data.get("hashed_email")
     if not hashed_email:
-        # Fallback: fetch directly from Directus
+        # Fallback: fetch hashed_email directly from Directus (in case profile cache is stale)
         user_fields = await directus_service.get_user_fields_direct(current_user.id, ["hashed_email"])
         if user_fields:
             hashed_email = user_fields.get("hashed_email")
