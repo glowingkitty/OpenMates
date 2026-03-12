@@ -348,8 +348,9 @@
     --icon-url-lifecoaching: url('@openmates/ui/static/icons/lifecoaching.svg');
     --icon-url-lock: url('@openmates/ui/static/icons/lock.svg');
     --icon-url-log: url('@openmates/ui/static/icons/log.svg');
-    --icon-url-logout: url('@openmates/ui/static/icons/logout.svg');
-    --icon-url-mail: url('@openmates/ui/static/icons/mail.svg');
+     --icon-url-logout: url('@openmates/ui/static/icons/logout.svg');
+     --icon-url-luma: url('@openmates/ui/static/icons/luma.svg');
+     --icon-url-mail: url('@openmates/ui/static/icons/mail.svg');
     --icon-url-maps: url('@openmates/ui/static/icons/maps.svg');
     --icon-url-math: url('@openmates/ui/static/icons/math.svg');
     --icon-url-mattermost: url('@openmates/ui/static/icons/mattermost.svg');
