@@ -37,7 +37,7 @@ async def _fetch_new_chat_suggestions(
         # Fallback to Directus if cache miss
         logger.info(f"Phase 1: Cache MISS for new chat suggestions, fetching from Directus for user {user_id[:8]}...")
         new_chat_suggestions = await directus_service.chat.get_new_chat_suggestions_for_user(
-            hashed_user_id, limit=50
+            hashed_user_id, limit=30
         )
         
         # Cache for future requests

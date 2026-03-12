@@ -2073,9 +2073,13 @@ async def _async_persist_new_chat_suggestions(
 ):
     """
     Async logic for persisting new chat suggestions to separate Directus collection.
-    Maintains last 50 suggestions per user.
-    Uses bulk creation to reduce API calls from N to 1.
+    Maintains last 30 suggestions per user (rolling window — oldest are deleted on overflow).
+    After saving, invalidates the Redis cache so the next Phase 1 sync serves fresh suggestions.
     """
+    # Maximum number of new chat suggestions to keep per user.
+    # Older suggestions beyond this limit are deleted to prevent stale suggestions from surfacing.
+    MAX_NEW_CHAT_SUGGESTIONS = 30
+
     logger.info(
         f"Task _async_persist_new_chat_suggestions (task_id: {task_id}): "
         f"Persisting {len(encrypted_suggestions)} suggestions for user {hashed_user_id}"
@@ -2107,14 +2111,14 @@ async def _async_persist_new_chat_suggestions(
                     collection="new_chat_suggestions",
                     payload=suggestion_record
                 )
-                
+
                 if not success:
                     logger.warning(f"Failed to create single suggestion for user {hashed_user_id}: {result}")
                     failed_count += 1
             except Exception as e:
                 logger.warning(f"Exception creating single suggestion for user {hashed_user_id}: {e}")
                 failed_count += 1
-        
+
         if failed_count > 0:
             logger.warning(f"Created {len(suggestion_records) - failed_count}/{len(suggestion_records)} new chat suggestions (task_id: {task_id}), {failed_count} failed")
         else:
@@ -2127,49 +2131,63 @@ async def _async_persist_new_chat_suggestions(
         if failed_count == len(suggestion_records):
             raise RuntimeError(f"Failed to create all {len(suggestion_records)} suggestions")
 
-        # Maintain limit of 50 suggestions per user (delete oldest in bulk)
-        # Get count of suggestions for this user
+        # Enforce rolling window of MAX_NEW_CHAT_SUGGESTIONS per user.
+        # Fetch all suggestions, delete any beyond the limit (oldest first, sorted by created_at desc).
+        # NOTE: sort by created_at DESC requires Directus permissions — falls back gracefully if denied.
         try:
-            # Get all suggestions to count them (without sorting to avoid permissions errors)
-            # NOTE: We removed sort to avoid Directus permissions issues
-            # This means we might not delete the truly oldest ones, but that's acceptable
-            # since suggestions are randomized on the client anyway
             existing_suggestions = await directus_service.get_items(
                 collection="new_chat_suggestions",
                 params={
                     "filter": {"hashed_user_id": {"_eq": hashed_user_id}},
-                    # Removed sort to avoid Directus permissions error
-                    "limit": 1000  # Get all to count (assumption: wont have thousands)
+                    "sort": ["-created_at"],  # Newest first — may be silently ignored by Directus if not permitted
+                    "limit": 1000  # Fetch all; we assume no user will ever have thousands
                 }
             )
 
-            if len(existing_suggestions) > 50:
-                # Delete suggestions beyond 50 (may not be the oldest due to no sorting, but acceptable)
-                suggestions_to_delete = existing_suggestions[50:]
+            if len(existing_suggestions) > MAX_NEW_CHAT_SUGGESTIONS:
+                # Delete suggestions beyond the limit (items at index MAX+ are the oldest when sorted desc)
+                suggestions_to_delete = existing_suggestions[MAX_NEW_CHAT_SUGGESTIONS:]
                 suggestion_ids_to_delete = [suggestion["id"] for suggestion in suggestions_to_delete]
-                
+
                 # Use bulk delete for efficiency (single HTTP request)
-                success = await directus_service.bulk_delete_items(
+                delete_success = await directus_service.bulk_delete_items(
                     collection="new_chat_suggestions",
                     item_ids=suggestion_ids_to_delete
                 )
-                
-                if success:
+
+                if delete_success:
                     logger.info(
                         f"Deleted {len(suggestions_to_delete)} suggestions for user {hashed_user_id} "
-                        f"to maintain 50-suggestion limit (task_id: {task_id})"
+                        f"to maintain {MAX_NEW_CHAT_SUGGESTIONS}-suggestion limit (task_id: {task_id})"
                     )
                 else:
                     logger.warning(
                         f"Failed to bulk delete {len(suggestions_to_delete)} suggestions for user {hashed_user_id}"
                     )
         except Exception as cleanup_error:
-            # Log the error but don't fail the entire task
-            # This allows suggestions to be created even if cleanup fails due to permissions
+            # Log the error but don't fail the entire task.
+            # New suggestions were already created successfully.
             logger.warning(
                 f"Failed to cleanup old suggestions for user {hashed_user_id} (task_id: {task_id}). "
                 f"This is likely due to Directus permissions. Error: {cleanup_error}. "
                 f"New suggestions were still created successfully."
+            )
+
+        # CRITICAL: Invalidate the Redis cache so the next Phase 1 sync fetches the updated
+        # suggestion pool from Directus instead of serving the stale cached snapshot.
+        # Without this, newly generated suggestions are invisible for up to 10 minutes.
+        try:
+            cache_service = CacheService()
+            await cache_service.delete_new_chat_suggestions(hashed_user_id)
+            logger.info(
+                f"Invalidated new_chat_suggestions cache for user {hashed_user_id} (task_id: {task_id})"
+            )
+        except Exception as cache_error:
+            # Non-fatal: the cache will expire naturally after its TTL (10 min).
+            # Log a warning but do not raise — the suggestions were persisted successfully.
+            logger.warning(
+                f"Failed to invalidate new_chat_suggestions cache for user {hashed_user_id} "
+                f"(task_id: {task_id}): {cache_error}"
             )
 
     except Exception as e:
