@@ -655,7 +655,14 @@ def _prefetch_debug_context(subcommand: str, entity_id: str, label: str) -> str:
     ]
     rc, stdout, stderr = _run_cmd(cmd, timeout=30)
     if rc != 0 or not stdout.strip():
-        err = (stderr or "no output").strip()[:200]
+        err = (stderr or stdout or "no output").strip()[:300]
+        # Detect device-not-approved 403 specifically and give an actionable hint
+        if "device" in err.lower() and ("approved" in err.lower() or "confirm" in err.lower()):
+            return (
+                f"[!] Production API key device not approved for {label} {entity_id}.\n"
+                "    Fix: log in to production → Settings → Developers → Devices → approve the pending device.\n"
+                "    Then re-run this session start command."
+            )
         return f"[!] Could not fetch {label} {entity_id}: {err}\n    (Is the api container running?)"
     return stdout.strip()
 

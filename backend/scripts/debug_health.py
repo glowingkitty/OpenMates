@@ -230,8 +230,19 @@ async def check_log_access() -> Tuple[bool, bool]:
                 prod_ok = True
                 print(_ok("  Production logs   — Admin API reachable and authenticated"))
             elif resp.status_code in (401, 403):
-                print(_err(f"  Production logs — API key rejected (HTTP {resp.status_code})"))
-                print(_c(DIM, "    Regenerate the key: admin user → API Keys → create new, update SECRET__ADMIN__DEBUG_CLI__API_KEY"))
+                # Try to detect the specific "device not approved" case from the response body
+                try:
+                    body = resp.json()
+                    detail = body.get("detail", "")
+                except Exception:
+                    detail = resp.text[:200]
+                if "device" in detail.lower() and ("approved" in detail.lower() or "confirm" in detail.lower()):
+                    print(_err(f"  Production logs — API key device not approved (HTTP {resp.status_code})"))
+                    print(_c(DIM, "    The API key is valid but this device hasn't been confirmed yet."))
+                    print(_c(DIM, "    Fix: log in to production → Settings → Developers → Devices → approve the pending device."))
+                else:
+                    print(_err(f"  Production logs — API key rejected (HTTP {resp.status_code})"))
+                    print(_c(DIM, "    Regenerate the key: admin user → API Keys → create new, update SECRET__ADMIN__DEBUG_CLI__API_KEY"))
             else:
                 print(_err(f"  Production logs — unexpected HTTP {resp.status_code} from {probe_url}"))
         except Exception as exc:
