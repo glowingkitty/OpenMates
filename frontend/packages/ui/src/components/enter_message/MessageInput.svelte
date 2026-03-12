@@ -388,82 +388,15 @@
     // --- Blur timeout tracking ---
     let blurTimeoutId: NodeJS.Timeout | null = null; // Track blur timeout to cancel it if focus is regained
     
-    // --- Mobile keyboard viewport scroll fix ---
-    // On iOS Safari the virtual keyboard resizes window.visualViewport but does NOT
-    // reliably scroll the focused element into view, causing the message input to be
-    // hidden behind the keyboard until the user taps multiple times. Android Chrome
-    // handles this better natively, but edge cases exist there too (e.g. complex
-    // flex layouts, PWA mode). Applying the fix universally on touch devices is safe
-    // because scrollIntoView({ block: 'nearest' }) is a no-op when already visible.
-    // We track the listener reference so we can clean it up on blur and on destroy.
-    let viewportResizeListener: (() => void) | null = null;
-    // Scroll timeout used to debounce the viewport-resize scroll callback
-    let scrollIntoViewTimeout: ReturnType<typeof setTimeout> | null = null;
-
-    /** Returns true when running on a touch-capable device (mobile / tablet). */
-    function isTouchDevice(): boolean {
-        if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
-        return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    }
-
-    /**
-     * Scroll the message input wrapper into the visible area after the mobile
-     * keyboard has animated in and resized window.visualViewport.
-     * Called both from the visualViewport resize handler and as a plain timeout
-     * fallback for browsers without visualViewport support.
-     */
-    function scrollInputIntoView() {
-        if (!messageInputWrapper) return;
-        try {
-            messageInputWrapper.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-            console.debug('[MessageInput] Scrolled input into view after keyboard open');
-        } catch {
-            // Fallback for browsers that don't support options on scrollIntoView
-            try { messageInputWrapper.scrollIntoView(false); } catch { /* ignore */ }
-        }
-    }
-
-    /**
-     * Attach the viewport-resize listener that fires once the mobile keyboard has
-     * finished appearing and scrolls the input into view.
-     * Only runs on touch devices; safe no-op on desktop.
-     */
-    function attachViewportListener() {
-        if (!isTouchDevice()) return;
-        detachViewportListener(); // Ensure no duplicate listeners
-
-        if (window.visualViewport) {
-            // visualViewport fires 'resize' when the keyboard appears/disappears.
-            // Debounce because the event can fire multiple times during keyboard animation.
-            viewportResizeListener = () => {
-                if (scrollIntoViewTimeout) clearTimeout(scrollIntoViewTimeout);
-                scrollIntoViewTimeout = setTimeout(scrollInputIntoView, 80);
-            };
-            window.visualViewport.addEventListener('resize', viewportResizeListener);
-            console.debug('[MessageInput] Attached visualViewport resize listener for mobile keyboard');
-        }
-
-        // Unconditional fallback timeout — fires ~300 ms after focus (keyboard animation
-        // typically completes within 250–300 ms on both iOS and Android). Covers devices
-        // where visualViewport is unavailable or the resize event misfires.
-        if (scrollIntoViewTimeout) clearTimeout(scrollIntoViewTimeout);
-        scrollIntoViewTimeout = setTimeout(scrollInputIntoView, 320);
-    }
-
-    /**
-     * Remove the viewport-resize listener and cancel any pending scroll timeout.
-     */
-    function detachViewportListener() {
-        if (viewportResizeListener && window.visualViewport) {
-            window.visualViewport.removeEventListener('resize', viewportResizeListener);
-            viewportResizeListener = null;
-            console.debug('[MessageInput] Detached visualViewport resize listener');
-        }
-        if (scrollIntoViewTimeout) {
-            clearTimeout(scrollIntoViewTimeout);
-            scrollIntoViewTimeout = null;
-        }
-    }
+    // --- Mobile keyboard viewport scroll fix (CSS-based) ---
+    // The iOS Safari keyboard fix is handled at the page layout level (+page.svelte):
+    // a visualViewport resize listener on the root sets --keyboard-height on .main-content,
+    // which shrinks the chat container above the keyboard via CSS calc().
+    //
+    // We intentionally do NOT use scrollIntoView() here. The message input sits inside
+    // a chain of overflow:hidden ancestors (.active-chat-container, .chat-wrapper), so
+    // scrollIntoView() has no scrollable ancestor to act on and silently does nothing on
+    // iOS Safari. Calling it was actively fighting the browser's native behaviour.
 
     // --- Initial mount tracking ---
     let isInitialMount = $state(true); // Flag to prevent auto-focus during initial mount
@@ -1779,22 +1712,12 @@
             editor.commands.focus('end');
         }
         
-        // Mobile keyboards (iOS Safari, Android Chrome, etc.): attach a viewport-
-        // resize listener so the input scrolls into view after the virtual keyboard
-        // finishes animating in. Fixes the common issue where the message field is
-        // hidden behind the keyboard and only becomes visible after multiple taps.
-        attachViewportListener();
-        
         // Re-check mention trigger when focus is regained
         // This ensures the dropdown reappears if cursor is right after '@'
         checkMentionTrigger(editor);
     }
 
     function handleEditorBlur({ editor }: { editor: Editor }) {
-        // Mobile: remove viewport-resize listener as soon as the editor loses focus
-        // (keyboard is about to hide — no need to scroll anymore).
-        detachViewportListener();
-
         // Cancel any existing blur timeout before creating a new one
         if (blurTimeoutId) {
             clearTimeout(blurTimeoutId);
@@ -2493,8 +2416,6 @@
             clearTimeout(mountCompleteTimeout);
             mountCompleteTimeout = null;
         }
-        // Always clean up the viewport listener on destroy
-        detachViewportListener();
         document.removeEventListener('embedclick', handleEmbedClick as EventListener);
         document.removeEventListener('mateclick', handleMateClick as EventListener);
         editorElement?.removeEventListener('embed-context-menu', handleEmbedContextMenu as EventListener);
