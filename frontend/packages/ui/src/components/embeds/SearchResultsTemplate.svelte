@@ -315,6 +315,15 @@
     margin: 0 auto;
   }
 
+  /* Override fixed desktop card dimensions so cards fill their grid cell.
+     UnifiedEmbedPreview.desktop has width/min-width/max-width: 300px hardcoded —
+     those must be overridden here so cards don't overflow narrower grid columns. */
+  .search-template-grid :global(.unified-embed-preview.desktop) {
+    width: 100% !important;
+    min-width: unset !important;
+    max-width: 320px !important;
+  }
+
   /* Skeleton loading cards */
   .search-template-skeleton {
     border-radius: 12px;
