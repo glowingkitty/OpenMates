@@ -43,7 +43,7 @@ import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte"
 import PdfSearchEmbedPreview from "../../../embeds/pdf/PdfSearchEmbedPreview.svelte";
 import MailEmbedPreview from "../../../embeds/mail/MailEmbedPreview.svelte";
 import EventEmbedPreview from "../../../embeds/events/EventEmbedPreview.svelte";
-import MapsLocationEmbedPreview from "../../../embeds/maps/MapsLocationEmbedPreview.svelte";
+import MapLocationEmbedPreview from "../../../embeds/maps/MapLocationEmbedPreview.svelte";
 import { proxyFavicon, proxyImage } from "../../../../utils/imageProxy";
 
 // Track mounted components for cleanup
@@ -3810,14 +3810,12 @@ export class GroupRenderer implements EmbedRenderer {
   // =========================================================================
 
   /**
-   * Render a single maps-place embed using MapsLocationEmbedPreview.
+   * Render a single maps-place embed using MapLocationEmbedPreview.
    *
-   * Note: maps-place child embeds from a search result carry different data than
-   * the user-inserted maps (direct "location" type). The Preview component accepts
-   * flat fields: name, address, locationType, placeType, mapImageUrl, status.
-   *
-   * Fullscreen: not dispatched — MapsLocationEmbedFullscreen for individual place results
-   * has no top-level route in ActiveChat.svelte. Add one to enable fullscreen from [!] previews.
+   * maps-place child embeds from a search result carry different data than
+   * the user-inserted maps (direct "location" type). This component shows
+   * a compact preview card (name, rating, address, type) that opens
+   * MapLocationEmbedFullscreen on click via embedfullscreen event dispatch.
    */
   private async renderMapsPlaceComponent(
     item: EmbedNodeAttributes,
@@ -3832,20 +3830,24 @@ export class GroupRenderer implements EmbedRenderer {
       "finished") as "processing" | "finished" | "error";
 
     // Extract flat props from TOON content — field names follow the backend schema
-    const name =
-      decodedContent?.name ||
+    const displayName =
       (decodedContent?.displayName as string | undefined) ||
+      (decodedContent?.name as string | undefined) ||
       "";
-    const address =
-      decodedContent?.formatted_address ||
+    const formattedAddress =
       (decodedContent?.formattedAddress as string | undefined) ||
-      decodedContent?.address ||
+      (decodedContent?.formatted_address as string | undefined) ||
+      (decodedContent?.address as string | undefined) ||
       "";
-    const locationType =
-      (decodedContent?.location_type as string | undefined) || "";
+    const rating = decodedContent?.rating as number | undefined;
+    const userRatingCount = decodedContent?.userRatingCount as
+      | number
+      | undefined;
     const placeType = (decodedContent?.place_type as string | undefined) || "";
-    const mapImageUrl =
-      (decodedContent?.map_image_url as string | undefined) || "";
+
+    const handleFullscreen = () => {
+      this.openFullscreen(item, embedData, decodedContent);
+    };
 
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
@@ -3859,41 +3861,40 @@ export class GroupRenderer implements EmbedRenderer {
 
     if (!content.isConnected) {
       console.warn(
-        "[GroupRenderer] Skipping MapsLocationEmbedPreview mount — target detached from DOM",
+        "[GroupRenderer] Skipping MapLocationEmbedPreview mount — target detached from DOM",
       );
       return;
     }
 
     try {
-      const component = mount(MapsLocationEmbedPreview, {
+      const component = mount(MapLocationEmbedPreview, {
         target: content,
         props: {
           id: embedId,
-          name,
-          address,
-          locationType,
+          displayName,
+          formattedAddress,
+          rating,
+          userRatingCount,
           placeType,
-          mapImageUrl,
           status,
           isMobile: false,
-          // No onFullscreen: MapsLocationEmbedFullscreen has no top-level route in ActiveChat.
-          // Once a top-level route is added, dispatch embedfullscreen here.
+          onFullscreen: handleFullscreen,
         },
       });
 
       mountedComponents.set(content, component);
       console.debug(
-        "[GroupRenderer] Mounted MapsLocationEmbedPreview component:",
+        "[GroupRenderer] Mounted MapLocationEmbedPreview component:",
         {
           embedId,
-          name,
+          displayName,
           status,
         },
       );
     } catch (error) {
       const err = error as Error;
       console.error(
-        "[GroupRenderer] Error mounting MapsLocationEmbedPreview:",
+        "[GroupRenderer] Error mounting MapLocationEmbedPreview:",
         err?.name,
         err?.message,
         err?.stack,
