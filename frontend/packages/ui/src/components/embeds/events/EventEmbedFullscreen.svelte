@@ -342,20 +342,19 @@
       </div>
     {/if}
 
+    <!-- Primary CTA (kept above About to avoid requiring scroll before action) -->
+    {#if event.url}
+      <button onclick={handleOpenEvent}>
+        {openButtonText}
+      </button>
+    {/if}
+
     <!-- Description -->
     {#if event.description}
       <div class="event-section">
         <div class="section-label">About</div>
         <div class="event-description">{event.description}</div>
       </div>
-    {/if}
-  {/snippet}
-
-  {#snippet ctaContent()}
-    {#if event.url}
-      <button onclick={handleOpenEvent}>
-        {openButtonText}
-      </button>
     {/if}
   {/snippet}
 </EntryWithMapTemplate>
