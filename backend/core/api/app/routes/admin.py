@@ -225,6 +225,133 @@ async def get_community_suggestions(
         logger.error(f"Error getting community suggestions: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to get community suggestions")
 
+@router.get("/demo-chat/{demo_chat_id}/preview")
+@limiter.limit("60/minute")
+async def get_demo_chat_preview(
+    request: Request,
+    demo_chat_id: str,
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service)
+) -> Dict[str, Any]:
+    """
+    Get decrypted messages and embeds for a pending demo chat (for admin preview).
+
+    Since the user submitted decrypted content when sharing with the community,
+    the server stores it in demo_messages / demo_embeds tables.
+    This endpoint lets admins review the full chat content before approving.
+
+    Returns messages and embeds in cleartext (already decrypted by client at submission time).
+    Includes embed children with parent_embed_id for correct rendering.
+    """
+    try:
+        import json
+
+        # Verify the demo chat exists and belongs to a pending_approval entry
+        demo_chats = await directus_service.get_items("demo_chats", {
+            "filter": {"id": {"_eq": demo_chat_id}, "is_active": {"_eq": True}},
+            "limit": 1
+        })
+        if not demo_chats:
+            raise HTTPException(status_code=404, detail="Demo chat not found")
+
+        demo_chat = demo_chats[0]
+
+        # Get messages (language="original" for pending chats, not yet translated)
+        messages = await directus_service.demo_chat.get_demo_messages_by_uuid(demo_chat_id, "original")
+        if not messages:
+            # Fallback: try without language filter (some older entries may differ)
+            messages = []
+
+        # Get embeds (always "original" language - embeds are never translated)
+        embeds = await directus_service.demo_chat.get_demo_embeds_by_uuid(demo_chat_id, "original")
+
+        # Build message list
+        parsed_messages = []
+        for msg in (messages or []):
+            content = msg.get("content", "")
+            # Strip user_message_id from system messages (privacy — leaks original chat metadata)
+            if msg.get("role") == "system" and content:
+                try:
+                    parsed_content = json.loads(content)
+                    if isinstance(parsed_content, dict) and "user_message_id" in parsed_content:
+                        del parsed_content["user_message_id"]
+                        content = json.dumps(parsed_content)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            parsed_messages.append({
+                "message_id": str(msg.get("id")),
+                "role": msg.get("role"),
+                "content": content,
+                "category": msg.get("category"),
+                "model_name": msg.get("model_name"),
+                "created_at": msg.get("original_created_at")
+            })
+
+        # Build embed list — derive parent-child relationships from embed content.
+        # The demo_embeds table doesn't store embed_ids or parent_embed_id.
+        # However, we can detect parent embeds by looking for embed_ids arrays in
+        # the TOON content (JSON), and child embeds by checking if their
+        # original_embed_id appears in any parent's child list.
+        all_embed_ids = {emb.get("original_embed_id") for emb in (embeds or []) if emb.get("original_embed_id")}
+        
+        # Step 1: Extract child embed ID lists from parent embed content (TOON JSON)
+        parent_child_map: Dict[str, list] = {}  # parent_eid → [child_eid, ...]
+        parent_by_child: Dict[str, str] = {}     # child_eid → parent_eid
+        for emb in (embeds or []):
+            eid = emb.get("original_embed_id")
+            content_str = emb.get("content", "")
+            if not eid or not content_str:
+                continue
+            try:
+                parsed = json.loads(content_str)
+                if isinstance(parsed, dict):
+                    child_ids = parsed.get("embed_ids")
+                    if isinstance(child_ids, list) and len(child_ids) > 0:
+                        # Validate that referenced children exist in our embed set
+                        valid_children = [cid for cid in child_ids if isinstance(cid, str) and cid in all_embed_ids]
+                        if valid_children:
+                            parent_child_map[eid] = valid_children
+                            for cid in valid_children:
+                                parent_by_child.setdefault(cid, eid)
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        # Step 2: Sort embeds — parents first, then children
+        parent_embeds = [e for e in (embeds or []) if e.get("original_embed_id") in parent_child_map]
+        child_embeds = [e for e in (embeds or []) if e.get("original_embed_id") not in parent_child_map]
+        sorted_embeds = parent_embeds + child_embeds
+
+        parsed_embeds = []
+        for emb in sorted_embeds:
+            eid = emb.get("original_embed_id")
+            parsed_embeds.append({
+                "embed_id": eid,
+                "type": emb.get("type"),
+                "content": emb.get("content", ""),
+                "embed_ids": parent_child_map.get(eid),  # Child embed IDs (for parent embeds)
+                "parent_embed_id": parent_by_child.get(eid) if eid else None,  # For child embeds
+                "created_at": emb.get("original_created_at")
+            })
+
+        return {
+            "demo_chat_id": demo_chat_id,
+            "chat_id": demo_chat.get("original_chat_id"),
+            "title": demo_chat.get("title"),
+            "summary": demo_chat.get("summary"),
+            "status": demo_chat.get("status"),
+            "messages": parsed_messages,
+            "embeds": parsed_embeds,
+            "message_count": len(parsed_messages),
+            "embed_count": len(parsed_embeds)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching demo chat preview {demo_chat_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to load demo chat preview")
+
+
 @router.post("/approve-demo-chat")
 @limiter.limit("10/hour")  # Limit demo chat approvals
 async def approve_demo_chat(
