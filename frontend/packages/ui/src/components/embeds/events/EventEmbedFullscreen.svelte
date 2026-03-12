@@ -90,6 +90,25 @@
     } catch { return ''; }
   }
 
+  /**
+   * Compare a Date to today/tomorrow (date portion only, local time).
+   * Returns 'today' | 'tomorrow' | null.
+   */
+  function getRelativeDayLabel(dateStr: string | undefined): 'today' | 'tomorrow' | null {
+    if (!dateStr) return null;
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return null;
+      const now = new Date();
+      const eventDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const today    = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+      if (eventDay.getTime() === today.getTime())    return 'today';
+      if (eventDay.getTime() === tomorrow.getTime()) return 'tomorrow';
+      return null;
+    } catch { return null; }
+  }
+
   function getShortLocation(ev: EventResult): string {
     if (ev.event_type === 'ONLINE') return 'Online';
     if (!ev.venue) return '';
@@ -118,9 +137,10 @@
   let shortLocation  = $derived(getShortLocation(event));
   let headerSubtitle = $derived([shortDate, shortLocation].filter(Boolean).join(' · '));
 
-  let isOnline      = $derived(event.event_type === 'ONLINE');
-  let fullDateStart = $derived(formatFullDate(event.date_start));
-  let fullDateEnd   = $derived(formatFullDate(event.date_end));
+  let isOnline          = $derived(event.event_type === 'ONLINE');
+  let fullDateStart     = $derived(formatFullDate(event.date_start));
+  let fullDateEnd       = $derived(formatFullDate(event.date_end));
+  let relativeDayLabel  = $derived(getRelativeDayLabel(event.date_start));
   let venueAddress  = $derived(getVenueAddress(event));
 
   // Map data — only when venue has coordinates
@@ -207,11 +227,19 @@
       {/if}
     </div>
 
-    <!-- Full date/time -->
+    <!-- Full date/time — show Today/Tomorrow label when applicable -->
     {#if fullDateStart}
       <div class="event-section">
         <div class="section-label">Date & Time</div>
-        <div class="section-value">{fullDateStart}</div>
+        {#if relativeDayLabel === 'today'}
+          <div class="section-value date-relative">Today</div>
+          <div class="section-value secondary">{fullDateStart}</div>
+        {:else if relativeDayLabel === 'tomorrow'}
+          <div class="section-value date-relative">Tomorrow</div>
+          <div class="section-value secondary">{fullDateStart}</div>
+        {:else}
+          <div class="section-value">{fullDateStart}</div>
+        {/if}
         {#if fullDateEnd}
           <div class="section-value secondary">Ends {fullDateEnd}</div>
         {/if}
@@ -250,7 +278,7 @@
 
   {#snippet ctaContent()}
     {#if event.url}
-      <button class="cta-button" onclick={handleOpenEvent}>
+      <button onclick={handleOpenEvent}>
         {openButtonText}
       </button>
     {/if}
@@ -363,33 +391,11 @@
     mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
   }
 
-  .cta-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 13px 32px;
-    border-radius: 100px;
-    font-size: 0.9375rem;
-    font-weight: 500;
-    cursor: pointer;
-    border: none;
-    font-family: 'Lexend Deca', sans-serif;
-    background: linear-gradient(135deg, var(--color-app-events-start, #a20000), var(--color-app-events-end, #e61b3e));
-    color: #fff; /* intentional: always white on brand gradient */
-    transition: opacity 0.15s ease, scale 0.1s ease;
-    filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.2));
-    width: 100%;
-  }
-
-  .cta-button:hover {
-    opacity: 0.9;
-    scale: 1.02;
-  }
-
-  .cta-button:active {
-    opacity: 1;
-    scale: 0.98;
-    filter: none;
+  /* Today / Tomorrow label — larger than the regular date value */
+  .date-relative {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--color-font-primary);
   }
 
   :global(.unified-embed-fullscreen-overlay .skill-icon[data-skill-icon="event"]) {
