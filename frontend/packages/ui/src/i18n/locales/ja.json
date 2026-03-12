@@ -2946,6 +2946,23 @@
         "text": "このレポートは自動日次テスト監視システムによって生成されました。"
       }
     },
+    "test_run_started": {
+      "title": {
+        "text": "テスト実行開始"
+      },
+      "header": {
+        "text": "テスト実行開始"
+      },
+      "trigger_label": {
+        "text": "トリガー"
+      },
+      "started_at_label": {
+        "text": "開始時刻"
+      },
+      "footer_note": {
+        "text": "テストが完了すると、別のメールが届きます。"
+      }
+    },
     "prometheus_alert": {
       "title": {
         "text": "Prometheusアラート通知"
@@ -3950,6 +3967,9 @@
       },
       "share_location": {
         "text": "位置を共有"
+      },
+      "sketch": {
+        "text": "スケッチ"
       },
       "drop_files": {
         "text": "ファイルをドロップしてアップロード"
@@ -9788,6 +9808,38 @@
     },
     "advantage_pay_per_use": {
       "text": "使った分だけ支払い"
+    }
+  },
+  "sketchview": {
+    "close": {
+      "text": "スケッチを閉じる"
+    },
+    "done": {
+      "text": "完了"
+    },
+    "pen": {
+      "text": "ペン"
+    },
+    "eraser": {
+      "text": "消しゴム"
+    },
+    "clear": {
+      "text": "キャンバスをクリア"
+    },
+    "zoom_in": {
+      "text": "ズームイン"
+    },
+    "zoom_out": {
+      "text": "ズームアウト"
+    },
+    "reset_zoom": {
+      "text": "ズームをリセット"
+    },
+    "undo": {
+      "text": "元に戻す"
+    },
+    "custom_color": {
+      "text": "カスタムカラー"
     }
   },
   "team_mates": {

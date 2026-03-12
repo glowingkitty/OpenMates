@@ -17,8 +17,10 @@
     interface Props {
         /** Whether imprecise (area) mode is the default. Controlled by privacy settings. */
         defaultImprecise?: boolean;
+        /** Whether the parent message field is currently in fullscreen mode. */
+        isFullscreen?: boolean;
     }
-    let { defaultImprecise = true }: Props = $props();
+    let { defaultImprecise = true, isFullscreen = false }: Props = $props();
     
     let mapContainer: HTMLElement;
     let map: Map | null = null;
@@ -557,6 +559,10 @@
     function handleClose() {
         cleanupMap();
         dispatch('close');
+    }
+
+    function toggleFullscreen() {
+        dispatch('toggleFullscreen');
     }
 
     // Create a debounced search function
@@ -1210,6 +1216,14 @@
     transition:slide={{ duration: 300, axis: 'y' }}
     onintroend={onTransitionEnd}
 >
+    <!-- Maximize / minimize button — top-right corner of the overlay -->
+    <button
+        class="overlay-fullscreen-btn clickable-icon {isFullscreen ? 'icon_minimize' : 'icon_fullscreen'}"
+        onclick={toggleFullscreen}
+        aria-label={isFullscreen ? $text('enter_message.fullscreen.exit_fullscreen') : $text('enter_message.fullscreen.enter_fullscreen')}
+        use:tooltip
+    ></button>
+
     {#if showPreciseToggle && !showResults}
         <div class="precise-toggle" transition:slide={{ duration: 300, axis: 'y' }}>
             <!-- eslint-disable-next-line svelte/no-at-html-tags -->
@@ -1351,6 +1365,35 @@
         flex-direction: column;
         border-radius: 24px;
         overflow: hidden;
+    }
+
+    /* Maximize/minimize button — top-right corner. Overrides buttons.css global button styles.
+       z-index must be above the Leaflet map tiles (z-index: 1 on .map-container) but below
+       search-results-container (z-index: 100). */
+    .overlay-fullscreen-btn {
+        position: absolute;
+        top: 10px;
+        right: 12px;
+        z-index: 50;
+        min-width: unset !important;
+        width: 32px !important;
+        height: 32px !important;
+        padding: 4px !important;
+        border-radius: 8px !important;
+        background: rgba(255, 255, 255, 0.9) !important;
+        border: none !important;
+        opacity: 0.75;
+        transition: opacity 0.2s ease-in-out;
+        cursor: pointer;
+        margin-right: 0 !important;
+        filter: none !important;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    }
+
+    .overlay-fullscreen-btn:hover {
+        opacity: 1 !important;
+        scale: unset !important;
+        background: rgba(255, 255, 255, 1) !important;
     }
 
     .map-container {

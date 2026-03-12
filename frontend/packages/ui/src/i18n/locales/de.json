@@ -3117,6 +3117,23 @@
         "text": "Dieser Bericht wurde vom automatisierten täglichen Testüberwachungssystem erstellt."
       }
     },
+    "test_run_started": {
+      "title": {
+        "text": "Testlauf gestartet"
+      },
+      "header": {
+        "text": "Testlauf gestartet"
+      },
+      "trigger_label": {
+        "text": "Ausgelöst von"
+      },
+      "started_at_label": {
+        "text": "Gestartet um"
+      },
+      "footer_note": {
+        "text": "Sie erhalten eine weitere E-Mail, sobald der Testlauf abgeschlossen ist."
+      }
+    },
     "prometheus_alert": {
       "title": {
         "text": "Prometheus Alarmbenachrichtigung"
@@ -4130,6 +4147,9 @@
       },
       "share_location": {
         "text": "Standort teilen"
+      },
+      "sketch": {
+        "text": "Skizze"
       },
       "drop_files": {
         "text": "Dateien zum Hochladen ablegen"
@@ -11284,6 +11304,38 @@
     },
     "advantage_pay_per_use": {
       "text": "Nutzungsbasierte Abrechnung"
+    }
+  },
+  "sketchview": {
+    "close": {
+      "text": "Skizze schließen"
+    },
+    "done": {
+      "text": "Fertig"
+    },
+    "pen": {
+      "text": "Stift"
+    },
+    "eraser": {
+      "text": "Radiergummi"
+    },
+    "clear": {
+      "text": "Leinwand leeren"
+    },
+    "zoom_in": {
+      "text": "Vergrößern"
+    },
+    "zoom_out": {
+      "text": "Verkleinern"
+    },
+    "reset_zoom": {
+      "text": "Zoom zurücksetzen"
+    },
+    "undo": {
+      "text": "Rückgängig"
+    },
+    "custom_color": {
+      "text": "Benutzerdefinierte Farbe"
     }
   },
   "team_mates": {

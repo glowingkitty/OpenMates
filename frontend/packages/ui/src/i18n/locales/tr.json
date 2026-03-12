@@ -2844,6 +2844,23 @@
         "text": "Bu rapor otomatik günlük test izleme sistemi tarafından oluşturuldu."
       }
     },
+    "test_run_started": {
+      "title": {
+        "text": "Test çalıştırması başladı"
+      },
+      "header": {
+        "text": "Test çalıştırması başladı"
+      },
+      "trigger_label": {
+        "text": "Tetikleyen"
+      },
+      "started_at_label": {
+        "text": "Başlangıç zamanı"
+      },
+      "footer_note": {
+        "text": "Test tamamlandığında başka bir e-posta alacaksınız."
+      }
+    },
     "prometheus_alert": {
       "title": {
         "text": "Prometheus Uyarı Bildirimi"
@@ -3591,6 +3608,9 @@
       },
       "share_location": {
         "text": "Konum paylaş"
+      },
+      "sketch": {
+        "text": "Taslak"
       },
       "drop_files": {
         "text": "Yüklemek için dosyaları bırakın"
@@ -8176,6 +8196,38 @@
     },
     "advantage_pay_per_use": {
       "text": "Kullandıkça öde"
+    }
+  },
+  "sketchview": {
+    "close": {
+      "text": "Taslağı kapat"
+    },
+    "done": {
+      "text": "Bitti"
+    },
+    "pen": {
+      "text": "Kalem"
+    },
+    "eraser": {
+      "text": "Silgi"
+    },
+    "clear": {
+      "text": "Tuvali temizle"
+    },
+    "zoom_in": {
+      "text": "Yaklaştır"
+    },
+    "zoom_out": {
+      "text": "Uzaklaştır"
+    },
+    "reset_zoom": {
+      "text": "Yakınlaştırmayı sıfırla"
+    },
+    "undo": {
+      "text": "Geri al"
+    },
+    "custom_color": {
+      "text": "Özel renk"
     }
   },
   "team_mates": {},

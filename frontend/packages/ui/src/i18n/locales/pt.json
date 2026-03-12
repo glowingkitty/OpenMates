@@ -2844,6 +2844,23 @@
         "text": "Este relatório foi gerado pelo sistema automatizado de monitoramento diário de testes."
       }
     },
+    "test_run_started": {
+      "title": {
+        "text": "Execução de testes iniciada"
+      },
+      "header": {
+        "text": "Execução de testes iniciada"
+      },
+      "trigger_label": {
+        "text": "Acionado por"
+      },
+      "started_at_label": {
+        "text": "Iniciado às"
+      },
+      "footer_note": {
+        "text": "Você receberá outro e-mail quando a execução dos testes for concluída."
+      }
+    },
     "prometheus_alert": {
       "title": {
         "text": "Notificação de alerta do Prometheus"
@@ -3591,6 +3608,9 @@
       },
       "share_location": {
         "text": "Compartilhar localização"
+      },
+      "sketch": {
+        "text": "Esboço"
       },
       "drop_files": {
         "text": "Solte os arquivos para enviar"
@@ -8239,6 +8259,38 @@
     },
     "advantage_pay_per_use": {
       "text": "Pague por uso"
+    }
+  },
+  "sketchview": {
+    "close": {
+      "text": "Fechar esboço"
+    },
+    "done": {
+      "text": "Pronto"
+    },
+    "pen": {
+      "text": "Caneta"
+    },
+    "eraser": {
+      "text": "Borracha"
+    },
+    "clear": {
+      "text": "Limpar tela"
+    },
+    "zoom_in": {
+      "text": "Ampliar"
+    },
+    "zoom_out": {
+      "text": "Reduzir"
+    },
+    "reset_zoom": {
+      "text": "Redefinir zoom"
+    },
+    "undo": {
+      "text": "Desfazer"
+    },
+    "custom_color": {
+      "text": "Cor personalizada"
     }
   },
   "team_mates": {},

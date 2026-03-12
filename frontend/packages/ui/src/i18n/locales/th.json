@@ -2844,6 +2844,23 @@
         "text": "รายงานนี้สร้างโดยระบบตรวจสอบการทดสอบอัตโนมัติรายวัน"
       }
     },
+    "test_run_started": {
+      "title": {
+        "text": "เริ่มรันการทดสอบแล้ว"
+      },
+      "header": {
+        "text": "เริ่มรันการทดสอบแล้ว"
+      },
+      "trigger_label": {
+        "text": "ทริกเกอร์โดย"
+      },
+      "started_at_label": {
+        "text": "เริ่มเมื่อ"
+      },
+      "footer_note": {
+        "text": "คุณจะได้รับอีเมลอีกฉบับเมื่อการรันการทดสอบเสร็จสิ้น"
+      }
+    },
     "prometheus_alert": {
       "title": {
         "text": "การแจ้งเตือน Prometheus"
@@ -3597,6 +3614,9 @@
       },
       "share_location": {
         "text": "แชร์ตำแหน่ง"
+      },
+      "sketch": {
+        "text": "ภาพร่าง"
       },
       "drop_files": {
         "text": "วางไฟล์เพื่ออัปโหลด"
@@ -8179,6 +8199,38 @@
     },
     "advantage_pay_per_use": {
       "text": "จ่ายตามการใช้งาน"
+    }
+  },
+  "sketchview": {
+    "close": {
+      "text": "ปิดภาพร่าง"
+    },
+    "done": {
+      "text": "เสร็จ"
+    },
+    "pen": {
+      "text": "ปากกา"
+    },
+    "eraser": {
+      "text": "ยางลบ"
+    },
+    "clear": {
+      "text": "ล้างผืนผ้าใบ"
+    },
+    "zoom_in": {
+      "text": "ซูมเข้า"
+    },
+    "zoom_out": {
+      "text": "ซูมออก"
+    },
+    "reset_zoom": {
+      "text": "รีเซ็ตการซูม"
+    },
+    "undo": {
+      "text": "เลิกทำ"
+    },
+    "custom_color": {
+      "text": "สีที่กำหนดเอง"
     }
   },
   "team_mates": {},

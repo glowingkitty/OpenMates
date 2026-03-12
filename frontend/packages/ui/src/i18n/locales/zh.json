@@ -2946,6 +2946,23 @@
         "text": "此报告由自动每日测试监控系统生成。"
       }
     },
+    "test_run_started": {
+      "title": {
+        "text": "测试运行已启动"
+      },
+      "header": {
+        "text": "测试运行已启动"
+      },
+      "trigger_label": {
+        "text": "触发方式"
+      },
+      "started_at_label": {
+        "text": "启动时间"
+      },
+      "footer_note": {
+        "text": "测试运行完成后，您将收到另一封电子邮件。"
+      }
+    },
     "prometheus_alert": {
       "title": {
         "text": "Prometheus警报通知"
@@ -3950,6 +3967,9 @@
       },
       "share_location": {
         "text": "分享位置"
+      },
+      "sketch": {
+        "text": "草图"
       },
       "drop_files": {
         "text": "拖放文件以上传"
@@ -9782,6 +9802,38 @@
     },
     "advantage_pay_per_use": {
       "text": "按使用付费"
+    }
+  },
+  "sketchview": {
+    "close": {
+      "text": "关闭草图"
+    },
+    "done": {
+      "text": "完成"
+    },
+    "pen": {
+      "text": "笔"
+    },
+    "eraser": {
+      "text": "橡皮擦"
+    },
+    "clear": {
+      "text": "清除画布"
+    },
+    "zoom_in": {
+      "text": "放大"
+    },
+    "zoom_out": {
+      "text": "缩小"
+    },
+    "reset_zoom": {
+      "text": "重置缩放"
+    },
+    "undo": {
+      "text": "撤销"
+    },
+    "custom_color": {
+      "text": "自定义颜色"
     }
   },
   "team_mates": {

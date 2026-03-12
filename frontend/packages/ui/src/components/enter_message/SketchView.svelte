@@ -28,6 +28,13 @@
     // ─── Tool types ──────────────────────────────────────────────────────────
     type Tool = 'pen' | 'eraser';
 
+    // ─── Props ───────────────────────────────────────────────────────────────
+    interface Props {
+        /** Whether the parent message field is currently in fullscreen mode. */
+        isFullscreen?: boolean;
+    }
+    let { isFullscreen = false }: Props = $props();
+
     // ─── State ───────────────────────────────────────────────────────────────
     let canvas = $state<HTMLCanvasElement>();
     let ctx: CanvasRenderingContext2D | null = null;
@@ -37,6 +44,12 @@
     let strokeWidth = $state(3);
     let isDrawing = false;
     let hasStrokes = $state(false); // track whether anything has been drawn
+
+    // Undo history: each entry is a full ImageData snapshot taken before each stroke begins.
+    // Capped at MAX_UNDO_STEPS to avoid unbounded memory usage.
+    const MAX_UNDO_STEPS = 30;
+    let undoHistory = $state<ImageData[]>([]);
+    let canUndo = $derived(undoHistory.length > 0);
 
     // Zoom / pan state
     let scale = $state(1);
@@ -149,8 +162,36 @@
         ctx.lineJoin = 'round';
     }
 
+    /** Save the current canvas state to undo history before starting a new stroke. */
+    function saveUndoSnapshot() {
+        if (!ctx) return;
+        const snapshot = ctx.getImageData(0, 0, CANVAS_W, CANVAS_H);
+        undoHistory = [...undoHistory.slice(-(MAX_UNDO_STEPS - 1)), snapshot];
+    }
+
+    /** Undo the last drawn stroke by restoring the previous canvas snapshot. */
+    function undo() {
+        if (!ctx || undoHistory.length === 0) return;
+        const prev = undoHistory[undoHistory.length - 1];
+        undoHistory = undoHistory.slice(0, -1);
+        ctx.putImageData(prev, 0, 0);
+        // Re-evaluate hasStrokes: if we're back to a blank white canvas, mark as empty.
+        // We check pixel data — if any non-white pixel exists, hasStrokes stays true.
+        const data = ctx.getImageData(0, 0, CANVAS_W, CANVAS_H).data;
+        let foundNonWhite = false;
+        for (let i = 0; i < data.length; i += 4) {
+            if (data[i] !== 255 || data[i + 1] !== 255 || data[i + 2] !== 255) {
+                foundNonWhite = true;
+                break;
+            }
+        }
+        hasStrokes = foundNonWhite;
+    }
+
     function startDraw(x: number, y: number) {
         if (!ctx) return;
+        // Snapshot before stroke so it can be undone
+        saveUndoSnapshot();
         isDrawing = true;
         applyToolSettings();
         ctx.beginPath();
@@ -299,10 +340,17 @@
     // ─── Clear canvas ────────────────────────────────────────────────────────
     function clearCanvas() {
         if (!ctx) return;
+        // Save snapshot before clearing so user can undo the clear
+        saveUndoSnapshot();
         ctx.globalCompositeOperation = 'source-over';
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
         hasStrokes = false;
+    }
+
+    /** Toggle fullscreen by dispatching to the parent (MessageInput). */
+    function toggleFullscreen() {
+        dispatch('toggleFullscreen');
     }
 
     // ─── Done / export ───────────────────────────────────────────────────────
@@ -344,6 +392,14 @@
     class="sketch-overlay"
     transition:slide={{ duration: 300, axis: 'y' }}
 >
+    <!-- Maximize / minimize button — top-right corner, always visible over the drawing area -->
+    <button
+        class="overlay-fullscreen-btn clickable-icon {isFullscreen ? 'icon_minimize' : 'icon_fullscreen'}"
+        onclick={toggleFullscreen}
+        aria-label={isFullscreen ? $text('enter_message.fullscreen.exit_fullscreen') : $text('enter_message.fullscreen.enter_fullscreen')}
+        use:tooltip
+    ></button>
+
     <!-- Canvas drawing area -->
     <div
         class="canvas-wrapper"
@@ -469,6 +525,19 @@
 
             <div class="divider"></div>
 
+            <!-- Undo -->
+            <button
+                class="tool-btn {canUndo ? '' : 'disabled-btn'}"
+                onclick={undo}
+                disabled={!canUndo}
+                aria-label={$text('sketchview.undo')}
+                use:tooltip
+            >
+                <span class="undo-icon">↩</span>
+            </button>
+
+            <div class="divider"></div>
+
             <!-- Clear -->
             <button
                 class="tool-btn"
@@ -506,6 +575,34 @@
         flex-direction: column;
         border-radius: 24px;
         overflow: hidden;
+    }
+
+    /* Maximize/minimize button — top-right corner of the overlay.
+       Overrides buttons.css global styles so it stays compact and icon-only. */
+    .overlay-fullscreen-btn {
+        position: absolute;
+        top: 10px;
+        right: 12px;
+        z-index: 10;
+        /* Reset buttons.css overrides */
+        min-width: unset !important;
+        width: 32px !important;
+        height: 32px !important;
+        padding: 4px !important;
+        border-radius: 8px !important;
+        background: rgba(255, 255, 255, 0.85) !important;
+        border: none !important;
+        opacity: 0.7;
+        transition: opacity 0.2s ease-in-out, background 0.15s;
+        cursor: pointer;
+        margin-right: 0 !important;
+        filter: none !important;
+    }
+
+    .overlay-fullscreen-btn:hover {
+        opacity: 1 !important;
+        background: rgba(255, 255, 255, 0.98) !important;
+        scale: 1 !important;
     }
 
     /* Scrollable drawing surface — white background matches the canvas.
@@ -604,54 +701,87 @@
         gap: 4px;
     }
 
+    /* All toolbar buttons: override buttons.css global `button` reset so they stay compact.
+       buttons.css sets: padding:25px 30px, border-radius:20px, min-width:112px, height:41px
+       which would completely break the toolbar layout. We override each property explicitly. */
+    .tool-btn,
+    .width-btn,
+    .zoom-btn,
+    .done-btn {
+        min-width: unset !important;
+        margin-right: 0 !important;
+        filter: none !important;
+    }
+
     .tool-btn {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 32px;
-        height: 32px;
-        border-radius: 8px;
-        border: none;
-        background: transparent;
+        width: 32px !important;
+        height: 32px !important;
+        border-radius: 8px !important;
+        border: none !important;
+        background: transparent !important;
         cursor: pointer;
         transition: background 0.15s;
-        padding: 0;
+        padding: 0 !important;
         flex-shrink: 0;
     }
 
     /* Text-based tool icons (pen ✏, eraser ◻) */
     .tool-icon-text {
-        font-size: 16px;
+        font-size: 1rem;
         line-height: 1;
         pointer-events: none;
     }
 
     .tool-btn:hover {
-        background: rgba(0,0,0,0.08);
+        background: rgba(0,0,0,0.08) !important;
+        scale: unset !important;
     }
 
     .tool-btn.active {
-        background: rgba(0, 122, 255, 0.12);
+        background: rgba(0, 122, 255, 0.12) !important;
     }
 
-    /* Colour swatches */
+    /* Undo icon text */
+    .undo-icon {
+        font-size: 1rem;
+        line-height: 1;
+        pointer-events: none;
+    }
+
+    .disabled-btn {
+        opacity: 0.35;
+        cursor: not-allowed;
+    }
+
+    /* Colour swatches — explicitly override buttons.css global `button` rules which set
+       padding, border-radius:20px, min-width:112px, height:41px, etc. We need these to
+       remain small round circles regardless of the global button reset. */
     .color-swatch {
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        border: 2px solid transparent;
+        width: 20px !important;
+        height: 20px !important;
+        min-width: unset !important;
+        border-radius: 50% !important;
+        border: 2px solid transparent !important;
         cursor: pointer;
         transition: transform 0.15s, border-color 0.15s;
-        padding: 0;
+        padding: 0 !important;
         flex-shrink: 0;
+        /* Neutralise buttons.css filter / scale hover side-effects */
+        filter: none !important;
+        margin-right: 0 !important;
     }
 
     .color-swatch:hover {
         transform: scale(1.15);
+        scale: unset !important;
+        background-color: unset !important;
     }
 
     .color-swatch.active {
-        border-color: #007AFF;
+        border-color: #007AFF !important;
         transform: scale(1.15);
     }
 
@@ -691,23 +821,24 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 30px;
-        height: 30px;
-        border-radius: 8px;
-        border: none;
-        background: transparent;
+        width: 30px !important;
+        height: 30px !important;
+        border-radius: 8px !important;
+        border: none !important;
+        background: transparent !important;
         cursor: pointer;
-        padding: 0;
+        padding: 0 !important;
         transition: background 0.15s;
         flex-shrink: 0;
     }
 
     .width-btn:hover {
-        background: rgba(0,0,0,0.08);
+        background: rgba(0,0,0,0.08) !important;
+        scale: unset !important;
     }
 
     .width-btn.active {
-        background: rgba(0, 122, 255, 0.12);
+        background: rgba(0, 122, 255, 0.12) !important;
     }
 
     .width-dot {
@@ -722,48 +853,50 @@
 
     /* Zoom controls */
     .zoom-btn {
-        min-width: 28px;
-        height: 28px;
-        border-radius: 6px;
-        border: none;
-        background: transparent;
+        min-width: 28px !important;
+        height: 28px !important;
+        border-radius: 6px !important;
+        border: none !important;
+        background: transparent !important;
         cursor: pointer;
-        font-size: 14px;
+        font-size: 0.875rem;
         font-weight: 600;
-        padding: 0 4px;
+        padding: 0 4px !important;
         transition: background 0.15s;
         flex-shrink: 0;
         white-space: nowrap;
     }
 
     .zoom-btn:hover {
-        background: rgba(0,0,0,0.08);
+        background: rgba(0,0,0,0.08) !important;
+        scale: unset !important;
     }
 
     .zoom-reset {
-        min-width: 44px;
-        font-size: 11px;
+        min-width: 44px !important;
+        font-size: 0.6875rem;
         font-weight: 500;
         color: rgba(0,0,0,0.5);
     }
 
     /* Done button */
     .done-btn {
-        background: #007AFF;
+        background: #007AFF !important;
         color: white;
-        border: none;
-        padding: 6px 16px;
-        border-radius: 20px;
+        border: none !important;
+        padding: 6px 16px !important;
+        border-radius: 20px !important;
         cursor: pointer;
         font-weight: 500;
-        font-size: 14px;
-        height: 36px;
+        font-size: 0.875rem;
+        height: 36px !important;
         transition: background 0.15s, opacity 0.15s;
         white-space: nowrap;
     }
 
     .done-btn:hover:not(.disabled) {
-        background: #0056CC;
+        background: #0056CC !important;
+        scale: unset !important;
     }
 
     .done-btn.disabled {
@@ -794,8 +927,16 @@
             background: rgba(255,255,255,0.15);
         }
 
+        .overlay-fullscreen-btn {
+            background: rgba(28, 28, 30, 0.85) !important;
+        }
+
+        .overlay-fullscreen-btn:hover {
+            background: rgba(28, 28, 30, 0.98) !important;
+        }
+
         .tool-btn:hover, .width-btn:hover, .zoom-btn:hover {
-            background: rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.1) !important;
         }
 
         .tool-btn.active, .width-btn.active {

@@ -11,8 +11,10 @@
     // Props using Svelte 5 $props()
     interface Props {
         videoElement?: HTMLVideoElement;
+        /** Whether the parent message field is currently in fullscreen mode. */
+        isFullscreen?: boolean;
     }
-    let { videoElement = $bindable() }: Props = $props();
+    let { videoElement = $bindable(), isFullscreen = false }: Props = $props();
     let isRecording = $state(false);
     let stream: MediaStream | null = null;
     let mediaRecorder: MediaRecorder | null = null;
@@ -63,6 +65,10 @@
         stopCamera();
         stopRecordingTimer();
     });
+
+    function toggleFullscreen() {
+        dispatch('toggleFullscreen');
+    }
 
     function initiateClose() {
         if (isMobile) {
@@ -266,6 +272,13 @@
     <!-- For non-mobile devices, render the custom camera overlay -->
     {#if showOverlay}
         <div class="camera-overlay" transition:slide={{ duration: 300, axis: 'y' }} onoutroend={onOutroEnd}>
+            <!-- Maximize / minimize button — top-right corner -->
+            <button
+                class="overlay-fullscreen-btn clickable-icon {isFullscreen ? 'icon_minimize' : 'icon_fullscreen'}"
+                onclick={toggleFullscreen}
+                aria-label={isFullscreen ? $text('enter_message.fullscreen.exit_fullscreen') : $text('enter_message.fullscreen.enter_fullscreen')}
+                use:tooltip
+            ></button>
             <video
                 bind:this={videoElement}
                 autoplay
@@ -329,6 +342,32 @@
         flex-direction: column;
         border-radius: 24px;
         overflow: hidden;
+    }
+
+    /* Maximize/minimize button — top-right corner. Overrides buttons.css global button styles. */
+    .overlay-fullscreen-btn {
+        position: absolute;
+        top: 10px;
+        right: 12px;
+        z-index: 10;
+        min-width: unset !important;
+        width: 32px !important;
+        height: 32px !important;
+        padding: 4px !important;
+        border-radius: 8px !important;
+        background: rgba(0, 0, 0, 0.5) !important;
+        border: none !important;
+        opacity: 0.8;
+        transition: opacity 0.2s ease-in-out;
+        cursor: pointer;
+        margin-right: 0 !important;
+        filter: none !important;
+    }
+
+    .overlay-fullscreen-btn:hover {
+        opacity: 1 !important;
+        scale: unset !important;
+        background: rgba(0, 0, 0, 0.75) !important;
     }
 
     .camera-preview {

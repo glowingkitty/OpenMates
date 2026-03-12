@@ -2844,6 +2844,23 @@
         "text": "이 보고서는 자동화된 일일 테스트 모니터링 시스템에서 생성되었습니다."
       }
     },
+    "test_run_started": {
+      "title": {
+        "text": "테스트 실행 시작됨"
+      },
+      "header": {
+        "text": "테스트 실행 시작됨"
+      },
+      "trigger_label": {
+        "text": "트리거"
+      },
+      "started_at_label": {
+        "text": "시작 시각"
+      },
+      "footer_note": {
+        "text": "테스트 실행이 완료되면 다른 이메일을 받으실 것입니다."
+      }
+    },
     "prometheus_alert": {
       "title": {
         "text": "Prometheus 알림 통보"
@@ -3591,6 +3608,9 @@
       },
       "share_location": {
         "text": "위치 공유"
+      },
+      "sketch": {
+        "text": "스케치"
       },
       "drop_files": {
         "text": "파일을 드롭하여 업로드"
@@ -8239,6 +8259,38 @@
     },
     "advantage_pay_per_use": {
       "text": "사용한 만큼 지불"
+    }
+  },
+  "sketchview": {
+    "close": {
+      "text": "스케치 닫기"
+    },
+    "done": {
+      "text": "완료"
+    },
+    "pen": {
+      "text": "펜"
+    },
+    "eraser": {
+      "text": "지우개"
+    },
+    "clear": {
+      "text": "캔버스 지우기"
+    },
+    "zoom_in": {
+      "text": "확대"
+    },
+    "zoom_out": {
+      "text": "축소"
+    },
+    "reset_zoom": {
+      "text": "줌 초기화"
+    },
+    "undo": {
+      "text": "실행 취소"
+    },
+    "custom_color": {
+      "text": "사용자 지정 색상"
     }
   },
   "team_mates": {},

@@ -2844,6 +2844,23 @@
         "text": "Questo rapporto è stato generato dal sistema automatizzato di monitoraggio giornaliero dei test."
       }
     },
+    "test_run_started": {
+      "title": {
+        "text": "Test avviato"
+      },
+      "header": {
+        "text": "Test avviato"
+      },
+      "trigger_label": {
+        "text": "Avviato da"
+      },
+      "started_at_label": {
+        "text": "Avviato alle"
+      },
+      "footer_note": {
+        "text": "Riceverai un'altra email al completamento del test."
+      }
+    },
     "prometheus_alert": {
       "title": {
         "text": "Notifica di allerta Prometheus"
@@ -3591,6 +3608,9 @@
       },
       "share_location": {
         "text": "Condividi posizione"
+      },
+      "sketch": {
+        "text": "Schizzo"
       },
       "drop_files": {
         "text": "Rilascia i file per caricarli"
@@ -8242,6 +8262,38 @@
     },
     "advantage_pay_per_use": {
       "text": "Pagamento a consumo"
+    }
+  },
+  "sketchview": {
+    "close": {
+      "text": "Chiudi schizzo"
+    },
+    "done": {
+      "text": "Fatto"
+    },
+    "pen": {
+      "text": "Penna"
+    },
+    "eraser": {
+      "text": "Gomma"
+    },
+    "clear": {
+      "text": "Cancella canvas"
+    },
+    "zoom_in": {
+      "text": "Ingrandisci"
+    },
+    "zoom_out": {
+      "text": "Rimpicciolisci"
+    },
+    "reset_zoom": {
+      "text": "Reimposta zoom"
+    },
+    "undo": {
+      "text": "Annulla"
+    },
+    "custom_color": {
+      "text": "Colore personalizzato"
     }
   },
   "team_mates": {},

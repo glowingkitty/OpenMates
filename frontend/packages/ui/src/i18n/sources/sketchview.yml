@@ -190,6 +190,30 @@ reset_zoom:
   sv: Återställ zoom
   he: אפס זום
   verified_by_human: []
+undo:
+  context: Tooltip for the undo button in the sketch overlay (undoes the last drawn stroke)
+  en: Undo
+  de: Rückgängig
+  zh: 撤销
+  es: Deshacer
+  fr: Annuler
+  pt: Desfazer
+  ru: Отменить
+  ja: 元に戻す
+  ko: 실행 취소
+  it: Annulla
+  tr: Geri al
+  vi: Hoàn tác
+  id: Batalkan
+  pl: Cofnij
+  nl: Ongedaan maken
+  ar: تراجع
+  hi: पूर्ववत करें
+  th: เลิกทำ
+  cs: Zpět
+  sv: Ångra
+  he: בטל
+  verified_by_human: []
 custom_color:
   context: Tooltip for the custom colour picker swatch in the sketch overlay
   en: Custom colour

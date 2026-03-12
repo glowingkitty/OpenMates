@@ -2946,6 +2946,23 @@
         "text": "Ce rapport a été généré par le système de surveillance automatisé des tests quotidiens."
       }
     },
+    "test_run_started": {
+      "title": {
+        "text": "Démarrage du test"
+      },
+      "header": {
+        "text": "Démarrage du test"
+      },
+      "trigger_label": {
+        "text": "Déclenché par"
+      },
+      "started_at_label": {
+        "text": "Démarré à"
+      },
+      "footer_note": {
+        "text": "Vous recevrez un autre e-mail à la fin du test."
+      }
+    },
     "prometheus_alert": {
       "title": {
         "text": "Notification d'alerte Prometheus"
@@ -3950,6 +3967,9 @@
       },
       "share_location": {
         "text": "Partager la localisation"
+      },
+      "sketch": {
+        "text": "Esquisse"
       },
       "drop_files": {
         "text": "Déposez les fichiers pour les télécharger"
@@ -9914,6 +9934,38 @@
     },
     "advantage_pay_per_use": {
       "text": "Paiement à l'usage"
+    }
+  },
+  "sketchview": {
+    "close": {
+      "text": "Fermer l'esquisse"
+    },
+    "done": {
+      "text": "Terminé"
+    },
+    "pen": {
+      "text": "Stylo"
+    },
+    "eraser": {
+      "text": "Gomme"
+    },
+    "clear": {
+      "text": "Effacer le canvas"
+    },
+    "zoom_in": {
+      "text": "Zoom avant"
+    },
+    "zoom_out": {
+      "text": "Zoom arrière"
+    },
+    "reset_zoom": {
+      "text": "Réinitialiser le zoom"
+    },
+    "undo": {
+      "text": "Annuler"
+    },
+    "custom_color": {
+      "text": "Couleur personnalisée"
     }
   },
   "team_mates": {

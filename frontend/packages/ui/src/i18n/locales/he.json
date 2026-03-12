@@ -3041,6 +3041,23 @@
         "text": "דוח זה נוצר על ידי מערכת הניטור האוטומטית היומית של בדיקות."
       }
     },
+    "test_run_started": {
+      "title": {
+        "text": "הרצת הבדיקות החלה"
+      },
+      "header": {
+        "text": "הרצת הבדיקות החלה"
+      },
+      "trigger_label": {
+        "text": "הופעל על ידי"
+      },
+      "started_at_label": {
+        "text": "התחיל ב"
+      },
+      "footer_note": {
+        "text": "תקבל מייל נוסף לאחר שהרצת הבדיקות תסתיים."
+      }
+    },
     "prometheus_alert": {
       "title": {
         "text": "הודעת התראה של Prometheus"
@@ -4072,6 +4089,9 @@
       },
       "share_location": {
         "text": "שתף מיקום"
+      },
+      "sketch": {
+        "text": "סקיצה"
       },
       "drop_files": {
         "text": "שחרר קבצים להעלאה"
@@ -10159,6 +10179,38 @@
     },
     "advantage_pay_per_use": {
       "text": "תשלום לפי שימוש"
+    }
+  },
+  "sketchview": {
+    "close": {
+      "text": "סגור סקיצה"
+    },
+    "done": {
+      "text": "סיום"
+    },
+    "pen": {
+      "text": "עט"
+    },
+    "eraser": {
+      "text": "מחק"
+    },
+    "clear": {
+      "text": "נקה את הקנבס"
+    },
+    "zoom_in": {
+      "text": "הגדל"
+    },
+    "zoom_out": {
+      "text": "הקטן"
+    },
+    "reset_zoom": {
+      "text": "אפס זום"
+    },
+    "undo": {
+      "text": "בטל"
+    },
+    "custom_color": {
+      "text": "צבע מותאם"
     }
   },
   "team_mates": {

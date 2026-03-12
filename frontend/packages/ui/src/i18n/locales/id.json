@@ -2844,6 +2844,23 @@
         "text": "Laporan ini dibuat oleh sistem pemantauan tes harian otomatis."
       }
     },
+    "test_run_started": {
+      "title": {
+        "text": "Tes dimulai"
+      },
+      "header": {
+        "text": "Tes dimulai"
+      },
+      "trigger_label": {
+        "text": "Dipicu oleh"
+      },
+      "started_at_label": {
+        "text": "Dimulai pada"
+      },
+      "footer_note": {
+        "text": "Anda akan menerima email lain setelah tes selesai."
+      }
+    },
     "prometheus_alert": {
       "title": {
         "text": "Pemberitahuan Peringatan Prometheus"
@@ -3591,6 +3608,9 @@
       },
       "share_location": {
         "text": "Bagikan lokasi"
+      },
+      "sketch": {
+        "text": "Sketsa"
       },
       "drop_files": {
         "text": "Jatuhkan file untuk diunggah"
@@ -8173,6 +8193,38 @@
     },
     "advantage_pay_per_use": {
       "text": "Bayar sesuai penggunaan"
+    }
+  },
+  "sketchview": {
+    "close": {
+      "text": "Tutup sketsa"
+    },
+    "done": {
+      "text": "Selesai"
+    },
+    "pen": {
+      "text": "Pena"
+    },
+    "eraser": {
+      "text": "Penghapus"
+    },
+    "clear": {
+      "text": "Hapus kanvas"
+    },
+    "zoom_in": {
+      "text": "Perbesar"
+    },
+    "zoom_out": {
+      "text": "Perkecil"
+    },
+    "reset_zoom": {
+      "text": "Atur ulang zoom"
+    },
+    "undo": {
+      "text": "Batalkan"
+    },
+    "custom_color": {
+      "text": "Warna kustom"
     }
   },
   "team_mates": {},

@@ -2844,6 +2844,23 @@
         "text": "Tato zpráva byla vygenerována automatizovaným denním systémem monitorování testů."
       }
     },
+    "test_run_started": {
+      "title": {
+        "text": "Spuštění testů zahájeno"
+      },
+      "header": {
+        "text": "Spuštění testů zahájeno"
+      },
+      "trigger_label": {
+        "text": "Spuštěno"
+      },
+      "started_at_label": {
+        "text": "Spuštěno v"
+      },
+      "footer_note": {
+        "text": "Po dokončení testů obdržíte další e-mail."
+      }
+    },
     "prometheus_alert": {
       "title": {
         "text": "Oznámení o upozornění Prometheus"
@@ -3597,6 +3614,9 @@
       },
       "share_location": {
         "text": "Sdílet polohu"
+      },
+      "sketch": {
+        "text": "Nákres"
       },
       "drop_files": {
         "text": "Přetáhněte soubory pro nahrání"
@@ -8179,6 +8199,38 @@
     },
     "advantage_pay_per_use": {
       "text": "Platba za použití"
+    }
+  },
+  "sketchview": {
+    "close": {
+      "text": "Zavřít nákres"
+    },
+    "done": {
+      "text": "Hotovo"
+    },
+    "pen": {
+      "text": "Pero"
+    },
+    "eraser": {
+      "text": "Guma"
+    },
+    "clear": {
+      "text": "Vymazat plátno"
+    },
+    "zoom_in": {
+      "text": "Přiblížit"
+    },
+    "zoom_out": {
+      "text": "Oddálit"
+    },
+    "reset_zoom": {
+      "text": "Obnovit přiblížení"
+    },
+    "undo": {
+      "text": "Zpět"
+    },
+    "custom_color": {
+      "text": "Vlastní barva"
     }
   },
   "team_mates": {},

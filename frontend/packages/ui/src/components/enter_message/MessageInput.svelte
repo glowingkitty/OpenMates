@@ -4272,11 +4272,13 @@
             </div>
         {/if}
 
-        <!-- Fullscreen expand/collapse button: visible when focused or has content.
+        <!-- Fullscreen expand/collapse button: visible when focused, has content, or an overlay is open.
              Shows icon_fullscreen to expand, icon_minimize to collapse.
              On wide screens (≥1024px), expand breaks the field into the embed panel area.
-             On narrow screens, expand grows the field height to 65dvh. -->
-        {#if isFullscreen || hasContent || isMessageFieldFocused}
+             On narrow screens, expand grows the field height to 65dvh.
+             Hidden when overlays are open — each overlay renders its own maximize button
+             in the top-right corner so the button stays visible above the overlay content. -->
+        {#if (isFullscreen || hasContent || isMessageFieldFocused) && !showCamera && !showSketch && !showMaps}
             <button
                 class="clickable-icon {isFullscreen ? 'icon_minimize' : 'icon_fullscreen'} fullscreen-button"
                 onclick={toggleFullscreen}
@@ -4298,11 +4300,23 @@
 
         {#if showCamera}
             <!-- on:videorecorded removed — video recording disabled until upload support is added -->
-            <CameraView bind:videoElement on:close={() => showCamera = false} on:focusEditor={focus} on:photocaptured={handlePhotoCaptured} />
+            <CameraView
+                bind:videoElement
+                {isFullscreen}
+                on:close={() => showCamera = false}
+                on:focusEditor={focus}
+                on:photocaptured={handlePhotoCaptured}
+                on:toggleFullscreen={toggleFullscreen}
+            />
         {/if}
 
         {#if showSketch}
-            <SketchView on:close={() => { showSketch = false; focus(); }} on:sketchcaptured={handleSketchCaptured} />
+            <SketchView
+                {isFullscreen}
+                on:close={() => { showSketch = false; focus(); }}
+                on:sketchcaptured={handleSketchCaptured}
+                on:toggleFullscreen={toggleFullscreen}
+            />
         {/if}
 
         <!-- Action Buttons Component: fades in when input is focused, fades out when unfocused.
@@ -4390,8 +4404,10 @@
         {#if showMaps}
             <MapsView
                 defaultImprecise={defaultImprecise}
+                {isFullscreen}
                 on:close={() => showMaps = false}
                 on:locationselected={handleLocationSelected}
+                on:toggleFullscreen={toggleFullscreen}
             />
         {/if}
     </div>

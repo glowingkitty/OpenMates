@@ -2844,6 +2844,23 @@
         "text": "تم إنشاء هذا التقرير بواسطة نظام المراقبة اليومية التلقائية للاختبارات."
       }
     },
+    "test_run_started": {
+      "title": {
+        "text": "بدأ تشغيل الاختبار"
+      },
+      "header": {
+        "text": "بدأ تشغيل الاختبار"
+      },
+      "trigger_label": {
+        "text": "بدأ بواسطة"
+      },
+      "started_at_label": {
+        "text": "بدأ في"
+      },
+      "footer_note": {
+        "text": "ستتلقى بريدًا إلكترونيًا آخر بمجرد اكتمال تشغيل الاختبار."
+      }
+    },
     "prometheus_alert": {
       "title": {
         "text": "إشعار تنبيه Prometheus"
@@ -3591,6 +3608,9 @@
       },
       "share_location": {
         "text": "مشاركة الموقع"
+      },
+      "sketch": {
+        "text": "رسم"
       },
       "drop_files": {
         "text": "أسقط الملفات للتحميل"
@@ -9322,6 +9342,38 @@
     },
     "advantage_pay_per_use": {
       "text": "الدفع حسب الاستخدام"
+    }
+  },
+  "sketchview": {
+    "close": {
+      "text": "إغلاق الرسم"
+    },
+    "done": {
+      "text": "تم"
+    },
+    "pen": {
+      "text": "قلم"
+    },
+    "eraser": {
+      "text": "ممحاة"
+    },
+    "clear": {
+      "text": "مسح اللوحة"
+    },
+    "zoom_in": {
+      "text": "تكبير"
+    },
+    "zoom_out": {
+      "text": "تصغير"
+    },
+    "reset_zoom": {
+      "text": "إعادة ضبط التكبير"
+    },
+    "undo": {
+      "text": "تراجع"
+    },
+    "custom_color": {
+      "text": "لون مخصص"
     }
   },
   "team_mates": {},

@@ -2844,6 +2844,23 @@
         "text": "Ten raport został wygenerowany przez zautomatyzowany system codziennego monitorowania testów."
       }
     },
+    "test_run_started": {
+      "title": {
+        "text": "Uruchomienie testów rozpoczęte"
+      },
+      "header": {
+        "text": "Uruchomienie testów rozpoczęte"
+      },
+      "trigger_label": {
+        "text": "Wyzwolone przez"
+      },
+      "started_at_label": {
+        "text": "Uruchomiono o"
+      },
+      "footer_note": {
+        "text": "Otrzymasz kolejną wiadomość e-mail po zakończeniu testów."
+      }
+    },
     "prometheus_alert": {
       "title": {
         "text": "Powiadomienie o alercie Prometheus"
@@ -3591,6 +3608,9 @@
       },
       "share_location": {
         "text": "Udostępnij lokalizację"
+      },
+      "sketch": {
+        "text": "Szkic"
       },
       "drop_files": {
         "text": "Upuść pliki, aby je przesłać"
@@ -8173,6 +8193,38 @@
     },
     "advantage_pay_per_use": {
       "text": "Płatność za użycie"
+    }
+  },
+  "sketchview": {
+    "close": {
+      "text": "Zamknij szkic"
+    },
+    "done": {
+      "text": "Gotowe"
+    },
+    "pen": {
+      "text": "Pióro"
+    },
+    "eraser": {
+      "text": "Gumka"
+    },
+    "clear": {
+      "text": "Wyczyść płótno"
+    },
+    "zoom_in": {
+      "text": "Powiększ"
+    },
+    "zoom_out": {
+      "text": "Pomniejsz"
+    },
+    "reset_zoom": {
+      "text": "Zresetuj powiększenie"
+    },
+    "undo": {
+      "text": "Cofnij"
+    },
+    "custom_color": {
+      "text": "Kolor niestandardowy"
     }
   },
   "team_mates": {},

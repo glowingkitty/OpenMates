@@ -2880,6 +2880,23 @@
         "text": "Denna rapport genererades av det automatiserade dagliga testövervakningssystemet."
       }
     },
+    "test_run_started": {
+      "title": {
+        "text": "Testkörning startad"
+      },
+      "header": {
+        "text": "Testkörning startad"
+      },
+      "trigger_label": {
+        "text": "Startad av"
+      },
+      "started_at_label": {
+        "text": "Startades"
+      },
+      "footer_note": {
+        "text": "Du kommer att få ett till e-postmeddelande när testkörningen är klar."
+      }
+    },
     "prometheus_alert": {
       "title": {
         "text": "Prometheus-larmmeddelande"
@@ -3633,6 +3650,9 @@
       },
       "share_location": {
         "text": "Dela plats"
+      },
+      "sketch": {
+        "text": "Skiss"
       },
       "drop_files": {
         "text": "Släpp filer för att ladda upp"
@@ -7960,6 +7980,38 @@
     },
     "advantage_pay_per_use": {
       "text": "Betala per användning"
+    }
+  },
+  "sketchview": {
+    "close": {
+      "text": "Stäng skiss"
+    },
+    "done": {
+      "text": "Klar"
+    },
+    "pen": {
+      "text": "Penna"
+    },
+    "eraser": {
+      "text": "Suddgummi"
+    },
+    "clear": {
+      "text": "Rensa arbetsytan"
+    },
+    "zoom_in": {
+      "text": "Zooma in"
+    },
+    "zoom_out": {
+      "text": "Zooma ut"
+    },
+    "reset_zoom": {
+      "text": "Återställ zoom"
+    },
+    "undo": {
+      "text": "Ångra"
+    },
+    "custom_color": {
+      "text": "Anpassad färg"
     }
   },
   "team_mates": {},

@@ -2844,6 +2844,23 @@
         "text": "Báo cáo này được tạo bởi hệ thống giám sát kiểm tra tự động hàng ngày."
       }
     },
+    "test_run_started": {
+      "title": {
+        "text": "Chạy kiểm tra đã bắt đầu"
+      },
+      "header": {
+        "text": "Chạy kiểm tra đã bắt đầu"
+      },
+      "trigger_label": {
+        "text": "Kích hoạt bởi"
+      },
+      "started_at_label": {
+        "text": "Bắt đầu lúc"
+      },
+      "footer_note": {
+        "text": "Bạn sẽ nhận được email khác khi quá trình chạy kiểm tra hoàn thành."
+      }
+    },
     "prometheus_alert": {
       "title": {
         "text": "Thông báo cảnh báo Prometheus"
@@ -3591,6 +3608,9 @@
       },
       "share_location": {
         "text": "Chia sẻ vị trí"
+      },
+      "sketch": {
+        "text": "Phác thảo"
       },
       "drop_files": {
         "text": "Thả tệp để tải lên"
@@ -8173,6 +8193,38 @@
     },
     "advantage_pay_per_use": {
       "text": "Trả tiền theo sử dụng"
+    }
+  },
+  "sketchview": {
+    "close": {
+      "text": "Đóng phác thảo"
+    },
+    "done": {
+      "text": "Xong"
+    },
+    "pen": {
+      "text": "Bút"
+    },
+    "eraser": {
+      "text": "Tẩy"
+    },
+    "clear": {
+      "text": "Xóa canvas"
+    },
+    "zoom_in": {
+      "text": "Phóng to"
+    },
+    "zoom_out": {
+      "text": "Thu nhỏ"
+    },
+    "reset_zoom": {
+      "text": "Đặt lại thu phóng"
+    },
+    "undo": {
+      "text": "Hoàn tác"
+    },
+    "custom_color": {
+      "text": "Màu tuỳ chỉnh"
     }
   },
   "team_mates": {},

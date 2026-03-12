@@ -2844,6 +2844,23 @@
         "text": "Dit rapport is gegenereerd door het geautomatiseerde dagelijkse testmonitoringsysteem."
       }
     },
+    "test_run_started": {
+      "title": {
+        "text": "Testrun gestart"
+      },
+      "header": {
+        "text": "Testrun gestart"
+      },
+      "trigger_label": {
+        "text": "Gestart door"
+      },
+      "started_at_label": {
+        "text": "Gestart om"
+      },
+      "footer_note": {
+        "text": "U ontvangt nog een e-mail zodra de testrun is voltooid."
+      }
+    },
     "prometheus_alert": {
       "title": {
         "text": "Prometheus-waarschuwingsmelding"
@@ -3591,6 +3608,9 @@
       },
       "share_location": {
         "text": "Locatie delen"
+      },
+      "sketch": {
+        "text": "Schets"
       },
       "drop_files": {
         "text": "Bestanden neerzetten om te uploaden"
@@ -8173,6 +8193,38 @@
     },
     "advantage_pay_per_use": {
       "text": "Betaal per gebruik"
+    }
+  },
+  "sketchview": {
+    "close": {
+      "text": "Schets sluiten"
+    },
+    "done": {
+      "text": "Klaar"
+    },
+    "pen": {
+      "text": "Pen"
+    },
+    "eraser": {
+      "text": "Gum"
+    },
+    "clear": {
+      "text": "Canvas wissen"
+    },
+    "zoom_in": {
+      "text": "Inzoomen"
+    },
+    "zoom_out": {
+      "text": "Uitzoomen"
+    },
+    "reset_zoom": {
+      "text": "Zoom resetten"
+    },
+    "undo": {
+      "text": "Ongedaan maken"
+    },
+    "custom_color": {
+      "text": "Aangepaste kleur"
     }
   },
   "team_mates": {},

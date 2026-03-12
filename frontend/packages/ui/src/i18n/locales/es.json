@@ -2946,6 +2946,23 @@
         "text": "Este informe fue generado por el sistema automatizado de monitoreo de pruebas diarias."
       }
     },
+    "test_run_started": {
+      "title": {
+        "text": "Ejecución de pruebas iniciada"
+      },
+      "header": {
+        "text": "Ejecución de pruebas iniciada"
+      },
+      "trigger_label": {
+        "text": "Iniciado por"
+      },
+      "started_at_label": {
+        "text": "Iniciado a las"
+      },
+      "footer_note": {
+        "text": "Recibirá otro correo electrónico cuando finalice la ejecución de pruebas."
+      }
+    },
     "prometheus_alert": {
       "title": {
         "text": "Notificación de alerta de Prometheus"
@@ -3950,6 +3967,9 @@
       },
       "share_location": {
         "text": "Compartir ubicación"
+      },
+      "sketch": {
+        "text": "Boceto"
       },
       "drop_files": {
         "text": "Suelta los archivos para subir"
@@ -9969,6 +9989,38 @@
     },
     "advantage_pay_per_use": {
       "text": "Pago por uso"
+    }
+  },
+  "sketchview": {
+    "close": {
+      "text": "Cerrar boceto"
+    },
+    "done": {
+      "text": "Listo"
+    },
+    "pen": {
+      "text": "Bolígrafo"
+    },
+    "eraser": {
+      "text": "Goma de borrar"
+    },
+    "clear": {
+      "text": "Limpiar lienzo"
+    },
+    "zoom_in": {
+      "text": "Acercar"
+    },
+    "zoom_out": {
+      "text": "Alejar"
+    },
+    "reset_zoom": {
+      "text": "Restablecer zoom"
+    },
+    "undo": {
+      "text": "Deshacer"
+    },
+    "custom_color": {
+      "text": "Color personalizado"
     }
   },
   "team_mates": {

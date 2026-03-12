@@ -2844,6 +2844,23 @@
         "text": "यह रिपोर्ट स्वचालित दैनिक परीक्षण निगरानी प्रणाली द्वारा उत्पन्न की गई थी।"
       }
     },
+    "test_run_started": {
+      "title": {
+        "text": "परीक्षण चलाना शुरू हो गया"
+      },
+      "header": {
+        "text": "परीक्षण चलाना शुरू हो गया"
+      },
+      "trigger_label": {
+        "text": "द्वारा ट्रिगर किया गया"
+      },
+      "started_at_label": {
+        "text": "शुरू हुआ"
+      },
+      "footer_note": {
+        "text": "परीक्षण पूरा होने पर आपको एक और ईमेल मिलेगा।"
+      }
+    },
     "prometheus_alert": {
       "title": {
         "text": "Prometheus अलर्ट अधिसूचना"
@@ -3591,6 +3608,9 @@
       },
       "share_location": {
         "text": "स्थान साझा करें"
+      },
+      "sketch": {
+        "text": "स्केच"
       },
       "drop_files": {
         "text": "अपलोड करने के लिए फ़ाइलें छोड़ें"
@@ -8176,6 +8196,38 @@
     },
     "advantage_pay_per_use": {
       "text": "उपयोग के अनुसार भुगतान"
+    }
+  },
+  "sketchview": {
+    "close": {
+      "text": "स्केच बंद करें"
+    },
+    "done": {
+      "text": "हो गया"
+    },
+    "pen": {
+      "text": "पेन"
+    },
+    "eraser": {
+      "text": "रबड़"
+    },
+    "clear": {
+      "text": "कैनवास साफ़ करें"
+    },
+    "zoom_in": {
+      "text": "ज़ूम इन"
+    },
+    "zoom_out": {
+      "text": "ज़ूम आउट"
+    },
+    "reset_zoom": {
+      "text": "ज़ूम रीसेट"
+    },
+    "undo": {
+      "text": "पूर्ववत करें"
+    },
+    "custom_color": {
+      "text": "कस्टम रंग"
     }
   },
   "team_mates": {},
