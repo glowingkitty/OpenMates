@@ -10619,6 +10619,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         display: flex;
         flex-direction: column;
         align-items: center;
+        /*
+         * CRITICAL: must match the chat-side positioned ancestor width.
+         * Without this, center-content has no explicit width and grows to match its
+         * widest child (recent-chats-scroll-container). That child uses width:100% +
+         * padding:calc(50%-150px), creating a circular dependency that inflates the
+         * container to thousands of pixels — breaking centering and scroll entirely.
+         */
+        width: 100%;
     }
 
     /* Adjust welcome content position for narrow containers —
@@ -10745,8 +10753,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         scrollbar-width: none;
         -ms-overflow-style: none;
         /* Left padding = half container width minus half card width (300/2=150)
-           so the first card starts centred relative to the chat-wrapper. */
+           so the first card starts centred relative to the chat-wrapper.
+           box-sizing: border-box ensures padding is included in width: 100%
+           so the element never exceeds the center-content container bounds. */
         padding: 12px 48px 12px calc(50% - 150px);
+        box-sizing: border-box;
         pointer-events: auto;
         width: 100%;
         max-width: 100%;
