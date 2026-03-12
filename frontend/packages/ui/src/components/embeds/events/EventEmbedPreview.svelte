@@ -79,22 +79,44 @@
 
   /**
    * Format a date_start ISO string to a short readable date+time.
-   * Example: "Sat, Mar 15 · 7:00 PM"
+   * Shows relative day labels for today/tomorrow.
+   * Examples: "Today, Mar 13 - 5:30 PM", "Sat, Mar 15 - 7:00 PM"
    */
   function formatEventDate(dateStr: string | undefined): string {
     if (!dateStr) return '';
     try {
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return '';
-      return (
-        d.toLocaleDateString(undefined, {
-          weekday: 'short',
-          month: 'short',
-          day: 'numeric',
-        }) +
-        ' · ' +
-        d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
-      );
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startOfTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      const startOfDayAfterTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2);
+      const dateOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+      const monthDay = d.toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+      });
+      const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+
+      if (dateOnly.getTime() === startOfToday.getTime()) {
+        return `Today, ${monthDay} - ${time}`;
+      }
+
+      if (dateOnly.getTime() === startOfTomorrow.getTime()) {
+        return `Tomorrow, ${monthDay} - ${time}`;
+      }
+
+      const dayLabel =
+        dateOnly >= startOfDayAfterTomorrow
+          ? d.toLocaleDateString(undefined, {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+            })
+          : monthDay;
+
+      return `${dayLabel} - ${time}`;
     } catch {
       return '';
     }
