@@ -126,6 +126,12 @@
   let hasMap = $derived(!!mapCenter);
   let imageError = $state(false);
   let hasStaticImage = $derived(!!staticMapImageUrl && !imageError);
+
+  const DETAIL_CARD_LEFT_PX = 24;
+  const DETAIL_CARD_WIDTH_PX = 345;
+  const MAP_CENTER_OFFSET_X_PX = (DETAIL_CARD_LEFT_PX + DETAIL_CARD_WIDTH_PX) / 2;
+
+  let mapCenterOffsetX = $derived(hasMap ? MAP_CENTER_OFFSET_X_PX : 0);
 </script>
 
 <UnifiedEmbedFullscreen
@@ -169,6 +175,7 @@
             path={mapPath}
             pathColor={mapPathColor}
             scrollWheelZoom={mapScrollWheelZoom}
+            centerOffsetX={mapCenterOffsetX}
             {onMapReady}
             height="100%"
             minHeight="150px"
@@ -235,7 +242,7 @@
     width: 345px;
     max-height: calc(100% - 48px);
     overflow-y: auto;
-    background: var(--color-bg-primary);
+    background: var(--color-grey-20);
     border-radius: 16px;
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
     z-index: 2;
@@ -292,7 +299,7 @@
       max-height: none;
       border-radius: 0;
       box-shadow: none;
-      background: transparent;
+      background: var(--color-grey-20);
     }
 
     .detail-card:not(.with-map) {

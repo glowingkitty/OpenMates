@@ -60,6 +60,8 @@
     scrollWheelZoom?: boolean;
     /** Callback with the raw Leaflet map + L module for advanced customization */
     onMapReady?: (map: unknown, L: unknown) => void;
+    /** Horizontal visual offset in pixels for center/fit (used when a left detail panel overlaps map) */
+    centerOffsetX?: number;
   }
 
   let {
@@ -75,6 +77,7 @@
     minHeight = '220px',
     scrollWheelZoom = true,
     onMapReady,
+    centerOffsetX = 0,
   }: Props = $props();
 
   let shouldFitBounds = $derived(
@@ -86,6 +89,20 @@
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let leafletMap: any = null;
   let mapResizeObserver: ResizeObserver | null = null;
+
+  function getEffectiveCenterOffsetX(): number {
+    if (!mapContainer) return 0;
+    const WIDE_LAYOUT_MIN_WIDTH_PX = 601;
+    if (mapContainer.clientWidth < WIDE_LAYOUT_MIN_WIDTH_PX) return 0;
+    return centerOffsetX;
+  }
+
+  function applyCenterOffset() {
+    if (!leafletMap) return;
+    const effectiveOffsetX = getEffectiveCenterOffsetX();
+    if (effectiveOffsetX === 0) return;
+    leafletMap.panBy([effectiveOffsetX, 0], { animate: false });
+  }
 
   async function initLeafletMap() {
     if (!mapContainer) return;
@@ -103,10 +120,13 @@
       leafletMap = L.map(mapContainer, {
         center: [center.lat, center.lon],
         zoom,
-        zoomControl: true,
+        zoomControl: false,
         attributionControl: true,
         scrollWheelZoom,
       });
+
+      // Add zoom control on the right side
+      L.control.zoom({ position: 'topright' }).addTo(leafletMap);
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
@@ -143,12 +163,17 @@
         if (allPoints.length > 1) {
           const bounds = L.latLngBounds(allPoints);
           leafletMap.fitBounds(bounds, { padding: [fitBoundsPadding, fitBoundsPadding] });
+          applyCenterOffset();
         }
+      } else {
+        applyCenterOffset();
       }
 
       if (typeof ResizeObserver !== 'undefined') {
         mapResizeObserver = new ResizeObserver(() => {
-          if (leafletMap) leafletMap.invalidateSize();
+          if (!leafletMap) return;
+          leafletMap.invalidateSize();
+          applyCenterOffset();
         });
         mapResizeObserver.observe(mapContainer);
       }
@@ -157,7 +182,6 @@
         onMapReady(leafletMap, L);
       }
 
-      console.debug('[EmbedLeafletMap] Map initialized at', center.lat, center.lon);
     } catch (err) {
       console.error('[EmbedLeafletMap] Failed to init Leaflet map:', err);
     }
@@ -214,17 +238,26 @@
     filter: invert(1) hue-rotate(180deg) brightness(0.85) saturate(0.8);
   }
 
-  :global(.embed-leaflet-map .leaflet-top.leaflet-left) {
-    top: 0 !important;
-    bottom: 0 !important;
-    left: 10px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    justify-content: center !important;
+  :global(.embed-leaflet-map .leaflet-top.leaflet-right) {
+    top: 12px !important;
+    right: 12px !important;
+    left: auto !important;
+    bottom: auto !important;
+    transform: none;
   }
 
-  :global(.embed-leaflet-map .leaflet-top.leaflet-left .leaflet-control-zoom) {
+  @media (min-width: 601px) {
+    :global(.embed-leaflet-map .leaflet-top.leaflet-right) {
+      top: 50% !important;
+      right: 24px !important;
+      transform: translateY(-50%);
+    }
+  }
+
+  :global(.embed-leaflet-map .leaflet-top.leaflet-right .leaflet-control-zoom) {
     margin-top: 0 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
+    overflow: hidden;
   }
 </style>

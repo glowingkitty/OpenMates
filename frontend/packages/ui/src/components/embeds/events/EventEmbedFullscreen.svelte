@@ -68,15 +68,76 @@
 
   // ── Display helpers ──
 
-  function formatFullDate(dateStr: string | undefined): string {
-    if (!dateStr) return '';
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return '';
-      return d.toLocaleDateString(undefined, {
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-      }) + ' at ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-    } catch { return ''; }
+  interface DateTimeDisplay {
+    relativeLabel: string;
+    lines: string[];
+  }
+
+  function parseDate(dateStr: string | undefined): Date | null {
+    if (!dateStr) return null;
+    const date = new Date(dateStr);
+    return isNaN(date.getTime()) ? null : date;
+  }
+
+  function isSameCalendarDay(start: Date, end: Date): boolean {
+    return start.getFullYear() === end.getFullYear()
+      && start.getMonth() === end.getMonth()
+      && start.getDate() === end.getDate();
+  }
+
+  function formatDateOnly(dateStr: string | undefined): string {
+    const date = parseDate(dateStr);
+    if (!date) return '';
+    return date.toLocaleDateString(undefined, {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  }
+
+  function formatTimeOnly(dateStr: string | undefined): string {
+    const date = parseDate(dateStr);
+    if (!date) return '';
+    return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+
+  function formatDateTime(dateStr: string | undefined): string {
+    const date = parseDate(dateStr);
+    if (!date) return '';
+    return `${formatDateOnly(dateStr)} ${formatTimeOnly(dateStr)}`;
+  }
+
+  function buildDateTimeDisplay(startStr: string | undefined, endStr: string | undefined): DateTimeDisplay {
+    const start = parseDate(startStr);
+    if (!start) {
+      return { relativeLabel: '', lines: [] };
+    }
+
+    const end = parseDate(endStr);
+    const relativeDayLabel = getRelativeDayLabel(startStr);
+    const relativeLabel = relativeDayLabel === 'today'
+      ? 'Today'
+      : relativeDayLabel === 'tomorrow'
+        ? 'Tomorrow'
+        : '';
+
+    if (end && !isSameCalendarDay(start, end)) {
+      return {
+        relativeLabel: '',
+        lines: [formatDateTime(startStr), `to ${formatDateTime(endStr)}`],
+      };
+    }
+
+    const dateLine = formatDateOnly(startStr);
+    const startTime = formatTimeOnly(startStr);
+    const endTime = formatTimeOnly(endStr);
+    const timeLine = endTime ? `${startTime} to ${endTime}` : startTime;
+
+    return {
+      relativeLabel,
+      lines: [dateLine, timeLine].filter(Boolean),
+    };
   }
 
   function formatShortDate(dateStr: string | undefined): string {
@@ -138,9 +199,7 @@
   let headerSubtitle = $derived([shortDate, shortLocation].filter(Boolean).join(' · '));
 
   let isOnline          = $derived(event.event_type === 'ONLINE');
-  let fullDateStart     = $derived(formatFullDate(event.date_start));
-  let fullDateEnd       = $derived(formatFullDate(event.date_end));
-  let relativeDayLabel  = $derived(getRelativeDayLabel(event.date_start));
+  let dateTimeDisplay   = $derived(buildDateTimeDisplay(event.date_start, event.date_end));
   let venueAddress  = $derived(getVenueAddress(event));
 
   // Map data — only when venue has coordinates
@@ -174,6 +233,7 @@
     switch (provider?.toLowerCase()) {
       case 'meetup':              return 'Meetup';
       case 'luma':                return 'Luma';
+      case 'eventbrite':          return 'Eventbrite';
       case 'classictic':          return 'Classictic';
       case 'berlin_philharmonic': return 'Berlin Philharmonic';
       case 'bachtrack':           return 'Bachtrack';
@@ -181,9 +241,30 @@
     }
   }
 
+  function getCtaPrefix(provider: string | undefined): 'register' | 'book' | 'open' {
+    const normalizedProvider = provider?.toLowerCase() || '';
+
+    if (['luma', 'eventbrite', 'meetup'].includes(normalizedProvider)) {
+      return 'register';
+    }
+
+    if (['classictic', 'berlin_philharmonic', 'bachtrack', 'ticketmaster', 'eventim', 'dice'].includes(normalizedProvider)) {
+      return 'book';
+    }
+
+    return 'open';
+  }
+
   let providerLabel  = $derived(getProviderLabel(event.provider));
-  // Uses existing open_on_provider i18n key: "Open on {provider}" (all 20 locales)
-  let openButtonText = $derived($text('embeds.open_on_provider').replace('{provider}', providerLabel));
+  let openButtonText = $derived.by(() => {
+    if (!providerLabel) return '';
+
+    const ctaPrefix = getCtaPrefix(event.provider);
+    if (ctaPrefix === 'register') return `Register on ${providerLabel}`;
+    if (ctaPrefix === 'book') return `Book on ${providerLabel}`;
+
+    return $text('embeds.open_on_provider').replace('{provider}', providerLabel);
+  });
 
   function handleOpenEvent() {
     if (event.url) window.open(event.url, '_blank', 'noopener,noreferrer');
@@ -228,21 +309,15 @@
     </div>
 
     <!-- Full date/time — show Today/Tomorrow label when applicable -->
-    {#if fullDateStart}
+    {#if dateTimeDisplay.lines.length > 0}
       <div class="event-section">
         <div class="section-label">Date & Time</div>
-        {#if relativeDayLabel === 'today'}
-          <div class="section-value date-relative">Today</div>
-          <div class="section-value secondary">{fullDateStart}</div>
-        {:else if relativeDayLabel === 'tomorrow'}
-          <div class="section-value date-relative">Tomorrow</div>
-          <div class="section-value secondary">{fullDateStart}</div>
-        {:else}
-          <div class="section-value">{fullDateStart}</div>
+        {#if dateTimeDisplay.relativeLabel}
+          <div class="section-value date-relative">{dateTimeDisplay.relativeLabel}</div>
         {/if}
-        {#if fullDateEnd}
-          <div class="section-value secondary">Ends {fullDateEnd}</div>
-        {/if}
+        {#each dateTimeDisplay.lines as dateTimeLine}
+          <div class="section-value">{dateTimeLine}</div>
+        {/each}
       </div>
     {/if}
 
@@ -369,11 +444,6 @@
     line-height: 1.5;
   }
 
-  .section-value.secondary {
-    font-size: 0.8125rem;
-    color: var(--color-grey-60);
-  }
-
   .venue-address {
     white-space: pre-line;
     font-size: 0.875rem;
@@ -385,10 +455,6 @@
     line-height: 1.65;
     white-space: pre-wrap;
     word-break: break-word;
-    max-height: 300px;
-    overflow-y: auto;
-    -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
-    mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
   }
 
   /* Today / Tomorrow label — larger than the regular date value */
