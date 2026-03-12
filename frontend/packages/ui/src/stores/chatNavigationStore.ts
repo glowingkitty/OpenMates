@@ -29,6 +29,7 @@ import {
   LEGAL_CHATS,
   getAllCommunityDemoChats,
   communityDemoStore,
+  loadCommunityDemos,
   translateDemoChat,
 } from "../demo_chats";
 import { convertDemoChatToChat } from "../demo_chats/convertToChat";
@@ -208,16 +209,28 @@ export function updateNavFromCache(activeChatId: string): void {
     _applyNavigableList(publicOnlyChats, activeChatId);
   }
 
-  // ── Case 3b: Active chat is a community demo that wasn't loaded yet ──────
-  // Community demos are fetched from the server asynchronously, so
-  // getAllCommunityDemoChats() may return [] on a cold boot (the network
-  // request is still in flight). If activeChatId was not found in the
-  // list we just built, subscribe to communityDemoStore for one update
-  // so that the nav arrows appear once the demos arrive.
-  const immediateFoundIdx = publicOnlyChats.findIndex(
-    (c) => c.chat_id === activeChatId,
-  );
-  if (immediateFoundIdx === -1) {
+  // If community demos are still empty on cold boot, proactively trigger the
+  // shared loader so example chats are available to header prev/next navigation
+  // even when Chats.svelte (sidebar) has never mounted.
+  const shouldBootstrapCommunityDemos =
+    communityChats.length === 0 &&
+    !communityDemoStore.isLoading() &&
+    !communityDemoStore.isCacheLoaded();
+  if (shouldBootstrapCommunityDemos) {
+    loadCommunityDemos().catch((error) => {
+      console.warn(
+        "[chatNavigationStore] Failed to bootstrap community demos for navigation:",
+        error,
+      );
+    });
+  }
+
+  // ── Case 3b: Community demos not loaded yet ───────────────────────────────
+  // Community demos are fetched asynchronously, so cold boot often starts with
+  // intro/legal only. Subscribe once and rebuild the navigation list when demos
+  // arrive, even if the active chat is already found in intro/legal.
+  // Without this, header prev/next can keep skipping examples until sidebar mount.
+  if (communityChats.length === 0) {
     const unsubscribeCommunity = communityDemoStore.subscribe(() => {
       // Skip if Chats.svelte has since mounted and taken ownership
       if (chatList.length > 0) {
