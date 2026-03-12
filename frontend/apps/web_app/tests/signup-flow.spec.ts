@@ -84,10 +84,19 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 		networkActivities.push(`[${timestamp}] >> ${request.method()} ${request.url()}`);
 	});
 
-	// Listen for network responses
-	page.on('response', (response: any) => {
+	// Listen for network responses (log body for auth endpoints to debug failures)
+	page.on('response', async (response: any) => {
 		const timestamp = new Date().toISOString();
-		networkActivities.push(`[${timestamp}] << ${response.status()} ${response.url()}`);
+		const url: string = response.url();
+		networkActivities.push(`[${timestamp}] << ${response.status()} ${url}`);
+		if (url.includes('/auth/') && response.status() < 500) {
+			try {
+				const body = await response.text();
+				networkActivities.push(`[${timestamp}]    body: ${body.slice(0, 300)}`);
+			} catch {
+				// ignore body read errors
+			}
+		}
 	});
 
 	test.slow();
