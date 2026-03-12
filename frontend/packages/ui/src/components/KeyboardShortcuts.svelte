@@ -1,6 +1,14 @@
 <script lang="ts">
+  /* eslint-disable no-console */
   import { onMount, createEventDispatcher } from 'svelte';
+  import { get } from 'svelte/store';
   import { isDesktop } from '../utils/platform';
+  import { panelState, isActivityHistoryOpen } from '../stores/panelStateStore';
+  import { openSearch } from '../stores/searchStore';
+
+  type WindowWithKeyboardShortcutsFlag = Window & {
+    __keyboardShortcutsListenerRegistered?: boolean;
+  };
 
   const dispatch = createEventDispatcher();
 
@@ -74,6 +82,18 @@
         console.info('[KeyboardShortcuts] Cmd/Ctrl+F detected (open search)');
         event.preventDefault();
         event.stopPropagation();
+
+        // Ensure the chats sidebar is open before activating search.
+        // This must happen at the global shortcut layer because Chats.svelte may be
+        // unmounted while the panel is closed (especially on mobile/small viewports).
+        if (!get(isActivityHistoryOpen)) {
+          panelState.toggleChats();
+        }
+
+        // Open search directly via store so search state is preserved even if
+        // Chats.svelte mounts after this keyboard event.
+        openSearch();
+
         dispatch('openSearch');
         window.dispatchEvent(new Event('openSearch'));
         return;
@@ -188,16 +208,17 @@
 
     // IMPORTANT: Only register the global listener ONCE, even if multiple KeyboardShortcuts components exist
     // Check if listener is already registered via a data attribute on window
-    if (!(window as any).__keyboardShortcutsListenerRegistered) {
+    const windowWithKeyboardShortcutsFlag = window as WindowWithKeyboardShortcutsFlag;
+    if (!windowWithKeyboardShortcutsFlag.__keyboardShortcutsListenerRegistered) {
       console.info('[KeyboardShortcuts] Registering global keyboard listener (first instance)');
       window.addEventListener('keydown', handleKeyDown, true);
-      (window as any).__keyboardShortcutsListenerRegistered = true;
+      windowWithKeyboardShortcutsFlag.__keyboardShortcutsListenerRegistered = true;
       
       return () => {
         // Only remove listener if this was the registering instance
         console.info('[KeyboardShortcuts] Removing global keyboard listener');
         window.removeEventListener('keydown', handleKeyDown, true);
-        (window as any).__keyboardShortcutsListenerRegistered = false;
+        windowWithKeyboardShortcutsFlag.__keyboardShortcutsListenerRegistered = false;
       };
     } else {
       console.debug('[KeyboardShortcuts] Global keyboard listener already registered, skipping duplicate');
