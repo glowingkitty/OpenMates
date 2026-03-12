@@ -226,6 +226,9 @@ frontend/packages/ui/src/i18n/locales/*.json
 
 # Generated app metadata (built from backend app.yml files)
 frontend/packages/ui/src/data/appsMetadata.ts
+frontend/packages/ui/src/data/embedRegistry.generated.ts
+frontend/packages/ui/src/data/modelsMetadata.ts
+frontend/packages/ui/src/data/providersMetadata.ts
 backend/core/api/logs/*.log.*
 
 # Test results (JSON files for manual inspection)
