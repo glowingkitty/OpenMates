@@ -98,7 +98,7 @@
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
-    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, translateDemoChat } from '../demo_chats'; // Import demo chat utilities
+    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, translateDemoChat, getAllCommunityDemoChats, communityDemoStore } from '../demo_chats'; // Import demo chat utilities
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
     import { incognitoChatService } from '../services/incognitoChatService'; // Import incognito chat service
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
@@ -2324,6 +2324,41 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         container.scrollLeft = Math.max(0, scrollTarget);
     }
 
+    /**
+     * Build the scrollable intro list for non-authenticated users.
+     * Combines static DEMO_CHATS (intro chats, excluding legal) with
+     * community demo chats loaded from the server, in that order.
+     * Returns Chat[] ready for rendering with the standard card components.
+     */
+    function loadNonAuthRecentChats(): RecentChatMeta[] {
+        // 1. Static intro chats (DEMO_CHATS = INTRO_CHATS, already excludes LEGAL_CHATS)
+        const introMetas: RecentChatMeta[] = DEMO_CHATS.map((demoChat) => {
+            const translated = translateDemoChat(demoChat);
+            const chat = convertDemoChatToChat(translated);
+            return {
+                chat,
+                title: translated.title ?? null,
+                category: translated.metadata.category ?? null,
+                icon: translated.metadata.icon_names?.[0] ?? null,
+                summary: translated.description ?? null,
+            };
+        });
+
+        // 2. Community demo chats (server-fetched, already Chat objects, no legal chats)
+        const communityMetas: RecentChatMeta[] = getAllCommunityDemoChats().map((chat) => ({
+            chat,
+            title: chat.title ?? null,
+            category: chat.category ?? null,
+            icon: chat.icon?.split(',')[0] ?? null,
+            summary: chat.chat_summary ?? null,
+        }));
+
+        return [...introMetas, ...communityMetas];
+    }
+
+    // State for non-authenticated users' intro + example chats scroll list
+    let nonAuthRecentChats = $state<RecentChatMeta[]>([]);
+
     // Refresh recent chats when welcome screen appears or auth/sync changes.
     // Reset the user-scroll guard each time fresh data is loaded so the newly
     // centred card is correct for the new data set.
@@ -2333,9 +2368,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         void $phasedSyncState.initialSyncCompleted;
         void $userProfile.last_opened;
         void $userProfile.total_chat_count;
-        if (!isWelcome || !isAuth) { recentChats = []; return; }
-        recentChatsScrolledByUser = false;
-        loadRecentChats().then(() => centerFirstRecentChat());
+        // Subscribe to communityDemoStore so this effect re-runs when demos load
+        void $communityDemoStore;
+        if (!isWelcome) {
+            recentChats = [];
+            nonAuthRecentChats = [];
+            return;
+        }
+        if (isAuth) {
+            nonAuthRecentChats = [];
+            recentChatsScrolledByUser = false;
+            loadRecentChats().then(() => centerFirstRecentChat());
+        } else {
+            recentChats = [];
+            recentChatsScrolledByUser = false;
+            nonAuthRecentChats = loadNonAuthRecentChats();
+            centerFirstRecentChat();
+        }
     });
 
     // Center when the scroll element or data first becomes available.
@@ -2344,6 +2393,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     $effect(() => {
         const el = recentChatsScrollEl;
         void recentChats.length;
+        void nonAuthRecentChats.length;
         void resumeChatData;
         if (!el) return;
 
@@ -3048,6 +3098,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     let recentChatTiltStates = $derived(
         recentChats.map(() => new RecentChatTiltState())
+    );
+
+    // Separate tilt state array for non-authenticated users' intro+example chats carousel
+    let nonAuthChatTiltStates = $derived(
+        nonAuthRecentChats.map(() => new RecentChatTiltState())
     );
 
     // ─── Height-based suggestions overlap detection ──────────────────────────
@@ -4849,30 +4904,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         window.dispatchEvent(globalSelectEvent);
 
         console.debug('[ActiveChat] Resume chat loaded and events dispatched');
-    }
-
-    /**
-     * Handler for opening the for-everyone intro chat from the new chat screen.
-     * Shown only to non-authenticated users so they can easily get back to the explainer intro (e.g. on mobile).
-     */
-    async function handleOpenIntroChat() {
-        const welcomeDemo = DEMO_CHATS.find((chat) => chat.chat_id === 'demo-for-everyone');
-        if (!welcomeDemo) {
-            console.warn('[ActiveChat] demo-for-everyone not found in DEMO_CHATS');
-            return;
-        }
-        const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
-        const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
-        phasedSyncState.markInitialChatLoaded();
-        activeChatStore.setActiveChat('demo-for-everyone');
-        await loadChat(welcomeChat);
-        const globalSelectEvent = new CustomEvent('globalChatSelected', {
-            bubbles: true,
-            composed: true,
-            detail: { chatId: 'demo-for-everyone' }
-        });
-        window.dispatchEvent(globalSelectEvent);
-        console.debug('[ActiveChat] Loaded demo-for-everyone from intro link');
     }
 
     // Note: handleDismissResumeChat removed – the resume card is always visible
@@ -8836,11 +8867,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             <span>{part}</span>{#if index < welcomeHeadingParts.length - 1}<br>{/if}
                                         {/each}
                                     </h2>
-                                    <!-- Subtitle: "Continue where you left off" when resume chat or recent chats, "Back to the intro" above for-everyone card for non-auth, else default prompt -->
+                                    <!-- Subtitle: "Continue where you left off" when resume chat or recent chats, "Explore OpenMates:" for non-auth scrollable list, else default prompt -->
                                     {#if resumeChatData || ($authStore.isAuthenticated && recentChats.length > 0)}
                                         <p>{$text('chats.resume_last_chat.title')}</p>
                                     {:else if !$authStore.isAuthenticated}
-                                        <p>{$text('chats.back_to_intro.title')}</p>
+                                        <p>{$text('chats.explore_openmates.title')}</p>
                                     {:else}
                                         <p>
                                             {#each welcomePromptParts as part, index}
@@ -9031,77 +9062,87 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         </button>
                                     {/if}
                                 </div>
-                            <!-- Same card as above, for non-auth: link to for-everyone chat (same design as "last chat" card) -->
-                            {:else if !$authStore.isAuthenticated}
-                                {@const gradientColors = getCategoryGradientColors('openmates_official')}
-                                {@const iconName = getValidIconName('sparkles', 'openmates_official')}
-                                {@const IconComponent = getLucideIcon(iconName)}
-                                {#if isTallViewport}
-                                    <!-- Tall viewport: large gradient card matching ChatEmbedPreview style -->
-                                    <button
-                                        bind:this={resumeLargeCardElement}
-                                        class="resume-chat-large-card"
-                                        class:hovering={isResumeLargeCardHovering}
-                                        style={getResumeLargeCardStyle(
-                                            gradientColors
-                                                ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})`
-                                                : 'background: var(--color-primary)',
-                                            gradientColors
-                                        )}
-                                        onclick={handleOpenIntroChat}
-                                        onmouseenter={handleResumeLargeCardMouseEnter}
-                                        onmousemove={handleResumeLargeCardMouseMove}
-                                        onmouseleave={handleResumeLargeCardMouseLeave}
-                                        type="button"
-                                    >
-                                        <!-- Living gradient orbs -->
-                                        <div class="resume-large-orbs" aria-hidden="true">
-                                            <div class="resume-orb resume-orb-1"></div>
-                                            <div class="resume-orb resume-orb-2"></div>
-                                            <div class="resume-orb resume-orb-3"></div>
-                                        </div>
-                                        {#if IconComponent}
-                                            <div class="resume-large-deco resume-large-deco-left">
-                                                <IconComponent size={80} color="white" />
-                                            </div>
-                                            <div class="resume-large-deco resume-large-deco-right">
-                                                <IconComponent size={80} color="white" />
-                                            </div>
-                                        {/if}
-                                        <div class="resume-large-content">
-                                            {#if IconComponent}
-                                                <div class="resume-large-icon">
-                                                    <IconComponent size={32} color="white" />
+                            <!-- Non-auth: scrollable list of intro + example chats (same card design as auth recent chats) -->
+                            {:else if !$authStore.isAuthenticated && nonAuthRecentChats.length > 0}
+                                <div
+                                    class="recent-chats-scroll-container"
+                                    bind:this={recentChatsScrollEl}
+                                >
+                                    {#each nonAuthRecentChats as meta, i (meta.chat.chat_id)}
+                                        {@const tilt = nonAuthChatTiltStates[i]}
+                                        {@const category = meta.category || 'general_knowledge'}
+                                        {@const gradientColors = getCategoryGradientColors(category)}
+                                        {@const iconName = getValidIconName(meta.icon || '', category)}
+                                        {@const IconComponent = getLucideIcon(iconName)}
+                                        {#if isTallViewport}
+                                            {@const bgStyle = gradientColors
+                                                ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end}); --orb-color-a: ${gradientColors.start}; --orb-color-b: ${gradientColors.end}`
+                                                : 'background: var(--color-primary); --orb-color-a: #4867cd; --orb-color-b: #a0beff'}
+                                            {@const cardStyle = tilt?.tiltTransform
+                                                ? `${bgStyle}; transform: ${tilt.tiltTransform}`
+                                                : bgStyle}
+                                            <button
+                                                bind:this={tilt.el}
+                                                class="resume-chat-large-card"
+                                                class:hovering={tilt?.hovering}
+                                                type="button"
+                                                style={cardStyle}
+                                                onclick={() => handleOpenRecentChat(meta.chat)}
+                                                onmouseenter={(e) => tilt?.onMouseEnter(e)}
+                                                onmousemove={(e) => tilt?.onMouseMove(e)}
+                                                onmouseleave={() => tilt?.onMouseLeave()}
+                                            >
+                                                <div class="resume-large-orbs" aria-hidden="true">
+                                                    <div class="resume-orb resume-orb-1"></div>
+                                                    <div class="resume-orb resume-orb-2"></div>
+                                                    <div class="resume-orb resume-orb-3"></div>
                                                 </div>
-                                            {/if}
-                                            <span class="resume-large-title">{$text('demo_chats.for_everyone.title')}</span>
-                                            <p class="resume-large-summary">{$text('demo_chats.for_everyone.description')}</p>
-                                        </div>
-                                    </button>
-                                {:else}
-                                    <!-- Compact card: short screens -->
-                                    {@const ChevronRight = getLucideIcon('chevron-right')}
-                                    <button 
-                                        class="resume-chat-card"
-                                        onclick={handleOpenIntroChat}
-                                        type="button"
-                                    >
-                                        <div 
-                                            class="resume-chat-category-circle"
-                                            style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
-                                        >
-                                            <div class="resume-chat-category-icon">
-                                                <IconComponent size={16} color="white" />
-                                            </div>
-                                        </div>
-                                        <div class="resume-chat-content">
-                                            <span class="resume-chat-title">{$text('demo_chats.for_everyone.title')}</span>
-                                        </div>
-                                        <div class="resume-chat-arrow">
-                                            <ChevronRight size={16} color="var(--color-grey-50)" />
-                                        </div>
-                                    </button>
-                                {/if}
+                                                {#if IconComponent}
+                                                    <div class="resume-large-deco resume-large-deco-left">
+                                                        <IconComponent size={80} color="white" />
+                                                    </div>
+                                                    <div class="resume-large-deco resume-large-deco-right">
+                                                        <IconComponent size={80} color="white" />
+                                                    </div>
+                                                {/if}
+                                                <div class="resume-large-content">
+                                                    {#if IconComponent}
+                                                        <div class="resume-large-icon">
+                                                            <IconComponent size={32} color="white" />
+                                                        </div>
+                                                    {/if}
+                                                    <span class="resume-large-title">{meta.title || $text('chat.untitled_chat')}</span>
+                                                    {#if meta.summary}
+                                                        <p class="resume-large-summary">{meta.summary}</p>
+                                                    {/if}
+                                                </div>
+                                            </button>
+                                        {:else}
+                                            <!-- Compact card for short viewports -->
+                                            {@const ChevronRight = getLucideIcon('chevron-right')}
+                                            <button
+                                                class="resume-chat-card"
+                                                onclick={() => handleOpenRecentChat(meta.chat)}
+                                                type="button"
+                                            >
+                                                <div
+                                                    class="resume-chat-category-circle"
+                                                    style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
+                                                >
+                                                    <div class="resume-chat-category-icon">
+                                                        <IconComponent size={16} color="white" />
+                                                    </div>
+                                                </div>
+                                                <div class="resume-chat-content">
+                                                    <span class="resume-chat-title">{meta.title || $text('chat.untitled_chat')}</span>
+                                                </div>
+                                                <div class="resume-chat-arrow">
+                                                    <ChevronRight size={16} color="var(--color-grey-50)" />
+                                                </div>
+                                            </button>
+                                        {/if}
+                                    {/each}
+                                </div>
                             {/if}
                         </div>
                     {/if}
