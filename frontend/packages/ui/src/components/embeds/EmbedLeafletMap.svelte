@@ -89,6 +89,7 @@
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let leafletMap: any = null;
   let mapResizeObserver: ResizeObserver | null = null;
+  let appliedCenterPanX = 0;
 
   function getEffectiveCenterOffsetX(): number {
     if (!mapContainer) return 0;
@@ -100,8 +101,11 @@
   function applyCenterOffset() {
     if (!leafletMap) return;
     const effectiveOffsetX = getEffectiveCenterOffsetX();
-    if (effectiveOffsetX === 0) return;
-    leafletMap.panBy([effectiveOffsetX, 0], { animate: false });
+    const targetPanX = -effectiveOffsetX;
+    const deltaPanX = targetPanX - appliedCenterPanX;
+    if (deltaPanX === 0) return;
+    leafletMap.panBy([deltaPanX, 0], { animate: false });
+    appliedCenterPanX = targetPanX;
   }
 
   async function initLeafletMap() {
@@ -199,6 +203,7 @@
     if (leafletMap) {
       try { leafletMap.remove(); } catch { /* ignore */ }
       leafletMap = null;
+      appliedCenterPanX = 0;
     }
   });
 </script>
