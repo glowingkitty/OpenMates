@@ -2265,6 +2265,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     };
     let recentChats = $state<RecentChatMeta[]>([]);
     let recentChatsScrollEl = $state<HTMLElement | null>(null);
+    // Set to true the first time the user manually scrolls the carousel so
+    // that reactive effects don't snap it back to the initial position.
+    let recentChatsScrolledByUser = false;
     const RECENT_CHATS_LIMIT = 10;
 
     /**
@@ -2321,7 +2324,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         container.scrollLeft = Math.max(0, scrollTarget);
     }
 
-    // Refresh recent chats when welcome screen appears or auth/sync changes
+    // Refresh recent chats when welcome screen appears or auth/sync changes.
+    // Reset the user-scroll guard each time fresh data is loaded so the newly
+    // centred card is correct for the new data set.
     $effect(() => {
         const isWelcome = showWelcome;
         const isAuth = $authStore.isAuthenticated;
@@ -2329,15 +2334,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         void $userProfile.last_opened;
         void $userProfile.total_chat_count;
         if (!isWelcome || !isAuth) { recentChats = []; return; }
+        recentChatsScrolledByUser = false;
         loadRecentChats().then(() => centerFirstRecentChat());
     });
 
-    // Also center when scroll element becomes available
+    // Center when the scroll element or data first becomes available.
+    // Attach a one-shot scroll listener so we stop auto-centering once the
+    // user has intentionally swiped the carousel (prevents snap-back).
     $effect(() => {
-        void recentChatsScrollEl;
+        const el = recentChatsScrollEl;
         void recentChats.length;
         void resumeChatData;
-        centerFirstRecentChat();
+        if (!el) return;
+
+        if (!recentChatsScrolledByUser) {
+            centerFirstRecentChat();
+        }
+
+        function onUserScroll() {
+            recentChatsScrolledByUser = true;
+            el!.removeEventListener('scroll', onUserScroll);
+        }
+        el.addEventListener('scroll', onUserScroll, { passive: true });
+        return () => el.removeEventListener('scroll', onUserScroll);
     });
 
     /**
@@ -10561,9 +10580,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         align-items: center;
     }
 
-    /* Adjust welcome content position for narrow containers */
+    /* Adjust welcome content position for narrow containers —
+       extra offset avoids collision with the action buttons in the top-left. */
     .active-chat-container.narrow .center-content {
-        top: calc(50% + 30px);
+        top: calc(50% + 80px);
     }
 
     .team-profile {
@@ -10683,16 +10703,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         scroll-behavior: smooth;
         scrollbar-width: none;
         -ms-overflow-style: none;
-        /* Left padding = half viewport minus half card width (300/2=150)
-           so the first card starts centered in the viewport. */
-        padding: 12px 48px 12px calc(50vw - 150px);
-        margin-top: 10px;
+        /* Left padding = half container width minus half card width (300/2=150)
+           so the first card starts centred relative to the chat-wrapper. */
+        padding: 12px 48px 12px calc(50% - 150px);
         pointer-events: auto;
-        width: 100vw;
-        max-width: 100vw;
-        position: relative;
-        left: 50%;
-        transform: translateX(-50%);
+        width: 100%;
+        max-width: 100%;
     }
 
     .recent-chats-scroll-container::-webkit-scrollbar {
