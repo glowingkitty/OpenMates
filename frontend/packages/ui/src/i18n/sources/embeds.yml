@@ -4136,6 +4136,31 @@ image_search.error_title:
   he: החיפוש נכשל
   verified_by_human: []
 
+reviews:
+  context: Label shown after a numeric count of user ratings for a place (e.g. "1,234 reviews")
+  en: reviews
+  de: Bewertungen
+  zh: 条评价
+  es: reseñas
+  fr: avis
+  pt: avaliações
+  ru: отзывов
+  ja: 件のレビュー
+  ko: 리뷰
+  it: recensioni
+  tr: değerlendirme
+  vi: đánh giá
+  id: ulasan
+  pl: opinii
+  nl: beoordelingen
+  ar: تقييم
+  hi: समीक्षाएं
+  th: รีวิว
+  cs: hodnocení
+  sv: recensioner
+  he: ביקורות
+  verified_by_human: []
+
 image_search.more_results:
   context: Text shown after a count of remaining image search results not displayed (e.g. "+ 5 more")
   en: more
