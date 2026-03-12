@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable no-console */
 	import {
 		// components
 		Chats,
@@ -77,6 +78,7 @@
 	let deepLinkProcessed = $state(false); // Track if any deep link was processed during onMount to avoid loading welcome chat
 	let pendingDeepLinkHandler: ((event: Event) => void) | null = null; // Store event handler for cleanup
 	let bfcacheRestoreHandler: ((event: PageTransitionEvent) => void) | null = null; // Store BFCache restore handler for cleanup
+	let globalOpenSearchShortcutHandler: ((event: KeyboardEvent) => void) | null = null; // Persistent Cmd/Ctrl+F handler
 	let hasAutoOpenedGiftCardRedeemAfterAuth = $state(false);
 
 	function openGiftCardRedeemSettings(): void {
@@ -791,6 +793,34 @@
 
 	onMount(async () => {
 		console.debug('[+page.svelte] onMount started');
+
+		// Persistent Cmd/Ctrl+F interceptor at page level.
+		// Chats.svelte is conditionally mounted, so its KeyboardShortcuts instance can be
+		// unavailable while the sidebar is closed. Keeping this at page level guarantees we
+		// always intercept browser find and open in-app sidebar search instead.
+		const handleGlobalOpenSearchShortcut = (event: KeyboardEvent) => {
+			const isMac = navigator.platform.toUpperCase().includes('MAC');
+			const isCmdOrCtrlPressed = isMac ? event.metaKey : event.ctrlKey;
+			if (!isCmdOrCtrlPressed || event.key.toLowerCase() !== 'f') {
+				return;
+			}
+
+			event.preventDefault();
+			event.stopPropagation();
+			event.stopImmediatePropagation();
+
+			panelState.openChats();
+
+			// Wait for sidebar mount before firing openSearch so Chats.svelte has attached
+			// its listener even when it was initially unmounted.
+			requestAnimationFrame(() => {
+				requestAnimationFrame(() => {
+					window.dispatchEvent(new Event('openSearch'));
+				});
+			});
+		};
+		globalOpenSearchShortcutHandler = handleGlobalOpenSearchShortcut;
+		window.addEventListener('keydown', handleGlobalOpenSearchShortcut, true);
 
 		// --- Pair session rehydration ---
 		// Restores pair-session state (restricted mode, auto-logout timer) that may have been
@@ -1971,6 +2001,9 @@
 		// Remove BFCache restore handler
 		if (bfcacheRestoreHandler) {
 			window.removeEventListener('pageshow', bfcacheRestoreHandler);
+		}
+		if (globalOpenSearchShortcutHandler) {
+			window.removeEventListener('keydown', globalOpenSearchShortcutHandler, true);
 		}
 		// Note: hashchange, visibilitychange, and beforeunload handlers are cleaned up automatically on page unload
 	});
