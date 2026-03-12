@@ -291,7 +291,7 @@ run_pytest() {
       done
       [[ "$found" == "false" ]] && continue
     fi
-    unit_args+=("tests/$t")
+    unit_args+=("backend/tests/$t")
   done
 
   if [[ ${#unit_args[@]} -eq 0 ]]; then
@@ -380,7 +380,7 @@ print(f'  Unit: {passed} passed, {failed} failed ({dur}s)')
         done
         [[ "$found" == "false" ]] && continue
       fi
-      integ_args+=("tests/$t")
+      integ_args+=("backend/tests/$t")
     done
 
     if [[ ${#integ_args[@]} -eq 0 ]]; then

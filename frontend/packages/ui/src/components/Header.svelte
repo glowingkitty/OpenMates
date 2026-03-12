@@ -166,7 +166,7 @@
                     // Use server_edition from request-based validation (includes "development" for dev subdomains)
                     // server_edition can be: "production" | "development" | "self_hosted"
                     serverEdition = status.server_edition || null;
-                    console.log(`[Header] Server edition: ${serverEdition}, domain: ${status.domain || 'localhost'}, is_self_hosted: ${status.is_self_hosted}`);
+                    // server_edition detection logged for debugging: production | development | self_hosted
                 }
             } catch (error) {
                 console.error('[Header] Error fetching server status:', error);
@@ -268,7 +268,7 @@
                                 onkeydown={(e) => {
                                     if (e.key === 'Enter' || e.key === ' ') {
                                         e.preventDefault();
-                                        handleLogoClick(e as any);
+                                        handleLogoClick(e as unknown as MouseEvent);
                                     }
                                 }}
                             >
@@ -339,8 +339,8 @@
                         class="login-signup-button"
                         onclick={(e) => {
                             e.preventDefault();
-                            // Dispatch event to open signup interface
-                            window.dispatchEvent(new CustomEvent('openSignupInterface'));
+                            // Dispatch event to open login interface (which includes Login/Sign up tabs)
+                            window.dispatchEvent(new CustomEvent('openLoginInterface'));
                         }}
                         aria-label={loginButtonText}
                     >
