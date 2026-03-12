@@ -79,6 +79,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
 from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, validate_username
 from backend.core.api.app.routes.auth_routes.auth_login import finalize_login_session
 from backend.core.api.app.routes.auth_routes.auth_common import verify_authenticated_user
+from backend.core.api.app.services.directus.user.user_lookup import hash_username
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.models.user import User
 # Import Celery app instance for cache warming tasks
@@ -914,7 +915,7 @@ async def passkey_registration_complete(
                 )
 
             # Check username uniqueness server-wide (case-insensitive via SHA-256 hash)
-            hashed_username = directus_service.hash_username(complete_request.username)
+            hashed_username = hash_username(complete_request.username)
             username_taken, _, _ = await directus_service.get_user_by_hashed_username(hashed_username)
             if username_taken:
                 logger.warning("Passkey signup rejected: username already taken")

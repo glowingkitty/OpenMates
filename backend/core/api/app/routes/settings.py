@@ -18,6 +18,7 @@ from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service, get_current_user, get_encryption_service, get_current_user_or_api_key, get_current_user_optional
 from backend.core.api.app.routes.auth_routes.auth_utils import validate_username
+from backend.core.api.app.services.directus.user.user_lookup import hash_username
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
@@ -384,7 +385,7 @@ async def update_username(
 
     # Check username uniqueness server-wide (case-insensitive via SHA-256 hash).
     # exclude_user_id ensures that keeping the same username is allowed (not a conflict).
-    hashed_username = directus_service.hash_username(new_username)
+    hashed_username = hash_username(new_username)
     username_taken, _, _ = await directus_service.get_user_by_hashed_username(
         hashed_username, exclude_user_id=user_id
     )
