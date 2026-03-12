@@ -1445,7 +1445,7 @@ resume_last_chat.start_new:
   he: "או להתחיל צ\\'אט חדש"
   verified_by_human: []
 
-back_to_intro.title:
+ back_to_intro.title:
   context: Subtitle above the "OpenMates | For everyone" link card on new chat screen for non-authenticated users
   en: Back to the intro
   de: Zurück zur Einführung
@@ -1470,7 +1470,32 @@ back_to_intro.title:
   he: חזרה למבוא
   verified_by_human: []
 
-context_menu.credits:
+ explore_openmates.title:
+  context: Subtitle above the scrollable intro+example chats carousel on the welcome screen for non-authenticated users
+  en: Explore OpenMates:
+  de: OpenMates entdecken:
+  zh: 探索 OpenMates：
+  es: Explora OpenMates:
+  fr: Découvrez OpenMates :
+  pt: Explorar OpenMates:
+  ru: Исследуйте OpenMates:
+  ja: OpenMates を探索：
+  ko: OpenMates 탐색:
+  it: Esplora OpenMates:
+  tr: OpenMates'i keşfet:
+  vi: Khám phá OpenMates:
+  id: Jelajahi OpenMates:
+  pl: Odkryj OpenMates:
+  nl: Verken OpenMates:
+  ar: استكشف OpenMates:
+  hi: OpenMates देखें:
+  th: สำรวจ OpenMates:
+  cs: Prozkoumejte OpenMates:
+  sv: Utforska OpenMates:
+  he: גלה את OpenMates:
+  verified_by_human: []
+
+ context_menu.credits:
   context: Label shown next to the credit amount in chat/message context menus (e.g. "1.234 credits")
   en: credits
   de: Credits
