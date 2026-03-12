@@ -3335,7 +3335,7 @@
      */
     async function handleSketchCaptured(event: CustomEvent<{ blob: Blob }>) {
         const { blob } = event.detail;
-        const file = new File([blob], `sketch_${Date.now()}.png`, { type: 'image/png' });
+        const file = new File([blob], `sketch_${Date.now()}.jpg`, { type: 'image/jpeg' });
         showSketch = false;
         await tick();
         await insertImage(editor, file, false, undefined, undefined, $authStore.isAuthenticated);

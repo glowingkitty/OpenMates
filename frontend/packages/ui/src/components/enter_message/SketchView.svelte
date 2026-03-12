@@ -2,17 +2,23 @@
      Drawing canvas overlay for the message input field.
      Architecture: mirrors CameraView / MapsView — fills the .message-field container
      (which grows to 400px when showSketch is true in MessageInput.svelte) via
-     `position: absolute; inset: 0`. Dispatches 'sketchcaptured' with a PNG Blob when
+     `position: absolute; inset: 0`. Dispatches 'sketchcaptured' with a JPEG Blob when
      the user clicks "Done", and 'close' when dismissed.
+
+     The canvas always has a white background. A CSS dot-grid overlay (canvas-wrapper
+     ::before pseudo-element) provides scale reference while drawing; it is NOT part of
+     the exported image. A ResizeObserver watches the wrapper so fitCanvas() re-runs
+     whenever the message-field expands (e.g. fullscreen expand button) — same as MapsView
+     which calls map.invalidateSize() on container resize.
 
      Future plans (not yet implemented):
        - Save the drawing as a "sketch" embed type that can be re-opened and edited.
-       - For now, the canvas is exported as a plain PNG image (same pipeline as camera photos).
+       - For now, the canvas is exported as a plain JPEG image (same pipeline as camera photos).
 
      See: docs/architecture/message-input-field.md for overlay conventions.
 -->
 <script lang="ts">
-    import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+    import { createEventDispatcher, onMount, onDestroy, tick } from 'svelte';
     import { slide } from 'svelte/transition';
     import { tooltip } from '../../actions/tooltip';
     import { text } from '@repo/ui';
@@ -45,6 +51,10 @@
     let lastPanX = 0;
     let lastPanY = 0;
 
+    // ResizeObserver watching the canvas wrapper so fitCanvas() re-runs when the
+    // message-field expands or collapses (e.g. fullscreen expand button).
+    let wrapperResizeObserver: ResizeObserver | null = null;
+
     // Canvas logical resolution (pixels the user draws on)
     const CANVAS_W = 1200;
     const CANVAS_H = 900;
@@ -59,23 +69,35 @@
     const WIDTH_PRESETS = [2, 5, 10, 20] as const;
 
     // ─── Lifecycle ───────────────────────────────────────────────────────────
-    onMount(() => {
+    onMount(async () => {
         if (!canvas) return;
         ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        // Fill white background so PNG export has a solid background
+        // Fill white background so JPEG export has a solid background (JPEG has no alpha).
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+        // Wait one tick so the overlay has been laid out and the wrapper has real dimensions.
+        await tick();
 
         // Initial fit-to-container transform
         fitCanvas();
 
-        // Handle resize
+        // Watch the wrapper for size changes caused by the message-field expand button or
+        // any other container resize, mirroring how MapsView calls map.invalidateSize().
+        const wrapper = canvas.parentElement;
+        if (wrapper) {
+            wrapperResizeObserver = new ResizeObserver(() => { fitCanvas(); });
+            wrapperResizeObserver.observe(wrapper);
+        }
+
+        // Also handle viewport (window) resize as a fallback
         window.addEventListener('resize', fitCanvas);
     });
 
     onDestroy(() => {
+        wrapperResizeObserver?.disconnect();
         window.removeEventListener('resize', fitCanvas);
     });
 
@@ -285,8 +307,12 @@
 
     // ─── Done / export ───────────────────────────────────────────────────────
     /**
-     * Export the canvas as a PNG Blob and dispatch 'sketchcaptured'.
+     * Export the canvas as a JPEG Blob and dispatch 'sketchcaptured'.
      * The caller (MessageInput) passes the blob to insertImage() — same path as camera photo.
+     *
+     * The canvas already has a white background fill (set on mount and on clearCanvas),
+     * so the JPEG (which has no alpha channel) will always have a clean white base.
+     * The dot-grid overlay is CSS-only on the wrapper element and is NOT part of the export.
      *
      * Future: dispatch the ImageData / base64 string alongside a unique sketch ID so
      * the sketch can be saved as a dedicated "sketch" embed type that the user can
@@ -296,12 +322,12 @@
         if (!canvas) return;
         canvas.toBlob((blob) => {
             if (!blob) {
-                console.error('[SketchView] Failed to export canvas as PNG blob');
+                console.error('[SketchView] Failed to export canvas as JPEG blob');
                 return;
             }
             dispatch('sketchcaptured', { blob });
             dispatch('close');
-        }, 'image/png');
+        }, 'image/jpeg', 0.92);
     }
 
     function handleClose() {
@@ -482,23 +508,36 @@
         overflow: hidden;
     }
 
-    /* Scrollable drawing surface */
+    /* Scrollable drawing surface — white background matches the canvas.
+       The dot grid is rendered as a ::before pseudo-element on the wrapper so it is
+       purely cosmetic (gives a sense of scale when zooming) and is NOT part of the
+       exported JPEG (which comes directly from the canvas element). */
     .canvas-wrapper {
         flex: 1;
         position: relative;
         overflow: hidden;
-        background: #E8E8E8;
-        background-image:
-            linear-gradient(rgba(0,0,0,0.07) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0,0,0,0.07) 1px, transparent 1px);
-        background-size: 20px 20px;
+        background: #FFFFFF;
         cursor: crosshair;
+    }
+
+    /* Dot grid overlay — dots scale with the CSS background-size so they always feel
+       evenly spaced relative to the visible canvas area. Not exported. */
+    .canvas-wrapper::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background-image: radial-gradient(circle, rgba(0,0,0,0.18) 1px, transparent 1px);
+        background-size: 24px 24px;
+        z-index: 0;
     }
 
     .sketch-canvas {
         position: absolute;
         top: 0;
         left: 0;
+        /* Sit above the ::before dot-grid overlay */
+        z-index: 1;
         box-shadow: 0 4px 20px rgba(0,0,0,0.2);
         touch-action: none; /* prevent browser scroll/zoom while drawing */
     }
@@ -732,18 +771,18 @@
         cursor: not-allowed;
     }
 
-    /* Dark mode — respect system preference */
+    /* Dark mode — respect system preference.
+       The canvas itself always stays white (sketch is always on a white background)
+       but the surrounding chrome (overlay bg, toolbar) adapts to dark mode. */
     @media (prefers-color-scheme: dark) {
         .sketch-overlay {
             background: #1C1C1E;
         }
 
-        .canvas-wrapper {
-            background: #2C2C2E;
-            background-image:
-                linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
-            background-size: 20px 20px;
+        /* Canvas wrapper stays white — the sketch surface is always white.
+           The dot-grid dots are slightly more visible on white in dark mode. */
+        .canvas-wrapper::before {
+            background-image: radial-gradient(circle, rgba(0,0,0,0.22) 1px, transparent 1px);
         }
 
         .sketch-toolbar {
