@@ -291,7 +291,7 @@ OpenMates uses **semantic versioning** in the format `vMAJOR.MINOR.PATCH-phase`:
 | Beta   | `v1.0.0-beta`  | Core features complete; usable for a wider audience; known bugs being fixed             |
 | Stable | `v1.0.0`       | Production-ready; all major user flows work reliably                                    |
 
-**Current phase:** Alpha — the app is currently at **v0.5 alpha** (user-facing version string). The next release tag should be `v0.6.0-alpha` (or a patch like `v0.5.1-alpha` for fix-only releases).
+**Current phase:** Alpha — the app is currently at **v0.6 alpha** (user-facing version string). The next release tag should be `v0.7.0-alpha` (or a patch like `v0.6.1-alpha` for fix-only releases).
 
 **How to bump the version:**
 
